@@ -756,6 +756,11 @@ int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
               EC_R_INCOMPATIBLE_OBJECTS);
         return 0;
     }
+    if (EC_POINT_is_at_infinity(group, point)) {
+        ECerr(EC_F_EC_POINT_GET_AFFINE_COORDINATES_GFP,
+              EC_R_POINT_AT_INFINITY);
+        return 0;
+    }
     return group->meth->point_get_affine_coordinates(group, point, x, y, ctx);
 }
 
@@ -772,6 +777,11 @@ int EC_POINT_get_affine_coordinates_GF2m(const EC_GROUP *group,
     if (!ec_point_is_compat(point, group)) {
         ECerr(EC_F_EC_POINT_GET_AFFINE_COORDINATES_GF2M,
               EC_R_INCOMPATIBLE_OBJECTS);
+        return 0;
+    }
+    if (EC_POINT_is_at_infinity(group, point)) {
+        ECerr(EC_F_EC_POINT_GET_AFFINE_COORDINATES_GF2M,
+              EC_R_POINT_AT_INFINITY);
         return 0;
     }
     return group->meth->point_get_affine_coordinates(group, point, x, y, ctx);
@@ -1006,4 +1016,22 @@ int ec_group_simple_order_bits(const EC_GROUP *group)
     if (group->order == NULL)
         return 0;
     return BN_num_bits(group->order);
+}
+
+/*-
+ * Coordinate blinding for EC_POINT.
+ *
+ * The underlying EC_METHOD can optionally implement this function:
+ * underlying implementations should return 0 on errors, or 1 on
+ * success.
+ *
+ * This wrapper returns 1 in case the underlying EC_METHOD does not
+ * support coordinate blinding.
+ */
+int ec_point_blind_coordinates(const EC_GROUP *group, EC_POINT *p, BN_CTX *ctx)
+{
+    if (group->meth->blind_coordinates == NULL)
+        return 1; /* ignore if not implemented */
+
+    return group->meth->blind_coordinates(group, p, ctx);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2010-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -290,7 +290,8 @@ const EC_METHOD *EC_GFp_nistp224_method(void)
         ec_key_simple_generate_public_key,
         0, /* keycopy */
         0, /* keyfinish */
-        ecdh_simple_compute_key
+        ecdh_simple_compute_key,
+        0  /* blind_coordinates */
     };
 
     return &ret;

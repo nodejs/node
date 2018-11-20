@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -275,7 +275,6 @@ static int rand_bytes(unsigned char *buf, int num, int pseudo)
     static volatile int stirred_pool = 0;
     int i, j, k;
     size_t num_ceil, st_idx, st_num;
-    int ok;
     long md_c[2];
     unsigned char local_md[MD_DIGEST_LENGTH];
     EVP_MD_CTX *m;
@@ -362,14 +361,13 @@ static int rand_bytes(unsigned char *buf, int num, int pseudo)
 
     if (!initialized) {
         RAND_poll();
-        initialized = 1;
+        initialized = (entropy >= ENTROPY_NEEDED);
     }
 
     if (!stirred_pool)
         do_stir_pool = 1;
 
-    ok = (entropy >= ENTROPY_NEEDED);
-    if (!ok) {
+    if (!initialized) {
         /*
          * If the PRNG state is not yet unpredictable, then seeing the PRNG
          * output may help attackers to determine the new state; thus we have
@@ -408,7 +406,7 @@ static int rand_bytes(unsigned char *buf, int num, int pseudo)
             rand_add(DUMMY_SEED, MD_DIGEST_LENGTH, 0.0);
             n -= MD_DIGEST_LENGTH;
         }
-        if (ok)
+        if (initialized)
             stirred_pool = 1;
     }
 
@@ -500,7 +498,7 @@ static int rand_bytes(unsigned char *buf, int num, int pseudo)
     CRYPTO_THREAD_unlock(rand_lock);
 
     EVP_MD_CTX_free(m);
-    if (ok)
+    if (initialized)
         return (1);
     else if (pseudo)
         return 0;

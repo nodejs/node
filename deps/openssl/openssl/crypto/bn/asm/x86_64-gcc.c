@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -63,12 +63,6 @@
  *    very much like 64-bit code compiled with no-asm on the same
  *    machine.
  */
-
-# if defined(_WIN64) || !defined(__LP64__)
-#  define BN_ULONG unsigned long long
-# else
-#  define BN_ULONG unsigned long
-# endif
 
 # undef mul
 # undef mul_add

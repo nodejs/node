@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -92,7 +92,6 @@ typedef struct ocsp_resp_bytes_st OCSP_RESPBYTES;
 #  define V_OCSP_RESPID_KEY  1
 
 DEFINE_STACK_OF(OCSP_RESPID)
-DECLARE_ASN1_FUNCTIONS(OCSP_RESPID)
 
 typedef struct ocsp_revoked_info_st OCSP_REVOKEDINFO;
 
@@ -159,8 +158,6 @@ int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const ASN1_ITEM *it,
 int OCSP_REQ_CTX_nbio_d2i(OCSP_REQ_CTX *rctx, ASN1_VALUE **pval,
                           const ASN1_ITEM *it);
 BIO *OCSP_REQ_CTX_get0_mem_bio(OCSP_REQ_CTX *rctx);
-int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const ASN1_ITEM *it,
-                     ASN1_VALUE *val);
 int OCSP_REQ_CTX_http(OCSP_REQ_CTX *rctx, const char *op, const char *path);
 int OCSP_REQ_CTX_set1_req(OCSP_REQ_CTX *rctx, OCSP_REQUEST *req);
 int OCSP_REQ_CTX_add1_header(OCSP_REQ_CTX *rctx,
@@ -194,6 +191,8 @@ int OCSP_response_status(OCSP_RESPONSE *resp);
 OCSP_BASICRESP *OCSP_response_get1_basic(OCSP_RESPONSE *resp);
 
 const ASN1_OCTET_STRING *OCSP_resp_get0_signature(const OCSP_BASICRESP *bs);
+const X509_ALGOR *OCSP_resp_get0_tbs_sigalg(const OCSP_BASICRESP *bs);
+const OCSP_RESPDATA *OCSP_resp_get0_respdata(const OCSP_BASICRESP *bs);
 int OCSP_resp_get0_signer(OCSP_BASICRESP *bs, X509 **signer,
                           STACK_OF(X509) *extra_certs);
 

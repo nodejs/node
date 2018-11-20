@@ -223,7 +223,7 @@ EVP_MD_CTX_copy_ex() because they can efficiently reuse a digest context
 instead of initializing and cleaning it up on each call and allow non default
 implementations of digests to be specified.
 
-If digest contexts are not cleaned up after use
+If digest contexts are not cleaned up after use,
 memory leaks will occur.
 
 EVP_MD_CTX_size(), EVP_MD_CTX_block_size(), EVP_MD_CTX_type(),

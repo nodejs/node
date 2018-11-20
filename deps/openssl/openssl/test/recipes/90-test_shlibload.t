@@ -6,8 +6,7 @@
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
-
-use OpenSSL::Test qw/:DEFAULT bldtop_dir/;
+use OpenSSL::Test qw/:DEFAULT bldtop_dir bldtop_file/;
 use OpenSSL::Test::Utils;
 
 #Load configdata.pm
@@ -22,12 +21,13 @@ plan skip_all => "Test only supported in a shared build" if disabled("shared");
 
 plan tests => 4;
 
-my $libcrypto_idx = $unified_info{rename}->{libcrypto} // "libcrypto";
-my $libssl_idx = $unified_info{rename}->{libssl} // "libssl";
-my $libcrypto =
-    $unified_info{sharednames}->{$libcrypto_idx}.$target{shared_extension_simple};
-my $libssl =
-    $unified_info{sharednames}->{$libssl_idx}.$target{shared_extension_simple};
+# When libssl and libcrypto are compiled on Linux with "-rpath", but not
+# "--enable-new-dtags", the RPATH takes precedence over LD_LIBRARY_PATH,
+# and we end up running with the wrong libraries.  This is resolved by
+# using paths to the shared objects, not just the names.
+
+my $libcrypto = bldtop_file(shlib('libcrypto'));
+my $libssl = bldtop_file(shlib('libssl'));
 
 ok(run(test(["shlibloadtest", "-crypto_first", $libcrypto, $libssl])),
    "running shlibloadtest -crypto_first");
@@ -38,3 +38,14 @@ ok(run(test(["shlibloadtest", "-just_crypto", $libcrypto, $libssl])),
 ok(run(test(["shlibloadtest", "-dso_ref", $libcrypto, $libssl])),
    "running shlibloadtest -dso_ref");
 
+sub shlib {
+    my $lib = shift;
+    $lib = $unified_info{rename}->{$lib}
+        if defined $unified_info{rename}->{$lib};
+    $lib = $unified_info{sharednames}->{$lib}
+        . ($target{shlib_variant} || "")
+        . ($target{shared_extension} || ".so");
+    $lib =~ s|\.\$\(SHLIB_MAJOR\)\.\$\(SHLIB_MINOR\)
+             |.$config{shlib_version_number}|x;
+    return $lib;
+}

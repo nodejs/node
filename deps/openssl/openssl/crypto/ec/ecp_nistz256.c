@@ -1536,7 +1536,8 @@ const EC_METHOD *EC_GFp_nistz256_method(void)
         ec_key_simple_generate_public_key,
         0, /* keycopy */
         0, /* keyfinish */
-        ecdh_simple_compute_key
+        ecdh_simple_compute_key,
+        0                                           /* blind_coordinates */
     };
 
     return &ret;

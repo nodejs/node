@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,8 @@ int main(int argc, char **argv)
 {
 #if defined(OPENSSL_SYS_LINUX) || defined(OPENSSL_SYS_UNIX)
     char *p = NULL, *q = NULL, *r = NULL, *s = NULL;
+    int i;
+    const int size = 64;
 
     s = OPENSSL_secure_malloc(20);
     /* s = non-secure 20 */
@@ -124,6 +126,48 @@ int main(int argc, char **argv)
     if (!CRYPTO_secure_malloc_init(16, 16) &&
         CRYPTO_secure_malloc_initialized()) {
         CRYPTO_secure_malloc_done();
+        perror_line();
+        return 1;
+    }
+
+    if (!CRYPTO_secure_malloc_init(32768, 16)) {
+        perror_line();
+        return 1;
+    }
+
+    /*
+     * Verify that secure memory gets zeroed properly.
+     */
+    if ((p = OPENSSL_secure_malloc(size)) == NULL) {
+        perror_line();
+        return 1;
+    }
+    for (i = 0; i < size; i++)
+        if (p[i] != 0) {
+            perror_line();
+            fprintf(stderr, "iteration %d\n", i);
+            return 1;
+        }
+
+    for (i = 0; i < size; i++)
+        p[i] = (unsigned char)(i + ' ' + 1);
+    OPENSSL_secure_free(p);
+
+    /*
+     * A deliberate use after free here to verify that the memory has been
+     * cleared properly.  Since secure free doesn't return the memory to
+     * libc's memory pool, it technically isn't freed.  However, the header
+     * bytes have to be skipped and these consist of two pointers in the
+     * current implementation.
+     */
+    for (i = sizeof(void *) * 2; i < size; i++)
+        if (p[i] != 0) {
+            perror_line();
+            fprintf(stderr, "iteration %d\n", i);
+            return 1;
+        }
+
+    if (!CRYPTO_secure_malloc_done()) {
         perror_line();
         return 1;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1424,6 +1424,7 @@ int ERR_load_EC_strings(void);
 # define EC_F_EC_GFP_NIST_FIELD_MUL                       200
 # define EC_F_EC_GFP_NIST_FIELD_SQR                       201
 # define EC_F_EC_GFP_NIST_GROUP_SET_CURVE                 202
+# define EC_F_EC_GFP_SIMPLE_BLIND_COORDINATES             287
 # define EC_F_EC_GFP_SIMPLE_GROUP_CHECK_DISCRIMINANT      165
 # define EC_F_EC_GFP_SIMPLE_GROUP_SET_CURVE               166
 # define EC_F_EC_GFP_SIMPLE_MAKE_AFFINE                   102

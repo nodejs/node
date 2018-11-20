@@ -58,9 +58,9 @@ RSA_meth_set_verify, RSA_meth_get_keygen, RSA_meth_set_keygen
                                             int padding));
      /* Can be null */
  int (*RSA_meth_get_mod_exp(const RSA_METHOD *meth))
-     (BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx);
+     (BIGNUM *r0, const BIGNUM *i, RSA *rsa, BN_CTX *ctx);
  int RSA_meth_set_mod_exp(RSA_METHOD *rsa,
-                          int (*mod_exp) (BIGNUM *r0, const BIGNUM *I, RSA *rsa,
+                          int (*mod_exp) (BIGNUM *r0, const BIGNUM *i, RSA *rsa,
                                           BN_CTX *ctx));
      /* Can be null */
  int (*RSA_meth_get_bn_mod_exp(const RSA_METHOD *meth))

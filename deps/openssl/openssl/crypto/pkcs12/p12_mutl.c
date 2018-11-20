@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,13 +7,13 @@
  * https://www.openssl.org/source/license.html
  */
 
-# include <stdio.h>
-# include "internal/cryptlib.h"
-# include <openssl/crypto.h>
-# include <openssl/hmac.h>
-# include <openssl/rand.h>
-# include <openssl/pkcs12.h>
-# include "p12_lcl.h"
+#include <stdio.h>
+#include "internal/cryptlib.h"
+#include <openssl/crypto.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
+#include <openssl/pkcs12.h>
+#include "p12_lcl.h"
 
 int PKCS12_mac_present(const PKCS12 *p12)
 {
@@ -44,7 +44,7 @@ void PKCS12_get0_mac(const ASN1_OCTET_STRING **pmac,
     }
 }
 
-# define TK26_MAC_KEY_LEN 32
+#define TK26_MAC_KEY_LEN 32
 
 static int pkcs12_gen_gost_mac_key(const char *pass, int passlen,
                                    const unsigned char *salt, int saltlen,
@@ -75,6 +75,7 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
                                                 unsigned char *out,
                                                 const EVP_MD *md_type))
 {
+    int ret = 0;
     const EVP_MD *md_type;
     HMAC_CTX *hmac = NULL;
     unsigned char key[EVP_MAX_MD_SIZE], *salt;
@@ -111,29 +112,32 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
     if ((md_type_nid == NID_id_GostR3411_94
          || md_type_nid == NID_id_GostR3411_2012_256
          || md_type_nid == NID_id_GostR3411_2012_512)
-        && !getenv("LEGACY_GOST_PKCS12")) {
+        && ossl_safe_getenv("LEGACY_GOST_PKCS12") == NULL) {
         md_size = TK26_MAC_KEY_LEN;
         if (!pkcs12_gen_gost_mac_key(pass, passlen, salt, saltlen, iter,
                                      md_size, key, md_type)) {
             PKCS12err(PKCS12_F_PKCS12_GEN_MAC, PKCS12_R_KEY_GEN_ERROR);
-            return 0;
+            goto err;
         }
     } else
         if (!(*pkcs12_key_gen)(pass, passlen, salt, saltlen, PKCS12_MAC_ID,
                                iter, md_size, key, md_type)) {
         PKCS12err(PKCS12_F_PKCS12_GEN_MAC, PKCS12_R_KEY_GEN_ERROR);
-        return 0;
+        goto err;
     }
     if ((hmac = HMAC_CTX_new()) == NULL
         || !HMAC_Init_ex(hmac, key, md_size, md_type, NULL)
         || !HMAC_Update(hmac, p12->authsafes->d.data->data,
                         p12->authsafes->d.data->length)
         || !HMAC_Final(hmac, mac, maclen)) {
-        HMAC_CTX_free(hmac);
-        return 0;
+        goto err;
     }
+    ret = 1;
+
+err:
+    OPENSSL_cleanse(key, sizeof(key));
     HMAC_CTX_free(hmac);
-    return 1;
+    return ret;
 }
 
 int PKCS12_gen_mac(PKCS12 *p12, const char *pass, int passlen,

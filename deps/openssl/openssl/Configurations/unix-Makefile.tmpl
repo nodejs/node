@@ -323,7 +323,7 @@ depend:
 
 # Install helper targets #############################################
 
-install_sw: all install_dev install_engines install_runtime
+install_sw: install_dev install_engines install_runtime
 
 uninstall_sw: uninstall_runtime uninstall_engines uninstall_dev
 
@@ -355,7 +355,7 @@ install_ssldirs:
 		chmod 644 $(DESTDIR)$(OPENSSLDIR)/openssl.cnf; \
 	fi
 
-install_dev:
+install_dev: install_runtime_libs
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@echo "*** Installing development files"
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(INSTALLTOP)/include/openssl
@@ -461,7 +461,7 @@ uninstall_dev:
 	-$(RMDIR) $(DESTDIR)$(INSTALLTOP)/$(LIBDIR)/pkgconfig
 	-$(RMDIR) $(DESTDIR)$(INSTALLTOP)/$(LIBDIR)
 
-install_engines:
+install_engines: install_runtime_libs build_engines
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(ENGINESDIR)/
 	@echo "*** Installing engines"
@@ -488,9 +488,10 @@ uninstall_engines:
 	done
 	-$(RMDIR) $(DESTDIR)$(ENGINESDIR)
 
-install_runtime:
+install_runtime: install_programs
+
+install_runtime_libs: build_libs
 	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
-	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(INSTALLTOP)/bin
 	@ : {- output_off() if windowsdll(); "" -}
 	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(INSTALLTOP)/$(LIBDIR)
 	@ : {- output_on() if windowsdll(); "" -}
@@ -512,6 +513,11 @@ install_runtime:
 		      $(DESTDIR)$(INSTALLTOP)/$(LIBDIR)/$$fn; \
 		: {- output_on() if windowsdll(); "" -}; \
 	done
+
+install_programs: install_runtime_libs build_programs
+	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
+	@$(PERL) $(SRCDIR)/util/mkdir-p.pl $(DESTDIR)$(INSTALLTOP)/bin
+	@echo "*** Installing runtime programs"
 	@set -e; for x in dummy $(INSTALL_PROGRAMS); do \
 		if [ "$$x" = "dummy" ]; then continue; fi; \
 		fn=`basename $$x`; \
@@ -531,8 +537,10 @@ install_runtime:
 		      $(DESTDIR)$(INSTALLTOP)/bin/$$fn; \
 	done
 
-uninstall_runtime:
-	@echo "*** Uninstalling runtime files"
+uninstall_runtime: uninstall_programs uninstall_runtime_libs
+
+uninstall_programs:
+	@echo "*** Uninstalling runtime programs"
 	@set -e; for x in dummy $(INSTALL_PROGRAMS); \
 	do  \
 		if [ "$$x" = "dummy" ]; then continue; fi; \
@@ -547,6 +555,10 @@ uninstall_runtime:
 		echo "$(RM) $(DESTDIR)$(INSTALLTOP)/bin/$$fn"; \
 		$(RM) $(DESTDIR)$(INSTALLTOP)/bin/$$fn; \
 	done
+	-$(RMDIR) $(DESTDIR)$(INSTALLTOP)/bin
+
+uninstall_runtime_libs:
+	@echo "*** Uninstalling runtime libraries"
 	@ : {- output_off() unless windowsdll(); "" -}
 	@set -e; for s in dummy $(INSTALL_SHLIBS); do \
 		if [ "$$s" = "dummy" ]; then continue; fi; \
@@ -555,7 +567,6 @@ uninstall_runtime:
 		$(RM) $(DESTDIR)$(INSTALLTOP)/bin/$$fn; \
 	done
 	@ : {- output_on() unless windowsdll(); "" -}
-	-$(RMDIR) $(DESTDIR)$(INSTALLTOP)/bin
 
 
 install_man_docs:

@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -242,7 +242,7 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
 
  err:
     EVP_MD_CTX_free(ctx);
-    OPENSSL_free(salt);
+    OPENSSL_clear_free(salt, sLen);
 
     return ret;
 
