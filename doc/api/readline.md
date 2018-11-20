@@ -322,11 +322,16 @@ Create an `AsyncIterator` object that iterates through each line in the input
 stream as a string. This method allows asynchronous iteration of
 `readline.Interface` objects through `for`-`await`-`of` loops.
 
-*Note:* Errors in the input stream are not forwarded.
+Errors in the input stream are not forwarded.
 
 If the loop is terminated with `break`, `throw`, or `return`,
 [`rl.close()`][] will be called. In other words, iterating over a
 `readline.Interface` will always consume the input stream fully.
+
+A caveat with using this experimental API is that the performance is
+currently not on par with the traditional `'line'` event API, and thus it is
+not recommended for performance-sensitive applications. We expect this
+situation to improve in the future.
 
 ```js
 async function processLineByLine() {
