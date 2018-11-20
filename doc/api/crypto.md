@@ -1116,33 +1116,33 @@ different functions.
 Most applications should consider using the new `KeyObject` API instead of
 passing keys as strings or `Buffer`s due to improved security features.
 
-### keyObject.getType()
+### keyObject.type
+<!-- YAML
+added: REPLACEME
+-->
+* {string}
+
+Depending on the type of this `KeyObject`, this property is either
+`'secret'` for secret (symmetric) keys, `'public'` for public (asymmetric) keys
+or `'private'` for private (asymmetric) keys.
+
+### keyObject.symmetricSize
+<!-- YAML
+added: REPLACEME
+-->
+* {number}
+
+For secret keys, this property represents the size of the key in bytes. This
+property is undefined for asymmetric keys.
+
+### keyObject.asymmetricKeyType
 <!-- YAML
 added: REPLACEME
 -->
 * Returns: {string}
 
-Depending on the type of this `KeyObject`, this function either returns
-`'secret'` for symmetric keys, `'public'` for public (asymmetric) keys or
-`'private'` for private (asymmetric) keys.
-
-### keyObject.getSymmetricSize()
-<!-- YAML
-added: REPLACEME
--->
-* Returns: {number}
-
-For symmetric keys, this function returns the size of the key in bytes. This
-function is undefined for asymmetric keys.
-
-### keyObject.getAsymmetricKeyType()
-<!-- YAML
-added: REPLACEME
--->
-* Returns: {string}
-
-For asymmetric keys, this function returns the type of the embedded key (e.g.,
-`'rsa'` or `'dsa'`). This function is undefined for symmetric keys.
+For asymmetric keys, this property represents the type of the embedded key
+(`'rsa'`, `'dsa'` or `'ec'`). This property is undefined for symmetric keys.
 
 ### keyObject.export([options])
 <!-- YAML

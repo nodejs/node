@@ -36,8 +36,9 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 {
   const keybuf = randomBytes(32);
   const key = createSecretKey(keybuf);
-  assert.strictEqual(key.getType(), 'secret');
-  assert.strictEqual(key.getSymmetricKeySize(), 32);
+  assert.strictEqual(key.type, 'secret');
+  assert.strictEqual(key.symmetricKeySize, 32);
+  assert.strictEqual(key.asymmetricKeyType, undefined);
 
   const exportedKey = key.export();
   assert(keybuf.equals(exportedKey));
@@ -59,12 +60,14 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 
 {
   const publicKey = createPublicKey(publicPem);
-  assert.strictEqual(publicKey.getType(), 'public');
-  assert.strictEqual(publicKey.getAsymmetricKeyType(), 'rsa');
+  assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.symmetricKeySize, undefined);
 
   const privateKey = createPrivateKey(privatePem);
-  assert.strictEqual(privateKey.getType(), 'private');
-  assert.strictEqual(privateKey.getAsymmetricKeyType(), 'rsa');
+  assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(privateKey.symmetricKeySize, undefined);
 
   const publicDER = publicKey.export({
     format: 'der',
