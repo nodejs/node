@@ -2958,8 +2958,6 @@ ByteSource ByteSource::FromSymmetricKeyObject(Local<Value> handle) {
   CHECK(handle->IsObject());
   KeyObject* key = Unwrap<KeyObject>(handle.As<Object>());
   CHECK(key);
-  // Note that this is only safe as long as the key object cannot be accessed
-  // by other threads.
   return Foreign(key->GetSymmetricKey(), key->GetSymmetricKeySize());
 }
 
@@ -2982,7 +2980,7 @@ enum KeyEncodingContext {
   kKeyContextGenerate
 };
 
-static void GetKeyFormatAndTypeFromJS(
+static void GetKeyFormatAndTypeFromJs(
     AsymmetricKeyEncodingConfig* config,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -3013,16 +3011,16 @@ static void GetKeyFormatAndTypeFromJS(
   *offset += 2;
 }
 
-static PublicKeyEncodingConfig GetPublicKeyEncodingFromJS(
+static PublicKeyEncodingConfig GetPublicKeyEncodingFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     KeyEncodingContext context) {
   PublicKeyEncodingConfig result;
-  GetKeyFormatAndTypeFromJS(&result, args, offset, context);
+  GetKeyFormatAndTypeFromJs(&result, args, offset, context);
   return result;
 }
 
-static ManagedEVPPKey GetPublicKeyFromJS(
+static ManagedEVPPKey GetPublicKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     bool allow_key_object,
@@ -3031,7 +3029,7 @@ static ManagedEVPPKey GetPublicKeyFromJS(
     Environment* env = Environment::GetCurrent(args);
     ByteSource key = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
     PublicKeyEncodingConfig config =
-        GetPublicKeyEncodingFromJS(args, offset, kKeyContextInput);
+        GetPublicKeyEncodingFromJs(args, offset, kKeyContextInput);
     EVPKeyPointer pkey;
     ParsePublicKey(&pkey, config, key.get(), key.size(), allow_certificate);
     if (!pkey)
@@ -3047,14 +3045,14 @@ static ManagedEVPPKey GetPublicKeyFromJS(
   }
 }
 
-static NonCopyableMaybe<PrivateKeyEncodingConfig> GetPrivateKeyEncodingFromJS(
+static NonCopyableMaybe<PrivateKeyEncodingConfig> GetPrivateKeyEncodingFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     KeyEncodingContext context) {
   Environment* env = Environment::GetCurrent(args);
 
   PrivateKeyEncodingConfig result;
-  GetKeyFormatAndTypeFromJS(&result, args, offset, context);
+  GetKeyFormatAndTypeFromJs(&result, args, offset, context);
 
   if (result.output_key_object_) {
     if (context != kKeyContextInput)
@@ -3091,7 +3089,7 @@ static NonCopyableMaybe<PrivateKeyEncodingConfig> GetPrivateKeyEncodingFromJS(
   return NonCopyableMaybe<PrivateKeyEncodingConfig>(std::move(result));
 }
 
-static ManagedEVPPKey GetPrivateKeyFromJS(
+static ManagedEVPPKey GetPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     bool allow_key_object) {
@@ -3099,7 +3097,7 @@ static ManagedEVPPKey GetPrivateKeyFromJS(
     Environment* env = Environment::GetCurrent(args);
     ByteSource key = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
     NonCopyableMaybe<PrivateKeyEncodingConfig> config =
-        GetPrivateKeyEncodingFromJS(args, offset, kKeyContextInput);
+        GetPrivateKeyEncodingFromJs(args, offset, kKeyContextInput);
     if (config.IsEmpty())
       return ManagedEVPPKey();
     EVPKeyPointer pkey =
@@ -3151,7 +3149,7 @@ static bool IsRSAPrivateKey(const unsigned char* data, size_t size) {
   return false;
 }
 
-static ManagedEVPPKey GetPublicOrPrivateKeyFromJS(
+static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     bool allow_key_object,
@@ -3160,7 +3158,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJS(
     Environment* env = Environment::GetCurrent(args);
     ByteSource data = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
     NonCopyableMaybe<PrivateKeyEncodingConfig> config_ =
-        GetPrivateKeyEncodingFromJS(args, offset, kKeyContextInput);
+        GetPrivateKeyEncodingFromJs(args, offset, kKeyContextInput);
     if (config_.IsEmpty())
       return ManagedEVPPKey();
     PrivateKeyEncodingConfig config = config_.Release();
@@ -3409,7 +3407,7 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 3);
 
     offset = 0;
-    pkey = GetPublicKeyFromJS(args, &offset, false, false);
+    pkey = GetPublicKeyFromJs(args, &offset, false, false);
     if (!pkey)
       return;
     key->InitPublic(pkey);
@@ -3418,7 +3416,7 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 4);
 
     offset = 0;
-    pkey = GetPrivateKeyFromJS(args, &offset, false);
+    pkey = GetPrivateKeyFromJs(args, &offset, false);
     if (!pkey)
       return;
     key->InitPrivate(pkey);
@@ -3489,14 +3487,14 @@ void KeyObject::Export(const v8::FunctionCallbackInfo<v8::Value>& args) {
   } else if (key->key_type_ == kKeyTypePublic) {
     unsigned int offset = 0;
     PublicKeyEncodingConfig config =
-        GetPublicKeyEncodingFromJS(args, &offset, kKeyContextExport);
+        GetPublicKeyEncodingFromJs(args, &offset, kKeyContextExport);
     CHECK_EQ(offset, static_cast<unsigned int>(args.Length()));
     result = key->ExportPublicKey(config);
   } else {
     CHECK_EQ(key->key_type_, kKeyTypePrivate);
     unsigned int offset = 0;
     NonCopyableMaybe<PrivateKeyEncodingConfig> config =
-        GetPrivateKeyEncodingFromJS(args, &offset, kKeyContextExport);
+        GetPrivateKeyEncodingFromJs(args, &offset, kKeyContextExport);
     if (config.IsEmpty())
       return;
     CHECK_EQ(offset, static_cast<unsigned int>(args.Length()));
@@ -4577,7 +4575,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
 
   unsigned int offset = 0;
-  ManagedEVPPKey key = GetPrivateKeyFromJS(args, &offset, true);
+  ManagedEVPPKey key = GetPrivateKeyFromJs(args, &offset, true);
   if (!key)
     return;
 
@@ -4691,7 +4689,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey = GetPublicKeyFromJS(args, &offset, true, true);
+  ManagedEVPPKey pkey = GetPublicKeyFromJs(args, &offset, true, true);
 
   char* hbuf = Buffer::Data(args[offset]);
   ssize_t hlen = Buffer::Length(args[offset]);
@@ -4747,7 +4745,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJS(args, &offset, true, true);
+  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset, true, true);
   if (!pkey)
     return;
 
@@ -5876,9 +5874,9 @@ void GenerateKeyPair(const FunctionCallbackInfo<Value>& args,
   Environment* env = Environment::GetCurrent(args);
 
   PublicKeyEncodingConfig public_key_encoding =
-      GetPublicKeyEncodingFromJS(args, &offset, kKeyContextGenerate);
+      GetPublicKeyEncodingFromJs(args, &offset, kKeyContextGenerate);
   NonCopyableMaybe<PrivateKeyEncodingConfig> private_key_encoding =
-      GetPrivateKeyEncodingFromJS(args, &offset, kKeyContextGenerate);
+      GetPrivateKeyEncodingFromJs(args, &offset, kKeyContextGenerate);
 
   if (private_key_encoding.IsEmpty())
     return;

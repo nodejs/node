@@ -1133,7 +1133,7 @@ added: REPLACEME
 * {number}
 
 For secret keys, this property represents the size of the key in bytes. This
-property is undefined for asymmetric keys.
+property is `undefined` for asymmetric keys.
 
 ### keyObject.asymmetricKeyType
 <!-- YAML
@@ -1142,7 +1142,7 @@ added: REPLACEME
 * Returns: {string}
 
 For asymmetric keys, this property represents the type of the embedded key
-(`'rsa'`, `'dsa'` or `'ec'`). This property is undefined for symmetric keys.
+(`'rsa'`, `'dsa'` or `'ec'`). This property is `undefined` for symmetric keys.
 
 ### keyObject.export([options])
 <!-- YAML
