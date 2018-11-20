@@ -32,20 +32,20 @@ tmpdir.refresh();
 const filename = path.join(tmpdir.path || '/tmp', 'big');
 let count = 0;
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   let timeoutId;
   assert.strictEqual(req.method, 'POST');
   req.pause();
 
-  setTimeout(function() {
+  setTimeout(() => {
     req.resume();
   }, 1000);
 
-  req.on('data', function(chunk) {
+  req.on('data', (chunk) => {
     count += chunk.length;
   });
 
-  req.on('end', function() {
+  req.on('end', () => {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
@@ -55,7 +55,7 @@ const server = http.createServer(function(req, res) {
 });
 server.listen(0);
 
-server.on('listening', function() {
+server.on('listening', () => {
   common.createZeroFilledFile(filename);
   makeRequest();
 });
@@ -73,14 +73,14 @@ function makeRequest() {
     assert.ifError(err);
   }));
 
-  req.on('response', function(res) {
+  req.on('response', (res) => {
     res.resume();
-    res.on('end', function() {
+    res.on('end', () => {
       server.close();
     });
   });
 }
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(count, 1024 * 10240);
 });
