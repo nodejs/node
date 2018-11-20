@@ -26,8 +26,8 @@ function test(cmin, cmax, cprot, smin, smax, sprot, expect) {
       secureProtocol: sprot,
     },
   }, common.mustCall((err, pair, cleanup) => {
-    if (expect && !expect.match(/^TLS/)) {
-      assert(err.message.match(expect));
+    if (expect && expect.match(/^ERR/)) {
+      assert.strictEqual(err.code, expect);
       return cleanup();
     }
 
@@ -53,18 +53,22 @@ const U = undefined;
 test(U, U, U, U, U, U, 'TLSv1.2');
 
 // Insecure or invalid protocols cannot be enabled.
-test(U, U, U, U, U, 'SSLv2_method', 'SSLv2 methods disabled');
-test(U, U, U, U, U, 'SSLv3_method', 'SSLv3 methods disabled');
-test(U, U, 'SSLv2_method', U, U, U, 'SSLv2 methods disabled');
-test(U, U, 'SSLv3_method', U, U, U, 'SSLv3 methods disabled');
-test(U, U, 'hokey-pokey', U, U, U, 'Unknown method');
-test(U, U, U, U, U, 'hokey-pokey', 'Unknown method');
+test(U, U, U, U, U, 'SSLv2_method', 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, U, U, U, 'SSLv3_method', 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, 'SSLv2_method', U, U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, 'SSLv3_method', U, U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, 'hokey-pokey', U, U, U, 'ERR_TLS_INVALID_PROTOCOL_METHOD');
+test(U, U, U, U, U, 'hokey-pokey', 'ERR_TLS_INVALID_PROTOCOL_METHOD');
 
 // Cannot use secureProtocol and min/max versions simultaneously.
-test(U, U, U, U, 'TLSv1.2', 'TLS1_2_method', 'conflicts with secureProtocol');
-test(U, U, U, 'TLSv1.2', U, 'TLS1_2_method', 'conflicts with secureProtocol');
-test(U, 'TLSv1.2', 'TLS1_2_method', U, U, U, 'conflicts with secureProtocol');
-test('TLSv1.2', U, 'TLS1_2_method', U, U, U, 'conflicts with secureProtocol');
+test(U, U, U, U, 'TLSv1.2', 'TLS1_2_method',
+     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
+test(U, U, U, 'TLSv1.2', U, 'TLS1_2_method',
+     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
+test(U, 'TLSv1.2', 'TLS1_2_method', U, U, U,
+     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
+test('TLSv1.2', U, 'TLS1_2_method', U, U, U,
+     'ERR_TLS_PROTOCOL_VERSION_CONFLICT');
 
 // TLS_method means "any supported protocol".
 test(U, U, 'TLSv1_2_method', U, U, 'TLS_method', 'TLSv1.2');

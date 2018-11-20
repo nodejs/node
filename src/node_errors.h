@@ -71,6 +71,7 @@ void FatalException(const v8::FunctionCallbackInfo<v8::Value>& args);
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \
+  V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                              \
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)              \
 
 #define V(code, type)                                                         \
