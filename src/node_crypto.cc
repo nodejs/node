@@ -63,6 +63,8 @@ v8::MaybeLocal<v8::Object> New(Environment* env, unsigned char* udata,
 
 namespace crypto {
 
+using node::THROW_ERR_TLS_INVALID_PROTOCOL_METHOD;
+
 using v8::Array;
 using v8::Boolean;
 using v8::ConstructorBehavior;
@@ -421,17 +423,23 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     // protocols are supported unless explicitly disabled (which we do below
     // for SSLv2 and SSLv3.)
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
-      return env->ThrowError("SSLv2 methods disabled");
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv2 methods disabled");
+      return;
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
-      return env->ThrowError("SSLv2 methods disabled");
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv2 methods disabled");
+      return;
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
-      return env->ThrowError("SSLv2 methods disabled");
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv2 methods disabled");
+      return;
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
-      return env->ThrowError("SSLv3 methods disabled");
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv3 methods disabled");
+      return;
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
-      return env->ThrowError("SSLv3 methods disabled");
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv3 methods disabled");
+      return;
     } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
-      return env->ThrowError("SSLv3 methods disabled");
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv3 methods disabled");
+      return;
     } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
       // noop
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
@@ -483,7 +491,8 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       max_version = TLS1_2_VERSION;
       method = TLS_client_method();
     } else {
-      return env->ThrowError("Unknown method");
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "Unknown method");
+      return;
     }
   }
 
