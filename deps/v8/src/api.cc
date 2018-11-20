@@ -10132,6 +10132,11 @@ void CpuProfiler::SetIdle(bool is_idle) {
   isolate->SetIdle(is_idle);
 }
 
+void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)
+      ->set_detailed_source_positions_for_profiling(true);
+}
+
 uintptr_t CodeEvent::GetCodeStartAddress() {
   return reinterpret_cast<i::CodeEvent*>(this)->code_start_address;
 }
