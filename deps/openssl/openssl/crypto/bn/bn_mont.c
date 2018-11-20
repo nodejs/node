@@ -64,10 +64,10 @@ int bn_mul_mont_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
 
     bn_check_top(tmp);
     if (a == b) {
-        if (!BN_sqr(tmp, a, ctx))
+        if (!bn_sqr_fixed_top(tmp, a, ctx))
             goto err;
     } else {
-        if (!BN_mul(tmp, a, b, ctx))
+        if (!bn_mul_fixed_top(tmp, a, b, ctx))
             goto err;
     }
     /* reduce from aRR to aR */
@@ -90,6 +90,7 @@ static int bn_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
     BIGNUM *n;
     BN_ULONG *ap, *np, *rp, n0, v, carry;
     int nl, max, i;
+    unsigned int rtop;
 
     n = &(mont->N);
     nl = n->top;
@@ -106,10 +107,10 @@ static int bn_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
     np = n->d;
     rp = r->d;
 
-    /* clear the top words of T */
-    i = max - r->top;
-    if (i)
-        memset(&rp[r->top], 0, sizeof(*rp) * i);
+    for (rtop = r->top, i = 0; i < max; i++) {
+        v = (BN_ULONG)0 - ((i - rtop) >> (8 * sizeof(rtop) - 1));
+        rp[i] &= v;
+    }
 
     r->top = max;
     r->flags |= BN_FLG_FIXED_TOP;
@@ -160,6 +161,18 @@ static int bn_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
 int BN_from_montgomery(BIGNUM *ret, const BIGNUM *a, BN_MONT_CTX *mont,
                        BN_CTX *ctx)
 {
+    int retn;
+
+    retn = bn_from_mont_fixed_top(ret, a, mont, ctx);
+    bn_correct_top(ret);
+    bn_check_top(ret);
+
+    return retn;
+}
+
+int bn_from_mont_fixed_top(BIGNUM *ret, const BIGNUM *a, BN_MONT_CTX *mont,
+                           BN_CTX *ctx)
+{
     int retn = 0;
 #ifdef MONT_WORD
     BIGNUM *t;
@@ -167,8 +180,6 @@ int BN_from_montgomery(BIGNUM *ret, const BIGNUM *a, BN_MONT_CTX *mont,
     BN_CTX_start(ctx);
     if ((t = BN_CTX_get(ctx)) && BN_copy(t, a)) {
         retn = bn_from_montgomery_word(ret, t, mont);
-        bn_correct_top(ret);
-        bn_check_top(ret);
     }
     BN_CTX_end(ctx);
 #else                           /* !MONT_WORD */

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -94,7 +94,7 @@ RSA *RSA_new_method(ENGINE *engine)
 
     return ret;
 
-err:
+ err:
     RSA_free(ret);
     return NULL;
 }
@@ -112,7 +112,7 @@ void RSA_free(RSA *r)
         return;
     REF_ASSERT_ISNT(i < 0);
 
-    if (r->meth->finish)
+    if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
 #ifndef OPENSSL_NO_ENGINE
     ENGINE_finish(r->engine);

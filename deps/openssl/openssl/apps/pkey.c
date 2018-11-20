@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -141,24 +141,30 @@ int pkey_main(int argc, char **argv)
 
     if (!noout) {
         if (outformat == FORMAT_PEM) {
-            if (pubout)
-                PEM_write_bio_PUBKEY(out, pkey);
-            else {
+            if (pubout) {
+                if (!PEM_write_bio_PUBKEY(out, pkey))
+                    goto end;
+            } else {
                 assert(private);
-                if (traditional)
-                    PEM_write_bio_PrivateKey_traditional(out, pkey, cipher,
-                                                         NULL, 0, NULL,
-                                                         passout);
-                else
-                    PEM_write_bio_PrivateKey(out, pkey, cipher,
-                                             NULL, 0, NULL, passout);
+                if (traditional) {
+                    if (!PEM_write_bio_PrivateKey_traditional(out, pkey, cipher,
+                                                              NULL, 0, NULL,
+                                                              passout))
+                        goto end;
+                } else {
+                    if (!PEM_write_bio_PrivateKey(out, pkey, cipher,
+                                                  NULL, 0, NULL, passout))
+                        goto end;
+                }
             }
         } else if (outformat == FORMAT_ASN1) {
-            if (pubout)
-                i2d_PUBKEY_bio(out, pkey);
-            else {
+            if (pubout) {
+                if (!i2d_PUBKEY_bio(out, pkey))
+                    goto end;
+            } else {
                 assert(private);
-                i2d_PrivateKey_bio(out, pkey);
+                if (!i2d_PrivateKey_bio(out, pkey))
+                    goto end;
             }
         } else {
             BIO_printf(bio_err, "Bad format specified for key\n");
@@ -168,17 +174,21 @@ int pkey_main(int argc, char **argv)
     }
 
     if (text) {
-        if (pubtext)
-            EVP_PKEY_print_public(out, pkey, 0, NULL);
-        else {
+        if (pubtext) {
+            if (EVP_PKEY_print_public(out, pkey, 0, NULL) <= 0)
+                goto end;
+        } else {
             assert(private);
-            EVP_PKEY_print_private(out, pkey, 0, NULL);
+            if (EVP_PKEY_print_private(out, pkey, 0, NULL) <= 0)
+                goto end;
         }
     }
 
     ret = 0;
 
  end:
+    if (ret != 0)
+        ERR_print_errors(bio_err);
     EVP_PKEY_free(pkey);
     release_engine(e);
     BIO_free_all(out);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -55,7 +55,7 @@ void EC_KEY_free(EC_KEY *r)
         return;
     REF_ASSERT_ISNT(i < 0);
 
-    if (r->meth->finish != NULL)
+    if (r->meth != NULL && r->meth->finish != NULL)
         r->meth->finish(r);
 
 #ifndef OPENSSL_NO_ENGINE

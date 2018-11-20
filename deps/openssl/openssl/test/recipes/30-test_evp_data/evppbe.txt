@@ -1,0 +1,252 @@
+#
+# Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line.  Lines starting with a pound sign,
+# like this prolog, are ignored.
+
+# scrypt tests from draft-josefsson-scrypt-kdf-03
+PBE = scrypt
+Password = ""
+Salt = ""
+N = 16
+r = 1
+p = 1
+Key = 77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede21442fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906
+
+PBE = scrypt
+Password = "password"
+Salt = "NaCl"
+N = 1024
+r = 8
+p = 16
+Key = fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b3731622eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640
+
+PBE = scrypt
+Password = "pleaseletmein"
+Salt = "SodiumChloride"
+N = 16384
+r = 8
+p = 1
+Key = 7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2d5432955613f0fcf62d49705242a9af9e61e85dc0d651e40dfcf017b45575887
+
+# NB: this test requires more than 1GB of memory to run so it will hit the
+# scrypt memory limit and return an error. To run this test without error
+# uncomment out the "maxmem" line and comment out the "Result"
+# line
+PBE = scrypt
+Password = "pleaseletmein"
+Salt = "SodiumChloride"
+N = 1048576
+r = 8
+p = 1
+Key = 2101cb9b6a511aaeaddbbe09cf70f881ec568d574a2ffd4dabe5ee9820adaa478e56fd8f4ba5d09ffa1c6d927c40f4c337304049e8a952fbcbf45c6fa77a41a4
+#maxmem = 10000000000
+Result = SCRYPT_ERROR
+
+# PKCS#12 tests
+
+PBE = pkcs12
+id = 1
+iter = 1
+MD = SHA1
+Password = 0073006D006500670000
+Salt = 0A58CF64530D823F
+Key = 8AAAE6297B6CB04642AB5B077851284EB7128F1A2A7FBCA3
+
+PBE = pkcs12
+id = 2
+iter = 1
+MD = SHA1
+Password = 0073006D006500670000
+Salt = 0A58CF64530D823F
+Key = 79993DFE048D3B76
+
+PBE = pkcs12
+id = 3
+iter 1
+MD = SHA1
+Password = 0073006D006500670000
+Salt = 3D83C0E4546AC140
+Key = 8D967D88F6CAA9D714800AB3D48051D63F73A312
+
+PBE = pkcs12
+id = 1
+iter = 1000
+MD = SHA1
+Password = 007100750065006500670000
+Salt = 1682C0FC5B3F7EC5
+Key = 483DD6E919D7DE2E8E648BA8F862F3FBFBDC2BCB2C02957F
+
+PBE = pkcs12
+id = 2
+iter = 1000
+MD = SHA1
+Password = 007100750065006500670000
+Salt = 1682C0FC5B3F7EC5
+Key = 9D461D1B00355C50
+
+PBE = pkcs12
+id = 3
+iter = 1000
+MD = SHA1
+Password = 007100750065006500670000
+Salt = 263216FCC2FAB31C
+Key = 5EC4C7A80DF652294C3925B6489A7AB857C83476
+
+# PBKDF2 tests
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 1
+MD = sha1
+Key = 0c60c80f961f0e71f3a9b524af6012062fe037a6
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 1
+MD = sha256
+Key = 120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 1
+MD = sha512
+Key = 867f70cf1ade02cff3752599a3a53dc4af34c7a669815ae5d513554e1c8cf252c02d470a285a0501bad999bfe943c08f050235d7d68b1da55e63f73b60a57fce
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 2
+MD = sha1
+Key = ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 2
+MD = sha256
+Key = ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 2
+MD = sha512
+Key = e1d9c16aa681708a45f5c7c4e215ceb66e011a2e9f0040713f18aefdb866d53cf76cab2868a39b9f7840edce4fef5a82be67335c77a6068e04112754f27ccf4e
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 4096
+MD = sha1
+Key = 4b007901b765489abead49d926f721d065a429c1
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 4096
+MD = sha256
+Key = c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a
+
+PBE = pbkdf2
+Password = "password"
+Salt = "salt"
+iter = 4096
+MD = sha512
+Key = d197b1b33db0143e018b12f3d1d1479e6cdebdcc97c5c0f87f6902e072f457b5143f30602641b3d55cd335988cb36b84376060ecd532e039b742a239434af2d5
+
+PBE = pbkdf2
+Password = "passwordPASSWORDpassword"
+Salt = "saltSALTsaltSALTsaltSALTsaltSALTsalt"
+iter = 4096
+MD = sha1
+Key = 3d2eec4fe41c849b80c8d83662c0e44a8b291a964cf2f07038
+
+PBE = pbkdf2
+Password = "passwordPASSWORDpassword"
+Salt = "saltSALTsaltSALTsaltSALTsaltSALTsalt"
+iter = 4096
+MD = sha256
+Key = 348c89dbcbd32b2f32d814b8116e84cf2b17347ebc1800181c4e2a1fb8dd53e1c635518c7dac47e9
+
+PBE = pbkdf2
+Password = "passwordPASSWORDpassword"
+Salt = "saltSALTsaltSALTsaltSALTsaltSALTsalt"
+iter = 4096
+MD = sha512
+Key = 8c0511f4c6e597c6ac6315d8f0362e225f3c501495ba23b868c005174dc4ee71115b59f9e60cd9532fa33e0f75aefe30225c583a186cd82bd4daea9724a3d3b8
+
+PBE = pbkdf2
+Password = 7061737300776f7264
+Salt = 7361006c74
+iter = 4096
+MD = sha1
+Key = 56fa6aa75548099dcc37d7f03425e0c3
+
+PBE = pbkdf2
+Password = 7061737300776f7264
+Salt = 7361006c74
+iter = 4096
+MD = sha256
+Key = 89b69d0516f829893c696226650a8687
+
+PBE = pbkdf2
+Password = 7061737300776f7264
+Salt = 7361006c74
+iter = 4096
+MD = sha512
+Key = 9d9e9c4cd21fe4be24d5b8244c759665
+
+# PBKDF2 tests for empty and NULL inputs
+PBE = pbkdf2
+Password = ""
+Salt = "salt"
+iter = 1
+MD = sha1
+Key = a33dddc30478185515311f8752895d36ea4363a2
+
+PBE = pbkdf2
+Password = ""
+Salt = "salt"
+iter = 1
+MD = sha256
+Key = f135c27993baf98773c5cdb40a5706ce6a345cde
+
+PBE = pbkdf2
+Password = ""
+Salt = "salt"
+iter = 1
+MD = sha512
+Key = 00ef42cdbfc98d29db20976608e455567fdddf14
+
+PBE = pbkdf2
+Password = NULL
+Salt = "salt"
+iter = 1
+MD = sha1
+Key = a33dddc30478185515311f8752895d36ea4363a2
+
+PBE = pbkdf2
+Password = NULL
+Salt = "salt"
+iter = 1
+MD = sha256
+Key = f135c27993baf98773c5cdb40a5706ce6a345cde
+
+PBE = pbkdf2
+Password = NULL
+Salt = "salt"
+iter = 1
+MD = sha512
+Key = 00ef42cdbfc98d29db20976608e455567fdddf14
+

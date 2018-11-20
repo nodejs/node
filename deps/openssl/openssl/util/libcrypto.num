@@ -282,7 +282,7 @@ TS_REQ_free                             282	1_1_0	EXIST::FUNCTION:TS
 PEM_read_DHparams                       283	1_1_0	EXIST::FUNCTION:DH,STDIO
 RSA_private_decrypt                     284	1_1_0	EXIST::FUNCTION:RSA
 X509V3_EXT_get_nid                      285	1_1_0	EXIST::FUNCTION:
-BIO_s_log                               286	1_1_0	EXIST:!WIN32,!macintosh:FUNCTION:
+BIO_s_log                               286	1_1_0	EXIST::FUNCTION:
 EC_POINT_set_to_infinity                287	1_1_0	EXIST::FUNCTION:EC
 EVP_des_ede_ofb                         288	1_1_0	EXIST::FUNCTION:DES
 ECDH_KDF_X9_62                          289	1_1_0	EXIST::FUNCTION:EC
@@ -4263,3 +4263,5 @@ X509_OBJECT_set1_X509                   4514	1_1_0i	EXIST::FUNCTION:
 X509_LOOKUP_meth_get_get_by_issuer_serial 4515	1_1_0i	EXIST::FUNCTION:
 X509_LOOKUP_meth_set_init               4516	1_1_0i	EXIST::FUNCTION:
 X509_OBJECT_set1_X509_CRL               4517	1_1_0i	EXIST::FUNCTION:
+OCSP_resp_get0_tbs_sigalg               4529	1_1_0j	EXIST::FUNCTION:OCSP
+OCSP_resp_get0_respdata                 4530	1_1_0j	EXIST::FUNCTION:OCSP

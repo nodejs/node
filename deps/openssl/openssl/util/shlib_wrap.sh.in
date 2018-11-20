@@ -1,5 +1,22 @@
 #!/bin/sh
+{-
+    use lib '.';
+    use configdata;
 
+    sub shlib {
+        my $lib = shift;
+        return "" if $disabled{shared};
+        $lib = $unified_info{rename}->{$lib}
+            if defined $unified_info{rename}->{$lib};
+        $lib = $unified_info{sharednames}->{$lib}
+            . ($target{shlib_variant} || "")
+            . ($target{shared_extension} || ".so");
+        $lib =~ s|\.\$\(SHLIB_MAJOR\)\.\$\(SHLIB_MINOR\)
+                 |.$config{shlib_version_number}|x;
+        return $lib;
+    }
+    "";     # Make sure no left over string sneaks its way into the script
+-}
 # To test this OpenSSL version's applications against another version's
 # shared libraries, simply set
 #
@@ -25,15 +42,8 @@ fi
 THERE="`echo $0 | sed -e 's|[^/]*$||' 2>/dev/null`.."
 [ -d "${THERE}" ] || exec "$@"	# should never happen...
 
-# Alternative to this is to parse ${THERE}/Makefile...
-LIBCRYPTOSO="${THERE}/libcrypto.so"
-if [ -f "$LIBCRYPTOSO" ]; then
-    while [ -h "$LIBCRYPTOSO" ]; do
-	LIBCRYPTOSO="${THERE}/`ls -l "$LIBCRYPTOSO" | sed -e 's|.*\-> ||'`"
-    done
-    SOSUFFIX=`echo ${LIBCRYPTOSO} | sed -e 's|.*\.so||' 2>/dev/null`
-    LIBSSLSO="${THERE}/libssl.so${SOSUFFIX}"
-fi
+LIBCRYPTOSO="${THERE}/{- shlib('libcrypto') -}"
+LIBSSLSO="${THERE}/{- shlib('libssl') -}"
 
 SYSNAME=`(uname -s) 2>/dev/null`;
 case "$SYSNAME" in
