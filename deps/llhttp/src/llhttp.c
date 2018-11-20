@@ -6037,6 +6037,7 @@ int llhttp__internal_execute(llhttp__internal_t* state, const char* p, const cha
     if (error != 0) {
       state->error = error;
       state->error_pos = endp;
+      return error;
     }
   }
   
