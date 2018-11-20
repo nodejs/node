@@ -70,7 +70,7 @@ if (process.argv[2] === 'child') {
     child.on('message', (msg) => {
       if (msg === 'gotMessage') {
         childGotMessage = true;
-      } else if (msg = 'handlReceived') {
+      } else if (msg === 'handleReceived') {
         sendMessages();
       }
     });
