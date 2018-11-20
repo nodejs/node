@@ -4,7 +4,7 @@
  * 2001.
  */
 /* ====================================================================
- * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2001-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -530,7 +530,7 @@ char *CONF_get1_default_config_file(void)
     char *file;
     int len;
 
-    file = getenv("OPENSSL_CONF");
+    file = ossl_safe_getenv("OPENSSL_CONF");
     if (file)
         return BUF_strdup(file);
 

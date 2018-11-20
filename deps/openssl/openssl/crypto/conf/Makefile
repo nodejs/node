@@ -80,12 +80,13 @@ clean:
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
 conf_api.o: ../../e_os.h ../../include/openssl/bio.h
-conf_api.o: ../../include/openssl/conf.h ../../include/openssl/conf_api.h
-conf_api.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+conf_api.o: ../../include/openssl/buffer.h ../../include/openssl/conf.h
+conf_api.o: ../../include/openssl/conf_api.h ../../include/openssl/crypto.h
+conf_api.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
 conf_api.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h
 conf_api.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 conf_api.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-conf_api.o: ../../include/openssl/symhacks.h conf_api.c
+conf_api.o: ../../include/openssl/symhacks.h ../cryptlib.h conf_api.c
 conf_def.o: ../../e_os.h ../../include/openssl/bio.h
 conf_def.o: ../../include/openssl/buffer.h ../../include/openssl/conf.h
 conf_def.o: ../../include/openssl/conf_api.h ../../include/openssl/crypto.h

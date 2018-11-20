@@ -19,9 +19,12 @@ The EVP signature routines are a high level interface to digital signatures.
 
 EVP_DigestVerifyInit() sets up verification context B<ctx> to use digest
 B<type> from ENGINE B<impl> and public key B<pkey>. B<ctx> must be initialized
-with EVP_MD_CTX_init() before calling this function. If B<pctx> is not NULL the
+with EVP_MD_CTX_init() before calling this function. If B<pctx> is not NULL, the
 EVP_PKEY_CTX of the verification operation will be written to B<*pctx>: this
-can be used to set alternative verification options.
+can be used to set alternative verification options. Note that any existing
+value in B<*pctx> is overwritten. The EVP_PKEY_CTX value returned must not be
+freed directly by the application (it will be freed automatically when the
+EVP_MD_CTX is freed).
 
 EVP_DigestVerifyUpdate() hashes B<cnt> bytes of data at B<d> into the
 verification context B<ctx>. This function can be called several times on the

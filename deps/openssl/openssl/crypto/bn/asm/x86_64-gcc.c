@@ -55,12 +55,6 @@
  *    machine.
  */
 
-# if defined(_WIN64) || !defined(__LP64__)
-#  define BN_ULONG unsigned long long
-# else
-#  define BN_ULONG unsigned long
-# endif
-
 # undef mul
 # undef mul_add
 

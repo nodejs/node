@@ -58,7 +58,7 @@ $	    tests := -
 	test_ss,test_ca,test_engine,test_evp,test_evp_extra,test_ssl,test_tsa,test_ige,-
 	test_jpake,test_srp,test_cms,test_ocsp,test_v3name,test_heartbeat,-
 	test_constant_time,test_verify_extra,test_clienthello,test_sslv2conftest,-
-	test_dtls,test_bad_dtls,test_fatalerr
+	test_dtls,test_bad_dtls,test_fatalerr,test_x509_time
 $	endif
 $	tests = f$edit(tests,"COLLAPSE")
 $
@@ -107,6 +107,7 @@ $	BADDTLSTEST :=	bad_dtls_test
 $	SSLV2CONFTEST := 	sslv2conftest
 $	DTLSTEST :=	dtlstest
 $	FATALERRTEST :=	fatalerrtest
+$	X509TIMETEST :=	x509_time_test
 $!
 $	tests_i = 0
 $ loop_tests:
@@ -413,6 +414,11 @@ $
 $ test_fatalerr:
 $	write sys$output "''START' test_fatalerrtest"
 $	mcr 'texe_dir''fatalerrtest' 'ROOT'.APPS]server.pem 'ROOT'.APPS]server.pem
+$	return
+$
+$ test_x509_time:
+$	write sys$output "''START' test_x509_time"
+$	mcr 'texe_dir''x509timetest'
 $	return
 $
 $ test_sslv2conftest:

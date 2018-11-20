@@ -393,8 +393,7 @@ option. For compatibility B<encrypt_rsa_key> is an equivalent option.
 =item B<default_md>
 
 This option specifies the digest algorithm to use. Possible values
-include B<md5 sha1 mdc2>. If not present then MD5 is used. This
-option can be overridden on the command line.
+include B<md5 sha1 mdc2>. This option can be overridden on the command line.
 
 =item B<string_mask>
 

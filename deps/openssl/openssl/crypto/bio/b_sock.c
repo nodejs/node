@@ -56,6 +56,9 @@
  * [including the GNU Public Licence.]
  */
 
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -81,6 +84,11 @@ NETDB_DEFINE_CONTEXT
 # endif
 # if defined(OPENSSL_SYS_WINDOWS) || (defined(OPENSSL_SYS_NETWARE) && !defined(NETWARE_BSDSOCK))
 static int wsa_init_done = 0;
+# endif
+
+# if defined(__GLIBC__)
+#  define HAVE_GETHOSTBYNAME_R
+#  define GETHOSTNAME_R_BUF     (2 * 1024)
 # endif
 
 /*
@@ -116,7 +124,12 @@ int BIO_get_host_ip(const char *str, unsigned char *ip)
     int i;
     int err = 1;
     int locked = 0;
-    struct hostent *he;
+    struct hostent *he = NULL;
+# ifdef HAVE_GETHOSTBYNAME_R
+    char buf[GETHOSTNAME_R_BUF];
+    struct hostent hostent;
+    int h_errnop;
+# endif
 
     i = get_ip(str, ip);
     if (i < 0) {
@@ -138,10 +151,18 @@ int BIO_get_host_ip(const char *str, unsigned char *ip)
     if (i > 0)
         return (1);
 
+    /* if gethostbyname_r is supported, use it. */
+# ifdef HAVE_GETHOSTBYNAME_R
+    memset(&hostent, 0x00, sizeof(hostent));
+    /* gethostbyname_r() sets |he| to NULL on error, we check it further down */
+    gethostbyname_r(str, &hostent, buf, sizeof(buf), &he, &h_errnop);
+# else
     /* do a gethostbyname */
     CRYPTO_w_lock(CRYPTO_LOCK_GETHOSTBYNAME);
     locked = 1;
     he = BIO_gethostbyname(str);
+# endif
+
     if (he == NULL) {
         BIOerr(BIO_F_BIO_GET_HOST_IP, BIO_R_BAD_HOSTNAME_LOOKUP);
         goto err;

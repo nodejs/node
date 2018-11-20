@@ -659,8 +659,7 @@ int MAIN(int argc, char **argv)
             }
         }
 
-        BIO_printf(bio_err, "Generating a %ld bit %s private key\n",
-                   newkey, keyalgstr);
+        BIO_printf(bio_err, "Generating a %s private key\n", keyalgstr);
 
         EVP_PKEY_CTX_set_cb(genctx, genpkey_cb);
         EVP_PKEY_CTX_set_app_data(genctx, bio_err);
