@@ -404,6 +404,7 @@
       'openssl/crypto/evp/pmeth_lib.c',
       'openssl/crypto/evp/scrypt.c',
       'openssl/crypto/ex_data.c',
+      'openssl/crypto/getenv.c',
       'openssl/crypto/hmac/hm_ameth.c',
       'openssl/crypto/hmac/hm_pmeth.c',
       'openssl/crypto/hmac/hmac.c',
