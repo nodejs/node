@@ -325,6 +325,9 @@ changes:
 * `args` {string[]} List of string arguments.
 * `options` {Object}
   * `cwd` {string} Current working directory of the child process.
+  * `detached` {boolean} Prepare child to run independently of its parent
+    process. Specific behavior depends on the platform, see
+    [`options.detached`][]).
   * `env` {Object} Environment key-value pairs.
   * `execPath` {string} Executable used to create the child process.
   * `execArgv` {string[]} List of string arguments passed to the executable.
