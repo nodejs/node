@@ -1155,7 +1155,9 @@ For symmetric keys, this function allocates a `Buffer` containing the key
 material and ignores any options.
 
 For asymmetric keys, the `options` parameter is used to determine the export
-format. For public keys, the following encoding options can be used:
+format.
+
+For public keys, the following encoding options can be used:
 
 * `type`: {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
 * `format`: {string} Must be `'pem'` or `'der'`.
@@ -1386,7 +1388,7 @@ The `object` argument can be either a string containing a PEM encoded object,
 which can be an RSA public key, a DSA public key, or an X.509 certificate,
 or an object with one or more of the following properties:
 
-* `key`: {string} - The public key (required)
+* `key`: {string | KeyObject} - The public key (required)
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
@@ -1805,7 +1807,7 @@ added: REPLACEME
   - `key`: {string | Buffer} The key material, either in PEM or DER format.
   - `format`: {string} Must be `'pem'` or `'der'`. Default: `'pem'`.
   - `type`: {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
-     required only if the `format` is `'der'`.
+     required only if the `format` is `'der'` and ignored if it is `'pem'`.
   - `passphrase`: {string | Buffer} The passphrase to use for decryption.
 * Returns: {KeyObject}
 
