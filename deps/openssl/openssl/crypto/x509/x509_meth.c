@@ -58,9 +58,9 @@ int (*X509_LOOKUP_meth_get_new_item(const X509_LOOKUP_METHOD* method))
 
 int X509_LOOKUP_meth_set_free(
     X509_LOOKUP_METHOD *method,
-    void (*free) (X509_LOOKUP *ctx))
+    void (*free_fn) (X509_LOOKUP *ctx))
 {
-    method->free = free;
+    method->free = free_fn;
     return 1;
 }
 

@@ -2660,8 +2660,10 @@ static int www_body(int s, int stype, unsigned char *context)
 
     if (context
         && !SSL_set_session_id_context(con, context,
-                                       strlen((char *)context)))
+                                       strlen((char *)context))) {
+        SSL_free(con);
         goto err;
+    }
 
     sbio = BIO_new_socket(s, BIO_NOCLOSE);
     if (s_nbio_test) {
@@ -2673,7 +2675,7 @@ static int www_body(int s, int stype, unsigned char *context)
     SSL_set_bio(con, sbio, sbio);
     SSL_set_accept_state(con);
 
-    /* SSL_set_fd(con,s); */
+    /* No need to free |con| after this. Done by BIO_free(ssl_bio) */
     BIO_set_ssl(ssl_bio, con, BIO_CLOSE);
     BIO_push(io, ssl_bio);
 #ifdef CHARSET_EBCDIC
@@ -3030,6 +3032,7 @@ static int rev_body(int s, int stype, unsigned char *context)
     if (context
         && !SSL_set_session_id_context(con, context,
                                        strlen((char *)context))) {
+        SSL_free(con);
         ERR_print_errors(bio_err);
         goto err;
     }
@@ -3038,6 +3041,7 @@ static int rev_body(int s, int stype, unsigned char *context)
     SSL_set_bio(con, sbio, sbio);
     SSL_set_accept_state(con);
 
+    /* No need to free |con| after this. Done by BIO_free(ssl_bio) */
     BIO_set_ssl(ssl_bio, con, BIO_CLOSE);
     BIO_push(io, ssl_bio);
 #ifdef CHARSET_EBCDIC

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 1998-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -929,5 +929,6 @@ if [ $? = "0" ]; then
   fi
 else
   echo "This system ($OUT) is not supported. See file INSTALL for details."
+  exit 1
 fi
 )

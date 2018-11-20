@@ -404,4 +404,9 @@ static void xcloselog(BIO *bp)
 
 # endif                         /* Unix */
 
+#else                           /* NO_SYSLOG */
+const BIO_METHOD *BIO_s_log(void)
+{
+    return NULL;
+}
 #endif                          /* NO_SYSLOG */

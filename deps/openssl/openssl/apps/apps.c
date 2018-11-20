@@ -1707,8 +1707,14 @@ X509_NAME *parse_name(const char *cp, long chtype, int canmulti)
     char *work;
     X509_NAME *n;
 
-    if (*cp++ != '/')
+    if (*cp++ != '/') {
+        BIO_printf(bio_err,
+                   "name is expected to be in the format "
+                   "/type0=value0/type1=value1/type2=... where characters may "
+                   "be escaped by \\. This name is not in that format: '%s'\n",
+                   --cp);
         return NULL;
+    }
 
     n = X509_NAME_new();
     if (n == NULL)
@@ -1762,6 +1768,12 @@ X509_NAME *parse_name(const char *cp, long chtype, int canmulti)
         if (nid == NID_undef) {
             BIO_printf(bio_err, "%s: Skipping unknown attribute \"%s\"\n",
                       opt_getprog(), typestr);
+            continue;
+        }
+        if (*valstr == '\0') {
+            BIO_printf(bio_err,
+                       "%s: No value provided for Subject Attribute %s, skipped\n",
+                       opt_getprog(), typestr);
             continue;
         }
         if (!X509_NAME_add_entry_by_NID(n, nid, chtype,
