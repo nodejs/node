@@ -19,31 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // Make sure that sync writes to stderr get processed before exiting.
 
-var common = require('../common.js');
-var assert = require('assert');
-var util = require('util');
-
-var errnoException = util._errnoException;
+require('../common');
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var assert = require('assert');
-  var i = 0;
+  const spawn = require('child_process').spawn;
+  const assert = require('assert');
+  let i = 0;
   children.forEach(function(_, c) {
-    var child = spawn(process.execPath, [__filename, '' + c]);
-    var err = '';
+    const child = spawn(process.execPath, [__filename, String(c)]);
+    let err = '';
 
     child.stderr.on('data', function(c) {
       err += c;
     });
 
     child.on('close', function() {
-      assert.equal(err, 'child ' + c + '\nfoo\nbar\nbaz\n');
-      console.log('ok %d child #%d', ++i, c);
+      assert.strictEqual(err, `child ${c}\nfoo\nbar\nbaz\n`);
+      console.log(`ok ${++i} child #${c}`);
       if (i === children.length)
-        console.log('1..' + i);
+        console.log(`1..${i}`);
     });
   });
 }
@@ -66,11 +63,11 @@ function child1() {
 
 // using a net socket
 function child2() {
-  var net = require('net');
-  var socket = new net.Socket({
+  const net = require('net');
+  const socket = new net.Socket({
     fd: 2,
     readable: false,
-    writable: true});
+    writable: true });
   socket.write('child 2\n');
   socket.write('foo\n');
   socket.write('bar\n');
@@ -86,7 +83,7 @@ function child4() {
   process.stderr.write('child 4\nfoo\nbar\nbaz\n');
 }
 
-var children = [ child0, child1, child2, child3, child4 ];
+const children = [ child0, child1, child2, child3, child4 ];
 
 if (!process.argv[2]) {
   parent();

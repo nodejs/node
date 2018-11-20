@@ -1,35 +1,47 @@
-c-ares version 1.10.0
+c-ares version 1.14.0
 
 Changes:
-
- o Added ares_create_query(), to be used instead of ares_mkquery()
- o ares_inet_ntop() and ares_inet_pton() are now recognized c-ares functions
+ o android: Introduce new ares_library_init_android() call for Oreo support. [5]
 
 Bug fixes:
 
- o include the ares_parse_soa_reply.* files in the tarball
- o read_udp_packets: bail out loop on bad sockets
- o get_DNS_AdaptersAddresses: fix IPv6 parsing
- o adig: perror() doesn't work for socket errors on windows
- o ares_parse_aaaa_reply: fix memory leak
- o setup_once.h: HP-UX <sys/socket.h> issue workaround
- o configure: several fixes
- o config-dos.h: define strerror() to strerror_s_() for High-C
- o config-dos.h: define HAVE_CLOSE_S for MSDOS/Watt-32
- o ares_build.h.dist: enhance non-configure GCC ABI detection logic
- o ares.h: stricter CARES_EXTERN linkage decorations logic
- o ares_cancel(): cancel requests safely
- o protocol parsing: check input data stricter
- o library init: be recursive, reference count inits/cleanups
- o ares_parse_txt_reply: return a ares_txt_reply node for each sub-string
- o ares_set_servers_csv: fixed IPv6 address parsing
- o build: fix build on msvc11
- 
+ o Fix patch for CVE-2017-1000381 to not be overly aggressive. [1]
+ o win32: Preserve DNS server order returned by Windows when sorting and exclude
+   DNS servers in legacy subnets. [2] [4]
+ o win32: Support most recent Visual Studio 2017
+ o gethostbyaddr should fail with ECANCELLED not ENOTFOUND when ares_cancel
+   is called. [3]
+ o win32: Exclude legacy ipv6 subnets [4]
+ o android: Applications compiled for Oreo can no longer use
+   __system_property_get and must use Java calls to retrieve DNS servers.
+   [5] [7]
+ o win32: Force use of ANSI functions [6]
+ o CMake minimum version is now 3.1
+ o ares_gethostbyname.3: fix callback status values [8]
+ o docs: Document WSAStartup requirement [9]
+ o Fix a typo in init_by_resolv_conf [10]
+ o Android JNI code leaks local references in some cases [11]
+ o Force using the ANSI versions of WinAPI functions [12]
+
 Thanks go to these friendly people for their efforts and contributions:
 
- Eugeny Gladkih, Yang Tse, Gisle Vanem, Guenter Knauf, Horatiu Popescu,
- Alexander Klauer, Patrick Valsecchi, Paul Saab, Keith Shaw,
- Alex Loukissas
- 
+  AC Thompson, Anna Henningsen, Antonio Tajuelo, Brad House, Brad Spencer,
+  Christian Ammer, Daniel Stenberg, David Drysdale, David Hotham, Felix Yan,
+  Gergely Nagy, Gregor Jasny, Jakub Hrozek, John Schember,
+  Konstantinos Sofokleous, Roman Teterin, Sergey Kolomenkin, Sheel Bedi,
+  (18 contributors)
 
-Have fun!
+References to bug reports and discussions on issues:
+
+ [1] = https://github.com/c-ares/c-ares/commit/18ea99
+ [2] = https://github.com/c-ares/c-ares/issues/150
+ [3] = https://github.com/c-ares/c-ares/pull/138
+ [4] = https://github.com/c-ares/c-ares/pull/144
+ [5] = https://github.com/c-ares/c-ares/pull/148
+ [6] = https://github.com/c-ares/c-ares/pull/142
+ [7] = https://github.com/c-ares/c-ares/pull/175
+ [8] = https://c-ares.haxx.se/mail/c-ares-archive-2011-06/0012.shtml
+ [9] = https://github.com/c-ares/c-ares/pull/180
+ [10] = https://github.com/c-ares/c-ares/pull/160
+ [11] = https://github.com/c-ares/c-ares/pull/175
+ [12] = https://github.com/c-ares/c-ares/pull/142

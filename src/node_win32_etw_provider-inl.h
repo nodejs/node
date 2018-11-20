@@ -22,14 +22,10 @@
 #ifndef SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 #define SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
-
-#if defined(_WIN64)
-# define ETW_WRITE_INTPTR_DATA ETW_WRITE_INT64_DATA
-#else
-# define ETW_WRITE_INTPTR_DATA ETW_WRITE_INT32_DATA
-#endif
 
 namespace node {
 
@@ -98,7 +94,7 @@ extern int events_enabled;
     ETW_WRITE_ADDRESS_DATA(descriptors, &context);                            \
     ETW_WRITE_ADDRESS_DATA(descriptors + 1, &startAddr);                      \
     ETW_WRITE_INT64_DATA(descriptors + 2, &size);                             \
-    ETW_WRITE_INTPTR_DATA(descriptors + 3, &id);                              \
+    ETW_WRITE_INT32_DATA(descriptors + 3, &id);                               \
     ETW_WRITE_INT16_DATA(descriptors + 4, &flags);                            \
     ETW_WRITE_INT16_DATA(descriptors + 5, &rangeId);                          \
     ETW_WRITE_INT64_DATA(descriptors + 6, &sourceId);                         \
@@ -115,10 +111,17 @@ extern int events_enabled;
                              dataDescriptors);                                \
   CHECK_EQ(status, ERROR_SUCCESS);
 
+#define ETW_WRITE_EMPTY_EVENT(eventDescriptor)                                \
+  DWORD status = event_write(node_provider,                                   \
+                             &eventDescriptor,                                \
+                             0,                                               \
+                             NULL);  // NOLINT (readability/null_usage)       \
+  CHECK_EQ(status, ERROR_SUCCESS);
+
 
 void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
-    node_dtrace_connection_t* conn, const char *remote, int port,
-    const char *method, const char *url, int fd) {
+    node_dtrace_connection_t* conn, const char* remote, int port,
+    const char* method, const char* url, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[7];
   ETW_WRITE_HTTP_SERVER_REQUEST(descriptors, req);
   ETW_WRITE_NET_CONNECTION(descriptors + 3, conn);
@@ -127,7 +130,7 @@ void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
 
 
 void NODE_HTTP_SERVER_RESPONSE(node_dtrace_connection_t* conn,
-    const char *remote, int port, int fd) {
+    const char* remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_HTTP_SERVER_RESPONSE_EVENT, descriptors);
@@ -135,8 +138,8 @@ void NODE_HTTP_SERVER_RESPONSE(node_dtrace_connection_t* conn,
 
 
 void NODE_HTTP_CLIENT_REQUEST(node_dtrace_http_client_request_t* req,
-    node_dtrace_connection_t* conn, const char *remote, int port,
-    const char *method, const char *url, int fd) {
+    node_dtrace_connection_t* conn, const char* remote, int port,
+    const char* method, const char* url, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[6];
   ETW_WRITE_HTTP_CLIENT_REQUEST(descriptors, req);
   ETW_WRITE_NET_CONNECTION(descriptors + 2, conn);
@@ -145,7 +148,7 @@ void NODE_HTTP_CLIENT_REQUEST(node_dtrace_http_client_request_t* req,
 
 
 void NODE_HTTP_CLIENT_RESPONSE(node_dtrace_connection_t* conn,
-    const char *remote, int port, int fd) {
+    const char* remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_HTTP_CLIENT_RESPONSE_EVENT, descriptors);
@@ -153,7 +156,7 @@ void NODE_HTTP_CLIENT_RESPONSE(node_dtrace_connection_t* conn,
 
 
 void NODE_NET_SERVER_CONNECTION(node_dtrace_connection_t* conn,
-    const char *remote, int port, int fd) {
+    const char* remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_NET_SERVER_CONNECTION_EVENT, descriptors);
@@ -161,7 +164,7 @@ void NODE_NET_SERVER_CONNECTION(node_dtrace_connection_t* conn,
 
 
 void NODE_NET_STREAM_END(node_dtrace_connection_t* conn,
-    const char *remote, int port, int fd) {
+    const char* remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_NET_STREAM_END_EVENT, descriptors);
@@ -210,16 +213,13 @@ void NODE_V8SYMBOL_MOVE(const void* addr1, const void* addr2) {
 
 void NODE_V8SYMBOL_RESET() {
   if (events_enabled > 0) {
-    int val = 0;
-    EVENT_DATA_DESCRIPTOR descriptors[1];
-    ETW_WRITE_INT32_DATA(descriptors, &val);
-    ETW_WRITE_EVENT(NODE_V8SYMBOL_RESET_EVENT, descriptors);
+    ETW_WRITE_EMPTY_EVENT(NODE_V8SYMBOL_RESET_EVENT);
   }
 }
 
 #define SETSYMBUF(s)  \
   wcscpy(symbuf, s);  \
-  symbol_len = ARRAY_SIZE(s) - 1;
+  symbol_len = arraysize(s) - 1;
 
 void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                        int symbol_len,
@@ -247,7 +247,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
     }
     void* context = nullptr;
     INT64 size = (INT64)len;
-    INT_PTR id = (INT_PTR)addr1;
+    INT32 id = (INT32)addr1;
     INT16 flags = 0;
     INT16 rangeid = 1;
     INT32 col = 1;
@@ -265,7 +265,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                                   line,
                                   col,
                                   symbuf,
-                                  symbol_len * sizeof(symbuf[0]));
+                                  (symbol_len + 1) * sizeof(symbuf[0]));
     ETW_WRITE_EVENT(MethodLoad, descriptors);
   }
 }
@@ -278,10 +278,10 @@ bool NODE_HTTP_CLIENT_REQUEST_ENABLED() { return events_enabled > 0; }
 bool NODE_HTTP_CLIENT_RESPONSE_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_SERVER_CONNECTION_ENABLED() { return events_enabled > 0; }
 bool NODE_NET_STREAM_END_ENABLED() { return events_enabled > 0; }
-bool NODE_NET_SOCKET_READ_ENABLED() { return events_enabled > 0; }
-bool NODE_NET_SOCKET_WRITE_ENABLED() { return events_enabled > 0; }
 bool NODE_V8SYMBOL_ENABLED() { return events_enabled > 0; }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WIN32_ETW_PROVIDER_INL_H_

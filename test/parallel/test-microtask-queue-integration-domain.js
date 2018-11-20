@@ -19,40 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var implementations = [
-  function (fn) {
+// Requiring the domain module here changes the function that is used by node to
+// call process.nextTick's callbacks to a variant that specifically handles
+// domains. We want to test this specific variant in this test, and so even if
+// the domain module is not used, this require call is needed and must not be
+// removed.
+require('domain');
+
+const implementations = [
+  function(fn) {
     Promise.resolve().then(fn);
-  },
-  function (fn) {
-    var obj = {};
-
-    Object.observe(obj, fn);
-
-    obj.a = 1;
   }
 ];
 
-var expected = 0;
-var done = 0;
+let expected = 0;
+let done = 0;
 
-process.on('exit', function () {
-  assert.equal(done, expected);
+process.on('exit', function() {
+  assert.strictEqual(done, expected);
 });
 
-function test (scheduleMicrotask) {
-  var nextTickCalled = false;
+function test(scheduleMicrotask) {
+  let nextTickCalled = false;
   expected++;
 
-  scheduleMicrotask(function () {
-    process.nextTick(function () {
+  scheduleMicrotask(function() {
+    process.nextTick(function() {
       nextTickCalled = true;
     });
 
-    setTimeout(function () {
+    setTimeout(function() {
       assert(nextTickCalled);
       done++;
     }, 0);
@@ -63,8 +63,8 @@ function test (scheduleMicrotask) {
 implementations.forEach(test);
 
 // tick callback case
-setTimeout(function () {
-  implementations.forEach(function (impl) {
+setTimeout(function() {
+  implementations.forEach(function(impl) {
     process.nextTick(test.bind(null, impl));
   });
 }, 0);

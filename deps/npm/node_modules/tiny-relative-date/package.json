@@ -1,0 +1,75 @@
+{
+  "_args": [
+    [
+      "tiny-relative-date@1.3.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "tiny-relative-date@1.3.0",
+  "_id": "tiny-relative-date@1.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-MOQHpzllWxDCHHaDno30hhLfbouoYlOI8YlMNtvKe1zXbjEVhbcEovQxvZrPvtiYW630GQDoMMarCnjfyfHA+A==",
+  "_location": "/tiny-relative-date",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "tiny-relative-date@1.3.0",
+    "name": "tiny-relative-date",
+    "escapedName": "tiny-relative-date",
+    "rawSpec": "1.3.0",
+    "saveSpec": null,
+    "fetchSpec": "1.3.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/tiny-relative-date/-/tiny-relative-date-1.3.0.tgz",
+  "_spec": "1.3.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Joseph Wynn",
+    "email": "joseph@wildlyinaccurate.com",
+    "url": "https://wildlyinaccurate.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/wildlyinaccurate/relative-date/issues"
+  },
+  "description": "Tiny function that provides relative, human-readable dates.",
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-plugin-add-module-exports": "^0.2.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-register": "^6.24.1",
+    "eslint": "^4.1.0",
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.6.0",
+    "eslint-plugin-node": "^5.0.0",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "jasmine": "^2.6.0",
+    "jasmine-spec-reporter": "^4.1.1"
+  },
+  "files": [
+    "lib/",
+    "src/",
+    "translations/"
+  ],
+  "homepage": "https://github.com/wildlyinaccurate/relative-date#readme",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "module": "src/index.js",
+  "name": "tiny-relative-date",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wildlyinaccurate/relative-date.git"
+  },
+  "scripts": {
+    "build": "babel src -d lib",
+    "eslint": "eslint --fix src/**/*.js",
+    "jasmine": "jasmine",
+    "prepublish": "npm run build",
+    "test": "npm run eslint && npm run jasmine"
+  },
+  "version": "1.3.0"
+}

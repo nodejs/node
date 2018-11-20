@@ -19,40 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var util = require('util');
-var repl = require('repl');
+'use strict';
+const common = require('../common');
+const ArrayStream = require('../common/arraystream');
+const assert = require('assert');
+const util = require('util');
+const repl = require('repl');
 
-// A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function (data) {
-    var self = this;
-    data.forEach(function (line) {
-      self.emit('data', line + '\n');
-    });
-  }
-}
-util.inherits(ArrayStream, require('stream').Stream);
-ArrayStream.prototype.readable = true;
-ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function () {};
-ArrayStream.prototype.write = function () {};
-
-var putIn = new ArrayStream;
-var testMe = repl.start('', putIn, null, true);
+const putIn = new ArrayStream();
+repl.start('', putIn, null, true);
 
 test1();
 
-function test1(){
-  var gotWrite = false;
-  putIn.write = function (data) {
+function test1() {
+  let gotWrite = false;
+  putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
 
       // inspect output matches repl output
-      assert.equal(data, util.inspect(require('fs'), null, 2, false) + '\n');
+      assert.strictEqual(data,
+                         `${util.inspect(require('fs'), null, 2, false)}\n`);
       // globally added lib matches required lib
-      assert.equal(global.fs, require('fs'));
+      assert.strictEqual(global.fs, require('fs'));
       test2();
     }
   };
@@ -61,19 +50,20 @@ function test1(){
   assert(gotWrite);
 }
 
-function test2(){
-  var gotWrite = false;
+function test2() {
+  let gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
       // repl response error message
-      assert.equal(data, '{}\n');
+      assert.strictEqual(data, '{}\n');
       // original value wasn't overwritten
-      assert.equal(val, global.url);
+      assert.strictEqual(val, global.url);
     }
   };
-  var val = {};
+  const val = {};
   global.url = val;
+  common.allowGlobals(val);
   assert(!gotWrite);
   putIn.run(['url']);
   assert(gotWrite);

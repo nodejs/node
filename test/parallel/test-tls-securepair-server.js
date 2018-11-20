@@ -19,36 +19,33 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
-}
+if (!common.opensslCli)
+  common.skip('missing openssl-cli');
 
-var assert = require('assert');
+const assert = require('assert');
+const tls = require('tls');
+const net = require('net');
+const spawn = require('child_process').spawn;
+const fixtures = require('../common/fixtures');
 
-var join = require('path').join;
-var net = require('net');
-var fs = require('fs');
-var tls = require('tls');
-var spawn = require('child_process').spawn;
-
-var connections = 0;
-var key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
-var cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();
+const key = fixtures.readSync('agent.key').toString();
+const cert = fixtures.readSync('agent.crt').toString();
 
 function log(a) {
-  console.error('***server*** ' + a);
+  console.error(`***server*** ${a}`);
 }
 
-var server = net.createServer(function(socket) {
-  connections++;
-  log('connection fd=' + socket.fd);
-  var sslcontext = tls.createSecureContext({key: key, cert: cert});
+const server = net.createServer(common.mustCall(function(socket) {
+  log(`connection fd=${socket.fd}`);
+  const sslcontext = tls.createSecureContext({ key, cert });
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-  var pair = tls.createSecurePair(sslcontext, true);
+  const pair = tls.createSecurePair(sslcontext, true);
 
   assert.ok(pair.encrypted.writable);
   assert.ok(pair.cleartext.writable);
@@ -66,7 +63,7 @@ var server = net.createServer(function(socket) {
   });
 
   pair.cleartext.on('data', function(data) {
-    log('read bytes ' + data.length);
+    log(`read bytes ${data.length}`);
     pair.cleartext.write(data);
   });
 
@@ -105,20 +102,21 @@ var server = net.createServer(function(socket) {
     log(err.stack);
     socket.destroy();
   });
-});
+}));
 
-var gotHello = false;
-var sentWorld = false;
-var gotWorld = false;
-var opensslExitCode = -1;
+let gotHello = false;
+let sentWorld = false;
+let gotWorld = false;
 
-server.listen(common.PORT, function() {
+server.listen(0, common.mustCall(function() {
   // To test use: openssl s_client -connect localhost:8000
-  var client = spawn(common.opensslCli, ['s_client', '-connect', '127.0.0.1:' +
-        common.PORT]);
+
+  const args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`];
+
+  const client = spawn(common.opensslCli, args);
 
 
-  var out = '';
+  let out = '';
 
   client.stdout.setEncoding('utf8');
   client.stdout.on('data', function(d) {
@@ -138,16 +136,14 @@ server.listen(common.PORT, function() {
 
   client.stdout.pipe(process.stdout, { end: false });
 
-  client.on('exit', function(code) {
-    opensslExitCode = code;
+  client.on('exit', common.mustCall(function(code) {
+    assert.strictEqual(0, code);
     server.close();
-  });
-});
+  }));
+}));
 
 process.on('exit', function() {
-  assert.equal(1, connections);
   assert.ok(gotHello);
   assert.ok(sentWorld);
   assert.ok(gotWorld);
-  assert.equal(0, opensslExitCode);
 });

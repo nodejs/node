@@ -2,7 +2,12 @@
 
 =head1 NAME
 
- CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_signer_id,CMS_RecipientInfo_ktri_cert_cmp, CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id, CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key, CMS_RecipientInfo_decrypt - CMS envelopedData RecipientInfo routines
+CMS_get0_RecipientInfos, CMS_RecipientInfo_type,
+CMS_RecipientInfo_ktri_get0_signer_id, CMS_RecipientInfo_ktri_cert_cmp,
+CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id,
+CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key,
+CMS_RecipientInfo_decrypt, CMS_RecipientInfo_encrypt
+- CMS envelopedData RecipientInfo routines
 
 =head1 SYNOPSIS
 
@@ -20,6 +25,7 @@
  int CMS_RecipientInfo_set0_key(CMS_RecipientInfo *ri, unsigned char *key, size_t keylen);
 
  int CMS_RecipientInfo_decrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri);
+ int CMS_RecipientInfo_encrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri);
 
 =head1 DESCRIPTION
 
@@ -33,7 +39,7 @@ CMS_RECIPINFO_KEK, CMS_RECIPINFO_PASS, or CMS_RECIPINFO_OTHER.
 CMS_RecipientInfo_ktri_get0_signer_id() retrieves the certificate recipient
 identifier associated with a specific CMS_RecipientInfo structure B<ri>, which
 must be of type CMS_RECIPINFO_TRANS. Either the keyidentifier will be set in
-B<keyid> or B<both> issuer name and serial number in B<issuer> and B<sno>. 
+B<keyid> or B<both> issuer name and serial number in B<issuer> and B<sno>.
 
 CMS_RecipientInfo_ktri_cert_cmp() compares the certificate B<cert> against the
 CMS_RecipientInfo structure B<ri>, which must be of type CMS_RECIPINFO_TRANS.
@@ -66,6 +72,11 @@ CMS_RecipientInfo_decrypt() attempts to decrypt CMS_RecipientInfo structure
 B<ri> in structure B<cms>. A key must have been associated with the structure
 first.
 
+CMS_RecipientInfo_encrypt() attempts to encrypt CMS_RecipientInfo structure
+B<ri> in structure B<cms>. A key must have been associated with the structure
+first and the content encryption key must be available: for example by a
+previous call to CMS_RecipientInfo_decrypt().
+
 =head1 NOTES
 
 The main purpose of these functions is to enable an application to lookup
@@ -81,6 +92,13 @@ any appropriate means it can then associated with the structure and
 CMS_RecpientInfo_decrypt() called. If successful CMS_decrypt() can be called
 with a NULL key to decrypt the enveloped content.
 
+The CMS_RecipientInfo_encrypt() can be used to add a new recipient to an
+existing enveloped data structure. Typically an application will first decrypt
+an appropriate CMS_RecipientInfo structure to make the content encrypt key
+available, it will then add a new recipient using a function such as
+CMS_add1_recipient_cert() and finally encrypt the content encryption key
+using CMS_RecipientInfo_encrypt().
+
 =head1 RETURN VALUES
 
 CMS_get0_RecipientInfos() returns all CMS_RecipientInfo structures, or NULL if
@@ -89,18 +107,24 @@ an error occurs.
 CMS_RecipientInfo_ktri_get0_signer_id(), CMS_RecipientInfo_set0_pkey(),
 CMS_RecipientInfo_kekri_get0_id(), CMS_RecipientInfo_set0_key() and
 CMS_RecipientInfo_decrypt() return 1 for success or 0 if an error occurs.
+CMS_RecipientInfo_encrypt() return 1 for success or 0 if an error occurs.
 
 CMS_RecipientInfo_ktri_cert_cmp() and CMS_RecipientInfo_kekri_cmp() return 0
 for a successful comparison and non zero otherwise.
 
-Any error can be obtained from L<ERR_get_error(3)|ERR_get_error(3)>.
+Any error can be obtained from L<ERR_get_error(3)>.
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)|ERR_get_error(3)>, L<CMS_decrypt(3)|CMS_decrypt(3)>
+L<ERR_get_error(3)>, L<CMS_decrypt(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-These functions were first was added to OpenSSL 0.9.8
+Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

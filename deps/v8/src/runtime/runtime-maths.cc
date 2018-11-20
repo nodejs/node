@@ -2,245 +2,72 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
 #include "src/assembler.h"
-#include "src/codegen.h"
-#include "src/runtime/runtime-utils.h"
-#include "src/third_party/fdlibm/fdlibm.h"
-
+#include "src/base/utils/random-number-generator.h"
+#include "src/bootstrapper.h"
+#include "src/counters.h"
+#include "src/double.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-#define RUNTIME_UNARY_MATH(Name, name)                       \
-  RUNTIME_FUNCTION(Runtime_Math##Name) {                     \
-    HandleScope scope(isolate);                              \
-    DCHECK(args.length() == 1);                              \
-    isolate->counters()->math_##name()->Increment();         \
-    CONVERT_DOUBLE_ARG_CHECKED(x, 0);                        \
-    return *isolate->factory()->NewHeapNumber(std::name(x)); \
-  }
-
-RUNTIME_UNARY_MATH(Acos, acos)
-RUNTIME_UNARY_MATH(Asin, asin)
-RUNTIME_UNARY_MATH(Atan, atan)
-RUNTIME_UNARY_MATH(LogRT, log)
-#undef RUNTIME_UNARY_MATH
-
-
-RUNTIME_FUNCTION(Runtime_DoubleHi) {
+RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  uint64_t integer = double_to_uint64(x);
-  integer = (integer >> 32) & 0xFFFFFFFFu;
-  return *isolate->factory()->NewNumber(static_cast<int32_t>(integer));
-}
+  DCHECK_EQ(0, args.length());
 
+  Handle<Context> native_context = isolate->native_context();
+  DCHECK_EQ(0, native_context->math_random_index()->value());
 
-RUNTIME_FUNCTION(Runtime_DoubleLo) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(
-      static_cast<int32_t>(double_to_uint64(x) & 0xFFFFFFFFu));
-}
+  static const int kCacheSize = 64;
+  static const int kState0Offset = kCacheSize - 1;
+  static const int kState1Offset = kState0Offset - 1;
+  // The index is decremented before used to access the cache.
+  static const int kInitialIndex = kState1Offset;
 
-
-RUNTIME_FUNCTION(Runtime_ConstructDouble) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_NUMBER_CHECKED(uint32_t, hi, Uint32, args[0]);
-  CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
-  uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
-  return *isolate->factory()->NewNumber(uint64_to_double(result));
-}
-
-
-RUNTIME_FUNCTION(Runtime_RemPiO2) {
-  HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  Factory* factory = isolate->factory();
-  double y[2] = {0.0, 0.0};
-  int n = fdlibm::rempio2(x, y);
-  Handle<FixedArray> array = factory->NewFixedArray(3);
-  Handle<HeapNumber> y0 = factory->NewHeapNumber(y[0]);
-  Handle<HeapNumber> y1 = factory->NewHeapNumber(y[1]);
-  array->set(0, Smi::FromInt(n));
-  array->set(1, *y0);
-  array->set(2, *y1);
-  return *factory->NewJSArrayWithElements(array);
-}
-
-
-static const double kPiDividedBy4 = 0.78539816339744830962;
-
-
-RUNTIME_FUNCTION(Runtime_MathAtan2) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  isolate->counters()->math_atan2()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  double result;
-  if (std::isinf(x) && std::isinf(y)) {
-    // Make sure that the result in case of two infinite arguments
-    // is a multiple of Pi / 4. The sign of the result is determined
-    // by the first argument (x) and the sign of the second argument
-    // determines the multiplier: one or three.
-    int multiplier = (x < 0) ? -1 : 1;
-    if (y < 0) multiplier *= 3;
-    result = multiplier * kPiDividedBy4;
+  Handle<FixedDoubleArray> cache;
+  uint64_t state0 = 0;
+  uint64_t state1 = 0;
+  if (native_context->math_random_cache()->IsFixedDoubleArray()) {
+    cache = Handle<FixedDoubleArray>(
+        FixedDoubleArray::cast(native_context->math_random_cache()), isolate);
+    state0 = double_to_uint64(cache->get_scalar(kState0Offset));
+    state1 = double_to_uint64(cache->get_scalar(kState1Offset));
   } else {
-    result = std::atan2(x, y);
-  }
-  return *isolate->factory()->NewNumber(result);
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathExpRT) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_exp()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  lazily_initialize_fast_exp();
-  return *isolate->factory()->NewNumber(fast_exp(x));
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathFloorRT) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_floor()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(Floor(x));
-}
-
-
-// Slow version of Math.pow.  We check for fast paths for special cases.
-// Used if VFP3 is not available.
-RUNTIME_FUNCTION(Runtime_MathPowSlow) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  isolate->counters()->math_pow()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-
-  // If the second argument is a smi, it is much faster to call the
-  // custom powi() function than the generic pow().
-  if (args[1]->IsSmi()) {
-    int y = args.smi_at(1);
-    return *isolate->factory()->NewNumber(power_double_int(x, y));
+    cache = Handle<FixedDoubleArray>::cast(
+        isolate->factory()->NewFixedDoubleArray(kCacheSize, TENURED));
+    native_context->set_math_random_cache(*cache);
+    // Initialize state if not yet initialized. If a fixed random seed was
+    // requested, use it to reset our state the first time a script asks for
+    // random numbers in this context. This ensures the script sees a consistent
+    // sequence.
+    if (FLAG_random_seed != 0) {
+      state0 = FLAG_random_seed;
+      state1 = FLAG_random_seed;
+    } else {
+      while (state0 == 0 || state1 == 0) {
+        isolate->random_number_generator()->NextBytes(&state0, sizeof(state0));
+        isolate->random_number_generator()->NextBytes(&state1, sizeof(state1));
+      }
+    }
   }
 
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  double result = power_helper(x, y);
-  if (std::isnan(result)) return isolate->heap()->nan_value();
-  return *isolate->factory()->NewNumber(result);
-}
-
-
-// Fast version of Math.pow if we know that y is not an integer and y is not
-// -0.5 or 0.5.  Used as slow case from full codegen.
-RUNTIME_FUNCTION(Runtime_MathPowRT) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  isolate->counters()->math_pow()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  if (y == 0) {
-    return Smi::FromInt(1);
-  } else {
-    double result = power_double_double(x, y);
-    if (std::isnan(result)) return isolate->heap()->nan_value();
-    return *isolate->factory()->NewNumber(result);
-  }
-}
-
-
-RUNTIME_FUNCTION(Runtime_RoundNumber) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(input, 0);
-  isolate->counters()->math_round()->Increment();
-
-  if (!input->IsHeapNumber()) {
-    DCHECK(input->IsSmi());
-    return *input;
+  DisallowHeapAllocation no_gc;
+  FixedDoubleArray* raw_cache = *cache;
+  // Create random numbers.
+  for (int i = 0; i < kInitialIndex; i++) {
+    // Generate random numbers using xorshift128+.
+    base::RandomNumberGenerator::XorShift128(&state0, &state1);
+    raw_cache->set(i, base::RandomNumberGenerator::ToDouble(state0, state1));
   }
 
-  Handle<HeapNumber> number = Handle<HeapNumber>::cast(input);
-
-  double value = number->value();
-  int exponent = number->get_exponent();
-  int sign = number->get_sign();
-
-  if (exponent < -1) {
-    // Number in range ]-0.5..0.5[. These always round to +/-zero.
-    if (sign) return isolate->heap()->minus_zero_value();
-    return Smi::FromInt(0);
-  }
-
-  // We compare with kSmiValueSize - 2 because (2^30 - 0.1) has exponent 29 and
-  // should be rounded to 2^30, which is not smi (for 31-bit smis, similar
-  // argument holds for 32-bit smis).
-  if (!sign && exponent < kSmiValueSize - 2) {
-    return Smi::FromInt(static_cast<int>(value + 0.5));
-  }
-
-  // If the magnitude is big enough, there's no place for fraction part. If we
-  // try to add 0.5 to this number, 1.0 will be added instead.
-  if (exponent >= 52) {
-    return *number;
-  }
-
-  if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
-
-  // Do not call NumberFromDouble() to avoid extra checks.
-  return *isolate->factory()->NewNumber(Floor(value + 0.5));
+  // Persist current state.
+  raw_cache->set(kState0Offset, uint64_to_double(state0));
+  raw_cache->set(kState1Offset, uint64_to_double(state1));
+  return Smi::FromInt(kInitialIndex);
 }
-
-
-RUNTIME_FUNCTION(Runtime_MathSqrtRT) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_sqrt()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(fast_sqrt(x));
-}
-
-
-RUNTIME_FUNCTION(Runtime_MathFround) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  float xf = DoubleToFloat32(x);
-  return *isolate->factory()->NewNumber(xf);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_MathPow) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_MathPowSlow(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_IsMinusZero) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (!obj->IsHeapNumber()) return isolate->heap()->false_value();
-  HeapNumber* number = HeapNumber::cast(obj);
-  return isolate->heap()->ToBoolean(IsMinusZero(number->value()));
-}
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

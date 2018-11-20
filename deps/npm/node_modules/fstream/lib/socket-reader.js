@@ -5,34 +5,32 @@
 
 module.exports = SocketReader
 
-var fs = require("graceful-fs")
-  , fstream = require("../fstream.js")
-  , inherits = require("inherits")
-  , mkdir = require("mkdirp")
-  , Reader = require("./reader.js")
+var inherits = require('inherits')
+var Reader = require('./reader.js')
 
 inherits(SocketReader, Reader)
 
 function SocketReader (props) {
-  var me = this
-  if (!(me instanceof SocketReader)) throw new Error(
-    "SocketReader must be called as constructor.")
-
-  if (!(props.type === "Socket" && props.Socket)) {
-    throw new Error("Non-socket type "+ props.type)
+  var self = this
+  if (!(self instanceof SocketReader)) {
+    throw new Error('SocketReader must be called as constructor.')
   }
 
-  Reader.call(me, props)
+  if (!(props.type === 'Socket' && props.Socket)) {
+    throw new Error('Non-socket type ' + props.type)
+  }
+
+  Reader.call(self, props)
 }
 
 SocketReader.prototype._read = function () {
-  var me = this
-  if (me._paused) return
+  var self = this
+  if (self._paused) return
   // basically just a no-op, since we got all the info we have
   // from the _stat method
-  if (!me._ended) {
-    me.emit("end")
-    me.emit("close")
-    me._ended = true
+  if (!self._ended) {
+    self.emit('end')
+    self.emit('close')
+    self._ended = true
   }
 }

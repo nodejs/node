@@ -19,14 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
+const assert = require('assert');
 
-
-
-var common = require('../common');
-var assert = require('assert');
-
-var func = function() {};
-var toStringCalled = false;
+function func() {}
+let toStringCalled = false;
 func.toString = function() {
   toStringCalled = true;
 };

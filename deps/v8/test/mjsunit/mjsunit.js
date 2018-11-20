@@ -27,8 +27,16 @@
 
 function MjsUnitAssertionError(message) {
   this.message = message;
-  // This allows fetching the stack trace using TryCatch::StackTrace.
-  this.stack = new Error("").stack;
+  // Temporarily install a custom stack trace formatter and restore the
+  // previous value.
+  let prevPrepareStackTrace = Error.prepareStackTrace;
+  try {
+    Error.prepareStackTrace = MjsUnitAssertionError.prepareStackTrace;
+    // This allows fetching the stack trace using TryCatch::StackTrace.
+    this.stack = new Error("MjsUnitAssertionError").stack;
+  } finally {
+    Error.prepareStackTrace = prevPrepareStackTrace;
+  }
 }
 
 /*
@@ -37,9 +45,8 @@ function MjsUnitAssertionError(message) {
  * the f-word and ignore all other lines.
  */
 
-
 MjsUnitAssertionError.prototype.toString = function () {
-  return this.message;
+  return this.message + "\n\nStack: " + this.stack;
 };
 
 
@@ -48,12 +55,20 @@ MjsUnitAssertionError.prototype.toString = function () {
 // For known primitive values, please use assertEquals.
 var assertSame;
 
+// Inverse of assertSame.
+var assertNotSame;
+
 // Expected and found values are identical primitive values or functions
 // or similarly structured objects (checking internal properties
 // of, e.g., Number and Date objects, the elements of arrays
 // and the properties of non-Array objects).
 var assertEquals;
 
+// Expected and found values are not identical primitive values or functions
+// or similarly structured objects (checking internal properties
+// of, e.g., Number and Date objects, the elements of arrays
+// and the properties of non-Array objects).
+var assertNotEquals;
 
 // The difference between expected and found value is within certain tolerance.
 var assertEqualsDelta;
@@ -68,7 +83,7 @@ var assertArrayEquals;
 var assertPropertiesEqual;
 
 // Assert that the string conversion of the found value is equal to
-// the expected string. Only kept for backwards compatability, please
+// the expected string. Only kept for backwards compatibility, please
 // check the real structure of the found value.
 var assertToStringEquals;
 
@@ -93,6 +108,10 @@ var assertNotNull;
 // to the type property on the thrown exception.
 var assertThrows;
 
+// Assert that the passed function throws an exception.
+// The exception is checked against the second argument using assertEquals.
+var assertThrowsEquals;
+
 // Assert that the passed function or eval code does not throw an exception.
 var assertDoesNotThrow;
 
@@ -110,45 +129,156 @@ var assertUnreachable;
 var assertOptimized;
 var assertUnoptimized;
 
+// Assert that a string contains another expected substring.
+var assertContains;
+
+// Assert that a string matches a given regex.
+var assertMatches;
+
+// Assert that a promise resolves or rejects.
+// Parameters:
+// {promise} - the promise
+// {success} - optional - a callback which is called with the result of the
+//             resolving promise.
+//  {fail} -   optional - a callback which is called with the result of the
+//             rejecting promise. If the promise is rejected but no {fail}
+//             callback is set, the error is propagated out of the promise
+//             chain.
+var assertPromiseResult;
+
+var promiseTestChain;
+var promiseTestCount = 0;
+
+// These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
+var V8OptimizationStatus = {
+  kIsFunction: 1 << 0,
+  kNeverOptimize: 1 << 1,
+  kAlwaysOptimize: 1 << 2,
+  kMaybeDeopted: 1 << 3,
+  kOptimized: 1 << 4,
+  kTurboFanned: 1 << 5,
+  kInterpreted: 1 << 6,
+  kMarkedForOptimization: 1 << 7,
+  kMarkedForConcurrentOptimization: 1 << 8,
+  kOptimizingConcurrently: 1 << 9,
+  kIsExecuting: 1 << 10,
+  kTopmostFrameIsTurboFanned: 1 << 11,
+};
+
+// Returns true if --no-opt mode is on.
+var isNeverOptimize;
+
+// Returns true if --always-opt mode is on.
+var isAlwaysOptimize;
+
+// Returns true if given function in interpreted.
+var isInterpreted;
+
+// Returns true if given function is optimized.
+var isOptimized;
+
+// Returns true if given function is compiled by TurboFan.
+var isTurboFanned;
+
+// Used for async tests. See definition below for more documentation.
+var testAsync;
+
+// Monkey-patchable all-purpose failure handler.
+var failWithMessage;
+
+// Returns a pretty-printed string representation of the passed value.
+var prettyPrinted;
 
 (function () {  // Scope for utility functions.
 
+  var ObjectPrototypeToString = Object.prototype.toString;
+  var NumberPrototypeValueOf = Number.prototype.valueOf;
+  var BooleanPrototypeValueOf = Boolean.prototype.valueOf;
+  var StringPrototypeValueOf = String.prototype.valueOf;
+  var DatePrototypeValueOf = Date.prototype.valueOf;
+  var RegExpPrototypeToString = RegExp.prototype.toString;
+  var ArrayPrototypeForEach = Array.prototype.forEach;
+  var ArrayPrototypeJoin = Array.prototype.join;
+  var ArrayPrototypeMap = Array.prototype.map;
+  var ArrayPrototypePush = Array.prototype.push;
+
+  var BigIntPrototypeValueOf;
+  // TODO(neis): Remove try-catch once BigInts are enabled by default.
+  try {
+    BigIntPrototypeValueOf = BigInt.prototype.valueOf;
+  } catch(e) {}
+
   function classOf(object) {
     // Argument must not be null or undefined.
-    var string = Object.prototype.toString.call(object);
+    var string = ObjectPrototypeToString.call(object);
     // String has format [object <ClassName>].
     return string.substring(8, string.length - 1);
   }
 
 
-  function PrettyPrint(value) {
+  function ValueOf(value) {
+    switch (classOf(value)) {
+      case "Number":
+        return NumberPrototypeValueOf.call(value);
+      case "BigInt":
+        return BigIntPrototypeValueOf.call(value);
+      case "String":
+        return StringPrototypeValueOf.call(value);
+      case "Boolean":
+        return BooleanPrototypeValueOf.call(value);
+      case "Date":
+        return DatePrototypeValueOf.call(value);
+      default:
+        return value;
+    }
+  }
+
+
+  prettyPrinted = function prettyPrinted(value) {
     switch (typeof value) {
       case "string":
         return JSON.stringify(value);
+      case "bigint":
+        return String(value) + "n";
       case "number":
         if (value === 0 && (1 / value) < 0) return "-0";
         // FALLTHROUGH.
       case "boolean":
       case "undefined":
       case "function":
+      case "symbol":
         return String(value);
       case "object":
         if (value === null) return "null";
         var objectClass = classOf(value);
         switch (objectClass) {
-        case "Number":
-        case "String":
-        case "Boolean":
-        case "Date":
-          return objectClass + "(" + PrettyPrint(value.valueOf()) + ")";
-        case "RegExp":
-          return value.toString();
-        case "Array":
-          return "[" + value.map(PrettyPrintArrayElement).join(",") + "]";
-        case "Object":
-          break;
-        default:
-          return objectClass + "()";
+          case "Number":
+          case "BigInt":
+          case "String":
+          case "Boolean":
+          case "Date":
+            return objectClass + "(" + prettyPrinted(ValueOf(value)) + ")";
+          case "RegExp":
+            return RegExpPrototypeToString.call(value);
+          case "Array":
+            var mapped = ArrayPrototypeMap.call(
+                value, prettyPrintedArrayElement);
+            var joined = ArrayPrototypeJoin.call(mapped, ",");
+            return "[" + joined + "]";
+          case "Uint8Array":
+          case "Int8Array":
+          case "Int16Array":
+          case "Uint16Array":
+          case "Uint32Array":
+          case "Int32Array":
+          case "Float32Array":
+          case "Float64Array":
+            var joined = ArrayPrototypeJoin.call(value, ",");
+            return objectClass + "([" + joined + "])";
+          case "Object":
+            break;
+          default:
+            return objectClass + "(" + String(value) + ")";
         }
         // [[Class]] is "Object".
         var name = value.constructor.name;
@@ -160,22 +290,34 @@ var assertUnoptimized;
   }
 
 
-  function PrettyPrintArrayElement(value, index, array) {
+  function prettyPrintedArrayElement(value, index, array) {
     if (value === undefined && !(index in array)) return "";
-    return PrettyPrint(value);
+    return prettyPrinted(value);
   }
 
 
-  function fail(expectedText, found, name_opt) {
+  failWithMessage = function failWithMessage(message) {
+    throw new MjsUnitAssertionError(message);
+  }
+
+  function formatFailureText(expectedText, found, name_opt) {
     var message = "Fail" + "ure";
     if (name_opt) {
       // Fix this when we ditch the old test runner.
       message += " (" + name_opt + ")";
     }
 
-    message += ": expected <" + expectedText +
-        "> found <" + PrettyPrint(found) + ">";
-    throw new MjsUnitAssertionError(message);
+    var foundText = prettyPrinted(found);
+    if (expectedText.length <= 40 && foundText.length <= 40) {
+      message += ": expected <" + expectedText + "> found <" + foundText + ">";
+    } else {
+      message += ":\nexpected:\n" + expectedText + "\nfound:\n" + foundText;
+    }
+    return message;
+  }
+
+  function fail(expectedText, found, name_opt) {
+    return failWithMessage(formatFailureText(expectedText, found, name_opt));
   }
 
 
@@ -202,21 +344,22 @@ var assertUnoptimized;
       if (a === 0) return (1 / a) === (1 / b);
       return true;
     }
-    if (typeof a != typeof b) return false;
-    if (typeof a == "number") return isNaN(a) && isNaN(b);
+    if (typeof a !== typeof b) return false;
+    if (typeof a === "number") return isNaN(a) && isNaN(b);
     if (typeof a !== "object" && typeof a !== "function") return false;
     // Neither a nor b is primitive.
     var objectClass = classOf(a);
     if (objectClass !== classOf(b)) return false;
     if (objectClass === "RegExp") {
       // For RegExp, just compare pattern and flags using its toString.
-      return (a.toString() === b.toString());
+      return RegExpPrototypeToString.call(a) ===
+             RegExpPrototypeToString.call(b);
     }
     // Functions are only identical to themselves.
     if (objectClass === "Function") return false;
     if (objectClass === "Array") {
       var elementCount = 0;
-      if (a.length != b.length) {
+      if (a.length !== b.length) {
         return false;
       }
       for (var i = 0; i < a.length; i++) {
@@ -224,46 +367,54 @@ var assertUnoptimized;
       }
       return true;
     }
-    if (objectClass == "String" || objectClass == "Number" ||
-      objectClass == "Boolean" || objectClass == "Date") {
-      if (a.valueOf() !== b.valueOf()) return false;
+    if (objectClass === "String" || objectClass === "Number" ||
+      objectClass === "BigInt" || objectClass === "Boolean" ||
+      objectClass === "Date") {
+      if (ValueOf(a) !== ValueOf(b)) return false;
     }
     return deepObjectEquals(a, b);
   }
 
-  function checkArity(args, arity, name) {
-    if (args.length < arity) {
-      fail(PrettyPrint(arity), args.length,
-           name + " requires " + arity + " or more arguments");
-    }
-  }
-
   assertSame = function assertSame(expected, found, name_opt) {
-    checkArity(arguments, 2, "assertSame");
-
     // TODO(mstarzinger): We should think about using Harmony's egal operator
     // or the function equivalent Object.is() here.
     if (found === expected) {
-      if (expected !== 0 || (1 / expected) == (1 / found)) return;
+      if (expected !== 0 || (1 / expected) === (1 / found)) return;
     } else if ((expected !== expected) && (found !== found)) {
       return;
     }
-    fail(PrettyPrint(expected), found, name_opt);
+    fail(prettyPrinted(expected), found, name_opt);
   };
 
+  assertNotSame = function assertNotSame(expected, found, name_opt) {
+    // TODO(mstarzinger): We should think about using Harmony's egal operator
+    // or the function equivalent Object.is() here.
+    if (found !== expected) {
+      if (expected === 0 || (1 / expected) !== (1 / found)) return;
+    } else if (!((expected !== expected) && (found !== found))) {
+      return;
+    }
+    fail(prettyPrinted(expected), found, name_opt);
+  }
 
   assertEquals = function assertEquals(expected, found, name_opt) {
-    checkArity(arguments, 2, "assertEquals");
-
     if (!deepEquals(found, expected)) {
-      fail(PrettyPrint(expected), found, name_opt);
+      fail(prettyPrinted(expected), found, name_opt);
+    }
+  };
+
+  assertNotEquals = function assertNotEquals(expected, found, name_opt) {
+    if (deepEquals(found, expected)) {
+      fail("not equals to " + prettyPrinted(expected), found, name_opt);
     }
   };
 
 
   assertEqualsDelta =
       function assertEqualsDelta(expected, found, delta, name_opt) {
-    assertTrue(Math.abs(expected - found) <= delta, name_opt);
+    if (Math.abs(expected - found) > delta) {
+      fail(prettyPrinted(expected) + " +- " + prettyPrinted(delta), found, name_opt);
+    }
   };
 
 
@@ -273,7 +424,7 @@ var assertUnoptimized;
       start = name_opt + " - ";
     }
     assertEquals(expected.length, found.length, start + "array length");
-    if (expected.length == found.length) {
+    if (expected.length === found.length) {
       for (var i = 0; i < expected.length; ++i) {
         assertEquals(expected[i], found[i],
                      start + "array element at index " + i);
@@ -293,7 +444,7 @@ var assertUnoptimized;
 
   assertToStringEquals = function assertToStringEquals(expected, found,
                                                        name_opt) {
-    if (expected != String(found)) {
+    if (expected !== String(found)) {
       fail(expected, found, name_opt);
     }
   };
@@ -324,25 +475,41 @@ var assertUnoptimized;
 
 
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
-    var threwException = true;
     try {
-      if (typeof code == 'function') {
+      if (typeof code === 'function') {
         code();
       } else {
         eval(code);
       }
-      threwException = false;
     } catch (e) {
-      if (typeof type_opt == 'function') {
+      if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
+      } else if (type_opt !== void 0) {
+        failWithMessage(
+            'invalid use of assertThrows, maybe you want assertThrowsEquals');
       }
       if (arguments.length >= 3) {
-        assertEquals(e.type, cause_opt);
+        if (cause_opt instanceof RegExp) {
+          assertMatches(cause_opt, e.message, "Error message");
+        } else {
+          assertEquals(cause_opt, e.message, "Error message");
+        }
       }
       // Success.
       return;
     }
-    throw new MjsUnitAssertionError("Did not throw exception");
+    failWithMessage("Did not throw exception");
+  };
+
+
+  assertThrowsEquals = function assertThrowsEquals(fun, val) {
+    try {
+      fun();
+    } catch(e) {
+      assertSame(val, e);
+      return;
+    }
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -350,25 +517,25 @@ var assertUnoptimized;
     if (!(obj instanceof type)) {
       var actualTypeName = null;
       var actualConstructor = Object.getPrototypeOf(obj).constructor;
-      if (typeof actualConstructor == "function") {
+      if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      fail("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
+      failWithMessage("Object <" + prettyPrinted(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
-               (actualTypeName ? " but of < " + actualTypeName + ">" : ""));
+               (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
     }
   };
 
 
    assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
-      if (typeof code == 'function') {
-        code();
+      if (typeof code === 'function') {
+        return code();
       } else {
-        eval(code);
+        return eval(code);
       }
     } catch (e) {
-      fail("threw an exception: ", e.message || e, name_opt);
+      failWithMessage("threw an exception: " + (e.message || e));
     }
   };
 
@@ -378,7 +545,72 @@ var assertUnoptimized;
     if (name_opt) {
       message += " - " + name_opt;
     }
-    throw new MjsUnitAssertionError(message);
+    failWithMessage(message);
+  };
+
+  assertContains = function(sub, value, name_opt) {
+    if (value == null ? (sub != null) : value.indexOf(sub) == -1) {
+      fail("contains '" + String(sub) + "'", value, name_opt);
+    }
+  };
+
+  assertMatches = function(regexp, str, name_opt) {
+    if (!(regexp instanceof RegExp)) {
+      regexp = new RegExp(regexp);
+    }
+    if (!str.match(regexp)) {
+      fail("should match '" + regexp + "'", str, name_opt);
+    }
+  };
+
+  function concatenateErrors(stack, exception) {
+    // If the exception does not contain a stack trace, wrap it in a new Error.
+    if (!exception.stack) exception = new Error(exception);
+
+    // If the exception already provides a special stack trace, we do not modify
+    // it.
+    if (typeof exception.stack !== 'string') {
+      return exception;
+    }
+    exception.stack = stack + '\n\n' + exception.stack;
+    return exception;
+  }
+
+  assertPromiseResult = function(promise, success, fail) {
+    const stack = (new Error()).stack;
+
+    var test_promise = promise.then(
+        result => {
+          try {
+            if (--promiseTestCount == 0) testRunner.notifyDone();
+            if (success) success(result);
+          } catch (e) {
+            // Use setTimeout to throw the error again to get out of the promise
+            // chain.
+            setTimeout(_ => {
+              throw concatenateErrors(stack, e);
+            }, 0);
+          }
+        },
+        result => {
+          try {
+            if (--promiseTestCount == 0) testRunner.notifyDone();
+            if (!fail) throw result;
+            fail(result);
+          } catch (e) {
+            // Use setTimeout to throw the error again to get out of the promise
+            // chain.
+            setTimeout(_ => {
+              throw concatenateErrors(stack, e);
+            }, 0);
+          }
+        });
+
+    if (!promiseTestChain) promiseTestChain = Promise.resolve();
+    // waitUntilDone is idempotent.
+    testRunner.waitUntilDone();
+    ++promiseTestCount;
+    return promiseTestChain.then(test_promise);
   };
 
   var OptimizationStatusImpl = undefined;
@@ -395,14 +627,241 @@ var assertUnoptimized;
     return OptimizationStatusImpl(fun, sync_opt);
   }
 
-  assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt) {
+  assertUnoptimized = function assertUnoptimized(
+      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) != 1, name_opt);
+    var opt_status = OptimizationStatus(fun, sync_opt);
+    // Tests that use assertUnoptimized() do not make sense if --always-opt
+    // option is provided. Such tests must add --no-always-opt to flags comment.
+    assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
+                "test does not make sense with --always-opt");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    if (skip_if_maybe_deopted &&
+        (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
+      // When --deopt-every-n-times flag is specified it's no longer guaranteed
+      // that particular function is still deoptimized, so keep running the test
+      // to stress test the deoptimizer.
+      return;
+    }
+    assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
-  assertOptimized = function assertOptimized(fun, sync_opt, name_opt) {
+  assertOptimized = function assertOptimized(
+      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) != 2, name_opt);
+    var opt_status = OptimizationStatus(fun, sync_opt);
+    // Tests that use assertOptimized() do not make sense if --no-opt
+    // option is provided. Such tests must add --opt to flags comment.
+    assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
+                "test does not make sense with --no-opt");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    if (skip_if_maybe_deopted &&
+        (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
+      // When --deopt-every-n-times flag is specified it's no longer guaranteed
+      // that particular function is still optimized, so keep running the test
+      // to stress test the deoptimizer.
+      return;
+    }
+    assertTrue((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
+  isNeverOptimize = function isNeverOptimize() {
+    var opt_status = OptimizationStatus(undefined, "");
+    return (opt_status & V8OptimizationStatus.kNeverOptimize) !== 0;
+  }
+
+  isAlwaysOptimize = function isAlwaysOptimize() {
+    var opt_status = OptimizationStatus(undefined, "");
+    return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0;
+  }
+
+  isInterpreted = function isInterpreted(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
+           (opt_status & V8OptimizationStatus.kInterpreted) !== 0;
+  }
+
+  isOptimized = function isOptimized(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+  }
+
+  isTurboFanned = function isTurboFanned(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
+           (opt_status & V8OptimizationStatus.kTurboFanned) !== 0;
+  }
+
+  // Custom V8-specific stack trace formatter that is temporarily installed on
+  // the Error object.
+  MjsUnitAssertionError.prepareStackTrace = function(error, stack) {
+    // Trigger default formatting with recursion.
+    try {
+      // Filter-out all but the first mjsunit frame.
+      let filteredStack = [];
+      let inMjsunit = true;
+      for (let i = 0; i < stack.length; i++) {
+        let frame = stack[i];
+        if (inMjsunit) {
+          let file = frame.getFileName();
+          if (!file || !file.endsWith("mjsunit.js")) {
+            inMjsunit = false;
+            // Push the last mjsunit frame, typically containing the assertion
+            // function.
+            if (i > 0) ArrayPrototypePush.call(filteredStack, stack[i-1]);
+            ArrayPrototypePush.call(filteredStack, stack[i]);
+          }
+          continue;
+        }
+        ArrayPrototypePush.call(filteredStack, frame);
+      }
+      stack = filteredStack;
+
+      // Infer function names and calculate {max_name_length}
+      let max_name_length = 0;
+      ArrayPrototypeForEach.call(stack, each => {
+        let name = each.getFunctionName();
+        if (name == null) name = "";
+        if (each.isEval()) {
+          name = name;
+        } else if (each.isConstructor()) {
+          name = "new " + name;
+        } else if (each.isNative()) {
+          name = "native " + name;
+        } else if (!each.isToplevel()) {
+          name = each.getTypeName() + "." + name;
+        }
+        each.name = name;
+        max_name_length = Math.max(name.length, max_name_length)
+      });
+
+      // Format stack frames.
+      stack = ArrayPrototypeMap.call(stack, each => {
+        let frame = "    at " + each.name.padEnd(max_name_length);
+        let fileName = each.getFileName();
+        if (each.isEval()) return frame + " " + each.getEvalOrigin();
+        frame += " " + (fileName ? fileName : "");
+        let line= each.getLineNumber();
+        frame += " " + (line ? line : "");
+        let column = each.getColumnNumber();
+        frame += (column ? ":" + column : "");
+        return frame;
+      });
+      return "" + error.message + "\n" + ArrayPrototypeJoin.call(stack, "\n");
+    } catch(e) {};
+    return error.stack;
+  }
+
+  /**
+   * This is to be used through the testAsync helper function defined
+   * below.
+   *
+   * This requires the --allow-natives-syntax flag to allow calling
+   * runtime functions.
+   *
+   * There must be at least one assertion in an async test. A test
+   * with no assertions will fail.
+   *
+   * @example
+   * testAsync(assert => {
+   *   assert.plan(1) // There should be one assertion in this test.
+   *   Promise.resolve(1)
+   *    .then(val => assert.equals(1, val),
+   *          assert.unreachable);
+   * })
+   */
+  class AsyncAssertion {
+    constructor(test, name) {
+      this.expectedAsserts_ = -1;
+      this.actualAsserts_ = 0;
+      this.test_ = test;
+      this.name_ = name || '';
+    }
+
+    /**
+     * Sets the number of expected asserts in the test. The test fails
+     * if the number of asserts computed after running the test is not
+     * equal to this specified value.
+     * @param {number} expectedAsserts
+     */
+    plan(expectedAsserts) {
+      this.expectedAsserts_ = expectedAsserts;
+    }
+
+    fail(expectedText, found) {
+      let message = formatFailureText(expectedText, found);
+      message += "\nin test:" + this.name_
+      message += "\n" + Function.prototype.toString.apply(this.test_);
+      eval("%AbortJS(message)");
+    }
+
+    equals(expected, found, name_opt) {
+      this.actualAsserts_++;
+      if (!deepEquals(expected, found)) {
+        this.fail(prettyPrinted(expected), found, name_opt);
+      }
+    }
+
+    unreachable() {
+      let message = "Failure: unreachable in test: " + this.name_;
+      message += "\n" + Function.prototype.toString.apply(this.test_);
+      eval("%AbortJS(message)");
+    }
+
+    unexpectedRejection(details) {
+      return (error) => {
+        let message =
+            "Failure: unexpected Promise rejection in test: " + this.name_;
+        if (details) message += "\n    @" + details;
+        if (error instanceof Error) {
+          message += "\n" + String(error.stack);
+        } else {
+          message += "\n" + String(error);
+        }
+        message += "\n\n" + Function.prototype.toString.apply(this.test_);
+        eval("%AbortJS(message)");
+      };
+    }
+
+    drainMicrotasks() {
+      eval("%RunMicrotasks()");
+    }
+
+    done_() {
+      if (this.expectedAsserts_ === -1) {
+        let message = "Please call t.plan(count) to initialize test harness " +
+            "with correct assert count (Note: count > 0)";
+        eval("%AbortJS(message)");
+      }
+
+      if (this.expectedAsserts_ !== this.actualAsserts_) {
+        let message = "Expected asserts: " + this.expectedAsserts_;
+        message += ", Actual asserts: " + this.actualAsserts_;
+        message += "\nin test: " + this.name_;
+        message += "\n" + Function.prototype.toString.apply(this.test_);
+        eval("%AbortJS(message)");
+      }
+    }
+  }
+
+  /** This is used to test async functions and promises.
+   * @param {testCallback} test - test function
+   * @param {string} [name] - optional name of the test
+   *
+   *
+   * @callback testCallback
+   * @param {AsyncAssertion} assert
+   */
+  testAsync = function(test, name) {
+    let assert = new AsyncAssertion(test, name);
+    test(assert);
+    eval("%RunMicrotasks()");
+    assert.done_();
+  }
 })();

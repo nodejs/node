@@ -29,7 +29,7 @@ struct iovec
   size_t iov_len;  /* Length of data.  */
 };
 
-extern ssize_t ares_writev(ares_socket_t s, const struct iovec *iov, int iovcnt);
+extern ares_ssize_t ares_writev(ares_socket_t s, const struct iovec *iov, int iovcnt);
 
 #endif
 

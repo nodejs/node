@@ -1,12 +1,21 @@
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
-var fp = '/tmp/fadagagsdfgsdf';
-var c = net.connect(fp);
+'use strict';
+const common = require('../common');
+const net = require('net');
 
-c.on('connect', assert.fail);
+{
+  const fp = '/tmp/fadagagsdfgsdf';
+  const c = net.connect(fp);
 
-c.on('error', common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOENT');
-  assert.equal(e.message, 'connect ENOENT ' + fp);
-}));
+  c.on('connect', common.mustNotCall());
+  c.on('error', common.expectsError({
+    code: 'ENOENT',
+    message: `connect ENOENT ${fp}`
+  }));
+}
+
+{
+  common.expectsError(
+    () => net.createConnection({ path: {} }),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+}

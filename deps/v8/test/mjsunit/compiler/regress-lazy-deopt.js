@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 
-// Test lazy deoptimization after CallFunctionStub.
+// Test lazy deoptimization after Call builtin.
 
 function foo() { return 1; }
 
@@ -37,7 +37,7 @@ function f(x, y) {
     %DeoptimizeFunction(f);
     return 1;
   }
-  a[0] = %_CallFunction(null, x - 1, f);
+  a[0] = %_Call(f, null, x - 1);
   return x >> a[0];
 }
 

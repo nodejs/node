@@ -1,3 +1,0 @@
-{ "name":"lifecycle-signal",
-  "version":"1.2.5",
-  "scripts": {"preinstall":"node -e 'process.kill(process.pid,\"SIGSEGV\")'"}}

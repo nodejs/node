@@ -19,22 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const spawn = require('child_process').spawn;
+const assert = require('assert');
+const fs = require('fs');
 
-var errors = 0;
+const enoentPath = 'foo123';
+const spawnargs = ['bar'];
+assert.strictEqual(fs.existsSync(enoentPath), false);
 
-var enoentPath = 'foo123';
-assert.equal(common.fileExists(enoentPath), false);
-
-var enoentChild = spawn(enoentPath);
-enoentChild.on('error', function (err) {
-  assert.equal(err.path, enoentPath);
-  errors++;
-});
-
-process.on('exit', function() {
-  assert.equal(1, errors);
-});
+const enoentChild = spawn(enoentPath, spawnargs);
+enoentChild.on('error', common.mustCall(function(err) {
+  assert.strictEqual(err.code, 'ENOENT');
+  assert.strictEqual(err.errno, 'ENOENT');
+  assert.strictEqual(err.syscall, `spawn ${enoentPath}`);
+  assert.strictEqual(err.path, enoentPath);
+  assert.deepStrictEqual(err.spawnargs, spawnargs);
+}));

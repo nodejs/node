@@ -54,7 +54,6 @@ BenchmarkResult.prototype.valueOf = function() {
   return this.time;
 }
 
-
 // Suites of benchmarks consist of a name and the set of benchmarks in
 // addition to the reference timing that the final score will be based
 // on. This way, all scores are relative to a reference run and higher
@@ -66,6 +65,15 @@ function BenchmarkSuite(name, reference, benchmarks) {
   BenchmarkSuite.suites.push(this);
 }
 
+function createSuite(name, reference, run, setup, tearDown) {
+  return new BenchmarkSuite(name, [reference], [
+      new Benchmark(name, false, false, 0, run, setup, tearDown)]);
+}
+
+function createSuiteWithWarmup(name, reference, run, setup, tearDown) {
+  return new BenchmarkSuite(name, [reference], [
+      new Benchmark(name, true, false, 0, run, setup, tearDown)]);
+}
 
 // Keep track of all declared benchmark suites.
 BenchmarkSuite.suites = [];
@@ -281,28 +289,28 @@ BenchmarkSuite.prototype.RunSingleBenchmark = function(benchmark, data) {
   // by minIterations, depending on the config flag doDeterministic.
     for (var i = 0; (doDeterministic ?
       i<benchmark.deterministicIterations : elapsed < 1000); i++) {
-      benchmark.run();
+      for (var j = 0; j < 100; j++) benchmark.run();
       elapsed = new Date() - start;
     }
     if (data != null) {
-      data.runs += i;
+      data.hectoruns += i;
       data.elapsed += elapsed;
     }
   }
 
   // Sets up data in order to skip or not the warmup phase.
   if (!doWarmup && data == null) {
-    data = { runs: 0, elapsed: 0 };
+    data = { hectoruns: 0, elapsed: 0 };
   }
 
   if (data == null) {
     Measure(null);
-    return { runs: 0, elapsed: 0 };
+    return { hectoruns: 0, elapsed: 0 };
   } else {
     Measure(data);
     // If we've run too few iterations, we continue for another second.
-    if (data.runs < benchmark.minIterations) return data;
-    var usec = (data.elapsed * 1000) / data.runs;
+    if (data.hectoruns * 100 < benchmark.minIterations) return data;
+    var usec = (data.elapsed * 10) / data.hectoruns;
     var rms = (benchmark.rmsResult != null) ? benchmark.rmsResult() : 0;
     this.NotifyStep(new BenchmarkResult(benchmark, usec, rms));
     return null;

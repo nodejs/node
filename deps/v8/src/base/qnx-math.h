@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #ifndef V8_BASE_QNX_MATH_H_
-#define V8_QBASE_NX_MATH_H_
+#define V8_BASE_QNX_MATH_H_
 
 #include <cmath>
 

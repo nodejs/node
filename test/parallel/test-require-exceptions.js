@@ -19,24 +19,39 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 // A module with an error in it should throw
 assert.throws(function() {
-  require(common.fixturesDir + '/throws_error');
-});
+  require(fixtures.path('/throws_error'));
+}, /^Error: blah$/);
 
 // Requiring the same module again should throw as well
 assert.throws(function() {
-  require(common.fixturesDir + '/throws_error');
-});
+  require(fixtures.path('/throws_error'));
+}, /^Error: blah$/);
 
 // Requiring a module that does not exist should throw an
 // error with its `code` set to MODULE_NOT_FOUND
-assert.throws(function() {
-  require(common.fixturesDir + '/DOES_NOT_EXIST');
-}, function(e) {
-  assert.equal('MODULE_NOT_FOUND', e.code);
-  return true;
-});
+assertModuleNotFound('/DOES_NOT_EXIST');
+
+assertExists('/module-require/not-found/trailingSlash.js');
+assertExists('/module-require/not-found/node_modules/module1/package.json');
+assertModuleNotFound('/module-require/not-found/trailingSlash');
+
+function assertModuleNotFound(path) {
+  assert.throws(function() {
+    require(fixtures.path(path));
+  }, function(e) {
+    assert.strictEqual(e.code, 'MODULE_NOT_FOUND');
+    return true;
+  });
+}
+
+function assertExists(fixture) {
+  assert(fs.existsSync(fixtures.path(fixture)));
+}

@@ -96,10 +96,10 @@ void Decoder<V>::Decode(Instruction *instr) {
 
 template<typename V>
 void Decoder<V>::DecodePCRelAddressing(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x0);
+  DCHECK_EQ(0x0, instr->Bits(27, 24));
   // We know bit 28 is set, as <b28:b27> = 0 is filtered out at the top level
   // decode.
-  DCHECK(instr->Bit(28) == 0x1);
+  DCHECK_EQ(0x1, instr->Bit(28));
   V::VisitPCRelAddressing(instr);
 }
 
@@ -168,11 +168,6 @@ void Decoder<V>::DecodeBranchSystemException(Instruction* instr) {
                 (instr->Mask(0x0039E000) == 0x00002000) ||
                 (instr->Mask(0x003AE000) == 0x00002000) ||
                 (instr->Mask(0x003CE000) == 0x00042000) ||
-                (instr->Mask(0x003FFFC0) == 0x000320C0) ||
-                (instr->Mask(0x003FF100) == 0x00032100) ||
-                (instr->Mask(0x003FF200) == 0x00032200) ||
-                (instr->Mask(0x003FF400) == 0x00032400) ||
-                (instr->Mask(0x003FF800) == 0x00032800) ||
                 (instr->Mask(0x0038F000) == 0x00005000) ||
                 (instr->Mask(0x0038E000) == 0x00006000)) {
               V::VisitUnallocated(instr);
@@ -213,14 +208,24 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
          (instr->Bits(27, 24) == 0xC) ||
          (instr->Bits(27, 24) == 0xD) );
 
+  if ((instr->Bit(28) == 0) && (instr->Bit(29) == 0) && (instr->Bit(26) == 1)) {
+    DecodeNEONLoadStore(instr);
+    return;
+  }
+
   if (instr->Bit(24) == 0) {
     if (instr->Bit(28) == 0) {
       if (instr->Bit(29) == 0) {
         if (instr->Bit(26) == 0) {
-          // TODO(all): VisitLoadStoreExclusive.
-          V::VisitUnimplemented(instr);
-        } else {
-          DecodeAdvSIMDLoadStore(instr);
+          if (instr->Mask(0xA08000) == 0x800000 ||
+              instr->Mask(0xA00000) == 0xA00000) {
+            V::VisitUnallocated(instr);
+          } else if (instr->Mask(0x808000) == 0) {
+            // Load/Store exclusive without acquire/release are unimplemented.
+            V::VisitUnimplemented(instr);
+          } else {
+            V::VisitLoadStoreAcquireRelease(instr);
+          }
         }
       } else {
         if ((instr->Bits(31, 30) == 0x3) ||
@@ -231,7 +236,8 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
             if (instr->Mask(0xC4400000) == 0xC0400000) {
               V::VisitUnallocated(instr);
             } else {
-              V::VisitLoadStorePairNonTemporal(instr);
+              // Nontemporals are unimplemented.
+              V::VisitUnimplemented(instr);
             }
           } else {
             V::VisitLoadStorePairPostIndex(instr);
@@ -328,7 +334,7 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeLogical(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x2);
+  DCHECK_EQ(0x2, instr->Bits(27, 24));
 
   if (instr->Mask(0x80400000) == 0x00400000) {
     V::VisitUnallocated(instr);
@@ -348,7 +354,7 @@ void Decoder<V>::DecodeLogical(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeBitfieldExtract(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x3);
+  DCHECK_EQ(0x3, instr->Bits(27, 24));
 
   if ((instr->Mask(0x80400000) == 0x80000000) ||
       (instr->Mask(0x80400000) == 0x00400000) ||
@@ -374,7 +380,7 @@ void Decoder<V>::DecodeBitfieldExtract(Instruction* instr) {
 
 template<typename V>
 void Decoder<V>::DecodeAddSubImmediate(Instruction* instr) {
-  DCHECK(instr->Bits(27, 24) == 0x1);
+  DCHECK_EQ(0x1, instr->Bits(27, 24));
   if (instr->Bit(23) == 1) {
     V::VisitUnallocated(instr);
   } else {
@@ -456,6 +462,7 @@ void Decoder<V>::DecodeDataProcessing(Instruction* instr) {
             }
             break;
           }
+          V8_FALLTHROUGH;
         }
         case 1:
         case 3:
@@ -505,16 +512,14 @@ void Decoder<V>::DecodeFP(Instruction* instr) {
          (instr->Bits(27, 24) == 0xF) );
 
   if (instr->Bit(28) == 0) {
-    DecodeAdvSIMDDataProcessing(instr);
+    DecodeNEONVectorDataProcessing(instr);
   } else {
-    if (instr->Bit(29) == 1) {
+    if (instr->Bits(31, 30) == 0x3) {
       V::VisitUnallocated(instr);
+    } else if (instr->Bits(31, 30) == 0x1) {
+      DecodeNEONScalarDataProcessing(instr);
     } else {
-      if (instr->Bits(31, 30) == 0x3) {
-        V::VisitUnallocated(instr);
-      } else if (instr->Bits(31, 30) == 0x1) {
-        DecodeAdvSIMDDataProcessing(instr);
-      } else {
+      if (instr->Bit(29) == 0) {
         if (instr->Bit(24) == 0) {
           if (instr->Bit(21) == 0) {
             if ((instr->Bit(23) == 1) ||
@@ -614,35 +619,201 @@ void Decoder<V>::DecodeFP(Instruction* instr) {
           }
         } else {
           // Bit 30 == 1 has been handled earlier.
-          DCHECK(instr->Bit(30) == 0);
+          DCHECK_EQ(0, instr->Bit(30));
           if (instr->Mask(0xA0800000) != 0) {
             V::VisitUnallocated(instr);
           } else {
             V::VisitFPDataProcessing3Source(instr);
           }
         }
+      } else {
+        V::VisitUnallocated(instr);
+      }
+    }
+  }
+}
+
+template <typename V>
+void Decoder<V>::DecodeNEONLoadStore(Instruction* instr) {
+  DCHECK_EQ(0x6, instr->Bits(29, 25));
+  if (instr->Bit(31) == 0) {
+    if ((instr->Bit(24) == 0) && (instr->Bit(21) == 1)) {
+      V::VisitUnallocated(instr);
+      return;
+    }
+
+    if (instr->Bit(23) == 0) {
+      if (instr->Bits(20, 16) == 0) {
+        if (instr->Bit(24) == 0) {
+          V::VisitNEONLoadStoreMultiStruct(instr);
+        } else {
+          V::VisitNEONLoadStoreSingleStruct(instr);
+        }
+      } else {
+        V::VisitUnallocated(instr);
+      }
+    } else {
+      if (instr->Bit(24) == 0) {
+        V::VisitNEONLoadStoreMultiStructPostIndex(instr);
+      } else {
+        V::VisitNEONLoadStoreSingleStructPostIndex(instr);
+      }
+    }
+  } else {
+    V::VisitUnallocated(instr);
+  }
+}
+
+template <typename V>
+void Decoder<V>::DecodeNEONVectorDataProcessing(Instruction* instr) {
+  DCHECK_EQ(0x7, instr->Bits(28, 25));
+  if (instr->Bit(31) == 0) {
+    if (instr->Bit(24) == 0) {
+      if (instr->Bit(21) == 0) {
+        if (instr->Bit(15) == 0) {
+          if (instr->Bit(10) == 0) {
+            if (instr->Bit(29) == 0) {
+              if (instr->Bit(11) == 0) {
+                V::VisitNEONTable(instr);
+              } else {
+                V::VisitNEONPerm(instr);
+              }
+            } else {
+              V::VisitNEONExtract(instr);
+            }
+          } else {
+            if (instr->Bits(23, 22) == 0) {
+              V::VisitNEONCopy(instr);
+            } else {
+              V::VisitUnallocated(instr);
+            }
+          }
+        } else {
+          V::VisitUnallocated(instr);
+        }
+      } else {
+        if (instr->Bit(10) == 0) {
+          if (instr->Bit(11) == 0) {
+            V::VisitNEON3Different(instr);
+          } else {
+            if (instr->Bits(18, 17) == 0) {
+              if (instr->Bit(20) == 0) {
+                if (instr->Bit(19) == 0) {
+                  V::VisitNEON2RegMisc(instr);
+                } else {
+                  if (instr->Bits(30, 29) == 0x2) {
+                    V::VisitUnallocated(instr);
+                  } else {
+                    V::VisitUnallocated(instr);
+                  }
+                }
+              } else {
+                if (instr->Bit(19) == 0) {
+                  V::VisitNEONAcrossLanes(instr);
+                } else {
+                  V::VisitUnallocated(instr);
+                }
+              }
+            } else {
+              V::VisitUnallocated(instr);
+            }
+          }
+        } else {
+          V::VisitNEON3Same(instr);
+        }
+      }
+    } else {
+      if (instr->Bit(10) == 0) {
+        V::VisitNEONByIndexedElement(instr);
+      } else {
+        if (instr->Bit(23) == 0) {
+          if (instr->Bits(22, 19) == 0) {
+            V::VisitNEONModifiedImmediate(instr);
+          } else {
+            V::VisitNEONShiftImmediate(instr);
+          }
+        } else {
+          V::VisitUnallocated(instr);
+        }
+      }
+    }
+  } else {
+    V::VisitUnallocated(instr);
+  }
+}
+
+template <typename V>
+void Decoder<V>::DecodeNEONScalarDataProcessing(Instruction* instr) {
+  DCHECK_EQ(0xF, instr->Bits(28, 25));
+  if (instr->Bit(24) == 0) {
+    if (instr->Bit(21) == 0) {
+      if (instr->Bit(15) == 0) {
+        if (instr->Bit(10) == 0) {
+          if (instr->Bit(29) == 0) {
+            if (instr->Bit(11) == 0) {
+              V::VisitUnallocated(instr);
+            } else {
+              V::VisitUnallocated(instr);
+            }
+          } else {
+            V::VisitUnallocated(instr);
+          }
+        } else {
+          if (instr->Bits(23, 22) == 0) {
+            V::VisitNEONScalarCopy(instr);
+          } else {
+            V::VisitUnallocated(instr);
+          }
+        }
+      } else {
+        V::VisitUnallocated(instr);
+      }
+    } else {
+      if (instr->Bit(10) == 0) {
+        if (instr->Bit(11) == 0) {
+          V::VisitNEONScalar3Diff(instr);
+        } else {
+          if (instr->Bits(18, 17) == 0) {
+            if (instr->Bit(20) == 0) {
+              if (instr->Bit(19) == 0) {
+                V::VisitNEONScalar2RegMisc(instr);
+              } else {
+                if (instr->Bit(29) == 0) {
+                  V::VisitUnallocated(instr);
+                } else {
+                  V::VisitUnallocated(instr);
+                }
+              }
+            } else {
+              if (instr->Bit(19) == 0) {
+                V::VisitNEONScalarPairwise(instr);
+              } else {
+                V::VisitUnallocated(instr);
+              }
+            }
+          } else {
+            V::VisitUnallocated(instr);
+          }
+        }
+      } else {
+        V::VisitNEONScalar3Same(instr);
+      }
+    }
+  } else {
+    if (instr->Bit(10) == 0) {
+      V::VisitNEONScalarByIndexedElement(instr);
+    } else {
+      if (instr->Bit(23) == 0) {
+        V::VisitNEONScalarShiftImmediate(instr);
+      } else {
+        V::VisitUnallocated(instr);
       }
     }
   }
 }
 
 
-template<typename V>
-void Decoder<V>::DecodeAdvSIMDLoadStore(Instruction* instr) {
-  // TODO(all): Implement Advanced SIMD load/store instruction decode.
-  DCHECK(instr->Bits(29, 25) == 0x6);
-  V::VisitUnimplemented(instr);
-}
-
-
-template<typename V>
-void Decoder<V>::DecodeAdvSIMDDataProcessing(Instruction* instr) {
-  // TODO(all): Implement Advanced SIMD data processing instruction decode.
-  DCHECK(instr->Bits(27, 25) == 0x7);
-  V::VisitUnimplemented(instr);
-}
-
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_DECODER_ARM64_INL_H_

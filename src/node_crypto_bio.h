@@ -22,23 +22,32 @@
 #ifndef SRC_NODE_CRYPTO_BIO_H_
 #define SRC_NODE_CRYPTO_BIO_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "node_crypto.h"
 #include "openssl/bio.h"
-#include "util.h"
+#include "env-inl.h"
 #include "util-inl.h"
+#include "v8.h"
 
 namespace node {
+namespace crypto {
 
-class NodeBIO {
+// This class represents buffers for OpenSSL I/O, implemented as a singly-linked
+// list of chunks. It can be used both for writing data from Node to OpenSSL
+// and back, but only one direction per instance.
+// The structure is only accessed, and owned by, the OpenSSL BIOPointer
+// (a.k.a. std::unique_ptr<BIO>).
+class NodeBIO : public MemoryRetainer {
  public:
-  NodeBIO() : initial_(kInitialBufferLength),
-              length_(0),
-              read_head_(nullptr),
-              write_head_(nullptr) {
-  }
-
   ~NodeBIO();
 
-  static BIO* New();
+  static BIOPointer New(Environment* env = nullptr);
+
+  // NewFixed takes a copy of `len` bytes from `data` and returns a BIO that,
+  // when read from, returns those bytes followed by EOF.
+  static BIOPointer NewFixed(const char* data, size_t len,
+                             Environment* env = nullptr);
 
   // Move read head to next buffer if needed
   void TryMoveReadHead();
@@ -84,14 +93,26 @@ class NodeBIO {
     return length_;
   }
 
+  inline void set_eof_return(int num) {
+    eof_return_ = num;
+  }
+
+  inline int eof_return() {
+    return eof_return_;
+  }
+
   inline void set_initial(size_t initial) {
     initial_ = initial;
   }
 
-  static inline NodeBIO* FromBIO(BIO* bio) {
-    CHECK_NE(bio->ptr, nullptr);
-    return static_cast<NodeBIO*>(bio->ptr);
+  static NodeBIO* FromBIO(BIO* bio);
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+    tracker->TrackFieldWithSize("buffer", length_);
   }
+
+  ADD_MEMORY_INFO_NAME(NodeBIO)
 
  private:
   static int New(BIO* bio);
@@ -100,27 +121,36 @@ class NodeBIO {
   static int Write(BIO* bio, const char* data, int len);
   static int Puts(BIO* bio, const char* str);
   static int Gets(BIO* bio, char* out, int size);
-  static long Ctrl(BIO* bio, int cmd, long num, void* ptr);
+  static long Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+                   void* ptr);
+
+  static const BIO_METHOD* GetMethod();
 
   // Enough to handle the most of the client hellos
   static const size_t kInitialBufferLength = 1024;
   static const size_t kThroughputBufferLength = 16384;
 
-  static const BIO_METHOD method;
-
   class Buffer {
    public:
-    explicit Buffer(size_t len) : read_pos_(0),
-                                  write_pos_(0),
-                                  len_(len),
-                                  next_(nullptr) {
+    Buffer(Environment* env, size_t len) : env_(env),
+                                           read_pos_(0),
+                                           write_pos_(0),
+                                           len_(len),
+                                           next_(nullptr) {
       data_ = new char[len];
+      if (env_ != nullptr)
+        env_->isolate()->AdjustAmountOfExternalAllocatedMemory(len);
     }
 
     ~Buffer() {
       delete[] data_;
+      if (env_ != nullptr) {
+        const int64_t len = static_cast<int64_t>(len_);
+        env_->isolate()->AdjustAmountOfExternalAllocatedMemory(-len);
+      }
     }
 
+    Environment* env_;
     size_t read_pos_;
     size_t write_pos_;
     size_t len_;
@@ -128,12 +158,19 @@ class NodeBIO {
     char* data_;
   };
 
-  size_t initial_;
-  size_t length_;
-  Buffer* read_head_;
-  Buffer* write_head_;
+  Environment* env_ = nullptr;
+  size_t initial_ = kInitialBufferLength;
+  size_t length_ = 0;
+  int eof_return_ = -1;
+  Buffer* read_head_ = nullptr;
+  Buffer* write_head_ = nullptr;
+
+  friend void node::crypto::InitCryptoOnce();
 };
 
+}  // namespace crypto
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_BIO_H_

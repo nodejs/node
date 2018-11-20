@@ -19,25 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var http = require('http');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const http = require('http');
 
-var server = http.createServer(function(req, res) {
-  assert(false); // should not be called
-});
+const server = http.createServer(common.mustNotCall());
 
-server.listen(common.PORT, function() {
-  var req = http.request({method: 'GET', host: '127.0.0.1', port: common.PORT});
-
-  req.on('error', function(ex) {
-    // https://github.com/joyent/node/issues/1399#issuecomment-2597359
-    // abort() should emit an Error, not the net.Socket object
-    assert(ex instanceof Error);
+server.listen(0, common.mustCall(() => {
+  const req = http.request({
+    method: 'GET',
+    host: '127.0.0.1',
+    port: server.address().port
   });
+
+  req.on('abort', common.mustCall(() => {
+    server.close();
+  }));
+
+  req.on('error', common.mustNotCall());
 
   req.abort();
   req.end();
-
-  server.close();
-});
+}));

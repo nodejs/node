@@ -5,10 +5,8 @@
 #ifndef V8_DATE_H_
 #define V8_DATE_H_
 
-#include "src/allocation.h"
-#include "src/base/platform/platform.h"
+#include "src/base/timezone-cache.h"
 #include "src/globals.h"
-
 
 namespace v8 {
 namespace internal {
@@ -18,6 +16,7 @@ class DateCache {
   static const int kMsPerMin = 60 * 1000;
   static const int kSecPerDay = 24 * 60 * 60;
   static const int64_t kMsPerDay = kSecPerDay * 1000;
+  static const int64_t kMsPerMonth = kMsPerDay * 30;
 
   // The largest time that can be passed to OS date-time library functions.
   static const int kMaxEpochTimeInSec = kMaxInt;
@@ -30,8 +29,7 @@ class DateCache {
 
   // Conservative upper bound on time that can be stored in JSDate
   // before UTC conversion.
-  static const int64_t kMaxTimeBeforeUTCInMs =
-      kMaxTimeInMs + 10 * kMsPerDay;
+  static const int64_t kMaxTimeBeforeUTCInMs = kMaxTimeInMs + kMsPerMonth;
 
   // Sentinel that denotes an invalid local offset.
   static const int kInvalidLocalOffsetInMs = kMaxInt;
@@ -39,13 +37,11 @@ class DateCache {
   // It is an invariant of DateCache that cache stamp is non-negative.
   static const int kInvalidStamp = -1;
 
-  DateCache() : stamp_(0), tz_cache_(base::OS::CreateTimezoneCache()) {
-    ResetDateCache();
-  }
+  DateCache();
 
   virtual ~DateCache() {
-    base::OS::DisposeTimezoneCache(tz_cache_);
-    tz_cache_ = NULL;
+    delete tz_cache_;
+    tz_cache_ = nullptr;
   }
 
 
@@ -66,6 +62,8 @@ class DateCache {
     return static_cast<int>(time_ms - days * kMsPerDay);
   }
 
+  // ECMA 262 - ES#sec-timeclip TimeClip (time)
+  static double TimeClip(double time);
 
   // Given the number of days since the epoch, computes the weekday.
   // ECMA 262 - 15.9.1.6.
@@ -79,13 +77,9 @@ class DateCache {
     return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
   }
 
-
-  // ECMA 262 - 15.9.1.7.
-  int LocalOffsetInMs() {
-    if (local_offset_ms_ == kInvalidLocalOffsetInMs)  {
-      local_offset_ms_ = GetLocalOffsetFromOS();
-    }
-    return local_offset_ms_;
+  // ECMA 262 - ES#sec-local-time-zone-adjustment
+  int LocalOffsetInMs(int64_t time, bool is_utc) {
+    return GetLocalOffsetFromOS(time, is_utc);
   }
 
 
@@ -93,7 +87,12 @@ class DateCache {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
       time_ms = EquivalentTime(time_ms);
     }
-    return base::OS::LocalTimezone(static_cast<double>(time_ms), tz_cache_);
+    bool is_dst = DaylightSavingsOffsetInMs(time_ms) != 0;
+    const char** name = is_dst ? &dst_tz_name_ : &tz_name_;
+    if (*name == nullptr) {
+      *name = tz_cache_->LocalTimezone(static_cast<double>(time_ms));
+    }
+    return *name;
   }
 
   // ECMA 262 - 15.9.5.26
@@ -102,53 +101,16 @@ class DateCache {
     return static_cast<int>((time_ms - local_ms) / kMsPerMin);
   }
 
-  // ECMA 262 - 15.9.1.9
-  // LocalTime(t) = t + LocalTZA + DaylightSavingTA(t)
+  // ECMA 262 - ES#sec-localtime-t
+  // LocalTime(t) = t + LocalTZA(t, true)
   int64_t ToLocal(int64_t time_ms) {
-    return time_ms + LocalOffsetInMs() + DaylightSavingsOffsetInMs(time_ms);
+    return time_ms + LocalOffsetInMs(time_ms, true);
   }
 
-  // ECMA 262 - 15.9.1.9
-  // UTC(t) = t - LocalTZA - DaylightSavingTA(t - LocalTZA)
+  // ECMA 262 - ES#sec-utc-t
+  // UTC(t) = t - LocalTZA(t, false)
   int64_t ToUTC(int64_t time_ms) {
-    // We need to compute UTC time that corresponds to the given local time.
-    // Literally following spec here leads to incorrect time computation at
-    // the points were we transition to and from DST.
-    //
-    // The following shows that using DST for (t - LocalTZA - hour) produces
-    // correct conversion.
-    //
-    // Consider transition to DST at local time L1.
-    // Let L0 = L1 - hour, L2 = L1 + hour,
-    //     U1 = UTC time that corresponds to L1,
-    //     U0 = U1 - hour.
-    // Transitioning to DST moves local clock one hour forward L1 => L2, so
-    // U0 = UTC time that corresponds to L0 = L0 - LocalTZA,
-    // U1 = UTC time that corresponds to L1 = L1 - LocalTZA,
-    // U1 = UTC time that corresponds to L2 = L2 - LocalTZA - hour.
-    // Note that DST(U0 - hour) = 0, DST(U0) = 0, DST(U1) = 1.
-    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour),
-    // U1 = L1 - LocalTZA - DST(L1 - LocalTZA - hour),
-    // U1 = L2 - LocalTZA - DST(L2 - LocalTZA - hour).
-    //
-    // Consider transition from DST at local time L1.
-    // Let L0 = L1 - hour,
-    //     U1 = UTC time that corresponds to L1,
-    //     U0 = U1 - hour, U2 = U1 + hour.
-    // Transitioning from DST moves local clock one hour back L1 => L0, so
-    // U0 = UTC time that corresponds to L0 (before transition)
-    //    = L0 - LocalTZA - hour.
-    // U1 = UTC time that corresponds to L0 (after transition)
-    //    = L0 - LocalTZA = L1 - LocalTZA - hour
-    // U2 = UTC time that corresponds to L1 = L1 - LocalTZA.
-    // Note that DST(U0) = 1, DST(U1) = 0, DST(U2) = 0.
-    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour) = L0 - LocalTZA - DST(U0).
-    // U2 = L1 - LocalTZA - DST(L1 - LocalTZA - hour) = L1 - LocalTZA - DST(U1).
-    // It is impossible to get U1 from local time.
-
-    const int kMsPerHour = 3600 * 1000;
-    time_ms -= LocalOffsetInMs();
-    return time_ms - DaylightSavingsOffsetInMs(time_ms - kMsPerHour);
+    return time_ms - LocalOffsetInMs(time_ms, false);
   }
 
 
@@ -190,6 +152,10 @@ class DateCache {
   // the first day of the given month in the given year.
   int DaysFromYearMonth(int year, int month);
 
+  // Breaks down the time value.
+  void BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
+                     int* weekday, int* hour, int* min, int* sec, int* ms);
+
   // Cache stamp is used for invalidating caches in JSDate.
   // We increment the stamp each time when the timezone information changes.
   // JSDate objects perform stamp check and invalidate their caches if
@@ -200,15 +166,10 @@ class DateCache {
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
     double time_ms = static_cast<double>(time_sec * 1000);
-    return static_cast<int>(
-        base::OS::DaylightSavingsOffset(time_ms, tz_cache_));
+    return static_cast<int>(tz_cache_->DaylightSavingsOffset(time_ms));
   }
 
-  virtual int GetLocalOffsetFromOS() {
-    double offset = base::OS::LocalTimeOffset(tz_cache_);
-    DCHECK(offset < kInvalidLocalOffsetInMs);
-    return static_cast<int>(offset);
-  }
+  virtual int GetLocalOffsetFromOS(int64_t time_ms, bool is_utc);
 
  private:
   // The implementation relies on the fact that no time zones have
@@ -273,9 +234,14 @@ class DateCache {
   int ymd_month_;
   int ymd_day_;
 
+  // Timezone name cache
+  const char* tz_name_;
+  const char* dst_tz_name_;
+
   base::TimezoneCache* tz_cache_;
 };
 
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
-#endif
+#endif  // V8_DATE_H_

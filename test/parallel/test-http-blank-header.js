@@ -19,50 +19,41 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
-var gotReq = false;
-
-var server = http.createServer(function(req, res) {
-  common.error('got req');
-  gotReq = true;
-  assert.equal('GET', req.method);
-  assert.equal('/blah', req.url);
-  assert.deepEqual({
-    host: 'mapdevel.trolologames.ru:443',
-    origin: 'http://mapdevel.trolologames.ru',
+const server = http.createServer(common.mustCall((req, res) => {
+  assert.strictEqual('GET', req.method);
+  assert.strictEqual('/blah', req.url);
+  assert.deepStrictEqual({
+    host: 'example.org:443',
+    origin: 'http://example.org',
     cookie: ''
   }, req.headers);
-});
+}));
 
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, common.mustCall(() => {
+  const c = net.createConnection(server.address().port);
+  let received = '';
 
-  c.on('connect', function() {
-    common.error('client wrote message');
+  c.on('connect', common.mustCall(() => {
     c.write('GET /blah HTTP/1.1\r\n' +
-            'Host: mapdevel.trolologames.ru:443\r\n' +
+            'Host: example.org:443\r\n' +
             'Cookie:\r\n' +
-            'Origin: http://mapdevel.trolologames.ru\r\n' +
+            'Origin: http://example.org\r\n' +
             '\r\n\r\nhello world'
     );
-  });
-
-  c.on('end', function() {
+  }));
+  c.on('data', common.mustCall((data) => {
+    received += data.toString();
+  }));
+  c.on('end', common.mustCall(() => {
+    assert.strictEqual('HTTP/1.1 400 Bad Request\r\n\r\n', received);
     c.end();
-  });
-
-  c.on('close', function() {
-    common.error('client close');
-    server.close();
-  });
-});
-
-
-process.on('exit', function() {
-  assert.ok(gotReq);
-});
+  }));
+  c.on('close', common.mustCall(() => server.close()));
+}));

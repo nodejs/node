@@ -19,51 +19,63 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
 
-var interval_fired = false,
-    timeout_fired = false,
-    unref_interval = false,
-    unref_timer = false,
-    interval, check_unref, checks = 0;
+const common = require('../common');
 
-var LONG_TIME = 10 * 1000;
-var SHORT_TIME = 100;
+const assert = require('assert');
 
-setInterval(function() {
-  interval_fired = true;
-}, LONG_TIME).unref();
+let unref_interval = false;
+let unref_timer = false;
+let checks = 0;
 
-setTimeout(function() {
-  timeout_fired = true;
-}, LONG_TIME).unref();
+const LONG_TIME = 10 * 1000;
+const SHORT_TIME = 100;
 
-interval = setInterval(function() {
+const timer = setTimeout(() => {}, 10);
+assert.strictEqual(timer.hasRef(), true);
+// Should not throw.
+timer.unref().ref().unref();
+assert.strictEqual(timer.hasRef(), false);
+
+setInterval(() => {}, 10).unref().ref().unref();
+
+setInterval(common.mustNotCall('Interval should not fire'), LONG_TIME).unref();
+setTimeout(common.mustNotCall('Timer should not fire'), LONG_TIME).unref();
+
+const interval = setInterval(common.mustCall(() => {
   unref_interval = true;
   clearInterval(interval);
-}, SHORT_TIME).unref();
+}), SHORT_TIME);
+interval.unref();
 
-setTimeout(function() {
+setTimeout(common.mustCall(() => {
   unref_timer = true;
-}, SHORT_TIME).unref();
+}), SHORT_TIME).unref();
 
-check_unref = setInterval(function() {
+const check_unref = setInterval(() => {
   if (checks > 5 || (unref_interval && unref_timer))
     clearInterval(check_unref);
   checks += 1;
 }, 100);
 
-// Should not assert on args.Holder()->InternalFieldCount() > 0. See #4261.
-(function() {
-  var t = setInterval(function() {}, 1);
+{
+  const timeout =
+    setTimeout(common.mustCall(() => {
+      timeout.unref();
+    }), SHORT_TIME);
+}
+
+{
+  // Should not timeout the test
+  const timeout =
+    setInterval(() => timeout.unref(), SHORT_TIME);
+}
+
+// Should not assert on args.Holder()->InternalFieldCount() > 0.
+// See https://github.com/nodejs/node-v0.x-archive/issues/4261.
+{
+  const t = setInterval(() => {}, 1);
   process.nextTick(t.unref.bind({}));
   process.nextTick(t.unref.bind(t));
-})();
-
-process.on('exit', function() {
-  assert.strictEqual(interval_fired, false, 'Interval should not fire');
-  assert.strictEqual(timeout_fired, false, 'Timeout should not fire');
-  assert.strictEqual(unref_timer, true, 'An unrefd timeout should still fire');
-  assert.strictEqual(unref_interval, true, 'An unrefd interval should still fire');
-});
+}

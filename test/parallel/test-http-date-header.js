@@ -19,33 +19,34 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var testResBody = 'other stuff!\n';
+const testResBody = 'other stuff!\n';
 
-var server = http.createServer(function(req, res) {
-  assert.ok(! ('date' in req.headers),
+const server = http.createServer((req, res) => {
+  assert.ok(!('date' in req.headers),
             'Request headers contained a Date.');
   res.writeHead(200, {
     'Content-Type': 'text/plain'
   });
   res.end(testResBody);
 });
-server.listen(common.PORT);
+server.listen(0);
 
 
-server.addListener('listening', function() {
-  var options = {
-    port: common.PORT,
+server.addListener('listening', () => {
+  const options = {
+    port: server.address().port,
     path: '/',
     method: 'GET'
   };
-  var req = http.request(options, function(res) {
+  const req = http.request(options, (res) => {
     assert.ok('date' in res.headers,
               'Response headers didn\'t contain a Date.');
-    res.addListener('end', function() {
+    res.addListener('end', () => {
       server.close();
       process.exit();
     });

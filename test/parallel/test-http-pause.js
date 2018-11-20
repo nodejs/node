@@ -19,49 +19,50 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var expectedServer = 'Request Body from Client';
-var resultServer = '';
-var expectedClient = 'Response Body from Server';
-var resultClient = '';
+const expectedServer = 'Request Body from Client';
+let resultServer = '';
+const expectedClient = 'Response Body from Server';
+let resultClient = '';
 
-var server = http.createServer(function(req, res) {
-  common.debug('pause server request');
+const server = http.createServer((req, res) => {
+  console.error('pause server request');
   req.pause();
-  setTimeout(function() {
-    common.debug('resume server request');
+  setTimeout(() => {
+    console.error('resume server request');
     req.resume();
     req.setEncoding('utf8');
-    req.on('data', function(chunk) {
+    req.on('data', (chunk) => {
       resultServer += chunk;
     });
-    req.on('end', function() {
-      common.debug(resultServer);
+    req.on('end', () => {
+      console.error(resultServer);
       res.writeHead(200);
       res.end(expectedClient);
     });
   }, 100);
 });
 
-server.listen(common.PORT, function() {
-  var req = http.request({
-    port: common.PORT,
+server.listen(0, function() {
+  const req = http.request({
+    port: this.address().port,
     path: '/',
     method: 'POST'
-  }, function(res) {
-    common.debug('pause client response');
+  }, (res) => {
+    console.error('pause client response');
     res.pause();
-    setTimeout(function() {
-      common.debug('resume client response');
+    setTimeout(() => {
+      console.error('resume client response');
       res.resume();
-      res.on('data', function(chunk) {
+      res.on('data', (chunk) => {
         resultClient += chunk;
       });
-      res.on('end', function() {
-        common.debug(resultClient);
+      res.on('end', () => {
+        console.error(resultClient);
         server.close();
       });
     }, 100);
@@ -69,7 +70,7 @@ server.listen(common.PORT, function() {
   req.end(expectedServer);
 });
 
-process.on('exit', function() {
-  assert.equal(expectedServer, resultServer);
-  assert.equal(expectedClient, resultClient);
+process.on('exit', () => {
+  assert.strictEqual(expectedServer, resultServer);
+  assert.strictEqual(expectedClient, resultClient);
 });

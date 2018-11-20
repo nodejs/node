@@ -1,12 +1,8 @@
 *.swp
 .*.swp
 npm-debug.log
-/test/bin
-/test/output.log
-/test/packages/*/node_modules
-/test/packages/npm-test-depends-on-spark/which-spark.log
-/test/packages/test-package/random-data.txt
-/test/root
+/.github
+/test
 node_modules/marked
 node_modules/ronn
 node_modules/tap
@@ -26,4 +22,5 @@ html/*.png
 
 *.pyc
 
-/test/tap/builtin-config
+
+.nyc_output

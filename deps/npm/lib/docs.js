@@ -1,36 +1,27 @@
 module.exports = docs
 
-docs.usage  = "npm docs <pkgname>"
-docs.usage += "\n"
-docs.usage += "npm docs ."
+var openUrl = require('./utils/open-url')
+var log = require('npmlog')
+var fetchPackageMetadata = require('./fetch-package-metadata.js')
+var usage = require('./utils/usage')
 
+docs.usage = usage(
+  'docs',
+  'npm docs <pkgname>' +
+  '\nnpm docs .'
+)
 docs.completion = function (opts, cb) {
-  mapToRegistry("/-/short", npm.config, function (er, uri) {
-    if (er) return cb(er)
-
-    registry.get(uri, { timeout : 60000 }, function (er, list) {
-      return cb(null, list || [])
-    })
-  })
-}
-
-var npm = require("./npm.js")
-  , registry = npm.registry
-  , opener = require("opener")
-  , path = require("path")
-  , log = require("npmlog")
-  , mapToRegistry = require("./utils/map-to-registry.js")
-
-function url (json) {
-  return json.homepage ? json.homepage : "https://npmjs.org/package/" + json.name
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
 function docs (args, cb) {
-  args = args || []
+  if (!args || !args.length) args = ['.']
   var pending = args.length
-  if (!pending) return getDoc('.', cb)
-  args.forEach(function(proj) {
-    getDoc(proj, function(err) {
+  log.silly('docs', args)
+  args.forEach(function (proj) {
+    getDoc(proj, function (err) {
       if (err) {
         return cb(err)
       }
@@ -40,37 +31,11 @@ function docs (args, cb) {
 }
 
 function getDoc (project, cb) {
-  project = project || '.'
-  var package = path.resolve(npm.localPrefix, "package.json")
-
-  if (project === '.' || project === './') {
-    var json
-    try {
-      json = require(package)
-      if (!json.name) throw new Error('package.json does not have a valid "name" property')
-      project = json.name
-    } catch (e) {
-      log.error(e.message)
-      return cb(docs.usage)
-    }
-
-    return opener(url(json), { command: npm.config.get("browser") }, cb)
-  }
-
-  mapToRegistry(project, npm.config, function (er, uri) {
+  log.silly('getDoc', project)
+  fetchPackageMetadata(project, '.', {fullMetadata: true}, function (er, d) {
     if (er) return cb(er)
-
-    registry.get(uri + "/latest", { timeout : 3600 }, next)
+    var url = d.homepage
+    if (!url) url = 'https://www.npmjs.org/package/' + d.name
+    return openUrl(url, 'docs available at the following URL', cb)
   })
-
-  function next (er, json) {
-    var github = "https://github.com/" + project + "#readme"
-
-    if (er) {
-      if (project.split("/").length !== 2) return cb(er)
-      return opener(github, { command: npm.config.get("browser") }, cb)
-    }
-
-    return opener(url(json), { command: npm.config.get("browser") }, cb)
-  }
 }

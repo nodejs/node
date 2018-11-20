@@ -19,12 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
 
 try {
-  require('../fixtures/invalid.json');
+  require(fixtures.path('invalid.json'));
 } catch (err) {
-  var re = /test[\/\\]fixtures[\/\\]invalid.json: Unexpected string/;
-  var i = err.message.match(re);
-  assert(null !== i, 'require() json error should include path');
+  assert.ok(
+    /test[/\\]fixtures[/\\]invalid\.json: /.test(err.message),
+    `require() json error should include path: ${err.message}`);
 }

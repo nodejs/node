@@ -19,47 +19,47 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var fs = require('fs');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
+const https = require('https');
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 
-var server = https.Server(options, function(req, res) {
+const server = https.Server(options, function(req, res) {
   res.writeHead(200);
   res.end('hello world\n');
 });
 
 
-var responses = 0;
-var N = 10;
-var M = 10;
+let responses = 0;
+const N = 4;
+const M = 4;
 
-server.listen(common.PORT, function() {
-  for (var i = 0; i < N; i++) {
+
+server.listen(0, function() {
+  for (let i = 0; i < N; i++) {
     setTimeout(function() {
-      for (var j = 0; j < M; j++) {
+      for (let j = 0; j < M; j++) {
         https.get({
           path: '/',
-          port: common.PORT,
+          port: server.address().port,
           rejectUnauthorized: false
         }, function(res) {
           res.resume();
-          console.log(res.statusCode);
-          if (++responses == N * M) server.close();
+          assert.strictEqual(res.statusCode, 200);
+          if (++responses === N * M) server.close();
         }).on('error', function(e) {
-          console.log(e.message);
-          process.exit(1);
+          throw e;
         });
       }
     }, i);
@@ -68,5 +68,5 @@ server.listen(common.PORT, function() {
 
 
 process.on('exit', function() {
-  assert.equal(N * M, responses);
+  assert.strictEqual(N * M, responses);
 });

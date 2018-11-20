@@ -19,12 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 var n = parseInt(process.argv[2]);
 
-var b = new Buffer(n);
+var b = Buffer.allocUnsafe(n);
 for (var i = 0; i < n; i++) {
   b[i] = 100;
 }

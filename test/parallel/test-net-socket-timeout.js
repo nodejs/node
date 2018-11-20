@@ -19,26 +19,41 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
-var timedout = false;
+// Verify that invalid delays throw
+const s = new net.Socket();
+const nonNumericDelays = [
+  '100', true, false, undefined, null, '', {}, () => {}, []
+];
+const badRangeDelays = [-0.001, -1, -Infinity, Infinity, NaN];
+const validDelays = [0, 0.001, 1, 1e6];
 
-var server = net.Server();
-server.listen(common.PORT, function() {
-  var socket = net.createConnection(common.PORT);
-  socket.setTimeout(100, function() {
-    timedout = true;
+
+for (let i = 0; i < nonNumericDelays.length; i++) {
+  assert.throws(function() {
+    s.setTimeout(nonNumericDelays[i], () => {});
+  }, TypeError, nonNumericDelays[i]);
+}
+
+for (let i = 0; i < badRangeDelays.length; i++) {
+  assert.throws(function() {
+    s.setTimeout(badRangeDelays[i], () => {});
+  }, RangeError, badRangeDelays[i]);
+}
+
+for (let i = 0; i < validDelays.length; i++) {
+  s.setTimeout(validDelays[i], () => {});
+}
+
+const server = net.Server();
+server.listen(0, common.mustCall(function() {
+  const socket = net.createConnection(this.address().port);
+  socket.setTimeout(1, common.mustCall(function() {
     socket.destroy();
     server.close();
-    clearTimeout(timer);
-  });
-  var timer = setTimeout(function() {
-    process.exit(1);
-  }, 200);
-});
-
-process.on('exit', function() {
-  assert.ok(timedout);
-});
+  }));
+}));

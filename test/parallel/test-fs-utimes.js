@@ -19,40 +19,46 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
+const fs = require('fs');
 
-var is_windows = process.platform === 'win32';
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-var tests_ok = 0;
-var tests_run = 0;
+let tests_ok = 0;
+let tests_run = 0;
 
 function stat_resource(resource) {
-  if (typeof resource == 'string') {
+  if (typeof resource === 'string') {
     return fs.statSync(resource);
   } else {
+    const stats = fs.fstatSync(resource);
     // ensure mtime has been written to disk
+    // except for directories on AIX where it cannot be synced
+    if (common.isAIX && stats.isDirectory())
+      return stats;
     fs.fsyncSync(resource);
     return fs.fstatSync(resource);
   }
 }
 
 function check_mtime(resource, mtime) {
-  var mtime = fs._toUnixTimestamp(mtime);
-  var stats = stat_resource(resource);
-  var real_mtime = fs._toUnixTimestamp(stats.mtime);
+  mtime = fs._toUnixTimestamp(mtime);
+  const stats = stat_resource(resource);
+  const real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision
   // sub-second precision is OS and fs dependant
-  return Math.floor(mtime) == Math.floor(real_mtime);
+  return mtime - real_mtime < 2;
 }
 
 function expect_errno(syscall, resource, err, errno) {
   if (err && (err.code === errno || err.code === 'ENOSYS')) {
     tests_ok++;
   } else {
-    console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
+    console.log('FAILED:', 'expect_errno', util.inspect(arguments));
   }
 }
 
@@ -61,22 +67,19 @@ function expect_ok(syscall, resource, err, atime, mtime) {
       err && err.code === 'ENOSYS') {
     tests_ok++;
   } else {
-    console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
+    console.log('FAILED:', 'expect_ok', util.inspect(arguments));
   }
 }
 
-// the tests assume that __filename belongs to the user running the tests
-// this should be a fairly safe assumption; testing against a temp file
-// would be even better though (node doesn't have such functionality yet)
-function runTest(atime, mtime, callback) {
+function testIt(atime, mtime, callback) {
 
-  var fd, err;
+  let fd;
   //
   // test synchronized code paths, these functions throw on failure
   //
   function syncTests() {
-    fs.utimesSync(__filename, atime, mtime);
-    expect_ok('utimesSync', __filename, undefined, atime, mtime);
+    fs.utimesSync(tmpdir.path, atime, mtime);
+    expect_ok('utimesSync', tmpdir.path, undefined, atime, mtime);
     tests_run++;
 
     // some systems don't have futimes
@@ -89,8 +92,7 @@ function runTest(atime, mtime, callback) {
       expect_errno('futimesSync', fd, ex, 'ENOSYS');
     }
 
-    var err;
-    err = undefined;
+    let err;
     try {
       fs.utimesSync('foobarbaz', atime, mtime);
     } catch (ex) {
@@ -100,61 +102,131 @@ function runTest(atime, mtime, callback) {
     tests_run++;
 
     err = undefined;
-    try {
-      fs.futimesSync(-1, atime, mtime);
-    } catch (ex) {
-      err = ex;
-    }
-    expect_errno('futimesSync', -1, err, 'EBADF');
+    common.expectsError(
+      () => fs.futimesSync(-1, atime, mtime),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        type: RangeError,
+        message: 'The value of "fd" is out of range. ' +
+                'It must be >= 0 && < 4294967296. Received -1'
+      }
+    );
     tests_run++;
   }
 
   //
   // test async code paths
   //
-  fs.utimes(__filename, atime, mtime, function(err) {
-    expect_ok('utimes', __filename, err, atime, mtime);
+  fs.utimes(tmpdir.path, atime, mtime, common.mustCall((err) => {
+    expect_ok('utimes', tmpdir.path, err, atime, mtime);
 
-    fs.utimes('foobarbaz', atime, mtime, function(err) {
+    fs.utimes('foobarbaz', atime, mtime, common.mustCall((err) => {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
       // don't close this fd
-      if (is_windows) {
-        fd = fs.openSync(__filename, 'r+');
+      if (common.isWindows) {
+        fd = fs.openSync(tmpdir.path, 'r+');
       } else {
-        fd = fs.openSync(__filename, 'r');
+        fd = fs.openSync(tmpdir.path, 'r');
       }
 
-      fs.futimes(fd, atime, mtime, function(err) {
+      fs.futimes(fd, atime, mtime, common.mustCall((err) => {
         expect_ok('futimes', fd, err, atime, mtime);
 
-        fs.futimes(-1, atime, mtime, function(err) {
-          expect_errno('futimes', -1, err, 'EBADF');
-          syncTests();
-          callback();
-        });
+        common.expectsError(
+          () => fs.futimes(-1, atime, mtime, common.mustNotCall()),
+          {
+            code: 'ERR_OUT_OF_RANGE',
+            type: RangeError,
+            message: 'The value of "fd" is out of range. ' +
+                    'It must be >= 0 && < 4294967296. Received -1'
+          }
+        );
+
+        syncTests();
+
         tests_run++;
-      });
+      }));
       tests_run++;
-    });
+    }));
     tests_run++;
-  });
+  }));
   tests_run++;
 }
 
-var stats = fs.statSync(__filename);
+const stats = fs.statSync(tmpdir.path);
 
-runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
-  runTest(new Date(), new Date(), function() {
-    runTest(123456.789, 123456.789, function() {
-      runTest(stats.mtime, stats.mtime, function() {
-        // done
+// Run tests
+const runTest = common.mustCall(testIt, 1);
+
+runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), () => {
+  runTest(new Date(), new Date(), () => {
+    runTest(123456.789, 123456.789, () => {
+      runTest(stats.mtime, stats.mtime, () => {
+        runTest('123456', -1, () => {
+          runTest(
+            new Date('2017-04-08T17:59:38.008Z'),
+            new Date('2017-04-08T17:59:38.008Z'),
+            common.mustCall(() => {
+              // Done
+            })
+          );
+        });
       });
     });
   });
 });
 
-process.on('exit', function() {
-  console.log('Tests run / ok:', tests_run, '/', tests_ok);
-  assert.equal(tests_ok, tests_run);
+process.on('exit', () => {
+  assert.strictEqual(tests_ok, tests_run - 2);
+});
+
+
+// Ref: https://github.com/nodejs/node/issues/13255
+const path = `${tmpdir.path}/test-utimes-precision`;
+fs.writeFileSync(path, '');
+
+// test Y2K38 for all platforms [except 'arm', 'OpenBSD' and 'SunOS']
+if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
+  // because 2 ** 31 doesn't look right
+  // eslint-disable-next-line space-infix-ops
+  const Y2K38_mtime = 2**31;
+  fs.utimesSync(path, Y2K38_mtime, Y2K38_mtime);
+  const Y2K38_stats = fs.statSync(path);
+  assert.strictEqual(Y2K38_mtime, Y2K38_stats.mtime.getTime() / 1000);
+}
+
+if (common.isWindows) {
+  // this value would get converted to (double)1713037251359.9998
+  const truncate_mtime = 1713037251360;
+  fs.utimesSync(path, truncate_mtime / 1000, truncate_mtime / 1000);
+  const truncate_stats = fs.statSync(path);
+  assert.strictEqual(truncate_mtime, truncate_stats.mtime.getTime());
+
+  // test Y2K38 for windows
+  // This value if treaded as a `signed long` gets converted to -2135622133469.
+  // POSIX systems stores timestamps in {long t_sec, long t_usec}.
+  // NTFS stores times in nanoseconds in a single `uint64_t`, so when libuv
+  // calculates (long)`uv_timespec_t.tv_sec` we get 2's complement.
+  const overflow_mtime = 2159345162531;
+  fs.utimesSync(path, overflow_mtime / 1000, overflow_mtime / 1000);
+  const overflow_stats = fs.statSync(path);
+  assert.strictEqual(overflow_mtime, overflow_stats.mtime.getTime());
+}
+
+[false, 0, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.utimes(i, new Date(), new Date(), common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.utimesSync(i, new Date(), new Date()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
 });

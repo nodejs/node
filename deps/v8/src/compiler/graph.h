@@ -5,89 +5,109 @@
 #ifndef V8_COMPILER_GRAPH_H_
 #define V8_COMPILER_GRAPH_H_
 
-#include <map>
-#include <set>
+#include <array>
 
-#include "src/compiler/generic-algorithm.h"
-#include "src/compiler/node.h"
-#include "src/compiler/node-aux-data.h"
-#include "src/compiler/source-position.h"
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
 class GraphDecorator;
+class Node;
+class Operator;
 
 
-class Graph : public GenericGraph<Node> {
+// Marks are used during traversal of the graph to distinguish states of nodes.
+// Each node has a mark which is a monotonically increasing integer, and a
+// {NodeMarker} has a range of values that indicate states of a node.
+typedef uint32_t Mark;
+
+
+// NodeIds are identifying numbers for nodes that can be used to index auxiliary
+// out-of-line data associated with each node.
+typedef uint32_t NodeId;
+
+class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Graph(Zone* zone);
 
+  // Scope used when creating a subgraph for inlining. Automatically preserves
+  // the original start and end nodes of the graph, and resets them when you
+  // leave the scope.
+  class SubgraphScope final {
+   public:
+    explicit SubgraphScope(Graph* graph)
+        : graph_(graph), start_(graph->start()), end_(graph->end()) {}
+    ~SubgraphScope() {
+      graph_->SetStart(start_);
+      graph_->SetEnd(end_);
+    }
+
+   private:
+    Graph* const graph_;
+    Node* const start_;
+    Node* const end_;
+
+    DISALLOW_COPY_AND_ASSIGN(SubgraphScope);
+  };
+
   // Base implementation used by all factory methods.
-  Node* NewNode(const Operator* op, int input_count, Node** inputs,
+  Node* NewNodeUnchecked(const Operator* op, int input_count,
+                         Node* const* inputs, bool incomplete = false);
+
+  // Factory that checks the input count.
+  Node* NewNode(const Operator* op, int input_count, Node* const* inputs,
                 bool incomplete = false);
 
-  // Factories for nodes with static input counts.
-  Node* NewNode(const Operator* op) {
-    return NewNode(op, 0, static_cast<Node**>(NULL));
-  }
-  Node* NewNode(const Operator* op, Node* n1) { return NewNode(op, 1, &n1); }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2) {
-    Node* nodes[] = {n1, n2};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3) {
-    Node* nodes[] = {n1, n2, n3};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
-    Node* nodes[] = {n1, n2, n3, n4};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5) {
-    Node* nodes[] = {n1, n2, n3, n4, n5};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6};
-    return NewNode(op, arraysize(nodes), nodes);
-  }
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5, Node* n6, Node* n7) {
-    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7};
-    return NewNode(op, arraysize(nodes), nodes);
+  // Factory template for nodes with static input counts.
+  template <typename... Nodes>
+  Node* NewNode(const Operator* op, Nodes*... nodes) {
+    std::array<Node*, sizeof...(nodes)> nodes_arr{{nodes...}};
+    return NewNode(op, nodes_arr.size(), nodes_arr.data());
   }
 
-  template <class Visitor>
-  void VisitNodeUsesFrom(Node* node, Visitor* visitor);
+  // Clone the {node}, and assign a new node id to the copy.
+  Node* CloneNode(const Node* node);
 
-  template <class Visitor>
-  void VisitNodeUsesFromStart(Visitor* visitor);
+  Zone* zone() const { return zone_; }
+  Node* start() const { return start_; }
+  Node* end() const { return end_; }
 
-  template <class Visitor>
-  void VisitNodeInputsFromEnd(Visitor* visitor);
+  void SetStart(Node* start) { start_ = start; }
+  void SetEnd(Node* end) { end_ = end; }
+
+  size_t NodeCount() const { return next_node_id_; }
 
   void Decorate(Node* node);
+  void AddDecorator(GraphDecorator* decorator);
+  void RemoveDecorator(GraphDecorator* decorator);
 
-  void AddDecorator(GraphDecorator* decorator) {
-    decorators_.push_back(decorator);
-  }
-
-  void RemoveDecorator(GraphDecorator* decorator) {
-    ZoneVector<GraphDecorator*>::iterator it =
-        std::find(decorators_.begin(), decorators_.end(), decorator);
-    DCHECK(it != decorators_.end());
-    decorators_.erase(it, it + 1);
-  }
+  // Very simple print API usable in a debugger.
+  void Print() const;
 
  private:
+  friend class NodeMarkerBase;
+
+  inline NodeId NextNodeId();
+
+  Zone* const zone_;
+  Node* start_;
+  Node* end_;
+  Mark mark_max_;
+  NodeId next_node_id_;
   ZoneVector<GraphDecorator*> decorators_;
+
+  DISALLOW_COPY_AND_ASSIGN(Graph);
 };
 
 
+// A graph decorator can be used to add behavior to the creation of nodes
+// in a graph.
 class GraphDecorator : public ZoneObject {
  public:
   virtual ~GraphDecorator() {}

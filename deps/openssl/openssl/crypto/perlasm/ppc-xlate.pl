@@ -1,6 +1,10 @@
-#!/usr/bin/env perl
-
-# PowerPC assembler distiller by <appro>.
+#! /usr/bin/env perl
+# Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
 
 my $flavour = shift;
 my $output = shift;
@@ -27,7 +31,8 @@ my $globl = sub {
 	/osx/		&& do { $name = "_$name";
 				last;
 			      };
-	/linux.*32/	&& do {	$ret .= ".globl	$name\n";
+	/linux.*(32|64le)/
+			&& do {	$ret .= ".globl	$name\n";
 				$ret .= ".type	$name,\@function";
 				last;
 			      };
@@ -37,7 +42,6 @@ my $globl = sub {
 				$ret .= ".align	3\n";
 				$ret .= "$name:\n";
 				$ret .= ".quad	.$name,.TOC.\@tocbase,0\n";
-				$ret .= ".size	$name,24\n";
 				$ret .= ".previous\n";
 
 				$name = ".$name";
@@ -50,7 +54,9 @@ my $globl = sub {
     $ret;
 };
 my $text = sub {
-    ($flavour =~ /aix/) ? ".csect" : ".text";
+    my $ret = ($flavour =~ /aix/) ? ".csect\t.text[PR],7" : ".text";
+    $ret = ".abiversion	2\n".$ret	if ($flavour =~ /linux.*64le/);
+    $ret;
 };
 my $machine = sub {
     my $junk = shift;
@@ -62,9 +68,12 @@ my $machine = sub {
     ".machine	$arch";
 };
 my $size = sub {
-    if ($flavour =~ /linux.*32/)
+    if ($flavour =~ /linux/)
     {	shift;
-	".size	" . join(",",@_);
+	my $name = shift; $name =~ s|^[\.\_]||;
+	my $ret  = ".size	$name,.-".($flavour=~/64$/?".":"").$name;
+	$ret .= "\n.size	.$name,.-.$name" if ($flavour=~/64$/);
+	$ret;
     }
     else
     {	"";	}
@@ -76,6 +85,25 @@ my $asciz = sub {
     {	".byte	" . join(",",unpack("C*",$1),0) . "\n.align	2";	}
     else
     {	"";	}
+};
+my $quad = sub {
+    shift;
+    my @ret;
+    my ($hi,$lo);
+    for (@_) {
+	if (/^0x([0-9a-f]*?)([0-9a-f]{1,8})$/io)
+	{  $hi=$1?"0x$1":"0"; $lo="0x$2";  }
+	elsif (/^([0-9]+)$/o)
+	{  $hi=$1>>32; $lo=$1&0xffffffff;  } # error-prone with 32-bit perl
+	else
+	{  $hi=undef; $lo=$_; }
+
+	if (defined($hi))
+	{  push(@ret,$flavour=~/le$/o?".long\t$lo,$hi":".long\t$hi,$lo");  }
+	else
+	{  push(@ret,".quad	$lo");  }
+    }
+    join("\n",@ret);
 };
 
 ################################################################
@@ -122,6 +150,81 @@ my $extrdi = sub {
     $b = ($b+$n)&63; $n = 64-$n;
     "	rldicl	$ra,$rs,$b,$n";
 };
+my $vmr = sub {
+    my ($f,$vx,$vy) = @_;
+    "	vor	$vx,$vy,$vy";
+};
+
+# Some ABIs specify vrsave, special-purpose register #256, as reserved
+# for system use.
+my $no_vrsave = ($flavour =~ /aix|linux64le/);
+my $mtspr = sub {
+    my ($f,$idx,$ra) = @_;
+    if ($idx == 256 && $no_vrsave) {
+	"	or	$ra,$ra,$ra";
+    } else {
+	"	mtspr	$idx,$ra";
+    }
+};
+my $mfspr = sub {
+    my ($f,$rd,$idx) = @_;
+    if ($idx == 256 && $no_vrsave) {
+	"	li	$rd,-1";
+    } else {
+	"	mfspr	$rd,$idx";
+    }
+};
+
+# PowerISA 2.06 stuff
+sub vsxmem_op {
+    my ($f, $vrt, $ra, $rb, $op) = @_;
+    "	.long	".sprintf "0x%X",(31<<26)|($vrt<<21)|($ra<<16)|($rb<<11)|($op*2+1);
+}
+# made-up unaligned memory reference AltiVec/VMX instructions
+my $lvx_u	= sub {	vsxmem_op(@_, 844); };	# lxvd2x
+my $stvx_u	= sub {	vsxmem_op(@_, 972); };	# stxvd2x
+my $lvdx_u	= sub {	vsxmem_op(@_, 588); };	# lxsdx
+my $stvdx_u	= sub {	vsxmem_op(@_, 716); };	# stxsdx
+my $lvx_4w	= sub { vsxmem_op(@_, 780); };	# lxvw4x
+my $stvx_4w	= sub { vsxmem_op(@_, 908); };	# stxvw4x
+
+# PowerISA 2.07 stuff
+sub vcrypto_op {
+    my ($f, $vrt, $vra, $vrb, $op) = @_;
+    "	.long	".sprintf "0x%X",(4<<26)|($vrt<<21)|($vra<<16)|($vrb<<11)|$op;
+}
+my $vcipher	= sub { vcrypto_op(@_, 1288); };
+my $vcipherlast	= sub { vcrypto_op(@_, 1289); };
+my $vncipher	= sub { vcrypto_op(@_, 1352); };
+my $vncipherlast= sub { vcrypto_op(@_, 1353); };
+my $vsbox	= sub { vcrypto_op(@_, 0, 1480); };
+my $vshasigmad	= sub { my ($st,$six)=splice(@_,-2); vcrypto_op(@_, $st<<4|$six, 1730); };
+my $vshasigmaw	= sub { my ($st,$six)=splice(@_,-2); vcrypto_op(@_, $st<<4|$six, 1666); };
+my $vpmsumb	= sub { vcrypto_op(@_, 1032); };
+my $vpmsumd	= sub { vcrypto_op(@_, 1224); };
+my $vpmsubh	= sub { vcrypto_op(@_, 1096); };
+my $vpmsumw	= sub { vcrypto_op(@_, 1160); };
+my $vaddudm	= sub { vcrypto_op(@_, 192);  };
+
+my $mtsle	= sub {
+    my ($f, $arg) = @_;
+    "	.long	".sprintf "0x%X",(31<<26)|($arg<<21)|(147*2);
+};
+
+# PowerISA 3.0 stuff
+my $maddhdu = sub {
+    my ($f, $rt, $ra, $rb, $rc) = @_;
+    "	.long	".sprintf "0x%X",(4<<26)|($rt<<21)|($ra<<16)|($rb<<11)|($rc<<6)|49;
+};
+my $maddld = sub {
+    my ($f, $rt, $ra, $rb, $rc) = @_;
+    "	.long	".sprintf "0x%X",(4<<26)|($rt<<21)|($ra<<16)|($rb<<11)|($rc<<6)|51;
+};
+
+my $darn = sub {
+    my ($f, $rt, $l) = @_;
+    "	.long	".sprintf "0x%X",(31<<26)|($rt<<21)|($l<<16)|(755<<1);
+};
 
 while($line=<>) {
 
@@ -138,7 +241,10 @@ while($line=<>) {
     {
 	$line =~ s|(^[\.\w]+)\:\s*||;
 	my $label = $1;
-	printf "%s:",($GLOBALS{$label} or $label) if ($label);
+	if ($label) {
+	    printf "%s:",($GLOBALS{$label} or $label);
+	    printf "\n.localentry\t$GLOBALS{$label},0"	if ($GLOBALS{$label} && $flavour =~ /linux.*64le/);
+	}
     }
 
     {
@@ -147,7 +253,7 @@ while($line=<>) {
 	my $mnemonic = $2;
 	my $f = $3;
 	my $opcode = eval("\$$mnemonic");
-	$line =~ s|\bc?[rf]([0-9]+)\b|$1|g if ($c ne "." and $flavour !~ /osx/);
+	$line =~ s/\b(c?[rf]|v|vs)([0-9]+)\b/$2/g if ($c ne "." and $flavour !~ /osx/);
 	if (ref($opcode) eq 'CODE') { $line = &$opcode($f,split(',',$line)); }
 	elsif ($mnemonic)           { $line = $c.$mnemonic.$f."\t".$line; }
     }

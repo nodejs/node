@@ -19,21 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+'use strict';
+const common = require('../common');
+const vm = require('vm');
 
-assert.throws(function() {
-  var ctx = vm.createContext('string is not supported');
-}, TypeError);
-
-assert.doesNotThrow(function() {
-  var ctx = vm.createContext({ a: 1 });
-  ctx = vm.createContext([0, 1, 2, 3]);
+common.expectsError(() => {
+  vm.createContext('string is not supported');
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError
 });
 
-assert.doesNotThrow(function() {
-    var sandbox = {};
-    vm.createContext(sandbox);
-    vm.createContext(sandbox);
-});
+// Should not throw.
+vm.createContext({ a: 1 });
+vm.createContext([0, 1, 2, 3]);
+
+const sandbox = {};
+vm.createContext(sandbox);
+vm.createContext(sandbox);

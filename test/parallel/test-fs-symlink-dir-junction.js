@@ -19,50 +19,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var completed = 0;
-var expected_tests = 4;
+'use strict';
+const common = require('../common');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+
+const tmpdir = require('../common/tmpdir');
 
 // test creating and reading symbolic link
-var linkData = path.join(common.fixturesDir, 'cycles/');
-var linkPath = path.join(common.tmpDir, 'cycles_link');
+const linkData = fixtures.path('cycles/');
+const linkPath = path.join(tmpdir.path, 'cycles_link');
 
-// Delete previously created link
-try {
-  fs.unlinkSync(linkPath);
-} catch (e) {}
+tmpdir.refresh();
 
-console.log('linkData: ' + linkData);
-console.log('linkPath: ' + linkPath);
+fs.symlink(linkData, linkPath, 'junction', common.mustCall(function(err) {
+  assert.ifError(err);
 
-fs.symlink(linkData, linkPath, 'junction', function(err) {
-  if (err) throw err;
-  completed++;
-
-  fs.lstat(linkPath, function(err, stats) {
-    if (err) throw err;
+  fs.lstat(linkPath, common.mustCall(function(err, stats) {
+    assert.ifError(err);
     assert.ok(stats.isSymbolicLink());
-    completed++;
 
-    fs.readlink(linkPath, function(err, destination) {
-      if (err) throw err;
-      assert.equal(destination, linkData);
-      completed++;
+    fs.readlink(linkPath, common.mustCall(function(err, destination) {
+      assert.ifError(err);
+      assert.strictEqual(destination, linkData);
 
-      fs.unlink(linkPath, function(err) {
-        if (err) throw err;
-        assert(!common.fileExists(linkPath));
-        assert(common.fileExists(linkData));
-        completed++;
-      });
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(completed, expected_tests);
-});
-
+      fs.unlink(linkPath, common.mustCall(function(err) {
+        assert.ifError(err);
+        assert(!fs.existsSync(linkPath));
+        assert(fs.existsSync(linkData));
+      }));
+    }));
+  }));
+}));

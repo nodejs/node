@@ -7,175 +7,164 @@
 
 #include "src/transitions.h"
 
+#include "src/ic/handler-configuration-inl.h"
+#include "src/objects/fixed-array-inl.h"
+#include "src/objects/maybe-object-inl.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
-
-#define FIELD_ADDR(p, offset) \
-  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
-
-#define WRITE_FIELD(p, offset, value) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
-
-#define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode)    \
-  if (mode == UPDATE_WRITE_BARRIER) {                                   \
-    heap->incremental_marking()->RecordWrite(                           \
-      object, HeapObject::RawField(object, offset), value);             \
-    if (heap->InNewSpace(value)) {                                      \
-      heap->RecordWrite(object->address(), offset);                     \
-    }                                                                   \
-  }
-
-
-TransitionArray* TransitionArray::cast(Object* object) {
-  DCHECK(object->IsTransitionArray());
-  return reinterpret_cast<TransitionArray*>(object);
+TransitionArray* TransitionsAccessor::transitions() {
+  DCHECK_EQ(kFullTransitionArray, encoding());
+  return TransitionArray::cast(raw_transitions_->ToStrongHeapObject());
 }
 
-
-bool TransitionArray::HasElementsTransition() {
-  return SearchSpecial(GetHeap()->elements_transition_symbol()) != kNotFound;
-}
-
-
-Object* TransitionArray::back_pointer_storage() {
-  return get(kBackPointerStorageIndex);
-}
-
-
-void TransitionArray::set_back_pointer_storage(Object* back_pointer,
-                                               WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
-  WRITE_FIELD(this, kBackPointerStorageOffset, back_pointer);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kBackPointerStorageOffset, back_pointer, mode);
-}
-
+CAST_ACCESSOR(TransitionArray)
 
 bool TransitionArray::HasPrototypeTransitions() {
-  return IsFullTransitionArray() &&
-      get(kPrototypeTransitionsIndex) != Smi::FromInt(0);
+  return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::kZero);
 }
 
-
-FixedArray* TransitionArray::GetPrototypeTransitions() {
-  DCHECK(IsFullTransitionArray());
-  Object* prototype_transitions = get(kPrototypeTransitionsIndex);
-  return FixedArray::cast(prototype_transitions);
+WeakFixedArray* TransitionArray::GetPrototypeTransitions() {
+  DCHECK(HasPrototypeTransitions());  // Callers must check first.
+  Object* prototype_transitions =
+      Get(kPrototypeTransitionsIndex)->ToStrongHeapObject();
+  return WeakFixedArray::cast(prototype_transitions);
 }
 
-
-void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
-                                              WriteBarrierMode mode) {
-  DCHECK(IsFullTransitionArray());
-  DCHECK(transitions->IsFixedArray());
-  Heap* heap = GetHeap();
-  WRITE_FIELD(this, kPrototypeTransitionsOffset, transitions);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kPrototypeTransitionsOffset, transitions, mode);
-}
-
-
-Object** TransitionArray::GetPrototypeTransitionsSlot() {
-  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                              kPrototypeTransitionsOffset);
-}
-
-
-Object** TransitionArray::GetKeySlot(int transition_number) {
-  DCHECK(!IsSimpleTransition());
+HeapObjectReference** TransitionArray::GetKeySlot(int transition_number) {
   DCHECK(transition_number < number_of_transitions());
-  return RawFieldOfElementAt(ToKeyIndex(transition_number));
+  return reinterpret_cast<HeapObjectReference**>(
+      RawFieldOfElementAt(ToKeyIndex(transition_number)));
 }
 
+void TransitionArray::SetPrototypeTransitions(WeakFixedArray* transitions) {
+  DCHECK(transitions->IsWeakFixedArray());
+  WeakFixedArray::Set(kPrototypeTransitionsIndex,
+                      HeapObjectReference::Strong(transitions));
+}
+
+int TransitionArray::NumberOfPrototypeTransitions(
+    WeakFixedArray* proto_transitions) {
+  if (proto_transitions->length() == 0) return 0;
+  MaybeObject* raw =
+      proto_transitions->Get(kProtoTransitionNumberOfEntriesOffset);
+  return Smi::ToInt(raw->ToSmi());
+}
 
 Name* TransitionArray::GetKey(int transition_number) {
-  if (IsSimpleTransition()) {
-    Map* target = GetTarget(kSimpleTransitionIndex);
-    int descriptor = target->LastAdded();
-    Name* key = target->instance_descriptors()->GetKey(descriptor);
-    return key;
-  }
   DCHECK(transition_number < number_of_transitions());
-  return Name::cast(get(ToKeyIndex(transition_number)));
+  return Name::cast(Get(ToKeyIndex(transition_number))->ToStrongHeapObject());
 }
 
+Name* TransitionsAccessor::GetKey(int transition_number) {
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+      UNREACHABLE();
+      return nullptr;
+    case kWeakRef: {
+      Map* map = Map::cast(raw_transitions_->ToWeakHeapObject());
+      return GetSimpleTransitionKey(map);
+    }
+    case kFullTransitionArray:
+      return transitions()->GetKey(transition_number);
+  }
+  UNREACHABLE();
+}
 
 void TransitionArray::SetKey(int transition_number, Name* key) {
-  DCHECK(!IsSimpleTransition());
   DCHECK(transition_number < number_of_transitions());
-  set(ToKeyIndex(transition_number), key);
+  WeakFixedArray::Set(ToKeyIndex(transition_number),
+                      HeapObjectReference::Strong(key));
 }
 
+HeapObjectReference** TransitionArray::GetTargetSlot(int transition_number) {
+  DCHECK(transition_number < number_of_transitions());
+  return reinterpret_cast<HeapObjectReference**>(
+      RawFieldOfElementAt(ToTargetIndex(transition_number)));
+}
+
+// static
+PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
+  DCHECK(!IsSpecialTransition(name->GetReadOnlyRoots(), name));
+  int descriptor = target->LastAdded();
+  DescriptorArray* descriptors = target->instance_descriptors();
+  // Transitions are allowed only for the last added property.
+  DCHECK(descriptors->GetKey(descriptor)->Equals(name));
+  return descriptors->GetDetails(descriptor);
+}
+
+// static
+Map* TransitionsAccessor::GetTargetFromRaw(MaybeObject* raw) {
+  return Map::cast(raw->ToWeakHeapObject());
+}
+
+MaybeObject* TransitionArray::GetRawTarget(int transition_number) {
+  DCHECK(transition_number < number_of_transitions());
+  return Get(ToTargetIndex(transition_number));
+}
 
 Map* TransitionArray::GetTarget(int transition_number) {
-  if (IsSimpleTransition()) {
-    DCHECK(transition_number == kSimpleTransitionIndex);
-    return Map::cast(get(kSimpleTransitionTarget));
+  MaybeObject* raw = GetRawTarget(transition_number);
+  return TransitionsAccessor::GetTargetFromRaw(raw);
+}
+
+Map* TransitionsAccessor::GetTarget(int transition_number) {
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+      UNREACHABLE();
+      return nullptr;
+    case kWeakRef:
+      return Map::cast(raw_transitions_->ToWeakHeapObject());
+    case kFullTransitionArray:
+      return transitions()->GetTarget(transition_number);
   }
-  DCHECK(transition_number < number_of_transitions());
-  return Map::cast(get(ToTargetIndex(transition_number)));
+  UNREACHABLE();
 }
 
+void TransitionArray::SetRawTarget(int transition_number, MaybeObject* value) {
+  DCHECK(transition_number < number_of_transitions());
+  DCHECK(value->IsWeakHeapObject() && value->ToWeakHeapObject()->IsMap());
+  WeakFixedArray::Set(ToTargetIndex(transition_number), value);
+}
 
-void TransitionArray::SetTarget(int transition_number, Map* value) {
-  if (IsSimpleTransition()) {
-    DCHECK(transition_number == kSimpleTransitionIndex);
-    return set(kSimpleTransitionTarget, value);
+bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
+                                        Map** target) {
+  MaybeObject* raw = GetRawTarget(transition_number);
+  HeapObject* heap_object;
+  if (raw->ToStrongHeapObject(&heap_object) &&
+      heap_object->IsUndefined(isolate)) {
+    return false;
   }
-  DCHECK(transition_number < number_of_transitions());
-  set(ToTargetIndex(transition_number), value);
+  *target = TransitionsAccessor::GetTargetFromRaw(raw);
+  return true;
 }
-
-
-PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
-  Map* map = GetTarget(transition_number);
-  return map->GetLastDescriptorDetails();
-}
-
-
-Object* TransitionArray::GetTargetValue(int transition_number) {
-  Map* map = GetTarget(transition_number);
-  return map->instance_descriptors()->GetValue(map->LastAdded());
-}
-
 
 int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
-  if (IsSimpleTransition()) {
-    Name* key = GetKey(kSimpleTransitionIndex);
-    if (key->Equals(name)) return kSimpleTransitionIndex;
-    if (out_insertion_index != NULL) {
-      *out_insertion_index = key->Hash() > name->Hash() ? 0 : 1;
-    }
-    return kNotFound;
-  }
-  return internal::Search<ALL_ENTRIES>(this, name, 0, out_insertion_index);
+  DCHECK(name->IsUniqueName());
+  return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
+                                       out_insertion_index);
 }
 
-
-#ifdef DEBUG
-bool TransitionArray::IsSpecialTransition(Name* name) {
-  if (!name->IsSymbol()) return false;
-  Heap* heap = name->GetHeap();
-  return name == heap->frozen_symbol() ||
-         name == heap->elements_transition_symbol() ||
-         name == heap->observed_symbol();
+int TransitionArray::number_of_transitions() const {
+  if (length() < kFirstIndex) return 0;
+  return Smi::ToInt(Get(kTransitionLengthIndex)->ToSmi());
 }
-#endif
 
-
-int TransitionArray::CompareKeys(Name* key1, uint32_t hash1,
-                                 bool is_data_property1,
+int TransitionArray::CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,
                                  PropertyAttributes attributes1, Name* key2,
-                                 uint32_t hash2, bool is_data_property2,
+                                 uint32_t hash2, PropertyKind kind2,
                                  PropertyAttributes attributes2) {
   int cmp = CompareNames(key1, hash1, key2, hash2);
   if (cmp != 0) return cmp;
 
-  return CompareDetails(is_data_property1, attributes1, is_data_property2,
-                        attributes2);
+  return CompareDetails(kind1, attributes1, kind2, attributes2);
 }
-
 
 int TransitionArray::CompareNames(Name* key1, uint32_t hash1, Name* key2,
                                   uint32_t hash2) {
@@ -187,16 +176,12 @@ int TransitionArray::CompareNames(Name* key1, uint32_t hash1, Name* key2,
   return 0;
 }
 
-
-int TransitionArray::CompareDetails(bool is_data_property1,
+int TransitionArray::CompareDetails(PropertyKind kind1,
                                     PropertyAttributes attributes1,
-                                    bool is_data_property2,
+                                    PropertyKind kind2,
                                     PropertyAttributes attributes2) {
-  if (is_data_property1 != is_data_property2) {
-    return static_cast<int>(is_data_property1) <
-                   static_cast<int>(is_data_property2)
-               ? -1
-               : 1;
+  if (kind1 != kind2) {
+    return static_cast<int>(kind1) < static_cast<int>(kind2) ? -1 : 1;
   }
 
   if (attributes1 != attributes2) {
@@ -207,41 +192,28 @@ int TransitionArray::CompareDetails(bool is_data_property1,
   return 0;
 }
 
-
-PropertyDetails TransitionArray::GetTargetDetails(Name* name, Map* target) {
-  DCHECK(!IsSpecialTransition(name));
-  int descriptor = target->LastAdded();
-  DescriptorArray* descriptors = target->instance_descriptors();
-  // Transitions are allowed only for the last added property.
-  DCHECK(descriptors->GetKey(descriptor)->Equals(name));
-  return descriptors->GetDetails(descriptor);
+void TransitionArray::Set(int transition_number, Name* key,
+                          MaybeObject* target) {
+  WeakFixedArray::Set(ToKeyIndex(transition_number),
+                      MaybeObject::FromObject(key));
+  WeakFixedArray::Set(ToTargetIndex(transition_number), target);
 }
 
-
-void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
-                                                   Name* key,
-                                                   Map* target) {
-  FixedArray::NoIncrementalWriteBarrierSet(
-      this, ToKeyIndex(transition_number), key);
-  FixedArray::NoIncrementalWriteBarrierSet(
-      this, ToTargetIndex(transition_number), target);
+int TransitionArray::Capacity() {
+  if (length() <= kFirstIndex) return 0;
+  return (length() - kFirstIndex) / kEntrySize;
 }
-
 
 void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
-  if (IsFullTransitionArray()) {
-    DCHECK(number_of_transitions <= number_of_transitions_storage());
-    WRITE_FIELD(this, kTransitionLengthOffset,
-                Smi::FromInt(number_of_transitions));
-  }
+  DCHECK(number_of_transitions <= Capacity());
+  WeakFixedArray::Set(
+      kTransitionLengthIndex,
+      MaybeObject::FromSmi(Smi::FromInt(number_of_transitions)));
 }
 
+}  // namespace internal
+}  // namespace v8
 
-#undef FIELD_ADDR
-#undef WRITE_FIELD
-#undef CONDITIONAL_WRITE_BARRIER
-
-
-} }  // namespace v8::internal
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_TRANSITIONS_INL_H_

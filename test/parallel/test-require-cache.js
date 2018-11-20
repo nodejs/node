@@ -19,25 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-(function testInjectFakeModule() {
-  var relativePath = '../fixtures/semicolon';
-  var absolutePath = require.resolve(relativePath);
-  var fakeModule = {};
+{
+  const relativePath = '../fixtures/semicolon';
+  const absolutePath = require.resolve(relativePath);
+  const fakeModule = {};
 
-  require.cache[absolutePath] = {exports: fakeModule};
-
-  assert.strictEqual(require(relativePath), fakeModule);
-})();
-
-
-(function testInjectFakeNativeModule() {
-  var relativePath = 'fs';
-  var fakeModule = {};
-
-  require.cache[relativePath] = {exports: fakeModule};
+  require.cache[absolutePath] = { exports: fakeModule };
 
   assert.strictEqual(require(relativePath), fakeModule);
-})();
+}
+
+
+{
+  const relativePath = 'fs';
+  const fakeModule = {};
+
+  require.cache[relativePath] = { exports: fakeModule };
+
+  assert.strictEqual(require(relativePath), fakeModule);
+}

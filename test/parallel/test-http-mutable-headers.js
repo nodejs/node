@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 // Simple test of Node's HTTP Client mutable headers
 // OutgoingMessage.prototype.setHeader(name, value)
@@ -31,43 +32,119 @@ var http = require('http');
 // <ClientRequest>.method
 // <ClientRequest>.path
 
-var testsComplete = 0;
-var test = 'headers';
-var content = 'hello world\n';
-var cookies = [
+let test = 'headers';
+const content = 'hello world\n';
+const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
   'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
 ];
 
-var s = http.createServer(function(req, res) {
+const s = http.createServer(common.mustCall((req, res) => {
   switch (test) {
     case 'headers':
-      assert.throws(function() { res.setHeader() });
-      assert.throws(function() { res.setHeader('someHeader') });
-      assert.throws(function() { res.getHeader() });
-      assert.throws(function() { res.removeHeader() });
+      // Check that header-related functions work before setting any headers
+      const headers = res.getHeaders();
+      const exoticObj = Object.create(null);
+      assert.deepStrictEqual(headers, exoticObj);
+      assert.deepStrictEqual(res.getHeaderNames(), []);
+      assert.deepStrictEqual(res.hasHeader('Connection'), false);
+      assert.deepStrictEqual(res.getHeader('Connection'), undefined);
 
+      common.expectsError(
+        () => res.setHeader(),
+        {
+          code: 'ERR_INVALID_HTTP_TOKEN',
+          type: TypeError,
+          message: 'Header name must be a valid HTTP token ["undefined"]'
+        }
+      );
+      common.expectsError(
+        () => res.setHeader('someHeader'),
+        {
+          code: 'ERR_HTTP_INVALID_HEADER_VALUE',
+          type: TypeError,
+          message: 'Invalid value "undefined" for header "someHeader"'
+        }
+      );
+      common.expectsError(
+        () => res.getHeader(),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "name" argument must be of type string. ' +
+                   'Received type undefined'
+        }
+      );
+      common.expectsError(
+        () => res.removeHeader(),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "name" argument must be of type string. ' +
+                   'Received type undefined'
+        }
+      );
+
+      const arrayValues = [1, 2, 3];
       res.setHeader('x-test-header', 'testing');
       res.setHeader('X-TEST-HEADER2', 'testing');
       res.setHeader('set-cookie', cookies);
-      res.setHeader('x-test-array-header', [1, 2, 3]);
+      res.setHeader('x-test-array-header', arrayValues);
 
-      var val1 = res.getHeader('x-test-header');
-      var val2 = res.getHeader('x-test-header2');
-      assert.equal(val1, 'testing');
-      assert.equal(val2, 'testing');
+      assert.strictEqual(res.getHeader('x-test-header'), 'testing');
+      assert.strictEqual(res.getHeader('x-test-header2'), 'testing');
+
+      const headersCopy = res.getHeaders();
+      const expected = {
+        'x-test-header': 'testing',
+        'x-test-header2': 'testing',
+        'set-cookie': cookies,
+        'x-test-array-header': arrayValues
+      };
+      Object.setPrototypeOf(expected, null);
+      assert.deepStrictEqual(headersCopy, expected);
+
+      assert.deepStrictEqual(res.getHeaderNames(),
+                             ['x-test-header', 'x-test-header2',
+                              'set-cookie', 'x-test-array-header']);
+
+      assert.strictEqual(res.hasHeader('x-test-header2'), true);
+      assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), true);
+      assert.strictEqual(res.hasHeader('X-Test-Header2'), true);
+      [
+        undefined,
+        null,
+        true,
+        {},
+        { toString: () => 'X-TEST-HEADER2' },
+        () => { }
+      ].forEach((val) => {
+        common.expectsError(
+          () => res.hasHeader(val),
+          {
+            code: 'ERR_INVALID_ARG_TYPE',
+            type: TypeError,
+            message: 'The "name" argument must be of type string. ' +
+                     `Received type ${typeof val}`
+          }
+        );
+      });
 
       res.removeHeader('x-test-header2');
+
+      assert.strictEqual(res.hasHeader('x-test-header2'), false);
+      assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), false);
+      assert.strictEqual(res.hasHeader('X-Test-Header2'), false);
       break;
 
     case 'contentLength':
       res.setHeader('content-length', content.length);
-      assert.equal(content.length, res.getHeader('Content-Length'));
+      assert.strictEqual(res.getHeader('Content-Length'), content.length);
       break;
 
     case 'transferEncoding':
       res.setHeader('transfer-encoding', 'chunked');
-      assert.equal(res.getHeader('Transfer-Encoding'), 'chunked');
+      assert.strictEqual(res.getHeader('Transfer-Encoding'), 'chunked');
       break;
 
     case 'writeHead':
@@ -75,13 +152,16 @@ var s = http.createServer(function(req, res) {
       res.setHeader('x-foo', 'keyboard cat');
       res.writeHead(200, { 'x-foo': 'bar', 'x-bar': 'baz' });
       break;
+
+    default:
+      assert.fail('Unknown test');
   }
 
   res.statusCode = 201;
   res.end(content);
-});
+}, 4));
 
-s.listen(common.PORT, nextTest);
+s.listen(0, nextTest);
 
 
 function nextTest() {
@@ -89,65 +169,49 @@ function nextTest() {
     return s.close();
   }
 
-  var bufferedResponse = '';
+  let bufferedResponse = '';
 
-  http.get({ port: common.PORT }, function(response) {
-    console.log('TEST: ' + test);
-    console.log('STATUS: ' + response.statusCode);
-    console.log('HEADERS: ');
-    console.dir(response.headers);
-
+  http.get({ port: s.address().port }, common.mustCall((response) => {
     switch (test) {
       case 'headers':
-        assert.equal(response.statusCode, 201);
-        assert.equal(response.headers['x-test-header'],
-                     'testing');
-        assert.equal(response.headers['x-test-array-header'],
-                     [1, 2, 3].join(', '));
-        assert.deepEqual(cookies,
-                         response.headers['set-cookie']);
-        assert.equal(response.headers['x-test-header2'] !== undefined, false);
-        // Make the next request
+        assert.strictEqual(response.statusCode, 201);
+        assert.strictEqual(response.headers['x-test-header'], 'testing');
+        assert.strictEqual(response.headers['x-test-array-header'],
+                           [1, 2, 3].join(', '));
+        assert.deepStrictEqual(cookies, response.headers['set-cookie']);
+        assert.strictEqual(response.headers['x-test-header2'], undefined);
         test = 'contentLength';
-        console.log('foobar');
         break;
 
       case 'contentLength':
-        assert.equal(response.headers['content-length'], content.length);
+        assert.strictEqual(+response.headers['content-length'], content.length);
         test = 'transferEncoding';
         break;
 
       case 'transferEncoding':
-        assert.equal(response.headers['transfer-encoding'], 'chunked');
+        assert.strictEqual(response.headers['transfer-encoding'], 'chunked');
         test = 'writeHead';
         break;
 
       case 'writeHead':
-        assert.equal(response.headers['x-foo'], 'bar');
-        assert.equal(response.headers['x-bar'], 'baz');
-        assert.equal(200, response.statusCode);
+        assert.strictEqual(response.headers['x-foo'], 'bar');
+        assert.strictEqual(response.headers['x-bar'], 'baz');
+        assert.strictEqual(response.statusCode, 200);
         test = 'end';
         break;
 
       default:
-        throw Error('?');
+        assert.fail('Unknown test');
     }
 
     response.setEncoding('utf8');
-    response.on('data', function(s) {
+    response.on('data', (s) => {
       bufferedResponse += s;
     });
 
-    response.on('end', function() {
-      assert.equal(content, bufferedResponse);
-      testsComplete++;
-      nextTest();
-    });
-  });
+    response.on('end', common.mustCall(() => {
+      assert.strictEqual(bufferedResponse, content);
+      common.mustCall(nextTest)();
+    }));
+  }));
 }
-
-
-process.on('exit', function() {
-  assert.equal(4, testsComplete);
-});
-

@@ -33,7 +33,7 @@ u[1] = 0xEE6B2800;
 
 var a = [0, 1, 2];
 a[0] = 0;  // Kill the COW.
-assertTrue(%HasFastSmiElements(a));
+assertTrue(%HasSmiElements(a));
 
 function foo(i) {
   a[0] = u[i];

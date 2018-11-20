@@ -26,7 +26,11 @@
 
 
 #define WRITES            3
+#if defined(__arm__) /* Decrease the chunks so the test passes on arm CI bots */
+#define CHUNKS_PER_WRITE  2048
+#else
 #define CHUNKS_PER_WRITE  4096
+#endif
 #define CHUNK_SIZE        10024 /* 10 kb */
 
 #define TOTAL_BYTES       (WRITES * CHUNKS_PER_WRITE * CHUNK_SIZE)

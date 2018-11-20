@@ -19,12 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+'use strict';
+require('../common');
+const vm = require('vm');
 
 console.error('before');
 

@@ -28,63 +28,44 @@
 import os
 import shutil
 
-from testrunner.local import commands
+from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
+SHELL = 'cctest'
 
-class CcTestSuite(testsuite.TestSuite):
 
-  def __init__(self, name, root):
-    super(CcTestSuite, self).__init__(name, root)
-    if utils.IsWindows():
-      build_dir = "build"
-    else:
-      build_dir = "out"
-    self.serdes_dir = os.path.normpath(
-        os.path.join(root, "..", "..", build_dir, ".serdes"))
-    if os.path.exists(self.serdes_dir):
-      shutil.rmtree(self.serdes_dir, True)
-    os.makedirs(self.serdes_dir)
-
-  def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
+class TestSuite(testsuite.TestSuite):
+  def ListTests(self):
+    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
-    output = commands.Execute(context.command_prefix +
-                              [shell, "--list"] +
-                              context.extra_flags)
+    cmd = command.Command(
+        cmd_prefix=self.test_config.command_prefix,
+        shell=shell,
+        args=["--list"] + self.test_config.extra_flags)
+    output = cmd.execute()
     if output.exit_code != 0:
+      print cmd
       print output.stdout
       print output.stderr
       return []
-    tests = []
-    for test_desc in output.stdout.strip().split():
-      if test_desc.find('<') < 0:
-        # Native Client output can contain a few non-test arguments
-        # before the tests. Skip these.
-        continue
-      raw_test, dependency = test_desc.split('<')
-      if dependency != '':
-        dependency = raw_test.split('/')[0] + '/' + dependency
-      else:
-        dependency = None
-      test = testcase.TestCase(self, raw_test, dependency=dependency)
-      tests.append(test)
-    tests.sort()
+    tests = map(self._create_test, output.stdout.strip().split())
+    tests.sort(key=lambda t: t.path)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    testname = testcase.path.split(os.path.sep)[-1]
-    serialization_file = os.path.join(self.serdes_dir, "serdes_" + testname)
-    serialization_file += ''.join(testcase.flags).replace('-', '_')
-    return (testcase.flags + [testcase.path] + context.mode_flags +
-            ["--testing_serialization_file=" + serialization_file])
-
-  def shell(self):
-    return "cctest"
+  def _test_class(self):
+    return TestCase
 
 
-def GetSuite(name, root):
-  return CcTestSuite(name, root)
+class TestCase(testcase.TestCase):
+  def get_shell(self):
+    return SHELL
+
+  def _get_files_params(self):
+    return [self.path]
+
+
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

@@ -19,14 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // test compression/decompression with dictionary
 
-var common = require('../common.js');
-var assert = require('assert');
-var zlib = require('zlib');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
 
-var spdyDict = new Buffer([
+const spdyDict = Buffer.from([
   'optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-',
   'languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi',
   'f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser',
@@ -42,54 +42,134 @@ var spdyDict = new Buffer([
   '.1statusversionurl\0'
 ].join(''));
 
-var deflate = zlib.createDeflate({ dictionary: spdyDict });
-
-var input = [
+const input = [
   'HTTP/1.1 200 Ok',
   'Server: node.js',
   'Content-Length: 0',
   ''
 ].join('\r\n');
 
-var called = 0;
+function basicDictionaryTest(spdyDict) {
+  let output = '';
+  const deflate = zlib.createDeflate({ dictionary: spdyDict });
+  const inflate = zlib.createInflate({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
 
-//
-// We'll use clean-new inflate stream each time
-// and .reset() old dirty deflate one
-//
-function run(num) {
-  var inflate = zlib.createInflate({ dictionary: spdyDict });
-
-  if (num === 2) {
-    deflate.reset();
-    deflate.removeAllListeners('data');
-  }
-
-  // Put data into deflate stream
   deflate.on('data', function(chunk) {
     inflate.write(chunk);
   });
 
-  // Get data from inflate stream
-  var output = [];
   inflate.on('data', function(chunk) {
-    output.push(chunk);
+    output += chunk;
   });
-  inflate.on('end', function() {
-    called++;
 
-    assert.equal(output.join(''), input);
-
-    if (num < 2) run(num + 1);
+  deflate.on('end', function() {
+    inflate.end();
   });
+
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
+
+  deflate.write(input);
+  deflate.end();
+}
+
+function deflateResetDictionaryTest(spdyDict) {
+  let doneReset = false;
+  let output = '';
+  const deflate = zlib.createDeflate({ dictionary: spdyDict });
+  const inflate = zlib.createInflate({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
+
+  deflate.on('data', function(chunk) {
+    if (doneReset)
+      inflate.write(chunk);
+  });
+
+  inflate.on('data', function(chunk) {
+    output += chunk;
+  });
+
+  deflate.on('end', function() {
+    inflate.end();
+  });
+
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
 
   deflate.write(input);
   deflate.flush(function() {
-    inflate.end();
+    deflate.reset();
+    doneReset = true;
+    deflate.write(input);
+    deflate.end();
   });
 }
-run(1);
 
-process.on('exit', function() {
-  assert.equal(called, 2);
-});
+function rawDictionaryTest(spdyDict) {
+  let output = '';
+  const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
+  const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
+
+  deflate.on('data', function(chunk) {
+    inflate.write(chunk);
+  });
+
+  inflate.on('data', function(chunk) {
+    output += chunk;
+  });
+
+  deflate.on('end', function() {
+    inflate.end();
+  });
+
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
+
+  deflate.write(input);
+  deflate.end();
+}
+
+function deflateRawResetDictionaryTest(spdyDict) {
+  let doneReset = false;
+  let output = '';
+  const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
+  const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
+  inflate.setEncoding('utf-8');
+
+  deflate.on('data', function(chunk) {
+    if (doneReset)
+      inflate.write(chunk);
+  });
+
+  inflate.on('data', function(chunk) {
+    output += chunk;
+  });
+
+  deflate.on('end', function() {
+    inflate.end();
+  });
+
+  inflate.on('end', common.mustCall(function() {
+    assert.strictEqual(input, output);
+  }));
+
+  deflate.write(input);
+  deflate.flush(function() {
+    deflate.reset();
+    doneReset = true;
+    deflate.write(input);
+    deflate.end();
+  });
+}
+
+for (const dict of [spdyDict, ...common.getBufferSources(spdyDict)]) {
+  basicDictionaryTest(dict);
+  deflateResetDictionaryTest(dict);
+  rawDictionaryTest(dict);
+  deflateRawResetDictionaryTest(dict);
+}

@@ -1,20 +1,21 @@
-.TH "NPM\-VIEW" "1" "October 2014" "" ""
+.TH "NPM\-VIEW" "1" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-view\fR \- View registry info
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm view [@<scope>/]<name>[@<version>] [<field>[\.<subfield>]\.\.\.]
-npm v [@<scope>/]<name>[@<version>] [<field>[\.<subfield>]\.\.\.]
+npm view [<@scope>/]<name>[@<version>] [<field>[\.<subfield>]\.\.\.]
+
+aliases: info, show, v
 .fi
 .RE
 .SH DESCRIPTION
 .P
 This command shows data about a package and prints it to the stream
-referenced by the \fBoutfd\fR config, which defaults to stdout\.
+referenced by the \fBoutfd\fP config, which defaults to stdout\.
 .P
-To show the package registry entry for the \fBconnect\fR package, you can do
+To show the package registry entry for the \fBconnect\fP package, you can do
 this:
 .P
 .RS 2
@@ -26,7 +27,7 @@ npm view connect
 The default version is "latest" if unspecified\.
 .P
 Field names can be specified after the package descriptor\.
-For example, to show the dependencies of the \fBronn\fR package at version
+For example, to show the dependencies of the \fBronn\fP package at version
 0\.3\.5, you could do the following:
 .P
 .RS 2
@@ -35,7 +36,7 @@ npm view ronn@0\.3\.5 dependencies
 .fi
 .RE
 .P
-You can view child field by separating them with a period\.
+You can view child fields by separating them with a period\.
 To view the git repository URL for the latest version of npm, you could
 do this:
 .P
@@ -76,7 +77,7 @@ npm view express contributors[0]\.email
 .RE
 .P
 Multiple fields may be specified, and will be printed one after another\.
-For exampls, to get all the contributor names and email addresses, you
+For example, to get all the contributor names and email addresses, you
 can do this:
 .P
 .RS 2
@@ -87,7 +88,7 @@ npm view express contributors\.name contributors\.email
 .P
 "Person" fields are shown as a string if they would be shown as an
 object\.  So, for example, this will show the list of npm contributors in
-the shortened string format\.  (See npm help 5 \fBpackage\.json\fR for more on this\.)
+the shortened string format\.  (See npm help 5 \fBpackage\.json\fP for more on this\.)
 .P
 .RS 2
 .nf
@@ -102,6 +103,15 @@ was required by each matching version of yui3:
 .RS 2
 .nf
 npm view yui3@'>0\.5\.4' dependencies\.jsdom
+.fi
+.RE
+.P
+To show the \fBconnect\fP package version history, you can do
+this:
+.P
+.RS 2
+.nf
+npm view connect versions
 .fi
 .RE
 .SH OUTPUT

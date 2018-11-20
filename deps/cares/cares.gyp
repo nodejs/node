@@ -9,6 +9,14 @@
           '_GNU_SOURCE'
         ]
       }],
+      [ 'OS=="aix"', {
+        'include_dirs': [ 'config/aix' ],
+        'sources': [ 'config/aix/ares_config.h' ],
+        'defines': [
+          # Support for malloc(0)
+          '_LINUX_SOURCE_COMPAT=1',
+          '_ALL_SOURCE=1'],
+      }],
       ['OS=="solaris"', {
         'defines': [
           '__EXTENSIONS__',
@@ -26,12 +34,13 @@
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ]
       },
-      'defines': [ 'HAVE_CONFIG_H' ],
       'sources': [
         'common.gypi',
         'include/ares.h',
+        'include/ares_rules.h',
         'include/ares_version.h',
         'include/nameser.h',
+        'src/ares_android.c',
         'src/ares_cancel.c',
         'src/ares__close_sockets.c',
         'src/ares_create_query.c',
@@ -76,7 +85,6 @@
         'src/ares_process.c',
         'src/ares_query.c',
         'src/ares__read_line.c',
-        'src/ares_rules.h',
         'src/ares_search.c',
         'src/ares_send.c',
         'src/ares_setup.h',
@@ -96,7 +104,6 @@
         'src/inet_ntop.c',
         'src/ares_inet_net_pton.h',
         'src/setup_once.h',
-        'src/windows_port.c'
       ],
       'conditions': [
         [ 'library=="static_library"', {
@@ -105,9 +112,10 @@
           'defines': [ 'CARES_BUILDING_LIBRARY' ]
         }],
         [ 'OS=="win"', {
+          'defines': [ 'CARES_PULL_WS2TCPIP_H=1' ],
           'include_dirs': [ 'config/win32' ],
           'sources': [
-            'config/win32/ares_config.h',
+            'src/config-win32.h',
             'src/windows_port.c',
             'src/ares_getenv.c',
             'src/ares_iphlpapi.h',
@@ -126,6 +134,7 @@
             '-Wextra',
             '-Wno-unused-parameter'
           ],
+          'defines': [ 'HAVE_CONFIG_H' ],
         }],
         [ 'OS not in "win android"', {
           'cflags': [

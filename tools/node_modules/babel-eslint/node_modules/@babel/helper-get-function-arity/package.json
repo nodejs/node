@@ -1,0 +1,40 @@
+{
+  "_from": "@babel/helper-get-function-arity@7.0.0-beta.36",
+  "_id": "@babel/helper-get-function-arity@7.0.0-beta.36",
+  "_inBundle": false,
+  "_integrity": "sha512-vPPcx2vsSoDbcyWr9S3nd0FM3B4hEXnt0p1oKpwa08GwK0fSRxa98MyaRGf8suk8frdQlG1P3mDrz5p/Rr3pbA==",
+  "_location": "/babel-eslint/@babel/helper-get-function-arity",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "@babel/helper-get-function-arity@7.0.0-beta.36",
+    "name": "@babel/helper-get-function-arity",
+    "escapedName": "@babel%2fhelper-get-function-arity",
+    "scope": "@babel",
+    "rawSpec": "7.0.0-beta.36",
+    "saveSpec": null,
+    "fetchSpec": "7.0.0-beta.36"
+  },
+  "_requiredBy": [
+    "/babel-eslint/@babel/helper-function-name"
+  ],
+  "_resolved": "https://registry.npmjs.org/@babel/helper-get-function-arity/-/helper-get-function-arity-7.0.0-beta.36.tgz",
+  "_shasum": "f5383bac9a96b274828b10d98900e84ee43e32b8",
+  "_spec": "@babel/helper-get-function-arity@7.0.0-beta.36",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint/node_modules/@babel/helper-function-name",
+  "bundleDependencies": false,
+  "dependencies": {
+    "@babel/types": "7.0.0-beta.36"
+  },
+  "deprecated": false,
+  "description": "Helper function to get function arity",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "@babel/helper-get-function-arity",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel/tree/master/packages/babel-helper-get-function-arity"
+  },
+  "version": "7.0.0-beta.36"
+}

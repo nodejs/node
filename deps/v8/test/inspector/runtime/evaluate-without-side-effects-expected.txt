@@ -1,0 +1,73 @@
+Tests that Runtime.evaluate can run without side effects.
+Test throwOnSideEffect: false
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+}
+Test expression with side-effect, with throwOnSideEffect: true
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+Test expression without side-effect, with throwOnSideEffect: true
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 4
+            type : number
+            value : 4
+        }
+    }
+}
+Test that debug break triggers without throwOnSideEffect
+paused
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+}
+Test that debug break does not trigger with throwOnSideEffect
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+}

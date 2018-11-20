@@ -193,7 +193,8 @@ assertEquals("\u03B2\u03B3\u03B4\u03B5\u03B4\u03B5\u03B6\u03B7",
     utf.substring(5,1) + utf.substring(3,7));
 
 // Externalizing strings.
-var a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
+var a = "internalized dummy";
+a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
 var b = "23456789qwertyuiopasdfghjklzxcvbn"
 assertEquals(a.slice(1,-1), b);
 

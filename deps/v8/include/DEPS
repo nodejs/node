@@ -1,0 +1,4 @@
+include_rules = [
+  # v8-inspector-protocol.h depends on generated files under include/inspector.
+  "+inspector",
+]

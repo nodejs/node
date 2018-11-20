@@ -26,245 +26,202 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import fnmatch
 import imp
 import os
 
-from . import commands
+from . import command
 from . import statusfile
 from . import utils
-from ..objects import testcase
+from ..objects.testcase import TestCase
+from .variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
 
-# Use this to run several variants of the tests.
-VARIANT_FLAGS = {
-    "default": [],
-    "stress": ["--stress-opt", "--always-opt"],
-    "turbofan": ["--turbo-asm", "--turbo-filter=*", "--always-opt"],
-    "nocrankshaft": ["--nocrankshaft"]}
 
-FAST_VARIANT_FLAGS = [
-    f for v, f in VARIANT_FLAGS.iteritems() if v in ["default", "turbofan"]
-]
+STANDARD_VARIANT = set(["default"])
+
+
+class VariantsGenerator(object):
+  def __init__(self, variants):
+    self._all_variants = [v for v in variants if v in ALL_VARIANTS]
+    self._standard_variant = [v for v in variants if v in STANDARD_VARIANT]
+
+  def gen(self, test):
+    """Generator producing (variant, flags, procid suffix) tuples."""
+    flags_set = self._get_flags_set(test)
+    for n, variant in enumerate(self._get_variants(test)):
+      yield (variant, flags_set[variant][0], n)
+
+  def _get_flags_set(self, test):
+    return ALL_VARIANT_FLAGS
+
+  def _get_variants(self, test):
+    if test.only_standard_variant:
+      return self._standard_variant
+    return self._all_variants
+
+
+class TestCombiner(object):
+  def get_group_key(self, test):
+    """To indicate what tests can be combined with each other we define a group
+    key for each test. Tests with the same group key can be combined. Test
+    without a group key (None) is not combinable with any other test.
+    """
+    raise NotImplementedError()
+
+  def combine(self, name, tests):
+    """Returns test combined from `tests`. Since we identify tests by their
+    suite and name, `name` parameter should be unique within one suite.
+    """
+    return self._combined_test_class()(name, tests)
+
+  def _combined_test_class(self):
+    raise NotImplementedError()
+
 
 class TestSuite(object):
-
   @staticmethod
-  def LoadTestSuite(root):
+  def LoadTestSuite(root, test_config):
     name = root.split(os.path.sep)[-1]
     f = None
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
-      module = imp.load_module("testcfg", f, pathname, description)
-      return module.GetSuite(name, root)
-    except:
-      # Use default if no testcfg is present.
-      return GoogleTestSuite(name, root)
+      module = imp.load_module(name + "_testcfg", f, pathname, description)
+      return module.GetSuite(name, root, test_config)
     finally:
       if f:
         f.close()
 
-  def __init__(self, name, root):
+  def __init__(self, name, root, test_config):
     self.name = name  # string
     self.root = root  # string containing path
+    self.test_config = test_config
     self.tests = None  # list of TestCase objects
-    self.rules = None  # dictionary mapping test path to list of outcomes
-    self.wildcards = None  # dictionary mapping test paths to list of outcomes
-    self.total_duration = None  # float, assigned on demand
-
-  def shell(self):
-    return "d8"
-
-  def suffix(self):
-    return ".js"
+    self.statusfile = None
+    self.suppress_internals = False
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
 
-  # Used in the status file and for stdout printing.
-  def CommonTestName(self, testcase):
-    if utils.IsWindows():
-      return testcase.path.replace("\\", "/")
-    else:
-      return testcase.path
+  def do_suppress_internals(self):
+    """Specifies if this test suite should suppress asserts based on internals.
 
-  def ListTests(self, context):
+    Internals are e.g. testing against the outcome of native runtime functions.
+    This is switched off on some fuzzers that violate these contracts.
+    """
+    self.suppress_internals = True
+
+  def ListTests(self):
     raise NotImplementedError
 
-  def VariantFlags(self, testcase, default_flags):
-    if testcase.outcomes and statusfile.OnlyStandardVariant(testcase.outcomes):
-      return [[]]
-    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
-      return filter(lambda flags: flags in FAST_VARIANT_FLAGS, default_flags)
-    return default_flags
+  def get_variants_gen(self, variants):
+    return self._variants_gen_class()(variants)
 
-  def DownloadData(self):
-    pass
+  def _variants_gen_class(self):
+    return VariantsGenerator
+
+  def test_combiner_available(self):
+    return bool(self._test_combiner_class())
+
+  def get_test_combiner(self):
+    cls = self._test_combiner_class()
+    if cls:
+      return cls()
+    return None
+
+  def _test_combiner_class(self):
+    """Returns Combiner subclass. None if suite doesn't support combining
+    tests.
+    """
+    return None
 
   def ReadStatusFile(self, variables):
-    (self.rules, self.wildcards) = \
-        statusfile.ReadStatusFile(self.status_file(), variables)
+    self.statusfile = statusfile.StatusFile(self.status_file(), variables)
 
-  def ReadTestCases(self, context):
-    self.tests = self.ListTests(context)
+  def ReadTestCases(self):
+    self.tests = self.ListTests()
 
-  @staticmethod
-  def _FilterFlaky(flaky, mode):
-    return (mode == "run" and not flaky) or (mode == "skip" and flaky)
 
-  @staticmethod
-  def _FilterSlow(slow, mode):
-    return (mode == "run" and not slow) or (mode == "skip" and slow)
+  def FilterTestCasesByStatus(self,
+                              slow_tests_mode=None,
+                              pass_fail_tests_mode=None):
+    """Filters tests by outcomes from status file.
 
-  @staticmethod
-  def _FilterPassFail(pass_fail, mode):
-    return (mode == "run" and not pass_fail) or (mode == "skip" and pass_fail)
+    Status file has to be loaded before using this function.
 
-  def FilterTestCasesByStatus(self, warn_unused_rules,
-                              flaky_tests="dontcare",
-                              slow_tests="dontcare",
-                              pass_fail_tests="dontcare"):
-    filtered = []
-    used_rules = set()
-    for t in self.tests:
-      flaky = False
-      slow = False
-      pass_fail = False
-      testname = self.CommonTestName(t)
-      if testname in self.rules:
-        used_rules.add(testname)
-        # Even for skipped tests, as the TestCase object stays around and
-        # PrintReport() uses it.
-        t.outcomes = self.rules[testname]
-        if statusfile.DoSkip(t.outcomes):
-          continue  # Don't add skipped tests to |filtered|.
-        flaky = statusfile.IsFlaky(t.outcomes)
-        slow = statusfile.IsSlow(t.outcomes)
-        pass_fail = statusfile.IsPassOrFail(t.outcomes)
-      skip = False
-      for rule in self.wildcards:
-        assert rule[-1] == '*'
-        if testname.startswith(rule[:-1]):
-          used_rules.add(rule)
-          t.outcomes = self.wildcards[rule]
-          if statusfile.DoSkip(t.outcomes):
-            skip = True
-            break  # "for rule in self.wildcards"
-          flaky = flaky or statusfile.IsFlaky(t.outcomes)
-          slow = slow or statusfile.IsSlow(t.outcomes)
-          pass_fail = pass_fail or statusfile.IsPassOrFail(t.outcomes)
-      if (skip or self._FilterFlaky(flaky, flaky_tests)
-          or self._FilterSlow(slow, slow_tests)
-          or self._FilterPassFail(pass_fail, pass_fail_tests)):
-        continue  # "for t in self.tests"
-      filtered.append(t)
-    self.tests = filtered
+    Args:
+      slow_tests_mode: What to do with slow tests.
+      pass_fail_tests_mode: What to do with pass or fail tests.
 
-    if not warn_unused_rules:
-      return
+    Mode options:
+      None (default) - don't skip
+      "skip" - skip if slow/pass_fail
+      "run" - skip if not slow/pass_fail
+    """
+    def _skip_slow(is_slow, mode):
+      return (
+        (mode == 'run' and not is_slow) or
+        (mode == 'skip' and is_slow))
 
-    for rule in self.rules:
-      if rule not in used_rules:
-        print("Unused rule: %s -> %s" % (rule, self.rules[rule]))
-    for rule in self.wildcards:
-      if rule not in used_rules:
-        print("Unused rule: %s -> %s" % (rule, self.wildcards[rule]))
+    def _skip_pass_fail(pass_fail, mode):
+      return (
+        (mode == 'run' and not pass_fail) or
+        (mode == 'skip' and pass_fail))
+
+    def _compliant(test):
+      if test.do_skip:
+        return False
+      if _skip_slow(test.is_slow, slow_tests_mode):
+        return False
+      if _skip_pass_fail(test.is_pass_or_fail, pass_fail_tests_mode):
+        return False
+      return True
+
+    self.tests = filter(_compliant, self.tests)
 
   def FilterTestCasesByArgs(self, args):
+    """Filter test cases based on command-line arguments.
+
+    args can be a glob: asterisks in any position of the argument
+    represent zero or more characters. Without asterisks, only exact matches
+    will be used with the exeption of the test-suite name as argument.
+    """
     filtered = []
-    filtered_args = []
+    globs = []
     for a in args:
-      argpath = a.split(os.path.sep)
+      argpath = a.split('/')
       if argpath[0] != self.name:
         continue
       if len(argpath) == 1 or (len(argpath) == 2 and argpath[1] == '*'):
         return  # Don't filter, run all tests in this suite.
-      path = os.path.sep.join(argpath[1:])
-      if path[-1] == '*':
-        path = path[:-1]
-      filtered_args.append(path)
+      path = '/'.join(argpath[1:])
+      globs.append(path)
+
     for t in self.tests:
-      for a in filtered_args:
-        if t.path.startswith(a):
+      for g in globs:
+        if fnmatch.fnmatch(t.path, g):
           filtered.append(t)
           break
     self.tests = filtered
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def _create_test(self, path, **kwargs):
+    if self.suppress_internals:
+      test_class = self._suppressed_test_class()
+    else:
+      test_class = self._test_class()
+    return test_class(self, path, self._path_to_name(path), self.test_config,
+                      **kwargs)
+
+  def _suppressed_test_class(self):
+    """Optional testcase that suppresses assertions. Used by fuzzers that are
+    only interested in dchecks or tsan and that might violate the assertions
+    through fuzzing.
+    """
+    return self._test_class()
+
+  def _test_class(self):
     raise NotImplementedError
 
-  def GetSourceForTest(self, testcase):
-    return "(no source available)"
-
-  def IsFailureOutput(self, output, testpath):
-    return output.exit_code != 0
-
-  def IsNegativeTest(self, testcase):
-    return False
-
-  def HasFailed(self, testcase):
-    execution_failed = self.IsFailureOutput(testcase.output, testcase.path)
-    if self.IsNegativeTest(testcase):
-      return not execution_failed
-    else:
-      return execution_failed
-
-  def GetOutcome(self, testcase):
-    if testcase.output.HasCrashed():
-      return statusfile.CRASH
-    elif testcase.output.HasTimedOut():
-      return statusfile.TIMEOUT
-    elif self.HasFailed(testcase):
-      return statusfile.FAIL
-    else:
-      return statusfile.PASS
-
-  def HasUnexpectedOutput(self, testcase):
-    outcome = self.GetOutcome(testcase)
-    return not outcome in (testcase.outcomes or [statusfile.PASS])
-
-  def StripOutputForTransmit(self, testcase):
-    if not self.HasUnexpectedOutput(testcase):
-      testcase.output.stdout = ""
-      testcase.output.stderr = ""
-
-  def CalculateTotalDuration(self):
-    self.total_duration = 0.0
-    for t in self.tests:
-      self.total_duration += t.duration
-    return self.total_duration
-
-
-class GoogleTestSuite(TestSuite):
-  def __init__(self, name, root):
-    super(GoogleTestSuite, self).__init__(name, root)
-
-  def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
+  def _path_to_name(self, path):
     if utils.IsWindows():
-      shell += ".exe"
-    output = commands.Execute(context.command_prefix +
-                              [shell, "--gtest_list_tests"] +
-                              context.extra_flags)
-    if output.exit_code != 0:
-      print output.stdout
-      print output.stderr
-      raise Exception("Test executable failed to list the tests.")
-    tests = []
-    test_case = ''
-    for line in output.stdout.splitlines():
-      test_desc = line.strip().split()[0]
-      if test_desc.endswith('.'):
-        test_case = test_desc
-      elif test_case and test_desc:
-        test = testcase.TestCase(self, test_case + test_desc, dependency=None)
-        tests.append(test)
-    tests.sort()
-    return tests
-
-  def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + ["--gtest_filter=" + testcase.path] +
-            ["--gtest_random_seed=%s" % context.random_seed] +
-            ["--gtest_print_time=0"] +
-            context.mode_flags)
-
-  def shell(self):
-    return self.name
+      return path.replace("\\", "/")
+    return path

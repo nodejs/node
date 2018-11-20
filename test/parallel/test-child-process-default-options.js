@@ -19,31 +19,32 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
-
-var isWindows = process.platform === 'win32';
+const spawn = require('child_process').spawn;
 
 process.env.HELLO = 'WORLD';
 
-if (isWindows) {
-  var child = spawn('cmd.exe', ['/c', 'set'], {});
+let child;
+if (common.isWindows) {
+  child = spawn('cmd.exe', ['/c', 'set'], {});
 } else {
-  var child = spawn('/usr/bin/env', [], {});
+  child = spawn('/usr/bin/env', [], {});
 }
 
-var response = '';
+let response = '';
 
 child.stdout.setEncoding('utf8');
 
 child.stdout.on('data', function(chunk) {
-  console.log('stdout: ' + chunk);
+  console.log(`stdout: ${chunk}`);
   response += chunk;
 });
 
 process.on('exit', function() {
-  assert.ok(response.indexOf('HELLO=WORLD') >= 0,
-            'spawn did not use process.env as default');
+  assert.ok(response.includes('HELLO=WORLD'),
+            'spawn did not use process.env as default ' +
+            `(process.env.HELLO = ${process.env.HELLO})`);
 });

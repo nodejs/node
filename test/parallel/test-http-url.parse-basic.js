@@ -19,12 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
-var testURL = url.parse('http://localhost:' + common.PORT);
+let testURL;
 
 // make sure the basics work
 function check(request) {
@@ -34,20 +35,22 @@ function check(request) {
   assert.strictEqual(request.url, '/');
   // the host header should use the url.parse.hostname
   assert.strictEqual(request.headers.host,
-                     testURL.hostname + ':' + testURL.port);
+                     `${testURL.hostname}:${testURL.port}`);
 }
 
-var server = http.createServer(function(request, response) {
+const server = http.createServer(function(request, response) {
   // run the check function
-  check.call(this, request, response);
+  check(request);
   response.writeHead(200, {});
   response.end('ok');
   server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  testURL = url.parse(`http://localhost:${this.address().port}`);
+
   // make the request
-  var clientRequest = http.request(testURL);
+  const clientRequest = http.request(testURL);
   // since there is a little magic with the agent
   // make sure that an http request uses the http.Agent
   assert.ok(clientRequest.agent instanceof http.Agent);

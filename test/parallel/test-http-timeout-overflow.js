@@ -19,36 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const http = require('http');
 
-var common = require('../common');
-var assert = require('assert');
-
-var http = require('http');
-
-var port = common.PORT;
-var serverRequests = 0;
-var clientRequests = 0;
-
-var server = http.createServer(function(req, res) {
-  serverRequests++;
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+const server = http.createServer(common.mustCall(function(req, res) {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('OK');
-});
+}));
 
-server.listen(port, function() {
-  function callback(){}
+server.listen(0, function() {
+  function callback() {}
 
-  var req = http.request({
-    port: port,
+  const req = http.request({
+    port: this.address().port,
     path: '/',
     agent: false
   }, function(res) {
     req.clearTimeout(callback);
 
-    res.on('end', function() {
-      clientRequests++;
+    res.on('end', common.mustCall(function() {
       server.close();
-    })
+    }));
 
     res.resume();
   });
@@ -56,9 +48,4 @@ server.listen(port, function() {
   // Overflow signed int32
   req.setTimeout(0xffffffff, callback);
   req.end();
-});
-
-process.once('exit', function() {
-  assert.equal(clientRequests, 1);
-  assert.equal(serverRequests, 1);
 });

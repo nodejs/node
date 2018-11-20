@@ -88,7 +88,8 @@ def Main():
     print("Usage: %s <command-to-run-on-device>" % sys.argv[0])
     return 1
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  android_workspace = os.getenv("ANDROID_V8", "/data/local/tmp/v8")
+  v8_root = "/data/local/tmp/v8"
+  android_workspace = os.getenv("ANDROID_V8", v8_root)
   args = [Escape(arg) for arg in sys.argv[1:]]
   script = (" ".join(args) + "\n"
             "case $? in\n"
@@ -99,7 +100,7 @@ def Main():
   script_file = WriteToTemporaryFile(script)
   android_script_file = android_workspace + "/" + script_file
   command =  ("adb push '%s' %s;" % (script_file, android_script_file) +
-              "adb shell 'sh %s';" % android_script_file +
+              "adb shell 'cd %s && sh %s';" % (v8_root, android_script_file) +
               "adb shell 'rm %s'" % android_script_file)
   error_code = Execute(command)
   os.unlink(script_file)

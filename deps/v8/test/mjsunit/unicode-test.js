@@ -4110,7 +4110,7 @@ var source =
 "  if no space is available. Additionally, on failure, errno is\n" +
 "  set to ENOMEM on ANSI C systems.\n" +
 "\n" +
-"  If n is zero, malloc returns a minumum-sized chunk. (The minimum\n" +
+"  If n is zero, malloc returns a minimum-sized chunk. (The minimum\n" +
 "  size is 16 bytes on most 32bit systems, and 24 or 32 bytes on 64bit\n" +
 "  systems.)  On most systems, size_t is an unsigned type, so calls\n" +
 "  with negative arguments are interpreted as requests for huge amounts\n" +
@@ -5364,7 +5364,7 @@ var source =
 "    and consolidated sets of chunks, which is what these bins hold, so\n" +
 "    they can be found quickly.  All procedures maintain the invariant\n" +
 "    that no consolidated chunk physically borders another one, so each\n" +
-"    chunk in a list is known to be preceeded and followed by either\n" +
+"    chunk in a list is known to be preceded and followed by either\n" +
 "    inuse chunks or the ends of memory.\n" +
 "\n" +
 "    Chunks in bins are kept in size order, with ties going to the\n" +
@@ -5726,7 +5726,7 @@ var source =
 "   All uses of av_ are via get_malloc_state().\n" +
 "   At most one \"call\" to get_malloc_state is made per invocation of\n" +
 "   the public versions of malloc and free, but other routines\n" +
-"   that in turn invoke malloc and/or free may call more then once.\n" +
+"   that in turn invoke malloc and/or free may call more than once.\n" +
 "   Also, it is called in check* routines if DEBUG is set.\n" +
 "*/\n" +
 "\n" +
@@ -9097,7 +9097,7 @@ assertEquals(25640, hebrew.length, "hebrew utf8 in source");
 assertEquals(31082, japanese.length, "japanese utf8 in source");
 assertEquals(12291, korean.length, "korean utf8 in source");
 assertEquals(13851, persian.length, "persian utf8 in source");
-assertEquals(177470, source.length, "source utf8 in source");
+assertEquals(177469, source.length, "source utf8 in source");
 assertEquals(18315, thai.length, "thai utf8 in source");
 
 munged_sizes = new Array(17197, 2511, 2645, 3820, 3086, 2609,

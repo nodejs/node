@@ -1,29 +1,41 @@
-// Copyright (c) 2014, StrongLoop Inc.
-//
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
-//
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-// ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-// ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-// OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+'use strict';
+require('../common');
+const assert = require('assert');
+const v8 = require('v8');
 
-var common = require('../common');
-var assert = require('assert');
-var v8 = require('v8');
-
-var s = v8.getHeapStatistics();
-var keys = [
+const s = v8.getHeapStatistics();
+const keys = [
+  'does_zap_garbage',
   'heap_size_limit',
+  'malloced_memory',
+  'peak_malloced_memory',
+  'total_available_size',
   'total_heap_size',
   'total_heap_size_executable',
   'total_physical_size',
   'used_heap_size'];
-assert.deepEqual(Object.keys(s).sort(), keys);
+assert.deepStrictEqual(Object.keys(s).sort(), keys);
 keys.forEach(function(key) {
-  assert.equal(typeof s[key], 'number');
+  assert.strictEqual(typeof s[key], 'number');
+});
+
+
+const expectedHeapSpaces = [
+  'new_space',
+  'old_space',
+  'code_space',
+  'map_space',
+  'new_large_object_space',
+  'large_object_space',
+  'read_only_space'
+];
+const heapSpaceStatistics = v8.getHeapSpaceStatistics();
+const actualHeapSpaceNames = heapSpaceStatistics.map((s) => s.space_name);
+assert.deepStrictEqual(actualHeapSpaceNames.sort(), expectedHeapSpaces.sort());
+heapSpaceStatistics.forEach((heapSpace) => {
+  assert.strictEqual(typeof heapSpace.space_name, 'string');
+  assert.strictEqual(typeof heapSpace.space_size, 'number');
+  assert.strictEqual(typeof heapSpace.space_used_size, 'number');
+  assert.strictEqual(typeof heapSpace.space_available_size, 'number');
+  assert.strictEqual(typeof heapSpace.physical_space_size, 'number');
 });

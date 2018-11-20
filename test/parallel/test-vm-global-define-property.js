@@ -19,12 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var vm = require('vm');
+const vm = require('vm');
 
-var code =
+const code =
     'Object.defineProperty(this, "f", {\n' +
     '  get: function() { return x; },\n' +
     '  set: function(k) { x = k; },\n' +
@@ -34,13 +35,13 @@ var code =
     'g = f;\n' +
     'f;\n';
 
-var x = {};
-var o = vm.createContext({ console: console, x: x });
+const x = {};
+const o = vm.createContext({ console, x });
 
-var res = vm.runInContext(code, o, 'test');
+const res = vm.runInContext(code, o, 'test');
 
 assert(res);
-assert.equal(typeof res, 'object');
-assert.equal(res, x);
-assert.equal(o.f, res);
-assert.deepEqual(Object.keys(o), ['console', 'x', 'g', 'f']);
+assert.strictEqual(typeof res, 'object');
+assert.strictEqual(res, x);
+assert.strictEqual(o.f, res);
+assert.deepStrictEqual(Object.keys(o), ['console', 'x', 'f', 'g']);

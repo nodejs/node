@@ -19,13 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
 
 process.nextTick(function() {
   process.nextTick(function() {
     process.nextTick(function() {
       process.nextTick(function() {
+        // eslint-disable-next-line no-undef
         undefined_reference_error_maker;
       });
     });

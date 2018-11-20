@@ -45,7 +45,7 @@ class ObjectWrap {
 
 
   template <class T>
-  static inline T* Unwrap(v8::Handle<v8::Object> handle) {
+  static inline T* Unwrap(v8::Local<v8::Object> handle) {
     assert(!handle.IsEmpty());
     assert(handle->InternalFieldCount() > 0);
     // Cast to ObjectWrap before casting to T.  A direct cast from void
@@ -72,7 +72,7 @@ class ObjectWrap {
 
 
  protected:
-  inline void Wrap(v8::Handle<v8::Object> handle) {
+  inline void Wrap(v8::Local<v8::Object> handle) {
     assert(persistent().IsEmpty());
     assert(handle->InternalFieldCount() > 0);
     handle->SetAlignedPointerInInternalField(0, this);
@@ -82,8 +82,7 @@ class ObjectWrap {
 
 
   inline void MakeWeak(void) {
-    persistent().SetWeak(this, WeakCallback);
-    persistent().MarkIndependent();
+    persistent().SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   }
 
   /* Ref() marks the object as being attached to an event loop.
@@ -101,7 +100,7 @@ class ObjectWrap {
    * attached to detached state it will be freed. Be careful not to access
    * the object after making this call as it might be gone!
    * (A "weak reference" means an object that only has a
-   * persistant handle.)
+   * persistent handle.)
    *
    * DO NOT CALL THIS FROM DESTRUCTOR
    */
@@ -117,14 +116,9 @@ class ObjectWrap {
 
  private:
   static void WeakCallback(
-      const v8::WeakCallbackData<v8::Object, ObjectWrap>& data) {
-    v8::Isolate* isolate = data.GetIsolate();
-    v8::HandleScope scope(isolate);
+      const v8::WeakCallbackInfo<ObjectWrap>& data) {
     ObjectWrap* wrap = data.GetParameter();
     assert(wrap->refs_ == 0);
-    assert(wrap->handle_.IsNearDeath());
-    assert(
-        data.GetValue() == v8::Local<v8::Object>::New(isolate, wrap->handle_));
     wrap->handle_.Reset();
     delete wrap;
   }

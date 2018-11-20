@@ -19,14 +19,49 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
 
-assert(Array.isArray(http.METHODS));
-assert(http.METHODS.length > 0);
-assert(http.METHODS.indexOf('GET') !== -1);
-assert(http.METHODS.indexOf('HEAD') !== -1);
-assert(http.METHODS.indexOf('POST') !== -1);
-assert.deepEqual(util._extend([], http.METHODS), http.METHODS.sort());
+// This test ensures all http methods from HTTP parser are exposed
+// to http library
+
+const methods = [
+  'DELETE',
+  'GET',
+  'HEAD',
+  'POST',
+  'PUT',
+  'CONNECT',
+  'OPTIONS',
+  'TRACE',
+  'COPY',
+  'LOCK',
+  'MKCOL',
+  'MOVE',
+  'PROPFIND',
+  'PROPPATCH',
+  'SEARCH',
+  'UNLOCK',
+  'BIND',
+  'REBIND',
+  'UNBIND',
+  'ACL',
+  'REPORT',
+  'MKACTIVITY',
+  'CHECKOUT',
+  'MERGE',
+  'M-SEARCH',
+  'NOTIFY',
+  'SUBSCRIBE',
+  'UNSUBSCRIBE',
+  'PATCH',
+  'PURGE',
+  'MKCALENDAR',
+  'LINK',
+  'UNLINK',
+  'SOURCE',
+];
+
+assert.deepStrictEqual(http.METHODS, methods.sort());

@@ -40,3 +40,9 @@ assertEquals(["x", "x"], re.exec("axyb"));
 re.compile("(y)");
 
 assertEquals(["y", "y"], re.exec("axyb"));
+
+assertEquals(2, re.compile.length);
+
+// If RegExp parsing fails, the RegExp is not modified
+var r = /./; try { r.compile('? invalid'); } catch(err){}
+assertEquals("/./", r.toString());

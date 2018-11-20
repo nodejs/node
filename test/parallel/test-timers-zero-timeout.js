@@ -19,41 +19,31 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 // https://github.com/joyent/node/issues/2079 - zero timeout drops extra args
-(function() {
-  var ncalled = 0;
-
-  setTimeout(f, 0, 'foo', 'bar', 'baz');
-  var timer = setTimeout(function() {}, 0);
+{
+  setTimeout(common.mustCall(f), 0, 'foo', 'bar', 'baz');
+  setTimeout(() => {}, 0);
 
   function f(a, b, c) {
-    assert.equal(a, 'foo');
-    assert.equal(b, 'bar');
-    assert.equal(c, 'baz');
-    ncalled++;
+    assert.strictEqual(a, 'foo');
+    assert.strictEqual(b, 'bar');
+    assert.strictEqual(c, 'baz');
   }
+}
 
-  process.on('exit', function() {
-    assert.equal(ncalled, 1);
-  });
-})();
+{
+  let ncalled = 3;
 
-(function() {
-  var ncalled = 0;
+  const f = common.mustCall((a, b, c) => {
+    assert.strictEqual(a, 'foo');
+    assert.strictEqual(b, 'bar');
+    assert.strictEqual(c, 'baz');
+    if (--ncalled === 0) clearTimeout(iv);
+  }, ncalled);
 
-  var iv = setInterval(f, 0, 'foo', 'bar', 'baz');
-
-  function f(a, b, c) {
-    assert.equal(a, 'foo');
-    assert.equal(b, 'bar');
-    assert.equal(c, 'baz');
-    if (++ncalled == 3) clearTimeout(iv);
-  }
-
-  process.on('exit', function() {
-    assert.equal(ncalled, 3);
-  });
-})();
+  const iv = setInterval(f, 0, 'foo', 'bar', 'baz');
+}

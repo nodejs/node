@@ -19,39 +19,60 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 // Verify that ServerResponse.writeHead() works as setHeader.
 // Issue 5036 on github.
 
-var s = http.createServer(function(req, res) {
+const s = http.createServer(common.mustCall((req, res) => {
   res.setHeader('test', '1');
 
   // toLowerCase() is used on the name argument, so it must be a string.
-  var threw = false;
-  try {
-    res.setHeader(0xf00, 'bar');
-  } catch (e) {
-    assert.ok(e instanceof TypeError);
-    threw = true;
-  }
-  assert.ok(threw, 'Non-string names should throw');
+  // Non-String header names should throw
+  common.expectsError(
+    () => res.setHeader(0xf00, 'bar'),
+    {
+      code: 'ERR_INVALID_HTTP_TOKEN',
+      type: TypeError,
+      message: 'Header name must be a valid HTTP token ["3840"]'
+    }
+  );
+
+  // undefined value should throw, via 979d0ca8
+  common.expectsError(
+    () => res.setHeader('foo', undefined),
+    {
+      code: 'ERR_HTTP_INVALID_HEADER_VALUE',
+      type: TypeError,
+      message: 'Invalid value "undefined" for header "foo"'
+    }
+  );
 
   res.writeHead(200, { Test: '2' });
-  res.end();
-});
 
-s.listen(common.PORT, runTest);
+  common.expectsError(() => {
+    res.writeHead(100, {});
+  }, {
+    code: 'ERR_HTTP_HEADERS_SENT',
+    type: Error,
+    message: 'Cannot render headers after they are sent to the client'
+  });
+
+  res.end();
+}));
+
+s.listen(0, common.mustCall(runTest));
 
 function runTest() {
-  http.get({ port: common.PORT }, function(response) {
-    response.on('end', function() {
-      assert.equal(response.headers['test'], '2');
-      assert(response.rawHeaders.indexOf('Test') !== -1);
+  http.get({ port: this.address().port }, common.mustCall((response) => {
+    response.on('end', common.mustCall(() => {
+      assert.strictEqual(response.headers.test, '2');
+      assert(response.rawHeaders.includes('Test'));
       s.close();
-    });
+    }));
     response.resume();
-  });
+  }));
 }

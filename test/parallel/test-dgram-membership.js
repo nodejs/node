@@ -1,0 +1,78 @@
+'use strict';
+
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
+const multicastAddress = '224.0.0.114';
+
+const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
+
+// addMembership() on closed socket should throw
+{
+  const socket = setup();
+  socket.close(common.mustCall(() => {
+    common.expectsError(() => {
+      socket.addMembership(multicastAddress);
+    }, {
+      code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
+      type: Error,
+      message: /^Not running$/
+    });
+  }));
+}
+
+// dropMembership() on closed socket should throw
+{
+  const socket = setup();
+  socket.close(common.mustCall(() => {
+    common.expectsError(() => {
+      socket.dropMembership(multicastAddress);
+    }, {
+      code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
+      type: Error,
+      message: /^Not running$/
+    });
+  }));
+}
+
+// addMembership() with no argument should throw
+{
+  const socket = setup();
+  common.expectsError(() => {
+    socket.addMembership();
+  }, {
+    code: 'ERR_MISSING_ARGS',
+    type: TypeError,
+    message: /^The "multicastAddress" argument must be specified$/
+  });
+  socket.close();
+}
+
+// dropMembership() with no argument should throw
+{
+  const socket = setup();
+  common.expectsError(() => {
+    socket.dropMembership();
+  }, {
+    code: 'ERR_MISSING_ARGS',
+    type: TypeError,
+    message: /^The "multicastAddress" argument must be specified$/
+  });
+  socket.close();
+}
+
+// addMembership() with invalid multicast address should throw
+{
+  const socket = setup();
+  assert.throws(() => { socket.addMembership('256.256.256.256'); },
+                /^Error: addMembership EINVAL$/);
+  socket.close();
+}
+
+// dropMembership() with invalid multicast address should throw
+{
+  const socket = setup();
+  assert.throws(() => { socket.dropMembership('256.256.256.256'); },
+                /^Error: dropMembership EINVAL$/);
+  socket.close();
+}

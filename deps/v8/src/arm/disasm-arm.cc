@@ -28,11 +28,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/constants-arm.h"
+#include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
@@ -41,6 +40,7 @@
 namespace v8 {
 namespace internal {
 
+const auto GetRegConfig = RegisterConfiguration::Default;
 
 //------------------------------------------------------------------------------
 
@@ -105,6 +105,8 @@ class Decoder {
   void DecodeType6(Instruction* instr);
   // Type 7 includes special Debugger instructions.
   int DecodeType7(Instruction* instr);
+  // CP15 coprocessor instructions.
+  void DecodeTypeCP15(Instruction* instr);
   // For VFP support.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
@@ -226,7 +228,7 @@ void Decoder::PrintShiftRm(Instruction* instr) {
 void Decoder::PrintShiftImm(Instruction* instr) {
   int rotate = instr->RotateValue() * 2;
   int immed8 = instr->Immed8Value();
-  int imm = (immed8 >> rotate) | (immed8 << (32 - rotate));
+  int imm = base::bits::RotateRight32(immed8, rotate);
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "#%d", imm);
 }
 
@@ -299,7 +301,7 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
 // Handle all register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
-  DCHECK(format[0] == 'r');
+  DCHECK_EQ(format[0], 'r');
   if (format[1] == 'n') {  // 'rn: Rn register
     int reg = instr->RnValue();
     PrintRegister(reg);
@@ -341,7 +343,6 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
     return 5;
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -414,8 +415,8 @@ void Decoder::FormatNeonList(int Vd, int type) {
 
 
 void Decoder::FormatNeonMemory(int Rn, int align, int Rm) {
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                              "[r%d", Rn);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "[%s",
+                              converter_.NameOfCPURegister(Rn));
   if (align != 0) {
     out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                 ":%d", (1 << align) << 6);
@@ -425,8 +426,8 @@ void Decoder::FormatNeonMemory(int Rn, int align, int Rm) {
   } else if (Rm == 13) {
     Print("]!");
   } else {
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                "], r%d", Rm);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "], %s",
+                                converter_.NameOfCPURegister(Rm));
   }
 }
 
@@ -467,7 +468,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 4;
     }
     case 'd': {  // 'd: vmov double immediate.
-      double d = instr->DoubleImmedVmov();
+      double d = instr->DoubleImmedVmov().get_scalar();
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "#%g", d);
       return 1;
     }
@@ -478,9 +479,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         // BFC/BFI:
         // Bits 20-16 represent most-significant bit. Covert to width.
         width -= lsbit;
-        DCHECK(width > 0);
+        DCHECK_GT(width, 0);
       }
-      DCHECK((width + lsbit) <= 32);
+      DCHECK_LE(width + lsbit, 32);
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "#%d, #%d", lsbit, width);
       return 1;
@@ -500,7 +501,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
 
       DCHECK((width >= 1) && (width <= 32));
       DCHECK((lsb >= 0) && (lsb <= 31));
-      DCHECK((width + lsb) <= 32);
+      DCHECK_LE(width + lsb, 32);
 
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "%d",
@@ -540,7 +541,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       // 'msg: for simulator break instructions
       DCHECK(STRING_STARTS_WITH(format, "msg"));
       byte* str =
-          reinterpret_cast<byte*>(instr->InstructionBits() & 0x0fffffff);
+          reinterpret_cast<byte*>(instr->InstructionBits() & 0x0FFFFFFF);
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "%s", converter_.NameInCode(str));
       return 3;
@@ -582,7 +583,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           if (instr->TypeValue() == 0) {
             PrintShiftRm(instr);
           } else {
-            DCHECK(instr->TypeValue() == 1);
+            DCHECK_EQ(instr->TypeValue(), 1);
             PrintShiftImm(instr);
           }
           return 8;
@@ -605,6 +606,26 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           Print("s");
         }
         return 4;
+      } else if (format[1] == 'p') {
+        if (format[8] == '_') {  // 'spec_reg_fields
+          DCHECK(STRING_STARTS_WITH(format, "spec_reg_fields"));
+          Print("_");
+          int mask = instr->Bits(19, 16);
+          if (mask == 0) Print("(none)");
+          if ((mask & 0x8) != 0) Print("f");
+          if ((mask & 0x4) != 0) Print("s");
+          if ((mask & 0x2) != 0) Print("x");
+          if ((mask & 0x1) != 0) Print("c");
+          return 15;
+        } else {  // 'spec_reg
+          DCHECK(STRING_STARTS_WITH(format, "spec_reg"));
+          if (instr->Bit(22) == 0) {
+            Print("CPSR");
+          } else {
+            Print("SPSR");
+          }
+          return 8;
+        }
       }
       // 's: S field of data processing instructions
       if (instr->HasS()) {
@@ -645,6 +666,29 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 'v': {
       return FormatVFPinstruction(instr, format);
     }
+    case 'A': {
+      // Print pc-relative address.
+      int offset = instr->Offset12Value();
+      byte* pc = reinterpret_cast<byte*>(instr) + Instruction::kPCReadOffset;
+      byte* addr;
+      switch (instr->PUField()) {
+        case db_x: {
+          addr = pc - offset;
+          break;
+        }
+        case ib_x: {
+          addr = pc + offset;
+          break;
+        }
+        default: {
+          UNREACHABLE();
+          return -1;
+        }
+      }
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%p",
+                                  static_cast<void*>(addr));
+      return 1;
+    }
     case 'S':
     case 'D': {
       return FormatVFPRegister(instr, format);
@@ -661,7 +705,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
   }
   UNREACHABLE();
-  return -1;
 }
 
 
@@ -683,7 +726,7 @@ void Decoder::Format(Instruction* instr, const char* format) {
 
 
 // The disassembler may end up decoding data inlined in the code. We do not want
-// it to crash if the data does not ressemble any known instruction.
+// it to crash if the data does not resemble any known instruction.
 #define VERIFY(condition) \
 if(!(condition)) {        \
   Unknown(instr);         \
@@ -736,9 +779,47 @@ void Decoder::DecodeType01(Instruction* instr) {
           Format(instr, "'um'al'cond's 'rd, 'rn, 'rm, 'rs");
         }
       } else {
-        Unknown(instr);  // not used by V8
+        if (instr->Bits(24, 23) == 3) {
+          if (instr->Bit(20) == 1) {
+            // ldrex
+            switch (instr->Bits(22, 21)) {
+              case 0:
+                Format(instr, "ldrex'cond 'rt, ['rn]");
+                break;
+              case 2:
+                Format(instr, "ldrexb'cond 'rt, ['rn]");
+                break;
+              case 3:
+                Format(instr, "ldrexh'cond 'rt, ['rn]");
+                break;
+              default:
+                UNREACHABLE();
+                break;
+            }
+          } else {
+            // strex
+            // The instruction is documented as strex rd, rt, [rn], but the
+            // "rt" register is using the rm bits.
+            switch (instr->Bits(22, 21)) {
+              case 0:
+                Format(instr, "strex'cond 'rd, 'rm, ['rn]");
+                break;
+              case 2:
+                Format(instr, "strexb'cond 'rd, 'rm, ['rn]");
+                break;
+              case 3:
+                Format(instr, "strexh'cond 'rd, 'rm, ['rn]");
+                break;
+              default:
+                UNREACHABLE();
+                break;
+            }
+          }
+        } else {
+          Unknown(instr);  // not used by V8
+        }
       }
-    } else if ((instr->Bit(20) == 0) && ((instr->Bits(7, 4) & 0xd) == 0xd)) {
+    } else if ((instr->Bit(20) == 0) && ((instr->Bits(7, 4) & 0xD) == 0xD)) {
       // ldrd, strd
       switch (instr->PUField()) {
         case da_x: {
@@ -823,7 +904,13 @@ void Decoder::DecodeType01(Instruction* instr) {
       return;
     }
   } else if ((type == 0) && instr->IsMiscType0()) {
-    if (instr->Bits(22, 21) == 1) {
+    if ((instr->Bits(27, 23) == 2) && (instr->Bits(21, 20) == 2) &&
+        (instr->Bits(15, 4) == 0xF00)) {
+      Format(instr, "msr'cond 'spec_reg'spec_reg_fields, 'rm");
+    } else if ((instr->Bits(27, 23) == 2) && (instr->Bits(21, 20) == 0) &&
+               (instr->Bits(11, 0) == 0)) {
+      Format(instr, "mrs'cond 'rd, 'spec_reg");
+    } else if (instr->Bits(22, 21) == 1) {
       switch (instr->BitField(7, 4)) {
         case BX:
           Format(instr, "bx'cond 'rm");
@@ -850,8 +937,14 @@ void Decoder::DecodeType01(Instruction* instr) {
     } else {
       Unknown(instr);  // not used by V8
     }
-  } else if ((type == 1) && instr->IsNopType1()) {
-    Format(instr, "nop'cond");
+  } else if ((type == 1) && instr->IsNopLikeType1()) {
+    if (instr->BitField(7, 0) == 0) {
+      Format(instr, "nop'cond");
+    } else if (instr->BitField(7, 0) == 20) {
+      Format(instr, "csdb");
+    } else {
+      Unknown(instr);  // Not used in V8.
+    }
   } else {
     switch (instr->OpcodeField()) {
       case AND: {
@@ -967,11 +1060,19 @@ void Decoder::DecodeType2(Instruction* instr) {
       break;
     }
     case db_x: {
-      Format(instr, "'memop'cond'b 'rd, ['rn, #-'off12]'w");
+      if (instr->HasL() && (instr->RnValue() == kPCRegister)) {
+        Format(instr, "'memop'cond'b 'rd, [pc, #-'off12]'w (addr 'A)");
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn, #-'off12]'w");
+      }
       break;
     }
     case ib_x: {
-      Format(instr, "'memop'cond'b 'rd, ['rn, #+'off12]'w");
+      if (instr->HasL() && (instr->RnValue() == kPCRegister)) {
+        Format(instr, "'memop'cond'b 'rd, [pc, #+'off12]'w (addr 'A)");
+      } else {
+        Format(instr, "'memop'cond'b 'rd, ['rn, #+'off12]'w");
+      }
       break;
     }
     default: {
@@ -1027,7 +1128,75 @@ void Decoder::DecodeType3(Instruction* instr) {
               UNREACHABLE();
               break;
             case 1:
-              UNREACHABLE();
+              if (instr->Bits(9, 6) == 1) {
+                if (instr->Bit(20) == 0) {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxtb'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxtb'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxtb'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxtb'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxtab'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
+                  }
+                } else {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxth'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxth'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxth'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxth'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "sxtah'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
+                  }
+                }
+              } else {
+                UNREACHABLE();
+              }
               break;
             case 2:
               if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
@@ -1054,40 +1223,80 @@ void Decoder::DecodeType3(Instruction* instr) {
               }
               break;
             case 3:
-              if ((instr->Bit(20) == 0) && (instr->Bits(9, 6) == 1)) {
-                if (instr->Bits(19, 16) == 0xF) {
-                  switch (instr->Bits(11, 10)) {
-                    case 0:
-                      Format(instr, "uxtb'cond 'rd, 'rm");
-                      break;
-                    case 1:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
-                      break;
-                    case 2:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #16");
-                      break;
-                    case 3:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #24");
-                      break;
+              if ((instr->Bits(9, 6) == 1)) {
+                if ((instr->Bit(20) == 0)) {
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxtb'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxtb'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxtb'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
                   }
                 } else {
-                  switch (instr->Bits(11, 10)) {
-                    case 0:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm");
-                      break;
-                    case 1:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");
-                      break;
-                    case 2:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #16");
-                      break;
-                    case 3:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #24");
-                      break;
+                  if (instr->Bits(19, 16) == 0xF) {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxth'cond 'rd, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxth'cond 'rd, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxth'cond 'rd, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxth'cond 'rd, 'rm, ror #24");
+                        break;
+                    }
+                  } else {
+                    switch (instr->Bits(11, 10)) {
+                      case 0:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm");
+                        break;
+                      case 1:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm, ror #8");
+                        break;
+                      case 2:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm, ror #16");
+                        break;
+                      case 3:
+                        Format(instr, "uxtah'cond 'rd, 'rn, 'rm, ror #24");
+                        break;
+                    }
                   }
                 }
               } else {
-                UNREACHABLE();
+                // PU == 0b01, BW == 0b11, Bits(9, 6) != 0b0001
+                if ((instr->Bits(20, 16) == 0x1F) &&
+                    (instr->Bits(11, 4) == 0xF3)) {
+                  Format(instr, "rbit'cond 'rd, 'rm");
+                } else {
+                  UNREACHABLE();
+                }
               }
               break;
           }
@@ -1107,18 +1316,16 @@ void Decoder::DecodeType3(Instruction* instr) {
           break;
         }
       }
-      if (FLAG_enable_sudiv) {
-        if (instr->Bits(5, 4) == 0x1) {
-          if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
-            if (instr->Bit(21) == 0x1) {
-              // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
-            } else {
-              // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
-            }
-            break;
+      if (instr->Bits(5, 4) == 0x1) {
+        if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
+          if (instr->Bit(21) == 0x1) {
+            // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
+          } else {
+            // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
           }
+          break;
         }
       }
       Format(instr, "'memop'cond'b 'rd, ['rn, -'shift_rm]'w");
@@ -1192,23 +1399,22 @@ int Decoder::DecodeType7(Instruction* instr) {
   if (instr->Bit(24) == 1) {
     if (instr->SvcValue() >= kStopCode) {
       Format(instr, "stop'cond 'svc");
-      // Also print the stop message. Its address is encoded
-      // in the following 4 bytes.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "\n  %p  %08x       stop message: %s",
-                                  reinterpret_cast<void*>(instr
-                                                 + Instruction::kInstrSize),
-                                  *reinterpret_cast<uint32_t*>(instr
-                                                + Instruction::kInstrSize),
-                                  *reinterpret_cast<char**>(instr
-                                                + Instruction::kInstrSize));
-      // We have decoded 2 * Instruction::kInstrSize bytes.
-      return 2 * Instruction::kInstrSize;
     } else {
       Format(instr, "svc'cond 'svc");
     }
   } else {
-    DecodeTypeVFP(instr);
+    switch (instr->CoprocessorValue()) {
+      case 10:  // Fall through.
+      case 11:
+        DecodeTypeVFP(instr);
+        break;
+      case 15:
+        DecodeTypeCP15(instr);
+        break;
+      default:
+        Unknown(instr);
+        break;
+    }
   }
   return Instruction::kInstrSize;
 }
@@ -1221,17 +1427,30 @@ int Decoder::DecodeType7(Instruction* instr) {
 // vcvt: Sd = Dm
 // vcvt.f64.s32 Dd, Dd, #<fbits>
 // Dd = vabs(Dm)
+// Sd = vabs(Sm)
 // Dd = vneg(Dm)
+// Sd = vneg(Sm)
 // Dd = vadd(Dn, Dm)
+// Sd = vadd(Sn, Sm)
 // Dd = vsub(Dn, Dm)
+// Sd = vsub(Sn, Sm)
 // Dd = vmul(Dn, Dm)
+// Sd = vmul(Sn, Sm)
 // Dd = vmla(Dn, Dm)
+// Sd = vmla(Sn, Sm)
 // Dd = vmls(Dn, Dm)
+// Sd = vmls(Sn, Sm)
 // Dd = vdiv(Dn, Dm)
+// Sd = vdiv(Sn, Sm)
 // vcmp(Dd, Dm)
+// vcmp(Sd, Sm)
+// Dd = vsqrt(Dm)
+// Sd = vsqrt(Sm)
 // vmrs
 // vmsr
-// Dd = vsqrt(Dm)
+// Qd = vdup.size(Qd, Rt)
+// vmov.size: Dd[i] = Rt
+// vmov.sign.size: Rt = Dn[i]
 void Decoder::DecodeTypeVFP(Instruction* instr) {
   VERIFY((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0) );
   VERIFY(instr->Bits(11, 9) == 0x5);
@@ -1248,10 +1467,18 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         }
       } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
         // vabs
-        Format(instr, "vabs'cond.f64 'Dd, 'Dm");
+        if (instr->SzValue() == 0x1) {
+          Format(instr, "vabs'cond.f64 'Dd, 'Dm");
+        } else {
+          Format(instr, "vabs'cond.f32 'Sd, 'Sm");
+        }
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
         // vneg
-        Format(instr, "vneg'cond.f64 'Dd, 'Dm");
+        if (instr->SzValue() == 0x1) {
+          Format(instr, "vneg'cond.f64 'Dd, 'Dm");
+        } else {
+          Format(instr, "vneg'cond.f32 'Sd, 'Sm");
+        }
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {
@@ -1270,20 +1497,23 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
                  (instr->Opc3Value() & 0x1)) {
         DecodeVCMP(instr);
       } else if (((instr->Opc2Value() == 0x1)) && (instr->Opc3Value() == 0x3)) {
-        Format(instr, "vsqrt'cond.f64 'Dd, 'Dm");
+        if (instr->SzValue() == 0x1) {
+          Format(instr, "vsqrt'cond.f64 'Dd, 'Dm");
+        } else {
+          Format(instr, "vsqrt'cond.f32 'Sd, 'Sm");
+        }
       } else if (instr->Opc3Value() == 0x0) {
         if (instr->SzValue() == 0x1) {
           Format(instr, "vmov'cond.f64 'Dd, 'd");
         } else {
-          Unknown(instr);  // Not used by V8.
+          Format(instr, "vmov'cond.f32 'Sd, 'd");
         }
       } else if (((instr->Opc2Value() == 0x6)) && instr->Opc3Value() == 0x3) {
-        bool dp_operation = (instr->SzValue() == 1);
         // vrintz - round towards zero (truncate)
-        if (dp_operation) {
+        if (instr->SzValue() == 0x1) {
           Format(instr, "vrintz'cond.f64.f64 'Dd, 'Dm");
         } else {
-          Unknown(instr);  // Not used by V8.
+          Format(instr, "vrintz'cond.f32.f32 'Sd, 'Sm");
         }
       } else {
         Unknown(instr);  // Not used by V8.
@@ -1296,31 +1526,35 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
           Format(instr, "vadd'cond.f64 'Dd, 'Dn, 'Dm");
         }
       } else {
-        Unknown(instr);  // Not used by V8.
+        if (instr->Opc3Value() & 0x1) {
+          Format(instr, "vsub'cond.f32 'Sd, 'Sn, 'Sm");
+        } else {
+          Format(instr, "vadd'cond.f32 'Sd, 'Sn, 'Sm");
+        }
       }
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
         Format(instr, "vmul'cond.f64 'Dd, 'Dn, 'Dm");
       } else {
-        Unknown(instr);  // Not used by V8.
+        Format(instr, "vmul'cond.f32 'Sd, 'Sn, 'Sm");
       }
     } else if ((instr->Opc1Value() == 0x0) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
         Format(instr, "vmla'cond.f64 'Dd, 'Dn, 'Dm");
       } else {
-        Unknown(instr);  // Not used by V8.
+        Format(instr, "vmla'cond.f32 'Sd, 'Sn, 'Sm");
       }
     } else if ((instr->Opc1Value() == 0x0) && (instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
         Format(instr, "vmls'cond.f64 'Dd, 'Dn, 'Dm");
       } else {
-        Unknown(instr);  // Not used by V8.
+        Format(instr, "vmls'cond.f32 'Sd, 'Sn, 'Sm");
       }
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
         Format(instr, "vdiv'cond.f64 'Dd, 'Dn, 'Dm");
       } else {
-        Unknown(instr);  // Not used by V8.
+        Format(instr, "vdiv'cond.f32 'Sd, 'Sn, 'Sm");
       }
     } else {
       Unknown(instr);  // Not used by V8.
@@ -1329,21 +1563,72 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
     if ((instr->VCValue() == 0x0) &&
         (instr->VAValue() == 0x0)) {
       DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(instr);
-    } else if ((instr->VLValue() == 0x0) &&
-               (instr->VCValue() == 0x1) &&
-               (instr->Bit(23) == 0x0)) {
-      if (instr->Bit(21) == 0x0) {
-        Format(instr, "vmov'cond.32 'Dd[0], 'rt");
+    } else if ((instr->VLValue() == 0x0) && (instr->VCValue() == 0x1)) {
+      const char* rt_name = converter_.NameOfCPURegister(instr->RtValue());
+      if (instr->Bit(23) == 0) {
+        int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
+        if ((opc1_opc2 & 0xB) == 0) {
+          // NeonS32/NeonU32
+          if (instr->Bit(21) == 0x0) {
+            Format(instr, "vmov'cond.32 'Dd[0], 'rt");
+          } else {
+            Format(instr, "vmov'cond.32 'Dd[1], 'rt");
+          }
+        } else {
+          int vd = instr->VFPNRegValue(kDoublePrecision);
+          if ((opc1_opc2 & 0x8) != 0) {
+            // NeonS8 / NeonU8
+            int i = opc1_opc2 & 0x7;
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmov.8 d%d[%d], %s", vd, i, rt_name);
+          } else if ((opc1_opc2 & 0x1) != 0) {
+            // NeonS16 / NeonU16
+            int i = (opc1_opc2 >> 1) & 0x3;
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmov.16 d%d[%d], %s", vd, i, rt_name);
+          } else {
+            Unknown(instr);
+          }
+        }
       } else {
-        Format(instr, "vmov'cond.32 'Dd[1], 'rt");
+        int size = 32;
+        if (instr->Bit(5) != 0) {
+          size = 16;
+        } else if (instr->Bit(22) != 0) {
+          size = 8;
+        }
+        int Vd = instr->VFPNRegValue(kSimd128Precision);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vdup.%i q%d, %s", size, Vd, rt_name);
       }
-    } else if ((instr->VLValue() == 0x1) &&
-               (instr->VCValue() == 0x1) &&
-               (instr->Bit(23) == 0x0)) {
-      if (instr->Bit(21) == 0x0) {
-        Format(instr, "vmov'cond.32 'rt, 'Dd[0]");
+    } else if ((instr->VLValue() == 0x1) && (instr->VCValue() == 0x1)) {
+      int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
+      if ((opc1_opc2 & 0xB) == 0) {
+        // NeonS32 / NeonU32
+        if (instr->Bit(21) == 0x0) {
+          Format(instr, "vmov'cond.32 'rt, 'Dd[0]");
+        } else {
+          Format(instr, "vmov'cond.32 'rt, 'Dd[1]");
+        }
       } else {
-        Format(instr, "vmov'cond.32 'rt, 'Dd[1]");
+        char sign = instr->Bit(23) != 0 ? 'u' : 's';
+        const char* rt_name = converter_.NameOfCPURegister(instr->RtValue());
+        int vn = instr->VFPNRegValue(kDoublePrecision);
+        if ((opc1_opc2 & 0x8) != 0) {
+          // NeonS8 / NeonU8
+          int i = opc1_opc2 & 0x7;
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov.%c8 %s, d%d[%d]",
+                       sign, rt_name, vn, i);
+        } else if ((opc1_opc2 & 0x1) != 0) {
+          // NeonS16 / NeonU16
+          int i = (opc1_opc2 >> 1) & 0x3;
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov.%c16 %s, d%d[%d]",
+                       sign, rt_name, vn, i);
+        } else {
+          Unknown(instr);
+        }
       }
     } else if ((instr->VCValue() == 0x0) &&
                (instr->VAValue() == 0x7) &&
@@ -1361,10 +1646,40 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
           Format(instr, "vmrs'cond 'rt, FPSCR");
         }
       }
+    } else {
+      Unknown(instr);  // Not used by V8.
     }
   }
 }
 
+void Decoder::DecodeTypeCP15(Instruction* instr) {
+  VERIFY((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0));
+  VERIFY(instr->CoprocessorValue() == 15);
+
+  if (instr->Bit(4) == 1) {
+    int crn = instr->Bits(19, 16);
+    int crm = instr->Bits(3, 0);
+    int opc1 = instr->Bits(23, 21);
+    int opc2 = instr->Bits(7, 5);
+    if ((opc1 == 0) && (crn == 7)) {
+      // ARMv6 memory barrier operations.
+      // Details available in ARM DDI 0406C.b, B3-1750.
+      if ((crm == 10) && (opc2 == 5)) {
+        Format(instr, "mcr'cond (CP15DMB)");
+      } else if ((crm == 10) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15DSB)");
+      } else if ((crm == 5) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15ISB)");
+      } else {
+        Unknown(instr);
+      }
+    } else {
+      Unknown(instr);
+    }
+  } else {
+    Unknown(instr);
+  }
+}
 
 void Decoder::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
     Instruction* instr) {
@@ -1395,6 +1710,14 @@ void Decoder::DecodeVCMP(Instruction* instr) {
       Format(instr, "vcmp'cond.f64 'Dd, 'Dm");
     } else if (instr->Opc2Value() == 0x5) {
       Format(instr, "vcmp'cond.f64 'Dd, #0.0");
+    } else {
+      Unknown(instr);  // invalid
+    }
+  } else if (!raise_exception_for_qnan) {
+    if (instr->Opc2Value() == 0x4) {
+      Format(instr, "vcmp'cond.f32 'Sd, 'Sm");
+    } else if (instr->Opc2Value() == 0x5) {
+      Format(instr, "vcmp'cond.f32 'Sd, #0.0");
     } else {
       Unknown(instr);  // invalid
     }
@@ -1555,8 +1878,168 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
 }
 
 
+static const char* const barrier_option_names[] = {
+    "invalid", "oshld", "oshst", "osh", "invalid", "nshld", "nshst", "nsh",
+    "invalid", "ishld", "ishst", "ish", "invalid", "ld",    "st",    "sy",
+};
+
+
 void Decoder::DecodeSpecialCondition(Instruction* instr) {
   switch (instr->SpecialValue()) {
+    case 4: {
+      int Vd, Vm, Vn;
+      if (instr->Bit(6) == 0) {
+        Vd = instr->VFPDRegValue(kDoublePrecision);
+        Vm = instr->VFPMRegValue(kDoublePrecision);
+        Vn = instr->VFPNRegValue(kDoublePrecision);
+      } else {
+        Vd = instr->VFPDRegValue(kSimd128Precision);
+        Vm = instr->VFPMRegValue(kSimd128Precision);
+        Vn = instr->VFPNRegValue(kSimd128Precision);
+      }
+      int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+      switch (instr->Bits(11, 8)) {
+        case 0x0: {
+          if (instr->Bit(4) == 1) {
+            // vqadd.s<size> Qd, Qm, Qn.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vqadd.s%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0x1: {
+          if (instr->Bits(21, 20) == 2 && instr->Bit(6) == 1 &&
+              instr->Bit(4) == 1) {
+            if (Vm == Vn) {
+              // vmov Qd, Qm
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "vmov q%d, q%d", Vd, Vm);
+            } else {
+              // vorr Qd, Qm, Qn.
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "vorr q%d, q%d, q%d", Vd, Vn, Vm);
+            }
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
+                     instr->Bit(4) == 1) {
+            // vand Qd, Qm, Qn.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vand q%d, q%d, q%d", Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0x2: {
+          if (instr->Bit(4) == 1) {
+            // vqsub.s<size> Qd, Qm, Qn.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vqsub.s%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0x3: {
+          const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
+          // vcge/vcgt.s<size> Qd, Qm, Qn.
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d q%d, q%d, q%d",
+                       op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0x6: {
+          // vmin/vmax.s<size> Qd, Qm, Qn.
+          const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d q%d, q%d, q%d",
+                       op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0x8: {
+          const char* op = (instr->Bit(4) == 0) ? "vadd" : "vtst";
+          // vadd/vtst.i<size> Qd, Qm, Qn.
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.i%d q%d, q%d, q%d",
+                       op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0x9: {
+          if (instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+            // vmul.i<size> Qd, Qm, Qn.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vmul.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0xA: {
+          // vpmin/vpmax.s<size> Dd, Dm, Dn.
+          const char* op = instr->Bit(4) == 1 ? "vpmin" : "vpmax";
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d d%d, d%d, d%d",
+                       op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0xB: {
+          // vpadd.i<size> Dd, Dm, Dn.
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vpadd.i%d d%d, d%d, d%d",
+                       size, Vd, Vn, Vm);
+          break;
+        }
+        case 0xD: {
+          if (instr->Bit(4) == 0) {
+            const char* op = (instr->Bits(21, 20) == 0) ? "vadd" : "vsub";
+            // vadd/vsub.f32 Qd, Qm, Qn.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0xE: {
+          if (instr->Bits(21, 20) == 0 && instr->Bit(4) == 0) {
+            // vceq.f32 Qd, Qm, Qn.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0xF: {
+          if (instr->Bit(20) == 0 && instr->Bit(6) == 1) {
+            if (instr->Bit(4) == 1) {
+              // vrecps/vrsqrts.f32 Qd, Qm, Qn.
+              const char* op = instr->Bit(21) == 0 ? "vrecps" : "vrsqrts";
+              out_buffer_pos_ +=
+                  SNPrintF(out_buffer_ + out_buffer_pos_,
+                           "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+            } else {
+              // vmin/max.f32 Qd, Qm, Qn.
+              const char* op = instr->Bit(21) == 1 ? "vmin" : "vmax";
+              out_buffer_pos_ +=
+                  SNPrintF(out_buffer_ + out_buffer_pos_,
+                           "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+            }
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        default:
+          Unknown(instr);
+          break;
+      }
+      break;
+    }
     case 5:
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
@@ -1566,11 +2049,162 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vmovl.s%d q%d, d%d", imm3*8, Vd, Vm);
+                                    "vmovl.s%d q%d, d%d", imm3 * 8, Vd, Vm);
+      } else if (instr->Bits(21, 20) == 3 && instr->Bit(4) == 0) {
+        // vext.8 Qd, Qm, Qn, imm4
+        int imm4 = instr->Bits(11, 8);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vext.8 q%d, q%d, q%d, #%d",
+                     Vd, Vn, Vm, imm4);
+      } else if (instr->Bits(11, 7) == 0xA && instr->Bit(4) == 1) {
+        // vshl.i<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = instr->Bits(21, 16) - size;
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshl.i%d q%d, q%d, #%d",
+                     size, Vd, Vm, shift);
+      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+        // vshr.s<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = 2 * size - instr->Bits(21, 16);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.s%d q%d, q%d, #%d",
+                     size, Vd, Vm, shift);
       } else {
         Unknown(instr);
       }
       break;
+    case 6: {
+      int Vd, Vm, Vn;
+      if (instr->Bit(6) == 0) {
+        Vd = instr->VFPDRegValue(kDoublePrecision);
+        Vm = instr->VFPMRegValue(kDoublePrecision);
+        Vn = instr->VFPNRegValue(kDoublePrecision);
+      } else {
+        Vd = instr->VFPDRegValue(kSimd128Precision);
+        Vm = instr->VFPMRegValue(kSimd128Precision);
+        Vn = instr->VFPNRegValue(kSimd128Precision);
+      }
+      int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+      switch (instr->Bits(11, 8)) {
+        case 0x0: {
+          if (instr->Bit(4) == 1) {
+            // vqadd.u<size> Qd, Qm, Qn.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vqadd.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0x1: {
+          if (instr->Bits(21, 20) == 1 && instr->Bit(4) == 1) {
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vbsl q%d, q%d, q%d", Vd, Vn, Vm);
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(4) == 1) {
+            if (instr->Bit(6) == 0) {
+              // veor Dd, Dn, Dm
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "veor d%d, d%d, d%d", Vd, Vn, Vm);
+
+            } else {
+              // veor Qd, Qn, Qm
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "veor q%d, q%d, q%d", Vd, Vn, Vm);
+            }
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0x2: {
+          if (instr->Bit(4) == 1) {
+            // vqsub.u<size> Qd, Qm, Qn.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vqsub.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0x3: {
+          const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
+          // vcge/vcgt.u<size> Qd, Qm, Qn.
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d",
+                       op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0x6: {
+          // vmin/vmax.u<size> Qd, Qm, Qn.
+          const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d",
+                       op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0x8: {
+          if (instr->Bit(4) == 0) {
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vsub.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+          } else {
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_,
+                         "vceq.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+          }
+          break;
+        }
+        case 0xA: {
+          // vpmin/vpmax.u<size> Dd, Dm, Dn.
+          const char* op = instr->Bit(4) == 1 ? "vpmin" : "vpmax";
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d d%d, d%d, d%d",
+                       op, size, Vd, Vn, Vm);
+          break;
+        }
+        case 0xD: {
+          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
+              instr->Bit(4) == 1) {
+            // vmul.f32 Qd, Qm, Qn
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmul.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
+                     instr->Bit(4) == 0) {
+            // vpadd.f32 Dd, Dm, Dn.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vpadd.f32 d%d, d%d, d%d", Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case 0xE: {
+          if (instr->Bit(20) == 0 && instr->Bit(4) == 0) {
+            const char* op = (instr->Bit(21) == 0) ? "vcge" : "vcgt";
+            // vcge/vcgt.f32 Qd, Qm, Qn.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        default:
+          Unknown(instr);
+          break;
+      }
+      break;
+    }
     case 7:
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
@@ -1580,7 +2214,184 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vmovl.u%d q%d, d%d", imm3*8, Vd, Vm);
+                                    "vmovl.u%d q%d, d%d", imm3 * 8, Vd, Vm);
+      } else if (instr->Opc1Value() == 7 && instr->Bit(4) == 0) {
+        if (instr->Bits(11, 7) == 0x18) {
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          int imm4 = instr->Bits(19, 16);
+          int size = 0, index = 0;
+          if ((imm4 & 0x1) != 0) {
+            size = 8;
+            index = imm4 >> 1;
+          } else if ((imm4 & 0x2) != 0) {
+            size = 16;
+            index = imm4 >> 2;
+          } else {
+            size = 32;
+            index = imm4 >> 3;
+          }
+          if (instr->Bit(6) == 0) {
+            int Vd = instr->VFPDRegValue(kDoublePrecision);
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i d%d, d%d[%d]",
+                         size, Vd, Vm, index);
+          } else {
+            int Vd = instr->VFPDRegValue(kSimd128Precision);
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i q%d, d%d[%d]",
+                         size, Vd, Vm, index);
+          }
+        } else if (instr->Bits(11, 10) == 0x2) {
+          int Vd = instr->VFPDRegValue(kDoublePrecision);
+          int Vn = instr->VFPNRegValue(kDoublePrecision);
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          int len = instr->Bits(9, 8);
+          NeonListOperand list(DwVfpRegister::from_code(Vn), len + 1);
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s d%d, ",
+                       instr->Bit(6) == 0 ? "vtbl.8" : "vtbx.8", Vd);
+          FormatNeonList(Vn, list.type());
+          Print(", ");
+          PrintDRegister(Vm);
+        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x2 &&
+                   instr->Bits(7, 6) != 0) {
+          // vqmovn.<type><size> Dd, Qm.
+          int Vd = instr->VFPDRegValue(kDoublePrecision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          char type = instr->Bit(6) != 0 ? 'u' : 's';
+          int size = 2 * kBitsPerByte * (1 << instr->Bits(19, 18));
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vqmovn.%c%i d%d, q%d",
+                       type, size, Vd, Vm);
+        } else {
+          int Vd, Vm;
+          if (instr->Bit(6) == 0) {
+            Vd = instr->VFPDRegValue(kDoublePrecision);
+            Vm = instr->VFPMRegValue(kDoublePrecision);
+          } else {
+            Vd = instr->VFPDRegValue(kSimd128Precision);
+            Vm = instr->VFPMRegValue(kSimd128Precision);
+          }
+          if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 7) == 0) {
+            if (instr->Bit(6) == 0) {
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "vswp d%d, d%d", Vd, Vm);
+            } else {
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "vswp q%d, q%d", Vd, Vm);
+            }
+          } else if (instr->Bits(19, 16) == 0 && instr->Bits(11, 6) == 0x17) {
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmvn q%d, q%d", Vd, Vm);
+          } else if (instr->Bits(19, 16) == 0xB && instr->Bits(11, 9) == 0x3 &&
+                     instr->Bit(6) == 1) {
+            const char* suffix = nullptr;
+            int op = instr->Bits(8, 7);
+            switch (op) {
+              case 0:
+                suffix = "f32.s32";
+                break;
+              case 1:
+                suffix = "f32.u32";
+                break;
+              case 2:
+                suffix = "s32.f32";
+                break;
+              case 3:
+                suffix = "u32.f32";
+                break;
+            }
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vcvt.%s q%d, q%d", suffix, Vd, Vm);
+          } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x1) {
+            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+            const char* op = instr->Bit(7) != 0 ? "vzip" : "vuzp";
+            if (instr->Bit(6) == 0) {
+              // vzip/vuzp.<size> Dd, Dm.
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "%s.%d d%d, d%d", op, size, Vd, Vm);
+            } else {
+              // vzip/vuzp.<size> Qd, Qm.
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "%s.%d q%d, q%d", op, size, Vd, Vm);
+            }
+          } else if (instr->Bits(17, 16) == 0 && instr->Bits(11, 9) == 0 &&
+                     instr->Bit(6) == 1) {
+            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+            int op = kBitsPerByte
+                     << (static_cast<int>(Neon64) - instr->Bits(8, 7));
+            // vrev<op>.<size> Qd, Qm.
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vrev%d.%d q%d, q%d", op, size, Vd, Vm);
+          } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 7) == 0x1) {
+            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+            if (instr->Bit(6) == 0) {
+              // vtrn.<size> Dd, Dm.
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "vtrn.%d d%d, d%d", size, Vd, Vm);
+            } else {
+              // vtrn.<size> Qd, Qm.
+              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                          "vtrn.%d q%d, q%d", size, Vd, Vm);
+            }
+          } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0 &&
+                     instr->Bit(6) == 1) {
+            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+            char type = instr->Bit(10) != 0 ? 'f' : 's';
+            if (instr->Bits(9, 6) == 0xD) {
+              // vabs<type>.<size> Qd, Qm.
+              out_buffer_pos_ +=
+                  SNPrintF(out_buffer_ + out_buffer_pos_, "vabs.%c%d q%d, q%d",
+                           type, size, Vd, Vm);
+            } else if (instr->Bits(9, 6) == 0xF) {
+              // vneg<type>.<size> Qd, Qm.
+              out_buffer_pos_ +=
+                  SNPrintF(out_buffer_ + out_buffer_pos_, "vneg.%c%d q%d, q%d",
+                           type, size, Vd, Vm);
+            } else {
+              Unknown(instr);
+            }
+          } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5 &&
+                     instr->Bit(6) == 1) {
+            // vrecpe/vrsqrte.f32 Qd, Qm.
+            const char* op = instr->Bit(7) == 0 ? "vrecpe" : "vrsqrte";
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "%s.f32 q%d, q%d", op, Vd, Vm);
+          } else {
+            Unknown(instr);
+          }
+        }
+      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1 &&
+                 instr->Bit(6) == 1) {
+        // vshr.u<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = 2 * size - instr->Bits(21, 16);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.u%d q%d, q%d, #%d",
+                     size, Vd, Vm, shift);
+      } else if (instr->Bit(10) == 1 && instr->Bit(6) == 0 &&
+                 instr->Bit(4) == 1) {
+        // vsli.<size> Dd, Dm, shift
+        // vsri.<size> Dd, Dm, shift
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift;
+        char direction;
+        if (instr->Bit(8) == 1) {
+          shift = imm7 - size;
+          direction = 'l';  // vsli
+        } else {
+          shift = 2 * size - imm7;
+          direction = 'r';  // vsri
+        }
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vs%ci.%d d%d, d%d, #%d",
+                     direction, size, Vd, Vm, shift);
       } else {
         Unknown(instr);
       }
@@ -1594,8 +2405,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int size = instr->Bits(7, 6);
         int align = instr->Bits(5, 4);
         int Rm = instr->VmValue();
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vst1.%d ", (1 << size) << 3);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "vst1.%d ",
+                                    (1 << size) << 3);
         FormatNeonList(Vd, type);
         Print(", ");
         FormatNeonMemory(Rn, align, Rm);
@@ -1607,8 +2418,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int size = instr->Bits(7, 6);
         int align = instr->Bits(5, 4);
         int Rm = instr->VmValue();
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vld1.%d ", (1 << size) << 3);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "vld1.%d ",
+                                    (1 << size) << 3);
         FormatNeonList(Vd, type);
         Print(", ");
         FormatNeonMemory(Rn, align, Rm);
@@ -1618,18 +2429,36 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
       break;
     case 0xA:
     case 0xB:
-      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xf)) {
-        int Rn = instr->Bits(19, 16);
+      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {
+        const char* rn_name = converter_.NameOfCPURegister(instr->Bits(19, 16));
         int offset = instr->Bits(11, 0);
         if (offset == 0) {
-          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "pld [r%d]", Rn);
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "pld [%s]", rn_name);
         } else if (instr->Bit(23) == 0) {
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "pld [r%d, #-%d]", Rn, offset);
+                                      "pld [%s, #-%d]", rn_name, offset);
         } else {
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "pld [r%d, #+%d]", Rn, offset);
+                                      "pld [%s, #+%d]", rn_name, offset);
+        }
+      } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
+        int option = instr->Bits(3, 0);
+        switch (instr->Bits(7, 4)) {
+          case 4:
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "dsb %s",
+                                        barrier_option_names[option]);
+            break;
+          case 5:
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "dmb %s",
+                                        barrier_option_names[option]);
+            break;
+          case 6:
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "isb %s",
+                                        barrier_option_names[option]);
+            break;
+          default:
+            Unknown(instr);
         }
       } else {
         Unknown(instr);
@@ -1647,28 +2476,86 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
             if (dp_operation) {
               Format(instr, "vrinta.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrinta.f32.f32 'Sd, 'Sm");
             }
             break;
           case 0x1:
             if (dp_operation) {
               Format(instr, "vrintn.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrintn.f32.f32 'Sd, 'Sm");
             }
             break;
           case 0x2:
             if (dp_operation) {
               Format(instr, "vrintp.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrintp.f32.f32 'Sd, 'Sm");
             }
             break;
           case 0x3:
             if (dp_operation) {
               Format(instr, "vrintm.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrintm.f32.f32 'Sd, 'Sm");
+            }
+            break;
+          default:
+            UNREACHABLE();  // Case analysis is exhaustive.
+            break;
+        }
+      } else if ((instr->Opc1Value() == 0x4) && (instr->Bits(11, 9) == 0x5) &&
+                 (instr->Bit(4) == 0x0)) {
+        // VMAXNM, VMINNM (floating-point)
+        if (instr->SzValue() == 0x1) {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f64 'Dd, 'Dn, 'Dm");
+          } else {
+            Format(instr, "vmaxnm.f64 'Dd, 'Dn, 'Dm");
+          }
+        } else {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f32 'Sd, 'Sn, 'Sm");
+          } else {
+            Format(instr, "vmaxnm.f32 'Sd, 'Sn, 'Sm");
+          }
+        }
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 0x1C:
+      if ((instr->Bits(11, 9) == 0x5) && (instr->Bit(6) == 0) &&
+          (instr->Bit(4) == 0)) {
+        // VSEL* (floating-point)
+        bool dp_operation = (instr->SzValue() == 1);
+        switch (instr->Bits(21, 20)) {
+          case 0x0:
+            if (dp_operation) {
+              Format(instr, "vseleq.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vseleq.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x1:
+            if (dp_operation) {
+              Format(instr, "vselvs.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselvs.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x2:
+            if (dp_operation) {
+              Format(instr, "vselge.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselge.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x3:
+            if (dp_operation) {
+              Format(instr, "vselgt.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselgt.f32 'Sd, 'Sn, 'Sm");
             }
             break;
           default:
@@ -1705,7 +2592,7 @@ int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
 
 // Disassemble the instruction at *instr_ptr into the output buffer.
 int Decoder::InstructionDecode(byte* instr_ptr) {
-  Instruction* instr = Instruction::At(instr_ptr);
+  Instruction* instr = Instruction::At(reinterpret_cast<Address>(instr_ptr));
   // Print raw instruction bytes.
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                               "%08x       ",
@@ -1720,14 +2607,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
                                 "constant pool begin (length %d)",
                                 DecodeConstantPoolLength(instruction_bits));
     return Instruction::kInstrSize;
-  } else if (instruction_bits == kCodeAgeJumpInstruction) {
-    // The code age prologue has a constant immediatly following the jump
-    // instruction.
-    Instruction* target = Instruction::At(instr_ptr + Instruction::kInstrSize);
-    DecodeType2(instr);
-    SNPrintF(out_buffer_ + out_buffer_pos_,
-             " (0x%08x)", target->InstructionBits());
-    return 2 * Instruction::kInstrSize;
   }
   switch (instr->TypeValue()) {
     case 0:
@@ -1768,8 +2647,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 }
 
 
-} }  // namespace v8::internal
-
+}  // namespace internal
+}  // namespace v8
 
 
 //------------------------------------------------------------------------------
@@ -1778,7 +2657,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -1789,7 +2668,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
-  return v8::internal::Registers::Name(reg);
+  return v8::internal::GetRegConfig()->GetGeneralRegisterName(reg);
 }
 
 
@@ -1841,9 +2720,8 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(
-        f, "%p    %08x      %s\n",
-        prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
+    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
+                         *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
 

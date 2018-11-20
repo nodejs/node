@@ -19,20 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+const common = require('../common');
 
-var gotError = 0;
+const assert = require('assert');
+const fs = require('fs');
+const net = require('net');
 
-process.on('exit', function() {
-  assert.equal(gotError, 2);
-});
+net.createServer(common.mustNotCall()).listen({ fd: 2 })
+  .on('error', common.mustCall(onError));
 
-net.createServer(assert.fail).listen({fd:2}).on('error', onError);
-net.createServer(assert.fail).listen({fd:42}).on('error', onError);
+let invalidFd = 2;
+
+// Get first known bad file descriptor.
+try {
+  while (fs.fstatSync(++invalidFd));
+} catch (e) {
+  // do nothing; we now have an invalid fd
+}
+
+net.createServer(common.mustNotCall()).listen({ fd: invalidFd })
+  .on('error', common.mustCall(onError));
 
 function onError(ex) {
-  assert.equal(ex.code, 'EINVAL');
-  gotError++;
+  assert.strictEqual(ex.code, 'EINVAL');
 }

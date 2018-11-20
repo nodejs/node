@@ -3,7 +3,7 @@ npm-root(1) -- Display npm root
 
 ## SYNOPSIS
 
-    npm root
+    npm root [-g]
 
 ## DESCRIPTION
 

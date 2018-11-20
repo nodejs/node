@@ -19,31 +19,27 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var responseError;
-
-var server = http.Server(function(req, res) {
-  res.on('error', function onResError(err) {
-    responseError = err;
-  });
+const server = http.Server(common.mustCall(function(req, res) {
+  res.on('error', common.expectsError({
+    code: 'ERR_STREAM_WRITE_AFTER_END',
+    type: Error
+  }));
 
   res.write('This should write.');
   res.end();
 
-  var r = res.write('This should raise an error.');
-  assert.equal(r, true, 'write after end should return true');
-});
+  const r = res.write('This should raise an error.');
+  // write after end should return true
+  assert.strictEqual(r, true);
+}));
 
-server.listen(common.PORT, function() {
-  var req = http.get({port: common.PORT}, function(res) {
+server.listen(0, function() {
+  http.get({ port: this.address().port }, function(res) {
     server.close();
   });
-});
-
-process.on('exit', function onProcessExit(code) {
-  assert(responseError, 'response should have emitted error');
-  assert.equal(responseError.message, 'write after end');
 });

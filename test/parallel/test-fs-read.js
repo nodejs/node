@@ -19,30 +19,59 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
+const fs = require('fs');
+const filepath = fixtures.path('x.txt');
+const fd = fs.openSync(filepath, 'r');
 
+const expected = Buffer.from('xyz\n');
 
+function test(bufferAsync, bufferSync, expected) {
+  fs.read(fd,
+          bufferAsync,
+          0,
+          expected.length,
+          0,
+          common.mustCall((err, bytesRead) => {
+            assert.ifError(err);
+            assert.strictEqual(bytesRead, expected.length);
+            assert.deepStrictEqual(bufferAsync, expected);
+          }));
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
-    fs = require('fs'),
-    filepath = path.join(common.fixturesDir, 'x.txt'),
-    fd = fs.openSync(filepath, 'r'),
-    expected = 'xyz\n',
-    readCalled = 0;
+  const r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
+  assert.deepStrictEqual(bufferSync, expected);
+  assert.strictEqual(r, expected.length);
+}
 
-fs.read(fd, expected.length, 0, 'utf-8', function(err, str, bytesRead) {
-  readCalled++;
+test(Buffer.allocUnsafe(expected.length),
+     Buffer.allocUnsafe(expected.length),
+     expected);
 
-  assert.ok(!err);
-  assert.equal(str, expected);
-  assert.equal(bytesRead, expected.length);
-});
+test(new Uint8Array(expected.length),
+     new Uint8Array(expected.length),
+     Uint8Array.from(expected));
 
-var r = fs.readSync(fd, expected.length, 0, 'utf-8');
-assert.equal(r[0], expected);
-assert.equal(r[1], expected.length);
+{
+  // Reading beyond file length (3 in this case) should return no data.
+  // This is a test for a bug where reads > uint32 would return data
+  // from the current position in the file.
+  const pos = 0xffffffff + 1; // max-uint32 + 1
+  const nRead = fs.readSync(fd, Buffer.alloc(1), 0, 1, pos);
+  assert.strictEqual(nRead, 0);
 
-process.on('exit', function() {
-  assert.equal(readCalled, 1);
-});
+  fs.read(fd, Buffer.alloc(1), 0, 1, pos, common.mustCall((err, nRead) => {
+    assert.ifError(err);
+    assert.strictEqual(nRead, 0);
+  }));
+}
+
+assert.throws(
+  () => fs.read(fd, Buffer.alloc(1), 0, 1, 0),
+  {
+    message: 'Callback must be a function',
+    code: 'ERR_INVALID_CALLBACK',
+  }
+);

@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-SSL_CTX_set_msg_callback, SSL_CTX_set_msg_callback_arg, SSL_set_msg_callback, SSL_get_msg_callback_arg - install callback for observing protocol messages
+SSL_CTX_set_msg_callback, SSL_CTX_set_msg_callback_arg, SSL_set_msg_callback, SSL_set_msg_callback_arg - install callback for observing protocol messages
 
 =head1 SYNOPSIS
 
@@ -25,7 +25,7 @@ available for arbitrary application use.
 
 SSL_CTX_set_msg_callback() and SSL_CTX_set_msg_callback_arg() specify
 default settings that will be copied to new B<SSL> objects by
-L<SSL_new(3)|SSL_new(3)>. SSL_set_msg_callback() and
+L<SSL_new(3)>. SSL_set_msg_callback() and
 SSL_set_msg_callback_arg() modify the actual settings of an B<SSL>
 object. Using a B<0> pointer for I<cb> disables the message callback.
 
@@ -89,11 +89,15 @@ I<version> will be B<SSL3_VERSION>.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<SSL_new(3)|SSL_new(3)>
+L<ssl(3)>, L<SSL_new(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-SSL_CTX_set_msg_callback(), SSL_CTX_set_msg_callback_arg(),
-SSL_set_msg_callback() and SSL_get_msg_callback_arg() were added in OpenSSL 0.9.7.
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

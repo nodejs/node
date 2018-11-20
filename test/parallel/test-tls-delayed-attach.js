@@ -19,53 +19,54 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var assert = require('assert');
-var fs = require('fs');
-var net = require('net');
-var tls = require('tls');
+// This test tries to confirm that a TLS Socket will work as expected even if it
+// is created after the original socket has received some data.
+//
+// Ref: https://github.com/nodejs/node-v0.x-archive/issues/6940
+// Ref: https://github.com/nodejs/node-v0.x-archive/pull/6950
 
-var common = require('../common');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
+const tls = require('tls');
+const net = require('net');
 
-var sent = 'hello world';
-var received = '';
-var ended = 0;
+const sent = 'hello world';
+let received = '';
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var server = net.createServer(function(c) {
+const server = net.createServer(common.mustCall((c) => {
   setTimeout(function() {
-    var s = new tls.TLSSocket(c, {
+    const s = new tls.TLSSocket(c, {
       isServer: true,
       secureContext: tls.createSecureContext(options)
     });
 
-    s.on('data', function(chunk) {
+    s.on('data', (chunk) => {
       received += chunk;
     });
 
-    s.on('end', function() {
-      ended++;
+    s.on('end', common.mustCall(() => {
       server.close();
       s.destroy();
-    });
+    }));
   }, 200);
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+})).listen(0, common.mustCall(() => {
+  const c = tls.connect(server.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, () => {
     c.end(sent);
   });
-});
+}));
 
-process.on('exit', function() {
-  assert.equal(received, sent);
-  assert.equal(ended, 1);
+process.on('exit', () => {
+  assert.strictEqual(received, sent);
 });

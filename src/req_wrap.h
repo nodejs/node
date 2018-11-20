@@ -1,70 +1,61 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #ifndef SRC_REQ_WRAP_H_
 #define SRC_REQ_WRAP_H_
 
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "async_wrap.h"
 #include "env.h"
-#include "env-inl.h"
-#include "queue.h"
 #include "util.h"
+#include "v8.h"
 
 namespace node {
 
 template <typename T>
 class ReqWrap : public AsyncWrap {
  public:
-  ReqWrap(Environment* env,
-          v8::Handle<v8::Object> object,
-          AsyncWrap::ProviderType provider)
-      : AsyncWrap(env, object, provider) {
-    if (env->in_domain())
-      object->Set(env->domain_string(), env->domain_array()->Get(0));
+  inline ReqWrap(Environment* env,
+                 v8::Local<v8::Object> object,
+                 AsyncWrap::ProviderType provider);
+  inline ~ReqWrap() override;
+  // Call this after the req has been dispatched, if that did not already
+  // happen by using Dispatch().
+  inline void Dispatched();
+  // Call this after a request has finished, if re-using this object is planned.
+  inline void Reset();
+  T* req() { return &req_; }
+  inline void Cancel();
 
-    QUEUE_INSERT_TAIL(env->req_wrap_queue(), &req_wrap_queue_);
-  }
+  static ReqWrap* from_req(T* req);
 
+  template <typename LibuvFunction, typename... Args>
+  inline int Dispatch(LibuvFunction fn, Args... args);
 
-  ~ReqWrap() override {
-    QUEUE_REMOVE(&req_wrap_queue_);
-    // Assert that someone has called Dispatched()
-    CHECK_EQ(req_.data, this);
-    CHECK_EQ(false, persistent().IsEmpty());
-    persistent().Reset();
-  }
+ private:
+  friend class Environment;
+  friend int GenDebugSymbols();
+  template <typename ReqT, typename U>
+  friend struct MakeLibuvRequestCallback;
 
-  // Call this after the req has been dispatched.
-  void Dispatched() {
-    req_.data = this;
-  }
+  ListNode<ReqWrap> req_wrap_queue_;
 
-  // TODO(bnoordhuis) Make these private.
-  QUEUE req_wrap_queue_;
-  T req_;  // *must* be last, GetActiveRequests() in node.cc depends on it
+  typedef void (*callback_t)();
+  callback_t original_callback_ = nullptr;
+
+ protected:
+  // req_wrap_queue_ needs to be at a fixed offset from the start of the class
+  // because it is used by ContainerOf to calculate the address of the embedding
+  // ReqWrap. ContainerOf compiles down to simple, fixed pointer arithmetic. It
+  // is also used by src/node_postmortem_metadata.cc to calculate offsets and
+  // generate debug symbols for ReqWrap, which assumes that the position of
+  // members in memory are predictable. sizeof(req_) depends on the type of T,
+  // so req_wrap_queue_ would no longer be at a fixed offset if it came after
+  // req_. For more information please refer to
+  // `doc/guides/node-postmortem-support.md`
+  T req_;
 };
-
 
 }  // namespace node
 
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_REQ_WRAP_H_

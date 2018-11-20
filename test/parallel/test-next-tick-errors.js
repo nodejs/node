@@ -19,18 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var order = [],
-    exceptionHandled = false;
+const order = [];
+let exceptionHandled = false;
 
 // This nextTick function will throw an error.  It should only be called once.
 // When it throws an error, it should still get removed from the queue.
 process.nextTick(function() {
   order.push('A');
   // cause an error
-  what();
+  what(); // eslint-disable-line no-undef
 });
 
 // This nextTick function should remain in the queue when the first one
@@ -40,18 +41,36 @@ process.nextTick(function() {
   order.push('C');
 });
 
+function testNextTickWith(val) {
+  common.expectsError(
+    function() {
+      process.nextTick(val);
+    },
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      name: 'TypeError [ERR_INVALID_CALLBACK]',
+      type: TypeError
+    }
+  );
+}
+
+testNextTickWith(false);
+testNextTickWith(true);
+testNextTickWith(1);
+testNextTickWith('str');
+testNextTickWith({});
+testNextTickWith([]);
+
 process.on('uncaughtException', function() {
   if (!exceptionHandled) {
     exceptionHandled = true;
     order.push('B');
-  }
-  else {
+  } else {
     // If we get here then the first process.nextTick got called twice
     order.push('OOPS!');
   }
 });
 
 process.on('exit', function() {
-  assert.deepEqual(['A', 'B', 'C'], order);
+  assert.deepStrictEqual(['A', 'B', 'C'], order);
 });
-

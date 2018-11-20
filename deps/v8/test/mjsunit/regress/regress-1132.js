@@ -28,7 +28,7 @@
 // Test the case when exception is thrown from the parser when lazy
 // compiling a function.
 
-// Flags: --stack_size=32
+// Flags: --stack-size=100
 // NOTE: stack size constant above has been empirically chosen.
 // If the test starts to fail in Genesis, consider increasing this constant.
 

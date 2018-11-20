@@ -19,62 +19,53 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var Duplex = require('stream').Duplex;
+const Duplex = require('stream').Duplex;
 
-function FakeAgent() {
-  http.Agent.call(this);
+class FakeAgent extends http.Agent {
+  createConnection() {
+    const s = new Duplex();
+    let once = false;
+
+    s._read = function() {
+      if (once)
+        return this.push(null);
+      once = true;
+
+      this.push('HTTP/1.1 200 Ok\r\nTransfer-Encoding: chunked\r\n\r\n');
+      this.push('b\r\nhello world\r\n');
+      this.readable = false;
+      this.push('0\r\n\r\n');
+    };
+
+    // Blackhole
+    s._write = function(data, enc, cb) {
+      cb();
+    };
+
+    s.destroy = s.destroySoon = function() {
+      this.writable = false;
+    };
+
+    return s;
+  }
 }
-util.inherits(FakeAgent, http.Agent);
 
-FakeAgent.prototype.createConnection = function createConnection() {
-  var s = new Duplex();
-  var once = false;
+let received = '';
 
-  s._read = function read() {
-    if (once)
-      return this.push(null);
-    once = true;
-
-    this.push('HTTP/1.1 200 Ok\r\nTransfer-Encoding: chunked\r\n\r\n');
-    this.push('b\r\nhello world\r\n');
-    this.readable = false;
-    this.push('0\r\n\r\n');
-  };
-
-  // Blackhole
-  s._write = function write(data, enc, cb) {
-    cb();
-  };
-
-  s.destroy = s.destroySoon = function destroy() {
-    this.writable = false;
-  };
-
-  return s;
-};
-
-var received = '';
-var ended = 0;
-
-var req = http.request({
+const req = http.request({
   agent: new FakeAgent()
-}, function(res) {
-  res.on('data', function(chunk) {
+}, common.mustCall(function requestCallback(res) {
+  res.on('data', function dataCallback(chunk) {
     received += chunk;
   });
 
-  res.on('end', function() {
-    ended++;
-  });
-});
+  res.on('end', common.mustCall(function endCallback() {
+    assert.strictEqual(received, 'hello world');
+  }));
+}));
 req.end();
-
-process.on('exit', function() {
-  assert.equal(received, 'hello world');
-  assert.equal(ended, 1);
-});

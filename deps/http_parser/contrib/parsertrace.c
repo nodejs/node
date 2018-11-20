@@ -1,7 +1,4 @@
-/* Based on src/http/ngx_http_parse.c from NGINX copyright Igor Sysoev
- *
- * Additional changes are licensed under the same terms as NGINX and
- * copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright Joyent, Inc. and other Node contributors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -111,14 +108,14 @@ int main(int argc, char* argv[]) {
   FILE* file = fopen(filename, "r");
   if (file == NULL) {
     perror("fopen");
-    return EXIT_FAILURE;
+    goto fail;
   }
 
   fseek(file, 0, SEEK_END);
   long file_length = ftell(file);
   if (file_length == -1) {
     perror("ftell");
-    return EXIT_FAILURE;
+    goto fail;
   }
   fseek(file, 0, SEEK_SET);
 
@@ -126,7 +123,7 @@ int main(int argc, char* argv[]) {
   if (fread(data, 1, file_length, file) != (size_t)file_length) {
     fprintf(stderr, "couldn't read entire file\n");
     free(data);
-    return EXIT_FAILURE;
+    goto fail;
   }
 
   http_parser_settings settings;
@@ -149,8 +146,12 @@ int main(int argc, char* argv[]) {
             "Error: %s (%s)\n",
             http_errno_description(HTTP_PARSER_ERRNO(&parser)),
             http_errno_name(HTTP_PARSER_ERRNO(&parser)));
-    return EXIT_FAILURE;
+    goto fail;
   }
 
   return EXIT_SUCCESS;
+
+fail:
+  fclose(file);
+  return EXIT_FAILURE;
 }

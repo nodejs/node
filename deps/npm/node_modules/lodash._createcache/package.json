@@ -1,0 +1,81 @@
+{
+  "_args": [
+    [
+      "lodash._createcache@3.1.2",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "lodash._createcache@3.1.2",
+  "_id": "lodash._createcache@3.1.2",
+  "_inBundle": false,
+  "_integrity": "sha1-VtagZAF2JeeevKa4AY4XRAvc8JM=",
+  "_location": "/lodash._createcache",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "lodash._createcache@3.1.2",
+    "name": "lodash._createcache",
+    "escapedName": "lodash._createcache",
+    "rawSpec": "3.1.2",
+    "saveSpec": null,
+    "fetchSpec": "3.1.2"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash._createcache/-/lodash._createcache-3.1.2.tgz",
+  "_spec": "3.1.2",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "John-David Dalton",
+    "email": "john.david.dalton@gmail.com",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "contributors": [
+    {
+      "name": "John-David Dalton",
+      "email": "john.david.dalton@gmail.com",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "name": "Benjamin Tan",
+      "email": "demoneaux@gmail.com",
+      "url": "https://d10.github.io/"
+    },
+    {
+      "name": "Blaine Bublitz",
+      "email": "blaine@iceddev.com",
+      "url": "http://www.iceddev.com/"
+    },
+    {
+      "name": "Kit Cambridge",
+      "email": "github@kitcambridge.be",
+      "url": "http://kitcambridge.be/"
+    },
+    {
+      "name": "Mathias Bynens",
+      "email": "mathias@qiwi.be",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {
+    "lodash._getnative": "^3.0.0"
+  },
+  "description": "The modern build of lodash’s internal `createCache` as a module.",
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "name": "lodash._createcache",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "3.1.2"
+}

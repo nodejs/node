@@ -47,8 +47,9 @@ static void repeat_1_cb(uv_timer_t* handle) {
   ASSERT(handle == &repeat_1);
   ASSERT(uv_timer_get_repeat((uv_timer_t*)handle) == 50);
 
-  LOGF("repeat_1_cb called after %ld ms\n",
-      (long int)(uv_now(uv_default_loop()) - start_time));
+  fprintf(stderr, "repeat_1_cb called after %ld ms\n",
+          (long int)(uv_now(uv_default_loop()) - start_time));
+  fflush(stderr);
 
   repeat_1_cb_called++;
 
@@ -57,8 +58,8 @@ static void repeat_1_cb(uv_timer_t* handle) {
 
   if (repeat_1_cb_called == 10) {
     uv_close((uv_handle_t*)handle, close_cb);
-    /* We're not calling uv_timer_again on repeat_2 any more, so after this */
-    /* timer_2_cb is expected. */
+    /* We're not calling uv_timer_again on repeat_2 any more, so after this
+     * timer_2_cb is expected. */
     repeat_2_cb_allowed = 1;
     return;
   }
@@ -69,8 +70,9 @@ static void repeat_2_cb(uv_timer_t* handle) {
   ASSERT(handle == &repeat_2);
   ASSERT(repeat_2_cb_allowed);
 
-  LOGF("repeat_2_cb called after %ld ms\n",
-      (long int)(uv_now(uv_default_loop()) - start_time));
+  fprintf(stderr, "repeat_2_cb called after %ld ms\n",
+          (long int)(uv_now(uv_default_loop()) - start_time));
+  fflush(stderr);
 
   repeat_2_cb_called++;
 
@@ -80,8 +82,9 @@ static void repeat_2_cb(uv_timer_t* handle) {
     return;
   }
 
-  LOGF("uv_timer_get_repeat %ld ms\n",
-      (long int)uv_timer_get_repeat(&repeat_2));
+  fprintf(stderr, "uv_timer_get_repeat %ld ms\n",
+          (long int)uv_timer_get_repeat(&repeat_2));
+  fflush(stderr);
   ASSERT(uv_timer_get_repeat(&repeat_2) == 100);
 
   /* This shouldn't take effect immediately. */
@@ -129,8 +132,9 @@ TEST_IMPL(timer_again) {
   ASSERT(repeat_2_cb_called == 2);
   ASSERT(close_cb_called == 2);
 
-  LOGF("Test took %ld ms (expected ~700 ms)\n",
-       (long int)(uv_now(uv_default_loop()) - start_time));
+  fprintf(stderr, "Test took %ld ms (expected ~700 ms)\n",
+          (long int)(uv_now(uv_default_loop()) - start_time));
+  fflush(stderr);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

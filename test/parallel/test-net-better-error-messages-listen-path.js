@@ -1,9 +1,10 @@
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var fp = '/blah/fadfa';
-var server = net.createServer(assert.fail);
-server.listen(fp, assert.fail);
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const fp = '/blah/fadfa';
+const server = net.createServer(common.mustNotCall());
+server.listen(fp, common.mustNotCall());
 server.on('error', common.mustCall(function(e) {
-  assert.equal(e.address, fp)
+  assert.strictEqual(e.address, fp);
 }));

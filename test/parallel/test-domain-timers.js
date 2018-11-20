@@ -19,30 +19,35 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var domain = require('domain');
-var assert = require('assert');
-var common = require('../common.js');
+'use strict';
+const common = require('../common');
+const domain = require('domain');
+const assert = require('assert');
 
-var timeout_err, timeout, immediate_err;
+const timeoutd = domain.create();
 
-var timeoutd = domain.create();
+timeoutd.on('error', common.mustCall(function(e) {
+  assert.strictEqual(e.message, 'Timeout UNREFd');
+}, 2));
 
-timeoutd.on('error', function(e) {
-  timeout_err = e;
-  clearTimeout(timeout);
-});
-
+let t;
 timeoutd.run(function() {
   setTimeout(function() {
     throw new Error('Timeout UNREFd');
-  }).unref();
-});
+  }, 0).unref();
 
-var immediated = domain.create();
-
-immediated.on('error', function(e) {
-  immediate_err = e;
+  t = setTimeout(function() {
+    clearTimeout(timeout);
+    throw new Error('Timeout UNREFd');
+  }, 0);
 });
+t.unref();
+
+const immediated = domain.create();
+
+immediated.on('error', common.mustCall(function(e) {
+  assert.strictEqual(e.message, 'Immediate Error');
+}));
 
 immediated.run(function() {
   setImmediate(function() {
@@ -50,11 +55,4 @@ immediated.run(function() {
   });
 });
 
-timeout = setTimeout(function() {}, 10 * 1000);
-
-process.on('exit', function() {
-  assert.equal(timeout_err.message, 'Timeout UNREFd',
-      'Domain should catch timer error');
-  assert.equal(immediate_err.message, 'Immediate Error',
-      'Domain should catch immediate error');
-});
+const timeout = setTimeout(common.mustNotCall(), 10 * 1000);

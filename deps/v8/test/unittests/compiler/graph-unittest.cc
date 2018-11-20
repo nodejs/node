@@ -4,17 +4,25 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
-#include <ostream>  // NOLINT(readability/streams)
-
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
+#include "src/heap/factory.h"
+#include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {
+GraphTest::GraphTest(int num_parameters)
+    : TestWithNativeContext(),
+      TestWithIsolateAndZone(),
+      common_(zone()),
+      graph_(zone()),
+      js_heap_broker_(isolate()),
+      source_positions_(&graph_),
+      node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
+  graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
 }
 
 
@@ -52,47 +60,86 @@ Node* GraphTest::NumberConstant(volatile double value) {
 
 
 Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
-  return HeapConstant(Unique<HeapObject>::CreateUninitialized(value));
-}
-
-
-Node* GraphTest::HeapConstant(const Unique<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
-  Type* type = Type::Constant(value.handle(), zone());
-  NodeProperties::SetBounds(node, Bounds(type));
+  Type type = Type::NewConstant(js_heap_broker(), value, zone());
+  NodeProperties::SetType(node, type);
   return node;
 }
 
 
 Node* GraphTest::FalseConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
+  return HeapConstant(factory()->false_value());
 }
 
 
 Node* GraphTest::TrueConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+  return HeapConstant(factory()->true_value());
 }
 
 
 Node* GraphTest::UndefinedConstant() {
-  return HeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
+  return HeapConstant(factory()->undefined_value());
+}
+
+
+Node* GraphTest::EmptyFrameState() {
+  Node* state_values =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
+  return graph()->NewNode(
+      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
+                           nullptr),
+      state_values, state_values, state_values, NumberConstant(0),
+      UndefinedConstant(), graph()->start());
 }
 
 
 Matcher<Node*> GraphTest::IsFalseConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
+  return IsHeapConstant(factory()->false_value());
 }
 
 
 Matcher<Node*> GraphTest::IsTrueConstant() {
-  return IsHeapConstant(
-      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
+  return IsHeapConstant(factory()->true_value());
 }
 
+Matcher<Node*> GraphTest::IsNullConstant() {
+  return IsHeapConstant(factory()->null_value());
+}
+
+Matcher<Node*> GraphTest::IsUndefinedConstant() {
+  return IsHeapConstant(factory()->undefined_value());
+}
+
+TypedGraphTest::TypedGraphTest(int num_parameters)
+    : GraphTest(num_parameters),
+      typer_(isolate(), js_heap_broker(), Typer::kNoFlags, graph()) {}
+
+TypedGraphTest::~TypedGraphTest() {}
+
+Node* TypedGraphTest::Parameter(Type type, int32_t index) {
+  Node* node = GraphTest::Parameter(index);
+  NodeProperties::SetType(node, type);
+  return node;
+}
+
+namespace graph_unittest {
+
+const Operator kDummyOperator(0, Operator::kNoProperties, "Dummy", 0, 0, 0, 1,
+                              0, 0);
+
+
+TEST_F(GraphTest, NewNode) {
+  Node* n0 = graph()->NewNode(&kDummyOperator);
+  Node* n1 = graph()->NewNode(&kDummyOperator);
+  EXPECT_NE(n0, n1);
+  EXPECT_LT(0u, n0->id());
+  EXPECT_LT(0u, n1->id());
+  EXPECT_NE(n0->id(), n1->id());
+  EXPECT_EQ(&kDummyOperator, n0->op());
+  EXPECT_EQ(&kDummyOperator, n1->op());
+}
+
+}  // namespace graph_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

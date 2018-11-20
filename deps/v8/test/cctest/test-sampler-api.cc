@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include "include/v8.h"
+#include "src/flags.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 
@@ -38,7 +39,7 @@ class SimulatorHelper {
                      ->thread_local_top()
                      ->simulator_;
     // Check if there is active simulator.
-    return simulator_ != NULL;
+    return simulator_ != nullptr;
   }
 
   inline void FillRegisters(v8::RegisterState* state) {
@@ -65,6 +66,18 @@ class SimulatorHelper {
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
+#elif V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
 #endif
   }
 
@@ -85,33 +98,32 @@ class SamplingTestHelper {
 
   explicit SamplingTestHelper(const std::string& test_function)
       : sample_is_taken_(false), isolate_(CcTest::isolate()) {
-    DCHECK_EQ(NULL, instance_);
+    CHECK(!instance_);
     instance_ = this;
     v8::HandleScope scope(isolate_);
-    v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
-    global->Set(v8::String::NewFromUtf8(isolate_, "CollectSample"),
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
+    global->Set(v8_str("CollectSample"),
                 v8::FunctionTemplate::New(isolate_, CollectSample));
-    LocalContext env(isolate_, NULL, global);
+    LocalContext env(isolate_, nullptr, global);
     isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                      JitCodeEventHandler);
-    v8::Script::Compile(
-        v8::String::NewFromUtf8(isolate_, test_function.c_str()))->Run();
+    CompileRun(v8_str(test_function.c_str()));
   }
 
   ~SamplingTestHelper() {
-    isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
-    instance_ = NULL;
+    isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault, nullptr);
+    instance_ = nullptr;
   }
 
   Sample& sample() { return sample_; }
 
   const CodeEventEntry* FindEventEntry(const void* address) {
     CodeEntries::const_iterator it = code_entries_.upper_bound(address);
-    if (it == code_entries_.begin()) return NULL;
+    if (it == code_entries_.begin()) return nullptr;
     const CodeEventEntry& entry = (--it)->second;
     const void* code_end =
         static_cast<const uint8_t*>(entry.code_start) + entry.code_len;
-    return address < code_end ? &entry : NULL;
+    return address < code_end ? &entry : nullptr;
   }
 
  private:
@@ -131,7 +143,7 @@ class SamplingTestHelper {
     if (!simulator_helper.Init(isolate_)) return;
     simulator_helper.FillRegisters(&state);
 #else
-    state.pc = NULL;
+    state.pc = nullptr;
     state.fp = &state;
     state.sp = &state;
 #endif
@@ -218,16 +230,17 @@ TEST(StackDepthDoesNotExceedMaxValue) {
 //                              ^      ^       ^
 // sample.stack indices         2      1       0
 TEST(StackFramesConsistent) {
-  // Note: The arguments.callee stuff is there so that the
-  //       functions are not optimized away.
+  i::FLAG_allow_natives_syntax = true;
   const char* test_script =
       "function test_sampler_api_inner() {"
       "  CollectSample();"
-      "  return arguments.callee.toString();"
+      "  return 0;"
       "}"
       "function test_sampler_api_outer() {"
-      "  return test_sampler_api_inner() + arguments.callee.toString();"
+      "  return test_sampler_api_inner();"
       "}"
+      "%NeverOptimizeFunction(test_sampler_api_inner);"
+      "%NeverOptimizeFunction(test_sampler_api_outer);"
       "test_sampler_api_outer();";
 
   SamplingTestHelper helper(test_script);
@@ -236,10 +249,10 @@ TEST(StackFramesConsistent) {
 
   const SamplingTestHelper::CodeEventEntry* entry;
   entry = helper.FindEventEntry(sample.begin()[0]);
-  CHECK_NE(NULL, entry);
+  CHECK(entry);
   CHECK(std::string::npos != entry->name.find("test_sampler_api_inner"));
 
   entry = helper.FindEventEntry(sample.begin()[1]);
-  CHECK_NE(NULL, entry);
+  CHECK(entry);
   CHECK(std::string::npos != entry->name.find("test_sampler_api_outer"));
 }

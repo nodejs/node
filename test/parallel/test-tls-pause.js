@@ -19,74 +19,74 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
-var path = require('path');
+// This test ensures that the data received over tls-server after pause
+// is same as what it was sent
 
-var options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
+
+const options = {
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
-var bufSize = 1024 * 1024;
-var sent = 0;
-var received = 0;
+const bufSize = 1024 * 1024;
+let sent = 0;
+let received = 0;
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, common.mustCall((socket) => {
   socket.pipe(socket);
-  socket.on('data', function(c) {
+  socket.on('data', (c) => {
     console.error('data', c.length);
   });
-});
+}));
 
-server.listen(common.PORT, function() {
-  var resumed = false;
-  var client = tls.connect({
-    port: common.PORT,
+server.listen(0, common.mustCall(() => {
+  let resumed = false;
+  const client = tls.connect({
+    port: server.address().port,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(() => {
     console.error('connected');
     client.pause();
-    common.debug('paused');
-    send();
-    function send() {
+    console.error('paused');
+    const send = (() => {
       console.error('sending');
-      var ret = client.write(new Buffer(bufSize));
-      console.error('write => %j', ret);
-      if (false !== ret) {
+      const ret = client.write(Buffer.allocUnsafe(bufSize));
+      console.error(`write => ${ret}`);
+      if (ret !== false) {
         console.error('write again');
         sent += bufSize;
         assert.ok(sent < 100 * 1024 * 1024); // max 100MB
         return process.nextTick(send);
       }
       sent += bufSize;
-      common.debug('sent: ' + sent);
+      console.error(`sent: ${sent}`);
       resumed = true;
       client.resume();
       console.error('resumed', client);
-    }
-  });
-  client.on('data', function(data) {
+    })();
+  }));
+  client.on('data', (data) => {
     console.error('data');
     assert.ok(resumed);
     received += data.length;
     console.error('received', received);
     console.error('sent', sent);
     if (received >= sent) {
-      common.debug('received: ' + received);
+      console.error(`received: ${received}`);
       client.end();
       server.close();
     }
   });
-});
+}));
 
-process.on('exit', function() {
-  assert.equal(sent, received);
+process.on('exit', () => {
+  assert.strictEqual(sent, received);
 });

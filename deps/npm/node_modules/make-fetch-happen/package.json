@@ -1,0 +1,95 @@
+{
+  "_from": "make-fetch-happen@^4.0.1",
+  "_id": "make-fetch-happen@4.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-7R5ivfy9ilRJ1EMKIOziwrns9fGeAD4bAha8EB7BIiBBLHm2KeTUGCrICFt2rbHfzheTLynv50GnNTK1zDTrcQ==",
+  "_location": "/make-fetch-happen",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "make-fetch-happen@^4.0.1",
+    "name": "make-fetch-happen",
+    "escapedName": "make-fetch-happen",
+    "rawSpec": "^4.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^4.0.1"
+  },
+  "_requiredBy": [
+    "/libnpmhook/npm-registry-fetch",
+    "/pacote"
+  ],
+  "_resolved": "https://registry.npmjs.org/make-fetch-happen/-/make-fetch-happen-4.0.1.tgz",
+  "_shasum": "141497cb878f243ba93136c83d8aba12c216c083",
+  "_spec": "make-fetch-happen@^4.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/pacote",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@zkat.tech"
+  },
+  "bugs": {
+    "url": "https://github.com/zkat/make-fetch-happen/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "agentkeepalive": "^3.4.1",
+    "cacache": "^11.0.1",
+    "http-cache-semantics": "^3.8.1",
+    "http-proxy-agent": "^2.1.0",
+    "https-proxy-agent": "^2.2.1",
+    "lru-cache": "^4.1.2",
+    "mississippi": "^3.0.0",
+    "node-fetch-npm": "^2.0.2",
+    "promise-retry": "^1.1.1",
+    "socks-proxy-agent": "^4.0.0",
+    "ssri": "^6.0.0"
+  },
+  "deprecated": false,
+  "description": "Opinionated, caching, retrying fetch client",
+  "devDependencies": {
+    "bluebird": "^3.5.1",
+    "mkdirp": "^0.5.1",
+    "nock": "^9.2.3",
+    "npmlog": "^4.1.2",
+    "require-inject": "^1.4.2",
+    "rimraf": "^2.6.2",
+    "safe-buffer": "^5.1.1",
+    "standard": "^11.0.1",
+    "standard-version": "^4.3.0",
+    "tacks": "^1.2.6",
+    "tap": "^11.1.3",
+    "weallbehave": "^1.0.0",
+    "weallcontribute": "^1.0.7"
+  },
+  "files": [
+    "*.js",
+    "lib"
+  ],
+  "homepage": "https://github.com/zkat/make-fetch-happen#readme",
+  "keywords": [
+    "http",
+    "request",
+    "fetch",
+    "mean girls",
+    "caching",
+    "cache",
+    "subresource integrity"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "make-fetch-happen",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zkat/make-fetch-happen.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap --coverage --nyc-arg=--all --timeout=35 -J test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "4.0.1"
+}

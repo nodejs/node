@@ -19,18 +19,59 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const { spawn } = require('child_process');
 
-var options = {stdio: ['pipe']};
-var child = common.spawnPwd(options);
+// Test stdio piping.
+{
+  const child = spawn(...common.pwdCommand, { stdio: ['pipe'] });
+  assert.notStrictEqual(child.stdout, null);
+  assert.notStrictEqual(child.stderr, null);
+}
 
-assert.notEqual(child.stdout, null);
-assert.notEqual(child.stderr, null);
+// Test stdio ignoring.
+{
+  const child = spawn(...common.pwdCommand, { stdio: 'ignore' });
+  assert.strictEqual(child.stdout, null);
+  assert.strictEqual(child.stderr, null);
+}
 
-options = {stdio: 'ignore'};
-child = common.spawnPwd(options);
+// Asset options invariance.
+{
+  const options = { stdio: 'ignore' };
+  spawn(...common.pwdCommand, options);
+  assert.deepStrictEqual(options, { stdio: 'ignore' });
+}
 
-assert.equal(child.stdout, null);
-assert.equal(child.stderr, null);
+// Test stdout buffering.
+{
+  let output = '';
+  const child = spawn(...common.pwdCommand);
+
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', function(s) {
+    output += s;
+  });
+
+  child.on('exit', common.mustCall(function(code) {
+    assert.strictEqual(code, 0);
+  }));
+
+  child.on('close', common.mustCall(function() {
+    assert.strictEqual(true, output.length > 1);
+    assert.strictEqual('\n', output[output.length - 1]);
+  }));
+}
+
+// Assert only one IPC pipe allowed.
+common.expectsError(
+  () => {
+    spawn(
+      ...common.pwdCommand,
+      { stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc'] }
+    );
+  },
+  { code: 'ERR_IPC_ONE_PIPE', type: Error }
+);

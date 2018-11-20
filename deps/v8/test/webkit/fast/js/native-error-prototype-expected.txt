@@ -26,8 +26,8 @@ This is a test case for bugs 55346, 70889, and 75452.
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS ({}).toString.call(Error.prototype) is "[object Error]"
-PASS ({}).toString.call(RangeError.prototype) is "[object Error]"
+PASS ({}).toString.call(Error.prototype) is "[object Object]"
+PASS ({}).toString.call(RangeError.prototype) is "[object Object]"
 PASS err.toString() is "message"
 PASS err.hasOwnProperty('message') is false
 PASS err.hasOwnProperty('message') is false

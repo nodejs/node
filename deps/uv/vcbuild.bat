@@ -14,12 +14,13 @@ if /i "%1"=="/?" goto help
 @rem Process arguments.
 set config=
 set target=Build
+set target_arch=ia32
+set target_env=
 set noprojgen=
 set nobuild=
 set run=
-set target_arch=ia32
 set vs_toolset=x86
-set platform=WIN32
+set msbuild_platform=WIN32
 set library=static_library
 
 :next-arg
@@ -29,11 +30,12 @@ if /i "%1"=="release"      set config=Release&goto arg-ok
 if /i "%1"=="test"         set run=run-tests.exe&goto arg-ok
 if /i "%1"=="bench"        set run=run-benchmarks.exe&goto arg-ok
 if /i "%1"=="clean"        set target=Clean&goto arg-ok
+if /i "%1"=="vs2017"       set target_env=vs2017&goto arg-ok
 if /i "%1"=="noprojgen"    set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"      set nobuild=1&goto arg-ok
-if /i "%1"=="x86"          set target_arch=ia32&set platform=WIN32&set vs_toolset=x86&goto arg-ok
-if /i "%1"=="ia32"         set target_arch=ia32&set platform=WIN32&set vs_toolset=x86&goto arg-ok
-if /i "%1"=="x64"          set target_arch=x64&set platform=x64&set vs_toolset=x64&goto arg-ok
+if /i "%1"=="x86"          set target_arch=ia32&set msbuild_platform=WIN32&set vs_toolset=x86&goto arg-ok
+if /i "%1"=="ia32"         set target_arch=ia32&set msbuild_platform=WIN32&set vs_toolset=x86&goto arg-ok
+if /i "%1"=="x64"          set target_arch=x64&set msbuild_platform=x64&set vs_toolset=x64&goto arg-ok
 if /i "%1"=="shared"       set library=shared_library&goto arg-ok
 if /i "%1"=="static"       set library=static_library&goto arg-ok
 :arg-ok
@@ -44,11 +46,44 @@ goto next-arg
 if defined WindowsSDKDir goto select-target
 if defined VCINSTALLDIR goto select-target
 
+@rem Look for Visual Studio 2017 only if explicitly requested.
+if "%target_env%" NEQ "vs2017" goto vs-set-2015
+echo Looking for Visual Studio 2017
+@rem Check if VS2017 is already setup, and for the requested arch.
+if "_%VisualStudioVersion%_" == "_15.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%vs_toolset%_" goto found_vs2017
+set "VSINSTALLDIR="
+call tools\vswhere_usability_wrapper.cmd
+if "_%VCINSTALLDIR%_" == "__" goto vs-set-2015
+@rem Need to clear VSINSTALLDIR for vcvarsall to work as expected.
+@rem Keep current working directory after call to vcvarsall
+set "VSCMD_START_DIR=%CD%"
+set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vs_toolset%
+echo calling: %vcvars_call%
+call %vcvars_call%
+
+:found_vs2017
+echo Found MSVS version %VisualStudioVersion%
+if %VSCMD_ARG_TGT_ARCH%==x64 set target_arch=x64&set msbuild_platform=x64&set vs_toolset=x64
+set GYP_MSVS_VERSION=2017
+goto select-target
+
+
+@rem Look for Visual Studio 2015
+:vs-set-2015
+if not defined VS140COMNTOOLS goto vc-set-2013
+if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2013
+call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
+set GYP_MSVS_VERSION=2015
+echo Using Visual Studio 2015
+goto select-target
+
+:vc-set-2013
 @rem Look for Visual Studio 2013
 if not defined VS120COMNTOOLS goto vc-set-2012
 if not exist "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2012
 call "%VS120COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
 set GYP_MSVS_VERSION=2013
+echo Using Visual Studio 2013
 goto select-target
 
 :vc-set-2012
@@ -57,6 +92,7 @@ if not defined VS110COMNTOOLS goto vc-set-2010
 if not exist "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2010
 call "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
 set GYP_MSVS_VERSION=2012
+echo Using Visual Studio 2012
 goto select-target
 
 :vc-set-2010
@@ -65,6 +101,7 @@ if not defined VS100COMNTOOLS goto vc-set-2008
 if not exist "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2008
 call "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
 set GYP_MSVS_VERSION=2010
+echo Using Visual Studio 2010
 goto select-target
 
 :vc-set-2008
@@ -73,6 +110,7 @@ if not defined VS90COMNTOOLS goto vc-set-notfound
 if not exist "%VS90COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-notfound
 call "%VS90COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
 set GYP_MSVS_VERSION=2008
+echo Using Visual Studio 2008
 goto select-target
 
 :vc-set-notfound
@@ -90,8 +128,8 @@ if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
 if exist build\gyp goto have_gyp
-echo git clone https://git.chromium.org/external/gyp.git build/gyp
-git clone https://git.chromium.org/external/gyp.git build/gyp
+echo git clone https://chromium.googlesource.com/external/gyp build/gyp
+git clone https://chromium.googlesource.com/external/gyp build/gyp
 if errorlevel 1 goto gyp_install_failed
 goto have_gyp
 
@@ -119,15 +157,16 @@ goto run
 
 @rem Build the sln with msbuild.
 :msbuild-found
-msbuild uv.sln /t:%target% /p:Configuration=%config% /p:Platform="%platform%" /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild uv.sln /t:%target% /p:Configuration=%config% /p:Platform="%msbuild_platform%" /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+if errorlevel 1 exit /b 1
+msbuild test\test.sln /t:%target% /p:Configuration=%config% /p:Platform="%msbuild_platform%" /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 exit /b 1
 
 :run
 @rem Run tests if requested.
 if "%run%"=="" goto exit
-if not exist %config%\%run% goto exit
-echo running '%config%\%run%'
-%config%\%run%
+echo running 'test\%config%\%run%'
+test\%config%\%run%
 goto exit
 
 :create-msvs-files-failed
@@ -135,7 +174,7 @@ echo Failed to create vc project files.
 exit /b 1
 
 :help
-echo vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild] [x86/x64] [static/shared]
+echo vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild] [vs2017] [x86/x64] [static/shared]
 echo Examples:
 echo   vcbuild.bat              : builds debug build
 echo   vcbuild.bat test         : builds debug build and runs tests

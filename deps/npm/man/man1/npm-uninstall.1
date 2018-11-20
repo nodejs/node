@@ -1,12 +1,13 @@
-.TH "NPM\-RM" "1" "October 2014" "" ""
+.TH "NPM\-UNINSTALL" "1" "August 2018" "" ""
 .SH "NAME"
-\fBnpm-rm\fR \- Remove a package
+\fBnpm-uninstall\fR \- Remove a package
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm uninstall [@<scope>/]<package> [\-\-save|\-\-save\-dev|\-\-save\-optional]
-npm rm (with any of the previous argument usage)
+npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional|\-\-no\-save]
+
+aliases: remove, rm, r, un, unlink
 .fi
 .RE
 .SH DESCRIPTION
@@ -22,22 +23,27 @@ npm uninstall sax
 .fi
 .RE
 .P
-In global mode (ie, with \fB\-g\fR or \fB\-\-global\fR appended to the command),
+In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
 it uninstalls the current package context as a global package\.
 .P
-\fBnpm uninstall\fR takes 3 exclusive, optional flags which save or update
+\fBnpm uninstall\fP takes 3 exclusive, optional flags which save or update
 the package version in your main package\.json:
 .RS 0
 .IP \(bu 2
-\fB\-\-save\fR: Package will be removed from your \fBdependencies\fR\|\.
+\fB\-S, \-\-save\fP: Package will be removed from your \fBdependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-dev\fR: Package will be removed from your \fBdevDependencies\fR\|\.
+\fB\-D, \-\-save\-dev\fP: Package will be removed from your \fBdevDependencies\fP\|\.
 .IP \(bu 2
-\fB\-\-save\-optional\fR: Package will be removed from your \fBoptionalDependencies\fR\|\.
+\fB\-O, \-\-save\-optional\fP: Package will be removed from your \fBoptionalDependencies\fP\|\.
+.IP \(bu 2
+\fB\-\-no\-save\fP: Package will not be removed from your \fBpackage\.json\fP file\.
 
 .RE
 .P
-Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fR\|\.
+Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
+well\.
+.P
+Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fP\|\.
 .P
 Examples:
 .P
@@ -47,6 +53,7 @@ npm uninstall sax \-\-save
 npm uninstall @myorg/privatepackage \-\-save
 npm uninstall node\-tap \-\-save\-dev
 npm uninstall dtrace\-provider \-\-save\-optional
+npm uninstall lodash \-\-no\-save
 .fi
 .RE
 .SH SEE ALSO

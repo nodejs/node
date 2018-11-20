@@ -22,14 +22,16 @@
 #ifndef SRC_HANDLE_WRAP_H_
 #define SRC_HANDLE_WRAP_H_
 
-#include "async-wrap.h"
-#include "env.h"
-#include "node.h"
-#include "queue.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "async_wrap.h"
+#include "util.h"
 #include "uv.h"
 #include "v8.h"
 
 namespace node {
+
+class Environment;
 
 // Rules:
 //
@@ -56,36 +58,57 @@ class HandleWrap : public AsyncWrap {
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasRef(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static inline bool IsAlive(const HandleWrap* wrap) {
-    return wrap != nullptr && wrap->GetHandle() != nullptr;
+    return wrap != nullptr && wrap->state_ != kClosed;
   }
 
-  inline uv_handle_t* GetHandle() const { return handle__; }
+  static inline bool HasRef(const HandleWrap* wrap) {
+    return IsAlive(wrap) && uv_has_ref(wrap->GetHandle());
+  }
+
+  inline uv_handle_t* GetHandle() const { return handle_; }
+
+  virtual void Close(
+      v8::Local<v8::Value> close_callback = v8::Local<v8::Value>());
+
+  static void AddWrapMethods(Environment* env,
+                             v8::Local<v8::FunctionTemplate> constructor);
 
  protected:
   HandleWrap(Environment* env,
-             v8::Handle<v8::Object> object,
+             v8::Local<v8::Object> object,
              uv_handle_t* handle,
-             AsyncWrap::ProviderType provider,
-             AsyncWrap* parent = nullptr);
-  virtual ~HandleWrap() override;
+             AsyncWrap::ProviderType provider);
+  virtual void OnClose() {}
+
+  void MarkAsInitialized();
+  void MarkAsUninitialized();
+
+  inline bool IsHandleClosing() const {
+    return state_ == kClosing || state_ == kClosed;
+  }
 
  private:
+  friend class Environment;
   friend void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>&);
   static void OnClose(uv_handle_t* handle);
-  QUEUE handle_wrap_queue_;
-  unsigned int flags_;
-  // Using double underscore due to handle_ member in tcp_wrap. Probably
-  // tcp_wrap should rename it's member to 'handle'.
-  uv_handle_t* handle__;
 
-  static const unsigned int kUnref = 1;
-  static const unsigned int kCloseCallback = 2;
+  // handle_wrap_queue_ needs to be at a fixed offset from the start of the
+  // class because it is used by src/node_postmortem_metadata.cc to calculate
+  // offsets and generate debug symbols for HandleWrap, which assumes that the
+  // position of members in memory are predictable. For more information please
+  // refer to `doc/guides/node-postmortem-support.md`
+  friend int GenDebugSymbols();
+  ListNode<HandleWrap> handle_wrap_queue_;
+  enum { kInitialized, kClosing, kClosed } state_;
+  uv_handle_t* const handle_;
 };
 
 
 }  // namespace node
 
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_HANDLE_WRAP_H_

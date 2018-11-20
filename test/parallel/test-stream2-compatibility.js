@@ -19,35 +19,53 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
+const R = require('_stream_readable');
+const W = require('_stream_writable');
+const assert = require('assert');
 
-var common = require('../common.js');
-var R = require('_stream_readable');
-var assert = require('assert');
+let ondataCalled = 0;
 
-var util = require('util');
-var EE = require('events').EventEmitter;
+class TestReader extends R {
+  constructor() {
+    super();
+    this._buffer = Buffer.alloc(100, 'x');
 
-var ondataCalled = 0;
+    this.on('data', () => {
+      ondataCalled++;
+    });
+  }
 
-function TestReader() {
-  R.apply(this);
-  this._buffer = new Buffer(100);
-  this._buffer.fill('x');
-
-  this.on('data', function() {
-    ondataCalled++;
-  });
+  _read(n) {
+    this.push(this._buffer);
+    this._buffer = Buffer.alloc(0);
+  }
 }
 
-util.inherits(TestReader, R);
-
-TestReader.prototype._read = function(n) {
-  this.push(this._buffer);
-  this._buffer = new Buffer(0);
-};
-
-var reader = new TestReader();
+const reader = new TestReader();
 setImmediate(function() {
-  assert.equal(ondataCalled, 1);
+  assert.strictEqual(ondataCalled, 1);
+  console.log('ok');
+  reader.push(null);
+});
+
+class TestWriter extends W {
+  constructor() {
+    super();
+    this.write('foo');
+    this.end();
+  }
+
+  _write(chunk, enc, cb) {
+    cb();
+  }
+}
+
+const writer = new TestWriter();
+
+process.on('exit', function() {
+  assert.strictEqual(reader.readable, false);
+  assert.strictEqual(writer.writable, false);
   console.log('ok');
 });

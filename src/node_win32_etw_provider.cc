@@ -19,7 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_dtrace.h"
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
 #include "node_win32_etw_provider-inl.h"
@@ -77,7 +76,7 @@ struct v8tags trace_codes[] = {
 // If prefix is not in filtered list return -1,
 // else return length of prefix and marker.
 int FilterCodeEvents(const char* name, size_t len) {
-  for (int i = 0; i < ARRAY_SIZE(trace_codes); i++) {
+  for (size_t i = 0; i < arraysize(trace_codes); i++) {
     size_t prelen = trace_codes[i].prelen;
     if (prelen < len) {
       if (strncmp(name, trace_codes[i].prefix, prelen) == 0) {
@@ -167,7 +166,7 @@ void NTAPI etw_events_enable_callback(
 void init_etw() {
   events_enabled = 0;
 
-  advapi = LoadLibrary("advapi32.dll");
+  advapi = LoadLibraryW(L"advapi32.dll");
   if (advapi) {
     event_register = (EventRegisterFunc)
       GetProcAddress(advapi, "EventRegister");
@@ -176,9 +175,9 @@ void init_etw() {
     event_write = (EventWriteFunc)GetProcAddress(advapi, "EventWrite");
 
     // create async object used to invoke main thread from callback
-    uv_async_init(uv_default_loop(),
-                  &dispatch_etw_events_change_async,
-                  etw_events_change_async);
+    CHECK_EQ(0, uv_async_init(uv_default_loop(),
+                              &dispatch_etw_events_change_async,
+                              etw_events_change_async));
     uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_etw_events_change_async));
 
     if (event_register) {
@@ -208,4 +207,5 @@ void shutdown_etw() {
     advapi = nullptr;
   }
 }
-}
+
+}  // namespace node

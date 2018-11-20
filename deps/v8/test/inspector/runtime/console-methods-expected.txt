@@ -1,0 +1,951 @@
+Checks console methods
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : debug
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 9
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : debug
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : error
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 10
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : error
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : info
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : info
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : log
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 12
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : warn
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 13
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : warning
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : dir
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 14
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : dir
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : dirxml
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : dirxml
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                className : Array
+                description : Array(2)
+                objectId : <objectId>
+                preview : {
+                    description : Array(2)
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : 0
+                            subtype : array
+                            type : object
+                            valuePreview : {
+                                description : Array(2)
+                                overflow : false
+                                properties : [
+                                    [0] : {
+                                        name : 0
+                                        type : number
+                                        value : 1
+                                    }
+                                    [1] : {
+                                        name : 1
+                                        type : number
+                                        value : 2
+                                    }
+                                ]
+                                subtype : array
+                                type : object
+                            }
+                        }
+                        [1] : {
+                            name : 1
+                            subtype : array
+                            type : object
+                            valuePreview : {
+                                description : Array(2)
+                                overflow : false
+                                properties : [
+                                    [0] : {
+                                        name : 0
+                                        type : number
+                                        value : 3
+                                    }
+                                    [1] : {
+                                        name : 1
+                                        type : number
+                                        value : 4
+                                    }
+                                ]
+                                subtype : array
+                                type : object
+                            }
+                        }
+                    ]
+                    subtype : array
+                    type : object
+                }
+                subtype : array
+                type : object
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 16
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : table
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                className : Array
+                description : Array(2)
+                objectId : <objectId>
+                preview : {
+                    description : Array(2)
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : 0
+                            subtype : array
+                            type : object
+                            valuePreview : {
+                                description : Array(2)
+                                overflow : false
+                                properties : [
+                                    [0] : {
+                                        name : 1
+                                        type : number
+                                        value : 2
+                                    }
+                                ]
+                                subtype : array
+                                type : object
+                            }
+                        }
+                        [1] : {
+                            name : 1
+                            subtype : array
+                            type : object
+                            valuePreview : {
+                                description : Array(2)
+                                overflow : false
+                                properties : [
+                                    [0] : {
+                                        name : 1
+                                        type : number
+                                        value : 4
+                                    }
+                                ]
+                                subtype : array
+                                type : object
+                            }
+                        }
+                    ]
+                    subtype : array
+                    type : object
+                }
+                subtype : array
+                type : object
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 17
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : table
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 18
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.trace
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : trace
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.group
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 20
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : startGroup
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.groupEnd
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 21
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : endGroup
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.groupCollapsed
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 22
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : startGroupCollapsed
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : clear
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 23
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : clear
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.clear
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 24
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : clear
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : count: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 25
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 12
+                    functionName : foo
+                    lineNumber : 27
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 2
+                    functionName : testFunction
+                    lineNumber : 29
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [2] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 2
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 12
+                    functionName : foo
+                    lineNumber : 27
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 2
+                    functionName : testFunction
+                    lineNumber : 30
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [2] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 3
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 31
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 4
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 32
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 5
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 33
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 35
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 37
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : default: 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 39
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : count
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Count for 'countReset' does not exist
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 40
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : warning
+    }
+}

@@ -19,11 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const http = require('http');
 
-assert.throws(function() {
-  // Path with spaces in it should throw.
-  http.get({ path: 'bad path' }, assert.fail);
-}, /contains unescaped characters/);
+for (let i = 0; i <= 32; i += 1) {
+  const path = `bad${String.fromCharCode(i)}path`;
+  common.expectsError(
+    () => http.get({ path }, common.mustNotCall()),
+    {
+      code: 'ERR_UNESCAPED_CHARACTERS',
+      type: TypeError,
+      message: 'Request path contains unescaped characters'
+    }
+  );
+}

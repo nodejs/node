@@ -1,0 +1,84 @@
+{
+  "_from": "npm-lifecycle@2.1.0",
+  "_id": "npm-lifecycle@2.1.0",
+  "_inBundle": false,
+  "_integrity": "sha512-QbBfLlGBKsktwBZLj6AviHC6Q9Y3R/AY4a2PYSIRhSKSS0/CxRyD/PfxEX6tPeOCXQgMSNdwGeECacstgptc+g==",
+  "_location": "/npm-lifecycle",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "npm-lifecycle@2.1.0",
+    "name": "npm-lifecycle",
+    "escapedName": "npm-lifecycle",
+    "rawSpec": "2.1.0",
+    "saveSpec": null,
+    "fetchSpec": "2.1.0"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/",
+    "/libcipm"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-lifecycle/-/npm-lifecycle-2.1.0.tgz",
+  "_shasum": "1eda2eedb82db929e3a0c50341ab0aad140ed569",
+  "_spec": "npm-lifecycle@2.1.0",
+  "_where": "/Users/zkat/Documents/code/work/npm",
+  "author": {
+    "name": "Mike Sherov"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/lifecycle/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "byline": "^5.0.0",
+    "graceful-fs": "^4.1.11",
+    "node-gyp": "^3.8.0",
+    "resolve-from": "^4.0.0",
+    "slide": "^1.1.6",
+    "uid-number": "0.0.6",
+    "umask": "^1.1.0",
+    "which": "^1.3.1"
+  },
+  "deprecated": false,
+  "description": "JavaScript package lifecycle hook runner",
+  "devDependencies": {
+    "nyc": "^12.0.2",
+    "sinon": "^6.1.5",
+    "standard": "^11.0.1",
+    "standard-version": "^4.4.0",
+    "tap": "^12.0.1",
+    "weallbehave": "^1.2.0",
+    "weallcontribute": "^1.0.8"
+  },
+  "files": [
+    "index.js",
+    "lib/spawn.js",
+    "node-gyp-bin"
+  ],
+  "homepage": "https://github.com/npm/lifecycle#readme",
+  "keywords": [
+    "npm",
+    "lifecycle",
+    "hook",
+    "runner"
+  ],
+  "license": "Artistic-2.0",
+  "main": "index.js",
+  "name": "npm-lifecycle",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/lifecycle.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --coverage test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "2.1.0"
+}

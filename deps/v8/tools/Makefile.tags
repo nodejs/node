@@ -1,0 +1,30 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+
+# Variable default definitions. Override them by exporting them in your shell.
+V8_DIR ?= $(realpath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+
+# Support for the GNU GLOBAL Source Code Tag System.
+$(V8_DIR)/gtags.files: $(wildcard $(addprefix $(V8_DIR)/,$(shell cat $(V8_DIR)/gtags.files 2> /dev/null)))
+	@(cd $(V8_DIR) && find include src test -name '*.h' -o -name '*.cc' -o -name '*.c') > $@
+
+# We need to manually set the stack limit here, to work around bugs in
+# gmake-3.81 and global-5.7.1 on recent 64-bit Linux systems.
+# Using $(wildcard ...) gracefully ignores non-existing files, so that stale
+# gtags.files after switching branches don't cause recipe failures.
+$(V8_DIR)/GPATH $(V8_DIR)/GRTAGS $(V8_DIR)/GSYMS $(V8_DIR)/GTAGS: $(V8_DIR)/gtags.files $(wildcard $(addprefix $(V8_DIR)/,$(shell cat $(V8_DIR)/gtags.files 2> /dev/null)))
+	@cd $(V8_DIR) && bash -c 'ulimit -s 10240 && GTAGSFORCECPP=yes gtags -i -q -f $<'
+
+$(V8_DIR)/tags: $(V8_DIR)/gtags.files $(wildcard $(addprefix $(V8_DIR)/,$(shell cat $(V8_DIR)/gtags.files 2> /dev/null)))
+	@(ctags --version | grep 'Exuberant Ctags' >/dev/null) || \
+	  (echo "Please install Exuberant Ctags (check 'ctags --version')" >&2; false)
+	@cd $(V8_DIR) && ctags --fields=+l -L gtags.files
+
+tags: $(V8_DIR)/tags
+
+tags.clean:
+	@rm -f $(addprefix $(V8_DIR), gtags.files GPATH GRTAGS GSYMS GTAGS tags)
+
+clean: tags.clean

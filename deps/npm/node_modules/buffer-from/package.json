@@ -1,0 +1,50 @@
+{
+  "_from": "buffer-from@^1.0.0",
+  "_id": "buffer-from@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-83apNb8KK0Se60UE1+4Ukbe3HbfELJ6UlI4ldtOGs7So4KD26orJM8hIY9lxdzP+UpItH1Yh/Y8GUvNFWFFRxA==",
+  "_location": "/buffer-from",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "buffer-from@^1.0.0",
+    "name": "buffer-from",
+    "escapedName": "buffer-from",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "/concat-stream",
+    "/source-map-support"
+  ],
+  "_resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.0.0.tgz",
+  "_shasum": "4cb8832d23612589b0406e9e2956c17f06fdf531",
+  "_spec": "buffer-from@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/concat-stream",
+  "bugs": {
+    "url": "https://github.com/LinusU/buffer-from/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "A [ponyfill](https://ponyfill.com) for `Buffer.from`, uses native implementation if available.",
+  "devDependencies": {
+    "standard": "^7.1.2"
+  },
+  "homepage": "https://github.com/LinusU/buffer-from#readme",
+  "keywords": [
+    "buffer",
+    "buffer from"
+  ],
+  "license": "MIT",
+  "name": "buffer-from",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LinusU/buffer-from.git"
+  },
+  "scripts": {
+    "test": "standard && node test"
+  },
+  "version": "1.0.0"
+}

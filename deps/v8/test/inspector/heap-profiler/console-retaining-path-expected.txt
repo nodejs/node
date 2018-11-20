@@ -1,0 +1,5 @@
+Tests edge labels of objects retained by DevTools.
+
+Running test: testConsoleRetainingPath
+Edge from (Global handles) to MyClass1: DevTools console
+Edge from (Global handles) to MyClass2: DevTools console

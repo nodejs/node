@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt --no-always-opt
 
 // Verifies that the KeyedStoreIC correctly handles out-of-bounds stores
 // to an array that grow it by a single element. Test functions are
@@ -205,7 +205,7 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   assertOptimized(grow_store);
   grow_store(a,2048,1);
   assertUnoptimized(grow_store);
-  %ClearFunctionTypeFeedback(grow_store);
+  %ClearFunctionFeedback(grow_store);
 })();
 
 
@@ -228,7 +228,7 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   // Should be a polymorphic grow stub. If not a grow stub it will deopt.
   f(new Array("hi"), 1, 3);
   assertOptimized(f);
-  %ClearFunctionTypeFeedback(f);
+  %ClearFunctionFeedback(f);
 })();
 
 
@@ -252,5 +252,5 @@ assertEquals(0.5, array_store_1([], 0, 0.5));
   // An attempt to grow should cause deopt
   f(new Array("hi"), 1, 3);
   assertUnoptimized(f);
-  %ClearFunctionTypeFeedback(f);
+  %ClearFunctionFeedback(f);
 })();

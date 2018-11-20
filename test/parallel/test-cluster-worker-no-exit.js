@@ -19,15 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var cluster = require('cluster')
-var net = require('net');
-var common = require('../common');
+'use strict';
+require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
-var destroyed;
-var success;
-var worker;
-var server;
+let destroyed;
+let success;
+let worker;
+let server;
 
 // workers do not exit on disconnect, they exit under normal node rules: when
 // they have nothing keeping their loop alive, like an active connection
@@ -42,7 +43,7 @@ var server;
 if (cluster.isMaster) {
   server = net.createServer(function(conn) {
     server.close();
-    worker.disconnect()
+    worker.disconnect();
     worker.once('disconnect', function() {
       setTimeout(function() {
         conn.destroy();
@@ -54,12 +55,12 @@ if (cluster.isMaster) {
       success = true;
     });
 
-  }).listen(common.PORT, function() {
-    var port = this.address().port;
+  }).listen(0, function() {
+    const port = this.address().port;
 
     worker = cluster.fork()
       .on('online', function() {
-        this.send({port: port});
+        this.send({ port });
       });
   });
   process.on('exit', function() {

@@ -85,6 +85,7 @@ unsigned Utf8::Encode(char* str,
     str[1] = 0x80 | (c & kMask);
     return 2;
   } else if (c <= kMaxThreeByteChar) {
+    DCHECK(!Utf16::IsLeadSurrogate(Utf16::kNoPreviousCharacter));
     if (Utf16::IsSurrogatePair(previous, c)) {
       const int kUnmatchedSize = kSizeOfUnmatchedSurrogate;
       return Encode(str - kUnmatchedSize,
@@ -110,11 +111,11 @@ unsigned Utf8::Encode(char* str,
 }
 
 
-uchar Utf8::ValueOf(const byte* bytes, unsigned length, unsigned* cursor) {
+uchar Utf8::ValueOf(const byte* bytes, size_t length, size_t* cursor) {
   if (length <= 0) return kBadChar;
   byte first = bytes[0];
-  // Characters between 0000 and 0007F are encoded as a single character
-  if (first <= kMaxOneByteChar) {
+  // Characters between 0000 and 007F are encoded as a single character
+  if (V8_LIKELY(first <= kMaxOneByteChar)) {
     *cursor += 1;
     return first;
   }
@@ -127,14 +128,20 @@ unsigned Utf8::Length(uchar c, int previous) {
   } else if (c <= kMaxTwoByteChar) {
     return 2;
   } else if (c <= kMaxThreeByteChar) {
-    if (Utf16::IsTrailSurrogate(c) &&
-        Utf16::IsLeadSurrogate(previous)) {
+    DCHECK(!Utf16::IsLeadSurrogate(Utf16::kNoPreviousCharacter));
+    if (Utf16::IsSurrogatePair(previous, c)) {
       return kSizeOfUnmatchedSurrogate - kBytesSavedByCombiningSurrogates;
     }
     return 3;
   } else {
     return 4;
   }
+}
+
+bool Utf8::IsValidCharacter(uchar c) {
+  return c < 0xD800u || (c >= 0xE000u && c < 0xFDD0u) ||
+         (c > 0xFDEFu && c <= 0x10FFFFu && (c & 0xFFFEu) != 0xFFFEu &&
+          c != kBadChar);
 }
 
 }  // namespace unibrow

@@ -19,37 +19,33 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var tls = require('tls');
-var path = require('path');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var errorEmitted = false;
+const cert = fixtures.readSync('test_cert.pem');
+const key = fixtures.readSync('test_key.pem');
 
-var server = tls.createServer({
-  cert: cert,
-  key: key
+const server = tls.createServer({
+  cert,
+  key
 }, function(c) {
   // Nop
   setTimeout(function() {
-    c.destroy();
+    c.end();
     server.close();
   }, 20);
-}).listen(common.PORT, function() {
-  var conn = tls.connect({
+}).listen(0, common.mustCall(function() {
+  const conn = tls.connect({
     cert: cert,
     key: key,
     rejectUnauthorized: false,
-    port: common.PORT
+    port: this.address().port
   }, function() {
     setTimeout(function() {
       conn.destroy();
@@ -60,12 +56,5 @@ var server = tls.createServer({
   // treated as error.
   conn.end('');
 
-  conn.on('error', function(err) {
-    console.log(err);
-    errorEmitted = true;
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(!errorEmitted);
-});
+  conn.on('error', common.mustNotCall());
+}));

@@ -1,0 +1,70 @@
+{
+  "_from": "invariant@^2.2.0",
+  "_id": "invariant@2.2.2",
+  "_inBundle": false,
+  "_integrity": "sha1-nh9WrArNtr8wMwbzOL47IErmA2A=",
+  "_location": "/babel-eslint/invariant",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "invariant@^2.2.0",
+    "name": "invariant",
+    "escapedName": "invariant",
+    "rawSpec": "^2.2.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.2.0"
+  },
+  "_requiredBy": [
+    "/babel-eslint/@babel/traverse"
+  ],
+  "_resolved": "https://registry.npmjs.org/invariant/-/invariant-2.2.2.tgz",
+  "_shasum": "9e1f56ac0acdb6bf303306f338be3b204ae60360",
+  "_spec": "invariant@^2.2.0",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint/node_modules/@babel/traverse",
+  "author": {
+    "name": "Andres Suarez",
+    "email": "zertosh@gmail.com"
+  },
+  "browser": "browser.js",
+  "browserify": {
+    "transform": [
+      "loose-envify"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/zertosh/invariant/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "loose-envify": "^1.0.0"
+  },
+  "deprecated": false,
+  "description": "invariant",
+  "devDependencies": {
+    "browserify": "^11.0.1",
+    "flow-bin": "^0.35.0",
+    "tap": "^1.4.0"
+  },
+  "files": [
+    "browser.js",
+    "invariant.js",
+    "invariant.js.flow"
+  ],
+  "homepage": "https://github.com/zertosh/invariant#readme",
+  "keywords": [
+    "test",
+    "invariant"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "invariant.js",
+  "name": "invariant",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zertosh/invariant.git"
+  },
+  "scripts": {
+    "test": "NODE_ENV=production tap test/*.js && NODE_ENV=development tap test/*.js"
+  },
+  "version": "2.2.2"
+}

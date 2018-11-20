@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -15,10 +12,12 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
-#include "src/lithium.h"
+#include "src/objects-inl.h"
+#include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef v8::internal::compiler::Instruction TestInstr;
 typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
@@ -27,21 +26,14 @@ typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
 class InstructionTester : public HandleAndZoneScope {
  public:  // We're all friends here.
   InstructionTester()
-      : isolate(main_isolate()),
-        graph(zone()),
+      : graph(zone()),
         schedule(zone()),
-        info(static_cast<HydrogenCodeStub*>(NULL), main_isolate()),
-        linkage(zone(), &info),
         common(zone()),
-        code(NULL) {}
+        machine(zone()),
+        code(nullptr) {}
 
-  ~InstructionTester() { delete code; }
-
-  Isolate* isolate;
   Graph graph;
   Schedule schedule;
-  CompilationInfoWithZone info;
-  Linkage linkage;
   CommonOperatorBuilder common;
   MachineOperatorBuilder machine;
   TestInstrSeq* code;
@@ -51,13 +43,13 @@ class InstructionTester : public HandleAndZoneScope {
   void allocCode() {
     if (schedule.rpo_order()->size() == 0) {
       // Compute the RPO order.
-      ZonePool zone_pool(isolate);
-      Scheduler::ComputeSpecialRPO(&zone_pool, &schedule);
-      DCHECK(schedule.rpo_order()->size() > 0);
+      Scheduler::ComputeSpecialRPO(main_zone(), &schedule);
+      CHECK_NE(0u, schedule.rpo_order()->size());
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
-    code = new TestInstrSeq(main_zone(), instruction_blocks);
+    code = new (main_zone())
+        TestInstrSeq(main_isolate(), main_zone(), instruction_blocks);
   }
 
   Node* Int32Constant(int32_t val) {
@@ -90,15 +82,21 @@ class InstructionTester : public HandleAndZoneScope {
     return code->AddInstruction(instr);
   }
 
-  UnallocatedOperand* NewUnallocated(int vreg) {
-    UnallocatedOperand* unallocated =
-        new (zone()) UnallocatedOperand(UnallocatedOperand::ANY);
-    unallocated->set_virtual_register(vreg);
-    return unallocated;
+  int NewNop() {
+    TestInstr* instr = TestInstr::New(zone(), kArchNop);
+    return code->AddInstruction(instr);
+  }
+
+  UnallocatedOperand Unallocated(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT, vreg);
+  }
+
+  RpoNumber RpoFor(BasicBlock* block) {
+    return RpoNumber::FromInt(block->rpo_number());
   }
 
   InstructionBlock* BlockAt(BasicBlock* block) {
-    return code->InstructionBlockAt(block->GetRpoNumber());
+    return code->InstructionBlockAt(RpoFor(block));
   }
   BasicBlock* GetBasicBlock(int instruction_index) {
     const InstructionBlock* block =
@@ -133,13 +131,9 @@ TEST(InstructionBasic) {
   BasicBlockVector* blocks = R.schedule.rpo_order();
   CHECK_EQ(static_cast<int>(blocks->size()), R.code->InstructionBlockCount());
 
-  int index = 0;
-  for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end();
-       i++, index++) {
-    BasicBlock* block = *i;
+  for (auto block : *blocks) {
     CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
-    CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
-    CHECK_EQ(NULL, block->loop_end());
+    CHECK(!block->loop_end());
   }
 }
 
@@ -158,23 +152,24 @@ TEST(InstructionGetBasicBlock) {
 
   R.allocCode();
 
-  R.code->StartBlock(b0->GetRpoNumber());
+  R.code->StartBlock(R.RpoFor(b0));
   int i0 = R.NewInstr();
   int i1 = R.NewInstr();
-  R.code->EndBlock(b0->GetRpoNumber());
-  R.code->StartBlock(b1->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
+  R.code->StartBlock(R.RpoFor(b1));
   int i2 = R.NewInstr();
   int i3 = R.NewInstr();
   int i4 = R.NewInstr();
   int i5 = R.NewInstr();
-  R.code->EndBlock(b1->GetRpoNumber());
-  R.code->StartBlock(b2->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b1));
+  R.code->StartBlock(R.RpoFor(b2));
   int i6 = R.NewInstr();
   int i7 = R.NewInstr();
   int i8 = R.NewInstr();
-  R.code->EndBlock(b2->GetRpoNumber());
-  R.code->StartBlock(b3->GetRpoNumber());
-  R.code->EndBlock(b3->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b2));
+  R.code->StartBlock(R.RpoFor(b3));
+  R.NewNop();
+  R.code->EndBlock(R.RpoFor(b3));
 
   CHECK_EQ(b0, R.GetBasicBlock(i0));
   CHECK_EQ(b0, R.GetBasicBlock(i1));
@@ -210,20 +205,13 @@ TEST(InstructionIsGapAt) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0->GetRpoNumber());
+  TestInstr* g = TestInstr::New(R.zone(), 103);
+  R.code->StartBlock(R.RpoFor(b0));
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
-
-  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
-  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
-  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
-  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(5));  // g
+  CHECK_EQ(2, R.code->instructions().size());
 }
 
 
@@ -237,36 +225,20 @@ TEST(InstructionIsGapAt2) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0->GetRpoNumber());
+  TestInstr* g = TestInstr::New(R.zone(), 103);
+  R.code->StartBlock(R.RpoFor(b0));
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
 
   TestInstr* i1 = TestInstr::New(R.zone(), 102);
-  TestInstr* g1 = TestInstr::New(R.zone(), 104)->MarkAsControl();
-  R.code->StartBlock(b1->GetRpoNumber());
+  TestInstr* g1 = TestInstr::New(R.zone(), 104);
+  R.code->StartBlock(R.RpoFor(b1));
   R.code->AddInstruction(i1);
   R.code->AddInstruction(g1);
-  R.code->EndBlock(b1->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b1));
 
-  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
-
-  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
-  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
-  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
-  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(5));  // g
-
-  CHECK_EQ(true, R.code->InstructionAt(6)->IsBlockStart());
-
-  CHECK_EQ(true, R.code->IsGapAt(6));    // Label
-  CHECK_EQ(true, R.code->IsGapAt(7));    // Gap
-  CHECK_EQ(false, R.code->IsGapAt(8));   // i1
-  CHECK_EQ(true, R.code->IsGapAt(9));    // Gap
-  CHECK_EQ(true, R.code->IsGapAt(10));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(11));  // g1
+  CHECK_EQ(4, R.code->instructions().size());
 }
 
 
@@ -278,43 +250,33 @@ TEST(InstructionAddGapMove) {
 
   R.allocCode();
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
-  TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
-  R.code->StartBlock(b0->GetRpoNumber());
+  TestInstr* g = TestInstr::New(R.zone(), 103);
+  R.code->StartBlock(R.RpoFor(b0));
   R.code->AddInstruction(i0);
   R.code->AddInstruction(g);
-  R.code->EndBlock(b0->GetRpoNumber());
+  R.code->EndBlock(R.RpoFor(b0));
 
-  CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
+  CHECK_EQ(2, R.code->instructions().size());
 
-  CHECK_EQ(true, R.code->IsGapAt(0));   // Label
-  CHECK_EQ(true, R.code->IsGapAt(1));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(2));  // i0
-  CHECK_EQ(true, R.code->IsGapAt(3));   // Gap
-  CHECK_EQ(true, R.code->IsGapAt(4));   // Gap
-  CHECK_EQ(false, R.code->IsGapAt(5));  // g
-
-  int indexes[] = {0, 1, 3, 4, -1};
-  for (int i = 0; indexes[i] >= 0; i++) {
-    int index = indexes[i];
-
-    UnallocatedOperand* op1 = R.NewUnallocated(index + 6);
-    UnallocatedOperand* op2 = R.NewUnallocated(index + 12);
-
-    R.code->AddGapMove(index, op1, op2);
-    GapInstruction* gap = R.code->GapAt(index);
-    ParallelMove* move = gap->GetParallelMove(GapInstruction::START);
-    CHECK_NE(NULL, move);
-    const ZoneList<MoveOperands>* move_operands = move->move_operands();
-    CHECK_EQ(1, move_operands->length());
-    MoveOperands* cur = &move_operands->at(0);
-    CHECK_EQ(op1, cur->source());
-    CHECK_EQ(op2, cur->destination());
+  int index = 0;
+  for (auto instr : R.code->instructions()) {
+    UnallocatedOperand op1 = R.Unallocated(index++);
+    UnallocatedOperand op2 = R.Unallocated(index++);
+    instr->GetOrCreateParallelMove(TestInstr::START, R.zone())
+        ->AddMove(op1, op2);
+    ParallelMove* move = instr->GetParallelMove(TestInstr::START);
+    CHECK(move);
+    CHECK_EQ(1u, move->size());
+    MoveOperands* cur = move->at(0);
+    CHECK(op1.Equals(cur->source()));
+    CHECK(op2.Equals(cur->destination()));
   }
 }
 
 
 TEST(InstructionOperands) {
-  Zone zone(CcTest::InitIsolateOnce());
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
 
   {
     TestInstr* i = TestInstr::New(&zone, 101);
@@ -323,23 +285,24 @@ TEST(InstructionOperands) {
     CHECK_EQ(0, static_cast<int>(i->TempCount()));
   }
 
-  InstructionOperand* outputs[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+  int vreg = 15;
+  InstructionOperand outputs[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
-  InstructionOperand* inputs[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+  InstructionOperand inputs[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
-  InstructionOperand* temps[] = {
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
-      new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
+  InstructionOperand temps[] = {
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg),
+      UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg)};
 
   for (size_t i = 0; i < arraysize(outputs); i++) {
     for (size_t j = 0; j < arraysize(inputs); j++) {
@@ -351,17 +314,21 @@ TEST(InstructionOperands) {
         CHECK(k == m->TempCount());
 
         for (size_t z = 0; z < i; z++) {
-          CHECK_EQ(outputs[z], m->OutputAt(z));
+          CHECK(outputs[z].Equals(*m->OutputAt(z)));
         }
 
         for (size_t z = 0; z < j; z++) {
-          CHECK_EQ(inputs[z], m->InputAt(z));
+          CHECK(inputs[z].Equals(*m->InputAt(z)));
         }
 
         for (size_t z = 0; z < k; z++) {
-          CHECK_EQ(temps[z], m->TempAt(z));
+          CHECK(temps[z].Equals(*m->TempAt(z)));
         }
       }
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

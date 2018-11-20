@@ -6,32 +6,74 @@
 #define V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-graph.h"
-#include "src/contexts.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
+class JSGraph;
+class JSOperatorBuilder;
+
+// Pair of a context and its distance from some point of reference.
+struct OuterContext {
+  OuterContext() : context(), distance() {}
+  OuterContext(Handle<Context> context_, size_t distance_)
+      : context(context_), distance(distance_) {}
+  Handle<Context> context;
+  size_t distance;
+};
+
 // Specializes a given JSGraph to a given context, potentially constant folding
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
-class JSContextSpecializer {
+// Additionally, constant-folds the function parameter if {closure} is given.
+//
+// The context can be the incoming function context or any outer context
+// thereof, as indicated by {outer}'s {distance}.
+class JSContextSpecialization final : public AdvancedReducer {
  public:
-  JSContextSpecializer(CompilationInfo* info, JSGraph* jsgraph, Node* context)
-      : info_(info), jsgraph_(jsgraph), context_(context) {}
+  JSContextSpecialization(Editor* editor, JSGraph* jsgraph,
+                          JSHeapBroker* js_heap_broker,
+                          Maybe<OuterContext> outer,
+                          MaybeHandle<JSFunction> closure)
+      : AdvancedReducer(editor),
+        jsgraph_(jsgraph),
+        outer_(outer),
+        closure_(closure),
+        js_heap_broker_(js_heap_broker) {}
 
-  void SpecializeToContext();
+  const char* reducer_name() const override {
+    return "JSContextSpecialization";
+  }
+
+  Reduction Reduce(Node* node) final;
+
+ private:
+  Reduction ReduceParameter(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
 
- private:
-  CompilationInfo* info_;
-  JSGraph* jsgraph_;
-  Node* context_;
+  Reduction SimplifyJSStoreContext(Node* node, Node* new_context,
+                                   size_t new_depth);
+  Reduction SimplifyJSLoadContext(Node* node, Node* new_context,
+                                  size_t new_depth);
+
+  Isolate* isolate() const;
+  JSGraph* jsgraph() const { return jsgraph_; }
+  Maybe<OuterContext> outer() const { return outer_; }
+  MaybeHandle<JSFunction> closure() const { return closure_; }
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+
+  JSGraph* const jsgraph_;
+  Maybe<OuterContext> outer_;
+  MaybeHandle<JSFunction> closure_;
+  const JSHeapBroker* const js_heap_broker_;
+
+  DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_

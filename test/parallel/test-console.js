@@ -19,64 +19,245 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
 
-
-
-var common = require('../common');
-var assert = require('assert');
+const {
+  hijackStdout,
+  hijackStderr,
+  restoreStdout,
+  restoreStderr
+} = require('../common/hijackstdio');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
-assert.equal('number', typeof process.stdout.fd);
-assert.equal('number', typeof process.stderr.fd);
+if (common.isMainThread) {
+  assert.strictEqual(typeof process.stdout.fd, 'number');
+  assert.strictEqual(typeof process.stderr.fd, 'number');
+}
 
-// an Object with a custom .inspect() function
-var custom_inspect = { foo: 'bar', inspect: function () { return 'inspect'; } };
+common.expectWarning(
+  'Warning',
+  [
+    ['Count for \'noLabel\' does not exist', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeLog()', common.noWarnCode],
+    ['No such label \'noLabel\' for console.timeEnd()', common.noWarnCode],
+    ['Label \'test\' already exists for console.time()', common.noWarnCode]
+  ]
+);
 
-var stdout_write = global.process.stdout.write;
-var strings = [];
-global.process.stdout.write = function(string) {
-  strings.push(string);
-};
-console._stderr = process.stdout;
+console.countReset('noLabel');
+console.timeLog('noLabel');
+console.timeEnd('noLabel');
 
-// test console.log()
+console.time('label');
+console.timeEnd('label');
+
+// Check that the `Error` is a `TypeError` but do not check the message as it
+// will be different in different JavaScript engines.
+assert.throws(() => console.time(Symbol('test')),
+              TypeError);
+assert.throws(() => console.timeEnd(Symbol('test')),
+              TypeError);
+
+
+// An Object with a custom inspect function.
+const custom_inspect = { foo: 'bar', [util.inspect.custom]: () => 'inspect' };
+
+const strings = [];
+const errStrings = [];
+process.stdout.isTTY = false;
+hijackStdout(function(data) {
+  strings.push(data);
+});
+process.stderr.isTTY = false;
+hijackStderr(function(data) {
+  errStrings.push(data);
+});
+
+// test console.log() goes to stdout
 console.log('foo');
 console.log('foo', 'bar');
 console.log('%s %s', 'foo', 'bar', 'hop');
-console.log({slashes: '\\\\'});
+console.log({ slashes: '\\\\' });
 console.log(custom_inspect);
+
+// test console.debug() goes to stdout
+console.debug('foo');
+console.debug('foo', 'bar');
+console.debug('%s %s', 'foo', 'bar', 'hop');
+console.debug({ slashes: '\\\\' });
+console.debug(custom_inspect);
+
+// test console.info() goes to stdout
+console.info('foo');
+console.info('foo', 'bar');
+console.info('%s %s', 'foo', 'bar', 'hop');
+console.info({ slashes: '\\\\' });
+console.info(custom_inspect);
+
+// test console.error() goes to stderr
+console.error('foo');
+console.error('foo', 'bar');
+console.error('%s %s', 'foo', 'bar', 'hop');
+console.error({ slashes: '\\\\' });
+console.error(custom_inspect);
+
+// test console.warn() goes to stderr
+console.warn('foo');
+console.warn('foo', 'bar');
+console.warn('%s %s', 'foo', 'bar', 'hop');
+console.warn({ slashes: '\\\\' });
+console.warn(custom_inspect);
 
 // test console.dir()
 console.dir(custom_inspect);
 console.dir(custom_inspect, { showHidden: false });
-console.dir({ foo : { bar : { baz : true } } }, { depth: 0 });
-console.dir({ foo : { bar : { baz : true } } }, { depth: 1 });
+console.dir({ foo: { bar: { baz: true } } }, { depth: 0 });
+console.dir({ foo: { bar: { baz: true } } }, { depth: 1 });
+
+// test console.dirxml()
+console.dirxml(custom_inspect, custom_inspect);
+console.dirxml(
+  { foo: { bar: { baz: true } } },
+  { foo: { bar: { quux: false } } },
+  { foo: { bar: { quux: true } } }
+);
 
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
 
+// test console.time() and console.timeEnd() output
+console.time('label');
+console.timeEnd('label');
 
-global.process.stdout.write = stdout_write;
+// verify that Object.prototype properties can be used as labels
+console.time('__proto__');
+console.timeEnd('__proto__');
+console.time('constructor');
+console.timeEnd('constructor');
+console.time('hasOwnProperty');
+console.timeEnd('hasOwnProperty');
 
-assert.equal('foo\n', strings.shift());
-assert.equal('foo bar\n', strings.shift());
-assert.equal('foo bar hop\n', strings.shift());
-assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
-assert.equal('inspect\n', strings.shift());
-assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
-assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
-assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
-assert.equal(-1, strings.shift().indexOf('baz'));
-assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
-             strings.shift().split('\n').shift());
+// Verify that values are coerced to strings.
+console.time([]);
+console.timeEnd([]);
+console.time({});
+console.timeEnd({});
+// Repeat the object call to verify that everything really worked.
+console.time({});
+console.timeEnd({});
+console.time(null);
+console.timeEnd(null);
+console.time(undefined);
+console.timeEnd('default');
+console.time('default');
+console.timeEnd();
+console.time(NaN);
+console.timeEnd(NaN);
 
-assert.throws(function () {
-  console.timeEnd('no such label');
-});
+// make sure calling time twice without timeEnd doesn't reset the timer.
+console.time('test');
+const time = console._times.get('test');
+setTimeout(() => {
+  console.time('test');
+  assert.deepStrictEqual(console._times.get('test'), time);
+  console.timeEnd('test');
+}, 1);
 
-assert.doesNotThrow(function () {
-  console.time('label');
-  console.timeEnd('label');
-});
+console.time('log1');
+console.timeLog('log1');
+console.timeLog('log1', 'test');
+console.timeLog('log1', {}, [1, 2, 3]);
+console.timeEnd('log1');
+
+console.assert(false, '%s should', 'console.assert', 'not throw');
+assert.strictEqual(errStrings[errStrings.length - 1],
+                   'Assertion failed: console.assert should not throw\n');
+
+console.assert(true, 'this should not throw');
+
+assert.strictEqual(strings.length, process.stdout.writeTimes);
+assert.strictEqual(errStrings.length, process.stderr.writeTimes);
+restoreStdout();
+restoreStderr();
+
+// verify that console.timeEnd() doesn't leave dead links
+const timesMapSize = console._times.size;
+console.time('label1');
+console.time('label2');
+console.time('label3');
+console.timeEnd('label1');
+console.timeEnd('label2');
+console.timeEnd('label3');
+assert.strictEqual(console._times.size, timesMapSize);
+
+const expectedStrings = [
+  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect'
+];
+
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+  assert.strictEqual(errStrings.shift(), `${expected}\n`);
+}
+
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+  assert.strictEqual(errStrings.shift(), `${expected}\n`);
+}
+
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
+}
+
+assert.strictEqual(strings.shift(),
+                   "{ foo: 'bar',\n  [Symbol(nodejs.util.inspect.custom)]: " +
+                    '[Function: [nodejs.util.inspect.custom]] }\n');
+assert.strictEqual(strings.shift(),
+                   "{ foo: 'bar',\n  [Symbol(nodejs.util.inspect.custom)]: " +
+                    '[Function: [nodejs.util.inspect.custom]] }\n');
+assert.ok(strings.shift().includes('foo: [Object]'));
+assert.strictEqual(strings.shift().includes('baz'), false);
+assert.strictEqual(strings.shift(), 'inspect inspect\n');
+assert.ok(strings[0].includes('foo: { bar: { baz:'));
+assert.ok(strings[0].includes('quux'));
+assert.ok(strings.shift().includes('quux: true'));
+
+assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
+// verify that console.time() coerces label values to strings as expected
+assert.ok(/^: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^null: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^NaN: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
+assert.ok(/^log1: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms test$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms {} \[ 1, 2, 3 ]$/.test(strings.shift().trim()));
+assert.ok(/^log1: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
+// Make sure that we checked all strings
+assert.strictEqual(strings.length, 0);
+
+assert.strictEqual(errStrings.shift().split('\n').shift(),
+                   'Trace: This is a {"formatted":"trace"} 10 foo');
+
+// hijack stderr to catch `process.emitWarning` which is using
+// `process.nextTick`
+hijackStderr(common.mustCall(function(data) {
+  restoreStderr();
+
+  // stderr.write will catch sync error, so use `process.nextTick` here
+  process.nextTick(function() {
+    assert.strictEqual(data.includes('noLabel'), true);
+  });
+}));

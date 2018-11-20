@@ -6,32 +6,29 @@
 // always as hot as it could be.
 //
 // Verify that our assumptions are valid.
+'use strict';
 
-var common = require('../common.js');
-var PORT = common.PORT;
+const common = require('../common.js');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],
-  kb: [64, 128, 256, 1024],
+  len: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   c: [100],
-  method: ['write', 'end  '] // two spaces added to line up each row
+  method: ['write', 'end']
 });
 
-function main(conf) {
-  http = require('http');
+function main({ len, type, method, c }) {
+  const http = require('http');
   var chunk;
-  var len = conf.kb * 1024;
-  switch (conf.type) {
+  switch (type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
-      encoding = 'utf8';
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(len / 2);
       break;
     case 'asc':
-      chunk = new Array(len + 1).join('a');
+      chunk = 'a'.repeat(len);
       break;
   }
 
@@ -44,15 +41,16 @@ function main(conf) {
     res.end(chunk);
   }
 
-  var method = conf.method === 'write' ? write : end;
-  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
+  const fn = method === 'write' ? write : end;
 
-  var server = http.createServer(function(req, res) {
-    method(res);
+  const server = http.createServer(function(req, res) {
+    fn(res);
   });
 
   server.listen(common.PORT, function() {
-    bench.http('/', args, function() {
+    bench.http({
+      connections: c
+    }, function() {
       server.close();
     });
   });

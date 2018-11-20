@@ -22,26 +22,40 @@
 #ifndef SRC_PIPE_WRAP_H_
 #define SRC_PIPE_WRAP_H_
 
-#include "async-wrap.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "async_wrap.h"
+#include "connection_wrap.h"
 #include "env.h"
-#include "stream_wrap.h"
 
 namespace node {
 
-class PipeWrap : public StreamWrap {
+class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
  public:
-  uv_pipe_t* UVHandle();
+  enum SocketType {
+    SOCKET,
+    SERVER,
+    IPC
+  };
 
-  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
+  static v8::Local<v8::Object> Instantiate(Environment* env,
+                                           AsyncWrap* parent,
+                                           SocketType type);
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
+  ADD_MEMORY_INFO_NAME(PipeWrap)
 
  private:
   PipeWrap(Environment* env,
-           v8::Handle<v8::Object> object,
-           bool ipc,
-           AsyncWrap* parent);
+           v8::Local<v8::Object> object,
+           ProviderType provider,
+           bool ipc);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -53,15 +67,12 @@ class PipeWrap : public StreamWrap {
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
-
-  static void OnConnection(uv_stream_t* handle, int status);
-  static void AfterConnect(uv_connect_t* req, int status);
-
-  uv_pipe_t handle_;
+  static void Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 
 }  // namespace node
 
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_PIPE_WRAP_H_

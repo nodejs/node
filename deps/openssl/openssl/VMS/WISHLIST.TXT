@@ -1,4 +1,0 @@
-* Have the building procedure contain a LINK-only possibility.
-  Wished by Mark Daniel <mark.daniel@dsto.defence.gov.au>
-
-  One way to enable that is also to go over to DESCRIP.MMS files.

@@ -22,10 +22,28 @@
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
 #define SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_
 
-#include "util.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "node_crypto_clienthello.h"
 #include "util-inl.h"
 
 namespace node {
+namespace crypto {
+
+inline ClientHelloParser::ClientHelloParser()
+    : state_(kEnded),
+      onhello_cb_(nullptr),
+      onend_cb_(nullptr),
+      cb_arg_(nullptr),
+      session_size_(0),
+      session_id_(nullptr),
+      servername_size_(0),
+      servername_(nullptr),
+      ocsp_request_(0),
+      tls_ticket_size_(0),
+      tls_ticket_(nullptr) {
+  Reset();
+}
 
 inline void ClientHelloParser::Reset() {
   frame_len_ = 0;
@@ -37,6 +55,7 @@ inline void ClientHelloParser::Reset() {
   tls_ticket_ = nullptr;
   servername_size_ = 0;
   servername_ = nullptr;
+  ocsp_request_ = 0;
 }
 
 inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
@@ -46,7 +65,7 @@ inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
     return;
   Reset();
 
-  CHECK_NE(onhello_cb, nullptr);
+  CHECK_NOT_NULL(onhello_cb);
 
   state_ = kWaiting;
   onhello_cb_ = onhello_cb;
@@ -72,6 +91,9 @@ inline bool ClientHelloParser::IsPaused() const {
   return state_ == kPaused;
 }
 
+}  // namespace crypto
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_CLIENTHELLO_INL_H_

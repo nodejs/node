@@ -19,34 +19,32 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var net = require('net');
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var timeoutCount = 0;
+// Ref: https://github.com/nodejs/node-v0.x-archive/issues/481
 
-var server = net.createServer(function(stream) {
+const net = require('net');
+
+const server = net.createServer(common.mustCall(function(stream) {
   stream.setTimeout(100);
 
   stream.resume();
 
-  stream.on('timeout', function() {
+  stream.once('timeout', common.mustCall(function() {
     console.log('timeout');
     // try to reset the timeout.
     stream.write('WHAT.');
-    // don't worry, the socket didn't *really* time out, we're just thinking
-    // it did.
-    timeoutCount += 1;
-  });
+  }));
 
   stream.on('end', function() {
     console.log('server side end');
     stream.end();
   });
-});
+}));
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  const c = net.createConnection(this.address().port);
 
   c.on('data', function() {
     c.end();
@@ -56,9 +54,4 @@ server.listen(common.PORT, function() {
     console.log('client side end');
     server.close();
   });
-});
-
-
-process.on('exit', function() {
-  assert.equal(1, timeoutCount);
 });

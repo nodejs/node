@@ -1,0 +1,62 @@
+table.calltree {
+  width : 100%;
+}
+
+.numeric {
+  width : 12ex;
+}
+
+.numeric-hidden {
+  display : none;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
+div.code-type-chip {
+  display : inline-block;
+  padding : 0.0em;
+}
+
+span.code-type-chip {
+  border-radius : 1em;
+  display : inline-block;
+  padding : 0.1em;
+  background-color : #4040c0;
+  color: #ffffff;
+  font-size : small;
+  box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
+}
+
+span.code-type-chip-space {
+  width : 0.5ex;
+  display : inline-block;
+}
+
+span.codeid-link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+div.mode-button {
+  padding: 1em 3em;
+  display: inline-block;
+  background-color: #6070ff;
+  color : #ffffff;
+  margin: 0 0.2em 2em 0;
+  box-shadow: 3px 3px 2px #d0d0ff;
+}
+
+div.mode-button:hover {
+  background-color: #4858ff;
+}
+
+div.active-mode-button {
+  background-color: #0000ff;
+  box-shadow: 3px 3px 2px #a0a0ff;
+}
+
+div.active-mode-button:hover {
+  background-color: #0000ff;
+}

@@ -1,0 +1,12 @@
+language: node_js
+node_js:
+  - 4
+  - 6
+  - 7
+  - stable
+
+before_script:
+  - npm install -g typescript
+  - tsc -p ./
+
+script: "npm run coveralls"

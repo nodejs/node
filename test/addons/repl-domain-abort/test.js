@@ -19,41 +19,47 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var repl = require('repl');
-var stream = require('stream');
-var buildType = process.config.target_defaults.default_configuration;
-var buildPath = __dirname + '/build/' + buildType + '/binding';
-var cb_ran = false;
+'use strict';
+const common = require('../../common');
+const assert = require('assert');
+const repl = require('repl');
+const stream = require('stream');
+const path = require('path');
+let buildPath = path.join(__dirname, 'build', common.buildType, 'binding');
+// On Windows, escape backslashes in the path before passing it to REPL.
+if (common.isWindows)
+  buildPath = buildPath.replace(/\\/g, '/');
+let cb_ran = false;
 
 process.on('exit', function() {
   assert(cb_ran);
   console.log('ok');
 });
 
-var lines = [
+const lines = [
   // This line shouldn't cause an assertion error.
-  'require(\'' + buildPath + '\')' +
+  `require('${buildPath}')` +
   // Log output to double check callback ran.
-  '.method(function() { console.log(\'cb_ran\'); });',
+  '.method(function(v1, v2) {' +
+  'console.log(\'cb_ran\'); return v1 === true && v2 === false; });',
 ];
 
-var dInput = new stream.Readable();
-var dOutput = new stream.Writable();
+const dInput = new stream.Readable();
+const dOutput = new stream.Writable();
 
-dInput._read = function _read(size) {
+dInput._read = function _read() {
   while (lines.length > 0 && this.push(lines.shift()));
   if (lines.length === 0)
     this.push(null);
 };
 
 dOutput._write = function _write(chunk, encoding, cb) {
-  if (chunk.toString().indexOf('cb_ran') === 0)
+  if (chunk.toString().startsWith('cb_ran'))
     cb_ran = true;
   cb();
 };
 
-var options = {
+const options = {
   input: dInput,
   output: dOutput,
   terminal: false,
@@ -61,4 +67,4 @@ var options = {
 };
 
 // Run commands from fake REPL.
-var dummy = repl.start(options);
+repl.start(options);

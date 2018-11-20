@@ -19,24 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-(function() {
-  var file = path.join(common.tmpDir, 'write-end-test0.txt');
-  var stream = fs.createWriteStream(file);
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
+{
+  const file = path.join(tmpdir.path, 'write-end-test0.txt');
+  const stream = fs.createWriteStream(file);
   stream.end();
-  stream.on('close', common.mustCall(function() { }));
-})();
+  stream.on('close', common.mustCall());
+}
 
-(function() {
-  var file = path.join(common.tmpDir, 'write-end-test1.txt');
-  var stream = fs.createWriteStream(file);
+{
+  const file = path.join(tmpdir.path, 'write-end-test1.txt');
+  const stream = fs.createWriteStream(file);
   stream.end('a\n', 'utf8');
   stream.on('close', common.mustCall(function() {
-    var content = fs.readFileSync(file, 'utf8');
-    assert.equal(content, 'a\n');
+    const content = fs.readFileSync(file, 'utf8');
+    assert.strictEqual(content, 'a\n');
   }));
-})();
+}

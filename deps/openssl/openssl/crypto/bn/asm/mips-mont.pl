@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2010-2018 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -46,7 +53,7 @@
 # ($s0,$s1,$s2,$s3,$s4,$s5,$s6,$s7)=map("\$$_",(16..23));
 # ($gp,$sp,$fp,$ra)=map("\$$_",(28..31));
 #
-$flavour = shift; # supported flavours are o32,n32,64,nubi32,nubi64
+$flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
 	$PTR_ADD="dadd";	# incidentally works even on n32
@@ -67,7 +74,7 @@ $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? 0x00fff000 : 0x00ff0000;
 #
 ######################################################################
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
+while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 if ($flavour =~ /64|n32/i) {
@@ -377,15 +384,13 @@ $code.=<<___;
 	$PTR_SUB $rp,$num	# restore rp
 	not	$hi1,$hi0
 
-	and	$ap,$hi0,$sp
-	and	$bp,$hi1,$rp
-	or	$ap,$ap,$bp	# ap=borrow?tp:rp
-
-.align	4
-.Lcopy:	$LD	$aj,($ap)
-	$PTR_ADD $ap,$BNSZ
+.Lcopy:	$LD	$nj,($tp)	# conditional move
+	$LD	$aj,($rp)
 	$ST	$zero,($tp)
 	$PTR_ADD $tp,$BNSZ
+	and	$nj,$hi0
+	and	$aj,$hi1
+	or	$aj,$nj
 	sltu	$at,$tp,$tj
 	$ST	$aj,($rp)
 	bnez	$at,.Lcopy

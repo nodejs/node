@@ -3,77 +3,165 @@
 #
 #   Name/Organization <email address>
 
-Google Inc.
-Sigma Designs Inc.
-ARM Ltd.
-Hewlett-Packard Development Company, LP
-Igalia, S.L.
-Joyent, Inc.
-Bloomberg Finance L.P.
-NVIDIA Corporation
-BlackBerry Limited
-Opera Software ASA
-Intel Corporation
-MIPS Technologies, Inc.
-Imagination Technologies, LLC
-Loongson Technology Corporation Limited
+Google Inc. <*@google.com>
+The Chromium Authors <*@chromium.org>
+Sigma Designs Inc. <*@sdesigns.com>
+ARM Ltd. <*@arm.com>
+Hewlett-Packard Development Company, LP <*@palm.com>
+Igalia, S.L. <*@igalia.com>
+Joyent, Inc. <*@joyent.com>
+Bloomberg Finance L.P. <*@bloomberg.net>
+NVIDIA Corporation <*@nvidia.com>
+BlackBerry Limited <*@blackberry.com>
+Opera Software ASA <*@opera.com>
+Intel Corporation <*@intel.com>
+MIPS Technologies, Inc. <*@mips.com>
+Imagination Technologies, LLC <*@imgtec.com>
+Loongson Technology Corporation Limited <*@loongson.cn>
+Code Aurora Forum <*@codeaurora.org>
+Home Jinni Inc. <*@homejinni.com>
+IBM Inc. <*@*ibm.com>
+Samsung <*@*.samsung.com>
+Joyent, Inc <*@joyent.com>
+RT-RK Computer Based System <*@rt-rk.com>
+Amazon, Inc <*@amazon.com>
+ST Microelectronics <*@st.com>
+Yandex LLC <*@yandex-team.ru>
+StrongLoop, Inc. <*@strongloop.com>
+Facebook, Inc. <*@fb.com>
+Facebook, Inc. <*@oculus.com>
+Vewd Software AS <*@vewd.com>
+Groupon <*@groupon.com>
+Meteor Development Group <*@meteor.com>
+Cloudflare, Inc. <*@cloudflare.com>
 
+Aaron Bieber <deftly@gmail.com>
+Abdulla Kamar <abdulla.kamar@gmail.com>
 Akinori MUSHA <knu@FreeBSD.org>
+Alex Kodat <akodat@rocketsoftware.com>
 Alexander Botero-Lowry <alexbl@FreeBSD.org>
 Alexander Karpinsky <homm86@gmail.com>
-Alexandre Rames <alexandre.rames@arm.com>
 Alexandre Vassalotti <avassalotti@gmail.com>
+Alexis Campailla <alexis@janeasystems.com>
+Amos Lim <eui-sang.lim@samsung.com>
 Andreas Anyuru <andreas.anyuru@gmail.com>
-Baptiste Afsa <baptiste.afsa@arm.com>
+Andrew Paprocki <andrew@ishiboo.com>
+Andrei Kashcha <anvaka@gmail.com>
+Anna Henningsen <anna@addaleax.net>
+Bangfu Tao <bangfu.tao@samsung.com>
+Ben Coe <ben@npmjs.com>
+Ben Newman <ben@meteor.com>
+Ben Noordhuis <info@bnoordhuis.nl>
+Benjamin Tan <demoneaux@gmail.com>
 Bert Belder <bertbelder@gmail.com>
 Burcu Dogan <burcujdogan@gmail.com>
 Caitlin Potter <caitpotter88@gmail.com>
 Craig Schlenter <craig.schlenter@gmail.com>
-Chunyang Dai <chunyang.dai@intel.com>
+Choongwoo Han <cwhan.tunz@gmail.com>
+Chris Nardi <hichris123@gmail.com>
+Christopher A. Taylor <chris@gameclosure.com>
+Colin Ihrig <cjihrig@gmail.com>
 Daniel Andersson <kodandersson@gmail.com>
+Daniel Bevenius <daniel.bevenius@gmail.com>
 Daniel James <dnljms@gmail.com>
-Derek J Conrod <dconrod@codeaurora.org>
-Dineel D Sule <dsule@codeaurora.org>
+Deon Dior <diaoyuanjie@gmail.com>
+Dominic Farolini <domfarolino@gmail.com>
+Douglas Crosher <dtc-v8@scieneer.com>
+Dusan Milosavljevic <dusan.m.milosavljevic@gmail.com>
 Erich Ocean <erich.ocean@me.com>
+Evan Lucas <evan.lucas@help.com>
 Fedor Indutny <fedor@indutny.com>
+Felix Geisendörfer <haimuiba@gmail.com>
 Filipe David Manana <fdmanana@gmail.com>
-Haitao Feng <haitao.feng@intel.com>
+Franziska Hinkelmann <franziska.hinkelmann@gmail.com>
+Geoffrey Garside <ggarside@gmail.com>
+Gergely Nagy <ngg@ngg.hu>
+Gus Caplan <me@gus.host>
+Gwang Yoon Hwang <ryumiel@company100.net>
+Henrique Ferreiro <henrique.ferreiro@gmail.com>
+Hirofumi Mako <mkhrfm@gmail.com>
+Honggyu Kim <honggyu.kp@gmail.com>
+Ingvar Stepanyan <me@rreverser.com>
 Ioseb Dzmanashvili <ioseb.dzmanashvili@gmail.com>
 Isiah Meadows <impinball@gmail.com>
-Jacob Bramley <jacob.bramley@arm.com>
+Jaime Bernardo <jaime@janeasystems.com>
 Jan de Mooij <jandemooij@gmail.com>
+Jan Krems <jan.krems@gmail.com>
 Jay Freeman <saurik@saurik.com>
 James Pike <g00gle@chilon.net>
-Joel Stanley <joel.stan@gmail.com>
-John Jozwiak <jjozwiak@codeaurora.org>
+James M Snell <jasnell@gmail.com>
+Jianghua Yang <jianghua.yjh@alibaba-inc.com>
+Joel Stanley <joel@jms.id.au>
+Johan Bergström <johan@bergstroem.nu>
 Jonathan Liu <net147@gmail.com>
-Kun Zhang <zhangk@codeaurora.org>
+Julien Brianceau <jbriance@cisco.com>
+JunHo Seo <sejunho@gmail.com>
+Kang-Hao (Kenny) Lu <kennyluck@csail.mit.edu>
+Karl Skomski <karl@skomski.com>
+Kevin Gibbons <bakkot@gmail.com>
+Kris Selden <kris.selden@gmail.com>
+Loo Rong Jie <loorongjie@gmail.com>
 Luis Reis <luis.m.reis@gmail.com>
-Martyn Capewell <martyn.capewell@arm.com>
+Luke Zarko <lukezarko@gmail.com>
+Maciej Małecki <me@mmalecki.com>
+Marcin Cieślak <saper@marcincieslak.com>
+Marcin Wiącek <marcin@mwiacek.com>
+Mateusz Czeladka <mateusz.szczap@gmail.com>
+Matheus Marchini <matheus@sthima.com.br>
 Mathias Bynens <mathias@qiwi.be>
 Matt Hanselman <mjhanselman@gmail.com>
+Matthew Sporleder <msporleder@gmail.com>
 Maxim Mossienko <maxim.mossienko@gmail.com>
 Michael Lutz <michi@icosahedron.de>
 Michael Smith <mike@w3.org>
+Michaël Zasso <mic.besace@gmail.com>
 Mike Gilbert <floppymaster@gmail.com>
+Mike Pennisi <mike@mikepennisi.com>
+Mikhail Gusarov <dottedmag@dottedmag.net>
+Milton Chiang <milton.chiang@mediatek.com>
+Myeong-bo Shim <m0609.shim@samsung.com>
+Nicolas Antonius Ernst Leopold Maria Kaiser <nikai@nikai.net>
+Niklas Hambüchen <mail@nh2.me>
+Noj Vek <nojvek@gmail.com>
+Oleksandr Chekhovskyi <oleksandr.chekhovskyi@gmail.com>
 Paolo Giarrusso <p.giarrusso@gmail.com>
 Patrick Gansterer <paroga@paroga.com>
+Peter Rybin <peter.rybin@gmail.com>
 Peter Varga <pvarga@inf.u-szeged.hu>
+Peter Wong <peter.wm.wong@gmail.com>
+Paul Lind <plind44@gmail.com>
+Qingyan Li <qingyan.liqy@alibaba-inc.com>
+Qiuyi Zhang <qiuyi.zqy@alibaba-inc.com>
 Rafal Krypa <rafal@krypa.net>
-Rajeev R Krithivasan <rkrithiv@codeaurora.org>
+Ray Glover <ray@rayglover.net>
 Refael Ackermann <refack@gmail.com>
 Rene Rebe <rene@exactcode.de>
+Rick Waldron <waldron.rick@gmail.com>
+Rob Wu <rob@robwu.nl>
 Robert Mustacchi <rm@fingolfin.org>
-Rodolph Perfetta <rodolph.perfetta@arm.com>
-Ryan Dahl <coldredlemur@gmail.com>
+Robert Nagy <robert.nagy@gmail.com>
+Ryan Dahl <ry@tinyclouds.org>
+Sakthipriyan Vairamani (thefourtheye) <thechargingvolcano@gmail.com>
+Sander Mathijs van Veen <sander@leaningtech.com>
 Sandro Santilli <strk@keybit.net>
 Sanjoy Das <sanjoy@playingwithpointers.com>
-Subrato K De <subratokde@codeaurora.org>
+Seo Sanghyeon <sanxiyn@gmail.com>
+Stefan Penner <stefan.penner@gmail.com>
+Sylvestre Ledru <sledru@mozilla.com>
+Taketoshi Aono <brn@b6n.ch>
+Teddy Katz <teddy.katz@gmail.com>
+Tiancheng "Timothy" Gu <timothygu99@gmail.com>
 Tobias Burnus <burnus@net-b.de>
-Vincent Belliard <vincent.belliard@arm.com>
+Tobias Nießen <tniessen@tnie.de>
+Ujjwal Sharma <usharma1998@gmail.com>
+Victor Costan <costan@gmail.com>
 Vlad Burlik <vladbph@gmail.com>
-Weiliang Lin<weiliang.lin@intel.com>
-Xi Qian <xi.qian@intel.com>
-Yuqiang Xian <yuqiang.xian@intel.com>
-Zaheer Ahmad <zahmad@codeaurora.org>
+Vladimir Krivosheev <develar@gmail.com>
+Vladimir Shutoff <vovan@shutoff.ru>
+Wiktor Garbacz <wiktor.garbacz@gmail.com>
+Xiaoyin Liu <xiaoyin.l@outlook.com>
+Yong Wang <ccyongwang@tencent.com>
+Yu Yin <xwafish@gmail.com>
+Zac Hansen <xaxxon@gmail.com>
 Zhongping Wang <kewpie.w.zp@gmail.com>
+柳荣一 <admin@web-tinker.com>

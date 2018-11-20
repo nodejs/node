@@ -19,8 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert'),
-    exception = null;
+'use strict';
+require('../common');
+const assert = require('assert');
+let exception = null;
 
 try {
   eval('"\\uc/ef"');

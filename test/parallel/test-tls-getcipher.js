@@ -19,39 +19,39 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
-var cipher_list = ['RC4-SHA', 'AES256-SHA'];
-var cipher_version_pattern = /TLS|SSL/;
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
+'use strict';
+const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+const assert = require('assert');
+const tls = require('tls');
+// import fixtures directly from its module
+const fixtures = require('../common/fixtures');
+
+const cipher_list = ['AES128-SHA256', 'AES256-SHA256'];
+const cipher_version_pattern = /TLS|SSL/;
+const options = {
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem'),
   ciphers: cipher_list.join(':'),
   honorCipherOrder: true
 };
 
-var nconns = 0;
+const server = tls.createServer(options, common.mustCall());
 
-process.on('exit', function() {
-  assert.equal(nconns, 1);
-});
-
-var server = tls.createServer(options, function(cleartextStream) {
-  nconns++;
-});
-
-server.listen(common.PORT, '127.0.0.1', function() {
-  var client = tls.connect({
+server.listen(0, '127.0.0.1', common.mustCall(function() {
+  const client = tls.connect({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
+    ciphers: cipher_list.join(':'),
     rejectUnauthorized: false
-  }, function() {
-    var cipher = client.getCipher();
-    assert.equal(cipher.name, cipher_list[0]);
+  }, common.mustCall(function() {
+    const cipher = client.getCipher();
+    assert.strictEqual(cipher.name, cipher_list[0]);
     assert(cipher_version_pattern.test(cipher.version));
     client.end();
     server.close();
-  });
-});
+  }));
+}));

@@ -19,69 +19,80 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-if (process.argv[2] === 'child')
-  child();
+const [, , modeArgv, sectionArgv] = process.argv;
+
+if (modeArgv === 'child')
+  child(sectionArgv);
 else
   parent();
 
 function parent() {
-  test('foo,tud,bar', true);
-  test('foo,tud', true);
-  test('tud,bar', true);
-  test('tud', true);
-  test('foo,bar', false);
-  test('', false);
+  test('foo,tud,bar', true, 'tud');
+  test('foo,tud', true, 'tud');
+  test('tud,bar', true, 'tud');
+  test('tud', true, 'tud');
+  test('foo,bar', false, 'tud');
+  test('', false, 'tud');
+
+  test('###', true, '###');
+  test('hi:)', true, 'hi:)');
+  test('f$oo', true, 'f$oo');
+  test('f$oo', false, 'f.oo');
+  test('no-bar-at-all', false, 'bar');
+
+  test('test-abc', true, 'test-abc');
+  test('test-a', false, 'test-abc');
+  test('test-*', true, 'test-abc');
+  test('test-*c', true, 'test-abc');
+  test('test-*abc', true, 'test-abc');
+  test('abc-test', true, 'abc-test');
+  test('a*-test', true, 'abc-test');
+  test('*-test', true, 'abc-test');
 }
 
-function test(environ, shouldWrite) {
-  var expectErr = '';
-  if (shouldWrite) {
-    expectErr = 'TUD %PID%: this { is: \'a\' } /debugging/\n' +
-                'TUD %PID%: number=1234 string=asdf obj={"foo":"bar"}\n';
-  }
-  var expectOut = 'ok\n';
-  var didTest = false;
+function test(environ, shouldWrite, section) {
+  let expectErr = '';
+  const expectOut = 'ok\n';
 
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child'], {
-    env: { NODE_DEBUG: environ }
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child', section], {
+    env: Object.assign(process.env, { NODE_DEBUG: environ })
   });
 
-  expectErr = expectErr.split('%PID%').join(child.pid);
+  if (shouldWrite) {
+    expectErr =
+      `${section.toUpperCase()} ${child.pid}: this { is: 'a' } /debugging/\n${
+        section.toUpperCase()} ${child.pid}: num=1 str=a obj={"foo":"bar"}\n`;
+  }
 
-  var err = '';
+  let err = '';
   child.stderr.setEncoding('utf8');
-  child.stderr.on('data', function(c) {
+  child.stderr.on('data', (c) => {
     err += c;
   });
 
-  var out = '';
+  let out = '';
   child.stdout.setEncoding('utf8');
-  child.stdout.on('data', function(c) {
+  child.stdout.on('data', (c) => {
     out += c;
   });
 
-  child.on('close', function(c) {
+  child.on('close', common.mustCall((c) => {
     assert(!c);
-    assert.equal(err, expectErr);
-    assert.equal(out, expectOut);
-    didTest = true;
-    console.log('ok %j %j', environ, shouldWrite);
-  });
-
-  process.on('exit', function() {
-    assert(didTest);
-  });
+    assert.strictEqual(err, expectErr);
+    assert.strictEqual(out, expectOut);
+  }));
 }
 
 
-function child() {
-  var util = require('util');
-  var debug = util.debuglog('tud');
+function child(section) {
+  const util = require('util');
+  const debug = util.debuglog(section);
   debug('this', { is: 'a' }, /debugging/);
-  debug('number=%d string=%s obj=%j', 1234, 'asdf', { foo: 'bar' });
+  debug('num=%d str=%s obj=%j', 1, 'a', { foo: 'bar' });
   console.log('ok');
 }

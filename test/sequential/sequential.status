@@ -1,0 +1,23 @@
+prefix sequential
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                       : PASS,FLAKY
+
+[true] # This section applies to all platforms
+# This test will be flaky until https://github.com/libuv/libuv/pull/1742 lands
+# on Node.js.
+test-fs-readfile-tostring-fail: PASS, FLAKY
+
+[$system==win32]
+test-http2-large-file: PASS, FLAKY
+
+[$system==linux]
+
+[$system==macos]
+
+[$system==solaris] # Also applies to SmartOS
+
+[$system==freebsd]
+
+[$system==aix]

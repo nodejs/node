@@ -1,4 +1,4 @@
-.TH "NPM\-CODING\-STYLE" "7" "October 2014" "" ""
+.TH "NPM\-CODING\-STYLE" "7" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-coding-style\fR \- npm's "funny" coding style
 .SH DESCRIPTION
@@ -10,7 +10,7 @@ designed to reduce visual clutter and make bugs more apparent\.
 If you want to contribute to npm (which is very encouraged), you should
 make your code conform to npm's style\.
 .P
-Note: this concerns npm's code not the specific packages at npmjs\.org
+Note: this concerns npm's code not the specific packages that you can download from the npm registry\.
 .SH Line Length
 .P
 Keep lines shorter than 80 characters\.  It's better for lines to be
@@ -19,7 +19,7 @@ statements onto multiple lines\.
 .SH Indentation
 .P
 Two\-spaces\.  Tabs are better, but they look like hell in web browsers
-(and on github), and node uses 2 spaces, so that's that\.
+(and on GitHub), and node uses 2 spaces, so that's that\.
 .P
 Configure your editor appropriately\.
 .SH Curly braces
@@ -71,14 +71,14 @@ while (foo) {
 Don't use them except in four situations:
 .RS 0
 .IP \(bu 2
-\fBfor (;;)\fR loops\.  They're actually required\.
+\fBfor (;;)\fP loops\.  They're actually required\.
 .IP \(bu 2
-null loops like: \fBwhile (something) ;\fR (But you'd better have a good
+null loops like: \fBwhile (something) ;\fP (But you'd better have a good
 reason for doing that\.)
 .IP \(bu 2
-\fBcase "foo": doSomething(); break\fR
+\fBcase 'foo': doSomething(); break\fP
 .IP \(bu 2
-In front of a leading \fB(\fR or \fB[\fR at the start of the line\.
+In front of a leading \fB(\fP or \fB[\fP at the start of the line\.
 This prevents the expression from being interpreted
 as a function call or property access, respectively\.
 
@@ -92,16 +92,16 @@ Some examples of good semicolon usage:
 ;[a, b, c]\.forEach(doSomething)
 for (var i = 0; i < 10; i ++) {
   switch (state) {
-    case "begin": start(); continue
-    case "end": finish(); break
-    default: throw new Error("unknown state")
+    case 'begin': start(); continue
+    case 'end': finish(); break
+    default: throw new Error('unknown state')
   }
   end()
 }
 .fi
 .RE
 .P
-Note that starting lines with \fB\-\fR and \fB+\fR also should be prefixed
+Note that starting lines with \fB\-\fP and \fB+\fP also should be prefixed
 with a semicolon, but this is much less common\.
 .SH Comma First
 .P
@@ -112,22 +112,42 @@ final token in the list on a line by itself\.  For example:
 .P
 .RS 2
 .nf
-var magicWords = [ "abracadabra"
-                 , "gesundheit"
-                 , "ventrilo"
+var magicWords = [ 'abracadabra'
+                 , 'gesundheit'
+                 , 'ventrilo'
                  ]
-  , spells = { "fireball" : function () { setOnFire() }
-             , "water" : function () { putOut() }
+  , spells = { 'fireball' : function () { setOnFire() }
+             , 'water' : function () { putOut() }
              }
   , a = 1
-  , b = "abc"
+  , b = 'abc'
   , etc
   , somethingElse
 .fi
 .RE
+.SH Quotes
+.P
+Use single quotes for strings except to avoid escaping\.
+.P
+Bad:
+.P
+.RS 2
+.nf
+var notOk = "Just double quotes"
+.fi
+.RE
+.P
+Good:
+.P
+.RS 2
+.nf
+var ok = 'String contains "double" quotes'
+var alsoOk = "String contains 'single' quotes or apostrophe"
+.fi
+.RE
 .SH Whitespace
 .P
-Put a single space in front of ( for anything other than a function call\.
+Put a single space in front of \fB(\fP for anything other than a function call\.
 Also use a single space wherever it makes things more readable\.
 .P
 Don't leave trailing whitespace at the end of lines\.  Don't indent empty
@@ -161,20 +181,20 @@ logging the same object over and over again is not helpful\.  Logs should
 report what's happening so that it's easier to track down where a fault
 occurs\.
 .P
-Use appropriate log levels\.  See npm help 7 \fBnpm\-config\fR and search for
+Use appropriate log levels\.  See npm help 7 \fBnpm\-config\fP and search for
 "loglevel"\.
 .SH Case, naming, etc\.
 .P
-Use \fBlowerCamelCase\fR for multiword identifiers when they refer to objects,
+Use \fBlowerCamelCase\fP for multiword identifiers when they refer to objects,
 functions, methods, properties, or anything not specified in this section\.
 .P
-Use \fBUpperCamelCase\fR for class names (things that you'd pass to "new")\.
+Use \fBUpperCamelCase\fP for class names (things that you'd pass to "new")\.
 .P
-Use \fBall\-lower\-hyphen\-css\-case\fR for multiword filenames and config keys\.
+Use \fBall\-lower\-hyphen\-css\-case\fP for multiword filenames and config keys\.
 .P
 Use named functions\.  They make stack traces easier to follow\.
 .P
-Use \fBCAPS_SNAKE_CASE\fR for constants, things that should never change
+Use \fBCAPS_SNAKE_CASE\fP for constants, things that should never change
 and are rarely used\.
 .P
 Use a single uppercase letter for function names where the function
@@ -182,21 +202,19 @@ would normally be anonymous, but needs to call itself recursively\.  It
 makes it clear that it's a "throwaway" function\.
 .SH null, undefined, false, 0
 .P
-Boolean variables and functions should always be either \fBtrue\fR or
-\fBfalse\fR\|\.  Don't set it to 0 unless it's supposed to be a number\.
+Boolean variables and functions should always be either \fBtrue\fP or
+\fBfalse\fP\|\.  Don't set it to 0 unless it's supposed to be a number\.
 .P
-When something is intentionally missing or removed, set it to \fBnull\fR\|\.
+When something is intentionally missing or removed, set it to \fBnull\fP\|\.
 .P
-Don't set things to \fBundefined\fR\|\.  Reserve that value to mean "not yet
+Don't set things to \fBundefined\fP\|\.  Reserve that value to mean "not yet
 set to anything\."
 .P
-Boolean objects are verboten\.
+Boolean objects are forbidden\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
 npm help 7 developers
-.IP \(bu 2
-npm help 7 faq
 .IP \(bu 2
 npm help npm
 

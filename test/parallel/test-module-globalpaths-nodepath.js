@@ -19,28 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const mod = require('module');
 
-var module = require('module');
+let partA, partB;
+const partC = '';
 
-var isWindows = process.platform === 'win32';
-
-var partA, partB;
-
-if (isWindows) {
+if (common.isWindows) {
   partA = 'C:\\Users\\Rocko Artischocko\\AppData\\Roaming\\npm';
   partB = 'C:\\Program Files (x86)\\nodejs\\';
-  process.env['NODE_PATH'] = partA + ';' + partB;
+  process.env.NODE_PATH = `${partA};${partB};${partC}`;
 } else {
   partA = '/usr/test/lib/node_modules';
   partB = '/usr/test/lib/node';
-  process.env['NODE_PATH'] = partA + ':' + partB;
+  process.env.NODE_PATH = `${partA}:${partB}:${partC}`;
 }
 
-module._initPaths();
+mod._initPaths();
 
-assert.ok(module.globalPaths.indexOf(partA) !== -1);
-assert.ok(module.globalPaths.indexOf(partB) !== -1);
+assert.ok(mod.globalPaths.includes(partA));
+assert.ok(mod.globalPaths.includes(partB));
+assert.ok(!mod.globalPaths.includes(partC));
 
-assert.ok(Array.isArray(module.globalPaths));
+assert.ok(Array.isArray(mod.globalPaths));

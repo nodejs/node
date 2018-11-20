@@ -1,0 +1,43 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/once/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "wrappy": "1"
+  },
+  "deprecated": false,
+  "description": "Run a function exactly one time",
+  "devDependencies": {
+    "tap": "^7.0.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "once.js"
+  ],
+  "homepage": "https://github.com/isaacs/once#readme",
+  "keywords": [
+    "once",
+    "function",
+    "one",
+    "single"
+  ],
+  "license": "ISC",
+  "main": "once.js",
+  "name": "once",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/once.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.4.0"
+}

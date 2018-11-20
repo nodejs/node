@@ -19,22 +19,15 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var gotError = false;
-
-process.on('exit', function() {
-  assert(gotError instanceof Error);
-});
-
-// this should fail with an async EINVAL error, not throw an exception
-net.createServer(assert.fail).listen({fd:0}).on('error', function(e) {
-  switch(e.code) {
-    case 'EINVAL':
-    case 'ENOTSOCK':
-      gotError = e;
-      break
-  }
-});
+// This should fail with an async EINVAL error, not throw an exception
+net.createServer(common.mustNotCall())
+  .listen({ fd: 0 })
+  .on('error', common.mustCall(function(e) {
+    assert(e instanceof Error);
+    assert(['EINVAL', 'ENOTSOCK'].includes(e.code));
+  }));

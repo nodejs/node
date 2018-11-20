@@ -75,9 +75,6 @@
 /*  please, do it beyond the point further indicated in this file.  */
 /* ================================================================ */
 
-#if 1 /* libuv hack */
-#include <errno.h> /* needed on windows */
-#else
 /*
  * c-ares external interface definitions are also used internally,
  * and might also include required system header files to define them.
@@ -90,7 +87,6 @@
  */
 
 #include <ares_rules.h>
-#endif /* libuv hack */
 
 /* ================================================================= */
 /* No system header file shall be included in this file before this  */

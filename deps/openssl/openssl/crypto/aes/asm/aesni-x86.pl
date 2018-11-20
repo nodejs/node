@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -43,6 +50,21 @@
 # Add aesni_xts_[en|de]crypt. Westmere spends 1.50 cycles processing
 # one byte out of 8KB with 128-bit key, Sandy Bridge - 1.09.
 
+# November 2015
+#
+# Add aesni_ocb_[en|de]crypt.
+
+######################################################################
+# Current large-block performance in cycles per byte processed with
+# 128-bit key (less is better).
+#
+#		CBC en-/decrypt	CTR	XTS	ECB	OCB
+# Westmere	3.77/1.37	1.37	1.52	1.27
+# * Bridge	5.07/0.98	0.99	1.09	0.91	1.10
+# Haswell	4.44/0.80	0.97	1.03	0.72	0.76
+# Silvermont	5.77/3.56	3.67	4.03	3.46	4.03
+# Bulldozer	5.80/0.98	1.05	1.24	0.93	1.23
+
 $PREFIX="aesni";	# if $PREFIX is set to "AES", the script
 			# generates drop-in replacement for
 			# crypto/aes/asm/aes-586.pl:-)
@@ -52,10 +74,17 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
+$output = pop;
+open OUT,">$output";
+*STDOUT=*OUT;
+
 &asm_init($ARGV[0],$0);
 
-if ($PREFIX eq "aesni")	{ $movekey=*movups; }
-else			{ $movekey=*movups; }
+&external_label("OPENSSL_ia32cap_P");
+&static_label("key_const");
+
+if ($PREFIX eq "aesni")	{ $movekey=\&movups; }
+else			{ $movekey=\&movups; }
 
 $len="eax";
 $rounds="ecx";
@@ -74,7 +103,7 @@ $inout3="xmm5";	$in1="xmm5";
 $inout4="xmm6";	$in0="xmm6";
 $inout5="xmm7";	$ivec="xmm7";
 
-# AESNI extenstion
+# AESNI extension
 sub aeskeygenassist
 { my($dst,$src,$imm)=@_;
     if ("$dst:$src" =~ /xmm([0-7]):xmm([0-7])/)
@@ -170,7 +199,10 @@ sub aesni_generate1	# fully unrolled loop
 	{   &aesni_inline_generate1("enc");	}
 	else
 	{   &call	("_aesni_encrypt1");	}
+	&pxor	($rndkey0,$rndkey0);		# clear register bank
+	&pxor	($rndkey1,$rndkey1);
 	&movups	(&QWP(0,"eax"),$inout0);
+	&pxor	($inout0,$inout0);
 	&ret	();
 &function_end_B("${PREFIX}_encrypt");
 
@@ -186,7 +218,10 @@ sub aesni_generate1	# fully unrolled loop
 	{   &aesni_inline_generate1("dec");	}
 	else
 	{   &call	("_aesni_decrypt1");	}
+	&pxor	($rndkey0,$rndkey0);		# clear register bank
+	&pxor	($rndkey1,$rndkey1);
 	&movups	(&QWP(0,"eax"),$inout0);
+	&pxor	($inout0,$inout0);
 	&ret	();
 &function_end_B("${PREFIX}_decrypt");
 
@@ -196,37 +231,71 @@ sub aesni_generate1	# fully unrolled loop
 # every *2nd* cycle. Thus 3x interleave was the one providing optimal
 # utilization, i.e. when subroutine's throughput is virtually same as
 # of non-interleaved subroutine [for number of input blocks up to 3].
-# This is why it makes no sense to implement 2x subroutine.
-# aes[enc|dec] latency in next processor generation is 8, but the
-# instructions can be scheduled every cycle. Optimal interleave for
-# new processor is therefore 8x, but it's unfeasible to accommodate it
-# in XMM registers addreassable in 32-bit mode and therefore 6x is
-# used instead...
+# This is why it originally made no sense to implement 2x subroutine.
+# But times change and it became appropriate to spend extra 192 bytes
+# on 2x subroutine on Atom Silvermont account. For processors that
+# can schedule aes[enc|dec] every cycle optimal interleave factor
+# equals to corresponding instructions latency. 8x is optimal for
+# * Bridge, but it's unfeasible to accommodate such implementation
+# in XMM registers addreassable in 32-bit mode and therefore maximum
+# of 6x is used instead...
+
+sub aesni_generate2
+{ my $p=shift;
+
+    &function_begin_B("_aesni_${p}rypt2");
+	&$movekey	($rndkey0,&QWP(0,$key));
+	&shl		($rounds,4);
+	&$movekey	($rndkey1,&QWP(16,$key));
+	&xorps		($inout0,$rndkey0);
+	&pxor		($inout1,$rndkey0);
+	&$movekey	($rndkey0,&QWP(32,$key));
+	&lea		($key,&DWP(32,$key,$rounds));
+	&neg		($rounds);
+	&add		($rounds,16);
+
+    &set_label("${p}2_loop");
+	eval"&aes${p}	($inout0,$rndkey1)";
+	eval"&aes${p}	($inout1,$rndkey1)";
+	&$movekey	($rndkey1,&QWP(0,$key,$rounds));
+	&add		($rounds,32);
+	eval"&aes${p}	($inout0,$rndkey0)";
+	eval"&aes${p}	($inout1,$rndkey0)";
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
+	&jnz		(&label("${p}2_loop"));
+    eval"&aes${p}	($inout0,$rndkey1)";
+    eval"&aes${p}	($inout1,$rndkey1)";
+    eval"&aes${p}last	($inout0,$rndkey0)";
+    eval"&aes${p}last	($inout1,$rndkey0)";
+    &ret();
+    &function_end_B("_aesni_${p}rypt2");
+}
 
 sub aesni_generate3
 { my $p=shift;
 
     &function_begin_B("_aesni_${p}rypt3");
 	&$movekey	($rndkey0,&QWP(0,$key));
-	&shr		($rounds,1);
+	&shl		($rounds,4);
 	&$movekey	($rndkey1,&QWP(16,$key));
-	&lea		($key,&DWP(32,$key));
 	&xorps		($inout0,$rndkey0);
 	&pxor		($inout1,$rndkey0);
 	&pxor		($inout2,$rndkey0);
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(32,$key));
+	&lea		($key,&DWP(32,$key,$rounds));
+	&neg		($rounds);
+	&add		($rounds,16);
 
     &set_label("${p}3_loop");
 	eval"&aes${p}	($inout0,$rndkey1)";
 	eval"&aes${p}	($inout1,$rndkey1)";
-	&dec		($rounds);
 	eval"&aes${p}	($inout2,$rndkey1)";
-	&$movekey	($rndkey1,&QWP(16,$key));
+	&$movekey	($rndkey1,&QWP(0,$key,$rounds));
+	&add		($rounds,32);
 	eval"&aes${p}	($inout0,$rndkey0)";
 	eval"&aes${p}	($inout1,$rndkey0)";
-	&lea		($key,&DWP(32,$key));
 	eval"&aes${p}	($inout2,$rndkey0)";
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
 	&jnz		(&label("${p}3_loop"));
     eval"&aes${p}	($inout0,$rndkey1)";
     eval"&aes${p}	($inout1,$rndkey1)";
@@ -248,27 +317,29 @@ sub aesni_generate4
     &function_begin_B("_aesni_${p}rypt4");
 	&$movekey	($rndkey0,&QWP(0,$key));
 	&$movekey	($rndkey1,&QWP(16,$key));
-	&shr		($rounds,1);
-	&lea		($key,&DWP(32,$key));
+	&shl		($rounds,4);
 	&xorps		($inout0,$rndkey0);
 	&pxor		($inout1,$rndkey0);
 	&pxor		($inout2,$rndkey0);
 	&pxor		($inout3,$rndkey0);
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(32,$key));
+	&lea		($key,&DWP(32,$key,$rounds));
+	&neg		($rounds);
+	&data_byte	(0x0f,0x1f,0x40,0x00);
+	&add		($rounds,16);
 
     &set_label("${p}4_loop");
 	eval"&aes${p}	($inout0,$rndkey1)";
 	eval"&aes${p}	($inout1,$rndkey1)";
-	&dec		($rounds);
 	eval"&aes${p}	($inout2,$rndkey1)";
 	eval"&aes${p}	($inout3,$rndkey1)";
-	&$movekey	($rndkey1,&QWP(16,$key));
+	&$movekey	($rndkey1,&QWP(0,$key,$rounds));
+	&add		($rounds,32);
 	eval"&aes${p}	($inout0,$rndkey0)";
 	eval"&aes${p}	($inout1,$rndkey0)";
-	&lea		($key,&DWP(32,$key));
 	eval"&aes${p}	($inout2,$rndkey0)";
 	eval"&aes${p}	($inout3,$rndkey0)";
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
     &jnz		(&label("${p}4_loop"));
 
     eval"&aes${p}	($inout0,$rndkey1)";
@@ -289,43 +360,41 @@ sub aesni_generate6
     &function_begin_B("_aesni_${p}rypt6");
     &static_label("_aesni_${p}rypt6_enter");
 	&$movekey	($rndkey0,&QWP(0,$key));
-	&shr		($rounds,1);
+	&shl		($rounds,4);
 	&$movekey	($rndkey1,&QWP(16,$key));
-	&lea		($key,&DWP(32,$key));
 	&xorps		($inout0,$rndkey0);
 	&pxor		($inout1,$rndkey0);	# pxor does better here
-	eval"&aes${p}	($inout0,$rndkey1)";
 	&pxor		($inout2,$rndkey0);
-	eval"&aes${p}	($inout1,$rndkey1)";
+	eval"&aes${p}	($inout0,$rndkey1)";
 	&pxor		($inout3,$rndkey0);
-	&dec		($rounds);
-	eval"&aes${p}	($inout2,$rndkey1)";
 	&pxor		($inout4,$rndkey0);
-	eval"&aes${p}	($inout3,$rndkey1)";
+	eval"&aes${p}	($inout1,$rndkey1)";
+	&lea		($key,&DWP(32,$key,$rounds));
+	&neg		($rounds);
+	eval"&aes${p}	($inout2,$rndkey1)";
 	&pxor		($inout5,$rndkey0);
-	eval"&aes${p}	($inout4,$rndkey1)";
-	&$movekey	($rndkey0,&QWP(0,$key));
-	eval"&aes${p}	($inout5,$rndkey1)";
-	&jmp		(&label("_aesni_${p}rypt6_enter"));
+	&$movekey	($rndkey0,&QWP(0,$key,$rounds));
+	&add		($rounds,16);
+	&jmp		(&label("_aesni_${p}rypt6_inner"));
 
     &set_label("${p}6_loop",16);
 	eval"&aes${p}	($inout0,$rndkey1)";
 	eval"&aes${p}	($inout1,$rndkey1)";
-	&dec		($rounds);
 	eval"&aes${p}	($inout2,$rndkey1)";
+    &set_label("_aesni_${p}rypt6_inner");
 	eval"&aes${p}	($inout3,$rndkey1)";
 	eval"&aes${p}	($inout4,$rndkey1)";
 	eval"&aes${p}	($inout5,$rndkey1)";
-    &set_label("_aesni_${p}rypt6_enter",16);
-	&$movekey	($rndkey1,&QWP(16,$key));
+    &set_label("_aesni_${p}rypt6_enter");
+	&$movekey	($rndkey1,&QWP(0,$key,$rounds));
+	&add		($rounds,32);
 	eval"&aes${p}	($inout0,$rndkey0)";
 	eval"&aes${p}	($inout1,$rndkey0)";
-	&lea		($key,&DWP(32,$key));
 	eval"&aes${p}	($inout2,$rndkey0)";
 	eval"&aes${p}	($inout3,$rndkey0)";
 	eval"&aes${p}	($inout4,$rndkey0)";
 	eval"&aes${p}	($inout5,$rndkey0)";
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
     &jnz		(&label("${p}6_loop"));
 
     eval"&aes${p}	($inout0,$rndkey1)";
@@ -343,6 +412,8 @@ sub aesni_generate6
     &ret();
     &function_end_B("_aesni_${p}rypt6");
 }
+&aesni_generate2("enc") if ($PREFIX eq "aesni");
+&aesni_generate2("dec");
 &aesni_generate3("enc") if ($PREFIX eq "aesni");
 &aesni_generate3("dec");
 &aesni_generate4("enc") if ($PREFIX eq "aesni");
@@ -446,8 +517,7 @@ if ($PREFIX eq "aesni") {
 	&jmp	(&label("ecb_ret"));
 
 &set_label("ecb_enc_two",16);
-	&xorps	($inout2,$inout2);
-	&call	("_aesni_encrypt3");
+	&call	("_aesni_encrypt2");
 	&movups	(&QWP(0,$out),$inout0);
 	&movups	(&QWP(0x10,$out),$inout1);
 	&jmp	(&label("ecb_ret"));
@@ -547,8 +617,7 @@ if ($PREFIX eq "aesni") {
 	&jmp	(&label("ecb_ret"));
 
 &set_label("ecb_dec_two",16);
-	&xorps	($inout2,$inout2);
-	&call	("_aesni_decrypt3");
+	&call	("_aesni_decrypt2");
 	&movups	(&QWP(0,$out),$inout0);
 	&movups	(&QWP(0x10,$out),$inout1);
 	&jmp	(&label("ecb_ret"));
@@ -568,6 +637,14 @@ if ($PREFIX eq "aesni") {
 	&movups	(&QWP(0x30,$out),$inout3);
 
 &set_label("ecb_ret");
+	&pxor	("xmm0","xmm0");		# clear register bank
+	&pxor	("xmm1","xmm1");
+	&pxor	("xmm2","xmm2");
+	&pxor	("xmm3","xmm3");
+	&pxor	("xmm4","xmm4");
+	&pxor	("xmm5","xmm5");
+	&pxor	("xmm6","xmm6");
+	&pxor	("xmm7","xmm7");
 &function_end("aesni_ecb_encrypt");
 
 ######################################################################
@@ -610,11 +687,13 @@ if ($PREFIX eq "aesni") {
 	&mov	(&DWP(24,"esp"),$key_);
 	&mov	(&DWP(28,"esp"),$key_);
 
-	&shr	($rounds,1);
+	&shl	($rounds,4);
+	&mov	($rounds_,16);
 	&lea	($key_,&DWP(0,$key));
 	&movdqa	($inout3,&QWP(0,"esp"));
 	&movdqa	($inout0,$ivec);
-	&mov	($rounds_,$rounds);
+	&lea	($key,&DWP(32,$key,$rounds));
+	&sub	($rounds_,$rounds);
 	&pshufb	($ivec,$inout3);
 
 &set_label("ccm64_enc_outer");
@@ -625,38 +704,45 @@ if ($PREFIX eq "aesni") {
 	&xorps		($inout0,$rndkey0);
 	&$movekey	($rndkey1,&QWP(16,$key_));
 	&xorps		($rndkey0,$in0);
-	&lea		($key,&DWP(32,$key_));
 	&xorps		($cmac,$rndkey0);		# cmac^=inp
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(32,$key_));
 
 &set_label("ccm64_enc2_loop");
 	&aesenc		($inout0,$rndkey1);
-	&dec		($rounds);
 	&aesenc		($cmac,$rndkey1);
-	&$movekey	($rndkey1,&QWP(16,$key));
+	&$movekey	($rndkey1,&QWP(0,$key,$rounds));
+	&add		($rounds,32);
 	&aesenc		($inout0,$rndkey0);
-	&lea		($key,&DWP(32,$key));
 	&aesenc		($cmac,$rndkey0);
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
 	&jnz		(&label("ccm64_enc2_loop"));
 	&aesenc		($inout0,$rndkey1);
 	&aesenc		($cmac,$rndkey1);
 	&paddq		($ivec,&QWP(16,"esp"));
+	&dec		($len);
 	&aesenclast	($inout0,$rndkey0);
 	&aesenclast	($cmac,$rndkey0);
 
-	&dec	($len);
 	&lea	($inp,&DWP(16,$inp));
 	&xorps	($in0,$inout0);			# inp^=E(ivec)
 	&movdqa	($inout0,$ivec);
 	&movups	(&QWP(0,$out),$in0);		# save output
-	&lea	($out,&DWP(16,$out));
 	&pshufb	($inout0,$inout3);
+	&lea	($out,&DWP(16,$out));
 	&jnz	(&label("ccm64_enc_outer"));
 
 	&mov	("esp",&DWP(48,"esp"));
 	&mov	($out,&wparam(5));
 	&movups	(&QWP(0,$out),$cmac);
+
+	&pxor	("xmm0","xmm0");		# clear register bank
+	&pxor	("xmm1","xmm1");
+	&pxor	("xmm2","xmm2");
+	&pxor	("xmm3","xmm3");
+	&pxor	("xmm4","xmm4");
+	&pxor	("xmm5","xmm5");
+	&pxor	("xmm6","xmm6");
+	&pxor	("xmm7","xmm7");
 &function_end("aesni_ccm64_encrypt_blocks");
 
 &function_begin("aesni_ccm64_decrypt_blocks");
@@ -700,15 +786,19 @@ if ($PREFIX eq "aesni") {
 	{   &aesni_inline_generate1("enc");	}
 	else
 	{   &call	("_aesni_encrypt1");	}
+	&shl	($rounds_,4);
+	&mov	($rounds,16);
 	&movups	($in0,&QWP(0,$inp));		# load inp
 	&paddq	($ivec,&QWP(16,"esp"));
 	&lea	($inp,&QWP(16,$inp));
+	&sub	($rounds,$rounds_);
+	&lea	($key,&DWP(32,$key_,$rounds_));
+	&mov	($rounds_,$rounds);
 	&jmp	(&label("ccm64_dec_outer"));
 
 &set_label("ccm64_dec_outer",16);
 	&xorps	($in0,$inout0);			# inp ^= E(ivec)
 	&movdqa	($inout0,$ivec);
-	&mov	($rounds,$rounds_);
 	&movups	(&QWP(0,$out),$in0);		# save output
 	&lea	($out,&DWP(16,$out));
 	&pshufb	($inout0,$inout3);
@@ -717,34 +807,33 @@ if ($PREFIX eq "aesni") {
 	&jz	(&label("ccm64_dec_break"));
 
 	&$movekey	($rndkey0,&QWP(0,$key_));
-	&shr		($rounds,1);
+	&mov		($rounds,$rounds_);
 	&$movekey	($rndkey1,&QWP(16,$key_));
 	&xorps		($in0,$rndkey0);
-	&lea		($key,&DWP(32,$key_));
 	&xorps		($inout0,$rndkey0);
 	&xorps		($cmac,$in0);		# cmac^=out
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(32,$key_));
 
 &set_label("ccm64_dec2_loop");
 	&aesenc		($inout0,$rndkey1);
-	&dec		($rounds);
 	&aesenc		($cmac,$rndkey1);
-	&$movekey	($rndkey1,&QWP(16,$key));
+	&$movekey	($rndkey1,&QWP(0,$key,$rounds));
+	&add		($rounds,32);
 	&aesenc		($inout0,$rndkey0);
-	&lea		($key,&DWP(32,$key));
 	&aesenc		($cmac,$rndkey0);
-	&$movekey	($rndkey0,&QWP(0,$key));
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
 	&jnz		(&label("ccm64_dec2_loop"));
 	&movups		($in0,&QWP(0,$inp));	# load inp
 	&paddq		($ivec,&QWP(16,"esp"));
 	&aesenc		($inout0,$rndkey1);
 	&aesenc		($cmac,$rndkey1);
-	&lea		($inp,&QWP(16,$inp));
 	&aesenclast	($inout0,$rndkey0);
 	&aesenclast	($cmac,$rndkey0);
+	&lea		($inp,&QWP(16,$inp));
 	&jmp	(&label("ccm64_dec_outer"));
 
 &set_label("ccm64_dec_break",16);
+	&mov	($rounds,&DWP(240,$key_));
 	&mov	($key,$key_);
 	if ($inline)
 	{   &aesni_inline_generate1("enc",$cmac,$in0);	}
@@ -754,6 +843,15 @@ if ($PREFIX eq "aesni") {
 	&mov	("esp",&DWP(48,"esp"));
 	&mov	($out,&wparam(5));
 	&movups	(&QWP(0,$out),$cmac);
+
+	&pxor	("xmm0","xmm0");		# clear register bank
+	&pxor	("xmm1","xmm1");
+	&pxor	("xmm2","xmm2");
+	&pxor	("xmm3","xmm3");
+	&pxor	("xmm4","xmm4");
+	&pxor	("xmm5","xmm5");
+	&pxor	("xmm6","xmm6");
+	&pxor	("xmm7","xmm7");
 &function_end("aesni_ccm64_decrypt_blocks");
 }
 
@@ -763,7 +861,7 @@ if ($PREFIX eq "aesni") {
 #                         const char *ivec);
 #
 # Handles only complete blocks, operates on 32-bit counter and
-# does not update *ivec! (see engine/eng_aesni.c for details)
+# does not update *ivec! (see crypto/modes/ctr128.c for details)
 #
 # stack layout:
 #	0	pshufb mask
@@ -810,66 +908,61 @@ if ($PREFIX eq "aesni") {
 
 	# compose 2 vectors of 3x32-bit counters
 	&bswap	($rounds_);
-	&pxor	($rndkey1,$rndkey1);
 	&pxor	($rndkey0,$rndkey0);
+	&pxor	($rndkey1,$rndkey1);
 	&movdqa	($inout0,&QWP(0,"esp"));	# load byte-swap mask
-	&pinsrd	($rndkey1,$rounds_,0);
+	&pinsrd	($rndkey0,$rounds_,0);
 	&lea	($key_,&DWP(3,$rounds_));
-	&pinsrd	($rndkey0,$key_,0);
+	&pinsrd	($rndkey1,$key_,0);
 	&inc	($rounds_);
-	&pinsrd	($rndkey1,$rounds_,1);
+	&pinsrd	($rndkey0,$rounds_,1);
 	&inc	($key_);
-	&pinsrd	($rndkey0,$key_,1);
+	&pinsrd	($rndkey1,$key_,1);
 	&inc	($rounds_);
-	&pinsrd	($rndkey1,$rounds_,2);
+	&pinsrd	($rndkey0,$rounds_,2);
 	&inc	($key_);
-	&pinsrd	($rndkey0,$key_,2);
-	&movdqa	(&QWP(48,"esp"),$rndkey1);	# save 1st triplet
-	&pshufb	($rndkey1,$inout0);		# byte swap
-	&movdqa	(&QWP(64,"esp"),$rndkey0);	# save 2nd triplet
+	&pinsrd	($rndkey1,$key_,2);
+	&movdqa	(&QWP(48,"esp"),$rndkey0);	# save 1st triplet
 	&pshufb	($rndkey0,$inout0);		# byte swap
+	&movdqu	($inout4,&QWP(0,$key));		# key[0]
+	&movdqa	(&QWP(64,"esp"),$rndkey1);	# save 2nd triplet
+	&pshufb	($rndkey1,$inout0);		# byte swap
 
-	&pshufd	($inout0,$rndkey1,3<<6);	# place counter to upper dword
-	&pshufd	($inout1,$rndkey1,2<<6);
+	&pshufd	($inout0,$rndkey0,3<<6);	# place counter to upper dword
+	&pshufd	($inout1,$rndkey0,2<<6);
 	&cmp	($len,6);
 	&jb	(&label("ctr32_tail"));
-	&movdqa	(&QWP(32,"esp"),$inout5);	# save counter-less ivec
-	&shr	($rounds,1);
+	&pxor	($inout5,$inout4);		# counter-less ivec^key[0]
+	&shl	($rounds,4);
+	&mov	($rounds_,16);
+	&movdqa	(&QWP(32,"esp"),$inout5);	# save counter-less ivec^key[0]
 	&mov	($key_,$key);			# backup $key
-	&mov	($rounds_,$rounds);		# backup $rounds
+	&sub	($rounds_,$rounds);		# backup twisted $rounds
+	&lea	($key,&DWP(32,$key,$rounds));
 	&sub	($len,6);
 	&jmp	(&label("ctr32_loop6"));
 
 &set_label("ctr32_loop6",16);
-	&pshufd	($inout2,$rndkey1,1<<6);
-	&movdqa	($rndkey1,&QWP(32,"esp"));	# pull counter-less ivec
-	&pshufd	($inout3,$rndkey0,3<<6);
-	&por	($inout0,$rndkey1);		# merge counter-less ivec
-	&pshufd	($inout4,$rndkey0,2<<6);
-	&por	($inout1,$rndkey1);
-	&pshufd	($inout5,$rndkey0,1<<6);
-	&por	($inout2,$rndkey1);
-	&por	($inout3,$rndkey1);
-	&por	($inout4,$rndkey1);
-	&por	($inout5,$rndkey1);
-
-	# inlining _aesni_encrypt6's prologue gives ~4% improvement...
-	&$movekey	($rndkey0,&QWP(0,$key_));
-	&$movekey	($rndkey1,&QWP(16,$key_));
-	&lea		($key,&DWP(32,$key_));
-	&dec		($rounds);
-	&pxor		($inout0,$rndkey0);
+	# inlining _aesni_encrypt6's prologue gives ~6% improvement...
+	&pshufd	($inout2,$rndkey0,1<<6);
+	&movdqa	($rndkey0,&QWP(32,"esp"));	# pull counter-less ivec
+	&pshufd	($inout3,$rndkey1,3<<6);
+	&pxor		($inout0,$rndkey0);	# merge counter-less ivec
+	&pshufd	($inout4,$rndkey1,2<<6);
 	&pxor		($inout1,$rndkey0);
-	&aesenc		($inout0,$rndkey1);
+	&pshufd	($inout5,$rndkey1,1<<6);
+	&$movekey	($rndkey1,&QWP(16,$key_));
 	&pxor		($inout2,$rndkey0);
-	&aesenc		($inout1,$rndkey1);
 	&pxor		($inout3,$rndkey0);
-	&aesenc		($inout2,$rndkey1);
+	&aesenc		($inout0,$rndkey1);
 	&pxor		($inout4,$rndkey0);
-	&aesenc		($inout3,$rndkey1);
 	&pxor		($inout5,$rndkey0);
+	&aesenc		($inout1,$rndkey1);
+	&$movekey	($rndkey0,&QWP(32,$key_));
+	&mov		($rounds,$rounds_);
+	&aesenc		($inout2,$rndkey1);
+	&aesenc		($inout3,$rndkey1);
 	&aesenc		($inout4,$rndkey1);
-	&$movekey	($rndkey0,&QWP(0,$key));
 	&aesenc		($inout5,$rndkey1);
 
 	&call		(&label("_aesni_encrypt6_enter"));
@@ -882,12 +975,12 @@ if ($PREFIX eq "aesni") {
 	&movups	(&QWP(0,$out),$inout0);
 	&movdqa	($rndkey0,&QWP(16,"esp"));	# load increment
 	&xorps	($inout2,$rndkey1);
-	&movdqa	($rndkey1,&QWP(48,"esp"));	# load 1st triplet
+	&movdqa	($rndkey1,&QWP(64,"esp"));	# load 2nd triplet
 	&movups	(&QWP(0x10,$out),$inout1);
 	&movups	(&QWP(0x20,$out),$inout2);
 
-	&paddd	($rndkey1,$rndkey0);		# 1st triplet increment
-	&paddd	($rndkey0,&QWP(64,"esp"));	# 2nd triplet increment
+	&paddd	($rndkey1,$rndkey0);		# 2nd triplet increment
+	&paddd	($rndkey0,&QWP(48,"esp"));	# 1st triplet increment
 	&movdqa	($inout0,&QWP(0,"esp"));	# load byte swap mask
 
 	&movups	($inout1,&QWP(0x30,$inp));
@@ -895,44 +988,44 @@ if ($PREFIX eq "aesni") {
 	&xorps	($inout3,$inout1);
 	&movups	($inout1,&QWP(0x50,$inp));
 	&lea	($inp,&DWP(0x60,$inp));
-	&movdqa	(&QWP(48,"esp"),$rndkey1);	# save 1st triplet
-	&pshufb	($rndkey1,$inout0);		# byte swap
+	&movdqa	(&QWP(48,"esp"),$rndkey0);	# save 1st triplet
+	&pshufb	($rndkey0,$inout0);		# byte swap
 	&xorps	($inout4,$inout2);
 	&movups	(&QWP(0x30,$out),$inout3);
 	&xorps	($inout5,$inout1);
-	&movdqa	(&QWP(64,"esp"),$rndkey0);	# save 2nd triplet
-	&pshufb	($rndkey0,$inout0);		# byte swap
+	&movdqa	(&QWP(64,"esp"),$rndkey1);	# save 2nd triplet
+	&pshufb	($rndkey1,$inout0);		# byte swap
 	&movups	(&QWP(0x40,$out),$inout4);
-	&pshufd	($inout0,$rndkey1,3<<6);
+	&pshufd	($inout0,$rndkey0,3<<6);
 	&movups	(&QWP(0x50,$out),$inout5);
 	&lea	($out,&DWP(0x60,$out));
 
-	&mov	($rounds,$rounds_);
-	&pshufd	($inout1,$rndkey1,2<<6);
+	&pshufd	($inout1,$rndkey0,2<<6);
 	&sub	($len,6);
 	&jnc	(&label("ctr32_loop6"));
 
 	&add	($len,6);
 	&jz	(&label("ctr32_ret"));
+	&movdqu	($inout5,&QWP(0,$key_));
 	&mov	($key,$key_);
-	&lea	($rounds,&DWP(1,"",$rounds,2));	# restore $rounds
-	&movdqa	($inout5,&QWP(32,"esp"));	# pull count-less ivec
+	&pxor	($inout5,&QWP(32,"esp"));	# restore count-less ivec
+	&mov	($rounds,&DWP(240,$key_));	# restore $rounds
 
 &set_label("ctr32_tail");
 	&por	($inout0,$inout5);
 	&cmp	($len,2);
 	&jb	(&label("ctr32_one"));
 
-	&pshufd	($inout2,$rndkey1,1<<6);
+	&pshufd	($inout2,$rndkey0,1<<6);
 	&por	($inout1,$inout5);
 	&je	(&label("ctr32_two"));
 
-	&pshufd	($inout3,$rndkey0,3<<6);
+	&pshufd	($inout3,$rndkey1,3<<6);
 	&por	($inout2,$inout5);
 	&cmp	($len,4);
 	&jb	(&label("ctr32_three"));
 
-	&pshufd	($inout4,$rndkey0,2<<6);
+	&pshufd	($inout4,$rndkey1,2<<6);
 	&por	($inout3,$inout5);
 	&je	(&label("ctr32_four"));
 
@@ -970,7 +1063,7 @@ if ($PREFIX eq "aesni") {
 	&jmp	(&label("ctr32_ret"));
 
 &set_label("ctr32_two",16);
-	&call	("_aesni_encrypt3");
+	&call	("_aesni_encrypt2");
 	&movups	($inout3,&QWP(0,$inp));
 	&movups	($inout4,&QWP(0x10,$inp));
 	&xorps	($inout0,$inout3);
@@ -1008,6 +1101,17 @@ if ($PREFIX eq "aesni") {
 	&movups	(&QWP(0x30,$out),$inout3);
 
 &set_label("ctr32_ret");
+	&pxor	("xmm0","xmm0");		# clear register bank
+	&pxor	("xmm1","xmm1");
+	&pxor	("xmm2","xmm2");
+	&pxor	("xmm3","xmm3");
+	&pxor	("xmm4","xmm4");
+	&movdqa	(&QWP(32,"esp"),"xmm0");	# clear stack
+	&pxor	("xmm5","xmm5");
+	&movdqa	(&QWP(48,"esp"),"xmm0");
+	&pxor	("xmm6","xmm6");
+	&movdqa	(&QWP(64,"esp"),"xmm0");
+	&pxor	("xmm7","xmm7");
 	&mov	("esp",&DWP(80,"esp"));
 &function_end("aesni_ctr32_encrypt_blocks");
 
@@ -1057,8 +1161,10 @@ if ($PREFIX eq "aesni") {
 	&sub	($len,16*6);
 	&jc	(&label("xts_enc_short"));
 
-	&shr	($rounds,1);
-	&mov	($rounds_,$rounds);
+	&shl	($rounds,4);
+	&mov	($rounds_,16);
+	&sub	($rounds_,$rounds);
+	&lea	($key,&DWP(32,$key,$rounds));
 	&jmp	(&label("xts_enc_loop6"));
 
 &set_label("xts_enc_loop6",16);
@@ -1080,6 +1186,7 @@ if ($PREFIX eq "aesni") {
 	&pxor	($inout5,$tweak);
 
 	# inline _aesni_encrypt6 prologue and flip xor with tweak and key[0]
+	&mov	($rounds,$rounds_);		# restore $rounds
 	&movdqu	($inout1,&QWP(16*1,$inp));
 	 &xorps		($inout0,$rndkey0);	# input^=rndkey[0]
 	&movdqu	($inout2,&QWP(16*2,$inp));
@@ -1096,19 +1203,17 @@ if ($PREFIX eq "aesni") {
 	&pxor	($inout5,$rndkey1);
 
 	 &$movekey	($rndkey1,&QWP(16,$key_));
-	 &lea		($key,&DWP(32,$key_));
 	&pxor	($inout1,&QWP(16*1,"esp"));
-	 &aesenc	($inout0,$rndkey1);
 	&pxor	($inout2,&QWP(16*2,"esp"));
-	 &aesenc	($inout1,$rndkey1);
+	 &aesenc	($inout0,$rndkey1);
 	&pxor	($inout3,&QWP(16*3,"esp"));
-	 &dec		($rounds);
-	 &aesenc	($inout2,$rndkey1);
 	&pxor	($inout4,&QWP(16*4,"esp"));
-	 &aesenc	($inout3,$rndkey1);
+	 &aesenc	($inout1,$rndkey1);
 	&pxor		($inout5,$rndkey0);
+	 &$movekey	($rndkey0,&QWP(32,$key_));
+	 &aesenc	($inout2,$rndkey1);
+	 &aesenc	($inout3,$rndkey1);
 	 &aesenc	($inout4,$rndkey1);
-	 &$movekey	($rndkey0,&QWP(0,$key));
 	 &aesenc	($inout5,$rndkey1);
 	&call		(&label("_aesni_encrypt6_enter"));
 
@@ -1135,13 +1240,12 @@ if ($PREFIX eq "aesni") {
 	&paddq	($tweak,$tweak);		# &psllq($tweak,1);
 	&pand	($twres,$twmask);		# isolate carry and residue
 	&pcmpgtd($twtmp,$tweak);		# broadcast upper bits
-	&mov	($rounds,$rounds_);		# restore $rounds
 	&pxor	($tweak,$twres);
 
 	&sub	($len,16*6);
 	&jnc	(&label("xts_enc_loop6"));
 
-	&lea	($rounds,&DWP(1,"",$rounds,2));	# restore $rounds
+	&mov	($rounds,&DWP(240,$key_));	# restore $rounds
 	&mov	($key,$key_);			# restore $key
 	&mov	($rounds_,$rounds);
 
@@ -1241,9 +1345,8 @@ if ($PREFIX eq "aesni") {
 	&lea	($inp,&DWP(16*2,$inp));
 	&xorps	($inout0,$inout3);		# input^=tweak
 	&xorps	($inout1,$inout4);
-	&xorps	($inout2,$inout2);
 
-	&call	("_aesni_encrypt3");
+	&call	("_aesni_encrypt2");
 
 	&xorps	($inout0,$inout3);		# output^=tweak
 	&xorps	($inout1,$inout4);
@@ -1350,6 +1453,20 @@ if ($PREFIX eq "aesni") {
 	&movups	(&QWP(-16,$out),$inout0);	# write output
 
 &set_label("xts_enc_ret");
+	&pxor	("xmm0","xmm0");		# clear register bank
+	&pxor	("xmm1","xmm1");
+	&pxor	("xmm2","xmm2");
+	&movdqa	(&QWP(16*0,"esp"),"xmm0");	# clear stack
+	&pxor	("xmm3","xmm3");
+	&movdqa	(&QWP(16*1,"esp"),"xmm0");
+	&pxor	("xmm4","xmm4");
+	&movdqa	(&QWP(16*2,"esp"),"xmm0");
+	&pxor	("xmm5","xmm5");
+	&movdqa	(&QWP(16*3,"esp"),"xmm0");
+	&pxor	("xmm6","xmm6");
+	&movdqa	(&QWP(16*4,"esp"),"xmm0");
+	&pxor	("xmm7","xmm7");
+	&movdqa	(&QWP(16*5,"esp"),"xmm0");
 	&mov	("esp",&DWP(16*7+4,"esp"));	# restore %esp
 &function_end("aesni_xts_encrypt");
 
@@ -1399,8 +1516,10 @@ if ($PREFIX eq "aesni") {
 	&sub	($len,16*6);
 	&jc	(&label("xts_dec_short"));
 
-	&shr	($rounds,1);
-	&mov	($rounds_,$rounds);
+	&shl	($rounds,4);
+	&mov	($rounds_,16);
+	&sub	($rounds_,$rounds);
+	&lea	($key,&DWP(32,$key,$rounds));
 	&jmp	(&label("xts_dec_loop6"));
 
 &set_label("xts_dec_loop6",16);
@@ -1422,6 +1541,7 @@ if ($PREFIX eq "aesni") {
 	&pxor	($inout5,$tweak);
 
 	# inline _aesni_encrypt6 prologue and flip xor with tweak and key[0]
+	&mov	($rounds,$rounds_);
 	&movdqu	($inout1,&QWP(16*1,$inp));
 	 &xorps		($inout0,$rndkey0);	# input^=rndkey[0]
 	&movdqu	($inout2,&QWP(16*2,$inp));
@@ -1438,19 +1558,17 @@ if ($PREFIX eq "aesni") {
 	&pxor	($inout5,$rndkey1);
 
 	 &$movekey	($rndkey1,&QWP(16,$key_));
-	 &lea		($key,&DWP(32,$key_));
 	&pxor	($inout1,&QWP(16*1,"esp"));
-	 &aesdec	($inout0,$rndkey1);
 	&pxor	($inout2,&QWP(16*2,"esp"));
-	 &aesdec	($inout1,$rndkey1);
+	 &aesdec	($inout0,$rndkey1);
 	&pxor	($inout3,&QWP(16*3,"esp"));
-	 &dec		($rounds);
-	 &aesdec	($inout2,$rndkey1);
 	&pxor	($inout4,&QWP(16*4,"esp"));
-	 &aesdec	($inout3,$rndkey1);
+	 &aesdec	($inout1,$rndkey1);
 	&pxor		($inout5,$rndkey0);
+	 &$movekey	($rndkey0,&QWP(32,$key_));
+	 &aesdec	($inout2,$rndkey1);
+	 &aesdec	($inout3,$rndkey1);
 	 &aesdec	($inout4,$rndkey1);
-	 &$movekey	($rndkey0,&QWP(0,$key));
 	 &aesdec	($inout5,$rndkey1);
 	&call		(&label("_aesni_decrypt6_enter"));
 
@@ -1477,13 +1595,12 @@ if ($PREFIX eq "aesni") {
 	&paddq	($tweak,$tweak);		# &psllq($tweak,1);
 	&pand	($twres,$twmask);		# isolate carry and residue
 	&pcmpgtd($twtmp,$tweak);		# broadcast upper bits
-	&mov	($rounds,$rounds_);		# restore $rounds
 	&pxor	($tweak,$twres);
 
 	&sub	($len,16*6);
 	&jnc	(&label("xts_dec_loop6"));
 
-	&lea	($rounds,&DWP(1,"",$rounds,2));	# restore $rounds
+	&mov	($rounds,&DWP(240,$key_));	# restore $rounds
 	&mov	($key,$key_);			# restore $key
 	&mov	($rounds_,$rounds);
 
@@ -1584,7 +1701,7 @@ if ($PREFIX eq "aesni") {
 	&xorps	($inout0,$inout3);		# input^=tweak
 	&xorps	($inout1,$inout4);
 
-	&call	("_aesni_decrypt3");
+	&call	("_aesni_decrypt2");
 
 	&xorps	($inout0,$inout3);		# output^=tweak
 	&xorps	($inout1,$inout4);
@@ -1712,8 +1829,893 @@ if ($PREFIX eq "aesni") {
 	&movups	(&QWP(0,$out),$inout0);		# write output
 
 &set_label("xts_dec_ret");
+	&pxor	("xmm0","xmm0");		# clear register bank
+	&pxor	("xmm1","xmm1");
+	&pxor	("xmm2","xmm2");
+	&movdqa	(&QWP(16*0,"esp"),"xmm0");	# clear stack
+	&pxor	("xmm3","xmm3");
+	&movdqa	(&QWP(16*1,"esp"),"xmm0");
+	&pxor	("xmm4","xmm4");
+	&movdqa	(&QWP(16*2,"esp"),"xmm0");
+	&pxor	("xmm5","xmm5");
+	&movdqa	(&QWP(16*3,"esp"),"xmm0");
+	&pxor	("xmm6","xmm6");
+	&movdqa	(&QWP(16*4,"esp"),"xmm0");
+	&pxor	("xmm7","xmm7");
+	&movdqa	(&QWP(16*5,"esp"),"xmm0");
 	&mov	("esp",&DWP(16*7+4,"esp"));	# restore %esp
 &function_end("aesni_xts_decrypt");
+}
+
+######################################################################
+# void aesni_ocb_[en|de]crypt(const char *inp, char *out, size_t blocks,
+#	const AES_KEY *key, unsigned int start_block_num,
+#	unsigned char offset_i[16], const unsigned char L_[][16],
+#	unsigned char checksum[16]);
+#
+{
+# offsets within stack frame
+my $checksum = 16*6;
+my ($key_off,$rounds_off,$out_off,$end_off,$esp_off)=map(16*7+4*$_,(0..4));
+
+# reassigned registers
+my ($l_,$block,$i1,$i3,$i5) = ($rounds_,$key_,$rounds,$len,$out);
+# $l_, $blocks, $inp, $key are permanently allocated in registers;
+# remaining non-volatile ones are offloaded to stack, which even
+# stay invariant after written to stack.
+
+&function_begin("aesni_ocb_encrypt");
+	&mov	($rounds,&wparam(5));		# &offset_i
+	&mov	($rounds_,&wparam(7));		# &checksum
+
+	&mov	($inp,&wparam(0));
+	&mov	($out,&wparam(1));
+	&mov	($len,&wparam(2));
+	&mov	($key,&wparam(3));
+	&movdqu	($rndkey0,&QWP(0,$rounds));	# load offset_i
+	&mov	($block,&wparam(4));		# start_block_num
+	&movdqu	($rndkey1,&QWP(0,$rounds_));	# load checksum
+	&mov	($l_,&wparam(6));		# L_
+
+	&mov	($rounds,"esp");
+	&sub	("esp",$esp_off+4);		# alloca
+	&and	("esp",-16);			# align stack
+
+	&sub	($out,$inp);
+	&shl	($len,4);
+	&lea	($len,&DWP(-16*6,$inp,$len));	# end of input - 16*6
+	&mov	(&DWP($out_off,"esp"),$out);
+	&mov	(&DWP($end_off,"esp"),$len);
+	&mov	(&DWP($esp_off,"esp"),$rounds);
+
+	&mov	($rounds,&DWP(240,$key));
+
+	&test	($block,1);
+	&jnz	(&label("odd"));
+
+	&bsf		($i3,$block);
+	&add		($block,1);
+	&shl		($i3,4);
+	&movdqu		($inout5,&QWP(0,$l_,$i3));
+	&mov		($i3,$key);			# put aside key
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&lea		($inp,&DWP(16,$inp));
+
+	&pxor		($inout5,$rndkey0);		# ^ last offset_i
+	&pxor		($rndkey1,$inout0);		# checksum
+	&pxor		($inout0,$inout5);		# ^ offset_i
+
+	&movdqa		($inout4,$rndkey1);
+	if ($inline)
+	{   &aesni_inline_generate1("enc");	}
+	else
+	{   &call	("_aesni_encrypt1");	}
+
+	&xorps		($inout0,$inout5);		# ^ offset_i
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&movdqa		($rndkey1,$inout4);		# pass the checksum
+
+	&movups		(&QWP(-16,$out,$inp),$inout0);	# store output
+
+	&mov		($rounds,&DWP(240,$i3));
+	&mov		($key,$i3);			# restore key
+	&mov		($len,&DWP($end_off,"esp"));
+
+&set_label("odd");
+	&shl		($rounds,4);
+	&mov		($out,16);
+	&sub		($out,$rounds);			# twisted rounds
+	&mov		(&DWP($key_off,"esp"),$key);
+	&lea		($key,&DWP(32,$key,$rounds));	# end of key schedule
+	&mov		(&DWP($rounds_off,"esp"),$out);
+
+	&cmp		($inp,$len);
+	&ja		(&label("short"));
+	&jmp		(&label("grandloop"));
+
+&set_label("grandloop",32);
+	&lea		($i1,&DWP(1,$block));
+	&lea		($i3,&DWP(3,$block));
+	&lea		($i5,&DWP(5,$block));
+	&add		($block,6);
+	&bsf		($i1,$i1);
+	&bsf		($i3,$i3);
+	&bsf		($i5,$i5);
+	&shl		($i1,4);
+	&shl		($i3,4);
+	&shl		($i5,4);
+	&movdqu		($inout0,&QWP(0,$l_));
+	&movdqu		($inout1,&QWP(0,$l_,$i1));
+	&mov		($rounds,&DWP($rounds_off,"esp"));
+	&movdqa		($inout2,$inout0);
+	&movdqu		($inout3,&QWP(0,$l_,$i3));
+	&movdqa		($inout4,$inout0);
+	&movdqu		($inout5,&QWP(0,$l_,$i5));
+
+	&pxor		($inout0,$rndkey0);		# ^ last offset_i
+	&pxor		($inout1,$inout0);
+	&movdqa		(&QWP(16*0,"esp"),$inout0);
+	&pxor		($inout2,$inout1);
+	&movdqa		(&QWP(16*1,"esp"),$inout1);
+	&pxor		($inout3,$inout2);
+	&movdqa		(&QWP(16*2,"esp"),$inout2);
+	&pxor		($inout4,$inout3);
+	&movdqa		(&QWP(16*3,"esp"),$inout3);
+	&pxor		($inout5,$inout4);
+	&movdqa		(&QWP(16*4,"esp"),$inout4);
+	&movdqa		(&QWP(16*5,"esp"),$inout5);
+
+	&$movekey	($rndkey0,&QWP(-48,$key,$rounds));
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&movdqu		($inout3,&QWP(16*3,$inp));
+	&movdqu		($inout4,&QWP(16*4,$inp));
+	&movdqu		($inout5,&QWP(16*5,$inp));
+	&lea		($inp,&DWP(16*6,$inp));
+
+	&pxor		($rndkey1,$inout0);		# checksum
+	&pxor		($inout0,$rndkey0);		# ^ roundkey[0]
+	&pxor		($rndkey1,$inout1);
+	&pxor		($inout1,$rndkey0);
+	&pxor		($rndkey1,$inout2);
+	&pxor		($inout2,$rndkey0);
+	&pxor		($rndkey1,$inout3);
+	&pxor		($inout3,$rndkey0);
+	&pxor		($rndkey1,$inout4);
+	&pxor		($inout4,$rndkey0);
+	&pxor		($rndkey1,$inout5);
+	&pxor		($inout5,$rndkey0);
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1);
+
+	&$movekey	($rndkey1,&QWP(-32,$key,$rounds));
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,&QWP(16*4,"esp"));
+	&pxor		($inout5,&QWP(16*5,"esp"));
+
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
+	&aesenc		($inout0,$rndkey1);
+	&aesenc		($inout1,$rndkey1);
+	&aesenc		($inout2,$rndkey1);
+	&aesenc		($inout3,$rndkey1);
+	&aesenc		($inout4,$rndkey1);
+	&aesenc		($inout5,$rndkey1);
+
+	&mov		($out,&DWP($out_off,"esp"));
+	&mov		($len,&DWP($end_off,"esp"));
+	&call		("_aesni_encrypt6_enter");
+
+	&movdqa		($rndkey0,&QWP(16*5,"esp"));	# pass last offset_i
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,&QWP(16*4,"esp"));
+	&pxor		($inout5,$rndkey0);
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));# pass the checksum
+
+	&movdqu		(&QWP(-16*6,$out,$inp),$inout0);# store output
+	&movdqu		(&QWP(-16*5,$out,$inp),$inout1);
+	&movdqu		(&QWP(-16*4,$out,$inp),$inout2);
+	&movdqu		(&QWP(-16*3,$out,$inp),$inout3);
+	&movdqu		(&QWP(-16*2,$out,$inp),$inout4);
+	&movdqu		(&QWP(-16*1,$out,$inp),$inout5);
+	&cmp		($inp,$len);			# done yet?
+	&jb		(&label("grandloop"));
+
+&set_label("short");
+	&add		($len,16*6);
+	&sub		($len,$inp);
+	&jz		(&label("done"));
+
+	&cmp		($len,16*2);
+	&jb		(&label("one"));
+	&je		(&label("two"));
+
+	&cmp		($len,16*4);
+	&jb		(&label("three"));
+	&je		(&label("four"));
+
+	&lea		($i1,&DWP(1,$block));
+	&lea		($i3,&DWP(3,$block));
+	&bsf		($i1,$i1);
+	&bsf		($i3,$i3);
+	&shl		($i1,4);
+	&shl		($i3,4);
+	&movdqu		($inout0,&QWP(0,$l_));
+	&movdqu		($inout1,&QWP(0,$l_,$i1));
+	&mov		($rounds,&DWP($rounds_off,"esp"));
+	&movdqa		($inout2,$inout0);
+	&movdqu		($inout3,&QWP(0,$l_,$i3));
+	&movdqa		($inout4,$inout0);
+
+	&pxor		($inout0,$rndkey0);		# ^ last offset_i
+	&pxor		($inout1,$inout0);
+	&movdqa		(&QWP(16*0,"esp"),$inout0);
+	&pxor		($inout2,$inout1);
+	&movdqa		(&QWP(16*1,"esp"),$inout1);
+	&pxor		($inout3,$inout2);
+	&movdqa		(&QWP(16*2,"esp"),$inout2);
+	&pxor		($inout4,$inout3);
+	&movdqa		(&QWP(16*3,"esp"),$inout3);
+	&pxor		($inout5,$inout4);
+	&movdqa		(&QWP(16*4,"esp"),$inout4);
+
+	&$movekey	($rndkey0,&QWP(-48,$key,$rounds));
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&movdqu		($inout3,&QWP(16*3,$inp));
+	&movdqu		($inout4,&QWP(16*4,$inp));
+	&pxor		($inout5,$inout5);
+
+	&pxor		($rndkey1,$inout0);		# checksum
+	&pxor		($inout0,$rndkey0);		# ^ roundkey[0]
+	&pxor		($rndkey1,$inout1);
+	&pxor		($inout1,$rndkey0);
+	&pxor		($rndkey1,$inout2);
+	&pxor		($inout2,$rndkey0);
+	&pxor		($rndkey1,$inout3);
+	&pxor		($inout3,$rndkey0);
+	&pxor		($rndkey1,$inout4);
+	&pxor		($inout4,$rndkey0);
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1);
+
+	&$movekey	($rndkey1,&QWP(-32,$key,$rounds));
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,&QWP(16*4,"esp"));
+
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
+	&aesenc		($inout0,$rndkey1);
+	&aesenc		($inout1,$rndkey1);
+	&aesenc		($inout2,$rndkey1);
+	&aesenc		($inout3,$rndkey1);
+	&aesenc		($inout4,$rndkey1);
+	&aesenc		($inout5,$rndkey1);
+
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_encrypt6_enter");
+
+	&movdqa		($rndkey0,&QWP(16*4,"esp"));	# pass last offset_i
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,$rndkey0);
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));# pass the checksum
+
+	&movdqu		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&movdqu		(&QWP(16*1,$out,$inp),$inout1);
+	&movdqu		(&QWP(16*2,$out,$inp),$inout2);
+	&movdqu		(&QWP(16*3,$out,$inp),$inout3);
+	&movdqu		(&QWP(16*4,$out,$inp),$inout4);
+
+	&jmp		(&label("done"));
+
+&set_label("one",16);
+	&movdqu		($inout5,&QWP(0,$l_));
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&mov		($rounds,&DWP(240,$key));
+
+	&pxor		($inout5,$rndkey0);		# ^ last offset_i
+	&pxor		($rndkey1,$inout0);		# checksum
+	&pxor		($inout0,$inout5);		# ^ offset_i
+
+	&movdqa		($inout4,$rndkey1);
+	&mov		($out,&DWP($out_off,"esp"));
+	if ($inline)
+	{   &aesni_inline_generate1("enc");	}
+	else
+	{   &call	("_aesni_encrypt1");	}
+
+	&xorps		($inout0,$inout5);		# ^ offset_i
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&movdqa		($rndkey1,$inout4);		# pass the checksum
+	&movups		(&QWP(0,$out,$inp),$inout0);
+
+	&jmp		(&label("done"));
+
+&set_label("two",16);
+	&lea		($i1,&DWP(1,$block));
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+	&bsf		($i1,$i1);
+	&shl		($i1,4);
+	&movdqu		($inout4,&QWP(0,$l_));
+	&movdqu		($inout5,&QWP(0,$l_,$i1));
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&mov		($rounds,&DWP(240,$key));
+
+	&pxor		($inout4,$rndkey0);		# ^ last offset_i
+	&pxor		($inout5,$inout4);
+
+	&pxor		($rndkey1,$inout0);		# checksum
+	&pxor		($inout0,$inout4);		# ^ offset_i
+	&pxor		($rndkey1,$inout1);
+	&pxor		($inout1,$inout5);
+
+	&movdqa		($inout3,$rndkey1)
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_encrypt2");
+
+	&xorps		($inout0,$inout4);		# ^ offset_i
+	&xorps		($inout1,$inout5);
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&movdqa		($rndkey1,$inout3);		# pass the checksum
+	&movups		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&movups		(&QWP(16*1,$out,$inp),$inout1);
+
+	&jmp		(&label("done"));
+
+&set_label("three",16);
+	&lea		($i1,&DWP(1,$block));
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+	&bsf		($i1,$i1);
+	&shl		($i1,4);
+	&movdqu		($inout3,&QWP(0,$l_));
+	&movdqu		($inout4,&QWP(0,$l_,$i1));
+	&movdqa		($inout5,$inout3);
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&mov		($rounds,&DWP(240,$key));
+
+	&pxor		($inout3,$rndkey0);		# ^ last offset_i
+	&pxor		($inout4,$inout3);
+	&pxor		($inout5,$inout4);
+
+	&pxor		($rndkey1,$inout0);		# checksum
+	&pxor		($inout0,$inout3);		# ^ offset_i
+	&pxor		($rndkey1,$inout1);
+	&pxor		($inout1,$inout4);
+	&pxor		($rndkey1,$inout2);
+	&pxor		($inout2,$inout5);
+
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1);
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_encrypt3");
+
+	&xorps		($inout0,$inout3);		# ^ offset_i
+	&xorps		($inout1,$inout4);
+	&xorps		($inout2,$inout5);
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));# pass the checksum
+	&movups		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&movups		(&QWP(16*1,$out,$inp),$inout1);
+	&movups		(&QWP(16*2,$out,$inp),$inout2);
+
+	&jmp		(&label("done"));
+
+&set_label("four",16);
+	&lea		($i1,&DWP(1,$block));
+	&lea		($i3,&DWP(3,$block));
+	&bsf		($i1,$i1);
+	&bsf		($i3,$i3);
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+	&shl		($i1,4);
+	&shl		($i3,4);
+	&movdqu		($inout2,&QWP(0,$l_));
+	&movdqu		($inout3,&QWP(0,$l_,$i1));
+	&movdqa		($inout4,$inout2);
+	&movdqu		($inout5,&QWP(0,$l_,$i3));
+
+	&pxor		($inout2,$rndkey0);		# ^ last offset_i
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&pxor		($inout3,$inout2);
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&pxor		($inout4,$inout3);
+	&movdqa		(&QWP(16*0,"esp"),$inout2);
+	&pxor		($inout5,$inout4);
+	&movdqa		(&QWP(16*1,"esp"),$inout3);
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&movdqu		($inout3,&QWP(16*3,$inp));
+	&mov		($rounds,&DWP(240,$key));
+
+	&pxor		($rndkey1,$inout0);		# checksum
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($rndkey1,$inout1);
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($rndkey1,$inout2);
+	&pxor		($inout2,$inout4);
+	&pxor		($rndkey1,$inout3);
+	&pxor		($inout3,$inout5);
+
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1)
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_encrypt4");
+
+	&xorps		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&xorps		($inout1,&QWP(16*1,"esp"));
+	&xorps		($inout2,$inout4);
+	&movups		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&xorps		($inout3,$inout5);
+	&movups		(&QWP(16*1,$out,$inp),$inout1);
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&movups		(&QWP(16*2,$out,$inp),$inout2);
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));# pass the checksum
+	&movups		(&QWP(16*3,$out,$inp),$inout3);
+
+&set_label("done");
+	&mov	($key,&DWP($esp_off,"esp"));
+	&pxor	($inout0,$inout0);		# clear register bank
+	&pxor	($inout1,$inout1);
+	&movdqa	(&QWP(16*0,"esp"),$inout0);	# clear stack
+	&pxor	($inout2,$inout2);
+	&movdqa	(&QWP(16*1,"esp"),$inout0);
+	&pxor	($inout3,$inout3);
+	&movdqa	(&QWP(16*2,"esp"),$inout0);
+	&pxor	($inout4,$inout4);
+	&movdqa	(&QWP(16*3,"esp"),$inout0);
+	&pxor	($inout5,$inout5);
+	&movdqa	(&QWP(16*4,"esp"),$inout0);
+	&movdqa	(&QWP(16*5,"esp"),$inout0);
+	&movdqa	(&QWP(16*6,"esp"),$inout0);
+
+	&lea	("esp",&DWP(0,$key));
+	&mov	($rounds,&wparam(5));		# &offset_i
+	&mov	($rounds_,&wparam(7));		# &checksum
+	&movdqu	(&QWP(0,$rounds),$rndkey0);
+	&pxor	($rndkey0,$rndkey0);
+	&movdqu	(&QWP(0,$rounds_),$rndkey1);
+	&pxor	($rndkey1,$rndkey1);
+&function_end("aesni_ocb_encrypt");
+
+&function_begin("aesni_ocb_decrypt");
+	&mov	($rounds,&wparam(5));		# &offset_i
+	&mov	($rounds_,&wparam(7));		# &checksum
+
+	&mov	($inp,&wparam(0));
+	&mov	($out,&wparam(1));
+	&mov	($len,&wparam(2));
+	&mov	($key,&wparam(3));
+	&movdqu	($rndkey0,&QWP(0,$rounds));	# load offset_i
+	&mov	($block,&wparam(4));		# start_block_num
+	&movdqu	($rndkey1,&QWP(0,$rounds_));	# load checksum
+	&mov	($l_,&wparam(6));		# L_
+
+	&mov	($rounds,"esp");
+	&sub	("esp",$esp_off+4);		# alloca
+	&and	("esp",-16);			# align stack
+
+	&sub	($out,$inp);
+	&shl	($len,4);
+	&lea	($len,&DWP(-16*6,$inp,$len));	# end of input - 16*6
+	&mov	(&DWP($out_off,"esp"),$out);
+	&mov	(&DWP($end_off,"esp"),$len);
+	&mov	(&DWP($esp_off,"esp"),$rounds);
+
+	&mov	($rounds,&DWP(240,$key));
+
+	&test	($block,1);
+	&jnz	(&label("odd"));
+
+	&bsf		($i3,$block);
+	&add		($block,1);
+	&shl		($i3,4);
+	&movdqu		($inout5,&QWP(0,$l_,$i3));
+	&mov		($i3,$key);			# put aside key
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&lea		($inp,&DWP(16,$inp));
+
+	&pxor		($inout5,$rndkey0);		# ^ last offset_i
+	&pxor		($inout0,$inout5);		# ^ offset_i
+
+	&movdqa		($inout4,$rndkey1);
+	if ($inline)
+	{   &aesni_inline_generate1("dec");	}
+	else
+	{   &call	("_aesni_decrypt1");	}
+
+	&xorps		($inout0,$inout5);		# ^ offset_i
+	&movaps		($rndkey1,$inout4);		# pass the checksum
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&xorps		($rndkey1,$inout0);		# checksum
+	&movups		(&QWP(-16,$out,$inp),$inout0);	# store output
+
+	&mov		($rounds,&DWP(240,$i3));
+	&mov		($key,$i3);			# restore key
+	&mov		($len,&DWP($end_off,"esp"));
+
+&set_label("odd");
+	&shl		($rounds,4);
+	&mov		($out,16);
+	&sub		($out,$rounds);			# twisted rounds
+	&mov		(&DWP($key_off,"esp"),$key);
+	&lea		($key,&DWP(32,$key,$rounds));	# end of key schedule
+	&mov		(&DWP($rounds_off,"esp"),$out);
+
+	&cmp		($inp,$len);
+	&ja		(&label("short"));
+	&jmp		(&label("grandloop"));
+
+&set_label("grandloop",32);
+	&lea		($i1,&DWP(1,$block));
+	&lea		($i3,&DWP(3,$block));
+	&lea		($i5,&DWP(5,$block));
+	&add		($block,6);
+	&bsf		($i1,$i1);
+	&bsf		($i3,$i3);
+	&bsf		($i5,$i5);
+	&shl		($i1,4);
+	&shl		($i3,4);
+	&shl		($i5,4);
+	&movdqu		($inout0,&QWP(0,$l_));
+	&movdqu		($inout1,&QWP(0,$l_,$i1));
+	&mov		($rounds,&DWP($rounds_off,"esp"));
+	&movdqa		($inout2,$inout0);
+	&movdqu		($inout3,&QWP(0,$l_,$i3));
+	&movdqa		($inout4,$inout0);
+	&movdqu		($inout5,&QWP(0,$l_,$i5));
+
+	&pxor		($inout0,$rndkey0);		# ^ last offset_i
+	&pxor		($inout1,$inout0);
+	&movdqa		(&QWP(16*0,"esp"),$inout0);
+	&pxor		($inout2,$inout1);
+	&movdqa		(&QWP(16*1,"esp"),$inout1);
+	&pxor		($inout3,$inout2);
+	&movdqa		(&QWP(16*2,"esp"),$inout2);
+	&pxor		($inout4,$inout3);
+	&movdqa		(&QWP(16*3,"esp"),$inout3);
+	&pxor		($inout5,$inout4);
+	&movdqa		(&QWP(16*4,"esp"),$inout4);
+	&movdqa		(&QWP(16*5,"esp"),$inout5);
+
+	&$movekey	($rndkey0,&QWP(-48,$key,$rounds));
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&movdqu		($inout3,&QWP(16*3,$inp));
+	&movdqu		($inout4,&QWP(16*4,$inp));
+	&movdqu		($inout5,&QWP(16*5,$inp));
+	&lea		($inp,&DWP(16*6,$inp));
+
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1);
+	&pxor		($inout0,$rndkey0);		# ^ roundkey[0]
+	&pxor		($inout1,$rndkey0);
+	&pxor		($inout2,$rndkey0);
+	&pxor		($inout3,$rndkey0);
+	&pxor		($inout4,$rndkey0);
+	&pxor		($inout5,$rndkey0);
+
+	&$movekey	($rndkey1,&QWP(-32,$key,$rounds));
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,&QWP(16*4,"esp"));
+	&pxor		($inout5,&QWP(16*5,"esp"));
+
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
+	&aesdec		($inout0,$rndkey1);
+	&aesdec		($inout1,$rndkey1);
+	&aesdec		($inout2,$rndkey1);
+	&aesdec		($inout3,$rndkey1);
+	&aesdec		($inout4,$rndkey1);
+	&aesdec		($inout5,$rndkey1);
+
+	&mov		($out,&DWP($out_off,"esp"));
+	&mov		($len,&DWP($end_off,"esp"));
+	&call		("_aesni_decrypt6_enter");
+
+	&movdqa		($rndkey0,&QWP(16*5,"esp"));	# pass last offset_i
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,&QWP(16*4,"esp"));
+	&pxor		($inout5,$rndkey0);
+
+	&pxor		($rndkey1,$inout0);		# checksum
+	&movdqu		(&QWP(-16*6,$out,$inp),$inout0);# store output
+	&pxor		($rndkey1,$inout1);
+	&movdqu		(&QWP(-16*5,$out,$inp),$inout1);
+	&pxor		($rndkey1,$inout2);
+	&movdqu		(&QWP(-16*4,$out,$inp),$inout2);
+	&pxor		($rndkey1,$inout3);
+	&movdqu		(&QWP(-16*3,$out,$inp),$inout3);
+	&pxor		($rndkey1,$inout4);
+	&movdqu		(&QWP(-16*2,$out,$inp),$inout4);
+	&pxor		($rndkey1,$inout5);
+	&movdqu		(&QWP(-16*1,$out,$inp),$inout5);
+	&cmp		($inp,$len);			# done yet?
+	&jb		(&label("grandloop"));
+
+&set_label("short");
+	&add		($len,16*6);
+	&sub		($len,$inp);
+	&jz		(&label("done"));
+
+	&cmp		($len,16*2);
+	&jb		(&label("one"));
+	&je		(&label("two"));
+
+	&cmp		($len,16*4);
+	&jb		(&label("three"));
+	&je		(&label("four"));
+
+	&lea		($i1,&DWP(1,$block));
+	&lea		($i3,&DWP(3,$block));
+	&bsf		($i1,$i1);
+	&bsf		($i3,$i3);
+	&shl		($i1,4);
+	&shl		($i3,4);
+	&movdqu		($inout0,&QWP(0,$l_));
+	&movdqu		($inout1,&QWP(0,$l_,$i1));
+	&mov		($rounds,&DWP($rounds_off,"esp"));
+	&movdqa		($inout2,$inout0);
+	&movdqu		($inout3,&QWP(0,$l_,$i3));
+	&movdqa		($inout4,$inout0);
+
+	&pxor		($inout0,$rndkey0);		# ^ last offset_i
+	&pxor		($inout1,$inout0);
+	&movdqa		(&QWP(16*0,"esp"),$inout0);
+	&pxor		($inout2,$inout1);
+	&movdqa		(&QWP(16*1,"esp"),$inout1);
+	&pxor		($inout3,$inout2);
+	&movdqa		(&QWP(16*2,"esp"),$inout2);
+	&pxor		($inout4,$inout3);
+	&movdqa		(&QWP(16*3,"esp"),$inout3);
+	&pxor		($inout5,$inout4);
+	&movdqa		(&QWP(16*4,"esp"),$inout4);
+
+	&$movekey	($rndkey0,&QWP(-48,$key,$rounds));
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&movdqu		($inout3,&QWP(16*3,$inp));
+	&movdqu		($inout4,&QWP(16*4,$inp));
+	&pxor		($inout5,$inout5);
+
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1);
+	&pxor		($inout0,$rndkey0);		# ^ roundkey[0]
+	&pxor		($inout1,$rndkey0);
+	&pxor		($inout2,$rndkey0);
+	&pxor		($inout3,$rndkey0);
+	&pxor		($inout4,$rndkey0);
+
+	&$movekey	($rndkey1,&QWP(-32,$key,$rounds));
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,&QWP(16*4,"esp"));
+
+	&$movekey	($rndkey0,&QWP(-16,$key,$rounds));
+	&aesdec		($inout0,$rndkey1);
+	&aesdec		($inout1,$rndkey1);
+	&aesdec		($inout2,$rndkey1);
+	&aesdec		($inout3,$rndkey1);
+	&aesdec		($inout4,$rndkey1);
+	&aesdec		($inout5,$rndkey1);
+
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_decrypt6_enter");
+
+	&movdqa		($rndkey0,&QWP(16*4,"esp"));	# pass last offset_i
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,&QWP(16*2,"esp"));
+	&pxor		($inout3,&QWP(16*3,"esp"));
+	&pxor		($inout4,$rndkey0);
+
+	&pxor		($rndkey1,$inout0);		# checksum
+	&movdqu		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&pxor		($rndkey1,$inout1);
+	&movdqu		(&QWP(16*1,$out,$inp),$inout1);
+	&pxor		($rndkey1,$inout2);
+	&movdqu		(&QWP(16*2,$out,$inp),$inout2);
+	&pxor		($rndkey1,$inout3);
+	&movdqu		(&QWP(16*3,$out,$inp),$inout3);
+	&pxor		($rndkey1,$inout4);
+	&movdqu		(&QWP(16*4,$out,$inp),$inout4);
+
+	&jmp		(&label("done"));
+
+&set_label("one",16);
+	&movdqu		($inout5,&QWP(0,$l_));
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&mov		($rounds,&DWP(240,$key));
+
+	&pxor		($inout5,$rndkey0);		# ^ last offset_i
+	&pxor		($inout0,$inout5);		# ^ offset_i
+
+	&movdqa		($inout4,$rndkey1);
+	&mov		($out,&DWP($out_off,"esp"));
+	if ($inline)
+	{   &aesni_inline_generate1("dec");	}
+	else
+	{   &call	("_aesni_decrypt1");	}
+
+	&xorps		($inout0,$inout5);		# ^ offset_i
+	&movaps		($rndkey1,$inout4);		# pass the checksum
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&xorps		($rndkey1,$inout0);		# checksum
+	&movups		(&QWP(0,$out,$inp),$inout0);
+
+	&jmp		(&label("done"));
+
+&set_label("two",16);
+	&lea		($i1,&DWP(1,$block));
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+	&bsf		($i1,$i1);
+	&shl		($i1,4);
+	&movdqu		($inout4,&QWP(0,$l_));
+	&movdqu		($inout5,&QWP(0,$l_,$i1));
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&mov		($rounds,&DWP(240,$key));
+
+	&movdqa		($inout3,$rndkey1);
+	&pxor		($inout4,$rndkey0);		# ^ last offset_i
+	&pxor		($inout5,$inout4);
+
+	&pxor		($inout0,$inout4);		# ^ offset_i
+	&pxor		($inout1,$inout5);
+
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_decrypt2");
+
+	&xorps		($inout0,$inout4);		# ^ offset_i
+	&xorps		($inout1,$inout5);
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&xorps		($inout3,$inout0);		# checksum
+	&movups		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&xorps		($inout3,$inout1);
+	&movups		(&QWP(16*1,$out,$inp),$inout1);
+	&movaps		($rndkey1,$inout3);		# pass the checksum
+
+	&jmp		(&label("done"));
+
+&set_label("three",16);
+	&lea		($i1,&DWP(1,$block));
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+	&bsf		($i1,$i1);
+	&shl		($i1,4);
+	&movdqu		($inout3,&QWP(0,$l_));
+	&movdqu		($inout4,&QWP(0,$l_,$i1));
+	&movdqa		($inout5,$inout3);
+
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&mov		($rounds,&DWP(240,$key));
+
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1);
+	&pxor		($inout3,$rndkey0);		# ^ last offset_i
+	&pxor		($inout4,$inout3);
+	&pxor		($inout5,$inout4);
+
+	&pxor		($inout0,$inout3);		# ^ offset_i
+	&pxor		($inout1,$inout4);
+	&pxor		($inout2,$inout5);
+
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_decrypt3");
+
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));# pass the checksum
+	&xorps		($inout0,$inout3);		# ^ offset_i
+	&xorps		($inout1,$inout4);
+	&xorps		($inout2,$inout5);
+	&movups		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&pxor		($rndkey1,$inout0);		# checksum
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&movups		(&QWP(16*1,$out,$inp),$inout1);
+	&pxor		($rndkey1,$inout1);
+	&movups		(&QWP(16*2,$out,$inp),$inout2);
+	&pxor		($rndkey1,$inout2);
+
+	&jmp		(&label("done"));
+
+&set_label("four",16);
+	&lea		($i1,&DWP(1,$block));
+	&lea		($i3,&DWP(3,$block));
+	&bsf		($i1,$i1);
+	&bsf		($i3,$i3);
+	&mov		($key,&DWP($key_off,"esp"));	# restore key
+	&shl		($i1,4);
+	&shl		($i3,4);
+	&movdqu		($inout2,&QWP(0,$l_));
+	&movdqu		($inout3,&QWP(0,$l_,$i1));
+	&movdqa		($inout4,$inout2);
+	&movdqu		($inout5,&QWP(0,$l_,$i3));
+
+	&pxor		($inout2,$rndkey0);		# ^ last offset_i
+	&movdqu		($inout0,&QWP(16*0,$inp));	# load input
+	&pxor		($inout3,$inout2);
+	&movdqu		($inout1,&QWP(16*1,$inp));
+	&pxor		($inout4,$inout3);
+	&movdqa		(&QWP(16*0,"esp"),$inout2);
+	&pxor		($inout5,$inout4);
+	&movdqa		(&QWP(16*1,"esp"),$inout3);
+	&movdqu		($inout2,&QWP(16*2,$inp));
+	&movdqu		($inout3,&QWP(16*3,$inp));
+	&mov		($rounds,&DWP(240,$key));
+
+	&movdqa		(&QWP($checksum,"esp"),$rndkey1);
+	&pxor		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&pxor		($inout1,&QWP(16*1,"esp"));
+	&pxor		($inout2,$inout4);
+	&pxor		($inout3,$inout5);
+
+	&mov		($out,&DWP($out_off,"esp"));
+	&call		("_aesni_decrypt4");
+
+	&movdqa		($rndkey1,&QWP($checksum,"esp"));# pass the checksum
+	&xorps		($inout0,&QWP(16*0,"esp"));	# ^ offset_i
+	&xorps		($inout1,&QWP(16*1,"esp"));
+	&xorps		($inout2,$inout4);
+	&movups		(&QWP(16*0,$out,$inp),$inout0);	# store output
+	&pxor		($rndkey1,$inout0);		# checksum
+	&xorps		($inout3,$inout5);
+	&movups		(&QWP(16*1,$out,$inp),$inout1);
+	&pxor		($rndkey1,$inout1);
+	&movdqa		($rndkey0,$inout5);		# pass last offset_i
+	&movups		(&QWP(16*2,$out,$inp),$inout2);
+	&pxor		($rndkey1,$inout2);
+	&movups		(&QWP(16*3,$out,$inp),$inout3);
+	&pxor		($rndkey1,$inout3);
+
+&set_label("done");
+	&mov	($key,&DWP($esp_off,"esp"));
+	&pxor	($inout0,$inout0);		# clear register bank
+	&pxor	($inout1,$inout1);
+	&movdqa	(&QWP(16*0,"esp"),$inout0);	# clear stack
+	&pxor	($inout2,$inout2);
+	&movdqa	(&QWP(16*1,"esp"),$inout0);
+	&pxor	($inout3,$inout3);
+	&movdqa	(&QWP(16*2,"esp"),$inout0);
+	&pxor	($inout4,$inout4);
+	&movdqa	(&QWP(16*3,"esp"),$inout0);
+	&pxor	($inout5,$inout5);
+	&movdqa	(&QWP(16*4,"esp"),$inout0);
+	&movdqa	(&QWP(16*5,"esp"),$inout0);
+	&movdqa	(&QWP(16*6,"esp"),$inout0);
+
+	&lea	("esp",&DWP(0,$key));
+	&mov	($rounds,&wparam(5));		# &offset_i
+	&mov	($rounds_,&wparam(7));		# &checksum
+	&movdqu	(&QWP(0,$rounds),$rndkey0);
+	&pxor	($rndkey0,$rndkey0);
+	&movdqu	(&QWP(0,$rounds_),$rndkey1);
+	&pxor	($rndkey1,$rndkey1);
+&function_end("aesni_ocb_decrypt");
 }
 }
 
@@ -1764,6 +2766,7 @@ if ($PREFIX eq "aesni") {
 	&add	($len,16);
 	&jnz	(&label("cbc_enc_tail"));
 	&movaps	($ivec,$inout0);
+	&pxor	($inout0,$inout0);
 	&jmp	(&label("cbc_ret"));
 
 &set_label("cbc_enc_tail");
@@ -1816,7 +2819,7 @@ if ($PREFIX eq "aesni") {
 	&movups	(&QWP(0x10,$out),$inout1);
 	&lea	($inp,&DWP(0x60,$inp));
 	&movups	(&QWP(0x20,$out),$inout2);
-	&mov	($rounds,$rounds_)		# restore $rounds
+	&mov	($rounds,$rounds_);		# restore $rounds
 	&movups	(&QWP(0x30,$out),$inout3);
 	&mov	($key,$key_);			# restore $key
 	&movups	(&QWP(0x40,$out),$inout4);
@@ -1827,7 +2830,7 @@ if ($PREFIX eq "aesni") {
 	&movaps	($inout0,$inout5);
 	&movaps	($ivec,$rndkey0);
 	&add	($len,0x50);
-	&jle	(&label("cbc_dec_tail_collected"));
+	&jle	(&label("cbc_dec_clear_tail_collected"));
 	&movups	(&QWP(0,$out),$inout0);
 	&lea	($out,&DWP(0x10,$out));
 &set_label("cbc_dec_tail");
@@ -1866,10 +2869,14 @@ if ($PREFIX eq "aesni") {
 	&xorps	($inout4,$rndkey0);
 	&movups	(&QWP(0,$out),$inout0);
 	&movups	(&QWP(0x10,$out),$inout1);
+	&pxor	($inout1,$inout1);
 	&movups	(&QWP(0x20,$out),$inout2);
+	&pxor	($inout2,$inout2);
 	&movups	(&QWP(0x30,$out),$inout3);
+	&pxor	($inout3,$inout3);
 	&lea	($out,&DWP(0x40,$out));
 	&movaps	($inout0,$inout4);
+	&pxor	($inout4,$inout4);
 	&sub	($len,0x50);
 	&jmp	(&label("cbc_dec_tail_collected"));
 
@@ -1884,12 +2891,12 @@ if ($PREFIX eq "aesni") {
 	&jmp	(&label("cbc_dec_tail_collected"));
 
 &set_label("cbc_dec_two",16);
-	&xorps	($inout2,$inout2);
-	&call	("_aesni_decrypt3");
+	&call	("_aesni_decrypt2");
 	&xorps	($inout0,$ivec);
 	&xorps	($inout1,$in0);
 	&movups	(&QWP(0,$out),$inout0);
 	&movaps	($inout0,$inout1);
+	&pxor	($inout1,$inout1);
 	&lea	($out,&DWP(0x10,$out));
 	&movaps	($ivec,$in1);
 	&sub	($len,0x20);
@@ -1902,7 +2909,9 @@ if ($PREFIX eq "aesni") {
 	&xorps	($inout2,$in1);
 	&movups	(&QWP(0,$out),$inout0);
 	&movaps	($inout0,$inout2);
+	&pxor	($inout2,$inout2);
 	&movups	(&QWP(0x10,$out),$inout1);
+	&pxor	($inout1,$inout1);
 	&lea	($out,&DWP(0x20,$out));
 	&movups	($ivec,&QWP(0x20,$inp));
 	&sub	($len,0x30);
@@ -1918,29 +2927,44 @@ if ($PREFIX eq "aesni") {
 	&movups	(&QWP(0,$out),$inout0);
 	&xorps	($inout2,$rndkey1);
 	&movups	(&QWP(0x10,$out),$inout1);
+	&pxor	($inout1,$inout1);
 	&xorps	($inout3,$rndkey0);
 	&movups	(&QWP(0x20,$out),$inout2);
+	&pxor	($inout2,$inout2);
 	&lea	($out,&DWP(0x30,$out));
 	&movaps	($inout0,$inout3);
+	&pxor	($inout3,$inout3);
 	&sub	($len,0x40);
+	&jmp	(&label("cbc_dec_tail_collected"));
 
+&set_label("cbc_dec_clear_tail_collected",16);
+	&pxor	($inout1,$inout1);
+	&pxor	($inout2,$inout2);
+	&pxor	($inout3,$inout3);
+	&pxor	($inout4,$inout4);
 &set_label("cbc_dec_tail_collected");
 	&and	($len,15);
 	&jnz	(&label("cbc_dec_tail_partial"));
 	&movups	(&QWP(0,$out),$inout0);
+	&pxor	($rndkey0,$rndkey0);
 	&jmp	(&label("cbc_ret"));
 
 &set_label("cbc_dec_tail_partial",16);
 	&movaps	(&QWP(0,"esp"),$inout0);
+	&pxor	($rndkey0,$rndkey0);
 	&mov	("ecx",16);
 	&mov	($inp,"esp");
 	&sub	("ecx",$len);
 	&data_word(0xA4F3F689);		# rep movsb
+	&movdqa	(&QWP(0,"esp"),$inout0);
 
 &set_label("cbc_ret");
 	&mov	("esp",&DWP(16,"esp"));	# pull original %esp
 	&mov	($key_,&wparam(4));
+	&pxor	($inout0,$inout0);
+	&pxor	($rndkey1,$rndkey1);
 	&movups	(&QWP(0,$key_),$ivec);	# output IV
+	&pxor	($ivec,$ivec);
 &set_label("cbc_abort");
 &function_end("${PREFIX}_cbc_encrypt");
 
@@ -1957,14 +2981,24 @@ if ($PREFIX eq "aesni") {
 #	$round	rounds
 
 &function_begin_B("_aesni_set_encrypt_key");
+	&push	("ebp");
+	&push	("ebx");
 	&test	("eax","eax");
 	&jz	(&label("bad_pointer"));
 	&test	($key,$key);
 	&jz	(&label("bad_pointer"));
 
+	&call	(&label("pic"));
+&set_label("pic");
+	&blindpop("ebx");
+	&lea	("ebx",&DWP(&label("key_const")."-".&label("pic"),"ebx"));
+
+	&picmeup("ebp","OPENSSL_ia32cap_P","ebx",&label("key_const"));
 	&movups	("xmm0",&QWP(0,"eax"));	# pull first 128 bits of *userKey
 	&xorps	("xmm4","xmm4");	# low dword of xmm4 is assumed 0
+	&mov	("ebp",&DWP(4,"ebp"));
 	&lea	($key,&DWP(16,$key));
+	&and	("ebp",1<<28|1<<11);	# AVX and XOP bits
 	&cmp	($rounds,256);
 	&je	(&label("14rounds"));
 	&cmp	($rounds,192);
@@ -1973,6 +3007,9 @@ if ($PREFIX eq "aesni") {
 	&jne	(&label("bad_keybits"));
 
 &set_label("10rounds",16);
+	&cmp		("ebp",1<<28);
+	&je		(&label("10rounds_alt"));
+
 	&mov		($rounds,9);
 	&$movekey	(&QWP(-16,$key),"xmm0");	# round 0
 	&aeskeygenassist("xmm1","xmm0",0x01);		# round 1
@@ -1997,8 +3034,8 @@ if ($PREFIX eq "aesni") {
 	&call		(&label("key_128"));
 	&$movekey	(&QWP(0,$key),"xmm0");
 	&mov		(&DWP(80,$key),$rounds);
-	&xor		("eax","eax");
-	&ret();
+
+	&jmp	(&label("good_key"));
 
 &set_label("key_128",16);
 	&$movekey	(&QWP(0,$key),"xmm0");
@@ -2012,10 +3049,78 @@ if ($PREFIX eq "aesni") {
 	&xorps		("xmm0","xmm1");
 	&ret();
 
+&set_label("10rounds_alt",16);
+	&movdqa		("xmm5",&QWP(0x00,"ebx"));
+	&mov		($rounds,8);
+	&movdqa		("xmm4",&QWP(0x20,"ebx"));
+	&movdqa		("xmm2","xmm0");
+	&movdqu		(&QWP(-16,$key),"xmm0");
+
+&set_label("loop_key128");
+	&pshufb		("xmm0","xmm5");
+	&aesenclast	("xmm0","xmm4");
+	&pslld		("xmm4",1);
+	&lea		($key,&DWP(16,$key));
+
+	&movdqa		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm2","xmm3");
+
+	&pxor		("xmm0","xmm2");
+	&movdqu		(&QWP(-16,$key),"xmm0");
+	&movdqa		("xmm2","xmm0");
+
+	&dec		($rounds);
+	&jnz		(&label("loop_key128"));
+
+	&movdqa		("xmm4",&QWP(0x30,"ebx"));
+
+	&pshufb		("xmm0","xmm5");
+	&aesenclast	("xmm0","xmm4");
+	&pslld		("xmm4",1);
+
+	&movdqa		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm2","xmm3");
+
+	&pxor		("xmm0","xmm2");
+	&movdqu		(&QWP(0,$key),"xmm0");
+
+	&movdqa		("xmm2","xmm0");
+	&pshufb		("xmm0","xmm5");
+	&aesenclast	("xmm0","xmm4");
+
+	&movdqa		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm3","xmm2");
+	&pslldq		("xmm2",4);
+	&pxor		("xmm2","xmm3");
+
+	&pxor		("xmm0","xmm2");
+	&movdqu		(&QWP(16,$key),"xmm0");
+
+	&mov		($rounds,9);
+	&mov		(&DWP(96,$key),$rounds);
+
+	&jmp	(&label("good_key"));
+
 &set_label("12rounds",16);
 	&movq		("xmm2",&QWP(16,"eax"));	# remaining 1/3 of *userKey
+	&cmp		("ebp",1<<28);
+	&je		(&label("12rounds_alt"));
+
 	&mov		($rounds,11);
-	&$movekey	(&QWP(-16,$key),"xmm0")		# round 0
+	&$movekey	(&QWP(-16,$key),"xmm0");	# round 0
 	&aeskeygenassist("xmm1","xmm2",0x01);		# round 1,2
 	&call		(&label("key_192a_cold"));
 	&aeskeygenassist("xmm1","xmm2",0x02);		# round 2,3
@@ -2034,8 +3139,8 @@ if ($PREFIX eq "aesni") {
 	&call		(&label("key_192b"));
 	&$movekey	(&QWP(0,$key),"xmm0");
 	&mov		(&DWP(48,$key),$rounds);
-	&xor		("eax","eax");
-	&ret();
+
+	&jmp	(&label("good_key"));
 
 &set_label("key_192a",16);
 	&$movekey	(&QWP(0,$key),"xmm0");
@@ -2065,10 +3170,52 @@ if ($PREFIX eq "aesni") {
 	&lea		($key,&DWP(32,$key));
 	&jmp		(&label("key_192b_warm"));
 
+&set_label("12rounds_alt",16);
+	&movdqa		("xmm5",&QWP(0x10,"ebx"));
+	&movdqa		("xmm4",&QWP(0x20,"ebx"));
+	&mov		($rounds,8);
+	&movdqu		(&QWP(-16,$key),"xmm0");
+
+&set_label("loop_key192");
+	&movq		(&QWP(0,$key),"xmm2");
+	&movdqa		("xmm1","xmm2");
+	&pshufb		("xmm2","xmm5");
+	&aesenclast	("xmm2","xmm4");
+	&pslld		("xmm4",1);
+	&lea		($key,&DWP(24,$key));
+
+	&movdqa		("xmm3","xmm0");
+	&pslldq		("xmm0",4);
+	&pxor		("xmm3","xmm0");
+	&pslldq		("xmm0",4);
+	&pxor		("xmm3","xmm0");
+	&pslldq		("xmm0",4);
+	&pxor		("xmm0","xmm3");
+
+	&pshufd		("xmm3","xmm0",0xff);
+	&pxor		("xmm3","xmm1");
+	&pslldq		("xmm1",4);
+	&pxor		("xmm3","xmm1");
+
+	&pxor		("xmm0","xmm2");
+	&pxor		("xmm2","xmm3");
+	&movdqu		(&QWP(-16,$key),"xmm0");
+
+	&dec		($rounds);
+	&jnz		(&label("loop_key192"));
+
+	&mov	($rounds,11);
+	&mov	(&DWP(32,$key),$rounds);
+
+	&jmp	(&label("good_key"));
+
 &set_label("14rounds",16);
 	&movups		("xmm2",&QWP(16,"eax"));	# remaining half of *userKey
-	&mov		($rounds,13);
 	&lea		($key,&DWP(16,$key));
+	&cmp		("ebp",1<<28);
+	&je		(&label("14rounds_alt"));
+
+	&mov		($rounds,13);
 	&$movekey	(&QWP(-32,$key),"xmm0");	# round 0
 	&$movekey	(&QWP(-16,$key),"xmm2");	# round 1
 	&aeskeygenassist("xmm1","xmm2",0x01);		# round 2
@@ -2100,7 +3247,8 @@ if ($PREFIX eq "aesni") {
 	&$movekey	(&QWP(0,$key),"xmm0");
 	&mov		(&DWP(16,$key),$rounds);
 	&xor		("eax","eax");
-	&ret();
+
+	&jmp	(&label("good_key"));
 
 &set_label("key_256a",16);
 	&$movekey	(&QWP(0,$key),"xmm2");
@@ -2126,11 +3274,77 @@ if ($PREFIX eq "aesni") {
 	&xorps		("xmm2","xmm1");
 	&ret();
 
+&set_label("14rounds_alt",16);
+	&movdqa		("xmm5",&QWP(0x00,"ebx"));
+	&movdqa		("xmm4",&QWP(0x20,"ebx"));
+	&mov		($rounds,7);
+	&movdqu		(&QWP(-32,$key),"xmm0");
+	&movdqa		("xmm1","xmm2");
+	&movdqu		(&QWP(-16,$key),"xmm2");
+
+&set_label("loop_key256");
+	&pshufb		("xmm2","xmm5");
+	&aesenclast	("xmm2","xmm4");
+
+	&movdqa		("xmm3","xmm0");
+	&pslldq		("xmm0",4);
+	&pxor		("xmm3","xmm0");
+	&pslldq		("xmm0",4);
+	&pxor		("xmm3","xmm0");
+	&pslldq		("xmm0",4);
+	&pxor		("xmm0","xmm3");
+	&pslld		("xmm4",1);
+
+	&pxor		("xmm0","xmm2");
+	&movdqu		(&QWP(0,$key),"xmm0");
+
+	&dec		($rounds);
+	&jz		(&label("done_key256"));
+
+	&pshufd		("xmm2","xmm0",0xff);
+	&pxor		("xmm3","xmm3");
+	&aesenclast	("xmm2","xmm3");
+
+	&movdqa		("xmm3","xmm1");
+	&pslldq		("xmm1",4);
+	&pxor		("xmm3","xmm1");
+	&pslldq		("xmm1",4);
+	&pxor		("xmm3","xmm1");
+	&pslldq		("xmm1",4);
+	&pxor		("xmm1","xmm3");
+
+	&pxor		("xmm2","xmm1");
+	&movdqu		(&QWP(16,$key),"xmm2");
+	&lea		($key,&DWP(32,$key));
+	&movdqa		("xmm1","xmm2");
+	&jmp		(&label("loop_key256"));
+
+&set_label("done_key256");
+	&mov		($rounds,13);
+	&mov		(&DWP(16,$key),$rounds);
+
+&set_label("good_key");
+	&pxor	("xmm0","xmm0");
+	&pxor	("xmm1","xmm1");
+	&pxor	("xmm2","xmm2");
+	&pxor	("xmm3","xmm3");
+	&pxor	("xmm4","xmm4");
+	&pxor	("xmm5","xmm5");
+	&xor	("eax","eax");
+	&pop	("ebx");
+	&pop	("ebp");
+	&ret	();
+
 &set_label("bad_pointer",4);
 	&mov	("eax",-1);
+	&pop	("ebx");
+	&pop	("ebp");
 	&ret	();
 &set_label("bad_keybits",4);
+	&pxor	("xmm0","xmm0");
 	&mov	("eax",-2);
+	&pop	("ebx");
+	&pop	("ebp");
 	&ret	();
 &function_end_B("_aesni_set_encrypt_key");
 
@@ -2152,7 +3366,7 @@ if ($PREFIX eq "aesni") {
 	&mov	($key,&wparam(2));
 	&call	("_aesni_set_encrypt_key");
 	&mov	($key,&wparam(2));
-	&shl	($rounds,4)	# rounds-1 after _aesni_set_encrypt_key
+	&shl	($rounds,4);	# rounds-1 after _aesni_set_encrypt_key
 	&test	("eax","eax");
 	&jnz	(&label("dec_key_ret"));
 	&lea	("eax",&DWP(16,$key,$rounds));	# end of key schedule
@@ -2180,10 +3394,20 @@ if ($PREFIX eq "aesni") {
 	&aesimc		("xmm0","xmm0");
 	&$movekey	(&QWP(0,$key),"xmm0");
 
+	&pxor		("xmm0","xmm0");
+	&pxor		("xmm1","xmm1");
 	&xor		("eax","eax");		# return success
 &set_label("dec_key_ret");
 	&ret	();
 &function_end_B("${PREFIX}_set_decrypt_key");
+
+&set_label("key_const",64);
+&data_word(0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d);
+&data_word(0x04070605,0x04070605,0x04070605,0x04070605);
+&data_word(1,1,1,1);
+&data_word(0x1b,0x1b,0x1b,0x1b);
 &asciz("AES for Intel AES-NI, CRYPTOGAMS by <appro\@openssl.org>");
 
 &asm_finish();
+
+close STDOUT;

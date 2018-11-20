@@ -9,20 +9,20 @@ SSL_CTX_sess_set_new_cb, SSL_CTX_sess_set_remove_cb, SSL_CTX_sess_set_get_cb, SS
  #include <openssl/ssl.h>
 
  void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx,
-			      int (*new_session_cb)(SSL *, SSL_SESSION *));
+                              int (*new_session_cb)(SSL *, SSL_SESSION *));
  void SSL_CTX_sess_set_remove_cb(SSL_CTX *ctx,
-	   void (*remove_session_cb)(SSL_CTX *ctx, SSL_SESSION *));
+           void (*remove_session_cb)(SSL_CTX *ctx, SSL_SESSION *));
  void SSL_CTX_sess_set_get_cb(SSL_CTX *ctx,
-	   SSL_SESSION (*get_session_cb)(SSL *, unsigned char *, int, int *));
+           SSL_SESSION (*get_session_cb)(SSL *, const unsigned char *, int, int *));
 
  int (*SSL_CTX_sess_get_new_cb(SSL_CTX *ctx))(struct ssl_st *ssl, SSL_SESSION *sess);
  void (*SSL_CTX_sess_get_remove_cb(SSL_CTX *ctx))(struct ssl_ctx_st *ctx, SSL_SESSION *sess);
- SSL_SESSION *(*SSL_CTX_sess_get_get_cb(SSL_CTX *ctx))(struct ssl_st *ssl, unsigned char *data, int len, int *copy);
+ SSL_SESSION *(*SSL_CTX_sess_get_get_cb(SSL_CTX *ctx))(struct ssl_st *ssl, const unsigned char *data, int len, int *copy);
 
  int (*new_session_cb)(struct ssl_st *ssl, SSL_SESSION *sess);
  void (*remove_session_cb)(struct ssl_ctx_st *ctx, SSL_SESSION *sess);
  SSL_SESSION *(*get_session_cb)(struct ssl_st *ssl, unsigned char *data,
-	       int len, int *copy);
+               int len, int *copy);
 
 =head1 DESCRIPTION
 
@@ -37,7 +37,7 @@ of exceeding the timeout value.
 SSL_CTX_sess_set_get_cb() sets the callback function which is called,
 whenever a SSL/TLS client proposed to resume a session but the session
 could not be found in the internal session cache (see
-L<SSL_CTX_set_session_cache_mode(3)|SSL_CTX_set_session_cache_mode(3)>).
+L<SSL_CTX_set_session_cache_mode(3)>).
 (SSL/TLS server only.)
 
 SSL_CTX_sess_get_new_cb(), SSL_CTX_sess_get_remove_cb(), and
@@ -50,11 +50,11 @@ the NULL pointer is returned.
 In order to allow external session caching, synchronization with the internal
 session cache is realized via callback functions. Inside these callback
 functions, session can be saved to disk or put into a database using the
-L<d2i_SSL_SESSION(3)|d2i_SSL_SESSION(3)> interface.
+L<d2i_SSL_SESSION(3)> interface.
 
 The new_session_cb() is called, whenever a new session has been negotiated
 and session caching is enabled (see
-L<SSL_CTX_set_session_cache_mode(3)|SSL_CTX_set_session_cache_mode(3)>).
+L<SSL_CTX_set_session_cache_mode(3)>).
 The new_session_cb() is passed the B<ssl> connection and the ssl session
 B<sess>. If the callback returns B<0>, the session will be immediately
 removed again.
@@ -63,7 +63,7 @@ The remove_session_cb() is called, whenever the SSL engine removes a session
 from the internal cache. This happens when the session is removed because
 it is expired or when a connection was not shutdown cleanly. It also happens
 for all sessions in the internal session cache when
-L<SSL_CTX_free(3)|SSL_CTX_free(3)> is called. The remove_session_cb() is passed
+L<SSL_CTX_free(3)> is called. The remove_session_cb() is passed
 the B<ctx> and the ssl session B<sess>. It does not provide any feedback.
 
 The get_session_cb() is only called on SSL/TLS servers with the session id
@@ -74,14 +74,23 @@ B<data>. With the parameter B<copy> the callback can require the
 SSL engine to increment the reference count of the SSL_SESSION object,
 Normally the reference count is not incremented and therefore the
 session must not be explicitly freed with
-L<SSL_SESSION_free(3)|SSL_SESSION_free(3)>.
+L<SSL_SESSION_free(3)>.
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>, L<d2i_SSL_SESSION(3)|d2i_SSL_SESSION(3)>,
-L<SSL_CTX_set_session_cache_mode(3)|SSL_CTX_set_session_cache_mode(3)>,
-L<SSL_CTX_flush_sessions(3)|SSL_CTX_flush_sessions(3)>,
-L<SSL_SESSION_free(3)|SSL_SESSION_free(3)>,
-L<SSL_CTX_free(3)|SSL_CTX_free(3)>
+L<ssl(3)>, L<d2i_SSL_SESSION(3)>,
+L<SSL_CTX_set_session_cache_mode(3)>,
+L<SSL_CTX_flush_sessions(3)>,
+L<SSL_SESSION_free(3)>,
+L<SSL_CTX_free(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

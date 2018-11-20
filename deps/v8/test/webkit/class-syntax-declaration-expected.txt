@@ -1,0 +1,43 @@
+Tests for ES6 class syntax declarations
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS constructorCallCount is 0
+PASS A.someStaticMethod() is staticMethodValue
+PASS A.someStaticGetter is getterValue
+PASS setterValue = undefined; A.someStaticSetter = 123; setterValue is 123
+PASS (new A).someInstanceMethod() is instanceMethodValue
+PASS constructorCallCount is 1
+PASS (new A).someGetter is getterValue
+PASS constructorCallCount is 2
+PASS (new A).someGetter is getterValue
+PASS setterValue = undefined; (new A).someSetter = 789; setterValue is 789
+PASS (new A).__proto__ is A.prototype
+PASS A.prototype.constructor is A
+PASS class threw exception SyntaxError: Unexpected end of input.
+PASS class [ threw exception SyntaxError: Unexpected token [.
+PASS class { threw exception SyntaxError: Unexpected token {.
+PASS class X { threw exception SyntaxError: Unexpected end of input.
+PASS class X { ( } threw exception SyntaxError: Unexpected token (.
+PASS class X {} did not throw exception.
+PASS class X { constructor() {} constructor() {} } threw exception SyntaxError: A class may only have one constructor.
+PASS class X { get constructor() {} } threw exception SyntaxError: Class constructor may not be an accessor.
+PASS class X { set constructor() {} } threw exception SyntaxError: Class constructor may not be an accessor.
+PASS class X { constructor() {} static constructor() { return staticMethodValue; } } did not throw exception.
+PASS class X { constructor() {} static constructor() { return staticMethodValue; } }; X.constructor() is staticMethodValue
+PASS class X { constructor() {} static prototype() {} } threw exception SyntaxError: Classes may not have a static property named 'prototype'.
+PASS class X { constructor() {} static get prototype() {} } threw exception SyntaxError: Classes may not have a static property named 'prototype'.
+PASS class X { constructor() {} static set prototype() {} } threw exception SyntaxError: Classes may not have a static property named 'prototype'.
+PASS class X { constructor() {} prototype() { return instanceMethodValue; } } did not throw exception.
+PASS class X { constructor() {} prototype() { return instanceMethodValue; } }; (new X).prototype() is instanceMethodValue
+PASS class X { constructor() {} set foo(a) {} } did not throw exception.
+PASS class X { constructor() {} set foo({x, y}) {} } did not throw exception.
+PASS class X { constructor() {} set foo() {} } threw exception SyntaxError: Setter must have exactly one formal parameter..
+PASS class X { constructor() {} set foo(a, b) {} } threw exception SyntaxError: Setter must have exactly one formal parameter..
+PASS class X { constructor() {} get foo() {} } did not throw exception.
+PASS class X { constructor() {} get foo(x) {} } threw exception SyntaxError: Getter must not have any formal parameters..
+PASS class X { constructor() {} get foo({x, y}) {} } threw exception SyntaxError: Getter must not have any formal parameters..
+PASS successfullyParsed is true
+
+TEST COMPLETE

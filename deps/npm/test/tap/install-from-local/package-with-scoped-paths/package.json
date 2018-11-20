@@ -1,8 +1,0 @@
-{
-  "name": "package-with-scoped-paths",
-  "version": "0.0.0",
-  "dependencies": {
-    "package-local-dependency": "file:../package-local-dependency",
-    "@scoped/package-scoped-dependency": "file:../package-scoped-dependency"
-  }
-}

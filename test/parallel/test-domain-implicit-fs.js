@@ -19,37 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+'use strict';
 // Simple tests of most basic domain functionality.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
-var caught = 0;
-var expectCaught = 1;
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
-var d = new domain.Domain();
-var e = new events.EventEmitter();
+const d = new domain.Domain();
 
-d.on('error', function(er) {
+d.on('error', common.mustCall(function(er) {
   console.error('caught', er);
 
   assert.strictEqual(er.domain, d);
   assert.strictEqual(er.domainThrown, true);
   assert.ok(!er.domainEmitter);
-  assert.strictEqual(er.code, 'ENOENT');
-  assert.ok(/\bthis file does not exist\b/i.test(er.path));
-  assert.strictEqual(typeof er.errno, 'number');
-
-  caught++;
-});
-
-process.on('exit', function() {
-  console.error('exit');
-  assert.equal(caught, expectCaught);
-  console.log('ok');
-});
+  assert.strictEqual(er.actual.code, 'ENOENT');
+  assert.ok(/\bthis file does not exist\b/i.test(er.actual.path));
+  assert.strictEqual(typeof er.actual.errno, 'number');
+}));
 
 
 // implicit handling of thrown errors while in a domain, via the
@@ -61,10 +49,10 @@ process.on('exit', function() {
 // handles are created.
 d.run(function() {
   setTimeout(function() {
-    var fs = require('fs');
+    const fs = require('fs');
     fs.readdir(__dirname, function() {
       fs.open('this file does not exist', 'r', function(er) {
-        if (er) throw er;
+        assert.ifError(er);
         throw new Error('should not get here!');
       });
     });

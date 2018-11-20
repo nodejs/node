@@ -1,0 +1,7 @@
+Tests that Debugger.evaluateOnCallFrame's timeout argument
+Run trivial expression:
+Evaluate finished!
+Run expression without interrupts:
+Evaluate finished!
+Run infinite loop:
+Evaluate finished!

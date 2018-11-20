@@ -1,20 +1,20 @@
-
 =pod
 
 =head1 NAME
 
+openssl-rsa,
 rsa - RSA key processing tool
 
 =head1 SYNOPSIS
 
 B<openssl> B<rsa>
+[B<-help>]
 [B<-inform PEM|NET|DER>]
 [B<-outform PEM|NET|DER>]
 [B<-in filename>]
 [B<-passin arg>]
 [B<-out filename>]
 [B<-passout arg>]
-[B<-sgckey>]
 [B<-aes128>]
 [B<-aes192>]
 [B<-aes256>]
@@ -42,9 +42,13 @@ traditional SSLeay compatible format for private key encryption: newer
 applications should use the more secure PKCS#8 format using the B<pkcs8>
 utility.
 
-=head1 COMMAND OPTIONS
+=head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-inform DER|NET|PEM>
 
@@ -57,7 +61,7 @@ section.
 
 =item B<-outform DER|NET|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -69,7 +73,7 @@ prompted for.
 =item B<-passin arg>
 
 the input file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-out filename>
 
@@ -81,12 +85,7 @@ filename.
 =item B<-passout password>
 
 the output file password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
-
-=item B<-sgckey>
-
-use the modified NET algorithm used with some versions of Microsoft IIS and SGC
-keys.
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
 
 =item B<-aes128|-aes192|-aes256|-camellia128|-camellia192|-camellia256|-des|-des3|-idea>
 
@@ -101,7 +100,7 @@ These options can only be used with PEM format output files.
 =item B<-text>
 
 prints out the various public or private key components in
-plain text in addition to the encoded version. 
+plain text in addition to the encoded version.
 
 =item B<-noout>
 
@@ -165,8 +164,7 @@ files. To use these with the utility, view the file with a binary editor
 and look for the string "private-key", then trace back to the byte
 sequence 0x30, 0x82 (this is an ASN1 SEQUENCE). Copy all the data
 from this point onwards to another file and use that as the input
-to the B<rsa> utility with the B<-inform NET> option. If you get
-an error after entering the password try the B<-sgckey> option.
+to the B<rsa> utility with the B<-inform NET> option.
 
 =head1 EXAMPLES
 
@@ -178,7 +176,7 @@ To encrypt a private key using triple DES:
 
  openssl rsa -in key.pem -des3 -out keyout.pem
 
-To convert a private key from PEM to DER format: 
+To convert a private key from PEM to DER format:
 
  openssl rsa -in key.pem -outform DER -out keyout.der
 
@@ -204,7 +202,16 @@ without having to manually edit them.
 
 =head1 SEE ALSO
 
-L<pkcs8(1)|pkcs8(1)>, L<dsa(1)|dsa(1)>, L<genrsa(1)|genrsa(1)>,
-L<gendsa(1)|gendsa(1)> 
+L<pkcs8(1)>, L<dsa(1)>, L<genrsa(1)>,
+L<gendsa(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

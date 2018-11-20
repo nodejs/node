@@ -1,0 +1,52 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_executable("inspector-test") {
+  testonly = true
+
+  sources = [
+    "inspector-test.cc",
+    "isolate-data.cc",
+    "isolate-data.h",
+    "task-runner.cc",
+    "task-runner.h",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/win:default_exe_manifest",
+  ]
+
+  data_deps = [
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "console/",
+    "cpu-profiler/",
+    "debugger/",
+    "heap-profiler/",
+    "inspector.status",
+    "json-parse-expected.txt",
+    "json-parse.js",
+    "protocol-test.js",
+    "runtime/",
+    "sessions/",
+    "testcfg.py",
+    "type-profiler/",
+    "../../src/inspector/injected-script-source.js",
+  ]
+
+  cflags = []
+  ldflags = []
+}

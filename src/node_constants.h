@@ -22,11 +22,53 @@
 #ifndef SRC_NODE_CONSTANTS_H_
 #define SRC_NODE_CONSTANTS_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "v8.h"
 
+#if HAVE_OPENSSL
+
+#ifndef RSA_PSS_SALTLEN_DIGEST
+#define RSA_PSS_SALTLEN_DIGEST -1
+#endif
+
+#ifndef RSA_PSS_SALTLEN_MAX_SIGN
+#define RSA_PSS_SALTLEN_MAX_SIGN -2
+#endif
+
+#ifndef RSA_PSS_SALTLEN_AUTO
+#define RSA_PSS_SALTLEN_AUTO -2
+#endif
+
+#define DEFAULT_CIPHER_LIST_CORE "ECDHE-RSA-AES128-GCM-SHA256:"     \
+                                 "ECDHE-ECDSA-AES128-GCM-SHA256:"   \
+                                 "ECDHE-RSA-AES256-GCM-SHA384:"     \
+                                 "ECDHE-ECDSA-AES256-GCM-SHA384:"   \
+                                 "DHE-RSA-AES128-GCM-SHA256:"       \
+                                 "ECDHE-RSA-AES128-SHA256:"         \
+                                 "DHE-RSA-AES128-SHA256:"           \
+                                 "ECDHE-RSA-AES256-SHA384:"         \
+                                 "DHE-RSA-AES256-SHA384:"           \
+                                 "ECDHE-RSA-AES256-SHA256:"         \
+                                 "DHE-RSA-AES256-SHA256:"           \
+                                 "HIGH:"                            \
+                                 "!aNULL:"                          \
+                                 "!eNULL:"                          \
+                                 "!EXPORT:"                         \
+                                 "!DES:"                            \
+                                 "!RC4:"                            \
+                                 "!MD5:"                            \
+                                 "!PSK:"                            \
+                                 "!SRP:"                            \
+                                 "!CAMELLIA"
+#endif
+
 namespace node {
-void DefineConstants(v8::Handle<v8::Object> target);
+
+void DefineConstants(v8::Isolate* isolate, v8::Local<v8::Object> target);
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CONSTANTS_H_

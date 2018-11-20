@@ -19,51 +19,49 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
 
-var common = require('../common.js');
-var R = require('_stream_readable');
-var assert = require('assert');
+const fs = require('fs');
+const FSReadable = fs.ReadStream;
 
-var fs = require('fs');
-var FSReadable = fs.ReadStream;
+const path = require('path');
+const file = path.resolve(fixtures.path('x1024.txt'));
 
-var path = require('path');
-var file = path.resolve(common.fixturesDir, 'x1024.txt');
+const size = fs.statSync(file).size;
 
-var size = fs.statSync(file).size;
+const expectLengths = [1024];
 
-var expectLengths = [1024];
+const Stream = require('stream');
 
-var util = require('util');
-var Stream = require('stream');
+class TestWriter extends Stream {
+  constructor() {
+    super();
+    this.buffer = [];
+    this.length = 0;
+  }
 
-util.inherits(TestWriter, Stream);
+  write(c) {
+    this.buffer.push(c.toString());
+    this.length += c.length;
+    return true;
+  }
 
-function TestWriter() {
-  Stream.apply(this);
-  this.buffer = [];
-  this.length = 0;
+  end(c) {
+    if (c) this.buffer.push(c.toString());
+    this.emit('results', this.buffer);
+  }
 }
 
-TestWriter.prototype.write = function(c) {
-  this.buffer.push(c.toString());
-  this.length += c.length;
-  return true;
-};
-
-TestWriter.prototype.end = function(c) {
-  if (c) this.buffer.push(c.toString());
-  this.emit('results', this.buffer);
-}
-
-var r = new FSReadable(file);
-var w = new TestWriter();
+const r = new FSReadable(file);
+const w = new TestWriter();
 
 w.on('results', function(res) {
   console.error(res, w.length);
-  assert.equal(w.length, size);
-  var l = 0;
-  assert.deepEqual(res.map(function (c) {
+  assert.strictEqual(w.length, size);
+  assert.deepStrictEqual(res.map(function(c) {
     return c.length;
   }), expectLengths);
   console.log('ok');

@@ -6,63 +6,11 @@ fi
 set -o errexit
 set -o pipefail
 
-if ! [ -x node_modules/.bin/marked-man ]; then
-  ps=0
-  if [ -f .building_marked-man ]; then
-    pid=$(cat .building_marked-man)
-    ps=$(ps -p $pid | grep $pid | wc -l) || true
-  fi
-
-  if [ -f .building_marked-man ] && [ $ps != 0 ]; then
-    while [ -f .building_marked-man ]; do
-      sleep 1
-    done
-  else
-    # a race to see which make process will be the one to install marked-man
-    echo $$ > .building_marked-man
-    sleep 1
-    if [ $(cat .building_marked-man) == $$ ]; then
-      make node_modules/.bin/marked-man
-      rm .building_marked-man
-    else
-      while [ -f .building_marked-man ]; do
-        sleep 1
-      done
-    fi
-  fi
-fi
-
-if ! [ -x node_modules/.bin/marked ]; then
-  ps=0
-  if [ -f .building_marked ]; then
-    pid=$(cat .building_marked)
-    ps=$(ps -p $pid | grep $pid | wc -l) || true
-  fi
-
-  if [ -f .building_marked ] && [ $ps != 0 ]; then
-    while [ -f .building_marked ]; do
-      sleep 1
-    done
-  else
-    # a race to see which make process will be the one to install marked
-    echo $$ > .building_marked
-    sleep 1
-    if [ $(cat .building_marked) == $$ ]; then
-      make node_modules/.bin/marked
-      rm .building_marked
-    else
-      while [ -f .building_marked ]; do
-        sleep 1
-      done
-    fi
-  fi
-fi
-
 src=$1
 dest=$2
 name=$(basename ${src%.*})
-date=$(date -u +'%Y-%M-%d %H:%m:%S')
-version=$(node cli.js -v)
+date=$(date -u +'%Y-%m-%d %H:%M:%S')
+version=$(node bin/npm-cli.js -v)
 
 mkdir -p $(dirname $dest)
 
@@ -103,22 +51,15 @@ case $dest in
     | man_replace_tokens > $dest
     exit $?
     ;;
-
-  html/partial/*.html)
-    url=${dest/html\/partial\//}
-		cat $src | ./node_modules/.bin/marked | html_replace_tokens $url > $dest
-		;;
-
-	html/*.html)
+  *.html)
     url=${dest/html\//}
     (cat html/dochead.html && \
-     cat $src && \
+     cat $src | ./node_modules/.bin/marked &&
      cat html/docfoot.html)\
     | html_replace_tokens $url \
     > $dest
     exit $?
     ;;
-
   *)
     echo "Invalid destination type: $dest" >&2
     exit 1

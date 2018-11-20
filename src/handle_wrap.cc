@@ -20,20 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "handle_wrap.h"
-#include "async-wrap.h"
-#include "async-wrap-inl.h"
-#include "env.h"
+#include "async_wrap-inl.h"
 #include "env-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "node.h"
-#include "queue.h"
 
 namespace node {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Local;
 using v8::Object;
@@ -41,88 +37,106 @@ using v8::Value;
 
 
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  if (IsAlive(wrap)) {
-    uv_ref(wrap->handle__);
-    wrap->flags_ &= ~kUnref;
-  }
+  if (IsAlive(wrap))
+    uv_ref(wrap->GetHandle());
 }
 
 
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  if (IsAlive(wrap)) {
-    uv_unref(wrap->handle__);
-    wrap->flags_ |= kUnref;
-  }
+  if (IsAlive(wrap))
+    uv_unref(wrap->GetHandle());
+}
+
+
+void HandleWrap::HasRef(const FunctionCallbackInfo<Value>& args) {
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  args.GetReturnValue().Set(HasRef(wrap));
 }
 
 
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+  wrap->Close(args[0]);
+}
 
-  // guard against uninitialized handle or double close
-  if (!IsAlive(wrap))
+void HandleWrap::Close(Local<Value> close_callback) {
+  if (state_ != kInitialized)
     return;
 
-  CHECK_EQ(false, wrap->persistent().IsEmpty());
-  uv_close(wrap->handle__, OnClose);
-  wrap->handle__ = nullptr;
+  CHECK_EQ(false, persistent().IsEmpty());
+  uv_close(handle_, OnClose);
+  state_ = kClosing;
 
-  if (args[0]->IsFunction()) {
-    wrap->object()->Set(env->close_string(), args[0]);
-    wrap->flags_ |= kCloseCallback;
+  if (!close_callback.IsEmpty() && close_callback->IsFunction()) {
+    object()->Set(env()->context(),
+                  env()->handle_onclose_symbol(),
+                  close_callback)
+        .FromMaybe(false);
   }
+}
+
+
+void HandleWrap::MarkAsInitialized() {
+  env()->handle_wrap_queue()->PushBack(this);
+  state_ = kInitialized;
+}
+
+
+void HandleWrap::MarkAsUninitialized() {
+  handle_wrap_queue_.Remove();
+  state_ = kClosed;
 }
 
 
 HandleWrap::HandleWrap(Environment* env,
-                       Handle<Object> object,
+                       Local<Object> object,
                        uv_handle_t* handle,
-                       AsyncWrap::ProviderType provider,
-                       AsyncWrap* parent)
-    : AsyncWrap(env, object, provider, parent),
-      flags_(0),
-      handle__(handle) {
-  handle__->data = this;
+                       AsyncWrap::ProviderType provider)
+    : AsyncWrap(env, object, provider),
+      state_(kInitialized),
+      handle_(handle) {
+  handle_->data = this;
   HandleScope scope(env->isolate());
-  Wrap(object, this);
-  QUEUE_INSERT_TAIL(env->handle_wrap_queue(), &handle_wrap_queue_);
-}
-
-
-HandleWrap::~HandleWrap() {
-  CHECK(persistent().IsEmpty());
-  QUEUE_REMOVE(&handle_wrap_queue_);
+  env->handle_wrap_queue()->PushBack(this);
 }
 
 
 void HandleWrap::OnClose(uv_handle_t* handle) {
-  HandleWrap* wrap = static_cast<HandleWrap*>(handle->data);
+  std::unique_ptr<HandleWrap> wrap { static_cast<HandleWrap*>(handle->data) };
   Environment* env = wrap->env();
   HandleScope scope(env->isolate());
+  Context::Scope context_scope(env->context());
 
   // The wrap object should still be there.
   CHECK_EQ(wrap->persistent().IsEmpty(), false);
+  CHECK_EQ(wrap->state_, kClosing);
 
-  // But the handle pointer should be gone.
-  CHECK_EQ(wrap->handle__, nullptr);
+  wrap->state_ = kClosed;
 
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  Local<Object> object = wrap->object();
+  wrap->OnClose();
 
-  if (wrap->flags_ & kCloseCallback) {
-    wrap->MakeCallback(env->close_string(), 0, nullptr);
+  if (wrap->object()->Has(env->context(), env->handle_onclose_symbol())
+      .FromMaybe(false)) {
+    wrap->MakeCallback(env->handle_onclose_symbol(), 0, nullptr);
   }
+}
 
-  object->SetAlignedPointerInInternalField(0, nullptr);
-  wrap->persistent().Reset();
-  delete wrap;
+
+void HandleWrap::AddWrapMethods(Environment* env,
+                                Local<FunctionTemplate> t) {
+  env->SetProtoMethod(t, "close", HandleWrap::Close);
+  env->SetProtoMethodNoSideEffect(t, "hasRef", HandleWrap::HasRef);
+  env->SetProtoMethod(t, "ref", HandleWrap::Ref);
+  env->SetProtoMethod(t, "unref", HandleWrap::Unref);
 }
 
 

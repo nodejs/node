@@ -234,3 +234,9 @@ function testBadConversion(value) {
 testBadConversion(0);
 testBadConversion("string");
 testBadConversion(true);
+
+var s = Symbol();
+testEqual(s, s);
+testEqual(Object(s), s);
+testEqual(new Wrapper(s), s);
+testNotEqual(Object(s), Object(s));

@@ -2,18 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
-
-#define ARM64_DEFINE_FP_STATICS
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/instructions-arm64.h"
 
 namespace v8 {
 namespace internal {
-
 
 bool Instruction::IsLoad() const {
   if (Mask(LoadStoreAnyFMask) != LoadStoreAnyFixed) {
@@ -23,7 +18,7 @@ bool Instruction::IsLoad() const {
   if (Mask(LoadStorePairAnyFMask) == LoadStorePairAnyFixed) {
     return Mask(LoadStorePairLBit) != 0;
   } else {
-    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreOpMask));
+    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreMask));
     switch (op) {
       case LDRB_w:
       case LDRH_w:
@@ -34,8 +29,12 @@ bool Instruction::IsLoad() const {
       case LDRSH_w:
       case LDRSH_x:
       case LDRSW_x:
+      case LDR_b:
+      case LDR_h:
       case LDR_s:
-      case LDR_d: return true;
+      case LDR_d:
+      case LDR_q:
+        return true;
       default: return false;
     }
   }
@@ -50,14 +49,18 @@ bool Instruction::IsStore() const {
   if (Mask(LoadStorePairAnyFMask) == LoadStorePairAnyFixed) {
     return Mask(LoadStorePairLBit) == 0;
   } else {
-    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreOpMask));
+    LoadStoreOp op = static_cast<LoadStoreOp>(Mask(LoadStoreMask));
     switch (op) {
       case STRB_w:
       case STRH_w:
       case STR_w:
       case STR_x:
+      case STR_b:
+      case STR_h:
       case STR_s:
-      case STR_d: return true;
+      case STR_d:
+      case STR_q:
+        return true;
       default: return false;
     }
   }
@@ -67,7 +70,7 @@ bool Instruction::IsStore() const {
 static uint64_t RotateRight(uint64_t value,
                             unsigned int rotate,
                             unsigned int width) {
-  DCHECK(width <= 64);
+  DCHECK_LE(width, 64);
   rotate &= 63;
   return ((value & ((1UL << rotate) - 1UL)) << (width - rotate)) |
          (value >> rotate);
@@ -93,9 +96,9 @@ static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
 // met.
 uint64_t Instruction::ImmLogical() {
   unsigned reg_size = SixtyFourBits() ? kXRegSizeInBits : kWRegSizeInBits;
-  int64_t n = BitN();
-  int64_t imm_s = ImmSetBits();
-  int64_t imm_r = ImmRotate();
+  int32_t n = BitN();
+  int32_t imm_s = ImmSetBits();
+  int32_t imm_r = ImmRotate();
 
   // An integer is constructed from the n, imm_s and imm_r bits according to
   // the following table:
@@ -138,46 +141,50 @@ uint64_t Instruction::ImmLogical() {
     }
   }
   UNREACHABLE();
-  return 0;
 }
 
-
-float Instruction::ImmFP32() {
-  //  ImmFP: abcdefgh (8 bits)
-  // Single: aBbb.bbbc.defg.h000.0000.0000.0000.0000 (32 bits)
-  // where B is b ^ 1
-  uint32_t bits = ImmFP();
-  uint32_t bit7 = (bits >> 7) & 0x1;
-  uint32_t bit6 = (bits >> 6) & 0x1;
-  uint32_t bit5_to_0 = bits & 0x3f;
-  uint32_t result = (bit7 << 31) | ((32 - bit6) << 25) | (bit5_to_0 << 19);
-
-  return rawbits_to_float(result);
+uint32_t Instruction::ImmNEONabcdefgh() const {
+  return ImmNEONabc() << 5 | ImmNEONdefgh();
 }
 
+float Instruction::ImmFP32() { return Imm8ToFP32(ImmFP()); }
 
-double Instruction::ImmFP64() {
-  //  ImmFP: abcdefgh (8 bits)
-  // Double: aBbb.bbbb.bbcd.efgh.0000.0000.0000.0000
-  //         0000.0000.0000.0000.0000.0000.0000.0000 (64 bits)
-  // where B is b ^ 1
-  uint32_t bits = ImmFP();
-  uint64_t bit7 = (bits >> 7) & 0x1;
-  uint64_t bit6 = (bits >> 6) & 0x1;
-  uint64_t bit5_to_0 = bits & 0x3f;
-  uint64_t result = (bit7 << 63) | ((256 - bit6) << 54) | (bit5_to_0 << 48);
+double Instruction::ImmFP64() { return Imm8ToFP64(ImmFP()); }
 
-  return rawbits_to_double(result);
+float Instruction::ImmNEONFP32() const { return Imm8ToFP32(ImmNEONabcdefgh()); }
+
+double Instruction::ImmNEONFP64() const {
+  return Imm8ToFP64(ImmNEONabcdefgh());
 }
 
+unsigned CalcLSDataSize(LoadStoreOp op) {
+  DCHECK_EQ(static_cast<unsigned>(LSSize_offset + LSSize_width),
+            kInstructionSize * 8);
+  unsigned size = static_cast<Instr>(op) >> LSSize_offset;
+  if ((op & LSVector_mask) != 0) {
+    // Vector register memory operations encode the access size in the "size"
+    // and "opc" fields.
+    if ((size == 0) && ((op & LSOpc_mask) >> LSOpc_offset) >= 2) {
+      size = kQRegSizeLog2;
+    }
+  }
+  return size;
+}
 
-LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
+unsigned CalcLSPairDataSize(LoadStorePairOp op) {
+  static_assert(kXRegSize == kDRegSize, "X and D registers must be same size.");
+  static_assert(kWRegSize == kSRegSize, "W and S registers must be same size.");
   switch (op) {
+    case STP_q:
+    case LDP_q:
+      return kQRegSizeLog2;
     case STP_x:
     case LDP_x:
     case STP_d:
-    case LDP_d: return LSDoubleWord;
-    default: return LSWord;
+    case LDP_d:
+      return kXRegSizeLog2;
+    default:
+      return kWRegSizeLog2;
   }
 }
 
@@ -191,6 +198,9 @@ int64_t Instruction::ImmPCOffset() {
     // All PC-relative branches.
     // Relative branch offsets are instruction-size-aligned.
     offset = ImmBranch() << kInstructionSizeLog2;
+  } else if (IsUnresolvedInternalReference()) {
+    // Internal references are always word-aligned.
+    offset = ImmUnresolvedInternalReference() << kInstructionSizeLog2;
   } else {
     // Load literal (offset from PC).
     DCHECK(IsLdrLiteral());
@@ -208,7 +218,7 @@ Instruction* Instruction::ImmPCOffsetTarget() {
 
 
 bool Instruction::IsValidImmPCOffset(ImmBranchType branch_type,
-                                     int32_t offset) {
+                                     ptrdiff_t offset) {
   return is_intn(offset, ImmBranchRangeBitwidth(branch_type));
 }
 
@@ -217,29 +227,32 @@ bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
   return IsValidImmPCOffset(BranchType(), DistanceTo(target));
 }
 
-
-void Instruction::SetImmPCOffsetTarget(Instruction* target) {
+void Instruction::SetImmPCOffsetTarget(const AssemblerOptions& options,
+                                       Instruction* target) {
   if (IsPCRelAddressing()) {
-    SetPCRelImmTarget(target);
+    SetPCRelImmTarget(options, target);
   } else if (BranchType() != UnknownBranchType) {
     SetBranchImmTarget(target);
+  } else if (IsUnresolvedInternalReference()) {
+    SetUnresolvedInternalReferenceImmTarget(options, target);
   } else {
+    // Load literal (offset from PC).
     SetImmLLiteral(target);
   }
 }
 
-
-void Instruction::SetPCRelImmTarget(Instruction* target) {
+void Instruction::SetPCRelImmTarget(const AssemblerOptions& options,
+                                    Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
   DCHECK(IsAdr());
 
   ptrdiff_t target_offset = DistanceTo(target);
   Instr imm;
   if (Instruction::IsValidPCRelOffset(target_offset)) {
-    imm = Assembler::ImmPCRelAddress(target_offset);
+    imm = Assembler::ImmPCRelAddress(static_cast<int>(target_offset));
     SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
   } else {
-    PatchingAssembler patcher(this,
+    PatchingAssembler patcher(options, reinterpret_cast<byte*>(this),
                               PatchingAssembler::kAdrFarPatchableNInstrs);
     patcher.PatchAdrFar(target_offset);
   }
@@ -248,9 +261,11 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
 
 void Instruction::SetBranchImmTarget(Instruction* target) {
   DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
+  DCHECK(IsValidImmPCOffset(BranchType(),
+                            DistanceTo(target) >> kInstructionSizeLog2));
+  int offset = static_cast<int>(DistanceTo(target) >> kInstructionSizeLog2);
   Instr branch_imm = 0;
   uint32_t imm_mask = 0;
-  ptrdiff_t offset = DistanceTo(target) >> kInstructionSizeLog2;
   switch (BranchType()) {
     case CondBranchType: {
       branch_imm = Assembler::ImmCondBranch(offset);
@@ -277,11 +292,28 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
   SetInstructionBits(Mask(~imm_mask) | branch_imm);
 }
 
+void Instruction::SetUnresolvedInternalReferenceImmTarget(
+    const AssemblerOptions& options, Instruction* target) {
+  DCHECK(IsUnresolvedInternalReference());
+  DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
+  DCHECK(is_int32(DistanceTo(target) >> kInstructionSizeLog2));
+  int32_t target_offset =
+      static_cast<int32_t>(DistanceTo(target) >> kInstructionSizeLog2);
+  uint32_t high16 = unsigned_bitextract_32(31, 16, target_offset);
+  uint32_t low16 = unsigned_bitextract_32(15, 0, target_offset);
+
+  PatchingAssembler patcher(options, reinterpret_cast<byte*>(this), 2);
+  patcher.brk(high16);
+  patcher.brk(low16);
+}
+
 
 void Instruction::SetImmLLiteral(Instruction* source) {
+  DCHECK(IsLdrLiteral());
   DCHECK(IsAligned(DistanceTo(source), kInstructionSize));
-  ptrdiff_t offset = DistanceTo(source) >> kLoadLiteralScaleLog2;
-  Instr imm = Assembler::ImmLLiteral(offset);
+  DCHECK(Assembler::IsImmLLiteral(DistanceTo(source)));
+  Instr imm = Assembler::ImmLLiteral(
+      static_cast<int>(DistanceTo(source) >> kLoadLiteralScaleLog2));
   Instr mask = ImmLLiteral_mask;
 
   SetInstructionBits(Mask(~mask) | imm);
@@ -294,7 +326,7 @@ void Instruction::SetImmLLiteral(Instruction* source) {
 bool InstructionSequence::IsInlineData() const {
   // Inline data is encoded as a single movz instruction which writes to xzr
   // (x31).
-  return IsMovz() && SixtyFourBits() && (Rd() == xzr.code());
+  return IsMovz() && SixtyFourBits() && (Rd() == kZeroRegCode);
   // TODO(all): If we extend ::InlineData() to support bigger data, we need
   // to update this method too.
 }
@@ -311,7 +343,406 @@ uint64_t InstructionSequence::InlineData() const {
   return payload;
 }
 
+VectorFormat VectorFormatHalfWidth(VectorFormat vform) {
+  DCHECK(vform == kFormat8H || vform == kFormat4S || vform == kFormat2D ||
+         vform == kFormatH || vform == kFormatS || vform == kFormatD);
+  switch (vform) {
+    case kFormat8H:
+      return kFormat8B;
+    case kFormat4S:
+      return kFormat4H;
+    case kFormat2D:
+      return kFormat2S;
+    case kFormatH:
+      return kFormatB;
+    case kFormatS:
+      return kFormatH;
+    case kFormatD:
+      return kFormatS;
+    default:
+      UNREACHABLE();
+  }
+}
 
-} }  // namespace v8::internal
+VectorFormat VectorFormatDoubleWidth(VectorFormat vform) {
+  DCHECK(vform == kFormat8B || vform == kFormat4H || vform == kFormat2S ||
+         vform == kFormatB || vform == kFormatH || vform == kFormatS);
+  switch (vform) {
+    case kFormat8B:
+      return kFormat8H;
+    case kFormat4H:
+      return kFormat4S;
+    case kFormat2S:
+      return kFormat2D;
+    case kFormatB:
+      return kFormatH;
+    case kFormatH:
+      return kFormatS;
+    case kFormatS:
+      return kFormatD;
+    default:
+      UNREACHABLE();
+  }
+}
+
+VectorFormat VectorFormatFillQ(VectorFormat vform) {
+  switch (vform) {
+    case kFormatB:
+    case kFormat8B:
+    case kFormat16B:
+      return kFormat16B;
+    case kFormatH:
+    case kFormat4H:
+    case kFormat8H:
+      return kFormat8H;
+    case kFormatS:
+    case kFormat2S:
+    case kFormat4S:
+      return kFormat4S;
+    case kFormatD:
+    case kFormat1D:
+    case kFormat2D:
+      return kFormat2D;
+    default:
+      UNREACHABLE();
+  }
+}
+
+VectorFormat VectorFormatHalfWidthDoubleLanes(VectorFormat vform) {
+  switch (vform) {
+    case kFormat4H:
+      return kFormat8B;
+    case kFormat8H:
+      return kFormat16B;
+    case kFormat2S:
+      return kFormat4H;
+    case kFormat4S:
+      return kFormat8H;
+    case kFormat1D:
+      return kFormat2S;
+    case kFormat2D:
+      return kFormat4S;
+    default:
+      UNREACHABLE();
+  }
+}
+
+VectorFormat VectorFormatDoubleLanes(VectorFormat vform) {
+  DCHECK(vform == kFormat8B || vform == kFormat4H || vform == kFormat2S);
+  switch (vform) {
+    case kFormat8B:
+      return kFormat16B;
+    case kFormat4H:
+      return kFormat8H;
+    case kFormat2S:
+      return kFormat4S;
+    default:
+      UNREACHABLE();
+  }
+}
+
+VectorFormat VectorFormatHalfLanes(VectorFormat vform) {
+  DCHECK(vform == kFormat16B || vform == kFormat8H || vform == kFormat4S);
+  switch (vform) {
+    case kFormat16B:
+      return kFormat8B;
+    case kFormat8H:
+      return kFormat4H;
+    case kFormat4S:
+      return kFormat2S;
+    default:
+      UNREACHABLE();
+  }
+}
+
+VectorFormat ScalarFormatFromLaneSize(int laneSize) {
+  switch (laneSize) {
+    case 8:
+      return kFormatB;
+    case 16:
+      return kFormatH;
+    case 32:
+      return kFormatS;
+    case 64:
+      return kFormatD;
+    default:
+      UNREACHABLE();
+  }
+}
+
+VectorFormat ScalarFormatFromFormat(VectorFormat vform) {
+  return ScalarFormatFromLaneSize(LaneSizeInBitsFromFormat(vform));
+}
+
+unsigned RegisterSizeInBytesFromFormat(VectorFormat vform) {
+  return RegisterSizeInBitsFromFormat(vform) / 8;
+}
+
+unsigned RegisterSizeInBitsFromFormat(VectorFormat vform) {
+  DCHECK_NE(vform, kFormatUndefined);
+  switch (vform) {
+    case kFormatB:
+      return kBRegSizeInBits;
+    case kFormatH:
+      return kHRegSizeInBits;
+    case kFormatS:
+      return kSRegSizeInBits;
+    case kFormatD:
+      return kDRegSizeInBits;
+    case kFormat8B:
+    case kFormat4H:
+    case kFormat2S:
+    case kFormat1D:
+      return kDRegSizeInBits;
+    default:
+      return kQRegSizeInBits;
+  }
+}
+
+unsigned LaneSizeInBitsFromFormat(VectorFormat vform) {
+  DCHECK_NE(vform, kFormatUndefined);
+  switch (vform) {
+    case kFormatB:
+    case kFormat8B:
+    case kFormat16B:
+      return 8;
+    case kFormatH:
+    case kFormat4H:
+    case kFormat8H:
+      return 16;
+    case kFormatS:
+    case kFormat2S:
+    case kFormat4S:
+      return 32;
+    case kFormatD:
+    case kFormat1D:
+    case kFormat2D:
+      return 64;
+    default:
+      UNREACHABLE();
+  }
+}
+
+int LaneSizeInBytesFromFormat(VectorFormat vform) {
+  return LaneSizeInBitsFromFormat(vform) / 8;
+}
+
+int LaneSizeInBytesLog2FromFormat(VectorFormat vform) {
+  DCHECK_NE(vform, kFormatUndefined);
+  switch (vform) {
+    case kFormatB:
+    case kFormat8B:
+    case kFormat16B:
+      return 0;
+    case kFormatH:
+    case kFormat4H:
+    case kFormat8H:
+      return 1;
+    case kFormatS:
+    case kFormat2S:
+    case kFormat4S:
+      return 2;
+    case kFormatD:
+    case kFormat1D:
+    case kFormat2D:
+      return 3;
+    default:
+      UNREACHABLE();
+  }
+}
+
+int LaneCountFromFormat(VectorFormat vform) {
+  DCHECK_NE(vform, kFormatUndefined);
+  switch (vform) {
+    case kFormat16B:
+      return 16;
+    case kFormat8B:
+    case kFormat8H:
+      return 8;
+    case kFormat4H:
+    case kFormat4S:
+      return 4;
+    case kFormat2S:
+    case kFormat2D:
+      return 2;
+    case kFormat1D:
+    case kFormatB:
+    case kFormatH:
+    case kFormatS:
+    case kFormatD:
+      return 1;
+    default:
+      UNREACHABLE();
+  }
+}
+
+int MaxLaneCountFromFormat(VectorFormat vform) {
+  DCHECK_NE(vform, kFormatUndefined);
+  switch (vform) {
+    case kFormatB:
+    case kFormat8B:
+    case kFormat16B:
+      return 16;
+    case kFormatH:
+    case kFormat4H:
+    case kFormat8H:
+      return 8;
+    case kFormatS:
+    case kFormat2S:
+    case kFormat4S:
+      return 4;
+    case kFormatD:
+    case kFormat1D:
+    case kFormat2D:
+      return 2;
+    default:
+      UNREACHABLE();
+  }
+}
+
+// Does 'vform' indicate a vector format or a scalar format?
+bool IsVectorFormat(VectorFormat vform) {
+  DCHECK_NE(vform, kFormatUndefined);
+  switch (vform) {
+    case kFormatB:
+    case kFormatH:
+    case kFormatS:
+    case kFormatD:
+      return false;
+    default:
+      return true;
+  }
+}
+
+int64_t MaxIntFromFormat(VectorFormat vform) {
+  return INT64_MAX >> (64 - LaneSizeInBitsFromFormat(vform));
+}
+
+int64_t MinIntFromFormat(VectorFormat vform) {
+  return INT64_MIN >> (64 - LaneSizeInBitsFromFormat(vform));
+}
+
+uint64_t MaxUintFromFormat(VectorFormat vform) {
+  return UINT64_MAX >> (64 - LaneSizeInBitsFromFormat(vform));
+}
+
+NEONFormatDecoder::NEONFormatDecoder(const Instruction* instr) {
+  instrbits_ = instr->InstructionBits();
+  SetFormatMaps(IntegerFormatMap());
+}
+
+NEONFormatDecoder::NEONFormatDecoder(const Instruction* instr,
+                                     const NEONFormatMap* format) {
+  instrbits_ = instr->InstructionBits();
+  SetFormatMaps(format);
+}
+
+NEONFormatDecoder::NEONFormatDecoder(const Instruction* instr,
+                                     const NEONFormatMap* format0,
+                                     const NEONFormatMap* format1) {
+  instrbits_ = instr->InstructionBits();
+  SetFormatMaps(format0, format1);
+}
+
+NEONFormatDecoder::NEONFormatDecoder(const Instruction* instr,
+                                     const NEONFormatMap* format0,
+                                     const NEONFormatMap* format1,
+                                     const NEONFormatMap* format2) {
+  instrbits_ = instr->InstructionBits();
+  SetFormatMaps(format0, format1, format2);
+}
+
+void NEONFormatDecoder::SetFormatMaps(const NEONFormatMap* format0,
+                                      const NEONFormatMap* format1,
+                                      const NEONFormatMap* format2) {
+  DCHECK_NOT_NULL(format0);
+  formats_[0] = format0;
+  formats_[1] = (format1 == nullptr) ? formats_[0] : format1;
+  formats_[2] = (format2 == nullptr) ? formats_[1] : format2;
+}
+
+void NEONFormatDecoder::SetFormatMap(unsigned index,
+                                     const NEONFormatMap* format) {
+  DCHECK_LT(index, arraysize(formats_));
+  DCHECK_NOT_NULL(format);
+  formats_[index] = format;
+}
+
+const char* NEONFormatDecoder::SubstitutePlaceholders(const char* string) {
+  return Substitute(string, kPlaceholder, kPlaceholder, kPlaceholder);
+}
+
+const char* NEONFormatDecoder::Substitute(const char* string,
+                                          SubstitutionMode mode0,
+                                          SubstitutionMode mode1,
+                                          SubstitutionMode mode2) {
+  snprintf(form_buffer_, sizeof(form_buffer_), string, GetSubstitute(0, mode0),
+           GetSubstitute(1, mode1), GetSubstitute(2, mode2));
+  return form_buffer_;
+}
+
+const char* NEONFormatDecoder::Mnemonic(const char* mnemonic) {
+  if ((instrbits_ & NEON_Q) != 0) {
+    snprintf(mne_buffer_, sizeof(mne_buffer_), "%s2", mnemonic);
+    return mne_buffer_;
+  }
+  return mnemonic;
+}
+
+VectorFormat NEONFormatDecoder::GetVectorFormat(int format_index) {
+  return GetVectorFormat(formats_[format_index]);
+}
+
+VectorFormat NEONFormatDecoder::GetVectorFormat(
+    const NEONFormatMap* format_map) {
+  static const VectorFormat vform[] = {
+      kFormatUndefined, kFormat8B, kFormat16B, kFormat4H, kFormat8H,
+      kFormat2S,        kFormat4S, kFormat1D,  kFormat2D, kFormatB,
+      kFormatH,         kFormatS,  kFormatD};
+  DCHECK_LT(GetNEONFormat(format_map), arraysize(vform));
+  return vform[GetNEONFormat(format_map)];
+}
+
+const char* NEONFormatDecoder::GetSubstitute(int index, SubstitutionMode mode) {
+  if (mode == kFormat) {
+    return NEONFormatAsString(GetNEONFormat(formats_[index]));
+  }
+  DCHECK_EQ(mode, kPlaceholder);
+  return NEONFormatAsPlaceholder(GetNEONFormat(formats_[index]));
+}
+
+NEONFormat NEONFormatDecoder::GetNEONFormat(const NEONFormatMap* format_map) {
+  return format_map->map[PickBits(format_map->bits)];
+}
+
+const char* NEONFormatDecoder::NEONFormatAsString(NEONFormat format) {
+  static const char* formats[] = {"undefined", "8b", "16b", "4h", "8h",
+                                  "2s",        "4s", "1d",  "2d", "b",
+                                  "h",         "s",  "d"};
+  DCHECK_LT(format, arraysize(formats));
+  return formats[format];
+}
+
+const char* NEONFormatDecoder::NEONFormatAsPlaceholder(NEONFormat format) {
+  DCHECK((format == NF_B) || (format == NF_H) || (format == NF_S) ||
+         (format == NF_D) || (format == NF_UNDEF));
+  static const char* formats[] = {
+      "undefined", "undefined", "undefined", "undefined", "undefined",
+      "undefined", "undefined", "undefined", "undefined", "'B",
+      "'H",        "'S",        "'D"};
+  return formats[format];
+}
+
+uint8_t NEONFormatDecoder::PickBits(const uint8_t bits[]) {
+  uint8_t result = 0;
+  for (unsigned b = 0; b < kNEONFormatMaxBits; b++) {
+    if (bits[b] == 0) break;
+    result <<= 1;
+    result |= ((instrbits_ & (1 << bits[b])) == 0) ? 0 : 1;
+  }
+  return result;
+}
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

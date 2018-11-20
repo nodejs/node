@@ -157,7 +157,6 @@ PASS access_after_delete_extra_5(1, 2, 3, 4, 5) is 5
 PASS argumentsParam(true) is true
 PASS argumentsFunctionConstructorParam(true) is true
 PASS argumentsVarUndefined() is '[object Arguments]'
-FAIL argumentsConstUndefined() should be [object Arguments]. Threw exception TypeError: Identifier 'arguments' has already been declared
 PASS argumentCalleeInException() is argumentCalleeInException
 PASS shadowedArgumentsApply([true]) is true
 PASS shadowedArgumentsLength([]) is 0

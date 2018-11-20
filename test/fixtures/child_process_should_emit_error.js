@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var exec = require('child_process').exec;
+const exec = require('child_process').exec;
 
 [0, 1].forEach(function(i) {
   exec('ls', function(err, stdout, stderr) {

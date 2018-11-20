@@ -82,8 +82,7 @@ static void cl_recv_cb(uv_udp_t* handle,
   }
 
   if (nread == 0) {
-    /* Returning unused buffer */
-    /* Don't count towards cl_recv_cb_called */
+    /* Returning unused buffer. Don't count towards cl_recv_cb_called */
     ASSERT(addr == NULL);
     return;
   }
@@ -103,6 +102,9 @@ TEST_IMPL(udp_multicast_join6) {
   uv_buf_t buf;
   struct sockaddr_in6 addr;
 
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
@@ -116,11 +118,21 @@ TEST_IMPL(udp_multicast_join6) {
   ASSERT(r == 0);
 
   /* join the multicast channel */
-#if defined(__APPLE__)
+#if defined(__APPLE__)          || \
+    defined(_AIX)               || \
+    defined(__MVS__)            || \
+    defined(__FreeBSD_kernel__) || \
+    defined(__NetBSD__)         || \
+    defined(__OpenBSD__)
   r = uv_udp_set_membership(&client, "ff02::1", "::1%lo0", UV_JOIN_GROUP);
 #else
   r = uv_udp_set_membership(&client, "ff02::1", NULL, UV_JOIN_GROUP);
 #endif
+  if (r == UV_ENODEV) {
+    MAKE_VALGRIND_HAPPY();
+    RETURN_SKIP("No ipv6 multicast route");
+  }
+
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&client, alloc_cb, cl_recv_cb);

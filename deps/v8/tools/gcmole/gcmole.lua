@@ -34,6 +34,9 @@ local FLAGS = {
    -- Do not build gcsuspects file and reuse previously generated one.
    reuse_gcsuspects = false;
 
+   -- Don't use parallel python runner.
+   sequential = false;
+
    -- Print commands to console before executing them.
    verbose = false;
 
@@ -90,7 +93,8 @@ if not CLANG_PLUGINS or CLANG_PLUGINS == "" then
    CLANG_PLUGINS = DIR
 end
 
-local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
+local function MakeClangCommandLine(
+      plugin, plugin_args, triple, arch_define, arch_options)
    if plugin_args then
      for i = 1, #plugin_args do
         plugin_args[i] = "-Xclang -plugin-arg-" .. plugin
@@ -105,52 +109,101 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
       .. " -Xclang -triple -Xclang " .. triple
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
-      .. " -DV8_I18N_SUPPORT"
+      .. " -DV8_INTL_SUPPORT"
       .. " -I./"
+      .. " -Iinclude/"
+      .. " -Iout/Release/gen"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
+      .. " " .. arch_options
+end
+
+local function IterTable(t)
+  return coroutine.wrap(function ()
+    for i, v in ipairs(t) do
+      coroutine.yield(v)
+    end
+  end)
+end
+
+local function SplitResults(lines, func)
+   -- Splits the output of parallel.py and calls func on each result.
+   -- Bails out in case of an error in one of the executions.
+   local current = {}
+   local filename = ""
+   for line in lines do
+      local new_file = line:match "^______________ (.*)$"
+      local code = line:match "^______________ finish (%d+) ______________$"
+      if code then
+         if tonumber(code) > 0 then
+            log(table.concat(current, "\n"))
+            log("Failed to examine " .. filename)
+            return false
+         end
+         log("-- %s", filename)
+         func(filename, IterTable(current))
+      elseif new_file then
+         filename = new_file
+         current = {}
+      else
+         table.insert(current, line)
+      end
+   end
+   return true
 end
 
 function InvokeClangPluginForEachFile(filenames, cfg, func)
    local cmd_line = MakeClangCommandLine(cfg.plugin,
                                          cfg.plugin_args,
                                          cfg.triple,
-                                         cfg.arch_define)
-   for _, filename in ipairs(filenames) do
-      log("-- %s", filename)
-      local action = cmd_line .. " " .. filename .. " 2>&1"
+                                         cfg.arch_define,
+                                         cfg.arch_options)
+   if FLAGS.sequential then
+      log("** Sequential execution.")
+      for _, filename in ipairs(filenames) do
+         log("-- %s", filename)
+         local action = cmd_line .. " " .. filename .. " 2>&1"
+         if FLAGS.verbose then print('popen ', action) end
+         local pipe = io.popen(action)
+         func(filename, pipe:lines())
+         local success = pipe:close()
+         if not success then error("Failed to run: " .. action) end
+      end
+   else
+      log("** Parallel execution.")
+      local action = "python tools/gcmole/parallel.py \""
+         .. cmd_line .. "\" " .. table.concat(filenames, " ")
       if FLAGS.verbose then print('popen ', action) end
       local pipe = io.popen(action)
-      func(filename, pipe:lines())
-      local success = pipe:close()
-      if not success then error("Failed to run: " .. action) end
+      local success = SplitResults(pipe:lines(), func)
+      local closed = pipe:close()
+      if not (success and closed) then error("Failed to run: " .. action) end
    end
 end
 
 -------------------------------------------------------------------------------
--- GYP file parsing
 
-local function ParseGYPFile()
-   local gyp = ""
-   local gyp_files = { "tools/gyp/v8.gyp", "test/cctest/cctest.gyp" }
-   for i = 1, #gyp_files do
-      local f = assert(io.open(gyp_files[i]), "failed to open GYP file")
-      local t = f:read('*a')
-      gyp = gyp .. t
-      f:close()
-   end
-
+local function ParseGNFile()
    local result = {}
+   local gn_files = {
+       { "BUILD.gn",             '"([^"]-%.cc)"',      ""         },
+       { "test/cctest/BUILD.gn", '"(test-[^"]-%.cc)"', "test/cctest/" }
+   }
 
-   for condition, sources in
-      gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
-      if result[condition] == nil then result[condition] = {} end
-      for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
-         table.insert(result[condition], "src/" .. file)
+   for i = 1, #gn_files do
+      local filename = gn_files[i][1]
+      local pattern = gn_files[i][2]
+      local prefix = gn_files[i][3]
+      local gn_file = assert(io.open(filename), "failed to open GN file")
+      local gn = gn_file:read('*a')
+      for condition, sources in
+         gn:gmatch "### gcmole%((.-)%) ###(.-)%]" do
+         if result[condition] == nil then result[condition] = {} end
+         for file in sources:gmatch(pattern) do
+            table.insert(result[condition], prefix .. file)
+         end
       end
-      for file in sources:gmatch "'(test-[^']-%.cc)'" do
-         table.insert(result[condition], "test/cctest/" .. file)
-      end
+      gn_file:close()
    end
 
    return result
@@ -177,13 +230,14 @@ local function BuildFileList(sources, props)
    return list
 end
 
-local sources = ParseGYPFile()
+
+local gn_sources = ParseGNFile()
 
 local function FilesForArch(arch)
-   return BuildFileList(sources, { os = 'linux',
-                                   arch = arch,
-                                   mode = 'debug',
-                                   simulator = ''})
+   return BuildFileList(gn_sources, { os = 'linux',
+                                      arch = arch,
+                                      mode = 'debug',
+                                      simulator = ''})
 end
 
 local mtConfig = {}
@@ -201,13 +255,17 @@ end
 
 local ARCHITECTURES = {
    ia32 = config { triple = "i586-unknown-linux",
-                   arch_define = "V8_TARGET_ARCH_IA32" },
+                   arch_define = "V8_TARGET_ARCH_IA32",
+                   arch_options = "-m32" },
    arm = config { triple = "i586-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_ARM" },
+                  arch_define = "V8_TARGET_ARCH_ARM",
+                  arch_options = "-m32" },
    x64 = config { triple = "x86_64-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_X64" },
+                  arch_define = "V8_TARGET_ARCH_X64",
+                  arch_options = "" },
    arm64 = config { triple = "x86_64-unknown-linux",
-                    arch_define = "V8_TARGET_ARCH_ARM64" },
+                    arch_define = "V8_TARGET_ARCH_ARM64",
+                    arch_options = "" },
 }
 
 -------------------------------------------------------------------------------
@@ -217,18 +275,17 @@ local gc, gc_caused, funcs
 
 local WHITELIST = {
    -- The following functions call CEntryStub which is always present.
-   "MacroAssembler.*CallExternalReference",
    "MacroAssembler.*CallRuntime",
    "CompileCallLoadPropertyWithInterceptor",
    "CallIC.*GenerateMiss",
 
-   -- DirectCEntryStub is a special stub used on ARM. 
+   -- DirectCEntryStub is a special stub used on ARM.
    -- It is pinned and always present.
-   "DirectCEntryStub.*GenerateCall",  
+   "DirectCEntryStub.*GenerateCall",
 
-   -- TODO GCMole currently is sensitive enough to understand that certain 
-   --      functions only cause GC and return Failure simulataneously. 
-   --      Callsites of such functions are safe as long as they are properly 
+   -- TODO GCMole currently is sensitive enough to understand that certain
+   --      functions only cause GC and return Failure simulataneously.
+   --      Callsites of such functions are safe as long as they are properly
    --      check return value and propagate the Failure to the caller.
    --      It should be possible to extend GCMole to understand this.
    "Heap.*AllocateFunctionPrototype",

@@ -25,7 +25,7 @@ static V8_INLINE void InitializeNativeHandle(pthread_mutex_t* mutex) {
   result = pthread_mutexattr_destroy(&attr);
 #else
   // Use a fast mutex (default attributes).
-  result = pthread_mutex_init(mutex, NULL);
+  result = pthread_mutex_init(mutex, nullptr);
 #endif  // defined(DEBUG)
   DCHECK_EQ(0, result);
   USE(result);
@@ -75,39 +75,6 @@ static V8_INLINE bool TryLockNativeHandle(pthread_mutex_t* mutex) {
   DCHECK_EQ(0, result);
   return true;
 }
-
-#elif V8_OS_WIN
-
-static V8_INLINE void InitializeNativeHandle(PCRITICAL_SECTION cs) {
-  InitializeCriticalSection(cs);
-}
-
-
-static V8_INLINE void InitializeRecursiveNativeHandle(PCRITICAL_SECTION cs) {
-  InitializeCriticalSection(cs);
-}
-
-
-static V8_INLINE void DestroyNativeHandle(PCRITICAL_SECTION cs) {
-  DeleteCriticalSection(cs);
-}
-
-
-static V8_INLINE void LockNativeHandle(PCRITICAL_SECTION cs) {
-  EnterCriticalSection(cs);
-}
-
-
-static V8_INLINE void UnlockNativeHandle(PCRITICAL_SECTION cs) {
-  LeaveCriticalSection(cs);
-}
-
-
-static V8_INLINE bool TryLockNativeHandle(PCRITICAL_SECTION cs) {
-  return TryEnterCriticalSection(cs);
-}
-
-#endif  // V8_OS_POSIX
 
 
 Mutex::Mutex() {
@@ -188,4 +155,85 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
-} }  // namespace v8::base
+#elif V8_OS_WIN
+
+Mutex::Mutex() : native_handle_(SRWLOCK_INIT) {
+#ifdef DEBUG
+  level_ = 0;
+#endif
+}
+
+
+Mutex::~Mutex() {
+  DCHECK_EQ(0, level_);
+}
+
+
+void Mutex::Lock() {
+  AcquireSRWLockExclusive(&native_handle_);
+  AssertUnheldAndMark();
+}
+
+
+void Mutex::Unlock() {
+  AssertHeldAndUnmark();
+  ReleaseSRWLockExclusive(&native_handle_);
+}
+
+
+bool Mutex::TryLock() {
+  if (!TryAcquireSRWLockExclusive(&native_handle_)) {
+    return false;
+  }
+  AssertUnheldAndMark();
+  return true;
+}
+
+
+RecursiveMutex::RecursiveMutex() {
+  InitializeCriticalSection(&native_handle_);
+#ifdef DEBUG
+  level_ = 0;
+#endif
+}
+
+
+RecursiveMutex::~RecursiveMutex() {
+  DeleteCriticalSection(&native_handle_);
+  DCHECK_EQ(0, level_);
+}
+
+
+void RecursiveMutex::Lock() {
+  EnterCriticalSection(&native_handle_);
+#ifdef DEBUG
+  DCHECK_LE(0, level_);
+  level_++;
+#endif
+}
+
+
+void RecursiveMutex::Unlock() {
+#ifdef DEBUG
+  DCHECK_LT(0, level_);
+  level_--;
+#endif
+  LeaveCriticalSection(&native_handle_);
+}
+
+
+bool RecursiveMutex::TryLock() {
+  if (!TryEnterCriticalSection(&native_handle_)) {
+    return false;
+  }
+#ifdef DEBUG
+  DCHECK_LE(0, level_);
+  level_++;
+#endif
+  return true;
+}
+
+#endif  // V8_OS_POSIX
+
+}  // namespace base
+}  // namespace v8

@@ -1,0 +1,42 @@
+=pod
+
+=head1 NAME
+
+SSL_SESSION_get0_cipher - retrieve the SSL cipher associated with a session
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ const SSL_CIPHER *SSL_SESSION_get0_cipher(const SSL_SESSSION *s);
+
+=head1 DESCRIPTION
+
+SSL_SESSION_get0_cipher() retrieves the cipher that was used by the
+connection when the session was created, or NULL if it cannot be determined.
+
+The value returned is a pointer to an object maintained within B<s> and
+should not be released.
+
+=head1 SEE ALSO
+
+L<ssl(3)>,
+L<d2i_SSL_SESSION(3)>,
+L<SSL_SESSION_get_time(3)>,
+L<SSL_SESSION_get0_hostname(3)>,
+L<SSL_SESSION_free(3)>
+
+=head1 HISTORY
+
+SSL_SESSION_get0_cipher() was first added to OpenSSL 1.1.0
+
+=head1 COPYRIGHT
+
+Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

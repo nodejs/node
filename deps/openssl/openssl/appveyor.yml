@@ -1,0 +1,45 @@
+platform:
+    - x86
+    - x64
+
+environment:
+    matrix:
+        - VSVER: 14
+
+configuration:
+    - plain
+    - shared
+
+before_build:
+    - ps: >-
+        If ($env:Platform -Match "x86") {
+            $env:VCVARS_PLATFORM="x86"
+            $env:TARGET="VC-WIN32"
+        } Else {
+            $env:VCVARS_PLATFORM="amd64"
+            $env:TARGET="VC-WIN64A"
+        }
+    - ps: >-
+        If ($env:Configuration -Match "shared") {
+            $env:SHARED=""
+        } Else {
+            $env:SHARED="no-shared"
+        }
+    - ps: $env:VSCOMNTOOLS=(Get-Content ("env:VS" + "$env:VSVER" + "0COMNTOOLS"))
+    - call "%VSCOMNTOOLS%\..\..\VC\vcvarsall.bat" %VCVARS_PLATFORM%
+    - mkdir _build
+    - cd _build
+    - perl ..\Configure %TARGET% no-asm %SHARED%
+    - cd ..
+
+build_script:
+    - cd _build
+    - nmake
+    - cd ..
+
+test_script:
+    - cd _build
+    - nmake test
+    - mkdir ..\_install
+    - nmake install DESTDIR=..\_install
+    - cd ..

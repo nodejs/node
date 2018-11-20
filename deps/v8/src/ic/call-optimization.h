@@ -6,7 +6,6 @@
 #define V8_IC_CALL_OPTIMIZATION_H_
 
 #include "src/code-stubs.h"
-#include "src/ic/access-compiler.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 
@@ -15,7 +14,11 @@ namespace internal {
 // Holds information about possible function call optimizations.
 class CallOptimization BASE_EMBEDDED {
  public:
-  explicit CallOptimization(Handle<JSFunction> function);
+  CallOptimization(Isolate* isolate, Handle<Object> function);
+
+  Context* GetAccessorContext(Map* holder_map) const;
+  bool IsCrossContextLazyAccessorPair(Context* native_context,
+                                      Map* holder_map) const;
 
   bool is_constant_call() const { return !constant_function_.is_null(); }
 
@@ -44,19 +47,26 @@ class CallOptimization BASE_EMBEDDED {
   bool IsCompatibleReceiver(Handle<Object> receiver,
                             Handle<JSObject> holder) const;
 
+  // Check if the api holder is between the receiver and the holder.
+  bool IsCompatibleReceiverMap(Handle<Map> receiver_map,
+                               Handle<JSObject> holder) const;
+
  private:
-  void Initialize(Handle<JSFunction> function);
+  void Initialize(Isolate* isolate, Handle<JSFunction> function);
+  void Initialize(Isolate* isolate,
+                  Handle<FunctionTemplateInfo> function_template_info);
 
   // Determines whether the given function can be called using the
   // fast api call builtin.
-  void AnalyzePossibleApiFunction(Handle<JSFunction> function);
+  void AnalyzePossibleApiFunction(Isolate* isolate,
+                                  Handle<JSFunction> function);
 
   Handle<JSFunction> constant_function_;
   bool is_simple_api_call_;
   Handle<FunctionTemplateInfo> expected_receiver_type_;
   Handle<CallHandlerInfo> api_call_info_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_CALL_OPTIMIZATION_H_

@@ -1,0 +1,70 @@
+{
+  "_args": [
+    [
+      "read-package-tree@5.2.1",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "read-package-tree@5.2.1",
+  "_id": "read-package-tree@5.2.1",
+  "_inBundle": false,
+  "_integrity": "sha512-2CNoRoh95LxY47LvqrehIAfUVda2JbuFE/HaGYs42bNrGG+ojbw1h3zOcPcQ+1GQ3+rkzNndZn85u1XyZ3UsIA==",
+  "_location": "/read-package-tree",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "read-package-tree@5.2.1",
+    "name": "read-package-tree",
+    "escapedName": "read-package-tree",
+    "rawSpec": "5.2.1",
+    "saveSpec": null,
+    "fetchSpec": "5.2.1"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/read-package-tree/-/read-package-tree-5.2.1.tgz",
+  "_spec": "5.2.1",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/read-package-tree/issues"
+  },
+  "dependencies": {
+    "debuglog": "^1.0.1",
+    "dezalgo": "^1.0.0",
+    "once": "^1.3.0",
+    "read-package-json": "^2.0.0",
+    "readdir-scoped-modules": "^1.0.0"
+  },
+  "description": "Read the contents of node_modules.",
+  "devDependencies": {
+    "archy": "^1.0.0",
+    "mkdirp": "^0.5.1",
+    "tacks": "^1.2.1",
+    "tap": "^6.3.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "rpt.js"
+  ],
+  "homepage": "https://github.com/npm/read-package-tree",
+  "license": "ISC",
+  "main": "rpt.js",
+  "name": "read-package-tree",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/read-package-tree.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "5.2.1"
+}

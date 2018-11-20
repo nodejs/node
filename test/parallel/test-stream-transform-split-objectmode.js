@@ -19,54 +19,63 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var Transform = require('stream').Transform;
+const Transform = require('stream').Transform;
 
-var parser = new Transform({ readableObjectMode : true });
+const parser = new Transform({ readableObjectMode: true });
 
 assert(parser._readableState.objectMode);
 assert(!parser._writableState.objectMode);
-assert(parser._readableState.highWaterMark === 16);
-assert(parser._writableState.highWaterMark === (16 * 1024));
+assert.strictEqual(parser.readableHighWaterMark, 16);
+assert.strictEqual(parser.writableHighWaterMark, 16 * 1024);
+assert.strictEqual(parser.readableHighWaterMark,
+                   parser._readableState.highWaterMark);
+assert.strictEqual(parser.writableHighWaterMark,
+                   parser._writableState.highWaterMark);
 
-parser._transform = function (chunk, enc, callback) {
-  callback(null, { val : chunk[0] });
+parser._transform = function(chunk, enc, callback) {
+  callback(null, { val: chunk[0] });
 };
 
-var parsed;
+let parsed;
 
-parser.on('data', function (obj) {
+parser.on('data', function(obj) {
   parsed = obj;
 });
 
-parser.end(new Buffer([42]));
+parser.end(Buffer.from([42]));
 
-process.on('exit', function () {
-  assert(parsed.val === 42);
+process.on('exit', function() {
+  assert.strictEqual(parsed.val, 42);
 });
 
 
-var serializer = new Transform({ writableObjectMode : true });
+const serializer = new Transform({ writableObjectMode: true });
 
 assert(!serializer._readableState.objectMode);
 assert(serializer._writableState.objectMode);
-assert(serializer._readableState.highWaterMark === (16 * 1024));
-assert(serializer._writableState.highWaterMark === 16);
+assert.strictEqual(serializer.readableHighWaterMark, 16 * 1024);
+assert.strictEqual(serializer.writableHighWaterMark, 16);
+assert.strictEqual(parser.readableHighWaterMark,
+                   parser._readableState.highWaterMark);
+assert.strictEqual(parser.writableHighWaterMark,
+                   parser._writableState.highWaterMark);
 
-serializer._transform = function (obj, _, callback) {
-  callback(null, new Buffer([obj.val]));
+serializer._transform = function(obj, _, callback) {
+  callback(null, Buffer.from([obj.val]));
 };
 
-var serialized;
+let serialized;
 
-serializer.on('data', function (chunk) {
+serializer.on('data', function(chunk) {
   serialized = chunk;
 });
 
-serializer.write({ val : 42 });
+serializer.write({ val: 42 });
 
-process.on('exit', function () {
-  assert(serialized[0] === 42);
+process.on('exit', function() {
+  assert.strictEqual(serialized[0], 42);
 });

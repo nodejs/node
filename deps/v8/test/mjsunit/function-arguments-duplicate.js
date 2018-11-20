@@ -27,10 +27,14 @@
 
 // Execises ArgumentsAccessStub::GenerateNewNonStrictSlow.
 
+// Flags: --allow-natives-syntax
+
 function f(a, a) {
   assertEquals(2, a);
   assertEquals(1, arguments[0]);
   assertEquals(2, arguments[1]);
+  assertEquals(2, arguments.length);
+  %HeapObjectVerify(arguments);
 }
 
 f(1, 2);

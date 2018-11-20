@@ -5,422 +5,296 @@
 #ifndef V8_COMPILER_REPRESENTATION_CHANGE_H_
 #define V8_COMPILER_REPRESENTATION_CHANGE_H_
 
-#include <sstream>
-
-#include "src/base/bits.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+enum IdentifyZeros { kIdentifyZeros, kDistinguishZeros };
+
+class Truncation final {
+ public:
+  // Constructors.
+  static Truncation None() {
+    return Truncation(TruncationKind::kNone, kIdentifyZeros);
+  }
+  static Truncation Bool() {
+    return Truncation(TruncationKind::kBool, kIdentifyZeros);
+  }
+  static Truncation Word32() {
+    return Truncation(TruncationKind::kWord32, kIdentifyZeros);
+  }
+  static Truncation Word64() {
+    return Truncation(TruncationKind::kWord64, kIdentifyZeros);
+  }
+  static Truncation Float64(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kFloat64, identify_zeros);
+  }
+  static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kAny, identify_zeros);
+  }
+
+  static Truncation Generalize(Truncation t1, Truncation t2) {
+    return Truncation(
+        Generalize(t1.kind(), t2.kind()),
+        GeneralizeIdentifyZeros(t1.identify_zeros(), t2.identify_zeros()));
+  }
+
+  // Queries.
+  bool IsUnused() const { return kind_ == TruncationKind::kNone; }
+  bool IsUsedAsBool() const {
+    return LessGeneral(kind_, TruncationKind::kBool);
+  }
+  bool IsUsedAsWord32() const {
+    return LessGeneral(kind_, TruncationKind::kWord32);
+  }
+  bool IsUsedAsFloat64() const {
+    return LessGeneral(kind_, TruncationKind::kFloat64);
+  }
+  bool IdentifiesUndefinedAndZero() {
+    return LessGeneral(kind_, TruncationKind::kWord32) ||
+           LessGeneral(kind_, TruncationKind::kBool);
+  }
+  bool IdentifiesUndefinedAndNaN() {
+    return LessGeneral(kind_, TruncationKind::kFloat64) ||
+           LessGeneral(kind_, TruncationKind::kWord64);
+  }
+  bool IdentifiesZeroAndMinusZero() const {
+    return identify_zeros() == kIdentifyZeros;
+  }
+
+  // Operators.
+  bool operator==(Truncation other) const {
+    return kind() == other.kind() && identify_zeros() == other.identify_zeros();
+  }
+  bool operator!=(Truncation other) const { return !(*this == other); }
+
+  // Debug utilities.
+  const char* description() const;
+  bool IsLessGeneralThan(Truncation other) {
+    return LessGeneral(kind(), other.kind()) &&
+           LessGeneralIdentifyZeros(identify_zeros(), other.identify_zeros());
+  }
+
+  IdentifyZeros identify_zeros() const { return identify_zeros_; }
+
+ private:
+  enum class TruncationKind : uint8_t {
+    kNone,
+    kBool,
+    kWord32,
+    kWord64,
+    kFloat64,
+    kAny
+  };
+
+  explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
+      : kind_(kind), identify_zeros_(identify_zeros) {
+    DCHECK(kind == TruncationKind::kAny || kind == TruncationKind::kFloat64 ||
+           identify_zeros == kIdentifyZeros);
+  }
+  TruncationKind kind() const { return kind_; }
+
+  TruncationKind kind_;
+  IdentifyZeros identify_zeros_;
+
+  static TruncationKind Generalize(TruncationKind rep1, TruncationKind rep2);
+  static IdentifyZeros GeneralizeIdentifyZeros(IdentifyZeros i1,
+                                               IdentifyZeros i2);
+  static bool LessGeneral(TruncationKind rep1, TruncationKind rep2);
+  static bool LessGeneralIdentifyZeros(IdentifyZeros u1, IdentifyZeros u2);
+};
+
+enum class TypeCheckKind : uint8_t {
+  kNone,
+  kSignedSmall,
+  kSigned32,
+  kNumber,
+  kNumberOrOddball,
+  kHeapObject
+};
+
+inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
+  switch (type_check) {
+    case TypeCheckKind::kNone:
+      return os << "None";
+    case TypeCheckKind::kSignedSmall:
+      return os << "SignedSmall";
+    case TypeCheckKind::kSigned32:
+      return os << "Signed32";
+    case TypeCheckKind::kNumber:
+      return os << "Number";
+    case TypeCheckKind::kNumberOrOddball:
+      return os << "NumberOrOddball";
+    case TypeCheckKind::kHeapObject:
+      return os << "HeapObject";
+  }
+  UNREACHABLE();
+}
+
+// The {UseInfo} class is used to describe a use of an input of a node.
+//
+// This information is used in two different ways, based on the phase:
+//
+// 1. During propagation, the use info is used to inform the input node
+//    about what part of the input is used (we call this truncation) and what
+//    is the preferred representation. For conversions that will require
+//    checks, we also keep track of whether a minus zero check is needed.
+//
+// 2. During lowering, the use info is used to properly convert the input
+//    to the preferred representation. The preferred representation might be
+//    insufficient to do the conversion (e.g. word32->float64 conv), so we also
+//    need the signedness information to produce the correct value.
+//    Additionally, use info may contain {CheckParameters} which contains
+//    information for the deoptimizer such as a CallIC on which speculation
+//    should be disallowed if the check fails.
+class UseInfo {
+ public:
+  UseInfo(MachineRepresentation representation, Truncation truncation,
+          TypeCheckKind type_check = TypeCheckKind::kNone,
+          const VectorSlotPair& feedback = VectorSlotPair())
+      : representation_(representation),
+        truncation_(truncation),
+        type_check_(type_check),
+        feedback_(feedback) {}
+  static UseInfo TruncatingWord32() {
+    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
+  }
+  static UseInfo TruncatingWord64() {
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
+  }
+  static UseInfo Bool() {
+    return UseInfo(MachineRepresentation::kBit, Truncation::Bool());
+  }
+  static UseInfo Float32() {
+    return UseInfo(MachineRepresentation::kFloat32, Truncation::Any());
+  }
+  static UseInfo TruncatingFloat64() {
+    return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64());
+  }
+  static UseInfo PointerInt() {
+    return kPointerSize == 4 ? TruncatingWord32() : TruncatingWord64();
+  }
+  static UseInfo AnyTagged() {
+    return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
+  }
+  static UseInfo TaggedSigned() {
+    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any());
+  }
+  static UseInfo TaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any());
+  }
+
+  // Possibly deoptimizing conversions.
+  static UseInfo CheckedHeapObjectAsTaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
+                   TypeCheckKind::kHeapObject);
+  }
+  static UseInfo CheckedSignedSmallAsTaggedSigned(
+      const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
+                   TypeCheckKind::kSignedSmall, feedback);
+  }
+  static UseInfo CheckedSignedSmallAsWord32(IdentifyZeros identify_zeros,
+                                            const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSignedSmall,
+                   feedback);
+  }
+  static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros,
+                                         const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned32,
+                   feedback);
+  }
+  static UseInfo CheckedNumberAsFloat64(const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
+                   TypeCheckKind::kNumber, feedback);
+  }
+  static UseInfo CheckedNumberAsWord32(const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
+                   TypeCheckKind::kNumber, feedback);
+  }
+  static UseInfo CheckedNumberOrOddballAsFloat64(
+      const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
+                   TypeCheckKind::kNumberOrOddball, feedback);
+  }
+  static UseInfo CheckedNumberOrOddballAsWord32(
+      const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
+                   TypeCheckKind::kNumberOrOddball, feedback);
+  }
+
+  // Undetermined representation.
+  static UseInfo Any() {
+    return UseInfo(MachineRepresentation::kNone, Truncation::Any());
+  }
+  static UseInfo AnyTruncatingToBool() {
+    return UseInfo(MachineRepresentation::kNone, Truncation::Bool());
+  }
+
+  // Value not used.
+  static UseInfo None() {
+    return UseInfo(MachineRepresentation::kNone, Truncation::None());
+  }
+
+  MachineRepresentation representation() const { return representation_; }
+  Truncation truncation() const { return truncation_; }
+  TypeCheckKind type_check() const { return type_check_; }
+  CheckForMinusZeroMode minus_zero_check() const {
+    return truncation().IdentifiesZeroAndMinusZero()
+               ? CheckForMinusZeroMode::kDontCheckForMinusZero
+               : CheckForMinusZeroMode::kCheckForMinusZero;
+  }
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  MachineRepresentation representation_;
+  Truncation truncation_;
+  TypeCheckKind type_check_;
+  VectorSlotPair feedback_;
+};
+
 // Contains logic related to changing the representation of values for constants
 // and other nodes, as well as lowering Simplified->Machine operators.
 // Eagerly folds any representation changes for constants.
-class RepresentationChanger {
+class RepresentationChanger final {
  public:
-  RepresentationChanger(JSGraph* jsgraph, SimplifiedOperatorBuilder* simplified,
-                        Isolate* isolate)
+  RepresentationChanger(JSGraph* jsgraph, Isolate* isolate)
       : jsgraph_(jsgraph),
-        simplified_(simplified),
         isolate_(isolate),
         testing_type_errors_(false),
         type_error_(false) {}
 
-  // TODO(titzer): should Word64 also be implicitly convertable to others?
-  static const MachineTypeUnion rWord =
-      kRepBit | kRepWord8 | kRepWord16 | kRepWord32;
-
-  Node* GetRepresentationFor(Node* node, MachineTypeUnion output_type,
-                             MachineTypeUnion use_type) {
-    if (!base::bits::IsPowerOfTwo32(output_type & kRepMask)) {
-      // There should be only one output representation.
-      return TypeError(node, output_type, use_type);
-    }
-    if ((use_type & kRepMask) == (output_type & kRepMask)) {
-      // Representations are the same. That's a no-op.
-      return node;
-    }
-    if ((use_type & rWord) && (output_type & rWord)) {
-      // Both are words less than or equal to 32-bits.
-      // Since loads of integers from memory implicitly sign or zero extend the
-      // value to the full machine word size and stores implicitly truncate,
-      // no representation change is necessary.
-      return node;
-    }
-    if (use_type & kRepTagged) {
-      return GetTaggedRepresentationFor(node, output_type);
-    } else if (use_type & kRepFloat32) {
-      return GetFloat32RepresentationFor(node, output_type);
-    } else if (use_type & kRepFloat64) {
-      return GetFloat64RepresentationFor(node, output_type);
-    } else if (use_type & kRepBit) {
-      return GetBitRepresentationFor(node, output_type);
-    } else if (use_type & rWord) {
-      return GetWord32RepresentationFor(node, output_type,
-                                        use_type & kTypeUint32);
-    } else if (use_type & kRepWord64) {
-      return GetWord64RepresentationFor(node, output_type);
-    } else {
-      return node;
-    }
-  }
-
-  Node* GetTaggedRepresentationFor(Node* node, MachineTypeUnion output_type) {
-    // Eagerly fold representation changes for constants.
-    switch (node->opcode()) {
-      case IrOpcode::kNumberConstant:
-      case IrOpcode::kHeapConstant:
-        return node;  // No change necessary.
-      case IrOpcode::kInt32Constant:
-        if (output_type & kTypeUint32) {
-          uint32_t value = OpParameter<uint32_t>(node);
-          return jsgraph()->Constant(static_cast<double>(value));
-        } else if (output_type & kTypeInt32) {
-          int32_t value = OpParameter<int32_t>(node);
-          return jsgraph()->Constant(value);
-        } else if (output_type & kRepBit) {
-          return OpParameter<int32_t>(node) == 0 ? jsgraph()->FalseConstant()
-                                                 : jsgraph()->TrueConstant();
-        } else {
-          return TypeError(node, output_type, kRepTagged);
-        }
-      case IrOpcode::kFloat64Constant:
-        return jsgraph()->Constant(OpParameter<double>(node));
-      case IrOpcode::kFloat32Constant:
-        return jsgraph()->Constant(OpParameter<float>(node));
-      default:
-        break;
-    }
-    // Select the correct X -> Tagged operator.
-    const Operator* op;
-    if (output_type & kRepBit) {
-      op = simplified()->ChangeBitToBool();
-    } else if (output_type & rWord) {
-      if (output_type & kTypeUint32) {
-        op = simplified()->ChangeUint32ToTagged();
-      } else if (output_type & kTypeInt32) {
-        op = simplified()->ChangeInt32ToTagged();
-      } else {
-        return TypeError(node, output_type, kRepTagged);
-      }
-    } else if (output_type & kRepFloat32) {  // float32 -> float64 -> tagged
-      node = InsertChangeFloat32ToFloat64(node);
-      op = simplified()->ChangeFloat64ToTagged();
-    } else if (output_type & kRepFloat64) {
-      op = simplified()->ChangeFloat64ToTagged();
-    } else {
-      return TypeError(node, output_type, kRepTagged);
-    }
-    return jsgraph()->graph()->NewNode(op, node);
-  }
-
-  Node* GetFloat32RepresentationFor(Node* node, MachineTypeUnion output_type) {
-    // Eagerly fold representation changes for constants.
-    switch (node->opcode()) {
-      case IrOpcode::kFloat64Constant:
-      case IrOpcode::kNumberConstant:
-        return jsgraph()->Float32Constant(
-            DoubleToFloat32(OpParameter<double>(node)));
-      case IrOpcode::kInt32Constant:
-        if (output_type & kTypeUint32) {
-          uint32_t value = OpParameter<uint32_t>(node);
-          return jsgraph()->Float32Constant(static_cast<float>(value));
-        } else {
-          int32_t value = OpParameter<int32_t>(node);
-          return jsgraph()->Float32Constant(static_cast<float>(value));
-        }
-      case IrOpcode::kFloat32Constant:
-        return node;  // No change necessary.
-      default:
-        break;
-    }
-    // Select the correct X -> Float32 operator.
-    const Operator* op;
-    if (output_type & kRepBit) {
-      return TypeError(node, output_type, kRepFloat32);
-    } else if (output_type & rWord) {
-      if (output_type & kTypeUint32) {
-        op = machine()->ChangeUint32ToFloat64();
-      } else {
-        op = machine()->ChangeInt32ToFloat64();
-      }
-      // int32 -> float64 -> float32
-      node = jsgraph()->graph()->NewNode(op, node);
-      op = machine()->TruncateFloat64ToFloat32();
-    } else if (output_type & kRepTagged) {
-      op = simplified()
-               ->ChangeTaggedToFloat64();  // tagged -> float64 -> float32
-      node = jsgraph()->graph()->NewNode(op, node);
-      op = machine()->TruncateFloat64ToFloat32();
-    } else if (output_type & kRepFloat64) {
-      op = machine()->TruncateFloat64ToFloat32();
-    } else {
-      return TypeError(node, output_type, kRepFloat32);
-    }
-    return jsgraph()->graph()->NewNode(op, node);
-  }
-
-  Node* GetFloat64RepresentationFor(Node* node, MachineTypeUnion output_type) {
-    // Eagerly fold representation changes for constants.
-    switch (node->opcode()) {
-      case IrOpcode::kNumberConstant:
-        return jsgraph()->Float64Constant(OpParameter<double>(node));
-      case IrOpcode::kInt32Constant:
-        if (output_type & kTypeUint32) {
-          uint32_t value = OpParameter<uint32_t>(node);
-          return jsgraph()->Float64Constant(static_cast<double>(value));
-        } else {
-          int32_t value = OpParameter<int32_t>(node);
-          return jsgraph()->Float64Constant(value);
-        }
-      case IrOpcode::kFloat64Constant:
-        return node;  // No change necessary.
-      case IrOpcode::kFloat32Constant:
-        return jsgraph()->Float64Constant(OpParameter<float>(node));
-      default:
-        break;
-    }
-    // Select the correct X -> Float64 operator.
-    const Operator* op;
-    if (output_type & kRepBit) {
-      return TypeError(node, output_type, kRepFloat64);
-    } else if (output_type & rWord) {
-      if (output_type & kTypeUint32) {
-        op = machine()->ChangeUint32ToFloat64();
-      } else {
-        op = machine()->ChangeInt32ToFloat64();
-      }
-    } else if (output_type & kRepTagged) {
-      op = simplified()->ChangeTaggedToFloat64();
-    } else if (output_type & kRepFloat32) {
-      op = machine()->ChangeFloat32ToFloat64();
-    } else {
-      return TypeError(node, output_type, kRepFloat64);
-    }
-    return jsgraph()->graph()->NewNode(op, node);
-  }
-
-  Node* MakeInt32Constant(double value) {
-    if (value < 0) {
-      DCHECK(IsInt32Double(value));
-      int32_t iv = static_cast<int32_t>(value);
-      return jsgraph()->Int32Constant(iv);
-    } else {
-      DCHECK(IsUint32Double(value));
-      int32_t iv = static_cast<int32_t>(static_cast<uint32_t>(value));
-      return jsgraph()->Int32Constant(iv);
-    }
-  }
-
-  Node* GetTruncatedWord32For(Node* node, MachineTypeUnion output_type) {
-    // Eagerly fold truncations for constants.
-    switch (node->opcode()) {
-      case IrOpcode::kInt32Constant:
-        return node;  // No change necessary.
-      case IrOpcode::kFloat32Constant:
-        return jsgraph()->Int32Constant(
-            DoubleToInt32(OpParameter<float>(node)));
-      case IrOpcode::kNumberConstant:
-      case IrOpcode::kFloat64Constant:
-        return jsgraph()->Int32Constant(
-            DoubleToInt32(OpParameter<double>(node)));
-      default:
-        break;
-    }
-    // Select the correct X -> Word32 truncation operator.
-    const Operator* op = NULL;
-    if (output_type & kRepFloat64) {
-      op = machine()->TruncateFloat64ToInt32();
-    } else if (output_type & kRepFloat32) {
-      node = InsertChangeFloat32ToFloat64(node);
-      op = machine()->TruncateFloat64ToInt32();
-    } else if (output_type & kRepTagged) {
-      node = InsertChangeTaggedToFloat64(node);
-      op = machine()->TruncateFloat64ToInt32();
-    } else {
-      return TypeError(node, output_type, kRepWord32);
-    }
-    return jsgraph()->graph()->NewNode(op, node);
-  }
-
-  Node* GetWord32RepresentationFor(Node* node, MachineTypeUnion output_type,
-                                   bool use_unsigned) {
-    // Eagerly fold representation changes for constants.
-    switch (node->opcode()) {
-      case IrOpcode::kInt32Constant:
-        return node;  // No change necessary.
-      case IrOpcode::kFloat32Constant:
-        return MakeInt32Constant(OpParameter<float>(node));
-      case IrOpcode::kNumberConstant:
-      case IrOpcode::kFloat64Constant:
-        return MakeInt32Constant(OpParameter<double>(node));
-      default:
-        break;
-    }
-    // Select the correct X -> Word32 operator.
-    const Operator* op = NULL;
-    if (output_type & kRepFloat64) {
-      if (output_type & kTypeUint32 || use_unsigned) {
-        op = machine()->ChangeFloat64ToUint32();
-      } else {
-        op = machine()->ChangeFloat64ToInt32();
-      }
-    } else if (output_type & kRepFloat32) {
-      node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
-      if (output_type & kTypeUint32 || use_unsigned) {
-        op = machine()->ChangeFloat64ToUint32();
-      } else {
-        op = machine()->ChangeFloat64ToInt32();
-      }
-    } else if (output_type & kRepTagged) {
-      if (output_type & kTypeUint32 || use_unsigned) {
-        op = simplified()->ChangeTaggedToUint32();
-      } else {
-        op = simplified()->ChangeTaggedToInt32();
-      }
-    } else {
-      return TypeError(node, output_type, kRepWord32);
-    }
-    return jsgraph()->graph()->NewNode(op, node);
-  }
-
-  Node* GetBitRepresentationFor(Node* node, MachineTypeUnion output_type) {
-    // Eagerly fold representation changes for constants.
-    switch (node->opcode()) {
-      case IrOpcode::kInt32Constant: {
-        int32_t value = OpParameter<int32_t>(node);
-        if (value == 0 || value == 1) return node;
-        return jsgraph()->OneConstant();  // value != 0
-      }
-      case IrOpcode::kHeapConstant: {
-        Handle<Object> handle = OpParameter<Unique<Object> >(node).handle();
-        DCHECK(*handle == isolate()->heap()->true_value() ||
-               *handle == isolate()->heap()->false_value());
-        return jsgraph()->Int32Constant(
-            *handle == isolate()->heap()->true_value() ? 1 : 0);
-      }
-      default:
-        break;
-    }
-    // Select the correct X -> Bit operator.
-    const Operator* op;
-    if (output_type & rWord) {
-      return node;  // No change necessary.
-    } else if (output_type & kRepWord64) {
-      return node;  // TODO(titzer): No change necessary, on 64-bit.
-    } else if (output_type & kRepTagged) {
-      op = simplified()->ChangeBoolToBit();
-    } else {
-      return TypeError(node, output_type, kRepBit);
-    }
-    return jsgraph()->graph()->NewNode(op, node);
-  }
-
-  Node* GetWord64RepresentationFor(Node* node, MachineTypeUnion output_type) {
-    if (output_type & kRepBit) {
-      return node;  // Sloppy comparison -> word64
-    }
-    // Can't really convert Word64 to anything else. Purported to be internal.
-    return TypeError(node, output_type, kRepWord64);
-  }
-
-  const Operator* Int32OperatorFor(IrOpcode::Value opcode) {
-    switch (opcode) {
-      case IrOpcode::kNumberAdd:
-        return machine()->Int32Add();
-      case IrOpcode::kNumberSubtract:
-        return machine()->Int32Sub();
-      case IrOpcode::kNumberMultiply:
-        return machine()->Int32Mul();
-      case IrOpcode::kNumberDivide:
-        return machine()->Int32Div();
-      case IrOpcode::kNumberModulus:
-        return machine()->Int32Mod();
-      case IrOpcode::kNumberEqual:
-        return machine()->Word32Equal();
-      case IrOpcode::kNumberLessThan:
-        return machine()->Int32LessThan();
-      case IrOpcode::kNumberLessThanOrEqual:
-        return machine()->Int32LessThanOrEqual();
-      default:
-        UNREACHABLE();
-        return NULL;
-    }
-  }
-
-  const Operator* Uint32OperatorFor(IrOpcode::Value opcode) {
-    switch (opcode) {
-      case IrOpcode::kNumberAdd:
-        return machine()->Int32Add();
-      case IrOpcode::kNumberSubtract:
-        return machine()->Int32Sub();
-      case IrOpcode::kNumberMultiply:
-        return machine()->Int32Mul();
-      case IrOpcode::kNumberDivide:
-        return machine()->Uint32Div();
-      case IrOpcode::kNumberModulus:
-        return machine()->Uint32Mod();
-      case IrOpcode::kNumberEqual:
-        return machine()->Word32Equal();
-      case IrOpcode::kNumberLessThan:
-        return machine()->Uint32LessThan();
-      case IrOpcode::kNumberLessThanOrEqual:
-        return machine()->Uint32LessThanOrEqual();
-      default:
-        UNREACHABLE();
-        return NULL;
-    }
-  }
-
-  const Operator* Float64OperatorFor(IrOpcode::Value opcode) {
-    switch (opcode) {
-      case IrOpcode::kNumberAdd:
-        return machine()->Float64Add();
-      case IrOpcode::kNumberSubtract:
-        return machine()->Float64Sub();
-      case IrOpcode::kNumberMultiply:
-        return machine()->Float64Mul();
-      case IrOpcode::kNumberDivide:
-        return machine()->Float64Div();
-      case IrOpcode::kNumberModulus:
-        return machine()->Float64Mod();
-      case IrOpcode::kNumberEqual:
-        return machine()->Float64Equal();
-      case IrOpcode::kNumberLessThan:
-        return machine()->Float64LessThan();
-      case IrOpcode::kNumberLessThanOrEqual:
-        return machine()->Float64LessThanOrEqual();
-      default:
-        UNREACHABLE();
-        return NULL;
-    }
-  }
+  // Changes representation from {output_type} to {use_rep}. The {truncation}
+  // parameter is only used for sanity checking - if the changer cannot figure
+  // out signedness for the word32->float64 conversion, then we check that the
+  // uses truncate to word32 (so they do not care about signedness).
+  Node* GetRepresentationFor(Node* node, MachineRepresentation output_rep,
+                             Type output_type, Node* use_node,
+                             UseInfo use_info);
+  const Operator* Int32OperatorFor(IrOpcode::Value opcode);
+  const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
+  const Operator* TaggedSignedOperatorFor(IrOpcode::Value opcode);
+  const Operator* Uint32OperatorFor(IrOpcode::Value opcode);
+  const Operator* Uint32OverflowOperatorFor(IrOpcode::Value opcode);
+  const Operator* Float64OperatorFor(IrOpcode::Value opcode);
 
   MachineType TypeForBasePointer(const FieldAccess& access) {
-    return access.tag() != 0 ? kMachAnyTagged : kMachPtr;
+    return access.tag() != 0 ? MachineType::AnyTagged()
+                             : MachineType::Pointer();
   }
 
   MachineType TypeForBasePointer(const ElementAccess& access) {
-    return access.tag() != 0 ? kMachAnyTagged : kMachPtr;
-  }
-
-  MachineType TypeFromUpperBound(Type* type) {
-    if (type->Is(Type::None()))
-      return kTypeAny;  // TODO(titzer): should be an error
-    if (type->Is(Type::Signed32())) return kTypeInt32;
-    if (type->Is(Type::Unsigned32())) return kTypeUint32;
-    if (type->Is(Type::Number())) return kTypeNumber;
-    if (type->Is(Type::Boolean())) return kTypeBool;
-    return kTypeAny;
+    return access.tag() != 0 ? MachineType::AnyTagged()
+                             : MachineType::Pointer();
   }
 
  private:
   JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder* simplified_;
   Isolate* isolate_;
 
   friend class RepresentationChangerTester;  // accesses the below fields.
@@ -428,38 +302,48 @@ class RepresentationChanger {
   bool testing_type_errors_;  // If {true}, don't abort on a type error.
   bool type_error_;           // Set when a type error is detected.
 
-  Node* TypeError(Node* node, MachineTypeUnion output_type,
-                  MachineTypeUnion use) {
-    type_error_ = true;
-    if (!testing_type_errors_) {
-      std::ostringstream out_str;
-      out_str << static_cast<MachineType>(output_type);
+  Node* GetTaggedSignedRepresentationFor(Node* node,
+                                         MachineRepresentation output_rep,
+                                         Type output_type, Node* use_node,
+                                         UseInfo use_info);
+  Node* GetTaggedPointerRepresentationFor(Node* node,
+                                          MachineRepresentation output_rep,
+                                          Type output_type, Node* use_node,
+                                          UseInfo use_info);
+  Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
+                                   Type output_type, Truncation truncation);
+  Node* GetFloat32RepresentationFor(Node* node,
+                                    MachineRepresentation output_rep,
+                                    Type output_type, Truncation truncation);
+  Node* GetFloat64RepresentationFor(Node* node,
+                                    MachineRepresentation output_rep,
+                                    Type output_type, Node* use_node,
+                                    UseInfo use_info);
+  Node* GetWord32RepresentationFor(Node* node, MachineRepresentation output_rep,
+                                   Type output_type, Node* use_node,
+                                   UseInfo use_info);
+  Node* GetBitRepresentationFor(Node* node, MachineRepresentation output_rep,
+                                Type output_type);
+  Node* GetWord64RepresentationFor(Node* node, MachineRepresentation output_rep,
+                                   Type output_type);
+  Node* TypeError(Node* node, MachineRepresentation output_rep,
+                  Type output_type, MachineRepresentation use);
+  Node* MakeTruncatedInt32Constant(double value);
+  Node* InsertChangeBitToTagged(Node* node);
+  Node* InsertChangeFloat32ToFloat64(Node* node);
+  Node* InsertChangeFloat64ToInt32(Node* node);
+  Node* InsertChangeFloat64ToUint32(Node* node);
+  Node* InsertChangeInt32ToFloat64(Node* node);
+  Node* InsertChangeTaggedSignedToInt32(Node* node);
+  Node* InsertChangeTaggedToFloat64(Node* node);
+  Node* InsertChangeUint32ToFloat64(Node* node);
+  Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
+  void InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
 
-      std::ostringstream use_str;
-      use_str << static_cast<MachineType>(use);
-
-      V8_Fatal(__FILE__, __LINE__,
-               "RepresentationChangerError: node #%d:%s of "
-               "%s cannot be changed to %s",
-               node->id(), node->op()->mnemonic(), out_str.str().c_str(),
-               use_str.str().c_str());
-    }
-    return node;
-  }
-
-  Node* InsertChangeFloat32ToFloat64(Node* node) {
-    return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
-                                       node);
-  }
-
-  Node* InsertChangeTaggedToFloat64(Node* node) {
-    return jsgraph()->graph()->NewNode(simplified()->ChangeTaggedToFloat64(),
-                                       node);
-  }
-
-  JSGraph* jsgraph() { return jsgraph_; }
-  Isolate* isolate() { return isolate_; }
-  SimplifiedOperatorBuilder* simplified() { return simplified_; }
+  JSGraph* jsgraph() const { return jsgraph_; }
+  Isolate* isolate() const { return isolate_; }
+  Factory* factory() const { return isolate()->factory(); }
+  SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
 };
 

@@ -22,10 +22,10 @@ WorkerThread::~WorkerThread() {
 
 
 void WorkerThread::Run() {
-  while (Task* task = queue_->GetNext()) {
+  while (std::unique_ptr<Task> task = queue_->GetNext()) {
     task->Run();
-    delete task;
   }
 }
 
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8

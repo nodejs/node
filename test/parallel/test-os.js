@@ -19,94 +19,224 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const path = require('path');
+const { inspect } = require('util');
 
+const is = {
+  number: (value, key) => {
+    assert(!Number.isNaN(value), `${key} should not be NaN`);
+    assert.strictEqual(typeof value, 'number');
+  },
+  string: (value) => { assert.strictEqual(typeof value, 'string'); },
+  array: (value) => { assert.ok(Array.isArray(value)); },
+  object: (value) => {
+    assert.strictEqual(typeof value, 'object');
+    assert.notStrictEqual(value, null);
+  }
+};
 
-
-var common = require('../common');
-var assert = require('assert');
-var os = require('os');
-
+const flatten = (arr) =>
+  arr.reduce((acc, c) =>
+    acc.concat(Array.isArray(c) ? flatten(c) : c), []);
 
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
-if (process.platform === 'win32') {
-  assert.equal(os.tmpdir(), '/temp');
+if (common.isWindows) {
+  assert.strictEqual(os.tmpdir(), '/temp');
   process.env.TEMP = '';
-  assert.equal(os.tmpdir(), '/tmp');
+  assert.strictEqual(os.tmpdir(), '/tmp');
   process.env.TMP = '';
-  var expected = (process.env.SystemRoot || process.env.windir) + '\\temp';
-  assert.equal(os.tmpdir(), expected);
+  const expected = `${process.env.SystemRoot || process.env.windir}\\temp`;
+  assert.strictEqual(os.tmpdir(), expected);
+  process.env.TEMP = '\\temp\\';
+  assert.strictEqual(os.tmpdir(), '\\temp');
+  process.env.TEMP = '\\tmpdir/';
+  assert.strictEqual(os.tmpdir(), '\\tmpdir/');
+  process.env.TEMP = '\\';
+  assert.strictEqual(os.tmpdir(), '\\');
+  process.env.TEMP = 'C:\\';
+  assert.strictEqual(os.tmpdir(), 'C:\\');
 } else {
-  assert.equal(os.tmpdir(), '/tmpdir');
+  assert.strictEqual(os.tmpdir(), '/tmpdir');
   process.env.TMPDIR = '';
-  assert.equal(os.tmpdir(), '/tmp');
+  assert.strictEqual(os.tmpdir(), '/tmp');
   process.env.TMP = '';
-  assert.equal(os.tmpdir(), '/temp');
+  assert.strictEqual(os.tmpdir(), '/temp');
   process.env.TEMP = '';
-  assert.equal(os.tmpdir(), '/tmp');
+  assert.strictEqual(os.tmpdir(), '/tmp');
+  process.env.TMPDIR = '/tmpdir/';
+  assert.strictEqual(os.tmpdir(), '/tmpdir');
+  process.env.TMPDIR = '/tmpdir\\';
+  assert.strictEqual(os.tmpdir(), '/tmpdir\\');
+  process.env.TMPDIR = '/';
+  assert.strictEqual(os.tmpdir(), '/');
 }
 
-var endianness = os.endianness();
-console.log('endianness = %s', endianness);
+const endianness = os.endianness();
+is.string(endianness);
 assert.ok(/[BL]E/.test(endianness));
 
-var hostname = os.hostname();
-console.log('hostname = %s', hostname);
+const hostname = os.hostname();
+is.string(hostname);
 assert.ok(hostname.length > 0);
 
-var uptime = os.uptime();
-console.log('uptime = %d', uptime);
+const uptime = os.uptime();
+is.number(uptime);
 assert.ok(uptime > 0);
 
-var cpus = os.cpus();
-console.log('cpus = ', cpus);
+const cpus = os.cpus();
+is.array(cpus);
 assert.ok(cpus.length > 0);
 
-var type = os.type();
-console.log('type = ', type);
+const type = os.type();
+is.string(type);
 assert.ok(type.length > 0);
 
-var release = os.release();
-console.log('release = ', release);
+const release = os.release();
+is.string(release);
 assert.ok(release.length > 0);
+// TODO: Check format on more than just AIX
+if (common.isAIX)
+  assert.ok(/^\d+\.\d+$/.test(release));
 
-var platform = os.platform();
-console.log('platform = ', platform);
+const platform = os.platform();
+is.string(platform);
 assert.ok(platform.length > 0);
 
-var arch = os.arch();
-console.log('arch = ', arch);
+const arch = os.arch();
+is.string(arch);
 assert.ok(arch.length > 0);
 
-if (process.platform != 'sunos') {
-  // not implemeneted yet
+if (!common.isSunOS) {
+  // not implemented yet
   assert.ok(os.loadavg().length > 0);
   assert.ok(os.freemem() > 0);
   assert.ok(os.totalmem() > 0);
 }
 
-
-var interfaces = os.networkInterfaces();
-console.error(interfaces);
+const interfaces = os.networkInterfaces();
 switch (platform) {
-  case 'linux':
-    var filter = function(e) { return e.address == '127.0.0.1'; };
-    var actual = interfaces.lo.filter(filter);
-    var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                      mac: '00:00:00:00:00:00', family: 'IPv4',
-                      internal: true }];
-    assert.deepEqual(actual, expected);
+  case 'linux': {
+    const filter = (e) =>
+      e.address === '127.0.0.1' &&
+      e.netmask === '255.0.0.0';
+
+    const actual = interfaces.lo.filter(filter);
+    const expected = [{
+      address: '127.0.0.1',
+      netmask: '255.0.0.0',
+      family: 'IPv4',
+      mac: '00:00:00:00:00:00',
+      internal: true,
+      cidr: '127.0.0.1/8'
+    }];
+    assert.deepStrictEqual(actual, expected);
     break;
-  case 'win32':
-    var filter = function(e) { return e.address == '127.0.0.1'; };
-    var actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
-    var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                      mac: '00:00:00:00:00:00', family: 'IPv4',
-                      internal: true }];
-    assert.deepEqual(actual, expected);
+  }
+  case 'win32': {
+    const filter = (e) =>
+      e.address === '127.0.0.1';
+
+    const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
+    const expected = [{
+      address: '127.0.0.1',
+      netmask: '255.0.0.0',
+      family: 'IPv4',
+      mac: '00:00:00:00:00:00',
+      internal: true,
+      cidr: '127.0.0.1/8'
+    }];
+    assert.deepStrictEqual(actual, expected);
     break;
+  }
+}
+const netmaskToCIDRSuffixMap = new Map(Object.entries({
+  '255.0.0.0': 8,
+  '255.255.255.0': 24,
+  'ffff:ffff:ffff:ffff::': 64,
+  'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
+}));
+
+flatten(Object.values(interfaces))
+  .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
+  .forEach(({ v, mask }) => {
+    assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);
+    if (mask) {
+      assert.strictEqual(v.cidr, `${v.address}/${mask}`);
+    }
+  });
+
+const EOL = os.EOL;
+if (common.isWindows) {
+  assert.strictEqual(EOL, '\r\n');
+} else {
+  assert.strictEqual(EOL, '\n');
 }
 
-var EOL = os.EOL;
-assert.ok(EOL.length > 0);
+const home = os.homedir();
+is.string(home);
+assert.ok(home.includes(path.sep));
+
+if (common.isWindows && process.env.USERPROFILE) {
+  assert.strictEqual(home, process.env.USERPROFILE);
+  delete process.env.USERPROFILE;
+  assert.ok(os.homedir().includes(path.sep));
+  process.env.USERPROFILE = home;
+} else if (!common.isWindows && process.env.HOME) {
+  assert.strictEqual(home, process.env.HOME);
+  delete process.env.HOME;
+  assert.ok(os.homedir().includes(path.sep));
+  process.env.HOME = home;
+}
+
+const pwd = os.userInfo();
+is.object(pwd);
+const pwdBuf = os.userInfo({ encoding: 'buffer' });
+
+if (common.isWindows) {
+  assert.strictEqual(pwd.uid, -1);
+  assert.strictEqual(pwd.gid, -1);
+  assert.strictEqual(pwd.shell, null);
+  assert.strictEqual(pwdBuf.uid, -1);
+  assert.strictEqual(pwdBuf.gid, -1);
+  assert.strictEqual(pwdBuf.shell, null);
+} else {
+  is.number(pwd.uid);
+  is.number(pwd.gid);
+  assert.strictEqual(typeof pwd.shell, 'string');
+  // It's possible for /etc/passwd to leave the user's shell blank.
+  if (pwd.shell.length > 0) {
+    assert(pwd.shell.includes(path.sep));
+  }
+  assert.strictEqual(pwd.uid, pwdBuf.uid);
+  assert.strictEqual(pwd.gid, pwdBuf.gid);
+  assert.strictEqual(pwd.shell, pwdBuf.shell.toString('utf8'));
+}
+
+is.string(pwd.username);
+assert.ok(pwd.homedir.includes(path.sep));
+assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
+assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
+
+assert.strictEqual(`${os.hostname}`, os.hostname());
+assert.strictEqual(`${os.homedir}`, os.homedir());
+assert.strictEqual(`${os.release}`, os.release());
+assert.strictEqual(`${os.type}`, os.type());
+assert.strictEqual(`${os.endianness}`, os.endianness());
+assert.strictEqual(`${os.tmpdir}`, os.tmpdir());
+assert.strictEqual(`${os.arch}`, os.arch());
+assert.strictEqual(`${os.platform}`, os.platform());
+
+assert.strictEqual(+os.totalmem, os.totalmem());
+
+// Assert that the following values are coercible to numbers.
+is.number(+os.uptime, 'uptime');
+is.number(os.uptime(), 'uptime');
+
+is.number(+os.freemem, 'freemem');
+is.number(os.freemem(), 'freemem');

@@ -1,0 +1,15 @@
+Package: clang-3.9
+Pin: release o=Ubuntu
+Pin-Priority: -1
+
+Package: libclang-common-3.9-dev
+Pin: release o=Ubuntu
+Pin-Priority: -1
+
+Package: libclang1-3.9
+Pin: release o=Ubuntu
+Pin-Priority: -1
+
+Package: libllvm3.9v4
+Pin: release o=Ubuntu
+Pin-Priority: -1

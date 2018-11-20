@@ -19,34 +19,34 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
-var fork = require('child_process').fork;
+'use strict';
+require('../common');
+const http = require('http');
+const fork = require('child_process').fork;
 
-if (process.env.NODE_TEST_FORK) {
-  var req = http.request({
-    headers: {'Content-Length': '42'},
+if (process.env.NODE_TEST_FORK_PORT) {
+  const req = http.request({
+    headers: { 'Content-Length': '42' },
     method: 'POST',
     host: '127.0.0.1',
-    port: common.PORT,
+    port: +process.env.NODE_TEST_FORK_PORT,
   }, process.exit);
   req.write('BAM');
   req.end();
-}
-else {
-  var server = http.createServer(function(req, res) {
-    res.writeHead(200, {'Content-Length': '42'});
+} else {
+  const server = http.createServer(function(req, res) {
+    res.writeHead(200, { 'Content-Length': '42' });
     req.pipe(res);
     req.on('close', function() {
       server.close();
       res.end();
     });
   });
-  server.listen(common.PORT, function() {
+  server.listen(0, function() {
     fork(__filename, {
-      env: util._extend(process.env, {NODE_TEST_FORK: '1'})
+      env: Object.assign({}, process.env, {
+        NODE_TEST_FORK_PORT: this.address().port
+      })
     });
   });
 }

@@ -28,21 +28,32 @@ N/A
 API
 ---
 
-.. c:function:: int uv_tcp_init(uv_loop_t*, uv_tcp_t* handle)
+.. c:function:: int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle)
 
-    Initialize the handle.
+    Initialize the handle. No socket is created as of yet.
+
+.. c:function:: int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* handle, unsigned int flags)
+
+    Initialize the handle with the specified flags. At the moment only the lower 8 bits
+    of the `flags` parameter are used as the socket domain. A socket will be created
+    for the given domain. If the specified domain is ``AF_UNSPEC`` no socket is created,
+    just like :c:func:`uv_tcp_init`.
+
+    .. versionadded:: 1.7.0
 
 .. c:function:: int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock)
 
     Open an existing file descriptor or SOCKET as a TCP handle.
 
+    .. versionchanged:: 1.2.1 the file descriptor is set to non-blocking mode.
+
     .. note::
-        The user is responsible for setting the file descriptor in
-        non-blocking mode.
+        The passed file descriptor or SOCKET is not checked for its type, but
+        it's required that it represents a valid stream socket.
 
 .. c:function:: int uv_tcp_nodelay(uv_tcp_t* handle, int enable)
 
-    Enable / disable Nagle's algorithm.
+    Enable `TCP_NODELAY`, which disables Nagle's algorithm.
 
 .. c:function:: int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay)
 
@@ -70,7 +81,7 @@ API
     not guarantee that the call to :c:func:`uv_listen` or :c:func:`uv_tcp_connect`
     will succeed as well.
 
-    `flags` con contain ``UV_TCP_IPV6ONLY``, in which case dual-stack support
+    `flags` can contain ``UV_TCP_IPV6ONLY``, in which case dual-stack support
     is disabled and only IPv6 is used.
 
 .. c:function:: int uv_tcp_getsockname(const uv_tcp_t* handle, struct sockaddr* name, int* namelen)
@@ -91,7 +102,14 @@ API
     and an uninitialized :c:type:`uv_connect_t`. `addr` should point to an
     initialized ``struct sockaddr_in`` or ``struct sockaddr_in6``.
 
+    On Windows if the `addr` is initialized to point to an unspecified address
+    (``0.0.0.0`` or ``::``) it will be changed to point to ``localhost``.
+    This is done to match the behavior of Linux systems.
+
     The callback is made when the connection has been established or when a
     connection error happened.
+
+    .. versionchanged:: 1.19.0 added ``0.0.0.0`` and ``::`` to ``localhost``
+        mapping
 
 .. seealso:: The :c:type:`uv_stream_t` API functions also apply.

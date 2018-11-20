@@ -19,36 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+const options = {
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem')
 };
 
-var connections = 0;
-var message = 'hello world\n';
+// Contains a UTF8 only character
+const messageUtf8 = 'x√ab c';
+
+// The same string above represented with ASCII
+const messageAscii = 'xb\b\u001aab c';
+
+const server = tls.Server(options, common.mustCall(function(socket) {
+  socket.end(messageUtf8);
+}));
 
 
-var server = tls.Server(options, function(socket) {
-  socket.end(message);
-  connections++;
-});
-
-
-server.listen(common.PORT, function() {
-  var client = tls.connect({
-    port: common.PORT,
+server.listen(0, function() {
+  const client = tls.connect({
+    port: this.address().port,
     rejectUnauthorized: false
   });
 
-  var buffer = '';
+  let buffer = '';
 
-  client.setEncoding('utf8');
+  client.setEncoding('ascii');
 
   client.on('data', function(d) {
     assert.ok(typeof d === 'string');
@@ -59,16 +63,17 @@ server.listen(common.PORT, function() {
   client.on('close', function() {
     // readyState is deprecated but we want to make
     // sure this isn't triggering an assert in lib/net.js
-    // See issue #1069.
-    assert.equal('closed', client.readyState);
+    // See https://github.com/nodejs/node-v0.x-archive/issues/1069.
+    assert.strictEqual('closed', client.readyState);
 
-    assert.equal(buffer, message);
-    console.log(message);
+    // Confirming the buffer string is encoded in ASCII
+    // and thus does NOT match the UTF8 string
+    assert.notStrictEqual(buffer, messageUtf8);
+
+    // Confirming the buffer string is encoded in ASCII
+    // and thus does equal the ASCII string representation
+    assert.strictEqual(buffer, messageAscii);
+
     server.close();
   });
-});
-
-
-process.on('exit', function() {
-  assert.equal(1, connections);
 });

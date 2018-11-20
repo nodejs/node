@@ -19,18 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var common = require('../common');
+'use strict';
+const common = require('../common');
+const spawn = require('child_process').spawn;
 
-var errs = 0;
+if (process.argv[2] === 'child') {
+  process.stdin.resume();
+  process.stdin._handle.close();
+  process.stdin._handle.unref();  // Should not segfault.
+  process.stdin.on('error', common.mustCall());
+  return;
+}
 
-process.stdin.resume();
-process.stdin._handle.close();
-process.stdin._handle.unref();  // Should not segfault.
-process.stdin.on('error', function(err) {
-  errs++;
-});
+// Use spawn so that we can be sure that stdin has a _handle property.
+// Refs: https://github.com/nodejs/node/pull/5916
+const proc = spawn(process.execPath, [__filename, 'child'], { stdio: 'pipe' });
 
-process.on('exit', function() {
-  assert.strictEqual(errs, 1);
-});
+proc.stderr.pipe(process.stderr);
+proc.on('exit', common.mustCall(function(exitCode) {
+  if (exitCode !== 0)
+    process.exitCode = exitCode;
+}));

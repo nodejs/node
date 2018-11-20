@@ -19,21 +19,23 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var stream = require('stream');
-var Readable = stream.Readable;
-var Writable = stream.Writable;
+const stream = require('stream');
+const Readable = stream.Readable;
+const Writable = stream.Writable;
 
-var totalChunks = 100;
-var chunkSize = 99;
-var expectTotalData = totalChunks * chunkSize;
-var expectEndingData = expectTotalData;
+const totalChunks = 100;
+const chunkSize = 99;
+const expectTotalData = totalChunks * chunkSize;
+let expectEndingData = expectTotalData;
 
-var r = new Readable({ highWaterMark: 1000 });
-var chunks = totalChunks;
+const r = new Readable({ highWaterMark: 1000 });
+let chunks = totalChunks;
 r._read = function(n) {
+  console.log('_read called', chunks);
   if (!(chunks % 2))
     setImmediate(push);
   else if (!(chunks % 3))
@@ -42,13 +44,13 @@ r._read = function(n) {
     push();
 };
 
-var totalPushed = 0;
+let totalPushed = 0;
 function push() {
-  var chunk = chunks-- > 0 ? new Buffer(chunkSize) : null;
+  const chunk = chunks-- > 0 ? Buffer.alloc(chunkSize, 'x') : null;
   if (chunk) {
     totalPushed += chunk.length;
-    chunk.fill('x');
   }
+  console.log('chunks', chunks);
   r.push(chunk);
 }
 
@@ -60,15 +62,16 @@ function read100() {
 }
 
 function readn(n, then) {
-  console.error('read %d', n);
+  console.error(`read ${n}`);
   expectEndingData -= n;
-  ;(function read() {
-    var c = r.read(n);
+  (function read() {
+    const c = r.read(n);
+    console.error('c', c);
     if (!c)
       r.once('readable', read);
     else {
-      assert.equal(c.length, n);
-      assert(!r._readableState.flowing);
+      assert.strictEqual(c.length, n);
+      assert(!r.readableFlowing);
       then();
     }
   })();
@@ -78,7 +81,7 @@ function readn(n, then) {
 function onData() {
   expectEndingData -= 100;
   console.error('onData');
-  var seen = 0;
+  let seen = 0;
   r.on('data', function od(c) {
     seen += c.length;
     if (seen >= 100) {
@@ -88,7 +91,7 @@ function onData() {
       if (seen > 100) {
         // oh no, seen too much!
         // put the extra back.
-        var diff = seen - 100;
+        const diff = seen - 100;
         r.unshift(c.slice(c.length - diff));
         console.error('seen too much', seen, diff);
       }
@@ -103,10 +106,10 @@ function onData() {
 function pipeLittle() {
   expectEndingData -= 200;
   console.error('pipe a little');
-  var w = new Writable();
-  var written = 0;
+  const w = new Writable();
+  let written = 0;
   w.on('finish', function() {
-    assert.equal(written, 200);
+    assert.strictEqual(written, 200);
     setImmediate(read1234);
   });
   w._write = function(chunk, encoding, cb) {
@@ -116,7 +119,7 @@ function pipeLittle() {
       w.end();
       cb();
       if (written > 200) {
-        var diff = written - 200;
+        const diff = written - 200;
         written -= diff;
         r.unshift(chunk.slice(chunk.length - diff));
       }
@@ -151,16 +154,16 @@ function resumePause() {
 
 function pipe() {
   console.error('pipe the rest');
-  var w = new Writable();
-  var written = 0;
+  const w = new Writable();
+  let written = 0;
   w._write = function(chunk, encoding, cb) {
     written += chunk.length;
     cb();
   };
   w.on('finish', function() {
     console.error('written', written, totalPushed);
-    assert.equal(written, expectEndingData);
-    assert.equal(totalPushed, expectTotalData);
+    assert.strictEqual(written, expectEndingData);
+    assert.strictEqual(totalPushed, expectTotalData);
     console.log('ok');
   });
   r.pipe(w);

@@ -19,32 +19,48 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var path = require('path'),
-    fs = require('fs');
+const tmpdir = require('../common/tmpdir');
 
-var file = path.join(common.tmpDir, 'write.txt');
+const file = path.join(tmpdir.path, 'write.txt');
 
-(function() {
-  var stream = fs.WriteStream(file),
-      _fs_close = fs.close;
+tmpdir.refresh();
+
+{
+  const stream = fs.WriteStream(file);
+  const _fs_close = fs.close;
 
   fs.close = function(fd) {
     assert.ok(fd, 'fs.close must not be called without an undefined fd.');
     fs.close = _fs_close;
-  }
+  };
   stream.destroy();
-})();
+}
 
-(function() {
-  var stream = fs.createWriteStream(file);
+{
+  const stream = fs.createWriteStream(file);
 
   stream.on('drain', function() {
     assert.fail('\'drain\' event must not be emitted before ' +
                 'stream.write() has been called at least once.');
   });
   stream.destroy();
-})();
+}
 
+// Throws if data is not of type Buffer.
+{
+  const stream = fs.createWriteStream(file);
+  common.expectsError(() => {
+    stream._write(42, null, function() {});
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "data" argument must be of type Buffer. Received type number'
+  });
+  stream.destroy();
+}

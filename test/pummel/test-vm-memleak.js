@@ -19,21 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var common = require('../common');
+'use strict';
+// Flags: --max_old_space_size=32
 
-var start = Date.now();
-var maxMem = 0;
+require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
-var interval = setInterval(function() {
+const start = Date.now();
+let maxMem = 0;
+
+const ok = process.execArgv.some(function(arg) {
+  return arg === '--max_old_space_size=32';
+});
+assert(ok, 'Run this test with --max_old_space_size=32.');
+
+const interval = setInterval(function() {
   try {
-    require('vm').runInNewContext('throw 1;');
+    vm.runInNewContext('throw 1;');
   } catch (e) {
   }
 
-  var rss = process.memoryUsage().rss;
+  const rss = process.memoryUsage().rss;
   maxMem = Math.max(rss, maxMem);
-
 
   if (Date.now() - start > 5 * 1000) {
     // wait 10 seconds.
@@ -44,12 +52,11 @@ var interval = setInterval(function() {
 }, 1);
 
 function testContextLeak() {
-  for (var i = 0; i < 1000; i++)
-    require('vm').createContext({});
+  for (let i = 0; i < 1000; i++)
+    vm.createContext({});
 }
 
 process.on('exit', function() {
-  console.error('max mem: %dmb', Math.round(maxMem / (1024 * 1024)));
-  // make sure we stay below 100mb
-  assert.ok(maxMem < 50 * 1024 * 1024);
+  console.error(`max mem: ${Math.round(maxMem / (1024 * 1024))}mb`);
+  assert.ok(maxMem < 64 * 1024 * 1024);
 });

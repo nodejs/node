@@ -35,6 +35,7 @@ except ImportError, e:
   md5er = md5.new
 
 
+import json
 import optparse
 import os
 from os.path import abspath, join, dirname, basename, exists
@@ -45,65 +46,33 @@ import subprocess
 import multiprocessing
 from subprocess import PIPE
 
-# Disabled LINT rules and reason.
-# build/include_what_you_use: Started giving false positives for variables
-#  named "string" and "map" assuming that you needed to include STL headers.
+from testrunner.local import statusfile
+from testrunner.local import testsuite
+from testrunner.local import utils
 
-ENABLED_LINT_RULES = """
-build/class
-build/deprecated
-build/endif_comment
-build/forward_decl
-build/include_alpha
-build/include_order
-build/printf_format
-build/storage_class
-legal/copyright
-readability/boost
-readability/braces
-readability/casting
-readability/constructors
-readability/fn_size
-readability/function
-readability/multiline_comment
-readability/multiline_string
-readability/streams
-readability/todo
-readability/utf8
-runtime/arrays
-runtime/casting
-runtime/deprecated_fn
-runtime/explicit
-runtime/int
-runtime/memset
-runtime/mutex
-runtime/nonconf
-runtime/printf
-runtime/printf_format
-runtime/rtti
-runtime/sizeof
-runtime/string
-runtime/virtual
-runtime/vlog
-whitespace/blank_line
-whitespace/braces
-whitespace/comma
-whitespace/comments
-whitespace/ending_newline
-whitespace/indent
-whitespace/labels
-whitespace/line_length
-whitespace/newline
-whitespace/operators
-whitespace/parens
-whitespace/tab
-whitespace/todo
+# Special LINT rules diverging from default and reason.
+# build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
+#   We now run our own header guard check in PRESUBMIT.py.
+# build/include_what_you_use: Started giving false positives for variables
+#   named "string" and "map" assuming that you needed to include STL headers.
+
+LINT_RULES = """
+-build/header_guard
+-build/include_what_you_use
+-readability/fn_size
+-readability/multiline_comment
+-runtime/references
+-whitespace/comments
 """.split()
 
-# TODO(bmeurer): Fix and re-enable readability/check
-
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
+FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
+ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
+FLAGS_ENABLE_OPT = re.compile("//\s*Flags:.*--opt[^-].*\n")
+ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
+FLAGS_NO_ALWAYS_OPT = re.compile("//\s*Flags:.*--no-?always-opt.*\n")
 
+TOOLS_PATH = dirname(abspath(__file__))
 
 def CppLintWorker(command):
   try:
@@ -190,18 +159,39 @@ class SourceFileProcessor(object):
   files and invoke a custom check on the files.
   """
 
-  def Run(self, path):
+  def RunOnPath(self, path):
+    """Runs processor on all files under the given path."""
+
     all_files = []
     for file in self.GetPathsToSearch():
       all_files += self.FindFilesIn(join(path, file))
-    if not self.ProcessFiles(all_files, path):
-      return False
-    return True
+    return self.ProcessFiles(all_files)
+
+  def RunOnFiles(self, files):
+    """Runs processor only on affected files."""
+
+    # Helper for getting directory pieces.
+    dirs = lambda f: dirname(f).split(os.sep)
+
+    # Path offsets where to look (to be in sync with RunOnPath).
+    # Normalize '.' to check for it with str.startswith.
+    search_paths = [('' if p == '.' else p) for p in self.GetPathsToSearch()]
+
+    all_files = [
+      f.AbsoluteLocalPath()
+      for f in files
+      if (not self.IgnoreFile(f.LocalPath()) and
+          self.IsRelevant(f.LocalPath()) and
+          all(not self.IgnoreDir(d) for d in dirs(f.LocalPath())) and
+          any(map(f.LocalPath().startswith, search_paths)))
+    ]
+
+    return self.ProcessFiles(all_files)
 
   def IgnoreDir(self, name):
     return (name.startswith('.') or
             name in ('buildtools', 'data', 'gmock', 'gtest', 'kraken',
-                     'octane', 'sunspider'))
+                     'octane', 'sunspider', 'traces-arm64'))
 
   def IgnoreFile(self, name):
     return name.startswith('.')
@@ -229,15 +219,16 @@ class CppLintProcessor(SourceFileProcessor):
     return (super(CppLintProcessor, self).IgnoreDir(name)
               or (name == 'third_party'))
 
-  IGNORE_LINT = ['flag-definitions.h']
+  IGNORE_LINT = ['export-template.h', 'flag-definitions.h']
 
   def IgnoreFile(self, name):
     return (super(CppLintProcessor, self).IgnoreFile(name)
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples', join('test', 'cctest'),
-            join('test', 'unittests')]
+    dirs = ['include', 'samples', 'src']
+    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    return dirs + [join('test', dir) for dir in test_dirs]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -248,7 +239,7 @@ class CppLintProcessor(SourceFileProcessor):
 
     return None
 
-  def ProcessFiles(self, files, path):
+  def ProcessFiles(self, files):
     good_files_cache = FileContentsCache('.cpplint-cache')
     good_files_cache.Load()
     files = good_files_cache.FilterUnchangedFiles(files)
@@ -256,17 +247,16 @@ class CppLintProcessor(SourceFileProcessor):
       print 'No changes in files detected. Skipping cpplint check.'
       return True
 
-    filt = '-,' + ",".join(['+' + n for n in ENABLED_LINT_RULES])
-    command = [sys.executable, 'cpplint.py', '--filter', filt]
-    cpplint = self.GetCpplintScript(join(path, "tools"))
+    filters = ",".join([n for n in LINT_RULES])
+    cpplint = self.GetCpplintScript(TOOLS_PATH)
     if cpplint is None:
       print('Could not find cpplint.py. Make sure '
             'depot_tools is installed and in the path.')
       sys.exit(1)
 
-    command = [sys.executable, cpplint, '--filter', filt]
+    command = [sys.executable, cpplint, '--filter', filters]
 
-    commands = join([command + [file] for file in files])
+    commands = [command + [file] for file in files]
     count = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(count)
     try:
@@ -293,8 +283,26 @@ class SourceProcessor(SourceFileProcessor):
   Check that all files include a copyright notice and no trailing whitespaces.
   """
 
-  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c',
-                         '.status', '.gyp', '.gypi']
+  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', '.status', '.tq', '.g4']
+
+  def __init__(self):
+    self.runtime_function_call_pattern = self.CreateRuntimeFunctionCallMatcher()
+
+  def CreateRuntimeFunctionCallMatcher(self):
+    runtime_h_path = join(dirname(TOOLS_PATH), 'src/runtime/runtime.h')
+    pattern = re.compile(r'\s+F\(([^,]*),.*\)')
+    runtime_functions = []
+    with open(runtime_h_path) as f:
+      for line in f.readlines():
+        m = pattern.match(line)
+        if m:
+          runtime_functions.append(m.group(1))
+    if len(runtime_functions) < 450:
+      print ("Runtime functions list is suspiciously short. "
+             "Consider updating the presubmit script.")
+      sys.exit(1)
+    str = '(\%\s+(' + '|'.join(runtime_functions) + '))[\s\(]'
+    return re.compile(str)
 
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
@@ -325,19 +333,53 @@ class SourceProcessor(SourceFileProcessor):
 
   def IgnoreDir(self, name):
     return (super(SourceProcessor, self).IgnoreDir(name) or
-            name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources'))
+            name in ('third_party', 'out', 'obj', 'DerivedSources'))
 
-  IGNORE_COPYRIGHTS = ['cpplint.py',
-                       'daemon.py',
-                       'earley-boyer.js',
-                       'raytrace.js',
+  IGNORE_COPYRIGHTS = ['box2d.js',
+                       'cpplint.py',
+                       'check_injected_script_source.py',
+                       'copy.js',
+                       'corrections.js',
                        'crypto.js',
+                       'daemon.py',
+                       'debugger-script.js',
+                       'earley-boyer.js',
+                       'fannkuch.js',
+                       'fasta.js',
+                       'generate_protocol_externs.py',
+                       'injected-script.cc',
+                       'injected-script.h',
+                       'injected-script-source.js',
+                       'java-script-call-frame.cc',
+                       'java-script-call-frame.h',
+                       'jsmin.py',
                        'libraries.cc',
                        'libraries-empty.cc',
-                       'jsmin.py',
+                       'lua_binarytrees.js',
+                       'meta-123.js',
+                       'memops.js',
+                       'poppler.js',
+                       'primes.js',
+                       'raytrace.js',
                        'regexp-pcre.js',
-                       'gnuplot-4.6.3-emscripten.js']
+                       'resources-123.js',
+                       'rjsmin.py',
+                       'sqlite.js',
+                       'sqlite-change-heap.js',
+                       'sqlite-pointer-masking.js',
+                       'sqlite-safe-heap.js',
+                       'v8-debugger-script.h',
+                       'v8-function-call.cc',
+                       'v8-function-call.h',
+                       'v8-inspector-impl.cc',
+                       'v8-inspector-impl.h',
+                       'v8-runtime-agent-impl.cc',
+                       'v8-runtime-agent-impl.h',
+                       'gnuplot-4.6.3-emscripten.js',
+                       'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
+
+  IGNORE_COPYRIGHTS_DIRECTORY = "test/test262/local-tests"
 
   def EndOfDeclaration(self, line):
     return line == "}" or line == "};"
@@ -354,7 +396,8 @@ class SourceProcessor(SourceFileProcessor):
       if '\t' in contents:
         print "%s contains tabs" % name
         result = False
-    if not base in SourceProcessor.IGNORE_COPYRIGHTS:
+    if not base in SourceProcessor.IGNORE_COPYRIGHTS and \
+        not SourceProcessor.IGNORE_COPYRIGHTS_DIRECTORY in name:
       if not COPYRIGHT_HEADER_PATTERN.search(contents):
         print "%s is missing a correct copyright header." % name
         result = False
@@ -376,33 +419,31 @@ class SourceProcessor(SourceFileProcessor):
     if not contents.endswith('\n') or contents.endswith('\n\n'):
       print "%s does not end with a single new line." % name
       result = False
-    # Check two empty lines between declarations.
-    if name.endswith(".cc"):
-      line = 0
-      lines = []
-      parts = contents.split('\n')
-      while line < len(parts) - 2:
-        if self.EndOfDeclaration(parts[line]):
-          if self.StartOfDeclaration(parts[line + 1]):
-            lines.append(str(line + 1))
-            line += 1
-          elif parts[line + 1] == "" and \
-               self.StartOfDeclaration(parts[line + 2]):
-            lines.append(str(line + 1))
-            line += 2
-        line += 1
-      if len(lines) >= 1:
-        linenumbers = ', '.join(lines)
-        if len(lines) > 1:
-          print "%s does not have two empty lines between declarations " \
-                "in lines %s." % (name, linenumbers)
-        else:
-          print "%s does not have two empty lines between declarations " \
-                "in line %s." % (name, linenumbers)
+    # Sanitize flags for fuzzer.
+    if "mjsunit" in name or "debugger" in name:
+      match = FLAGS_LINE.search(contents)
+      if match:
+        print "%s Flags should use '-' (not '_')" % name
+        result = False
+      if not "mjsunit/mjsunit.js" in name:
+        if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
+            not FLAGS_ENABLE_OPT.search(contents):
+          print "%s Flag --opt should be set if " \
+                "assertOptimized() is used" % name
+          result = False
+        if ASSERT_UNOPTIMIZED_PATTERN.search(contents) and \
+            not FLAGS_NO_ALWAYS_OPT.search(contents):
+          print "%s Flag --no-always-opt should be set if " \
+                "assertUnoptimized() is used" % name
+          result = False
+
+      match = self.runtime_function_call_pattern.search(contents)
+      if match:
+        print "%s has unexpected spaces in a runtime call '%s'" % (name, match.group(1))
         result = False
     return result
 
-  def ProcessFiles(self, files, path):
+  def ProcessFiles(self, files):
     success = True
     violations = 0
     for file in files:
@@ -417,17 +458,113 @@ class SourceProcessor(SourceFileProcessor):
     print "Total violating files: %s" % violations
     return success
 
+def _CheckStatusFileForDuplicateKeys(filepath):
+  comma_space_bracket = re.compile(", *]")
+  lines = []
+  with open(filepath) as f:
+    for line in f.readlines():
+      # Skip all-comment lines.
+      if line.lstrip().startswith("#"): continue
+      # Strip away comments at the end of the line.
+      comment_start = line.find("#")
+      if comment_start != -1:
+        line = line[:comment_start]
+      line = line.strip()
+      # Strip away trailing commas within the line.
+      line = comma_space_bracket.sub("]", line)
+      if len(line) > 0:
+        lines.append(line)
 
-def CheckRuntimeVsNativesNameClashes(workspace):
-  code = subprocess.call(
-      [sys.executable, join(workspace, "tools", "check-name-clashes.py")])
-  return code == 0
+  # Strip away trailing commas at line ends. Ugh.
+  for i in range(len(lines) - 1):
+    if (lines[i].endswith(",") and len(lines[i + 1]) > 0 and
+        lines[i + 1][0] in ("}", "]")):
+      lines[i] = lines[i][:-1]
+
+  contents = "\n".join(lines)
+  # JSON wants double-quotes.
+  contents = contents.replace("'", '"')
+  # Fill in keywords (like PASS, SKIP).
+  for key in statusfile.KEYWORDS:
+    contents = re.sub(r"\b%s\b" % key, "\"%s\"" % key, contents)
+
+  status = {"success": True}
+  def check_pairs(pairs):
+    keys = {}
+    for key, value in pairs:
+      if key in keys:
+        print("%s: Error: duplicate key %s" % (filepath, key))
+        status["success"] = False
+      keys[key] = True
+
+  json.loads(contents, object_pairs_hook=check_pairs)
+  return status["success"]
 
 
-def CheckExternalReferenceRegistration(workspace):
-  code = subprocess.call(
-      [sys.executable, join(workspace, "tools", "external-reference-check.py")])
-  return code == 0
+class StatusFilesProcessor(SourceFileProcessor):
+  """Checks status files for incorrect syntax and duplicate keys."""
+
+  def IsRelevant(self, name):
+    # Several changes to files under the test directories could impact status
+    # files.
+    return True
+
+  def GetPathsToSearch(self):
+    return ['test', 'tools/testrunner']
+
+  def ProcessFiles(self, files):
+    success = True
+    for status_file_path in sorted(self._GetStatusFiles(files)):
+      success &= statusfile.PresubmitCheck(status_file_path)
+      success &= _CheckStatusFileForDuplicateKeys(status_file_path)
+    return success
+
+  def _GetStatusFiles(self, files):
+    test_path = join(dirname(TOOLS_PATH), 'test')
+    testrunner_path = join(TOOLS_PATH, 'testrunner')
+    status_files = set()
+
+    for file_path in files:
+      if file_path.startswith(testrunner_path):
+        for suitepath in os.listdir(test_path):
+          suitename = os.path.basename(suitepath)
+          status_file = os.path.join(
+              test_path, suitename, suitename + ".status")
+          if os.path.exists(status_file):
+            status_files.add(status_file)
+        return status_files
+
+    for file_path in files:
+      if file_path.startswith(test_path):
+        # Strip off absolute path prefix pointing to test suites.
+        pieces = file_path[len(test_path):].lstrip(os.sep).split(os.sep)
+        if pieces:
+          # Infer affected status file name. Only care for existing status
+          # files. Some directories under "test" don't have any.
+          if not os.path.isdir(join(test_path, pieces[0])):
+            continue
+          status_file = join(test_path, pieces[0], pieces[0] + ".status")
+          if not os.path.exists(status_file):
+            continue
+          status_files.add(status_file)
+    return status_files
+
+
+def CheckDeps(workspace):
+  checkdeps_py = join(workspace, 'buildtools', 'checkdeps', 'checkdeps.py')
+  return subprocess.call([sys.executable, checkdeps_py, workspace]) == 0
+
+
+def PyTests(workspace):
+  result = True
+  for script in [
+      join(workspace, 'tools', 'release', 'test_scripts.py'),
+      join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
+    ]:
+    print 'Running ' + script
+    result &= subprocess.call(
+        [sys.executable, script], stdout=subprocess.PIPE) == 0
+  return result
 
 
 def GetOptions():
@@ -442,14 +579,18 @@ def Main():
   parser = GetOptions()
   (options, args) = parser.parse_args()
   success = True
-  print "Running C++ lint check..."
+  print "Running checkdeps..."
+  success &= CheckDeps(workspace)
   if not options.no_lint:
-    success = CppLintProcessor().Run(workspace) and success
+    print "Running C++ lint check..."
+    success &= CppLintProcessor().RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
-  success = SourceProcessor().Run(workspace) and success
-  success = CheckRuntimeVsNativesNameClashes(workspace) and success
-  success = CheckExternalReferenceRegistration(workspace) and success
+  success &= SourceProcessor().RunOnPath(workspace)
+  print "Running status-files check..."
+  success &= StatusFilesProcessor().RunOnPath(workspace)
+  print "Running python tests..."
+  success &= PyTests(workspace)
   if success:
     return 0
   else:

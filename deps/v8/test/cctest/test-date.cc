@@ -25,13 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
-
+#include "src/date.h"
 #include "src/global-handles.h"
-#include "src/snapshot.h"
+#include "src/isolate.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 class DateCacheMock: public DateCache {
  public:
@@ -49,17 +50,16 @@ class DateCacheMock: public DateCache {
     int year, month, day;
     YearMonthDayFromDays(days, &year, &month, &day);
     Rule* rule = FindRuleFor(year, month, day, time_in_day_sec);
-    return rule == NULL ? 0 : rule->offset_sec * 1000;
+    return rule == nullptr ? 0 : rule->offset_sec * 1000;
   }
 
-
-  virtual int GetLocalOffsetFromOS() {
-    return local_offset_;
+  virtual int GetLocalOffsetFromOS(int64_t time_sec, bool is_utc) {
+    return local_offset_ + GetDaylightSavingsOffsetFromOS(time_sec);
   }
 
  private:
   Rule* FindRuleFor(int year, int month, int day, int time_in_day_sec) {
-    Rule* result = NULL;
+    Rule* result = nullptr;
     for (int i = 0; i < rules_count_; i++)
       if (Match(&rules_[i], year, month, day, time_in_day_sec)) {
         result = &rules_[i];
@@ -112,8 +112,7 @@ static void CheckDST(int64_t time) {
   Isolate* isolate = CcTest::i_isolate();
   DateCache* date_cache = isolate->date_cache();
   int64_t actual = date_cache->ToLocal(time);
-  int64_t expected = time + date_cache->GetLocalOffsetFromOS() +
-                     date_cache->GetDaylightSavingsOffsetFromOS(time / 1000);
+  int64_t expected = time + date_cache->GetLocalOffsetFromOS(time, true);
   CHECK_EQ(actual, expected);
 }
 
@@ -168,24 +167,54 @@ TEST(DaylightSavingsTime) {
   CheckDST(august_20);
 }
 
+namespace {
+int legacy_parse_count = 0;
+void DateParseLegacyCounterCallback(v8::Isolate* isolate,
+                                    v8::Isolate::UseCounterFeature feature) {
+  if (feature == v8::Isolate::kLegacyDateParser) legacy_parse_count++;
+}
+}  // anonymous namespace
 
+TEST(DateParseLegacyUseCounter) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  CcTest::isolate()->SetUseCounterCallback(DateParseLegacyCounterCallback);
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444Z01:23')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2000 01 01')");
+  CHECK_EQ(1, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444     ')");
+  CHECK_EQ(1, legacy_parse_count);
+}
+
+#ifdef V8_INTL_SUPPORT
 TEST(DateCacheVersion) {
   FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
-  v8::Handle<v8::Context> context = v8::Context::New(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  v8::Handle<v8::Array> date_cache_version =
-      v8::Handle<v8::Array>::Cast(CompileRun("%DateCacheVersion()"));
+  v8::Local<v8::Number> date_cache_version =
+      v8::Local<v8::Number>::Cast(CompileRun("%DateCacheVersion()"));
 
-  CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
-  CHECK(date_cache_version->Get(0)->IsNumber());
-  CHECK_EQ(0.0, date_cache_version->Get(0)->NumberValue());
+  CHECK(date_cache_version->IsNumber());
+  CHECK_EQ(0.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
 
   v8::Date::DateTimeConfigurationChangeNotification(isolate);
 
-  CHECK_EQ(1, static_cast<int32_t>(date_cache_version->Length()));
-  CHECK(date_cache_version->Get(0)->IsNumber());
-  CHECK_EQ(1.0, date_cache_version->Get(0)->NumberValue());
+  date_cache_version =
+      v8::Local<v8::Number>::Cast(CompileRun("%DateCacheVersion()"));
+  CHECK(date_cache_version->IsNumber());
+  CHECK_EQ(1.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
 }
+#endif  // V8_INTL_SUPPORT
+
+}  // namespace internal
+}  // namespace v8

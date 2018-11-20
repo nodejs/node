@@ -5,30 +5,42 @@
 #ifndef V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
 #define V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/simplified-operator.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class Heap;
+class Factory;
+class Isolate;
 
 namespace compiler {
 
 // Forward declarations.
 class JSGraph;
 class MachineOperatorBuilder;
+class SimplifiedOperatorBuilder;
 
-class SimplifiedOperatorReducer FINAL : public Reducer {
+class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  explicit SimplifiedOperatorReducer(JSGraph* jsgraph);
-  virtual ~SimplifiedOperatorReducer();
+  SimplifiedOperatorReducer(Editor* editor, JSGraph* jsgraph,
+                            const JSHeapBroker* js_heap_broker);
+  ~SimplifiedOperatorReducer() final;
 
-  virtual Reduction Reduce(Node* node) OVERRIDE;
+  const char* reducer_name() const override {
+    return "SimplifiedOperatorReducer";
+  }
+
+  Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceReferenceEqual(Node* node);
+
   Reduction Change(Node* node, const Operator* op, Node* a);
+  Reduction ReplaceBoolean(bool value);
   Reduction ReplaceFloat64(double value);
   Reduction ReplaceInt32(int32_t value);
   Reduction ReplaceUint32(uint32_t value) {
@@ -37,14 +49,17 @@ class SimplifiedOperatorReducer FINAL : public Reducer {
   Reduction ReplaceNumber(double value);
   Reduction ReplaceNumber(int32_t value);
 
-  Graph* graph() const;
   Factory* factory() const;
-  JSGraph* jsgraph() const { return jsgraph_; }
+  Graph* graph() const;
+  Isolate* isolate() const;
   MachineOperatorBuilder* machine() const;
-  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SimplifiedOperatorBuilder* simplified() const;
 
-  JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder simplified_;
+  JSGraph* jsgraph() const { return jsgraph_; }
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+
+  JSGraph* const jsgraph_;
+  const JSHeapBroker* const js_heap_broker_;
 
   DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
 };

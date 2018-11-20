@@ -19,35 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var immediateA = false,
-    immediateB = false,
-    immediateC = [],
-    before;
+let mainFinished = false;
 
-setImmediate(function() {
-  try {
-    immediateA = process.hrtime(before);
-  } catch(e) {
-    console.log('failed to get hrtime with offset');
-  }
+setImmediate(common.mustCall(function() {
+  assert.strictEqual(mainFinished, true);
   clearImmediate(immediateB);
-});
+}));
 
-before = process.hrtime();
+const immediateB = setImmediate(common.mustNotCall());
 
-immediateB = setImmediate(function() {
-  immediateB = true;
-});
+setImmediate(common.mustCall((...args) => {
+  assert.deepStrictEqual(args, [1, 2, 3]);
+}), 1, 2, 3);
 
-setImmediate(function(x, y, z) {
-  immediateC = [x, y, z];
-}, 1, 2, 3);
+setImmediate(common.mustCall((...args) => {
+  assert.deepStrictEqual(args, [1, 2, 3, 4, 5]);
+}), 1, 2, 3, 4, 5);
 
-process.on('exit', function() {
-  assert.ok(immediateA, 'Immediate should happen after normal execution');
-  assert.notStrictEqual(immediateB, true, 'immediateB should not fire');
-  assert.deepEqual(immediateC, [1, 2, 3], 'immediateC args should match');
-});
+mainFinished = true;

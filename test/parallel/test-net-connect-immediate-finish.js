@@ -19,23 +19,36 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
 
-var gotError = false;
+// This tests that if the socket is still in the 'connecting' state
+// when the user calls socket.end() ('finish'), the socket would emit
+// 'connect' and defer the handling until the 'connect' event is handled.
 
-var client = net.connect({
-  host: 'no.way.you.will.resolve.this',
-  port: common.PORT
-});
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-client.once('error', function(err) {
-  gotError = true;
-});
+const { addresses } = require('../common/internet');
+const {
+  errorLookupMock,
+  mockedErrorCode,
+  mockedSysCall
+} = require('../common/dns');
+
+const client = net.connect({
+  host: addresses.INVALID_HOST,
+  port: 80, // port number doesn't matter because host name is invalid
+  lookup: common.mustCall(errorLookupMock())
+}, common.mustNotCall());
+
+client.once('error', common.mustCall((err) => {
+  assert(err);
+  assert.strictEqual(err.code, err.errno);
+  assert.strictEqual(err.code, mockedErrorCode);
+  assert.strictEqual(err.host, err.hostname);
+  assert.strictEqual(err.host, addresses.INVALID_HOST);
+  assert.strictEqual(err.syscall, mockedSysCall);
+}));
 
 client.end();
-
-process.on('exit', function() {
-  assert(gotError);
-});

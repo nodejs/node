@@ -19,18 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+'use strict';
+require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
 // The sandbox should have its own Symbol constructor.
-var sandbox = {};
-var result = vm.runInNewContext('this.Symbol = Symbol', sandbox);
-assert(typeof sandbox.Symbol === 'function');
-assert(sandbox.Symbol !== Symbol);
+let sandbox = {};
+vm.runInNewContext('this.Symbol = Symbol', sandbox);
+assert.strictEqual(typeof sandbox.Symbol, 'function');
+assert.notStrictEqual(sandbox.Symbol, Symbol);
 
 // Unless we copy the Symbol constructor explicitly, of course.
-var sandbox = { Symbol: Symbol };
-var result = vm.runInNewContext('this.Symbol = Symbol', sandbox);
-assert(typeof sandbox.Symbol === 'function');
-assert(sandbox.Symbol === Symbol);
+sandbox = { Symbol };
+vm.runInNewContext('this.Symbol = Symbol', sandbox);
+assert.strictEqual(typeof sandbox.Symbol, 'function');
+assert.strictEqual(sandbox.Symbol, Symbol);

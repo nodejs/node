@@ -22,10 +22,11 @@
 #ifndef SRC_UDP_WRAP_H_
 #define SRC_UDP_WRAP_H_
 
-#include "async-wrap.h"
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "async_wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
-#include "req_wrap.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -33,32 +34,51 @@ namespace node {
 
 class UDPWrap: public HandleWrap {
  public:
-  static void Initialize(v8::Handle<v8::Object> target,
-                         v8::Handle<v8::Value> unused,
-                         v8::Handle<v8::Context> context);
-  static void GetFD(v8::Local<v8::String>,
-                    const v8::PropertyCallbackInfo<v8::Value>&);
+  enum SocketType {
+    SOCKET
+  };
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context);
+  static void GetFD(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Send(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind6(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Send6(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetSockName(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DropMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetMulticastInterface(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastLoopback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetBroadcast(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
+  static v8::Local<v8::Object> Instantiate(Environment* env,
+                                           AsyncWrap* parent,
+                                           SocketType type);
   uv_udp_t* UVHandle();
 
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackThis(this);
+  }
+
+  ADD_MEMORY_INFO_NAME(UDPWrap)
+
  private:
-  UDPWrap(Environment* env, v8::Handle<v8::Object> object, AsyncWrap* parent);
+  typedef uv_udp_t HandleType;
+
+  template <typename T,
+            int (*F)(const typename T::HandleType*, sockaddr*, int*)>
+  friend void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  UDPWrap(Environment* env, v8::Local<v8::Object> object);
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);
@@ -81,5 +101,7 @@ class UDPWrap: public HandleWrap {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UDP_WRAP_H_

@@ -19,74 +19,55 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var serverConnected = false;
-var serverRequests = 0;
-var clientResponses = 0;
-
-var server = http.createServer(function(req, res) {
-  common.debug('Server got GET request');
+const server = http.createServer(common.mustCall((req, res) => {
   req.resume();
-  ++serverRequests;
   res.writeHead(200);
   res.write('');
-  setTimeout(function() {
-    res.end(req.url);
-  }, 50);
-});
-server.on('connect', function(req, socket, firstBodyChunk) {
-  common.debug('Server got CONNECT request');
-  serverConnected = true;
+  setTimeout(() => res.end(req.url), 50);
+}, 2));
+
+const countdown = new Countdown(2, () => server.close());
+
+server.on('connect', common.mustCall((req, socket) => {
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
   socket.resume();
-  socket.on('end', function() {
-    socket.end();
-  });
-});
-server.listen(common.PORT, function() {
-  var req = http.request({
-    port: common.PORT,
+  socket.on('end', () => socket.end());
+}));
+
+server.listen(0, common.mustCall(() => {
+  const req = http.request({
+    port: server.address().port,
     method: 'CONNECT',
     path: 'google.com:80'
   });
-  req.on('connect', function(res, socket, firstBodyChunk) {
-    common.debug('Client got CONNECT response');
+  req.on('connect', common.mustCall((res, socket) => {
     socket.end();
-    socket.on('end', function() {
+    socket.on('end', common.mustCall(() => {
       doRequest(0);
       doRequest(1);
-    });
+    }));
     socket.resume();
-  });
+  }));
   req.end();
-});
+}));
 
 function doRequest(i) {
-  var req = http.get({
-    port: common.PORT,
-    path: '/request' + i
-  }, function(res) {
-    common.debug('Client got GET response');
-    var data = '';
+  http.get({
+    port: server.address().port,
+    path: `/request${i}`
+  }, common.mustCall((res) => {
+    let data = '';
     res.setEncoding('utf8');
-    res.on('data', function(chunk) {
-      data += chunk;
-    });
-    res.on('end', function() {
-      assert.equal(data, '/request' + i);
-      ++clientResponses;
-      if (clientResponses === 2) {
-        server.close();
-      }
-    });
-  });
+    res.on('data', (chunk) => data += chunk);
+    res.on('end', common.mustCall(() => {
+      assert.strictEqual(data, `/request${i}`);
+      countdown.dec();
+    }));
+  }));
 }
-
-process.on('exit', function() {
-  assert(serverConnected);
-  assert.equal(serverRequests, 2);
-  assert.equal(clientResponses, 2);
-});

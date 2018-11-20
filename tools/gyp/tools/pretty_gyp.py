@@ -118,24 +118,23 @@ def prettyprint_input(lines):
   basic_offset = 2
   last_line = ""
   for line in lines:
-    if COMMENT_RE.match(line):
-      print line
-    else:
-      line = line.strip('\r\n\t ')  # Otherwise doesn't strip \r on Unix.
-      if len(line) > 0:
+    line = line.strip('\r\n\t ')  # Otherwise doesn't strip \r on Unix.
+    if len(line) > 0:
+      brace_diff = 0
+      if not COMMENT_RE.match(line):
         (brace_diff, after) = count_braces(line)
-        if brace_diff != 0:
-          if after:
-            print " " * (basic_offset * indent) + line
-            indent += brace_diff
-          else:
-            indent += brace_diff
-            print " " * (basic_offset * indent) + line
+      if brace_diff != 0:
+        if after:
+          print " " * (basic_offset * indent) + line
+          indent += brace_diff
         else:
+          indent += brace_diff
           print " " * (basic_offset * indent) + line
       else:
-        print ""
-      last_line = line
+        print " " * (basic_offset * indent) + line
+    else:
+      print ""
+    last_line = line
 
 
 def main():

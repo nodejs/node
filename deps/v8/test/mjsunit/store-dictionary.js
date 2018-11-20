@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test dictionary store ICs.
 
 // Function that stores property 'x' on an object.
@@ -62,3 +64,27 @@ assertEquals(42, o.x);
 delete o.x;
 store(o);
 assertEquals(42, o.x);
+
+(function() {
+  var o = {};
+  for (var i = 0; i < 100; i++) {
+    var k = "key" + i;
+    o[k] = "foo";
+    delete o[k];
+  }
+})();
+
+(function() {
+  function f(a, i, v) {
+    a[i] = v;
+  }
+
+  f("make it generic", 0, 0);
+
+  var o = {};
+  for (var i = 0; i < 100; i++) {
+    var k = %InternalizeString("key" + i);
+    f(o, k, "foo");
+    delete o[k];
+  }
+})();

@@ -1,0 +1,63 @@
+{
+  "_args": [
+    [
+      "unique-filename@1.1.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "unique-filename@1.1.0",
+  "_id": "unique-filename@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-0F8v5AMlYIcfMOk8vnNe6iAVFPM=",
+  "_location": "/unique-filename",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "unique-filename@1.1.0",
+    "name": "unique-filename",
+    "escapedName": "unique-filename",
+    "rawSpec": "1.1.0",
+    "saveSpec": null,
+    "fetchSpec": "1.1.0"
+  },
+  "_requiredBy": [
+    "/",
+    "/cacache",
+    "/npm-profile/cacache",
+    "/npm-registry-fetch/cacache",
+    "/pacote"
+  ],
+  "_resolved": "https://registry.npmjs.org/unique-filename/-/unique-filename-1.1.0.tgz",
+  "_spec": "1.1.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/unique-filename/issues"
+  },
+  "dependencies": {
+    "unique-slug": "^2.0.0"
+  },
+  "description": "Generate a unique filename for use in temporary directories or caches.",
+  "devDependencies": {
+    "standard": "^5.4.1",
+    "tap": "^2.3.1"
+  },
+  "homepage": "https://github.com/iarna/unique-filename",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "unique-filename",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/unique-filename.git"
+  },
+  "scripts": {
+    "test": "standard && tap test"
+  },
+  "version": "1.1.0"
+}

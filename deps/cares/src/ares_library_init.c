@@ -27,12 +27,22 @@
 fpGetNetworkParams_t ares_fpGetNetworkParams = ZERO_NULL;
 fpSystemFunction036_t ares_fpSystemFunction036 = ZERO_NULL;
 fpGetAdaptersAddresses_t ares_fpGetAdaptersAddresses = ZERO_NULL;
+fpGetBestRoute2_t ares_fpGetBestRoute2 = ZERO_NULL;
+#endif
+
+#if defined(ANDROID) || defined(__ANDROID__)
+#include "ares_android.h"
 #endif
 
 /* library-private global vars with source visibility restricted to this file */
 
 static unsigned int ares_initialized;
 static int          ares_init_flags;
+
+/* library-private global vars with visibility across the whole library */
+void *(*ares_malloc)(size_t size) = malloc;
+void *(*ares_realloc)(void *ptr, size_t size) = realloc;
+void (*ares_free)(void *ptr) = free;
 
 #ifdef USE_WINSOCK
 static HMODULE hnd_iphlpapi;
@@ -45,7 +55,7 @@ static int ares_win32_init(void)
 #ifdef USE_WINSOCK
 
   hnd_iphlpapi = 0;
-  hnd_iphlpapi = LoadLibrary("iphlpapi.dll");
+  hnd_iphlpapi = LoadLibraryW(L"iphlpapi.dll");
   if (!hnd_iphlpapi)
     return ARES_ELOADIPHLPAPI;
 
@@ -66,6 +76,15 @@ static int ares_win32_init(void)
          support Windows 2000 anymore */
     }
 
+  ares_fpGetBestRoute2 = (fpGetBestRoute2_t)
+    GetProcAddress(hnd_iphlpapi, "GetBestRoute2");
+  if (!ares_fpGetBestRoute2)
+    {
+      /* This can happen on clients before Vista, I don't
+         think it should be an error, unless we don't want to
+         support Windows XP anymore */
+    }
+
   /*
    * When advapi32.dll is unavailable or advapi32.dll has no SystemFunction036,
    * also known as RtlGenRandom, which is the case for Windows versions prior
@@ -73,7 +92,7 @@ static int ares_win32_init(void)
    */
 
   hnd_advapi32 = 0;
-  hnd_advapi32 = LoadLibrary("advapi32.dll");
+  hnd_advapi32 = LoadLibraryW(L"advapi32.dll");
   if (hnd_advapi32)
     {
       ares_fpSystemFunction036 = (fpSystemFunction036_t)
@@ -111,12 +130,26 @@ int ares_library_init(int flags)
     {
       res = ares_win32_init();
       if (res != ARES_SUCCESS)
-        return res;
+        return res;  /* LCOV_EXCL_LINE: can't test Win32 init failure */
     }
 
   ares_init_flags = flags;
 
   return ARES_SUCCESS;
+}
+
+int ares_library_init_mem(int flags,
+                          void *(*amalloc)(size_t size),
+                          void (*afree)(void *ptr),
+                          void *(*arealloc)(void *ptr, size_t size))
+{
+  if (amalloc)
+    ares_malloc = amalloc;
+  if (arealloc)
+    ares_realloc = arealloc;
+  if (afree)
+    ares_free = afree;
+  return ares_library_init(flags);
 }
 
 
@@ -131,7 +164,14 @@ void ares_library_cleanup(void)
   if (ares_init_flags & ARES_LIB_INIT_WIN32)
     ares_win32_cleanup();
 
+#if defined(ANDROID) || defined(__ANDROID__)
+  ares_library_cleanup_android();
+#endif
+
   ares_init_flags = ARES_LIB_INIT_NONE;
+  ares_malloc = malloc;
+  ares_realloc = realloc;
+  ares_free = free;
 }
 
 
@@ -143,5 +183,3 @@ int ares_library_initialized(void)
 #endif
   return ARES_SUCCESS;
 }
-
-

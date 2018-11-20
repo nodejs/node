@@ -19,41 +19,46 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
-var path = require('path');
-var fs = require('fs');
-var successes = 0;
+const fs = require('fs');
+const path = require('path');
 
-var file = path.join(common.fixturesDir, 'a.js');
+const fileFixture = fixtures.path('a.js');
+const fileTemp = path.join(tmpdir.path, 'a.js');
 
-common.error('open ' + file);
+// Copy fixtures to temp.
+tmpdir.refresh();
+fs.copyFileSync(fileFixture, fileTemp);
 
-fs.open(file, 'a', 0777, function(err, fd) {
-  common.error('fd ' + fd);
-  if (err) throw err;
+fs.open(fileTemp, 'a', 0o777, common.mustCall(function(err, fd) {
+  assert.ifError(err);
 
   fs.fdatasyncSync(fd);
-  common.error('fdatasync SYNC: ok');
-  successes++;
 
   fs.fsyncSync(fd);
-  common.error('fsync SYNC: ok');
-  successes++;
 
-  fs.fdatasync(fd, function(err) {
-    if (err) throw err;
-    common.error('fdatasync ASYNC: ok');
-    successes++;
-    fs.fsync(fd, function(err) {
-      if (err) throw err;
-      common.error('fsync ASYNC: ok');
-      successes++;
-    });
-  });
-});
+  fs.fdatasync(fd, common.mustCall(function(err) {
+    assert.ifError(err);
+    fs.fsync(fd, common.mustCall(function(err) {
+      assert.ifError(err);
+    }));
+  }));
+}));
 
-process.on('exit', function() {
-  assert.equal(4, successes);
+['', false, null, undefined, {}, []].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "fd" argument must be of type number. Received type ' +
+             typeof input
+  };
+  assert.throws(() => fs.fdatasync(input), errObj);
+  assert.throws(() => fs.fdatasyncSync(input), errObj);
+  assert.throws(() => fs.fsync(input), errObj);
+  assert.throws(() => fs.fsyncSync(input), errObj);
 });

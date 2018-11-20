@@ -19,33 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
 
-var common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
+const dgram = require('dgram');
 
-var fs = require('fs');
-var dgram = require('dgram');
-var callbacks = 0;
-var client, timer, buf;
+const client = dgram.createSocket('udp4');
 
-if (process.platform === 'darwin') {
-  console.error('Test is disabled due to 17894467 Apple bug');
-  return;
-}
+client.bind(0, common.mustCall(function() {
+  const port = this.address().port;
 
+  client.on('message', common.mustCall(function onMessage(buffer) {
+    assert.strictEqual(buffer.length, 0);
+    clearInterval(interval);
+    client.close();
+  }));
 
-client = dgram.createSocket('udp4');
-
-client.bind(common.PORT);
-
-client.on('message', function (buffer, bytes) {
-  clearTimeout(timer);
-  client.close();
-});
-
-buf = new Buffer(0);
-client.send(buf, 0, 0, common.PORT, "127.0.0.1", function (err, len) { });
-
-timer = setTimeout(function() {
-  throw new Error('Timeout');
-}, 200);
+  const buf = Buffer.alloc(0);
+  const interval = setInterval(function() {
+    client.send(buf, 0, 0, port, '127.0.0.1', common.mustCall());
+  }, 10);
+}));

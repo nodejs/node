@@ -21,47 +21,66 @@
 
 #include "uv.h"
 #include "node.h"
-#include "env.h"
+#include "node_internals.h"
 #include "env-inl.h"
 
 namespace node {
-namespace uv {
+namespace {
 
+using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
-using v8::Handle;
 using v8::Integer;
+using v8::Isolate;
+using v8::Local;
+using v8::Map;
 using v8::Object;
 using v8::String;
 using v8::Value;
 
 
+// TODO(joyeecheung): deprecate this function in favor of
+// lib/util.getSystemErrorName()
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  int err = args[0]->Int32Value();
-  if (err >= 0)
-    return env->ThrowError("err >= 0");
+  int err;
+  if (!args[0]->Int32Value(env->context()).To(&err)) return;
+  CHECK_LT(err, 0);
   const char* name = uv_err_name(err);
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
 
 
-void Initialize(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "errname"),
+  Isolate* isolate = env->isolate();
+  target->Set(FIXED_ONE_BYTE_STRING(isolate, "errname"),
               env->NewFunctionTemplate(ErrName)->GetFunction());
-#define V(name, _)                                                            \
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UV_" # name),            \
-              Integer::New(env->isolate(), UV_ ## name));
+
+#define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
   UV_ERRNO_MAP(V)
 #undef V
+
+  Local<Map> err_map = Map::New(isolate);
+
+#define V(name, msg) do {                                                     \
+  Local<Array> arr = Array::New(isolate, 2);                                  \
+  arr->Set(0, OneByteString(isolate, #name));                                 \
+  arr->Set(1, OneByteString(isolate, msg));                                   \
+  err_map->Set(context,                                                       \
+               Integer::New(isolate, UV_##name),                              \
+               arr).ToLocalChecked();                                         \
+} while (0);
+  UV_ERRNO_MAP(V)
+#undef V
+
+  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "errmap"),
+              err_map).FromJust();
 }
 
-
-}  // namespace uv
+}  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(uv, node::uv::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::Initialize)

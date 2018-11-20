@@ -5,11 +5,13 @@
 #include "src/base/sys-info.h"
 
 #if V8_OS_POSIX
-#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#if !V8_OS_FUCHSIA
+#include <sys/resource.h>
+#endif
 #endif
 
 #if V8_OS_BSD
@@ -33,20 +35,18 @@ int SysInfo::NumberOfProcessors() {
   int mib[2] = {CTL_HW, HW_NCPU};
   int ncpu = 0;
   size_t len = sizeof(ncpu);
-  if (sysctl(mib, arraysize(mib), &ncpu, &len, NULL, 0) != 0) {
-    UNREACHABLE();
+  if (sysctl(mib, arraysize(mib), &ncpu, &len, nullptr, 0) != 0) {
     return 1;
   }
   return ncpu;
 #elif V8_OS_POSIX
   long result = sysconf(_SC_NPROCESSORS_ONLN);  // NOLINT(runtime/int)
   if (result == -1) {
-    UNREACHABLE();
     return 1;
   }
   return static_cast<int>(result);
 #elif V8_OS_WIN
-  SYSTEM_INFO system_info = {0};
+  SYSTEM_INFO system_info = {};
   ::GetNativeSystemInfo(&system_info);
   return static_cast<int>(system_info.dwNumberOfProcessors);
 #endif
@@ -59,18 +59,16 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   int mib[2] = {CTL_HW, HW_MEMSIZE};
   int64_t memsize = 0;
   size_t len = sizeof(memsize);
-  if (sysctl(mib, arraysize(mib), &memsize, &len, NULL, 0) != 0) {
-    UNREACHABLE();
+  if (sysctl(mib, arraysize(mib), &memsize, &len, nullptr, 0) != 0) {
     return 0;
   }
   return memsize;
 #elif V8_OS_FREEBSD
   int pages, page_size;
   size_t size = sizeof(pages);
-  sysctlbyname("vm.stats.vm.v_page_count", &pages, &size, NULL, 0);
-  sysctlbyname("vm.stats.vm.v_page_size", &page_size, &size, NULL, 0);
+  sysctlbyname("vm.stats.vm.v_page_count", &pages, &size, nullptr, 0);
+  sysctlbyname("vm.stats.vm.v_page_size", &page_size, &size, nullptr, 0);
   if (pages == -1 || page_size == -1) {
-    UNREACHABLE();
     return 0;
   }
   return static_cast<int64_t>(pages) * page_size;
@@ -78,7 +76,6 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   MEMORYSTATUSEX memory_info;
   memory_info.dwLength = sizeof(memory_info);
   if (!GlobalMemoryStatusEx(&memory_info)) {
-    UNREACHABLE();
     return 0;
   }
   int64_t result = static_cast<int64_t>(memory_info.ullTotalPhys);
@@ -87,18 +84,16 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
 #elif V8_OS_QNX
   struct stat stat_buf;
   if (stat("/proc", &stat_buf) != 0) {
-    UNREACHABLE();
     return 0;
   }
   return static_cast<int64_t>(stat_buf.st_size);
-#elif V8_OS_NACL
-  // No support for _SC_PHYS_PAGES, assume 2GB.
-  return static_cast<int64_t>(1) << 31;
+#elif V8_OS_AIX
+  int64_t result = sysconf(_SC_AIX_REALMEM);
+  return static_cast<int64_t>(result) * 1024L;
 #elif V8_OS_POSIX
   long pages = sysconf(_SC_PHYS_PAGES);    // NOLINT(runtime/int)
   long page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
   if (pages == -1 || page_size == -1) {
-    UNREACHABLE();
     return 0;
   }
   return static_cast<int64_t>(pages) * page_size;
@@ -108,13 +103,12 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
 
 // static
 int64_t SysInfo::AmountOfVirtualMemory() {
-#if V8_OS_NACL || V8_OS_WIN
+#if V8_OS_WIN || V8_OS_FUCHSIA
   return 0;
 #elif V8_OS_POSIX
   struct rlimit rlim;
   int result = getrlimit(RLIMIT_DATA, &rlim);
   if (result != 0) {
-    UNREACHABLE();
     return 0;
   }
   return (rlim.rlim_cur == RLIM_INFINITY) ? 0 : rlim.rlim_cur;

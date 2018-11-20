@@ -19,26 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var tls = require('tls');
-var path = require('path');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+const cert = fixtures.readSync('test_cert.pem');
+const key = fixtures.readSync('test_key.pem');
 
-var conn = tls.connect({cert: cert, key: key, port: common.PORT}, function() {
-  assert.ok(false); // callback should never be executed
-});
-conn.on('error', function() {
-});
-assert.doesNotThrow(function() {
-  conn.destroy();
-});
-
+const conn = tls.connect({ cert, key, port: 0 }, common.mustNotCall());
+conn.on('error', function() {});
+conn.destroy();

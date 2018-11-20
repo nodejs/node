@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // I hate HTTP. One way of terminating an HTTP response is to not send
 // a content-length header, not send a transfer-encoding: chunked header,
 // and simply terminate the TCP connection. That is identity
@@ -26,24 +27,23 @@
 //
 // This test is to be sure that the https client is handling this case
 // correctly.
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var https = require('https');
-var fs = require('fs');
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const assert = require('assert');
+const https = require('https');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, function(socket) {
   console.log('2) Server got request');
   socket.write('HTTP/1.1 200 OK\r\n' +
                'Date: Tue, 15 Feb 2011 22:14:54 GMT\r\n' +
@@ -64,38 +64,27 @@ var server = tls.Server(options, function(socket) {
   }, 100);
 });
 
-
-var gotHeaders = false;
-var gotEnd = false;
-var bodyBuffer = '';
-
-server.listen(common.PORT, function() {
+server.listen(0, common.mustCall(function() {
   console.log('1) Making Request');
-  var req = https.get({
-    port: common.PORT,
+  https.get({
+    port: this.address().port,
     rejectUnauthorized: false
-  }, function(res) {
+  }, common.mustCall(function(res) {
+    let bodyBuffer = '';
+
     server.close();
     console.log('3) Client got response headers.');
 
-    assert.equal('gws', res.headers.server);
-    gotHeaders = true;
+    assert.strictEqual('gws', res.headers.server);
 
     res.setEncoding('utf8');
     res.on('data', function(s) {
       bodyBuffer += s;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(function() {
       console.log('5) Client got "end" event.');
-      gotEnd = true;
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(gotHeaders);
-  assert.ok(gotEnd);
-  assert.equal('hello world\nhello world\n', bodyBuffer);
-});
-
+      assert.strictEqual('hello world\nhello world\n', bodyBuffer);
+    }));
+  }));
+}));

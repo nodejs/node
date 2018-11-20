@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --deopt-every-n-times=1 --no-enable_sse4_1
+// Flags: --deopt-every-n-times=1 --no-enable-sse4-1
 
 function g(f, x, name) {
   var v2 = f(x);

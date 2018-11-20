@@ -18,10 +18,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class InstructionSelectorTest : public TestWithContext, public TestWithZone {
+class InstructionSelectorTest : public TestWithContext,
+                                public TestWithIsolateAndZone {
  public:
   InstructionSelectorTest();
-  virtual ~InstructionSelectorTest();
+  ~InstructionSelectorTest() override;
 
   base::RandomNumberGenerator* rng() { return &rng_; }
 
@@ -33,32 +34,42 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     kAllExceptNopInstructions
   };
 
-  class StreamBuilder FINAL : public RawMachineAssembler {
+  class StreamBuilder final : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
-        : RawMachineAssembler(new (test->zone()) Graph(test->zone()),
-                              MakeMachineSignature(test->zone(), return_type)),
+        : RawMachineAssembler(test->isolate(),
+                              new (test->zone()) Graph(test->zone()),
+                              MakeCallDescriptor(test->zone(), return_type),
+                              MachineType::PointerRepresentation(),
+                              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
-              new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type, parameter0_type)),
+              test->isolate(), new (test->zone()) Graph(test->zone()),
+              MakeCallDescriptor(test->zone(), return_type, parameter0_type),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps,
+              InstructionSelector::AlignmentRequirements()),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
-              new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type, parameter0_type,
-                                   parameter1_type)),
+              test->isolate(), new (test->zone()) Graph(test->zone()),
+              MakeCallDescriptor(test->zone(), return_type, parameter0_type,
+                                 parameter1_type),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type,
                   MachineType parameter2_type)
         : RawMachineAssembler(
-              new (test->zone()) Graph(test->zone()),
-              MakeMachineSignature(test->zone(), return_type, parameter0_type,
-                                   parameter1_type, parameter2_type)),
+              test->isolate(), new (test->zone()) Graph(test->zone()),
+              MakeCallDescriptor(test->zone(), return_type, parameter0_type,
+                                 parameter1_type, parameter2_type),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
 
     Stream Build(CpuFeature feature) {
@@ -71,51 +82,93 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
       return Build(InstructionSelector::Features(), mode);
     }
     Stream Build(InstructionSelector::Features features,
-                 StreamBuilderMode mode = kTargetInstructions);
+                 StreamBuilderMode mode = kTargetInstructions,
+                 InstructionSelector::SourcePositionMode source_position_mode =
+                     InstructionSelector::kAllSourcePositions);
+
+    const FrameStateFunctionInfo* GetFrameStateFunctionInfo(int parameter_count,
+                                                            int local_count);
 
    private:
-    MachineSignature* MakeMachineSignature(Zone* zone,
-                                           MachineType return_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type) {
       MachineSignature::Builder builder(zone, 1, 0);
       builder.AddReturn(return_type);
-      return builder.Build();
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
-    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
-                                           MachineType parameter0_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
+                                       MachineType parameter0_type) {
       MachineSignature::Builder builder(zone, 1, 1);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
-      return builder.Build();
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
-    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
-                                           MachineType parameter0_type,
-                                           MachineType parameter1_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
+                                       MachineType parameter0_type,
+                                       MachineType parameter1_type) {
       MachineSignature::Builder builder(zone, 1, 2);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
-      return builder.Build();
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
-    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
-                                           MachineType parameter0_type,
-                                           MachineType parameter1_type,
-                                           MachineType parameter2_type) {
+    CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
+                                       MachineType parameter0_type,
+                                       MachineType parameter1_type,
+                                       MachineType parameter2_type) {
       MachineSignature::Builder builder(zone, 1, 3);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
       builder.AddParam(parameter2_type);
-      return builder.Build();
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
    private:
     InstructionSelectorTest* test_;
+
+    // Create a simple call descriptor for testing.
+    CallDescriptor* MakeSimpleCallDescriptor(Zone* zone,
+                                             MachineSignature* msig) {
+      LocationSignature::Builder locations(zone, msig->return_count(),
+                                           msig->parameter_count());
+
+      // Add return location(s).
+      const int return_count = static_cast<int>(msig->return_count());
+      for (int i = 0; i < return_count; i++) {
+        locations.AddReturn(
+            LinkageLocation::ForCallerFrameSlot(-1 - i, msig->GetReturn(i)));
+      }
+
+      // Just put all parameters on the stack.
+      const int parameter_count = static_cast<int>(msig->parameter_count());
+      for (int i = 0; i < parameter_count; i++) {
+        locations.AddParam(
+            LinkageLocation::ForCallerFrameSlot(-1 - i, msig->GetParam(i)));
+      }
+
+      const RegList kCalleeSaveRegisters = 0;
+      const RegList kCalleeSaveFPRegisters = 0;
+
+      MachineType target_type = MachineType::Pointer();
+      LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+      return new (zone) CallDescriptor(  // --
+          CallDescriptor::kCallAddress,  // kind
+          target_type,                   // target MachineType
+          target_loc,                    // target location
+          locations.Build(),             // location_sig
+          0,                             // stack_parameter_count
+          Operator::kNoProperties,       // properties
+          kCalleeSaveRegisters,          // callee-saved registers
+          kCalleeSaveFPRegisters,        // callee-saved fp regs
+          CallDescriptor::kCanUseRoots,  // flags
+          "iselect-test-call");
+    }
   };
 
-  class Stream FINAL {
+  class Stream final {
    public:
     size_t size() const { return instructions_.size(); }
     const Instruction* operator[](size_t index) const {
@@ -148,7 +201,7 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     }
 
     double ToFloat64(const InstructionOperand* operand) const {
-      return ToConstant(operand).ToFloat64();
+      return ToConstant(operand).ToFloat64().value();
     }
 
     int32_t ToInt32(const InstructionOperand* operand) const {
@@ -164,7 +217,9 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     }
 
     int ToVreg(const InstructionOperand* operand) const {
-      if (operand->IsConstant()) return operand->index();
+      if (operand->IsConstant()) {
+        return ConstantOperand::cast(operand)->virtual_register();
+      }
       EXPECT_EQ(InstructionOperand::UNALLOCATED, operand->kind());
       return UnallocatedOperand::cast(operand)->virtual_register();
     }
@@ -200,14 +255,19 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     Constant ToConstant(const InstructionOperand* operand) const {
       ConstantMap::const_iterator i;
       if (operand->IsConstant()) {
-        i = constants_.find(operand->index());
+        i = constants_.find(ConstantOperand::cast(operand)->virtual_register());
+        EXPECT_EQ(ConstantOperand::cast(operand)->virtual_register(), i->first);
         EXPECT_FALSE(constants_.end() == i);
       } else {
         EXPECT_EQ(InstructionOperand::IMMEDIATE, operand->kind());
-        i = immediates_.find(operand->index());
+        auto imm = ImmediateOperand::cast(operand);
+        if (imm->type() == ImmediateOperand::INLINE) {
+          return Constant(imm->inline_value());
+        }
+        i = immediates_.find(imm->indexed_value());
+        EXPECT_EQ(imm->indexed_value(), i->first);
         EXPECT_FALSE(immediates_.end() == i);
       }
-      EXPECT_EQ(operand->index(), i->first);
       return i->second;
     }
 

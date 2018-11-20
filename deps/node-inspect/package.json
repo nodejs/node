@@ -1,0 +1,45 @@
+{
+  "name": "node-inspect",
+  "version": "1.11.5",
+  "description": "Node Inspect",
+  "license": "MIT",
+  "main": "lib/_inspect.js",
+  "bin": "cli.js",
+  "homepage": "https://github.com/nodejs/node-inspect",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/nodejs/node-inspect"
+  },
+  "bugs": {
+    "url": "https://github.com/nodejs/node-inspect/issues"
+  },
+  "scripts": {
+    "pretest": "eslint --rulesdir=tools/eslint-rules lib test",
+    "test": "tap test",
+    "posttest": "nlm verify"
+  },
+  "nlm": {
+    "license": {
+      "files": [
+        "lib"
+      ]
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^3.10.2",
+    "nlm": "^3.0.0",
+    "tap": "^10.7.0"
+  },
+  "author": {
+    "name": "Jan Krems",
+    "email": "jan.krems@gmail.com"
+  },
+  "files": [
+    "*.js",
+    "lib"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  }
+}

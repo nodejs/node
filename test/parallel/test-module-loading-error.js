@@ -19,38 +19,69 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const { execSync } = require('child_process');
 
-common.debug('load test-module-loading-error.js');
-
-var error_desc = {
-  win32: '%1 is not a valid Win32 application',
-  linux: 'file too short',
-  sunos: 'unknown file type'
+const errorMessagesByPlatform = {
+  win32: ['is not a valid Win32 application'],
+  linux: ['file too short', 'Exec format error'],
+  sunos: ['unknown file type', 'not an ELF file'],
+  darwin: ['file too short'],
+  aix: ['Cannot load module',
+        'Cannot run a file that does not have a valid format.']
 };
+// If we don't know a priori what the error would be, we accept anything.
+const errorMessages = errorMessagesByPlatform[process.platform] || [''];
 
-var dlerror_msg = error_desc[process.platform];
-
-if (!dlerror_msg) {
-  console.error('Skipping test, platform not supported.');
-  process.exit();
+// On Windows, error messages are MUI dependent
+// Ref: https://github.com/nodejs/node/issues/13376
+let localeOk = true;
+if (common.isWindows) {
+  const powerShellFindMUI =
+    'powershell -NoProfile -ExecutionPolicy Unrestricted -c ' +
+    '"(Get-UICulture).TwoLetterISOLanguageName"';
+  try {
+    // If MUI != 'en' we'll ignore the content of the message
+    localeOk = execSync(powerShellFindMUI).toString('utf8').trim() === 'en';
+  } catch (_) {
+    // It's only a best effort try to find the MUI
+  }
 }
 
-try {
-  require('../fixtures/module-loading-error.node');
-} catch (e) {
-  assert.notEqual(e.toString().indexOf(dlerror_msg), -1);
-}
+assert.throws(
+  () => { require('../fixtures/module-loading-error.node'); },
+  (e) => {
+    if (localeOk && !errorMessages.some((msg) => e.message.includes(msg)))
+      return false;
+    return e.name === 'Error';
+  }
+);
 
-try {
-  require();
-} catch (e) {
-  assert.notEqual(e.toString().indexOf('missing path'), -1);
-}
+const re = /^The "id" argument must be of type string\. Received type \w+$/;
+[1, false, null, undefined, {}].forEach((value) => {
+  common.expectsError(
+    () => { require(value); },
+    {
+      type: TypeError,
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: re
+    });
+});
 
-try {
-  require({});
-} catch (e) {
-  assert.notEqual(e.toString().indexOf('path must be a string'), -1);
-}
+
+common.expectsError(
+  () => { require(''); },
+  {
+    type: TypeError,
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: 'The argument \'id\' must be a non-empty string. Received \'\''
+  });
+
+common.expectsError(
+  () => { require('../fixtures/packages/is-dir'); },
+  {
+    code: 'MODULE_NOT_FOUND',
+    message: 'Cannot find module \'../fixtures/packages/is-dir\''
+  });

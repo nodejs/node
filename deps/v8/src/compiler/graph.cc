@@ -4,42 +4,76 @@
 
 #include "src/compiler/graph.h"
 
-#include "src/compiler/common-operator.h"
-#include "src/compiler/generic-node-inl.h"
-#include "src/compiler/graph-inl.h"
-#include "src/compiler/node.h"
-#include "src/compiler/node-aux-data-inl.h"
+#include <algorithm>
+
+#include "src/base/bits.h"
+#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/node-properties-inl.h"
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator-properties.h"
-#include "src/compiler/operator-properties-inl.h"
+#include "src/compiler/node.h"
+#include "src/compiler/verifier.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
+Graph::Graph(Zone* zone)
+    : zone_(zone),
+      start_(nullptr),
+      end_(nullptr),
+      mark_max_(0),
+      next_node_id_(0),
+      decorators_(zone) {}
 
 
 void Graph::Decorate(Node* node) {
-  for (ZoneVector<GraphDecorator*>::iterator i = decorators_.begin();
-       i != decorators_.end(); ++i) {
-    (*i)->Decorate(node);
+  for (GraphDecorator* const decorator : decorators_) {
+    decorator->Decorate(node);
   }
 }
 
 
-Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs,
+void Graph::AddDecorator(GraphDecorator* decorator) {
+  decorators_.push_back(decorator);
+}
+
+
+void Graph::RemoveDecorator(GraphDecorator* decorator) {
+  auto const it = std::find(decorators_.begin(), decorators_.end(), decorator);
+  DCHECK(it != decorators_.end());
+  decorators_.erase(it);
+}
+
+Node* Graph::NewNode(const Operator* op, int input_count, Node* const* inputs,
                      bool incomplete) {
-  DCHECK_LE(op->InputCount(), input_count);
-  Node* result = Node::New(this, input_count, inputs, incomplete);
-  result->Initialize(op);
-  if (!incomplete) {
-    Decorate(result);
-  }
-  return result;
+  Node* node = NewNodeUnchecked(op, input_count, inputs, incomplete);
+  Verifier::VerifyNode(node);
+  return node;
 }
+
+Node* Graph::NewNodeUnchecked(const Operator* op, int input_count,
+                              Node* const* inputs, bool incomplete) {
+  Node* const node =
+      Node::New(zone(), NextNodeId(), op, input_count, inputs, incomplete);
+  Decorate(node);
+  return node;
+}
+
+
+Node* Graph::CloneNode(const Node* node) {
+  DCHECK_NOT_NULL(node);
+  Node* const clone = Node::Clone(zone(), NextNodeId(), node);
+  Decorate(clone);
+  return clone;
+}
+
+
+NodeId Graph::NextNodeId() {
+  NodeId const id = next_node_id_;
+  CHECK(!base::bits::UnsignedAddOverflow32(id, 1, &next_node_id_));
+  return id;
+}
+
+void Graph::Print() const { StdoutStream{} << AsRPO(*this); }
 
 }  // namespace compiler
 }  // namespace internal

@@ -19,19 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-try {
-  var crypto = require('crypto');
-} catch (e) {
-  console.log('Not compiled with OPENSSL support.');
-  process.exit();
-}
+'use strict';
 
-// the missing var keyword is intentional
-domain = require('domain');
+const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('node compiled without OpenSSL.');
+
+const crypto = require('crypto');
+
+// Pollution of global is intentional as part of test.
+common.allowGlobals(require('domain'));
+// See https://github.com/nodejs/node/commit/d1eff9ab
+global.domain = require('domain');
 
 // should not throw a 'TypeError: undefined is not a function' exception
 crypto.randomBytes(8);
-crypto.randomBytes(8, function() {});
+crypto.randomBytes(8, common.mustCall());
+const buf = Buffer.alloc(8);
+crypto.randomFillSync(buf);
 crypto.pseudoRandomBytes(8);
-crypto.pseudoRandomBytes(8, function() {});
-crypto.pbkdf2('password', 'salt', 8, 8, function() {});
+crypto.pseudoRandomBytes(8, common.mustCall());
+crypto.pbkdf2('password', 'salt', 8, 8, 'sha1', common.mustCall());

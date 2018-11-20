@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-scripts</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/misc/npm-scripts.html">
   <script async=true src="../../static/toc.js"></script>
@@ -11,12 +11,24 @@
 
 <h1><a href="../misc/npm-scripts.html">npm-scripts</a></h1> <p>How npm handles the &quot;scripts&quot; field</p>
 <h2 id="description">DESCRIPTION</h2>
-<p>npm supports the &quot;scripts&quot; property of the package.json script, for the
+<p>npm supports the &quot;scripts&quot; property of the package.json file, for the
 following scripts:</p>
 <ul>
 <li>prepublish:
-Run BEFORE the package is published.  (Also run on local <code>npm
-install</code> without any arguments.)</li>
+Run BEFORE the package is packed and published, as well as on local <code>npm
+install</code> without any arguments. (See below)</li>
+<li>prepare:
+Run both BEFORE the package is packed and published, and on local <code>npm
+install</code> without any arguments (See below). This is run
+AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code>.</li>
+<li>prepublishOnly:
+Run BEFORE the package is prepared and packed, ONLY on <code>npm publish</code>. (See
+below.)</li>
+<li>prepack:
+run BEFORE a tarball is packed (on <code>npm pack</code>, <code>npm publish</code>, and when
+installing git dependencies)</li>
+<li>postpack:
+Run AFTER the tarball has been generated and moved to its final destination.</li>
 <li>publish, postpublish:
 Run AFTER the package is published.</li>
 <li>preinstall:
@@ -27,10 +39,12 @@ Run AFTER the package is installed.</li>
 Run BEFORE the package is uninstalled.</li>
 <li>postuninstall:
 Run AFTER the package is uninstalled.</li>
-<li>preupdate:
-Run BEFORE the package is updated with the update command.</li>
-<li>update, postupdate:
-Run AFTER the package is updated with the update command.</li>
+<li>preversion:
+Run BEFORE bumping the package version.</li>
+<li>version:
+Run AFTER bumping the package version, but BEFORE commit.</li>
+<li>postversion:
+Run AFTER bumping the package version, and AFTER commit.</li>
 <li>pretest, test, posttest:
 Run by the <code>npm test</code> command.</li>
 <li>prestop, stop, poststop:
@@ -40,46 +54,45 @@ Run by the <code>npm start</code> command.</li>
 <li>prerestart, restart, postrestart:
 Run by the <code>npm restart</code> command. Note: <code>npm restart</code> will run the
 stop and start scripts if no <code>restart</code> script is provided.</li>
+<li>preshrinkwrap, shrinkwrap, postshrinkwrap:
+Run by the <code>npm shrinkwrap</code> command.</li>
 </ul>
 <p>Additionally, arbitrary scripts can be executed by running <code>npm
-run-script &lt;pkg&gt; &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
+run-script &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
 names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>,
-<code>postmyscript</code>).</p>
-<h2 id="note-install-scripts-are-an-antipattern">NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN</h2>
-<p><strong>tl;dr</strong> Don&#39;t use <code>install</code>.  Use a <code>.gyp</code> file for compilation, and
-<code>prepublish</code> for anything else.</p>
-<p>You should almost never have to explicitly set a <code>preinstall</code> or
-<code>install</code> script.  If you are doing this, please consider if there is
-another option.</p>
-<p>The only valid use of <code>install</code> or <code>preinstall</code> scripts is for
-compilation which must be done on the target architecture.  In early
-versions of node, this was often done using the <code>node-waf</code> scripts, or
-a standalone <code>Makefile</code>, and early versions of npm required that it be
-explicitly set in package.json.  This was not portable, and harder to
-do properly.</p>
-<p>In the current version of node, the standard way to do this is using a
-<code>.gyp</code> file.  If you have a file with a <code>.gyp</code> extension in the root
-of your package, then npm will run the appropriate <code>node-gyp</code> commands
-automatically at install time.  This is the only officially supported
-method for compiling binary addons, and does not require that you add
-anything to your package.json file.</p>
-<p>If you have to do other things before your package is used, in a way
+<code>postmyscript</code>). Scripts from dependencies can be run with <code>npm explore
+&lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
+<h2 id="prepublish-and-prepare">PREPUBLISH AND PREPARE</h2>
+<h3 id="deprecation-note">DEPRECATION NOTE</h3>
+<p>Since <a href="mailto:%60npm@1.1.71">`npm@1.1.71</a><code>, the npm CLI has run the</code>prepublish<code>script for both</code>npm
+publish<code>and</code>npm install<code>, because it&#39;s a convenient way to prepare a package
+for use (some common use cases are described in the section below).  It has
+also turned out to be, in practice, [very
+confusing](https://github.com/npm/npm/issues/10074).  As of</code><a href="mailto:npm@4.0.0">npm@4.0.0</a><code>, a new
+event has been introduced,</code>prepare<code>, that preserves this existing behavior. A
+_new_ event,</code>prepublishOnly<code>has been added as a transitional strategy to
+allow users to avoid the confusing behavior of existing npm versions and only
+run on</code>npm publish` (for instance, running the tests one last time to ensure
+they&#39;re in good shape).</p>
+<p>See <a href="https://github.com/npm/npm/issues/10074">https://github.com/npm/npm/issues/10074</a> for a much lengthier
+justification, with further reading, for this change.</p>
+<h3 id="use-cases">USE CASES</h3>
+<p>If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
-target system, then use a <code>prepublish</code> script instead.  This includes
+target system, use a <code>prepublish</code> script.  This includes
 tasks such as:</p>
 <ul>
-<li>Compile CoffeeScript source code into JavaScript.</li>
-<li>Create minified versions of JavaScript source code.</li>
+<li>Compiling CoffeeScript source code into JavaScript.</li>
+<li>Creating minified versions of JavaScript source code.</li>
 <li>Fetching remote resources that your package will use.</li>
 </ul>
-<p>The advantage of doing these things at <code>prepublish</code> time instead of
-<code>preinstall</code> or <code>install</code> time is that they can be done once, in a
-single place, and thus greatly reduce complexity and variability.
+<p>The advantage of doing these things at <code>prepublish</code> time is that they can be done once, in a
+single place, thus reducing complexity and variability.
 Additionally, this means that:</p>
 <ul>
 <li>You can depend on <code>coffee-script</code> as a <code>devDependency</code>, and thus
 your users don&#39;t need to have it installed.</li>
-<li>You don&#39;t need to include the minifiers in your package, reducing
+<li>You don&#39;t need to include minifiers in your package, reducing
 the size for your users.</li>
 <li>You don&#39;t need to rely on your users having <code>curl</code> or <code>wget</code> or
 other system tools on the target machines.</li>
@@ -91,9 +104,10 @@ other system tools on the target machines.</li>
 <p>If there is a <code>server.js</code> file in the root of your package, then npm
 will default the <code>start</code> command to <code>node server.js</code>.</p>
 </li>
-<li><p><code>&quot;preinstall&quot;: &quot;node-waf clean || true; node-waf configure build&quot;</code>:</p>
-<p>If there is a <code>wscript</code> file in the root of your package, npm will
-default the <code>preinstall</code> command to compile using node-waf.</p>
+<li><p><code>&quot;install&quot;: &quot;node-gyp rebuild&quot;</code>:</p>
+<p>If there is a <code>binding.gyp</code> file in the root of your package and you
+haven&#39;t defined your own <code>install</code> or <code>preinstall</code> scripts, npm will
+default the <code>install</code> command to compile using node-gyp.</p>
 </li>
 </ul>
 <h2 id="user">USER</h2>
@@ -111,15 +125,16 @@ suites, then those executables will be added to the <code>PATH</code> for
 executing the scripts.  So, if your package.json has this:</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
 , &quot;dependencies&quot; : { &quot;bar&quot; : &quot;0.1.x&quot; }
-, &quot;scripts&quot;: { &quot;start&quot; : &quot;bar ./test&quot; } }
-</code></pre><p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is
+, &quot;scripts&quot;: { &quot;start&quot; : &quot;bar ./test&quot; } }</code></pre><p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is
 exported into the <code>node_modules/.bin</code> directory on <code>npm install</code>.</p>
 <h3 id="package-json-vars">package.json vars</h3>
 <p>The package.json fields are tacked onto the <code>npm_package_</code> prefix. So,
 for instance, if you had <code>{&quot;name&quot;:&quot;foo&quot;, &quot;version&quot;:&quot;1.2.5&quot;}</code> in your
 package.json file, then your package scripts would have the
 <code>npm_package_name</code> environment variable set to &quot;foo&quot;, and the
-<code>npm_package_version</code> set to &quot;1.2.5&quot;</p>
+<code>npm_package_version</code> set to &quot;1.2.5&quot;.  You can access these variables
+in your code with <code>process.env.npm_package_name</code> and
+<code>process.env.npm_package_version</code>, and so on for other fields.</p>
 <h3 id="configuration">configuration</h3>
 <p>Configuration parameters are put in the environment with the
 <code>npm_config_</code> prefix. For instance, you can view the effective <code>root</code>
@@ -130,12 +145,9 @@ there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</cod
 if the package.json has this:</p>
 <pre><code>{ &quot;name&quot; : &quot;foo&quot;
 , &quot;config&quot; : { &quot;port&quot; : &quot;8080&quot; }
-, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }
-</code></pre><p>and the server.js is this:</p>
-<pre><code>http.createServer(...).listen(process.env.npm_package_config_port)
-</code></pre><p>then the user could change the behavior by doing:</p>
-<pre><code>npm config set foo:port 80
-</code></pre><h3 id="current-lifecycle-event">current lifecycle event</h3>
+, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }</code></pre><p>and the server.js is this:</p>
+<pre><code>http.createServer(...).listen(process.env.npm_package_config_port)</code></pre><p>then the user could change the behavior by doing:</p>
+<pre><code>npm config set foo:port 80</code></pre><h3 id="current-lifecycle-event">current lifecycle event</h3>
 <p>Lastly, the <code>npm_lifecycle_event</code> environment variable is set to
 whichever stage of the cycle is being executed. So, you could have a
 single script used for different parts of the process which switches
@@ -143,19 +155,17 @@ based on what&#39;s currently happening.</p>
 <p>Objects are flattened following this format, so if you had
 <code>{&quot;scripts&quot;:{&quot;install&quot;:&quot;foo.js&quot;}}</code> in your package.json, then you&#39;d
 see this in the script:</p>
-<pre><code>process.env.npm_package_scripts_install === &quot;foo.js&quot;
-</code></pre><h2 id="examples">EXAMPLES</h2>
+<pre><code>process.env.npm_package_scripts_install === &quot;foo.js&quot;</code></pre><h2 id="examples">EXAMPLES</h2>
 <p>For example, if your package.json contains this:</p>
 <pre><code>{ &quot;scripts&quot; :
   { &quot;install&quot; : &quot;scripts/install.js&quot;
   , &quot;postinstall&quot; : &quot;scripts/install.js&quot;
   , &quot;uninstall&quot; : &quot;scripts/uninstall.js&quot;
   }
-}
-</code></pre><p>then the <code>scripts/install.js</code> will be called for the install,
-post-install, stages of the lifecycle, and the <code>scripts/uninstall.js</code>
-would be called when the package is uninstalled.  Since
-<code>scripts/install.js</code> is running for three different phases, it would
+}</code></pre><p>then <code>scripts/install.js</code> will be called for the install
+and post-install stages of the lifecycle, and <code>scripts/uninstall.js</code>
+will be called when the package is uninstalled.  Since
+<code>scripts/install.js</code> is running for two different phases, it would
 be wise in this case to look at the <code>npm_lifecycle_event</code> environment
 variable.</p>
 <p>If you want to run a make command, you can do so.  This works just
@@ -165,8 +175,7 @@ fine:</p>
   , &quot;install&quot; : &quot;make &amp;&amp; make install&quot;
   , &quot;test&quot; : &quot;make test&quot;
   }
-}
-</code></pre><h2 id="exiting">EXITING</h2>
+}</code></pre><h2 id="exiting">EXITING</h2>
 <p>Scripts are run by passing the line as a script argument to <code>sh</code>.</p>
 <p>If the script exits with a code other than 0, then this will abort the
 process.</p>
@@ -190,23 +199,28 @@ fail, and potentially be rolled back.  If the failure is minor or
 only will prevent some optional features, then it&#39;s better to just
 print a warning and exit successfully.</li>
 <li>Try not to use scripts to do what npm can do for you.  Read through
-<code><a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a></code> to see all the things that you can specify and enable
+<code><a href="../files/package.json.html">package.json(5)</a></code> to see all the things that you can specify and enable
 by simply describing your package appropriately.  In general, this
 will lead to a more robust and consistent state.</li>
 <li>Inspect the env to determine where to put things.  For instance, if
-the <code>npm_config_binroot</code> environ is set to <code>/home/user/bin</code>, then
+the <code>npm_config_binroot</code> environment variable is set to <code>/home/user/bin</code>, then
 don&#39;t try to install executables into <code>/usr/local/bin</code>.  The user
 probably set it up that way for a reason.</li>
 <li>Don&#39;t prefix your script commands with &quot;sudo&quot;.  If root permissions
 are required for some reason, then it&#39;ll fail with that error, and
 the user will sudo the npm command in question.</li>
+<li>Don&#39;t use <code>install</code>. Use a <code>.gyp</code> file for compilation, and <code>prepublish</code>
+for anything else. You should almost never have to explicitly set a
+preinstall or install script. If you are doing this, please consider if
+there is another option. The only valid use of <code>install</code> or <code>preinstall</code>
+scripts is for compilation which must be done on the target architecture.</li>
 </ul>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
-<li><a href="../cli/npm-run-script.html"><a href="../cli/npm-run-script.html">npm-run-script(1)</a></a></li>
-<li><a href="../files/package.json.html"><a href="../files/package.json.html">package.json(5)</a></a></li>
-<li><a href="../misc/npm-developers.html"><a href="../misc/npm-developers.html">npm-developers(7)</a></a></li>
-<li><a href="../cli/npm-install.html"><a href="../cli/npm-install.html">npm-install(1)</a></a></li>
+<li><a href="../cli/npm-run-script.html">npm-run-script(1)</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
+<li><a href="../misc/npm-developers.html">npm-developers(7)</a></li>
+<li><a href="../cli/npm-install.html">npm-install(1)</a></li>
 </ul>
 
 </div>
@@ -220,5 +234,5 @@ the user will sudo the npm command in question.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@2.1.6</p>
+<p id="footer">npm-scripts &mdash; npm@6.4.1</p>
 

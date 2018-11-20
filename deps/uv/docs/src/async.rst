@@ -35,12 +35,16 @@ API
 
     Initialize the handle. A NULL callback is allowed.
 
+    :returns: 0 on success, or an error code < 0 on failure.
+
     .. note::
         Unlike other handle initialization  functions, it immediately starts the handle.
 
 .. c:function:: int uv_async_send(uv_async_t* async)
 
-    Wakeup the event loop and call the async handle's callback.
+    Wake up the event loop and call the async handle's callback.
+
+    :returns: 0 on success, or an error code < 0 on failure.
 
     .. note::
         It's safe to call this function from any thread. The callback will be called on the
@@ -48,9 +52,10 @@ API
 
     .. warning::
         libuv will coalesce calls to :c:func:`uv_async_send`, that is, not every call to it will
-        yield an execution of the callback, the only guarantee is that it will be called at least
-        once. Thus, calling this function may not wakeup the event loop if it was already called
-        previously within a short period of time.
+        yield an execution of the callback. For example: if :c:func:`uv_async_send` is called 5
+        times in a row before the callback is called, the callback will only be called once. If
+        :c:func:`uv_async_send` is called again after the callback was called, it will be called
+        again.
 
 .. seealso::
     The :c:type:`uv_handle_t` API functions also apply.

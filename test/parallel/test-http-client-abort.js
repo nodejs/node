@@ -19,63 +19,36 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var clientAborts = 0;
+const N = 8;
 
-var server = http.Server(function(req, res) {
-  console.log('Got connection');
+const countdown = new Countdown(N, () => server.close());
+
+const server = http.Server(common.mustCall((req, res) => {
   res.writeHead(200);
   res.write('Working on it...');
+  req.on('aborted', common.mustCall(() => countdown.dec()));
+}, N));
 
-  // I would expect an error event from req or res that the client aborted
-  // before completing the HTTP request / response cycle, or maybe a new
-  // event like "aborted" or something.
-  req.on('aborted', function() {
-    clientAborts++;
-    console.log('Got abort ' + clientAborts);
-    if (clientAborts === N) {
-      console.log('All aborts detected, you win.');
-      server.close();
-    }
+server.listen(0, common.mustCall(() => {
+
+  const requests = [];
+  const reqCountdown = new Countdown(N, () => {
+    requests.forEach((req) => req.abort());
   });
 
-  // since there is already clientError, maybe that would be appropriate,
-  // since "error" is magical
-  req.on('clientError', function() {
-    console.log('Got clientError');
-  });
-});
+  const options = { port: server.address().port };
 
-var responses = 0;
-var N = 16;
-var requests = [];
-
-server.listen(common.PORT, function() {
-  console.log('Server listening.');
-
-  for (var i = 0; i < N; i++) {
-    console.log('Making client ' + i);
-    var options = { port: common.PORT, path: '/?id=' + i };
-    var req = http.get(options, function(res) {
-      console.log('Client response code ' + res.statusCode);
-
-      res.resume();
-      if (++responses == N) {
-        console.log('All clients connected, destroying.');
-        requests.forEach(function(outReq) {
-          console.log('abort');
-          outReq.abort();
-        });
-      }
-    });
-
-    requests.push(req);
+  for (let i = 0; i < N; i++) {
+    options.path = `/?id=${i}`;
+    requests.push(
+      http.get(options, common.mustCall((res) => {
+        res.resume();
+        reqCountdown.dec();
+      })));
   }
-});
-
-process.on('exit', function() {
-  assert.equal(N, clientAborts);
-});
+}));

@@ -19,43 +19,47 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var cp = require('child_process');
-var fs = require('fs');
-var path = require('path');
-var common = require('../common');
-var msg = {test: 'this'};
-var nodePath = process.execPath;
-var copyPath = path.join(common.tmpDir, 'node-copy.exe');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const { COPYFILE_FICLONE } = fs.constants;
+const path = require('path');
+const tmpdir = require('../common/tmpdir');
+const msg = { test: 'this' };
+const nodePath = process.execPath;
+const copyPath = path.join(tmpdir.path, 'node-copy.exe');
+const { addLibraryPath } = require('../common/shared-lib-util');
+
+addLibraryPath(process.env);
 
 if (process.env.FORK) {
   assert(process.send);
-  assert.equal(process.argv[0], copyPath);
+  assert.strictEqual(process.argv[0], copyPath);
   process.send(msg);
   process.exit();
-}
-else {
+} else {
+  tmpdir.refresh();
   try {
     fs.unlinkSync(copyPath);
-  }
-  catch (e) {
+  } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
-  fs.writeFileSync(copyPath, fs.readFileSync(nodePath));
+  fs.copyFileSync(nodePath, copyPath, COPYFILE_FICLONE);
   fs.chmodSync(copyPath, '0755');
 
   // slow but simple
-  var envCopy = JSON.parse(JSON.stringify(process.env));
+  const envCopy = JSON.parse(JSON.stringify(process.env));
   envCopy.FORK = 'true';
-  var child = require('child_process').fork(__filename, {
+  const child = require('child_process').fork(__filename, {
     execPath: copyPath,
     env: envCopy
   });
   child.on('message', common.mustCall(function(recv) {
-    assert.deepEqual(msg, recv);
+    assert.deepStrictEqual(msg, recv);
   }));
   child.on('exit', common.mustCall(function(code) {
     fs.unlinkSync(copyPath);
-    assert.equal(code, 0);
+    assert.strictEqual(code, 0);
   }));
 }

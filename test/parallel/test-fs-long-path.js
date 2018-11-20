@@ -19,41 +19,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var fs = require('fs');
-var path = require('path');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+if (!common.isWindows)
+  common.skip('this test is Windows-specific.');
 
-var successes = 0;
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+
+const tmpdir = require('../common/tmpdir');
 
 // make a path that will be at least 260 chars long.
-var fileNameLen = Math.max(260 - common.tmpDir.length - 1, 1);
-var fileName = path.join(common.tmpDir, new Array(fileNameLen + 1).join('x'));
-var fullPath = path.resolve(fileName);
+const fileNameLen = Math.max(260 - tmpdir.path.length - 1, 1);
+const fileName = path.join(tmpdir.path, 'x'.repeat(fileNameLen));
+const fullPath = path.resolve(fileName);
 
-try {
-  fs.unlinkSync(fullPath);
-}
-catch (e) {
-  // Ignore.
-}
+tmpdir.refresh();
 
 console.log({
   filenameLength: fileName.length,
   fullPathLength: fullPath.length
 });
 
-fs.writeFile(fullPath, 'ok', function(err) {
-  if (err) throw err;
-  successes++;
+fs.writeFile(fullPath, 'ok', common.mustCall(function(err) {
+  assert.ifError(err);
 
-  fs.stat(fullPath, function(err, stats) {
-    if (err) throw err;
-    successes++;
-  });
-});
+  fs.stat(fullPath, common.mustCall(function(err, stats) {
+    assert.ifError(err);
+  }));
+}));
 
 process.on('exit', function() {
   fs.unlinkSync(fullPath);
-  assert.equal(2, successes);
 });

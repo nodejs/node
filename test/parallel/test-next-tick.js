@@ -19,34 +19,45 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var complete = 0;
+const assert = require('assert');
+
+process.nextTick(common.mustCall(function() {
+  process.nextTick(common.mustCall(function() {
+    process.nextTick(common.mustCall());
+  }));
+}));
+
+setTimeout(common.mustCall(function() {
+  process.nextTick(common.mustCall());
+}), 50);
+
+process.nextTick(common.mustCall());
+
+const obj = {};
+
+process.nextTick(function(a, b) {
+  assert.strictEqual(a, 42);
+  assert.strictEqual(b, obj);
+  assert.strictEqual(this, undefined);
+}, 42, obj);
+
+process.nextTick((a, b) => {
+  assert.strictEqual(a, 42);
+  assert.strictEqual(b, obj);
+  assert.deepStrictEqual(this, {});
+}, 42, obj);
 
 process.nextTick(function() {
-  complete++;
-  process.nextTick(function() {
-    complete++;
-    process.nextTick(function() {
-      complete++;
-    });
-  });
-});
+  assert.strictEqual(this, undefined);
+}, 1, 2, 3, 4);
 
-setTimeout(function() {
-  process.nextTick(function() {
-    complete++;
-  });
-}, 50);
-
-process.nextTick(function() {
-  complete++;
-});
+process.nextTick(() => {
+  assert.deepStrictEqual(this, {});
+}, 1, 2, 3, 4);
 
 process.on('exit', function() {
-  assert.equal(5, complete);
-  process.nextTick(function() {
-    throw new Error('this should not occur');
-  });
+  process.nextTick(common.mustNotCall());
 });

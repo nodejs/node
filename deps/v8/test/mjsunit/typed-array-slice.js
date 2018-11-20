@@ -53,7 +53,7 @@ for (var t = 0; t < types.length; t++) {
   delete a[5];
   var sliced = do_slice(a);
 
-  %ClearFunctionTypeFeedback(do_slice);
+  %ClearFunctionFeedback(do_slice);
   assertEquals(results1[t], sliced[0]);
   assertEquals(results2[t], sliced[1]);
   assertEquals(results3[t], sliced[2]);

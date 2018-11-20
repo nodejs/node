@@ -81,7 +81,7 @@ ares_parse_naptr_reply (const unsigned char *abuf, int alen,
 
   if (aptr + len + QFIXEDSZ > abuf + alen)
     {
-      free (hostname);
+      ares_free (hostname);
       return ARES_EBADRESP;
     }
   aptr += len + QFIXEDSZ;
@@ -115,6 +115,13 @@ ares_parse_naptr_reply (const unsigned char *abuf, int alen,
       if (rr_class == C_IN && rr_type == T_NAPTR)
         {
           /* parse the NAPTR record itself */
+
+          /* RR must contain at least 7 bytes = 2 x int16 + 3 x name */
+          if (rr_len < 7)
+            {
+              status = ARES_EBADRESP;
+              break;
+            }
 
           /* Allocate storage for this NAPTR answer appending it to the list */
           naptr_curr = ares_malloc_data(ARES_DATATYPE_NAPTR_REPLY);
@@ -160,7 +167,7 @@ ares_parse_naptr_reply (const unsigned char *abuf, int alen,
         }
 
       /* Don't lose memory in the next iteration */
-      free (rr_name);
+      ares_free (rr_name);
       rr_name = NULL;
 
       /* Move on to the next record */
@@ -168,9 +175,9 @@ ares_parse_naptr_reply (const unsigned char *abuf, int alen,
     }
 
   if (hostname)
-    free (hostname);
+    ares_free (hostname);
   if (rr_name)
-    free (rr_name);
+    ares_free (rr_name);
 
   /* clean up on error */
   if (status != ARES_SUCCESS)
@@ -185,4 +192,3 @@ ares_parse_naptr_reply (const unsigned char *abuf, int alen,
 
   return ARES_SUCCESS;
 }
-

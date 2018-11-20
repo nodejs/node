@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --gc_global
+// Flags: --gc-global
 
 // Regression test for regexp that has multiple matches and which
 // internally calls RegExpImpl::IrregexpExecOnce more than once without
 // ensuring that the regexp is compiled.
 // This can create a crash if the code was exchanged with the sweep
-// generation (for code flushing support) in GC durring the matching.
+// generation (for code flushing support) in GC during the matching.
 
 var re = new RegExp('(s)', "g");
 

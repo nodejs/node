@@ -38,9 +38,8 @@ Public members
 
 .. c:member:: void* uv_loop_t.data
 
-    Space for user-defined arbitrary data. libuv does not use this field. libuv does, however,
-    initialize it to NULL in :c:func:`uv_loop_init`, and it poisons the value (on debug builds)
-    on :c:func:`uv_loop_close`.
+    Space for user-defined arbitrary data. libuv does not use and does not
+    touch this field.
 
 
 API
@@ -50,16 +49,45 @@ API
 
     Initializes the given `uv_loop_t` structure.
 
+.. c:function:: int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...)
+
+    .. versionadded:: 1.0.2
+
+    Set additional loop options.  You should normally call this before the
+    first call to :c:func:`uv_run` unless mentioned otherwise.
+
+    Returns 0 on success or a UV_E* error code on failure.  Be prepared to
+    handle UV_ENOSYS; it means the loop option is not supported by the platform.
+
+    Supported options:
+
+    - UV_LOOP_BLOCK_SIGNAL: Block a signal when polling for new events.  The
+      second argument to :c:func:`uv_loop_configure` is the signal number.
+
+      This operation is currently only implemented for SIGPROF signals,
+      to suppress unnecessary wakeups when using a sampling profiler.
+      Requesting other signals will fail with UV_EINVAL.
+
 .. c:function:: int uv_loop_close(uv_loop_t* loop)
 
-    Closes all internal loop resources. This function must only be called once
-    the loop has finished its execution or it will return UV_EBUSY. After this
-    function returns the user shall free the memory allocated for the loop.
+    Releases all internal loop resources. Call this function only when the loop
+    has finished executing and all open handles and requests have been closed,
+    or it will return UV_EBUSY. After this function returns, the user can free
+    the memory allocated for the loop.
 
 .. c:function:: uv_loop_t* uv_default_loop(void)
 
     Returns the initialized default loop. It may return NULL in case of
-    allocation failture.
+    allocation failure.
+
+    This function is just a convenient way for having a global loop throughout
+    an application, the default loop is in no way different than the ones
+    initialized with :c:func:`uv_loop_init`. As such, the default loop can (and
+    should) be closed with :c:func:`uv_loop_close` so the resources associated
+    with it are freed.
+
+    .. warning::
+        This function is not thread safe.
 
 .. c:function:: int uv_run(uv_loop_t* loop, uv_run_mode mode)
 
@@ -67,7 +95,9 @@ API
     specified mode:
 
     - UV_RUN_DEFAULT: Runs the event loop until there are no more active and
-      referenced handles or requests. Always returns zero.
+      referenced handles or requests. Returns non-zero if :c:func:`uv_stop`
+      was called and there are still active handles or requests.  Returns
+      zero in all other cases.
     - UV_RUN_ONCE: Poll for i/o once. Note that this function blocks if
       there are no pending callbacks. Returns zero when done (no active handles
       or requests left), or non-zero if more callbacks are expected (meaning
@@ -79,7 +109,8 @@ API
 
 .. c:function:: int uv_loop_alive(const uv_loop_t* loop)
 
-    Returns non-zero if there are active handles or request in the loop.
+    Returns non-zero if there are referenced active handles, active
+    requests or closing handles in the loop.
 
 .. c:function:: void uv_stop(uv_loop_t* loop)
 
@@ -137,3 +168,69 @@ API
 .. c:function:: void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg)
 
     Walk the list of handles: `walk_cb` will be executed with the given `arg`.
+
+.. c:function:: int uv_loop_fork(uv_loop_t* loop)
+
+    .. versionadded:: 1.12.0
+
+    Reinitialize any kernel state necessary in the child process after
+    a :man:`fork(2)` system call.
+
+    Previously started watchers will continue to be started in the
+    child process.
+
+    It is necessary to explicitly call this function on every event
+    loop created in the parent process that you plan to continue to
+    use in the child, including the default loop (even if you don't
+    continue to use it in the parent). This function must be called
+    before calling :c:func:`uv_run` or any other API function using
+    the loop in the child. Failure to do so will result in undefined
+    behaviour, possibly including duplicate events delivered to both
+    parent and child or aborting the child process.
+
+    When possible, it is preferred to create a new loop in the child
+    process instead of reusing a loop created in the parent. New loops
+    created in the child process after the fork should not use this
+    function.
+
+    This function is not implemented on Windows, where it returns ``UV_ENOSYS``.
+
+    .. caution::
+
+       This function is experimental. It may contain bugs, and is subject to
+       change or removal. API and ABI stability is not guaranteed.
+
+    .. note::
+
+        On Mac OS X, if directory FS event handles were in use in the
+        parent process *for any event loop*, the child process will no
+        longer be able to use the most efficient FSEvent
+        implementation. Instead, uses of directory FS event handles in
+        the child will fall back to the same implementation used for
+        files and on other kqueue-based systems.
+
+    .. caution::
+
+       On AIX and SunOS, FS event handles that were already started in
+       the parent process at the time of forking will *not* deliver
+       events in the child process; they must be closed and restarted.
+       On all other platforms, they will continue to work normally
+       without any further intervention.
+
+    .. caution::
+
+       Any previous value returned from :c:func:`uv_backend_fd` is now
+       invalid. That function must be called again to determine the
+       correct backend file descriptor.
+
+.. c:function:: void* uv_loop_get_data(const uv_loop_t* loop)
+
+    Returns `loop->data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_loop_set_data(uv_loop_t* loop, void* data)
+
+    Sets `loop->data` to `data`.
+
+    .. versionadded:: 1.19.0

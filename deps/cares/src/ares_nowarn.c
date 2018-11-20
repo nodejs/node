@@ -1,5 +1,5 @@
 
-/* Copyright (C) 2010-2012 by Daniel Stenberg
+/* Copyright (C) 2010-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -21,6 +21,10 @@
 #  include <assert.h>
 #endif
 
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
 #if defined(__INTEL_COMPILER) && defined(__unix__)
 
 #ifdef HAVE_NETINET_IN_H
@@ -36,13 +40,23 @@
 
 #include "ares_nowarn.h"
 
-#define CARES_MASK_USHORT (~(unsigned short) 0)
-#define CARES_MASK_UINT   (~(unsigned int) 0)
-#define CARES_MASK_ULONG  (~(unsigned long) 0)
-
-#define CARES_MASK_SSHORT (CARES_MASK_USHORT >> 1)
-#define CARES_MASK_SINT   (CARES_MASK_UINT >> 1)
-#define CARES_MASK_SLONG  (CARES_MASK_ULONG >> 1)
+#ifndef HAVE_LIMITS_H
+/* systems without <limits.h> we guess have 16 bit shorts, 32bit ints and
+   32bit longs */
+#  define CARES_MASK_SSHORT  0x7FFF
+#  define CARES_MASK_USHORT  0xFFFF
+#  define CARES_MASK_SINT    0x7FFFFFFF
+#  define CARES_MASK_UINT    0xFFFFFFFF
+#  define CARES_MASK_SLONG   0x7FFFFFFFL
+#  define CARES_MASK_ULONG   0xFFFFFFFFUL
+#else
+#  define CARES_MASK_SSHORT  SHRT_MAX
+#  define CARES_MASK_USHORT  USHRT_MAX
+#  define CARES_MASK_SINT    INT_MAX
+#  define CARES_MASK_UINT    UINT_MAX
+#  define CARES_MASK_SLONG   LONG_MAX
+#  define CARES_MASK_ULONG   ULONG_MAX
+#endif
 
 /*
 ** unsigned size_t to signed long
@@ -137,10 +151,10 @@ int aresx_sltosi(long slnum)
 }
 
 /*
-** signed ssize_t to signed int
+** signed ares_ssize_t to signed int
 */
 
-int aresx_sztosi(ssize_t sznum)
+int aresx_sztosi(ares_ssize_t sznum)
 {
 #ifdef __INTEL_COMPILER
 #  pragma warning(push)
@@ -148,7 +162,7 @@ int aresx_sztosi(ssize_t sznum)
 #endif
 
   DEBUGASSERT(sznum >= 0);
-  return (int)(sznum & (ssize_t) CARES_MASK_SINT);
+  return (int)(sznum & (ares_ssize_t) CARES_MASK_SINT);
 
 #ifdef __INTEL_COMPILER
 #  pragma warning(pop)
@@ -156,10 +170,10 @@ int aresx_sztosi(ssize_t sznum)
 }
 
 /*
-** signed ssize_t to unsigned int
+** signed ares_ssize_t to unsigned int
 */
 
-unsigned int aresx_sztoui(ssize_t sznum)
+unsigned int aresx_sztoui(ares_ssize_t sznum)
 {
 #ifdef __INTEL_COMPILER
 #  pragma warning(push)
@@ -167,7 +181,7 @@ unsigned int aresx_sztoui(ssize_t sznum)
 #endif
 
   DEBUGASSERT(sznum >= 0);
-  return (unsigned int)(sznum & (ssize_t) CARES_MASK_UINT);
+  return (unsigned int)(sznum & (ares_ssize_t) CARES_MASK_UINT);
 
 #ifdef __INTEL_COMPILER
 #  pragma warning(pop)

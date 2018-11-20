@@ -19,42 +19,78 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+// Flags: --expose_internals
+'use strict';
+const common = require('../common');
 
-var constants = require('constants');
-var fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-var O_APPEND = constants.O_APPEND || 0;
-var O_CREAT = constants.O_CREAT || 0;
-var O_DIRECTORY = constants.O_DIRECTORY || 0;
-var O_EXCL = constants.O_EXCL || 0;
-var O_NOCTTY = constants.O_NOCTTY || 0;
-var O_NOFOLLOW = constants.O_NOFOLLOW || 0;
-var O_RDONLY = constants.O_RDONLY || 0;
-var O_RDWR = constants.O_RDWR || 0;
-var O_SYMLINK = constants.O_SYMLINK || 0;
-var O_SYNC = constants.O_SYNC || 0;
-var O_TRUNC = constants.O_TRUNC || 0;
-var O_WRONLY = constants.O_WRONLY || 0;
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
-assert.equal(fs._stringToFlags('r'), O_RDONLY);
-assert.equal(fs._stringToFlags('r+'), O_RDWR);
-assert.equal(fs._stringToFlags('w'), O_TRUNC | O_CREAT | O_WRONLY);
-assert.equal(fs._stringToFlags('w+'), O_TRUNC | O_CREAT | O_RDWR);
-assert.equal(fs._stringToFlags('a'), O_APPEND | O_CREAT | O_WRONLY);
-assert.equal(fs._stringToFlags('a+'), O_APPEND | O_CREAT | O_RDWR);
+const O_APPEND = fs.constants.O_APPEND || 0;
+const O_CREAT = fs.constants.O_CREAT || 0;
+const O_EXCL = fs.constants.O_EXCL || 0;
+const O_RDONLY = fs.constants.O_RDONLY || 0;
+const O_RDWR = fs.constants.O_RDWR || 0;
+const O_SYNC = fs.constants.O_SYNC || 0;
+const O_DSYNC = fs.constants.O_DSYNC || 0;
+const O_TRUNC = fs.constants.O_TRUNC || 0;
+const O_WRONLY = fs.constants.O_WRONLY || 0;
 
-assert.equal(fs._stringToFlags('wx'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('xw'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('wx+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('xw+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('ax'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('xa'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
+const { stringToFlags } = require('internal/fs/utils');
 
-('+ +a +r +w rw wa war raw r++ a++ w++' +
- 'x +x x+ rx rx+ wxx wax xwx xxx').split(' ').forEach(function(flags) {
-  assert.throws(function() { fs._stringToFlags(flags); });
-});
+assert.strictEqual(stringToFlags('r'), O_RDONLY);
+assert.strictEqual(stringToFlags('r+'), O_RDWR);
+assert.strictEqual(stringToFlags('rs+'), O_RDWR | O_SYNC);
+assert.strictEqual(stringToFlags('sr+'), O_RDWR | O_SYNC);
+assert.strictEqual(stringToFlags('w'), O_TRUNC | O_CREAT | O_WRONLY);
+assert.strictEqual(stringToFlags('w+'), O_TRUNC | O_CREAT | O_RDWR);
+assert.strictEqual(stringToFlags('a'), O_APPEND | O_CREAT | O_WRONLY);
+assert.strictEqual(stringToFlags('a+'), O_APPEND | O_CREAT | O_RDWR);
+
+assert.strictEqual(stringToFlags('wx'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(stringToFlags('xw'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(stringToFlags('wx+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(stringToFlags('xw+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(stringToFlags('ax'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(stringToFlags('xa'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(stringToFlags('as'), O_APPEND | O_CREAT | O_WRONLY | O_SYNC);
+assert.strictEqual(stringToFlags('sa'), O_APPEND | O_CREAT | O_WRONLY | O_SYNC);
+assert.strictEqual(stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(stringToFlags('as+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
+assert.strictEqual(stringToFlags('sa+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
+
+('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
+  .split(' ')
+  .forEach(function(flags) {
+    common.expectsError(
+      () => stringToFlags(flags),
+      { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+    );
+  });
+
+common.expectsError(
+  () => stringToFlags({}),
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+);
+
+common.expectsError(
+  () => stringToFlags(true),
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+);
+
+common.expectsError(
+  () => stringToFlags(null),
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
+);
+
+if (common.isLinux || common.isOSX) {
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+  const file = path.join(tmpdir.path, 'a.js');
+  fs.copyFileSync(fixtures.path('a.js'), file);
+  fs.open(file, O_DSYNC, common.mustCall(assert.ifError));
+}

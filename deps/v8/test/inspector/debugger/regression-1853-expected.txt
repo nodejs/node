@@ -1,0 +1,22 @@
+Set breakpoint before function call.
+Pause before function calls, set two breakpoints at:
+  var a = 1;                      
+  return a;#                       
+}                                 
+
+  var b = 1;                      
+  return b;#                       
+}                                 
+
+Resume..
+Paused at:
+  var a = 1;                      
+  return a;#                       
+}                                 
+
+Resume..
+Paused at:
+  var b = 1;                      
+  return b;#                       
+}                                 
+

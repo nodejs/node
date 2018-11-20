@@ -19,71 +19,62 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var hosterr = /Hostname\/IP doesn\'t match certificate\'s altnames/g;
-var testCases =
-    [{ ca: ['ca1-cert'],
-       key: 'agent2-key',
-       cert: 'agent2-cert',
-       servers: [
-         { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-       ]
-     },
+const testCases = [
+  { ca: ['ca1-cert'],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
+      { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
+      { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+      { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
+    ]
+  },
 
-     { ca: [],
-       key: 'agent2-key',
-       cert: 'agent2-cert',
-       servers: [
-         { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-       ]
-     },
+  { ca: [],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
+      { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
+      { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+      { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
+    ]
+  },
 
-     { ca: ['ca1-cert', 'ca2-cert'],
-       key: 'agent2-key',
-       cert: 'agent2-cert',
-       servers: [
-         { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
-       ]
-     }
-    ];
-
-
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var tls = require('tls');
-
-
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
+  { ca: ['ca1-cert', 'ca2-cert'],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
+      { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
+      { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+      { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
+    ]
+  }
+];
 
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
-var successfulTests = 0;
+let successfulTests = 0;
 
 function testServers(index, servers, clientOptions, cb) {
-  var serverOptions = servers[index];
+  const serverOptions = servers[index];
   if (!serverOptions) {
     cb();
     return;
   }
 
-  var ok = serverOptions.ok;
+  const ok = serverOptions.ok;
 
   if (serverOptions.key) {
     serverOptions.key = loadPEM(serverOptions.key);
@@ -93,45 +84,46 @@ function testServers(index, servers, clientOptions, cb) {
     serverOptions.cert = loadPEM(serverOptions.cert);
   }
 
-  var server = tls.createServer(serverOptions, function(s) {
+  const server = tls.createServer(serverOptions, common.mustCall(function(s) {
     s.end('hello world\n');
-  });
+  }));
 
-  server.listen(common.PORT, function() {
-    var b = '';
+  server.listen(0, common.mustCall(function() {
+    let b = '';
 
     console.error('connecting...');
-    var client = tls.connect(clientOptions, function() {
-      var authorized = client.authorized ||
-                       hosterr.test(client.authorizationError);
+    clientOptions.port = this.address().port;
+    const client = tls.connect(clientOptions, common.mustCall(function() {
+      const authorized = client.authorized ||
+          (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID');
 
-      console.error('expected: ' + ok + ' authed: ' + authorized);
+      console.error(`expected: ${ok} authed: ${authorized}`);
 
-      assert.equal(ok, authorized);
+      assert.strictEqual(ok, authorized);
       server.close();
-    });
+    }));
 
     client.on('data', function(d) {
       b += d.toString();
     });
 
-    client.on('end', function() {
-      assert.equal('hello world\n', b);
-    });
+    client.on('end', common.mustCall(function() {
+      assert.strictEqual('hello world\n', b);
+    }));
 
-    client.on('close', function() {
+    client.on('close', common.mustCall(function() {
       testServers(index + 1, servers, clientOptions, cb);
-    });
-  });
+    }));
+  }));
 }
 
 
 function runTest(testIndex) {
-  var tcase = testCases[testIndex];
+  const tcase = testCases[testIndex];
   if (!tcase) return;
 
-  var clientOptions = {
-    port: common.PORT,
+  const clientOptions = {
+    port: undefined,
     ca: tcase.ca.map(loadPEM),
     key: loadPEM(tcase.key),
     cert: loadPEM(tcase.cert),
@@ -139,10 +131,10 @@ function runTest(testIndex) {
   };
 
 
-  testServers(0, tcase.servers, clientOptions, function() {
+  testServers(0, tcase.servers, clientOptions, common.mustCall(function() {
     successfulTests++;
     runTest(testIndex + 1);
-  });
+  }));
 }
 
 
@@ -150,6 +142,6 @@ runTest(0);
 
 
 process.on('exit', function() {
-  console.log('successful tests: %d', successfulTests);
-  assert.equal(successfulTests, testCases.length);
+  console.log(`successful tests: ${successfulTests}`);
+  assert.strictEqual(successfulTests, testCases.length);
 });

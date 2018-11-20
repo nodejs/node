@@ -1,0 +1,104 @@
+{
+  "_from": "smart-buffer@^4.0.1",
+  "_id": "smart-buffer@4.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-RFqinRVJVcCAL9Uh1oVqE6FZkqsyLiVOYEZ20TqIOjuX7iFVJ+zsbs4RIghnw/pTs7mZvt8ZHhvm1ZUrR4fykg==",
+  "_location": "/smart-buffer",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "smart-buffer@^4.0.1",
+    "name": "smart-buffer",
+    "escapedName": "smart-buffer",
+    "rawSpec": "^4.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^4.0.1"
+  },
+  "_requiredBy": [
+    "/socks"
+  ],
+  "_resolved": "https://registry.npmjs.org/smart-buffer/-/smart-buffer-4.0.1.tgz",
+  "_shasum": "07ea1ca8d4db24eb4cac86537d7d18995221ace3",
+  "_spec": "smart-buffer@^4.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/socks",
+  "author": {
+    "name": "Josh Glazebrook"
+  },
+  "bugs": {
+    "url": "https://github.com/JoshGlazebrook/smart-buffer/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "smart-buffer is a Buffer wrapper that adds automatic read & write offset tracking, string operations, data insertions, and more.",
+  "devDependencies": {
+    "@types/chai": "4.0.4",
+    "@types/mocha": "^2.2.44",
+    "@types/node": "^8.0.51",
+    "chai": "4.1.2",
+    "coveralls": "3.0.0",
+    "istanbul": "^0.4.5",
+    "mocha": "4.0.1",
+    "mocha-lcov-reporter": "^1.3.0",
+    "nyc": "^11.3.0",
+    "source-map-support": "0.5.0",
+    "ts-node": "3.3.0",
+    "tslint": "5.8.0",
+    "typescript": "2.6.1"
+  },
+  "engines": {
+    "node": ">= 4.0.0",
+    "npm": ">= 3.0.0"
+  },
+  "homepage": "https://github.com/JoshGlazebrook/smart-buffer/",
+  "keywords": [
+    "buffer",
+    "smart",
+    "packet",
+    "serialize",
+    "network",
+    "cursor",
+    "simple"
+  ],
+  "license": "MIT",
+  "main": "build/smartbuffer.js",
+  "name": "smart-buffer",
+  "nyc": {
+    "extension": [
+      ".ts",
+      ".tsx"
+    ],
+    "include": [
+      "src/*.ts",
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "**.*.d.ts",
+      "node_modules",
+      "typings"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "reporter": [
+      "json",
+      "html"
+    ],
+    "all": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoshGlazebrook/smart-buffer.git"
+  },
+  "scripts": {
+    "build": "tsc -p ./",
+    "coverage": "NODE_ENV=test nyc npm test",
+    "coveralls": "NODE_ENV=test nyc npm test && nyc report --reporter=text-lcov | coveralls",
+    "lint": "tslint --type-check --project tsconfig.json 'src/**/*.ts'",
+    "prepublish": "npm install -g typescript && npm run build",
+    "test": "NODE_ENV=test mocha --recursive --compilers ts:ts-node/register test/**/*.ts"
+  },
+  "typings": "typings/smartbuffer.d.ts",
+  "version": "4.0.1"
+}

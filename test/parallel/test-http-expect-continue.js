@@ -19,70 +19,64 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var outstanding_reqs = 0;
-var test_req_body = 'some stuff...\n';
-var test_res_body = 'other stuff!\n';
-var sent_continue = false;
-var got_continue = false;
+const test_req_body = 'some stuff...\n';
+const test_res_body = 'other stuff!\n';
+let sent_continue = false;
+let got_continue = false;
 
-function handler(req, res) {
-  assert.equal(sent_continue, true, 'Full response sent before 100 Continue');
-  common.debug('Server sending full response...');
+const handler = common.mustCall((req, res) => {
+  assert.ok(sent_continue, 'Full response sent before 100 Continue');
+  console.error('Server sending full response...');
   res.writeHead(200, {
-    'Content-Type' : 'text/plain',
-    'ABCD' : '1'
+    'Content-Type': 'text/plain',
+    'ABCD': '1'
   });
   res.end(test_res_body);
-}
+});
 
-var server = http.createServer(handler);
-server.on('checkContinue', function(req, res) {
-  common.debug('Server got Expect: 100-continue...');
+const server = http.createServer(common.mustNotCall());
+server.on('checkContinue', common.mustCall((req, res) => {
+  console.error('Server got Expect: 100-continue...');
   res.writeContinue();
   sent_continue = true;
   setTimeout(function() {
     handler(req, res);
   }, 100);
-});
-server.listen(common.PORT);
+}));
+server.listen(0);
 
 
-
-server.on('listening', function() {
-  var req = http.request({
-    port: common.PORT,
+server.on('listening', common.mustCall(() => {
+  const req = http.request({
+    port: server.address().port,
     method: 'POST',
     path: '/world',
     headers: { 'Expect': '100-continue' }
   });
-  common.debug('Client sending request...');
-  outstanding_reqs++;
-  var body = '';
-  req.on('continue', function() {
-    common.debug('Client got 100 Continue...');
+  console.error('Client sending request...');
+  let body = '';
+  req.on('continue', common.mustCall(() => {
+    console.error('Client got 100 Continue...');
     got_continue = true;
     req.end(test_req_body);
-  });
-  req.on('response', function(res) {
-    assert.equal(got_continue, true,
-                 'Full response received before 100 Continue');
-    assert.equal(200, res.statusCode,
-                 'Final status code was ' + res.statusCode + ', not 200.');
+  }));
+  req.on('response', common.mustCall((res) => {
+    assert.ok(got_continue, 'Full response received before 100 Continue');
+    assert.strictEqual(200, res.statusCode,
+                       `Final status code was ${res.statusCode}, not 200.`);
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });
-    res.on('end', function() {
-      common.debug('Got full response.');
-      assert.equal(body, test_res_body, 'Response body doesn\'t match.');
+    res.on('end', common.mustCall(() => {
+      console.error('Got full response.');
+      assert.strictEqual(body, test_res_body);
       assert.ok('abcd' in res.headers, 'Response headers missing.');
-      outstanding_reqs--;
-      if (outstanding_reqs == 0) {
-        server.close();
-        process.exit();
-      }
-    });
-  });
-});
+      server.close();
+      process.exit();
+    }));
+  }));
+}));

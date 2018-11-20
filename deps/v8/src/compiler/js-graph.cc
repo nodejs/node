@@ -2,131 +2,96 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/code-stubs.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+
+#include "src/code-factory.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
-  Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(object);
-  return graph()->NewNode(common()->HeapConstant(unique));
-}
+#define GET_CACHED_FIELD(ptr, expr) (*(ptr)) ? *(ptr) : (*(ptr) = (expr))
 
+#define DEFINE_GETTER(name, expr) \
+  Node* JSGraph::name() { return GET_CACHED_FIELD(&name##_, expr); }
 
-Node* JSGraph::CEntryStubConstant() {
-  if (!c_entry_stub_constant_.is_set()) {
-    c_entry_stub_constant_.set(
-        ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
+Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
+                                  ArgvMode argv_mode, bool builtin_exit_frame) {
+  if (save_doubles == kDontSaveFPRegs && argv_mode == kArgvOnStack) {
+    DCHECK(result_size >= 1 && result_size <= 3);
+    if (!builtin_exit_frame) {
+      Node** ptr = nullptr;
+      if (result_size == 1) {
+        ptr = &CEntryStub1Constant_;
+      } else if (result_size == 2) {
+        ptr = &CEntryStub2Constant_;
+      } else {
+        DCHECK_EQ(3, result_size);
+        ptr = &CEntryStub3Constant_;
+      }
+      return GET_CACHED_FIELD(ptr, HeapConstant(CodeFactory::CEntry(
+                                       isolate(), result_size, save_doubles,
+                                       argv_mode, builtin_exit_frame)));
+    }
+    Node** ptr = builtin_exit_frame ? &CEntryStub1WithBuiltinExitFrameConstant_
+                                    : &CEntryStub1Constant_;
+    return GET_CACHED_FIELD(ptr, HeapConstant(CodeFactory::CEntry(
+                                     isolate(), result_size, save_doubles,
+                                     argv_mode, builtin_exit_frame)));
   }
-  return c_entry_stub_constant_.get();
+  return HeapConstant(CodeFactory::CEntry(isolate(), result_size, save_doubles,
+                                          argv_mode, builtin_exit_frame));
 }
-
-
-Node* JSGraph::UndefinedConstant() {
-  if (!undefined_constant_.is_set()) {
-    undefined_constant_.set(
-        ImmovableHeapConstant(factory()->undefined_value()));
-  }
-  return undefined_constant_.get();
-}
-
-
-Node* JSGraph::TheHoleConstant() {
-  if (!the_hole_constant_.is_set()) {
-    the_hole_constant_.set(ImmovableHeapConstant(factory()->the_hole_value()));
-  }
-  return the_hole_constant_.get();
-}
-
-
-Node* JSGraph::TrueConstant() {
-  if (!true_constant_.is_set()) {
-    true_constant_.set(ImmovableHeapConstant(factory()->true_value()));
-  }
-  return true_constant_.get();
-}
-
-
-Node* JSGraph::FalseConstant() {
-  if (!false_constant_.is_set()) {
-    false_constant_.set(ImmovableHeapConstant(factory()->false_value()));
-  }
-  return false_constant_.get();
-}
-
-
-Node* JSGraph::NullConstant() {
-  if (!null_constant_.is_set()) {
-    null_constant_.set(ImmovableHeapConstant(factory()->null_value()));
-  }
-  return null_constant_.get();
-}
-
-
-Node* JSGraph::ZeroConstant() {
-  if (!zero_constant_.is_set()) zero_constant_.set(NumberConstant(0.0));
-  return zero_constant_.get();
-}
-
-
-Node* JSGraph::OneConstant() {
-  if (!one_constant_.is_set()) one_constant_.set(NumberConstant(1.0));
-  return one_constant_.get();
-}
-
-
-Node* JSGraph::NaNConstant() {
-  if (!nan_constant_.is_set()) {
-    nan_constant_.set(NumberConstant(base::OS::nan_value()));
-  }
-  return nan_constant_.get();
-}
-
-
-Node* JSGraph::HeapConstant(Unique<HeapObject> value) {
-  // TODO(turbofan): canonicalize heap constants using Unique<T>
-  return graph()->NewNode(common()->HeapConstant(value));
-}
-
-
-Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
-  // TODO(titzer): We could also match against the addresses of immortable
-  // immovables here, even without access to the heap, thus always
-  // canonicalizing references to them.
-  // return HeapConstant(Unique<Object>::CreateUninitialized(value));
-  // TODO(turbofan): This is a work-around to make Unique::HashCode() work for
-  // value numbering. We need some sane way to compute a unique hash code for
-  // arbitrary handles here.
-  Unique<HeapObject> unique(reinterpret_cast<Address>(*value.location()),
-                            value);
-  return HeapConstant(unique);
-}
-
 
 Node* JSGraph::Constant(Handle<Object> value) {
   // Dereference the handle to determine if a number constant or other
   // canonicalized node can be used.
   if (value->IsNumber()) {
     return Constant(value->Number());
-  } else if (value->IsUndefined()) {
+  } else if (value->IsUndefined(isolate())) {
     return UndefinedConstant();
-  } else if (value->IsTrue()) {
+  } else if (value->IsTrue(isolate())) {
     return TrueConstant();
-  } else if (value->IsFalse()) {
+  } else if (value->IsFalse(isolate())) {
     return FalseConstant();
-  } else if (value->IsNull()) {
+  } else if (value->IsNull(isolate())) {
     return NullConstant();
-  } else if (value->IsTheHole()) {
+  } else if (value->IsTheHole(isolate())) {
     return TheHoleConstant();
   } else {
     return HeapConstant(Handle<HeapObject>::cast(value));
   }
 }
 
+Node* JSGraph::Constant(const ObjectRef& ref) {
+  if (ref.IsSmi()) return Constant(ref.AsSmi());
+  OddballType oddball_type = ref.oddball_type();
+  if (ref.IsHeapNumber()) {
+    return Constant(ref.AsHeapNumber().value());
+  } else if (oddball_type == OddballType::kUndefined) {
+    DCHECK(
+        ref.object<Object>().equals(isolate()->factory()->undefined_value()));
+    return UndefinedConstant();
+  } else if (oddball_type == OddballType::kNull) {
+    DCHECK(ref.object<Object>().equals(isolate()->factory()->null_value()));
+    return NullConstant();
+  } else if (oddball_type == OddballType::kHole) {
+    DCHECK(ref.object<Object>().equals(isolate()->factory()->the_hole_value()));
+    return TheHoleConstant();
+  } else if (oddball_type == OddballType::kBoolean) {
+    if (ref.object<Object>().equals(isolate()->factory()->true_value())) {
+      return TrueConstant();
+    } else {
+      DCHECK(ref.object<Object>().equals(isolate()->factory()->false_value()));
+      return FalseConstant();
+    }
+  } else {
+    return HeapConstant(ref.object<HeapObject>());
+  }
+}
 
 Node* JSGraph::Constant(double value) {
   if (bit_cast<int64_t>(value) == bit_cast<int64_t>(0.0)) return ZeroConstant();
@@ -141,68 +106,100 @@ Node* JSGraph::Constant(int32_t value) {
   return NumberConstant(value);
 }
 
-
-Node* JSGraph::Int32Constant(int32_t value) {
-  Node** loc = cache_.FindInt32Constant(value);
-  if (*loc == NULL) {
-    *loc = graph()->NewNode(common()->Int32Constant(value));
-  }
-  return *loc;
+Node* JSGraph::Constant(uint32_t value) {
+  if (value == 0) return ZeroConstant();
+  if (value == 1) return OneConstant();
+  return NumberConstant(value);
 }
-
-
-Node* JSGraph::Int64Constant(int64_t value) {
-  Node** loc = cache_.FindInt64Constant(value);
-  if (*loc == NULL) {
-    *loc = graph()->NewNode(common()->Int64Constant(value));
-  }
-  return *loc;
-}
-
 
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->NumberConstant(value));
   }
   return *loc;
 }
 
-
-Node* JSGraph::Float32Constant(float value) {
-  // TODO(turbofan): cache float32 constants.
-  return graph()->NewNode(common()->Float32Constant(value));
-}
-
-
-Node* JSGraph::Float64Constant(double value) {
-  Node** loc = cache_.FindFloat64Constant(value);
-  if (*loc == NULL) {
-    *loc = graph()->NewNode(common()->Float64Constant(value));
+Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
+  Node** loc = cache_.FindHeapConstant(value);
+  if (*loc == nullptr) {
+    *loc = graph()->NewNode(common()->HeapConstant(value));
   }
   return *loc;
 }
-
-
-Node* JSGraph::ExternalConstant(ExternalReference reference) {
-  Node** loc = cache_.FindExternalConstant(reference);
-  if (*loc == NULL) {
-    *loc = graph()->NewNode(common()->ExternalConstant(reference));
-  }
-  return *loc;
-}
-
 
 void JSGraph::GetCachedNodes(NodeVector* nodes) {
   cache_.GetCachedNodes(nodes);
-  SetOncePointer<Node>* ptrs[] = {
-      &c_entry_stub_constant_, &undefined_constant_, &the_hole_constant_,
-      &true_constant_,         &false_constant_,     &null_constant_,
-      &zero_constant_,         &one_constant_,       &nan_constant_};
-  for (size_t i = 0; i < arraysize(ptrs); i++) {
-    if (ptrs[i]->is_set()) nodes->push_back(ptrs[i]->get());
-  }
+#define DO_CACHED_FIELD(name) \
+  if (name##_) nodes->push_back(name##_);
+
+  CACHED_GLOBAL_LIST(DO_CACHED_FIELD)
+  CACHED_CENTRY_LIST(DO_CACHED_FIELD)
+#undef DO_CACHED_FIELD
 }
+
+DEFINE_GETTER(AllocateInNewSpaceStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(), AllocateInNewSpace)))
+
+DEFINE_GETTER(AllocateInOldSpaceStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(), AllocateInOldSpace)))
+
+DEFINE_GETTER(ArrayConstructorStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl)))
+
+DEFINE_GETTER(ToNumberBuiltinConstant,
+              HeapConstant(BUILTIN_CODE(isolate(), ToNumber)))
+
+DEFINE_GETTER(EmptyFixedArrayConstant,
+              HeapConstant(factory()->empty_fixed_array()))
+
+DEFINE_GETTER(EmptyStringConstant, HeapConstant(factory()->empty_string()))
+
+DEFINE_GETTER(FixedArrayMapConstant, HeapConstant(factory()->fixed_array_map()))
+
+DEFINE_GETTER(PropertyArrayMapConstant,
+              HeapConstant(factory()->property_array_map()))
+
+DEFINE_GETTER(FixedDoubleArrayMapConstant,
+              HeapConstant(factory()->fixed_double_array_map()))
+
+DEFINE_GETTER(HeapNumberMapConstant, HeapConstant(factory()->heap_number_map()))
+
+DEFINE_GETTER(OptimizedOutConstant, HeapConstant(factory()->optimized_out()))
+
+DEFINE_GETTER(StaleRegisterConstant, HeapConstant(factory()->stale_register()))
+
+DEFINE_GETTER(UndefinedConstant, HeapConstant(factory()->undefined_value()))
+
+DEFINE_GETTER(TheHoleConstant, HeapConstant(factory()->the_hole_value()))
+
+DEFINE_GETTER(TrueConstant, HeapConstant(factory()->true_value()))
+
+DEFINE_GETTER(FalseConstant, HeapConstant(factory()->false_value()))
+
+DEFINE_GETTER(NullConstant, HeapConstant(factory()->null_value()))
+
+DEFINE_GETTER(ZeroConstant, NumberConstant(0.0))
+
+DEFINE_GETTER(OneConstant, NumberConstant(1.0))
+
+DEFINE_GETTER(MinusOneConstant, NumberConstant(-1.0))
+
+DEFINE_GETTER(NaNConstant,
+              NumberConstant(std::numeric_limits<double>::quiet_NaN()))
+
+DEFINE_GETTER(EmptyStateValues,
+              graph()->NewNode(common()->StateValues(0,
+                                                     SparseInputMask::Dense())))
+
+DEFINE_GETTER(SingleDeadTypedStateValues,
+              graph()->NewNode(common()->TypedStateValues(
+                  new (graph()->zone()->New(sizeof(ZoneVector<MachineType>)))
+                      ZoneVector<MachineType>(0, graph()->zone()),
+                  SparseInputMask(SparseInputMask::kEndMarker << 1))))
+
+#undef DEFINE_GETTER
+#undef GET_CACHED_FIELD
 
 }  // namespace compiler
 }  // namespace internal

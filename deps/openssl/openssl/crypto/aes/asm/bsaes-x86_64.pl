@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 ###################################################################
 ### AES-128 [originally in CTR mode]				###
@@ -38,8 +45,10 @@
 #		Emilia's	this(*)		difference
 #
 # Core 2    	9.30		8.69		+7%
-# Nehalem(**) 	7.63		6.98		+9%
-# Atom	    	17.1		17.4		-2%(***)
+# Nehalem(**) 	7.63		6.88		+11%
+# Atom	    	17.1		16.4		+4%
+# Silvermont	-		12.9
+# Goldmont	-		8.85
 #
 # (*)	Comparison is not completely fair, because "this" is ECB,
 #	i.e. no extra processing such as counter values calculation
@@ -50,14 +59,6 @@
 # (**)	Results were collected on Westmere, which is considered to
 #	be equivalent to Nehalem for this code.
 #
-# (***)	Slowdown on Atom is rather strange per se, because original
-#	implementation has a number of 9+-bytes instructions, which
-#	are bad for Atom front-end, and which I eliminated completely.
-#	In attempt to address deterioration sbox() was tested in FP
-#	SIMD "domain" (movaps instead of movdqa, xorps instead of
-#	pxor, etc.). While it resulted in nominal 4% improvement on
-#	Atom, it hurted Westmere by more than 2x factor.
-#
 # As for key schedule conversion subroutine. Interface to OpenSSL
 # relies on per-invocation on-the-fly conversion. This naturally
 # has impact on performance, especially for short inputs. Conversion
@@ -67,7 +68,7 @@
 # 		conversion	conversion/8x block
 # Core 2	240		0.22
 # Nehalem	180		0.20
-# Atom		430		0.19
+# Atom		430		0.20
 #
 # The ratio values mean that 128-byte blocks will be processed
 # 16-18% slower, 256-byte blocks - 9-10%, 384-byte blocks - 6-7%,
@@ -83,9 +84,11 @@
 # Add decryption procedure. Performance in CPU cycles spent to decrypt
 # one byte out of 4096-byte buffer with 128-bit key is:
 #
-# Core 2	9.83
-# Nehalem	7.74
-# Atom		19.0
+# Core 2	9.98
+# Nehalem	7.80
+# Atom		17.9
+# Silvermont	14.0
+# Goldmont	10.2
 #
 # November 2011.
 #
@@ -105,7 +108,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 my ($inp,$out,$len,$key,$ivp)=("%rdi","%rsi","%rdx","%rcx");
@@ -434,21 +437,21 @@ my $mask=pop;
 $code.=<<___;
 	pxor	0x00($key),@x[0]
 	pxor	0x10($key),@x[1]
-	pshufb	$mask,@x[0]
 	pxor	0x20($key),@x[2]
-	pshufb	$mask,@x[1]
 	pxor	0x30($key),@x[3]
-	pshufb	$mask,@x[2]
+	pshufb	$mask,@x[0]
+	pshufb	$mask,@x[1]
 	pxor	0x40($key),@x[4]
-	pshufb	$mask,@x[3]
 	pxor	0x50($key),@x[5]
-	pshufb	$mask,@x[4]
+	pshufb	$mask,@x[2]
+	pshufb	$mask,@x[3]
 	pxor	0x60($key),@x[6]
-	pshufb	$mask,@x[5]
 	pxor	0x70($key),@x[7]
+	pshufb	$mask,@x[4]
+	pshufb	$mask,@x[5]
 	pshufb	$mask,@x[6]
-	lea	0x80($key),$key
 	pshufb	$mask,@x[7]
+	lea	0x80($key),$key
 ___
 }
 
@@ -820,18 +823,18 @@ _bsaes_encrypt8:
 	movdqa	0x50($const), @XMM[8]	# .LM0SR
 	pxor	@XMM[9], @XMM[0]	# xor with round0 key
 	pxor	@XMM[9], @XMM[1]
-	 pshufb	@XMM[8], @XMM[0]
 	pxor	@XMM[9], @XMM[2]
-	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[3]
-	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[0]
+	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[4]
-	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[5]
-	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[6]
-	 pshufb	@XMM[8], @XMM[5]
 	pxor	@XMM[9], @XMM[7]
+	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[5]
 	 pshufb	@XMM[8], @XMM[6]
 	 pshufb	@XMM[8], @XMM[7]
 _bsaes_encrypt8_bitslice:
@@ -884,18 +887,18 @@ _bsaes_decrypt8:
 	movdqa	-0x30($const), @XMM[8]	# .LM0ISR
 	pxor	@XMM[9], @XMM[0]	# xor with round0 key
 	pxor	@XMM[9], @XMM[1]
-	 pshufb	@XMM[8], @XMM[0]
 	pxor	@XMM[9], @XMM[2]
-	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[3]
-	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[0]
+	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[4]
-	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[5]
-	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[6]
-	 pshufb	@XMM[8], @XMM[5]
 	pxor	@XMM[9], @XMM[7]
+	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[5]
 	 pshufb	@XMM[8], @XMM[6]
 	 pshufb	@XMM[8], @XMM[7]
 ___
@@ -1937,21 +1940,21 @@ $code.=<<___;
 	movdqa	-0x10(%r11), @XMM[8]	# .LSWPUPM0SR
 	pxor	@XMM[9], @XMM[0]	# xor with round0 key
 	pxor	@XMM[9], @XMM[1]
-	 pshufb	@XMM[8], @XMM[0]
 	pxor	@XMM[9], @XMM[2]
-	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[3]
-	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[0]
+	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[4]
-	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[5]
-	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[6]
-	 pshufb	@XMM[8], @XMM[5]
 	pxor	@XMM[9], @XMM[7]
+	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[5]
 	 pshufb	@XMM[8], @XMM[6]
-	lea	.LBS0(%rip), %r11	# constants table
 	 pshufb	@XMM[8], @XMM[7]
+	lea	.LBS0(%rip), %r11	# constants table
 	mov	%ebx,%r10d		# pass rounds
 
 	call	_bsaes_encrypt8_bitslice

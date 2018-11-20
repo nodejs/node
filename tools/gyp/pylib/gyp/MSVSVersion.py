@@ -13,12 +13,16 @@ import gyp
 import glob
 
 
+def JoinPath(*args):
+  return os.path.normpath(os.path.join(*args))
+
+
 class VisualStudioVersion(object):
   """Information regarding a version of Visual Studio."""
 
   def __init__(self, short_name, description,
                solution_version, project_version, flat_sln, uses_vcxproj,
-               path, sdk_based, default_toolset=None):
+               path, sdk_based, default_toolset=None, compatible_sdks=None):
     self.short_name = short_name
     self.description = description
     self.solution_version = solution_version
@@ -28,6 +32,9 @@ class VisualStudioVersion(object):
     self.path = path
     self.sdk_based = sdk_based
     self.default_toolset = default_toolset
+    compatible_sdks = compatible_sdks or []
+    compatible_sdks.sort(key=lambda v: float(v.replace('v', '')), reverse=True)
+    self.compatible_sdks = compatible_sdks
 
   def ShortName(self):
     return self.short_name
@@ -68,42 +75,67 @@ class VisualStudioVersion(object):
     of a user override."""
     return self.default_toolset
 
-  def SetupScript(self, target_arch):
+
+  def _SetupScriptInternal(self, target_arch):
     """Returns a command (with arguments) to be used to set up the
     environment."""
-    # Check if we are running in the SDK command line environment and use
-    # the setup script from the SDK if so. |target_arch| should be either
-    # 'x86' or 'x64'.
-    assert target_arch in ('x86', 'x64')
-    sdk_dir = os.environ.get('WindowsSDKDir')
-    if self.sdk_based and sdk_dir:
-      return [os.path.normpath(os.path.join(sdk_dir, 'Bin/SetEnv.Cmd')),
-              '/' + target_arch]
-    else:
-      # We don't use VC/vcvarsall.bat for x86 because vcvarsall calls
-      # vcvars32, which it can only find if VS??COMNTOOLS is set, which it
-      # isn't always.
-      if target_arch == 'x86':
-        if self.short_name == '2013' and (
-            os.environ.get('PROCESSOR_ARCHITECTURE') == 'AMD64' or
-            os.environ.get('PROCESSOR_ARCHITEW6432') == 'AMD64'):
-          # VS2013 non-Express has a x64-x86 cross that we want to prefer.
-          return [os.path.normpath(
-             os.path.join(self.path, 'VC/vcvarsall.bat')), 'amd64_x86']
-        # Otherwise, the standard x86 compiler.
-        return [os.path.normpath(
-          os.path.join(self.path, 'Common7/Tools/vsvars32.bat'))]
+    assert target_arch in ('x86', 'x64'), "target_arch not supported"
+    # If WindowsSDKDir is set and SetEnv.Cmd exists then we are using the
+    # depot_tools build tools and should run SetEnv.Cmd to set up the
+    # environment. The check for WindowsSDKDir alone is not sufficient because
+    # this is set by running vcvarsall.bat.
+    sdk_dir = os.environ.get('WindowsSDKDir', '')
+    setup_path = JoinPath(sdk_dir, 'Bin', 'SetEnv.Cmd')
+    if self.sdk_based and sdk_dir and os.path.exists(setup_path):
+      return [setup_path, '/' + target_arch]
+
+    is_host_arch_x64 = (
+      os.environ.get('PROCESSOR_ARCHITECTURE') == 'AMD64' or
+      os.environ.get('PROCESSOR_ARCHITEW6432') == 'AMD64'
+    )
+
+    # For VS2017 (and newer) it's fairly easy
+    if self.short_name >= '2017':
+      script_path = JoinPath(self.path,
+                             'VC', 'Auxiliary', 'Build', 'vcvarsall.bat')
+
+      # Always use a native executable, cross-compiling if necessary.
+      host_arch = 'amd64' if is_host_arch_x64 else 'x86'
+      msvc_target_arch = 'amd64' if target_arch == 'x64' else 'x86'
+      arg = host_arch
+      if host_arch != msvc_target_arch:
+        arg += '_' + msvc_target_arch
+
+      return [script_path, arg]
+
+    # We try to find the best version of the env setup batch.
+    vcvarsall = JoinPath(self.path, 'VC', 'vcvarsall.bat')
+    if target_arch == 'x86':
+      if self.short_name >= '2013' and self.short_name[-1] != 'e' and \
+         is_host_arch_x64:
+        # VS2013 and later, non-Express have a x64-x86 cross that we want
+        # to prefer.
+        return [vcvarsall, 'amd64_x86']
       else:
-        assert target_arch == 'x64'
-        arg = 'x86_amd64'
-        # Use the 64-on-64 compiler if we're not using an express
-        # edition and we're running on a 64bit OS.
-        if self.short_name[-1] != 'e' and (
-            os.environ.get('PROCESSOR_ARCHITECTURE') == 'AMD64' or
-            os.environ.get('PROCESSOR_ARCHITEW6432') == 'AMD64'):
-          arg = 'amd64'
-        return [os.path.normpath(
-            os.path.join(self.path, 'VC/vcvarsall.bat')), arg]
+        # Otherwise, the standard x86 compiler. We don't use VC/vcvarsall.bat
+        # for x86 because vcvarsall calls vcvars32, which it can only find if
+        # VS??COMNTOOLS is set, which isn't guaranteed.
+        return [JoinPath(self.path, 'Common7', 'Tools', 'vsvars32.bat')]
+    elif target_arch == 'x64':
+      arg = 'x86_amd64'
+      # Use the 64-on-64 compiler if we're not using an express edition and
+      # we're running on a 64bit OS.
+      if self.short_name[-1] != 'e' and is_host_arch_x64:
+        arg = 'amd64'
+      return [vcvarsall, arg]
+
+  def SetupScript(self, target_arch):
+    script_data = self._SetupScriptInternal(target_arch)
+    script_path = script_data[0]
+    if not os.path.exists(script_path):
+      raise Exception('%s is missing - make sure VC++ tools are installed.' %
+                      script_path)
+    return script_data
 
 
 def _RegistryQueryBase(sysdir, key, value):
@@ -138,7 +170,7 @@ def _RegistryQueryBase(sysdir, key, value):
 
 
 def _RegistryQuery(key, value=None):
-  """Use reg.exe to read a particular key through _RegistryQueryBase.
+  r"""Use reg.exe to read a particular key through _RegistryQueryBase.
 
   First tries to launch from %WinDir%\Sysnative to avoid WoW64 redirection. If
   that fails, it falls back to System32.  Sysnative is available on Vista and
@@ -165,8 +197,33 @@ def _RegistryQuery(key, value=None):
   return text
 
 
+def _RegistryGetValueUsingWinReg(key, value):
+  """Use the _winreg module to obtain the value of a registry key.
+
+  Args:
+    key: The registry key.
+    value: The particular registry value to read.
+  Return:
+    contents of the registry key's value, or None on failure.  Throws
+    ImportError if _winreg is unavailable.
+  """
+  import _winreg
+  try:
+    root, subkey = key.split('\\', 1)
+    assert root == 'HKLM'  # Only need HKLM for now.
+    with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, subkey) as hkey:
+      return _winreg.QueryValueEx(hkey, value)[0]
+  except WindowsError:
+    return None
+
+
 def _RegistryGetValue(key, value):
-  """Use reg.exe to obtain the value of a registry key.
+  """Use _winreg or reg.exe to obtain the value of a registry key.
+
+  Using _winreg is preferable because it solves an issue on some corporate
+  environments where access to reg.exe is locked down. However, we still need
+  to fallback to reg.exe for the case where the _winreg module is not available
+  (for example in cygwin python).
 
   Args:
     key: The registry key.
@@ -174,6 +231,12 @@ def _RegistryGetValue(key, value):
   Return:
     contents of the registry key's value, or None on failure.
   """
+  try:
+    return _RegistryGetValueUsingWinReg(key, value)
+  except ImportError:
+    pass
+
+  # Fallback to reg.exe if we fail to import _winreg.
   text = _RegistryQuery(key, value)
   if not text:
     return None
@@ -182,19 +245,6 @@ def _RegistryGetValue(key, value):
   if not match:
     return None
   return match.group(1)
-
-
-def _RegistryKeyExists(key):
-  """Use reg.exe to see if a key exists.
-
-  Args:
-    key: The registry key to check.
-  Return:
-    True if the key exists
-  """
-  if not _RegistryQuery(key):
-    return False
-  return True
 
 
 def _CreateVersion(name, path, sdk_based=False):
@@ -207,6 +257,25 @@ def _CreateVersion(name, path, sdk_based=False):
   if path:
     path = os.path.normpath(path)
   versions = {
+      '2017': VisualStudioVersion('2017',
+                                  'Visual Studio 2017',
+                                  solution_version='12.00',
+                                  project_version='15.0',
+                                  flat_sln=False,
+                                  uses_vcxproj=True,
+                                  path=path,
+                                  sdk_based=sdk_based,
+                                  default_toolset='v141',
+                                  compatible_sdks=['v8.1', 'v10.0']),
+      '2015': VisualStudioVersion('2015',
+                                  'Visual Studio 2015',
+                                  solution_version='12.00',
+                                  project_version='14.0',
+                                  flat_sln=False,
+                                  uses_vcxproj=True,
+                                  path=path,
+                                  sdk_based=sdk_based,
+                                  default_toolset='v140'),
       '2013': VisualStudioVersion('2013',
                                   'Visual Studio 2013',
                                   solution_version='13.00',
@@ -310,13 +379,14 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
     A list of visual studio versions installed in descending order of
     usage preference.
     Base this on the registry and a quick check if devenv.exe exists.
-    Only versions 8-10 are considered.
     Possibilities are:
       2005(e) - Visual Studio 2005 (8)
       2008(e) - Visual Studio 2008 (9)
       2010(e) - Visual Studio 2010 (10)
       2012(e) - Visual Studio 2012 (11)
-      2013(e) - Visual Studio 2013 (11)
+      2013(e) - Visual Studio 2013 (12)
+      2015    - Visual Studio 2015 (14)
+      2017    - Visual Studio 2017 (15)
     Where (e) is e for express editions of MSVS and blank otherwise.
   """
   version_to_year = {
@@ -325,6 +395,8 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
       '10.0': '2010',
       '11.0': '2012',
       '12.0': '2013',
+      '14.0': '2015',
+      '15.0': '2017'
   }
   versions = []
   for version in versions_to_check:
@@ -355,19 +427,25 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
 
     # The old method above does not work when only SDK is installed.
     keys = [r'HKLM\Software\Microsoft\VisualStudio\SxS\VC7',
-            r'HKLM\Software\Wow6432Node\Microsoft\VisualStudio\SxS\VC7']
+            r'HKLM\Software\Wow6432Node\Microsoft\VisualStudio\SxS\VC7',
+            r'HKLM\Software\Microsoft\VisualStudio\SxS\VS7',
+            r'HKLM\Software\Wow6432Node\Microsoft\VisualStudio\SxS\VS7']
     for index in range(len(keys)):
       path = _RegistryGetValue(keys[index], version)
       if not path:
         continue
       path = _ConvertToCygpath(path)
-      versions.append(_CreateVersion(version_to_year[version] + 'e',
-          os.path.join(path, '..'), sdk_based=True))
+      if version == '15.0':
+          if os.path.exists(path):
+              versions.append(_CreateVersion('2017', path))
+      elif version != '14.0':  # There is no Express edition for 2015.
+        versions.append(_CreateVersion(version_to_year[version] + 'e',
+            os.path.join(path, '..'), sdk_based=True))
 
   return versions
 
 
-def SelectVisualStudioVersion(version='auto'):
+def SelectVisualStudioVersion(version='auto', allow_fallback=True):
   """Select which version of Visual Studio projects to generate.
 
   Arguments:
@@ -379,7 +457,7 @@ def SelectVisualStudioVersion(version='auto'):
   if version == 'auto':
     version = os.environ.get('GYP_MSVS_VERSION', 'auto')
   version_map = {
-    'auto': ('10.0', '12.0', '9.0', '8.0', '11.0'),
+    'auto': ('15.0', '14.0', '12.0', '10.0', '9.0', '8.0', '11.0'),
     '2005': ('8.0',),
     '2005e': ('8.0',),
     '2008': ('9.0',),
@@ -390,6 +468,8 @@ def SelectVisualStudioVersion(version='auto'):
     '2012e': ('11.0',),
     '2013': ('12.0',),
     '2013e': ('12.0',),
+    '2015': ('14.0',),
+    '2017': ('15.0',),
   }
   override_path = os.environ.get('GYP_MSVS_OVERRIDE_PATH')
   if override_path:
@@ -401,6 +481,8 @@ def SelectVisualStudioVersion(version='auto'):
   version = str(version)
   versions = _DetectVisualStudioVersions(version_map[version], 'e' in version)
   if not versions:
+    if not allow_fallback:
+      raise ValueError('Could not locate Visual Studio installation.')
     if version == 'auto':
       # Default to 2005 if we couldn't find anything
       return _CreateVersion('2005', None)

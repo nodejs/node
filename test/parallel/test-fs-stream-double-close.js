@@ -19,17 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const fs = require('fs');
+
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 test1(fs.createReadStream(__filename));
 test2(fs.createReadStream(__filename));
 test3(fs.createReadStream(__filename));
 
-test1(fs.createWriteStream(common.tmpDir + '/dummy1'));
-test2(fs.createWriteStream(common.tmpDir + '/dummy2'));
-test3(fs.createWriteStream(common.tmpDir + '/dummy3'));
+test1(fs.createWriteStream(`${tmpdir.path}/dummy1`));
+test2(fs.createWriteStream(`${tmpdir.path}/dummy2`));
+test3(fs.createWriteStream(`${tmpdir.path}/dummy3`));
 
 function test1(stream) {
   stream.destroy();
@@ -38,24 +41,14 @@ function test1(stream) {
 
 function test2(stream) {
   stream.destroy();
-  stream.on('open', function(fd) {
+  stream.on('open', common.mustCall(function(fd) {
     stream.destroy();
-    open_cb_called++;
-  });
-  process.on('exit', function() {
-    assert.equal(open_cb_called, 1);
-  });
-  var open_cb_called = 0;
+  }));
 }
 
 function test3(stream) {
-  stream.on('open', function(fd) {
+  stream.on('open', common.mustCall(function(fd) {
     stream.destroy();
     stream.destroy();
-    open_cb_called++;
-  });
-  process.on('exit', function() {
-    assert.equal(open_cb_called, 1);
-  });
-  var open_cb_called = 0;
+  }));
 }

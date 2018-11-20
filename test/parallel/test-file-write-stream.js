@@ -19,67 +19,74 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path');
-var fs = require('fs');
-var fn = path.join(common.tmpDir, 'write.txt');
-var file = fs.createWriteStream(fn, {
-      highWaterMark: 10
-    });
+const path = require('path');
+const fs = require('fs');
+const tmpdir = require('../common/tmpdir');
+const fn = path.join(tmpdir.path, 'write.txt');
+tmpdir.refresh();
+const file = fs.createWriteStream(fn, {
+  highWaterMark: 10
+});
 
-var EXPECTED = '012345678910';
+const EXPECTED = '012345678910';
 
-var callbacks = {
-      open: -1,
-      drain: -2,
-      close: -1
-    };
+const callbacks = {
+  open: -1,
+  drain: -2,
+  close: -1
+};
 
 file
   .on('open', function(fd) {
-      console.error('open!');
-      callbacks.open++;
-      assert.equal('number', typeof fd);
-    })
+    console.error('open!');
+    callbacks.open++;
+    assert.strictEqual('number', typeof fd);
+  })
   .on('error', function(err) {
-      throw err;
-      console.error('error!', err.stack);
-    })
+    throw err;
+  })
   .on('drain', function() {
-      console.error('drain!', callbacks.drain);
-      callbacks.drain++;
-      if (callbacks.drain == -1) {
-        assert.equal(EXPECTED, fs.readFileSync(fn, 'utf8'));
-        file.write(EXPECTED);
-      } else if (callbacks.drain == 0) {
-        assert.equal(EXPECTED + EXPECTED, fs.readFileSync(fn, 'utf8'));
-        file.end();
-      }
-    })
+    console.error('drain!', callbacks.drain);
+    callbacks.drain++;
+    if (callbacks.drain === -1) {
+      assert.strictEqual(EXPECTED, fs.readFileSync(fn, 'utf8'));
+      file.write(EXPECTED);
+    } else if (callbacks.drain === 0) {
+      assert.strictEqual(EXPECTED + EXPECTED, fs.readFileSync(fn, 'utf8'));
+      file.end();
+    }
+  })
   .on('close', function() {
-      console.error('close!');
-      assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
+    console.error('close!');
+    assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
-      callbacks.close++;
-      assert.throws(function() {
+    callbacks.close++;
+    common.expectsError(
+      () => {
         console.error('write after end should not be allowed');
         file.write('should not work anymore');
-      });
+      },
+      {
+        code: 'ERR_STREAM_WRITE_AFTER_END',
+        type: Error,
+        message: 'write after end'
+      }
+    );
 
-      fs.unlinkSync(fn);
-    });
+    fs.unlinkSync(fn);
+  });
 
-for (var i = 0; i < 11; i++) {
-  (function(i) {
-    file.write('' + i);
-  })(i);
+for (let i = 0; i < 11; i++) {
+  file.write(`${i}`);
 }
 
 process.on('exit', function() {
-  for (var k in callbacks) {
-    assert.equal(0, callbacks[k], k + ' count off by ' + callbacks[k]);
+  for (const k in callbacks) {
+    assert.strictEqual(0, callbacks[k], `${k} count off by ${callbacks[k]}`);
   }
   console.log('ok');
 });

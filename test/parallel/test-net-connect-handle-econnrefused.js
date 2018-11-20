@@ -19,30 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
-
-
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
-
-
-// Hopefully nothing is running on common.PORT
-var c = net.createConnection(common.PORT);
-
-c.on('connect', function() {
-  console.error('connected?!');
-  assert.ok(false);
-});
-
-var gotError = false;
-c.on('error', function(e) {
-  console.error('couldn\'t connect.');
-  gotError = true;
-  assert.equal('ECONNREFUSED', e.code);
-});
-
-
-process.on('exit', function() {
-  assert.ok(gotError);
-});
+const server = net.createServer();
+server.listen(0);
+const port = server.address().port;
+server.close(common.mustCall(() => {
+  const c = net.createConnection(port);
+  c.on('connect', common.mustNotCall());
+  c.on('error', common.mustCall((e) => {
+    assert.strictEqual('ECONNREFUSED', e.code);
+  }));
+}));

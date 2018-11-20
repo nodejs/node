@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -19,16 +20,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+'use strict';
+require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const { internalBinding } = require('internal/test/binding');
+const { UV_EBADF } = internalBinding('uv');
 
 // ensure that (read|write|append)FileSync() closes the file descriptor
 fs.openSync = function() {
   return 42;
 };
 fs.closeSync = function(fd) {
-  assert.equal(fd, 42);
+  assert.strictEqual(fd, 42);
   close_called++;
 };
 fs.readSync = function() {
@@ -38,32 +42,33 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
-fs.fstatSync = function() {
-  throw new Error('BAM');
+process.binding('fs').fstat = function(fd, bigint, _, ctx) {
+  ctx.errno = UV_EBADF;
+  ctx.syscall = 'fstat';
 };
 
+let close_called = 0;
 ensureThrows(function() {
   fs.readFileSync('dummy');
-});
+}, 'EBADF: bad file descriptor, fstat');
 ensureThrows(function() {
   fs.writeFileSync('dummy', 'xxx');
-});
+}, 'BAM');
 ensureThrows(function() {
   fs.appendFileSync('dummy', 'xxx');
-});
+}, 'BAM');
 
-var close_called = 0;
-function ensureThrows(cb) {
-  var got_exception = false;
+function ensureThrows(cb, message) {
+  let got_exception = false;
 
   close_called = 0;
   try {
     cb();
   } catch (e) {
-    assert.equal(e.message, 'BAM');
+    assert.strictEqual(e.message, message);
     got_exception = true;
   }
 
-  assert.equal(close_called, 1);
-  assert.equal(got_exception, true);
+  assert.strictEqual(close_called, 1);
+  assert.strictEqual(got_exception, true);
 }

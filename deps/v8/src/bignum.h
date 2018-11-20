@@ -5,6 +5,8 @@
 #ifndef V8_BIGNUM_H_
 #define V8_BIGNUM_H_
 
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 
@@ -113,6 +115,7 @@ class Bignum {
   DISALLOW_COPY_AND_ASSIGN(Bignum);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BIGNUM_H_

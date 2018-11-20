@@ -19,8 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var net = require('net');
+'use strict';
+require('../common');
+const net = require('net');
 
-var sock = new net.Socket;
+const sock = new net.Socket();
 sock.end();  // Should not throw.

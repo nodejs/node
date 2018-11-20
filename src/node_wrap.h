@@ -22,20 +22,20 @@
 #ifndef SRC_NODE_WRAP_H_
 #define SRC_NODE_WRAP_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "env.h"
-#include "env-inl.h"
 #include "pipe_wrap.h"
 #include "tcp_wrap.h"
 #include "tty_wrap.h"
-#include "udp_wrap.h"
-#include "util.h"
-#include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
 
 namespace node {
 
-#define WITH_GENERIC_STREAM(env, obj, BODY)                                   \
+// TODO(addaleax): Use real inheritance for the JS object templates to avoid
+// this unnecessary case switching.
+#define WITH_GENERIC_UV_STREAM(env, obj, BODY)                                \
     do {                                                                      \
       if (env->tcp_constructor_template().IsEmpty() == false &&               \
           env->tcp_constructor_template()->HasInstance(obj)) {                \
@@ -56,7 +56,9 @@ inline uv_stream_t* HandleToStream(Environment* env,
                                    v8::Local<v8::Object> obj) {
   v8::HandleScope scope(env->isolate());
 
-  WITH_GENERIC_STREAM(env, obj, {
+  WITH_GENERIC_UV_STREAM(env, obj, {
+    if (wrap == nullptr)
+      return nullptr;
     return reinterpret_cast<uv_stream_t*>(wrap->UVHandle());
   });
 
@@ -64,5 +66,7 @@ inline uv_stream_t* HandleToStream(Environment* env,
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WRAP_H_

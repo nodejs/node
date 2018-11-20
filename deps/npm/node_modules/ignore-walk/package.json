@@ -1,0 +1,71 @@
+{
+  "_from": "ignore-walk@^3.0.1",
+  "_id": "ignore-walk@3.0.1",
+  "_inBundle": false,
+  "_integrity": "sha512-DTVlMx3IYPe0/JJcYP7Gxg7ttZZu3IInhuEhbchuqneY9wWe5Ojy2mXLBaQFUQmo0AW2r3qG7m1mg86js+gnlQ==",
+  "_location": "/ignore-walk",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "ignore-walk@^3.0.1",
+    "name": "ignore-walk",
+    "escapedName": "ignore-walk",
+    "rawSpec": "^3.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^3.0.1"
+  },
+  "_requiredBy": [
+    "/npm-packlist"
+  ],
+  "_resolved": "https://registry.npmjs.org/ignore-walk/-/ignore-walk-3.0.1.tgz",
+  "_shasum": "a83e62e7d272ac0e3b551aaa82831a19b69f82f8",
+  "_spec": "ignore-walk@^3.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/npm-packlist",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/ignore-walk/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "minimatch": "^3.0.4"
+  },
+  "deprecated": false,
+  "description": "Nested/recursive `.gitignore`/`.npmignore` parsing and filtering.",
+  "devDependencies": {
+    "mkdirp": "^0.5.1",
+    "mutate-fs": "^1.1.0",
+    "rimraf": "^2.6.1",
+    "tap": "^10.7.2"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/isaacs/ignore-walk#readme",
+  "keywords": [
+    "ignorefile",
+    "ignore",
+    "file",
+    ".gitignore",
+    ".npmignore",
+    "glob"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "ignore-walk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/ignore-walk.git"
+  },
+  "scripts": {
+    "postpublish": "git push origin --all; git push origin --tags",
+    "postversion": "npm publish",
+    "preversion": "npm test",
+    "test": "tap test/*.js --100"
+  },
+  "version": "3.0.1"
+}

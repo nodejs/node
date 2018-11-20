@@ -19,55 +19,57 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-common.globalCheck = false;
+'use strict';
+const common = require('../common');
+const ArrayStream = require('../common/arraystream');
+const assert = require('assert');
+const repl = require('repl');
+const util = require('util');
 
-var assert = require('assert');
-var repl = require('repl');
-var Stream = require('stream');
+common.allowGlobals(42);
 
-// create a dummy stream that does nothing
-var dummy = new Stream();
-dummy.write = dummy.pause = dummy.resume = function(){};
-dummy.readable = dummy.writable = true;
+// Create a dummy stream that does nothing
+const dummy = new ArrayStream();
 
 function testReset(cb) {
-  var r = repl.start({
+  const r = repl.start({
     input: dummy,
     output: dummy,
     useGlobal: false
   });
   r.context.foo = 42;
-  r.on('reset', function(context) {
+  r.on('reset', common.mustCall(function(context) {
     assert(!!context, 'REPL did not emit a context with reset event');
-    assert.equal(context, r.context, 'REPL emitted incorrect context');
-    assert.equal(context.foo, undefined, 'REPL emitted the previous context, and is not using global as context');
+    assert.strictEqual(context, r.context, 'REPL emitted incorrect context. ' +
+    `context is ${util.inspect(context)}, expected ${util.inspect(r.context)}`);
+    assert.strictEqual(
+      context.foo,
+      undefined,
+      'REPL emitted the previous context and is not using global as context. ' +
+      `context.foo is ${context.foo}, expected undefined.`
+    );
     context.foo = 42;
     cb();
-  });
+  }));
   r.resetContext();
 }
 
-function testResetGlobal(cb) {
-  var r = repl.start({
+function testResetGlobal() {
+  const r = repl.start({
     input: dummy,
     output: dummy,
     useGlobal: true
   });
   r.context.foo = 42;
-  r.on('reset', function(context) {
-    assert.equal(context.foo, 42, '"foo" property is missing from REPL using global as context');
-    cb();
-  });
+  r.on('reset', common.mustCall(function(context) {
+    assert.strictEqual(
+      context.foo,
+      42,
+      '"foo" property is different from REPL using global as context. ' +
+      `context.foo is ${context.foo}, expected 42.`
+    );
+  }));
   r.resetContext();
 }
 
-var timeout = setTimeout(function() {
-  assert.fail('Timeout, REPL did not emit reset events');
-}, 5000);
-
-testReset(function() {
-  testResetGlobal(function() {
-    clearTimeout(timeout);
-  });
-});
+testReset(common.mustCall(testResetGlobal));

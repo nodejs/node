@@ -19,47 +19,63 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const EventEmitter = require('events');
 
-var e = new events.EventEmitter();
-var times_hello_emited = 0;
+const e = new EventEmitter();
 
-e.once('hello', function(a, b) {
-  times_hello_emited++;
-});
+e.once('hello', common.mustCall());
 
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
-var remove = function() {
-  assert.fail(1, 0, 'once->foo should not be emitted', '!');
-};
+function remove() {
+  assert.fail('once->foo should not be emitted');
+}
 
 e.once('foo', remove);
 e.removeListener('foo', remove);
 e.emit('foo');
 
-process.on('exit', function() {
-  assert.equal(1, times_hello_emited);
-});
+e.once('e', common.mustCall(function() {
+  e.emit('e');
+}));
 
-var times_recurse_emitted = 0;
-
-e.once('e', function() {
-	e.emit('e');
-	times_recurse_emitted++;
-});
-
-e.once('e', function() {
-	times_recurse_emitted++;
-});
+e.once('e', common.mustCall());
 
 e.emit('e');
 
-process.on('exit', function() {
-  assert.equal(2, times_recurse_emitted);
+// Verify that the listener must be a function
+common.expectsError(() => {
+  const ee = new EventEmitter();
+  ee.once('foo', null);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "listener" argument must be of type Function. ' +
+           'Received type object'
 });
+
+{
+  // once() has different code paths based on the number of arguments being
+  // emitted. Verify that all of the cases are covered.
+  const maxArgs = 4;
+
+  for (let i = 0; i <= maxArgs; ++i) {
+    const ee = new EventEmitter();
+    const args = ['foo'];
+
+    for (let j = 0; j < i; ++j)
+      args.push(j);
+
+    ee.once('foo', common.mustCall((...params) => {
+      assert.deepStrictEqual(params, args.slice(1));
+    }));
+
+    EventEmitter.prototype.emit.apply(ee, args);
+  }
+}

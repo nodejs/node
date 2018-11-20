@@ -19,20 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common'),
-    assert = require('assert'),
-    Stream = require('stream'),
-    repl = require('repl'),
-    terminalExit = 0,
-    regularExit = 0;
+'use strict';
+require('../common');
+const ArrayStream = require('../common/arraystream');
+const assert = require('assert');
+const repl = require('repl');
+let terminalExit = 0;
+let regularExit = 0;
 
-// create a dummy stream that does nothing
-var stream = new Stream();
-stream.write = stream.pause = stream.resume = function(){};
-stream.readable = stream.writable = true;
+// Create a dummy stream that does nothing
+const stream = new ArrayStream();
 
 function testTerminalMode() {
-  var r1 = repl.start({
+  const r1 = repl.start({
     input: stream,
     output: stream,
     terminal: true
@@ -51,7 +50,7 @@ function testTerminalMode() {
 }
 
 function testRegularMode() {
-  var r2 = repl.start({
+  const r2 = repl.start({
     input: stream,
     output: stream,
     terminal: false
@@ -68,8 +67,8 @@ function testRegularMode() {
 }
 
 process.on('exit', function() {
-  assert.equal(terminalExit, 1);
-  assert.equal(regularExit, 1);
+  assert.strictEqual(terminalExit, 1);
+  assert.strictEqual(regularExit, 1);
 });
 
 

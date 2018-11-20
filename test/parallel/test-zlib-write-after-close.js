@@ -19,22 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common.js');
-var assert = require('assert');
-var zlib = require('zlib');
+'use strict';
+const common = require('../common');
+const zlib = require('zlib');
 
-var closed = false;
-
-zlib.gzip('hello', function(err, out) {
-  var unzip = zlib.createGunzip();
-  unzip.close(function() {
-    closed = true;
-  });
-  assert.throws(function() {
-    unzip.write(out);
-  });
-});
-
-process.on('exit', function() {
-  assert(closed);
-});
+zlib.gzip('hello', common.mustCall(function(err, out) {
+  const unzip = zlib.createGunzip();
+  unzip.close(common.mustCall());
+  common.expectsError(
+    () => unzip.write(out),
+    {
+      code: 'ERR_STREAM_DESTROYED',
+      type: Error,
+      message: 'Cannot call write after a stream was destroyed'
+    }
+  );
+}));

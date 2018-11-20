@@ -19,45 +19,42 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// It is not possible to send pipe handles over the IPC pipe on Windows.
-if (process.platform === 'win32') {
-  process.exit(0);
+'use strict';
+
+const common = require('../common');
+if (common.isWindows) {
+  common.skip(
+    'It is not possible to send pipe handles over the IPC pipe on Windows');
 }
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var http = require('http');
+const assert = require('assert');
+const cluster = require('cluster');
+const http = require('http');
 
 if (cluster.isMaster) {
-  var ok = false;
-  var worker = cluster.fork();
-  worker.on('message', function(msg) {
-    assert.equal(msg, 'DONE');
-    ok = true;
-  });
-  worker.on('exit', function() {
-    process.exit();
-  });
-  process.on('exit', function() {
-    assert(ok);
-  });
+  const tmpdir = require('../common/tmpdir');
+  tmpdir.refresh();
+  const worker = cluster.fork();
+  worker.on('message', common.mustCall((msg) => {
+    assert.strictEqual(msg, 'DONE');
+  }));
+  worker.on('exit', common.mustCall());
   return;
 }
 
-http.createServer(function(req, res) {
-  assert.equal(req.connection.remoteAddress, undefined);
-  assert.equal(req.connection.localAddress, undefined); // TODO common.PIPE?
+http.createServer(common.mustCall((req, res) => {
+  assert.strictEqual(req.connection.remoteAddress, undefined);
+  assert.strictEqual(req.connection.localAddress, undefined);
+
   res.writeHead(200);
   res.end('OK');
-}).listen(common.PIPE, function() {
-  var self = this;
-  http.get({ socketPath: common.PIPE, path: '/' }, function(res) {
+})).listen(common.PIPE, common.mustCall(() => {
+  http.get({ socketPath: common.PIPE, path: '/' }, common.mustCall((res) => {
     res.resume();
-    res.on('end', function(err) {
-      if (err) throw err;
+    res.on('end', common.mustCall((err) => {
+      assert.ifError(err);
       process.send('DONE');
       process.exit();
-    });
-  });
-});
+    }));
+  }));
+}));

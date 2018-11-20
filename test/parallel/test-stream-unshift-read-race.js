@@ -19,8 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 // This test verifies that:
 // 1. unshift() does not cause colliding _read() calls.
@@ -29,20 +30,19 @@ var assert = require('assert');
 // 3. push() after the EOF signaling null is an error.
 // 4. _read() is not called after pushing the EOF null chunk.
 
-var stream = require('stream');
-var hwm = 10;
-var r = stream.Readable({ highWaterMark: hwm });
-var chunks = 10;
-var t = (chunks * 5);
+const stream = require('stream');
+const hwm = 10;
+const r = stream.Readable({ highWaterMark: hwm });
+const chunks = 10;
 
-var data = new Buffer(chunks * hwm + Math.ceil(hwm / 2));
-for (var i = 0; i < data.length; i++) {
-  var c = 'asdf'.charCodeAt(i % 4);
+const data = Buffer.allocUnsafe(chunks * hwm + Math.ceil(hwm / 2));
+for (let i = 0; i < data.length; i++) {
+  const c = 'asdf'.charCodeAt(i % 4);
   data[i] = c;
 }
 
-var pos = 0;
-var pushedNull = false;
+let pos = 0;
+let pushedNull = false;
 r._read = function(n) {
   assert(!pushedNull, '_read after null push');
 
@@ -51,7 +51,7 @@ r._read = function(n) {
 
   function push(fast) {
     assert(!pushedNull, 'push() after null push');
-    var c = pos >= data.length ? null : data.slice(pos, pos + n);
+    const c = pos >= data.length ? null : data.slice(pos, pos + n);
     pushedNull = c === null;
     if (fast) {
       pos += n;
@@ -62,59 +62,62 @@ r._read = function(n) {
         pos += n;
         r.push(c);
         if (c === null) pushError();
-      });
+      }, 1);
     }
   }
 };
 
 function pushError() {
-  assert.throws(function() {
-    r.push(new Buffer(1));
+  common.expectsError(function() {
+    r.push(Buffer.allocUnsafe(1));
+  }, {
+    code: 'ERR_STREAM_PUSH_AFTER_EOF',
+    type: Error,
+    message: 'stream.push() after EOF'
   });
 }
 
 
-var w = stream.Writable();
-var written = [];
+const w = stream.Writable();
+const written = [];
 w._write = function(chunk, encoding, cb) {
   written.push(chunk.toString());
   cb();
 };
 
-var ended = false;
-r.on('end', function() {
-  assert(!ended, 'end emitted more than once');
-  assert.throws(function() {
-    r.unshift(new Buffer(1));
+r.on('end', common.mustCall(function() {
+  common.expectsError(function() {
+    r.unshift(Buffer.allocUnsafe(1));
+  }, {
+    code: 'ERR_STREAM_UNSHIFT_AFTER_END_EVENT',
+    type: Error,
+    message: 'stream.unshift() after end event'
   });
-  ended = true;
   w.end();
-});
+}));
 
 r.on('readable', function() {
-  var chunk;
+  let chunk;
   while (null !== (chunk = r.read(10))) {
     w.write(chunk);
     if (chunk.length > 4)
-      r.unshift(new Buffer('1234'));
+      r.unshift(Buffer.from('1234'));
   }
 });
 
-var finished = false;
-w.on('finish', function() {
-  finished = true;
+w.on('finish', common.mustCall(function() {
   // each chunk should start with 1234, and then be asfdasdfasdf...
   // The first got pulled out before the first unshift('1234'), so it's
   // lacking that piece.
-  assert.equal(written[0], 'asdfasdfas');
-  var asdf = 'd';
-  console.error('0: %s', written[0]);
-  for (var i = 1; i < written.length; i++) {
-    console.error('%s: %s', i.toString(32), written[i]);
-    assert.equal(written[i].slice(0, 4), '1234');
-    for (var j = 4; j < written[i].length; j++) {
-      var c = written[i].charAt(j);
-      assert.equal(c, asdf);
+  assert.strictEqual(written[0], 'asdfasdfas');
+  let asdf = 'd';
+  console.error(`0: ${written[0]}`);
+  for (let i = 1; i < written.length; i++) {
+    console.error(`${i.toString(32)}: ${written[i]}`);
+    assert.strictEqual(written[i].slice(0, 4), '1234');
+    for (let j = 4; j < written[i].length; j++) {
+      const c = written[i].charAt(j);
+      assert.strictEqual(c, asdf);
       switch (asdf) {
         case 'a': asdf = 's'; break;
         case 's': asdf = 'd'; break;
@@ -123,11 +126,9 @@ w.on('finish', function() {
       }
     }
   }
-});
+}));
 
 process.on('exit', function() {
-  assert.equal(written.length, 18);
-  assert(ended, 'stream ended');
-  assert(finished, 'stream finished');
+  assert.strictEqual(written.length, 18);
   console.log('ok');
 });

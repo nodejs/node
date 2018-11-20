@@ -33,19 +33,11 @@
 
 // HHasInstance.
 function f(value) {
-  if (%_IsSpecObject(value)) {
+  if (%_IsJSReceiver(value)) {
     if ((%_IsArray(value))) assertTrue(false);
   }
 }
 f(new String("bar"));
-
-// HClassOf.
-function g(value) {
-  if (%_ClassOf(value) === 'Date') {
-    if (%_ClassOf(value) === 'String') assertTrue(false);
-  }
-}
-g(new Date());
 
 // HIsNull.
 function h(value) {

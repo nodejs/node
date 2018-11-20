@@ -1,0 +1,78 @@
+{
+  "_args": [
+    [
+      "qrcode-terminal@0.12.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "qrcode-terminal@0.12.0",
+  "_id": "qrcode-terminal@0.12.0",
+  "_inBundle": false,
+  "_integrity": "sha512-EXtzRZmC+YGmGlDFbXKxQiMZNwCLEO6BANKXG4iCtSIM0yqc/pappSx3RIKr4r0uh5JsBckOXeKrB3Iz7mdQpQ==",
+  "_location": "/qrcode-terminal",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "qrcode-terminal@0.12.0",
+    "name": "qrcode-terminal",
+    "escapedName": "qrcode-terminal",
+    "rawSpec": "0.12.0",
+    "saveSpec": null,
+    "fetchSpec": "0.12.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/qrcode-terminal/-/qrcode-terminal-0.12.0.tgz",
+  "_spec": "0.12.0",
+  "_where": "/Users/rebecca/code/npm",
+  "bin": {
+    "qrcode-terminal": "./bin/qrcode-terminal.js"
+  },
+  "bugs": {
+    "url": "https://github.com/gtanner/qrcode-terminal/issues"
+  },
+  "contributors": [
+    {
+      "name": "Gord Tanner",
+      "email": "gtanner@gmail.com",
+      "url": "http://github.com/gtanner"
+    },
+    {
+      "name": "Michael Brooks",
+      "email": "mikeywbrooks@gmail.com",
+      "url": "http://github.com/mwbrooks"
+    }
+  ],
+  "description": "QRCodes, in the terminal",
+  "devDependencies": {
+    "expect.js": "*",
+    "jshint": "*",
+    "mocha": "*",
+    "sinon": "*"
+  },
+  "homepage": "https://github.com/gtanner/qrcode-terminal",
+  "keywords": [
+    "ansi",
+    "ascii",
+    "qrcode",
+    "console"
+  ],
+  "licenses": [
+    {
+      "type": "Apache 2.0"
+    }
+  ],
+  "main": "./lib/main",
+  "name": "qrcode-terminal",
+  "preferGlobal": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gtanner/qrcode-terminal.git"
+  },
+  "scripts": {
+    "test": "./node_modules/jshint/bin/jshint lib vendor && node example/basic.js && ./node_modules/mocha/bin/mocha -R nyan"
+  },
+  "version": "0.12.0"
+}

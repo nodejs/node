@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose_gc
+// Flags: --expose-gc
 
 // This test makes sure that we do flush code with heap allocated locals.
 // This can be a problem if eval is used within the scope.

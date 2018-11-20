@@ -5,6 +5,203 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.0h and OpenSSL 1.1.0i [14 Aug 2018]
+
+      o Client DoS due to large DH parameter (CVE-2018-0732)
+      o Cache timing vulnerability in RSA Key Generation (CVE-2018-0737)
+
+  Major changes between OpenSSL 1.1.0g and OpenSSL 1.1.0h [27 Mar 2018]
+
+      o Constructed ASN.1 types with a recursive definition could exceed the
+        stack (CVE-2018-0739)
+      o Incorrect CRYPTO_memcmp on HP-UX PA-RISC (CVE-2018-0733)
+      o rsaz_1024_mul_avx2 overflow bug on x86_64 (CVE-2017-3738)
+
+  Major changes between OpenSSL 1.1.0f and OpenSSL 1.1.0g [2 Nov 2017]
+
+      o bn_sqrx8x_internal carry bug on x86_64 (CVE-2017-3736)
+      o Malformed X.509 IPAddressFamily could cause OOB read (CVE-2017-3735)
+
+  Major changes between OpenSSL 1.1.0e and OpenSSL 1.1.0f [25 May 2017]
+
+      o config now recognises 64-bit mingw and chooses mingw64 instead of mingw
+
+  Major changes between OpenSSL 1.1.0d and OpenSSL 1.1.0e [16 Feb 2017]
+
+      o Encrypt-Then-Mac renegotiation crash (CVE-2017-3733)
+
+  Major changes between OpenSSL 1.1.0c and OpenSSL 1.1.0d [26 Jan 2017]
+
+      o Truncated packet could crash via OOB read (CVE-2017-3731)
+      o Bad (EC)DHE parameters cause a client crash (CVE-2017-3730)
+      o BN_mod_exp may produce incorrect results on x86_64 (CVE-2017-3732)
+
+  Major changes between OpenSSL 1.1.0b and OpenSSL 1.1.0c [10 Nov 2016]
+
+      o ChaCha20/Poly1305 heap-buffer-overflow (CVE-2016-7054)
+      o CMS Null dereference (CVE-2016-7053)
+      o Montgomery multiplication may produce incorrect results (CVE-2016-7055)
+
+  Major changes between OpenSSL 1.1.0a and OpenSSL 1.1.0b [26 Sep 2016]
+
+      o Fix Use After Free for large message sizes (CVE-2016-6309)
+
+  Major changes between OpenSSL 1.1.0 and OpenSSL 1.1.0a [22 Sep 2016]
+
+      o OCSP Status Request extension unbounded memory growth (CVE-2016-6304)
+      o SSL_peek() hang on empty record (CVE-2016-6305)
+      o Excessive allocation of memory in tls_get_message_header()
+       (CVE-2016-6307)
+      o Excessive allocation of memory in dtls1_preprocess_fragment()
+       (CVE-2016-6308)
+
+  Major changes between OpenSSL 1.0.2h and OpenSSL 1.1.0 [25 Aug 2016]
+
+      o Copyright text was shrunk to a boilerplate that points to the license
+      o "shared" builds are now the default when possible
+      o Added support for "pipelining"
+      o Added the AFALG engine
+      o New threading API implemented
+      o Support for ChaCha20 and Poly1305 added to libcrypto and libssl
+      o Support for extended master secret
+      o CCM ciphersuites
+      o Reworked test suite, now based on perl, Test::Harness and Test::More
+      o *Most* libcrypto and libssl public structures were made opaque,
+        including:
+        BIGNUM and associated types, EC_KEY and EC_KEY_METHOD,
+        DH and DH_METHOD, DSA and DSA_METHOD, RSA and RSA_METHOD,
+        BIO and BIO_METHOD, EVP_MD_CTX, EVP_MD, EVP_CIPHER_CTX,
+        EVP_CIPHER, EVP_PKEY and associated types, HMAC_CTX,
+        X509, X509_CRL, X509_OBJECT, X509_STORE_CTX, X509_STORE,
+        X509_LOOKUP, X509_LOOKUP_METHOD
+      o libssl internal structures made opaque
+      o SSLv2 support removed
+      o Kerberos ciphersuite support removed
+      o RC4 removed from DEFAULT ciphersuites in libssl
+      o 40 and 56 bit cipher support removed from libssl
+      o All public header files moved to include/openssl, no more symlinking
+      o SSL/TLS state machine, version negotiation and record layer rewritten
+      o EC revision: now operations use new EC_KEY_METHOD.
+      o Support for OCB mode added to libcrypto
+      o Support for asynchronous crypto operations added to libcrypto and libssl
+      o Deprecated interfaces can now be disabled at build time either
+        relative to the latest release via the "no-deprecated" Configure
+        argument, or via the "--api=1.1.0|1.0.0|0.9.8" option.
+      o Application software can be compiled with -DOPENSSL_API_COMPAT=version
+        to ensure that features deprecated in that version are not exposed.
+      o Support for RFC6698/RFC7671 DANE TLSA peer authentication
+      o Change of Configure to use --prefix as the main installation
+        directory location rather than --openssldir.  The latter becomes
+        the directory for certs, private key and openssl.cnf exclusively.
+      o Reworked BIO networking library, with full support for IPv6.
+      o New "unified" build system
+      o New security levels
+      o Support for scrypt algorithm
+      o Support for X25519
+      o Extended SSL_CONF support using configuration files
+      o KDF algorithm support. Implement TLS PRF as a KDF.
+      o Support for Certificate Transparency
+      o HKDF support.
+
+  Major changes between OpenSSL 1.0.2g and OpenSSL 1.0.2h [3 May 2016]
+
+      o Prevent padding oracle in AES-NI CBC MAC check (CVE-2016-2107)
+      o Fix EVP_EncodeUpdate overflow (CVE-2016-2105)
+      o Fix EVP_EncryptUpdate overflow (CVE-2016-2106)
+      o Prevent ASN.1 BIO excessive memory allocation (CVE-2016-2109)
+      o EBCDIC overread (CVE-2016-2176)
+      o Modify behavior of ALPN to invoke callback after SNI/servername
+        callback, such that updates to the SSL_CTX affect ALPN.
+      o Remove LOW from the DEFAULT cipher list.  This removes singles DES from
+        the default.
+      o Only remove the SSLv2 methods with the no-ssl2-method option.
+
+  Major changes between OpenSSL 1.0.2f and OpenSSL 1.0.2g [1 Mar 2016]
+
+      o Disable weak ciphers in SSLv3 and up in default builds of OpenSSL.
+      o Disable SSLv2 default build, default negotiation and weak ciphers
+        (CVE-2016-0800)
+      o Fix a double-free in DSA code (CVE-2016-0705)
+      o Disable SRP fake user seed to address a server memory leak
+        (CVE-2016-0798)
+      o Fix BN_hex2bn/BN_dec2bn NULL pointer deref/heap corruption
+        (CVE-2016-0797)
+      o Fix memory issues in BIO_*printf functions (CVE-2016-0799)
+      o Fix side channel attack on modular exponentiation (CVE-2016-0702)
+
+  Major changes between OpenSSL 1.0.2e and OpenSSL 1.0.2f [28 Jan 2016]
+
+      o DH small subgroups (CVE-2016-0701)
+      o SSLv2 doesn't block disabled ciphers (CVE-2015-3197)
+
+  Major changes between OpenSSL 1.0.2d and OpenSSL 1.0.2e [3 Dec 2015]
+
+      o BN_mod_exp may produce incorrect results on x86_64 (CVE-2015-3193)
+      o Certificate verify crash with missing PSS parameter (CVE-2015-3194)
+      o X509_ATTRIBUTE memory leak (CVE-2015-3195)
+      o Rewrite EVP_DecodeUpdate (base64 decoding) to fix several bugs
+      o In DSA_generate_parameters_ex, if the provided seed is too short,
+        return an error
+
+  Major changes between OpenSSL 1.0.2c and OpenSSL 1.0.2d [9 Jul 2015]
+
+      o Alternate chains certificate forgery (CVE-2015-1793)
+      o Race condition handling PSK identify hint (CVE-2015-3196)
+
+  Major changes between OpenSSL 1.0.2b and OpenSSL 1.0.2c [12 Jun 2015]
+
+      o Fix HMAC ABI incompatibility
+
+  Major changes between OpenSSL 1.0.2a and OpenSSL 1.0.2b [11 Jun 2015]
+
+      o Malformed ECParameters causes infinite loop (CVE-2015-1788)
+      o Exploitable out-of-bounds read in X509_cmp_time (CVE-2015-1789)
+      o PKCS7 crash with missing EnvelopedContent (CVE-2015-1790)
+      o CMS verify infinite loop with unknown hash function (CVE-2015-1792)
+      o Race condition handling NewSessionTicket (CVE-2015-1791)
+
+  Major changes between OpenSSL 1.0.2 and OpenSSL 1.0.2a [19 Mar 2015]
+
+      o OpenSSL 1.0.2 ClientHello sigalgs DoS fix (CVE-2015-0291)
+      o Multiblock corrupted pointer fix (CVE-2015-0290)
+      o Segmentation fault in DTLSv1_listen fix (CVE-2015-0207)
+      o Segmentation fault in ASN1_TYPE_cmp fix (CVE-2015-0286)
+      o Segmentation fault for invalid PSS parameters fix (CVE-2015-0208)
+      o ASN.1 structure reuse memory corruption fix (CVE-2015-0287)
+      o PKCS7 NULL pointer dereferences fix (CVE-2015-0289)
+      o DoS via reachable assert in SSLv2 servers fix (CVE-2015-0293)
+      o Empty CKE with client auth and DHE fix (CVE-2015-1787)
+      o Handshake with unseeded PRNG fix (CVE-2015-0285)
+      o Use After Free following d2i_ECPrivatekey error fix (CVE-2015-0209)
+      o X509_to_X509_REQ NULL pointer deref fix (CVE-2015-0288)
+      o Removed the export ciphers from the DEFAULT ciphers
+
+  Major changes between OpenSSL 1.0.1l and OpenSSL 1.0.2 [22 Jan 2015]:
+
+      o Suite B support for TLS 1.2 and DTLS 1.2
+      o Support for DTLS 1.2
+      o TLS automatic EC curve selection.
+      o API to set TLS supported signature algorithms and curves
+      o SSL_CONF configuration API.
+      o TLS Brainpool support.
+      o ALPN support.
+      o CMS support for RSA-PSS, RSA-OAEP, ECDH and X9.42 DH.
+
+  Major changes between OpenSSL 1.0.1k and OpenSSL 1.0.1l [15 Jan 2015]
+
+      o Build fixes for the Windows and OpenVMS platforms
+
+  Major changes between OpenSSL 1.0.1j and OpenSSL 1.0.1k [8 Jan 2015]
+
+      o Fix for CVE-2014-3571
+      o Fix for CVE-2015-0206
+      o Fix for CVE-2014-3569
+      o Fix for CVE-2014-3572
+      o Fix for CVE-2015-0204
+      o Fix for CVE-2015-0205
+      o Fix for CVE-2014-8275
+      o Fix for CVE-2014-3570
+
   Major changes between OpenSSL 1.0.1i and OpenSSL 1.0.1j [15 Oct 2014]
 
       o Fix for CVE-2014-3513
@@ -88,19 +285,6 @@
       o Preliminary FIPS capability for unvalidated 2.0 FIPS module.
       o SRP support.
 
-  Major changes between OpenSSL 1.0.0j and OpenSSL 1.0.0k [5 Feb 2013]:
-
-      o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
-      o Fix OCSP bad key DoS attack CVE-2013-0166
-
-  Major changes between OpenSSL 1.0.0i and OpenSSL 1.0.0j [10 May 2012]:
-
-      o Fix DTLS record length checking bug CVE-2012-2333
-
-  Major changes between OpenSSL 1.0.0h and OpenSSL 1.0.0i [19 Apr 2012]:
-
-      o Fix for ASN1 overflow bug CVE-2012-2110
-
   Major changes between OpenSSL 1.0.0g and OpenSSL 1.0.0h [12 Mar 2012]:
 
       o Fix for CMS/PKCS#7 MMA CVE-2012-0884
@@ -173,62 +357,6 @@
       o Opaque PRF Input TLS extension support.
       o Updated time routines to avoid OS limitations.
 
-  Major changes between OpenSSL 0.9.8x and OpenSSL 0.9.8y [5 Feb 2013]:
-
-      o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
-      o Fix OCSP bad key DoS attack CVE-2013-0166
-
-  Major changes between OpenSSL 0.9.8w and OpenSSL 0.9.8x [10 May 2012]:
-
-      o Fix DTLS record length checking bug CVE-2012-2333
-
-  Major changes between OpenSSL 0.9.8v and OpenSSL 0.9.8w [23 Apr 2012]:
-
-      o Fix for CVE-2012-2131 (corrected fix for 0.9.8 and CVE-2012-2110)
-
-  Major changes between OpenSSL 0.9.8u and OpenSSL 0.9.8v [19 Apr 2012]:
-
-      o Fix for ASN1 overflow bug CVE-2012-2110
-
-  Major changes between OpenSSL 0.9.8t and OpenSSL 0.9.8u [12 Mar 2012]:
-
-      o Fix for CMS/PKCS#7 MMA CVE-2012-0884
-      o Corrected fix for CVE-2011-4619
-      o Various DTLS fixes.
-
-  Major changes between OpenSSL 0.9.8s and OpenSSL 0.9.8t [18 Jan 2012]:
-
-      o Fix for DTLS DoS issue CVE-2012-0050
-
-  Major changes between OpenSSL 0.9.8r and OpenSSL 0.9.8s [4 Jan 2012]:
-
-      o Fix for DTLS plaintext recovery attack CVE-2011-4108
-      o Fix policy check double free error CVE-2011-4109
-      o Clear block padding bytes of SSL 3.0 records CVE-2011-4576
-      o Only allow one SGC handshake restart for SSL/TLS CVE-2011-4619
-      o Check for malformed RFC3779 data CVE-2011-4577
-
-  Major changes between OpenSSL 0.9.8q and OpenSSL 0.9.8r [8 Feb 2011]:
-
-      o Fix for security issue CVE-2011-0014
-
-  Major changes between OpenSSL 0.9.8p and OpenSSL 0.9.8q [2 Dec 2010]:
-
-      o Fix for security issue CVE-2010-4180
-      o Fix for CVE-2010-4252
-
-  Major changes between OpenSSL 0.9.8o and OpenSSL 0.9.8p [16 Nov 2010]:
-
-      o Fix for security issue CVE-2010-3864.
-
-  Major changes between OpenSSL 0.9.8n and OpenSSL 0.9.8o [1 Jun 2010]:
-
-      o Fix for security issue CVE-2010-0742.
-      o Various DTLS fixes.
-      o Recognise SHA2 certificates if only SSL algorithms added.
-      o Fix for no-rc4 compilation.
-      o Chil ENGINE unload workaround.
-
   Major changes between OpenSSL 0.9.8m and OpenSSL 0.9.8n [24 Mar 2010]:
 
       o CFB cipher definition fixes.
@@ -275,7 +403,7 @@
   Major changes between OpenSSL 0.9.8e and OpenSSL 0.9.8f [11 Oct 2007]:
 
       o Add gcc 4.2 support.
-      o Add support for AES and SSE2 assembly lanugauge optimization
+      o Add support for AES and SSE2 assembly language optimization
         for VC++ build.
       o Support for RFC4507bis and server name extensions if explicitly 
         selected at compile time.
@@ -358,8 +486,8 @@
       o New STORE structure and library to provide an interface to all
         sorts of data repositories.  Supports storage of public and
         private keys, certificates, CRLs, numbers and arbitrary blobs.
-	This library is unfortunately unfinished and unused withing
-	OpenSSL.
+        This library is unfortunately unfinished and unused within
+        OpenSSL.
       o New control functions for the error stack.
       o Changed the PKCS#7 library to support one-pass S/MIME
         processing.
@@ -375,7 +503,7 @@
       o Major overhaul of RC4 performance on Intel P4, IA-64 and
         AMD64.
       o Changed the Configure script to have some algorithms disabled
-        by default.  Those can be explicitely enabled with the new
+        by default.  Those can be explicitly enabled with the new
         argument form 'enable-xxx'.
       o Change the default digest in 'openssl' commands from MD5 to
         SHA-1.

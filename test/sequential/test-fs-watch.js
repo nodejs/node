@@ -19,134 +19,110 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
 
-var expectFilePath = process.platform === 'win32' ||
-                     process.platform === 'linux' ||
-                     process.platform === 'darwin';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
-var watchSeenOne = 0;
-var watchSeenTwo = 0;
-var watchSeenThree = 0;
+const tmpdir = require('../common/tmpdir');
 
-var testDir = common.tmpDir;
+if (!common.isMainThread)
+  common.skip('process.chdir is not available in Workers');
 
-var filenameOne = 'watch.txt';
-var filepathOne = path.join(testDir, filenameOne);
+const expectFilePath = common.isWindows ||
+                       common.isLinux ||
+                       common.isOSX ||
+                       common.isAIX;
 
-var filenameTwo = 'hasOwnProperty';
-var filepathTwo = filenameTwo;
-var filepathTwoAbs = path.join(testDir, filenameTwo);
+const testDir = tmpdir.path;
 
-var filenameThree = 'newfile.txt';
-var testsubdir = path.join(testDir, 'testsubdir');
-var filepathThree = path.join(testsubdir, filenameThree);
+tmpdir.refresh();
 
+{
+  const filepath = path.join(testDir, 'watch.txt');
 
-process.on('exit', function() {
-  assert.ok(watchSeenOne > 0);
-  assert.ok(watchSeenTwo > 0);
-  assert.ok(watchSeenThree > 0);
-});
+  fs.writeFileSync(filepath, 'hello');
 
-// Clean up stale files (if any) from previous run.
-try { fs.unlinkSync(filepathOne); } catch (e) { }
-try { fs.unlinkSync(filepathTwoAbs); } catch (e) { }
-try { fs.unlinkSync(filepathThree); } catch (e) { }
-try { fs.rmdirSync(testsubdir); } catch (e) { }
+  const watcher = fs.watch(filepath);
+  watcher.on('change', common.mustCall(function(event, filename) {
+    assert.strictEqual(event, 'change');
 
-fs.writeFileSync(filepathOne, 'hello');
-
-assert.doesNotThrow(
-    function() {
-      var watcher = fs.watch(filepathOne)
-      watcher.on('change', function(event, filename) {
-        assert.equal('change', event);
-
-        if (expectFilePath) {
-          assert.equal('watch.txt', filename);
-        }
-        watcher.close();
-        ++watchSeenOne;
-      });
+    if (expectFilePath) {
+      assert.strictEqual(filename, 'watch.txt');
     }
-);
+    watcher.close();
+  }));
 
-setTimeout(function() {
-  fs.writeFileSync(filepathOne, 'world');
-}, 10);
+  setImmediate(function() {
+    fs.writeFileSync(filepath, 'world');
+  });
+}
 
+{
+  const filepathAbs = path.join(testDir, 'hasOwnProperty');
 
-process.chdir(testDir);
+  process.chdir(testDir);
 
-fs.writeFileSync(filepathTwoAbs, 'howdy');
+  fs.writeFileSync(filepathAbs, 'howdy');
 
-assert.doesNotThrow(
-    function() {
-      var watcher = fs.watch(filepathTwo, function(event, filename) {
-        assert.equal('change', event);
+  const watcher =
+    fs.watch('hasOwnProperty', common.mustCall(function(event, filename) {
+      assert.strictEqual(event, 'change');
 
-        if (expectFilePath) {
-          assert.equal('hasOwnProperty', filename);
-        }
-        watcher.close();
-        ++watchSeenTwo;
-      });
-    }
-);
+      if (expectFilePath) {
+        assert.strictEqual(filename, 'hasOwnProperty');
+      }
+      watcher.close();
+    }));
 
-setTimeout(function() {
-  fs.writeFileSync(filepathTwoAbs, 'pardner');
-}, 10);
+  setImmediate(function() {
+    fs.writeFileSync(filepathAbs, 'pardner');
+  });
+}
 
-try { fs.unlinkSync(filepathThree); } catch (e) {}
-try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
+{
+  const testsubdir = fs.mkdtempSync(testDir + path.sep);
+  const filepath = path.join(testsubdir, 'newfile.txt');
 
-assert.doesNotThrow(
-    function() {
-      var watcher = fs.watch(testsubdir, function(event, filename) {
-        var renameEv = process.platform === 'sunos' ? 'change' : 'rename';
-        assert.equal(renameEv, event);
-        if (expectFilePath) {
-          assert.equal('newfile.txt', filename);
-        } else {
-          assert.equal(null, filename);
-        }
-        watcher.close();
-        ++watchSeenThree;
-      });
-    }
-);
+  const watcher =
+    fs.watch(testsubdir, common.mustCall(function(event, filename) {
+      const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
+      assert.strictEqual(event, renameEv);
+      if (expectFilePath) {
+        assert.strictEqual(filename, 'newfile.txt');
+      } else {
+        assert.strictEqual(filename, null);
+      }
+      watcher.close();
+    }));
 
-setTimeout(function() {
-  var fd = fs.openSync(filepathThree, 'w');
-  fs.closeSync(fd);
-}, 10);
+  setImmediate(function() {
+    const fd = fs.openSync(filepath, 'w');
+    fs.closeSync(fd);
+  });
+
+}
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
-fs.watch(__filename, {persistent: false}, function() {
-  assert(0);
-});
+{
+  fs.watch(__filename, { persistent: false }, common.mustNotCall());
+}
 
 // whitebox test to ensure that wrapped FSEvent is safe
 // https://github.com/joyent/node/issues/6690
-var oldhandle;
-assert.throws(function() {
-  var w = fs.watch(__filename, function(event, filename) { });
-  oldhandle = w._handle;
-  w._handle = { close: w._handle.close };
-  w.close();
-}, TypeError);
-oldhandle.close(); // clean up
-
-assert.throws(function() {
-  var w = fs.watchFile(__filename, {persistent:false}, function(){});
-  oldhandle = w._handle;
-  w._handle = { stop: w._handle.stop };
-  w.stop();
-}, TypeError);
-oldhandle.stop(); // clean up
+{
+  let oldhandle;
+  assert.throws(() => {
+    const w = fs.watch(__filename, common.mustNotCall());
+    oldhandle = w._handle;
+    w._handle = { close: w._handle.close };
+    w.close();
+  }, {
+    message: 'handle must be a FSEvent',
+    code: 'ERR_ASSERTION'
+  });
+  oldhandle.close(); // clean up
+}

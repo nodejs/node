@@ -1,0 +1,20 @@
+# Copyright 2017 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/toolchain/toolchain.gni")
+
+static_library("v8_vtune") {
+  sources = [
+    "ittnotify_config.h",
+    "ittnotify_types.h",
+    "jitprofiling.cc",
+    "jitprofiling.h",
+    "v8-vtune.h",
+    "vtune-jit.cc",
+    "vtune-jit.h",
+  ]
+  deps = [
+    "../../..:v8",
+  ]
+}

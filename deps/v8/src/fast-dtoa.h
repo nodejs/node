@@ -5,6 +5,8 @@
 #ifndef V8_FAST_DTOA_H_
 #define V8_FAST_DTOA_H_
 
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 
@@ -55,6 +57,7 @@ bool FastDtoa(double d,
               int* length,
               int* decimal_point);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FAST_DTOA_H_

@@ -8,8 +8,11 @@
 namespace v8 {
 
 
-void Shell::AddOSMethods(Isolate* isolate, Handle<ObjectTemplate> os_templ) {
-}
+void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {}
 
+char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
+  // TODO(leszeks): No reason this shouldn't exist on windows.
+  return nullptr;
+}
 
 }  // namespace v8

@@ -19,50 +19,79 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const EventEmitter = require('events');
 
-var e = new events.EventEmitter();
+{
+  const ee = new EventEmitter();
+  const events_new_listener_emitted = [];
+  const listeners_new_listener_emitted = [];
 
-var events_new_listener_emited = [];
-var listeners_new_listener_emited = [];
-var times_hello_emited = 0;
+  // Sanity check
+  assert.strictEqual(ee.addListener, ee.on);
 
-// sanity check
-assert.equal(e.addListener, e.on);
+  ee.on('newListener', function(event, listener) {
+    // Don't track newListener listeners.
+    if (event === 'newListener')
+      return;
 
-e.on('newListener', function(event, listener) {
-  console.log('newListener: ' + event);
-  events_new_listener_emited.push(event);
-  listeners_new_listener_emited.push(listener);
-});
+    events_new_listener_emitted.push(event);
+    listeners_new_listener_emitted.push(listener);
+  });
 
-function hello(a, b) {
-  console.log('hello');
-  times_hello_emited += 1;
-  assert.equal('a', a);
-  assert.equal('b', b);
+  const hello = common.mustCall(function(a, b) {
+    assert.strictEqual('a', a);
+    assert.strictEqual('b', b);
+  });
+
+  ee.once('newListener', function(name, listener) {
+    assert.strictEqual(name, 'hello');
+    assert.strictEqual(listener, hello);
+    assert.deepStrictEqual(this.listeners('hello'), []);
+  });
+
+  ee.on('hello', hello);
+  ee.once('foo', assert.fail);
+  assert.deepStrictEqual(['hello', 'foo'], events_new_listener_emitted);
+  assert.deepStrictEqual([hello, assert.fail], listeners_new_listener_emitted);
+
+  ee.emit('hello', 'a', 'b');
 }
-e.on('hello', hello);
-
-var foo = function() {};
-e.once('foo', foo);
-
-console.log('start');
-
-e.emit('hello', 'a', 'b');
-
 
 // just make sure that this doesn't throw:
-var f = new events.EventEmitter();
-f.setMaxListeners(0);
+{
+  const f = new EventEmitter();
 
+  f.setMaxListeners(0);
+}
 
-process.on('exit', function() {
-  assert.deepEqual(['hello', 'foo'], events_new_listener_emited);
-  assert.deepEqual([hello, foo], listeners_new_listener_emited);
-  assert.equal(1, times_hello_emited);
+{
+  const listen1 = () => {};
+  const listen2 = () => {};
+  const ee = new EventEmitter();
+
+  ee.once('newListener', function() {
+    assert.deepStrictEqual(ee.listeners('hello'), []);
+    ee.once('newListener', function() {
+      assert.deepStrictEqual(ee.listeners('hello'), []);
+    });
+    ee.on('hello', listen2);
+  });
+  ee.on('hello', listen1);
+  // The order of listeners on an event is not always the order in which the
+  // listeners were added.
+  assert.deepStrictEqual(ee.listeners('hello'), [listen2, listen1]);
+}
+
+// Verify that the listener must be a function
+common.expectsError(() => {
+  const ee = new EventEmitter();
+  ee.on('foo', null);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "listener" argument must be of type Function. ' +
+           'Received type object'
 });
-
-

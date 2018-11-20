@@ -1,0 +1,2 @@
+Tests that stepping does not ignore injected script when passed a flag
+InjectedSciptSource on stack.

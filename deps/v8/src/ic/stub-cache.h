@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STUB_CACHE_H_
-#define V8_STUB_CACHE_H_
+#ifndef V8_IC_STUB_CACHE_H_
+#define V8_IC_STUB_CACHE_H_
 
 #include "src/macro-assembler.h"
+#include "src/objects/name.h"
 
 namespace v8 {
 namespace internal {
-
 
 // The stub cache is used for megamorphic property accesses.
 // It maps (map, name, type) to property access handlers. The cache does not
@@ -34,28 +34,16 @@ class StubCache {
  public:
   struct Entry {
     Name* key;
-    Code* value;
+    MaybeObject* value;
     Map* map;
   };
 
   void Initialize();
   // Access cache for entry hash(name, map).
-  Code* Set(Name* name, Map* map, Code* code);
-  Code* Get(Name* name, Map* map, Code::Flags flags);
+  MaybeObject* Set(Name* name, Map* map, MaybeObject* handler);
+  MaybeObject* Get(Name* name, Map* map);
   // Clear the lookup table (@ mark compact collection).
   void Clear();
-  // Collect all maps that match the name and flags.
-  void CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
-                           Code::Flags flags, Handle<Context> native_context,
-                           Zone* zone);
-  // Generate code for probing the stub cache table.
-  // Arguments extra, extra2 and extra3 may be used to pass additional scratch
-  // registers. Set to no_reg if not needed.
-  // If leave_frame is true, then exit a frame before the tail call.
-  void GenerateProbe(MacroAssembler* masm, Code::Flags flags, bool leave_frame,
-                     Register receiver, Register name, Register scratch,
-                     Register extra, Register extra2 = no_reg,
-                     Register extra3 = no_reg);
 
   enum Table { kPrimary, kSecondary };
 
@@ -82,7 +70,6 @@ class StubCache {
         return StubCache::secondary_;
     }
     UNREACHABLE();
-    return NULL;
   }
 
   Isolate* isolate() { return isolate_; }
@@ -92,9 +79,26 @@ class StubCache {
   // automatically discards the hash bit field.
   static const int kCacheIndexShift = Name::kHashShift;
 
- private:
+  static const int kPrimaryTableBits = 11;
+  static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
+  static const int kSecondaryTableBits = 9;
+  static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
+
+  // Some magic number used in the secondary hash computation.
+  static const int kSecondaryMagic = 0xb16ca6e5;
+
+  static int PrimaryOffsetForTesting(Name* name, Map* map) {
+    return PrimaryOffset(name, map);
+  }
+
+  static int SecondaryOffsetForTesting(Name* name, int seed) {
+    return SecondaryOffset(name, seed);
+  }
+
+  // The constructor is made public only for the purposes of testing.
   explicit StubCache(Isolate* isolate);
 
+ private:
   // The stub cache has a primary and secondary level.  The two levels have
   // different hashing algorithms in order to avoid simultaneous collisions
   // in both caches.  Unlike a probing strategy (quadratic or otherwise) the
@@ -105,39 +109,12 @@ class StubCache {
   // Hash algorithm for the primary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int PrimaryOffset(Name* name, Code::Flags flags, Map* map) {
-    STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
-    // Compute the hash of the name (use entire hash field).
-    DCHECK(name->HasHashCode());
-    uint32_t field = name->hash_field();
-    // Using only the low bits in 64-bit mode is unlikely to increase the
-    // risk of collision even if the heap is spread over an area larger than
-    // 4Gb (and not at all if it isn't).
-    uint32_t map_low32bits =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
-    // We always set the in_loop bit to zero when generating the lookup code
-    // so do it here too so the hash codes match.
-    uint32_t iflags =
-        (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
-    // Base the offset on a simple combination of name, flags, and map.
-    uint32_t key = (map_low32bits + field) ^ iflags;
-    return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
-  }
+  static int PrimaryOffset(Name* name, Map* map);
 
   // Hash algorithm for the secondary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int SecondaryOffset(Name* name, Code::Flags flags, int seed) {
-    // Use the seed from the primary cache in the secondary cache.
-    uint32_t name_low32bits =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name));
-    // We always set the in_loop bit to zero when generating the lookup code
-    // so do it here too so the hash codes match.
-    uint32_t iflags =
-        (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
-    uint32_t key = (seed - name_low32bits) + iflags;
-    return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
-  }
+  static int SecondaryOffset(Name* name, int seed);
 
   // Compute the entry for a given offset in exactly the same way as
   // we do in generated code.  We generate an hash code that already
@@ -150,11 +127,6 @@ class StubCache {
                                     offset * multiplier);
   }
 
-  static const int kPrimaryTableBits = 11;
-  static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
-  static const int kSecondaryTableBits = 9;
-  static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
-
  private:
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];
@@ -165,7 +137,7 @@ class StubCache {
 
   DISALLOW_COPY_AND_ASSIGN(StubCache);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
-#endif  // V8_STUB_CACHE_H_
+#endif  // V8_IC_STUB_CACHE_H_

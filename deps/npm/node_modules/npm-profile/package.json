@@ -1,0 +1,55 @@
+{
+  "_from": "npm-profile@3.0.2",
+  "_id": "npm-profile@3.0.2",
+  "_inBundle": false,
+  "_integrity": "sha512-rEJOFR6PbwOvvhGa2YTNOJQKNuc6RovJ6T50xPU7pS9h/zKPNCJ+VHZY2OFXyZvEi+UQYtHRTp8O/YM3tUD20A==",
+  "_location": "/npm-profile",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "npm-profile@3.0.2",
+    "name": "npm-profile",
+    "escapedName": "npm-profile",
+    "rawSpec": "3.0.2",
+    "saveSpec": null,
+    "fetchSpec": "3.0.2"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-profile/-/npm-profile-3.0.2.tgz",
+  "_shasum": "58d568f1b56ef769602fd0aed8c43fa0e0de0f57",
+  "_spec": "npm-profile@3.0.2",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-profile/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "aproba": "^1.1.2 || 2",
+    "make-fetch-happen": "^2.5.0 || 3 || 4"
+  },
+  "deprecated": false,
+  "description": "Library for updating an npmjs.com profile",
+  "files": [
+    "CHANGELOG.md",
+    "index.js"
+  ],
+  "homepage": "https://github.com/npm/npm-profile/tree/latest/lib#readme",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "npm-profile",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-profile.git"
+  },
+  "version": "3.0.2"
+}

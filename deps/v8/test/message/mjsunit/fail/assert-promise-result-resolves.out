@@ -1,0 +1,13 @@
+test/mjsunit/mjsunit.js:{NUMBER}: Error: Error in resolve handler
+              throw concatenateErrors(stack, e);
+              ^
+Error
+    at assertPromiseResult (test/mjsunit/mjsunit.js:{NUMBER}:{NUMBER})
+    at *%(basename)s:9:1
+
+Error: Error in resolve handler
+    at _ *%(basename)s:10:39)
+    at promise.then.result (test/mjsunit/mjsunit.js:{NUMBER}:{NUMBER})
+
+
+

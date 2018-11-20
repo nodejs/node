@@ -19,52 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
 // Simple test of Node's HTTP ServerResponse.statusCode
 // ServerResponse.prototype.statusCode
 
-var testsComplete = 0;
-var tests = [200, 202, 300, 404, 500];
-var testIdx = 0;
+const tests = [200, 202, 300, 404, 451, 500];
+let test;
+const countdown = new Countdown(tests.length, () => s.close());
 
-var s = http.createServer(function(req, res) {
-  var t = tests[testIdx];
-  res.writeHead(t, {'Content-Type': 'text/plain'});
-  console.log('--\nserver: statusCode after writeHead: ' + res.statusCode);
-  assert.equal(res.statusCode, t);
+const s = http.createServer(function(req, res) {
+  res.writeHead(test, { 'Content-Type': 'text/plain' });
+  console.log(`--\nserver: statusCode after writeHead: ${res.statusCode}`);
+  assert.strictEqual(res.statusCode, test);
   res.end('hello world\n');
 });
 
-s.listen(common.PORT, nextTest);
+s.listen(0, nextTest);
 
 
 function nextTest() {
-  if (testIdx + 1 === tests.length) {
-    return s.close();
-  }
-  var test = tests[testIdx];
+  test = tests.shift();
 
-  http.get({ port: common.PORT }, function(response) {
-    console.log('client: expected status: ' + test);
-    console.log('client: statusCode: ' + response.statusCode);
-    assert.equal(response.statusCode, test);
+  http.get({ port: s.address().port }, function(response) {
+    console.log(`client: expected status: ${test}`);
+    console.log(`client: statusCode: ${response.statusCode}`);
+    assert.strictEqual(response.statusCode, test);
     response.on('end', function() {
-      testsComplete++;
-      testIdx += 1;
-      nextTest();
+      if (countdown.dec())
+        nextTest();
     });
     response.resume();
   });
 }
-
-
-process.on('exit', function() {
-  assert.equal(4, testsComplete);
-});
-

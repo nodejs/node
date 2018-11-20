@@ -19,20 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
-  var http = require('http');
-  http.Server(function() {
+  const http = require('http');
+  http.Server(() => {
 
-  }).listen(common.PORT, '127.0.0.1');
+  }).listen(0, '127.0.0.1');
+
+  cluster.worker.on('disconnect', common.mustCall(() => {
+    process.exit(42);
+  }));
 
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     cluster: {
       emitDisconnect: false,
       emitExit: false,
@@ -40,69 +44,61 @@ if (cluster.isWorker) {
     },
     worker: {
       emitDisconnect: false,
+      emitDisconnectInsideWorker: false,
       emitExit: false,
       state: false,
-      suicideMode: false,
+      voluntaryMode: false,
       died: false
     }
   };
 
-  // helper function to check if a process is alive
-  var alive = function(pid) {
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  };
-
   // start worker
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   // Disconnect worker when it is ready
-  worker.once('listening', function() {
-    worker.disconnect();
-  });
+  worker.once('listening', common.mustCall(() => {
+    const w = worker.disconnect();
+    assert.strictEqual(worker, w, `${worker.id} did not return a reference`);
+  }));
 
   // Check cluster events
-  cluster.once('disconnect', function() {
+  cluster.once('disconnect', common.mustCall(() => {
     checks.cluster.emitDisconnect = true;
-  });
-  cluster.once('exit', function() {
+  }));
+  cluster.once('exit', common.mustCall(() => {
     checks.cluster.emitExit = true;
-  });
+  }));
 
   // Check worker events and properties
-  worker.once('disconnect', function() {
+  worker.once('disconnect', common.mustCall(() => {
     checks.worker.emitDisconnect = true;
-    checks.worker.suicideMode = worker.suicide;
+    checks.worker.voluntaryMode = worker.exitedAfterDisconnect;
     checks.worker.state = worker.state;
-  });
+  }));
 
   // Check that the worker died
-  worker.once('exit', function() {
+  worker.once('exit', common.mustCall((code) => {
     checks.worker.emitExit = true;
-    checks.worker.died = !alive(worker.process.pid);
-    process.nextTick(function() {
-      process.exit(0);
-    });
-  });
+    checks.worker.died = !common.isAlive(worker.process.pid);
+    checks.worker.emitDisconnectInsideWorker = code === 42;
+  }));
 
-  process.once('exit', function() {
+  process.once('exit', () => {
 
-    var w = checks.worker;
-    var c = checks.cluster;
+    const w = checks.worker;
+    const c = checks.cluster;
 
     // events
     assert.ok(w.emitDisconnect, 'Disconnect event did not emit');
+    assert.ok(w.emitDisconnectInsideWorker,
+              'Disconnect event did not emit inside worker');
     assert.ok(c.emitDisconnect, 'Disconnect event did not emit');
     assert.ok(w.emitExit, 'Exit event did not emit');
     assert.ok(c.emitExit, 'Exit event did not emit');
 
     // flags
-    assert.equal(w.state, 'disconnected', 'The state property was not set');
-    assert.equal(w.suicideMode, true, 'Suicide mode was not set');
+    assert.strictEqual(w.state, 'disconnected');
+    assert.strictEqual(w.voluntaryMode, true);
 
     // is process alive
     assert.ok(w.died, 'The worker did not die');

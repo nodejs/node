@@ -19,20 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // Test that having a bunch of streams piping in parallel
 // doesn't break anything.
 
-var common = require('../common');
-var assert = require('assert');
-var Stream = require('stream').Stream;
-var rr = [];
-var ww = [];
-var cnt = 100;
-var chunks = 1000;
-var chunkSize = 250;
-var data = new Buffer(chunkSize);
-var wclosed = 0;
-var rclosed = 0;
+require('../common');
+const assert = require('assert');
+const Stream = require('stream').Stream;
+const rr = [];
+const ww = [];
+const cnt = 100;
+const chunks = 1000;
+const chunkSize = 250;
+const data = Buffer.allocUnsafe(chunkSize);
+let wclosed = 0;
+let rclosed = 0;
 
 function FakeStream() {
   Stream.apply(this);
@@ -65,23 +66,23 @@ FakeStream.prototype.close = function() {
 
 // expect all streams to close properly.
 process.on('exit', function() {
-  assert.equal(cnt, wclosed, 'writable streams closed');
-  assert.equal(cnt, rclosed, 'readable streams closed');
+  assert.strictEqual(cnt, wclosed);
+  assert.strictEqual(cnt, rclosed);
 });
 
-for (var i = 0; i < chunkSize; i++) {
-  chunkSize[i] = i % 256;
+for (let i = 0; i < chunkSize; i++) {
+  data[i] = i;
 }
 
-for (var i = 0; i < cnt; i++) {
-  var r = new FakeStream();
+for (let i = 0; i < cnt; i++) {
+  const r = new FakeStream();
   r.on('close', function() {
     console.error(this.ID, 'read close');
     rclosed++;
   });
   rr.push(r);
 
-  var w = new FakeStream();
+  const w = new FakeStream();
   w.on('close', function() {
     console.error(this.ID, 'write close');
     wclosed++;
@@ -95,8 +96,8 @@ for (var i = 0; i < cnt; i++) {
 // now start passing through data
 // simulate a relatively fast async stream.
 rr.forEach(function(r) {
-  var cnt = chunks;
-  var paused = false;
+  let cnt = chunks;
+  let paused = false;
 
   r.on('pause', function() {
     paused = true;

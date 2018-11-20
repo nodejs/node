@@ -1,13 +1,15 @@
-.TH "NPM\-OWNER" "1" "October 2014" "" ""
+.TH "NPM\-OWNER" "1" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-owner\fR \- Manage package owners
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm owner ls <package name>
-npm owner add <user> <package name>
-npm owner rm <user> <package name>
+npm owner add <user> [<@scope>/]<pkg>
+npm owner rm <user> [<@scope>/]<pkg>
+npm owner ls [<@scope>/]<pkg>
+
+aliases: author
 .fi
 .RE
 .SH DESCRIPTION
@@ -32,6 +34,10 @@ privileges\.
 Note that there is only one level of access\.  Either you can modify a package,
 or you can't\.  Future versions may contain more fine\-grained access levels, but
 that is not implemented at this time\.
+.P
+If you have two\-factor authentication enabled with \fBauth\-and\-writes\fP then
+you'll need to include an otp on the command line when changing ownership
+with \fB\-\-otp\fP\|\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

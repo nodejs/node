@@ -17,16 +17,19 @@ class Map;
 // from a property index. When available, the wrapper class captures additional
 // information to allow the field index to be translated back into the property
 // index it was originally generated from.
-class FieldIndex FINAL {
+class FieldIndex final {
  public:
-  static FieldIndex ForPropertyIndex(Map* map,
-                                     int index,
-                                     bool is_double = false);
-  static FieldIndex ForInObjectOffset(int offset, Map* map = NULL);
-  static FieldIndex ForDescriptor(Map* map, int descriptor_index);
-  static FieldIndex ForLoadByFieldIndex(Map* map, int index);
-  static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
-  static FieldIndex FromFieldAccessStubKey(int key);
+  enum Encoding { kTagged, kDouble, kWord32 };
+
+  FieldIndex() : bit_field_(0) {}
+
+  static FieldIndex ForPropertyIndex(
+      const Map* map, int index,
+      Representation representation = Representation::Tagged());
+  static FieldIndex ForInObjectOffset(int offset, Encoding encoding,
+                                      const Map* map = nullptr);
+  static FieldIndex ForDescriptor(const Map* map, int descriptor_index);
+  static FieldIndex ForLoadByFieldIndex(const Map* map, int index);
 
   int GetLoadByFieldIndex() const;
 
@@ -34,17 +37,16 @@ class FieldIndex FINAL {
     return IsInObjectBits::decode(bit_field_);
   }
 
-  bool is_double() const {
-    return IsDoubleBits::decode(bit_field_);
-  }
+  bool is_hidden_field() const { return IsHiddenField::decode(bit_field_); }
 
-  int offset() const {
-    return index() * kPointerSize;
-  }
+  bool is_double() const { return EncodingBits::decode(bit_field_) == kDouble; }
+
+  int offset() const { return OffsetBits::decode(bit_field_); }
 
   // Zero-indexed from beginning of the object.
   int index() const {
-    return IndexBits::decode(bit_field_);
+    DCHECK_EQ(0, offset() % kPointerSize);
+    return offset() / kPointerSize;
   }
 
   int outobject_array_index() const {
@@ -55,7 +57,7 @@ class FieldIndex FINAL {
   // Zero-based from the first inobject property. Overflows to out-of-object
   // properties.
   int property_index() const {
-    DCHECK(!IsHiddenField::decode(bit_field_));
+    DCHECK(!is_hidden_field());
     int result = index() - first_inobject_property_offset() / kPointerSize;
     if (!is_inobject()) {
       result += InObjectPropertyBits::decode(bit_field_);
@@ -63,52 +65,74 @@ class FieldIndex FINAL {
     return result;
   }
 
-  int GetKeyedLookupCacheIndex() const;
-
   int GetFieldAccessStubKey() const {
     return bit_field_ &
-        (IsInObjectBits::kMask | IsDoubleBits::kMask | IndexBits::kMask);
+           (IsInObjectBits::kMask | EncodingBits::kMask | OffsetBits::kMask);
   }
+
+  bool operator==(FieldIndex const& other) const {
+    return bit_field_ == other.bit_field_;
+  }
+  bool operator!=(FieldIndex const& other) const { return !(*this == other); }
 
  private:
-  FieldIndex(bool is_inobject, int local_index, bool is_double,
+  FieldIndex(bool is_inobject, int offset, Encoding encoding,
              int inobject_properties, int first_inobject_property_offset,
              bool is_hidden = false) {
-    DCHECK((first_inobject_property_offset & (kPointerSize - 1)) == 0);
+    DCHECK_EQ(first_inobject_property_offset & (kPointerSize - 1), 0);
     bit_field_ = IsInObjectBits::encode(is_inobject) |
-      IsDoubleBits::encode(is_double) |
-      FirstInobjectPropertyOffsetBits::encode(first_inobject_property_offset) |
-      IsHiddenField::encode(is_hidden) |
-      IndexBits::encode(local_index) |
-      InObjectPropertyBits::encode(inobject_properties);
+                 EncodingBits::encode(encoding) |
+                 FirstInobjectPropertyOffsetBits::encode(
+                     first_inobject_property_offset) |
+                 IsHiddenField::encode(is_hidden) | OffsetBits::encode(offset) |
+                 InObjectPropertyBits::encode(inobject_properties);
   }
 
-  explicit FieldIndex(int bit_field) : bit_field_(bit_field) {}
+  static Encoding FieldEncoding(Representation representation) {
+    switch (representation.kind()) {
+      case Representation::kNone:
+      case Representation::kSmi:
+      case Representation::kHeapObject:
+      case Representation::kTagged:
+        return kTagged;
+      case Representation::kDouble:
+        return kDouble;
+      default:
+        break;
+    }
+    PrintF("%s\n", representation.Mnemonic());
+    UNREACHABLE();
+    return kTagged;
+  }
 
   int first_inobject_property_offset() const {
-    DCHECK(!IsHiddenField::decode(bit_field_));
+    DCHECK(!is_hidden_field());
     return FirstInobjectPropertyOffsetBits::decode(bit_field_);
   }
 
-  static const int kIndexBitsSize = kDescriptorIndexBitCount + 1;
+  static const int kOffsetBitsSize =
+      (kDescriptorIndexBitCount + 1 + kPointerSizeLog2);
 
   // Index from beginning of object.
-  class IndexBits: public BitField<int, 0, kIndexBitsSize> {};
-  class IsInObjectBits: public BitField<bool, IndexBits::kNext, 1> {};
-  class IsDoubleBits: public BitField<bool, IsInObjectBits::kNext, 1> {};
+  class OffsetBits : public BitField64<int, 0, kOffsetBitsSize> {};
+  class IsInObjectBits : public BitField64<bool, OffsetBits::kNext, 1> {};
+  class EncodingBits : public BitField64<Encoding, IsInObjectBits::kNext, 2> {};
   // Number of inobject properties.
   class InObjectPropertyBits
-      : public BitField<int, IsDoubleBits::kNext, kDescriptorIndexBitCount> {};
+      : public BitField64<int, EncodingBits::kNext, kDescriptorIndexBitCount> {
+  };
   // Offset of first inobject property from beginning of object.
   class FirstInobjectPropertyOffsetBits
-      : public BitField<int, InObjectPropertyBits::kNext, 7> {};
+      : public BitField64<int, InObjectPropertyBits::kNext,
+                          kFirstInobjectPropertyOffsetBitCount> {};
   class IsHiddenField
-      : public BitField<bool, FirstInobjectPropertyOffsetBits::kNext, 1> {};
-  STATIC_ASSERT(IsHiddenField::kNext <= 32);
+      : public BitField64<bool, FirstInobjectPropertyOffsetBits::kNext, 1> {};
+  STATIC_ASSERT(IsHiddenField::kNext <= 64);
 
-  int bit_field_;
+  uint64_t bit_field_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
-#endif
+#endif  // V8_FIELD_INDEX_H_

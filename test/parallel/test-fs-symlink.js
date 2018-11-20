@@ -19,74 +19,69 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var exec = require('child_process').exec;
-var completed = 0;
-var expected_tests = 2;
+'use strict';
+const common = require('../common');
+const fixtures = require('../common/fixtures');
+if (!common.canCreateSymLink())
+  common.skip('insufficient privileges');
 
-var is_windows = process.platform === 'win32';
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var runtest = function(skip_symlinks) {
-  if (!skip_symlinks) {
-    // test creating and reading symbolic link
-    var linkData = path.join(common.fixturesDir, '/cycles/root.js');
-    var linkPath = path.join(common.tmpDir, 'symlink1.js');
+let linkTime;
+let fileTime;
 
-    // Delete previously created link
-    try {
-      fs.unlinkSync(linkPath);
-    } catch (e) {}
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-    fs.symlink(linkData, linkPath, function(err) {
-      if (err) throw err;
-      console.log('symlink done');
-      // todo: fs.lstat?
-      fs.readlink(linkPath, function(err, destination) {
-        if (err) throw err;
-        assert.equal(destination, linkData);
-        completed++;
-      });
-    });
-  }
+// Test creating and reading symbolic link
+const linkData = fixtures.path('/cycles/root.js');
+const linkPath = path.join(tmpdir.path, 'symlink1.js');
 
-  // test creating and reading hard link
-  var srcPath = path.join(common.fixturesDir, 'cycles', 'root.js');
-  var dstPath = path.join(common.tmpDir, 'link1.js');
+fs.symlink(linkData, linkPath, common.mustCall(function(err) {
+  assert.ifError(err);
 
-  // Delete previously created link
-  try {
-    fs.unlinkSync(dstPath);
-  } catch (e) {}
+  fs.lstat(linkPath, common.mustCall(function(err, stats) {
+    assert.ifError(err);
+    linkTime = stats.mtime.getTime();
+  }));
 
-  fs.link(srcPath, dstPath, function(err) {
-    if (err) throw err;
-    console.log('hard link done');
-    var srcContent = fs.readFileSync(srcPath, 'utf8');
-    var dstContent = fs.readFileSync(dstPath, 'utf8');
-    assert.equal(srcContent, dstContent);
-    completed++;
-  });
-};
+  fs.stat(linkPath, common.mustCall(function(err, stats) {
+    assert.ifError(err);
+    fileTime = stats.mtime.getTime();
+  }));
 
-if (is_windows) {
-  // On Windows, creating symlinks requires admin privileges.
-  // We'll only try to run symlink test if we have enough privileges.
-  exec('whoami /priv', function(err, o) {
-    if (err || o.indexOf('SeCreateSymbolicLinkPrivilege') == -1) {
-      expected_tests = 1;
-      runtest(true);
-    } else {
-      runtest(false);
-    }
-  });
-} else {
-  runtest(false);
-}
+  fs.readlink(linkPath, common.mustCall(function(err, destination) {
+    assert.ifError(err);
+    assert.strictEqual(destination, linkData);
+  }));
+}));
 
-process.on('exit', function() {
-  assert.equal(completed, expected_tests);
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "target" argument must be one of type string, Buffer, or ' +
+             `URL. Received type ${typeof input}`
+  };
+  assert.throws(() => fs.symlink(input, '', common.mustNotCall()), errObj);
+  assert.throws(() => fs.symlinkSync(input, ''), errObj);
+
+  errObj.message = errObj.message.replace('target', 'path');
+  assert.throws(() => fs.symlink('', input, common.mustNotCall()), errObj);
+  assert.throws(() => fs.symlinkSync('', input), errObj);
 });
 
+const errObj = {
+  code: 'ERR_FS_INVALID_SYMLINK_TYPE',
+  name: 'Error [ERR_FS_INVALID_SYMLINK_TYPE]',
+  message:
+    'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
+};
+assert.throws(() => fs.symlink('', '', '🍏', common.mustNotCall()), errObj);
+assert.throws(() => fs.symlinkSync('', '', '🍏'), errObj);
+
+process.on('exit', function() {
+  assert.notStrictEqual(linkTime, fileTime);
+});

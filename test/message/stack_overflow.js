@@ -19,20 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
 
 Error.stackTraceLimit = 0;
 
 console.error('before');
 
-// stack overflow
-function stackOverflow() {
-  stackOverflow();
+// Trigger stack overflow by stringifying a deeply nested array.
+let array = [];
+for (let i = 0; i < 100000; i++) {
+  array = [ array ];
 }
-stackOverflow();
+
+JSON.stringify(array);
 
 console.error('after');

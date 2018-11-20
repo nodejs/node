@@ -19,22 +19,23 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // Check that having a worker bind to a port that's already taken doesn't
 // leave the master process in a confused state. Releasing the port and
 // trying again should Just Work[TM].
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const net = require('net');
 
-var id = '' + process.argv[2];
+const id = String(process.argv[2]);
+const port = String(process.argv[3]);
 
 if (id === 'undefined') {
-  var server = net.createServer(assert.fail);
-  server.listen(common.PORT, function() {
-    var worker = fork(__filename, ['worker']);
+  const server = net.createServer(common.mustNotCall());
+  server.listen(0, function() {
+    const worker = fork(__filename, ['worker', server.address().port]);
     worker.on('message', function(msg) {
       if (msg !== 'stop-listening') return;
       server.close(function() {
@@ -42,22 +43,20 @@ if (id === 'undefined') {
       });
     });
   });
-}
-else if (id === 'worker') {
-  var server = net.createServer(assert.fail);
-  server.listen(common.PORT, assert.fail);
+} else if (id === 'worker') {
+  let server = net.createServer(common.mustNotCall());
+  server.listen(port, common.mustNotCall());
   server.on('error', common.mustCall(function(e) {
     assert(e.code, 'EADDRINUSE');
     process.send('stop-listening');
     process.once('message', function(msg) {
       if (msg !== 'stopped-listening') return;
-      server = net.createServer(assert.fail);
-      server.listen(common.PORT, common.mustCall(function() {
+      server = net.createServer(common.mustNotCall());
+      server.listen(port, common.mustCall(function() {
         server.close();
       }));
     });
   }));
-}
-else {
+} else {
   assert(0);  // Bad argument.
 }

@@ -19,43 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const net = require('net');
 
-var server = net.createServer(function(socket) {
-  assert.ok(false, 'no clients should connect');
-}).listen(common.PORT).on('listening', function() {
-  server.unref();
+const connect = (opts, code, type) => {
+  common.expectsError(
+    () => net.connect(opts),
+    { code, type }
+  );
+};
 
-  function test1(next) {
-    connect({
-      host: '127.0.0.1',
-      port: common.PORT,
-      localPort: 'foobar',
-    },
-    'localPort should be a number: foobar',
-    next);
-  }
+connect({
+  host: 'localhost',
+  port: 0,
+  localAddress: 'foobar',
+}, 'ERR_INVALID_IP_ADDRESS', TypeError);
 
-  function test2(next) {
-    connect({
-      host: '127.0.0.1',
-      port: common.PORT,
-      localAddress: 'foobar',
-    },
-    'localAddress should be a valid IP: foobar',
-    next)
-  }
-
-  test1(test2);
-})
-
-function connect(opts, msg, cb) {
-  var client = net.connect(opts).on('connect', function() {
-    assert.ok(false, 'we should never connect');
-  }).on('error', function(err) {
-    assert.strictEqual(err.message, msg);
-    if (cb) cb();
-  });
-}
+connect({
+  host: 'localhost',
+  port: 0,
+  localPort: 'foobar',
+}, 'ERR_INVALID_ARG_TYPE', TypeError);

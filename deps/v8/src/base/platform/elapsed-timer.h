@@ -11,7 +11,7 @@
 namespace v8 {
 namespace base {
 
-class ElapsedTimer FINAL {
+class ElapsedTimer final {
  public:
 #ifdef DEBUG
   ElapsedTimer() : started_(false) {}
@@ -56,7 +56,7 @@ class ElapsedTimer FINAL {
     DCHECK(IsStarted());
     TimeTicks ticks = Now();
     TimeDelta elapsed = ticks - start_ticks_;
-    DCHECK(elapsed.InMicroseconds() >= 0);
+    DCHECK_GE(elapsed.InMicroseconds(), 0);
     start_ticks_ = ticks;
     DCHECK(IsStarted());
     return elapsed;
@@ -67,7 +67,7 @@ class ElapsedTimer FINAL {
   TimeDelta Elapsed() const {
     DCHECK(IsStarted());
     TimeDelta elapsed = Now() - start_ticks_;
-    DCHECK(elapsed.InMicroseconds() >= 0);
+    DCHECK_GE(elapsed.InMicroseconds(), 0);
     return elapsed;
   }
 
@@ -92,6 +92,7 @@ class ElapsedTimer FINAL {
 #endif
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_ELAPSED_TIMER_H_

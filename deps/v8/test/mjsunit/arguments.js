@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function argc0() {
   return arguments.length;
 }
@@ -168,7 +170,7 @@ function list_args(a) {
 }
 
 
-function f1(x, y) {
+function f7(x, y) {
   function g(p) {
     x = p;
   }
@@ -176,10 +178,10 @@ function f1(x, y) {
   return list_args(arguments);
 }
 
-assertArrayEquals([0], f1());
-assertArrayEquals([1, void 0], f1(3));
-assertArrayEquals([2, 5, 5], f1(3, 5));
-assertArrayEquals([3, 5, 5, 7], f1(3, 5, 7));
+assertArrayEquals([0], f7());
+assertArrayEquals([1, void 0], f7(3));
+assertArrayEquals([2, 5, 5], f7(3, 5));
+assertArrayEquals([3, 5, 5, 7], f7(3, 5, 7));
 
 // Check out of bounds behavior.
 function arg_get(x) { return arguments[x]; }
@@ -188,3 +190,179 @@ function arg_set(x) { return (arguments[x] = 117); }
 assertEquals(undefined, arg_get(0xFFFFFFFF));
 assertEquals(true, arg_del(0xFFFFFFFF));
 assertEquals(117, arg_set(0xFFFFFFFF));
+
+(function() {
+  function f(a) { return arguments; }
+  var a = f(1,2,3);
+  // Turn arguments into slow.
+  assertTrue(%HasSloppyArgumentsElements(a));
+  a[10000] = 1;
+  assertTrue(%HasSloppyArgumentsElements(a));
+  // Make it fast again by adding values.
+  for (var i = 0; i < 1000; i++) {
+    a[i] = 1.5;
+  }
+  assertTrue(%HasSloppyArgumentsElements(a));
+})();
+
+(function testDeleteArguments() {
+  function f() { return arguments };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(2, args.length);
+})();
+
+(function testDeleteFastSloppyArguments() {
+  function f(a) { return arguments };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(2, args.length);
+})();
+
+(function testDeleteSlowSloppyArguments() {
+  var key = 10000;
+  function f(a) {
+    arguments[key] = key;
+    return arguments
+  };
+  var args = f(1, 2);
+  %HeapObjectVerify(args);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  %HeapObjectVerify(args);
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  %HeapObjectVerify(args);
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[key];
+  %HeapObjectVerify(args);
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(undefined, args[key]);
+  assertEquals(2, args.length);
+})();
+
+(function testDeleteSlowSloppyArguments2() {
+  function f(a) {
+    return arguments
+  };
+  var args = f(1, 2);
+  %HeapObjectVerify(args);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  %HeapObjectVerify(args);
+  assertEquals(1, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(undefined, args[2]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  %HeapObjectVerify(args);
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(undefined, args[2]);
+  assertEquals(2, args.length);
+})();
+
+(function testSloppyArgumentProperties() {
+  function f(a, b) { return arguments }
+  let args = f(1, 2, 3, 4);
+  %HeapObjectVerify(args);
+  assertEquals(4, args.length);
+  args.foo = "foo";
+  %HeapObjectVerify(args);
+  assertEquals("foo", args.foo);
+  assertEquals(4, args.length);
+
+  delete args.foo;
+  %HeapObjectVerify(args);
+  assertEquals(undefined, args.foo);
+  assertEquals(4, args.length);
+})();
+
+
+(function testSloppyArgumentsLengthMapChange() {
+  function f(a) { return arguments };
+  let args1 = f(1);
+  let args2 = f(1,2);
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = 12;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = "aa"
+  assertTrue(%HaveSameMap(args1, args2));
+
+  let args3 = f(1);
+  let args4 = f(1,2);
+  // Creating holes causes map transitions.
+  assertTrue(%HaveSameMap(args1, args3));
+  assertTrue(%HaveSameMap(args1, args4));
+  delete args3[0];
+  assertFalse(%HaveSameMap(args1, args3));
+  delete args4[1];
+  assertFalse(%HaveSameMap(args1, args4));
+})();
+
+(function testSloppyArgumentsLengthMapChange() {
+  function f(a) { return arguments };
+  let args1 = f(1);
+  let args2 = f(1,2);
+  assertTrue(%HaveSameMap(args1, args2));
+  // Changing the length type doesn't causes a map transition.
+  args2.length = 12;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = 12.0;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = "aa"
+  assertTrue(%HaveSameMap(args1, args2));
+})();
+
+
+(function testArgumentsVerification() {
+  (function f2(a,a) {
+    %HeapObjectVerify(arguments);
+  })(1,2);
+
+  function f7(a,a,a,a,a,a,a) {
+    %HeapObjectVerify(arguments);
+  };
+  f7(1,2,3,4,5,6);
+  f7(1,2,3,4,5,6,7);
+  f7(1,2,3,4,5,6,7,8);
+})();

@@ -30,14 +30,14 @@ void ares__close_sockets(ares_channel channel, struct server_state *server)
       sendreq = server->qhead;
       server->qhead = sendreq->next;
       if (sendreq->data_storage != NULL)
-        free(sendreq->data_storage);
-      free(sendreq);
+        ares_free(sendreq->data_storage);
+      ares_free(sendreq);
     }
   server->qtail = NULL;
 
   /* Reset any existing input buffer. */
   if (server->tcp_buffer)
-    free(server->tcp_buffer);
+    ares_free(server->tcp_buffer);
   server->tcp_buffer = NULL;
   server->tcp_lenbuf_pos = 0;
 
@@ -48,14 +48,14 @@ void ares__close_sockets(ares_channel channel, struct server_state *server)
   if (server->tcp_socket != ARES_SOCKET_BAD)
     {
       SOCK_STATE_CALLBACK(channel, server->tcp_socket, 0, 0);
-      sclose(server->tcp_socket);
+      ares__socket_close(channel, server->tcp_socket);
       server->tcp_socket = ARES_SOCKET_BAD;
       server->tcp_connection_generation = ++channel->tcp_connection_generation;
     }
   if (server->udp_socket != ARES_SOCKET_BAD)
     {
       SOCK_STATE_CALLBACK(channel, server->udp_socket, 0, 0);
-      sclose(server->udp_socket);
+      ares__socket_close(channel, server->udp_socket);
       server->udp_socket = ARES_SOCKET_BAD;
     }
 }

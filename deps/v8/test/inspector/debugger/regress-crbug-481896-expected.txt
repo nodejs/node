@@ -1,0 +1,20 @@
+Set breakpoint before function call.
+this.dynamic = function dynamic() { 
+  #console.log("> dynamic");  // Break
+}
+
+function static() {
+  #console.log("> static");  // Break
+}
+
+Paused at:
+this.dynamic = function dynamic() { 
+  #console.log("> dynamic");  // Break
+}
+
+Resume..
+Paused at:
+function static() {
+  #console.log("> static");  // Break
+}
+

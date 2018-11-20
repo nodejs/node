@@ -33,6 +33,7 @@ var worker_scripts = [
   "../profile.js",
   "../profile_view.js",
   "../logreader.js",
+  "../arguments.js",
   "../tickprocessor.js",
   "composer.js",
   "gnuplot-4.6.3-emscripten.js"

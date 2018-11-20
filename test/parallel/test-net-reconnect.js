@@ -19,18 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
-var N = 50;
-var c = 0;
-var client_recv_count = 0;
-var client_end_count = 0;
-var disconnect_count = 0;
+const N = 50;
+let client_recv_count = 0;
+let client_end_count = 0;
+let disconnect_count = 0;
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   console.error('SERVER: got socket connection');
   socket.resume();
 
@@ -43,14 +43,14 @@ var server = net.createServer(function(socket) {
   });
 
   socket.on('close', function(had_error) {
-    console.log('SERVER had_error: ' + JSON.stringify(had_error));
-    assert.equal(false, had_error);
+    console.log(`SERVER had_error: ${JSON.stringify(had_error)}`);
+    assert.strictEqual(false, had_error);
   });
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   console.log('SERVER listening');
-  var client = net.createConnection(common.PORT);
+  const client = net.createConnection(this.address().port);
 
   client.setEncoding('UTF8');
 
@@ -60,8 +60,8 @@ server.listen(common.PORT, function() {
 
   client.on('data', function(chunk) {
     client_recv_count += 1;
-    console.log('client_recv_count ' + client_recv_count);
-    assert.equal('hello\r\n', chunk);
+    console.log(`client_recv_count ${client_recv_count}`);
+    assert.strictEqual('hello\r\n', chunk);
     console.error('CLIENT: calling end', client._writableState);
     client.end();
   });
@@ -73,17 +73,16 @@ server.listen(common.PORT, function() {
 
   client.on('close', function(had_error) {
     console.log('CLIENT disconnect');
-    assert.equal(false, had_error);
+    assert.strictEqual(false, had_error);
     if (disconnect_count++ < N)
-      client.connect(common.PORT); // reconnect
+      client.connect(server.address().port); // reconnect
     else
       server.close();
   });
 });
 
 process.on('exit', function() {
-  assert.equal(N + 1, disconnect_count);
-  assert.equal(N + 1, client_recv_count);
-  assert.equal(N + 1, client_end_count);
+  assert.strictEqual(N + 1, disconnect_count);
+  assert.strictEqual(N + 1, client_recv_count);
+  assert.strictEqual(N + 1, client_end_count);
 });
-

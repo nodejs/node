@@ -5,6 +5,10 @@
 #ifndef V8_DIY_FP_H_
 #define V8_DIY_FP_H_
 
+#include <stdint.h>
+
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace internal {
 
@@ -51,7 +55,7 @@ class DiyFp {
   }
 
   void Normalize() {
-    DCHECK(f_ != 0);
+    DCHECK_NE(f_, 0);
     uint64_t f = f_;
     int e = e_;
 
@@ -89,6 +93,7 @@ class DiyFp {
   int e_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DIY_FP_H_

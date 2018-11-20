@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<!-- Copyright 2018 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>V8 Heap Statistics</title>
+  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+  <script
+          src="https://www.gstatic.com/charts/loader.js"></script>
+  <script
+          src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.6/pako_inflate.min.js"
+          integrity="sha256-N1z6ddQzX83fjw8v7uSNe7/MgOmMKdwFUv1+AJMDqNM="
+          crossorigin="anonymous"></script>
+
+  <script src="helper.js"></script>
+
+  <link rel="import" href="details-selection.html">
+  <link rel="import" href="global-timeline.html">
+  <link rel="import" href="histogram-viewer.html">
+  <link rel="import" href="trace-file-reader.html">
+
+  <style>
+body {
+  font-family: 'Roboto', sans-serif;
+  margin-left: 5%;
+  margin-right: 5%;
+}
+
+  </style>
+  <script>
+
+'use strict';
+
+google.charts.load('current', {'packages':['line', 'corechart', 'bar']});
+
+function $(id) { return document.querySelector(id); }
+
+function removeAllChildren(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+let state = Object.create(null);
+
+function globalDataChanged(e) {
+  state.data = e.detail;
+  // Emit one entry with the whole model for debugging purposes.
+  console.log(state.data);
+  state.selection = null;
+  $('#global-timeline').selection = state.selection;
+  $('#global-timeline').data = state.data;
+  $('#histogram-viewer').selection = state.selection;
+  $('#histogram-viewer').data = state.data;
+  $('#details-selection').data = state.data;
+}
+
+function globalSelectionChangedA(e) {
+  state.selection = e.detail;
+  console.log(state.selection);
+  $('#global-timeline').selection = state.selection;
+  $('#histogram-viewer').selection = state.selection;
+}
+
+  </script>
+</head>
+
+<body>
+  <h1>V8 Heap Statistics</h1>
+  <trace-file-reader onchange="globalDataChanged(event)"></trace-file-reader>
+
+  <details-selection id="details-selection" onchange="globalSelectionChangedA(event)"></details-selection>
+  <global-timeline id="global-timeline"></global-timeline>
+  <histogram-viewer id="histogram-viewer"></histogram-viewer>
+
+  <p>Visualize object statistics that have been gathered using</p>
+  <ul>
+    <li><code>--trace-gc-object-stats</code> on V8</li>
+    <li>
+      <a
+        href="https://www.chromium.org/developers/how-tos/trace-event-profiling-tool">Chrome's
+        tracing infrastructure</a> collecting data for the category
+      <code>v8.gc_stats</code>.
+    </li>
+  </ul>
+  <p>
+    Note that you only get a data point on major GCs. You can enforce this by
+    using the <code>--gc-global</code> flag.
+  </p>
+  <p>
+    Note that the visualizer needs to run on a web server due to HTML imports
+    requiring <a
+         href="https://en.wikipedia.org/wiki/Cross-origin_resource_sharing">CORS</a>.
+  </p>
+</body>
+
+</html>

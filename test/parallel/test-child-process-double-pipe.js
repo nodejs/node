@@ -19,20 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var is_windows = process.platform === 'win32';
-
-var common = require('../common');
-var assert = require('assert'),
-    os = require('os'),
-    util = require('util'),
-    spawn = require('child_process').spawn;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const spawn = require('child_process').spawn;
 
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
-var grep, sed, echo;
+let grep, sed, echo;
 
-if (is_windows) {
+if (common.isWindows) {
   grep = spawn('grep', ['--binary', 'o']),
   sed = spawn('sed', ['--binary', 's/o/O/']),
   echo = spawn('cmd.exe',
@@ -55,10 +53,9 @@ if (is_windows) {
  */
 
 
-
 // pipe echo | grep
 echo.stdout.on('data', function(data) {
-  console.error('grep stdin write ' + data.length);
+  console.error(`grep stdin write ${data.length}`);
   if (!grep.stdin.write(data)) {
     echo.stdout.pause();
   }
@@ -86,10 +83,9 @@ sed.on('exit', function() {
 });
 
 
-
 // pipe grep | sed
 grep.stdout.on('data', function(data) {
-  console.error('grep stdout ' + data.length);
+  console.error(`grep stdout ${data.length}`);
   if (!sed.stdin.write(data)) {
     grep.stdout.pause();
   }
@@ -106,15 +102,14 @@ grep.stdout.on('end', function(code) {
 });
 
 
-
-var result = '';
+let result = '';
 
 // print sed's output
 sed.stdout.on('data', function(data) {
   result += data.toString('utf8', 0, data.length);
-  util.print(data);
+  console.log(data);
 });
 
 sed.stdout.on('end', function(code) {
-  assert.equal(result, 'hellO' + os.EOL + 'nOde' + os.EOL  +'wOrld' + os.EOL);
+  assert.strictEqual(result, `hellO${os.EOL}nOde${os.EOL}wOrld${os.EOL}`);
 });

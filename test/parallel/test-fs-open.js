@@ -19,41 +19,44 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var constants = require('constants');
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
-var caughtException = false;
+let caughtException = false;
+
 try {
   // should throw ENOENT, not EBADF
   // see https://github.com/joyent/node/pull/1228
   fs.openSync('/path/to/file/that/does/not/exist', 'r');
-}
-catch (e) {
-  assert.equal(e.code, 'ENOENT');
+} catch (e) {
+  assert.strictEqual(e.code, 'ENOENT');
   caughtException = true;
 }
-assert.ok(caughtException);
+assert.strictEqual(caughtException, true);
 
-var openFd;
-fs.open(__filename, 'r', function(err, fd) {
-  if (err) {
-    throw err;
-  }
-  openFd = fd;
+fs.open(__filename, 'r', common.mustCall((err) => {
+  assert.ifError(err);
+}));
+
+fs.open(__filename, 'rs', common.mustCall((err) => {
+  assert.ifError(err);
+}));
+
+[false, 1, [], {}, null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.open(i, 'r', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.openSync(i, 'r', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
 });
-
-var openFd2;
-fs.open(__filename, 'rs', function(err, fd) {
-  if (err) {
-    throw err;
-  }
-  openFd2 = fd;
-});
-
-process.on('exit', function() {
-  assert.ok(openFd);
-  assert.ok(openFd2);
-});
-

@@ -19,44 +19,36 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var assert = require('assert');
-var fs = require('fs');
-var net = require('net');
-var tls = require('tls');
+// Check getPeerCertificate can properly handle '\0' for fix CVE-2009-2408.
 
-var common = require('../common');
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var requests = 0;
-
-var server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/0-dns-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/0-dns-cert.pem')
-}, function(c) {
-  c.once('data', function() {
+const server = tls.createServer({
+  key: fixtures.readSync(['0-dns', '0-dns-key.pem']),
+  cert: fixtures.readSync(['0-dns', '0-dns-cert.pem'])
+}, common.mustCall((c) => {
+  c.once('data', common.mustCall(() => {
     c.destroy();
     server.close();
-  });
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+  }));
+})).listen(0, common.mustCall(() => {
+  const c = tls.connect(server.address().port, {
     rejectUnauthorized: false
-  }, function() {
-    requests++;
-    var cert = c.getPeerCertificate();
-    assert.equal(cert.subjectaltname,
-                 'DNS:google.com\0.evil.com, ' +
-                     'DNS:just-another.com, ' +
-                     'IP Address:8.8.8.8, '+
-                     'IP Address:8.8.4.4, '+
-                     'DNS:last.com');
+  }, common.mustCall(() => {
+    const cert = c.getPeerCertificate();
+    assert.strictEqual(cert.subjectaltname,
+                       'DNS:good.example.org\0.evil.example.com, ' +
+                           'DNS:just-another.example.com, ' +
+                           'IP Address:8.8.8.8, ' +
+                           'IP Address:8.8.4.4, ' +
+                           'DNS:last.example.com');
     c.write('ok');
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(requests, 1);
-});
+  }));
+}));

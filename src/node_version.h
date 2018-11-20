@@ -22,31 +22,44 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
-#define NODE_MAJOR_VERSION 0
-#define NODE_MINOR_VERSION 11
-#define NODE_PATCH_VERSION 15
+#define NODE_MAJOR_VERSION 11
+#define NODE_MINOR_VERSION 0
+#define NODE_PATCH_VERSION 0
+
+#define NODE_VERSION_IS_LTS 0
+#define NODE_VERSION_LTS_CODENAME ""
 
 #define NODE_VERSION_IS_RELEASE 0
-
-#ifndef NODE_TAG
-# define NODE_TAG ""
-#endif
 
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
 
-#if NODE_VERSION_IS_RELEASE
+#ifndef NODE_RELEASE
+#define NODE_RELEASE "node"
+#endif
+
+#ifndef NODE_TAG
+# if NODE_VERSION_IS_RELEASE
+#  define NODE_TAG ""
+# else
+#  define NODE_TAG "-pre"
+# endif
+#else
+// NODE_TAG is passed without quotes when rc.exe is run from msbuild
+# define NODE_EXE_VERSION NODE_STRINGIFY(NODE_MAJOR_VERSION) "." \
+                          NODE_STRINGIFY(NODE_MINOR_VERSION) "." \
+                          NODE_STRINGIFY(NODE_PATCH_VERSION)     \
+                          NODE_STRINGIFY(NODE_TAG)
+#endif
+
 # define NODE_VERSION_STRING  NODE_STRINGIFY(NODE_MAJOR_VERSION) "." \
                               NODE_STRINGIFY(NODE_MINOR_VERSION) "." \
                               NODE_STRINGIFY(NODE_PATCH_VERSION)     \
                               NODE_TAG
-#else
-# define NODE_VERSION_STRING  NODE_STRINGIFY(NODE_MAJOR_VERSION) "." \
-                              NODE_STRINGIFY(NODE_MINOR_VERSION) "." \
-                              NODE_STRINGIFY(NODE_PATCH_VERSION)     \
-                              NODE_TAG "-pre"
+#ifndef NODE_EXE_VERSION
+# define NODE_EXE_VERSION NODE_VERSION_STRING
 #endif
 
 #define NODE_VERSION "v" NODE_VERSION_STRING
@@ -59,11 +72,50 @@
       (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
 
 /**
+ * Node.js will refuse to load modules that weren't compiled against its own
+ * module ABI number, exposed as the process.versions.modules property.
+ *
  * When this version number is changed, node.js will refuse
  * to load older modules.  This should be done whenever
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
+ *
+ * Node.js will not change the module version during a Major release line
+ * We will at times update the version of V8 shipped in the release line
+ * if it can be made ABI compatible with the previous version.
+ *
+ * Module version by Node.js version:
+ * Node.js v0.10.x: 11
+ * Node.js v0.12.x: 14
+ * Node.js v4.x: 46
+ * Node.js v5.x: 47
+ * Node.js v6.x: 48
+ * Node.js v7.x: 51
+ * Node.js v8.x: 57
+ *
+ * Module version by V8 ABI version:
+ * V8 5.4: 51
+ * V8 5.5: 52
+ * V8 5.6: 53
+ * V8 5.7: 54
+ * V8 5.8: 55
+ * V8 5.9: 56
+ * V8 6.0: 57
+ * V8 6.1: 58
+ * V8 6.2: 59
+ * V8 6.3: 60
+ * V8 6.4: 61
+ * V8 6.5: 62
+ * V8 6.6: 63
+ * V8 6.7: 64
+ * V8 6.8: 65
+ * V8 6.9: 66
+ *
+ * More information can be found at https://nodejs.org/en/download/releases/
  */
-#define NODE_MODULE_VERSION 14 /* v0.12 */
+#define NODE_MODULE_VERSION 66
 
-#endif  /* SRC_NODE_VERSION_H_ */
+// the NAPI_VERSION provided by this version of the runtime
+#define NAPI_VERSION  3
+
+#endif  // SRC_NODE_VERSION_H_

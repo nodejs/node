@@ -5,85 +5,26 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <limits>
 
-#include <cstring>
-
-#include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/format-macros.h"
 #include "src/base/logging.h"
 
+// No-op macro which is used to work around MSVC's funky VA_ARGS support.
+#define EXPAND(x) x
 
-// The expression OFFSET_OF(type, field) computes the byte-offset
-// of the specified field relative to the containing type. This
-// corresponds to 'offsetof' (in stddef.h), except that it doesn't
-// use 0 or NULL, which causes a problem with the compiler warnings
-// we have enabled (which is also why 'offsetof' doesn't seem to work).
-// Here we simply use the non-zero value 4, which seems to work.
-#define OFFSET_OF(type, field)                                          \
-  (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(4)->field)) - 4)
+// TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
+// have to make sure that only standard-layout types and simple field
+// designators are used.
+#define OFFSET_OF(type, field) \
+  (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(16)->field)) - 16)
 
-
-#if V8_OS_NACL
-
-// ARRAYSIZE_UNSAFE performs essentially the same calculation as arraysize,
-// but can be used on anonymous types or types defined inside
-// functions.  It's less safe than arraysize as it accepts some
-// (although not all) pointers.  Therefore, you should use arraysize
-// whenever possible.
-//
-// The expression ARRAYSIZE_UNSAFE(a) is a compile-time constant of type
-// size_t.
-//
-// ARRAYSIZE_UNSAFE catches a few type errors.  If you see a compiler error
-//
-//   "warning: division by zero in ..."
-//
-// when using ARRAYSIZE_UNSAFE, you are (wrongfully) giving it a pointer.
-// You should only use ARRAYSIZE_UNSAFE on statically allocated arrays.
-//
-// The following comments are on the implementation details, and can
-// be ignored by the users.
-//
-// ARRAYSIZE_UNSAFE(arr) works by inspecting sizeof(arr) (the # of bytes in
-// the array) and sizeof(*(arr)) (the # of bytes in one array
-// element).  If the former is divisible by the latter, perhaps arr is
-// indeed an array, in which case the division result is the # of
-// elements in the array.  Otherwise, arr cannot possibly be an array,
-// and we generate a compiler error to prevent the code from
-// compiling.
-//
-// Since the size of bool is implementation-defined, we need to cast
-// !(sizeof(a) & sizeof(*(a))) to size_t in order to ensure the final
-// result has type size_t.
-//
-// This macro is not perfect as it wrongfully accepts certain
-// pointers, namely where the pointer size is divisible by the pointee
-// size.  Since all our code has to go through a 32-bit compiler,
-// where a pointer is 4 bytes, this means all pointers to a type whose
-// size is 3 or greater than 4 will be (righteously) rejected.
-#define ARRAYSIZE_UNSAFE(a)     \
-  ((sizeof(a) / sizeof(*(a))) / \
-   static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))  // NOLINT
-
-// TODO(bmeurer): For some reason, the NaCl toolchain cannot handle the correct
-// definition of arraysize() below, so we have to use the unsafe version for
-// now.
-#define arraysize ARRAYSIZE_UNSAFE
-
-#else  // V8_OS_NACL
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
 // used in defining new arrays, for example.  If you use arraysize on
 // a pointer by mistake, you will get a compile-time error.
-//
-// One caveat is that arraysize() doesn't accept any array of an
-// anonymous type or a type defined inside a function.  In these rare
-// cases, you have to use the unsafe ARRAYSIZE_UNSAFE() macro below.  This is
-// due to a limitation in C++'s template system.  The limitation might
-// eventually be removed, but it hasn't happened yet.
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
 
@@ -101,69 +42,6 @@ char (&ArraySizeHelper(T (&array)[N]))[N];
 template <typename T, size_t N>
 char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
-
-#endif  // V8_OS_NACL
-
-
-// The COMPILE_ASSERT macro can be used to verify that a compile time
-// expression is true. For example, you could use it to verify the
-// size of a static array:
-//
-//   COMPILE_ASSERT(ARRAYSIZE_UNSAFE(content_type_names) == CONTENT_NUM_TYPES,
-//                  content_type_names_incorrect_size);
-//
-// or to make sure a struct is smaller than a certain size:
-//
-//   COMPILE_ASSERT(sizeof(foo) < 128, foo_too_large);
-//
-// The second argument to the macro is the name of the variable. If
-// the expression is false, most compilers will issue a warning/error
-// containing the name of the variable.
-#if V8_HAS_CXX11_STATIC_ASSERT
-
-// Under C++11, just use static_assert.
-#define COMPILE_ASSERT(expr, msg) static_assert(expr, #msg)
-
-#else
-
-template <bool>
-struct CompileAssert {};
-
-#define COMPILE_ASSERT(expr, msg)                \
-  typedef CompileAssert<static_cast<bool>(expr)> \
-      msg[static_cast<bool>(expr) ? 1 : -1] ALLOW_UNUSED_TYPE
-
-// Implementation details of COMPILE_ASSERT:
-//
-// - COMPILE_ASSERT works by defining an array type that has -1
-//   elements (and thus is invalid) when the expression is false.
-//
-// - The simpler definition
-//
-//     #define COMPILE_ASSERT(expr, msg) typedef char msg[(expr) ? 1 : -1]
-//
-//   does not work, as gcc supports variable-length arrays whose sizes
-//   are determined at run-time (this is gcc's extension and not part
-//   of the C++ standard).  As a result, gcc fails to reject the
-//   following code with the simple definition:
-//
-//     int foo;
-//     COMPILE_ASSERT(foo, msg); // not supposed to compile as foo is
-//                               // not a compile-time constant.
-//
-// - By using the type CompileAssert<static_cast<bool>(expr)>, we ensure that
-//   expr is a compile-time constant.  (Template arguments must be
-//   determined at compile-time.)
-//
-// - The array size is (static_cast<bool>(expr) ? 1 : -1), instead of simply
-//
-//     ((expr) ? 1 : -1).
-//
-//   This is to avoid running into a bug in MS VC 7.1, which
-//   causes ((0.0) ? 1 : -1) to incorrectly evaluate to 1.
-
-#endif
-
 
 // bit_cast<Dest,Source> is a template function that implements the
 // equivalent of "*reinterpret_cast<Dest*>(&source)".  We need this in
@@ -220,55 +98,90 @@ struct CompileAssert {};
 // is likely to surprise you.
 template <class Dest, class Source>
 V8_INLINE Dest bit_cast(Source const& source) {
-  COMPILE_ASSERT(sizeof(Dest) == sizeof(Source), VerifySizesAreEqual);
-
+  static_assert(sizeof(Dest) == sizeof(Source),
+                "source and dest must be same size");
   Dest dest;
   memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
 
+// Explicitly declare the assignment operator as deleted.
+#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete;
 
-// A macro to disallow the evil copy constructor and operator= functions
-// This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)  \
-  TypeName(const TypeName&) V8_DELETE;      \
-  void operator=(const TypeName&) V8_DELETE
+// Explicitly declare the copy constructor and assignment operator as deleted.
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&) = delete;      \
+  DISALLOW_ASSIGN(TypeName)
 
-
-// A macro to disallow all the implicit constructors, namely the
+// Explicitly declare all implicit constructors as deleted, namely the
 // default constructor, copy constructor and operator= functions.
-//
-// This should be used in the private: declarations for a class
-// that wants to prevent anyone from instantiating it. This is
-// especially useful for classes containing only static methods.
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName)  \
-  TypeName() V8_DELETE;                           \
+// This is especially useful for classes containing only static methods.
+#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
+  TypeName() = delete;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
+// Disallow copying a type, but provide default construction, move construction
+// and move assignment. Especially useful for move-only structs.
+#define MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(TypeName) \
+  TypeName() = default;                               \
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName)
 
-// Newly written code should use V8_INLINE and V8_NOINLINE directly.
-#define INLINE(declarator)    V8_INLINE declarator
-#define NO_INLINE(declarator) V8_NOINLINE declarator
+// Disallow copying a type, and only provide move construction and move
+// assignment. Especially useful for move-only structs.
+#define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName) \
+  TypeName(TypeName&&) = default;                  \
+  TypeName& operator=(TypeName&&) = default;       \
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
 
+// A macro to disallow the dynamic allocation.
+// This should be used in the private: declarations for a class
+// Declaring operator new and delete as deleted is not spec compliant.
+// Extract from 3.2.2 of C++11 spec:
+//  [...] A non-placement deallocation function for a class is
+//  odr-used by the definition of the destructor of that class, [...]
+#define DISALLOW_NEW_AND_DELETE()                            \
+  void* operator new(size_t) { base::OS::Abort(); }          \
+  void* operator new[](size_t) { base::OS::Abort(); };       \
+  void operator delete(void*, size_t) { base::OS::Abort(); } \
+  void operator delete[](void*, size_t) { base::OS::Abort(); }
 
-// Newly written code should use WARN_UNUSED_RESULT.
-#define MUST_USE_RESULT WARN_UNUSED_RESULT
-
-
-// Define V8_USE_ADDRESS_SANITIZER macros.
+// Define V8_USE_ADDRESS_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define V8_USE_ADDRESS_SANITIZER 1
 #endif
 #endif
 
-// Define DISABLE_ASAN macros.
+// Define DISABLE_ASAN macro.
 #ifdef V8_USE_ADDRESS_SANITIZER
 #define DISABLE_ASAN __attribute__((no_sanitize_address))
 #else
 #define DISABLE_ASAN
 #endif
 
+// Define V8_USE_MEMORY_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#define V8_USE_MEMORY_SANITIZER 1
+#endif
+#endif
+
+// Helper macro to define no_sanitize attributes only with clang.
+#if defined(__clang__) && defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define CLANG_NO_SANITIZE(what) __attribute__((no_sanitize(what)))
+#endif
+#endif
+#if !defined(CLANG_NO_SANITIZE)
+#define CLANG_NO_SANITIZE(what)
+#endif
+
+// DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
+#define DISABLE_CFI_PERF CLANG_NO_SANITIZE("cfi")
+
+// DISABLE_CFI_ICALL -- Disable Control Flow Integrity indirect call checks,
+// useful because calls into JITed code can not be CFI verified.
+#define DISABLE_CFI_ICALL CLANG_NO_SANITIZE("cfi-icall")
 
 #if V8_CC_GNU
 #define V8_IMMEDIATE_CRASH() __builtin_trap()
@@ -277,86 +190,149 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 
 
-// Use C++11 static_assert if possible, which gives error
-// messages that are easier to understand on first sight.
-#if V8_HAS_CXX11_STATIC_ASSERT
+// TODO(all) Replace all uses of this macro with static_assert, remove macro.
 #define STATIC_ASSERT(test) static_assert(test, #test)
-#else
-// This is inspired by the static assertion facility in boost.  This
-// is pretty magical.  If it causes you trouble on a platform you may
-// find a fix in the boost code.
-template <bool> class StaticAssertion;
-template <> class StaticAssertion<true> { };
-// This macro joins two tokens.  If one of the tokens is a macro the
-// helper call causes it to be resolved before joining.
-#define SEMI_STATIC_JOIN(a, b) SEMI_STATIC_JOIN_HELPER(a, b)
-#define SEMI_STATIC_JOIN_HELPER(a, b) a##b
-// Causes an error during compilation of the condition is not
-// statically known to be true.  It is formulated as a typedef so that
-// it can be used wherever a typedef can be used.  Beware that this
-// actually causes each use to introduce a new defined type with a
-// name depending on the source line.
-template <int> class StaticAssertionHelper { };
-#define STATIC_ASSERT(test)                               \
-  typedef StaticAssertionHelper<                          \
-      sizeof(StaticAssertion<static_cast<bool>((test))>)> \
-      SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) ALLOW_UNUSED_TYPE
 
+namespace v8 {
+namespace base {
+
+// Note that some implementations of std::is_trivially_copyable mandate that at
+// least one of the copy constructor, move constructor, copy assignment or move
+// assignment is non-deleted, while others do not. Be aware that also
+// base::is_trivially_copyable will differ for these cases.
+template <typename T>
+struct is_trivially_copyable {
+#if V8_CC_MSVC
+  // Unfortunately, MSVC 2015 is broken in that std::is_trivially_copyable can
+  // be false even though it should be true according to the standard.
+  // (status at 2018-02-26, observed on the msvc waterfall bot).
+  // Interestingly, the lower-level primitives used below are working as
+  // intended, so we reimplement this according to the standard.
+  // See also https://developercommunity.visualstudio.com/content/problem/
+  //          170883/msvc-type-traits-stdis-trivial-is-bugged.html.
+  static constexpr bool value =
+      // Copy constructor is trivial or deleted.
+      (std::is_trivially_copy_constructible<T>::value ||
+       !std::is_copy_constructible<T>::value) &&
+      // Copy assignment operator is trivial or deleted.
+      (std::is_trivially_copy_assignable<T>::value ||
+       !std::is_copy_assignable<T>::value) &&
+      // Move constructor is trivial or deleted.
+      (std::is_trivially_move_constructible<T>::value ||
+       !std::is_move_constructible<T>::value) &&
+      // Move assignment operator is trivial or deleted.
+      (std::is_trivially_move_assignable<T>::value ||
+       !std::is_move_assignable<T>::value) &&
+      // (Some implementations mandate that one of the above is non-deleted, but
+      // the standard does not, so let's skip this check.)
+      // Trivial non-deleted destructor.
+      std::is_trivially_destructible<T>::value;
+
+#elif defined(__GNUC__) && __GNUC__ < 5
+  // WARNING:
+  // On older libstdc++ versions, there is no way to correctly implement
+  // is_trivially_copyable. The workaround below is an approximation (neither
+  // over- nor underapproximation). E.g. it wrongly returns true if the move
+  // constructor is non-trivial, and it wrongly returns false if the copy
+  // constructor is deleted, but copy assignment is trivial.
+  // TODO(rongjie) Remove this workaround once we require gcc >= 5.0
+  static constexpr bool value =
+      __has_trivial_copy(T) && __has_trivial_destructor(T);
+
+#else
+  static constexpr bool value = std::is_trivially_copyable<T>::value;
+#endif
+};
+#if defined(__GNUC__) && __GNUC__ < 5
+// On older libstdc++ versions, base::is_trivially_copyable<T>::value is only an
+// approximation (see above), so make ASSERT_{NOT_,}TRIVIALLY_COPYABLE a noop.
+#define ASSERT_TRIVIALLY_COPYABLE(T) static_assert(true, "check disabled")
+#define ASSERT_NOT_TRIVIALLY_COPYABLE(T) static_assert(true, "check disabled")
+#else
+#define ASSERT_TRIVIALLY_COPYABLE(T)                         \
+  static_assert(::v8::base::is_trivially_copyable<T>::value, \
+                #T " should be trivially copyable")
+#define ASSERT_NOT_TRIVIALLY_COPYABLE(T)                      \
+  static_assert(!::v8::base::is_trivially_copyable<T>::value, \
+                #T " should not be trivially copyable")
 #endif
 
-
-// The USE(x) template is used to silence C++ compiler warnings
+// The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
-template <typename T>
-inline void USE(T) { }
+// The arguments are guaranteed to be evaluated from left to right.
+struct Use {
+  template <typename T>
+  Use(T&&) {}  // NOLINT(runtime/explicit)
+};
+#define USE(...)                                                   \
+  do {                                                             \
+    ::v8::base::Use unused_tmp_array_for_use_macro[]{__VA_ARGS__}; \
+    (void)unused_tmp_array_for_use_macro;                          \
+  } while (false)
 
+}  // namespace base
+}  // namespace v8
 
-#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
-
+// implicit_cast<A>(x) triggers an implicit cast from {x} to type {A}. This is
+// useful in situations where static_cast<A>(x) would do too much.
+// Only use this for cheap-to-copy types, or use move semantics explicitly.
+template <class A>
+V8_INLINE A implicit_cast(A x) {
+  return x;
+}
 
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
 #if V8_CC_MSVC
-# define V8_UINT64_C(x)   (x ## UI64)
-# define V8_INT64_C(x)    (x ## I64)
 # if V8_HOST_ARCH_64_BIT
-#  define V8_INTPTR_C(x)  (x ## I64)
 #  define V8_PTR_PREFIX   "ll"
 # else
-#  define V8_INTPTR_C(x)  (x)
 #  define V8_PTR_PREFIX   ""
 # endif  // V8_HOST_ARCH_64_BIT
 #elif V8_CC_MINGW64
-# define V8_UINT64_C(x)   (x ## ULL)
-# define V8_INT64_C(x)    (x ## LL)
-# define V8_INTPTR_C(x)   (x ## LL)
 # define V8_PTR_PREFIX    "I64"
 #elif V8_HOST_ARCH_64_BIT
-# if V8_OS_MACOSX
-#  define V8_UINT64_C(x)   (x ## ULL)
-#  define V8_INT64_C(x)    (x ## LL)
-# else
-#  define V8_UINT64_C(x)   (x ## UL)
-#  define V8_INT64_C(x)    (x ## L)
-# endif
-# define V8_INTPTR_C(x)   (x ## L)
 # define V8_PTR_PREFIX    "l"
 #else
-# define V8_UINT64_C(x)   (x ## ULL)
-# define V8_INT64_C(x)    (x ## LL)
-# define V8_INTPTR_C(x)   (x)
+#if V8_OS_AIX
+#define V8_PTR_PREFIX "l"
+#else
 # define V8_PTR_PREFIX    ""
+#endif
 #endif
 
 #define V8PRIxPTR V8_PTR_PREFIX "x"
 #define V8PRIdPTR V8_PTR_PREFIX "d"
 #define V8PRIuPTR V8_PTR_PREFIX "u"
 
+#ifdef V8_TARGET_ARCH_64_BIT
+#define V8_PTR_HEX_DIGITS 12
+#define V8PRIxPTR_FMT "0x%012" V8PRIxPTR
+#else
+#define V8_PTR_HEX_DIGITS 8
+#define V8PRIxPTR_FMT "0x%08" V8PRIxPTR
+#endif
+
+// ptrdiff_t is 't' according to the standard, but MSVC uses 'I'.
+#if V8_CC_MSVC
+#define V8PRIxPTRDIFF "Ix"
+#define V8PRIdPTRDIFF "Id"
+#define V8PRIuPTRDIFF "Iu"
+#else
+#define V8PRIxPTRDIFF "tx"
+#define V8PRIdPTRDIFF "td"
+#define V8PRIuPTRDIFF "tu"
+#endif
+
 // Fix for Mac OS X defining uintptr_t as "unsigned long":
 #if V8_OS_MACOSX
 #undef V8PRIxPTR
 #define V8PRIxPTR "lx"
+#undef V8PRIdPTR
+#define V8PRIdPTR "ld"
+#undef V8PRIuPTR
+#define V8PRIuPTR "lxu"
 #endif
 
 // The following macro works on both 32 and 64-bit platforms.
@@ -369,7 +345,7 @@ inline void USE(T) { }
 // This allows conversion of Addresses and integral types into
 // 0-relative int offsets.
 template <typename T>
-inline intptr_t OffsetFrom(T x) {
+constexpr inline intptr_t OffsetFrom(T x) {
   return x - static_cast<T>(0);
 }
 
@@ -378,7 +354,7 @@ inline intptr_t OffsetFrom(T x) {
 // This allows conversion of 0-relative int offsets into Addresses and
 // integral types.
 template <typename T>
-inline T AddressFrom(intptr_t x) {
+constexpr inline T AddressFrom(intptr_t x) {
   return static_cast<T>(static_cast<T>(0) + x);
 }
 
@@ -386,33 +362,52 @@ inline T AddressFrom(intptr_t x) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
-  DCHECK(IS_POWER_OF_TWO(m));
+  // m must be a power of two.
+  DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
-
+template <intptr_t m, typename T>
+constexpr inline T RoundDown(T x) {
+  // m must be a power of two.
+  STATIC_ASSERT(m != 0 && ((m & (m - 1)) == 0));
+  return AddressFrom<T>(OffsetFrom(x) & -m);
+}
 
 // Return the smallest multiple of m which is >= x.
 template <typename T>
 inline T RoundUp(T x, intptr_t m) {
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
-
-
-namespace v8 {
-namespace base {
-
-// TODO(yangguo): This is a poor man's replacement for std::is_fundamental,
-// which requires C++11. Switch to std::is_fundamental once possible.
-template <typename T>
-inline bool is_fundamental() {
-  return false;
+template <intptr_t m, typename T>
+constexpr inline T RoundUp(T x) {
+  return RoundDown<m, T>(static_cast<T>(x + m - 1));
 }
 
-template <>
-inline bool is_fundamental<uint8_t>() {
-  return true;
+inline void* AlignedAddress(void* address, size_t alignment) {
+  // The alignment must be a power of two.
+  DCHECK_EQ(alignment & (alignment - 1), 0u);
+  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address) &
+                                 ~static_cast<uintptr_t>(alignment - 1));
 }
-}
-}  // namespace v8::base
 
-#endif   // V8_BASE_MACROS_H_
+// Bounds checks for float to integer conversions, which does truncation. Hence,
+// the range of legal values is (min - 1, max + 1).
+template <typename int_t, typename float_t, typename biggest_int_t = int64_t>
+bool is_inbounds(float_t v) {
+  static_assert(sizeof(int_t) < sizeof(biggest_int_t),
+                "int_t can't be bounds checked by the compiler");
+  constexpr float_t kLowerBound =
+      static_cast<float_t>(std::numeric_limits<int_t>::min()) - 1;
+  constexpr float_t kUpperBound =
+      static_cast<float_t>(std::numeric_limits<int_t>::max()) + 1;
+  constexpr bool kLowerBoundIsMin =
+      static_cast<biggest_int_t>(kLowerBound) ==
+      static_cast<biggest_int_t>(std::numeric_limits<int_t>::min());
+  constexpr bool kUpperBoundIsMax =
+      static_cast<biggest_int_t>(kUpperBound) ==
+      static_cast<biggest_int_t>(std::numeric_limits<int_t>::max());
+  return (kLowerBoundIsMin ? (kLowerBound <= v) : (kLowerBound < v)) &&
+         (kUpperBoundIsMax ? (v <= kUpperBound) : (v < kUpperBound));
+}
+
+#endif  // V8_BASE_MACROS_H_

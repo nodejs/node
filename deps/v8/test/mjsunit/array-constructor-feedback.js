@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
+// Flags: --allow-natives-syntax --expose-gc --no-always-opt --opt
 
 // Test element kind of objects.
 
@@ -47,40 +46,20 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 }
 
 function isHoley(obj) {
-  if (%HasFastHoleyElements(obj)) return true;
+  if (%HasHoleyElements(obj)) return true;
   return false;
 }
 
 function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
-
-// Test: If a call site goes megamorphic, it retains the ability to
-// use allocation site feedback (if FLAG_allocation_site_pretenuring
-// is on).
-(function() {
-  function bar(t, len) {
-    return new t(len);
-  }
-
-  a = bar(Array, 10);
-  a[0] = 3.5;
-  b = bar(Array, 1);
-  assertKind(elements_kind.fast_double, b);
-  c = bar(Object, 3);
-  b = bar(Array, 10);
-  // TODO(mvstanton): re-enable when FLAG_allocation_site_pretenuring
-  // is on in the build.
-  // assertKind(elements_kind.fast_double, b);
-})();
-
 
 // Test: ensure that crankshafted array constructor sites are deopted
 // if another function is used.
@@ -92,7 +71,7 @@ function assertKind(expected, obj, name_opt) {
   a[0] = 3.5;
   b = bar0(Array);
   assertKind(elements_kind.fast_double, b);
-    %OptimizeFunctionOnNextCall(bar0);
+  %OptimizeFunctionOnNextCall(bar0);
   b = bar0(Array);
   assertKind(elements_kind.fast_double, b);
   assertOptimized(bar0);
@@ -101,18 +80,15 @@ function assertKind(expected, obj, name_opt) {
   assertUnoptimized(bar0)
   // When it's re-optimized, we should call through the full stub
   bar0(Array);
-    %OptimizeFunctionOnNextCall(bar0);
+  %OptimizeFunctionOnNextCall(bar0);
   b = bar0(Array);
-  // This only makes sense to test if we allow crankshafting
-  if (4 != %GetOptimizationStatus(bar0)) {
-    // We also lost our ability to record kind feedback, as the site
-    // is megamorphic now.
-    assertKind(elements_kind.fast_smi_only, b);
-    assertOptimized(bar0);
-    b[0] = 3.5;
-    c = bar0(Array);
-    assertKind(elements_kind.fast_smi_only, c);
-  }
+  // We also lost our ability to record kind feedback, as the site
+  // is megamorphic now.
+  assertKind(elements_kind.fast_smi_only, b);
+  assertOptimized(bar0);
+  b[0] = 3.5;
+  c = bar0(Array);
+  assertKind(elements_kind.fast_smi_only, c);
 })();
 
 
@@ -126,26 +102,24 @@ function assertKind(expected, obj, name_opt) {
   a[0] = "a string";
   a = bar(10);
   assertKind(elements_kind.fast, a);
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   a = bar(10);
   assertKind(elements_kind.fast, a);
   assertOptimized(bar);
-  bar(100000);
+  bar(10000);
   assertOptimized(bar);
-
-  // If the argument isn't a smi, things should still work.
-  a = bar("oops");
-  assertOptimized(bar);
-  assertKind(elements_kind.fast, a);
 
   function barn(one, two, three) {
     return new Array(one, two, three);
   }
 
-  barn(1, 2, 3);
-  barn(1, 2, 3);
-    %OptimizeFunctionOnNextCall(barn);
-  barn(1, 2, 3);
+  a = barn(1, 2, 3);
+  a[1] = "a string";
+  a = barn(1, 2, 3);
+  assertKind(elements_kind.fast, a);
+  %OptimizeFunctionOnNextCall(barn);
+  a = barn(1, 2, 3);
+  assertKind(elements_kind.fast, a);
   assertOptimized(barn);
   a = barn(1, "oops", 3);
   assertOptimized(barn);
@@ -161,17 +135,14 @@ function assertKind(expected, obj, name_opt) {
   }
   a = bar();
   bar();
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   b = bar();
-  // This only makes sense to test if we allow crankshafting
-  if (4 != %GetOptimizationStatus(bar)) {
-    assertOptimized(bar);
-      %DebugPrint(3);
-    b[0] = 3.5;
-    c = bar();
-    assertKind(elements_kind.fast_smi_only, c);
-    assertOptimized(bar);
-  }
+  assertOptimized(bar);
+  %DebugPrint(3);
+  b[0] = 3.5;
+  c = bar();
+  assertKind(elements_kind.fast_smi_only, c);
+  assertOptimized(bar);
 })();
 
 
@@ -181,7 +152,7 @@ function assertKind(expected, obj, name_opt) {
   function bar() { return new Array(); }
   bar();
   bar();
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   a = bar();
   assertTrue(a instanceof Array);
 
@@ -200,10 +171,10 @@ function assertKind(expected, obj, name_opt) {
   function bar(len) { return new Array(len); }
   bar(0);
   bar(0);
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   a = bar(0);
   assertOptimized(bar);
-  assertFalse(isHoley(a));
+  assertTrue(isHoley(a));
   a = bar(1);  // ouch!
   assertOptimized(bar);
   assertTrue(isHoley(a));
@@ -211,9 +182,23 @@ function assertKind(expected, obj, name_opt) {
   assertTrue(isHoley(a));
   a = bar(0);
   assertOptimized(bar);
-  // Crankshafted functions don't use mementos, so feedback still
-  // indicates a packed array is desired. (unless --nocrankshaft is in use).
-  if (4 != %GetOptimizationStatus(bar)) {
-    assertFalse(isHoley(a));
-  }
+  assertTrue(isHoley(a));
+})();
+
+// Test: Make sure that crankshaft continues with feedback for large arrays.
+(function() {
+  function bar(len) { return new Array(len); }
+  var size = 100001;
+  // Perform a gc, because we are allocating a very large array and if a gc
+  // happens during the allocation we could lose our memento.
+  gc();
+  bar(size)[0] = 'string';
+  var res = bar(size);
+  assertKind(elements_kind.fast, bar(size));
+    %OptimizeFunctionOnNextCall(bar);
+  assertKind(elements_kind.fast, bar(size));
+  // But there is a limit, based on the size of the old generation, currently
+  // 22937600, but double it to prevent the test being too brittle.
+  var large_size = 22937600 * 2;
+  assertKind(elements_kind.dictionary, bar(large_size));
 })();

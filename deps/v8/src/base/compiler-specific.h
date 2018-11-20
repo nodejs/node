@@ -16,39 +16,80 @@
 #define ALLOW_UNUSED_TYPE
 #endif
 
-
-// Annotate a virtual method indicating it must be overriding a virtual
-// method in the parent class.
-// Use like:
-//   virtual void bar() OVERRIDE;
-#if V8_HAS_CXX11_OVERRIDE
-#define OVERRIDE override
+// Tell the compiler a function is using a printf-style format string.
+// |format_param| is the one-based index of the format string parameter;
+// |dots_param| is the one-based index of the "..." parameter.
+// For v*printf functions (which take a va_list), pass 0 for dots_param.
+// (This is undocumented but matches what the system C headers do.)
+#if defined(__GNUC__)
+#define PRINTF_FORMAT(format_param, dots_param) \
+  __attribute__((format(printf, format_param, dots_param)))
 #else
-#define OVERRIDE /* NOT SUPPORTED */
+#define PRINTF_FORMAT(format_param, dots_param)
 #endif
 
-
-// Annotate a virtual method indicating that subclasses must not override it,
-// or annotate a class to indicate that it cannot be subclassed.
-// Use like:
-//   class B FINAL : public A {};
-//   virtual void bar() FINAL;
-#if V8_HAS_CXX11_FINAL
-#define FINAL final
-#elif V8_HAS___FINAL
-#define FINAL __final
+// The C++ standard requires that static const members have an out-of-class
+// definition (in a single compilation unit), but MSVC chokes on this (when
+// language extensions, which are required, are enabled). (You're only likely to
+// notice the need for a definition if you take the address of the member or,
+// more commonly, pass it to a function that takes it as a reference argument --
+// probably an STL function.) This macro makes MSVC do the right thing. See
+// http://msdn.microsoft.com/en-us/library/34h23df8(v=vs.100).aspx for more
+// information. Use like:
+//
+// In .h file:
+//   struct Foo {
+//     static const int kBar = 5;
+//   };
+//
+// In .cc file:
+//   STATIC_CONST_MEMBER_DEFINITION const int Foo::kBar;
+#if V8_HAS_DECLSPEC_SELECTANY
+#define STATIC_CONST_MEMBER_DEFINITION __declspec(selectany)
 #else
-#define FINAL /* NOT SUPPORTED */
+#define STATIC_CONST_MEMBER_DEFINITION
 #endif
 
+#if V8_CC_MSVC
 
-// Annotate a function indicating the caller must examine the return value.
-// Use like:
-//   int foo() WARN_UNUSED_RESULT;
-#if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
-#define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#define WARN_UNUSED_RESULT /* NOT SUPPORTED */
-#endif
+#include <sal.h>
+
+// Macros for suppressing and disabling warnings on MSVC.
+//
+// Warning numbers are enumerated at:
+// http://msdn.microsoft.com/en-us/library/8x5x43k7(VS.80).aspx
+//
+// The warning pragma:
+// http://msdn.microsoft.com/en-us/library/2c8f766e(VS.80).aspx
+//
+// Using __pragma instead of #pragma inside macros:
+// http://msdn.microsoft.com/en-us/library/d9x1s805.aspx
+
+// MSVC_SUPPRESS_WARNING disables warning |n| for the remainder of the line and
+// for the next line of the source file.
+#define MSVC_SUPPRESS_WARNING(n) __pragma(warning(suppress : n))
+
+// Allows exporting a class that inherits from a non-exported base class.
+// This uses suppress instead of push/pop because the delimiter after the
+// declaration (either "," or "{") has to be placed before the pop macro.
+//
+// Example usage:
+// class EXPORT_API Foo : NON_EXPORTED_BASE(public Bar) {
+//
+// MSVC Compiler warning C4275:
+// non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.
+// Note that this is intended to be used only when no access to the base class'
+// static data is done through derived classes or inline methods. For more info,
+// see http://msdn.microsoft.com/en-us/library/3tdb471s(VS.80).aspx
+#define NON_EXPORTED_BASE(code) \
+  MSVC_SUPPRESS_WARNING(4275)   \
+  code
+
+#else  // Not MSVC
+
+#define MSVC_SUPPRESS_WARNING(n)
+#define NON_EXPORTED_BASE(code) code
+
+#endif  // V8_CC_MSVC
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

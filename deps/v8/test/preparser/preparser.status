@@ -27,18 +27,5 @@
 
 [
 [ALWAYS, {
-  # TODO(mstarzinger): This script parses but throws a TypeError when run.
-  'non-alphanum': [FAIL],
-
-  # We don't parse RegExps at scanning time, so we can't fail on octal
-  # escapes (we need to parse to distinguish octal escapes from valid
-  # back-references).
-  'strict-octal-regexp': [FAIL],
 }],  # ALWAYS
-
-['arch == android_arm or arch == android_ia32', {
-  # Remove this once the issue above is fixed. Android test runner does not
-  # handle "FAIL" test expectation correctly.
-  'strict-octal-regexp': [SKIP],
-}],  # 'arch == android_arm or arch == android_ia32'
 ]

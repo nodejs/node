@@ -19,38 +19,43 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
 
 // no warnings should happen!
-var trace = console.trace;
+const trace = console.trace;
 console.trace = function() {
   trace.apply(console, arguments);
   throw new Error('no tracing should happen here');
 };
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
-var numRequests = 20;
-var done = 0;
+const numRequests = 20;
+let first = false;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
+  if (!first) {
+    first = true;
+    req.socket.on('close', function() {
+      server.close();
+    });
+  }
+
   res.end('ok');
-
   // Oh no!  The connection died!
   req.socket.destroy();
-  if (++done == numRequests)
-    server.close();
 });
 
-server.listen(common.PORT);
-
-var client = net.connect({ port: common.PORT, allowHalfOpen: true });
-for (var i = 0; i < numRequests; i++) {
-  client.write('GET / HTTP/1.1\r\n' +
-               'Host: some.host.name\r\n'+
-               '\r\n\r\n');
-}
-client.end();
-client.pipe(process.stdout);
+server.listen(0, function() {
+  const client = net.connect({ port: this.address().port,
+                               allowHalfOpen: true });
+  for (let i = 0; i < numRequests; i++) {
+    client.write('GET / HTTP/1.1\r\n' +
+                 'Host: some.host.name\r\n' +
+                 '\r\n\r\n');
+  }
+  client.end();
+  client.pipe(process.stdout);
+});

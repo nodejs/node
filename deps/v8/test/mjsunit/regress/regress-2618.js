@@ -25,20 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax --no-concurrent-osr
+// Flags: --use-osr --allow-natives-syntax --ignition-osr --opt
+// Flags: --no-always-opt
+
+// Can't OSR with always-opt.
+assertFalse(isAlwaysOptimize());
 
 function f() {
   do {
     do {
-      for (var i = 0; i < 10000000; i++) {
-        // This should run long enough to trigger OSR.
-      }
+      for (var i = 0; i < 10; i++) %OptimizeOsr();
+      // Note: this check can't be wrapped in a function, because
+      // calling that function causes a deopt from lack of call
+      // feedback.
+      var opt_status = %GetOptimizationStatus(f);
+      assertTrue(
+        (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0 ||
+        (opt_status & V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0);
     } while (false);
   } while (false);
 }
 
 f();
-assertTrue(%GetOptimizationCount(f) > 0 || %GetOptimizationStatus(f) == 4);
 
 function g() {
   for (var i = 0; i < 1; i++) { }
@@ -57,7 +65,12 @@ function g() {
             do {
               do {
                 do {
-                  for (var i = 0; i < 10000000; i++) { }
+                  for (var i = 0; i < 10; i++) %OptimizeOsr();
+                  var opt_status = %GetOptimizationStatus(g);
+                  assertTrue(
+                    (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0 ||
+                    (opt_status &
+                        V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0);
                 } while (false);
               } while (false);
             } while (false);
@@ -69,4 +82,3 @@ function g() {
 }
 
 g();
-assertTrue(%GetOptimizationCount(g) > 0 || %GetOptimizationStatus(g) == 4);

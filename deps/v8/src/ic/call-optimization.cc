@@ -2,18 +2,38 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/ic/call-optimization.h"
-
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-CallOptimization::CallOptimization(Handle<JSFunction> function) {
-  Initialize(function);
+CallOptimization::CallOptimization(Isolate* isolate, Handle<Object> function) {
+  constant_function_ = Handle<JSFunction>::null();
+  is_simple_api_call_ = false;
+  expected_receiver_type_ = Handle<FunctionTemplateInfo>::null();
+  api_call_info_ = Handle<CallHandlerInfo>::null();
+  if (function->IsJSFunction()) {
+    Initialize(isolate, Handle<JSFunction>::cast(function));
+  } else if (function->IsFunctionTemplateInfo()) {
+    Initialize(isolate, Handle<FunctionTemplateInfo>::cast(function));
+  }
 }
 
+Context* CallOptimization::GetAccessorContext(Map* holder_map) const {
+  if (is_constant_call()) {
+    return constant_function_->context()->native_context();
+  }
+  JSFunction* constructor = JSFunction::cast(holder_map->GetConstructor());
+  return constructor->context()->native_context();
+}
+
+bool CallOptimization::IsCrossContextLazyAccessorPair(Context* native_context,
+                                                      Map* holder_map) const {
+  DCHECK(native_context->IsNativeContext());
+  if (is_constant_call()) return false;
+  return native_context != GetAccessorContext(holder_map);
+}
 
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     Handle<Map> object_map, HolderLookup* holder_lookup) const {
@@ -27,11 +47,10 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     *holder_lookup = kHolderIsReceiver;
     return Handle<JSObject>::null();
   }
-  while (true) {
-    if (!object_map->prototype()->IsJSObject()) break;
-    Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
-    if (!prototype->map()->is_hidden_prototype()) break;
-    object_map = handle(prototype->map());
+  if (object_map->has_hidden_prototype()) {
+    JSObject* raw_prototype = JSObject::cast(object_map->prototype());
+    Handle<JSObject> prototype(raw_prototype, raw_prototype->GetIsolate());
+    object_map = handle(prototype->map(), prototype->GetIsolate());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
       *holder_lookup = kHolderFound;
       return prototype;
@@ -45,8 +64,14 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
 bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
                                             Handle<JSObject> holder) const {
   DCHECK(is_simple_api_call());
-  if (!receiver->IsJSObject()) return false;
-  Handle<Map> map(JSObject::cast(*receiver)->map());
+  if (!receiver->IsHeapObject()) return false;
+  Handle<Map> map(HeapObject::cast(*receiver)->map(), holder->GetIsolate());
+  return IsCompatibleReceiverMap(map, holder);
+}
+
+
+bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
+                                               Handle<JSObject> holder) const {
   HolderLookup holder_lookup;
   Handle<JSObject> api_holder = LookupHolderOfExpectedType(map, &holder_lookup);
   switch (holder_lookup) {
@@ -69,45 +94,46 @@ bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
       break;
   }
   UNREACHABLE();
-  return false;
 }
 
+void CallOptimization::Initialize(
+    Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
+  if (function_template_info->call_code()->IsUndefined(isolate)) return;
+  api_call_info_ = handle(
+      CallHandlerInfo::cast(function_template_info->call_code()), isolate);
 
-void CallOptimization::Initialize(Handle<JSFunction> function) {
-  constant_function_ = Handle<JSFunction>::null();
-  is_simple_api_call_ = false;
-  expected_receiver_type_ = Handle<FunctionTemplateInfo>::null();
-  api_call_info_ = Handle<CallHandlerInfo>::null();
+  if (!function_template_info->signature()->IsUndefined(isolate)) {
+    expected_receiver_type_ =
+        handle(FunctionTemplateInfo::cast(function_template_info->signature()),
+               isolate);
+  }
+  is_simple_api_call_ = true;
+}
 
+void CallOptimization::Initialize(Isolate* isolate,
+                                  Handle<JSFunction> function) {
   if (function.is_null() || !function->is_compiled()) return;
 
   constant_function_ = function;
-  AnalyzePossibleApiFunction(function);
+  AnalyzePossibleApiFunction(isolate, function);
 }
 
-
-void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
+void CallOptimization::AnalyzePossibleApiFunction(Isolate* isolate,
+                                                  Handle<JSFunction> function) {
   if (!function->shared()->IsApiFunction()) return;
-  Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data());
+  Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data(),
+                                    isolate);
 
   // Require a C++ callback.
-  if (info->call_code()->IsUndefined()) return;
-  api_call_info_ =
-      Handle<CallHandlerInfo>(CallHandlerInfo::cast(info->call_code()));
+  if (info->call_code()->IsUndefined(isolate)) return;
+  api_call_info_ = handle(CallHandlerInfo::cast(info->call_code()), isolate);
 
-  // Accept signatures that either have no restrictions at all or
-  // only have restrictions on the receiver.
-  if (!info->signature()->IsUndefined()) {
-    Handle<SignatureInfo> signature =
-        Handle<SignatureInfo>(SignatureInfo::cast(info->signature()));
-    if (!signature->args()->IsUndefined()) return;
-    if (!signature->receiver()->IsUndefined()) {
-      expected_receiver_type_ = Handle<FunctionTemplateInfo>(
-          FunctionTemplateInfo::cast(signature->receiver()));
-    }
+  if (!info->signature()->IsUndefined(isolate)) {
+    expected_receiver_type_ =
+        handle(FunctionTemplateInfo::cast(info->signature()), isolate);
   }
 
   is_simple_api_call_ = true;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

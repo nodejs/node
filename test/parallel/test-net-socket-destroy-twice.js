@@ -19,25 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const net = require('net');
 
-var nerrors = 0;
-var ncloses = 0;
+const server = net.createServer();
+server.listen(0);
+const port = server.address().port;
+const conn = net.createConnection(port);
 
-process.on('exit', function() {
-  assert.equal(nerrors, 1);
-  assert.equal(ncloses, 1);
-});
-
-var conn = net.createConnection(common.PORT);
-
-conn.on('error', function() {
-  nerrors++;
+conn.on('error', common.mustCall(() => {
   conn.destroy();
-});
+}));
 
-conn.on('close', function() {
-  ncloses++;
-});
+conn.on('close', common.mustCall());
+server.close();

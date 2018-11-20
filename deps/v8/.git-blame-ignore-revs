@@ -1,0 +1,22 @@
+# git hyper-blame master ignore list.
+#
+# This file contains a list of git hashes of revisions to be ignored by git
+# hyper-blame (in depot_tools). These revisions are considered "unimportant" in
+# that they are unlikely to be what you are interested in when blaming.
+#
+# Instructions:
+# - Only large (generally automated) reformatting or renaming CLs should be
+#   added to this list. Do not put things here just because you feel they are
+#   trivial or unimportant. If in doubt, do not put it on this list.
+# - Precede each revision with a comment containing the first line of its log.
+#   For bulk work over many commits, place all commits in a block with a single
+#   comment at the top describing the work done in those commits.
+# - Only put full 40-character hashes on this list (not short hashes or any
+#   other revision reference).
+# - Append to the bottom of the file (revisions should be in chronological order
+#   from oldest to newest).
+# - Because you must use a hash, you need to append to this list in a follow-up
+#   CL to the actual reformatting CL that you are trying to ignore.
+
+# Update of quotations in DEPS file.
+e50b49a0e38b34e2b28e026f4d1c7e0da0c7bb1a

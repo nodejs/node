@@ -28,6 +28,9 @@
 #ifndef V8_TEST_CODE_STUBS_H_
 #define V8_TEST_CODE_STUBS_H_
 
+namespace v8 {
+namespace internal {
+
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
 #if __GNUC__
 #define STDCALL  __attribute__((stdcall))
@@ -49,5 +52,8 @@ int STDCALL ConvertDToICVersion(double d);
 void RunAllTruncationTests(ConvertDToIFunc func);
 void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
                            ConvertDToIFunc func);
+
+}  // namespace internal
+}  // namespace v8
 
 #endif

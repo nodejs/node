@@ -5,6 +5,8 @@
 #ifndef V8_BIGNUM_DTOA_H_
 #define V8_BIGNUM_DTOA_H_
 
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 
@@ -53,6 +55,7 @@ enum BignumDtoaMode {
 void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
                 Vector<char> buffer, int* length, int* point);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BIGNUM_DTOA_H_

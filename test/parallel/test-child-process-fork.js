@@ -19,34 +19,38 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var assert = require('assert');
-var common = require('../common');
-var fork = require('child_process').fork;
-var args = ['foo', 'bar'];
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const args = ['foo', 'bar'];
+const fixtures = require('../common/fixtures');
 
-var n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);
-assert.deepEqual(args, ['foo', 'bar']);
+const n = fork(fixtures.path('child-process-spawn-node.js'), args);
 
-var messageCount = 0;
+assert.strictEqual(n.channel, n._channel);
+assert.deepStrictEqual(args, ['foo', 'bar']);
 
-n.on('message', function(m) {
+n.on('message', (m) => {
   console.log('PARENT got message:', m);
   assert.ok(m.foo);
-  messageCount++;
 });
 
 // https://github.com/joyent/node/issues/2355 - JSON.stringify(undefined)
 // returns "undefined" but JSON.parse() cannot parse that...
-assert.throws(function() { n.send(undefined); }, TypeError);
-assert.throws(function() { n.send(); }, TypeError);
+assert.throws(() => n.send(undefined), {
+  name: 'TypeError [ERR_MISSING_ARGS]',
+  message: 'The "message" argument must be specified',
+  code: 'ERR_MISSING_ARGS'
+});
+assert.throws(() => n.send(), {
+  name: 'TypeError [ERR_MISSING_ARGS]',
+  message: 'The "message" argument must be specified',
+  code: 'ERR_MISSING_ARGS'
+});
 
 n.send({ hello: 'world' });
 
-var childExitCode = -1;
-n.on('exit', function(c) {
-  childExitCode = c;
-});
-
-process.on('exit', function() {
-  assert.ok(childExitCode == 0);
-});
+n.on('exit', common.mustCall((c) => {
+  assert.strictEqual(c, 0);
+}));

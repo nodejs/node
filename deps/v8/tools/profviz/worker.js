@@ -106,7 +106,6 @@ function run(args) {
          var callGraphSize = 5;
          var ignoreUnknown = true;
          var stateFilter = null;
-         var snapshotLogProcessor = null;
          var range = range_start_override + "," + range_end_override;
 
          var tickProcessor = new TickProcessor(entriesProvider,
@@ -114,7 +113,6 @@ function run(args) {
                                                callGraphSize,
                                                ignoreUnknown,
                                                stateFilter,
-                                               snapshotLogProcessor,
                                                distortion,
                                                range);
          for (var i = 0; i < content_lines.length; i++) {

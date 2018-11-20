@@ -77,7 +77,7 @@ var SuperCar = ((function (Super) {
       }
     });
 
-    // Convert self.copy from CONSTANT to FIELD.
+    // Convert self.copy from DATA_CONSTANT to DATA.
     self.copy = function () { };
 
     return self;

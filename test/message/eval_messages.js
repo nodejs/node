@@ -1,4 +1,3 @@
-
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -20,22 +19,23 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
 
-var spawn = require('child_process').spawn;
+require('../common');
+
+const spawn = require('child_process').spawn;
 
 function run(cmd, strict, cb) {
-  var args = [];
+  const args = [];
   if (strict) args.push('--use_strict');
   args.push('-pe', cmd);
-  var child = spawn(process.execPath, args);
+  const child = spawn(process.execPath, args);
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stdout);
   child.on('close', cb);
 }
 
-var queue =
+const queue =
   [ 'with(this){__filename}',
     '42',
     'throw new Error("hello")',
@@ -43,7 +43,7 @@ var queue =
     'var ______________________________________________; throw 10' ];
 
 function go() {
-  var c = queue.shift();
+  const c = queue.shift();
   if (!c) return console.log('done');
   run(c, false, function() {
     run(c, true, go);

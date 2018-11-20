@@ -19,13 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // see https://github.com/joyent/node/issues/3257
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   req.resume();
   req.once('end', function() {
     res.writeHead(200);
@@ -34,17 +34,20 @@ var server = http.createServer(function(req, res) {
   });
 });
 
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
 server.listen(common.PIPE, function() {
-  var req = http.request({
+  const req = http.request({
     socketPath: common.PIPE,
-    headers: {'Content-Length':'1'},
+    headers: { 'Content-Length': '1' },
     method: 'POST',
     path: '/'
   });
 
   req.write('.');
 
-  sched(function() { req.end() }, 5);
+  sched(function() { req.end(); }, 5);
 });
 
 // schedule a callback after `ticks` event loop ticks

@@ -28,8 +28,6 @@
 // Test incorrect code generation for alternations on ARM.
 
 
-// Flags: --nofull-compiler
-
 function foo() {
   return (0 > ("10"||10) - 1);
 }

@@ -1,12 +1,11 @@
-.TH "NPM\-HELP" "1" "October 2014" "" ""
+.TH "NPM\-HELP" "1" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-help\fR \- Get help on npm
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm help <topic>
-npm help some search terms
+npm help <term> [<terms\.\.>]
 .fi
 .RE
 .SH DESCRIPTION
@@ -14,8 +13,8 @@ npm help some search terms
 If supplied a topic, then show the appropriate documentation page\.
 .P
 If the topic does not exist, or if multiple terms are provided, then run
-the \fBhelp\-search\fR command to find a match\.  Note that, if \fBhelp\-search\fR
-finds a single subject, then it will run \fBhelp\fR on that topic, so unique
+the \fBhelp\-search\fP command to find a match\.  Note that, if \fBhelp\-search\fP
+finds a single subject, then it will run \fBhelp\fP on that topic, so unique
 matches are equivalent to specifying a topic name\.
 .SH CONFIGURATION
 .SS viewer
@@ -29,15 +28,13 @@ Type: path
 .P
 The program to use to view help content\.
 .P
-Set to \fB"browser"\fR to view html help content in the default web browser\.
+Set to \fB"browser"\fP to view html help content in the default web browser\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
 npm help npm
 .IP \(bu 2
 README
-.IP \(bu 2
-npm help 7 faq
 .IP \(bu 2
 npm help 5 folders
 .IP \(bu 2

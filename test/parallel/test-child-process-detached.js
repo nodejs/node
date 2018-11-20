@@ -19,27 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
+'use strict';
+require('../common');
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
 
-var spawn = require('child_process').spawn;
-var childPath = path.join(__dirname, '..', 'fixtures', 'parent-process-nonpersistent.js');
-var persistentPid = -1;
+const spawn = require('child_process').spawn;
+const childPath = fixtures.path('parent-process-nonpersistent.js');
+let persistentPid = -1;
 
-var child = spawn(process.execPath, [ childPath ]);
+const child = spawn(process.execPath, [ childPath ]);
 
-child.stdout.on('data', function (data) {
+child.stdout.on('data', function(data) {
   persistentPid = parseInt(data, 10);
 });
 
-process.on('exit', function () {
-  assert(persistentPid !== -1);
-  assert.throws(function () {
+process.on('exit', function() {
+  assert.notStrictEqual(persistentPid, -1);
+  assert.throws(function() {
     process.kill(child.pid);
-  });
-  assert.doesNotThrow(function () {
-    process.kill(persistentPid);
-  });
+  }, /^Error: kill ESRCH$/);
+  process.kill(persistentPid);
 });
-

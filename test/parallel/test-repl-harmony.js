@@ -19,15 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
-var args = ['--harmony', '--use-strict', '-i'];
-var child = spawn(process.execPath, args);
+const spawn = require('child_process').spawn;
+const args = ['-i'];
+const child = spawn(process.execPath, args);
 
-var input = 'function x(){const y=1;y=2}\n';
-var expectOut = /^> SyntaxError: Assignment to constant variable.\n/;
+const input = '(function(){"use strict"; const y=1;y=2})()\n';
+// This message will vary based on JavaScript engine, so don't check the message
+// contents beyond confirming that the `Error` is a `TypeError`.
+const expectOut = /^> TypeError: /;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', function(c) {
@@ -35,7 +38,7 @@ child.stderr.on('data', function(c) {
 });
 
 child.stdout.setEncoding('utf8');
-var out = '';
+let out = '';
 child.stdout.on('data', function(c) {
   out += c;
 });

@@ -26,12 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 var custom_valueOf = function() {
-  assertEquals(Number, custom_valueOf.caller);
+  assertEquals(null, custom_valueOf.caller);
   return 2;
 }
 
 var custom_toString = function() {
-  assertEquals(String, custom_toString.caller);
+  assertEquals(null, custom_toString.caller);
   return "I used to be an adventurer like you";
 }
 

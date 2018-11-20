@@ -19,40 +19,35 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+// Flags: --expose-internals
+'use strict';
+const common = require('../common');
 
-var assert = require('assert');
-var fs = require('fs');
-var net = require('net');
-var tls = require('tls');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
+const { internalBinding } = require('internal/test/binding');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
+const { ShutdownWrap } = internalBinding('stream_wrap');
 
-var ended = 0;
-
-var server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const server = tls.createServer({
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 }, function(c) {
   // Send close-notify without shutting down TCP socket
-  if (c.ssl.shutdown() !== 1)
-    c.ssl.shutdown();
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+  const req = new ShutdownWrap();
+  req.oncomplete = common.mustCall(() => {});
+  req.handle = c._handle;
+  c._handle.shutdown(req);
+}).listen(0, common.mustCall(function() {
+  const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     // Ensure that we receive 'end' event anyway
-    c.on('end', function() {
-      ended++;
+    c.on('end', common.mustCall(function() {
       c.destroy();
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(ended, 1);
-});
+    }));
+  }));
+}));

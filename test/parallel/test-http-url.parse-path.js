@@ -19,27 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
-
-var testURL = url.parse('http://localhost:' + common.PORT + '/asdf');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
 function check(request) {
   // a path should come over
   assert.strictEqual(request.url, '/asdf');
 }
 
-var server = http.createServer(function(request, response) {
+const server = http.createServer(function(request, response) {
   // run the check function
-  check.call(this, request, response);
+  check(request);
   response.writeHead(200, {});
   response.end('ok');
   server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  const testURL = url.parse(`http://localhost:${this.address().port}/asdf`);
+
   // make the request
   http.request(testURL).end();
 });

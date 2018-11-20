@@ -1,16 +1,16 @@
-var common = require("../common-tap.js")
-var test = require("tap").test
-var http = require("http")
+var common = require('../common-tap.js')
+var test = require('tap').test
+var http = require('http')
 
-test("should send referer http header", function (t) {
+test('should send referer http header', function (t) {
   http.createServer(function (q, s) {
-    t.equal(q.headers.referer, "install foo")
+    t.equal(q.headers.referer, 'install foo')
     s.statusCode = 404
-    s.end(JSON.stringify({error: "whatever"}))
+    s.end(JSON.stringify({error: 'whatever'}))
     this.close()
   }).listen(common.port, function () {
-    var reg = "http://localhost:" + common.port
-    var args = [ "install", "foo", "--registry", reg ]
+    var reg = 'http://localhost:' + common.port
+    var args = [ 'install', 'foo', '--registry', reg ]
     common.npm(args, {}, function (er, code) {
       if (er) {
         throw er

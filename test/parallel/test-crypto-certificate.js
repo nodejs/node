@@ -19,36 +19,73 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var crypto = require('crypto');
-
-crypto.DEFAULT_ENCODING = 'buffer';
-
-var fs = require('fs');
-var path = require('path');
+const assert = require('assert');
+const crypto = require('crypto');
+const { Certificate } = crypto;
+const fixtures = require('../common/fixtures');
 
 // Test Certificates
-var spkacValid = fs.readFileSync(common.fixturesDir + '/spkac.valid');
-var spkacFail = fs.readFileSync(common.fixturesDir + '/spkac.fail');
-var spkacPem = fs.readFileSync(common.fixturesDir + '/spkac.pem');
+const spkacValid = fixtures.readSync('spkac.valid');
+const spkacFail = fixtures.readSync('spkac.fail');
+const spkacPem = fixtures.readSync('spkac.pem');
 
-var certificate = new crypto.Certificate();
+function checkMethods(certificate) {
 
-assert.equal(certificate.verifySpkac(spkacValid), true);
-assert.equal(certificate.verifySpkac(spkacFail), false);
+  assert.strictEqual(certificate.verifySpkac(spkacValid), true);
+  assert.strictEqual(certificate.verifySpkac(spkacFail), false);
 
-assert.equal(stripLineEndings(certificate.exportPublicKey(spkacValid)
-							  .toString('utf8')),
-			 stripLineEndings(spkacPem.toString('utf8')));
-assert.equal(certificate.exportPublicKey(spkacFail), '');
+  assert.strictEqual(
+    stripLineEndings(certificate.exportPublicKey(spkacValid).toString('utf8')),
+    stripLineEndings(spkacPem.toString('utf8'))
+  );
+  assert.strictEqual(certificate.exportPublicKey(spkacFail), '');
 
-assert.equal(certificate.exportChallenge(spkacValid)
-			 .toString('utf8'),
-			 'fb9ab814-6677-42a4-a60c-f905d1a6924d');
-assert.equal(certificate.exportChallenge(spkacFail), '');
+  assert.strictEqual(
+    certificate.exportChallenge(spkacValid).toString('utf8'),
+    'fb9ab814-6677-42a4-a60c-f905d1a6924d'
+  );
+  assert.strictEqual(certificate.exportChallenge(spkacFail), '');
+}
+
+{
+  // Test instance methods
+  checkMethods(new Certificate());
+}
+
+{
+  // Test static methods
+  checkMethods(Certificate);
+}
 
 function stripLineEndings(obj) {
   return obj.replace(/\n/g, '');
 }
+
+// Direct call Certificate() should return instance
+assert(Certificate() instanceof Certificate);
+
+[1, {}, [], Infinity, true, 'test', undefined, null].forEach((val) => {
+  assert.throws(
+    () => Certificate.verifySpkac(val),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "spkac" argument must be one of type Buffer, TypedArray, ' +
+               `or DataView. Received type ${typeof val}`
+    }
+  );
+});
+
+[1, {}, [], Infinity, true, undefined, null].forEach((val) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "spkac" argument must be one of type string, Buffer,' +
+             ` TypedArray, or DataView. Received type ${typeof val}`
+  };
+  assert.throws(() => Certificate.exportPublicKey(val), errObj);
+  assert.throws(() => Certificate.exportChallenge(val), errObj);
+});

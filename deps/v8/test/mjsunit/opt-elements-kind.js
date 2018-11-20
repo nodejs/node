@@ -33,54 +33,53 @@
 // Flags: --stress-runs=2
 
 var elements_kind = {
-  fast_smi_only            :  'fast smi only elements',
-  fast                     :  'fast elements',
-  fast_double              :  'fast double elements',
-  dictionary               :  'dictionary elements',
-  external_byte            :  'external byte elements',
-  external_unsigned_byte   :  'external unsigned byte elements',
-  external_short           :  'external short elements',
-  external_unsigned_short  :  'external unsigned short elements',
-  external_int             :  'external int elements',
-  external_unsigned_int    :  'external unsigned int elements',
-  external_float           :  'external float elements',
-  external_double          :  'external double elements',
-  external_pixel           :  'external pixel elements'
+  fast_smi_only             :  'fast smi only elements',
+  fast                      :  'fast elements',
+  fast_double               :  'fast double elements',
+  dictionary                :  'dictionary elements',
+  fixed_int32               :  'fixed int8 elements',
+  fixed_uint8               :  'fixed uint8 elements',
+  fixed_int16               :  'fixed int16 elements',
+  fixed_uint16              :  'fixed uint16 elements',
+  fixed_int32               :  'fixed int32 elements',
+  fixed_uint32              :  'fixed uint32 elements',
+  fixed_float32             :  'fixed float32 elements',
+  fixed_float64             :  'fixed float64 elements',
+  fixed_uint8_clamped       :  'fixed uint8_clamped elements'
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
-  // Every external kind is also an external array.
-  assertTrue(%HasExternalArrayElements(obj));
-  if (%HasExternalByteElements(obj)) {
-    return elements_kind.external_byte;
+
+  if (%HasFixedInt8Elements(obj)) {
+    return elements_kind.fixed_int8;
   }
-  if (%HasExternalUnsignedByteElements(obj)) {
-    return elements_kind.external_unsigned_byte;
+  if (%HasFixedUint8Elements(obj)) {
+    return elements_kind.fixed_uint8;
   }
-  if (%HasExternalShortElements(obj)) {
-    return elements_kind.external_short;
+  if (%HasFixedInt16Elements(obj)) {
+    return elements_kind.fixed_int16;
   }
-  if (%HasExternalUnsignedShortElements(obj)) {
-    return elements_kind.external_unsigned_short;
+  if (%HasFixedUint16Elements(obj)) {
+    return elements_kind.fixed_uint16;
   }
-  if (%HasExternalIntElements(obj)) {
-    return elements_kind.external_int;
+  if (%HasFixedInt32Elements(obj)) {
+    return elements_kind.fixed_int32;
   }
-  if (%HasExternalUnsignedIntElements(obj)) {
-    return elements_kind.external_unsigned_int;
+  if (%HasFixedUint32Elements(obj)) {
+    return elements_kind.fixed_uint32;
   }
-  if (%HasExternalFloatElements(obj)) {
-    return elements_kind.external_float;
+  if (%HasFixedFloat32Elements(obj)) {
+    return elements_kind.fixed_float32;
   }
-  if (%HasExternalDoubleElements(obj)) {
-    return elements_kind.external_double;
+  if (%HasFixedFloat64Elements(obj)) {
+    return elements_kind.fixed_float64;
   }
-  if (%HasExternalPixelElements(obj)) {
-    return elements_kind.external_pixel;
+  if (%HasFixedUint8ClampedElements(obj)) {
+    return elements_kind.fixed_uint8_clamped;
   }
 }
 
@@ -142,10 +141,16 @@ function test1() {
   assertTrue(%HaveSameMap(smis, doubles));
 }
 
+function clear_ic_state() {
+  %ClearFunctionFeedback(construct_smis);
+  %ClearFunctionFeedback(construct_doubles);
+  %ClearFunctionFeedback(convert_mixed);
+}
+
 test1();
-gc(); // clear IC state
+clear_ic_state();
 test1();
-gc(); // clear IC state
+clear_ic_state();
 %OptimizeFunctionOnNextCall(test1);
 test1();
-gc(); // clear IC state
+clear_ic_state();

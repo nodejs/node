@@ -19,48 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const cat = spawn(common.isWindows ? 'cmd' : 'cat');
 
+cat.stdout.on('end', common.mustCall());
+cat.stderr.on('data', common.mustNotCall());
+cat.stderr.on('end', common.mustCall());
 
+cat.on('exit', common.mustCall(function(code, signal) {
+  assert.strictEqual(code, null);
+  assert.strictEqual(signal, 'SIGTERM');
+}));
 
-var common = require('../common');
-var assert = require('assert');
-
-var spawn = require('child_process').spawn;
-
-var is_windows = process.platform === 'win32';
-
-var exitCode;
-var termSignal;
-var gotStdoutEOF = false;
-var gotStderrEOF = false;
-
-var cat = spawn(is_windows ? 'cmd' : 'cat');
-
-
-cat.stdout.on('end', function() {
-  gotStdoutEOF = true;
-});
-
-cat.stderr.on('data', function(chunk) {
-  assert.ok(false);
-});
-
-cat.stderr.on('end', function() {
-  gotStderrEOF = true;
-});
-
-cat.on('exit', function(code, signal) {
-  exitCode = code;
-  termSignal = signal;
-});
-
-assert.equal(cat.killed, false);
+assert.strictEqual(cat.killed, false);
 cat.kill();
-assert.equal(cat.killed, true);
-
-process.on('exit', function() {
-  assert.strictEqual(exitCode, null);
-  assert.strictEqual(termSignal, 'SIGTERM');
-  assert.ok(gotStdoutEOF);
-  assert.ok(gotStderrEOF);
-});
+assert.strictEqual(cat.killed, true);

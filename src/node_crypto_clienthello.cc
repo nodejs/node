@@ -19,11 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_crypto_clienthello.h"
 #include "node_crypto_clienthello-inl.h"
-#include "node_buffer.h"  // Buffer
 
 namespace node {
+namespace crypto {
 
 void ClientHelloParser::Parse(const uint8_t* data, size_t avail) {
   switch (state_) {
@@ -32,7 +31,6 @@ void ClientHelloParser::Parse(const uint8_t* data, size_t avail) {
         break;
       // Fall through
     case kTLSHeader:
-    case kSSL2Header:
       ParseHeader(data, avail);
       break;
     case kPaused:
@@ -59,20 +57,8 @@ bool ClientHelloParser::ParseRecordHeader(const uint8_t* data, size_t avail) {
     state_ = kTLSHeader;
     body_offset_ = 5;
   } else {
-#ifdef OPENSSL_NO_SSL2
-    frame_len_ = ((data[0] << 8) & kSSL2HeaderMask) + data[1];
-    state_ = kSSL2Header;
-    if (data[0] & kSSL2TwoByteHeaderBit) {
-      // header without padding
-      body_offset_ = 2;
-    } else {
-      // header with padding
-      body_offset_ = 3;
-    }
-#else
     End();
     return false;
-#endif  // OPENSSL_NO_SSL2
   }
 
   // Sanity check (too big frame, or too small)
@@ -85,12 +71,6 @@ bool ClientHelloParser::ParseRecordHeader(const uint8_t* data, size_t avail) {
   return true;
 }
 
-#ifdef OPENSSL_NO_SSL2
-# define NODE_SSL2_VER_CHECK(buf) false
-#else
-# define NODE_SSL2_VER_CHECK(buf) ((buf)[0] == 0x00 && (buf)[1] == 0x02)
-#endif  // OPENSSL_NO_SSL2
-
 
 void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   ClientHello hello;
@@ -99,10 +79,15 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   if (body_offset_ + frame_len_ > avail)
     return;
 
-  // Skip unsupported frames and gather some data from frame
-  // Check hello protocol version
-  if (!(data[body_offset_ + 4] == 0x03 && data[body_offset_ + 5] <= 0x03) &&
-      !NODE_SSL2_VER_CHECK(data + body_offset_ + 4)) {
+  // Check hello protocol version.  Protocol tuples that we know about:
+  //
+  // (3,1) TLS v1.0
+  // (3,2) TLS v1.1
+  // (3,3) TLS v1.2
+  //
+  if (data[body_offset_ + 4] != 0x03 ||
+      data[body_offset_ + 5] < 0x01 ||
+      data[body_offset_ + 5] > 0x03) {
     goto fail;
   }
 
@@ -110,13 +95,6 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
     if (state_ == kTLSHeader) {
       if (!ParseTLSClientHello(data, avail))
         goto fail;
-    } else if (state_ == kSSL2Header) {
-#ifdef OPENSSL_NO_SSL2
-      if (!ParseSSL2ClientHello(data, avail))
-        goto fail;
-#else
-      abort();  // Unreachable
-#endif  // OPENSSL_NO_SSL2
     } else {
       // We couldn't get here, but whatever
       goto fail;
@@ -141,14 +119,11 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   return;
 
  fail:
-  return End();
+  End();
 }
 
 
-#undef NODE_SSL2_VER_CHECK
-
-
-void ClientHelloParser::ParseExtension(ClientHelloParser::ExtensionType type,
+void ClientHelloParser::ParseExtension(const uint16_t type,
                                        const uint8_t* data,
                                        size_t len) {
   // NOTE: In case of anything we're just returning back, ignoring the problem.
@@ -255,7 +230,7 @@ bool ClientHelloParser::ParseTLSClientHello(const uint8_t* data, size_t avail) {
     if (ext_off + ext_len > avail)
       return false;
 
-    ParseExtension(static_cast<ExtensionType>(ext_type),
+    ParseExtension(ext_type,
                    data + ext_off,
                    ext_len);
 
@@ -269,28 +244,5 @@ bool ClientHelloParser::ParseTLSClientHello(const uint8_t* data, size_t avail) {
   return true;
 }
 
-
-#ifdef OPENSSL_NO_SSL2
-bool ClientHelloParser::ParseSSL2ClientHello(const uint8_t* data,
-                                             size_t avail) {
-  const uint8_t* body;
-
-  // Skip header, version
-  size_t session_offset = body_offset_ + 3;
-
-  if (session_offset + 4 < avail) {
-    body = data + session_offset;
-
-    uint16_t ciphers_size = (body[0] << 8) + body[1];
-
-    if (body + 4 + ciphers_size < data + avail) {
-      session_size_ = (body[2] << 8) + body[3];
-      session_id_ = body + 4 + ciphers_size;
-    }
-  }
-
-  return true;
-}
-#endif  // OPENSSL_NO_SSL2
-
+}  // namespace crypto
 }  // namespace node

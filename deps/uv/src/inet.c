@@ -19,7 +19,7 @@
 #include <string.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "stdint-msvc2008.h"
+# include "uv/stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
@@ -55,11 +55,7 @@ static int inet_ntop4(const unsigned char *src, char *dst, size_t size) {
   char tmp[UV__INET_ADDRSTRLEN];
   int l;
 
-#ifndef _WIN32
   l = snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2], src[3]);
-#else
-  l = _snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2], src[3]);
-#endif
   if (l <= 0 || (size_t) l >= size) {
     return UV_ENOSPC;
   }

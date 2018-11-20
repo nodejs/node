@@ -19,37 +19,43 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
 // simulate `cat readfile.js | node readfile.js`
 
-// TODO: Have some way to make this work on windows.
-if (process.platform === 'win32') {
-  console.error('No /dev/stdin on windows.  Skipping test.');
-  process.exit();
-}
+if (common.isWindows || common.isAIX)
+  common.skip(`No /dev/stdin on ${process.platform}.`);
 
-var fs = require('fs');
-
-var dataExpected = fs.readFileSync(__filename, 'utf8');
+const assert = require('assert');
+const fs = require('fs');
 
 if (process.argv[2] === 'child') {
   fs.readFile('/dev/stdin', function(er, data) {
-    if (er) throw er;
+    assert.ifError(er);
     process.stdout.write(data);
   });
   return;
 }
 
-var exec = require('child_process').exec;
-var f = JSON.stringify(__filename);
-var node = JSON.stringify(process.execPath);
-var cmd = 'cat ' + f + ' | ' + node + ' ' + f + ' child';
+const fixtures = require('../common/fixtures');
+
+const filename = fixtures.path('readfile_pipe_test.txt');
+const dataExpected = fs.readFileSync(filename).toString();
+
+const exec = require('child_process').exec;
+const f = JSON.stringify(__filename);
+const node = JSON.stringify(process.execPath);
+const cmd = `cat ${filename} | ${node} ${f} child`;
 exec(cmd, function(err, stdout, stderr) {
-  if (err) console.error(err);
-  assert(!err, 'it exits normally');
-  assert(stdout === dataExpected, 'it reads the file and outputs it');
-  assert(stderr === '', 'it does not write to stderr');
+  assert.ifError(err);
+  assert.strictEqual(
+    stdout,
+    dataExpected,
+    `expected to read: '${dataExpected}' but got: '${stdout}'`);
+  assert.strictEqual(
+    stderr,
+    '',
+    `expected not to read anything from stderr but got: '${stderr}'`);
   console.log('ok');
 });

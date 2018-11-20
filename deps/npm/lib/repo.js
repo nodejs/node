@@ -1,41 +1,23 @@
-
 module.exports = repo
 
-repo.usage = "npm repo <pkgname>"
+repo.usage = 'npm repo [<pkg>]'
+
+var openUrl = require('./utils/open-url')
+var hostedGitInfo = require('hosted-git-info')
+var url_ = require('url')
+var fetchPackageMetadata = require('./fetch-package-metadata.js')
 
 repo.completion = function (opts, cb) {
-  if (opts.conf.argv.remain.length > 2) return cb()
-  mapToRegistry("/-/short", npm.config, function (er, uri) {
-    if (er) return cb(er)
-
-    registry.get(uri, { timeout : 60000 }, function (er, list) {
-      return cb(null, list || [])
-    })
-  })
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
-var npm = require("./npm.js")
-  , registry = npm.registry
-  , opener = require("opener")
-  , github = require('github-url-from-git')
-  , githubUserRepo = require("github-url-from-username-repo")
-  , path = require("path")
-  , readJson = require("read-package-json")
-  , fs = require("fs")
-  , url_ = require("url")
-  , mapToRegistry = require("./utils/map-to-registry.js")
-  , npa = require("npm-package-arg")
-
 function repo (args, cb) {
-  var n = args.length && npa(args[0]).name || "."
-  fs.stat(n, function (er, s) {
-    if (er && er.code === "ENOENT") return callRegistry(n, cb)
-    else if (er) return cb(er)
-    if (!s.isDirectory()) return callRegistry(n, cb)
-    readJson(path.resolve(n, "package.json"), function (er, d) {
-      if (er) return cb(er)
-      getUrlAndOpen(d, cb)
-    })
+  var n = args.length ? args[0] : '.'
+  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
+    if (er) return cb(er)
+    getUrlAndOpen(d, cb)
   })
 }
 
@@ -44,41 +26,25 @@ function getUrlAndOpen (d, cb) {
   if (!r) return cb(new Error('no repository'))
   // XXX remove this when npm@v1.3.10 from node 0.10 is deprecated
   // from https://github.com/npm/npm-www/issues/418
-  if (githubUserRepo(r.url))
-    r.url = githubUserRepo(r.url)
+  var info = hostedGitInfo.fromUrl(r.url)
+  var url = info ? info.browse() : unknownHostedUrl(r.url)
 
-  var url = (r.url && ~r.url.indexOf('github'))
-          ? github(r.url)
-          : nonGithubUrl(r.url)
+  if (!url) return cb(new Error('no repository: could not get url'))
 
-  if (!url)
-    return cb(new Error('no repository: could not get url'))
-  opener(url, { command: npm.config.get("browser") }, cb)
+  openUrl(url, 'repository available at the following URL', cb)
 }
 
-function callRegistry (n, cb) {
-  mapToRegistry(n, npm.config, function (er, uri) {
-    if (er) return cb(er)
-
-    registry.get(uri + "/latest", { timeout : 3600 }, function (er, d) {
-      if (er) return cb(er)
-      getUrlAndOpen(d, cb)
-    })
-  })
-}
-
-function nonGithubUrl (url) {
+function unknownHostedUrl (url) {
   try {
     var idx = url.indexOf('@')
     if (idx !== -1) {
-      url = url.slice(idx+1).replace(/:([^\d]+)/, '/$1')
+      url = url.slice(idx + 1).replace(/:([^\d]+)/, '/$1')
     }
     url = url_.parse(url)
     var protocol = url.protocol === 'https:'
-                 ? 'https:'
-                 : 'http:'
+      ? 'https:'
+      : 'http:'
     return protocol + '//' + (url.host || '') +
       url.path.replace(/\.git$/, '')
-  }
-  catch(e) {}
+  } catch (e) {}
 }

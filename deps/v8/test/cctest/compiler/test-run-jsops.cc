@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(BinopAdd) {
   FunctionTester T("(function(a,b) { return a + b; })");
@@ -104,7 +104,7 @@ TEST(BinopShiftRightLogical) {
   FunctionTester T("(function(a,b) { return a >>> b; })");
 
   T.CheckCall(4, 8, 1);
-  T.CheckCall(0x7ffffffc, -8, 1);
+  T.CheckCall(0x7FFFFFFC, -8, 1);
   T.CheckCall(T.Val(4), T.Val("8"), T.Val(1));
   T.CheckCall(T.Val(4), T.Val(8), T.Val("1"));
 }
@@ -212,7 +212,7 @@ TEST(BinopLessThan) {
 }
 
 
-TEST(BinopLessThanEqual) {
+TEST(BinopLessThanOrEqual) {
   FunctionTester T("(function(a,b) { return a <= b; })");
 
   T.CheckTrue(7, 8);
@@ -395,16 +395,6 @@ TEST(GlobalLoad) {
 }
 
 
-TEST(GlobalStoreSloppy) {
-  FunctionTester T("(function(a,b) { g = a + b; return g; })");
-
-  T.CheckCall(T.Val(33), T.Val(22), T.Val(11));
-  CompileRun("delete g");
-  CompileRun("const g = 23");
-  T.CheckCall(T.Val(23), T.Val(55), T.Val(44));
-}
-
-
 TEST(GlobalStoreStrict) {
   FunctionTester T("(function(a,b) { 'use strict'; g = a + b; return g; })");
 
@@ -451,7 +441,6 @@ TEST(LookupStore) {
 
 
 TEST(BlockLoadStore) {
-  FLAG_harmony_scoping = true;
   FunctionTester T("(function(a) { 'use strict'; { let x = a+a; return x; }})");
 
   T.CheckCall(T.Val(46), T.Val(23));
@@ -460,7 +449,6 @@ TEST(BlockLoadStore) {
 
 
 TEST(BlockLoadStoreNested) {
-  FLAG_harmony_scoping = true;
   const char* src =
       "(function(a,b) {"
       "'use strict';"
@@ -522,3 +510,25 @@ TEST(RegExpLiteral) {
   T.CheckTrue(T.Val("abc"));
   T.CheckFalse(T.Val("xyz"));
 }
+
+
+TEST(ClassLiteral) {
+  const char* src =
+      "(function(a,b) {"
+      "  class C {"
+      "    x() { return a; }"
+      "    static y() { return b; }"
+      "    get z() { return 0; }"
+      "    constructor() {}"
+      "  }"
+      "  return new C().x() + C.y();"
+      "})";
+  FunctionTester T(src);
+
+  T.CheckCall(T.Val(65), T.Val(23), T.Val(42));
+  T.CheckCall(T.Val("ab"), T.Val("a"), T.Val("b"));
+}
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

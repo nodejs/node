@@ -19,47 +19,41 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
 
-var assert = require('assert');
-var fs = require('fs');
-var net = require('net');
-var tls = require('tls');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
+const assert = require('assert');
+const tls = require('tls');
 
-var received = '';
-var ended = 0;
+const fixtures = require('../common/fixtures');
 
-var server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
-}, function(c) {
-  c._write('hello ', null, function() {
-    c._write('world!', null, function() {
+let received = '';
+
+const server = tls.createServer({
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
+}, common.mustCall(function(c) {
+  c.write('hello ', null, common.mustCall(function() {
+    c.write('world!', null, common.mustCall(function() {
       c.destroy();
-    });
-    c._write(' gosh', null, function() {});
-  });
+    }));
+    // Data on next _write() will be written but callback will not be invoked
+    c.write(' gosh', null, common.mustNotCall());
+  }));
 
   server.close();
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+})).listen(0, common.mustCall(function() {
+  const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     c.on('data', function(chunk) {
       received += chunk;
     });
-    c.on('end', function() {
-      ended++;
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(ended, 1);
-  assert.equal(received, 'hello world! gosh');
-});
+    c.on('end', common.mustCall(function() {
+      assert.strictEqual(received, 'hello world! gosh');
+    }));
+  }));
+}));

@@ -26,41 +26,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
-#define ARM64_DEFINE_REG_STATICS
+#include "src/arm64/assembler-arm64.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/code-stubs.h"
+#include "src/frame-constants.h"
+#include "src/register-configuration.h"
 
 namespace v8 {
 namespace internal {
-
 
 // -----------------------------------------------------------------------------
 // CpuFeatures implementation.
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  if (cross_compile) {
-    // Always align csp in cross compiled code - this is safe and ensures that
-    // csp will always be aligned if it is enabled by probing at runtime.
-    if (FLAG_enable_always_align_csp) supported_ |= 1u << ALWAYS_ALIGN_CSP;
-  } else {
-    base::CPU cpu;
-    if (FLAG_enable_always_align_csp &&
-        (cpu.implementer() == base::CPU::NVIDIA || FLAG_debug_code)) {
-      supported_ |= 1u << ALWAYS_ALIGN_CSP;
-    }
-  }
+  // AArch64 has no configuration options, no further probing is required.
+  supported_ = 0;
+
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
+
+  // We used to probe for coherent cache support, but on older CPUs it
+  // causes crashes (crbug.com/524337), and newer CPUs don't even have
+  // the feature any more.
 }
 
-
 void CpuFeatures::PrintTarget() { }
-void CpuFeatures::PrintFeatures() { }
-
+void CpuFeatures::PrintFeatures() {}
 
 // -----------------------------------------------------------------------------
 // CPURegList utilities.
@@ -93,38 +89,36 @@ CPURegister CPURegList::PopHighestIndex() {
 void CPURegList::RemoveCalleeSaved() {
   if (type() == CPURegister::kRegister) {
     Remove(GetCalleeSaved(RegisterSizeInBits()));
-  } else if (type() == CPURegister::kFPRegister) {
-    Remove(GetCalleeSavedFP(RegisterSizeInBits()));
+  } else if (type() == CPURegister::kVRegister) {
+    Remove(GetCalleeSavedV(RegisterSizeInBits()));
   } else {
-    DCHECK(type() == CPURegister::kNoRegister);
+    DCHECK_EQ(type(), CPURegister::kNoRegister);
     DCHECK(IsEmpty());
     // The list must already be empty, so do nothing.
   }
 }
 
 
-CPURegList CPURegList::GetCalleeSaved(unsigned size) {
+CPURegList CPURegList::GetCalleeSaved(int size) {
   return CPURegList(CPURegister::kRegister, size, 19, 29);
 }
 
-
-CPURegList CPURegList::GetCalleeSavedFP(unsigned size) {
-  return CPURegList(CPURegister::kFPRegister, size, 8, 15);
+CPURegList CPURegList::GetCalleeSavedV(int size) {
+  return CPURegList(CPURegister::kVRegister, size, 8, 15);
 }
 
 
-CPURegList CPURegList::GetCallerSaved(unsigned size) {
+CPURegList CPURegList::GetCallerSaved(int size) {
   // Registers x0-x18 and lr (x30) are caller-saved.
   CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 18);
   list.Combine(lr);
   return list;
 }
 
-
-CPURegList CPURegList::GetCallerSavedFP(unsigned size) {
+CPURegList CPURegList::GetCallerSavedV(int size) {
   // Registers d0-d7 and d16-d31 are caller-saved.
-  CPURegList list = CPURegList(CPURegister::kFPRegister, size, 0, 7);
-  list.Combine(CPURegList(CPURegister::kFPRegister, size, 16, 31));
+  CPURegList list = CPURegList(CPURegister::kVRegister, size, 0, 7);
+  list.Combine(CPURegList(CPURegister::kVRegister, size, 16, 31));
   return list;
 }
 
@@ -153,9 +147,6 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
   // is a caller-saved register according to the procedure call standard.
   list.Combine(18);
 
-  // Drop jssp as the stack pointer doesn't need to be included.
-  list.Remove(28);
-
   // Add the link register (x30) to the safepoint list.
   list.Combine(30);
 
@@ -166,14 +157,21 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-const int RelocInfo::kApplyMask = 0;
-
+const int RelocInfo::kApplyMask =
+    RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded. Being
-  // specially coded on ARM64 means that it is a movz/movk sequence. We don't
-  // generate those for relocatable pointers.
-  return false;
+  // specially coded on ARM64 means that it is an immediate branch.
+  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+  if (instr->IsLdrLiteralX()) {
+    return false;
+  } else {
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    return true;
+  }
 }
 
 
@@ -182,39 +180,40 @@ bool RelocInfo::IsInConstantPool() {
   return instr->IsLdrLiteralX();
 }
 
+int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
+  DCHECK(IsRuntimeEntry(rmode_));
+  Instruction* movz_instr = reinterpret_cast<Instruction*>(pc_)->preceding();
+  DCHECK(movz_instr->IsMovz());
+  uint64_t imm = static_cast<uint64_t>(movz_instr->ImmMoveWide())
+                 << (16 * movz_instr->ShiftMoveWide());
+  DCHECK_LE(imm, INT_MAX);
 
-void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  // Patch the code at the current address with the supplied instructions.
-  Instr* pc = reinterpret_cast<Instr*>(pc_);
-  Instr* instr = reinterpret_cast<Instr*>(instructions);
-  for (int i = 0; i < instruction_count; i++) {
-    *(pc + i) = *(instr + i);
+  return static_cast<int>(imm);
+}
+
+void RelocInfo::set_js_to_wasm_address(Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
+                                   icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t RelocInfo::wasm_call_tag() const {
+  DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
+  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+  if (instr->IsLdrLiteralX()) {
+    return static_cast<uint32_t>(
+        Memory::Address_at(Assembler::target_pointer_address_at(pc_)));
+  } else {
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    return static_cast<uint32_t>(instr->ImmPCOffset() / kInstructionSize);
   }
-
-  // Indicate that code has changed.
-  CpuFeatures::FlushICache(pc_, instruction_count * kInstructionSize);
 }
-
-
-// Patch the code at the current PC with a call to the target address.
-// Additional guard instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
-  UNIMPLEMENTED();
-}
-
-
-Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
-                                              Register reg3, Register reg4) {
-  CPURegList regs(reg1, reg2, reg3, reg4);
-  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-    Register candidate = Register::FromAllocationIndex(i);
-    if (regs.IncludesAliasOf(candidate)) continue;
-    return candidate;
-  }
-  UNREACHABLE();
-  return NoReg;
-}
-
 
 bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
                 const CPURegister& reg3, const CPURegister& reg4,
@@ -231,10 +230,10 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
-      unique_regs |= regs[i].Bit();
-    } else if (regs[i].IsFPRegister()) {
+      unique_regs |= regs[i].bit();
+    } else if (regs[i].IsVRegister()) {
       number_of_valid_fpregs++;
-      unique_fpregs |= regs[i].Bit();
+      unique_fpregs |= regs[i].bit();
     } else {
       DCHECK(!regs[i].IsValid());
     }
@@ -269,44 +268,78 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
   return match;
 }
 
+bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
+                   const VRegister& reg3, const VRegister& reg4) {
+  DCHECK(reg1.IsValid());
+  return (!reg2.IsValid() || reg2.IsSameFormat(reg1)) &&
+         (!reg3.IsValid() || reg3.IsSameFormat(reg1)) &&
+         (!reg4.IsValid() || reg4.IsSameFormat(reg1));
+}
 
-void Immediate::InitializeHandle(Handle<Object> handle) {
-  AllowDeferredHandleDereference using_raw_address;
-
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
-    value_ = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  } else {
-    STATIC_ASSERT(sizeof(intptr_t) == sizeof(int64_t));
-    value_ = reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE64;
+bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
+                    const VRegister& reg3, const VRegister& reg4) {
+  DCHECK(reg1.IsValid());
+  if (!reg2.IsValid()) {
+    DCHECK(!reg3.IsValid() && !reg4.IsValid());
+    return true;
+  } else if (reg2.code() != ((reg1.code() + 1) % kNumberOfVRegisters)) {
+    return false;
   }
+
+  if (!reg3.IsValid()) {
+    DCHECK(!reg4.IsValid());
+    return true;
+  } else if (reg3.code() != ((reg2.code() + 1) % kNumberOfVRegisters)) {
+    return false;
+  }
+
+  if (!reg4.IsValid()) {
+    return true;
+  } else if (reg4.code() != ((reg3.code() + 1) % kNumberOfVRegisters)) {
+    return false;
+  }
+
+  return true;
+}
+
+void Immediate::InitializeHandle(Handle<HeapObject> handle) {
+  value_ = static_cast<intptr_t>(handle.address());
+  rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
 
 bool Operand::NeedsRelocation(const Assembler* assembler) const {
   RelocInfo::Mode rmode = immediate_.rmode();
 
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-    return assembler->serializer_enabled();
+  if (RelocInfo::IsOnlyForSerializer(rmode)) {
+    return assembler->options().record_reloc_info_for_serialization;
   }
 
   return !RelocInfo::IsNone(rmode);
 }
 
+bool ConstPool::AddSharedEntry(SharedEntryMap& entry_map, uint64_t data,
+                               int offset) {
+  auto existing = entry_map.find(data);
+  if (existing == entry_map.end()) {
+    entry_map[data] = static_cast<int>(entries_.size());
+    entries_.push_back(std::make_pair(data, std::vector<int>(1, offset)));
+    return true;
+  }
+  int index = existing->second;
+  entries_[index].second.push_back(offset);
+  return false;
+}
 
 // Constant Pool.
-void ConstPool::RecordEntry(intptr_t data,
-                            RelocInfo::Mode mode) {
-  DCHECK(mode != RelocInfo::COMMENT &&
-         mode != RelocInfo::POSITION &&
-         mode != RelocInfo::STATEMENT_POSITION &&
-         mode != RelocInfo::CONST_POOL &&
+bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
+  DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
          mode != RelocInfo::VENEER_POOL &&
-         mode != RelocInfo::CODE_AGE_SEQUENCE);
+         mode != RelocInfo::DEOPT_SCRIPT_OFFSET &&
+         mode != RelocInfo::DEOPT_INLINING_ID &&
+         mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);
+
+  bool write_reloc_info = true;
 
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();
@@ -314,25 +347,26 @@ void ConstPool::RecordEntry(intptr_t data,
     first_use_ = offset;
   }
 
-  std::pair<uint64_t, int> entry = std::make_pair(raw_data, offset);
   if (CanBeShared(mode)) {
-    shared_entries_.insert(entry);
-    if (shared_entries_.count(entry.first) == 1) {
-      shared_entries_count++;
-    }
+    write_reloc_info = AddSharedEntry(shared_entries_, raw_data, offset);
+  } else if (mode == RelocInfo::CODE_TARGET && raw_data != 0) {
+    // A zero data value is a placeholder and must not be shared.
+    write_reloc_info = AddSharedEntry(handle_to_index_map_, raw_data, offset);
   } else {
-    unique_entries_.push_back(entry);
+    entries_.push_back(std::make_pair(raw_data, std::vector<int>(1, offset)));
   }
 
   if (EntryCount() > Assembler::kApproxMaxPoolEntryCount) {
     // Request constant pool emission after the next instruction.
     assm_->SetNextConstPoolCheckIn(1);
   }
+
+  return write_reloc_info;
 }
 
 
 int ConstPool::DistanceToFirstUse() {
-  DCHECK(first_use_ >= 0);
+  DCHECK_GE(first_use_, 0);
   return assm_->pc_offset() - first_use_;
 }
 
@@ -436,18 +470,14 @@ void ConstPool::Emit(bool require_jump) {
 
 void ConstPool::Clear() {
   shared_entries_.clear();
-  shared_entries_count = 0;
-  unique_entries_.clear();
+  handle_to_index_map_.clear();
+  entries_.clear();
   first_use_ = -1;
 }
 
 
 bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
-  // Constant pool currently does not support 32-bit entries.
-  DCHECK(mode != RelocInfo::NONE32);
-
-  return RelocInfo::IsNone(mode) ||
-         (!assm_->serializer_enabled() && (mode >= RelocInfo::CELL));
+  return RelocInfo::IsNone(mode) || RelocInfo::IsShareableRelocMode(mode);
 }
 
 
@@ -468,8 +498,8 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
     const MemOperand& operandA,
     const MemOperand& operandB,
     int access_size_log2) {
-  DCHECK(access_size_log2 >= 0);
-  DCHECK(access_size_log2 <= 3);
+  DCHECK_GE(access_size_log2, 0);
+  DCHECK_LE(access_size_log2, 3);
   // Step one: check that they share the same base, that the mode is Offset
   // and that the offset is a multiple of access size.
   if (!operandA.base().Is(operandB.base()) ||
@@ -505,53 +535,28 @@ void ConstPool::EmitGuard() {
 void ConstPool::EmitEntries() {
   DCHECK(IsAligned(assm_->pc_offset(), 8));
 
-  typedef std::multimap<uint64_t, int>::const_iterator SharedEntriesIterator;
-  SharedEntriesIterator value_it;
-  // Iterate through the keys (constant pool values).
-  for (value_it = shared_entries_.begin();
-       value_it != shared_entries_.end();
-       value_it = shared_entries_.upper_bound(value_it->first)) {
-    std::pair<SharedEntriesIterator, SharedEntriesIterator> range;
-    uint64_t data = value_it->first;
-    range = shared_entries_.equal_range(data);
-    SharedEntriesIterator offset_it;
-    // Iterate through the offsets of a given key.
-    for (offset_it = range.first; offset_it != range.second; offset_it++) {
-      Instruction* instr = assm_->InstructionAt(offset_it->second);
+  // Emit entries.
+  for (const auto& entry : entries_) {
+    for (const auto& pc : entry.second) {
+      Instruction* instr = assm_->InstructionAt(pc);
 
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
       DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-      instr->SetImmPCOffsetTarget(assm_->pc());
+      instr->SetImmPCOffsetTarget(assm_->options(), assm_->pc());
     }
-    assm_->dc64(data);
-  }
-  shared_entries_.clear();
-  shared_entries_count = 0;
 
-  // Emit unique entries.
-  std::vector<std::pair<uint64_t, int> >::const_iterator unique_it;
-  for (unique_it = unique_entries_.begin();
-       unique_it != unique_entries_.end();
-       unique_it++) {
-    Instruction* instr = assm_->InstructionAt(unique_it->second);
-
-    // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
-    DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-    instr->SetImmPCOffsetTarget(assm_->pc());
-    assm_->dc64(unique_it->first);
+    assm_->dc64(entry.first);
   }
-  unique_entries_.clear();
-  first_use_ = -1;
+  Clear();
 }
 
 
 // Assembler
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
+    : AssemblerBase(options, buffer, buffer_size),
       constpool_(this),
-      recorded_ast_id_(TypeFeedbackId::None()),
-      unresolved_branches_(),
-      positions_recorder_(this) {
+      unresolved_branches_() {
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
   Reset();
@@ -560,49 +565,76 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 Assembler::~Assembler() {
   DCHECK(constpool_.IsEmpty());
-  DCHECK(const_pool_blocked_nesting_ == 0);
-  DCHECK(veneer_pool_blocked_nesting_ == 0);
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(veneer_pool_blocked_nesting_, 0);
 }
 
 
 void Assembler::Reset() {
 #ifdef DEBUG
   DCHECK((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
-  DCHECK(const_pool_blocked_nesting_ == 0);
-  DCHECK(veneer_pool_blocked_nesting_ == 0);
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(veneer_pool_blocked_nesting_, 0);
   DCHECK(unresolved_branches_.empty());
   memset(buffer_, 0, pc_ - buffer_);
 #endif
   pc_ = buffer_;
-  reloc_info_writer.Reposition(reinterpret_cast<byte*>(buffer_ + buffer_size_),
-                               reinterpret_cast<byte*>(pc_));
+  ReserveCodeTargetSpace(64);
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
   next_veneer_pool_check_ = kMaxInt;
   no_const_pool_before_ = 0;
-  ClearRecordedAstId();
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber: {
+        Handle<HeapObject> object =
+            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
+        set_target_address_at(pc, 0 /* unused */, object.address());
+        break;
+      }
+      case HeapObjectRequest::kCodeStub: {
+        request.code_stub()->set_isolate(isolate);
+        Instruction* instr = reinterpret_cast<Instruction*>(pc);
+        DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+        DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
+        UpdateCodeTarget(instr->ImmPCOffset() >> kInstructionSizeLog2,
+                         request.code_stub()->GetCode());
+        break;
+      }
+    }
+  }
+}
 
-void Assembler::GetCode(CodeDesc* desc) {
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   DCHECK(constpool_.IsEmpty());
+
+  AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
   if (desc) {
     desc->buffer = reinterpret_cast<byte*>(buffer_);
     desc->buffer_size = buffer_size_;
     desc->instr_size = pc_offset();
-    desc->reloc_size = (reinterpret_cast<byte*>(buffer_) + buffer_size_) -
-                       reloc_info_writer.pos();
+    desc->reloc_size =
+        static_cast<int>((reinterpret_cast<byte*>(buffer_) + buffer_size_) -
+                         reloc_info_writer.pos());
     desc->origin = this;
+    desc->constant_pool_size = 0;
+    desc->unwinding_info_size = 0;
+    desc->unwinding_info = nullptr;
   }
 }
 
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
+  DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -612,12 +644,15 @@ void Assembler::Align(int m) {
 void Assembler::CheckLabelLinkChain(Label const * label) {
 #ifdef DEBUG
   if (label->is_linked()) {
-    int linkoffset = label->pos();
+    static const int kMaxLinksToCheck = 64;  // Avoid O(n2) behaviour.
+    int links_checked = 0;
+    int64_t linkoffset = label->pos();
     bool end_of_chain = false;
     while (!end_of_chain) {
+      if (++links_checked > kMaxLinksToCheck) break;
       Instruction * link = InstructionAt(linkoffset);
-      int linkpcoffset = link->ImmPCOffset();
-      int prevlinkoffset = linkoffset + linkpcoffset;
+      int64_t linkpcoffset = link->ImmPCOffset();
+      int64_t prevlinkoffset = linkoffset + linkpcoffset;
 
       end_of_chain = (linkoffset == prevlinkoffset);
       linkoffset = linkoffset + linkpcoffset;
@@ -656,27 +691,28 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
       // currently referring to this label.
       label->Unuse();
     } else {
-      label->link_to(reinterpret_cast<byte*>(next_link) - buffer_);
+      label->link_to(
+          static_cast<int>(reinterpret_cast<byte*>(next_link) - buffer_));
     }
 
   } else if (branch == next_link) {
     // The branch is the last (but not also the first) instruction in the chain.
-    prev_link->SetImmPCOffsetTarget(prev_link);
+    prev_link->SetImmPCOffsetTarget(options(), prev_link);
 
   } else {
     // The branch is in the middle of the chain.
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
-      prev_link->SetImmPCOffsetTarget(next_link);
-    } else if (label_veneer != NULL) {
+      prev_link->SetImmPCOffsetTarget(options(), next_link);
+    } else if (label_veneer != nullptr) {
       // Use the veneer for all previous links in the chain.
-      prev_link->SetImmPCOffsetTarget(prev_link);
+      prev_link->SetImmPCOffsetTarget(options(), prev_link);
 
       end_of_chain = false;
       link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        link->SetImmPCOffsetTarget(label_veneer);
+        link->SetImmPCOffsetTarget(options(), label_veneer);
         link = next_link;
       }
     } else {
@@ -732,18 +768,27 @@ void Assembler::bind(Label* label) {
   while (label->is_linked()) {
     int linkoffset = label->pos();
     Instruction* link = InstructionAt(linkoffset);
-    int prevlinkoffset = linkoffset + link->ImmPCOffset();
+    int prevlinkoffset = linkoffset + static_cast<int>(link->ImmPCOffset());
 
     CheckLabelLinkChain(label);
 
-    DCHECK(linkoffset >= 0);
+    DCHECK_GE(linkoffset, 0);
     DCHECK(linkoffset < pc_offset());
     DCHECK((linkoffset > prevlinkoffset) ||
            (linkoffset - prevlinkoffset == kStartOfLabelLinkChain));
-    DCHECK(prevlinkoffset >= 0);
+    DCHECK_GE(prevlinkoffset, 0);
 
     // Update the link to point to the label.
-    link->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
+    if (link->IsUnresolvedInternalReference()) {
+      // Internal references do not get patched to an instruction but directly
+      // to an address.
+      internal_reference_positions_.push_back(linkoffset);
+      PatchingAssembler patcher(options(), reinterpret_cast<byte*>(link), 2);
+      patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
+    } else {
+      link->SetImmPCOffsetTarget(options(),
+                                 reinterpret_cast<Instruction*>(pc_));
+    }
 
     // Link the label to the previous link in the chain.
     if (linkoffset - prevlinkoffset == kStartOfLabelLinkChain) {
@@ -762,7 +807,7 @@ void Assembler::bind(Label* label) {
 
 
 int Assembler::LinkAndGetByteOffsetTo(Label* label) {
-  DCHECK(sizeof(*pc_) == 1);
+  DCHECK_EQ(sizeof(*pc_), 1);
   CheckLabelLinkChain(label);
 
   int offset;
@@ -777,7 +822,7 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
     // Note that offset can be zero for self-referential instructions. (This
     // could be useful for ADR, for example.)
     offset = label->pos() - pc_offset();
-    DCHECK(offset <= 0);
+    DCHECK_LE(offset, 0);
   } else {
     if (label->is_linked()) {
       // The label is linked, so the referring instruction should be added onto
@@ -786,7 +831,7 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
       // In this case, label->pos() returns the offset of the last linked
       // instruction from the start of the buffer.
       offset = label->pos() - pc_offset();
-      DCHECK(offset != kStartOfLabelLinkChain);
+      DCHECK_NE(offset, kStartOfLabelLinkChain);
       // Note that the offset here needs to be PC-relative only so that the
       // first instruction in a buffer can link to an unbound label. Otherwise,
       // the offset would be 0 for this case, and 0 is reserved for
@@ -814,12 +859,13 @@ void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
 
   while (!end_of_chain) {
     Instruction * link = InstructionAt(link_offset);
-    link_pcoffset = link->ImmPCOffset();
+    link_pcoffset = static_cast<int>(link->ImmPCOffset());
 
     // ADR instructions are not handled by veneers.
     if (link->IsImmBranch()) {
-      int max_reachable_pc = InstructionOffset(link) +
-          Instruction::ImmBranchRange(link->BranchType());
+      int max_reachable_pc =
+          static_cast<int>(InstructionOffset(link) +
+                           Instruction::ImmBranchRange(link->BranchType()));
       typedef std::multimap<int, FarBranchInfo>::iterator unresolved_info_it;
       std::pair<unresolved_info_it, unresolved_info_it> range;
       range = unresolved_branches_.equal_range(max_reachable_pc);
@@ -840,7 +886,7 @@ void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
 
 void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
   if (unresolved_branches_.empty()) {
-    DCHECK(next_veneer_pool_check_ == kMaxInt);
+    DCHECK_EQ(next_veneer_pool_check_, kMaxInt);
     return;
   }
 
@@ -891,12 +937,12 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions
   // will never be emitted by the JIT, so checking for the first one is enough:
   // 0: ldr xzr, #<size of pool>
-  bool result = instr->IsLdrLiteralX() && (instr->Rt() == xzr.code());
+  bool result = instr->IsLdrLiteralX() && (instr->Rt() == kZeroRegCode);
 
   // It is still worth asserting the marker is complete.
   // 4: blr xzr
   DCHECK(!result || (instr->following()->IsBranchAndLinkToRegister() &&
-                     instr->following()->Rn() == xzr.code()));
+                     instr->following()->Rn() == kZeroRegCode));
 
   return result;
 }
@@ -912,7 +958,7 @@ int Assembler::ConstantPoolSizeAt(Instruction* instr) {
     const char* message =
         reinterpret_cast<const char*>(
             instr->InstructionAtOffset(kDebugMessageOffset));
-    int size = kDebugMessageOffset + strlen(message) + 1;
+    int size = static_cast<int>(kDebugMessageOffset + strlen(message) + 1);
     return RoundUp(size, kInstructionSize) / kInstructionSize;
   }
   // Same for printf support, see MacroAssembler::CallPrintf().
@@ -951,14 +997,12 @@ void Assembler::EndBlockVeneerPool() {
 
 
 void Assembler::br(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   Emit(BR | Rn(xn));
 }
 
 
 void Assembler::blr(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
   // through the constant pool. It should not be emitted.
@@ -968,7 +1012,6 @@ void Assembler::blr(const Register& xn) {
 
 
 void Assembler::ret(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   Emit(RET | Rn(xn));
 }
@@ -980,7 +1023,6 @@ void Assembler::b(int imm26) {
 
 
 void Assembler::b(Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   b(LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -991,47 +1033,40 @@ void Assembler::b(int imm19, Condition cond) {
 
 
 void Assembler::b(Label* label, Condition cond) {
-  positions_recorder()->WriteRecordedPositions();
   b(LinkAndGetInstructionOffsetTo(label), cond);
 }
 
 
 void Assembler::bl(int imm26) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(BL | ImmUncondBranch(imm26));
 }
 
 
 void Assembler::bl(Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   bl(LinkAndGetInstructionOffsetTo(label));
 }
 
 
 void Assembler::cbz(const Register& rt,
                     int imm19) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
 void Assembler::cbz(const Register& rt,
                     Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   cbz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
 
 void Assembler::cbnz(const Register& rt,
                      int imm19) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
 void Assembler::cbnz(const Register& rt,
                      Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   cbnz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1039,7 +1074,6 @@ void Assembler::cbnz(const Register& rt,
 void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     int imm14) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
@@ -1048,7 +1082,6 @@ void Assembler::tbz(const Register& rt,
 void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   tbz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1056,7 +1089,6 @@ void Assembler::tbz(const Register& rt,
 void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      int imm14) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
@@ -1065,7 +1097,6 @@ void Assembler::tbnz(const Register& rt,
 void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   tbnz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1274,10 +1305,8 @@ void Assembler::rorv(const Register& rd,
 
 
 // Bitfield operations.
-void Assembler::bfm(const Register& rd,
-                     const Register& rn,
-                     unsigned immr,
-                     unsigned imms) {
+void Assembler::bfm(const Register& rd, const Register& rn, int immr,
+                    int imms) {
   DCHECK(rd.SizeInBits() == rn.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | BFM | N |
@@ -1287,10 +1316,8 @@ void Assembler::bfm(const Register& rd,
 }
 
 
-void Assembler::sbfm(const Register& rd,
-                     const Register& rn,
-                     unsigned immr,
-                     unsigned imms) {
+void Assembler::sbfm(const Register& rd, const Register& rn, int immr,
+                     int imms) {
   DCHECK(rd.Is64Bits() || rn.Is32Bits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | SBFM | N |
@@ -1300,10 +1327,8 @@ void Assembler::sbfm(const Register& rd,
 }
 
 
-void Assembler::ubfm(const Register& rd,
-                     const Register& rn,
-                     unsigned immr,
-                     unsigned imms) {
+void Assembler::ubfm(const Register& rd, const Register& rn, int immr,
+                     int imms) {
   DCHECK(rd.SizeInBits() == rn.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | UBFM | N |
@@ -1313,10 +1338,8 @@ void Assembler::ubfm(const Register& rd,
 }
 
 
-void Assembler::extr(const Register& rd,
-                     const Register& rn,
-                     const Register& rm,
-                     unsigned lsb) {
+void Assembler::extr(const Register& rd, const Register& rn, const Register& rm,
+                     int lsb) {
   DCHECK(rd.SizeInBits() == rn.SizeInBits());
   DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
@@ -1602,9 +1625,11 @@ void Assembler::LoadStorePair(const CPURegister& rt,
   // 'rt' and 'rt2' can only be aliased for stores.
   DCHECK(((op & LoadStorePairLBit) == 0) || !rt.Is(rt2));
   DCHECK(AreSameSizeAndType(rt, rt2));
+  DCHECK(IsImmLSPair(addr.offset(), CalcLSPairDataSize(op)));
+  int offset = static_cast<int>(addr.offset());
 
   Instr memop = op | Rt(rt) | Rt2(rt2) | RnSP(addr.base()) |
-                ImmLSPair(addr.offset(), CalcLSPairDataSize(op));
+                ImmLSPair(offset, CalcLSPairDataSize(op));
 
   Instr addrmodeop;
   if (addr.IsImmediateOffset()) {
@@ -1613,7 +1638,7 @@ void Assembler::LoadStorePair(const CPURegister& rt,
     // Pre-index and post-index modes.
     DCHECK(!rt.Is(addr.base()));
     DCHECK(!rt2.Is(addr.base()));
-    DCHECK(addr.offset() != 0);
+    DCHECK_NE(addr.offset(), 0);
     if (addr.IsPreIndex()) {
       addrmodeop = LoadStorePairPreIndexFixed;
     } else {
@@ -1622,37 +1647,6 @@ void Assembler::LoadStorePair(const CPURegister& rt,
     }
   }
   Emit(addrmodeop | memop);
-}
-
-
-void Assembler::ldnp(const CPURegister& rt,
-                     const CPURegister& rt2,
-                     const MemOperand& src) {
-  LoadStorePairNonTemporal(rt, rt2, src,
-                           LoadPairNonTemporalOpFor(rt, rt2));
-}
-
-
-void Assembler::stnp(const CPURegister& rt,
-                     const CPURegister& rt2,
-                     const MemOperand& dst) {
-  LoadStorePairNonTemporal(rt, rt2, dst,
-                           StorePairNonTemporalOpFor(rt, rt2));
-}
-
-
-void Assembler::LoadStorePairNonTemporal(const CPURegister& rt,
-                                         const CPURegister& rt2,
-                                         const MemOperand& addr,
-                                         LoadStorePairNonTemporalOp op) {
-  DCHECK(!rt.Is(rt2));
-  DCHECK(AreSameSizeAndType(rt, rt2));
-  DCHECK(addr.IsImmediateOffset());
-
-  LSDataSize size = CalcLSPairDataSize(
-    static_cast<LoadStorePairOp>(op & LoadStorePairMask));
-  Emit(op | Rt(rt) | Rt2(rt2) | RnSP(addr.base()) |
-       ImmLSPair(addr.offset(), size));
 }
 
 
@@ -1710,6 +1704,32 @@ void Assembler::ldr_pcrel(const CPURegister& rt, int imm19) {
   Emit(LoadLiteralOpFor(rt) | ImmLLiteral(imm19) | Rt(rt));
 }
 
+Operand Operand::EmbeddedNumber(double number) {
+  int32_t smi;
+  if (DoubleToSmiInteger(number, &smi)) {
+    return Operand(Immediate(Smi::FromInt(smi)));
+  }
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.heap_object_request_.emplace(number);
+  DCHECK(result.IsHeapObjectRequest());
+  return result;
+}
+
+Operand Operand::EmbeddedCode(CodeStub* stub) {
+  Operand result(0, RelocInfo::CODE_TARGET);
+  result.heap_object_request_.emplace(stub);
+  DCHECK(result.IsHeapObjectRequest());
+  return result;
+}
+
+void Assembler::ldr(const CPURegister& rt, const Operand& operand) {
+  if (operand.IsHeapObjectRequest()) {
+    RequestHeapObject(operand.heap_object_request());
+    ldr(rt, operand.immediate_for_heap_object_request());
+  } else {
+    ldr(rt, operand.immediate());
+  }
+}
 
 void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
   // Currently we only support 64-bit literals.
@@ -1722,6 +1742,519 @@ void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
   ldr_pcrel(rt, 0);
 }
 
+void Assembler::ldar(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAR_w : LDAR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::ldaxr(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAXR_w : LDAXR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::stlr(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLR_w : STLR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::stlxr(const Register& rs, const Register& rt,
+                      const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
+  Emit(op | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::ldarb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAR_b | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::ldaxrb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAXR_b | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::stlrb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLR_b | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::stlxrb(const Register& rs, const Register& rt,
+                       const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  Emit(STLXR_b | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::ldarh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAR_h | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::ldaxrh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAXR_h | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::stlrh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLR_h | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::stlxrh(const Register& rs, const Register& rt,
+                       const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
+  Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::NEON3DifferentL(const VRegister& vd, const VRegister& vn,
+                                const VRegister& vm, NEON3DifferentOp vop) {
+  DCHECK(AreSameFormat(vn, vm));
+  DCHECK((vn.Is1H() && vd.Is1S()) || (vn.Is1S() && vd.Is1D()) ||
+         (vn.Is8B() && vd.Is8H()) || (vn.Is4H() && vd.Is4S()) ||
+         (vn.Is2S() && vd.Is2D()) || (vn.Is16B() && vd.Is8H()) ||
+         (vn.Is8H() && vd.Is4S()) || (vn.Is4S() && vd.Is2D()));
+  Instr format, op = vop;
+  if (vd.IsScalar()) {
+    op |= NEON_Q | NEONScalar;
+    format = SFormat(vn);
+  } else {
+    format = VFormat(vn);
+  }
+  Emit(format | op | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEON3DifferentW(const VRegister& vd, const VRegister& vn,
+                                const VRegister& vm, NEON3DifferentOp vop) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK((vm.Is8B() && vd.Is8H()) || (vm.Is4H() && vd.Is4S()) ||
+         (vm.Is2S() && vd.Is2D()) || (vm.Is16B() && vd.Is8H()) ||
+         (vm.Is8H() && vd.Is4S()) || (vm.Is4S() && vd.Is2D()));
+  Emit(VFormat(vm) | vop | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEON3DifferentHN(const VRegister& vd, const VRegister& vn,
+                                 const VRegister& vm, NEON3DifferentOp vop) {
+  DCHECK(AreSameFormat(vm, vn));
+  DCHECK((vd.Is8B() && vn.Is8H()) || (vd.Is4H() && vn.Is4S()) ||
+         (vd.Is2S() && vn.Is2D()) || (vd.Is16B() && vn.Is8H()) ||
+         (vd.Is8H() && vn.Is4S()) || (vd.Is4S() && vn.Is2D()));
+  Emit(VFormat(vd) | vop | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+#define NEON_3DIFF_LONG_LIST(V)                                                \
+  V(pmull, NEON_PMULL, vn.IsVector() && vn.Is8B())                             \
+  V(pmull2, NEON_PMULL2, vn.IsVector() && vn.Is16B())                          \
+  V(saddl, NEON_SADDL, vn.IsVector() && vn.IsD())                              \
+  V(saddl2, NEON_SADDL2, vn.IsVector() && vn.IsQ())                            \
+  V(sabal, NEON_SABAL, vn.IsVector() && vn.IsD())                              \
+  V(sabal2, NEON_SABAL2, vn.IsVector() && vn.IsQ())                            \
+  V(uabal, NEON_UABAL, vn.IsVector() && vn.IsD())                              \
+  V(uabal2, NEON_UABAL2, vn.IsVector() && vn.IsQ())                            \
+  V(sabdl, NEON_SABDL, vn.IsVector() && vn.IsD())                              \
+  V(sabdl2, NEON_SABDL2, vn.IsVector() && vn.IsQ())                            \
+  V(uabdl, NEON_UABDL, vn.IsVector() && vn.IsD())                              \
+  V(uabdl2, NEON_UABDL2, vn.IsVector() && vn.IsQ())                            \
+  V(smlal, NEON_SMLAL, vn.IsVector() && vn.IsD())                              \
+  V(smlal2, NEON_SMLAL2, vn.IsVector() && vn.IsQ())                            \
+  V(umlal, NEON_UMLAL, vn.IsVector() && vn.IsD())                              \
+  V(umlal2, NEON_UMLAL2, vn.IsVector() && vn.IsQ())                            \
+  V(smlsl, NEON_SMLSL, vn.IsVector() && vn.IsD())                              \
+  V(smlsl2, NEON_SMLSL2, vn.IsVector() && vn.IsQ())                            \
+  V(umlsl, NEON_UMLSL, vn.IsVector() && vn.IsD())                              \
+  V(umlsl2, NEON_UMLSL2, vn.IsVector() && vn.IsQ())                            \
+  V(smull, NEON_SMULL, vn.IsVector() && vn.IsD())                              \
+  V(smull2, NEON_SMULL2, vn.IsVector() && vn.IsQ())                            \
+  V(umull, NEON_UMULL, vn.IsVector() && vn.IsD())                              \
+  V(umull2, NEON_UMULL2, vn.IsVector() && vn.IsQ())                            \
+  V(ssubl, NEON_SSUBL, vn.IsVector() && vn.IsD())                              \
+  V(ssubl2, NEON_SSUBL2, vn.IsVector() && vn.IsQ())                            \
+  V(uaddl, NEON_UADDL, vn.IsVector() && vn.IsD())                              \
+  V(uaddl2, NEON_UADDL2, vn.IsVector() && vn.IsQ())                            \
+  V(usubl, NEON_USUBL, vn.IsVector() && vn.IsD())                              \
+  V(usubl2, NEON_USUBL2, vn.IsVector() && vn.IsQ())                            \
+  V(sqdmlal, NEON_SQDMLAL, vn.Is1H() || vn.Is1S() || vn.Is4H() || vn.Is2S())   \
+  V(sqdmlal2, NEON_SQDMLAL2, vn.Is1H() || vn.Is1S() || vn.Is8H() || vn.Is4S()) \
+  V(sqdmlsl, NEON_SQDMLSL, vn.Is1H() || vn.Is1S() || vn.Is4H() || vn.Is2S())   \
+  V(sqdmlsl2, NEON_SQDMLSL2, vn.Is1H() || vn.Is1S() || vn.Is8H() || vn.Is4S()) \
+  V(sqdmull, NEON_SQDMULL, vn.Is1H() || vn.Is1S() || vn.Is4H() || vn.Is2S())   \
+  V(sqdmull2, NEON_SQDMULL2, vn.Is1H() || vn.Is1S() || vn.Is8H() || vn.Is4S())
+
+#define DEFINE_ASM_FUNC(FN, OP, AS)                            \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
+                     const VRegister& vm) {                    \
+    DCHECK(AS);                                                \
+    NEON3DifferentL(vd, vn, vm, OP);                           \
+  }
+NEON_3DIFF_LONG_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+#define NEON_3DIFF_HN_LIST(V)        \
+  V(addhn, NEON_ADDHN, vd.IsD())     \
+  V(addhn2, NEON_ADDHN2, vd.IsQ())   \
+  V(raddhn, NEON_RADDHN, vd.IsD())   \
+  V(raddhn2, NEON_RADDHN2, vd.IsQ()) \
+  V(subhn, NEON_SUBHN, vd.IsD())     \
+  V(subhn2, NEON_SUBHN2, vd.IsQ())   \
+  V(rsubhn, NEON_RSUBHN, vd.IsD())   \
+  V(rsubhn2, NEON_RSUBHN2, vd.IsQ())
+
+#define DEFINE_ASM_FUNC(FN, OP, AS)                            \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
+                     const VRegister& vm) {                    \
+    DCHECK(AS);                                                \
+    NEON3DifferentHN(vd, vn, vm, OP);                          \
+  }
+NEON_3DIFF_HN_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+void Assembler::NEONPerm(const VRegister& vd, const VRegister& vn,
+                         const VRegister& vm, NEONPermOp op) {
+  DCHECK(AreSameFormat(vd, vn, vm));
+  DCHECK(!vd.Is1D());
+  Emit(VFormat(vd) | op | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::trn1(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  NEONPerm(vd, vn, vm, NEON_TRN1);
+}
+
+void Assembler::trn2(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  NEONPerm(vd, vn, vm, NEON_TRN2);
+}
+
+void Assembler::uzp1(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  NEONPerm(vd, vn, vm, NEON_UZP1);
+}
+
+void Assembler::uzp2(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  NEONPerm(vd, vn, vm, NEON_UZP2);
+}
+
+void Assembler::zip1(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  NEONPerm(vd, vn, vm, NEON_ZIP1);
+}
+
+void Assembler::zip2(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm) {
+  NEONPerm(vd, vn, vm, NEON_ZIP2);
+}
+
+void Assembler::NEONShiftImmediate(const VRegister& vd, const VRegister& vn,
+                                   NEONShiftImmediateOp op, int immh_immb) {
+  DCHECK(AreSameFormat(vd, vn));
+  Instr q, scalar;
+  if (vn.IsScalar()) {
+    q = NEON_Q;
+    scalar = NEONScalar;
+  } else {
+    q = vd.IsD() ? 0 : NEON_Q;
+    scalar = 0;
+  }
+  Emit(q | op | scalar | immh_immb | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEONShiftLeftImmediate(const VRegister& vd, const VRegister& vn,
+                                       int shift, NEONShiftImmediateOp op) {
+  int laneSizeInBits = vn.LaneSizeInBits();
+  DCHECK((shift >= 0) && (shift < laneSizeInBits));
+  NEONShiftImmediate(vd, vn, op, (laneSizeInBits + shift) << 16);
+}
+
+void Assembler::NEONShiftRightImmediate(const VRegister& vd,
+                                        const VRegister& vn, int shift,
+                                        NEONShiftImmediateOp op) {
+  int laneSizeInBits = vn.LaneSizeInBits();
+  DCHECK((shift >= 1) && (shift <= laneSizeInBits));
+  NEONShiftImmediate(vd, vn, op, ((2 * laneSizeInBits) - shift) << 16);
+}
+
+void Assembler::NEONShiftImmediateL(const VRegister& vd, const VRegister& vn,
+                                    int shift, NEONShiftImmediateOp op) {
+  int laneSizeInBits = vn.LaneSizeInBits();
+  DCHECK((shift >= 0) && (shift < laneSizeInBits));
+  int immh_immb = (laneSizeInBits + shift) << 16;
+
+  DCHECK((vn.Is8B() && vd.Is8H()) || (vn.Is4H() && vd.Is4S()) ||
+         (vn.Is2S() && vd.Is2D()) || (vn.Is16B() && vd.Is8H()) ||
+         (vn.Is8H() && vd.Is4S()) || (vn.Is4S() && vd.Is2D()));
+  Instr q;
+  q = vn.IsD() ? 0 : NEON_Q;
+  Emit(q | op | immh_immb | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEONShiftImmediateN(const VRegister& vd, const VRegister& vn,
+                                    int shift, NEONShiftImmediateOp op) {
+  Instr q, scalar;
+  int laneSizeInBits = vd.LaneSizeInBits();
+  DCHECK((shift >= 1) && (shift <= laneSizeInBits));
+  int immh_immb = (2 * laneSizeInBits - shift) << 16;
+
+  if (vn.IsScalar()) {
+    DCHECK((vd.Is1B() && vn.Is1H()) || (vd.Is1H() && vn.Is1S()) ||
+           (vd.Is1S() && vn.Is1D()));
+    q = NEON_Q;
+    scalar = NEONScalar;
+  } else {
+    DCHECK((vd.Is8B() && vn.Is8H()) || (vd.Is4H() && vn.Is4S()) ||
+           (vd.Is2S() && vn.Is2D()) || (vd.Is16B() && vn.Is8H()) ||
+           (vd.Is8H() && vn.Is4S()) || (vd.Is4S() && vn.Is2D()));
+    scalar = 0;
+    q = vd.IsD() ? 0 : NEON_Q;
+  }
+  Emit(q | op | scalar | immh_immb | Rn(vn) | Rd(vd));
+}
+
+void Assembler::shl(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftLeftImmediate(vd, vn, shift, NEON_SHL);
+}
+
+void Assembler::sli(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftLeftImmediate(vd, vn, shift, NEON_SLI);
+}
+
+void Assembler::sqshl(const VRegister& vd, const VRegister& vn, int shift) {
+  NEONShiftLeftImmediate(vd, vn, shift, NEON_SQSHL_imm);
+}
+
+void Assembler::sqshlu(const VRegister& vd, const VRegister& vn, int shift) {
+  NEONShiftLeftImmediate(vd, vn, shift, NEON_SQSHLU);
+}
+
+void Assembler::uqshl(const VRegister& vd, const VRegister& vn, int shift) {
+  NEONShiftLeftImmediate(vd, vn, shift, NEON_UQSHL_imm);
+}
+
+void Assembler::sshll(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsD());
+  NEONShiftImmediateL(vd, vn, shift, NEON_SSHLL);
+}
+
+void Assembler::sshll2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsQ());
+  NEONShiftImmediateL(vd, vn, shift, NEON_SSHLL);
+}
+
+void Assembler::sxtl(const VRegister& vd, const VRegister& vn) {
+  sshll(vd, vn, 0);
+}
+
+void Assembler::sxtl2(const VRegister& vd, const VRegister& vn) {
+  sshll2(vd, vn, 0);
+}
+
+void Assembler::ushll(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsD());
+  NEONShiftImmediateL(vd, vn, shift, NEON_USHLL);
+}
+
+void Assembler::ushll2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsQ());
+  NEONShiftImmediateL(vd, vn, shift, NEON_USHLL);
+}
+
+void Assembler::uxtl(const VRegister& vd, const VRegister& vn) {
+  ushll(vd, vn, 0);
+}
+
+void Assembler::uxtl2(const VRegister& vd, const VRegister& vn) {
+  ushll2(vd, vn, 0);
+}
+
+void Assembler::sri(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_SRI);
+}
+
+void Assembler::sshr(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_SSHR);
+}
+
+void Assembler::ushr(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_USHR);
+}
+
+void Assembler::srshr(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_SRSHR);
+}
+
+void Assembler::urshr(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_URSHR);
+}
+
+void Assembler::ssra(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_SSRA);
+}
+
+void Assembler::usra(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_USRA);
+}
+
+void Assembler::srsra(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_SRSRA);
+}
+
+void Assembler::ursra(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEONShiftRightImmediate(vd, vn, shift, NEON_URSRA);
+}
+
+void Assembler::shrn(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsD());
+  NEONShiftImmediateN(vd, vn, shift, NEON_SHRN);
+}
+
+void Assembler::shrn2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_SHRN);
+}
+
+void Assembler::rshrn(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsD());
+  NEONShiftImmediateN(vd, vn, shift, NEON_RSHRN);
+}
+
+void Assembler::rshrn2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_RSHRN);
+}
+
+void Assembler::sqshrn(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsD() || (vn.IsScalar() && vd.IsScalar()));
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQSHRN);
+}
+
+void Assembler::sqshrn2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQSHRN);
+}
+
+void Assembler::sqrshrn(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsD() || (vn.IsScalar() && vd.IsScalar()));
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQRSHRN);
+}
+
+void Assembler::sqrshrn2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQRSHRN);
+}
+
+void Assembler::sqshrun(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsD() || (vn.IsScalar() && vd.IsScalar()));
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQSHRUN);
+}
+
+void Assembler::sqshrun2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQSHRUN);
+}
+
+void Assembler::sqrshrun(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsD() || (vn.IsScalar() && vd.IsScalar()));
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQRSHRUN);
+}
+
+void Assembler::sqrshrun2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_SQRSHRUN);
+}
+
+void Assembler::uqshrn(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsD() || (vn.IsScalar() && vd.IsScalar()));
+  NEONShiftImmediateN(vd, vn, shift, NEON_UQSHRN);
+}
+
+void Assembler::uqshrn2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_UQSHRN);
+}
+
+void Assembler::uqrshrn(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vd.IsD() || (vn.IsScalar() && vd.IsScalar()));
+  NEONShiftImmediateN(vd, vn, shift, NEON_UQRSHRN);
+}
+
+void Assembler::uqrshrn2(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK(vn.IsVector() && vd.IsQ());
+  NEONShiftImmediateN(vd, vn, shift, NEON_UQRSHRN);
+}
+
+void Assembler::uaddw(const VRegister& vd, const VRegister& vn,
+                      const VRegister& vm) {
+  DCHECK(vm.IsD());
+  NEON3DifferentW(vd, vn, vm, NEON_UADDW);
+}
+
+void Assembler::uaddw2(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm) {
+  DCHECK(vm.IsQ());
+  NEON3DifferentW(vd, vn, vm, NEON_UADDW2);
+}
+
+void Assembler::saddw(const VRegister& vd, const VRegister& vn,
+                      const VRegister& vm) {
+  DCHECK(vm.IsD());
+  NEON3DifferentW(vd, vn, vm, NEON_SADDW);
+}
+
+void Assembler::saddw2(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm) {
+  DCHECK(vm.IsQ());
+  NEON3DifferentW(vd, vn, vm, NEON_SADDW2);
+}
+
+void Assembler::usubw(const VRegister& vd, const VRegister& vn,
+                      const VRegister& vm) {
+  DCHECK(vm.IsD());
+  NEON3DifferentW(vd, vn, vm, NEON_USUBW);
+}
+
+void Assembler::usubw2(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm) {
+  DCHECK(vm.IsQ());
+  NEON3DifferentW(vd, vn, vm, NEON_USUBW2);
+}
+
+void Assembler::ssubw(const VRegister& vd, const VRegister& vn,
+                      const VRegister& vm) {
+  DCHECK(vm.IsD());
+  NEON3DifferentW(vd, vn, vm, NEON_SSUBW);
+}
+
+void Assembler::ssubw2(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm) {
+  DCHECK(vm.IsQ());
+  NEON3DifferentW(vd, vn, vm, NEON_SSUBW2);
+}
 
 void Assembler::mov(const Register& rd, const Register& rm) {
   // Moves involving the stack pointer are encoded as add immediate with
@@ -1734,334 +2267,971 @@ void Assembler::mov(const Register& rd, const Register& rm) {
   }
 }
 
+void Assembler::ins(const VRegister& vd, int vd_index, const Register& rn) {
+  // We support vd arguments of the form vd.VxT() or vd.T(), where x is the
+  // number of lanes, and T is b, h, s or d.
+  int lane_size = vd.LaneSizeInBytes();
+  NEONFormatField format;
+  switch (lane_size) {
+    case 1:
+      format = NEON_16B;
+      DCHECK(rn.IsW());
+      break;
+    case 2:
+      format = NEON_8H;
+      DCHECK(rn.IsW());
+      break;
+    case 4:
+      format = NEON_4S;
+      DCHECK(rn.IsW());
+      break;
+    default:
+      DCHECK_EQ(lane_size, 8);
+      DCHECK(rn.IsX());
+      format = NEON_2D;
+      break;
+  }
+
+  DCHECK((0 <= vd_index) &&
+         (vd_index < LaneCountFromFormat(static_cast<VectorFormat>(format))));
+  Emit(NEON_INS_GENERAL | ImmNEON5(format, vd_index) | Rn(rn) | Rd(vd));
+}
+
+void Assembler::mov(const Register& rd, const VRegister& vn, int vn_index) {
+  DCHECK_GE(vn.SizeInBytes(), 4);
+  umov(rd, vn, vn_index);
+}
+
+void Assembler::smov(const Register& rd, const VRegister& vn, int vn_index) {
+  // We support vn arguments of the form vn.VxT() or vn.T(), where x is the
+  // number of lanes, and T is b, h, s.
+  int lane_size = vn.LaneSizeInBytes();
+  NEONFormatField format;
+  Instr q = 0;
+  switch (lane_size) {
+    case 1:
+      format = NEON_16B;
+      break;
+    case 2:
+      format = NEON_8H;
+      break;
+    default:
+      DCHECK_EQ(lane_size, 4);
+      DCHECK(rd.IsX());
+      format = NEON_4S;
+      break;
+  }
+  q = rd.IsW() ? 0 : NEON_Q;
+  DCHECK((0 <= vn_index) &&
+         (vn_index < LaneCountFromFormat(static_cast<VectorFormat>(format))));
+  Emit(q | NEON_SMOV | ImmNEON5(format, vn_index) | Rn(vn) | Rd(rd));
+}
+
+void Assembler::cls(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(!vd.Is1D() && !vd.Is2D());
+  Emit(VFormat(vn) | NEON_CLS | Rn(vn) | Rd(vd));
+}
+
+void Assembler::clz(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(!vd.Is1D() && !vd.Is2D());
+  Emit(VFormat(vn) | NEON_CLZ | Rn(vn) | Rd(vd));
+}
+
+void Assembler::cnt(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is8B() || vd.Is16B());
+  Emit(VFormat(vn) | NEON_CNT | Rn(vn) | Rd(vd));
+}
+
+void Assembler::rev16(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is8B() || vd.Is16B());
+  Emit(VFormat(vn) | NEON_REV16 | Rn(vn) | Rd(vd));
+}
+
+void Assembler::rev32(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is8B() || vd.Is16B() || vd.Is4H() || vd.Is8H());
+  Emit(VFormat(vn) | NEON_REV32 | Rn(vn) | Rd(vd));
+}
+
+void Assembler::rev64(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(!vd.Is1D() && !vd.Is2D());
+  Emit(VFormat(vn) | NEON_REV64 | Rn(vn) | Rd(vd));
+}
+
+void Assembler::ursqrte(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is2S() || vd.Is4S());
+  Emit(VFormat(vn) | NEON_URSQRTE | Rn(vn) | Rd(vd));
+}
+
+void Assembler::urecpe(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is2S() || vd.Is4S());
+  Emit(VFormat(vn) | NEON_URECPE | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEONAddlp(const VRegister& vd, const VRegister& vn,
+                          NEON2RegMiscOp op) {
+  DCHECK((op == NEON_SADDLP) || (op == NEON_UADDLP) || (op == NEON_SADALP) ||
+         (op == NEON_UADALP));
+
+  DCHECK((vn.Is8B() && vd.Is4H()) || (vn.Is4H() && vd.Is2S()) ||
+         (vn.Is2S() && vd.Is1D()) || (vn.Is16B() && vd.Is8H()) ||
+         (vn.Is8H() && vd.Is4S()) || (vn.Is4S() && vd.Is2D()));
+  Emit(VFormat(vn) | op | Rn(vn) | Rd(vd));
+}
+
+void Assembler::saddlp(const VRegister& vd, const VRegister& vn) {
+  NEONAddlp(vd, vn, NEON_SADDLP);
+}
+
+void Assembler::uaddlp(const VRegister& vd, const VRegister& vn) {
+  NEONAddlp(vd, vn, NEON_UADDLP);
+}
+
+void Assembler::sadalp(const VRegister& vd, const VRegister& vn) {
+  NEONAddlp(vd, vn, NEON_SADALP);
+}
+
+void Assembler::uadalp(const VRegister& vd, const VRegister& vn) {
+  NEONAddlp(vd, vn, NEON_UADALP);
+}
+
+void Assembler::NEONAcrossLanesL(const VRegister& vd, const VRegister& vn,
+                                 NEONAcrossLanesOp op) {
+  DCHECK((vn.Is8B() && vd.Is1H()) || (vn.Is16B() && vd.Is1H()) ||
+         (vn.Is4H() && vd.Is1S()) || (vn.Is8H() && vd.Is1S()) ||
+         (vn.Is4S() && vd.Is1D()));
+  Emit(VFormat(vn) | op | Rn(vn) | Rd(vd));
+}
+
+void Assembler::saddlv(const VRegister& vd, const VRegister& vn) {
+  NEONAcrossLanesL(vd, vn, NEON_SADDLV);
+}
+
+void Assembler::uaddlv(const VRegister& vd, const VRegister& vn) {
+  NEONAcrossLanesL(vd, vn, NEON_UADDLV);
+}
+
+void Assembler::NEONAcrossLanes(const VRegister& vd, const VRegister& vn,
+                                NEONAcrossLanesOp op) {
+  DCHECK((vn.Is8B() && vd.Is1B()) || (vn.Is16B() && vd.Is1B()) ||
+         (vn.Is4H() && vd.Is1H()) || (vn.Is8H() && vd.Is1H()) ||
+         (vn.Is4S() && vd.Is1S()));
+  if ((op & NEONAcrossLanesFPFMask) == NEONAcrossLanesFPFixed) {
+    Emit(FPFormat(vn) | op | Rn(vn) | Rd(vd));
+  } else {
+    Emit(VFormat(vn) | op | Rn(vn) | Rd(vd));
+  }
+}
+
+#define NEON_ACROSSLANES_LIST(V)      \
+  V(fmaxv, NEON_FMAXV, vd.Is1S())     \
+  V(fminv, NEON_FMINV, vd.Is1S())     \
+  V(fmaxnmv, NEON_FMAXNMV, vd.Is1S()) \
+  V(fminnmv, NEON_FMINNMV, vd.Is1S()) \
+  V(addv, NEON_ADDV, true)            \
+  V(smaxv, NEON_SMAXV, true)          \
+  V(sminv, NEON_SMINV, true)          \
+  V(umaxv, NEON_UMAXV, true)          \
+  V(uminv, NEON_UMINV, true)
+
+#define DEFINE_ASM_FUNC(FN, OP, AS)                              \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn) { \
+    DCHECK(AS);                                                  \
+    NEONAcrossLanes(vd, vn, OP);                                 \
+  }
+NEON_ACROSSLANES_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+void Assembler::mov(const VRegister& vd, int vd_index, const Register& rn) {
+  ins(vd, vd_index, rn);
+}
+
+void Assembler::umov(const Register& rd, const VRegister& vn, int vn_index) {
+  // We support vn arguments of the form vn.VxT() or vn.T(), where x is the
+  // number of lanes, and T is b, h, s or d.
+  int lane_size = vn.LaneSizeInBytes();
+  NEONFormatField format;
+  Instr q = 0;
+  switch (lane_size) {
+    case 1:
+      format = NEON_16B;
+      DCHECK(rd.IsW());
+      break;
+    case 2:
+      format = NEON_8H;
+      DCHECK(rd.IsW());
+      break;
+    case 4:
+      format = NEON_4S;
+      DCHECK(rd.IsW());
+      break;
+    default:
+      DCHECK_EQ(lane_size, 8);
+      DCHECK(rd.IsX());
+      format = NEON_2D;
+      q = NEON_Q;
+      break;
+  }
+
+  DCHECK((0 <= vn_index) &&
+         (vn_index < LaneCountFromFormat(static_cast<VectorFormat>(format))));
+  Emit(q | NEON_UMOV | ImmNEON5(format, vn_index) | Rn(vn) | Rd(rd));
+}
+
+void Assembler::mov(const VRegister& vd, const VRegister& vn, int vn_index) {
+  DCHECK(vd.IsScalar());
+  dup(vd, vn, vn_index);
+}
+
+void Assembler::dup(const VRegister& vd, const Register& rn) {
+  DCHECK(!vd.Is1D());
+  DCHECK_EQ(vd.Is2D(), rn.IsX());
+  Instr q = vd.IsD() ? 0 : NEON_Q;
+  Emit(q | NEON_DUP_GENERAL | ImmNEON5(VFormat(vd), 0) | Rn(rn) | Rd(vd));
+}
+
+void Assembler::ins(const VRegister& vd, int vd_index, const VRegister& vn,
+                    int vn_index) {
+  DCHECK(AreSameFormat(vd, vn));
+  // We support vd arguments of the form vd.VxT() or vd.T(), where x is the
+  // number of lanes, and T is b, h, s or d.
+  int lane_size = vd.LaneSizeInBytes();
+  NEONFormatField format;
+  switch (lane_size) {
+    case 1:
+      format = NEON_16B;
+      break;
+    case 2:
+      format = NEON_8H;
+      break;
+    case 4:
+      format = NEON_4S;
+      break;
+    default:
+      DCHECK_EQ(lane_size, 8);
+      format = NEON_2D;
+      break;
+  }
+
+  DCHECK((0 <= vd_index) &&
+         (vd_index < LaneCountFromFormat(static_cast<VectorFormat>(format))));
+  DCHECK((0 <= vn_index) &&
+         (vn_index < LaneCountFromFormat(static_cast<VectorFormat>(format))));
+  Emit(NEON_INS_ELEMENT | ImmNEON5(format, vd_index) |
+       ImmNEON4(format, vn_index) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEONTable(const VRegister& vd, const VRegister& vn,
+                          const VRegister& vm, NEONTableOp op) {
+  DCHECK(vd.Is16B() || vd.Is8B());
+  DCHECK(vn.Is16B());
+  DCHECK(AreSameFormat(vd, vm));
+  Emit(op | (vd.IsQ() ? NEON_Q : 0) | Rm(vm) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::tbl(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vm) {
+  NEONTable(vd, vn, vm, NEON_TBL_1v);
+}
+
+void Assembler::tbl(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vn2, const VRegister& vm) {
+  USE(vn2);
+  DCHECK(AreSameFormat(vn, vn2));
+  DCHECK(AreConsecutive(vn, vn2));
+  NEONTable(vd, vn, vm, NEON_TBL_2v);
+}
+
+void Assembler::tbl(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vn2, const VRegister& vn3,
+                    const VRegister& vm) {
+  USE(vn2);
+  USE(vn3);
+  DCHECK(AreSameFormat(vn, vn2, vn3));
+  DCHECK(AreConsecutive(vn, vn2, vn3));
+  NEONTable(vd, vn, vm, NEON_TBL_3v);
+}
+
+void Assembler::tbl(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vn2, const VRegister& vn3,
+                    const VRegister& vn4, const VRegister& vm) {
+  USE(vn2);
+  USE(vn3);
+  USE(vn4);
+  DCHECK(AreSameFormat(vn, vn2, vn3, vn4));
+  DCHECK(AreConsecutive(vn, vn2, vn3, vn4));
+  NEONTable(vd, vn, vm, NEON_TBL_4v);
+}
+
+void Assembler::tbx(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vm) {
+  NEONTable(vd, vn, vm, NEON_TBX_1v);
+}
+
+void Assembler::tbx(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vn2, const VRegister& vm) {
+  USE(vn2);
+  DCHECK(AreSameFormat(vn, vn2));
+  DCHECK(AreConsecutive(vn, vn2));
+  NEONTable(vd, vn, vm, NEON_TBX_2v);
+}
+
+void Assembler::tbx(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vn2, const VRegister& vn3,
+                    const VRegister& vm) {
+  USE(vn2);
+  USE(vn3);
+  DCHECK(AreSameFormat(vn, vn2, vn3));
+  DCHECK(AreConsecutive(vn, vn2, vn3));
+  NEONTable(vd, vn, vm, NEON_TBX_3v);
+}
+
+void Assembler::tbx(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vn2, const VRegister& vn3,
+                    const VRegister& vn4, const VRegister& vm) {
+  USE(vn2);
+  USE(vn3);
+  USE(vn4);
+  DCHECK(AreSameFormat(vn, vn2, vn3, vn4));
+  DCHECK(AreConsecutive(vn, vn2, vn3, vn4));
+  NEONTable(vd, vn, vm, NEON_TBX_4v);
+}
+
+void Assembler::mov(const VRegister& vd, int vd_index, const VRegister& vn,
+                    int vn_index) {
+  ins(vd, vd_index, vn, vn_index);
+}
 
 void Assembler::mvn(const Register& rd, const Operand& operand) {
   orn(rd, AppropriateZeroRegFor(rd), operand);
 }
-
 
 void Assembler::mrs(const Register& rt, SystemRegister sysreg) {
   DCHECK(rt.Is64Bits());
   Emit(MRS | ImmSystemRegister(sysreg) | Rt(rt));
 }
 
-
 void Assembler::msr(SystemRegister sysreg, const Register& rt) {
   DCHECK(rt.Is64Bits());
   Emit(MSR | Rt(rt) | ImmSystemRegister(sysreg));
 }
 
+void Assembler::hint(SystemHint code) { Emit(HINT | ImmHint(code) | Rt(xzr)); }
 
-void Assembler::hint(SystemHint code) {
-  Emit(HINT | ImmHint(code) | Rt(xzr));
+// NEON structure loads and stores.
+Instr Assembler::LoadStoreStructAddrModeField(const MemOperand& addr) {
+  Instr addr_field = RnSP(addr.base());
+
+  if (addr.IsPostIndex()) {
+    static_assert(NEONLoadStoreMultiStructPostIndex ==
+                      static_cast<NEONLoadStoreMultiStructPostIndexOp>(
+                          NEONLoadStoreSingleStructPostIndex),
+                  "Opcodes must match for NEON post index memop.");
+
+    addr_field |= NEONLoadStoreMultiStructPostIndex;
+    if (addr.offset() == 0) {
+      addr_field |= RmNot31(addr.regoffset());
+    } else {
+      // The immediate post index addressing mode is indicated by rm = 31.
+      // The immediate is implied by the number of vector registers used.
+      addr_field |= (0x1F << Rm_offset);
+    }
+  } else {
+    DCHECK(addr.IsImmediateOffset() && (addr.offset() == 0));
+  }
+  return addr_field;
 }
 
+void Assembler::LoadStoreStructVerify(const VRegister& vt,
+                                      const MemOperand& addr, Instr op) {
+#ifdef DEBUG
+  // Assert that addressing mode is either offset (with immediate 0), post
+  // index by immediate of the size of the register list, or post index by a
+  // value in a core register.
+  if (addr.IsImmediateOffset()) {
+    DCHECK_EQ(addr.offset(), 0);
+  } else {
+    int offset = vt.SizeInBytes();
+    switch (op) {
+      case NEON_LD1_1v:
+      case NEON_ST1_1v:
+        offset *= 1;
+        break;
+      case NEONLoadStoreSingleStructLoad1:
+      case NEONLoadStoreSingleStructStore1:
+      case NEON_LD1R:
+        offset = (offset / vt.LaneCount()) * 1;
+        break;
+
+      case NEON_LD1_2v:
+      case NEON_ST1_2v:
+      case NEON_LD2:
+      case NEON_ST2:
+        offset *= 2;
+        break;
+      case NEONLoadStoreSingleStructLoad2:
+      case NEONLoadStoreSingleStructStore2:
+      case NEON_LD2R:
+        offset = (offset / vt.LaneCount()) * 2;
+        break;
+
+      case NEON_LD1_3v:
+      case NEON_ST1_3v:
+      case NEON_LD3:
+      case NEON_ST3:
+        offset *= 3;
+        break;
+      case NEONLoadStoreSingleStructLoad3:
+      case NEONLoadStoreSingleStructStore3:
+      case NEON_LD3R:
+        offset = (offset / vt.LaneCount()) * 3;
+        break;
+
+      case NEON_LD1_4v:
+      case NEON_ST1_4v:
+      case NEON_LD4:
+      case NEON_ST4:
+        offset *= 4;
+        break;
+      case NEONLoadStoreSingleStructLoad4:
+      case NEONLoadStoreSingleStructStore4:
+      case NEON_LD4R:
+        offset = (offset / vt.LaneCount()) * 4;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    DCHECK(!addr.regoffset().Is(NoReg) || addr.offset() == offset);
+  }
+#else
+  USE(vt);
+  USE(addr);
+  USE(op);
+#endif
+}
+
+void Assembler::LoadStoreStruct(const VRegister& vt, const MemOperand& addr,
+                                NEONLoadStoreMultiStructOp op) {
+  LoadStoreStructVerify(vt, addr, op);
+  DCHECK(vt.IsVector() || vt.Is1D());
+  Emit(op | LoadStoreStructAddrModeField(addr) | LSVFormat(vt) | Rt(vt));
+}
+
+void Assembler::LoadStoreStructSingleAllLanes(const VRegister& vt,
+                                              const MemOperand& addr,
+                                              NEONLoadStoreSingleStructOp op) {
+  LoadStoreStructVerify(vt, addr, op);
+  Emit(op | LoadStoreStructAddrModeField(addr) | LSVFormat(vt) | Rt(vt));
+}
+
+void Assembler::ld1(const VRegister& vt, const MemOperand& src) {
+  LoadStoreStruct(vt, src, NEON_LD1_1v);
+}
+
+void Assembler::ld1(const VRegister& vt, const VRegister& vt2,
+                    const MemOperand& src) {
+  USE(vt2);
+  DCHECK(AreSameFormat(vt, vt2));
+  DCHECK(AreConsecutive(vt, vt2));
+  LoadStoreStruct(vt, src, NEON_LD1_2v);
+}
+
+void Assembler::ld1(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  DCHECK(AreSameFormat(vt, vt2, vt3));
+  DCHECK(AreConsecutive(vt, vt2, vt3));
+  LoadStoreStruct(vt, src, NEON_LD1_3v);
+}
+
+void Assembler::ld1(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const VRegister& vt4,
+                    const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  USE(vt4);
+  DCHECK(AreSameFormat(vt, vt2, vt3, vt4));
+  DCHECK(AreConsecutive(vt, vt2, vt3, vt4));
+  LoadStoreStruct(vt, src, NEON_LD1_4v);
+}
+
+void Assembler::ld2(const VRegister& vt, const VRegister& vt2,
+                    const MemOperand& src) {
+  USE(vt2);
+  DCHECK(AreSameFormat(vt, vt2));
+  DCHECK(AreConsecutive(vt, vt2));
+  LoadStoreStruct(vt, src, NEON_LD2);
+}
+
+void Assembler::ld2(const VRegister& vt, const VRegister& vt2, int lane,
+                    const MemOperand& src) {
+  USE(vt2);
+  DCHECK(AreSameFormat(vt, vt2));
+  DCHECK(AreConsecutive(vt, vt2));
+  LoadStoreStructSingle(vt, lane, src, NEONLoadStoreSingleStructLoad2);
+}
+
+void Assembler::ld2r(const VRegister& vt, const VRegister& vt2,
+                     const MemOperand& src) {
+  USE(vt2);
+  DCHECK(AreSameFormat(vt, vt2));
+  DCHECK(AreConsecutive(vt, vt2));
+  LoadStoreStructSingleAllLanes(vt, src, NEON_LD2R);
+}
+
+void Assembler::ld3(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  DCHECK(AreSameFormat(vt, vt2, vt3));
+  DCHECK(AreConsecutive(vt, vt2, vt3));
+  LoadStoreStruct(vt, src, NEON_LD3);
+}
+
+void Assembler::ld3(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, int lane, const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  DCHECK(AreSameFormat(vt, vt2, vt3));
+  DCHECK(AreConsecutive(vt, vt2, vt3));
+  LoadStoreStructSingle(vt, lane, src, NEONLoadStoreSingleStructLoad3);
+}
+
+void Assembler::ld3r(const VRegister& vt, const VRegister& vt2,
+                     const VRegister& vt3, const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  DCHECK(AreSameFormat(vt, vt2, vt3));
+  DCHECK(AreConsecutive(vt, vt2, vt3));
+  LoadStoreStructSingleAllLanes(vt, src, NEON_LD3R);
+}
+
+void Assembler::ld4(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const VRegister& vt4,
+                    const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  USE(vt4);
+  DCHECK(AreSameFormat(vt, vt2, vt3, vt4));
+  DCHECK(AreConsecutive(vt, vt2, vt3, vt4));
+  LoadStoreStruct(vt, src, NEON_LD4);
+}
+
+void Assembler::ld4(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const VRegister& vt4, int lane,
+                    const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  USE(vt4);
+  DCHECK(AreSameFormat(vt, vt2, vt3, vt4));
+  DCHECK(AreConsecutive(vt, vt2, vt3, vt4));
+  LoadStoreStructSingle(vt, lane, src, NEONLoadStoreSingleStructLoad4);
+}
+
+void Assembler::ld4r(const VRegister& vt, const VRegister& vt2,
+                     const VRegister& vt3, const VRegister& vt4,
+                     const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  USE(vt4);
+  DCHECK(AreSameFormat(vt, vt2, vt3, vt4));
+  DCHECK(AreConsecutive(vt, vt2, vt3, vt4));
+  LoadStoreStructSingleAllLanes(vt, src, NEON_LD4R);
+}
+
+void Assembler::st1(const VRegister& vt, const MemOperand& src) {
+  LoadStoreStruct(vt, src, NEON_ST1_1v);
+}
+
+void Assembler::st1(const VRegister& vt, const VRegister& vt2,
+                    const MemOperand& src) {
+  USE(vt2);
+  DCHECK(AreSameFormat(vt, vt2));
+  DCHECK(AreConsecutive(vt, vt2));
+  LoadStoreStruct(vt, src, NEON_ST1_2v);
+}
+
+void Assembler::st1(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  DCHECK(AreSameFormat(vt, vt2, vt3));
+  DCHECK(AreConsecutive(vt, vt2, vt3));
+  LoadStoreStruct(vt, src, NEON_ST1_3v);
+}
+
+void Assembler::st1(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const VRegister& vt4,
+                    const MemOperand& src) {
+  USE(vt2);
+  USE(vt3);
+  USE(vt4);
+  DCHECK(AreSameFormat(vt, vt2, vt3, vt4));
+  DCHECK(AreConsecutive(vt, vt2, vt3, vt4));
+  LoadStoreStruct(vt, src, NEON_ST1_4v);
+}
+
+void Assembler::st2(const VRegister& vt, const VRegister& vt2,
+                    const MemOperand& dst) {
+  USE(vt2);
+  DCHECK(AreSameFormat(vt, vt2));
+  DCHECK(AreConsecutive(vt, vt2));
+  LoadStoreStruct(vt, dst, NEON_ST2);
+}
+
+void Assembler::st2(const VRegister& vt, const VRegister& vt2, int lane,
+                    const MemOperand& dst) {
+  USE(vt2);
+  DCHECK(AreSameFormat(vt, vt2));
+  DCHECK(AreConsecutive(vt, vt2));
+  LoadStoreStructSingle(vt, lane, dst, NEONLoadStoreSingleStructStore2);
+}
+
+void Assembler::st3(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const MemOperand& dst) {
+  USE(vt2);
+  USE(vt3);
+  DCHECK(AreSameFormat(vt, vt2, vt3));
+  DCHECK(AreConsecutive(vt, vt2, vt3));
+  LoadStoreStruct(vt, dst, NEON_ST3);
+}
+
+void Assembler::st3(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, int lane, const MemOperand& dst) {
+  USE(vt2);
+  USE(vt3);
+  DCHECK(AreSameFormat(vt, vt2, vt3));
+  DCHECK(AreConsecutive(vt, vt2, vt3));
+  LoadStoreStructSingle(vt, lane, dst, NEONLoadStoreSingleStructStore3);
+}
+
+void Assembler::st4(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const VRegister& vt4,
+                    const MemOperand& dst) {
+  USE(vt2);
+  USE(vt3);
+  USE(vt4);
+  DCHECK(AreSameFormat(vt, vt2, vt3, vt4));
+  DCHECK(AreConsecutive(vt, vt2, vt3, vt4));
+  LoadStoreStruct(vt, dst, NEON_ST4);
+}
+
+void Assembler::st4(const VRegister& vt, const VRegister& vt2,
+                    const VRegister& vt3, const VRegister& vt4, int lane,
+                    const MemOperand& dst) {
+  USE(vt2);
+  USE(vt3);
+  USE(vt4);
+  DCHECK(AreSameFormat(vt, vt2, vt3, vt4));
+  DCHECK(AreConsecutive(vt, vt2, vt3, vt4));
+  LoadStoreStructSingle(vt, lane, dst, NEONLoadStoreSingleStructStore4);
+}
+
+void Assembler::LoadStoreStructSingle(const VRegister& vt, uint32_t lane,
+                                      const MemOperand& addr,
+                                      NEONLoadStoreSingleStructOp op) {
+  LoadStoreStructVerify(vt, addr, op);
+
+  // We support vt arguments of the form vt.VxT() or vt.T(), where x is the
+  // number of lanes, and T is b, h, s or d.
+  unsigned lane_size = vt.LaneSizeInBytes();
+  DCHECK_LT(lane, kQRegSize / lane_size);
+
+  // Lane size is encoded in the opcode field. Lane index is encoded in the Q,
+  // S and size fields.
+  lane *= lane_size;
+
+  // Encodings for S[0]/D[0] and S[2]/D[1] are distinguished using the least-
+  // significant bit of the size field, so we increment lane here to account for
+  // that.
+  if (lane_size == 8) lane++;
+
+  Instr size = (lane << NEONLSSize_offset) & NEONLSSize_mask;
+  Instr s = (lane << (NEONS_offset - 2)) & NEONS_mask;
+  Instr q = (lane << (NEONQ_offset - 3)) & NEONQ_mask;
+
+  Instr instr = op;
+  switch (lane_size) {
+    case 1:
+      instr |= NEONLoadStoreSingle_b;
+      break;
+    case 2:
+      instr |= NEONLoadStoreSingle_h;
+      break;
+    case 4:
+      instr |= NEONLoadStoreSingle_s;
+      break;
+    default:
+      DCHECK_EQ(lane_size, 8U);
+      instr |= NEONLoadStoreSingle_d;
+  }
+
+  Emit(instr | LoadStoreStructAddrModeField(addr) | q | size | s | Rt(vt));
+}
+
+void Assembler::ld1(const VRegister& vt, int lane, const MemOperand& src) {
+  LoadStoreStructSingle(vt, lane, src, NEONLoadStoreSingleStructLoad1);
+}
+
+void Assembler::ld1r(const VRegister& vt, const MemOperand& src) {
+  LoadStoreStructSingleAllLanes(vt, src, NEON_LD1R);
+}
+
+void Assembler::st1(const VRegister& vt, int lane, const MemOperand& dst) {
+  LoadStoreStructSingle(vt, lane, dst, NEONLoadStoreSingleStructStore1);
+}
 
 void Assembler::dmb(BarrierDomain domain, BarrierType type) {
   Emit(DMB | ImmBarrierDomain(domain) | ImmBarrierType(type));
 }
 
-
 void Assembler::dsb(BarrierDomain domain, BarrierType type) {
   Emit(DSB | ImmBarrierDomain(domain) | ImmBarrierType(type));
 }
-
 
 void Assembler::isb() {
   Emit(ISB | ImmBarrierDomain(FullSystem) | ImmBarrierType(BarrierAll));
 }
 
+void Assembler::csdb() { hint(CSDB); }
 
-void Assembler::fmov(FPRegister fd, double imm) {
-  DCHECK(fd.Is64Bits());
-  DCHECK(IsImmFP64(imm));
-  Emit(FMOV_d_imm | Rd(fd) | ImmFP64(imm));
+void Assembler::fmov(const VRegister& vd, double imm) {
+  if (vd.IsScalar()) {
+    DCHECK(vd.Is1D());
+    Emit(FMOV_d_imm | Rd(vd) | ImmFP(imm));
+  } else {
+    DCHECK(vd.Is2D());
+    Instr op = NEONModifiedImmediate_MOVI | NEONModifiedImmediateOpBit;
+    Emit(NEON_Q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
+  }
 }
 
-
-void Assembler::fmov(FPRegister fd, float imm) {
-  DCHECK(fd.Is32Bits());
-  DCHECK(IsImmFP32(imm));
-  Emit(FMOV_s_imm | Rd(fd) | ImmFP32(imm));
+void Assembler::fmov(const VRegister& vd, float imm) {
+  if (vd.IsScalar()) {
+    DCHECK(vd.Is1S());
+    Emit(FMOV_s_imm | Rd(vd) | ImmFP(imm));
+  } else {
+    DCHECK(vd.Is2S() | vd.Is4S());
+    Instr op = NEONModifiedImmediate_MOVI;
+    Instr q = vd.Is4S() ? NEON_Q : 0;
+    Emit(q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
+  }
 }
 
-
-void Assembler::fmov(Register rd, FPRegister fn) {
-  DCHECK(rd.SizeInBits() == fn.SizeInBits());
+void Assembler::fmov(const Register& rd, const VRegister& fn) {
+  DCHECK_EQ(rd.SizeInBits(), fn.SizeInBits());
   FPIntegerConvertOp op = rd.Is32Bits() ? FMOV_ws : FMOV_xd;
   Emit(op | Rd(rd) | Rn(fn));
 }
 
-
-void Assembler::fmov(FPRegister fd, Register rn) {
-  DCHECK(fd.SizeInBits() == rn.SizeInBits());
-  FPIntegerConvertOp op = fd.Is32Bits() ? FMOV_sw : FMOV_dx;
-  Emit(op | Rd(fd) | Rn(rn));
+void Assembler::fmov(const VRegister& vd, const Register& rn) {
+  DCHECK_EQ(vd.SizeInBits(), rn.SizeInBits());
+  FPIntegerConvertOp op = vd.Is32Bits() ? FMOV_sw : FMOV_dx;
+  Emit(op | Rd(vd) | Rn(rn));
 }
 
-
-void Assembler::fmov(FPRegister fd, FPRegister fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  Emit(FPType(fd) | FMOV | Rd(fd) | Rn(fn));
+void Assembler::fmov(const VRegister& vd, const VRegister& vn) {
+  DCHECK_EQ(vd.SizeInBits(), vn.SizeInBits());
+  Emit(FPType(vd) | FMOV | Rd(vd) | Rn(vn));
 }
 
-
-void Assembler::fadd(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FADD);
+void Assembler::fmov(const VRegister& vd, int index, const Register& rn) {
+  DCHECK((index == 1) && vd.Is1D() && rn.IsX());
+  USE(index);
+  Emit(FMOV_d1_x | Rd(vd) | Rn(rn));
 }
 
-
-void Assembler::fsub(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FSUB);
+void Assembler::fmov(const Register& rd, const VRegister& vn, int index) {
+  DCHECK((index == 1) && vn.Is1D() && rd.IsX());
+  USE(index);
+  Emit(FMOV_x_d1 | Rd(rd) | Rn(vn));
 }
 
-
-void Assembler::fmul(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FMUL);
-}
-
-
-void Assembler::fmadd(const FPRegister& fd,
-                      const FPRegister& fn,
-                      const FPRegister& fm,
-                      const FPRegister& fa) {
+void Assembler::fmadd(const VRegister& fd, const VRegister& fn,
+                      const VRegister& fm, const VRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FMADD_s : FMADD_d);
 }
 
-
-void Assembler::fmsub(const FPRegister& fd,
-                      const FPRegister& fn,
-                      const FPRegister& fm,
-                      const FPRegister& fa) {
+void Assembler::fmsub(const VRegister& fd, const VRegister& fn,
+                      const VRegister& fm, const VRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FMSUB_s : FMSUB_d);
 }
 
-
-void Assembler::fnmadd(const FPRegister& fd,
-                       const FPRegister& fn,
-                       const FPRegister& fm,
-                       const FPRegister& fa) {
+void Assembler::fnmadd(const VRegister& fd, const VRegister& fn,
+                       const VRegister& fm, const VRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FNMADD_s : FNMADD_d);
 }
 
-
-void Assembler::fnmsub(const FPRegister& fd,
-                       const FPRegister& fn,
-                       const FPRegister& fm,
-                       const FPRegister& fa) {
+void Assembler::fnmsub(const VRegister& fd, const VRegister& fn,
+                       const VRegister& fm, const VRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FNMSUB_s : FNMSUB_d);
 }
 
-
-void Assembler::fdiv(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FDIV);
+void Assembler::fnmul(const VRegister& vd, const VRegister& vn,
+                      const VRegister& vm) {
+  DCHECK(AreSameSizeAndType(vd, vn, vm));
+  Instr op = vd.Is1S() ? FNMUL_s : FNMUL_d;
+  Emit(FPType(vd) | op | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
-
-void Assembler::fmax(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FMAX);
-}
-
-
-void Assembler::fmaxnm(const FPRegister& fd,
-                       const FPRegister& fn,
-                       const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FMAXNM);
-}
-
-
-void Assembler::fmin(const FPRegister& fd,
-                     const FPRegister& fn,
-                     const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FMIN);
-}
-
-
-void Assembler::fminnm(const FPRegister& fd,
-                       const FPRegister& fn,
-                       const FPRegister& fm) {
-  FPDataProcessing2Source(fd, fn, fm, FMINNM);
-}
-
-
-void Assembler::fabs(const FPRegister& fd,
-                     const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FABS);
-}
-
-
-void Assembler::fneg(const FPRegister& fd,
-                     const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FNEG);
-}
-
-
-void Assembler::fsqrt(const FPRegister& fd,
-                      const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FSQRT);
-}
-
-
-void Assembler::frinta(const FPRegister& fd,
-                       const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FRINTA);
-}
-
-
-void Assembler::frintm(const FPRegister& fd,
-                       const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FRINTM);
-}
-
-
-void Assembler::frintn(const FPRegister& fd,
-                       const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FRINTN);
-}
-
-
-void Assembler::frintp(const FPRegister& fd, const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FRINTP);
-}
-
-
-void Assembler::frintz(const FPRegister& fd,
-                       const FPRegister& fn) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  FPDataProcessing1Source(fd, fn, FRINTZ);
-}
-
-
-void Assembler::fcmp(const FPRegister& fn,
-                     const FPRegister& fm) {
-  DCHECK(fn.SizeInBits() == fm.SizeInBits());
+void Assembler::fcmp(const VRegister& fn, const VRegister& fm) {
+  DCHECK_EQ(fn.SizeInBits(), fm.SizeInBits());
   Emit(FPType(fn) | FCMP | Rm(fm) | Rn(fn));
 }
 
-
-void Assembler::fcmp(const FPRegister& fn,
-                     double value) {
+void Assembler::fcmp(const VRegister& fn, double value) {
   USE(value);
   // Although the fcmp instruction can strictly only take an immediate value of
   // +0.0, we don't need to check for -0.0 because the sign of 0.0 doesn't
   // affect the result of the comparison.
-  DCHECK(value == 0.0);
+  DCHECK_EQ(value, 0.0);
   Emit(FPType(fn) | FCMP_zero | Rn(fn));
 }
 
-
-void Assembler::fccmp(const FPRegister& fn,
-                      const FPRegister& fm,
-                      StatusFlags nzcv,
-                      Condition cond) {
-  DCHECK(fn.SizeInBits() == fm.SizeInBits());
+void Assembler::fccmp(const VRegister& fn, const VRegister& fm,
+                      StatusFlags nzcv, Condition cond) {
+  DCHECK_EQ(fn.SizeInBits(), fm.SizeInBits());
   Emit(FPType(fn) | FCCMP | Rm(fm) | Cond(cond) | Rn(fn) | Nzcv(nzcv));
 }
 
-
-void Assembler::fcsel(const FPRegister& fd,
-                      const FPRegister& fn,
-                      const FPRegister& fm,
-                      Condition cond) {
-  DCHECK(fd.SizeInBits() == fn.SizeInBits());
-  DCHECK(fd.SizeInBits() == fm.SizeInBits());
+void Assembler::fcsel(const VRegister& fd, const VRegister& fn,
+                      const VRegister& fm, Condition cond) {
+  DCHECK_EQ(fd.SizeInBits(), fn.SizeInBits());
+  DCHECK_EQ(fd.SizeInBits(), fm.SizeInBits());
   Emit(FPType(fd) | FCSEL | Rm(fm) | Cond(cond) | Rn(fn) | Rd(fd));
 }
 
-
-void Assembler::FPConvertToInt(const Register& rd,
-                               const FPRegister& fn,
-                               FPIntegerConvertOp op) {
-  Emit(SF(rd) | FPType(fn) | op | Rn(fn) | Rd(rd));
+void Assembler::NEONFPConvertToInt(const Register& rd, const VRegister& vn,
+                                   Instr op) {
+  Emit(SF(rd) | FPType(vn) | op | Rn(vn) | Rd(rd));
 }
 
+void Assembler::NEONFPConvertToInt(const VRegister& vd, const VRegister& vn,
+                                   Instr op) {
+  if (vn.IsScalar()) {
+    DCHECK((vd.Is1S() && vn.Is1S()) || (vd.Is1D() && vn.Is1D()));
+    op |= NEON_Q | NEONScalar;
+  }
+  Emit(FPFormat(vn) | op | Rn(vn) | Rd(vd));
+}
 
-void Assembler::fcvt(const FPRegister& fd,
-                     const FPRegister& fn) {
-  if (fd.Is64Bits()) {
-    // Convert float to double.
-    DCHECK(fn.Is32Bits());
-    FPDataProcessing1Source(fd, fn, FCVT_ds);
+void Assembler::fcvt(const VRegister& vd, const VRegister& vn) {
+  FPDataProcessing1SourceOp op;
+  if (vd.Is1D()) {
+    DCHECK(vn.Is1S() || vn.Is1H());
+    op = vn.Is1S() ? FCVT_ds : FCVT_dh;
+  } else if (vd.Is1S()) {
+    DCHECK(vn.Is1D() || vn.Is1H());
+    op = vn.Is1D() ? FCVT_sd : FCVT_sh;
   } else {
-    // Convert double to float.
-    DCHECK(fn.Is64Bits());
-    FPDataProcessing1Source(fd, fn, FCVT_sd);
+    DCHECK(vd.Is1H());
+    DCHECK(vn.Is1D() || vn.Is1S());
+    op = vn.Is1D() ? FCVT_hd : FCVT_hs;
+  }
+  FPDataProcessing1Source(vd, vn, op);
+}
+
+void Assembler::fcvtl(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is4S() && vn.Is4H()) || (vd.Is2D() && vn.Is2S()));
+  Instr format = vd.Is2D() ? (1 << NEONSize_offset) : 0;
+  Emit(format | NEON_FCVTL | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fcvtl2(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is4S() && vn.Is8H()) || (vd.Is2D() && vn.Is4S()));
+  Instr format = vd.Is2D() ? (1 << NEONSize_offset) : 0;
+  Emit(NEON_Q | format | NEON_FCVTL | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fcvtn(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vn.Is4S() && vd.Is4H()) || (vn.Is2D() && vd.Is2S()));
+  Instr format = vn.Is2D() ? (1 << NEONSize_offset) : 0;
+  Emit(format | NEON_FCVTN | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fcvtn2(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vn.Is4S() && vd.Is8H()) || (vn.Is2D() && vd.Is4S()));
+  Instr format = vn.Is2D() ? (1 << NEONSize_offset) : 0;
+  Emit(NEON_Q | format | NEON_FCVTN | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fcvtxn(const VRegister& vd, const VRegister& vn) {
+  Instr format = 1 << NEONSize_offset;
+  if (vd.IsScalar()) {
+    DCHECK(vd.Is1S() && vn.Is1D());
+    Emit(format | NEON_FCVTXN_scalar | Rn(vn) | Rd(vd));
+  } else {
+    DCHECK(vd.Is2S() && vn.Is2D());
+    Emit(format | NEON_FCVTXN | Rn(vn) | Rd(vd));
   }
 }
 
-
-void Assembler::fcvtau(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTAU);
+void Assembler::fcvtxn2(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.Is4S() && vn.Is2D());
+  Instr format = 1 << NEONSize_offset;
+  Emit(NEON_Q | format | NEON_FCVTXN | Rn(vn) | Rd(vd));
 }
 
+#define NEON_FP2REGMISC_FCVT_LIST(V) \
+  V(fcvtnu, NEON_FCVTNU, FCVTNU)     \
+  V(fcvtns, NEON_FCVTNS, FCVTNS)     \
+  V(fcvtpu, NEON_FCVTPU, FCVTPU)     \
+  V(fcvtps, NEON_FCVTPS, FCVTPS)     \
+  V(fcvtmu, NEON_FCVTMU, FCVTMU)     \
+  V(fcvtms, NEON_FCVTMS, FCVTMS)     \
+  V(fcvtau, NEON_FCVTAU, FCVTAU)     \
+  V(fcvtas, NEON_FCVTAS, FCVTAS)
 
-void Assembler::fcvtas(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTAS);
-}
+#define DEFINE_ASM_FUNCS(FN, VEC_OP, SCA_OP)                     \
+  void Assembler::FN(const Register& rd, const VRegister& vn) {  \
+    NEONFPConvertToInt(rd, vn, SCA_OP);                          \
+  }                                                              \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn) { \
+    NEONFPConvertToInt(vd, vn, VEC_OP);                          \
+  }
+NEON_FP2REGMISC_FCVT_LIST(DEFINE_ASM_FUNCS)
+#undef DEFINE_ASM_FUNCS
 
-
-void Assembler::fcvtmu(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTMU);
-}
-
-
-void Assembler::fcvtms(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTMS);
-}
-
-
-void Assembler::fcvtnu(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTNU);
-}
-
-
-void Assembler::fcvtns(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTNS);
-}
-
-
-void Assembler::fcvtzu(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTZU);
-}
-
-
-void Assembler::fcvtzs(const Register& rd, const FPRegister& fn) {
-  FPConvertToInt(rd, fn, FCVTZS);
-}
-
-
-void Assembler::scvtf(const FPRegister& fd,
-                      const Register& rn,
-                      unsigned fbits) {
+void Assembler::scvtf(const VRegister& vd, const VRegister& vn, int fbits) {
+  DCHECK_GE(fbits, 0);
   if (fbits == 0) {
-    Emit(SF(rn) | FPType(fd) | SCVTF | Rn(rn) | Rd(fd));
+    NEONFP2RegMisc(vd, vn, NEON_SCVTF);
   } else {
-    Emit(SF(rn) | FPType(fd) | SCVTF_fixed | FPScale(64 - fbits) | Rn(rn) |
-         Rd(fd));
+    DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
+    NEONShiftRightImmediate(vd, vn, fbits, NEON_SCVTF_imm);
   }
 }
 
+void Assembler::ucvtf(const VRegister& vd, const VRegister& vn, int fbits) {
+  DCHECK_GE(fbits, 0);
+  if (fbits == 0) {
+    NEONFP2RegMisc(vd, vn, NEON_UCVTF);
+  } else {
+    DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
+    NEONShiftRightImmediate(vd, vn, fbits, NEON_UCVTF_imm);
+  }
+}
 
-void Assembler::ucvtf(const FPRegister& fd,
-                      const Register& rn,
-                      unsigned fbits) {
+void Assembler::scvtf(const VRegister& vd, const Register& rn, int fbits) {
+  DCHECK_GE(fbits, 0);
+  if (fbits == 0) {
+    Emit(SF(rn) | FPType(vd) | SCVTF | Rn(rn) | Rd(vd));
+  } else {
+    Emit(SF(rn) | FPType(vd) | SCVTF_fixed | FPScale(64 - fbits) | Rn(rn) |
+         Rd(vd));
+  }
+}
+
+void Assembler::ucvtf(const VRegister& fd, const Register& rn, int fbits) {
+  DCHECK_GE(fbits, 0);
   if (fbits == 0) {
     Emit(SF(rn) | FPType(fd) | UCVTF | Rn(rn) | Rd(fd));
   } else {
@@ -2070,53 +3240,745 @@ void Assembler::ucvtf(const FPRegister& fd,
   }
 }
 
+void Assembler::NEON3Same(const VRegister& vd, const VRegister& vn,
+                          const VRegister& vm, NEON3SameOp vop) {
+  DCHECK(AreSameFormat(vd, vn, vm));
+  DCHECK(vd.IsVector() || !vd.IsQ());
 
-// Note:
-// Below, a difference in case for the same letter indicates a
-// negated bit.
-// If b is 1, then B is 0.
-Instr Assembler::ImmFP32(float imm) {
-  DCHECK(IsImmFP32(imm));
-  // bits: aBbb.bbbc.defg.h000.0000.0000.0000.0000
-  uint32_t bits = float_to_rawbits(imm);
-  // bit7: a000.0000
-  uint32_t bit7 = ((bits >> 31) & 0x1) << 7;
-  // bit6: 0b00.0000
-  uint32_t bit6 = ((bits >> 29) & 0x1) << 6;
-  // bit5_to_0: 00cd.efgh
-  uint32_t bit5_to_0 = (bits >> 19) & 0x3f;
+  Instr format, op = vop;
+  if (vd.IsScalar()) {
+    op |= NEON_Q | NEONScalar;
+    format = SFormat(vd);
+  } else {
+    format = VFormat(vd);
+  }
 
-  return (bit7 | bit6 | bit5_to_0) << ImmFP_offset;
+  Emit(format | op | Rm(vm) | Rn(vn) | Rd(vd));
 }
 
+void Assembler::NEONFP3Same(const VRegister& vd, const VRegister& vn,
+                            const VRegister& vm, Instr op) {
+  DCHECK(AreSameFormat(vd, vn, vm));
+  Emit(FPFormat(vd) | op | Rm(vm) | Rn(vn) | Rd(vd));
+}
 
-Instr Assembler::ImmFP64(double imm) {
+#define NEON_FP2REGMISC_LIST(V)                 \
+  V(fabs, NEON_FABS, FABS)                      \
+  V(fneg, NEON_FNEG, FNEG)                      \
+  V(fsqrt, NEON_FSQRT, FSQRT)                   \
+  V(frintn, NEON_FRINTN, FRINTN)                \
+  V(frinta, NEON_FRINTA, FRINTA)                \
+  V(frintp, NEON_FRINTP, FRINTP)                \
+  V(frintm, NEON_FRINTM, FRINTM)                \
+  V(frintx, NEON_FRINTX, FRINTX)                \
+  V(frintz, NEON_FRINTZ, FRINTZ)                \
+  V(frinti, NEON_FRINTI, FRINTI)                \
+  V(frsqrte, NEON_FRSQRTE, NEON_FRSQRTE_scalar) \
+  V(frecpe, NEON_FRECPE, NEON_FRECPE_scalar)
+
+#define DEFINE_ASM_FUNC(FN, VEC_OP, SCA_OP)                      \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn) { \
+    Instr op;                                                    \
+    if (vd.IsScalar()) {                                         \
+      DCHECK(vd.Is1S() || vd.Is1D());                            \
+      op = SCA_OP;                                               \
+    } else {                                                     \
+      DCHECK(vd.Is2S() || vd.Is2D() || vd.Is4S());               \
+      op = VEC_OP;                                               \
+    }                                                            \
+    NEONFP2RegMisc(vd, vn, op);                                  \
+  }
+NEON_FP2REGMISC_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+void Assembler::shll(const VRegister& vd, const VRegister& vn, int shift) {
+  DCHECK((vd.Is8H() && vn.Is8B() && shift == 8) ||
+         (vd.Is4S() && vn.Is4H() && shift == 16) ||
+         (vd.Is2D() && vn.Is2S() && shift == 32));
+  USE(shift);
+  Emit(VFormat(vn) | NEON_SHLL | Rn(vn) | Rd(vd));
+}
+
+void Assembler::shll2(const VRegister& vd, const VRegister& vn, int shift) {
+  USE(shift);
+  DCHECK((vd.Is8H() && vn.Is16B() && shift == 8) ||
+         (vd.Is4S() && vn.Is8H() && shift == 16) ||
+         (vd.Is2D() && vn.Is4S() && shift == 32));
+  Emit(VFormat(vn) | NEON_SHLL | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEONFP2RegMisc(const VRegister& vd, const VRegister& vn,
+                               NEON2RegMiscOp vop, double value) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK_EQ(value, 0.0);
+  USE(value);
+
+  Instr op = vop;
+  if (vd.IsScalar()) {
+    DCHECK(vd.Is1S() || vd.Is1D());
+    op |= NEON_Q | NEONScalar;
+  } else {
+    DCHECK(vd.Is2S() || vd.Is2D() || vd.Is4S());
+  }
+
+  Emit(FPFormat(vd) | op | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fcmeq(const VRegister& vd, const VRegister& vn, double value) {
+  NEONFP2RegMisc(vd, vn, NEON_FCMEQ_zero, value);
+}
+
+void Assembler::fcmge(const VRegister& vd, const VRegister& vn, double value) {
+  NEONFP2RegMisc(vd, vn, NEON_FCMGE_zero, value);
+}
+
+void Assembler::fcmgt(const VRegister& vd, const VRegister& vn, double value) {
+  NEONFP2RegMisc(vd, vn, NEON_FCMGT_zero, value);
+}
+
+void Assembler::fcmle(const VRegister& vd, const VRegister& vn, double value) {
+  NEONFP2RegMisc(vd, vn, NEON_FCMLE_zero, value);
+}
+
+void Assembler::fcmlt(const VRegister& vd, const VRegister& vn, double value) {
+  NEONFP2RegMisc(vd, vn, NEON_FCMLT_zero, value);
+}
+
+void Assembler::frecpx(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsScalar());
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is1S() || vd.Is1D());
+  Emit(FPFormat(vd) | NEON_FRECPX_scalar | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fcvtzs(const Register& rd, const VRegister& vn, int fbits) {
+  DCHECK(vn.Is1S() || vn.Is1D());
+  DCHECK((fbits >= 0) && (fbits <= rd.SizeInBits()));
+  if (fbits == 0) {
+    Emit(SF(rd) | FPType(vn) | FCVTZS | Rn(vn) | Rd(rd));
+  } else {
+    Emit(SF(rd) | FPType(vn) | FCVTZS_fixed | FPScale(64 - fbits) | Rn(vn) |
+         Rd(rd));
+  }
+}
+
+void Assembler::fcvtzs(const VRegister& vd, const VRegister& vn, int fbits) {
+  DCHECK_GE(fbits, 0);
+  if (fbits == 0) {
+    NEONFP2RegMisc(vd, vn, NEON_FCVTZS);
+  } else {
+    DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
+    NEONShiftRightImmediate(vd, vn, fbits, NEON_FCVTZS_imm);
+  }
+}
+
+void Assembler::fcvtzu(const Register& rd, const VRegister& vn, int fbits) {
+  DCHECK(vn.Is1S() || vn.Is1D());
+  DCHECK((fbits >= 0) && (fbits <= rd.SizeInBits()));
+  if (fbits == 0) {
+    Emit(SF(rd) | FPType(vn) | FCVTZU | Rn(vn) | Rd(rd));
+  } else {
+    Emit(SF(rd) | FPType(vn) | FCVTZU_fixed | FPScale(64 - fbits) | Rn(vn) |
+         Rd(rd));
+  }
+}
+
+void Assembler::fcvtzu(const VRegister& vd, const VRegister& vn, int fbits) {
+  DCHECK_GE(fbits, 0);
+  if (fbits == 0) {
+    NEONFP2RegMisc(vd, vn, NEON_FCVTZU);
+  } else {
+    DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
+    NEONShiftRightImmediate(vd, vn, fbits, NEON_FCVTZU_imm);
+  }
+}
+
+void Assembler::NEONFP2RegMisc(const VRegister& vd, const VRegister& vn,
+                               Instr op) {
+  DCHECK(AreSameFormat(vd, vn));
+  Emit(FPFormat(vd) | op | Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEON2RegMisc(const VRegister& vd, const VRegister& vn,
+                             NEON2RegMiscOp vop, int value) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK_EQ(value, 0);
+  USE(value);
+
+  Instr format, op = vop;
+  if (vd.IsScalar()) {
+    op |= NEON_Q | NEONScalar;
+    format = SFormat(vd);
+  } else {
+    format = VFormat(vd);
+  }
+
+  Emit(format | op | Rn(vn) | Rd(vd));
+}
+
+void Assembler::cmeq(const VRegister& vd, const VRegister& vn, int value) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEON2RegMisc(vd, vn, NEON_CMEQ_zero, value);
+}
+
+void Assembler::cmge(const VRegister& vd, const VRegister& vn, int value) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEON2RegMisc(vd, vn, NEON_CMGE_zero, value);
+}
+
+void Assembler::cmgt(const VRegister& vd, const VRegister& vn, int value) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEON2RegMisc(vd, vn, NEON_CMGT_zero, value);
+}
+
+void Assembler::cmle(const VRegister& vd, const VRegister& vn, int value) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEON2RegMisc(vd, vn, NEON_CMLE_zero, value);
+}
+
+void Assembler::cmlt(const VRegister& vd, const VRegister& vn, int value) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEON2RegMisc(vd, vn, NEON_CMLT_zero, value);
+}
+
+#define NEON_3SAME_LIST(V)                                         \
+  V(add, NEON_ADD, vd.IsVector() || vd.Is1D())                     \
+  V(addp, NEON_ADDP, vd.IsVector() || vd.Is1D())                   \
+  V(sub, NEON_SUB, vd.IsVector() || vd.Is1D())                     \
+  V(cmeq, NEON_CMEQ, vd.IsVector() || vd.Is1D())                   \
+  V(cmge, NEON_CMGE, vd.IsVector() || vd.Is1D())                   \
+  V(cmgt, NEON_CMGT, vd.IsVector() || vd.Is1D())                   \
+  V(cmhi, NEON_CMHI, vd.IsVector() || vd.Is1D())                   \
+  V(cmhs, NEON_CMHS, vd.IsVector() || vd.Is1D())                   \
+  V(cmtst, NEON_CMTST, vd.IsVector() || vd.Is1D())                 \
+  V(sshl, NEON_SSHL, vd.IsVector() || vd.Is1D())                   \
+  V(ushl, NEON_USHL, vd.IsVector() || vd.Is1D())                   \
+  V(srshl, NEON_SRSHL, vd.IsVector() || vd.Is1D())                 \
+  V(urshl, NEON_URSHL, vd.IsVector() || vd.Is1D())                 \
+  V(sqdmulh, NEON_SQDMULH, vd.IsLaneSizeH() || vd.IsLaneSizeS())   \
+  V(sqrdmulh, NEON_SQRDMULH, vd.IsLaneSizeH() || vd.IsLaneSizeS()) \
+  V(shadd, NEON_SHADD, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(uhadd, NEON_UHADD, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(srhadd, NEON_SRHADD, vd.IsVector() && !vd.IsLaneSizeD())       \
+  V(urhadd, NEON_URHADD, vd.IsVector() && !vd.IsLaneSizeD())       \
+  V(shsub, NEON_SHSUB, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(uhsub, NEON_UHSUB, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(smax, NEON_SMAX, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(smaxp, NEON_SMAXP, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(smin, NEON_SMIN, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(sminp, NEON_SMINP, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(umax, NEON_UMAX, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(umaxp, NEON_UMAXP, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(umin, NEON_UMIN, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(uminp, NEON_UMINP, vd.IsVector() && !vd.IsLaneSizeD())         \
+  V(saba, NEON_SABA, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(sabd, NEON_SABD, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(uaba, NEON_UABA, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(uabd, NEON_UABD, vd.IsVector() && !vd.IsLaneSizeD())           \
+  V(mla, NEON_MLA, vd.IsVector() && !vd.IsLaneSizeD())             \
+  V(mls, NEON_MLS, vd.IsVector() && !vd.IsLaneSizeD())             \
+  V(mul, NEON_MUL, vd.IsVector() && !vd.IsLaneSizeD())             \
+  V(and_, NEON_AND, vd.Is8B() || vd.Is16B())                       \
+  V(orr, NEON_ORR, vd.Is8B() || vd.Is16B())                        \
+  V(orn, NEON_ORN, vd.Is8B() || vd.Is16B())                        \
+  V(eor, NEON_EOR, vd.Is8B() || vd.Is16B())                        \
+  V(bic, NEON_BIC, vd.Is8B() || vd.Is16B())                        \
+  V(bit, NEON_BIT, vd.Is8B() || vd.Is16B())                        \
+  V(bif, NEON_BIF, vd.Is8B() || vd.Is16B())                        \
+  V(bsl, NEON_BSL, vd.Is8B() || vd.Is16B())                        \
+  V(pmul, NEON_PMUL, vd.Is8B() || vd.Is16B())                      \
+  V(uqadd, NEON_UQADD, true)                                       \
+  V(sqadd, NEON_SQADD, true)                                       \
+  V(uqsub, NEON_UQSUB, true)                                       \
+  V(sqsub, NEON_SQSUB, true)                                       \
+  V(sqshl, NEON_SQSHL, true)                                       \
+  V(uqshl, NEON_UQSHL, true)                                       \
+  V(sqrshl, NEON_SQRSHL, true)                                     \
+  V(uqrshl, NEON_UQRSHL, true)
+
+#define DEFINE_ASM_FUNC(FN, OP, AS)                            \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
+                     const VRegister& vm) {                    \
+    DCHECK(AS);                                                \
+    NEON3Same(vd, vn, vm, OP);                                 \
+  }
+NEON_3SAME_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+#define NEON_FP3SAME_LIST_V2(V)                 \
+  V(fadd, NEON_FADD, FADD)                      \
+  V(fsub, NEON_FSUB, FSUB)                      \
+  V(fmul, NEON_FMUL, FMUL)                      \
+  V(fdiv, NEON_FDIV, FDIV)                      \
+  V(fmax, NEON_FMAX, FMAX)                      \
+  V(fmaxnm, NEON_FMAXNM, FMAXNM)                \
+  V(fmin, NEON_FMIN, FMIN)                      \
+  V(fminnm, NEON_FMINNM, FMINNM)                \
+  V(fmulx, NEON_FMULX, NEON_FMULX_scalar)       \
+  V(frecps, NEON_FRECPS, NEON_FRECPS_scalar)    \
+  V(frsqrts, NEON_FRSQRTS, NEON_FRSQRTS_scalar) \
+  V(fabd, NEON_FABD, NEON_FABD_scalar)          \
+  V(fmla, NEON_FMLA, 0)                         \
+  V(fmls, NEON_FMLS, 0)                         \
+  V(facge, NEON_FACGE, NEON_FACGE_scalar)       \
+  V(facgt, NEON_FACGT, NEON_FACGT_scalar)       \
+  V(fcmeq, NEON_FCMEQ, NEON_FCMEQ_scalar)       \
+  V(fcmge, NEON_FCMGE, NEON_FCMGE_scalar)       \
+  V(fcmgt, NEON_FCMGT, NEON_FCMGT_scalar)       \
+  V(faddp, NEON_FADDP, 0)                       \
+  V(fmaxp, NEON_FMAXP, 0)                       \
+  V(fminp, NEON_FMINP, 0)                       \
+  V(fmaxnmp, NEON_FMAXNMP, 0)                   \
+  V(fminnmp, NEON_FMINNMP, 0)
+
+#define DEFINE_ASM_FUNC(FN, VEC_OP, SCA_OP)                    \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
+                     const VRegister& vm) {                    \
+    Instr op;                                                  \
+    if ((SCA_OP != 0) && vd.IsScalar()) {                      \
+      DCHECK(vd.Is1S() || vd.Is1D());                          \
+      op = SCA_OP;                                             \
+    } else {                                                   \
+      DCHECK(vd.IsVector());                                   \
+      DCHECK(vd.Is2S() || vd.Is2D() || vd.Is4S());             \
+      op = VEC_OP;                                             \
+    }                                                          \
+    NEONFP3Same(vd, vn, vm, op);                               \
+  }
+NEON_FP3SAME_LIST_V2(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+void Assembler::addp(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is1D() && vn.Is2D()));
+  Emit(SFormat(vd) | NEON_ADDP_scalar | Rn(vn) | Rd(vd));
+}
+
+void Assembler::faddp(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is1S() && vn.Is2S()) || (vd.Is1D() && vn.Is2D()));
+  Emit(FPFormat(vd) | NEON_FADDP_scalar | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fmaxp(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is1S() && vn.Is2S()) || (vd.Is1D() && vn.Is2D()));
+  Emit(FPFormat(vd) | NEON_FMAXP_scalar | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fminp(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is1S() && vn.Is2S()) || (vd.Is1D() && vn.Is2D()));
+  Emit(FPFormat(vd) | NEON_FMINP_scalar | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fmaxnmp(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is1S() && vn.Is2S()) || (vd.Is1D() && vn.Is2D()));
+  Emit(FPFormat(vd) | NEON_FMAXNMP_scalar | Rn(vn) | Rd(vd));
+}
+
+void Assembler::fminnmp(const VRegister& vd, const VRegister& vn) {
+  DCHECK((vd.Is1S() && vn.Is2S()) || (vd.Is1D() && vn.Is2D()));
+  Emit(FPFormat(vd) | NEON_FMINNMP_scalar | Rn(vn) | Rd(vd));
+}
+
+void Assembler::orr(const VRegister& vd, const int imm8, const int left_shift) {
+  NEONModifiedImmShiftLsl(vd, imm8, left_shift, NEONModifiedImmediate_ORR);
+}
+
+void Assembler::mov(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  if (vd.IsD()) {
+    orr(vd.V8B(), vn.V8B(), vn.V8B());
+  } else {
+    DCHECK(vd.IsQ());
+    orr(vd.V16B(), vn.V16B(), vn.V16B());
+  }
+}
+
+void Assembler::bic(const VRegister& vd, const int imm8, const int left_shift) {
+  NEONModifiedImmShiftLsl(vd, imm8, left_shift, NEONModifiedImmediate_BIC);
+}
+
+void Assembler::movi(const VRegister& vd, const uint64_t imm, Shift shift,
+                     const int shift_amount) {
+  DCHECK((shift == LSL) || (shift == MSL));
+  if (vd.Is2D() || vd.Is1D()) {
+    DCHECK_EQ(shift_amount, 0);
+    int imm8 = 0;
+    for (int i = 0; i < 8; ++i) {
+      int byte = (imm >> (i * 8)) & 0xFF;
+      DCHECK((byte == 0) || (byte == 0xFF));
+      if (byte == 0xFF) {
+        imm8 |= (1 << i);
+      }
+    }
+    Instr q = vd.Is2D() ? NEON_Q : 0;
+    Emit(q | NEONModImmOp(1) | NEONModifiedImmediate_MOVI |
+         ImmNEONabcdefgh(imm8) | NEONCmode(0xE) | Rd(vd));
+  } else if (shift == LSL) {
+    NEONModifiedImmShiftLsl(vd, static_cast<int>(imm), shift_amount,
+                            NEONModifiedImmediate_MOVI);
+  } else {
+    NEONModifiedImmShiftMsl(vd, static_cast<int>(imm), shift_amount,
+                            NEONModifiedImmediate_MOVI);
+  }
+}
+
+void Assembler::mvn(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  if (vd.IsD()) {
+    not_(vd.V8B(), vn.V8B());
+  } else {
+    DCHECK(vd.IsQ());
+    not_(vd.V16B(), vn.V16B());
+  }
+}
+
+void Assembler::mvni(const VRegister& vd, const int imm8, Shift shift,
+                     const int shift_amount) {
+  DCHECK((shift == LSL) || (shift == MSL));
+  if (shift == LSL) {
+    NEONModifiedImmShiftLsl(vd, imm8, shift_amount, NEONModifiedImmediate_MVNI);
+  } else {
+    NEONModifiedImmShiftMsl(vd, imm8, shift_amount, NEONModifiedImmediate_MVNI);
+  }
+}
+
+void Assembler::NEONFPByElement(const VRegister& vd, const VRegister& vn,
+                                const VRegister& vm, int vm_index,
+                                NEONByIndexedElementOp vop) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK((vd.Is2S() && vm.Is1S()) || (vd.Is4S() && vm.Is1S()) ||
+         (vd.Is1S() && vm.Is1S()) || (vd.Is2D() && vm.Is1D()) ||
+         (vd.Is1D() && vm.Is1D()));
+  DCHECK((vm.Is1S() && (vm_index < 4)) || (vm.Is1D() && (vm_index < 2)));
+
+  Instr op = vop;
+  int index_num_bits = vm.Is1S() ? 2 : 1;
+  if (vd.IsScalar()) {
+    op |= NEON_Q | NEONScalar;
+  }
+
+  Emit(FPFormat(vd) | op | ImmNEONHLM(vm_index, index_num_bits) | Rm(vm) |
+       Rn(vn) | Rd(vd));
+}
+
+void Assembler::NEONByElement(const VRegister& vd, const VRegister& vn,
+                              const VRegister& vm, int vm_index,
+                              NEONByIndexedElementOp vop) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK((vd.Is4H() && vm.Is1H()) || (vd.Is8H() && vm.Is1H()) ||
+         (vd.Is1H() && vm.Is1H()) || (vd.Is2S() && vm.Is1S()) ||
+         (vd.Is4S() && vm.Is1S()) || (vd.Is1S() && vm.Is1S()));
+  DCHECK((vm.Is1H() && (vm.code() < 16) && (vm_index < 8)) ||
+         (vm.Is1S() && (vm_index < 4)));
+
+  Instr format, op = vop;
+  int index_num_bits = vm.Is1H() ? 3 : 2;
+  if (vd.IsScalar()) {
+    op |= NEONScalar | NEON_Q;
+    format = SFormat(vn);
+  } else {
+    format = VFormat(vn);
+  }
+  Emit(format | op | ImmNEONHLM(vm_index, index_num_bits) | Rm(vm) | Rn(vn) |
+       Rd(vd));
+}
+
+void Assembler::NEONByElementL(const VRegister& vd, const VRegister& vn,
+                               const VRegister& vm, int vm_index,
+                               NEONByIndexedElementOp vop) {
+  DCHECK((vd.Is4S() && vn.Is4H() && vm.Is1H()) ||
+         (vd.Is4S() && vn.Is8H() && vm.Is1H()) ||
+         (vd.Is1S() && vn.Is1H() && vm.Is1H()) ||
+         (vd.Is2D() && vn.Is2S() && vm.Is1S()) ||
+         (vd.Is2D() && vn.Is4S() && vm.Is1S()) ||
+         (vd.Is1D() && vn.Is1S() && vm.Is1S()));
+
+  DCHECK((vm.Is1H() && (vm.code() < 16) && (vm_index < 8)) ||
+         (vm.Is1S() && (vm_index < 4)));
+
+  Instr format, op = vop;
+  int index_num_bits = vm.Is1H() ? 3 : 2;
+  if (vd.IsScalar()) {
+    op |= NEONScalar | NEON_Q;
+    format = SFormat(vn);
+  } else {
+    format = VFormat(vn);
+  }
+  Emit(format | op | ImmNEONHLM(vm_index, index_num_bits) | Rm(vm) | Rn(vn) |
+       Rd(vd));
+}
+
+#define NEON_BYELEMENT_LIST(V)              \
+  V(mul, NEON_MUL_byelement, vn.IsVector()) \
+  V(mla, NEON_MLA_byelement, vn.IsVector()) \
+  V(mls, NEON_MLS_byelement, vn.IsVector()) \
+  V(sqdmulh, NEON_SQDMULH_byelement, true)  \
+  V(sqrdmulh, NEON_SQRDMULH_byelement, true)
+
+#define DEFINE_ASM_FUNC(FN, OP, AS)                            \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
+                     const VRegister& vm, int vm_index) {      \
+    DCHECK(AS);                                                \
+    NEONByElement(vd, vn, vm, vm_index, OP);                   \
+  }
+NEON_BYELEMENT_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+#define NEON_FPBYELEMENT_LIST(V) \
+  V(fmul, NEON_FMUL_byelement)   \
+  V(fmla, NEON_FMLA_byelement)   \
+  V(fmls, NEON_FMLS_byelement)   \
+  V(fmulx, NEON_FMULX_byelement)
+
+#define DEFINE_ASM_FUNC(FN, OP)                                \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
+                     const VRegister& vm, int vm_index) {      \
+    NEONFPByElement(vd, vn, vm, vm_index, OP);                 \
+  }
+NEON_FPBYELEMENT_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+#define NEON_BYELEMENT_LONG_LIST(V)                              \
+  V(sqdmull, NEON_SQDMULL_byelement, vn.IsScalar() || vn.IsD())  \
+  V(sqdmull2, NEON_SQDMULL_byelement, vn.IsVector() && vn.IsQ()) \
+  V(sqdmlal, NEON_SQDMLAL_byelement, vn.IsScalar() || vn.IsD())  \
+  V(sqdmlal2, NEON_SQDMLAL_byelement, vn.IsVector() && vn.IsQ()) \
+  V(sqdmlsl, NEON_SQDMLSL_byelement, vn.IsScalar() || vn.IsD())  \
+  V(sqdmlsl2, NEON_SQDMLSL_byelement, vn.IsVector() && vn.IsQ()) \
+  V(smull, NEON_SMULL_byelement, vn.IsVector() && vn.IsD())      \
+  V(smull2, NEON_SMULL_byelement, vn.IsVector() && vn.IsQ())     \
+  V(umull, NEON_UMULL_byelement, vn.IsVector() && vn.IsD())      \
+  V(umull2, NEON_UMULL_byelement, vn.IsVector() && vn.IsQ())     \
+  V(smlal, NEON_SMLAL_byelement, vn.IsVector() && vn.IsD())      \
+  V(smlal2, NEON_SMLAL_byelement, vn.IsVector() && vn.IsQ())     \
+  V(umlal, NEON_UMLAL_byelement, vn.IsVector() && vn.IsD())      \
+  V(umlal2, NEON_UMLAL_byelement, vn.IsVector() && vn.IsQ())     \
+  V(smlsl, NEON_SMLSL_byelement, vn.IsVector() && vn.IsD())      \
+  V(smlsl2, NEON_SMLSL_byelement, vn.IsVector() && vn.IsQ())     \
+  V(umlsl, NEON_UMLSL_byelement, vn.IsVector() && vn.IsD())      \
+  V(umlsl2, NEON_UMLSL_byelement, vn.IsVector() && vn.IsQ())
+
+#define DEFINE_ASM_FUNC(FN, OP, AS)                            \
+  void Assembler::FN(const VRegister& vd, const VRegister& vn, \
+                     const VRegister& vm, int vm_index) {      \
+    DCHECK(AS);                                                \
+    NEONByElementL(vd, vn, vm, vm_index, OP);                  \
+  }
+NEON_BYELEMENT_LONG_LIST(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+
+void Assembler::suqadd(const VRegister& vd, const VRegister& vn) {
+  NEON2RegMisc(vd, vn, NEON_SUQADD);
+}
+
+void Assembler::usqadd(const VRegister& vd, const VRegister& vn) {
+  NEON2RegMisc(vd, vn, NEON_USQADD);
+}
+
+void Assembler::abs(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEON2RegMisc(vd, vn, NEON_ABS);
+}
+
+void Assembler::sqabs(const VRegister& vd, const VRegister& vn) {
+  NEON2RegMisc(vd, vn, NEON_SQABS);
+}
+
+void Assembler::neg(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsVector() || vd.Is1D());
+  NEON2RegMisc(vd, vn, NEON_NEG);
+}
+
+void Assembler::sqneg(const VRegister& vd, const VRegister& vn) {
+  NEON2RegMisc(vd, vn, NEON_SQNEG);
+}
+
+void Assembler::NEONXtn(const VRegister& vd, const VRegister& vn,
+                        NEON2RegMiscOp vop) {
+  Instr format, op = vop;
+  if (vd.IsScalar()) {
+    DCHECK((vd.Is1B() && vn.Is1H()) || (vd.Is1H() && vn.Is1S()) ||
+           (vd.Is1S() && vn.Is1D()));
+    op |= NEON_Q | NEONScalar;
+    format = SFormat(vd);
+  } else {
+    DCHECK((vd.Is8B() && vn.Is8H()) || (vd.Is4H() && vn.Is4S()) ||
+           (vd.Is2S() && vn.Is2D()) || (vd.Is16B() && vn.Is8H()) ||
+           (vd.Is8H() && vn.Is4S()) || (vd.Is4S() && vn.Is2D()));
+    format = VFormat(vd);
+  }
+  Emit(format | op | Rn(vn) | Rd(vd));
+}
+
+void Assembler::xtn(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsVector() && vd.IsD());
+  NEONXtn(vd, vn, NEON_XTN);
+}
+
+void Assembler::xtn2(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsVector() && vd.IsQ());
+  NEONXtn(vd, vn, NEON_XTN);
+}
+
+void Assembler::sqxtn(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsScalar() || vd.IsD());
+  NEONXtn(vd, vn, NEON_SQXTN);
+}
+
+void Assembler::sqxtn2(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsVector() && vd.IsQ());
+  NEONXtn(vd, vn, NEON_SQXTN);
+}
+
+void Assembler::sqxtun(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsScalar() || vd.IsD());
+  NEONXtn(vd, vn, NEON_SQXTUN);
+}
+
+void Assembler::sqxtun2(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsVector() && vd.IsQ());
+  NEONXtn(vd, vn, NEON_SQXTUN);
+}
+
+void Assembler::uqxtn(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsScalar() || vd.IsD());
+  NEONXtn(vd, vn, NEON_UQXTN);
+}
+
+void Assembler::uqxtn2(const VRegister& vd, const VRegister& vn) {
+  DCHECK(vd.IsVector() && vd.IsQ());
+  NEONXtn(vd, vn, NEON_UQXTN);
+}
+
+// NEON NOT and RBIT are distinguised by bit 22, the bottom bit of "size".
+void Assembler::not_(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is8B() || vd.Is16B());
+  Emit(VFormat(vd) | NEON_RBIT_NOT | Rn(vn) | Rd(vd));
+}
+
+void Assembler::rbit(const VRegister& vd, const VRegister& vn) {
+  DCHECK(AreSameFormat(vd, vn));
+  DCHECK(vd.Is8B() || vd.Is16B());
+  Emit(VFormat(vn) | (1 << NEONSize_offset) | NEON_RBIT_NOT | Rn(vn) | Rd(vd));
+}
+
+void Assembler::ext(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vm, int index) {
+  DCHECK(AreSameFormat(vd, vn, vm));
+  DCHECK(vd.Is8B() || vd.Is16B());
+  DCHECK((0 <= index) && (index < vd.LaneCount()));
+  Emit(VFormat(vd) | NEON_EXT | Rm(vm) | ImmNEONExt(index) | Rn(vn) | Rd(vd));
+}
+
+void Assembler::dup(const VRegister& vd, const VRegister& vn, int vn_index) {
+  Instr q, scalar;
+
+  // We support vn arguments of the form vn.VxT() or vn.T(), where x is the
+  // number of lanes, and T is b, h, s or d.
+  int lane_size = vn.LaneSizeInBytes();
+  NEONFormatField format;
+  switch (lane_size) {
+    case 1:
+      format = NEON_16B;
+      break;
+    case 2:
+      format = NEON_8H;
+      break;
+    case 4:
+      format = NEON_4S;
+      break;
+    default:
+      DCHECK_EQ(lane_size, 8);
+      format = NEON_2D;
+      break;
+  }
+
+  if (vd.IsScalar()) {
+    q = NEON_Q;
+    scalar = NEONScalar;
+  } else {
+    DCHECK(!vd.Is1D());
+    q = vd.IsD() ? 0 : NEON_Q;
+    scalar = 0;
+  }
+  Emit(q | scalar | NEON_DUP_ELEMENT | ImmNEON5(format, vn_index) | Rn(vn) |
+       Rd(vd));
+}
+
+void Assembler::dcptr(Label* label) {
+  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  if (label->is_bound()) {
+    // The label is bound, so it does not need to be updated and the internal
+    // reference should be emitted.
+    //
+    // In this case, label->pos() returns the offset of the label from the
+    // start of the buffer.
+    internal_reference_positions_.push_back(pc_offset());
+    dc64(reinterpret_cast<uintptr_t>(buffer_ + label->pos()));
+  } else {
+    int32_t offset;
+    if (label->is_linked()) {
+      // The label is linked, so the internal reference should be added
+      // onto the end of the label's link chain.
+      //
+      // In this case, label->pos() returns the offset of the last linked
+      // instruction from the start of the buffer.
+      offset = label->pos() - pc_offset();
+      DCHECK_NE(offset, kStartOfLabelLinkChain);
+    } else {
+      // The label is unused, so it now becomes linked and the internal
+      // reference is at the start of the new link chain.
+      offset = kStartOfLabelLinkChain;
+    }
+    // The instruction at pc is now the last link in the label's chain.
+    label->link_to(pc_offset());
+
+    // Traditionally the offset to the previous instruction in the chain is
+    // encoded in the instruction payload (e.g. branch range) but internal
+    // references are not instructions so while unbound they are encoded as
+    // two consecutive brk instructions. The two 16-bit immediates are used
+    // to encode the offset.
+    offset >>= kInstructionSizeLog2;
+    DCHECK(is_int32(offset));
+    uint32_t high16 = unsigned_bitextract_32(31, 16, offset);
+    uint32_t low16 = unsigned_bitextract_32(15, 0, offset);
+
+    brk(high16);
+    brk(low16);
+  }
+}
+
+// Below, a difference in case for the same letter indicates a
+// negated bit. If b is 1, then B is 0.
+uint32_t Assembler::FPToImm8(double imm) {
   DCHECK(IsImmFP64(imm));
   // bits: aBbb.bbbb.bbcd.efgh.0000.0000.0000.0000
   //       0000.0000.0000.0000.0000.0000.0000.0000
-  uint64_t bits = double_to_rawbits(imm);
+  uint64_t bits = bit_cast<uint64_t>(imm);
   // bit7: a000.0000
-  uint32_t bit7 = ((bits >> 63) & 0x1) << 7;
+  uint64_t bit7 = ((bits >> 63) & 0x1) << 7;
   // bit6: 0b00.0000
-  uint32_t bit6 = ((bits >> 61) & 0x1) << 6;
+  uint64_t bit6 = ((bits >> 61) & 0x1) << 6;
   // bit5_to_0: 00cd.efgh
-  uint32_t bit5_to_0 = (bits >> 48) & 0x3f;
+  uint64_t bit5_to_0 = (bits >> 48) & 0x3F;
 
-  return (bit7 | bit6 | bit5_to_0) << ImmFP_offset;
+  return static_cast<uint32_t>(bit7 | bit6 | bit5_to_0);
 }
 
+Instr Assembler::ImmFP(double imm) { return FPToImm8(imm) << ImmFP_offset; }
+Instr Assembler::ImmNEONFP(double imm) {
+  return ImmNEONabcdefgh(FPToImm8(imm));
+}
 
 // Code generation helpers.
-void Assembler::MoveWide(const Register& rd,
-                         uint64_t imm,
-                         int shift,
+void Assembler::MoveWide(const Register& rd, uint64_t imm, int shift,
                          MoveWideImmediateOp mov_op) {
   // Ignore the top 32 bits of an immediate if we're moving to a W register.
   if (rd.Is32Bits()) {
     // Check that the top 32 bits are zero (a positive 32-bit number) or top
     // 33 bits are one (a negative 32-bit number, sign extended to 64 bits).
     DCHECK(((imm >> kWRegSizeInBits) == 0) ||
-           ((imm >> (kWRegSizeInBits - 1)) == 0x1ffffffff));
+           ((imm >> (kWRegSizeInBits - 1)) == 0x1FFFFFFFF));
     imm &= kWRegMask;
   }
 
@@ -2129,16 +3991,16 @@ void Assembler::MoveWide(const Register& rd,
     // Calculate a new immediate and shift combination to encode the immediate
     // argument.
     shift = 0;
-    if ((imm & ~0xffffUL) == 0) {
+    if ((imm & ~0xFFFFUL) == 0) {
       // Nothing to do.
-    } else if ((imm & ~(0xffffUL << 16)) == 0) {
+    } else if ((imm & ~(0xFFFFUL << 16)) == 0) {
       imm >>= 16;
       shift = 1;
-    } else if ((imm & ~(0xffffUL << 32)) == 0) {
+    } else if ((imm & ~(0xFFFFUL << 32)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 32;
       shift = 2;
-    } else if ((imm & ~(0xffffUL << 48)) == 0) {
+    } else if ((imm & ~(0xFFFFUL << 48)) == 0) {
       DCHECK(rd.Is64Bits());
       imm >>= 48;
       shift = 3;
@@ -2147,27 +4009,23 @@ void Assembler::MoveWide(const Register& rd,
 
   DCHECK(is_uint16(imm));
 
-  Emit(SF(rd) | MoveWideImmediateFixed | mov_op |
-       Rd(rd) | ImmMoveWide(imm) | ShiftMoveWide(shift));
+  Emit(SF(rd) | MoveWideImmediateFixed | mov_op | Rd(rd) |
+       ImmMoveWide(static_cast<int>(imm)) | ShiftMoveWide(shift));
 }
 
-
-void Assembler::AddSub(const Register& rd,
-                       const Register& rn,
-                       const Operand& operand,
-                       FlagsUpdate S,
-                       AddSubOp op) {
-  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+void Assembler::AddSub(const Register& rd, const Register& rn,
+                       const Operand& operand, FlagsUpdate S, AddSubOp op) {
+  DCHECK_EQ(rd.SizeInBits(), rn.SizeInBits());
   DCHECK(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
     int64_t immediate = operand.ImmediateValue();
     DCHECK(IsImmAddSub(immediate));
     Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
     Emit(SF(rd) | AddSubImmediateFixed | op | Flags(S) |
-         ImmAddSub(immediate) | dest_reg | RnSP(rn));
+         ImmAddSub(static_cast<int>(immediate)) | dest_reg | RnSP(rn));
   } else if (operand.IsShiftedRegister()) {
-    DCHECK(operand.reg().SizeInBits() == rd.SizeInBits());
-    DCHECK(operand.shift() != ROR);
+    DCHECK_EQ(operand.reg().SizeInBits(), rd.SizeInBits());
+    DCHECK_NE(operand.shift(), ROR);
 
     // For instructions of the form:
     //   add/sub   wsp, <Wn>, <Wm> [, LSL #0-3 ]
@@ -2189,48 +4047,41 @@ void Assembler::AddSub(const Register& rd,
   }
 }
 
-
-void Assembler::AddSubWithCarry(const Register& rd,
-                                const Register& rn,
-                                const Operand& operand,
-                                FlagsUpdate S,
+void Assembler::AddSubWithCarry(const Register& rd, const Register& rn,
+                                const Operand& operand, FlagsUpdate S,
                                 AddSubWithCarryOp op) {
-  DCHECK(rd.SizeInBits() == rn.SizeInBits());
-  DCHECK(rd.SizeInBits() == operand.reg().SizeInBits());
+  DCHECK_EQ(rd.SizeInBits(), rn.SizeInBits());
+  DCHECK_EQ(rd.SizeInBits(), operand.reg().SizeInBits());
   DCHECK(operand.IsShiftedRegister() && (operand.shift_amount() == 0));
   DCHECK(!operand.NeedsRelocation(this));
   Emit(SF(rd) | op | Flags(S) | Rm(operand.reg()) | Rn(rn) | Rd(rd));
 }
-
 
 void Assembler::hlt(int code) {
   DCHECK(is_uint16(code));
   Emit(HLT | ImmException(code));
 }
 
-
 void Assembler::brk(int code) {
   DCHECK(is_uint16(code));
   Emit(BRK | ImmException(code));
 }
 
-
 void Assembler::EmitStringData(const char* string) {
   size_t len = strlen(string) + 1;
-  DCHECK(RoundUp(len, kInstructionSize) <= static_cast<size_t>(kGap));
-  EmitData(string, len);
-  // Pad with NULL characters until pc_ is aligned.
+  DCHECK_LE(RoundUp(len, kInstructionSize), static_cast<size_t>(kGap));
+  EmitData(string, static_cast<int>(len));
+  // Pad with nullptr characters until pc_ is aligned.
   const char pad[] = {'\0', '\0', '\0', '\0'};
-  STATIC_ASSERT(sizeof(pad) == kInstructionSize);
+  static_assert(sizeof(pad) == kInstructionSize,
+                "Size of padding must match instruction size.");
   EmitData(pad, RoundUp(pc_offset(), kInstructionSize) - pc_offset());
 }
 
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
 #ifdef USE_SIMULATOR
-  // Don't generate simulator specific code if we are building a snapshot, which
-  // might be run on real hardware.
-  if (!serializer_enabled()) {
+  if (options().enable_simulator_code) {
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
     BlockPoolsScope scope(this);
@@ -2241,11 +4092,11 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     // Refer to instructions-arm64.h for a description of the marker and its
     // arguments.
     hlt(kImmExceptionIsDebug);
-    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugCodeOffset);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugCodeOffset);
     dc32(code);
-    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugParamsOffset);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugParamsOffset);
     dc32(params);
-    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugMessageOffset);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugMessageOffset);
     EmitStringData(message);
     hlt(kImmExceptionIsUnreachable);
 
@@ -2255,7 +4106,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
 #endif
 
   if (params & BREAK) {
-    hlt(kImmExceptionIsDebug);
+    brk(0);
   }
 }
 
@@ -2270,8 +4121,8 @@ void Assembler::Logical(const Register& rd,
     int64_t immediate = operand.ImmediateValue();
     unsigned reg_size = rd.SizeInBits();
 
-    DCHECK(immediate != 0);
-    DCHECK(immediate != -1);
+    DCHECK_NE(immediate, 0);
+    DCHECK_NE(immediate, -1);
     DCHECK(rd.Is64Bits() || is_uint32(immediate));
 
     // If the operation is NOT, invert the operation and immediate.
@@ -2321,7 +4172,8 @@ void Assembler::ConditionalCompare(const Register& rn,
   if (operand.IsImmediate()) {
     int64_t immediate = operand.ImmediateValue();
     DCHECK(IsImmConditionalCompare(immediate));
-    ccmpop = ConditionalCompareImmediateFixed | op | ImmCondCmp(immediate);
+    ccmpop = ConditionalCompareImmediateFixed | op |
+             ImmCondCmp(static_cast<unsigned>(immediate));
   } else {
     DCHECK(operand.IsShiftedRegister() && (operand.shift_amount() == 0));
     ccmpop = ConditionalCompareRegisterFixed | op | Rm(operand.reg());
@@ -2337,33 +4189,75 @@ void Assembler::DataProcessing1Source(const Register& rd,
   Emit(SF(rn) | op | Rn(rn) | Rd(rd));
 }
 
-
-void Assembler::FPDataProcessing1Source(const FPRegister& fd,
-                                        const FPRegister& fn,
+void Assembler::FPDataProcessing1Source(const VRegister& vd,
+                                        const VRegister& vn,
                                         FPDataProcessing1SourceOp op) {
-  Emit(FPType(fn) | op | Rn(fn) | Rd(fd));
+  Emit(FPType(vn) | op | Rn(vn) | Rd(vd));
 }
 
-
-void Assembler::FPDataProcessing2Source(const FPRegister& fd,
-                                        const FPRegister& fn,
-                                        const FPRegister& fm,
+void Assembler::FPDataProcessing2Source(const VRegister& fd,
+                                        const VRegister& fn,
+                                        const VRegister& fm,
                                         FPDataProcessing2SourceOp op) {
   DCHECK(fd.SizeInBits() == fn.SizeInBits());
   DCHECK(fd.SizeInBits() == fm.SizeInBits());
   Emit(FPType(fd) | op | Rm(fm) | Rn(fn) | Rd(fd));
 }
 
-
-void Assembler::FPDataProcessing3Source(const FPRegister& fd,
-                                        const FPRegister& fn,
-                                        const FPRegister& fm,
-                                        const FPRegister& fa,
+void Assembler::FPDataProcessing3Source(const VRegister& fd,
+                                        const VRegister& fn,
+                                        const VRegister& fm,
+                                        const VRegister& fa,
                                         FPDataProcessing3SourceOp op) {
   DCHECK(AreSameSizeAndType(fd, fn, fm, fa));
   Emit(FPType(fd) | op | Rm(fm) | Rn(fn) | Rd(fd) | Ra(fa));
 }
 
+void Assembler::NEONModifiedImmShiftLsl(const VRegister& vd, const int imm8,
+                                        const int left_shift,
+                                        NEONModifiedImmediateOp op) {
+  DCHECK(vd.Is8B() || vd.Is16B() || vd.Is4H() || vd.Is8H() || vd.Is2S() ||
+         vd.Is4S());
+  DCHECK((left_shift == 0) || (left_shift == 8) || (left_shift == 16) ||
+         (left_shift == 24));
+  DCHECK(is_uint8(imm8));
+
+  int cmode_1, cmode_2, cmode_3;
+  if (vd.Is8B() || vd.Is16B()) {
+    DCHECK_EQ(op, NEONModifiedImmediate_MOVI);
+    cmode_1 = 1;
+    cmode_2 = 1;
+    cmode_3 = 1;
+  } else {
+    cmode_1 = (left_shift >> 3) & 1;
+    cmode_2 = left_shift >> 4;
+    cmode_3 = 0;
+    if (vd.Is4H() || vd.Is8H()) {
+      DCHECK((left_shift == 0) || (left_shift == 8));
+      cmode_3 = 1;
+    }
+  }
+  int cmode = (cmode_3 << 3) | (cmode_2 << 2) | (cmode_1 << 1);
+
+  Instr q = vd.IsQ() ? NEON_Q : 0;
+
+  Emit(q | op | ImmNEONabcdefgh(imm8) | NEONCmode(cmode) | Rd(vd));
+}
+
+void Assembler::NEONModifiedImmShiftMsl(const VRegister& vd, const int imm8,
+                                        const int shift_amount,
+                                        NEONModifiedImmediateOp op) {
+  DCHECK(vd.Is2S() || vd.Is4S());
+  DCHECK((shift_amount == 8) || (shift_amount == 16));
+  DCHECK(is_uint8(imm8));
+
+  int cmode_0 = (shift_amount >> 4) & 1;
+  int cmode = 0xC | cmode_0;
+
+  Instr q = vd.IsQ() ? NEON_Q : 0;
+
+  Emit(q | op | ImmNEONabcdefgh(imm8) | NEONCmode(cmode) | Rd(vd));
+}
 
 void Assembler::EmitShift(const Register& rd,
                           const Register& rn,
@@ -2411,7 +4305,7 @@ void Assembler::EmitExtendShift(const Register& rd,
       case SXTW: sbfm(rd, rn_, non_shift_bits, high_bit); break;
       case UXTX:
       case SXTX: {
-        DCHECK(rn.SizeInBits() == kXRegSizeInBits);
+        DCHECK_EQ(rn.SizeInBits(), kXRegSizeInBits);
         // Nothing to extend. Just shift.
         lsl(rd, rn_, left_shift);
         break;
@@ -2454,22 +4348,23 @@ void Assembler::DataProcExtendedRegister(const Register& rd,
 
 bool Assembler::IsImmAddSub(int64_t immediate) {
   return is_uint12(immediate) ||
-         (is_uint12(immediate >> 12) && ((immediate & 0xfff) == 0));
+         (is_uint12(immediate >> 12) && ((immediate & 0xFFF) == 0));
 }
 
 void Assembler::LoadStore(const CPURegister& rt,
                           const MemOperand& addr,
                           LoadStoreOp op) {
   Instr memop = op | Rt(rt) | RnSP(addr.base());
-  int64_t offset = addr.offset();
 
   if (addr.IsImmediateOffset()) {
-    LSDataSize size = CalcLSDataSize(op);
-    if (IsImmLSScaled(offset, size)) {
+    unsigned size = CalcLSDataSize(op);
+    if (IsImmLSScaled(addr.offset(), size)) {
+      int offset = static_cast<int>(addr.offset());
       // Use the scaled addressing mode.
       Emit(LoadStoreUnsignedOffsetFixed | memop |
            ImmLSUnsigned(offset >> size));
-    } else if (IsImmLSUnscaled(offset)) {
+    } else if (IsImmLSUnscaled(addr.offset())) {
+      int offset = static_cast<int>(addr.offset());
       // Use the unscaled addressing mode.
       Emit(LoadStoreUnscaledOffsetFixed | memop | ImmLS(offset));
     } else {
@@ -2495,7 +4390,8 @@ void Assembler::LoadStore(const CPURegister& rt,
   } else {
     // Pre-index and post-index modes.
     DCHECK(!rt.Is(addr.base()));
-    if (IsImmLSUnscaled(offset)) {
+    if (IsImmLSUnscaled(addr.offset())) {
+      int offset = static_cast<int>(addr.offset());
       if (addr.IsPreIndex()) {
         Emit(LoadStorePreIndexFixed | memop | ImmLS(offset));
       } else {
@@ -2514,16 +4410,24 @@ bool Assembler::IsImmLSUnscaled(int64_t offset) {
   return is_int9(offset);
 }
 
-
-bool Assembler::IsImmLSScaled(int64_t offset, LSDataSize size) {
+bool Assembler::IsImmLSScaled(int64_t offset, unsigned size) {
   bool offset_is_size_multiple = (((offset >> size) << size) == offset);
   return offset_is_size_multiple && is_uint12(offset >> size);
 }
 
-
-bool Assembler::IsImmLSPair(int64_t offset, LSDataSize size) {
+bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {
   bool offset_is_size_multiple = (((offset >> size) << size) == offset);
   return offset_is_size_multiple && is_int7(offset >> size);
+}
+
+
+bool Assembler::IsImmLLiteral(int64_t offset) {
+  int inst_size = static_cast<int>(kInstructionSizeLog2);
+  bool offset_is_inst_multiple =
+      (((offset >> inst_size) << inst_size) == offset);
+  DCHECK_GT(offset, 0);
+  offset >>= kLoadLiteralScaleLog2;
+  return offset_is_inst_multiple && is_intn(offset, ImmLLiteral_width);
 }
 
 
@@ -2539,7 +4443,7 @@ bool Assembler::IsImmLogical(uint64_t value,
                              unsigned* n,
                              unsigned* imm_s,
                              unsigned* imm_r) {
-  DCHECK((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
+  DCHECK((n != nullptr) && (imm_s != nullptr) && (imm_r != nullptr));
   DCHECK((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
 
   bool negate = false;
@@ -2627,7 +4531,7 @@ bool Assembler::IsImmLogical(uint64_t value,
     clz_a = CountLeadingZeros(a, kXRegSizeInBits);
     int clz_c = CountLeadingZeros(c, kXRegSizeInBits);
     d = clz_a - clz_c;
-    mask = ((V8_UINT64_C(1) << d) - 1);
+    mask = ((uint64_t{1} << d) - 1);
     out_n = 0;
   } else {
     // Handle degenerate cases.
@@ -2648,13 +4552,13 @@ bool Assembler::IsImmLogical(uint64_t value,
       // the general case above, and set the N bit in the output.
       clz_a = CountLeadingZeros(a, kXRegSizeInBits);
       d = 64;
-      mask = ~V8_UINT64_C(0);
+      mask = ~uint64_t{0};
       out_n = 1;
     }
   }
 
   // If the repeat period d is not a power of two, it can't be encoded.
-  if (!IS_POWER_OF_TWO(d)) {
+  if (!base::bits::IsPowerOfTwo(d)) {
     return false;
   }
 
@@ -2697,7 +4601,7 @@ bool Assembler::IsImmLogical(uint64_t value,
 
   // Count the set bits in our basic stretch. The special case of clz(0) == -1
   // makes the answer come out right for stretches that reach the very top of
-  // the word (e.g. numbers like 0xffffc00000000000).
+  // the word (e.g. numbers like 0xFFFFC00000000000).
   int clz_b = (b == 0) ? -1 : CountLeadingZeros(b, kXRegSizeInBits);
   int s = clz_a - clz_b;
 
@@ -2729,7 +4633,7 @@ bool Assembler::IsImmLogical(uint64_t value,
   //
   // So we 'or' (-d << 1) with our computed s to form imms.
   *n = out_n;
-  *imm_s = ((-d << 1) | (s - 1)) & 0x3f;
+  *imm_s = ((-d << 1) | (s - 1)) & 0x3F;
   *imm_r = r;
 
   return true;
@@ -2744,15 +4648,15 @@ bool Assembler::IsImmConditionalCompare(int64_t immediate) {
 bool Assembler::IsImmFP32(float imm) {
   // Valid values will have the form:
   // aBbb.bbbc.defg.h000.0000.0000.0000.0000
-  uint32_t bits = float_to_rawbits(imm);
+  uint32_t bits = bit_cast<uint32_t>(imm);
   // bits[19..0] are cleared.
-  if ((bits & 0x7ffff) != 0) {
+  if ((bits & 0x7FFFF) != 0) {
     return false;
   }
 
   // bits[29..25] are all set or all cleared.
-  uint32_t b_pattern = (bits >> 16) & 0x3e00;
-  if (b_pattern != 0 && b_pattern != 0x3e00) {
+  uint32_t b_pattern = (bits >> 16) & 0x3E00;
+  if (b_pattern != 0 && b_pattern != 0x3E00) {
     return false;
   }
 
@@ -2769,15 +4673,15 @@ bool Assembler::IsImmFP64(double imm) {
   // Valid values will have the form:
   // aBbb.bbbb.bbcd.efgh.0000.0000.0000.0000
   // 0000.0000.0000.0000.0000.0000.0000.0000
-  uint64_t bits = double_to_rawbits(imm);
+  uint64_t bits = bit_cast<uint64_t>(imm);
   // bits[47..0] are cleared.
-  if ((bits & 0xffffffffffffL) != 0) {
+  if ((bits & 0xFFFFFFFFFFFFL) != 0) {
     return false;
   }
 
   // bits[61..54] are all set or all cleared.
-  uint32_t b_pattern = (bits >> 48) & 0x3fc0;
-  if (b_pattern != 0 && b_pattern != 0x3fc0) {
+  uint32_t b_pattern = (bits >> 48) & 0x3FC0;
+  if (b_pattern != 0 && b_pattern != 0x3FC0) {
     return false;
   }
 
@@ -2800,15 +4704,22 @@ void Assembler::GrowBuffer() {
   } else {
     desc.buffer_size = buffer_size_ + 1 * MB;
   }
-  CHECK_GT(desc.buffer_size, 0);  // No overflow.
+
+  // Some internal data structures overflow for very large buffers,
+  // they must ensure that kMaximalBufferSize is not too large.
+  if (desc.buffer_size > kMaximalBufferSize) {
+    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
+  }
 
   byte* buffer = reinterpret_cast<byte*>(buffer_);
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
+  desc.origin = this;
 
   desc.instr_size = pc_offset();
-  desc.reloc_size = (buffer + buffer_size_) - reloc_info_writer.pos();
+  desc.reloc_size =
+      static_cast<int>((buffer + buffer_size_) - reloc_info_writer.pos());
 
   // Copy the data.
   intptr_t pc_delta = desc.buffer - buffer;
@@ -2822,7 +4733,7 @@ void Assembler::GrowBuffer() {
   DeleteArray(buffer_);
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
-  pc_ = reinterpret_cast<byte*>(pc_) + pc_delta;
+  pc_ = pc_ + pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
@@ -2830,50 +4741,73 @@ void Assembler::GrowBuffer() {
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
   // to relocate any emitted relocation entries.
 
+  // Relocate internal references.
+  for (auto pos : internal_reference_positions_) {
+    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_ + pos);
+    *p += pc_delta;
+  }
+
   // Pending relocation entries are also relative, no need to relocate.
 }
 
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
+                                ConstantPoolMode constant_pool_mode) {
+  // Non-relocatable constants should not end up in the literal pool.
+  DCHECK(!RelocInfo::IsNone(rmode));
+  if (options().disable_reloc_info_for_patching) return;
 
-void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
-  if (((rmode >= RelocInfo::JS_RETURN) &&
-       (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
-      (rmode == RelocInfo::CONST_POOL) ||
-      (rmode == RelocInfo::VENEER_POOL)) {
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  bool write_reloc_info = true;
+
+  if ((rmode == RelocInfo::COMMENT) ||
+      (rmode == RelocInfo::INTERNAL_REFERENCE) ||
+      (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
+      (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
+      (rmode == RelocInfo::DEOPT_INLINING_ID) ||
+      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID)) {
     // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsJSReturn(rmode)
-           || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode)
-           || RelocInfo::IsConstPool(rmode)
-           || RelocInfo::IsVeneerPool(rmode));
+    DCHECK(RelocInfo::IsComment(rmode) || RelocInfo::IsDeoptReason(rmode) ||
+           RelocInfo::IsDeoptId(rmode) || RelocInfo::IsDeoptPosition(rmode) ||
+           RelocInfo::IsInternalReference(rmode) ||
+           RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
-  } else {
-    constpool_.RecordEntry(data, rmode);
+  } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
+    write_reloc_info = constpool_.RecordEntry(data, rmode);
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
     BlockConstPoolFor(1);
   }
+  // For modes that cannot use the constant pool, a different sequence of
+  // instructions will be emitted by this function's caller.
 
-  if (!RelocInfo::IsNone(rmode)) {
+  if (write_reloc_info) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-        !serializer_enabled() && !emit_debug_code()) {
+    if (RelocInfo::IsOnlyForSerializer(rmode) &&
+        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
       return;
     }
-    DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-    if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(
-          reinterpret_cast<byte*>(pc_), rmode, RecordedAstId().ToInt(), NULL);
-      ClearRecordedAstId();
-      reloc_info_writer.Write(&reloc_info_with_ast_id);
-    } else {
-      reloc_info_writer.Write(&rinfo);
-    }
+    DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
+    reloc_info_writer.Write(&rinfo);
   }
 }
 
+void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  b(offset);
+}
+
+void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  bl(offset);
+}
+
+void Assembler::near_call(HeapObjectRequest request) {
+  RequestHeapObject(request);
+  int index = AddCodeTarget(Handle<Code>());
+  RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
+  bl(index);
+}
 
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstructionSize;
@@ -2954,9 +4888,8 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(buffer_ + location_offset,
-                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
-                  NULL);
+  RelocInfo rinfo(reinterpret_cast<Address>(buffer_) + location_offset,
+                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -2998,7 +4931,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
       // to the label.
       Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
       RemoveBranchFromLabelLinkChain(branch, label, veneer);
-      branch->SetImmPCOffsetTarget(veneer);
+      branch->SetImmPCOffsetTarget(options(), veneer);
       b(label);
 #ifdef DEBUG
       DCHECK(SizeOfCodeGeneratedSince(&veneer_size_check) <=
@@ -3014,7 +4947,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
   }
 
   // Record the veneer pool size.
-  int pool_size = SizeOfCodeGeneratedSince(&size_check);
+  int pool_size = static_cast<int>(SizeOfCodeGeneratedSince(&size_check));
   RecordVeneerPool(veneer_pool_relocinfo_loc, pool_size);
 
   if (unresolved_branches_.empty()) {
@@ -3034,7 +4967,7 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
                                 int margin) {
   // There is nothing to do if there are no pending veneer pool entries.
   if (unresolved_branches_.empty())  {
-    DCHECK(next_veneer_pool_check_ == kMaxInt);
+    DCHECK_EQ(next_veneer_pool_check_, kMaxInt);
     return;
   }
 
@@ -3061,30 +4994,8 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
 }
 
 
-void Assembler::RecordComment(const char* msg) {
-  if (FLAG_code_comments) {
-    CheckBuffer();
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
-  }
-}
-
-
 int Assembler::buffer_space() const {
-  return reloc_info_writer.pos() - reinterpret_cast<byte*>(pc_);
-}
-
-
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
-
-
-void Assembler::RecordDebugBreakSlot() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
+  return static_cast<int>(reloc_info_writer.pos() - pc_);
 }
 
 
@@ -3092,20 +5003,6 @@ void Assembler::RecordConstPool(int size) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
-}
-
-
-Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return isolate->factory()->empty_constant_pool_array();
-}
-
-
-void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  // No out-of-line constant pool support.
-  DCHECK(!FLAG_enable_ool_constant_pool);
-  return;
 }
 
 
@@ -3137,11 +5034,21 @@ void PatchingAssembler::PatchAdrFar(int64_t target_offset) {
   adr(rd, target_offset & 0xFFFF);
   movz(scratch, (target_offset >> 16) & 0xFFFF, 16);
   movk(scratch, (target_offset >> 32) & 0xFFFF, 32);
-  DCHECK((target_offset >> 48) == 0);
+  DCHECK_EQ(target_offset >> 48, 0);
   add(rd, rd, scratch);
 }
 
+void PatchingAssembler::PatchSubSp(uint32_t immediate) {
+  // The code at the current instruction should be:
+  //   sub sp, sp, #0
 
-} }  // namespace v8::internal
+  // Verify the expected code.
+  Instruction* expected_adr = InstructionAt(0);
+  CHECK(expected_adr->IsAddSubImmediate());
+  sub(sp, sp, immediate);
+}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

@@ -100,6 +100,12 @@ class JavaScriptMinifier(object):
       The string that should replace the match in the rewritten program.
     """
     matched_text = m.group(0)
+
+    if matched_text.startswith("`") and matched_text.endswith("`"):
+      return re.sub(r"\$\{([\w$%]+)\}",
+                    lambda m: '${' + self.FindNewName(m.group(1)) + '}',
+                    matched_text)
+
     if matched_text == "{":
       self.Push()
       return matched_text
@@ -152,6 +158,9 @@ class JavaScriptMinifier(object):
       return self.map[var_name]
     if self.nesting == 0:
       return var_name
+    # Do not rename arguments object.
+    if var_name == 'arguments':
+      return 'arguments'
     while True:
       identifier_first_char = self.identifier_counter % 52
       identifier_second_char = self.identifier_counter // 52
@@ -183,6 +192,8 @@ class JavaScriptMinifier(object):
     if re.match(r"'.*'$", entire_match):
       return entire_match
     if re.match(r'".*"$', entire_match):
+      return entire_match
+    if re.match(r"`.*`$", entire_match):
       return entire_match
     if re.match(r"/.+/$", entire_match):
       return entire_match
@@ -227,8 +238,10 @@ class JavaScriptMinifier(object):
       # This regexp can handle embedded backslash-escaped characters including
       # embedded backslash-escaped double quotes.
       double_quoted_string = r'"(?:[^"\\]|\\.)*"'
-      # A regexp that matches a literal string surrounded by 'double quotes'.
+      # A regexp that matches a literal string surrounded by 'single quotes'.
       single_quoted_string = r"'(?:[^'\\]|\\.)*'"
+      # A regexp that matches a template string
+      template_string = r"`(?:[^`\\]|\\.)*`"
       # A regexp that matches a regexp literal surrounded by /slashes/.
       # Don't allow a regexp to have a ) before the first ( since that's a
       # syntax error and it's probably just two unrelated slashes.
@@ -238,6 +251,7 @@ class JavaScriptMinifier(object):
       # Replace multiple spaces with a single space.
       line = re.sub("|".join([double_quoted_string,
                               single_quoted_string,
+                              template_string,
                               slash_quoted_regexp,
                               "( )+"]),
                     self.RemoveSpaces,
@@ -246,6 +260,7 @@ class JavaScriptMinifier(object):
       # and after the space.  % and $ are counted as identifier characters.
       line = re.sub("|".join([double_quoted_string,
                               single_quoted_string,
+                              template_string,
                               slash_quoted_regexp,
                               r"(?<![a-zA-Z_0-9$%]) | (?![a-zA-Z_0-9$%])()"]),
                     self.RemoveSpaces,
@@ -269,6 +284,7 @@ class JavaScriptMinifier(object):
       variable_use_regexp = r"(?<![.\w$%])[\w$%]+" + block_trailing_colon
       line = re.sub("|".join([double_quoted_string,
                               single_quoted_string,
+                              template_string,
                               slash_quoted_regexp,
                               r"\{",                  # Curly braces.
                               r"\}",

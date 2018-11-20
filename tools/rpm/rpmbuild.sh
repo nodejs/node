@@ -38,7 +38,7 @@ fi
 set -x
 
 sed -re "s/%define _version .+/%define _version ${VERSION}/" \
-    "$TOOLSDIR/iojs.spec" > $RPMBUILD_PATH/SPECS/iojs.spec
-tar --exclude-vcs --transform="s|^|iojs-${VERSION}/|" \
-    -czf $RPMBUILD_PATH/SOURCES/iojs-v${VERSION}.tar.gz .
-rpmbuild $* -ba $RPMBUILD_PATH/SPECS/iojs.spec
+    "$TOOLSDIR/node.spec" > $RPMBUILD_PATH/SPECS/node.spec
+tar --exclude-vcs --transform="s|^|node-${VERSION}/|" \
+    -czf $RPMBUILD_PATH/SOURCES/node-v${VERSION}.tar.gz .
+rpmbuild $* -ba $RPMBUILD_PATH/SPECS/node.spec

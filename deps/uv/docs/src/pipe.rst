@@ -21,7 +21,9 @@ Data types
 Public members
 ^^^^^^^^^^^^^^
 
-N/A
+.. c:member:: int uv_pipe_t.ipc
+
+    Whether this pipe is suitable for handle passing between processes.
 
 .. seealso:: The :c:type:`uv_stream_t` members also apply.
 
@@ -29,17 +31,20 @@ N/A
 API
 ---
 
-.. c:function:: int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc)
+.. c:function:: int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc)
 
     Initialize a pipe handle. The `ipc` argument is a boolean to indicate if
     this pipe will be used for handle passing between processes.
 
-.. c:function:: int uv_pipe_open(uv_pipe_t*, uv_file file)
+.. c:function:: int uv_pipe_open(uv_pipe_t* handle, uv_file file)
 
     Open an existing file descriptor or HANDLE as a pipe.
 
+    .. versionchanged:: 1.2.1 the file descriptor is set to non-blocking mode.
+
     .. note::
-        The user is responsible for setting the dile descriptor in non-blocking mode.
+        The passed file descriptor or HANDLE is not checked for its type, but
+        it's required that it represents a valid pipe.
 
 .. c:function:: int uv_pipe_bind(uv_pipe_t* handle, const char* name)
 
@@ -57,14 +62,29 @@ API
         Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes, typically between
         92 and 108 bytes.
 
-.. c:function:: int uv_pipe_getsockname(const uv_pipe_t* handle, char* buf, size_t* len)
+.. c:function:: int uv_pipe_getsockname(const uv_pipe_t* handle, char* buffer, size_t* size)
 
     Get the name of the Unix domain socket or the named pipe.
 
-    A preallocated buffer must be provided. The len parameter holds the length
+    A preallocated buffer must be provided. The size parameter holds the length
     of the buffer and it's set to the number of bytes written to the buffer on
     output. If the buffer is not big enough ``UV_ENOBUFS`` will be returned and
     len will contain the required size.
+
+    .. versionchanged:: 1.3.0 the returned length no longer includes the terminating null byte,
+                        and the buffer is not null terminated.
+
+.. c:function:: int uv_pipe_getpeername(const uv_pipe_t* handle, char* buffer, size_t* size)
+
+    Get the name of the Unix domain socket or the named pipe to which the handle
+    is connected.
+
+    A preallocated buffer must be provided. The size parameter holds the length
+    of the buffer and it's set to the number of bytes written to the buffer on
+    output. If the buffer is not big enough ``UV_ENOBUFS`` will be returned and
+    len will contain the required size.
+
+    .. versionadded:: 1.3.0
 
 .. c:function:: void uv_pipe_pending_instances(uv_pipe_t* handle, int count)
 
@@ -84,3 +104,12 @@ API
     and call ``uv_accept(pipe, handle)``.
 
 .. seealso:: The :c:type:`uv_stream_t` API functions also apply.
+
+.. c:function:: int uv_pipe_chmod(uv_pipe_t* handle, int flags)
+
+    Alters pipe permissions, allowing it to be accessed from processes run by
+    different users. Makes the pipe writable or readable by all users. Mode can
+    be ``UV_WRITABLE``, ``UV_READABLE`` or ``UV_WRITABLE | UV_READABLE``. This
+    function is blocking.
+
+    .. versionadded:: 1.16.0

@@ -37,16 +37,21 @@
 #include "test-list.h"
 
 int ipc_helper(int listen_after_write);
+int ipc_helper_heavy_traffic_deadlock_bug(void);
 int ipc_helper_tcp_connection(void);
+int ipc_helper_closed_handle(void);
 int ipc_send_recv_helper(void);
 int ipc_helper_bind_twice(void);
 int stdio_over_pipes_helper(void);
+int spawn_stdin_stdout(void);
+int spawn_tcp_server_helper(void);
 
 static int maybe_run_test(int argc, char **argv);
 
 
 int main(int argc, char **argv) {
-  platform_init(argc, argv);
+  if (platform_init(argc, argv))
+    return EXIT_FAILURE;
 
   argv = uv_setup_args(argc, argv);
 
@@ -54,10 +59,14 @@ int main(int argc, char **argv) {
   case 1: return run_tests(0);
   case 2: return maybe_run_test(argc, argv);
   case 3: return run_test_part(argv[1], argv[2]);
+  case 4: return maybe_run_test(argc, argv);
   default:
-    LOGF("Too many arguments.\n");
-    return 1;
+    fprintf(stderr, "Too many arguments.\n");
+    fflush(stderr);
+    return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
 }
 
 
@@ -75,12 +84,20 @@ static int maybe_run_test(int argc, char **argv) {
     return ipc_helper(1);
   }
 
+  if (strcmp(argv[1], "ipc_helper_heavy_traffic_deadlock_bug") == 0) {
+    return ipc_helper_heavy_traffic_deadlock_bug();
+  }
+
   if (strcmp(argv[1], "ipc_send_recv_helper") == 0) {
     return ipc_send_recv_helper();
   }
 
   if (strcmp(argv[1], "ipc_helper_tcp_connection") == 0) {
     return ipc_helper_tcp_connection();
+  }
+
+  if (strcmp(argv[1], "ipc_helper_closed_handle") == 0) {
+    return ipc_helper_closed_handle();
   }
 
   if (strcmp(argv[1], "ipc_helper_bind_twice") == 0) {
@@ -98,6 +115,10 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper2") == 0) {
     printf("hello world\n");
     return 1;
+  }
+
+  if (strcmp(argv[1], "spawn_tcp_server_helper") == 0) {
+    return spawn_tcp_server_helper();
   }
 
   if (strcmp(argv[1], "spawn_helper3") == 0) {
@@ -163,6 +184,22 @@ static int maybe_run_test(int argc, char **argv) {
     ASSERT(sizeof(fd) == read(0, &fd, sizeof(fd)));
     ASSERT(fd > 2);
     ASSERT(-1 == write(fd, "x", 1));
+
+    return 1;
+  }
+#endif  /* !_WIN32 */
+
+  if (strcmp(argv[1], "spawn_helper9") == 0) {
+    return spawn_stdin_stdout();
+  }
+
+#ifndef _WIN32
+  if (strcmp(argv[1], "spawn_helper_setuid_setgid") == 0) {
+    uv_uid_t uid = atoi(argv[2]);
+    uv_gid_t gid = atoi(argv[3]);
+
+    ASSERT(uid == getuid());
+    ASSERT(gid == getgid());
 
     return 1;
   }

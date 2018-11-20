@@ -19,12 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
+const assert = require('assert');
 
-
-
-var common = require('../common');
-var assert = require('assert');
-
-var r = process.memoryUsage();
-console.log(common.inspect(r));
-assert.equal(true, r['rss'] > 0);
+const r = process.memoryUsage();
+assert.ok(r.rss > 0);
+assert.ok(r.heapTotal > 0);
+assert.ok(r.heapUsed > 0);
+assert.ok(r.external > 0);

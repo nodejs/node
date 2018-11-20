@@ -1,50 +1,42 @@
-var test = require("tap").test
-  , path = require("path")
-  , rimraf = require("rimraf")
-  , mkdirp = require("mkdirp")
-  , spawn = require("child_process").spawn
-  , npm = require.resolve("../../bin/npm-cli.js")
-  , node = process.execPath
-  , pkg = path.resolve(__dirname, "sorted-package-json")
-  , tmp = path.join(pkg, "tmp")
-  , cache = path.join(pkg, "cache")
-  , fs = require("fs")
-  , common = require("../common-tap.js")
-  , mr = require("npm-registry-mock")
-  , osenv = require("osenv")
+var test = require('tap').test
+var path = require('path')
+var rimraf = require('rimraf')
+var mkdirp = require('mkdirp')
+var pkg = path.resolve(__dirname, 'sorted-package-json')
+var tmp = path.join(pkg, 'tmp')
+var cache = path.join(pkg, 'cache')
+var fs = require('fs')
+var common = require('../common-tap.js')
+var mr = require('npm-registry-mock')
+var osenv = require('osenv')
+var packageJson = path.resolve(pkg, 'package.json')
 
-
-test("sorting dependencies", function (t) {
-  var packageJson = path.resolve(pkg, "package.json")
-
-  cleanup()
-  mkdirp.sync(cache)
-  mkdirp.sync(tmp)
+test('setup', function (t) {
   setup()
+  t.pass('setup success')
+  t.done()
+})
 
+test('sorting dependencies', function (t) {
   var before = JSON.parse(fs.readFileSync(packageJson).toString())
 
-  mr(common.port, function (s) {
+  mr({ port: common.port }, function (er, s) {
     // underscore is already in the package.json,
     // but --save will trigger a rewrite with sort
-    var child = spawn(node, [npm, "install", "--save", "underscore@1.3.3"], {
-      cwd: pkg,
-      env: {
-        "npm_config_registry": common.registry,
-        "npm_config_cache": cache,
-        "npm_config_tmp": tmp,
-        "npm_config_prefix": pkg,
-        "npm_config_global": "false",
-        HOME: process.env.HOME,
-        Path: process.env.PATH,
-        PATH: process.env.PATH
-      }
-    })
-
-    child.on("close", function (code) {
-      t.equal(code, 0, "npm install exited with code")
+    common.npm([
+      'install',
+      '--save', 'underscore@1.3.3',
+      '--no-progress',
+      '--cache', cache,
+      '--tmp', tmp,
+      '--registry', common.registry
+    ], {
+      cwd: pkg
+    }, function (err, code, stdout, stderr) {
+      t.ifError(err, 'no error')
+      t.equal(code, 0, 'npm install exited with code')
       var result = fs.readFileSync(packageJson).toString()
-        , resultAsJson = JSON.parse(result)
+      var resultAsJson = JSON.parse(result)
 
       s.close()
 
@@ -61,34 +53,37 @@ test("sorting dependencies", function (t) {
   })
 })
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   cleanup()
-  t.pass("cleaned up")
+  t.pass('cleaned up')
   t.end()
 })
 
-function setup() {
+function setup () {
+  cleanup()
   mkdirp.sync(pkg)
 
-  fs.writeFileSync(path.resolve(pkg, "package.json"), JSON.stringify({
-    "name": "sorted-package-json",
-    "version": "0.0.0",
-    "description": "",
-    "main": "index.js",
-    "scripts": {
-      "test": "echo \"Error: no test specified\" && exit 1"
+  fs.writeFileSync(packageJson, JSON.stringify({
+    'name': 'sorted-package-json',
+    'version': '0.0.0',
+    'description': '',
+    'main': 'index.js',
+    'scripts': {
+      'test': 'echo \'Error: no test specified\' && exit 1'
     },
-    "author": "Rocko Artischocko",
-    "license": "ISC",
-    "dependencies": {
-      "underscore": "^1.3.3",
-      "request": "^0.9.0"
+    'author': 'Rocko Artischocko',
+    'license': 'ISC',
+    'dependencies': {
+      'underscore': '^1.3.3',
+      'request': '^0.9.0'
     }
-  }, null, 2), "utf8")
+  }, null, 2), 'utf8')
 }
 
-function cleanup() {
+function cleanup () {
   process.chdir(osenv.tmpdir())
   rimraf.sync(cache)
   rimraf.sync(pkg)
+  mkdirp.sync(cache)
+  mkdirp.sync(tmp)
 }

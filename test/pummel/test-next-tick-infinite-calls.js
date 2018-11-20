@@ -19,16 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
 
-var complete = 0;
+let complete = 0;
 
 // This will fail with:
 //  FATAL ERROR: JS Allocation failed - process out of memory
 // if the depth counter doesn't clear the nextTickQueue properly.
 (function runner() {
-  if (1e8 > ++complete)
+  if (++complete < 1e8)
     process.nextTick(runner);
 }());
 

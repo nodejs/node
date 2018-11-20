@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MEMORY_H_
-#define V8_MEMORY_H_
+#ifndef V8_V8MEMORY_H_
+#define V8_V8MEMORY_H_
 
 namespace v8 {
 namespace internal {
@@ -33,6 +33,10 @@ class Memory {
     return *reinterpret_cast<uint64_t*>(addr);
   }
 
+  static int64_t& int64_at(Address addr) {
+    return *reinterpret_cast<int64_t*>(addr);
+  }
+
   static int& int_at(Address addr)  {
     return *reinterpret_cast<int*>(addr);
   }
@@ -47,6 +51,10 @@ class Memory {
 
   static uintptr_t& uintptr_at(Address addr) {
     return *reinterpret_cast<uintptr_t*>(addr);
+  }
+
+  static float& float_at(Address addr) {
+    return *reinterpret_cast<float*>(addr);
   }
 
   static double& double_at(Address addr)  {
@@ -64,8 +72,13 @@ class Memory {
   static Handle<Object>& Object_Handle_at(Address addr)  {
     return *reinterpret_cast<Handle<Object>*>(addr);
   }
+
+  static bool IsAddressInRange(Address base, Address address, uint32_t size) {
+    return base <= address && address < base + size;
+  }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
-#endif  // V8_MEMORY_H_
+#endif  // V8_V8MEMORY_H_

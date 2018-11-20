@@ -67,7 +67,7 @@ int uv_fs_poll_start(uv_fs_poll_t* handle,
 
   loop = handle->loop;
   len = strlen(path);
-  ctx = calloc(1, sizeof(*ctx) + len);
+  ctx = uv__calloc(1, sizeof(*ctx) + len);
 
   if (ctx == NULL)
     return UV_ENOMEM;
@@ -83,7 +83,7 @@ int uv_fs_poll_start(uv_fs_poll_t* handle,
   if (err < 0)
     goto error;
 
-  ctx->timer_handle.flags |= UV__HANDLE_INTERNAL;
+  ctx->timer_handle.flags |= UV_HANDLE_INTERNAL;
   uv__handle_unref(&ctx->timer_handle);
 
   err = uv_fs_stat(loop, &ctx->fs_req, ctx->path, poll_cb);
@@ -96,7 +96,7 @@ int uv_fs_poll_start(uv_fs_poll_t* handle,
   return 0;
 
 error:
-  free(ctx);
+  uv__free(ctx);
   return err;
 }
 
@@ -125,26 +125,27 @@ int uv_fs_poll_stop(uv_fs_poll_t* handle) {
 }
 
 
-int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buf, size_t* len) {
+int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buffer, size_t* size) {
   struct poll_ctx* ctx;
   size_t required_len;
 
   if (!uv__is_active(handle)) {
-    *len = 0;
+    *size = 0;
     return UV_EINVAL;
   }
 
   ctx = handle->poll_ctx;
   assert(ctx != NULL);
 
-  required_len = strlen(ctx->path) + 1;
-  if (required_len > *len) {
-    *len = required_len;
+  required_len = strlen(ctx->path);
+  if (required_len >= *size) {
+    *size = required_len + 1;
     return UV_ENOBUFS;
   }
 
-  memcpy(buf, ctx->path, required_len);
-  *len = required_len;
+  memcpy(buffer, ctx->path, required_len);
+  *size = required_len;
+  buffer[required_len] = '\0';
 
   return 0;
 }
@@ -219,7 +220,7 @@ out:
 
 
 static void timer_close_cb(uv_handle_t* handle) {
-  free(container_of(handle, struct poll_ctx, timer_handle));
+  uv__free(container_of(handle, struct poll_ctx, timer_handle));
 }
 
 
@@ -247,7 +248,7 @@ static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b) {
 #include "win/handle-inl.h"
 
 void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle) {
-  assert(handle->flags & UV__HANDLE_CLOSING);
+  assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
   uv__handle_close(handle);
 }

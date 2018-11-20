@@ -32,7 +32,7 @@ PASS Object.prototype.toLocaleString.call(undefined) threw exception TypeError: 
 PASS Object.prototype.valueOf.call(undefined) threw exception TypeError: Cannot convert undefined or null to object.
 PASS Object.prototype.hasOwnProperty.call(undefined, 'hasOwnProperty') threw exception TypeError: Cannot convert undefined or null to object.
 PASS Object.prototype.propertyIsEnumerable.call(undefined, 'propertyIsEnumerable') threw exception TypeError: Cannot convert undefined or null to object.
-PASS Object.prototype.isPrototypeOf.call(undefined, this) threw exception TypeError: Object.prototype.isPrototypeOf called on null or undefined.
+PASS Object.prototype.isPrototypeOf.call(undefined, this) threw exception TypeError: Cannot convert undefined or null to object.
 PASS successfullyParsed is true
 
 TEST COMPLETE

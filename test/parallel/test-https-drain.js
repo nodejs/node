@@ -19,53 +19,51 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var fs = require('fs');
-var path = require('path');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
+const https = require('https');
 
-var options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+const options = {
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
-var bufSize = 1024 * 1024;
-var sent = 0;
-var received = 0;
+const bufSize = 1024 * 1024;
+let sent = 0;
+let received = 0;
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   res.writeHead(200);
   req.pipe(res);
 });
 
-server.listen(common.PORT, function() {
-  var resumed = false;
-  var req = https.request({
+server.listen(0, function() {
+  let resumed = false;
+  const req = https.request({
     method: 'POST',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function(res) {
-    var timer;
+    let timer;
     res.pause();
-    common.debug('paused');
+    console.error('paused');
     send();
     function send() {
-      if (req.write(new Buffer(bufSize))) {
+      if (req.write(Buffer.allocUnsafe(bufSize))) {
         sent += bufSize;
         assert.ok(sent < 100 * 1024 * 1024); // max 100MB
         return process.nextTick(send);
       }
       sent += bufSize;
-      common.debug('sent: ' + sent);
+      console.error(`sent: ${sent}`);
       resumed = true;
       res.resume();
-      common.debug('resumed');
+      console.error('resumed');
       timer = setTimeout(function() {
         process.exit(1);
       }, 1000);
@@ -79,7 +77,7 @@ server.listen(common.PORT, function() {
       }
       received += data.length;
       if (received >= sent) {
-        common.debug('received: ' + received);
+        console.error(`received: ${received}`);
         req.end();
         server.close();
       }
@@ -90,5 +88,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(sent, received);
+  assert.strictEqual(sent, received);
 });

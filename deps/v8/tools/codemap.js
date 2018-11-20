@@ -175,7 +175,55 @@ CodeMap.prototype.isAddressBelongsTo_ = function(addr, node) {
  */
 CodeMap.prototype.findInTree_ = function(tree, addr) {
   var node = tree.findGreatestLessThan(addr);
-  return node && this.isAddressBelongsTo_(addr, node) ? node.value : null;
+  return node && this.isAddressBelongsTo_(addr, node) ? node : null;
+};
+
+/**
+ * Embedded builtins are located in the shared library but should be attributed
+ * according to the dynamically generated code-create events.
+ *
+ * @private
+ */
+CodeMap.prototype.isIsolateIndependentBuiltin_ = function(entry) {
+  return entry.type == "CPP" && /v8_\w*embedded_blob_/.test(entry.name);
+};
+
+/**
+ * Finds a code entry that contains the specified address. Both static and
+ * dynamic code entries are considered. Returns the code entry and the offset
+ * within the entry.
+ *
+ * @param {number} addr Address.
+ */
+CodeMap.prototype.findAddress = function(addr) {
+  var pageAddr = addr >>> CodeMap.PAGE_ALIGNMENT;
+  if (pageAddr in this.pages_) {
+    // Static code entries can contain "holes" of unnamed code.
+    // In this case, the whole library is assigned to this address.
+    var result = this.findInTree_(this.statics_, addr);
+    if (!result) {
+      result = this.findInTree_(this.libraries_, addr);
+      if (!result) return null;
+    }
+    if (!this.isIsolateIndependentBuiltin_(result.value)) {
+      // Embedded builtins are handled in the following dynamic section.
+      return { entry : result.value, offset : addr - result.key };
+    }
+  }
+  var min = this.dynamics_.findMin();
+  var max = this.dynamics_.findMax();
+  if (max != null && addr < (max.key + max.value.size) && addr >= min.key) {
+    var dynaEntry = this.findInTree_(this.dynamics_, addr);
+    if (dynaEntry == null) return null;
+    // Dedupe entry name.
+    var entry = dynaEntry.value;
+    if (!entry.nameUpdated_) {
+      entry.name = this.dynamicsNameGen_.getName(entry.name);
+      entry.nameUpdated_ = true;
+    }
+    return { entry : entry, offset : addr - dynaEntry.key };
+  }
+  return null;
 };
 
 
@@ -186,26 +234,8 @@ CodeMap.prototype.findInTree_ = function(tree, addr) {
  * @param {number} addr Address.
  */
 CodeMap.prototype.findEntry = function(addr) {
-  var pageAddr = addr >>> CodeMap.PAGE_ALIGNMENT;
-  if (pageAddr in this.pages_) {
-    // Static code entries can contain "holes" of unnamed code.
-    // In this case, the whole library is assigned to this address.
-    return this.findInTree_(this.statics_, addr) ||
-        this.findInTree_(this.libraries_, addr);
-  }
-  var min = this.dynamics_.findMin();
-  var max = this.dynamics_.findMax();
-  if (max != null && addr < (max.key + max.value.size) && addr >= min.key) {
-    var dynaEntry = this.findInTree_(this.dynamics_, addr);
-    if (dynaEntry == null) return null;
-    // Dedupe entry name.
-    if (!dynaEntry.nameUpdated_) {
-      dynaEntry.name = this.dynamicsNameGen_.getName(dynaEntry.name);
-      dynaEntry.nameUpdated_ = true;
-    }
-    return dynaEntry;
-  }
-  return null;
+  var result = this.findAddress(addr);
+  return result ? result.entry : null;
 };
 
 
@@ -242,6 +272,14 @@ CodeMap.prototype.getAllDynamicEntriesWithAddresses = function() {
  */
 CodeMap.prototype.getAllStaticEntries = function() {
   return this.statics_.exportValues();
+};
+
+
+/**
+ * Returns an array of pairs of all static code entries and their addresses.
+ */
+CodeMap.prototype.getAllStaticEntriesWithAddresses = function() {
+  return this.statics_.exportKeysAndValues();
 };
 
 

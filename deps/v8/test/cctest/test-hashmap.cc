@@ -30,42 +30,39 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 
-using namespace v8::internal;
-
-static bool DefaultMatchFun(void* a, void* b) {
-  return a == b;
-}
-
+namespace v8 {
+namespace internal {
+namespace test_hashmap {
 
 typedef uint32_t (*IntKeyHash)(uint32_t key);
 
-
 class IntSet {
  public:
-  explicit IntSet(IntKeyHash hash) : hash_(hash), map_(DefaultMatchFun)  {}
+  explicit IntSet(IntKeyHash hash) : hash_(hash) {}
 
   void Insert(int x) {
-    CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
-    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), hash_(x), true);
-    CHECK(p != NULL);  // insert is set!
+    CHECK_NE(0, x);  // 0 corresponds to (void*)nullptr - illegal key value
+    v8::base::HashMap::Entry* p =
+        map_.LookupOrInsert(reinterpret_cast<void*>(x), hash_(x));
+    CHECK_NOT_NULL(p);  // insert is set!
     CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     // we don't care about p->value
   }
 
   void Remove(int x) {
-    CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
+    CHECK_NE(0, x);  // 0 corresponds to (void*)nullptr - illegal key value
     map_.Remove(reinterpret_cast<void*>(x), hash_(x));
   }
 
   bool Present(int x) {
-    HashMap::Entry* p =
-        map_.Lookup(reinterpret_cast<void*>(x), hash_(x), false);
-    if (p != NULL) {
+    v8::base::HashMap::Entry* p =
+        map_.Lookup(reinterpret_cast<void*>(x), hash_(x));
+    if (p != nullptr) {
       CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     }
-    return p != NULL;
+    return p != nullptr;
   }
 
   void Clear() {
@@ -74,7 +71,8 @@ class IntSet {
 
   uint32_t occupancy() const {
     uint32_t count = 0;
-    for (HashMap::Entry* p = map_.Start(); p != NULL; p = map_.Next(p)) {
+    for (v8::base::HashMap::Entry* p = map_.Start(); p != nullptr;
+         p = map_.Next(p)) {
       count++;
     }
     CHECK_EQ(map_.occupancy(), static_cast<double>(count));
@@ -83,7 +81,7 @@ class IntSet {
 
  private:
   IntKeyHash hash_;
-  HashMap map_;
+  v8::base::HashMap map_;
 };
 
 
@@ -93,37 +91,37 @@ static uint32_t CollisionHash(uint32_t key)  { return key & 0x3; }
 
 void TestSet(IntKeyHash hash, int size) {
   IntSet set(hash);
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 
   set.Insert(1);
   set.Insert(2);
   set.Insert(3);
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   set.Insert(2);
   set.Insert(3);
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   CHECK(set.Present(1));
   CHECK(set.Present(2));
   CHECK(set.Present(3));
   CHECK(!set.Present(4));
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   set.Remove(1);
   CHECK(!set.Present(1));
   CHECK(set.Present(2));
   CHECK(set.Present(3));
-  CHECK_EQ(2, set.occupancy());
+  CHECK_EQ(2u, set.occupancy());
 
   set.Remove(3);
   CHECK(!set.Present(1));
   CHECK(set.Present(2));
   CHECK(!set.Present(3));
-  CHECK_EQ(1, set.occupancy());
+  CHECK_EQ(1u, set.occupancy());
 
   set.Clear();
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 
   // Insert a long series of values.
   const int start = 453;
@@ -167,11 +165,15 @@ void TestSet(IntKeyHash hash, int size) {
       y = y * factor + offset;
     }
   }
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 }
 
 
-TEST(Set) {
+TEST(HashSet) {
   TestSet(Hash, 100);
   TestSet(CollisionHash, 50);
 }
+
+}  // namespace test_hashmap
+}  // namespace internal
+}  // namespace v8

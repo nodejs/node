@@ -10,7 +10,7 @@ function Module(stdlib) {
   // f: double -> float
   function f(a) {
     a = +a;
-    return ceil(a);
+    return +ceil(a);
   }
 
   return { f: f };

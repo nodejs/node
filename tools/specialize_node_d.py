@@ -7,9 +7,7 @@
 #
 
 import re
-import subprocess
 import sys
-import errno
 
 if len(sys.argv) != 5:
   print "usage: specialize_node_d.py outfile src/node.d flavor arch"

@@ -19,44 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var expected = 'This is a unicode text: سلام';
-var result = '';
+const expected = 'This is a unicode text: سلام';
+let result = '';
 
-var server = http.Server(function(req, res) {
+const server = http.Server((req, res) => {
   req.setEncoding('utf8');
-  req.on('data', function(chunk) {
+  req.on('data', (chunk) => {
     result += chunk;
-  }).on('end', function() {
-    clearTimeout(timeout);
+  }).on('end', () => {
     server.close();
+    res.writeHead(200);
+    res.end('hello world\n');
   });
 
-  var timeout = setTimeout(function() {
-    process.exit(1);
-  }, 100);
-
-  res.writeHead(200);
-  res.end('hello world\n');
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   http.request({
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'POST'
-  }, function(res) {
+  }, (res) => {
     console.log(res.statusCode);
     res.resume();
-  }).on('error', function(e) {
+  }).on('error', (e) => {
     console.log(e.message);
     process.exit(1);
   }).end(expected);
 });
 
-process.on('exit', function() {
-  assert.equal(expected, result);
+process.on('exit', () => {
+  assert.strictEqual(expected, result);
 });

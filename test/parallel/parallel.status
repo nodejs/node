@@ -1,0 +1,26 @@
+prefix parallel
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/21038
+test-trace-events-fs-sync: PASS,FLAKY
+
+[$system==win32]
+test-http2-pipe: PASS,FLAKY
+test-worker-syntax-error: PASS,FLAKY
+test-worker-syntax-error-file: PASS,FLAKY
+
+[$system==linux]
+
+[$system==macos]
+
+[$arch==arm || $arch==arm64]
+
+[$system==solaris] # Also applies to SmartOS
+
+[$system==freebsd]
+
+[$system==aix]

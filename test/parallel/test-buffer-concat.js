@@ -19,23 +19,82 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var zero = [];
-var one  = [ new Buffer('asdf') ];
-var long = [];
-for (var i = 0; i < 10; i++) long.push(new Buffer('asdf'));
+const zero = [];
+const one = [ Buffer.from('asdf') ];
+const long = [];
+for (let i = 0; i < 10; i++) long.push(Buffer.from('asdf'));
 
-var flatZero = Buffer.concat(zero);
-var flatOne = Buffer.concat(one);
-var flatLong = Buffer.concat(long);
-var flatLongLen = Buffer.concat(long, 40);
+const flatZero = Buffer.concat(zero);
+const flatOne = Buffer.concat(one);
+const flatLong = Buffer.concat(long);
+const flatLongLen = Buffer.concat(long, 40);
 
-assert(flatZero.length === 0);
-assert(flatOne.toString() === 'asdf');
-assert(flatOne === one[0]);
-assert(flatLong.toString() === (new Array(10+1).join('asdf')));
-assert(flatLongLen.toString() === (new Array(10+1).join('asdf')));
+assert.strictEqual(flatZero.length, 0);
+assert.strictEqual(flatOne.toString(), 'asdf');
 
-console.log("ok");
+const check = 'asdf'.repeat(10);
+
+// A special case where concat used to return the first item,
+// if the length is one. This check is to make sure that we don't do that.
+assert.notStrictEqual(flatOne, one[0]);
+assert.strictEqual(flatLong.toString(), check);
+assert.strictEqual(flatLongLen.toString(), check);
+
+[undefined, null, Buffer.from('hello')].forEach((value) => {
+  assert.throws(() => {
+    Buffer.concat(value);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "list" argument must be one of type Array, Buffer, ' +
+             `or Uint8Array. Received type ${typeof value}`
+  });
+});
+
+[[42], ['hello', Buffer.from('world')]].forEach((value) => {
+  assert.throws(() => {
+    Buffer.concat(value);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "list[0]" argument must be one of type Array, Buffer, ' +
+             `or Uint8Array. Received type ${typeof value[0]}`
+  });
+});
+
+assert.throws(() => {
+  Buffer.concat([Buffer.from('hello'), 3]);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "list[1]" argument must be one of type Array, Buffer, ' +
+           'or Uint8Array. Received type number'
+});
+
+// eslint-disable-next-line node-core/crypto-check
+const random10 = common.hasCrypto ?
+  require('crypto').randomBytes(10) :
+  Buffer.alloc(10, 1);
+const empty = Buffer.alloc(0);
+
+assert.notDeepStrictEqual(random10, empty);
+assert.notDeepStrictEqual(random10, Buffer.alloc(10));
+
+assert.deepStrictEqual(Buffer.concat([], 100), empty);
+assert.deepStrictEqual(Buffer.concat([random10], 0), empty);
+assert.deepStrictEqual(Buffer.concat([random10], 10), random10);
+assert.deepStrictEqual(Buffer.concat([random10, random10], 10), random10);
+assert.deepStrictEqual(Buffer.concat([empty, random10]), random10);
+assert.deepStrictEqual(Buffer.concat([random10, empty, empty]), random10);
+
+// The tail should be zero-filled
+assert.deepStrictEqual(Buffer.concat([empty], 100), Buffer.alloc(100));
+assert.deepStrictEqual(Buffer.concat([empty], 4096), Buffer.alloc(4096));
+assert.deepStrictEqual(
+  Buffer.concat([random10], 40),
+  Buffer.concat([random10, Buffer.alloc(30)]));
+
+assert.deepStrictEqual(Buffer.concat([new Uint8Array([0x41, 0x42]),
+                                      new Uint8Array([0x43, 0x44])]),
+                       Buffer.from('ABCD'));

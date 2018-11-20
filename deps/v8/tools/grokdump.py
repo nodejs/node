@@ -35,10 +35,12 @@ import codecs
 import ctypes
 import datetime
 import disasm
+import inspect
 import mmap
 import optparse
 import os
 import re
+import StringIO
 import sys
 import types
 import urllib
@@ -135,10 +137,11 @@ def FullDump(reader, heap):
     if is_ascii is not False:
       # Output in the same format as the Unix hd command
       addr = start
-      for slot in xrange(location, location + size, 16):
+      for i in xrange(0, size, 16):
+        slot = i + location
         hex_line = ""
         asc_line = ""
-        for i in xrange(0, 16):
+        for i in xrange(16):
           if slot + i < location + size:
             byte = ctypes.c_uint8.from_buffer(reader.minidump, slot + i).value
             if byte >= 0x20 and byte < 0x7f:
@@ -158,9 +161,9 @@ def FullDump(reader, heap):
     if is_executable is not True and is_ascii is not True:
       print "%s - %s" % (reader.FormatIntPtr(start),
                          reader.FormatIntPtr(start + size))
-      for slot in xrange(start,
-                         start + size,
-                         reader.PointerSize()):
+      print start + size + 1;
+      for i in xrange(0, size, reader.PointerSize()):
+        slot = start + i
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
         print "%s: %s" % (reader.FormatIntPtr(slot),
@@ -175,6 +178,17 @@ def FullDump(reader, heap):
 INSTANCE_TYPES = v8heapconst.INSTANCE_TYPES
 KNOWN_MAPS = v8heapconst.KNOWN_MAPS
 KNOWN_OBJECTS = v8heapconst.KNOWN_OBJECTS
+FRAME_MARKERS = v8heapconst.FRAME_MARKERS
+
+# Markers pushed on the stack by PushStackTraceAndDie
+MAGIC_MARKER_PAIRS = (
+    (0xbbbbbbbb, 0xbbbbbbbb),
+    (0xfefefefe, 0xfefefeff),
+)
+# See StackTraceFailureMessage in isolate.h
+STACK_TRACE_MARKER = 0xdecade30
+# See FailureMessage in logging.cc
+ERROR_MESSAGE_MARKER = 0xdecade10
 
 # Set of structures and constants that describe the layout of minidump
 # files. Based on MSDN and Google Breakpad.
@@ -345,6 +359,59 @@ MINIDUMP_CONTEXT_ARM = Descriptor([
                               MD_CONTEXT_ARM_FLOATING_POINT))
 ])
 
+
+MD_CONTEXT_ARM64 =  0x80000000
+MD_CONTEXT_ARM64_INTEGER = (MD_CONTEXT_ARM64 | 0x00000002)
+MD_CONTEXT_ARM64_FLOATING_POINT = (MD_CONTEXT_ARM64 | 0x00000004)
+MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT = 64
+
+MINIDUMP_FLOATING_SAVE_AREA_ARM = Descriptor([
+  ("fpscr", ctypes.c_uint64),
+  ("regs", ctypes.c_uint64 * MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT),
+])
+
+MINIDUMP_CONTEXT_ARM64 = Descriptor([
+  ("context_flags", ctypes.c_uint64),
+  # MD_CONTEXT_ARM64_INTEGER.
+  ("r0", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r1", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r2", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r3", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r4", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r5", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r6", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r7", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r8", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r9", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r10", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r11", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r12", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r13", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r14", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r15", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r16", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r17", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r18", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r19", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r20", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r21", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r22", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r23", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r24", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r25", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r26", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r27", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r28", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("fp", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("lr", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("sp", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("pc", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("cpsr", ctypes.c_uint32),
+  ("float_save", EnableOnFlag(MINIDUMP_FLOATING_SAVE_AREA_ARM.ctype,
+                              MD_CONTEXT_ARM64_FLOATING_POINT))
+])
+
+
 MD_CONTEXT_AMD64 = 0x00100000
 MD_CONTEXT_AMD64_CONTROL = (MD_CONTEXT_AMD64 | 0x00000001)
 MD_CONTEXT_AMD64_INTEGER = (MD_CONTEXT_AMD64 | 0x00000002)
@@ -434,6 +501,12 @@ MINIDUMP_MEMORY_LIST = Descriptor([
   ("ranges", lambda m: MINIDUMP_MEMORY_DESCRIPTOR.ctype * m.range_count)
 ])
 
+MINIDUMP_MEMORY_LIST_Mac = Descriptor([
+  ("range_count", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
+  ("ranges", lambda m: MINIDUMP_MEMORY_DESCRIPTOR.ctype * m.range_count)
+])
+
 MINIDUMP_MEMORY_LIST64 = Descriptor([
   ("range_count", ctypes.c_uint64),
   ("base_rva", ctypes.c_uint64),
@@ -452,6 +525,12 @@ MINIDUMP_THREAD = Descriptor([
 
 MINIDUMP_THREAD_LIST = Descriptor([
   ("thread_count", ctypes.c_uint32),
+  ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
+])
+
+MINIDUMP_THREAD_LIST_Mac = Descriptor([
+  ("thread_count", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
   ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
 ])
 
@@ -489,13 +568,23 @@ MINIDUMP_MODULE_LIST = Descriptor([
   ("modules", lambda t: MINIDUMP_RAW_MODULE.ctype * t.number_of_modules)
 ])
 
+MINIDUMP_MODULE_LIST_Mac = Descriptor([
+  ("number_of_modules", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
+  ("modules", lambda t: MINIDUMP_RAW_MODULE.ctype * t.number_of_modules)
+])
+
 MINIDUMP_RAW_SYSTEM_INFO = Descriptor([
   ("processor_architecture", ctypes.c_uint16)
 ])
 
 MD_CPU_ARCHITECTURE_X86 = 0
 MD_CPU_ARCHITECTURE_ARM = 5
+MD_CPU_ARCHITECTURE_ARM64 = 0x8003
 MD_CPU_ARCHITECTURE_AMD64 = 9
+
+OBJDUMP_BIN = None
+DEFAULT_OBJDUMP_BIN = '/usr/bin/objdump'
 
 class FuncSymbol:
   def __init__(self, start, size, name):
@@ -541,6 +630,11 @@ class MinidumpReader(object):
     self.modules_with_symbols = []
     self.symbols = []
 
+    self._ReadArchitecture(directories)
+    self._ReadDirectories(directories)
+    self._FindObjdump(options)
+
+  def _ReadArchitecture(self, directories):
     # Find MDRawSystemInfo stream and determine arch.
     for d in directories:
       if d.stream_type == MD_SYSTEM_INFO_STREAM:
@@ -549,27 +643,25 @@ class MinidumpReader(object):
         self.arch = system_info.processor_architecture
         assert self.arch in [MD_CPU_ARCHITECTURE_AMD64,
                              MD_CPU_ARCHITECTURE_ARM,
+                             MD_CPU_ARCHITECTURE_ARM64,
                              MD_CPU_ARCHITECTURE_X86]
     assert not self.arch is None
 
+  def _ReadDirectories(self, directories):
     for d in directories:
       DebugPrint(d)
       if d.stream_type == MD_EXCEPTION_STREAM:
         self.exception = MINIDUMP_EXCEPTION_STREAM.Read(
           self.minidump, d.location.rva)
         DebugPrint(self.exception)
-        if self.arch == MD_CPU_ARCHITECTURE_X86:
-          self.exception_context = MINIDUMP_CONTEXT_X86.Read(
-              self.minidump, self.exception.thread_context.rva)
-        elif self.arch == MD_CPU_ARCHITECTURE_AMD64:
-          self.exception_context = MINIDUMP_CONTEXT_AMD64.Read(
-              self.minidump, self.exception.thread_context.rva)
-        elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-          self.exception_context = MINIDUMP_CONTEXT_ARM.Read(
-              self.minidump, self.exception.thread_context.rva)
+        self.exception_context = self.ContextDescriptor().Read(
+            self.minidump, self.exception.thread_context.rva)
         DebugPrint(self.exception_context)
       elif d.stream_type == MD_THREAD_LIST_STREAM:
         thread_list = MINIDUMP_THREAD_LIST.Read(self.minidump, d.location.rva)
+        if ctypes.sizeof(thread_list) + 4 == d.location.data_size:
+          thread_list = MINIDUMP_THREAD_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(thread_list) == d.location.data_size
         DebugPrint(thread_list)
         for thread in thread_list.threads:
@@ -579,12 +671,19 @@ class MinidumpReader(object):
         assert self.module_list is None
         self.module_list = MINIDUMP_MODULE_LIST.Read(
           self.minidump, d.location.rva)
+        if ctypes.sizeof(self.module_list) + 4 == d.location.data_size:
+          self.module_list = MINIDUMP_MODULE_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(self.module_list) == d.location.data_size
+        DebugPrint(self.module_list)
       elif d.stream_type == MD_MEMORY_LIST_STREAM:
         print >>sys.stderr, "Warning: This is not a full minidump!"
         assert self.memory_list is None
         self.memory_list = MINIDUMP_MEMORY_LIST.Read(
           self.minidump, d.location.rva)
+        if ctypes.sizeof(self.memory_list) + 4 == d.location.data_size:
+          self.memory_list = MINIDUMP_MEMORY_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(self.memory_list) == d.location.data_size
         DebugPrint(self.memory_list)
       elif d.stream_type == MD_MEMORY_64_LIST_STREAM:
@@ -594,8 +693,85 @@ class MinidumpReader(object):
         assert ctypes.sizeof(self.memory_list64) == d.location.data_size
         DebugPrint(self.memory_list64)
 
+  def _FindObjdump(self, options):
+    if options.objdump:
+        objdump_bin = options.objdump
+    else:
+      objdump_bin = self._FindThirdPartyObjdump()
+    if not objdump_bin or not os.path.exists(objdump_bin):
+      print "# Cannot find '%s', falling back to default objdump '%s'" % (
+          objdump_bin, DEFAULT_OBJDUMP_BIN)
+      objdump_bin  = DEFAULT_OBJDUMP_BIN
+    global OBJDUMP_BIN
+    OBJDUMP_BIN = objdump_bin
+    disasm.OBJDUMP_BIN = objdump_bin
+
+  def _FindThirdPartyObjdump(self):
+      # Try to find the platform specific objdump
+      third_party_dir = os.path.join(
+          os.path.dirname(os.path.dirname(__file__)), 'third_party')
+      objdumps = []
+      for root, dirs, files in os.walk(third_party_dir):
+        for file in files:
+          if file.endswith("objdump"):
+            objdumps.append(os.path.join(root, file))
+      if self.arch == MD_CPU_ARCHITECTURE_ARM:
+        platform_filter = 'arm-linux'
+      elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+        platform_filter = 'aarch64'
+      else:
+        # use default otherwise
+        return None
+      print ("# Looking for platform specific (%s) objdump in "
+             "third_party directory.") % platform_filter
+      objdumps = filter(lambda file: platform_filter in file >= 0, objdumps)
+      if len(objdumps) == 0:
+        print "# Could not find platform specific objdump in third_party."
+        print "# Make sure you installed the correct SDK."
+        return None
+      return objdumps[0]
+
+  def ContextDescriptor(self):
+    if self.arch == MD_CPU_ARCHITECTURE_X86:
+      return MINIDUMP_CONTEXT_X86
+    elif self.arch == MD_CPU_ARCHITECTURE_AMD64:
+      return MINIDUMP_CONTEXT_AMD64
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return MINIDUMP_CONTEXT_ARM
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return MINIDUMP_CONTEXT_ARM64
+    else:
+      return None
+
+  def IsValidAlignedAddress(self, address):
+    return self.IsAlignedAddress(address) and self.IsValidAddress(address)
+
   def IsValidAddress(self, address):
     return self.FindLocation(address) is not None
+
+  def IsAlignedAddress(self, address):
+    return (address % self.PointerSize()) == 0
+
+  def IsExceptionStackAddress(self, address):
+    if not self.IsAlignedAddress(address): return False
+    return self.IsAnyExceptionStackAddress(address)
+
+  def IsAnyExceptionStackAddress(self, address):
+    return self.StackTop() <= address <= self.StackBottom()
+
+  def IsValidExceptionStackAddress(self, address):
+    if not self.IsValidAddress(address): return False
+    return self.isExceptionStackAddress(address)
+
+  def IsModuleAddress(self, address):
+    return self.GetModuleForAddress(address) != None
+
+  def GetModuleForAddress(self, address):
+    for module in self.module_list.modules:
+      start = module.base_of_image
+      end = start + module.size_of_image
+      if start <= address < end: return module
+    return None
 
   def ReadU8(self, address):
     location = self.FindLocation(address)
@@ -609,30 +785,45 @@ class MinidumpReader(object):
     location = self.FindLocation(address)
     return ctypes.c_uint64.from_buffer(self.minidump, location).value
 
+  def Is64(self):
+    return (self.arch == MD_CPU_ARCHITECTURE_ARM64 or
+            self.arch == MD_CPU_ARCHITECTURE_AMD64)
+
   def ReadUIntPtr(self, address):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return self.ReadU64(address)
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return self.ReadU32(address)
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return self.ReadU32(address)
+    return self.ReadU32(address)
 
   def ReadBytes(self, address, size):
     location = self.FindLocation(address)
     return self.minidump[location:location + size]
 
   def _ReadWord(self, location):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return ctypes.c_uint64.from_buffer(self.minidump, location).value
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return ctypes.c_uint32.from_buffer(self.minidump, location).value
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return ctypes.c_uint32.from_buffer(self.minidump, location).value
+    return ctypes.c_uint32.from_buffer(self.minidump, location).value
+
+  def ReadAsciiPtr(self, address):
+    ascii_content = [c if c >= '\x20' and c <  '\x7f' else '.'
+                       for c in self.ReadBytes(address, self.PointerSize())]
+    return ''.join(ascii_content)
+
+  def ReadAsciiString(self, address):
+    string = ""
+    while self.IsValidAddress(address):
+      code = self.ReadU8(address)
+      if 0 < code < 128:
+        string += chr(code)
+      else:
+        break
+      address += 1
+    return string
 
   def IsProbableASCIIRegion(self, location, length):
     ascii_bytes = 0
     non_ascii_bytes = 0
-    for loc in xrange(location, location + length):
+    for i in xrange(length):
+      loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if byte >= 0x7f:
         non_ascii_bytes += 1
@@ -652,8 +843,9 @@ class MinidumpReader(object):
 
   def IsProbableExecutableRegion(self, location, length):
     opcode_bytes = 0
-    sixty_four = self.arch == MD_CPU_ARCHITECTURE_AMD64
-    for loc in xrange(location, location + length):
+    sixty_four = self.Is64()
+    for i in xrange(length):
+      loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if (byte == 0x8b or           # mov
           byte == 0x89 or           # mov reg-reg
@@ -701,7 +893,8 @@ class MinidumpReader(object):
   def FindWord(self, word, alignment=0):
     def search_inside_region(reader, start, size, location):
       location = (location + alignment) & ~alignment
-      for loc in xrange(location, location + size - self.PointerSize()):
+      for i in xrange(size - self.PointerSize()):
+        loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
           print "%s: %s" % (reader.FormatIntPtr(slot),
@@ -712,10 +905,11 @@ class MinidumpReader(object):
     aligned_res = []
     unaligned_res = []
     def search_inside_region(reader, start, size, location):
-      for loc in xrange(location, location + size - self.PointerSize()):
+      for i in xrange(size - self.PointerSize()):
+        loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
-          if slot % self.PointerSize() == 0:
+          if self.IsAlignedAddress(slot):
             aligned_res.append(slot)
           else:
             unaligned_res.append(slot)
@@ -749,6 +943,9 @@ class MinidumpReader(object):
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       arch = "arm"
       possible_objdump_flags = ["", "--disassembler-options=force-thumb"]
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      arch = "arm64"
+      possible_objdump_flags = ["", "--disassembler-options=force-thumb"]
     elif self.arch == MD_CPU_ARCHITECTURE_AMD64:
       arch = "x64"
     results = [ disasm.GetDisasmLines(self.minidump_name,
@@ -770,6 +967,8 @@ class MinidumpReader(object):
       return self.exception_context.rip
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return self.exception_context.pc
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.exception_context.pc
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.eip
 
@@ -777,6 +976,8 @@ class MinidumpReader(object):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.exception_context.rsp
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return self.exception_context.sp
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
       return self.exception_context.sp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.esp
@@ -786,24 +987,31 @@ class MinidumpReader(object):
       return self.exception_context.rbp
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return None
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.exception_context.fp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.ebp
 
+  def ExceptionThread(self):
+    return self.thread_map[self.exception.thread_id]
+
+  def StackTop(self):
+    return self.ExceptionSP()
+
+  def StackBottom(self):
+    exception_thread = self.ExceptionThread()
+    return exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size
+
   def FormatIntPtr(self, value):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return "%016x" % value
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return "%08x" % value
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return "%08x" % value
+    return "%08x" % value
 
   def PointerSize(self):
-    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+    if self.Is64():
       return 8
-    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
-      return 4
-    elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return 4
+    return 4
 
   def Register(self, name):
     return self.exception_context.__getattribute__(name)
@@ -942,8 +1150,12 @@ class HeapObject(object):
     p.Print(str(self))
 
   def __str__(self):
-    return "HeapObject(%s, %s)" % (self.heap.reader.FormatIntPtr(self.address),
-                                   INSTANCE_TYPES[self.map.instance_type])
+    instance_type = "???"
+    if self.map is not None:
+      instance_type = INSTANCE_TYPES[self.map.instance_type]
+    return "%s(%s, %s)" % (self.__class__.__name__,
+                           self.heap.reader.FormatIntPtr(self.address),
+                           instance_type)
 
   def ObjectField(self, offset):
     field_value = self.heap.reader.ReadUIntPtr(self.address + offset)
@@ -951,8 +1163,8 @@ class HeapObject(object):
 
   def SmiField(self, offset):
     field_value = self.heap.reader.ReadUIntPtr(self.address + offset)
-    if (field_value & 1) == 0:
-      return field_value / 2
+    if self.heap.IsSmi(field_value):
+      return self.heap.SmiUntag(field_value)
     return None
 
 
@@ -970,11 +1182,11 @@ class Map(HeapObject):
   def InObjectProperties(self):
     return self.InstanceSizeOffset() + 1
 
-  def PreAllocatedPropertyFields(self):
+  def UnusedByte(self):
     return self.InObjectProperties() + 1
 
   def VisitorId(self):
-    return self.PreAllocatedPropertyFields() + 1
+    return self.UnusedByte() + 1
 
   # Instance Attributes
   def InstanceAttributesOffset(self):
@@ -983,78 +1195,93 @@ class Map(HeapObject):
   def InstanceTypeOffset(self):
     return self.InstanceAttributesOffset()
 
-  def UnusedPropertyFieldsOffset(self):
-    return self.InstanceTypeOffset() + 1
-
   def BitFieldOffset(self):
-    return self.UnusedPropertyFieldsOffset() + 1
+    return self.InstanceTypeOffset() + 1
 
   def BitField2Offset(self):
     return self.BitFieldOffset() + 1
 
+  def UnusedPropertyFieldsOffset(self):
+    return self.BitField2Offset() + 1
+
   # Other fields
-  def PrototypeOffset(self):
+  def BitField3Offset(self):
     return self.InstanceAttributesOffset() + self.heap.IntSize()
 
-  def ConstructorOffset(self):
+  def PrototypeOffset(self):
+    return self.BitField3Offset() + self.heap.PointerSize()
+
+  def ConstructorOrBackPointerOffset(self):
     return self.PrototypeOffset() + self.heap.PointerSize()
 
-  def TransitionsOrBackPointerOffset(self):
-    return self.ConstructorOffset() + self.heap.PointerSize()
+  def TransitionsOrPrototypeInfoOffset(self):
+    return self.ConstructorOrBackPointerOffset() + self.heap.PointerSize()
 
   def DescriptorsOffset(self):
-    return self.TransitionsOrBackPointerOffset() + self.heap.PointerSize()
+    return self.TransitionsOrPrototypeInfoOffset() + self.heap.PointerSize()
+
+  def LayoutDescriptorOffset(self):
+    return self.DescriptorsOffset() + self.heap.PointerSize()
 
   def CodeCacheOffset(self):
+    if (self.heap.reader.Is64()):
+      return self.LayoutDescriptorOffset() + self.heap.PointerSize()
     return self.DescriptorsOffset() + self.heap.PointerSize()
 
   def DependentCodeOffset(self):
     return self.CodeCacheOffset() + self.heap.PointerSize()
 
-  def BitField3Offset(self):
+  def WeakCellCacheOffset(self):
     return self.DependentCodeOffset() + self.heap.PointerSize()
 
   def ReadByte(self, offset):
     return self.heap.reader.ReadU8(self.address + offset)
 
+  def ReadWord(self, offset):
+    return self.heap.reader.ReadUIntPtr(self.address + offset)
+
   def Print(self, p):
     p.Print("Map(%08x)" % (self.address))
-    p.Print("- size: %d, inobject: %d, preallocated: %d, visitor: %d" % (
+    p.Print("  - size: %d, inobject: %d, (unused: %d), visitor: %d" % (
         self.ReadByte(self.InstanceSizeOffset()),
         self.ReadByte(self.InObjectProperties()),
-        self.ReadByte(self.PreAllocatedPropertyFields()),
+        self.ReadByte(self.UnusedByte()),
         self.VisitorId()))
 
+    instance_type = INSTANCE_TYPES[self.ReadByte(self.InstanceTypeOffset())]
     bitfield = self.ReadByte(self.BitFieldOffset())
     bitfield2 = self.ReadByte(self.BitField2Offset())
-    p.Print("- %s, unused: %d, bf: %d, bf2: %d" % (
-        INSTANCE_TYPES[self.ReadByte(self.InstanceTypeOffset())],
-        self.ReadByte(self.UnusedPropertyFieldsOffset()),
-        bitfield, bitfield2))
+    unused = self.ReadByte(self.UnusedPropertyFieldsOffset())
+    p.Print("  - %s, bf: %d, bf2: %d, unused: %d" % (
+        instance_type, bitfield, bitfield2, unused))
 
-    p.Print("- kind: %s" % (self.Decode(3, 5, bitfield2)))
+    p.Print("  - kind: %s" % (self.Decode(3, 5, bitfield2)))
 
-    bitfield3 = self.ObjectField(self.BitField3Offset())
+    bitfield3 = self.ReadWord(self.BitField3Offset())
+
     p.Print(
-        "- EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
-            self.Decode(0, 11, bitfield3),
-            self.Decode(11, 11, bitfield3),
-            self.Decode(25, 1, bitfield3)))
-    p.Print("- IsShared: %s" % (self.Decode(22, 1, bitfield3)))
-    p.Print("- FunctionWithPrototype: %s" % (self.Decode(23, 1, bitfield3)))
-    p.Print("- DictionaryMap: %s" % (self.Decode(24, 1, bitfield3)))
+        "  - EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
+            self.Decode(0, 10, bitfield3),
+            self.Decode(10, 10, bitfield3),
+            self.Decode(21, 1, bitfield3)))
+    p.Print("  - DictionaryMap: %s" % (self.Decode(20, 1, bitfield3)))
+    p.Print("  - Deprecated: %s" % (self.Decode(23, 1, bitfield3)))
+    p.Print("  - IsUnstable: %s" % (self.Decode(24, 1, bitfield3)))
+    p.Print("  - NewTargetIsBase: %s" % (self.Decode(27, 1, bitfield3)))
 
     descriptors = self.ObjectField(self.DescriptorsOffset())
     if descriptors.__class__ == FixedArray:
       DescriptorArray(descriptors).Print(p)
     else:
-      p.Print("Descriptors: %s" % (descriptors))
+      p.Print("  - Descriptors: %s" % (descriptors))
 
-    transitions = self.ObjectField(self.TransitionsOrBackPointerOffset())
+    transitions = self.ObjectField(self.TransitionsOrPrototypeInfoOffset())
     if transitions.__class__ == FixedArray:
       TransitionArray(transitions).Print(p)
     else:
-      p.Print("TransitionsOrBackPointer: %s" % (transitions))
+      p.Print("  - TransitionsOrPrototypeInfo: %s" % (transitions))
+
+    p.Print("  - Prototype: %s" % self.ObjectField(self.PrototypeOffset()))
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
@@ -1144,7 +1371,7 @@ class ConsString(String):
 
 
 class Oddball(HeapObject):
-  # Should match declarations in objects.h
+  #Should match declarations in objects.h
   KINDS = [
     "False",
     "True",
@@ -1358,9 +1585,9 @@ class JSFunction(HeapObject):
 
   def __str__(self):
     inferred_name = ""
-    if self.shared.Is(SharedFunctionInfo):
+    if self.shared is not None and self.shared.Is(SharedFunctionInfo):
       inferred_name = self.shared.inferred_name
-    return "JSFunction(%s, %s)" % \
+    return "JSFunction(%s, %s) " % \
           (self.heap.reader.FormatIntPtr(self.address), inferred_name)
 
   def _GetSource(self):
@@ -1393,25 +1620,28 @@ class SharedFunctionInfo(HeapObject):
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
-    self.code = self.ObjectField(self.CodeOffset())
-    self.script = self.ObjectField(self.ScriptOffset())
-    self.inferred_name = self.ObjectField(self.InferredNameOffset())
-    if heap.PointerSize() == 8:
-      start_position_and_type = \
-          heap.reader.ReadU32(self.StartPositionAndTypeOffset())
-      self.start_position = start_position_and_type >> 2
-      pseudo_smi_end_position = \
-          heap.reader.ReadU32(self.EndPositionOffset())
-      self.end_position = pseudo_smi_end_position >> 2
-    else:
-      start_position_and_type = \
-          self.SmiField(self.StartPositionAndTypeOffset())
-      if start_position_and_type:
+    try:
+      self.code = self.ObjectField(self.CodeOffset())
+      self.script = self.ObjectField(self.ScriptOffset())
+      self.inferred_name = self.ObjectField(self.InferredNameOffset())
+      if heap.PointerSize() == 8:
+        start_position_and_type = \
+            heap.reader.ReadU32(self.StartPositionAndTypeOffset())
         self.start_position = start_position_and_type >> 2
+        pseudo_smi_end_position = \
+            heap.reader.ReadU32(self.EndPositionOffset())
+        self.end_position = pseudo_smi_end_position >> 2
       else:
-        self.start_position = None
-      self.end_position = \
-          self.SmiField(self.EndPositionOffset())
+        start_position_and_type = \
+            self.SmiField(self.StartPositionAndTypeOffset())
+        if start_position_and_type:
+          self.start_position = start_position_and_type >> 2
+        else:
+          self.start_position = None
+        self.end_position = \
+            self.SmiField(self.EndPositionOffset())
+    except:
+      print("*** Error while reading SharedFunctionInfo")
 
 
 class Script(HeapObject):
@@ -1501,6 +1731,9 @@ class V8Heap(object):
     "MAP_TYPE": Map,
     "ODDBALL_TYPE": Oddball,
     "FIXED_ARRAY_TYPE": FixedArray,
+    "HASH_TABLE_TYPE": FixedArray,
+    "OBJECT_BOILERPLATE_DESCRIPTION_TYPE": FixedArray,
+    "SCOPE_INFO_TYPE": FixedArray,
     "JS_FUNCTION_TYPE": JSFunction,
     "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
     "SCRIPT_TYPE": Script,
@@ -1514,13 +1747,13 @@ class V8Heap(object):
     self.objects = {}
 
   def FindObjectOrSmi(self, tagged_address):
-    if (tagged_address & 1) == 0: return tagged_address / 2
+    if self.IsSmi(tagged_address): return self.SmiUntag(tagged_address)
     return self.FindObject(tagged_address)
 
   def FindObject(self, tagged_address):
     if tagged_address in self.objects:
       return self.objects[tagged_address]
-    if (tagged_address & self.ObjectAlignmentMask()) != 1: return None
+    if not self.IsTaggedObjectAddress(tagged_address): return None
     address = tagged_address - 1
     if not self.reader.IsValidAddress(address): return None
     map_tagged_address = self.reader.ReadUIntPtr(address)
@@ -1542,11 +1775,16 @@ class V8Heap(object):
     return object
 
   def FindMap(self, tagged_address):
-    if (tagged_address & self.MapAlignmentMask()) != 1: return None
-    address = tagged_address - 1
-    if not self.reader.IsValidAddress(address): return None
+    address = self.FindMapAddress(tagged_address)
+    if not address: return None
     object = Map(self, None, address)
     return object
+
+  def FindMapAddress(self, tagged_address):
+    if not self.IsTaggedMapAddress(tagged_address): return None
+    address = tagged_address - 1
+    if not self.reader.IsValidAddress(address): return None
+    return address
 
   def IntSize(self):
     return 4
@@ -1557,17 +1795,92 @@ class V8Heap(object):
   def ObjectAlignmentMask(self):
     return self.PointerSize() - 1
 
+  def IsTaggedObjectAddress(self, address):
+    return (address & self.ObjectAlignmentMask()) == 1
+
+  def IsValidTaggedObjectAddress(self, address):
+    if not self.IsTaggedObjectAddress(address): return False
+    return self.reader.IsValidAddress(address)
+
+  def IsTaggedMapAddress(self, address):
+    return (address & self.MapAlignmentMask()) == 1
+
   def MapAlignmentMask(self):
     if self.reader.arch == MD_CPU_ARCHITECTURE_AMD64:
       return (1 << 4) - 1
     elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
       return (1 << 4) - 1
+    elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return (1 << 4) - 1
     elif self.reader.arch == MD_CPU_ARCHITECTURE_X86:
       return (1 << 5) - 1
 
   def PageAlignmentMask(self):
-    return (1 << 20) - 1
+    return (1 << 19) - 1
 
+  def IsTaggedAddress(self, address):
+    return (address & self.ObjectAlignmentMask()) == 1
+
+  def IsSmi(self, tagged_address):
+    if self.reader.Is64():
+      return (tagged_address & 0xFFFFFFFF) == 0
+    return not self.IsTaggedAddress(tagged_address)
+
+  def SmiUntag(self, tagged_address):
+    if self.reader.Is64(): return tagged_address >> 32
+    return tagged_address >> 1
+
+  def AddressTypeMarker(self, address):
+    if not self.reader.IsValidAddress(address): return " "
+    if self.reader.IsExceptionStackAddress(address): return "S"
+    if self.reader.IsModuleAddress(address): return "C"
+    if self.IsTaggedAddress(address):
+      # Cannot have an tagged pointer into the stack
+      if self.reader.IsAnyExceptionStackAddress(address): return "s"
+      return "T"
+    return "*"
+
+  def FormatIntPtr(self, address):
+    marker = self.AddressTypeMarker(address)
+    address = self.reader.FormatIntPtr(address)
+    if marker == " ": return address
+    return "%s %s" % (address, marker)
+
+  def RelativeOffset(self, slot, address):
+    if not self.reader.IsValidAlignedAddress(slot): return None
+    if self.IsTaggedObjectAddress(address):
+      address -= 1
+    if not self.reader.IsValidAlignedAddress(address): return None
+    offset = (address - slot) / self.PointerSize()
+
+    lower_limit = -32
+    upper_limit = 128
+    if self.reader.IsExceptionStackAddress(address):
+      upper_limit = 0xFFFFFF
+
+    if offset < lower_limit or upper_limit < offset: return None
+    target_address = self.reader.ReadUIntPtr(address)
+    return "[%+02d]=%s %s" % (offset, self.reader.FormatIntPtr(target_address),
+                             self.AddressTypeMarker(target_address))
+
+  def FindObjectPointers(self, start=0, end=0):
+    objects = set()
+    def find_object_in_region(reader, start, size, location):
+      for slot in range(start, start+size, self.reader.PointerSize()):
+        if not self.reader.IsValidAddress(slot): break
+        # Collect only tagged pointers (object) to tagged pointers (map)
+        tagged_address = self.reader.ReadUIntPtr(slot)
+        if not self.IsValidTaggedObjectAddress(tagged_address): continue
+        map_address = self.reader.ReadUIntPtr(tagged_address - 1)
+        if not self.IsTaggedMapAddress(map_address): continue
+        objects.add(tagged_address)
+
+    if not start and not end:
+      self.reader.ForEachMemoryRegion(find_object_in_region)
+    else:
+      find_object_in_region(self.reader, start, end-start, None)
+
+    return objects
 
 class KnownObject(HeapObject):
   def __init__(self, heap, known_name):
@@ -1590,7 +1903,7 @@ class KnownMap(HeapObject):
 
 COMMENT_RE = re.compile(r"^C (0x[0-9a-fA-F]+) (.*)$")
 PAGEADDRESS_RE = re.compile(
-    r"^P (mappage|pointerpage|datapage) (0x[0-9a-fA-F]+)$")
+    r"^P (mappage|oldpage) (0x[0-9a-fA-F]+)$")
 
 
 class InspectionInfo(object):
@@ -1632,10 +1945,12 @@ class InspectionInfo(object):
     frame_pointer = self.reader.ExceptionFP()
     self.styles[frame_pointer] = "frame"
     for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
-      self.styles[slot] = "stackaddress"
+      # stack address
+      self.styles[slot] = "sa"
     for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
       maybe_address = self.reader.ReadUIntPtr(slot)
-      self.styles[maybe_address] = "stackval"
+      # stack value
+      self.styles[maybe_address] = "sv"
       if slot == frame_pointer:
         self.styles[slot] = "frame"
         frame_pointer = maybe_address
@@ -1647,7 +1962,7 @@ class InspectionInfo(object):
   def get_style_class_string(self, address):
     style = self.get_style_class(address)
     if style != None:
-      return " class=\"%s\" " % style
+      return " class=%s " % style
     else:
       return ""
 
@@ -1667,8 +1982,8 @@ class InspectionPadawan(object):
     self.reader = reader
     self.heap = heap
     self.known_first_map_page = 0
-    self.known_first_data_page = 0
-    self.known_first_pointer_page = 0
+    self.known_first_old_page = 0
+    self.context = None
 
   def __getattr__(self, name):
     """An InspectionPadawan can be used instead of V8Heap, even though
@@ -1684,16 +1999,44 @@ class InspectionPadawan(object):
 
   def IsInKnownOldSpace(self, tagged_address):
     page_address = tagged_address & ~self.heap.PageAlignmentMask()
-    return page_address in [self.known_first_data_page,
-                            self.known_first_pointer_page]
+    return page_address == self.known_first_old_page
 
   def ContainingKnownOldSpaceName(self, tagged_address):
     page_address = tagged_address & ~self.heap.PageAlignmentMask()
-    if page_address == self.known_first_data_page: return "OLD_DATA_SPACE"
-    if page_address == self.known_first_pointer_page: return "OLD_POINTER_SPACE"
+    if page_address == self.known_first_old_page: return "OLD_SPACE"
     return None
 
-  def SenseObject(self, tagged_address):
+  def FrameMarkerName(self, value):
+    # The frame marker is Smi-tagged but not Smi encoded and 0 is not a valid
+    # frame type.
+    value = (value >> 1) - 1
+    if 0 <= value < len(FRAME_MARKERS):
+      return "Possibly %s frame marker" % FRAME_MARKERS[value]
+    return None
+
+  def IsFrameMarker(self, slot, address):
+    if not slot: return False
+    # Frame markers only occur directly after a frame pointer and only on the
+    # stack.
+    if not self.reader.IsExceptionStackAddress(slot): return False
+    next_slot = slot + self.reader.PointerSize()
+    if not self.reader.IsValidAddress(next_slot): return False
+    next_address = self.reader.ReadUIntPtr(next_slot)
+    return self.reader.IsExceptionStackAddress(next_address)
+
+  def FormatSmi(self, address):
+    value = self.heap.SmiUntag(address)
+    # On 32-bit systems almost everything looks like a Smi.
+    if not self.reader.Is64() or value == 0: return None
+    return "Smi(%d)" % value
+
+  def SenseObject(self, address, slot=None):
+    if self.IsFrameMarker(slot, address):
+      return self.FrameMarkerName(address)
+    if self.heap.IsSmi(address):
+      return self.FormatSmi(address)
+    if not self.heap.IsTaggedAddress(address): return None
+    tagged_address = address
     if self.IsInKnownOldSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
       lookup_key = (self.ContainingKnownOldSpaceName(tagged_address), offset)
@@ -1720,7 +2063,8 @@ class InspectionPadawan(object):
   def SenseMap(self, tagged_address):
     if self.IsInKnownMapSpace(tagged_address):
       offset = self.GetPageOffset(tagged_address)
-      known_map_info = KNOWN_MAPS.get(offset)
+      lookup_key = ("MAP_SPACE", offset)
+      known_map_info = KNOWN_MAPS.get(lookup_key)
       if known_map_info:
         known_map_type, known_map_name = known_map_info
         return KnownMap(self, known_map_name, known_map_type)
@@ -1732,8 +2076,8 @@ class InspectionPadawan(object):
     """When used as a mixin in place of V8Heap."""
     found_obj = self.SenseObject(tagged_address)
     if found_obj: return found_obj
-    if (tagged_address & 1) == 0:
-      return "Smi(%d)" % (tagged_address / 2)
+    if self.IsSmi(tagged_address):
+      return self.FormatSmi(tagged_address)
     else:
       return "Unknown(%s)" % self.reader.FormatIntPtr(tagged_address)
 
@@ -1747,11 +2091,268 @@ class InspectionPadawan(object):
 
   def PrintKnowledge(self):
     print "  known_first_map_page = %s\n"\
-          "  known_first_data_page = %s\n"\
-          "  known_first_pointer_page = %s" % (
+          "  known_first_old_page = %s" % (
           self.reader.FormatIntPtr(self.known_first_map_page),
-          self.reader.FormatIntPtr(self.known_first_data_page),
-          self.reader.FormatIntPtr(self.known_first_pointer_page))
+          self.reader.FormatIntPtr(self.known_first_old_page))
+
+  def FindFirstAsciiString(self, start, end=None, min_length=32):
+    """ Walk the memory until we find a large string """
+    if not end: end = start + 64
+    for slot in xrange(start, end):
+      if not self.reader.IsValidAddress(slot): break
+      message = self.reader.ReadAsciiString(slot)
+      if len(message) > min_length:
+        return (slot, message)
+    return (None,None)
+
+  def PrintStackTraceMessage(self, start=None, print_message=True):
+    """
+    Try to print a possible message from PushStackTraceAndDie.
+    Returns the first address where the normal stack starts again.
+    """
+    # Only look at the first 1k words on the stack
+    ptr_size = self.reader.PointerSize()
+    if start is None: start = self.reader.ExceptionSP()
+    if not self.reader.IsValidAddress(start): return start
+    end = start + ptr_size * 1024 * 4
+    magic1 = None
+    for slot in xrange(start, end, ptr_size):
+      if not self.reader.IsValidAddress(slot + ptr_size): break
+      magic1 = self.reader.ReadUIntPtr(slot)
+      magic2 = self.reader.ReadUIntPtr(slot + ptr_size)
+      pair = (magic1 & 0xFFFFFFFF, magic2 & 0xFFFFFFFF)
+      if pair in MAGIC_MARKER_PAIRS:
+        return self.TryExtractOldStyleStackTrace(slot, start, end,
+                                                 print_message)
+      if pair[0] == STACK_TRACE_MARKER:
+        return self.TryExtractStackTrace(slot, start, end, print_message)
+      elif pair[0] == ERROR_MESSAGE_MARKER:
+        return self.TryExtractErrorMessage(slot, start, end, print_message)
+    # Simple fallback in case not stack trace object was found
+    return self.TryExtractOldStyleStackTrace(0, start, end,
+                                             print_message)
+
+  def TryExtractStackTrace(self, slot, start, end, print_message):
+    ptr_size = self.reader.PointerSize()
+    assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
+    end_marker = STACK_TRACE_MARKER + 1;
+    header_size = 10
+    # Look for the end marker after the fields and the message buffer.
+    end_search = start + (32 * 1024) + (header_size * ptr_size);
+    end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
+    if not end_slot: return start
+    print "Stack Message (start=%s):" % self.heap.FormatIntPtr(slot)
+    slot += ptr_size
+    for name in ("isolate","ptr1", "ptr2", "ptr3", "ptr4", "codeObject1",
+                 "codeObject2", "codeObject3", "codeObject4"):
+      value = self.reader.ReadUIntPtr(slot)
+      print " %s: %s" % (name.rjust(14), self.heap.FormatIntPtr(value))
+      slot += ptr_size
+    print "  message start: %s" % self.heap.FormatIntPtr(slot)
+    stack_start = end_slot + ptr_size
+    print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start)
+    (message_start, message) = self.FindFirstAsciiString(slot)
+    self.FormatStackTrace(message, print_message)
+    return stack_start
+
+  def FindPtr(self, expected_value, start, end):
+    ptr_size = self.reader.PointerSize()
+    for slot in xrange(start, end, ptr_size):
+      if not self.reader.IsValidAddress(slot): return None
+      value = self.reader.ReadUIntPtr(slot)
+      if value == expected_value: return slot
+    return None
+
+  def TryExtractErrorMessage(self, slot, start, end, print_message):
+    ptr_size = self.reader.PointerSize()
+    end_marker = ERROR_MESSAGE_MARKER + 1;
+    header_size = 1
+    end_search = start + 1024 + (header_size * ptr_size);
+    end_slot = self.FindPtr(end_marker, end_search, end_search + ptr_size * 512)
+    if not end_slot: return start
+    print "Error Message (start=%s):" % self.heap.FormatIntPtr(slot)
+    slot += ptr_size
+    (message_start, message) = self.FindFirstAsciiString(slot)
+    self.FormatStackTrace(message, print_message)
+    stack_start = end_slot + ptr_size
+    return stack_start
+
+  def TryExtractOldStyleStackTrace(self, message_slot, start, end,
+                                   print_message):
+    ptr_size = self.reader.PointerSize()
+    if message_slot == 0:
+      """
+      On Mac we don't always get proper magic markers, so just try printing
+      the first long ascii string found on the stack.
+      """
+      magic1 = None
+      magic2 = None
+      message_start, message = self.FindFirstAsciiString(start, end, 128)
+      if message_start is None: return start
+    else:
+      message_start = self.reader.ReadUIntPtr(message_slot + ptr_size * 4)
+      message = self.reader.ReadAsciiString(message_start)
+    stack_start = message_start + len(message) + 1
+    # Make sure the address is word aligned
+    stack_start =  stack_start - (stack_start % ptr_size)
+    if magic1 is None:
+      print "Stack Message:"
+      print "  message start: %s" % self.heap.FormatIntPtr(message_start)
+      print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start )
+    else:
+      ptr1 = self.reader.ReadUIntPtr(slot + ptr_size * 2)
+      ptr2 = self.reader.ReadUIntPtr(slot + ptr_size * 3)
+      print "Stack Message:"
+      print "  magic1:        %s" % self.heap.FormatIntPtr(magic1)
+      print "  magic2:        %s" % self.heap.FormatIntPtr(magic2)
+      print "  ptr1:          %s" % self.heap.FormatIntPtr(ptr1)
+      print "  ptr2:          %s" % self.heap.FormatIntPtr(ptr2)
+      print "  message start: %s" % self.heap.FormatIntPtr(message_start)
+      print "  stack_start:   %s" % self.heap.FormatIntPtr(stack_start )
+      print ""
+    self.FormatStackTrace(message, print_message)
+    return stack_start
+
+  def FormatStackTrace(self, message, print_message):
+    if not print_message:
+      print "  Use `dsa` to print the message with annotated addresses."
+      print ""
+      return
+    ptr_size = self.reader.PointerSize()
+    # Annotate all addresses in the dumped message
+    prog = re.compile("[0-9a-fA-F]{%s}" % ptr_size*2)
+    addresses = list(set(prog.findall(message)))
+    for i in range(len(addresses)):
+      address_org = addresses[i]
+      address = self.heap.FormatIntPtr(int(address_org, 16))
+      if address_org != address:
+        message = message.replace(address_org, address)
+    print "Message:"
+    print "="*80
+    print message
+    print "="*80
+    print ""
+
+
+  def TryInferFramePointer(self, slot, address):
+    """ Assume we have a framepointer if we find 4 consecutive links """
+    for i in range(0, 4):
+      if not self.reader.IsExceptionStackAddress(address): return 0
+      next_address = self.reader.ReadUIntPtr(address)
+      if next_address == address: return 0
+      address = next_address
+    return slot
+
+  def TryInferContext(self, address):
+    if self.context: return
+    ptr_size = self.reader.PointerSize()
+    possible_context = dict()
+    count = 0
+    while self.reader.IsExceptionStackAddress(address):
+      prev_addr = self.reader.ReadUIntPtr(address-ptr_size)
+      if self.heap.IsTaggedObjectAddress(prev_addr):
+        if prev_addr in possible_context:
+          possible_context[prev_addr] += 1
+        else:
+          possible_context[prev_addr] = 1
+      address = self.reader.ReadUIntPtr(address)
+      count += 1
+    if count <= 5 or len(possible_context) == 0: return
+    # Find entry with highest count
+    possible_context = possible_context.items()
+    possible_context.sort(key=lambda pair: pair[1])
+    address,count = possible_context[-1]
+    if count <= 4: return
+    self.context = address
+
+  def InterpretMemory(self, start, end):
+    # On 64 bit we omit frame pointers, so we have to do some more guesswork.
+    frame_pointer = 0
+    if not self.reader.Is64():
+      frame_pointer = self.reader.ExceptionFP()
+      # Follow the framepointer into the address range
+      while frame_pointer and frame_pointer < start:
+        frame_pointer = self.reader.ReadUIntPtr(frame_pointer)
+        if not self.reader.IsExceptionStackAddress(frame_pointer) or \
+            not frame_pointer:
+          frame_pointer = 0
+          break
+    in_oom_dump_area  = False
+    is_stack = self.reader.IsExceptionStackAddress(start)
+    free_space_end = 0
+    ptr_size = self.reader.PointerSize()
+
+    for slot in xrange(start, end, ptr_size):
+      if not self.reader.IsValidAddress(slot):
+        print "%s: Address is not contained within the minidump!" % slot
+        return
+      maybe_address = self.reader.ReadUIntPtr(slot)
+      address_info = []
+      # Mark continuous free space objects
+      if slot == free_space_end:
+        address_info.append("+")
+      elif slot <= free_space_end:
+        address_info.append("|")
+      else:
+        free_space_end = 0
+
+      heap_object = self.SenseObject(maybe_address, slot)
+      if heap_object:
+        # Detect Free-space ranges
+        if isinstance(heap_object, KnownMap) and \
+            heap_object.known_name == "FreeSpaceMap":
+          # The free-space length is is stored as a Smi in the next slot.
+          length = self.reader.ReadUIntPtr(slot + ptr_size)
+          if self.heap.IsSmi(length):
+            length = self.heap.SmiUntag(length)
+            free_space_end = slot + length - ptr_size
+        address_info.append(str(heap_object))
+      relative_offset = self.heap.RelativeOffset(slot, maybe_address)
+      if relative_offset:
+        address_info.append(relative_offset)
+      if maybe_address == self.context:
+        address_info.append("CONTEXT")
+
+      maybe_address_contents = None
+      if is_stack:
+        if self.reader.IsExceptionStackAddress(maybe_address):
+          maybe_address_contents = \
+              self.reader.ReadUIntPtr(maybe_address) & 0xFFFFFFFF
+          if maybe_address_contents == 0xdecade00:
+            in_oom_dump_area = True
+          if frame_pointer == 0:
+            frame_pointer = self.TryInferFramePointer(slot, maybe_address)
+            if frame_pointer != 0:
+              self.TryInferContext(slot)
+        maybe_symbol = self.reader.FindSymbol(maybe_address)
+        if in_oom_dump_area:
+          if maybe_address_contents == 0xdecade00:
+            address_info = ["<==== HeapStats start marker"]
+          elif maybe_address_contents == 0xdecade01:
+            address_info = ["<==== HeapStats end marker"]
+          elif maybe_address_contents is not None:
+            address_info = [" %d (%d Mbytes)" % (maybe_address_contents,
+                                                 maybe_address_contents >> 20)]
+        if slot == frame_pointer:
+          if not self.reader.IsExceptionStackAddress(maybe_address):
+            address_info.append("<==== BAD frame pointer")
+            frame_pointer = 0
+          else:
+            address_info.append("<==== Frame pointer")
+          frame_pointer = maybe_address
+      address_type_marker = self.heap.AddressTypeMarker(maybe_address)
+      string_value = self.reader.ReadAsciiPtr(slot)
+      print "%s: %s %s %s %s" % (self.reader.FormatIntPtr(slot),
+                           self.reader.FormatIntPtr(maybe_address),
+                           address_type_marker,
+                           string_value,
+                           ' | '.join(address_info))
+      if maybe_address_contents == 0xdecade01:
+        in_oom_dump_area = False
+      heap_object = self.heap.FindObject(maybe_address)
+      if heap_object:
+        heap_object.Print(Printer())
+        print ""
 
 WEB_HEADER = """
 <!DOCTYPE html>
@@ -1767,11 +2368,13 @@ WEB_HEADER = """
 .dmptable {
   border-collapse : collapse;
   border-spacing : 0px;
+  table-layout: fixed;
 }
 
 .codedump {
   border-collapse : collapse;
   border-spacing : 0px;
+  table-layout: fixed;
 }
 
 .addrcomments {
@@ -1824,11 +2427,11 @@ input {
   background-color : cyan;
 }
 
-.stackaddress {
+.stackaddress, .sa {
   background-color : LightGray;
 }
 
-.stackval {
+.stackval, .sv {
   background-color : LightCyan;
 }
 
@@ -1836,16 +2439,17 @@ input {
   background-color : cyan;
 }
 
-.commentinput {
+.commentinput, .ci {
   width : 20em;
 }
 
-a.nodump:visited {
+/* a.nodump */
+a.nd:visited {
   color : black;
   text-decoration : none;
 }
 
-a.nodump:link {
+a.nd:link {
   color : black;
   text-decoration : none;
 }
@@ -1876,6 +2480,7 @@ function comment() {
     send_comment(s.substring(index + address_len), event.srcElement.value);
   }
 }
+var c = comment;
 
 function send_comment(address, comment) {
   xmlhttp = new XMLHttpRequest();
@@ -1987,24 +2592,34 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       query_components = urlparse.parse_qs(parsedurl.query)
       if parsedurl.path == "/dumps.html":
         self.send_success_html_headers()
-        self.server.output_dumps(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.server.output_dumps(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/summary.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_summary(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_summary(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/info.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_info(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_info(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/modules.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_modules(self.wfile)
-      elif parsedurl.path == "/search.html":
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_modules(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
+      elif parsedurl.path == "/search.html" or parsedurl.path == "/s":
         address = query_components.get("val", [])
         if len(address) != 1:
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
+        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_search_res(
-            self.wfile, address[0])
+            out_buffer, address[0])
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/disasm.html":
         address = query_components.get("val", [])
         exact = query_components.get("exact", ["on"])
@@ -2012,15 +2627,19 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
+        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_disasm(
-            self.wfile, address[0], exact[0])
+            out_buffer, address[0], exact[0])
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/data.html":
         address = query_components.get("val", [])
         datakind = query_components.get("type", ["address"])
         if len(address) == 1 and len(datakind) == 1:
           self.send_success_html_headers()
+          out_buffer = StringIO.StringIO()
           self.formatter(query_components).output_data(
-              self.wfile, address[0], datakind[0])
+              out_buffer, address[0], datakind[0])
+          self.wfile.write(out_buffer.getvalue())
         else:
           self.send_error(404,'Invalid params')
       elif parsedurl.path == "/setdumpdesc":
@@ -2066,7 +2685,7 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_error(404, 'Web parameter error: %s' % e.message)
 
 
-HTML_REG_FORMAT = "<span class=\"register\"><b>%s</b>:&nbsp;%s</span>\n"
+HTML_REG_FORMAT = "<span class=\"register\"><b>%s</b>:&nbsp;%s</span><br/>\n"
 
 
 class InspectionWebFormatter(object):
@@ -2093,12 +2712,10 @@ class InspectionWebFormatter(object):
 
     self.padawan = InspectionPadawan(self.reader, self.heap)
     self.comments = InspectionInfo(minidump_name, self.reader)
-    self.padawan.known_first_data_page = (
-        self.comments.get_page_address("datapage"))
+    self.padawan.known_first_old_page = (
+        self.comments.get_page_address("oldpage"))
     self.padawan.known_first_map_page = (
         self.comments.get_page_address("mappage"))
-    self.padawan.known_first_pointer_page = (
-        self.comments.get_page_address("pointerpage"))
 
   def set_comment(self, straddress, comment):
     try:
@@ -2110,12 +2727,10 @@ class InspectionWebFormatter(object):
   def set_page_address(self, kind, straddress):
     try:
       address = int(straddress, 0)
-      if kind == "datapage":
-        self.padawan.known_first_data_page = address
+      if kind == "oldpage":
+        self.padawan.known_first_old_page = address
       elif kind == "mappage":
         self.padawan.known_first_map_page = address
-      elif kind == "pointerpage":
-        self.padawan.known_first_pointer_page = address
       self.comments.save_page_address(kind, address)
     except ValueError:
       print "Invalid address"
@@ -2131,8 +2746,8 @@ class InspectionWebFormatter(object):
         straddress = "0x" + self.reader.FormatIntPtr(maybeaddress)
       style_class = ""
       if not self.reader.IsValidAddress(maybeaddress):
-        style_class = " class=\"nodump\""
-      return ("<a %s href=\"search.html?%s&amp;val=%s\">%s</a>" %
+        style_class = "class=nd"
+      return ("<a %s href=s?%s&amp;val=%s>%s</a>" %
               (style_class, self.encfilename, straddress, straddress))
 
   def output_header(self, f):
@@ -2143,7 +2758,7 @@ class InspectionWebFormatter(object):
   def output_footer(self, f):
     f.write(WEB_FOOTER)
 
-  MAX_CONTEXT_STACK = 4096
+  MAX_CONTEXT_STACK = 2048
 
   def output_summary(self, f):
     self.output_header(f)
@@ -2153,9 +2768,10 @@ class InspectionWebFormatter(object):
 
     # Output stack
     exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
-    stack_bottom = exception_thread.stack.start + \
-        min(exception_thread.stack.memory.data_size, self.MAX_CONTEXT_STACK)
     stack_top = self.reader.ExceptionSP()
+    stack_bottom = min(exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size,
+        stack_top + self.MAX_CONTEXT_STACK)
     self.output_words(f, stack_top - 16, stack_bottom, stack_top, "Stack")
 
     f.write('</div>')
@@ -2164,14 +2780,14 @@ class InspectionWebFormatter(object):
 
   def output_info(self, f):
     self.output_header(f)
-    f.write("<h3>Dump info</h3>\n")
+    f.write("<h3>Dump info</h3>")
     f.write("Description: ")
     self.server.output_dump_desc_field(f, self.dumpfilename)
-    f.write("<br>\n")
+    f.write("<br>")
     f.write("Filename: ")
-    f.write("<span class=\"code\">%s</span><br>\n" % (self.dumpfilename))
+    f.write("<span class=\"code\">%s</span><br>" % (self.dumpfilename))
     dt = datetime.datetime.fromtimestamp(self.reader.header.time_date_stampt)
-    f.write("Timestamp: %s<br>\n" % dt.strftime('%Y-%m-%d %H:%M:%S'))
+    f.write("Timestamp: %s<br>" % dt.strftime('%Y-%m-%d %H:%M:%S'))
     self.output_context(f, InspectionWebFormatter.CONTEXT_FULL)
     self.output_address_ranges(f)
     self.output_footer(f)
@@ -2182,22 +2798,22 @@ class InspectionWebFormatter(object):
     def print_region(_reader, start, size, _location):
       regions[start] = size
     self.reader.ForEachMemoryRegion(print_region)
-    f.write("<h3>Available memory regions</h3>\n")
+    f.write("<h3>Available memory regions</h3>")
     f.write('<div class="code">')
-    f.write("<table class=\"regions\">\n")
+    f.write("<table class=\"regions\">")
     f.write("<thead><tr>")
     f.write("<th>Start address</th>")
     f.write("<th>End address</th>")
     f.write("<th>Number of bytes</th>")
-    f.write("</tr></thead>\n")
+    f.write("</tr></thead>")
     for start in sorted(regions):
       size = regions[start]
       f.write("<tr>")
       f.write("<td>%s</td>" % self.format_address(start))
       f.write("<td>&nbsp;%s</td>" % self.format_address(start + size))
       f.write("<td>&nbsp;%d</td>" % size)
-      f.write("</tr>\n")
-    f.write("</table>\n")
+      f.write("</tr>")
+    f.write("</table>")
     f.write('</div>')
     return
 
@@ -2207,19 +2823,19 @@ class InspectionWebFormatter(object):
                                     module.version_info.dwFileVersionLS)
     product_version = GetVersionString(module.version_info.dwProductVersionMS,
                                        module.version_info.dwProductVersionLS)
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("base: %s" % self.reader.FormatIntPtr(module.base_of_image))
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("  end: %s" % self.reader.FormatIntPtr(module.base_of_image +
                                             module.size_of_image))
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("  file version: %s" % file_version)
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("  product version: %s" % product_version)
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     time_date_stamp = datetime.datetime.fromtimestamp(module.time_date_stamp)
     f.write("  timestamp: %s" % time_date_stamp)
-    f.write("<br>\n");
+    f.write("<br>");
 
   def output_modules(self, f):
     self.output_header(f)
@@ -2233,27 +2849,27 @@ class InspectionWebFormatter(object):
   def output_context(self, f, details):
     exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
     f.write("<h3>Exception context</h3>")
-    f.write('<div class="code">\n')
+    f.write('<div class="code">')
     f.write("Thread id: %d" % exception_thread.id)
-    f.write("&nbsp;&nbsp; Exception code: %08X\n" %
+    f.write("&nbsp;&nbsp; Exception code: %08X<br/>" %
             self.reader.exception.exception.code)
     if details == InspectionWebFormatter.CONTEXT_FULL:
       if self.reader.exception.exception.parameter_count > 0:
-        f.write("&nbsp;&nbsp; Exception parameters: \n")
+        f.write("&nbsp;&nbsp; Exception parameters: ")
         for i in xrange(0, self.reader.exception.exception.parameter_count):
           f.write("%08x" % self.reader.exception.exception.information[i])
-        f.write("<br><br>\n")
+        f.write("<br><br>")
 
     for r in CONTEXT_FOR_ARCH[self.reader.arch]:
       f.write(HTML_REG_FORMAT %
               (r, self.format_address(self.reader.Register(r))))
     # TODO(vitalyr): decode eflags.
-    if self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
+    if self.reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       f.write("<b>cpsr</b>: %s" % bin(self.reader.exception_context.cpsr)[2:])
     else:
       f.write("<b>eflags</b>: %s" %
               bin(self.reader.exception_context.eflags)[2:])
-    f.write('</div>\n')
+    f.write('</div>')
     return
 
   def align_down(self, a, size):
@@ -2290,7 +2906,7 @@ class InspectionWebFormatter(object):
                    highlight_address, desc):
     region = self.reader.FindRegion(highlight_address)
     if region is None:
-      f.write("<h3>Address 0x%x not found in the dump.</h3>\n" %
+      f.write("<h3>Address 0x%x not found in the dump.</h3>" %
               (highlight_address))
       return
     size = self.heap.PointerSize()
@@ -2311,12 +2927,13 @@ class InspectionWebFormatter(object):
                 (self.encfilename, highlight_address))
 
     f.write("<h3>%s 0x%x - 0x%x, "
-            "highlighting <a href=\"#highlight\">0x%x</a> %s</h3>\n" %
+            "highlighting <a href=\"#highlight\">0x%x</a> %s</h3>" %
             (desc, start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
-    f.write("<table class=\"codedump\">\n")
+    f.write("<table class=codedump>")
 
-    for slot in xrange(start_address, end_address, size):
+    for j in xrange(0, end_address - start_address, size):
+      slot = start_address + j
       heap_object = ""
       maybe_address = None
       end_region = region[0] + region[1]
@@ -2335,33 +2952,31 @@ class InspectionWebFormatter(object):
         if maybe_address:
           heap_object = self.format_object(maybe_address)
 
-      address_fmt = "%s&nbsp;</td>\n"
+      address_fmt = "%s&nbsp;</td>"
       if slot == highlight_address:
-        f.write("<tr class=\"highlight-line\">\n")
-        address_fmt = "<a id=\"highlight\"></a>%s&nbsp;</td>\n"
+        f.write("<tr class=highlight-line>")
+        address_fmt = "<a id=highlight></a>%s&nbsp;</td>"
       elif slot < highlight_address and highlight_address < slot + size:
-        f.write("<tr class=\"inexact-highlight-line\">\n")
-        address_fmt = "<a id=\"highlight\"></a>%s&nbsp;</td>\n"
+        f.write("<tr class=inexact-highlight-line>")
+        address_fmt = "<a id=highlight></a>%s&nbsp;</td>"
       else:
-        f.write("<tr>\n")
+        f.write("<tr>")
 
-      f.write("  <td>")
+      f.write("<td>")
       self.output_comment_box(f, "da-", slot)
-      f.write("</td>\n")
-      f.write("  ")
+      f.write("</td>")
       self.td_from_address(f, slot)
       f.write(address_fmt % self.format_address(slot))
-      f.write("  ")
       self.td_from_address(f, maybe_address)
-      f.write(":&nbsp; %s &nbsp;</td>\n" % straddress)
-      f.write("  <td>")
+      f.write(":&nbsp;%s&nbsp;</td>" % straddress)
+      f.write("<td>")
       if maybe_address != None:
         self.output_comment_box(
             f, "sv-" + self.reader.FormatIntPtr(slot), maybe_address)
-      f.write("  </td>\n")
-      f.write("  <td>%s</td>\n" % (heap_object or ''))
-      f.write("</tr>\n")
-    f.write("</table>\n")
+      f.write("</td>")
+      f.write("<td>%s</td>" % (heap_object or ''))
+      f.write("</tr>")
+    f.write("</table>")
     f.write("</div>")
     return
 
@@ -2391,7 +3006,8 @@ class InspectionWebFormatter(object):
 
     start = self.align_down(start_address, line_width)
 
-    for address in xrange(start, end_address):
+    for i in xrange(end_address - start):
+      address = start + i
       if address % 64 == 0:
         if address != start:
           f.write("<br>")
@@ -2459,8 +3075,8 @@ class InspectionWebFormatter(object):
     f.write("<h3>Disassembling 0x%x - 0x%x, highlighting 0x%x %s</h3>" %
             (start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
-    f.write("<table class=\"codedump\">\n");
-    for i in xrange(0, len(lines)):
+    f.write("<table class=\"codedump\">");
+    for i in xrange(len(lines)):
       line = lines[i]
       next_address = count
       if i + 1 < len(lines):
@@ -2468,7 +3084,7 @@ class InspectionWebFormatter(object):
         next_address = next_line[0]
       self.format_disasm_line(
           f, start_address, line, next_address, highlight_address)
-    f.write("</table>\n")
+    f.write("</table>")
     f.write("</div>")
     return
 
@@ -2484,30 +3100,37 @@ class InspectionWebFormatter(object):
       extra.append(cgi.escape(str(object_info)))
     if len(extra) == 0:
       return line
-    return ("%s <span class=\"disasmcomment\">;; %s</span>" %
+    return ("%s <span class=disasmcomment>;; %s</span>" %
             (line, ", ".join(extra)))
 
   def format_disasm_line(
       self, f, start, line, next_address, highlight_address):
     line_address = start + line[0]
-    address_fmt = "  <td>%s</td>\n"
+    address_fmt = "  <td>%s</td>"
     if line_address == highlight_address:
-      f.write("<tr class=\"highlight-line\">\n")
-      address_fmt = "  <td><a id=\"highlight\">%s</a></td>\n"
+      f.write("<tr class=highlight-line>")
+      address_fmt = "  <td><a id=highlight>%s</a></td>"
     elif (line_address < highlight_address and
           highlight_address < next_address + start):
-      f.write("<tr class=\"inexact-highlight-line\">\n")
-      address_fmt = "  <td><a id=\"highlight\">%s</a></td>\n"
+      f.write("<tr class=inexact-highlight-line>")
+      address_fmt = "  <td><a id=highlight>%s</a></td>"
     else:
-      f.write("<tr>\n")
+      f.write("<tr>")
     num_bytes = next_address - line[0]
     stack_slot = self.heap.stack_map.get(line_address)
     marker = ""
     if stack_slot:
       marker = "=>"
-    op_offset = 3 * num_bytes - 1
 
     code = line[1]
+
+    # Some disassemblers insert spaces between each byte,
+    # while some do not.
+    if code[2] == " ":
+        op_offset = 3 * num_bytes - 1
+    else:
+        op_offset = 2 * num_bytes
+
     # Compute the actual call target which the disassembler is too stupid
     # to figure out (it adds the call offset to the disassembly offset rather
     # than the absolute instruction address).
@@ -2524,22 +3147,26 @@ class InspectionWebFormatter(object):
     code = self.annotate_disasm_addresses(code[op_offset:])
     f.write("  <td>")
     self.output_comment_box(f, "codel-", line_address)
-    f.write("</td>\n")
+    f.write("</td>")
     f.write(address_fmt % marker)
     f.write("  ")
     self.td_from_address(f, line_address)
-    f.write("%s (+0x%x)</td>\n" %
-            (self.format_address(line_address), line[0]))
-    f.write("  <td>:&nbsp;%s&nbsp;</td>\n" % opcodes)
-    f.write("  <td>%s</td>\n" % code)
-    f.write("</tr>\n")
+    f.write(self.format_address(line_address))
+    f.write(" (+0x%x)</td>" % line[0])
+    f.write("<td>:&nbsp;%s&nbsp;</td>" % opcodes)
+    f.write("<td>%s</td>" % code)
+    f.write("</tr>")
 
   def output_comment_box(self, f, prefix, address):
-    f.write("<input type=\"text\" class=\"commentinput\" "
-            "id=\"%s-address-0x%s\" onchange=\"comment()\" value=\"%s\">" %
+    comment = self.comments.get_comment(address)
+    value = ""
+    if comment:
+      value = " value=\"%s\"" % cgi.escape(comment)
+    f.write("<input type=text class=ci "
+            "id=%s-address-0x%s onchange=c()%s>" %
             (prefix,
              self.reader.FormatIntPtr(address),
-             cgi.escape(self.comments.get_comment(address)) or ""))
+             value))
 
   MAX_FOUND_RESULTS = 100
 
@@ -2549,27 +3176,27 @@ class InspectionWebFormatter(object):
     if toomany:
       f.write("(found %i results, displaying only first %i)" %
               (len(results), self.MAX_FOUND_RESULTS))
-    f.write(": \n")
+    f.write(": ")
     results = sorted(results)
     results = results[:min(len(results), self.MAX_FOUND_RESULTS)]
     for address in results:
-      f.write("<span %s>%s</span>\n" %
+      f.write("<span %s>%s</span>" %
               (self.comments.get_style_class_string(address),
                self.format_address(address)))
     if toomany:
-      f.write("...\n")
+      f.write("...")
 
 
   def output_page_info(self, f, page_kind, page_address, my_page_address):
     if my_page_address == page_address and page_address != 0:
-      f.write("Marked first %s page.\n" % page_kind)
+      f.write("Marked first %s page." % page_kind)
     else:
       f.write("<span id=\"%spage\" style=\"display:none\">" % page_kind)
       f.write("Marked first %s page." % page_kind)
       f.write("</span>\n")
       f.write("<button onclick=\"onpage('%spage', '0x%x')\">" %
               (page_kind, my_page_address))
-      f.write("Mark as first %s page</button>\n" % page_kind)
+      f.write("Mark as first %s page</button>" % page_kind)
     return
 
   def output_search_res(self, f, straddress):
@@ -2581,17 +3208,14 @@ class InspectionWebFormatter(object):
 
       f.write("Comment: ")
       self.output_comment_box(f, "search-", address)
-      f.write("<br>\n")
+      f.write("<br>")
 
       page_address = address & ~self.heap.PageAlignmentMask()
 
-      f.write("Page info: \n")
-      self.output_page_info(f, "data", self.padawan.known_first_data_page, \
+      f.write("Page info: ")
+      self.output_page_info(f, "old", self.padawan.known_first_old_page, \
                             page_address)
       self.output_page_info(f, "map", self.padawan.known_first_map_page, \
-                            page_address)
-      self.output_page_info(f, "pointer", \
-                            self.padawan.known_first_pointer_page, \
                             page_address)
 
       if not self.reader.IsValidAddress(address):
@@ -2602,27 +3226,27 @@ class InspectionWebFormatter(object):
         self.output_words(f, address - 8, address + 32, address, "Dump")
 
         # Print as ASCII
-        f.write("<hr>\n")
+        f.write("<hr>")
         self.output_ascii(f, address, address + 256, address)
 
         # Print as code
-        f.write("<hr>\n")
+        f.write("<hr>")
         self.output_disasm_range(f, address - 16, address + 16, address, True)
 
       aligned_res, unaligned_res = self.reader.FindWordList(address)
 
       if len(aligned_res) > 0:
-        f.write("<h3>Occurrences of 0x%x at aligned addresses</h3>\n" %
+        f.write("<h3>Occurrences of 0x%x at aligned addresses</h3>" %
                 address)
         self.output_find_results(f, aligned_res)
 
       if len(unaligned_res) > 0:
-        f.write("<h3>Occurrences of 0x%x at unaligned addresses</h3>\n" % \
+        f.write("<h3>Occurrences of 0x%x at unaligned addresses</h3>" % \
                 address)
         self.output_find_results(f, unaligned_res)
 
       if len(aligned_res) + len(unaligned_res) == 0:
-        f.write("<h3>No occurences of 0x%x found in the dump</h3>\n" % address)
+        f.write("<h3>No occurrences of 0x%x found in the dump</h3>" % address)
 
       self.output_footer(f)
 
@@ -2699,7 +3323,7 @@ DUMP_FILE_RE = re.compile(r"[-_0-9a-zA-Z][-\._0-9a-zA-Z]*\.dmp$")
 class InspectionWebServer(BaseHTTPServer.HTTPServer):
   def __init__(self, port_number, switches, minidump_name):
     BaseHTTPServer.HTTPServer.__init__(
-        self, ('', port_number), InspectionWebHandler)
+        self, ('localhost', port_number), InspectionWebHandler)
     splitpath = os.path.split(minidump_name)
     self.dumppath = splitpath[0]
     self.dumpfilename = splitpath[1]
@@ -2789,54 +3413,141 @@ class InspectionShell(cmd.Cmd):
     self.padawan = InspectionPadawan(reader, heap)
     self.prompt = "(grok) "
 
+    self.dd_start = 0
+    self.dd_num = 0x10
+    self.u_start = 0
+    self.u_num = 0
+
+  def EvalExpression(self, expr):
+    # Auto convert hex numbers to a python compatible format
+    if expr[:2] == "00":
+      expr = "0x"+expr
+    result = None
+    try:
+      # Ugly hack to patch in register values.
+      registers = [register
+                   for register,value in self.reader.ContextDescriptor().fields]
+      registers.sort(key=lambda r: len(r))
+      registers.reverse()
+      for register in registers:
+        expr = expr.replace("$"+register, str(self.reader.Register(register)))
+      result = eval(expr)
+    except Exception as e:
+      print("**** Could not evaluate '%s': %s" % (expr, e))
+      raise e
+    return result
+
+  def ParseAddressExpr(self, expr):
+    address = 0;
+    try:
+      result = self.EvalExpression(expr)
+    except:
+      return 0
+    try:
+      address = int(result)
+    except Exception as e:
+      print("**** Could not convert '%s' => %s to valid address: %s" % (
+          expr, result , e))
+    return address
+
+  def do_help(self, cmd=None):
+    if len(cmd) == 0:
+      print "Available commands"
+      print "=" * 79
+      prefix = "do_"
+      methods = inspect.getmembers(InspectionShell, predicate=inspect.ismethod)
+      for name,method in methods:
+        if not name.startswith(prefix): continue
+        doc = inspect.getdoc(method)
+        if not doc: continue
+        name = prefix.join(name.split(prefix)[1:])
+        description = doc.splitlines()[0]
+        print (name + ": ").ljust(16) + description
+      print "=" * 79
+    else:
+      return super(InspectionShell, self).do_help(cmd)
+
+  def do_p(self, cmd):
+    """ see print """
+    return self.do_print(cmd)
+
+  def do_print(self, cmd):
+    """
+    Evaluate an arbitrary python command.
+    """
+    try:
+      print(self.EvalExpression(cmd))
+    except:
+      pass
+
   def do_da(self, address):
+    """ see display_ascii"""
+    return self.do_display_ascii(address)
+
+  def do_display_ascii(self, address):
     """
      Print ASCII string starting at specified address.
     """
-    address = int(address, 16)
-    string = ""
-    while self.reader.IsValidAddress(address):
-      code = self.reader.ReadU8(address)
-      if code < 128:
-        string += chr(code)
-      else:
-        break
-      address += 1
+    address = self.ParseAddressExpr(address)
+    string = self.reader.ReadAsciiString(address)
     if string == "":
       print "Not an ASCII string at %s" % self.reader.FormatIntPtr(address)
     else:
       print "%s\n" % string
 
-  def do_dd(self, address):
+  def do_dsa(self, address):
+    """ see display_stack_ascii"""
+    return self.do_display_stack_ascii(address)
+
+  def do_display_stack_ascii(self, address):
     """
-     Interpret memory at the given address (if available) as a sequence
-     of words. Automatic alignment is not performed.
+    Print ASCII stack error message.
     """
-    start = int(address, 16)
-    if (start & self.heap.ObjectAlignmentMask()) != 0:
+    if self.reader.exception is None:
+      print "Minidump has no exception info"
+      return
+    if len(address) == 0:
+      address = None
+    else:
+      address = self.ParseAddressExpr(address)
+    self.padawan.PrintStackTraceMessage(address)
+
+  def do_dd(self, args):
+    """
+     Interpret memory in the given region [address, address + num * word_size)
+
+     (if available) as a sequence of words. Automatic alignment is not performed.
+     If the num is not specified, a default value of 16 words is usif not self.Is
+     If no address is given, dd continues printing at the next word.
+
+     Synopsis: dd 0x<address>|$register [0x<num>]
+    """
+    if len(args) != 0:
+      args = args.split(' ')
+      self.dd_start = self.ParseAddressExpr(args[0])
+      self.dd_num = int(args[1], 16) if len(args) > 1 else 0x10
+    else:
+      self.dd_start += self.dd_num * self.reader.PointerSize()
+    if not self.reader.IsAlignedAddress(self.dd_start):
       print "Warning: Dumping un-aligned memory, is this what you had in mind?"
-    for slot in xrange(start,
-                       start + self.reader.PointerSize() * 10,
-                       self.reader.PointerSize()):
-      if not self.reader.IsValidAddress(slot):
-        print "Address is not contained within the minidump!"
-        return
-      maybe_address = self.reader.ReadUIntPtr(slot)
-      heap_object = self.padawan.SenseObject(maybe_address)
-      print "%s: %s %s" % (self.reader.FormatIntPtr(slot),
-                           self.reader.FormatIntPtr(maybe_address),
-                           heap_object or '')
+    end = self.dd_start + self.reader.PointerSize() * self.dd_num
+    self.padawan.InterpretMemory(self.dd_start, end)
 
   def do_do(self, address):
+    """ see display_object """
+    return self.do_display_object(address)
+
+  def do_display_object(self, address):
     """
-     Interpret memory at the given address as a V8 object. Automatic
-     alignment makes sure that you can pass tagged as well as un-tagged
-     addresses.
+     Interpret memory at the given address as a V8 object.
+
+     Automatic alignment makes sure that you can pass tagged as well as
+     un-tagged addresses.
     """
-    address = int(address, 16)
-    if (address & self.heap.ObjectAlignmentMask()) == 0:
+    address = self.ParseAddressExpr(address)
+    if self.reader.IsAlignedAddress(address):
       address = address + 1
-    elif (address & self.heap.ObjectAlignmentMask()) != 1:
+    elif not self.heap.IsTaggedObjectAddress(address):
       print "Address doesn't look like a valid pointer!"
       return
     heap_object = self.padawan.SenseObject(address)
@@ -2845,19 +3556,46 @@ class InspectionShell(cmd.Cmd):
     else:
       print "Address cannot be interpreted as object!"
 
+  def do_dso(self, args):
+    """ see display_stack_objects """
+    return self.do_display_stack_objects(args)
+
+  def do_display_stack_objects(self, args):
+    """
+    Find and Print object pointers in the given range.
+
+    Print all possible object pointers that are on the stack or in the given
+    address range.
+
+    Usage: dso [START_ADDR,[END_ADDR]]
+    """
+    start = self.reader.StackTop()
+    end = self.reader.StackBottom()
+    if len(args) != 0:
+      args = args.split(' ')
+      start = self.ParseAddressExpr(args[0])
+      end = self.ParseAddressExpr(args[1]) if len(args) > 1 else end
+    objects = self.heap.FindObjectPointers(start, end)
+    for address in objects:
+      heap_object = self.padawan.SenseObject(address)
+      info = ""
+      if heap_object:
+        info = str(heap_object)
+      print("%s %s" % (self.padawan.FormatIntPtr(address), info))
+
   def do_do_desc(self, address):
     """
       Print a descriptor array in a readable format.
     """
-    start = int(address, 16)
+    start = self.ParseAddressExpr(address)
     if ((start & 1) == 1): start = start - 1
     DescriptorArray(FixedArray(self.heap, None, start)).Print(Printer())
 
   def do_do_map(self, address):
     """
-      Print a descriptor array in a readable format.
+      Print a Map in a readable format.
     """
-    start = int(address, 16)
+    start = self.ParseAddressExpr(address)
     if ((start & 1) == 1): start = start - 1
     Map(self.heap, None, start).Print(Printer())
 
@@ -2865,57 +3603,66 @@ class InspectionShell(cmd.Cmd):
     """
       Print a transition array in a readable format.
     """
-    start = int(address, 16)
+    start = self.ParseAddressExpr(address)
     if ((start & 1) == 1): start = start - 1
     TransitionArray(FixedArray(self.heap, None, start)).Print(Printer())
 
   def do_dp(self, address):
+    """ see display_page """
+    return self.do_display_page(address)
+
+  def do_display_page(self, address):
     """
+     Prints details about the V8 heap page of the given address.
+
      Interpret memory at the given address as being on a V8 heap page
      and print information about the page header (if available).
     """
-    address = int(address, 16)
+    address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
     if self.reader.IsValidAddress(page_address):
-      raise NotImplementedError
+      print "**** Not Implemented"
+      return
     else:
       print "Page header is not available!"
 
   def do_k(self, arguments):
     """
-     Teach V8 heap layout information to the inspector. This increases
-     the amount of annotations the inspector can produce while dumping
-     data. The first page of each heap space is of particular interest
+     Teach V8 heap layout information to the inspector.
+
+     This increases the amount of annotations the inspector can produce while
+     dumping data. The first page of each heap space is of particular interest
      because it contains known objects that do not move.
     """
     self.padawan.PrintKnowledge()
 
-  def do_kd(self, address):
+  def do_ko(self, address):
+    """ see known_oldspace """
+    return self.do_known_oldspace(address)
+
+  def do_known_oldspace(self, address):
     """
-     Teach V8 heap layout information to the inspector. Set the first
-     data-space page by passing any pointer into that page.
+     Teach V8 heap layout information to the inspector.
+
+     Set the first old space page by passing any pointer into that page.
     """
-    address = int(address, 16)
+    address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
-    self.padawan.known_first_data_page = page_address
+    self.padawan.known_first_old_page = page_address
 
   def do_km(self, address):
+    """ see known_map """
+    return self.do_known_map(address)
+
+  def do_known_map(self, address):
     """
-     Teach V8 heap layout information to the inspector. Set the first
-     map-space page by passing any pointer into that page.
+     Teach V8 heap layout information to the inspector.
+
+     Set the first map-space page by passing any pointer into that page.
     """
-    address = int(address, 16)
+    address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
     self.padawan.known_first_map_page = page_address
-
-  def do_kp(self, address):
-    """
-     Teach V8 heap layout information to the inspector. Set the first
-     pointer-space page by passing any pointer into that page.
-    """
-    address = int(address, 16)
-    page_address = address & ~self.heap.PageAlignmentMask()
-    self.padawan.known_first_pointer_page = page_address
 
   def do_list(self, smth):
     """
@@ -2929,10 +3676,15 @@ class InspectionShell(cmd.Cmd):
     self.reader.ForEachMemoryRegion(print_region)
 
   def do_lm(self, arg):
+    """ see list_modules """
+    return self.do_list_modules(arg)
+
+  def do_list_modules(self, arg):
     """
-     List details for all loaded modules in the minidump. An argument can
-     be passed to limit the output to only those modules that contain the
-     argument as a substring (case insensitive match).
+     List details for all loaded modules in the minidump.
+
+     An argument can be passed to limit the output to only those modules that
+     contain the argument as a substring (case insensitive match).
     """
     for module in self.reader.module_list.modules:
       if arg:
@@ -2944,14 +3696,19 @@ class InspectionShell(cmd.Cmd):
     print
 
   def do_s(self, word):
+    """ see search """
+    return self.do_search(word)
+
+  def do_search(self, word):
     """
-     Search for a given word in available memory regions. The given word
-     is expanded to full pointer size and searched at aligned as well as
-     un-aligned memory locations. Use 'sa' to search aligned locations
+     Search for a given word in available memory regions.
+
+     The given word is expanded to full pointer size and searched at aligned
+     as well as un-aligned memory locations. Use 'sa' to search aligned locations
      only.
     """
     try:
-      word = int(word, 0)
+      word = self.ParseAddressExpr(word)
     except ValueError:
       print "Malformed word, prefix with '0x' to use hexadecimal format."
       return
@@ -2960,27 +3717,51 @@ class InspectionShell(cmd.Cmd):
 
   def do_sh(self, none):
     """
-     Search for the V8 Heap object in all available memory regions. You
-     might get lucky and find this rare treasure full of invaluable
+     Search for the V8 Heap object in all available memory regions.
+
+     You might get lucky and find this rare treasure full of invaluable
      information.
     """
-    raise NotImplementedError
+    print "**** Not Implemented"
 
   def do_u(self, args):
+    """ see disassemble """
+    return self.do_disassemble(args)
+
+  def do_disassemble(self, args):
     """
-     Unassemble memory in the region [address, address + size). If the
-     size is not specified, a default value of 32 bytes is used.
+     Unassemble memory in the region [address, address + size).
+
+     If the size is not specified, a default value of 32 bytes is used.
      Synopsis: u 0x<address> 0x<size>
     """
-    args = args.split(' ')
-    start = int(args[0], 16)
-    size = int(args[1], 16) if len(args) > 1 else 0x20
-    if not self.reader.IsValidAddress(start):
-      print "Address is not contained within the minidump!"
+    if len(args) != 0:
+      args = args.split(' ')
+      self.u_start = self.ParseAddressExpr(args[0])
+      self.u_size = self.ParseAddressExpr(args[1]) if len(args) > 1 else 0x20
+      skip = False
+    else:
+      # Skip the first instruction if we reuse the last address.
+      skip = True
+
+    if not self.reader.IsValidAddress(self.u_start):
+      print "Address %s is not contained within the minidump!" % (
+          self.reader.FormatIntPtr(self.u_start))
       return
-    lines = self.reader.GetDisasmLines(start, size)
+    lines = self.reader.GetDisasmLines(self.u_start, self.u_size)
+    if len(lines) == 0:
+      print "Address %s could not be disassembled!" % (
+          self.reader.FormatIntPtr(self.u_start))
+      print "    Could not disassemble using %s." % OBJDUMP_BIN
+      print "    Pass path to architecture specific objdump via --objdump?"
+      return
     for line in lines:
-      print FormatDisasmLine(start, self.heap, line)
+      if skip:
+        skip = False
+        continue
+      print FormatDisasmLine(self.u_start, self.heap, line)
+    # Set the next start address = last line
+    self.u_start += lines[-1][0]
     print
 
   def do_EOF(self, none):
@@ -2995,6 +3776,11 @@ CONTEXT_FOR_ARCH = {
     MD_CPU_ARCHITECTURE_ARM:
       ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9',
        'r10', 'r11', 'r12', 'sp', 'lr', 'pc'],
+    MD_CPU_ARCHITECTURE_ARM64:
+      ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9',
+       'r10', 'r11', 'r12', 'r13', 'r14', 'r15', 'r16', 'r17', 'r18', 'r19',
+       'r20', 'r21', 'r22', 'r23', 'r24', 'r25', 'r26', 'r27', 'r28',
+       'fp', 'lr', 'sp', 'pc'],
     MD_CPU_ARCHITECTURE_X86:
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
@@ -3015,7 +3801,7 @@ def GetModuleName(reader, module):
 def PrintModuleDetails(reader, module):
   print "%s" % GetModuleName(reader, module)
   file_version = GetVersionString(module.version_info.dwFileVersionMS,
-                                  module.version_info.dwFileVersionLS)
+                                  module.version_info.dwFileVersionLS);
   product_version = GetVersionString(module.version_info.dwProductVersionMS,
                                      module.version_info.dwProductVersionLS)
   print "  base: %s" % reader.FormatIntPtr(module.base_of_image)
@@ -3030,19 +3816,41 @@ def PrintModuleDetails(reader, module):
 def AnalyzeMinidump(options, minidump_name):
   reader = MinidumpReader(options, minidump_name)
   heap = None
+
+  stack_top = reader.ExceptionSP()
+  stack_bottom = reader.StackBottom()
+  stack_map = {reader.ExceptionIP(): -1}
+  for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+    maybe_address = reader.ReadUIntPtr(slot)
+    if not maybe_address in stack_map:
+      stack_map[maybe_address] = slot
+
+  heap = V8Heap(reader, stack_map)
+  padawan = InspectionPadawan(reader, heap)
+
   DebugPrint("========================================")
   if reader.exception is None:
     print "Minidump has no exception info"
   else:
+    print "Address markers:"
+    print "  T = valid tagged pointer in the minidump"
+    print "  S = address on the exception stack"
+    print "  C = address in loaded C/C++ module"
+    print "  * = address in the minidump"
+    print ""
     print "Exception info:"
-    exception_thread = reader.thread_map[reader.exception.thread_id]
+    exception_thread = reader.ExceptionThread()
     print "  thread id: %d" % exception_thread.id
-    print "  code: %08X" % reader.exception.exception.code
+    print "  code:      %08X" % reader.exception.exception.code
     print "  context:"
-    for r in CONTEXT_FOR_ARCH[reader.arch]:
-      print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
+    context = CONTEXT_FOR_ARCH[reader.arch]
+    maxWidth = max(map(lambda s: len(s), context))
+    for r in context:
+      register_value = reader.Register(r)
+      print "    %s: %s" % (r.rjust(maxWidth),
+                            heap.FormatIntPtr(register_value))
     # TODO(vitalyr): decode eflags.
-    if reader.arch == MD_CPU_ARCHITECTURE_ARM:
+    if reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       print "    cpsr: %s" % bin(reader.exception_context.cpsr)[2:]
     else:
       print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
@@ -3056,15 +3864,12 @@ def AnalyzeMinidump(options, minidump_name):
         reader.TryLoadSymbolsFor(name, module)
     print
 
-    stack_top = reader.ExceptionSP()
-    stack_bottom = exception_thread.stack.start + \
-        exception_thread.stack.memory.data_size
-    stack_map = {reader.ExceptionIP(): -1}
-    for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
-      maybe_address = reader.ReadUIntPtr(slot)
-      if not maybe_address in stack_map:
-        stack_map[maybe_address] = slot
-    heap = V8Heap(reader, stack_map)
+    print "  stack-top:    %s" % heap.FormatIntPtr(reader.StackTop())
+    print "  stack-bottom: %s" % heap.FormatIntPtr(reader.StackBottom())
+    print ""
+
+    if options.shell:
+      padawan.PrintStackTraceMessage(print_message=False)
 
     print "Disassembly around exception.eip:"
     eip_symbol = reader.FindSymbol(reader.ExceptionIP())
@@ -3079,6 +3884,10 @@ def AnalyzeMinidump(options, minidump_name):
         disasm_bytes = full_range[1]
 
     lines = reader.GetDisasmLines(disasm_start, disasm_bytes)
+
+    if not lines:
+      print "Could not disassemble using %s." % OBJDUMP_BIN
+      print "Pass path to architecture specific objdump via --objdump?"
 
     for line in lines:
       print FormatDisasmLine(disasm_start, heap, line)
@@ -3100,25 +3909,9 @@ def AnalyzeMinidump(options, minidump_name):
       print "Kthxbye."
   elif not options.command:
     if reader.exception is not None:
-      frame_pointer = reader.ExceptionFP()
       print "Annotated stack (from exception.esp to bottom):"
-      for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
-        ascii_content = [c if c >= '\x20' and c <  '\x7f' else '.'
-                         for c in reader.ReadBytes(slot, reader.PointerSize())]
-        maybe_address = reader.ReadUIntPtr(slot)
-        heap_object = heap.FindObject(maybe_address)
-        maybe_symbol = reader.FindSymbol(maybe_address)
-        if slot == frame_pointer:
-          maybe_symbol = "<---- frame pointer"
-          frame_pointer = maybe_address
-        print "%s: %s %s %s" % (reader.FormatIntPtr(slot),
-                                reader.FormatIntPtr(maybe_address),
-                                "".join(ascii_content),
-                                maybe_symbol or "")
-        if heap_object:
-          heap_object.Print(Printer())
-          print
-
+      stack_start = padawan.PrintStackTraceMessage()
+      padawan.InterpretMemory(stack_start, stack_bottom)
   reader.Dispose()
 
 
@@ -3134,15 +3927,10 @@ if __name__ == "__main__":
                     help="dump all information contained in the minidump")
   parser.add_option("--symdir", dest="symdir", default=".",
                     help="directory containing *.pdb.sym file with symbols")
-  parser.add_option("--objdump",
-                    default="/usr/bin/objdump",
-                    help="objdump tool to use [default: %default]")
+  parser.add_option("--objdump", default="",
+                    help="objdump tool to use [default: %s]" % (
+                        DEFAULT_OBJDUMP_BIN))
   options, args = parser.parse_args()
-  if os.path.exists(options.objdump):
-    disasm.OBJDUMP_BIN = options.objdump
-    OBJDUMP_BIN = options.objdump
-  else:
-    print "Cannot find %s, falling back to default objdump" % options.objdump
   if len(args) != 1:
     parser.print_help()
     sys.exit(1)

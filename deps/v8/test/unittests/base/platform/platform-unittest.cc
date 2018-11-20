@@ -4,13 +4,6 @@
 
 #include "src/base/platform/platform.h"
 
-#if V8_OS_POSIX
-#include <unistd.h>  // NOLINT
-#endif
-
-#if V8_OS_WIN
-#include "src/base/win32-headers.h"
-#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -30,24 +23,6 @@ TEST(OS, GetCurrentProcessId) {
 
 namespace {
 
-class SelfJoinThread FINAL : public Thread {
- public:
-  SelfJoinThread() : Thread(Options("SelfJoinThread")) {}
-  virtual void Run() OVERRIDE { Join(); }
-};
-
-}  // namespace
-
-
-TEST(Thread, SelfJoin) {
-  SelfJoinThread thread;
-  thread.Start();
-  thread.Join();
-}
-
-
-namespace {
-
 class ThreadLocalStorageTest : public Thread, public ::testing::Test {
  public:
   ThreadLocalStorageTest() : Thread(Options("ThreadLocalStorageTest")) {
@@ -61,7 +36,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
     }
   }
 
-  virtual void Run() FINAL OVERRIDE {
+  void Run() final {
     for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK(!Thread::HasThreadLocal(keys_[i]));
     }
@@ -91,10 +66,12 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
 
  private:
   static void* GetValue(size_t x) {
-    return reinterpret_cast<void*>(static_cast<uintptr_t>(x + 1));
+    return bit_cast<void*>(static_cast<uintptr_t>(x + 1));
   }
 
-  Thread::LocalStorageKey keys_[256];
+  // Older versions of Android have fewer TLS slots (nominally 64, but the
+  // system uses "about 5 of them" itself).
+  Thread::LocalStorageKey keys_[32];
 };
 
 }  // namespace

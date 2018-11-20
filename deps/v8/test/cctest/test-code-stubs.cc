@@ -33,18 +33,29 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
-#include "src/factory.h"
+#include "src/double.h"
+#include "src/heap/factory.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 int STDCALL ConvertDToICVersion(double d) {
-  union { double d; uint32_t u[2]; } dbl;
-  dbl.d = d;
-  uint32_t exponent_bits = dbl.u[1];
+#if defined(V8_TARGET_BIG_ENDIAN)
+  const int kExponentIndex = 0;
+  const int kMantissaIndex = 1;
+#elif defined(V8_TARGET_LITTLE_ENDIAN)
+  const int kExponentIndex = 1;
+  const int kMantissaIndex = 0;
+#else
+#error Unsupported endianness
+#endif
+  uint32_t u[2];
+  memcpy(u, &d, sizeof(d));
+  uint32_t exponent_bits = u[kExponentIndex];
   int32_t shifted_mask = static_cast<int32_t>(Double::kExponentMask >> 32);
   int32_t exponent = (((exponent_bits & shifted_mask) >>
                        (Double::kPhysicalSignificandSize - 32)) -
@@ -58,7 +69,8 @@ int STDCALL ConvertDToICVersion(double d) {
     static_cast<uint32_t>(Double::kPhysicalSignificandSize);
   if (unsigned_exponent >= max_exponent) {
     if ((exponent - Double::kPhysicalSignificandSize) < 32) {
-      result = dbl.u[0] << (exponent - Double::kPhysicalSignificandSize);
+      result = u[kMantissaIndex]
+               << (exponent - Double::kPhysicalSignificandSize);
     }
   } else {
     uint64_t big_result =
@@ -77,13 +89,12 @@ int STDCALL ConvertDToICVersion(double d) {
 void RunOneTruncationTestWithTest(ConvertDToICallWrapper callWrapper,
                                   ConvertDToIFunc func,
                                   double from,
-                                  double raw) {
-  uint64_t to = static_cast<int64_t>(raw);
-  int result = (*callWrapper)(func, from);
-  CHECK_EQ(static_cast<int>(to), result);
+                                  int32_t to) {
+  int32_t result = (*callWrapper)(func, from);
+  CHECK_EQ(to, result);
 }
 
-
+DISABLE_CFI_ICALL
 int32_t DefaultCallWrapper(ConvertDToIFunc func,
                            double from) {
   return (*func)(from);
@@ -92,7 +103,7 @@ int32_t DefaultCallWrapper(ConvertDToIFunc func,
 
 // #define NaN and Infinity so that it's possible to cut-and-paste these tests
 // directly to a .js file and run them.
-#define NaN (v8::base::OS::nan_value())
+#define NaN (std::numeric_limits<double>::quiet_NaN())
 #define Infinity (std::numeric_limits<double>::infinity())
 #define RunOneTruncationTest(p1, p2) \
     RunOneTruncationTestWithTest(callWrapper, func, p1, p2)
@@ -123,15 +134,15 @@ void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
   RunOneTruncationTest(-0.9999999999999999, 0);
   RunOneTruncationTest(4294967296.0, 0);
   RunOneTruncationTest(-4294967296.0, 0);
-  RunOneTruncationTest(9223372036854775000.0, 4294966272.0);
-  RunOneTruncationTest(-9223372036854775000.0, -4294966272.0);
+  RunOneTruncationTest(9223372036854775000.0, -1024);
+  RunOneTruncationTest(-9223372036854775000.0, 1024);
   RunOneTruncationTest(4.5036e+15, 372629504);
   RunOneTruncationTest(-4.5036e+15, -372629504);
 
   RunOneTruncationTest(287524199.5377777, 0x11234567);
   RunOneTruncationTest(-287524199.5377777, -0x11234567);
-  RunOneTruncationTest(2300193596.302222, 2300193596.0);
-  RunOneTruncationTest(-2300193596.302222, -2300193596.0);
+  RunOneTruncationTest(2300193596.302222, -1994773700);
+  RunOneTruncationTest(-2300193596.302222, 1994773700);
   RunOneTruncationTest(4600387192.604444, 305419896);
   RunOneTruncationTest(-4600387192.604444, -305419896);
   RunOneTruncationTest(4823855600872397.0, 1737075661);
@@ -154,14 +165,14 @@ void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
   RunOneTruncationTest(4.8357078901445341e+24, -1073741824);
   RunOneTruncationTest(-4.8357078901445341e+24, 1073741824);
 
-  RunOneTruncationTest(2147483647.0, 2147483647.0);
-  RunOneTruncationTest(-2147483648.0, -2147483648.0);
-  RunOneTruncationTest(9.6714111686030497e+24, -2147483648.0);
-  RunOneTruncationTest(-9.6714111686030497e+24, -2147483648.0);
-  RunOneTruncationTest(9.6714157802890681e+24, -2147483648.0);
-  RunOneTruncationTest(-9.6714157802890681e+24, -2147483648.0);
-  RunOneTruncationTest(1.9342813113834065e+25, 2147483648.0);
-  RunOneTruncationTest(-1.9342813113834065e+25, 2147483648.0);
+  RunOneTruncationTest(2147483647.0, 2147483647);
+  RunOneTruncationTest(-2147483648.0, -2147483647-1);
+  RunOneTruncationTest(9.6714111686030497e+24, -2147483647-1);
+  RunOneTruncationTest(-9.6714111686030497e+24, -2147483647-1);
+  RunOneTruncationTest(9.6714157802890681e+24, -2147483647-1);
+  RunOneTruncationTest(-9.6714157802890681e+24, -2147483647-1);
+  RunOneTruncationTest(1.9342813113834065e+25, -2147483647-1);
+  RunOneTruncationTest(-1.9342813113834065e+25, -2147483647-1);
 
   RunOneTruncationTest(3.868562622766813e+25, 0);
   RunOneTruncationTest(-3.868562622766813e+25, 0);
@@ -182,9 +193,12 @@ TEST(CodeStubMajorKeys) {
 #define CHECK_STUB(NAME)                        \
   {                                             \
     HandleScope scope(isolate);                 \
-    NAME##Stub stub_impl(0xabcd, isolate);      \
+    NAME##Stub stub_impl(0xABCD, isolate);      \
     CodeStub* stub = &stub_impl;                \
     CHECK_EQ(stub->MajorKey(), CodeStub::NAME); \
   }
   CODE_STUB_LIST(CHECK_STUB);
 }
+
+}  // namespace internal
+}  // namespace v8

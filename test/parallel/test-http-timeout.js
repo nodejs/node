@@ -19,46 +19,42 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
+require('../common');
 
-var common = require('../common');
-var assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var http = require('http');
-
-var port = common.PORT;
-
-var server = http.createServer(function(req, res) {
-      res.writeHead(200, {'Content-Type': 'text/plain'});
-      res.end('OK');
+const server = http.createServer(function(req, res) {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
 });
 
-var agent = new http.Agent({maxSockets: 1});
+const MAX_COUNT = 11;
+const agent = new http.Agent({ maxSockets: 1 });
+const countdown = new Countdown(MAX_COUNT, () => server.close());
 
-server.listen(port, function() {
+server.listen(0, function() {
 
-  for (var i = 0; i < 11; ++i) {
+  for (let i = 0; i < MAX_COUNT; ++i) {
     createRequest().end();
   }
 
-  function callback(){}
-
-  var count = 0;
+  function callback() {}
 
   function createRequest() {
-    var req = http.request({port: port, path: '/', agent: agent}, function(res) {
+    const req = http.request(
+      { port: server.address().port, path: '/', agent: agent },
+      function(res) {
+        req.clearTimeout(callback);
 
-      req.clearTimeout(callback);
+        res.on('end', function() {
+          countdown.dec();
+        });
 
-      res.on('end', function() {
-        count++;
-
-        if (count == 11) {
-          server.close();
-        }
-      })
-
-      res.resume();
-    });
+        res.resume();
+      }
+    );
 
     req.setTimeout(1000, callback);
     return req;

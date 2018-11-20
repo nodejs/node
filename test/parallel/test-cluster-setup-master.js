@@ -19,10 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
 
@@ -31,13 +31,14 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     args: false,
     setupEvent: false,
     settingsObject: false
   };
 
-  var totalWorkers = 2;
+  const totalWorkers = 2;
+  let settings;
 
   // Setup master
   cluster.setupMaster({
@@ -48,7 +49,7 @@ if (cluster.isWorker) {
   cluster.once('setup', function() {
     checks.setupEvent = true;
 
-    var settings = cluster.settings;
+    settings = cluster.settings;
     if (settings &&
         settings.args && settings.args[0] === 'custom argument' &&
         settings.silent === true &&
@@ -57,23 +58,19 @@ if (cluster.isWorker) {
     }
   });
 
-  var correctIn = 0;
+  let correctInput = 0;
 
-  cluster.on('online', function lisenter(worker) {
+  cluster.on('online', common.mustCall(function listener(worker) {
 
     worker.once('message', function(data) {
-      correctIn += (data === 'custom argument' ? 1 : 0);
-      if (correctIn === totalWorkers) {
+      correctInput += (data === 'custom argument' ? 1 : 0);
+      if (correctInput === totalWorkers) {
         checks.args = true;
       }
       worker.kill();
     });
 
-    // All workers are online
-    if (cluster.onlineWorkers === totalWorkers) {
-      checks.workers = true;
-    }
-  });
+  }, totalWorkers));
 
   // Start all workers
   cluster.fork();
@@ -81,10 +78,16 @@ if (cluster.isWorker) {
 
   // Check all values
   process.once('exit', function() {
-    assert.ok(checks.args, 'The arguments was noy send to the worker');
+    const argsMsg = 'Arguments was not send for one or more worker. ' +
+                    `${correctInput} workers receive argument, ` +
+                    `but ${totalWorkers} were expected.`;
+    assert.ok(checks.args, argsMsg);
+
     assert.ok(checks.setupEvent, 'The setup event was never emitted');
-    var m = 'The settingsObject do not have correct properties';
-    assert.ok(checks.settingsObject, m);
+
+    const settingObjectMsg = 'The settingsObject do not have correct ' +
+                             `properties : ${JSON.stringify(settings)}`;
+    assert.ok(checks.settingsObject, settingObjectMsg);
   });
 
 }

@@ -1,8 +1,13 @@
-#!/usr/local/bin/perl
+#! /usr/bin/env perl
+# Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 # The inner loop instruction sequence and the IP/FP modifications are from
 # Svend Olaf Mikkelsen <svolaf@inet.uni-c.dk>
-#
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
@@ -15,6 +20,9 @@ require "desboth.pl";
 # format.
 #
 
+$output=pop;
+open STDOUT,">$output";
+
 &asm_init($ARGV[0],"des-586.pl");
 
 $L="edi";
@@ -25,6 +33,7 @@ $small_footprint=1 if (grep(/\-DOPENSSL_SMALL_FOOTPRINT/,@ARGV));
 # the folded loop is only 3% slower than unrolled, but >7 times smaller
 
 &public_label("DES_SPtrans");
+&static_label("des_sptrans");
 
 &DES_encrypt_internal();
 &DES_decrypt_internal();
@@ -37,6 +46,8 @@ $small_footprint=1 if (grep(/\-DOPENSSL_SMALL_FOOTPRINT/,@ARGV));
 &DES_SPtrans();
 
 &asm_finish();
+
+close STDOUT;
 
 sub DES_encrypt_internal()
 	{
@@ -158,7 +169,7 @@ sub DES_encrypt
 	&call	(&label("pic_point"));
 	&set_label("pic_point");
 	&blindpop($trans);
-	&lea	($trans,&DWP(&label("DES_SPtrans")."-".&label("pic_point"),$trans));
+	&lea	($trans,&DWP(&label("des_sptrans")."-".&label("pic_point"),$trans));
 
 	&mov(	"ecx",	&wparam(1)	);
 
@@ -315,6 +326,7 @@ sub FP_new
 sub DES_SPtrans
 	{
 	&set_label("DES_SPtrans",64);
+	&set_label("des_sptrans");
 	&data_word(0x02080800, 0x00080000, 0x02000002, 0x02080802);
 	&data_word(0x02000000, 0x00080802, 0x00080002, 0x02000002);
 	&data_word(0x00080802, 0x02080800, 0x02080000, 0x00000802);

@@ -28,10 +28,9 @@
 #include "test/cctest/cctest.h"
 
 #include "src/property-details.h"
-#include "src/types.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 void TestPairPositive(Representation more_general,
               Representation less_general) {
@@ -127,3 +126,6 @@ TEST(RepresentationMoreGeneralThan) {
   TestPairNegative(Representation::External(), Representation::External());
   TestPairPositive(Representation::External(), Representation::None());
 }
+
+}  // namespace internal
+}  // namespace v8

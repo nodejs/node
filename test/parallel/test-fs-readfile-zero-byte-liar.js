@@ -19,40 +19,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
 
-var dataExpected = fs.readFileSync(__filename, 'utf8');
+// Test that readFile works even when stat returns size 0.
+
+const assert = require('assert');
+const fs = require('fs');
+
+const dataExpected = fs.readFileSync(__filename, 'utf8');
 
 // sometimes stat returns size=0, but it's a lie.
 fs._fstat = fs.fstat;
 fs._fstatSync = fs.fstatSync;
 
-fs.fstat = function(fd, cb) {
-  fs._fstat(fd, function(er, st) {
+fs.fstat = (fd, cb) => {
+  fs._fstat(fd, (er, st) => {
     if (er) return cb(er);
     st.size = 0;
     return cb(er, st);
   });
 };
 
-fs.fstatSync = function(fd) {
-  var st = fs._fstatSync;
+fs.fstatSync = (fd) => {
+  const st = fs._fstatSync(fd);
   st.size = 0;
   return st;
 };
 
-var d = fs.readFileSync(__filename, 'utf8');
-assert.equal(d, dataExpected);
+const d = fs.readFileSync(__filename, 'utf8');
+assert.strictEqual(d, dataExpected);
 
-var called = false;
-fs.readFile(__filename, 'utf8', function (er, d) {
-  assert.equal(d, dataExpected);
-  called = true;
-});
-
-process.on('exit', function() {
-  assert(called);
-  console.log("ok");
-});
+fs.readFile(__filename, 'utf8', common.mustCall((er, d) => {
+  assert.strictEqual(d, dataExpected);
+}));

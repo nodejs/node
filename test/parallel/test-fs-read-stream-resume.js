@@ -19,17 +19,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
 
-var file = path.join(common.fixturesDir, 'x.txt');
-var data = '';
-var first = true;
+const file = fixtures.path('x.txt');
+let data = '';
+let first = true;
 
-var stream = fs.createReadStream(file);
+const stream = fs.createReadStream(file);
 stream.setEncoding('utf8');
 stream.on('data', function(chunk) {
   data += chunk;
@@ -38,7 +39,7 @@ stream.on('data', function(chunk) {
     stream.resume();
   }
 });
-  
+
 process.nextTick(function() {
   stream.pause();
   setTimeout(function() {
@@ -47,5 +48,5 @@ process.nextTick(function() {
 });
 
 process.on('exit', function() {
-  assert.equal(data, 'xyz\n');
+  assert.strictEqual(data, 'xyz\n');
 });

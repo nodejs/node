@@ -130,18 +130,35 @@ function TestBasics(object) {
     assertEquals(3, z);
   }
 
-  object[Symbol.unscopables] = {x: true};
-  with (object) {
-    assertEquals(1, x);
-    assertEquals(5, y);
-    assertEquals(3, z);
+  var truthyValues = [true, 1, 'x', {}, Symbol()];
+  for (var truthyValue of truthyValues) {
+    object[Symbol.unscopables] = {x: truthyValue};
+    with (object) {
+      assertEquals(1, x);
+      assertEquals(5, y);
+      assertEquals(3, z);
+    }
   }
 
-  object[Symbol.unscopables] = {x: 0, y: true};
-  with (object) {
-    assertEquals(1, x);
-    assertEquals(2, y);
-    assertEquals(3, z);
+  var falsyValues = [false, 0, -0, NaN, '', null, undefined];
+  for (var falsyValue of falsyValues) {
+    object[Symbol.unscopables] = {x: falsyValue, y: true};
+    with (object) {
+      assertEquals(4, x);
+      assertEquals(2, y);
+      assertEquals(3, z);
+    }
+  }
+
+  for (var xFalsy of falsyValues) {
+    for (var yFalsy of falsyValues) {
+      object[Symbol.unscopables] = {x: xFalsy, y: yFalsy};
+      with (object) {
+        assertEquals(4, x);
+        assertEquals(5, y);
+        assertEquals(3, z);
+      }
+    }
   }
 }
 runTest(TestBasics);
@@ -160,6 +177,13 @@ function TestUnscopableChain(object) {
   };
   with (object) {
     assertEquals(1, x);
+  }
+
+  object[Symbol.unscopables] = {
+    __proto__: {x: undefined}
+  };
+  with (object) {
+    assertEquals(2, x);
   }
 }
 runTest(TestUnscopableChain);
@@ -217,6 +241,14 @@ function TestOnProto(object, proto) {
 
   proto[Symbol.unscopables] = {y: true};
   object[Symbol.unscopables] = {x: true};
+  with (object) {
+    assertEquals(1, x);
+    assertEquals(5, y);
+    assertEquals(3, z);
+  }
+
+  proto[Symbol.unscopables] = {y: true};
+  object[Symbol.unscopables] = {x: true, y: undefined};
   with (object) {
     assertEquals(1, x);
     assertEquals(5, y);
@@ -334,6 +366,20 @@ function TestChangeDuringWithWithPossibleOptimization4(object) {
   with (object) {
     for (var i = 0; i < 1000; i++) {
       if (i === 500) delete object[Symbol.unscopables].x;
+      assertEquals(i < 500 ? 1 : 2, x);
+    }
+  }
+}
+TestChangeDuringWithWithPossibleOptimization4({});
+
+
+function TestChangeDuringWithWithPossibleOptimization4(object) {
+  var x = 1;
+  object.x = 2;
+  object[Symbol.unscopables] = {x: true};
+  with (object) {
+    for (var i = 0; i < 1000; i++) {
+      if (i === 500) object[Symbol.unscopables].x = undefined;
       assertEquals(i < 500 ? 1 : 2, x);
     }
   }
@@ -532,9 +578,11 @@ function TestAccessorOnUnscopables(object) {
   var x = 1;
   object.x = 2;
 
+  var calls = 0;
   var unscopables = {
     get x() {
-      assertUnreachable();
+      calls++;
+      return calls === 1 ? true : undefined;
     }
   };
 
@@ -542,7 +590,9 @@ function TestAccessorOnUnscopables(object) {
     assertEquals(2, x);
     object[Symbol.unscopables] = unscopables;
     assertEquals(1, x);
+    assertEquals(2, x);
   }
+  assertEquals(2, calls);
 }
 runTest(TestAccessorOnUnscopables);
 
@@ -652,6 +702,28 @@ function TestGetUnscopablesGetterThrows() {
       throw new CustomError();
     }
   });
+  assertThrows(function() {
+    with (object) {
+      x;
+    }
+  }, CustomError);
+}
+TestGetUnscopablesGetterThrows();
+
+
+function TestGetUnscopablesGetterThrows2() {
+  var object = {
+    get x() {
+      assertUnreachable();
+    }
+  };
+  function CustomError() {}
+
+  object[Symbol.unscopables] = {
+    get x() {
+      throw new CustomError();
+    }
+  };
   assertThrows(function() {
     with (object) {
       x;

@@ -1,0 +1,70 @@
+{
+  "_from": "stringify-package@^1.0.0",
+  "_id": "stringify-package@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-JIQqiWmLiEozOC0b0BtxZ/AOUtdUZHCBPgqIZ2kSJJqGwgb9neo44XdTHUC4HZSGqi03hOeB7W/E8rAlKnGe9g==",
+  "_location": "/stringify-package",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "stringify-package@^1.0.0",
+    "name": "stringify-package",
+    "escapedName": "stringify-package",
+    "rawSpec": "^1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.0"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/stringify-package/-/stringify-package-1.0.0.tgz",
+  "_shasum": "e02828089333d7d45cd8c287c30aa9a13375081b",
+  "_spec": "stringify-package@^1.0.0",
+  "_where": "/Users/dpogue/Coding/npm_cli",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@zkat.tech"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/stringify-package/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "stringifies npm-written json files",
+  "devDependencies": {
+    "standard": "*",
+    "standard-version": "*",
+    "tap": "*",
+    "weallbehave": "*",
+    "weallcontribute": "*"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/npm/stringify-package",
+  "keywords": [
+    "npm",
+    "json",
+    "stringify",
+    "package.json"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "stringify-package",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/stringify-package.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --coverage --100 test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "1.0.0"
+}

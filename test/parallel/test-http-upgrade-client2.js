@@ -19,33 +19,35 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const http = require('http');
 
-var CRLF = '\r\n';
+const CRLF = '\r\n';
 
-var server = http.createServer();
-server.on('upgrade', function(req, socket, head) {
-  socket.write('HTTP/1.1 101 Ok' + CRLF +
-               'Connection: Upgrade' + CRLF +
-               'Upgrade: Test' + CRLF + CRLF + 'head');
+const server = http.createServer();
+server.on('upgrade', function(req, socket) {
+  socket.write(`HTTP/1.1 101 Ok${CRLF}` +
+               `Connection: Upgrade${CRLF}` +
+               `Upgrade: Test${CRLF}${CRLF}` +
+               'head');
   socket.on('end', function() {
     socket.end();
   });
 });
 
-var successCount = 0;
-
-server.listen(common.PORT, function() {
+server.listen(0, common.mustCall(function() {
 
   function upgradeRequest(fn) {
     console.log('req');
-    var header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
-    var request = http.request({ port: common.PORT, headers: header });
-    var wasUpgrade = false;
+    const header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
+    const request = http.request({
+      port: server.address().port,
+      headers: header
+    });
+    let wasUpgrade = false;
 
-    function onUpgrade(res, socket, head) {
+    function onUpgrade(res, socket) {
       console.log('client upgraded');
       wasUpgrade = true;
 
@@ -69,18 +71,11 @@ server.listen(common.PORT, function() {
 
   }
 
-  upgradeRequest(function() {
-    successCount++;
-    upgradeRequest(function() {
-      successCount++;
+  upgradeRequest(common.mustCall(function() {
+    upgradeRequest(common.mustCall(function() {
       // Test pass
       console.log('Pass!');
       server.close();
-    });
-  });
-
-});
-
-process.on('exit', function() {
-  assert.equal(2, successCount);
-});
+    }));
+  }));
+}));

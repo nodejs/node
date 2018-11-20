@@ -19,37 +19,33 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+const common = require('../common');
 
-var gotError = false;
-var gotWriteCB = false;
+const net = require('net');
 
-process.on('exit', function() {
-  assert(gotError);
-  assert(gotWriteCB);
-});
+let serverSocket;
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(common.mustCall(function(socket) {
+  serverSocket = socket;
+
   socket.resume();
 
-  socket.on('error', function(error) {
-    console.error('got error, closing server', error);
+  socket.on('error', common.mustCall(function(error) {
+    console.error('received error as expected, closing server', error);
     server.close();
-    gotError = true;
-  });
+  }));
+}));
 
-  setTimeout(function() {
-    console.error('about to try to write');
-    socket.write('test', function(e) {
-      gotWriteCB = true;
-    });
-  }, 250);
-});
-
-server.listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
+server.listen(0, function() {
+  const client = net.connect(this.address().port, function() {
+    // client.end() will close both the readable and writable side
+    // of the duplex because allowHalfOpen defaults to false.
+    // Then 'end' will be emitted when it receives a FIN packet from
+    // the other side.
+    client.on('end', common.mustCall(() => {
+      serverSocket.write('test', common.mustCall());
+    }));
     client.end();
   });
 });

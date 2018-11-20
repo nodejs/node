@@ -1,18 +1,24 @@
-.TH "NPM\-INDEX" "7" "October 2014" "" ""
+.TH "NPM\-INDEX" "7" "August 2018" "" ""
 .SH "NAME"
 \fBnpm-index\fR \- Index of all npm documentation
 .SS npm help README
 .P
-node package manager
+a JavaScript package manager
 .SH Command Line Documentation
 .P
 Using npm on the command line
 .SS npm help npm
 .P
-node package manager
+javascript package manager
+.SS npm help access
+.P
+Set access level on published packages
 .SS npm help adduser
 .P
 Add a registry user account
+.SS npm help audit
+.P
+Run a security audit
 .SS npm help bin
 .P
 Display npm bin folder
@@ -28,6 +34,9 @@ REMOVED
 .SS npm help cache
 .P
 Manipulates packages cache
+.SS npm help ci
+.P
+Install a project with a clean slate
 .SS npm help completion
 .P
 Tab Completion for npm
@@ -40,9 +49,15 @@ Reduce duplication
 .SS npm help deprecate
 .P
 Deprecate a version of a package
+.SS npm help dist\-tag
+.P
+Modify package distribution tags
 .SS npm help docs
 .P
 Docs for a package in a web browser maybe
+.SS npm help doctor
+.P
+Check your environments
 .SS npm help edit
 .P
 Edit an installed package
@@ -55,15 +70,27 @@ Search npm help documentation
 .SS npm help help
 .P
 Get help on npm
+.SS npm help hook
+.P
+Manage registry hooks
 .SS npm help init
 .P
-Interactively create a package\.json file
+create a package\.json file
+.SS npm help install\-ci\-test
+.P
+Install a project with a clean slate and run tests
+.SS npm help install\-test
+.P
+Install package(s) and run tests
 .SS npm help install
 .P
 Install a package
 .SS npm help link
 .P
 Symlink a package folder
+.SS npm help logout
+.P
+Log out of the registry
 .SS npm help ls
 .P
 List installed packages
@@ -76,9 +103,15 @@ Manage package owners
 .SS npm help pack
 .P
 Create a tarball from a package
+.SS npm help ping
+.P
+Ping npm registry
 .SS npm help prefix
 .P
 Display prefix
+.SS npm help profile
+.P
+Change settings on your registry profile
 .SS npm help prune
 .P
 Remove extraneous packages
@@ -93,10 +126,7 @@ Rebuild a package
 Open package repository page in the browser
 .SS npm help restart
 .P
-Start a package
-.SS npm help rm
-.P
-Remove a package
+Restart a package
 .SS npm help root
 .P
 Display npm root
@@ -108,7 +138,7 @@ Run arbitrary package scripts
 Search for packages
 .SS npm help shrinkwrap
 .P
-Lock down dependency versions
+Lock down dependency versions for publication
 .SS npm help star
 .P
 Mark your favorite packages
@@ -121,12 +151,15 @@ Start a package
 .SS npm help stop
 .P
 Stop a package
-.SS npm help tag
+.SS npm help team
 .P
-Tag a published version
+Manage organization teams and team memberships
 .SS npm help test
 .P
 Test a package
+.SS npm help token
+.P
+Manage your authentication tokens
 .SS npm help uninstall
 .P
 Remove a package
@@ -148,132 +181,24 @@ Display npm username
 .SH API Documentation
 .P
 Using npm in your Node programs
-.SS npm apihelp npm
-.P
-node package manager
-.SS npm apihelp bin
-.P
-Display npm bin folder
-.SS npm apihelp bugs
-.P
-Bugs for a package in a web browser maybe
-.SS npm apihelp cache
-.P
-manage the npm cache programmatically
-.SS npm apihelp commands
-.P
-npm commands
-.SS npm apihelp config
-.P
-Manage the npm configuration files
-.SS npm apihelp deprecate
-.P
-Deprecate a version of a package
-.SS npm apihelp docs
-.P
-Docs for a package in a web browser maybe
-.SS npm apihelp edit
-.P
-Edit an installed package
-.SS npm apihelp explore
-.P
-Browse an installed package
-.SS npm apihelp help\-search
-.P
-Search the help pages
-.SS npm apihelp init
-.P
-Interactively create a package\.json file
-.SS npm apihelp install
-.P
-install a package programmatically
-.SS npm apihelp link
-.P
-Symlink a package folder
-.SS npm apihelp load
-.P
-Load config settings
-.SS npm apihelp ls
-.P
-List installed packages
-.SS npm apihelp outdated
-.P
-Check for outdated packages
-.SS npm apihelp owner
-.P
-Manage package owners
-.SS npm apihelp pack
-.P
-Create a tarball from a package
-.SS npm apihelp prefix
-.P
-Display prefix
-.SS npm apihelp prune
-.P
-Remove extraneous packages
-.SS npm apihelp publish
-.P
-Publish a package
-.SS npm apihelp rebuild
-.P
-Rebuild a package
-.SS npm apihelp repo
-.P
-Open package repository page in the browser
-.SS npm apihelp restart
-.P
-Start a package
-.SS npm apihelp root
-.P
-Display npm root
-.SS npm apihelp run\-script
-.P
-Run arbitrary package scripts
-.SS npm apihelp search
-.P
-Search for packages
-.SS npm apihelp shrinkwrap
-.P
-programmatically generate package shrinkwrap file
-.SS npm apihelp start
-.P
-Start a package
-.SS npm apihelp stop
-.P
-Stop a package
-.SS npm apihelp tag
-.P
-Tag a published version
-.SS npm apihelp test
-.P
-Test a package
-.SS npm apihelp uninstall
-.P
-uninstall a package programmatically
-.SS npm apihelp unpublish
-.P
-Remove a package from the registry
-.SS npm apihelp update
-.P
-Update a package
-.SS npm apihelp version
-.P
-Bump a package version
-.SS npm apihelp view
-.P
-View registry info
-.SS npm apihelp whoami
-.P
-Display npm username
 .SH Files
 .P
 File system structures npm uses
 .SS npm help 5 folders
 .P
 Folder Structures Used by npm
+.SS npm help 5 package\-locks
+.P
+An explanation of npm lockfiles
+.SS npm help 5 shrinkwrap\.json
+.P
+A publishable lockfile
 .SS npm help 5 npmrc
 .P
 The npm config files
+.SS npm help 5 package\-lock\.json
+.P
+A manifestation of the manifest
 .SS npm help 5 package\.json
 .P
 Specifics of npm's package\.json handling
@@ -292,12 +217,12 @@ Developer Guide
 .SS npm help 7 disputes
 .P
 Handling Module Name Disputes
-.SS npm help 7 faq
-.P
-Frequently Asked Questions
 .SS npm help 7 index
 .P
 Index of all npm documentation
+.SS npm help 7 orgs
+.P
+Working with Teams & Orgs
 .SS npm help 7 registry
 .P
 The JavaScript Package Registry

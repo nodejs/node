@@ -7,58 +7,101 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
-#include "src/codegen.h"
+#include "src/callable.h"
+#include "src/code-stubs.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {
 
-// Associates a body of code with an interface descriptor.
-class Callable FINAL BASE_EMBEDDED {
- public:
-  Callable(Handle<Code> code, CallInterfaceDescriptor descriptor)
-      : code_(code), descriptor_(descriptor) {}
-
-  Handle<Code> code() const { return code_; }
-  CallInterfaceDescriptor descriptor() const { return descriptor_; }
-
- private:
-  const Handle<Code> code_;
-  const CallInterfaceDescriptor descriptor_;
+// For ArrayNoArgumentConstructor and ArraySingleArgumentConstructor.
+enum AllocationSiteOverrideMode {
+  DONT_OVERRIDE,
+  DISABLE_ALLOCATION_SITES,
 };
 
-
-class CodeFactory FINAL {
+class V8_EXPORT_PRIVATE CodeFactory final {
  public:
+  // CEntry has var-args semantics (all the arguments are passed on the
+  // stack and the arguments count is passed via register) which currently
+  // can't be expressed in CallInterfaceDescriptor. Therefore only the code
+  // is exported here.
+  static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1);
+
+  static Handle<Code> CEntry(Isolate* isolate, int result_size = 1,
+                             SaveFPRegsMode save_doubles = kDontSaveFPRegs,
+                             ArgvMode argv_mode = kArgvOnStack,
+                             bool builtin_exit_frame = false);
+
   // Initial states for ICs.
-  static Callable LoadIC(Isolate* isolate, ContextualMode mode);
-  static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode);
-  static Callable KeyedLoadIC(Isolate* isolate);
-  static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
-  static Callable StoreIC(Isolate* isolate, StrictMode mode);
-  static Callable KeyedStoreIC(Isolate* isolate, StrictMode mode);
+  static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
+  static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
+                                              TypeofMode typeof_mode);
+  static Callable StoreOwnIC(Isolate* isolate);
+  static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
 
-  static Callable CompareIC(Isolate* isolate, Token::Value op);
+  static Callable ResumeGenerator(Isolate* isolate);
 
-  static Callable BinaryOpIC(Isolate* isolate, Token::Value op,
-                             OverwriteMode mode = NO_OVERWRITE);
+  static Callable FrameDropperTrampoline(Isolate* isolate);
+  static Callable HandleDebuggerStatement(Isolate* isolate);
+
+  static Callable BinaryOperation(Isolate* isolate, Operation op);
+
+  static Callable ApiGetter(Isolate* isolate);
+  static Callable CallApiCallback(Isolate* isolate, int argc);
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
-  static Callable ToBoolean(
-      Isolate* isolate, ToBooleanStub::ResultMode mode,
-      ToBooleanStub::Types types = ToBooleanStub::Types());
 
-  static Callable ToNumber(Isolate* isolate);
+  static Callable NonPrimitiveToPrimitive(
+      Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+  static Callable OrdinaryToPrimitive(Isolate* isolate,
+                                      OrdinaryToPrimitiveHint hint);
 
-  static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
-                            PretenureFlag pretenure_flag);
+  static Callable StringAdd(Isolate* isolate,
+                            StringAddFlags flags = STRING_ADD_CHECK_NONE,
+                            PretenureFlag pretenure_flag = NOT_TENURED);
 
-  static Callable AllocateHeapNumber(Isolate* isolate);
+  static Callable FastNewFunctionContext(Isolate* isolate,
+                                         ScopeType scope_type);
 
-  static Callable CallFunction(Isolate* isolate, int argc,
-                               CallFunctionFlags flags);
+  static Callable ArgumentAdaptor(Isolate* isolate);
+  static Callable Call(Isolate* isolate,
+                       ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable CallWithArrayLike(Isolate* isolate);
+  static Callable CallWithSpread(Isolate* isolate);
+  static Callable CallFunction(
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable CallVarargs(Isolate* isolate);
+  static Callable CallForwardVarargs(Isolate* isolate);
+  static Callable CallFunctionForwardVarargs(Isolate* isolate);
+  static Callable Construct(Isolate* isolate);
+  static Callable ConstructWithSpread(Isolate* isolate);
+  static Callable ConstructFunction(Isolate* isolate);
+  static Callable ConstructVarargs(Isolate* isolate);
+  static Callable ConstructForwardVarargs(Isolate* isolate);
+  static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
+
+  static Callable InterpreterPushArgsThenCall(Isolate* isolate,
+                                              ConvertReceiverMode receiver_mode,
+                                              InterpreterPushArgsMode mode);
+  static Callable InterpreterPushArgsThenConstruct(
+      Isolate* isolate, InterpreterPushArgsMode mode);
+  static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
+  static Callable InterpreterOnStackReplacement(Isolate* isolate);
+
+  static Callable ArrayNoArgumentConstructor(
+      Isolate* isolate, ElementsKind kind,
+      AllocationSiteOverrideMode override_mode);
+  static Callable ArraySingleArgumentConstructor(
+      Isolate* isolate, ElementsKind kind,
+      AllocationSiteOverrideMode override_mode);
+
+  static Callable InternalArrayNoArgumentConstructor(Isolate* isolate,
+                                                     ElementsKind kind);
+  static Callable InternalArraySingleArgumentConstructor(Isolate* isolate,
+                                                         ElementsKind kind);
 };
 
 }  // namespace internal

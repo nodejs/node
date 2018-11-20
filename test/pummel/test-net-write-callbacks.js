@@ -19,16 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
-var cbcount = 0;
-var N = 500000;
+let cbcount = 0;
+const N = 500000;
 
-var server = net.Server(function(socket) {
+const server = net.Server(function(socket) {
   socket.on('data', function(d) {
-    console.error('got %d bytes', d.length);
+    console.error(`got ${d.length} bytes`);
   });
 
   socket.on('end', function() {
@@ -38,26 +39,27 @@ var server = net.Server(function(socket) {
   });
 });
 
-var lastCalled = -1;
+let lastCalled = -1;
 function makeCallback(c) {
-  var called = false;
+  let called = false;
   return function() {
     if (called)
-      throw new Error('called callback #' + c + ' more than once');
+      throw new Error(`called callback #${c} more than once`);
     called = true;
-    if (c < lastCalled)
-      throw new Error('callbacks out of order. last=' + lastCalled +
-                      ' current=' + c);
+    if (c < lastCalled) {
+      throw new Error(
+        `callbacks out of order. last=${lastCalled} current=${c}`);
+    }
     lastCalled = c;
     cbcount++;
   };
 }
 
 server.listen(common.PORT, function() {
-  var client = net.createConnection(common.PORT);
+  const client = net.createConnection(common.PORT);
 
   client.on('connect', function() {
-    for (var i = 0; i < N; i++) {
+    for (let i = 0; i < N; i++) {
       client.write('hello world', makeCallback(i));
     }
     client.end();
@@ -65,5 +67,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(N, cbcount);
+  assert.strictEqual(N, cbcount);
 });

@@ -9,7 +9,7 @@ client certificate
 =head1 SYNOPSIS
 
  #include <openssl/ssl.h>
- 
+
  void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list);
  void SSL_set_client_CA_list(SSL *s, STACK_OF(X509_NAME) *list);
  int SSL_CTX_add_client_CA(SSL_CTX *ctx, X509 *cacert);
@@ -42,11 +42,11 @@ This list must explicitly be set using SSL_CTX_set_client_CA_list() for
 B<ctx> and SSL_set_client_CA_list() for the specific B<ssl>. The list
 specified overrides the previous setting. The CAs listed do not become
 trusted (B<list> only contains the names, not the complete certificates); use
-L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)> 
+L<SSL_CTX_load_verify_locations(3)>
 to additionally load them for verification.
 
 If the list of acceptable CAs is compiled in a file, the
-L<SSL_load_client_CA_file(3)|SSL_load_client_CA_file(3)>
+L<SSL_load_client_CA_file(3)>
 function can be used to help importing the necessary data.
 
 SSL_CTX_add_client_CA() and SSL_add_client_CA() can be used to add additional
@@ -82,13 +82,22 @@ The operation succeeded.
 
 Scan all certificates in B<CAfile> and list them as acceptable CAs:
 
-  SSL_CTX_set_client_CA_list(ctx,SSL_load_client_CA_file(CAfile));
+  SSL_CTX_set_client_CA_list(ctx, SSL_load_client_CA_file(CAfile));
 
 =head1 SEE ALSO
 
-L<ssl(3)|ssl(3)>,
-L<SSL_get_client_CA_list(3)|SSL_get_client_CA_list(3)>,
-L<SSL_load_client_CA_file(3)|SSL_load_client_CA_file(3)>,
-L<SSL_CTX_load_verify_locations(3)|SSL_CTX_load_verify_locations(3)>
+L<ssl(3)>,
+L<SSL_get_client_CA_list(3)>,
+L<SSL_load_client_CA_file(3)>,
+L<SSL_CTX_load_verify_locations(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

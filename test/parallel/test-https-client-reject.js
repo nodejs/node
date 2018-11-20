@@ -19,36 +19,32 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var fs = require('fs');
-var path = require('path');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+const assert = require('assert');
+const https = require('https');
+
+const options = {
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
-var reqCount = 0;
-
-var server = https.createServer(options, function(req, res) {
-  ++reqCount;
+const server = https.createServer(options, common.mustCall(function(req, res) {
   res.writeHead(200);
   res.end();
   req.resume();
-}).listen(common.PORT, function() {
+}, 2)).listen(0, function() {
   unauthorized();
 });
 
 function unauthorized() {
-  var req = https.request({
-    port: common.PORT,
+  const req = https.request({
+    port: server.address().port,
     rejectUnauthorized: false
   }, function(res) {
     assert(!req.socket.authorized);
@@ -62,13 +58,11 @@ function unauthorized() {
 }
 
 function rejectUnauthorized() {
-  var options = {
-    port: common.PORT
+  const options = {
+    port: server.address().port
   };
   options.agent = new https.Agent(options);
-  var req = https.request(options, function(res) {
-    assert(false);
-  });
+  const req = https.request(options, common.mustNotCall());
   req.on('error', function(err) {
     authorized();
   });
@@ -76,22 +70,16 @@ function rejectUnauthorized() {
 }
 
 function authorized() {
-  var options = {
-    port: common.PORT,
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))]
+  const options = {
+    port: server.address().port,
+    ca: [fixtures.readSync('test_cert.pem')]
   };
   options.agent = new https.Agent(options);
-  var req = https.request(options, function(res) {
+  const req = https.request(options, function(res) {
     res.resume();
     assert(req.socket.authorized);
     server.close();
   });
-  req.on('error', function(err) {
-    assert(false);
-  });
+  req.on('error', common.mustNotCall());
   req.end();
 }
-
-process.on('exit', function() {
-  assert.equal(reqCount, 2);
-});

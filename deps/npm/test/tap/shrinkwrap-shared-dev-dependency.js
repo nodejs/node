@@ -1,58 +1,89 @@
-var npm = npm = require("../../")
-var test = require("tap").test
-var path = require("path")
-var fs = require("fs")
-var osenv = require("osenv")
-var rimraf = require("rimraf")
-var mr = require("npm-registry-mock")
-var common = require("../common-tap.js")
+var fs = require('fs')
+var path = require('path')
 
-var pkg = path.resolve(__dirname, "shrinkwrap-shared-dev-dependency")
-var desiredResultsPath = path.resolve(pkg, "desired-shrinkwrap-results.json")
+var mkdirp = require('mkdirp')
+var mr = require('npm-registry-mock')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-test("shrinkwrap doesn't strip out the shared dependency", function (t) {
-  t.plan(1)
+var common = require('../common-tap.js')
 
-  mr(common.port, function (s) {
-    setup(function (err) {
-      if (err) return t.fail(err)
+var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
 
-      npm.install(".", function (err) {
-        if (err) return t.fail(err)
+var opts = {
+  env: common.newEnv().extend({
+    npm_config_cache: path.resolve(pkg, 'cache'),
+    npm_config_registry: common.registry
+  }),
+  stdio: [0, 1, 2],
+  cwd: pkg
+}
 
-        npm.commands.shrinkwrap([], true, function (err, results) {
-          if (err) return t.fail(err)
+var json = {
+  author: 'Domenic Denicola',
+  name: 'npm-test-shrinkwrap-shared-dev-dependency',
+  version: '0.0.0',
+  dependencies: {
+    'test-package-with-one-dep': '0.0.0'
+  },
+  devDependencies: {
+    'test-package': '0.0.0'
+  }
+}
 
-          fs.readFile(desiredResultsPath, function (err, desired) {
-            if (err) return t.fail(err)
-
-            t.deepEqual(results, JSON.parse(desired))
-            s.close()
-            t.end()
-          })
-        })
-      })
-    })
+var server
+test('setup', function (t) {
+  setup()
+  mr({ port: common.port }, function (er, s) {
+    if (er) throw er
+    server = s
+    t.done()
   })
 })
 
-test("cleanup", function (t) {
+var desired = {
+  name: 'npm-test-shrinkwrap-shared-dev-dependency',
+  version: '0.0.0',
+  dependencies: {
+    'test-package-with-one-dep': {
+      version: '0.0.0',
+      resolved: common.registry + '/test-package-with-one-dep/-/test-package-with-one-dep-0.0.0.tgz',
+      integrity: 'sha1-JWwVltusKyPRImjatagCuy42Wsg='
+    },
+    'test-package': {
+      version: '0.0.0',
+      resolved: common.registry + '/test-package/-/test-package-0.0.0.tgz',
+      integrity: 'sha1-sNMrbEXCWcV4uiADdisgUTG9+9E='
+    }
+  }
+}
+
+test("shrinkwrap doesn't strip out the shared dependency", function (t) {
+  t.plan(3)
+
+  return common.npm(['install'], opts).spread((code) => {
+    t.is(code, 0, 'install')
+    return common.npm(['shrinkwrap'], opts)
+  }).spread((code) => {
+    t.is(code, 0, 'shrinkwrap')
+    var results = JSON.parse(fs.readFileSync(`${pkg}/npm-shrinkwrap.json`))
+    t.like(results.dependencies, desired.dependencies)
+    t.end()
+  })
+})
+
+test('cleanup', function (t) {
+  server.close()
   cleanup()
   t.end()
 })
 
-
-function setup (cb) {
+function setup () {
   cleanup()
-  process.chdir(pkg)
-
-  var opts = { cache: path.resolve(pkg, "cache"), registry: common.registry }
-  npm.load(opts, cb)
+  mkdirp.sync(pkg)
+  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify(json, null, 2))
 }
 
 function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(path.resolve(pkg, "node_modules"))
-  rimraf.sync(path.resolve(pkg, "cache"))
-  rimraf.sync(path.resolve(pkg, "npm-shrinkwrap.json"))
+  rimraf.sync(pkg)
 }

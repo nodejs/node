@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax --crankshaft
+// Flags: --use-osr --allow-natives-syntax --opt
 
 var o1 = {a : 10};
 var o2 = { };
@@ -58,4 +58,4 @@ f(10, o3);
 
 // The old code is already deoptimized, but f still points to it.
 // Disassembling it will crash.
-%DebugDisassembleFunction(f);
+%DisassembleFunction(f);

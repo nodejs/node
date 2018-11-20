@@ -1,72 +1,31 @@
-
 module.exports = bugs
 
-bugs.usage = "npm bugs <pkgname>"
+var log = require('npmlog')
+var openUrl = require('./utils/open-url')
+var fetchPackageMetadata = require('./fetch-package-metadata.js')
+var usage = require('./utils/usage')
 
-var npm = require("./npm.js")
-  , registry = npm.registry
-  , log = require("npmlog")
-  , opener = require("opener")
-  , path = require("path")
-  , readJson = require("read-package-json")
-  , npa = require("npm-package-arg")
-  , fs = require("fs")
-  , mapToRegistry = require("./utils/map-to-registry.js")
+bugs.usage = usage(
+  'bugs',
+  'npm bugs [<pkgname>]'
+)
 
 bugs.completion = function (opts, cb) {
-  if (opts.conf.argv.remain.length > 2) return cb()
-  mapToRegistry("-/short", npm.config, function (er, uri) {
-    if (er) return cb(er)
-
-    registry.get(uri, { timeout : 60000 }, function (er, list) {
-      return cb(null, list || [])
-    })
-  })
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
 function bugs (args, cb) {
-  var n = args.length && npa(args[0]).name || '.'
-  fs.stat(n, function (er, s) {
-    if (er && er.code === "ENOENT") return callRegistry(n, cb)
-    else if (er) return cb (er)
-    if (!s.isDirectory()) return callRegistry(n, cb)
-    readJson(path.resolve(n, "package.json"), function(er, d) {
-      if (er) return cb(er)
-      getUrlAndOpen(d, cb)
-    })
-  })
-}
-
-function getUrlAndOpen (d, cb) {
-  var bugs = d.bugs
-    , repo = d.repository || d.repositories
-    , url
-  if (bugs) {
-    url = (typeof url === "string") ? bugs : bugs.url
-  } else if (repo) {
-    if (Array.isArray(repo)) repo = repo.shift()
-    if (repo.hasOwnProperty("url")) repo = repo.url
-    log.verbose("repository", repo)
-    if (bugs && bugs.match(/^(https?:\/\/|git(:\/\/|@))github.com/)) {
-      url = bugs.replace(/^git(@|:\/\/)/, "https://")
-                .replace(/^https?:\/\/github.com:/, "https://github.com/")
-                .replace(/\.git$/, '')+"/issues"
-    }
-  }
-  if (!url) {
-    url = "https://npmjs.org/package/" + d.name
-  }
-  opener(url, { command: npm.config.get("browser") }, cb)
-}
-
-function callRegistry (n, cb) {
-  mapToRegistry(n, npm.config, function (er, uri) {
+  var n = args.length ? args[0] : '.'
+  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
     if (er) return cb(er)
 
-    registry.get(uri + "/latest", { timeout : 3600 }, function (er, d) {
-      if (er) return cb(er)
-
-      getUrlAndOpen (d, cb)
-    })
+    var url = d.bugs && ((typeof d.bugs === 'string') ? d.bugs : d.bugs.url)
+    if (!url) {
+      url = 'https://www.npmjs.org/package/' + d.name
+    }
+    log.silly('bugs', 'url', url)
+    openUrl(url, 'bug list available at the following URL', cb)
   })
 }

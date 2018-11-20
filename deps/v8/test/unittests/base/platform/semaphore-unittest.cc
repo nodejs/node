@@ -20,16 +20,15 @@ static const size_t kBufferSize = 987;  // GCD(buffer size, alphabet size) = 1
 static const size_t kDataSize = kBufferSize * kAlphabetSize * 10;
 
 
-class ProducerThread FINAL : public Thread {
+class ProducerThread final : public Thread {
  public:
   ProducerThread(char* buffer, Semaphore* free_space, Semaphore* used_space)
       : Thread(Options("ProducerThread")),
         buffer_(buffer),
         free_space_(free_space),
         used_space_(used_space) {}
-  virtual ~ProducerThread() {}
 
-  virtual void Run() OVERRIDE {
+  void Run() override {
     for (size_t n = 0; n < kDataSize; ++n) {
       free_space_->Wait();
       buffer_[n % kBufferSize] = kAlphabet[n % kAlphabetSize];
@@ -44,7 +43,7 @@ class ProducerThread FINAL : public Thread {
 };
 
 
-class ConsumerThread FINAL : public Thread {
+class ConsumerThread final : public Thread {
  public:
   ConsumerThread(const char* buffer, Semaphore* free_space,
                  Semaphore* used_space)
@@ -52,9 +51,8 @@ class ConsumerThread FINAL : public Thread {
         buffer_(buffer),
         free_space_(free_space),
         used_space_(used_space) {}
-  virtual ~ConsumerThread() {}
 
-  virtual void Run() OVERRIDE {
+  void Run() override {
     for (size_t n = 0; n < kDataSize; ++n) {
       used_space_->Wait();
       EXPECT_EQ(kAlphabet[n % kAlphabetSize], buffer_[n % kBufferSize]);
@@ -69,13 +67,12 @@ class ConsumerThread FINAL : public Thread {
 };
 
 
-class WaitAndSignalThread FINAL : public Thread {
+class WaitAndSignalThread final : public Thread {
  public:
   explicit WaitAndSignalThread(Semaphore* semaphore)
       : Thread(Options("WaitAndSignalThread")), semaphore_(semaphore) {}
-  virtual ~WaitAndSignalThread() {}
 
-  virtual void Run() OVERRIDE {
+  void Run() override {
     for (int n = 0; n < 100; ++n) {
       semaphore_->Wait();
       ASSERT_FALSE(semaphore_->WaitFor(TimeDelta::FromMicroseconds(1)));

@@ -5,51 +5,52 @@
 #ifndef V8_X64_MACRO_ASSEMBLER_X64_H_
 #define V8_X64_MACRO_ASSEMBLER_X64_H_
 
-#include "src/assembler.h"
 #include "src/bailout-reason.h"
-#include "src/frames.h"
+#include "src/base/flags.h"
 #include "src/globals.h"
+#include "src/turbo-assembler.h"
+#include "src/x64/assembler-x64.h"
 
 namespace v8 {
 namespace internal {
 
+// Give alias names to registers for calling conventions.
+constexpr Register kReturnRegister0 = rax;
+constexpr Register kReturnRegister1 = rdx;
+constexpr Register kReturnRegister2 = r8;
+constexpr Register kJSFunctionRegister = rdi;
+constexpr Register kContextRegister = rsi;
+constexpr Register kAllocateSizeRegister = rdx;
+constexpr Register kSpeculationPoisonRegister = r12;
+constexpr Register kInterpreterAccumulatorRegister = rax;
+constexpr Register kInterpreterBytecodeOffsetRegister = r9;
+constexpr Register kInterpreterBytecodeArrayRegister = r14;
+constexpr Register kInterpreterDispatchTableRegister = r15;
+
+constexpr Register kJavaScriptCallArgCountRegister = rax;
+constexpr Register kJavaScriptCallCodeStartRegister = rcx;
+constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
+constexpr Register kJavaScriptCallNewTargetRegister = rdx;
+constexpr Register kJavaScriptCallExtraArg1Register = rbx;
+
+constexpr Register kRuntimeCallFunctionRegister = rbx;
+constexpr Register kRuntimeCallArgCountRegister = rax;
+constexpr Register kWasmInstanceRegister = rsi;
+
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-const Register kScratchRegister = { 10 };      // r10.
-const Register kSmiConstantRegister = { 12 };  // r12 (callee save).
-const Register kRootRegister = { 13 };         // r13 (callee save).
-// Value of smi in kSmiConstantRegister.
-const int kSmiConstantRegisterValue = 1;
-// Actual value of root register is offset from the root array's start
-// to take advantage of negitive 8-bit displacement values.
-const int kRootRegisterBias = 128;
+constexpr Register kScratchRegister = r10;
+constexpr XMMRegister kScratchDoubleReg = xmm15;
+constexpr Register kRootRegister = r13;  // callee save
+
+constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
-enum PointersToHereCheck {
-  kPointersToHereMaybeInteresting,
-  kPointersToHereAreAlwaysInteresting
-};
-
-enum SmiOperationConstraint {
-  PRESERVE_SOURCE_REGISTER,
-  BAILOUT_ON_NO_OVERFLOW,
-  BAILOUT_ON_OVERFLOW,
-  NUMBER_OF_CONSTRAINTS
-};
-
-STATIC_ASSERT(NUMBER_OF_CONSTRAINTS <= 8);
-
-class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
- public:
-  SmiOperationExecutionMode() : EnumSet<SmiOperationConstraint, byte>(0) { }
-  explicit SmiOperationExecutionMode(byte bits)
-      : EnumSet<SmiOperationConstraint, byte>(bits) { }
-};
 
 #ifdef DEBUG
 bool AreAliased(Register reg1,
@@ -73,1275 +74,171 @@ struct SmiIndex {
   ScaleFactor scale;
 };
 
+enum StackArgumentsAccessorReceiverMode {
+  ARGUMENTS_CONTAIN_RECEIVER,
+  ARGUMENTS_DONT_CONTAIN_RECEIVER
+};
 
-// MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler: public Assembler {
+class StackArgumentsAccessor BASE_EMBEDDED {
  public:
-  // The isolate parameter can be NULL if the macro assembler should
-  // not use isolate-dependent functionality. In this case, it's the
-  // responsibility of the caller to never invoke such function on the
-  // macro assembler.
-  MacroAssembler(Isolate* isolate, void* buffer, int size);
+  StackArgumentsAccessor(Register base_reg, int argument_count_immediate,
+                         StackArgumentsAccessorReceiverMode receiver_mode =
+                             ARGUMENTS_CONTAIN_RECEIVER,
+                         int extra_displacement_to_last_argument = 0)
+      : base_reg_(base_reg),
+        argument_count_reg_(no_reg),
+        argument_count_immediate_(argument_count_immediate),
+        receiver_mode_(receiver_mode),
+        extra_displacement_to_last_argument_(
+            extra_displacement_to_last_argument) {}
 
-  // Prevent the use of the RootArray during the lifetime of this
-  // scope object.
-  class NoRootArrayScope BASE_EMBEDDED {
-   public:
-    explicit NoRootArrayScope(MacroAssembler* assembler)
-        : variable_(&assembler->root_array_available_),
-          old_value_(assembler->root_array_available_) {
-      assembler->root_array_available_ = false;
+  StackArgumentsAccessor(Register base_reg, Register argument_count_reg,
+                         StackArgumentsAccessorReceiverMode receiver_mode =
+                             ARGUMENTS_CONTAIN_RECEIVER,
+                         int extra_displacement_to_last_argument = 0)
+      : base_reg_(base_reg),
+        argument_count_reg_(argument_count_reg),
+        argument_count_immediate_(0),
+        receiver_mode_(receiver_mode),
+        extra_displacement_to_last_argument_(
+            extra_displacement_to_last_argument) {}
+
+  StackArgumentsAccessor(Register base_reg,
+                         const ParameterCount& parameter_count,
+                         StackArgumentsAccessorReceiverMode receiver_mode =
+                             ARGUMENTS_CONTAIN_RECEIVER,
+                         int extra_displacement_to_last_argument = 0);
+
+  Operand GetArgumentOperand(int index);
+  Operand GetReceiverOperand() {
+    DCHECK(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
+    return GetArgumentOperand(0);
+  }
+
+ private:
+  const Register base_reg_;
+  const Register argument_count_reg_;
+  const int argument_count_immediate_;
+  const StackArgumentsAccessorReceiverMode receiver_mode_;
+  const int extra_displacement_to_last_argument_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
+};
+
+class TurboAssembler : public TurboAssemblerBase {
+ public:
+  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
+      : TurboAssemblerBase(isolate, options, buffer, buffer_size,
+                           create_code_object) {}
+
+  template <typename Dst, typename... Args>
+  struct AvxHelper {
+    Assembler* assm;
+    // Call an method where the AVX version expects the dst argument to be
+    // duplicated.
+    template <void (Assembler::*avx)(Dst, Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
     }
-    ~NoRootArrayScope() {
-      *variable_ = old_value_;
+
+    // Call an method where the AVX version expects no duplicated dst argument.
+    template <void (Assembler::*avx)(Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
     }
-   private:
-    bool* variable_;
-    bool old_value_;
   };
 
-  // Operand pointing to an external reference.
-  // May emit code to set up the scratch register. The operand is
-  // only guaranteed to be correct as long as the scratch register
-  // isn't changed.
-  // If the operand is used more than once, use a scratch register
-  // that is guaranteed not to be clobbered.
-  Operand ExternalOperand(ExternalReference reference,
-                          Register scratch = kScratchRegister);
-  // Loads and stores the value of an external reference.
-  // Special case code for load and store to take advantage of
-  // load_rax/store_rax if possible/necessary.
-  // For other operations, just use:
-  //   Operand operand = ExternalOperand(extref);
-  //   operation(operand, ..);
-  void Load(Register destination, ExternalReference source);
-  void Store(ExternalReference destination, Register source);
-  // Loads the address of the external reference into the destination
-  // register.
-  void LoadAddress(Register destination, ExternalReference source);
-  // Returns the size of the code generated by LoadAddress.
-  // Used by CallSize(ExternalReference) to find the size of a call.
-  int LoadAddressSize(ExternalReference source);
-  // Pushes the address of the external reference onto the stack.
-  void PushAddress(ExternalReference source);
-
-  // Operations on roots in the root-array.
-  void LoadRoot(Register destination, Heap::RootListIndex index);
-  void StoreRoot(Register source, Heap::RootListIndex index);
-  // Load a root value where the index (or part of it) is variable.
-  // The variable_offset register is added to the fixed_offset value
-  // to get the index into the root-array.
-  void LoadRootIndexed(Register destination,
-                       Register variable_offset,
-                       int fixed_offset);
-  void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(const Operand& with, Heap::RootListIndex index);
-  void PushRoot(Heap::RootListIndex index);
-
-  // These functions do not arrange the registers in any particular order so
-  // they are not useful for calls that can cause a GC.  The caller can
-  // exclude up to 3 registers that do not need to be saved and restored.
-  void PushCallerSaved(SaveFPRegsMode fp_mode,
-                       Register exclusion1 = no_reg,
-                       Register exclusion2 = no_reg,
-                       Register exclusion3 = no_reg);
-  void PopCallerSaved(SaveFPRegsMode fp_mode,
-                      Register exclusion1 = no_reg,
-                      Register exclusion2 = no_reg,
-                      Register exclusion3 = no_reg);
-
-// ---------------------------------------------------------------------------
-// GC Support
-
-
-  enum RememberedSetFinalAction {
-    kReturnAtEnd,
-    kFallThroughAtEnd
-  };
-
-  // Record in the remembered set the fact that we have a pointer to new space
-  // at the address pointed to by the addr register.  Only works if addr is not
-  // in new space.
-  void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr,
-                           Register scratch,
-                           SaveFPRegsMode save_fp,
-                           RememberedSetFinalAction and_then);
-
-  void CheckPageFlag(Register object,
-                     Register scratch,
-                     int mask,
-                     Condition cc,
-                     Label* condition_met,
-                     Label::Distance condition_met_distance = Label::kFar);
-
-  void CheckMapDeprecated(Handle<Map> map,
-                          Register scratch,
-                          Label* if_deprecated);
-
-  // Check if object is in new space.  Jumps if the object is not in new space.
-  // The register scratch can be object itself, but scratch will be clobbered.
-  void JumpIfNotInNewSpace(Register object,
-                           Register scratch,
-                           Label* branch,
-                           Label::Distance distance = Label::kFar) {
-    InNewSpace(object, scratch, not_equal, branch, distance);
+#define AVX_OP(macro_name, name)                                             \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this}                                            \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
   }
 
-  // Check if object is in new space.  Jumps if the object is in new space.
-  // The register scratch can be object itself, but it will be clobbered.
-  void JumpIfInNewSpace(Register object,
-                        Register scratch,
-                        Label* branch,
-                        Label::Distance distance = Label::kFar) {
-    InNewSpace(object, scratch, equal, branch, distance);
-  }
-
-  // Check if an object has the black incremental marking color.  Also uses rcx!
-  void JumpIfBlack(Register object,
-                   Register scratch0,
-                   Register scratch1,
-                   Label* on_black,
-                   Label::Distance on_black_distance = Label::kFar);
-
-  // Detects conservatively whether an object is data-only, i.e. it does need to
-  // be scanned by the garbage collector.
-  void JumpIfDataObject(Register value,
-                        Register scratch,
-                        Label* not_data_object,
-                        Label::Distance not_data_object_distance);
-
-  // Checks the color of an object.  If the object is already grey or black
-  // then we just fall through, since it is already live.  If it is white and
-  // we can determine that it doesn't need to be scanned, then we just mark it
-  // black and fall through.  For the rest we jump to the label so the
-  // incremental marker can fix its assumptions.
-  void EnsureNotWhite(Register object,
-                      Register scratch1,
-                      Register scratch2,
-                      Label* object_is_white_and_not_data,
-                      Label::Distance distance);
-
-  // Notify the garbage collector that we wrote a pointer into an object.
-  // |object| is the object being stored into, |value| is the object being
-  // stored.  value and scratch registers are clobbered by the operation.
-  // The offset is the offset from the start of the object, not the offset from
-  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
-  void RecordWriteField(
-      Register object,
-      int offset,
-      Register value,
-      Register scratch,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting);
-
-  // As above, but the offset has the tag presubtracted.  For use with
-  // Operand(reg, off).
-  void RecordWriteContextSlot(
-      Register context,
-      int offset,
-      Register value,
-      Register scratch,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting) {
-    RecordWriteField(context,
-                     offset + kHeapObjectTag,
-                     value,
-                     scratch,
-                     save_fp,
-                     remembered_set_action,
-                     smi_check,
-                     pointers_to_here_check_for_value);
-  }
-
-  // Notify the garbage collector that we wrote a pointer into a fixed array.
-  // |array| is the array being stored into, |value| is the
-  // object being stored.  |index| is the array index represented as a non-smi.
-  // All registers are clobbered by the operation RecordWriteArray
-  // filters out smis so it does not update the write barrier if the
-  // value is a smi.
-  void RecordWriteArray(
-      Register array,
-      Register value,
-      Register index,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting);
-
-  void RecordWriteForMap(
-      Register object,
-      Register map,
-      Register dst,
-      SaveFPRegsMode save_fp);
-
-  // For page containing |object| mark region covering |address|
-  // dirty. |object| is the object being stored into, |value| is the
-  // object being stored. The address and value registers are clobbered by the
-  // operation.  RecordWrite filters out smis so it does not update
-  // the write barrier if the value is a smi.
-  void RecordWrite(
-      Register object,
-      Register address,
-      Register value,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting);
-
-  // ---------------------------------------------------------------------------
-  // Debugger Support
-
-  void DebugBreak();
-
-  // Generates function and stub prologue code.
-  void StubPrologue();
-  void Prologue(bool code_pre_aging);
-
-  // Enter specific kind of exit frame; either in normal or
-  // debug mode. Expects the number of arguments in register rax and
-  // sets up the number of arguments in register rdi and the pointer
-  // to the first argument in register rsi.
-  //
-  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
-  // accessible via StackSpaceOperand.
-  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false);
-
-  // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
-  // memory (not GCed) on the stack accessible via StackSpaceOperand.
-  void EnterApiExitFrame(int arg_stack_space);
-
-  // Leave the current exit frame. Expects/provides the return value in
-  // register rax:rdx (untouched) and the pointer to the first
-  // argument in register rsi.
-  void LeaveExitFrame(bool save_doubles = false);
-
-  // Leave the current exit frame. Expects/provides the return value in
-  // register rax (untouched).
-  void LeaveApiExitFrame(bool restore_context);
-
-  // Push and pop the registers that can hold pointers.
-  void PushSafepointRegisters() { Pushad(); }
-  void PopSafepointRegisters() { Popad(); }
-  // Store the value in register src in the safepoint register stack
-  // slot for register dst.
-  void StoreToSafepointRegisterSlot(Register dst, const Immediate& imm);
-  void StoreToSafepointRegisterSlot(Register dst, Register src);
-  void LoadFromSafepointRegisterSlot(Register dst, Register src);
-
-  void InitializeRootRegister() {
-    ExternalReference roots_array_start =
-        ExternalReference::roots_array_start(isolate());
-    Move(kRootRegister, roots_array_start);
-    addp(kRootRegister, Immediate(kRootRegisterBias));
-  }
-
-  // ---------------------------------------------------------------------------
-  // JavaScript invokes
-
-  // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeCode(Register code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  InvokeFlag flag,
-                  const CallWrapper& call_wrapper);
-
-  // Invoke the JavaScript function in the given register. Changes the
-  // current context to the context in the function before invoking.
-  void InvokeFunction(Register function,
-                      const ParameterCount& actual,
-                      InvokeFlag flag,
-                      const CallWrapper& call_wrapper);
-
-  void InvokeFunction(Register function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual,
-                      InvokeFlag flag,
-                      const CallWrapper& call_wrapper);
-
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual,
-                      InvokeFlag flag,
-                      const CallWrapper& call_wrapper);
-
-  // Invoke specified builtin JavaScript function. Adds an entry to
-  // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
-
-  // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, Builtins::JavaScript id);
-
-  // Store the code object for the given builtin in the target register.
-  void GetBuiltinEntry(Register target, Builtins::JavaScript id);
-
-
-  // ---------------------------------------------------------------------------
-  // Smi tagging, untagging and operations on tagged smis.
-
-  // Support for constant splitting.
-  bool IsUnsafeInt(const int32_t x);
-  void SafeMove(Register dst, Smi* src);
-  void SafePush(Smi* src);
-
-  void InitializeSmiConstantRegister() {
-    Move(kSmiConstantRegister, Smi::FromInt(kSmiConstantRegisterValue),
-         Assembler::RelocInfoNone());
-  }
-
-  // Conversions between tagged smi values and non-tagged integer values.
-
-  // Tag an integer value. The result must be known to be a valid smi value.
-  // Only uses the low 32 bits of the src register. Sets the N and Z flags
-  // based on the value of the resulting smi.
-  void Integer32ToSmi(Register dst, Register src);
-
-  // Stores an integer32 value into a memory field that already holds a smi.
-  void Integer32ToSmiField(const Operand& dst, Register src);
-
-  // Adds constant to src and tags the result as a smi.
-  // Result must be a valid smi.
-  void Integer64PlusConstantToSmi(Register dst, Register src, int constant);
-
-  // Convert smi to 32-bit integer. I.e., not sign extended into
-  // high 32 bits of destination.
-  void SmiToInteger32(Register dst, Register src);
-  void SmiToInteger32(Register dst, const Operand& src);
-
-  // Convert smi to 64-bit integer (sign extended if necessary).
-  void SmiToInteger64(Register dst, Register src);
-  void SmiToInteger64(Register dst, const Operand& src);
-
-  // Multiply a positive smi's integer value by a power of two.
-  // Provides result as 64-bit integer value.
-  void PositiveSmiTimesPowerOfTwoToInteger64(Register dst,
-                                             Register src,
-                                             int power);
-
-  // Divide a positive smi's integer value by a power of two.
-  // Provides result as 32-bit integer value.
-  void PositiveSmiDivPowerOfTwoToInteger32(Register dst,
-                                           Register src,
-                                           int power);
-
-  // Perform the logical or of two smi values and return a smi value.
-  // If either argument is not a smi, jump to on_not_smis and retain
-  // the original values of source registers. The destination register
-  // may be changed if it's not one of the source registers.
-  void SmiOrIfSmis(Register dst,
-                   Register src1,
-                   Register src2,
-                   Label* on_not_smis,
-                   Label::Distance near_jump = Label::kFar);
-
-
-  // Simple comparison of smis.  Both sides must be known smis to use these,
-  // otherwise use Cmp.
-  void SmiCompare(Register smi1, Register smi2);
-  void SmiCompare(Register dst, Smi* src);
-  void SmiCompare(Register dst, const Operand& src);
-  void SmiCompare(const Operand& dst, Register src);
-  void SmiCompare(const Operand& dst, Smi* src);
-  // Compare the int32 in src register to the value of the smi stored at dst.
-  void SmiCompareInteger32(const Operand& dst, Register src);
-  // Sets sign and zero flags depending on value of smi in register.
-  void SmiTest(Register src);
-
-  // Functions performing a check on a known or potential smi. Returns
-  // a condition that is satisfied if the check is successful.
-
-  // Is the value a tagged smi.
-  Condition CheckSmi(Register src);
-  Condition CheckSmi(const Operand& src);
-
-  // Is the value a non-negative tagged smi.
-  Condition CheckNonNegativeSmi(Register src);
-
-  // Are both values tagged smis.
-  Condition CheckBothSmi(Register first, Register second);
-
-  // Are both values non-negative tagged smis.
-  Condition CheckBothNonNegativeSmi(Register first, Register second);
-
-  // Are either value a tagged smi.
-  Condition CheckEitherSmi(Register first,
-                           Register second,
-                           Register scratch = kScratchRegister);
-
-  // Is the value the minimum smi value (since we are using
-  // two's complement numbers, negating the value is known to yield
-  // a non-smi value).
-  Condition CheckIsMinSmi(Register src);
-
-  // Checks whether an 32-bit integer value is a valid for conversion
-  // to a smi.
-  Condition CheckInteger32ValidSmiValue(Register src);
-
-  // Checks whether an 32-bit unsigned integer value is a valid for
-  // conversion to a smi.
-  Condition CheckUInteger32ValidSmiValue(Register src);
-
-  // Check whether src is a Smi, and set dst to zero if it is a smi,
-  // and to one if it isn't.
-  void CheckSmiToIndicator(Register dst, Register src);
-  void CheckSmiToIndicator(Register dst, const Operand& src);
-
-  // Test-and-jump functions. Typically combines a check function
-  // above with a conditional jump.
-
-  // Jump if the value can be represented by a smi.
-  void JumpIfValidSmiValue(Register src, Label* on_valid,
-                           Label::Distance near_jump = Label::kFar);
-
-  // Jump if the value cannot be represented by a smi.
-  void JumpIfNotValidSmiValue(Register src, Label* on_invalid,
-                              Label::Distance near_jump = Label::kFar);
-
-  // Jump if the unsigned integer value can be represented by a smi.
-  void JumpIfUIntValidSmiValue(Register src, Label* on_valid,
-                               Label::Distance near_jump = Label::kFar);
-
-  // Jump if the unsigned integer value cannot be represented by a smi.
-  void JumpIfUIntNotValidSmiValue(Register src, Label* on_invalid,
-                                  Label::Distance near_jump = Label::kFar);
-
-  // Jump to label if the value is a tagged smi.
-  void JumpIfSmi(Register src,
-                 Label* on_smi,
-                 Label::Distance near_jump = Label::kFar);
-
-  // Jump to label if the value is not a tagged smi.
-  void JumpIfNotSmi(Register src,
-                    Label* on_not_smi,
-                    Label::Distance near_jump = Label::kFar);
-
-  // Jump to label if the value is not a non-negative tagged smi.
-  void JumpUnlessNonNegativeSmi(Register src,
-                                Label* on_not_smi,
-                                Label::Distance near_jump = Label::kFar);
-
-  // Jump to label if the value, which must be a tagged smi, has value equal
-  // to the constant.
-  void JumpIfSmiEqualsConstant(Register src,
-                               Smi* constant,
-                               Label* on_equals,
-                               Label::Distance near_jump = Label::kFar);
-
-  // Jump if either or both register are not smi values.
-  void JumpIfNotBothSmi(Register src1,
-                        Register src2,
-                        Label* on_not_both_smi,
-                        Label::Distance near_jump = Label::kFar);
-
-  // Jump if either or both register are not non-negative smi values.
-  void JumpUnlessBothNonNegativeSmi(Register src1, Register src2,
-                                    Label* on_not_both_smi,
-                                    Label::Distance near_jump = Label::kFar);
-
-  // Operations on tagged smi values.
-
-  // Smis represent a subset of integers. The subset is always equivalent to
-  // a two's complement interpretation of a fixed number of bits.
-
-  // Add an integer constant to a tagged smi, giving a tagged smi as result.
-  // No overflow testing on the result is done.
-  void SmiAddConstant(Register dst, Register src, Smi* constant);
-
-  // Add an integer constant to a tagged smi, giving a tagged smi as result.
-  // No overflow testing on the result is done.
-  void SmiAddConstant(const Operand& dst, Smi* constant);
-
-  // Add an integer constant to a tagged smi, giving a tagged smi as result,
-  // or jumping to a label if the result cannot be represented by a smi.
-  void SmiAddConstant(Register dst,
-                      Register src,
-                      Smi* constant,
-                      SmiOperationExecutionMode mode,
-                      Label* bailout_label,
-                      Label::Distance near_jump = Label::kFar);
-
-  // Subtract an integer constant from a tagged smi, giving a tagged smi as
-  // result. No testing on the result is done. Sets the N and Z flags
-  // based on the value of the resulting integer.
-  void SmiSubConstant(Register dst, Register src, Smi* constant);
-
-  // Subtract an integer constant from a tagged smi, giving a tagged smi as
-  // result, or jumping to a label if the result cannot be represented by a smi.
-  void SmiSubConstant(Register dst,
-                      Register src,
-                      Smi* constant,
-                      SmiOperationExecutionMode mode,
-                      Label* bailout_label,
-                      Label::Distance near_jump = Label::kFar);
-
-  // Negating a smi can give a negative zero or too large positive value.
-  // NOTICE: This operation jumps on success, not failure!
-  void SmiNeg(Register dst,
-              Register src,
-              Label* on_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  // Adds smi values and return the result as a smi.
-  // If dst is src1, then src1 will be destroyed if the operation is
-  // successful, otherwise kept intact.
-  void SmiAdd(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-  void SmiAdd(Register dst,
-              Register src1,
-              const Operand& src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  void SmiAdd(Register dst,
-              Register src1,
-              Register src2);
-
-  // Subtracts smi values and return the result as a smi.
-  // If dst is src1, then src1 will be destroyed if the operation is
-  // successful, otherwise kept intact.
-  void SmiSub(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-  void SmiSub(Register dst,
-              Register src1,
-              const Operand& src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  void SmiSub(Register dst,
-              Register src1,
-              Register src2);
-
-  void SmiSub(Register dst,
-              Register src1,
-              const Operand& src2);
-
-  // Multiplies smi values and return the result as a smi,
-  // if possible.
-  // If dst is src1, then src1 will be destroyed, even if
-  // the operation is unsuccessful.
-  void SmiMul(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  // Divides one smi by another and returns the quotient.
-  // Clobbers rax and rdx registers.
-  void SmiDiv(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  // Divides one smi by another and returns the remainder.
-  // Clobbers rax and rdx registers.
-  void SmiMod(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  // Bitwise operations.
-  void SmiNot(Register dst, Register src);
-  void SmiAnd(Register dst, Register src1, Register src2);
-  void SmiOr(Register dst, Register src1, Register src2);
-  void SmiXor(Register dst, Register src1, Register src2);
-  void SmiAndConstant(Register dst, Register src1, Smi* constant);
-  void SmiOrConstant(Register dst, Register src1, Smi* constant);
-  void SmiXorConstant(Register dst, Register src1, Smi* constant);
-
-  void SmiShiftLeftConstant(Register dst,
-                            Register src,
-                            int shift_value,
-                            Label* on_not_smi_result = NULL,
-                            Label::Distance near_jump = Label::kFar);
-  void SmiShiftLogicalRightConstant(Register dst,
-                                    Register src,
-                                    int shift_value,
-                                    Label* on_not_smi_result,
-                                    Label::Distance near_jump = Label::kFar);
-  void SmiShiftArithmeticRightConstant(Register dst,
-                                       Register src,
-                                       int shift_value);
-
-  // Shifts a smi value to the left, and returns the result if that is a smi.
-  // Uses and clobbers rcx, so dst may not be rcx.
-  void SmiShiftLeft(Register dst,
-                    Register src1,
-                    Register src2,
-                    Label* on_not_smi_result = NULL,
-                    Label::Distance near_jump = Label::kFar);
-  // Shifts a smi value to the right, shifting in zero bits at the top, and
-  // returns the unsigned intepretation of the result if that is a smi.
-  // Uses and clobbers rcx, so dst may not be rcx.
-  void SmiShiftLogicalRight(Register dst,
-                            Register src1,
-                            Register src2,
-                            Label* on_not_smi_result,
-                            Label::Distance near_jump = Label::kFar);
-  // Shifts a smi value to the right, sign extending the top, and
-  // returns the signed intepretation of the result. That will always
-  // be a valid smi value, since it's numerically smaller than the
-  // original.
-  // Uses and clobbers rcx, so dst may not be rcx.
-  void SmiShiftArithmeticRight(Register dst,
-                               Register src1,
-                               Register src2);
-
-  // Specialized operations
-
-  // Select the non-smi register of two registers where exactly one is a
-  // smi. If neither are smis, jump to the failure label.
-  void SelectNonSmi(Register dst,
-                    Register src1,
-                    Register src2,
-                    Label* on_not_smis,
-                    Label::Distance near_jump = Label::kFar);
-
-  // Converts, if necessary, a smi to a combination of number and
-  // multiplier to be used as a scaled index.
-  // The src register contains a *positive* smi value. The shift is the
-  // power of two to multiply the index value by (e.g.
-  // to index by smi-value * kPointerSize, pass the smi and kPointerSizeLog2).
-  // The returned index register may be either src or dst, depending
-  // on what is most efficient. If src and dst are different registers,
-  // src is always unchanged.
-  SmiIndex SmiToIndex(Register dst, Register src, int shift);
-
-  // Converts a positive smi to a negative index.
-  SmiIndex SmiToNegativeIndex(Register dst, Register src, int shift);
-
-  // Add the value of a smi in memory to an int32 register.
-  // Sets flags as a normal add.
-  void AddSmiField(Register dst, const Operand& src);
-
-  // Basic Smi operations.
-  void Move(Register dst, Smi* source) {
-    LoadSmiConstant(dst, source);
-  }
-
-  void Move(const Operand& dst, Smi* source) {
-    Register constant = GetSmiConstant(source);
-    movp(dst, constant);
-  }
-
-  void Push(Smi* smi);
-
-  // Save away a raw integer with pointer size on the stack as two integers
-  // masquerading as smis so that the garbage collector skips visiting them.
-  void PushRegisterAsTwoSmis(Register src, Register scratch = kScratchRegister);
-  // Reconstruct a raw integer with pointer size from two integers masquerading
-  // as smis on the top of stack.
-  void PopRegisterAsTwoSmis(Register dst, Register scratch = kScratchRegister);
-
-  void Test(const Operand& dst, Smi* source);
-
-
-  // ---------------------------------------------------------------------------
-  // String macros.
-
-  // Generate code to do a lookup in the number string cache. If the number in
-  // the register object is found in the cache the generated code falls through
-  // with the result in the result register. The object and the result register
-  // can be the same. If the number is not found in the cache the code jumps to
-  // the label not_found with only the content of register object unchanged.
-  void LookupNumberStringCache(Register object,
-                               Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* not_found);
-
-  // If object is a string, its map is loaded into object_map.
-  void JumpIfNotString(Register object,
-                       Register object_map,
-                       Label* not_string,
-                       Label::Distance near_jump = Label::kFar);
-
-
-  void JumpIfNotBothSequentialOneByteStrings(
-      Register first_object, Register second_object, Register scratch1,
-      Register scratch2, Label* on_not_both_flat_one_byte,
-      Label::Distance near_jump = Label::kFar);
-
-  // Check whether the instance type represents a flat one-byte string. Jump
-  // to the label if not. If the instance type can be scratched specify same
-  // register for both instance type and scratch.
-  void JumpIfInstanceTypeIsNotSequentialOneByte(
-      Register instance_type, Register scratch,
-      Label* on_not_flat_one_byte_string,
-      Label::Distance near_jump = Label::kFar);
-
-  void JumpIfBothInstanceTypesAreNotSequentialOneByte(
-      Register first_object_instance_type, Register second_object_instance_type,
-      Register scratch1, Register scratch2, Label* on_fail,
-      Label::Distance near_jump = Label::kFar);
-
-  void EmitSeqStringSetCharCheck(Register string,
-                                 Register index,
-                                 Register value,
-                                 uint32_t encoding_mask);
-
-  // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
-                                       Label::Distance distance = Label::kFar);
-  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
-                                       Label::Distance distance = Label::kFar);
-
-  // ---------------------------------------------------------------------------
-  // Macro instructions.
-
-  // Load/store with specific representation.
-  void Load(Register dst, const Operand& src, Representation r);
-  void Store(const Operand& dst, Register src, Representation r);
+  AVX_OP(Subsd, subsd)
+  AVX_OP(Divss, divss)
+  AVX_OP(Divsd, divsd)
+  AVX_OP(Xorps, xorps)
+  AVX_OP(Xorpd, xorpd)
+  AVX_OP(Movd, movd)
+  AVX_OP(Movq, movq)
+  AVX_OP(Movaps, movaps)
+  AVX_OP(Movapd, movapd)
+  AVX_OP(Movups, movups)
+  AVX_OP(Movmskps, movmskps)
+  AVX_OP(Movmskpd, movmskpd)
+  AVX_OP(Movss, movss)
+  AVX_OP(Movsd, movsd)
+  AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP(Pslld, pslld)
+  AVX_OP(Psllq, psllq)
+  AVX_OP(Psrld, psrld)
+  AVX_OP(Psrlq, psrlq)
+  AVX_OP(Addsd, addsd)
+  AVX_OP(Mulsd, mulsd)
+  AVX_OP(Andps, andps)
+  AVX_OP(Andpd, andpd)
+  AVX_OP(Orpd, orpd)
+  AVX_OP(Cmpeqps, cmpeqps)
+  AVX_OP(Cmpltps, cmpltps)
+  AVX_OP(Cmpleps, cmpleps)
+  AVX_OP(Cmpneqps, cmpneqps)
+  AVX_OP(Cmpnltps, cmpnltps)
+  AVX_OP(Cmpnleps, cmpnleps)
+  AVX_OP(Cmpeqpd, cmpeqpd)
+  AVX_OP(Cmpltpd, cmpltpd)
+  AVX_OP(Cmplepd, cmplepd)
+  AVX_OP(Cmpneqpd, cmpneqpd)
+  AVX_OP(Cmpnltpd, cmpnltpd)
+  AVX_OP(Cmpnlepd, cmpnlepd)
+  AVX_OP(Roundss, roundss)
+  AVX_OP(Roundsd, roundsd)
+  AVX_OP(Sqrtss, sqrtss)
+  AVX_OP(Sqrtsd, sqrtsd)
+  AVX_OP(Ucomiss, ucomiss)
+  AVX_OP(Ucomisd, ucomisd)
+
+#undef AVX_OP
+
+  void PushReturnAddressFrom(Register src) { pushq(src); }
+  void PopReturnAddressTo(Register dst) { popq(dst); }
+
+  void Ret();
+
+  // Return and drop arguments from stack, where the number of arguments
+  // may be bigger than 2^16 - 1.  Requires a scratch register.
+  void Ret(int bytes_dropped, Register scratch);
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
-  void Set(const Operand& dst, intptr_t x);
+  void Set(Operand dst, intptr_t x);
 
-  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
-  // hinders register renaming and makes dependence chains longer. So we use
-  // xorps to clear the dst register before cvtsi2sd to solve this issue.
-  void Cvtlsi2sd(XMMRegister dst, Register src);
-  void Cvtlsi2sd(XMMRegister dst, const Operand& src);
+  // Operations on roots in the root-array.
+  void LoadRoot(Register destination, Heap::RootListIndex index) override;
+  void LoadRoot(Operand destination, Heap::RootListIndex index) {
+    LoadRoot(kScratchRegister, index);
+    movp(destination, kScratchRegister);
+  }
 
-  // Move if the registers are not identical.
-  void Move(Register target, Register source);
-
-  // TestBit and Load SharedFunctionInfo special field.
-  void TestBitSharedFunctionInfoSpecialField(Register base,
-                                             int offset,
-                                             int bit_index);
-  void LoadSharedFunctionInfoSpecialField(Register dst,
-                                          Register base,
-                                          int offset);
-
-  // Handle support
-  void Move(Register dst, Handle<Object> source);
-  void Move(const Operand& dst, Handle<Object> source);
-  void Cmp(Register dst, Handle<Object> source);
-  void Cmp(const Operand& dst, Handle<Object> source);
-  void Cmp(Register dst, Smi* src);
-  void Cmp(const Operand& dst, Smi* src);
-  void Push(Handle<Object> source);
-
-  // Load a heap object and handle the case of new-space objects by
-  // indirecting via a global cell.
-  void MoveHeapObject(Register result, Handle<Object> object);
-
-  // Load a global cell into a register.
-  void LoadGlobalCell(Register dst, Handle<Cell> cell);
-
-  // Emit code to discard a non-negative number of pointer-sized elements
-  // from the stack, clobbering only the rsp register.
-  void Drop(int stack_elements);
-  // Emit code to discard a positive number of pointer-sized elements
-  // from the stack under the return address which remains on the top,
-  // clobbering the rsp register.
-  void DropUnderReturnAddress(int stack_elements,
-                              Register scratch = kScratchRegister);
-
-  void Call(Label* target) { call(target); }
   void Push(Register src);
-  void Push(const Operand& src);
-  void PushQuad(const Operand& src);
+  void Push(Operand src);
   void Push(Immediate value);
-  void PushImm32(int32_t imm32);
-  void Pop(Register dst);
-  void Pop(const Operand& dst);
-  void PopQuad(const Operand& dst);
-  void PushReturnAddressFrom(Register src) { pushq(src); }
-  void PopReturnAddressTo(Register dst) { popq(dst); }
-  void Move(Register dst, ExternalReference ext) {
-    movp(dst, reinterpret_cast<void*>(ext.address()),
-         RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  // Loads a pointer into a register with a relocation mode.
-  void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
-    // This method must not be used with heap object references. The stored
-    // address is not GC safe. Use the handle version instead.
-    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
-    movp(dst, ptr, rmode);
-  }
-
-  void Move(Register dst, Handle<Object> value, RelocInfo::Mode rmode) {
-    AllowDeferredHandleDereference using_raw_address;
-    DCHECK(!RelocInfo::IsNone(rmode));
-    DCHECK(value->IsHeapObject());
-    DCHECK(!isolate()->heap()->InNewSpace(*value));
-    movp(dst, reinterpret_cast<void*>(value.location()), rmode);
-  }
-
-  void Move(XMMRegister dst, uint32_t src);
-  void Move(XMMRegister dst, uint64_t src);
-
-  // Control Flow
-  void Jump(Address destination, RelocInfo::Mode rmode);
-  void Jump(ExternalReference ext);
-  void Jump(const Operand& op);
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
-
-  void Call(Address destination, RelocInfo::Mode rmode);
-  void Call(ExternalReference ext);
-  void Call(const Operand& op);
-  void Call(Handle<Code> code_object,
-            RelocInfo::Mode rmode,
-            TypeFeedbackId ast_id = TypeFeedbackId::None());
-
-  // The size of the code generated for different call instructions.
-  int CallSize(Address destination) {
-    return kCallSequenceLength;
-  }
-  int CallSize(ExternalReference ext);
-  int CallSize(Handle<Code> code_object) {
-    // Code calls use 32-bit relative addressing.
-    return kShortCallInstructionLength;
-  }
-  int CallSize(Register target) {
-    // Opcode: REX_opt FF /2 m64
-    return (target.high_bit() != 0) ? 3 : 2;
-  }
-  int CallSize(const Operand& target) {
-    // Opcode: REX_opt FF /2 m64
-    return (target.requires_rex() ? 2 : 1) + target.operand_size();
-  }
-
-  // Emit call to the code we are currently generating.
-  void CallSelf() {
-    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
-    Call(self, RelocInfo::CODE_TARGET);
-  }
-
-  // Non-x64 instructions.
-  // Push/pop all general purpose registers.
-  // Does not push rsp/rbp nor any of the assembler's special purpose registers
-  // (kScratchRegister, kSmiConstantRegister, kRootRegister).
-  void Pushad();
-  void Popad();
-  // Sets the stack as after performing Popad, without actually loading the
-  // registers.
-  void Dropad();
-
-  // Compare object type for heap object.
-  // Always use unsigned comparisons: above and below, not less and greater.
-  // Incoming register is heap_object and outgoing register is map.
-  // They may be the same register, and may be kScratchRegister.
-  void CmpObjectType(Register heap_object, InstanceType type, Register map);
-
-  // Compare instance type for map.
-  // Always use unsigned comparisons: above and below, not less and greater.
-  void CmpInstanceType(Register map, InstanceType type);
-
-  // Check if a map for a JSObject indicates that the object has fast elements.
-  // Jump to the specified label if it does not.
-  void CheckFastElements(Register map,
-                         Label* fail,
-                         Label::Distance distance = Label::kFar);
-
-  // Check if a map for a JSObject indicates that the object can have both smi
-  // and HeapObject elements.  Jump to the specified label if it does not.
-  void CheckFastObjectElements(Register map,
-                               Label* fail,
-                               Label::Distance distance = Label::kFar);
-
-  // Check if a map for a JSObject indicates that the object has fast smi only
-  // elements.  Jump to the specified label if it does not.
-  void CheckFastSmiElements(Register map,
-                            Label* fail,
-                            Label::Distance distance = Label::kFar);
-
-  // Check to see if maybe_number can be stored as a double in
-  // FastDoubleElements. If it can, store it at the index specified by index in
-  // the FastDoubleElements array elements, otherwise jump to fail.  Note that
-  // index must not be smi-tagged.
-  void StoreNumberToDoubleElements(Register maybe_number,
-                                   Register elements,
-                                   Register index,
-                                   XMMRegister xmm_scratch,
-                                   Label* fail,
-                                   int elements_offset = 0);
-
-  // Compare an object's map with the specified map.
-  void CompareMap(Register obj, Handle<Map> map);
-
-  // Check if the map of an object is equal to a specified map and branch to
-  // label if not. Skip the smi check if not required (object is known to be a
-  // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
-  // against maps that are ElementsKind transition maps of the specified map.
-  void CheckMap(Register obj,
-                Handle<Map> map,
-                Label* fail,
-                SmiCheckType smi_check_type);
-
-  // Check if the map of an object is equal to a specified map and branch to a
-  // specified target if equal. Skip the smi check if not required (object is
-  // known to be a heap object)
-  void DispatchMap(Register obj,
-                   Register unused,
-                   Handle<Map> map,
-                   Handle<Code> success,
-                   SmiCheckType smi_check_type);
-
-  // Check if the object in register heap_object is a string. Afterwards the
-  // register map contains the object map and the register instance_type
-  // contains the instance_type. The registers map and instance_type can be the
-  // same in which case it contains the instance type afterwards. Either of the
-  // registers map and instance_type can be the same as heap_object.
-  Condition IsObjectStringType(Register heap_object,
-                               Register map,
-                               Register instance_type);
-
-  // Check if the object in register heap_object is a name. Afterwards the
-  // register map contains the object map and the register instance_type
-  // contains the instance_type. The registers map and instance_type can be the
-  // same in which case it contains the instance type afterwards. Either of the
-  // registers map and instance_type can be the same as heap_object.
-  Condition IsObjectNameType(Register heap_object,
-                             Register map,
-                             Register instance_type);
-
-  // FCmp compares and pops the two values on top of the FPU stack.
-  // The flag results are similar to integer cmp, but requires unsigned
-  // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
-  void FCmp();
-
-  void ClampUint8(Register reg);
-
-  void ClampDoubleToUint8(XMMRegister input_reg,
-                          XMMRegister temp_xmm_reg,
-                          Register result_reg);
-
-  void SlowTruncateToI(Register result_reg, Register input_reg,
-      int offset = HeapNumber::kValueOffset - kHeapObjectTag);
-
-  void TruncateHeapNumberToI(Register result_reg, Register input_reg);
-  void TruncateDoubleToI(Register result_reg, XMMRegister input_reg);
-
-  void DoubleToI(Register result_reg, XMMRegister input_reg,
-                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
-                 Label* lost_precision, Label* is_nan, Label* minus_zero,
-                 Label::Distance dst = Label::kFar);
-
-  void LoadUint32(XMMRegister dst, Register src);
-
-  void LoadInstanceDescriptors(Register map, Register descriptors);
-  void EnumLength(Register dst, Register map);
-  void NumberOfOwnDescriptors(Register dst, Register map);
-
-  template<typename Field>
-  void DecodeField(Register reg) {
-    static const int shift = Field::kShift;
-    static const int mask = Field::kMask >> Field::kShift;
-    if (shift != 0) {
-      shrp(reg, Immediate(shift));
-    }
-    andp(reg, Immediate(mask));
-  }
-
-  template<typename Field>
-  void DecodeFieldToSmi(Register reg) {
-    if (SmiValuesAre32Bits()) {
-      andp(reg, Immediate(Field::kMask));
-      shlp(reg, Immediate(kSmiShift - Field::kShift));
-    } else {
-      static const int shift = Field::kShift;
-      static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
-      DCHECK(SmiValuesAre31Bits());
-      DCHECK(kSmiShift == kSmiTagSize);
-      DCHECK((mask & 0x80000000u) == 0);
-      if (shift < kSmiShift) {
-        shlp(reg, Immediate(kSmiShift - shift));
-      } else if (shift > kSmiShift) {
-        sarp(reg, Immediate(shift - kSmiShift));
-      }
-      andp(reg, Immediate(mask));
-    }
-  }
-
-  // Abort execution if argument is not a number, enabled via --debug-code.
-  void AssertNumber(Register object);
-
-  // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object);
-
-  // Abort execution if argument is not a smi, enabled via --debug-code.
-  void AssertSmi(Register object);
-  void AssertSmi(const Operand& object);
-
-  // Abort execution if a 64 bit register containing a 32 bit payload does not
-  // have zeros in the top 32 bits, enabled via --debug-code.
-  void AssertZeroExtended(Register reg);
-
-  // Abort execution if argument is not a string, enabled via --debug-code.
-  void AssertString(Register object);
-
-  // Abort execution if argument is not a name, enabled via --debug-code.
-  void AssertName(Register object);
-
-  // Abort execution if argument is not undefined or an AllocationSite, enabled
-  // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object);
-
-  // Abort execution if argument is not the root value with the given index,
-  // enabled via --debug-code.
-  void AssertRootValue(Register src,
-                       Heap::RootListIndex root_value_index,
-                       BailoutReason reason);
-
-  // ---------------------------------------------------------------------------
-  // Exception handling
-
-  // Push a new try handler and link it into try handler chain.
-  void PushTryHandler(StackHandler::Kind kind, int handler_index);
-
-  // Unlink the stack handler on top of the stack from the try handler chain.
-  void PopTryHandler();
-
-  // Activate the top handler in the try hander chain and pass the
-  // thrown value.
-  void Throw(Register value);
-
-  // Propagate an uncatchable exception out of the current JS stack.
-  void ThrowUncatchable(Register value);
-
-  // ---------------------------------------------------------------------------
-  // Inline caching support
-
-  // Generate code for checking access rights - used for security checks
-  // on access to global objects across environments. The holder register
-  // is left untouched, but the scratch register and kScratchRegister,
-  // which must be different, are clobbered.
-  void CheckAccessGlobalProxy(Register holder_reg,
-                              Register scratch,
-                              Label* miss);
-
-  void GetNumberHash(Register r0, Register scratch);
-
-  void LoadFromNumberDictionary(Label* miss,
-                                Register elements,
-                                Register key,
-                                Register r0,
-                                Register r1,
-                                Register r2,
-                                Register result);
-
-
-  // ---------------------------------------------------------------------------
-  // Allocation support
-
-  // Allocate an object in new space or old pointer space. If the given space
-  // is exhausted control continues at the gc_required label. The allocated
-  // object is returned in result and end of the new object is returned in
-  // result_end. The register scratch can be passed as no_reg in which case
-  // an additional object reference will be added to the reloc info. The
-  // returned pointers in result and result_end have not yet been tagged as
-  // heap objects. If result_contains_top_on_entry is true the content of
-  // result is known to be the allocation top on entry (could be result_end
-  // from a previous call). If result_contains_top_on_entry is true scratch
-  // should be no_reg as it is never used.
-  void Allocate(int object_size,
-                Register result,
-                Register result_end,
-                Register scratch,
-                Label* gc_required,
-                AllocationFlags flags);
-
-  void Allocate(int header_size,
-                ScaleFactor element_size,
-                Register element_count,
-                Register result,
-                Register result_end,
-                Register scratch,
-                Label* gc_required,
-                AllocationFlags flags);
-
-  void Allocate(Register object_size,
-                Register result,
-                Register result_end,
-                Register scratch,
-                Label* gc_required,
-                AllocationFlags flags);
-
-  // Undo allocation in new space. The object passed and objects allocated after
-  // it will no longer be allocated. Make sure that no pointers are left to the
-  // object(s) no longer allocated as they would be invalid when allocation is
-  // un-done.
-  void UndoAllocationInNewSpace(Register object);
-
-  // Allocate a heap number in new space with undefined value. Returns
-  // tagged pointer in result register, or jumps to gc_required if new
-  // space is full.
-  void AllocateHeapNumber(Register result,
-                          Register scratch,
-                          Label* gc_required,
-                          MutableMode mode = IMMUTABLE);
-
-  // Allocate a sequential string. All the header fields of the string object
-  // are initialized.
-  void AllocateTwoByteString(Register result,
-                             Register length,
-                             Register scratch1,
-                             Register scratch2,
-                             Register scratch3,
-                             Label* gc_required);
-  void AllocateOneByteString(Register result, Register length,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, Label* gc_required);
-
-  // Allocate a raw cons string object. Only the map field of the result is
-  // initialized.
-  void AllocateTwoByteConsString(Register result,
-                          Register scratch1,
-                          Register scratch2,
-                          Label* gc_required);
-  void AllocateOneByteConsString(Register result, Register scratch1,
-                                 Register scratch2, Label* gc_required);
-
-  // Allocate a raw sliced string object. Only the map field of the result is
-  // initialized.
-  void AllocateTwoByteSlicedString(Register result,
-                            Register scratch1,
-                            Register scratch2,
-                            Label* gc_required);
-  void AllocateOneByteSlicedString(Register result, Register scratch1,
-                                   Register scratch2, Label* gc_required);
-
-  // ---------------------------------------------------------------------------
-  // Support functions.
-
-  // Check if result is zero and op is negative.
-  void NegativeZeroTest(Register result, Register op, Label* then_label);
-
-  // Check if result is zero and op is negative in code using jump targets.
-  void NegativeZeroTest(CodeGenerator* cgen,
-                        Register result,
-                        Register op,
-                        JumpTarget* then_target);
-
-  // Check if result is zero and any of op1 and op2 are negative.
-  // Register scratch is destroyed, and it must be different from op2.
-  void NegativeZeroTest(Register result, Register op1, Register op2,
-                        Register scratch, Label* then_label);
-
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other register may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function,
-                               Register result,
-                               Label* miss,
-                               bool miss_on_bound_function = false);
-
-  // Picks out an array index from the hash field.
-  // Register use:
-  //   hash - holds the index's hash. Clobbered.
-  //   index - holds the overwritten index on exit.
-  void IndexFromHash(Register hash, Register index);
-
-  // Find the function context up the context chain.
-  void LoadContext(Register dst, int context_chain_length);
-
-  // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the native context if the map in register
-  // map_in_out is the cached Array map in the native context of
-  // expected_kind.
-  void LoadTransitionedArrayMapConditional(
-      ElementsKind expected_kind,
-      ElementsKind transitioned_kind,
-      Register map_in_out,
-      Register scratch,
-      Label* no_map_match);
-
-  // Load the global function with the given index.
-  void LoadGlobalFunction(int index, Register function);
-
-  // Load the initial map from the global function. The registers
-  // function and map can be the same.
-  void LoadGlobalFunctionInitialMap(Register function, Register map);
-
-  // ---------------------------------------------------------------------------
-  // Runtime calls
-
-  // Call a code stub.
-  void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
-
-  // Tail call a code stub (jump).
-  void TailCallStub(CodeStub* stub);
-
-  // Return from a code stub after popping its arguments.
-  void StubReturn(int argc);
-
-  // Call a runtime routine.
-  void CallRuntime(const Runtime::Function* f,
-                   int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
-
-  // Call a runtime function and save the value of XMM registers.
-  void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-    const Runtime::Function* function = Runtime::FunctionForId(id);
-    CallRuntime(function, function->nargs, kSaveFPRegs);
-  }
-
-  // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id,
-                   int num_arguments,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
-  }
-
-  // Convenience function: call an external reference.
-  void CallExternalReference(const ExternalReference& ext,
-                             int num_arguments);
-
-  // Tail call of a runtime routine (jump).
-  // Like JumpToExternalReference, but also takes care of passing the number
-  // of parameters.
-  void TailCallExternalReference(const ExternalReference& ext,
-                                 int num_arguments,
-                                 int result_size);
-
-  // Convenience function: tail call a runtime routine (jump).
-  void TailCallRuntime(Runtime::FunctionId fid,
-                       int num_arguments,
-                       int result_size);
-
-  // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& ext, int result_size);
-
-  // Prepares stack to put arguments (aligns and so on).  WIN64 calling
-  // convention requires to put the pointer to the return value slot into
-  // rcx (rcx must be preserverd until CallApiFunctionAndReturn).  Saves
-  // context (rsi).  Clobbers rax.  Allocates arg_stack_space * kPointerSize
-  // inside the exit frame (not GCed) accessible via StackSpaceOperand.
-  void PrepareCallApiFunction(int arg_stack_space);
-
-  // Calls an API function.  Allocates HandleScope, extracts returned value
-  // from handle and propagates exceptions.  Clobbers r14, r15, rbx and
-  // caller-save registers.  Restores context.  On return removes
-  // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Register function_address,
-                                ExternalReference thunk_ref,
-                                Register thunk_last_arg,
-                                int stack_space,
-                                Operand return_value_operand,
-                                Operand* context_restore_operand);
+  void Push(Smi* smi);
+  void Push(Handle<HeapObject> source);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
@@ -1364,175 +261,660 @@ class MacroAssembler: public Assembler {
   // C function.
   int ArgumentStackSlotsForCFunctionCall(int num_arguments);
 
-  // ---------------------------------------------------------------------------
-  // Utilities
+  void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
+                     Label* condition_met,
+                     Label::Distance condition_met_distance = Label::kFar);
 
-  void Ret();
+  void Cvtss2sd(XMMRegister dst, XMMRegister src);
+  void Cvtss2sd(XMMRegister dst, Operand src);
+  void Cvtsd2ss(XMMRegister dst, XMMRegister src);
+  void Cvtsd2ss(XMMRegister dst, Operand src);
+  void Cvttsd2si(Register dst, XMMRegister src);
+  void Cvttsd2si(Register dst, Operand src);
+  void Cvttsd2siq(Register dst, XMMRegister src);
+  void Cvttsd2siq(Register dst, Operand src);
+  void Cvttss2si(Register dst, XMMRegister src);
+  void Cvttss2si(Register dst, Operand src);
+  void Cvttss2siq(Register dst, XMMRegister src);
+  void Cvttss2siq(Register dst, Operand src);
+  void Cvtqsi2ss(XMMRegister dst, Register src);
+  void Cvtqsi2ss(XMMRegister dst, Operand src);
+  void Cvtqsi2sd(XMMRegister dst, Register src);
+  void Cvtqsi2sd(XMMRegister dst, Operand src);
+  void Cvtlsi2ss(XMMRegister dst, Register src);
+  void Cvtlsi2ss(XMMRegister dst, Operand src);
+  void Cvtlui2ss(XMMRegister dst, Register src);
+  void Cvtlui2ss(XMMRegister dst, Operand src);
+  void Cvtlui2sd(XMMRegister dst, Register src);
+  void Cvtlui2sd(XMMRegister dst, Operand src);
+  void Cvtqui2ss(XMMRegister dst, Register src);
+  void Cvtqui2ss(XMMRegister dst, Operand src);
+  void Cvtqui2sd(XMMRegister dst, Register src);
+  void Cvtqui2sd(XMMRegister dst, Operand src);
+  void Cvttsd2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttsd2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, Operand src, Label* fail = nullptr);
+  void Cvttss2uiq(Register dst, XMMRegister src, Label* fail = nullptr);
 
-  // Return and drop arguments from stack, where the number of arguments
-  // may be bigger than 2^16 - 1.  Requires a scratch register.
-  void Ret(int bytes_dropped, Register scratch);
+  // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
+  // hinders register renaming and makes dependence chains longer. So we use
+  // xorpd to clear the dst register before cvtsi2sd to solve this issue.
+  void Cvtlsi2sd(XMMRegister dst, Register src);
+  void Cvtlsi2sd(XMMRegister dst, Operand src);
 
-  Handle<Object> CodeObject() {
-    DCHECK(!code_object_.is_null());
-    return code_object_;
+  void Lzcntq(Register dst, Register src);
+  void Lzcntq(Register dst, Operand src);
+  void Lzcntl(Register dst, Register src);
+  void Lzcntl(Register dst, Operand src);
+  void Tzcntq(Register dst, Register src);
+  void Tzcntq(Register dst, Operand src);
+  void Tzcntl(Register dst, Register src);
+  void Tzcntl(Register dst, Operand src);
+  void Popcntl(Register dst, Register src);
+  void Popcntl(Register dst, Operand src);
+  void Popcntq(Register dst, Register src);
+  void Popcntq(Register dst, Operand src);
+
+  // Is the value a tagged smi.
+  Condition CheckSmi(Register src);
+  Condition CheckSmi(Operand src);
+
+  // Jump to label if the value is a tagged smi.
+  void JumpIfSmi(Register src, Label* on_smi,
+                 Label::Distance near_jump = Label::kFar);
+
+  void JumpIfEqual(Register a, int32_t b, Label* dest) {
+    cmpl(a, Immediate(b));
+    j(equal, dest);
   }
 
-  // Copy length bytes from source to destination.
-  // Uses scratch register internally (if you have a low-eight register
-  // free, do use it, otherwise kScratchRegister will be used).
-  // The min_length is a minimum limit on the value that length will have.
-  // The algorithm has some special cases that might be omitted if the string
-  // is known to always be long.
-  void CopyBytes(Register destination,
-                 Register source,
-                 Register length,
-                 int min_length = 0,
-                 Register scratch = kScratchRegister);
+  void JumpIfLessThan(Register a, int32_t b, Label* dest) {
+    cmpl(a, Immediate(b));
+    j(less, dest);
+  }
 
-  // Initialize fields with filler values.  Fields starting at |start_offset|
-  // not including end_offset are overwritten with the value in |filler|.  At
-  // the end the loop, |start_offset| takes the value of |end_offset|.
-  void InitializeFieldsWithFiller(Register start_offset,
-                                  Register end_offset,
-                                  Register filler);
+  void Move(Register dst, Smi* source);
 
+  void Move(Operand dst, Smi* source) {
+    Register constant = GetSmiConstant(source);
+    movp(dst, constant);
+  }
 
-  // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged, the result is in rdx, and rax gets clobbered.
-  void TruncatingDiv(Register dividend, int32_t divisor);
+  void Move(Register dst, ExternalReference ext);
 
-  // ---------------------------------------------------------------------------
-  // StatsCounter support
+  void Move(XMMRegister dst, uint32_t src);
+  void Move(XMMRegister dst, uint64_t src);
+  void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
+  void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
-  void SetCounter(StatsCounter* counter, int value);
-  void IncrementCounter(StatsCounter* counter, int value);
-  void DecrementCounter(StatsCounter* counter, int value);
+  // Move if the registers are not identical.
+  void Move(Register target, Register source);
 
+  void Move(Register dst, Handle<HeapObject> source,
+            RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
+  void Move(Operand dst, Handle<HeapObject> source,
+            RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
-  // ---------------------------------------------------------------------------
-  // Debugging
+  // Loads a pointer into a register with a relocation mode.
+  void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
+    // This method must not be used with heap object references. The stored
+    // address is not GC safe. Use the handle version instead.
+    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
+    movp(dst, ptr, rmode);
+  }
+
+  // Convert smi to word-size sign-extended value.
+  void SmiUntag(Register dst, Register src);
+  void SmiUntag(Register dst, Operand src);
+
+  // Loads the address of the external reference into the destination
+  // register.
+  void LoadAddress(Register destination, ExternalReference source);
+
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
+
+  // Operand pointing to an external reference.
+  // May emit code to set up the scratch register. The operand is
+  // only guaranteed to be correct as long as the scratch register
+  // isn't changed.
+  // If the operand is used more than once, use a scratch register
+  // that is guaranteed not to be clobbered.
+  Operand ExternalOperand(ExternalReference reference,
+                          Register scratch = kScratchRegister);
+
+  void Call(Register reg) { call(reg); }
+  void Call(Operand op);
+  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
+  void Call(Address destination, RelocInfo::Mode rmode);
+  void Call(ExternalReference ext);
+  void Call(Label* target) { call(target); }
+
+  void RetpolineCall(Register reg);
+  void RetpolineCall(Address destination, RelocInfo::Mode rmode);
+
+  void Jump(Address destination, RelocInfo::Mode rmode);
+  void Jump(ExternalReference ext);
+  void Jump(Operand op);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+            Condition cc = always);
+
+  void RetpolineJump(Register reg);
+
+  void CallForDeoptimization(Address target, int deopt_id,
+                             RelocInfo::Mode rmode) {
+    USE(deopt_id);
+    call(target, rmode);
+  }
+
+  // The size of the code generated for different call instructions.
+  int CallSize(ExternalReference ext);
+  int CallSize(Address destination) { return kCallSequenceLength; }
+  int CallSize(Handle<Code> code_object) {
+    // Code calls use 32-bit relative addressing.
+    return kShortCallInstructionLength;
+  }
+  int CallSize(Register target) {
+    // Opcode: REX_opt FF /2 m64
+    return (target.high_bit() != 0) ? 3 : 2;
+  }
+  int CallSize(Operand target) {
+    // Opcode: REX_opt FF /2 m64
+    return (target.requires_rex() ? 2 : 1) + target.operand_size();
+  }
+
+  // Returns the size of the code generated by LoadAddress.
+  // Used by CallSize(ExternalReference) to find the size of a call.
+  int LoadAddressSize(ExternalReference source);
+
+  // Non-SSE2 instructions.
+  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8);
+
+  void CompareRoot(Register with, Heap::RootListIndex index);
+  void CompareRoot(Operand with, Heap::RootListIndex index);
+
+  // Generates function and stub prologue code.
+  void StubPrologue(StackFrame::Type type);
+  void Prologue();
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, BailoutReason reason);
+  void Assert(Condition cc, AbortReason reason);
 
-  void AssertFastElements(Register elements);
+  // Like Assert(), but without condition.
+  // Use --debug_code to enable.
+  void AssertUnreachable(AbortReason reason);
+
+  // Abort execution if a 64 bit register containing a 32 bit payload does not
+  // have zeros in the top 32 bits, enabled via --debug-code.
+  void AssertZeroExtended(Register reg);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, BailoutReason reason);
+  void Check(Condition cc, AbortReason reason);
 
   // Print a message to stdout and abort execution.
-  void Abort(BailoutReason msg);
+  void Abort(AbortReason msg);
 
   // Check that the stack is aligned.
   void CheckStackAlignment();
 
-  // Verify restrictions about code generated in stubs.
-  void set_generating_stub(bool value) { generating_stub_ = value; }
-  bool generating_stub() { return generating_stub_; }
-  void set_has_frame(bool value) { has_frame_ = value; }
-  bool has_frame() { return has_frame_; }
+  // Activation support.
+  void EnterFrame(StackFrame::Type type);
+  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
+    // Out-of-line constant pool not implemented on x64.
+    UNREACHABLE();
+  }
+  void LeaveFrame(StackFrame::Type type);
+
+  // Removes current frame and its arguments from the stack preserving the
+  // arguments and a return address pushed to the stack for the next call.  Both
+  // |callee_args_count| and |caller_args_count_reg| do not include receiver.
+  // |callee_args_count| is not modified, |caller_args_count_reg| is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1);
+
   inline bool AllowThisStubCall(CodeStub* stub);
+
+  // Call a code stub. This expects {stub} to be zone-allocated, as it does not
+  // trigger generation of the stub's code object but instead files a
+  // HeapObjectRequest that will be fulfilled after code assembly.
+  void CallStubDelayed(CodeStub* stub);
+
+  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
+  // builtin for the target runtime function and uses an indirect call.
+  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
+
+  void InitializeRootRegister() {
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(isolate());
+    Move(kRootRegister, roots_array_start);
+    addp(kRootRegister, Immediate(kRootRegisterBias));
+  }
+
+  void SaveRegisters(RegList registers);
+  void RestoreRegisters(RegList registers);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode);
+
+  void MoveNumber(Register dst, double value);
+  void MoveNonSmi(Register dst, double value);
+
+  // Calculate how much stack space (in bytes) are required to store caller
+  // registers excluding those specified in the arguments.
+  int RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
+                                      Register exclusion1 = no_reg,
+                                      Register exclusion2 = no_reg,
+                                      Register exclusion3 = no_reg) const;
+
+  // PushCallerSaved and PopCallerSaved do not arrange the registers in any
+  // particular order so they are not useful for calls that can cause a GC.
+  // The caller can exclude up to 3 registers that do not need to be saved and
+  // restored.
+
+  // Push caller saved registers on the stack, and return the number of bytes
+  // stack pointer is adjusted.
+  int PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                      Register exclusion2 = no_reg,
+                      Register exclusion3 = no_reg);
+  // Restore caller saved registers from the stack, and return the number of
+  // bytes stack pointer is adjusted.
+  int PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                     Register exclusion2 = no_reg,
+                     Register exclusion3 = no_reg);
+
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
+  void ResetSpeculationPoisonRegister();
+
+ protected:
+  static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
+  int smi_count = 0;
+  int heap_object_count = 0;
+
+  int64_t RootRegisterDelta(ExternalReference other);
+
+  // Returns a register holding the smi value. The register MUST NOT be
+  // modified. It may be the "smi 1 constant" register.
+  Register GetSmiConstant(Smi* value);
+};
+
+// MacroAssembler implements a collection of frequently used macros.
+class MacroAssembler : public TurboAssembler {
+ public:
+  // TODO(titzer): inline this utility constructor.
+  MacroAssembler(Isolate* isolate, void* buffer, int size,
+                 CodeObjectRequired create_code_object)
+      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
+                       size, create_code_object) {}
+  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int size, CodeObjectRequired create_code_object);
+
+  // Loads and stores the value of an external reference.
+  // Special case code for load and store to take advantage of
+  // load_rax/store_rax if possible/necessary.
+  // For other operations, just use:
+  //   Operand operand = ExternalOperand(extref);
+  //   operation(operand, ..);
+  void Load(Register destination, ExternalReference source);
+  void Store(ExternalReference destination, Register source);
+
+  // Pushes the address of the external reference onto the stack.
+  void PushAddress(ExternalReference source);
+
+  // Operations on roots in the root-array.
+  // Load a root value where the index (or part of it) is variable.
+  // The variable_offset register is added to the fixed_offset value
+  // to get the index into the root-array.
+  void PushRoot(Heap::RootListIndex index);
+
+  // Compare the object in a register to a value and jump if they are equal.
+  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal,
+                  Label::Distance if_equal_distance = Label::kFar) {
+    CompareRoot(with, index);
+    j(equal, if_equal, if_equal_distance);
+  }
+  void JumpIfRoot(Operand with, Heap::RootListIndex index, Label* if_equal,
+                  Label::Distance if_equal_distance = Label::kFar) {
+    CompareRoot(with, index);
+    j(equal, if_equal, if_equal_distance);
+  }
+
+  // Compare the object in a register to a value and jump if they are not equal.
+  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
+                     Label* if_not_equal,
+                     Label::Distance if_not_equal_distance = Label::kFar) {
+    CompareRoot(with, index);
+    j(not_equal, if_not_equal, if_not_equal_distance);
+  }
+  void JumpIfNotRoot(Operand with, Heap::RootListIndex index,
+                     Label* if_not_equal,
+                     Label::Distance if_not_equal_distance = Label::kFar) {
+    CompareRoot(with, index);
+    j(not_equal, if_not_equal, if_not_equal_distance);
+  }
+
+
+// ---------------------------------------------------------------------------
+// GC Support
+
+  // Notify the garbage collector that we wrote a pointer into an object.
+  // |object| is the object being stored into, |value| is the object being
+  // stored.  value and scratch registers are clobbered by the operation.
+  // The offset is the offset from the start of the object, not the offset from
+  // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
+  void RecordWriteField(
+      Register object, int offset, Register value, Register scratch,
+      SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
+
+  // For page containing |object| mark region covering |address|
+  // dirty. |object| is the object being stored into, |value| is the
+  // object being stored. The address and value registers are clobbered by the
+  // operation.  RecordWrite filters out smis so it does not update
+  // the write barrier if the value is a smi.
+  void RecordWrite(
+      Register object, Register address, Register value, SaveFPRegsMode save_fp,
+      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
+      SmiCheck smi_check = INLINE_SMI_CHECK);
+
+  // Frame restart support.
+  void MaybeDropFrames();
+
+  // Enter specific kind of exit frame; either in normal or
+  // debug mode. Expects the number of arguments in register rax and
+  // sets up the number of arguments in register rdi and the pointer
+  // to the first argument in register rsi.
+  //
+  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
+  // accessible via StackSpaceOperand.
+  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
+
+  // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
+  // memory (not GCed) on the stack accessible via StackSpaceOperand.
+  void EnterApiExitFrame(int arg_stack_space);
+
+  // Leave the current exit frame. Expects/provides the return value in
+  // register rax:rdx (untouched) and the pointer to the first
+  // argument in register rsi (if pop_arguments == true).
+  void LeaveExitFrame(bool save_doubles = false, bool pop_arguments = true);
+
+  // Leave the current exit frame. Expects/provides the return value in
+  // register rax (untouched).
+  void LeaveApiExitFrame();
+
+  // Push and pop the registers that can hold pointers.
+  void PushSafepointRegisters() { Pushad(); }
+  void PopSafepointRegisters() { Popad(); }
+
+  // ---------------------------------------------------------------------------
+  // JavaScript invokes
+
+  // Invoke the JavaScript function code by either calling or jumping.
+  void InvokeFunctionCode(Register function, Register new_target,
+                          const ParameterCount& expected,
+                          const ParameterCount& actual, InvokeFlag flag);
+
+  // On function call, call into the debugger if necessary.
+  void CheckDebugHook(Register fun, Register new_target,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual);
+
+  // Invoke the JavaScript function in the given register. Changes the
+  // current context to the context in the function before invoking.
+  void InvokeFunction(Register function, Register new_target,
+                      const ParameterCount& actual, InvokeFlag flag);
+
+  void InvokeFunction(Register function, Register new_target,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual, InvokeFlag flag);
+
+  // ---------------------------------------------------------------------------
+  // Conversions between tagged smi values and non-tagged integer values.
+
+  // Tag an word-size value. The result must be known to be a valid smi value.
+  void SmiTag(Register dst, Register src);
+
+  // Simple comparison of smis.  Both sides must be known smis to use these,
+  // otherwise use Cmp.
+  void SmiCompare(Register smi1, Register smi2);
+  void SmiCompare(Register dst, Smi* src);
+  void SmiCompare(Register dst, Operand src);
+  void SmiCompare(Operand dst, Register src);
+  void SmiCompare(Operand dst, Smi* src);
+
+  // Functions performing a check on a known or potential smi. Returns
+  // a condition that is satisfied if the check is successful.
+
+  // Test-and-jump functions. Typically combines a check function
+  // above with a conditional jump.
+
+  // Jump to label if the value is not a tagged smi.
+  void JumpIfNotSmi(Register src,
+                    Label* on_not_smi,
+                    Label::Distance near_jump = Label::kFar);
+
+  // Jump to label if the value is not a tagged smi.
+  void JumpIfNotSmi(Operand src, Label* on_not_smi,
+                    Label::Distance near_jump = Label::kFar);
+
+  // Operations on tagged smi values.
+
+  // Smis represent a subset of integers. The subset is always equivalent to
+  // a two's complement interpretation of a fixed number of bits.
+
+  // Add an integer constant to a tagged smi, giving a tagged smi as result.
+  // No overflow testing on the result is done.
+  void SmiAddConstant(Operand dst, Smi* constant);
+
+  // Specialized operations
+
+  // Converts, if necessary, a smi to a combination of number and
+  // multiplier to be used as a scaled index.
+  // The src register contains a *positive* smi value. The shift is the
+  // power of two to multiply the index value by (e.g.
+  // to index by smi-value * kPointerSize, pass the smi and kPointerSizeLog2).
+  // The returned index register may be either src or dst, depending
+  // on what is most efficient. If src and dst are different registers,
+  // src is always unchanged.
+  SmiIndex SmiToIndex(Register dst, Register src, int shift);
+
+  // ---------------------------------------------------------------------------
+  // Macro instructions.
+
+  // Load/store with specific representation.
+  void Load(Register dst, Operand src, Representation r);
+  void Store(Operand dst, Register src, Representation r);
+
+  void Cmp(Register dst, Handle<Object> source);
+  void Cmp(Operand dst, Handle<Object> source);
+  void Cmp(Register dst, Smi* src);
+  void Cmp(Operand dst, Smi* src);
+
+  // Emit code to discard a non-negative number of pointer-sized elements
+  // from the stack, clobbering only the rsp register.
+  void Drop(int stack_elements);
+  // Emit code to discard a positive number of pointer-sized elements
+  // from the stack under the return address which remains on the top,
+  // clobbering the rsp register.
+  void DropUnderReturnAddress(int stack_elements,
+                              Register scratch = kScratchRegister);
+
+  void PushQuad(Operand src);
+  void PushImm32(int32_t imm32);
+  void Pop(Register dst);
+  void Pop(Operand dst);
+  void PopQuad(Operand dst);
+
+  // ---------------------------------------------------------------------------
+  // SIMD macros.
+  void Absps(XMMRegister dst);
+  void Negps(XMMRegister dst);
+  void Abspd(XMMRegister dst);
+  void Negpd(XMMRegister dst);
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(Address entry);
+
+  // Non-x64 instructions.
+  // Push/pop all general purpose registers.
+  // Does not push rsp/rbp nor any of the assembler's special purpose registers
+  // (kScratchRegister, kRootRegister).
+  void Pushad();
+  void Popad();
+
+  // Compare object type for heap object.
+  // Always use unsigned comparisons: above and below, not less and greater.
+  // Incoming register is heap_object and outgoing register is map.
+  // They may be the same register, and may be kScratchRegister.
+  void CmpObjectType(Register heap_object, InstanceType type, Register map);
+
+  // Compare instance type for map.
+  // Always use unsigned comparisons: above and below, not less and greater.
+  void CmpInstanceType(Register map, InstanceType type);
+
+  void DoubleToI(Register result_reg, XMMRegister input_reg,
+                 XMMRegister scratch, Label* lost_precision, Label* is_nan,
+                 Label::Distance dst = Label::kFar);
+
+  template<typename Field>
+  void DecodeField(Register reg) {
+    static const int shift = Field::kShift;
+    static const int mask = Field::kMask >> Field::kShift;
+    if (shift != 0) {
+      shrp(reg, Immediate(shift));
+    }
+    andp(reg, Immediate(mask));
+  }
+
+  // Abort execution if argument is a smi, enabled via --debug-code.
+  void AssertNotSmi(Register object);
+
+  // Abort execution if argument is not a smi, enabled via --debug-code.
+  void AssertSmi(Register object);
+  void AssertSmi(Operand object);
+
+  // Abort execution if argument is not a Constructor, enabled via --debug-code.
+  void AssertConstructor(Register object);
+
+  // Abort execution if argument is not a JSFunction, enabled via --debug-code.
+  void AssertFunction(Register object);
+
+  // Abort execution if argument is not a JSBoundFunction,
+  // enabled via --debug-code.
+  void AssertBoundFunction(Register object);
+
+  // Abort execution if argument is not a JSGeneratorObject (or subclass),
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
+
+  // Abort execution if argument is not undefined or an AllocationSite, enabled
+  // via --debug-code.
+  void AssertUndefinedOrAllocationSite(Register object);
+
+  // ---------------------------------------------------------------------------
+  // Exception handling
+
+  // Push a new stack handler and link it into stack handler chain.
+  void PushStackHandler();
+
+  // Unlink the stack handler on top of the stack from the stack handler chain.
+  void PopStackHandler();
+
+  // ---------------------------------------------------------------------------
+  // Support functions.
+
+  // Load the global proxy from the current context.
+  void LoadGlobalProxy(Register dst) {
+    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+  }
+
+  // Load the native context slot with the current index.
+  void LoadNativeContextSlot(int index, Register dst);
+
+  // ---------------------------------------------------------------------------
+  // Runtime calls
+
+  // Call a code stub.
+  // The code object is generated immediately, in contrast to
+  // TurboAssembler::CallStubDelayed.
+  void CallStub(CodeStub* stub);
+
+  // Tail call a code stub (jump).
+  void TailCallStub(CodeStub* stub);
+
+  // Call a runtime routine.
+  void CallRuntime(const Runtime::Function* f,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+
+  // Convenience function: Same as above, but takes the fid instead.
+  void CallRuntime(Runtime::FunctionId fid,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    const Runtime::Function* function = Runtime::FunctionForId(fid);
+    CallRuntime(function, function->nargs, save_doubles);
+  }
+
+  // Convenience function: Same as above, but takes the fid instead.
+  void CallRuntime(Runtime::FunctionId fid, int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
+  }
+
+  // Convenience function: tail call a runtime routine (jump)
+  void TailCallRuntime(Runtime::FunctionId fid);
+
+  // Jump to a runtime routines
+  void JumpToExternalReference(const ExternalReference& ext,
+                               bool builtin_exit_frame = false);
+
+  // ---------------------------------------------------------------------------
+  // StatsCounter support
+  void IncrementCounter(StatsCounter* counter, int value);
+  void DecrementCounter(StatsCounter* counter, int value);
+
+  // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register in_out, Label* target_if_cleared);
+
+  // ---------------------------------------------------------------------------
+  // Debugging
 
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }
 
-  // Activation support.
-  void EnterFrame(StackFrame::Type type);
-  void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
-  void LeaveFrame(StackFrame::Type type);
-
-  // Expects object in rax and returns map with validated enum cache
-  // in rax.  Assumes that any other register can be used as a scratch.
-  void CheckEnumCache(Register null_value,
-                      Label* call_runtime);
-
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver_reg should point to the array object.
-  // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to equal.
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Label* no_memento_found);
-
-  void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
-                                         Register scratch_reg,
-                                         Label* memento_found) {
-    Label no_memento_found;
-    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
-                                    &no_memento_found);
-    j(equal, memento_found);
-    bind(&no_memento_found);
-  }
-
-  // Jumps to found label if a prototype map has dictionary elements.
-  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
-                                        Register scratch1, Label* found);
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
  private:
   // Order general registers are pushed by Pushad.
-  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
+  // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r12, r14, r15.
   static const int kSafepointPushRegisterIndices[Register::kNumRegisters];
-  static const int kNumSafepointSavedRegisters = 11;
-  static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
-
-  bool generating_stub_;
-  bool has_frame_;
-  bool root_array_available_;
-
-  // Returns a register holding the smi value. The register MUST NOT be
-  // modified. It may be the "smi 1 constant" register.
-  Register GetSmiConstant(Smi* value);
-
-  int64_t RootRegisterDelta(ExternalReference other);
-
-  // Moves the smi value to the destination register.
-  void LoadSmiConstant(Register dst, Smi* value);
-
-  // This handle will be patched with the code object on installation.
-  Handle<Object> code_object_;
+  static const int kNumSafepointSavedRegisters = 12;
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual,
-                      Handle<Code> code_constant,
-                      Register code_register,
-                      Label* done,
-                      bool* definitely_mismatches,
-                      InvokeFlag flag,
-                      Label::Distance near_jump = Label::kFar,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const ParameterCount& actual, Label* done,
+                      bool* definitely_mismatches, InvokeFlag flag,
+                      Label::Distance near_jump);
 
-  void EnterExitFramePrologue(bool save_rax);
+  void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
 
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
   void EnterExitFrameEpilogue(int arg_stack_space, bool save_doubles);
 
-  void LeaveExitFrameEpilogue(bool restore_context);
-
-  // Allocation support helpers.
-  // Loads the top of new-space into the result register.
-  // Otherwise the address of the new-space top is loaded into scratch (if
-  // scratch is valid), and the new-space top is loaded into result.
-  void LoadAllocationTopHelper(Register result,
-                               Register scratch,
-                               AllocationFlags flags);
-
-  void MakeSureDoubleAlignedHelper(Register result,
-                                   Register scratch,
-                                   Label* gc_required,
-                                   AllocationFlags flags);
-
-  // Update allocation top with value in result_end register.
-  // If scratch is valid, it contains the address of the allocation top.
-  void UpdateAllocationTopHelper(Register result_end,
-                                 Register scratch,
-                                 AllocationFlags flags);
+  void LeaveExitFrameEpilogue();
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object,
@@ -1541,20 +923,7 @@ class MacroAssembler: public Assembler {
                   Label* branch,
                   Label::Distance distance = Label::kFar);
 
-  // Helper for finding the mark bits for an address.  Afterwards, the
-  // bitmap register points at the word with the mark bits and the mask
-  // the position of the first bit.  Uses rcx as scratch and leaves addr_reg
-  // unchanged.
-  inline void GetMarkBits(Register addr_reg,
-                          Register bitmap_reg,
-                          Register mask_reg);
-
-  // Helper for throwing exceptions.  Compute a handler address and jump to
-  // it.  See the implementation for register usage.
-  void JumpToHandlerEntry();
-
   // Compute memory operands for safepoint stack slots.
-  Operand SafepointRegisterSlot(Register reg);
   static int SafepointRegisterStackIndex(int reg_code) {
     return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
   }
@@ -1563,27 +932,6 @@ class MacroAssembler: public Assembler {
   // traversal.
   friend class StandardFrame;
 };
-
-
-// The code patcher is used to patch (typically) small parts of code e.g. for
-// debugging and other types of instrumentation. When using the code patcher
-// the exact number of bytes specified must be emitted. Is not legal to emit
-// relocation information. If any of these constraints are violated it causes
-// an assertion.
-class CodePatcher {
- public:
-  CodePatcher(byte* address, int size);
-  virtual ~CodePatcher();
-
-  // Macro assembler to emit code.
-  MacroAssembler* masm() { return &masm_; }
-
- private:
-  byte* address_;  // The address of the code being patched.
-  int size_;  // Number of bytes of the expected patch size.
-  MacroAssembler masm_;  // Macro assembler used to generate the code.
-};
-
 
 // -----------------------------------------------------------------------------
 // Static helper functions.
@@ -1608,8 +956,13 @@ inline Operand ContextOperand(Register context, int index) {
 }
 
 
-inline Operand GlobalObjectOperand() {
-  return ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX);
+inline Operand ContextOperand(Register context, Register index) {
+  return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
+}
+
+
+inline Operand NativeContextOperand() {
+  return ContextOperand(rsi, Context::NATIVE_CONTEXT_INDEX);
 }
 
 
@@ -1628,27 +981,9 @@ inline Operand StackOperandForReturnAddress(int32_t disp) {
   return Operand(rsp, disp);
 }
 
-
-#ifdef GENERATED_CODE_COVERAGE
-extern void LogGeneratedCodeCoverage(const char* file_line);
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm) {                                                  \
-    Address x64_coverage_function = FUNCTION_ADDR(LogGeneratedCodeCoverage); \
-    masm->pushfq();                                                          \
-    masm->Pushad();                                                          \
-    masm->Push(Immediate(reinterpret_cast<int>(&__FILE_LINE__)));            \
-    masm->Call(x64_coverage_function, RelocInfo::EXTERNAL_REFERENCE);        \
-    masm->Pop(rax);                                                          \
-    masm->Popad();                                                           \
-    masm->popfq();                                                           \
-  }                                                                          \
-  masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X64_MACRO_ASSEMBLER_X64_H_

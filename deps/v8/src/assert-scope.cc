@@ -6,7 +6,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
-#include "src/isolate-inl.h"
+#include "src/isolate.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -14,8 +14,9 @@ namespace internal {
 
 namespace {
 
-struct PerThreadAssertKeyConstructTrait FINAL {
-  static void Construct(base::Thread::LocalStorageKey* key) {
+struct PerThreadAssertKeyConstructTrait final {
+  static void Construct(void* key_arg) {
+    auto key = reinterpret_cast<base::Thread::LocalStorageKey*>(key_arg);
     *key = base::Thread::CreateThreadLocalKey();
   }
 };
@@ -31,7 +32,7 @@ PerThreadAssertKey kPerThreadAssertKey;
 }  // namespace
 
 
-class PerThreadAssertData FINAL {
+class PerThreadAssertData final {
  public:
   PerThreadAssertData() : nesting_level_(0) {
     for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
@@ -70,7 +71,7 @@ class PerThreadAssertData FINAL {
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
     : data_(PerThreadAssertData::GetCurrent()) {
-  if (data_ == NULL) {
+  if (data_ == nullptr) {
     data_ = new PerThreadAssertData();
     PerThreadAssertData::SetCurrent(data_);
   }
@@ -82,20 +83,26 @@ PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
 
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::~PerThreadAssertScope() {
+  if (data_ == nullptr) return;
+  Release();
+}
+
+template <PerThreadAssertType kType, bool kAllow>
+void PerThreadAssertScope<kType, kAllow>::Release() {
   DCHECK_NOT_NULL(data_);
   data_->Set(kType, old_state_);
   if (data_->DecrementLevel()) {
-    PerThreadAssertData::SetCurrent(NULL);
+    PerThreadAssertData::SetCurrent(nullptr);
     delete data_;
   }
+  data_ = nullptr;
 }
-
 
 // static
 template <PerThreadAssertType kType, bool kAllow>
 bool PerThreadAssertScope<kType, kAllow>::IsAllowed() {
   PerThreadAssertData* data = PerThreadAssertData::GetCurrent();
-  return data == NULL || data->Get(kType);
+  return data == nullptr || data->Get(kType);
 }
 
 
@@ -144,12 +151,12 @@ template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
-template class PerIsolateAssertScope<ALLOCATION_FAILURE_ASSERT, false>;
-template class PerIsolateAssertScope<ALLOCATION_FAILURE_ASSERT, true>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, true>;
+template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, false>;
+template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

@@ -19,37 +19,49 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var path = require('path');
+'use strict';
+const common = require('../common');
+const fs = require('fs');
 
-var callbacks = 0;
+// Test that fs.readFile fails correctly on a non-existent file.
+
+// `fs.readFile('/')` does not fail on FreeBSD, because you can open and read
+// the directory there.
+if (common.isFreeBSD)
+  common.skip('platform not supported.');
+
+const assert = require('assert');
+const exec = require('child_process').exec;
+const fixtures = require('../common/fixtures');
 
 function test(env, cb) {
-  var filename = path.join(common.fixturesDir, 'test-fs-readfile-error.js');
-  var execPath = process.execPath + ' ' + filename;
-  var options = { env: env || {} };
-  exec(execPath, options, function(err, stdout, stderr) {
+  const filename = fixtures.path('test-fs-readfile-error.js');
+  const execPath = `"${process.execPath}" "${filename}"`;
+  const options = { env: Object.assign({}, process.env, env) };
+  exec(execPath, options, common.mustCall((err, stdout, stderr) => {
     assert(err);
-    assert.equal(stdout, '');
-    assert.notEqual(stderr, '');
-    cb('' + stderr);
-  });
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(stderr, '');
+    cb(String(stderr));
+  }));
 }
 
-test({ NODE_DEBUG: '' }, function(data) {
-  assert(/EISDIR/.test(data));
-  assert(!/test-fs-readfile-error/.test(data));
-  callbacks++;
-});
-
-test({ NODE_DEBUG: 'fs' }, function(data) {
+test({ NODE_DEBUG: '' }, common.mustCall((data) => {
   assert(/EISDIR/.test(data));
   assert(/test-fs-readfile-error/.test(data));
-  callbacks++;
-});
+}));
 
-process.on('exit', function() {
-  assert.equal(callbacks, 2);
-});
+test({ NODE_DEBUG: 'fs' }, common.mustCall((data) => {
+  assert(/EISDIR/.test(data));
+  assert(/test-fs-readfile-error/.test(data));
+}));
+
+common.expectsError(
+  () => { fs.readFile(() => {}, common.mustNotCall()); },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "path" argument must be one of type string, Buffer, or URL.' +
+             ' Received type function',
+    type: TypeError
+  }
+);

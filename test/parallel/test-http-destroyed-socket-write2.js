@@ -19,93 +19,65 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 // Verify that ECONNRESET is raised when writing to a http request
 // where the server has ended the socket.
 
-var http = require('http');
-var net = require('net');
-var server = http.createServer(function(req, res) {
+const http = require('http');
+const server = http.createServer(function(req, res) {
   setImmediate(function() {
     res.destroy();
   });
 });
 
-server.listen(common.PORT, function() {
-  var req = http.request({
-    port: common.PORT,
+server.listen(0, function() {
+  const req = http.request({
+    port: this.address().port,
     path: '/',
     method: 'POST'
   });
 
-  var timer = setImmediate(write);
-  var writes = 0;
-
   function write() {
-    if (++writes === 128) {
-      clearTimeout(timer);
-      req.end();
-      test();
-    } else {
-      timer = setImmediate(write);
-      req.write('hello');
-    }
+    req.write('hello', function() {
+      setImmediate(write);
+    });
   }
 
-  var gotError = false;
-  var sawData = false;
-  var sawEnd = false;
-
-  req.on('error', function(er) {
-    assert(!gotError);
-    gotError = true;
+  req.on('error', common.mustCall(function(er) {
     switch (er.code) {
       // This is the expected case
       case 'ECONNRESET':
-      // On windows this sometimes manifests as ECONNABORTED
+        break;
+
+      // On Windows, this sometimes manifests as ECONNABORTED
       case 'ECONNABORTED':
         break;
+
+      // This test is timing sensitive so an EPIPE is not out of the question.
+      // It should be infrequent, given the 50 ms timeout, but not impossible.
+      case 'EPIPE':
+        break;
+
       default:
+        // Write to a torn down client should RESET or ABORT
         assert.strictEqual(er.code,
-          'ECONNRESET',
-          'Writing to a torn down client should RESET or ABORT');
+                           'ECONNRESET');
         break;
     }
-    clearTimeout(timer);
-    console.log('ECONNRESET was raised after %d writes', writes);
-    test();
-  });
+
+
+    assert.strictEqual(req.output.length, 0);
+    assert.strictEqual(req.outputEncodings.length, 0);
+    server.close();
+  }));
 
   req.on('response', function(res) {
-    res.on('data', function(chunk) {
-      console.error('saw data: ' + chunk);
-      sawData = true;
-    });
-    res.on('end', function() {
-      console.error('saw end');
-      sawEnd = true;
-    });
+    res.on('data', common.mustNotCall('Should not receive response data'));
+    res.on('end', common.mustNotCall('Should not receive response end'));
   });
 
-  var closed = false;
-
-  function test() {
-    if (closed)
-      return;
-
-    server.close();
-    closed = true;
-
-    if (req.output.length || req.outputEncodings.length)
-      console.error('bad happened', req.output, req.outputEncodings);
-
-    assert.equal(req.output.length, 0);
-    assert.equal(req.outputEncodings, 0);
-    assert(gotError);
-    assert(!sawData);
-    assert(!sawEnd);
-    console.log('ok');
-  }
+  write();
 });

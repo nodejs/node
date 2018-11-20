@@ -27,45 +27,27 @@
 
 
 import os
-import re
 
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
 
 
-class PreparserTestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(PreparserTestSuite, self).__init__(name, root)
+class VariantsGenerator(testsuite.VariantsGenerator):
+  def _get_variants(self, test):
+    return self._standard_variant
 
-  def shell(self):
-    return "d8"
 
-  def _GetExpectations(self):
-    expects_file = os.path.join(self.root, "preparser.expectation")
-    expectations_map = {}
-    if not os.path.exists(expects_file): return expectations_map
-    rule_regex = re.compile("^([\w\-]+)(?::([\w\-]+))?(?::(\d+),(\d+))?$")
-    for line in utils.ReadLinesFrom(expects_file):
-      rule_match = rule_regex.match(line)
-      if not rule_match: continue
-      expects = []
-      if (rule_match.group(2)):
-        expects += [rule_match.group(2)]
-        if (rule_match.group(3)):
-          expects += [rule_match.group(3), rule_match.group(4)]
-      expectations_map[rule_match.group(1)] = " ".join(expects)
-    return expectations_map
-
+class TestSuite(testsuite.TestSuite):
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
     def Test(name, source, expectation):
       source = source.replace("\n", " ")
-      testname = os.path.join(filename, name)
-      flags = ["-e", source]
+      path = os.path.join(filename, name)
       if expectation:
-        flags += ["--throws"]
-      test = testcase.TestCase(self, testname, flags=flags)
+        template_flags = ["--throws"]
+      else:
+        template_flags = []
+      test = self._create_test(path, source, template_flags)
       result.append(test)
     def Template(name, source):
       def MkTest(replacement, expectation):
@@ -78,20 +60,8 @@ class PreparserTestSuite(testsuite.TestSuite):
       return MkTest
     execfile(pathname, {"Test": Test, "Template": Template})
 
-  def ListTests(self, context):
-    expectations = self._GetExpectations()
+  def ListTests(self):
     result = []
-
-    # Find all .js files in this directory.
-    filenames = [f[:-3] for f in os.listdir(self.root) if f.endswith(".js")]
-    filenames.sort()
-    for f in filenames:
-      throws = expectations.get(f, None)
-      flags = [f + ".js"]
-      if throws:
-        flags += ["--throws"]
-      test = testcase.TestCase(self, f, flags=flags)
-      result.append(test)
 
     # Find all .pyt files in this directory.
     filenames = [f[:-4] for f in os.listdir(self.root) if f.endswith(".pyt")]
@@ -100,21 +70,45 @@ class PreparserTestSuite(testsuite.TestSuite):
       self._ParsePythonTestTemplates(result, f)
     return result
 
-  def GetFlagsForTestCase(self, testcase, context):
-    first = testcase.flags[0]
-    if first != "-e":
-      testcase.flags[0] = os.path.join(self.root, first)
-    return testcase.flags
+  def _create_test(self, path, source, template_flags):
+    return super(TestSuite, self)._create_test(
+        path, source=source, template_flags=template_flags)
 
-  def GetSourceForTest(self, testcase):
-    if testcase.flags[0] == "-e":
-      return testcase.flags[1]
-    with open(testcase.flags[0]) as f:
-      return f.read()
+  def _test_class(self):
+    return TestCase
 
-  def VariantFlags(self, testcase, default_flags):
-    return [[]];
+  def _variants_gen_class(self):
+    return VariantsGenerator
 
 
-def GetSuite(name, root):
-  return PreparserTestSuite(name, root)
+class TestCase(testcase.TestCase):
+  def __init__(self, suite, path, name, test_config, source, template_flags):
+    super(TestCase, self).__init__(suite, path, name, test_config)
+
+    self._source = source
+    self._template_flags = template_flags
+
+  def _get_cmd_params(self):
+    return (
+        self._get_files_params() +
+        self._get_extra_flags() +
+        ['-e', self._source] +
+        self._template_flags +
+        self._get_variant_flags() +
+        self._get_statusfile_flags() +
+        self._get_mode_flags() +
+        self._get_source_flags()
+    )
+
+  def _get_mode_flags(self):
+    return []
+
+  def is_source_available(self):
+    return True
+
+  def get_source(self):
+    return self._source
+
+
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

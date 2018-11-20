@@ -12,6 +12,10 @@ var SetBenchmark = new BenchmarkSuite('WeakSet', [1000], [
       WeakSetTearDown),
 ]);
 
+var SetBenchmark = new BenchmarkSuite('WeakSet-Constructor', [1000], [
+  new Benchmark('Constructor', false, false, 0, WeakSetConstructor, SetupObjectKeys,
+      WeakSetTearDown),
+]);
 
 var ws;
 
@@ -30,6 +34,11 @@ function WeakSetSetup() {
 
 function WeakSetTearDown() {
   ws = null;
+}
+
+
+function WeakSetConstructor() {
+  ws = new WeakSet(keys);
 }
 
 

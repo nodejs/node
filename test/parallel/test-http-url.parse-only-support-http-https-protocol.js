@@ -19,64 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+'use strict';
+const common = require('../common');
+const http = require('http');
+const url = require('url');
 
+const invalidUrls = [
+  'file:///whatever',
+  'mailto:asdf@asdf.com',
+  'ftp://www.example.com',
+  'javascript:alert(\'hello\');',
+  'xmpp:foo@bar.com',
+  'f://some.host/path'
+];
 
-assert.throws(function() {
-  http.request(url.parse('file:///whatever'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "file:" not supported. Expected "http:".');
-    return true;
-  }
+invalidUrls.forEach((invalid) => {
+  common.expectsError(
+    () => { http.request(url.parse(invalid)); },
+    {
+      code: 'ERR_INVALID_PROTOCOL',
+      type: TypeError
+    }
+  );
 });
-
-assert.throws(function() {
-  http.request(url.parse('mailto:asdf@asdf.com'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "mailto:" not supported. Expected "http:".');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('ftp://www.example.com'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "ftp:" not supported. Expected "http:".');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('javascript:alert(\'hello\');'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "javascript:" not supported. Expected "http:".');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('xmpp:isaacschlueter@jabber.org'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "xmpp:" not supported. Expected "http:".');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('f://some.host/path'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "f:" not supported. Expected "http:".');
-    return true;
-  }
-});
-
-//TODO do I need to test url.parse(notPrococol.example.com)?

@@ -19,40 +19,45 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var tls = require('tls');
-var fs = require('fs');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var PORT = common.PORT;
-var dir = common.fixturesDir;
-var options = { key: fs.readFileSync(dir + '/test_key.pem'),
-                cert: fs.readFileSync(dir + '/test_cert.pem'),
-                ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
+const assert = require('assert');
+const tls = require('tls');
 
-var writes = [
+const fixtures = require('../common/fixtures');
+
+const options = { key: fixtures.readSync('test_key.pem'),
+                  cert: fixtures.readSync('test_cert.pem'),
+                  ca: [ fixtures.readSync('test_ca.pem') ] };
+
+const writes = [
   'some server data',
   'and a separate packet',
   'and one more',
 ];
-var receivedWrites = 0;
+let receivedWrites = 0;
 
-var server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, function(c) {
+  c.resume();
   writes.forEach(function(str) {
     c.write(str);
   });
-}).listen(PORT, function() {
-  var c = tls.connect(PORT, { rejectUnauthorized: false }, function() {
+}).listen(0, common.mustCall(function() {
+  const connectOpts = { rejectUnauthorized: false };
+  const c = tls.connect(this.address().port, connectOpts, function() {
     c.write('some client data');
     c.on('readable', function() {
-      var data = c.read();
+      let data = c.read();
       if (data === null)
         return;
 
       data = data.toString();
       while (data.length !== 0) {
-        assert.strictEqual(data.indexOf(writes[receivedWrites]), 0);
+        assert(data.startsWith(writes[receivedWrites]));
         data = data.slice(writes[receivedWrites].length);
 
         if (++receivedWrites === writes.length) {
@@ -62,8 +67,9 @@ var server = tls.createServer(options, function(c) {
       }
     });
   });
-});
+}));
+
 
 process.on('exit', function() {
-  assert.equal(receivedWrites, writes.length);
+  assert.strictEqual(receivedWrites, writes.length);
 });

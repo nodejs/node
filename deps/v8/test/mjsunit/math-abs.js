@@ -120,3 +120,19 @@ assertEquals(1, foo2());
 assertEquals(1, foo2());
 %OptimizeFunctionOnNextCall(foo2);
 assertEquals(1, foo2());
+
+// Regression test for Integer input of Math.abs on mips64.
+function absHalf(bits) {
+  var x = 1 << (bits - 1);
+  var half = Math.abs(x);
+  return half;
+
+}
+
+// Create minimum integer input for abs() using bitwise operations
+// that should overflow.
+bits = 32;
+assertEquals(2147483648, absHalf(bits));
+assertEquals(2147483648, absHalf(bits));
+%OptimizeFunctionOnNextCall(absHalf);
+assertEquals(2147483648, absHalf(bits));

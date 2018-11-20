@@ -9,7 +9,7 @@ namespace internal {
 
 Counter::Counter(const char* name, CounterType type)
     : count_(0), enabled_(false), type_(type) {
-  DCHECK(name != NULL);
+  DCHECK_NOT_NULL(name);
   strncpy(name_, name, kCounterNameMaxLength);
 }
 
@@ -61,47 +61,46 @@ typedef struct {
   CounterType type;
 } CounterDescriptor;
 
-
 static const CounterDescriptor kCounterList[] = {
-  {"Instruction", Cumulative},
+    {"Instruction", Cumulative},
 
-  {"Move Immediate", Gauge},
-  {"Add/Sub DP", Gauge},
-  {"Logical DP", Gauge},
-  {"Other Int DP", Gauge},
-  {"FP DP", Gauge},
+    {"Move Immediate", Gauge},
+    {"Add/Sub DP", Gauge},
+    {"Logical DP", Gauge},
+    {"Other Int DP", Gauge},
+    {"FP DP", Gauge},
+    {"NEON", Gauge},
 
-  {"Conditional Select", Gauge},
-  {"Conditional Compare", Gauge},
+    {"Conditional Select", Gauge},
+    {"Conditional Compare", Gauge},
 
-  {"Unconditional Branch", Gauge},
-  {"Compare and Branch", Gauge},
-  {"Test and Branch", Gauge},
-  {"Conditional Branch", Gauge},
+    {"Unconditional Branch", Gauge},
+    {"Compare and Branch", Gauge},
+    {"Test and Branch", Gauge},
+    {"Conditional Branch", Gauge},
 
-  {"Load Integer", Gauge},
-  {"Load FP", Gauge},
-  {"Load Pair", Gauge},
-  {"Load Literal", Gauge},
+    {"Load Integer", Gauge},
+    {"Load FP", Gauge},
+    {"Load Pair", Gauge},
+    {"Load Literal", Gauge},
+    {"Load Acquire", Gauge},
 
-  {"Store Integer", Gauge},
-  {"Store FP", Gauge},
-  {"Store Pair", Gauge},
+    {"Store Integer", Gauge},
+    {"Store FP", Gauge},
+    {"Store Pair", Gauge},
+    {"Store Release", Gauge},
 
-  {"PC Addressing", Gauge},
-  {"Other", Gauge},
-  {"SP Adjust", Gauge},
+    {"PC Addressing", Gauge},
+    {"Other", Gauge},
 };
-
 
 Instrument::Instrument(const char* datafile, uint64_t sample_period)
     : output_stream_(stderr), sample_period_(sample_period) {
-
-  // Set up the output stream. If datafile is non-NULL, use that file. If it
-  // can't be opened, or datafile is NULL, use stderr.
-  if (datafile != NULL) {
+  // Set up the output stream. If datafile is non-nullptr, use that file. If it
+  // can't be opened, or datafile is nullptr, use stderr.
+  if (datafile != nullptr) {
     output_stream_ = fopen(datafile, "w");
-    if (output_stream_ == NULL) {
+    if (output_stream_ == nullptr) {
       fprintf(stderr, "Can't open output file %s. Using stderr.\n", datafile);
       output_stream_ = stderr;
     }
@@ -190,8 +189,8 @@ void Instrument::DumpEventMarker(unsigned marker) {
   // line.
   static Counter* counter = GetCounter("Instruction");
 
-  fprintf(output_stream_, "# %c%c @ %" PRId64 "\n", marker & 0xff,
-          (marker >> 8) & 0xff, counter->count());
+  fprintf(output_stream_, "# %c%c @ %" PRId64 "\n", marker & 0xFF,
+          (marker >> 8) & 0xFF, counter->count());
 }
 
 
@@ -239,16 +238,8 @@ void Instrument::VisitPCRelAddressing(Instruction* instr) {
 
 void Instrument::VisitAddSubImmediate(Instruction* instr) {
   Update();
-  static Counter* sp_counter = GetCounter("SP Adjust");
-  static Counter* add_sub_counter = GetCounter("Add/Sub DP");
-  if (((instr->Mask(AddSubOpMask) == SUB) ||
-       (instr->Mask(AddSubOpMask) == ADD)) &&
-      (instr->Rd() == 31) && (instr->Rn() == 31)) {
-    // Count adjustments to the C stack pointer caused by V8 needing two SPs.
-    sp_counter->Increment();
-  } else {
-    add_sub_counter->Increment();
-  }
+  static Counter* counter = GetCounter("Add/Sub DP");
+  counter->Increment();
 }
 
 
@@ -364,12 +355,6 @@ void Instrument::VisitLoadStorePairPreIndex(Instruction* instr) {
 }
 
 
-void Instrument::VisitLoadStorePairNonTemporal(Instruction* instr) {
-  Update();
-  InstrumentLoadStorePair(instr);
-}
-
-
 void Instrument::VisitLoadLiteral(Instruction* instr) {
   Update();
   static Counter* counter = GetCounter("Load Literal");
@@ -383,7 +368,7 @@ void Instrument::InstrumentLoadStore(Instruction* instr) {
   static Counter* load_fp_counter = GetCounter("Load FP");
   static Counter* store_fp_counter = GetCounter("Store FP");
 
-  switch (instr->Mask(LoadStoreOpMask)) {
+  switch (instr->Mask(LoadStoreMask)) {
     case STRB_w:    // Fall through.
     case STRH_w:    // Fall through.
     case STR_w:     // Fall through.
@@ -435,6 +420,31 @@ void Instrument::VisitLoadStoreUnsignedOffset(Instruction* instr) {
   InstrumentLoadStore(instr);
 }
 
+void Instrument::VisitLoadStoreAcquireRelease(Instruction* instr) {
+  Update();
+  static Counter* load_counter = GetCounter("Load Acquire");
+  static Counter* store_counter = GetCounter("Store Release");
+
+  switch (instr->Mask(LoadStoreAcquireReleaseMask)) {
+    case LDAR_b:   // Fall-through.
+    case LDAR_h:   // Fall-through.
+    case LDAR_w:   // Fall-through.
+    case LDAR_x:   // Fall-through.
+    case LDAXR_b:  // Fall-through.
+    case LDAXR_h:  // Fall-through.
+    case LDAXR_w:  // Fall-through.
+    case LDAXR_x: load_counter->Increment(); break;
+    case STLR_b:   // Fall-through.
+    case STLR_h:   // Fall-through.
+    case STLR_w:   // Fall-through.
+    case STLR_x:   // Fall-through.
+    case STLXR_b:  // Fall-through.
+    case STLXR_h:  // Fall-through.
+    case STLXR_w:  // Fall-through.
+    case STLXR_x: store_counter->Increment(); break;
+    default: UNREACHABLE();
+  }
+}
 
 void Instrument::VisitLogicalShifted(Instruction* instr) {
   Update();
@@ -452,16 +462,8 @@ void Instrument::VisitAddSubShifted(Instruction* instr) {
 
 void Instrument::VisitAddSubExtended(Instruction* instr) {
   Update();
-  static Counter* sp_counter = GetCounter("SP Adjust");
-  static Counter* add_sub_counter = GetCounter("Add/Sub DP");
-  if (((instr->Mask(AddSubOpMask) == SUB) ||
-       (instr->Mask(AddSubOpMask) == ADD)) &&
-      (instr->Rd() == 31) && (instr->Rn() == 31)) {
-    // Count adjustments to the C stack pointer caused by V8 needing two SPs.
-    sp_counter->Increment();
-  } else {
-    add_sub_counter->Increment();
-  }
+  static Counter* counter = GetCounter("Add/Sub DP");
+  counter->Increment();
 }
 
 
@@ -576,6 +578,159 @@ void Instrument::VisitFPFixedPointConvert(Instruction* instr) {
   counter->Increment();
 }
 
+void Instrument::VisitNEON2RegMisc(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEON3Different(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEON3Same(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONAcrossLanes(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONByIndexedElement(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONCopy(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONExtract(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONLoadStoreMultiStruct(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONLoadStoreMultiStructPostIndex(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONLoadStoreSingleStruct(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONLoadStoreSingleStructPostIndex(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONModifiedImmediate(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONPerm(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONScalar2RegMisc(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONScalar3Diff(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONScalar3Same(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONScalarByIndexedElement(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONScalarCopy(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONScalarPairwise(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONScalarShiftImmediate(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONShiftImmediate(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
+
+void Instrument::VisitNEONTable(Instruction* instr) {
+  USE(instr);
+  Update();
+  static Counter* counter = GetCounter("NEON");
+  counter->Increment();
+}
 
 void Instrument::VisitUnallocated(Instruction* instr) {
   Update();
@@ -591,4 +746,5 @@ void Instrument::VisitUnimplemented(Instruction* instr) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

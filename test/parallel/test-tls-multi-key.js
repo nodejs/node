@@ -19,52 +19,50 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
+const fixtures = require('../common/fixtures');
+const assert = require('assert');
+const tls = require('tls');
 
-var options = {
+const options = {
   key: [
-    fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-    fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem')
+    fixtures.readKey('ec-key.pem'),
+    fixtures.readKey('agent1-key.pem'),
   ],
   cert: [
-    fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
-    fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
+    fixtures.readKey('agent1-cert.pem'),
+    fixtures.readKey('ec-cert.pem'),
   ]
 };
 
-var ciphers = [];
+const ciphers = [];
 
-var server = tls.createServer(options, function(conn) {
+const server = tls.createServer(options, function(conn) {
   conn.end('ok');
-}).listen(common.PORT, function() {
-  var ecdsa = tls.connect(common.PORT, {
+}).listen(0, function() {
+  const ecdsa = tls.connect(this.address().port, {
     ciphers: 'ECDHE-ECDSA-AES256-GCM-SHA384',
     rejectUnauthorized: false
   }, function() {
-    var rsa = tls.connect(common.PORT, {
+    ciphers.push(ecdsa.getCipher());
+    const rsa = tls.connect(server.address().port, {
       ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
       rejectUnauthorized: false
     }, function() {
-      ecdsa.destroy();
-      rsa.destroy();
-
-      ciphers.push(ecdsa.getCipher());
       ciphers.push(rsa.getCipher());
+      ecdsa.end();
+      rsa.end();
       server.close();
     });
   });
 });
 
 process.on('exit', function() {
-  assert.deepEqual(ciphers, [{
+  assert.deepStrictEqual(ciphers, [{
     name: 'ECDHE-ECDSA-AES256-GCM-SHA384',
     version: 'TLSv1/SSLv3'
   }, {

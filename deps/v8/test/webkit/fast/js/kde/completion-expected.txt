@@ -30,7 +30,6 @@ PASS foo(), i is 2
 PASS caught is true
 PASS val is 11
 PASS val is 12
-PASS val is 13
 PASS val is 14
 PASS val is 15
 PASS successfullyParsed is true

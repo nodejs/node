@@ -19,16 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+'use strict';
+require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
-var sbx = {};
+let sbx = {};
 sbx.window = sbx;
 
 sbx = vm.createContext(sbx);
 
 sbx.test = 123;
 
-assert.equal(sbx.window.window.window.window.window.test, 123);
-
+assert.strictEqual(sbx.window.window.window.window.window.test, 123);

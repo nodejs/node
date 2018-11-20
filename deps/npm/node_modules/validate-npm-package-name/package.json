@@ -1,0 +1,70 @@
+{
+  "_args": [
+    [
+      "validate-npm-package-name@3.0.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "validate-npm-package-name@3.0.0",
+  "_id": "validate-npm-package-name@3.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-X6kS2B630MdK/BQN5zF/DKffQ34=",
+  "_location": "/validate-npm-package-name",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "validate-npm-package-name@3.0.0",
+    "name": "validate-npm-package-name",
+    "escapedName": "validate-npm-package-name",
+    "rawSpec": "3.0.0",
+    "saveSpec": null,
+    "fetchSpec": "3.0.0"
+  },
+  "_requiredBy": [
+    "/",
+    "/init-package-json",
+    "/npm-package-arg"
+  ],
+  "_resolved": "https://registry.npmjs.org/validate-npm-package-name/-/validate-npm-package-name-3.0.0.tgz",
+  "_spec": "3.0.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "zeke"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/validate-npm-package-name/issues"
+  },
+  "dependencies": {
+    "builtins": "^1.0.3"
+  },
+  "description": "Give me a string and I'll tell you if it's a valid npm package name",
+  "devDependencies": {
+    "standard": "^8.6.0",
+    "tap": "^10.0.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "homepage": "https://github.com/npm/validate-npm-package-name",
+  "keywords": [
+    "npm",
+    "package",
+    "names",
+    "validation"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "validate-npm-package-name",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/validate-npm-package-name.git"
+  },
+  "scripts": {
+    "cov:test": "TAP_FLAGS='--cov' npm run test:code",
+    "test": "npm run test:code && npm run test:style",
+    "test:code": "tap ${TAP_FLAGS:-'--'} test/*.js",
+    "test:style": "standard"
+  },
+  "version": "3.0.0"
+}

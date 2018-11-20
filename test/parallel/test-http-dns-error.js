@@ -19,50 +19,62 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 
-var http = require('http');
-var https = require('https');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var expected_bad_requests = 0;
-var actual_bad_requests = 0;
+const assert = require('assert');
+const http = require('http');
+const https = require('https');
 
-var host = '********';
-host += host;
-host += host;
-host += host;
-host += host;
-host += host;
+const host = '*'.repeat(64);
+const MAX_TRIES = 5;
 
-function do_not_call() {
-  throw new Error('This function should not have been called.');
-}
+let errCode = 'ENOTFOUND';
+if (common.isOpenBSD)
+  errCode = 'EAI_FAIL';
 
-function test(mod) {
-  expected_bad_requests += 2;
-
+function tryGet(mod, tries) {
   // Bad host name should not throw an uncatchable exception.
   // Ensure that there is time to attach an error listener.
-  var req = mod.get({host: host, port: 42}, do_not_call);
-  req.on('error', function(err) {
-    assert.equal(err.code, 'ENOTFOUND');
-    actual_bad_requests++;
-  });
-  // http.get() called req.end() for us
+  const req = mod.get({ host: host, port: 42 }, common.mustNotCall());
+  req.on('error', common.mustCall(function(err) {
+    if (err.code === 'EAGAIN' && tries < MAX_TRIES) {
+      tryGet(mod, ++tries);
+      return;
+    }
+    assert.strictEqual(err.code, errCode);
+  }));
+  // http.get() called req1.end() for us
+}
 
-  var req = mod.request({method: 'GET', host: host, port: 42}, do_not_call);
-  req.on('error', function(err) {
-    assert.equal(err.code, 'ENOTFOUND');
-    actual_bad_requests++;
-  });
+function tryRequest(mod, tries) {
+  const req = mod.request({
+    method: 'GET',
+    host: host,
+    port: 42
+  }, common.mustNotCall());
+  req.on('error', common.mustCall(function(err) {
+    if (err.code === 'EAGAIN' && tries < MAX_TRIES) {
+      tryRequest(mod, ++tries);
+      return;
+    }
+    assert.strictEqual(err.code, errCode);
+  }));
   req.end();
 }
 
-test(https);
+function test(mod) {
+  tryGet(mod, 0);
+  tryRequest(mod, 0);
+}
+
+if (common.hasCrypto) {
+  test(https);
+} else {
+  common.printSkipMessage('missing crypto');
+}
+
 test(http);
-
-process.on('exit', function() {
-  assert.equal(actual_bad_requests, expected_bad_requests);
-});
-

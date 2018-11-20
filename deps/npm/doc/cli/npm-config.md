@@ -3,14 +3,15 @@ npm-config(1) -- Manage the npm configuration files
 
 ## SYNOPSIS
 
-    npm config set <key> <value> [--global]
+    npm config set <key> <value> [-g|--global]
     npm config get <key>
     npm config delete <key>
-    npm config list
+    npm config list [-l] [--json]
     npm config edit
-    npm c [set|get|delete|list]
     npm get <key>
-    npm set <key> <value> [--global]
+    npm set <key> <value> [-g|--global]
+
+    aliases: c
 
 ## DESCRIPTION
 
@@ -47,7 +48,8 @@ Echo the config value to stdout.
 
     npm config list
 
-Show all the config settings.
+Show all the config settings. Use `-l` to also show defaults. Use `--json`
+to show the settings in json format.
 
 ### delete
 

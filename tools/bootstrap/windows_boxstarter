@@ -1,0 +1,24 @@
+# Boxstarter (http://boxstarter.org/) script for Node.js prerequisites
+#
+# To install either open this link in IE or Edge:
+#  http://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter
+#
+# Or run those commands in an elevated Powershell terminal:
+#  iex ((New-Object System.Net.WebClient).DownloadString('http://boxstarter.org/bootstrapper.ps1'))
+#  get-boxstarter -Force
+#  Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
+#
+# For more detail see
+# https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md
+#
+
+# Git and Unix tools will be added to the PATH
+choco install git -params /GitAndUnixToolsOnPath -y
+choco install python2 -y
+
+# Installs VS 2017 Build Tools
+choco install visualstudio2017buildtools -y
+choco install visualstudio2017-workload-vctools -y
+
+# NASM
+choco install nasm -y

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --max-opt-count=1000
+// Flags: --allow-natives-syntax
 
 var imul_func = Math.imul;
 function imul_polyfill(a, b) {
@@ -64,8 +64,8 @@ function TestMathImul(expected, a, b) {
   // Deoptimize closures and forget type feedback.
   %DeoptimizeFunction(imul_meth_closure);
   %DeoptimizeFunction(imul_func_closure);
-  %ClearFunctionTypeFeedback(imul_meth_closure);
-  %ClearFunctionTypeFeedback(imul_func_closure);
+  %ClearFunctionFeedback(imul_meth_closure);
+  %ClearFunctionFeedback(imul_func_closure);
 }
 
 TestMathImul(8, 2, 4);

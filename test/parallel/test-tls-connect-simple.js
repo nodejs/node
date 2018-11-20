@@ -19,54 +19,44 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
 
-var clientConnected = 0;
-var serverConnected = 0;
-var serverCloseCallbacks = 0;
-var serverCloseEvents = 0;
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
+
+let serverConnected = 0;
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, common.mustCall(function(socket) {
   if (++serverConnected === 2) {
-    server.close(function() {
-      ++serverCloseCallbacks;
-    });
-    server.on('close', function() {
-      ++serverCloseEvents;
-    });
+    server.close(common.mustCall());
+    server.on('close', common.mustCall());
   }
-});
+}, 2));
 
-server.listen(common.PORT, function() {
-  var client1 = tls.connect({
-    port: common.PORT,
+server.listen(0, function() {
+  const client1options = {
+    port: this.address().port,
     rejectUnauthorized: false
-  }, function() {
-    ++clientConnected;
+  };
+  const client1 = tls.connect(client1options, common.mustCall(function() {
     client1.end();
-  });
+  }));
 
-  var client2 = tls.connect({
-    port: common.PORT,
+  const client2options = {
+    port: this.address().port,
     rejectUnauthorized: false
-  });
-  client2.on('secureConnect', function() {
-    ++clientConnected;
+  };
+  const client2 = tls.connect(client2options);
+  client2.on('secureConnect', common.mustCall(function() {
     client2.end();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(clientConnected, 2);
-  assert.equal(serverConnected, 2);
-  assert.equal(serverCloseCallbacks, 1);
-  assert.equal(serverCloseEvents, 1);
+  }));
 });

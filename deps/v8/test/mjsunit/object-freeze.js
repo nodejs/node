@@ -25,33 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the Object.freeze and Object.isFrozen methods - ES 15.2.3.9 and
-// ES 15.2.3.12
+// Tests the Object.freeze and Object.isFrozen methods - ES 19.1.2.5 and
+// ES 19.1.2.12
 
 // Flags: --allow-natives-syntax
 
-// Test that we throw an error if an object is not passed as argument.
-var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
+// Test that we return obj if non-object is passed as argument
+var non_objects = new Array(undefined, null, 1, -1, 0, 42.43, Symbol("test"));
 for (var key in non_objects) {
-  var exception = false;
-  try {
-    Object.freeze(non_objects[key]);
-  } catch(e) {
-    exception = true;
-    assertTrue(/Object.freeze called on non-object/.test(e));
-  }
-  assertTrue(exception);
+  assertSame(non_objects[key], Object.freeze(non_objects[key]));
 }
 
+// Test that isFrozen always returns true for non-objects
 for (var key in non_objects) {
-  exception = false;
-  try {
-    Object.isFrozen(non_objects[key]);
-  } catch(e) {
-    exception = true;
-    assertTrue(/Object.isFrozen called on non-object/.test(e));
-  }
-  assertTrue(exception);
+  assertTrue(Object.isFrozen(non_objects[key]));
 }
 
 // Test normal data properties.
@@ -303,7 +290,7 @@ assertTrue(Object.isFrozen(Object.freeze(function(){"use strict";})));
 
 // Also test a simpler case
 obj = {};
-Object.defineProperty(obj, 'accessor', {
+Object.defineProperty(obj, 'accessor2', {
   get: function() { return 42 },
   set: function() { accessorDidRun = true },
   configurable: true,
@@ -339,3 +326,73 @@ obj.__proto__[1] = 1;
 assertEquals(1, obj[1]);
 Object.freeze(obj);
 assertThrows(function() { obj.unshift(); }, TypeError);
+
+// Sealing and then Freezing should do the right thing.
+var obj = { foo: 'bar', 0: 'element' };
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+assertTrue(Object.isFrozen(obj));
+
+
+(function propertiesOfFrozenObjectNotFrozen() {
+  function Frozen() {}
+  Object.freeze(Frozen);
+  assertDoesNotThrow(function() { return new Frozen(); });
+  Frozen.prototype.prototypeExists = true;
+  assertTrue((new Frozen()).prototypeExists);
+})();
+
+
+(function frozenPrototypePreventsPUT() {
+  // A read-only property on the prototype should prevent a [[Put]] .
+  function Constructor() {}
+  Constructor.prototype.foo = 1;
+  Object.freeze(Constructor.prototype);
+  var obj = new Constructor();
+  obj.foo = 2;
+  assertSame(1, obj.foo);
+})();
+
+
+(function frozenFunctionSloppy() {
+  // Check that freezing a function works correctly.
+  var func = Object.freeze(function foo(){});
+  assertTrue(Object.isFrozen(func));
+  func.prototype = 42;
+  assertFalse(func.prototype === 42);
+  assertFalse(Object.getOwnPropertyDescriptor(func, "prototype").writable);
+})();
+
+
+(function frozenFunctionStrict() {
+  // Check that freezing a strict function works correctly.
+  var func = Object.freeze(function foo(){ "use strict"; });
+  assertTrue(Object.isFrozen(func));
+  func.prototype = 42;
+  assertFalse(func.prototype === 42);
+  assertFalse(Object.getOwnPropertyDescriptor(func, "prototype").writable);
+})();
+
+
+(function frozenArrayObject() {
+  // Check that freezing array objects works correctly.
+  var array = Object.freeze([0,1,2]);
+  assertTrue(Object.isFrozen(array));
+  array[0] = 3;
+  assertEquals(0, array[0]);
+  assertFalse(Object.getOwnPropertyDescriptor(array, "length").writable);
+})();
+
+
+(function frozenArgumentsObject() {
+  // Check that freezing arguments objects works correctly.
+  var args = Object.freeze((function(){ return arguments; })(0,1,2));
+  assertTrue(Object.isFrozen(args));
+  args[0] = 3;
+  assertEquals(0, args[0]);
+  assertFalse(Object.getOwnPropertyDescriptor(args, "length").writable);
+  assertFalse(Object.getOwnPropertyDescriptor(args, "callee").writable);
+})();

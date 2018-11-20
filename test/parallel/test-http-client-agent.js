@@ -19,51 +19,51 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var name = http.globalAgent.getName({ port: common.PORT });
-var max = 3;
-var count = 0;
+let name;
+const max = 3;
 
-var server = http.Server(function(req, res) {
+const server = http.Server(common.mustCall((req, res) => {
   if (req.url === '/0') {
-    setTimeout(function() {
+    setTimeout(common.mustCall(() => {
       res.writeHead(200);
       res.end('Hello, World!');
-    }, 100);
+    }), 100);
   } else {
     res.writeHead(200);
     res.end('Hello, World!');
   }
-});
-server.listen(common.PORT, function() {
-  for (var i = 0; i < max; ++i) {
+}, max));
+server.listen(0, common.mustCall(() => {
+  name = http.globalAgent.getName({ port: server.address().port });
+  for (let i = 0; i < max; ++i)
     request(i);
-  }
+}));
+
+const countdown = new Countdown(max, () => {
+  assert(!http.globalAgent.sockets.hasOwnProperty(name));
+  assert(!http.globalAgent.requests.hasOwnProperty(name));
+  server.close();
 });
 
 function request(i) {
-  var req = http.get({
-    port: common.PORT,
-    path: '/' + i
+  const req = http.get({
+    port: server.address().port,
+    path: `/${i}`
   }, function(res) {
-    var socket = req.socket;
-    socket.on('close', function() {
-      ++count;
-      if (count < max) {
-        assert.equal(http.globalAgent.sockets[name].indexOf(socket), -1);
-      } else {
-        assert(!http.globalAgent.sockets.hasOwnProperty(name));
-        assert(!http.globalAgent.requests.hasOwnProperty(name));
-        server.close();
+    const socket = req.socket;
+    socket.on('close', common.mustCall(() => {
+      countdown.dec();
+      if (countdown.remaining > 0) {
+        assert.strictEqual(http.globalAgent.sockets[name].includes(socket),
+                           false);
       }
-    });
+    }));
     res.resume();
   });
 }
-
-process.on('exit', function() {
-  assert.equal(count, max);
-});

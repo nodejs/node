@@ -26,7 +26,12 @@
 #include <errno.h>
 
 /* NOTE: Number should be big enough to trigger this problem */
+#if defined(__CYGWIN__) || defined(__MSYS__)
+/* Cygwin crashes or hangs in socket() with too many AF_INET sockets.  */
+static uv_udp_t sockets[1250];
+#else
 static uv_udp_t sockets[2500];
+#endif
 static uv_udp_send_t reqs[ARRAY_SIZE(sockets)];
 static char slab[1];
 static unsigned int recv_cb_called;
@@ -59,6 +64,9 @@ static void close_cb(uv_handle_t* handle) {
 
 
 TEST_IMPL(watcher_cross_stop) {
+#if defined(__MVS__)
+  RETURN_SKIP("zOS does not allow address or port reuse when using UDP sockets");
+#endif
   uv_loop_t* loop = uv_default_loop();
   unsigned int i;
   struct sockaddr_in addr;

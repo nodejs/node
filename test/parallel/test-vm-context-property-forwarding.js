@@ -19,13 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+'use strict';
+require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
-var sandbox = { x: 3 };
+const sandbox = { x: 3 };
 
-var ctx = vm.createContext(sandbox);
+const ctx = vm.createContext(sandbox);
 
 assert.strictEqual(vm.runInContext('x;', ctx), 3);
 vm.runInContext('y = 4;', ctx);

@@ -8,36 +8,19 @@
 #include <limits>
 
 #include "src/base/logging.h"
-#include "src/handles.h"
-#include "src/objects.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
+class BigInt;
+template <typename T>
+class Handle;
 class UnicodeCache;
 
-// Maximum number of significant digits in decimal representation.
-// The longest possible double in decimal representation is
-// (2^53 - 1) * 2 ^ -1074 that is (2 ^ 53 - 1) * 5 ^ 1074 / 10 ^ 1074
-// (768 digits). If we parse a number whose first digits are equal to a
-// mean of 2 adjacent doubles (that could have up to 769 digits) the result
-// must be rounded to the bigger one unless the tail consists of zeros, so
-// we don't need to preserve all the digits.
-const int kMaxSignificantDigits = 772;
-
-
-inline bool isDigit(int x, int radix) {
-  return (x >= '0' && x <= '9' && x < '0' + radix)
-      || (radix > 10 && x >= 'a' && x < 'a' + radix - 10)
-      || (radix > 10 && x >= 'A' && x < 'A' + radix - 10);
-}
-
-
-inline bool isBinaryDigit(int x) {
-  return x == '0' || x == '1';
-}
-
+// The limit for the the fractionDigits/precision for toFixed, toPrecision
+// and toExponential.
+const int kMaxFractionDigits = 100;
 
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
@@ -49,12 +32,13 @@ inline int FastD2IChecked(double x) {
   return static_cast<int>(x);
 }
 
-
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
-// The result is unspecified if x is infinite or NaN, or if the rounded
+// The result is undefined if x is infinite or NaN, or if the rounded
 // integer value is outside the range of type int.
 inline int FastD2I(double x) {
+  DCHECK(x <= INT_MAX);
+  DCHECK(x >= INT_MIN);
   return static_cast<int32_t>(x);
 }
 
@@ -90,9 +74,7 @@ inline int32_t DoubleToInt32(double x);
 
 
 // This function should match the exact semantics of ECMA-262 9.6.
-inline uint32_t DoubleToUint32(double x) {
-  return static_cast<uint32_t>(DoubleToInt32(x));
-}
+inline uint32_t DoubleToUint32(double x);
 
 
 // Enumeration for allowing octals and ignoring junk when converting
@@ -122,15 +104,19 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       int flags,
                       double empty_string_val = 0);
 
-// Converts a string into an integer.
-double StringToInt(UnicodeCache* unicode_cache,
-                   Vector<const uint8_t> vector,
-                   int radix);
+double StringToInt(Isolate* isolate, Handle<String> string, int radix);
 
+// This follows https://tc39.github.io/proposal-bigint/#sec-string-to-bigint
+// semantics: "" => 0n.
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string);
 
-double StringToInt(UnicodeCache* unicode_cache,
-                   Vector<const uc16> vector,
-                   int radix);
+// This version expects a zero-terminated character array. Radix will
+// be inferred from string prefix (case-insensitive):
+//   0x -> hex
+//   0o -> octal
+//   0b -> binary
+V8_EXPORT_PRIVATE MaybeHandle<BigInt> BigIntLiteral(Isolate* isolate,
+                                                    const char* string);
 
 const int kDoubleToCStringMinBufferSize = 100;
 
@@ -150,92 +136,53 @@ char* DoubleToExponentialCString(double value, int f);
 char* DoubleToPrecisionCString(double value, int f);
 char* DoubleToRadixCString(double value, int radix);
 
-
 static inline bool IsMinusZero(double value) {
-  static const DoubleRepresentation minus_zero(-0.0);
-  return DoubleRepresentation(value) == minus_zero;
+  return bit_cast<int64_t>(value) == bit_cast<int64_t>(-0.0);
 }
 
+// Returns true if value can be converted to a SMI, and returns the resulting
+// integer value of the SMI in |smi_int_value|.
+inline bool DoubleToSmiInteger(double value, int* smi_int_value);
 
-static inline bool IsSmiDouble(double value) {
-  return !IsMinusZero(value) && value >= Smi::kMinValue &&
-         value <= Smi::kMaxValue && value == FastI2D(FastD2I(value));
-}
-
+inline bool IsSmiDouble(double value);
 
 // Integer32 is an integer that can be represented as a signed 32-bit
 // integer. It has to be in the range [-2^31, 2^31 - 1].
 // We also have to check for negative 0 as it is not an Integer32.
-static inline bool IsInt32Double(double value) {
-  return !IsMinusZero(value) &&
-         value >= kMinInt &&
-         value <= kMaxInt &&
-         value == FastI2D(FastD2I(value));
-}
-
+inline bool IsInt32Double(double value);
 
 // UInteger32 is an integer that can be represented as an unsigned 32-bit
 // integer. It has to be in the range [0, 2^32 - 1].
 // We also have to check for negative 0 as it is not a UInteger32.
-static inline bool IsUint32Double(double value) {
-  return !IsMinusZero(value) &&
-         value >= 0 &&
-         value <= kMaxUInt32 &&
-         value == FastUI2D(FastD2UI(value));
-}
+inline bool IsUint32Double(double value);
 
+// Tries to convert |value| to a uint32, setting the result in |uint32_value|.
+// If the output does not compare equal to the input, returns false and the
+// value in |uint32_value| is left unspecified.
+// Used for conversions such as in ECMA-262 15.4.2.2, which check "ToUint32(len)
+// is equal to len".
+inline bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value);
 
 // Convert from Number object to C integer.
-inline int32_t NumberToInt32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
-  return DoubleToInt32(number->Number());
-}
+inline uint32_t PositiveNumberToUint32(Object* number);
+inline int32_t NumberToInt32(Object* number);
+inline uint32_t NumberToUint32(Object* number);
+inline int64_t NumberToInt64(Object* number);
+inline uint64_t PositiveNumberToUint64(Object* number);
 
+double StringToDouble(Isolate* isolate, UnicodeCache* unicode_cache,
+                      Handle<String> string, int flags,
+                      double empty_string_val = 0.0);
 
-inline uint32_t NumberToUint32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
-  return DoubleToUint32(number->Number());
-}
-
-
-double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
-                      int flags, double empty_string_val = 0.0);
-
-
-inline bool TryNumberToSize(Isolate* isolate,
-                            Object* number, size_t* result) {
-  SealHandleScope shs(isolate);
-  if (number->IsSmi()) {
-    int value = Smi::cast(number)->value();
-    DCHECK(static_cast<unsigned>(Smi::kMaxValue)
-           <= std::numeric_limits<size_t>::max());
-    if (value >= 0) {
-      *result = static_cast<size_t>(value);
-      return true;
-    }
-    return false;
-  } else {
-    DCHECK(number->IsHeapNumber());
-    double value = HeapNumber::cast(number)->value();
-    if (value >= 0 &&
-        value <= std::numeric_limits<size_t>::max()) {
-      *result = static_cast<size_t>(value);
-      return true;
-    } else {
-      return false;
-    }
-  }
-}
+inline bool TryNumberToSize(Object* number, size_t* result);
 
 // Converts a number into size_t.
-inline size_t NumberToSize(Isolate* isolate,
-                           Object* number) {
-  size_t result = 0;
-  bool is_valid = TryNumberToSize(isolate, number, &result);
-  CHECK(is_valid);
-  return result;
-}
+inline size_t NumberToSize(Object* number);
 
-} }  // namespace v8::internal
+// returns DoubleToString(StringToDouble(string)) == string
+bool IsSpecialIndex(UnicodeCache* unicode_cache, String* string);
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CONVERSIONS_H_

@@ -244,10 +244,6 @@ var migrations = [
     migr: function(o, i) { o.__proto__ = {}; },
   },
   {
-    name: "%FunctionSetPrototype",
-    migr: function(o, i) { %FunctionSetPrototype(o, null); },
-  },
-  {
     name: "modify prototype",
     migr: function(o, i) { if (i == 0) o.__proto__.__proto1__ = [,,,5,,,]; },
   },
@@ -274,27 +270,11 @@ var migrations = [
     },
   },
   {
-    name: "observe",
-    migr: function(o, i) { Object.observe(o, function(){}); },
-  },
-  {
-    name: "%EnableAccessChecks",
-    migr: function(o, i) {
-      if (typeof (o) !== 'function') %EnableAccessChecks(o);
-    },
-  },
-  {
-    name: "%DisableAccessChecks",
-    migr: function(o, i) {
-      if ((typeof (o) !== 'function') && (o !== global)) %DisableAccessChecks(o);
-    },
-  },
-  {
     name: "seal",
     migr: function(o, i) { Object.seal(o); },
   },
   { // Must be the last in the sequence, because after the global object freeze
-    // the other modifications does not make sence.
+    // the other modifications does not make sense.
     name: "freeze",
     migr: function(o, i) { Object.freeze(o); },
   },

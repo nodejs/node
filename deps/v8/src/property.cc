@@ -4,32 +4,13 @@
 
 #include "src/property.h"
 
+#include "src/field-type.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
-
-void LookupResult::Iterate(ObjectVisitor* visitor) {
-  LookupResult* current = this;  // Could be NULL.
-  while (current != NULL) {
-    visitor->VisitPointer(bit_cast<Object**>(&current->holder_));
-    visitor->VisitPointer(bit_cast<Object**>(&current->transition_));
-    current = current->next_;
-  }
-}
-
-
-std::ostream& operator<<(std::ostream& os, const LookupResult& r) {
-  if (!r.IsFound()) return os << "Not Found\n";
-
-  os << "LookupResult:\n";
-  if (r.IsTransition()) {
-    os << " -transition target:\n" << Brief(r.GetTransitionTarget()) << "\n";
-  }
-  return os;
-}
-
 
 std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes) {
@@ -41,33 +22,85 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
+                                 PropertyAttributes attributes,
+                                 Representation representation) {
+  return DataField(key, field_index, attributes, PropertyConstness::kMutable,
+                   representation,
+                   MaybeObjectHandle(FieldType::Any(key->GetIsolate())));
+}
 
-std::ostream& operator<<(std::ostream& os, const PropertyDetails& details) {
-  os << "(";
-  switch (details.type()) {
-    case NORMAL:
-      os << "normal: dictionary_index: " << details.dictionary_index();
-      break;
-    case CONSTANT:
-      os << "constant: p: " << details.pointer();
-      break;
-    case FIELD:
-      os << "field: " << details.representation().Mnemonic()
-         << ", field_index: " << details.field_index()
-         << ", p: " << details.pointer();
-      break;
-    case CALLBACKS:
-      os << "callbacks: p: " << details.pointer();
-      break;
+Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
+                                 PropertyAttributes attributes,
+                                 PropertyConstness constness,
+                                 Representation representation,
+                                 MaybeObjectHandle wrapped_field_type) {
+  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakHeapObject());
+  PropertyDetails details(kData, attributes, kField, constness, representation,
+                          field_index);
+  return Descriptor(key, wrapped_field_type, details);
+}
+
+Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
+                                    Handle<Object> value,
+                                    PropertyAttributes attributes) {
+  if (FLAG_track_constant_fields) {
+    MaybeObjectHandle any_type(FieldType::Any(), key->GetIsolate());
+    return DataField(key, field_index, attributes, PropertyConstness::kConst,
+                     Representation::Tagged(), any_type);
+
+  } else {
+    return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
+                      kDescriptor, PropertyConstness::kConst,
+                      value->OptimalRepresentation(), field_index);
   }
-  os << ", attrs: " << details.attributes() << ")";
-  return os;
 }
 
-
-std::ostream& operator<<(std::ostream& os, const Descriptor& d) {
-  return os << "Descriptor " << Brief(*d.GetKey()) << " @ "
-            << Brief(*d.GetValue()) << " " << d.GetDetails();
+// Outputs PropertyDetails as a dictionary details.
+void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
+  os << "(";
+  if (constness() == PropertyConstness::kConst) os << "const ";
+  os << (kind() == kData ? "data" : "accessor");
+  os << ", dict_index: " << dictionary_index();
+  os << ", attrs: " << attributes() << ")";
 }
 
-} }  // namespace v8::internal
+// Outputs PropertyDetails as a descriptor array details.
+void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
+  os << "(";
+  if (constness() == PropertyConstness::kConst) os << "const ";
+  os << (kind() == kData ? "data" : "accessor");
+  if (location() == kField) {
+    os << " field";
+    if (mode & kPrintFieldIndex) {
+      os << " " << field_index();
+    }
+    if (mode & kPrintRepresentation) {
+      os << ":" << representation().Mnemonic();
+    }
+  } else {
+    os << " descriptor";
+  }
+  if (mode & kPrintPointer) {
+    os << ", p: " << pointer();
+  }
+  if (mode & kPrintAttributes) {
+    os << ", attrs: " << attributes();
+  }
+  os << ")";
+}
+
+#ifdef OBJECT_PRINT
+void PropertyDetails::Print(bool dictionary_mode) {
+  StdoutStream os;
+  if (dictionary_mode) {
+    PrintAsSlowTo(os);
+  } else {
+    PrintAsFastTo(os, PrintMode::kPrintFull);
+  }
+  os << "\n" << std::flush;
+}
+#endif
+
+}  // namespace internal
+}  // namespace v8

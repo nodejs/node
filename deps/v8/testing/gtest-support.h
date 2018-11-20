@@ -5,7 +5,6 @@
 #ifndef V8_TESTING_GTEST_SUPPORT_H_
 #define V8_TESTING_GTEST_SUPPORT_H_
 
-#include <stddef.h>
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace testing {
@@ -32,16 +31,14 @@ GET_TYPE_NAME(double)
 #undef GET_TYPE_NAME
 
 
-// TRACED_FOREACH(type, var, array) expands to a loop that assigns |var| every
-// item in the |array| and adds a SCOPED_TRACE() message for the |var| while
-// inside the loop body.
-// TODO(bmeurer): Migrate to C++11 once we're ready.
-#define TRACED_FOREACH(_type, _var, _array)                                \
-  for (size_t _i = 0; _i < arraysize(_array); ++_i)                        \
-    for (bool _done = false; !_done;)                                      \
-      for (_type const _var = _array[_i]; !_done;)                         \
-        for (SCOPED_TRACE(::testing::Message() << #_var << " = " << _var); \
-             !_done; _done = true)
+// TRACED_FOREACH(type, var, container) expands to a loop that assigns |var|
+// every item in the |container| and adds a SCOPED_TRACE() message for the
+// |var| while inside the loop body.
+#define TRACED_FOREACH(_type, _var, _container)                          \
+  for (_type const _var : _container)                                    \
+    for (bool _done = false; !_done;)                                    \
+      for (SCOPED_TRACE(::testing::Message() << #_var << " = " << _var); \
+           !_done; _done = true)
 
 
 // TRACED_FORRANGE(type, var, low, high) expands to a loop that assigns |var|

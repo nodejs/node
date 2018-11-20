@@ -6,18 +6,16 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/node.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 SelectLowering::SelectLowering(Graph* graph, CommonOperatorBuilder* common)
-    : common_(common),
-      graph_(graph),
-      merges_(Merges::key_compare(), Merges::allocator_type(graph->zone())) {}
-
+    : common_(common), graph_(graph) {}
 
 SelectLowering::~SelectLowering() {}
 
@@ -26,23 +24,16 @@ Reduction SelectLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kSelect) return NoChange();
   SelectParameters const p = SelectParametersOf(node->op());
 
-  Node* const cond = node->InputAt(0);
+  Node* cond = node->InputAt(0);
+  Node* vthen = node->InputAt(1);
+  Node* velse = node->InputAt(2);
 
-  // Check if we already have a diamond for this condition.
-  auto i = merges_.find(cond);
-  if (i == merges_.end()) {
-    // Create a new diamond for this condition and remember its merge node.
-    Diamond d(graph(), common(), cond, p.hint());
-    i = merges_.insert(std::make_pair(cond, d.merge)).first;
-  }
-
-  DCHECK_EQ(cond, i->first);
-
-  // Create a Phi hanging off the previously determined merge.
-  node->set_op(common()->Phi(p.type(), 2));
-  node->ReplaceInput(0, node->InputAt(1));
-  node->ReplaceInput(1, node->InputAt(2));
-  node->ReplaceInput(2, i->second);
+  // Create a diamond and a phi.
+  Diamond d(graph(), common(), cond, p.hint());
+  node->ReplaceInput(0, vthen);
+  node->ReplaceInput(1, velse);
+  node->ReplaceInput(2, d.merge);
+  NodeProperties::ChangeOp(node, common()->Phi(p.representation(), 2));
   return Changed(node);
 }
 

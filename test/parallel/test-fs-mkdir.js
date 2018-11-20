@@ -19,65 +19,190 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
-function unlink(pathname) {
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
+let dirc = 0;
+function nextdir() {
+  return `test${++dirc}`;
+}
+
+// mkdir creates directory using assigned path
+{
+  const pathname = path.join(tmpdir.path, nextdir());
+
+  fs.mkdir(pathname, common.mustCall(function(err) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+  }));
+}
+
+// mkdir creates directory with assigned mode value
+{
+  const pathname = path.join(tmpdir.path, nextdir());
+
+  fs.mkdir(pathname, 0o777, common.mustCall(function(err) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+  }));
+}
+
+// mkdirSync successfully creates directory from given path
+{
+  const pathname = path.join(tmpdir.path, nextdir());
+
+  fs.mkdirSync(pathname);
+
+  const exists = fs.existsSync(pathname);
+  assert.strictEqual(exists, true);
+}
+
+// mkdirSync and mkdir require path to be a string, buffer or url.
+// Anything else generates an error.
+[false, 1, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.mkdir(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.mkdirSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});
+
+// mkdirpSync when both top-level, and sub-folders do not exist.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(pathname, { recursive: true });
+
+  const exists = fs.existsSync(pathname);
+  assert.strictEqual(exists, true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+}
+
+// mkdirpSync when folder already exists.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(pathname, { recursive: true });
+  // should not cause an error.
+  fs.mkdirSync(pathname, { recursive: true });
+
+  const exists = fs.existsSync(pathname);
+  assert.strictEqual(exists, true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+}
+
+// mkdirpSync ../
+{
+  const pathname = `${tmpdir.path}/${nextdir()}/../${nextdir()}/${nextdir()}`;
+  fs.mkdirSync(pathname, { recursive: true });
+  const exists = fs.existsSync(pathname);
+  assert.strictEqual(exists, true);
+  assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+}
+
+// mkdirpSync when path is a file.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(path.dirname(pathname));
+  fs.writeFileSync(pathname, '', 'utf8');
+
   try {
-    fs.rmdirSync(pathname);
-  } catch (e) {
+    fs.mkdirSync(pathname, { recursive: true });
+    throw new Error('unreachable');
+  } catch (err) {
+    assert.notStrictEqual(err.message, 'unreachable');
+    assert.strictEqual(err.code, 'EEXIST');
+    assert.strictEqual(err.syscall, 'mkdir');
   }
 }
 
-(function() {
-  var ncalls = 0;
-  var pathname = common.tmpDir + '/test1';
+// mkdirp when folder does not yet exist.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
 
-  unlink(pathname);
+  fs.mkdir(pathname, { recursive: true }, common.mustCall(function(err) {
+    assert.strictEqual(err, null);
+    assert.strictEqual(fs.existsSync(pathname), true);
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
+  }));
+}
 
-  fs.mkdir(pathname, function(err) {
-    assert.equal(err, null);
-    assert.equal(common.fileExists(pathname), true);
-    ncalls++;
+// mkdirp when path is a file.
+{
+  const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+
+  fs.mkdirSync(path.dirname(pathname));
+  fs.writeFileSync(pathname, '', 'utf8');
+  fs.mkdir(pathname, { recursive: true }, (err) => {
+    assert.strictEqual(err.code, 'EEXIST');
+    assert.strictEqual(err.syscall, 'mkdir');
+    assert.strictEqual(fs.statSync(pathname).isDirectory(), false);
   });
+}
 
-  process.on('exit', function() {
-    unlink(pathname);
-    assert.equal(ncalls, 1);
-  });
-})();
-
-(function() {
-  var ncalls = 0;
-  var pathname = common.tmpDir + '/test2';
-
-  unlink(pathname);
-
-  fs.mkdir(pathname, 511 /*=0777*/, function(err) {
-    assert.equal(err, null);
-    assert.equal(common.fileExists(pathname), true);
-    ncalls++;
-  });
-
-  process.on('exit', function() {
-    unlink(pathname);
-    assert.equal(ncalls, 1);
-  });
-})();
-
-(function() {
-  var pathname = common.tmpDir + '/test3';
-
-  unlink(pathname);
+// mkdirpSync dirname loop
+// XXX: windows and smartos have issues removing a directory that you're in.
+if (common.isMainThread && (common.isLinux || common.isOSX)) {
+  const pathname = path.join(tmpdir.path, nextdir());
   fs.mkdirSync(pathname);
+  process.chdir(pathname);
+  fs.rmdirSync(pathname);
+  try {
+    fs.mkdirSync('X', { recursive: true });
+    throw new Error('unreachable');
+  } catch (err) {
+    assert.notStrictEqual(err.message, 'unreachable');
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'mkdir');
+  }
+  fs.mkdir('X', { recursive: true }, (err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+    assert.strictEqual(err.syscall, 'mkdir');
+  });
+}
 
-  var exists = common.fileExists(pathname);
-  unlink(pathname);
-
-  assert.equal(exists, true);
-})();
+// mkdirSync and mkdir require options.recursive to be a boolean.
+// Anything else generates an error.
+{
+  const pathname = path.join(tmpdir.path, nextdir());
+  ['', 1, {}, [], null, Symbol('test'), () => {}].forEach((recursive) => {
+    common.expectsError(
+      () => fs.mkdir(pathname, { recursive }, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "recursive" argument must be of type boolean. Received ' +
+          `type ${typeof recursive}`
+      }
+    );
+    common.expectsError(
+      () => fs.mkdirSync(pathname, { recursive }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "recursive" argument must be of type boolean. Received ' +
+          `type ${typeof recursive}`
+      }
+    );
+  });
+}
 
 // Keep the event loop alive so the async mkdir() requests
 // have a chance to run (since they don't ref the event loop).
-process.nextTick(function() {});
+process.nextTick(() => {});

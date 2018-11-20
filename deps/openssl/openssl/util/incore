@@ -1,0 +1,454 @@
+#! /usr/bin/env perl
+# Copyright 2011-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# The script embeds fingerprint into ELF executable object, either
+# application binary or shared library.
+
+######################################################################
+#
+# ELF symbol table parser by <appro@openssl.org>. The table entries
+# are extended with offset within executable file...
+#
+{ package ELF;
+  use FileHandle;
+
+    sub dup  { my %copy=map {$_} @_; return \%copy; }
+
+    sub Load {
+	my $class = shift;
+	my $self  = {};
+	my $FD    = FileHandle->new();	# autoclose
+
+	bless $self,$class;
+
+	sysopen($FD,shift,0) or die "$!";
+	binmode($FD);
+
+	#################################################
+	# read and parse elf_ehdr.e_ident...
+	#
+	read($FD,my $elf,16) or die "$!";
+
+	my %e_ident;
+	@e_ident{magic,class,data,version,osabi,abiver,pad}=
+		unpack("a4C*",$elf);
+
+	$!=42;		# signal fipsld to revert to two-step link
+	die "not ELF file" if ($e_ident{magic} ne chr(0177)."ELF");
+
+	my $elf_bits   = $e_ident{class}*32;	# 32 or 64
+	my $big_endian = $e_ident{data}-1;	# 0 or 1
+
+	if ($elf_bits==64) {
+	    if (!(((1<<31)<<1) && $big_endian==(unpack("L",pack("N",1))==1))) {
+		die "ELF64 is supported only natively";
+	    }
+	}
+
+	#################################################
+	# read and parse remainder of elf_ehdr...
+	#
+	read($FD,my $elfhdr,64) or die "$!";
+
+	my %elf_ehdr;
+	@elf_ehdr{e_type,e_machine,e_version,
+		e_entry,e_phoff,e_shoff,e_flags,e_ehsize,
+		e_phentsize,e_phnum,e_shentsize,e_shnum,e_shstrndx} =
+	$elf_bits==32 ?
+		unpack($big_endian?"nnN5n6":"vvV5v6",$elfhdr)
+	:	unpack("SSLQ3LS6",$elfhdr);
+
+	# put aside e_machine in case one has to treat specific
+	# platforms differently, see EM_ constants in elf.h for
+	# assortment... 
+	$self->{e_machine} = $elf_ehdr{e_machine};
+
+	#################################################
+	# read and parse elf_shdr table...
+	#
+	my ($i,$sz,$symtab_idx,$blob,$strings);
+
+	seek($FD,$elf_ehdr{e_shoff},0) or die "$!";
+	read($FD,$blob,$elf_ehdr{e_shentsize}*$elf_ehdr{e_shnum}) or die "$!";
+
+	my @sections;
+	my $elf_shdr_struct=($elf_bits==32?($big_endian?"N10":"V10"):"L2Q4L2Q2");
+	for ($sz=$elf_ehdr{e_shentsize},$i=0;$i<length($blob);$i+=$sz) {
+	    my %elf_shdr;
+
+	    @elf_shdr{sh_name,sh_type,sh_flags,
+			sh_addr,sh_offset,sh_size,
+			sh_link,sh_info,sh_addalign,sh_entsize} =
+		unpack($elf_shdr_struct,substr($blob,$i,$sz));
+
+	    push(@sections,dup(%elf_shdr));
+
+	    # note SHT_SYMTAB or SHT_DYNSYM for future reference
+	    if ($elf_shdr{sh_type}==2 || $elf_shdr{sh_type}==11) {
+		$symtab_idx = $#sections;
+	    }
+	}
+
+	# read strings table and map section names...
+	seek($FD,@sections[$elf_ehdr{e_shstrndx}]->{sh_offset},0)	or die "$!";
+	read($FD,$strings,@sections[$elf_ehdr{e_shstrndx}]->{sh_size})	or die "$!";
+	for (@sections) {
+	    $_->{sh_name}=(split(chr(0),substr($strings,$_->{sh_name},64)))[0];
+	}
+
+	#################################################
+	# read symbol strings table...
+	#
+	$i=@sections[$symtab_idx]->{sh_link};
+	seek($FD,@sections[$i]->{sh_offset},0)		or die "$!";
+	read($FD,$strings,@sections[$i]->{sh_size})	or die "$!";
+
+	#################################################
+	# read and parse elf_sym table...
+	#
+	seek($FD,@sections[$symtab_idx]->{sh_offset},0)		or die "$!";
+	read($FD,my $blob,@sections[$symtab_idx]->{sh_size})	or die "$!";
+
+	for ($sz=@sections[$symtab_idx]->{sh_entsize},$i=0;$i<length($blob);$i+=$sz) {
+	    my %elf_sym;
+
+	    if ($elf_bits==32) {
+		@elf_sym{st_name,st_value,st_size,st_info,st_other,st_shndx} =
+			unpack($big_endian?"N3CCn":"V3CCv",substr($blob,$i,$sz));
+	    } else {
+		@elf_sym{st_name,st_info,st_other,st_shndx,st_value,st_size} =
+			unpack("LCCSQQ",substr($blob,$i,$sz));
+	    }
+
+	    my $st_type = $elf_sym{st_info}&0xf;
+	    my $st_bind = $elf_sym{st_info}>>4;
+	    my $st_secn = $elf_sym{st_shndx};
+	    my $name;
+	    #                 (STT_OBJECT  || STT_FUNC)
+	    if ($st_bind<3 && ($st_type==1 || $st_type==2)
+	    	&& $st_secn <= $#sections 		# sane st_shndx
+		&& @sections[$st_secn]->{sh_type}	# not SHN_UNDEF
+		&& ($name=(split(chr(0),substr($strings,$elf_sym{st_name},128)))[0])
+		) {
+		# synthesize st_offset, ...
+	    	$elf_sym{st_offset}  = $elf_sym{st_value}
+				- @sections[$st_secn]->{sh_addr}
+				+ @sections[$st_secn]->{sh_offset};
+		$elf_sym{st_name}    = $name;
+		$elf_sym{st_section} = @sections[$st_secn]->{sh_name};
+		# ... and add to lookup table
+		$self->{symbols}{$name} = dup(%elf_sym);
+	    }
+	}
+
+	return $self;
+    }
+
+    sub Lookup {
+	my $self = shift;
+	my $name = shift;
+	return $self->{symbols}{$name};
+    }
+
+    sub Traverse {
+	my $self = shift;
+	my $code = shift;
+
+	if (ref($code) eq 'CODE') {
+	    for (keys(%{$self->{symbols}})) { &$code($self->{symbols}{$_}); }
+	}
+    }
+}
+
+######################################################################
+#
+# SHA1 and HMAC in Perl by <appro@openssl.org>.
+#
+{ package SHA1;
+  use integer;
+
+    {
+    ################################### SHA1 block code generator
+    my @V = ('$A','$B','$C','$D','$E');
+    my $i;
+
+    sub XUpdate {
+      my $ret;
+	$ret="(\$T=\$W[($i-16)%16]^\$W[($i-14)%16]^\$W[($i-8)%16]^\$W[($i-3)%16],\n\t";
+	if ((1<<31)<<1) {
+	    $ret.="    \$W[$i%16]=((\$T<<1)|(\$T>>31))&0xffffffff)\n\t  ";
+	} else {
+	    $ret.="    \$W[$i%16]=(\$T<<1)|((\$T>>31)&1))\n\t  ";
+	}
+    }
+    sub tail {
+      my ($a,$b,$c,$d,$e)=@V;
+      my $ret;
+	if ((1<<31)<<1) {
+	    $ret.="(($a<<5)|($a>>27));\n\t";
+	    $ret.="$b=($b<<30)|($b>>2);	$e&=0xffffffff;	#$b&=0xffffffff;\n\t";
+	} else {
+	    $ret.="(($a<<5)|($a>>27)&0x1f);\n\t";
+	    $ret.="$b=($b<<30)|($b>>2)&0x3fffffff;\n\t";
+	}
+      $ret;
+    }
+    sub BODY_00_15 {
+	my ($a,$b,$c,$d,$e)=@V;
+	"$e+=\$W[$i]+0x5a827999+((($c^$d)&$b)^$d)+".tail();
+    }
+    sub BODY_16_19 {
+	my ($a,$b,$c,$d,$e)=@V;
+	"$e+=".XUpdate()."+0x5a827999+((($c^$d)&$b)^$d)+".tail();
+    }
+    sub BODY_20_39 {
+	my ($a,$b,$c,$d,$e)=@V;
+	"$e+=".XUpdate()."+0x6ed9eba1+($b^$c^$d)+".tail();
+    }
+    sub BODY_40_59 {
+	my ($a,$b,$c,$d,$e)=@V;
+	"$e+=".XUpdate()."+0x8f1bbcdc+(($b&$c)|(($b|$c)&$d))+".tail();
+    }
+    sub BODY_60_79 {
+	my ($a,$b,$c,$d,$e)=@V;
+	"$e+=".XUpdate()."+0xca62c1d6+($b^$c^$d)+".tail();
+    }
+
+    my $sha1_impl =
+    'sub block {
+	my $self = @_[0];
+	my @W    = unpack("N16",@_[1]);
+	my ($A,$B,$C,$D,$E,$T) = @{$self->{H}};
+	';
+
+	$sha1_impl.='
+	$A &= 0xffffffff;
+	$B &= 0xffffffff;
+	' if ((1<<31)<<1);
+
+	for($i=0;$i<16;$i++){ $sha1_impl.=BODY_00_15(); unshift(@V,pop(@V)); }
+	for(;$i<20;$i++)    { $sha1_impl.=BODY_16_19(); unshift(@V,pop(@V)); }
+	for(;$i<40;$i++)    { $sha1_impl.=BODY_20_39(); unshift(@V,pop(@V)); }
+	for(;$i<60;$i++)    { $sha1_impl.=BODY_40_59(); unshift(@V,pop(@V)); }
+	for(;$i<80;$i++)    { $sha1_impl.=BODY_60_79(); unshift(@V,pop(@V)); }
+
+	$sha1_impl.='
+	$self->{H}[0]+=$A;	$self->{H}[1]+=$B;	$self->{H}[2]+=$C;
+	$self->{H}[3]+=$D;	$self->{H}[4]+=$E;	}';
+
+    #print $sha1_impl,"\n";
+    eval($sha1_impl);		# generate code
+    }
+
+    sub Init {
+	my $class = shift;	# multiple instances...
+	my $self  = {};
+
+	bless $self,$class;
+	$self->{H} = [0x67452301,0xefcdab89,0x98badcfe,0x10325476,0xc3d2e1f0];
+	$self->{N} = 0;
+	return $self;
+    }
+
+    sub Update {
+	my $self = shift;
+	my $msg;
+
+	foreach $msg (@_) {
+	    my $len  = length($msg);
+	    my $num  = length($self->{buf});
+	    my $off  = 0;
+
+	    $self->{N} += $len;
+
+	    if (($num+$len)<64)
+	    {	$self->{buf} .= $msg; next;	}
+	    elsif ($num)
+	    {	$self->{buf} .= substr($msg,0,($off=64-$num));
+		$self->block($self->{buf});
+	    }
+
+	    while(($off+64) <= $len)
+	    {	$self->block(substr($msg,$off,64));
+		$off += 64;
+	    }
+
+	    $self->{buf} = substr($msg,$off);
+	}
+	return $self;
+    }
+
+    sub Final {
+	my $self = shift;
+	my $num  = length($self->{buf});
+
+	$self->{buf} .= chr(0x80); $num++;
+	if ($num>56)
+	{   $self->{buf} .= chr(0)x(64-$num);
+	    $self->block($self->{buf});
+	    $self->{buf}=undef;
+	    $num=0;
+	}
+	$self->{buf} .= chr(0)x(56-$num);
+	$self->{buf} .= pack("N2",($self->{N}>>29)&0x7,$self->{N}<<3);
+	$self->block($self->{buf});
+
+	return pack("N*",@{$self->{H}});
+    }
+
+    sub Selftest {
+	my $hash;
+
+	$hash=SHA1->Init()->Update('abc')->Final();
+	die "SHA1 test#1" if (unpack("H*",$hash) ne 'a9993e364706816aba3e25717850c26c9cd0d89d');
+
+	$hash=SHA1->Init()->Update('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq')->Final();
+	die "SHA1 test#2" if (unpack("H*",$hash) ne '84983e441c3bd26ebaae4aa1f95129e5e54670f1');
+
+	#$hash=SHA1->Init()->Update('a'x1000000)->Final();
+	#die "SHA1 test#3" if (unpack("H*",$hash) ne '34aa973cd4c4daa4f61eeb2bdbad27316534016f');
+    }
+}
+
+{ package HMAC;
+
+    sub Init {
+	my $class = shift;
+	my $key   = shift;
+	my $self  = {};
+
+	bless $self,$class;
+
+	if (length($key)>64) {
+	    $key = SHA1->Init()->Update($key)->Final();
+	}
+	$key .= chr(0x00)x(64-length($key));
+
+	my @ikey = map($_^=0x36,unpack("C*",$key));
+	($self->{hash} = SHA1->Init())->Update(pack("C*",@ikey));
+	 $self->{okey} = pack("C*",map($_^=0x36^0x5c,@ikey));
+
+	return $self;
+    }
+
+    sub Update {
+	my $self = shift;
+	$self->{hash}->Update(@_);
+	return $self;
+    }
+
+    sub Final {
+	my $self  = shift;
+	my $ihash = $self->{hash}->Final();
+	return SHA1->Init()->Update($self->{okey},$ihash)->Final();
+    }
+
+    sub Selftest {
+	my $hmac;
+
+	$hmac = HMAC->Init('0123456789:;<=>?@ABC')->Update('Sample #2')->Final();
+	die "HMAC test" if (unpack("H*",$hmac) ne '0922d3405faa3d194f82a45830737d5cc6c75d24');
+    }
+}
+
+######################################################################
+#
+# main()
+#
+my $legacy_mode;
+
+if ($ARGV<0 || ($#ARGV>0 && !($legacy_mode=(@ARGV[0] =~ /^\-(dso|exe)$/)))) {
+	print STDERR "usage: $0 [-dso|-exe] elfbinary\n";
+	exit(1);
+}
+
+$exe = ELF->Load(@ARGV[$#ARGV]);
+
+$FIPS_text_start	= $exe->Lookup("FIPS_text_start")		or die;
+$FIPS_text_end		= $exe->Lookup("FIPS_text_end")			or die;
+$FIPS_rodata_start	= $exe->Lookup("FIPS_rodata_start")		or die;
+$FIPS_rodata_end	= $exe->Lookup("FIPS_rodata_end")		or die;
+$FIPS_signature		= $exe->Lookup("FIPS_signature")		or die;
+
+# new cross-compile support
+$FIPS_text_startX	= $exe->Lookup("FIPS_text_startX");
+$FIPS_text_endX		= $exe->Lookup("FIPS_text_endX");
+
+if (!$legacy_mode) {
+    if (!$FIPS_text_startX || !$FIPS_text_endX) {
+	print STDERR "@ARGV[$#ARGV] is not cross-compiler aware.\n";
+	exit(42);	# signal fipsld to revert to two-step link
+    }
+
+    $FINGERPRINT_ascii_value
+			= $exe->Lookup("FINGERPRINT_ascii_value");
+
+}
+if ($FIPS_text_startX && $FIPS_text_endX) {
+    $FIPS_text_start = $FIPS_text_startX;
+    $FIPS_text_end   = $FIPS_text_endX;
+}
+
+sysopen(FD,@ARGV[$#ARGV],$legacy_mode?0:2) or die "$!";	# 2 is read/write
+binmode(FD);
+
+sub HMAC_Update {
+  my ($hmac,$off,$len) = @_;
+  my $blob;
+
+    seek(FD,$off,0)	or die "$!";
+    read(FD,$blob,$len)	or die "$!";
+    $$hmac->Update($blob);
+}
+
+# fips/fips.c:FIPS_incore_fingerprint's Perl twin
+#
+sub FIPS_incore_fingerprint {
+  my $p1  = $FIPS_text_start->{st_offset};
+  my $p2  = $FIPS_text_end->{st_offset};
+  my $p3  = $FIPS_rodata_start->{st_offset};
+  my $p4  = $FIPS_rodata_end->{st_offset};
+  my $sig = $FIPS_signature->{st_offset};
+  my $ctx = HMAC->Init("etaonrishdlcupfm");
+
+    # detect overlapping regions
+    if ($p1<=$p3 && $p2>=$p3) {
+	$p3 = $p1; $p4 = $p2>$p4?$p2:$p4; $p1 = 0; $p2 = 0;
+    } elsif ($p3<=$p1 && $p4>=$p1) {
+	$p3 = $p3; $p4 = $p2>$p4?$p2:$p4; $p1 = 0; $p2 = 0;
+    }
+
+    if ($p1) {
+	HMAC_Update (\$ctx,$p1,$p2-$p1);
+    }
+
+    if ($sig>=$p3 && $sig<$p4) {
+	# "punch" hole
+	HMAC_Update(\$ctx,$p3,$sig-$p3);
+	$p3 = $sig+20;
+	HMAC_Update(\$ctx,$p3,$p4-$p3);
+    } else {
+	HMAC_Update(\$ctx,$p3,$p4-$p3);
+    }
+
+    return $ctx->Final();
+}
+
+$fingerprint = FIPS_incore_fingerprint();
+
+if ($legacy_mode) {
+    print unpack("H*",$fingerprint);
+} elsif (defined($FINGERPRINT_ascii_value)) {
+    seek(FD,$FINGERPRINT_ascii_value->{st_offset},0)	or die "$!";
+    print FD unpack("H*",$fingerprint)			or die "$!";
+} else {
+    seek(FD,$FIPS_signature->{st_offset},0)		or die "$!";
+    print FD $fingerprint				or die "$!";
+}
+
+close (FD);

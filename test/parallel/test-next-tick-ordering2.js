@@ -19,10 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var order = [];
+const order = [];
 process.nextTick(function() {
   setTimeout(function() {
     order.push('setTimeout');
@@ -34,5 +35,5 @@ process.nextTick(function() {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(order, ['nextTick', 'setTimeout']);
+  assert.deepStrictEqual(order, ['nextTick', 'setTimeout']);
 });

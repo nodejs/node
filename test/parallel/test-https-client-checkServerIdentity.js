@@ -19,67 +19,56 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var fs = require('fs');
-var path = require('path');
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
+const https = require('https');
 
-var options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent3-key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent3-cert.pem'))
+const options = {
+  key: fixtures.readKey('agent3-key.pem'),
+  cert: fixtures.readKey('agent3-cert.pem')
 };
 
-var reqCount = 0;
-
-var server = https.createServer(options, function (req, res) {
-  ++reqCount;
+const server = https.createServer(options, common.mustCall(function(req, res) {
   res.writeHead(200);
   res.end();
   req.resume();
-}).listen(common.PORT, function () {
+})).listen(0, function() {
   authorized();
 });
 
 function authorized() {
-  var req = https.request({
-    port: common.PORT,
+  const req = https.request({
+    port: server.address().port,
     rejectUnauthorized: true,
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))]
-  }, function (res) {
-    assert(false);
-  });
-  req.on('error', function (err) {
+    ca: [fixtures.readKey('ca2-cert.pem')]
+  }, common.mustNotCall());
+  req.on('error', function(err) {
     override();
   });
   req.end();
 }
 
 function override() {
-  var options = {
-    port: common.PORT,
+  const options = {
+    port: server.address().port,
     rejectUnauthorized: true,
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))],
-    checkServerIdentity: function (host, cert) {
+    ca: [fixtures.readKey('ca2-cert.pem')],
+    checkServerIdentity: function(host, cert) {
       return false;
     }
   };
   options.agent = new https.Agent(options);
-  var req = https.request(options, function (res) {
+  const req = https.request(options, function(res) {
     assert(req.socket.authorized);
     server.close();
   });
-  req.on('error', function (err) {
+  req.on('error', function(err) {
     throw err;
   });
   req.end();
 }
-
-process.on('exit', function () {
-  assert.equal(reqCount, 1);
-});

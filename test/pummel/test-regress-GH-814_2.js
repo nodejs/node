@@ -19,39 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // Flags: --expose_gc
 
-var common = require('../common');
+require('../common');
+const assert = require('assert');
 
-var fs = require('fs');
-var testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
-var testFD = fs.openSync(testFileName, 'w');
-console.error(testFileName + '\n');
+const fs = require('fs');
+const tmpdir = require('../common/tmpdir');
+const testFileName = require('path').join(tmpdir.path, 'GH-814_test.txt');
+const testFD = fs.openSync(testFileName, 'w');
+console.error(`${testFileName}\n`);
 
 
-var tailProc = require('child_process').spawn('tail', ['-f', testFileName]);
+const tailProc = require('child_process').spawn('tail', ['-f', testFileName]);
 tailProc.stdout.on('data', tailCB);
 
 function tailCB(data) {
-  PASS = data.toString().indexOf('.') < 0;
+  PASS = !data.toString().includes('.');
 
-  if (PASS) {
-    //console.error('i');
-  } else {
+  if (!PASS) {
     console.error('[FAIL]\n DATA -> ');
     console.error(data);
     console.error('\n');
-    throw Error('Buffers GC test -> FAIL');
+    throw new Error('Buffers GC test -> FAIL');
   }
 }
 
 
-var PASS = true;
-var bufPool = [];
-var kBufSize = 16 * 1024 * 1024;
-var neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
+let PASS = true;
+const bufPool = [];
+const kBufSize = 16 * 1024 * 1024;
+const neverWrittenBuffer = newBuffer(kBufSize, 0x2e); // 0x2e === '.'
 
-var timeToQuit = Date.now() + 5e3; //Test should last no more than this.
+const timeToQuit = Date.now() + 5e3; // Test should last no more than this.
 writer();
 
 function writer() {
@@ -64,39 +65,33 @@ function writer() {
       }, 555);
     } else {
       fs.write(testFD, newBuffer(kBufSize, 0x61), 0, kBufSize, -1, writerCB);
-      gc();
-      gc();
-      gc();
-      gc();
-      gc();
-      gc();
-      var nuBuf = new Buffer(kBufSize);
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      const nuBuf = Buffer.allocUnsafe(kBufSize);
       neverWrittenBuffer.copy(nuBuf);
       if (bufPool.push(nuBuf) > 100) {
         bufPool.length = 0;
       }
       process.nextTick(writer);
-      //console.error('o');
     }
   }
 
 }
 
 function writerCB(err, written) {
-  //console.error('cb.');
-  if (err) {
-    throw err;
-  }
+  assert.ifError(err);
 }
-
-
 
 
 // ******************* UTILITIES
 
 
 function newBuffer(size, value) {
-  var buffer = new Buffer(size);
+  const buffer = Buffer.allocUnsafe(size);
   while (size--) {
     buffer[size] = value;
   }

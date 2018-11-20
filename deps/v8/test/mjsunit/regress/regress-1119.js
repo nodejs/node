@@ -28,8 +28,6 @@
 // Test runtime declaration of properties with var which are intercepted
 // by JS accessors.
 
-// Flags: --es52_globals
-
 this.__defineSetter__("x", function() { hasBeenInvoked = true; });
 this.__defineSetter__("y", function() { throw 'exception'; });
 

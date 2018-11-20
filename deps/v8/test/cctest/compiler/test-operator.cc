@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <sstream>
-
-#include "src/v8.h"
 
 #include "src/compiler/operator.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #define NONE Operator::kNoProperties
 #define FOLD Operator::kFoldable
@@ -68,11 +68,10 @@ TEST(TestOperator_Equals) {
   CHECK(!op2b.Equals(&op1b));
 }
 
-
-static SmartArrayPointer<const char> OperatorToString(Operator* op) {
+static std::unique_ptr<char[]> OperatorToString(Operator* op) {
   std::ostringstream os;
   os << *op;
-  return SmartArrayPointer<const char>(StrDup(os.str().c_str()));
+  return std::unique_ptr<char[]>(StrDup(os.str().c_str()));
 }
 
 
@@ -80,14 +79,14 @@ TEST(TestOperator_Print) {
   Operator op1a(19, NONE, "Another1", 0, 0, 0, 0, 0, 0);
   Operator op1b(19, FOLD, "Another2", 2, 0, 0, 2, 0, 0);
 
-  CHECK_EQ("Another1", OperatorToString(&op1a).get());
-  CHECK_EQ("Another2", OperatorToString(&op1b).get());
+  CHECK_EQ(0, strcmp("Another1", OperatorToString(&op1a).get()));
+  CHECK_EQ(0, strcmp("Another2", OperatorToString(&op1b).get()));
 
   Operator op2a(20, NONE, "Flog1", 0, 0, 0, 0, 0, 0);
   Operator op2b(20, FOLD, "Flog2", 1, 0, 0, 1, 0, 0);
 
-  CHECK_EQ("Flog1", OperatorToString(&op2a).get());
-  CHECK_EQ("Flog2", OperatorToString(&op2b).get());
+  CHECK_EQ(0, strcmp("Flog1", OperatorToString(&op2a).get()));
+  CHECK_EQ(0, strcmp("Flog2", OperatorToString(&op2b).get()));
 }
 
 
@@ -148,16 +147,16 @@ TEST(TestOperator1int_Equals) {
 
 TEST(TestOperator1int_Print) {
   Operator1<int> op1(12, NONE, "Op1Test", 0, 0, 0, 1, 0, 0, 0);
-  CHECK_EQ("Op1Test[0]", OperatorToString(&op1).get());
+  CHECK_EQ(0, strcmp("Op1Test[0]", OperatorToString(&op1).get()));
 
   Operator1<int> op2(12, NONE, "Op1Test", 0, 0, 0, 1, 0, 0, 66666666);
-  CHECK_EQ("Op1Test[66666666]", OperatorToString(&op2).get());
+  CHECK_EQ(0, strcmp("Op1Test[66666666]", OperatorToString(&op2).get()));
 
   Operator1<int> op3(12, NONE, "FooBar", 0, 0, 0, 1, 0, 0, 2347);
-  CHECK_EQ("FooBar[2347]", OperatorToString(&op3).get());
+  CHECK_EQ(0, strcmp("FooBar[2347]", OperatorToString(&op3).get()));
 
   Operator1<int> op4(12, NONE, "BarFoo", 0, 0, 0, 1, 0, 0, -879);
-  CHECK_EQ("BarFoo[-879]", OperatorToString(&op4).get());
+  CHECK_EQ(0, strcmp("BarFoo[-879]", OperatorToString(&op4).get()));
 }
 
 
@@ -179,8 +178,8 @@ TEST(TestOperator1doublePrint) {
   Operator1<double> op1a(23, NONE, "Canary", 0, 0, 0, 0, 0, 0, 0.5);
   Operator1<double> op1b(23, FOLD, "Finch", 2, 0, 0, 2, 0, 0, -1.5);
 
-  CHECK_EQ("Canary[0.5]", OperatorToString(&op1a).get());
-  CHECK_EQ("Finch[-1.5]", OperatorToString(&op1b).get());
+  CHECK_EQ(0, strcmp("Canary[0.5]", OperatorToString(&op1a).get()));
+  CHECK_EQ(0, strcmp("Finch[-1.5]", OperatorToString(&op1b).get()));
 }
 
 
@@ -262,7 +261,7 @@ TEST(TestOpParameter_Operator1float) {
 
 
 TEST(TestOpParameter_Operator1int) {
-  int values[] = {7777, -66, 0, 11, 1, 0x666aff};
+  int values[] = {7777, -66, 0, 11, 1, 0x666AFF};
 
   for (size_t i = 0; i < arraysize(values); i++) {
     Operator1<int> op(33, NONE, "Scurvy", 0, 0, 0, 0, 0, 0, values[i]);
@@ -281,3 +280,10 @@ TEST(Operator_CountsOrder) {
   CHECK_EQ(55, op.EffectOutputCount());
   CHECK_EQ(66, op.ControlOutputCount());
 }
+
+#undef NONE
+#undef FOLD
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

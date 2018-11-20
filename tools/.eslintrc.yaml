@@ -1,0 +1,4 @@
+rules:
+  # Variables
+  # http://eslint.org/docs/rules/#variables
+  no-unused-vars: [error, { args: 'after-used' }]

@@ -5,10 +5,15 @@
 #ifndef V8_STRING_STREAM_H_
 #define V8_STRING_STREAM_H_
 
+#include "src/allocation.h"
 #include "src/handles.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ByteArray;
 
 class StringAllocator {
  public:
@@ -24,94 +29,113 @@ class StringAllocator {
 
 
 // Normal allocator uses new[] and delete[].
-class HeapStringAllocator FINAL : public StringAllocator {
+class HeapStringAllocator final : public StringAllocator {
  public:
   ~HeapStringAllocator() { DeleteArray(space_); }
-  virtual char* allocate(unsigned bytes) OVERRIDE;
-  virtual char* grow(unsigned* bytes) OVERRIDE;
+  char* allocate(unsigned bytes) override;
+  char* grow(unsigned* bytes) override;
 
  private:
   char* space_;
 };
 
 
-class FmtElm FINAL {
+class FixedStringAllocator final : public StringAllocator {
  public:
-  FmtElm(int value) : type_(INT) {  // NOLINT
-    data_.u_int_ = value;
-  }
-  explicit FmtElm(double value) : type_(DOUBLE) {
-    data_.u_double_ = value;
-  }
-  FmtElm(const char* value) : type_(C_STR) {  // NOLINT
-    data_.u_c_str_ = value;
-  }
-  FmtElm(const Vector<const uc16>& value) : type_(LC_STR) {  // NOLINT
-    data_.u_lc_str_ = &value;
-  }
-  FmtElm(Object* value) : type_(OBJ) {  // NOLINT
-    data_.u_obj_ = value;
-  }
-  FmtElm(Handle<Object> value) : type_(HANDLE) {  // NOLINT
-    data_.u_handle_ = value.location();
-  }
-  FmtElm(void* value) : type_(POINTER) {  // NOLINT
-    data_.u_pointer_ = value;
-  }
+  FixedStringAllocator(char* buffer, unsigned length)
+      : buffer_(buffer), length_(length) {}
+  ~FixedStringAllocator() override{};
+  char* allocate(unsigned bytes) override;
+  char* grow(unsigned* bytes) override;
 
  private:
-  friend class StringStream;
-  enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE, POINTER };
-  Type type_;
-  union {
-    int u_int_;
-    double u_double_;
-    const char* u_c_str_;
-    const Vector<const uc16>* u_lc_str_;
-    Object* u_obj_;
-    Object** u_handle_;
-    void* u_pointer_;
-  } data_;
+  char* buffer_;
+  unsigned length_;
+  DISALLOW_COPY_AND_ASSIGN(FixedStringAllocator);
 };
 
+class StringStream final {
+  class FmtElm final {
+   public:
+    FmtElm(int value) : FmtElm(INT) {  // NOLINT
+      data_.u_int_ = value;
+    }
+    explicit FmtElm(double value) : FmtElm(DOUBLE) {  // NOLINT
+      data_.u_double_ = value;
+    }
+    FmtElm(const char* value) : FmtElm(C_STR) {  // NOLINT
+      data_.u_c_str_ = value;
+    }
+    FmtElm(const Vector<const uc16>& value) : FmtElm(LC_STR) {  // NOLINT
+      data_.u_lc_str_ = &value;
+    }
+    FmtElm(Object* value) : FmtElm(OBJ) {  // NOLINT
+      data_.u_obj_ = value;
+    }
+    FmtElm(Handle<Object> value) : FmtElm(HANDLE) {  // NOLINT
+      data_.u_handle_ = value.location();
+    }
+    FmtElm(void* value) : FmtElm(POINTER) {  // NOLINT
+      data_.u_pointer_ = value;
+    }
 
-class StringStream FINAL {
+   private:
+    friend class StringStream;
+    enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE, POINTER };
+
+#ifdef DEBUG
+    Type type_;
+    explicit FmtElm(Type type) : type_(type) {}
+#else
+    explicit FmtElm(Type) {}
+#endif
+
+    union {
+      int u_int_;
+      double u_double_;
+      const char* u_c_str_;
+      const Vector<const uc16>* u_lc_str_;
+      Object* u_obj_;
+      Object** u_handle_;
+      void* u_pointer_;
+    } data_;
+  };
+
  public:
-  explicit StringStream(StringAllocator* allocator):
-    allocator_(allocator),
-    capacity_(kInitialCapacity),
-    length_(0),
-    buffer_(allocator_->allocate(kInitialCapacity)) {
+  enum ObjectPrintMode { kPrintObjectConcise, kPrintObjectVerbose };
+  StringStream(StringAllocator* allocator,
+               ObjectPrintMode object_print_mode = kPrintObjectVerbose)
+      : allocator_(allocator),
+        object_print_mode_(object_print_mode),
+        capacity_(kInitialCapacity),
+        length_(0),
+        buffer_(allocator_->allocate(kInitialCapacity)) {
     buffer_[0] = 0;
   }
 
   bool Put(char c);
   bool Put(String* str);
   bool Put(String* str, int start, int end);
-  void Add(Vector<const char> format, Vector<FmtElm> elms);
-  void Add(const char* format);
-  void Add(Vector<const char> format);
-  void Add(const char* format, FmtElm arg0);
-  void Add(const char* format, FmtElm arg0, FmtElm arg1);
-  void Add(const char* format, FmtElm arg0, FmtElm arg1, FmtElm arg2);
-  void Add(const char* format,
-           FmtElm arg0,
-           FmtElm arg1,
-           FmtElm arg2,
-           FmtElm arg3);
-  void Add(const char* format,
-           FmtElm arg0,
-           FmtElm arg1,
-           FmtElm arg2,
-           FmtElm arg3,
-           FmtElm arg4);
+  void Add(const char* format) { Add(CStrVector(format)); }
+  void Add(Vector<const char> format) { Add(format, Vector<FmtElm>()); }
+
+  template <typename... Args>
+  void Add(const char* format, Args... args) {
+    Add(CStrVector(format), args...);
+  }
+
+  template <typename... Args>
+  void Add(Vector<const char> format, Args... args) {
+    FmtElm elems[]{args...};
+    Add(format, ArrayVector(elems));
+  }
 
   // Getting the message out.
   void OutputToFile(FILE* out);
   void OutputToStdOut() { OutputToFile(stdout); }
   void Log(Isolate* isolate);
   Handle<String> ToString(Isolate* isolate);
-  SmartArrayPointer<const char> ToCString() const;
+  std::unique_ptr<char[]> ToCString() const;
   int length() const { return length_; }
 
   // Object printing support.
@@ -120,9 +144,9 @@ class StringStream FINAL {
   void PrintByteArray(ByteArray* ba);
   void PrintUsingMap(JSObject* js_object);
   void PrintPrototype(JSFunction* fun, Object* receiver);
-  void PrintSecurityTokenIfChanged(Object* function);
+  void PrintSecurityTokenIfChanged(JSFunction* function);
   // NOTE: Returns the code in the output parameter.
-  void PrintFunction(Object* function, Object* receiver, Code** code);
+  void PrintFunction(JSFunction* function, Object* receiver, Code** code);
 
   // Reset the stream.
   void Reset() {
@@ -134,15 +158,17 @@ class StringStream FINAL {
   void PrintMentionedObjectCache(Isolate* isolate);
   static void ClearMentionedObjectCache(Isolate* isolate);
 #ifdef DEBUG
-  static bool IsMentionedObjectCacheClear(Isolate* isolate);
+  bool IsMentionedObjectCacheClear(Isolate* isolate);
 #endif
 
   static const int kInitialCapacity = 16;
 
  private:
+  void Add(Vector<const char> format, Vector<FmtElm> elms);
   void PrintObject(Object* obj);
 
   StringAllocator* allocator_;
+  ObjectPrintMode object_print_mode_;
   unsigned capacity_;
   unsigned length_;  // does not include terminating 0-character
   char* buffer_;
@@ -153,6 +179,7 @@ class StringStream FINAL {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringStream);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_STRING_STREAM_H_

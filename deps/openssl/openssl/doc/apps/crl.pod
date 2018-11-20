@@ -2,11 +2,13 @@
 
 =head1 NAME
 
+openssl-crl,
 crl - CRL utility
 
 =head1 SYNOPSIS
 
 B<openssl> B<crl>
+[B<-help>]
 [B<-inform PEM|DER>]
 [B<-outform PEM|DER>]
 [B<-text>]
@@ -25,9 +27,13 @@ B<openssl> B<crl>
 
 The B<crl> command processes CRL files in DER or PEM format.
 
-=head1 COMMAND OPTIONS
+=head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-inform DER|PEM>
 
@@ -37,7 +43,7 @@ the DER form with header and footer lines.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -57,7 +63,7 @@ print out the CRL in text form.
 =item B<-nameopt option>
 
 option which determines how the subject or issuer names are displayed. See
-the description of B<-nameopt> in L<x509(1)|x509(1)>.
+the description of B<-nameopt> in L<x509(1)>.
 
 =item B<-noout>
 
@@ -123,6 +129,15 @@ and files too.
 
 =head1 SEE ALSO
 
-L<crl2pkcs7(1)|crl2pkcs7(1)>, L<ca(1)|ca(1)>, L<x509(1)|x509(1)>
+L<crl2pkcs7(1)>, L<ca(1)>, L<x509(1)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

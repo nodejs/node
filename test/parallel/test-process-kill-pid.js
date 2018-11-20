@@ -19,9 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 // test variants of pid
 //
@@ -38,12 +38,28 @@ var assert = require('assert');
 //
 // process.pid, String(process.pid): ourself
 
-assert.throws(function() { process.kill('SIGTERM'); }, TypeError);
-assert.throws(function() { process.kill(null); }, TypeError);
-assert.throws(function() { process.kill(undefined); }, TypeError);
-assert.throws(function() { process.kill(+'not a number'); }, TypeError);
-assert.throws(function() { process.kill(1/0); }, TypeError);
-assert.throws(function() { process.kill(-1/0); }, TypeError);
+['SIGTERM', null, undefined, NaN, Infinity, -Infinity].forEach((val) => {
+  assert.throws(() => process.kill(val), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    message: 'The "pid" argument must be of type number. ' +
+             `Received type ${typeof val}`
+  });
+});
+
+// Test that kill throws an error for unknown signal names
+common.expectsError(() => process.kill(0, 'test'), {
+  code: 'ERR_UNKNOWN_SIGNAL',
+  type: TypeError,
+  message: 'Unknown signal: test'
+});
+
+// Test that kill throws an error for invalid signal numbers
+common.expectsError(() => process.kill(0, 987), {
+  code: 'EINVAL',
+  type: Error,
+  message: 'kill EINVAL'
+});
 
 // Test kill argument processing in valid cases.
 //
@@ -51,9 +67,9 @@ assert.throws(function() { process.kill(-1/0); }, TypeError);
 // that we don't kill our process group, or try to actually send ANY signals on
 // windows, which doesn't support them.
 function kill(tryPid, trySig, expectPid, expectSig) {
-  var getPid;
-  var getSig;
-  var origKill = process._kill;
+  let getPid;
+  let getSig;
+  const origKill = process._kill;
   process._kill = function(pid, sig) {
     getPid = pid;
     getSig = sig;
@@ -64,17 +80,22 @@ function kill(tryPid, trySig, expectPid, expectSig) {
 
   process.kill(tryPid, trySig);
 
-  assert.equal(getPid, expectPid);
-  assert.equal(getSig, expectSig);
+  assert.strictEqual(getPid.toString(), expectPid.toString());
+  assert.strictEqual(getSig, expectSig);
 }
 
 // Note that SIGHUP and SIGTERM map to 1 and 15 respectively, even on Windows
-// (for Windows, libuv maps 1 and 15 to the correct behaviour).
+// (for Windows, libuv maps 1 and 15 to the correct behavior).
 
 kill(0, 'SIGHUP', 0, 1);
 kill(0, undefined, 0, 15);
 kill('0', 'SIGHUP', 0, 1);
 kill('0', undefined, 0, 15);
+
+// Confirm that numeric signal arguments are supported
+
+kill(0, 1, 0, 1);
+kill(0, 15, 0, 15);
 
 // negative numbers are meaningful on unix
 kill(-1, 'SIGHUP', -1, 1);

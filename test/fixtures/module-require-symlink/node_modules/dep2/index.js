@@ -1,0 +1,1 @@
+exports.bar = require('bar');

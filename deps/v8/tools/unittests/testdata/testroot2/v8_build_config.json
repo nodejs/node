@@ -1,0 +1,18 @@
+{
+  "current_cpu": "x64",
+  "dcheck_always_on": false,
+  "is_asan": false,
+  "is_cfi": false,
+  "is_component_build": false,
+  "is_debug": false,
+  "is_gcov_coverage": false,
+  "is_ubsan_vptr": false,
+  "is_msan": false,
+  "is_tsan": false,
+  "target_cpu": "x64",
+  "v8_current_cpu": "x64",
+  "v8_enable_i18n_support": true,
+  "v8_enable_verify_predictable": false,
+  "v8_target_cpu": "x64",
+  "v8_use_snapshot": true
+}

@@ -84,10 +84,10 @@ for line in pipe:
       # 6-character margin, 2-characters + 1 space for each field
       idx = 6 + i * 3;
       octetstr = line[idx:idx+3]
-      if not numpattern.match(octetstr):
+      if curr_octet > octets:
         break;
 
-      if curr_octet > octets:
+      if not numpattern.match(octetstr):
         break;
 
       curr_val += int('0x%s' % octetstr, 16) << (curr_octet * 8);

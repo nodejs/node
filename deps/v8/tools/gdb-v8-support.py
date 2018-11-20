@@ -25,6 +25,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import re
+import tempfile
+import os
+import subprocess
+import time
+
 
 kSmiTag = 0
 kSmiTagSize = 1
@@ -152,3 +158,81 @@ class V8PrintObject (gdb.Command):
     v = v8_get_value(arg)
     gdb.execute('call __gdb_print_v8_object(%d)' % v)
 V8PrintObject()
+
+
+class FindAnywhere (gdb.Command):
+  """Search memory for the given pattern."""
+  MAPPING_RE = re.compile(r"^\s*\[\d+\]\s+0x([0-9A-Fa-f]+)->0x([0-9A-Fa-f]+)")
+  LIVE_MAPPING_RE = re.compile(r"^\s+0x([0-9A-Fa-f]+)\s+0x([0-9A-Fa-f]+)")
+  def __init__ (self):
+    super (FindAnywhere, self).__init__ ("find-anywhere", gdb.COMMAND_DATA)
+  def find (self, startAddr, endAddr, value):
+    try:
+      result = gdb.execute(
+          "find 0x%s, 0x%s, %s" % (startAddr, endAddr, value),
+          to_string = True)
+      if result.find("not found") == -1:
+        print(result)
+    except:
+      pass
+
+  def invoke (self, value, from_tty):
+    for l in gdb.execute("maint info sections", to_string = True).split('\n'):
+      m = FindAnywhere.MAPPING_RE.match(l)
+      if m is None:
+        continue
+      self.find(m.group(1), m.group(2), value)
+    for l in gdb.execute("info proc mappings", to_string = True).split('\n'):
+      m = FindAnywhere.LIVE_MAPPING_RE.match(l)
+      if m is None:
+        continue
+      self.find(m.group(1), m.group(2), value)
+
+FindAnywhere()
+
+
+class Redirect(gdb.Command):
+  """Redirect the subcommand's stdout  to a temporary file.
+
+Usage:   redirect subcommand...
+Example:
+  redirect job 0x123456789
+  redirect x/1024xg 0x12345678
+
+If provided, the generated temporary file is directly openend with the
+GDB_EXTERNAL_EDITOR environment variable.
+  """
+  def __init__(self):
+    super(Redirect, self).__init__("redirect", gdb.COMMAND_USER)
+
+  def invoke(self, subcommand, from_tty):
+    old_stdout = gdb.execute("p dup(1)", to_string=True).split("=")[-1].strip()
+    try:
+      time_suffix = time.strftime("%Y%m%d-%H%M%S")
+      fd, file = tempfile.mkstemp(suffix="-%s.gdbout" % time_suffix)
+      try:
+        # Temporaily redirect stdout to the created tmp file for the
+        # duration of the subcommand.
+        gdb.execute('p dup2(open("%s", 1), 1)' % file, to_string=True)
+        # Execute subcommand non interactively.
+        result = gdb.execute(subcommand, from_tty=False, to_string=True)
+        # Write returned string results to the temporary file as well.
+        with open(file, 'a') as f:
+          f.write(result)
+        # Open generated result.
+        if 'GDB_EXTERNAL_EDITOR' in os.environ:
+          open_cmd = os.environ['GDB_EXTERNAL_EDITOR']
+          print("Opening '%s' with %s" % (file, open_cmd))
+          subprocess.call([open_cmd, file])
+        else:
+          print("Open output:\n  %s '%s'" % (os.environ['EDITOR'], file))
+      finally:
+        # Restore original stdout.
+        gdb.execute("p dup2(%s, 1)" % old_stdout, to_string=True)
+        # Close the temporary file.
+        os.close(fd)
+    finally:
+      # Close the originally duplicated stdout descriptor.
+      gdb.execute("p close(%s)" % old_stdout, to_string=True)
+
+Redirect()

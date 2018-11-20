@@ -20,63 +20,184 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include "env.h"
+#include "node_internals.h"
 #include "env-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 
 namespace node {
 
+using v8::Array;
+using v8::ArrayBuffer;
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
+using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
+using v8::ScriptCompiler;
 using v8::String;
 using v8::Uint32;
 using v8::V8;
 using v8::Value;
 
+#define HEAP_STATISTICS_PROPERTIES(V)                                         \
+  V(0, total_heap_size, kTotalHeapSizeIndex)                                  \
+  V(1, total_heap_size_executable, kTotalHeapSizeExecutableIndex)             \
+  V(2, total_physical_size, kTotalPhysicalSizeIndex)                          \
+  V(3, total_available_size, kTotalAvailableSize)                             \
+  V(4, used_heap_size, kUsedHeapSizeIndex)                                    \
+  V(5, heap_size_limit, kHeapSizeLimitIndex)                                  \
+  V(6, malloced_memory, kMallocedMemoryIndex)                                 \
+  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                        \
+  V(8, does_zap_garbage, kDoesZapGarbageIndex)
 
-void GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = args.GetIsolate();
-  HeapStatistics s;
-  isolate->GetHeapStatistics(&s);
-  Local<Object> info = Object::New(isolate);
-  // TODO(trevnorris): Setting many object properties in C++ is a significant
-  // performance hit. Redo this to pass the results to JS and create/set the
-  // properties there.
-#define V(name)                                                               \
-  info->Set(env->name ## _string(), Uint32::NewFromUnsigned(isolate, s.name()))
-  V(total_heap_size);
-  V(total_heap_size_executable);
-  V(total_physical_size);
-  V(used_heap_size);
-  V(heap_size_limit);
+#define V(a, b, c) +1
+static const size_t kHeapStatisticsPropertiesCount =
+    HEAP_STATISTICS_PROPERTIES(V);
 #undef V
-  args.GetReturnValue().Set(info);
+
+#define HEAP_SPACE_STATISTICS_PROPERTIES(V)                                   \
+  V(0, space_size, kSpaceSizeIndex)                                           \
+  V(1, space_used_size, kSpaceUsedSizeIndex)                                  \
+  V(2, space_available_size, kSpaceAvailableSizeIndex)                        \
+  V(3, physical_space_size, kPhysicalSpaceSizeIndex)
+
+#define V(a, b, c) +1
+static const size_t kHeapSpaceStatisticsPropertiesCount =
+    HEAP_SPACE_STATISTICS_PROPERTIES(V);
+#undef V
+
+
+void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Integer> result =
+      Integer::NewFromUnsigned(env->isolate(),
+                               ScriptCompiler::CachedDataVersionTag());
+  args.GetReturnValue().Set(result);
+}
+
+
+void UpdateHeapStatisticsArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HeapStatistics s;
+  env->isolate()->GetHeapStatistics(&s);
+  double* const buffer = env->heap_statistics_buffer();
+#define V(index, name, _) buffer[index] = static_cast<double>(s.name());
+  HEAP_STATISTICS_PROPERTIES(V)
+#undef V
+}
+
+
+void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  HeapSpaceStatistics s;
+  Isolate* const isolate = env->isolate();
+  double* buffer = env->heap_space_statistics_buffer();
+  size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
+
+  for (size_t i = 0; i < number_of_heap_spaces; i++) {
+    isolate->GetHeapSpaceStatistics(&s, i);
+    size_t const property_offset = i * kHeapSpaceStatisticsPropertiesCount;
+#define V(index, name, _) buffer[property_offset + index] = \
+                              static_cast<double>(s.name());
+      HEAP_SPACE_STATISTICS_PROPERTIES(V)
+#undef V
+  }
 }
 
 
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
-  String::Utf8Value flags(args[0]);
+  CHECK(args[0]->IsString());
+  String::Utf8Value flags(args.GetIsolate(), args[0]);
   V8::SetFlagsFromString(*flags, flags.length());
 }
 
 
-void InitializeV8Bindings(Handle<Object> target,
-                          Handle<Value> unused,
-                          Handle<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
-  env->SetMethod(target, "getHeapStatistics", GetHeapStatistics);
+
+  env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
+                             CachedDataVersionTag);
+
+  env->SetMethod(target,
+                 "updateHeapStatisticsArrayBuffer",
+                 UpdateHeapStatisticsArrayBuffer);
+
+  env->set_heap_statistics_buffer(new double[kHeapStatisticsPropertiesCount]);
+
+  const size_t heap_statistics_buffer_byte_length =
+      sizeof(*env->heap_statistics_buffer()) * kHeapStatisticsPropertiesCount;
+
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
+                                    "heapStatisticsArrayBuffer"),
+              ArrayBuffer::New(env->isolate(),
+                               env->heap_statistics_buffer(),
+                               heap_statistics_buffer_byte_length));
+
+#define V(i, _, name)                                                         \
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
+              Uint32::NewFromUnsigned(env->isolate(), i));
+
+  HEAP_STATISTICS_PROPERTIES(V)
+#undef V
+
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
+                                    "kHeapSpaceStatisticsPropertiesCount"),
+              Uint32::NewFromUnsigned(env->isolate(),
+                                      kHeapSpaceStatisticsPropertiesCount));
+
+  size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
+
+  // Heap space names are extracted once and exposed to JavaScript to
+  // avoid excessive creation of heap space name Strings.
+  HeapSpaceStatistics s;
+  const Local<Array> heap_spaces = Array::New(env->isolate(),
+                                              number_of_heap_spaces);
+  for (size_t i = 0; i < number_of_heap_spaces; i++) {
+    env->isolate()->GetHeapSpaceStatistics(&s, i);
+    Local<String> heap_space_name = String::NewFromUtf8(env->isolate(),
+                                                        s.space_name(),
+                                                        NewStringType::kNormal)
+                                        .ToLocalChecked();
+    heap_spaces->Set(i, heap_space_name);
+  }
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
+              heap_spaces);
+
+  env->SetMethod(target,
+                 "updateHeapSpaceStatisticsArrayBuffer",
+                 UpdateHeapSpaceStatisticsBuffer);
+
+  env->set_heap_space_statistics_buffer(
+    new double[kHeapSpaceStatisticsPropertiesCount * number_of_heap_spaces]);
+
+  const size_t heap_space_statistics_buffer_byte_length =
+      sizeof(*env->heap_space_statistics_buffer()) *
+      kHeapSpaceStatisticsPropertiesCount *
+      number_of_heap_spaces;
+
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(),
+                                    "heapSpaceStatisticsArrayBuffer"),
+              ArrayBuffer::New(env->isolate(),
+                               env->heap_space_statistics_buffer(),
+                               heap_space_statistics_buffer_byte_length));
+
+#define V(i, _, name)                                                         \
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
+              Uint32::NewFromUnsigned(env->isolate(), i));
+
+  HEAP_SPACE_STATISTICS_PROPERTIES(V)
+#undef V
+
   env->SetMethod(target, "setFlagsFromString", SetFlagsFromString);
 }
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(v8, node::InitializeV8Bindings)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(v8, node::Initialize)

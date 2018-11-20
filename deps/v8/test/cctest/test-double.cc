@@ -34,9 +34,8 @@
 #include "src/double.h"
 #include "test/cctest/cctest.h"
 
-
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(Uint64Conversions) {
   // Start by checking the byte-order.
@@ -46,7 +45,7 @@ TEST(Uint64Conversions) {
   uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
   CHECK_EQ(5e-324, Double(min_double64).value());
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7fefffff, ffffffff);
+  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
   CHECK_EQ(1.7976931348623157e308, Double(max_double64).value());
 }
 
@@ -62,12 +61,12 @@ TEST(AsDiyFp) {
   diy_fp = Double(min_double64).AsDiyFp();
   CHECK_EQ(-0x3FF - 52 + 1, diy_fp.e());
   // This is a denormal; so no hidden bit.
-  CHECK(1 == diy_fp.f());  // NOLINT
+  CHECK_EQ(1, diy_fp.f());
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7fefffff, ffffffff);
+  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
   diy_fp = Double(max_double64).AsDiyFp();
   CHECK_EQ(0x7FE - 0x3FF - 52, diy_fp.e());
-  CHECK(V8_2PART_UINT64_C(0x001fffff, ffffffff) == diy_fp.f());  // NOLINT
+  CHECK(V8_2PART_UINT64_C(0x001FFFFF, FFFFFFFF) == diy_fp.f());  // NOLINT
 }
 
 
@@ -84,10 +83,10 @@ TEST(AsNormalizedDiyFp) {
   // This is a denormal; so no hidden bit.
   CHECK(V8_2PART_UINT64_C(0x80000000, 00000000) == diy_fp.f());  // NOLINT
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7fefffff, ffffffff);
+  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
   diy_fp = Double(max_double64).AsNormalizedDiyFp();
   CHECK_EQ(0x7FE - 0x3FF - 52 - 11, diy_fp.e());
-  CHECK((V8_2PART_UINT64_C(0x001fffff, ffffffff) << 11) ==
+  CHECK((V8_2PART_UINT64_C(0x001FFFFF, FFFFFFFF) << 11) ==
         diy_fp.f());  // NOLINT
 }
 
@@ -105,7 +104,7 @@ TEST(IsDenormal) {
 TEST(IsSpecial) {
   CHECK(Double(V8_INFINITY).IsSpecial());
   CHECK(Double(-V8_INFINITY).IsSpecial());
-  CHECK(Double(v8::base::OS::nan_value()).IsSpecial());
+  CHECK(Double(std::numeric_limits<double>::quiet_NaN()).IsSpecial());
   uint64_t bits = V8_2PART_UINT64_C(0xFFF12345, 00000000);
   CHECK(Double(bits).IsSpecial());
   // Denormals are not special:
@@ -128,7 +127,7 @@ TEST(IsSpecial) {
 TEST(IsInfinite) {
   CHECK(Double(V8_INFINITY).IsInfinite());
   CHECK(Double(-V8_INFINITY).IsInfinite());
-  CHECK(!Double(v8::base::OS::nan_value()).IsInfinite());
+  CHECK(!Double(std::numeric_limits<double>::quiet_NaN()).IsInfinite());
   CHECK(!Double(0.0).IsInfinite());
   CHECK(!Double(-0.0).IsInfinite());
   CHECK(!Double(1.0).IsInfinite());
@@ -203,7 +202,7 @@ TEST(NormalizedBoundaries) {
   CHECK(diy_fp.f() - boundary_minus.f() == boundary_plus.f() - diy_fp.f());
   CHECK((1 << 11) == diy_fp.f() - boundary_minus.f());  // NOLINT
 
-  uint64_t max_double64 = V8_2PART_UINT64_C(0x7fefffff, ffffffff);
+  uint64_t max_double64 = V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF);
   diy_fp = Double(max_double64).AsNormalizedDiyFp();
   Double(max_double64).NormalizedBoundaries(&boundary_minus, &boundary_plus);
   CHECK_EQ(diy_fp.e(), boundary_minus.e());
@@ -227,5 +226,8 @@ TEST(NextDouble) {
   CHECK_EQ(4e-324, d2.NextDouble());
   CHECK_EQ(-1.7976931348623157e308, Double(-V8_INFINITY).NextDouble());
   CHECK_EQ(V8_INFINITY,
-           Double(V8_2PART_UINT64_C(0x7fefffff, ffffffff)).NextDouble());
+           Double(V8_2PART_UINT64_C(0x7FEFFFFF, FFFFFFFF)).NextDouble());
 }
+
+}  // namespace internal
+}  // namespace v8

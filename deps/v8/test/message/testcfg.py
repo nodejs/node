@@ -25,24 +25,21 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import itertools
 import os
 import re
 
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
+from testrunner.outproc import message
 
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 INVALID_FLAGS = ["--enable-slow-asserts"]
+MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 
-class MessageTestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(MessageTestSuite, self).__init__(name, root)
-
-  def ListTests(self, context):
+class TestSuite(testsuite.TestSuite):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:
@@ -51,64 +48,60 @@ class MessageTestSuite(testsuite.TestSuite):
       files.sort()
       for filename in files:
         if filename.endswith(".js"):
-          testname = os.path.join(dirname[len(self.root) + 1:], filename[:-3])
-          test = testcase.TestCase(self, testname)
+          fullpath = os.path.join(dirname, filename)
+          relpath = fullpath[len(self.root) + 1 : -3]
+          testname = relpath.replace(os.path.sep, "/")
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    source = self.GetSourceForTest(testcase)
-    result = []
-    flags_match = re.findall(FLAGS_PATTERN, source)
-    for match in flags_match:
-      result += match.strip().split()
-    result += context.mode_flags
-    result = [x for x in result if x not in INVALID_FLAGS]
-    result.append(os.path.join(self.root, testcase.path + ".js"))
-    return testcase.flags + result
+  def _test_class(self):
+    return TestCase
 
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.root, testcase.path + self.suffix())
-    with open(filename) as f:
-      return f.read()
 
-  def _IgnoreLine(self, string):
-    """Ignore empty lines, valgrind output, Android output."""
-    if not string: return True
-    return (string.startswith("==") or string.startswith("**") or
-            string.startswith("ANDROID") or
-            # These five patterns appear in normal Native Client output.
-            string.startswith("DEBUG MODE ENABLED") or
-            string.startswith("tools/nacl-run.py") or
-            string.find("BYPASSING ALL ACL CHECKS") > 0 or
-            string.find("Native Client module will be loaded") > 0 or
-            string.find("NaClHostDescOpen:") > 0)
+class TestCase(testcase.TestCase):
+  def __init__(self, *args, **kwargs):
+    super(TestCase, self).__init__(*args, **kwargs)
 
-  def IsFailureOutput(self, output, testpath):
-    expected_path = os.path.join(self.root, testpath + ".out")
-    expected_lines = []
-    # Can't use utils.ReadLinesFrom() here because it strips whitespace.
-    with open(expected_path) as f:
-      for line in f:
-        if line.startswith("#") or not line.strip(): continue
-        expected_lines.append(line)
-    raw_lines = output.stdout.splitlines()
-    actual_lines = [ s for s in raw_lines if not self._IgnoreLine(s) ]
-    env = { "basename": os.path.basename(testpath + ".js") }
-    if len(expected_lines) != len(actual_lines):
-      return True
-    for (expected, actual) in itertools.izip_longest(
-        expected_lines, actual_lines, fillvalue=''):
-      pattern = re.escape(expected.rstrip() % env)
-      pattern = pattern.replace("\\*", ".*")
-      pattern = "^%s$" % pattern
-      if not re.match(pattern, actual):
+    source = self.get_source()
+    self._source_files = self._parse_source_files(source)
+    self._source_flags = self._parse_source_flags(source)
+
+  def _parse_source_files(self, source):
+    files = []
+    if MODULE_PATTERN.search(source):
+      files.append("--module")
+    files.append(os.path.join(self.suite.root, self.path + ".js"))
+    return files
+
+  def _expected_fail(self):
+    path = self.path
+    while path:
+      head, tail = os.path.split(path)
+      if tail == 'fail':
         return True
+      path = head
     return False
 
-  def StripOutputForTransmit(self, testcase):
-    pass
+  def _get_cmd_params(self):
+    params = super(TestCase, self)._get_cmd_params()
+    return [p for p in params if p not in INVALID_FLAGS]
+
+  def _get_files_params(self):
+    return self._source_files
+
+  def _get_source_flags(self):
+    return self._source_flags
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
+
+  @property
+  def output_proc(self):
+    return message.OutProc(self.expected_outcomes,
+                           os.path.join(self.suite.root, self.path),
+                           self._expected_fail())
 
 
-def GetSuite(name, root):
-  return MessageTestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

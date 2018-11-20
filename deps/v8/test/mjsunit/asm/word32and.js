@@ -8,13 +8,15 @@ var heap = new ArrayBuffer(64 * 1024);
 
 function Word32And(rhs) {
   var name = "and_0x" + Number(rhs).toString(16);
-  var m = eval("function Module(stdlib, foreign, heap) {\n"
-      + " \"use asm\";\n"
-      + " function " + name + "(lhs) {\n"
-      + "  return (lhs | 0) & 0x" + Number(rhs).toString(16) + ";\n"
-      + " }\n"
-      + " return { f: " + name + "}\n"
-      + "}; Module");
+  var m = eval(
+      'function Module(stdlib, foreign, heap) {\n' +
+      ' "use asm";\n' +
+      ' function ' + name + '(lhs) {\n' +
+      '  lhs = lhs | 0;\n' +
+      '  return (lhs & 0x' + Number(rhs).toString(16) + ') | 0;\n' +
+      ' }\n' +
+      ' return { f: ' + name + '}\n' +
+      '}; Module');
   return m(stdlib, foreign, heap).f;
 }
 

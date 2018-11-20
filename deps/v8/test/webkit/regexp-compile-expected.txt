@@ -40,7 +40,7 @@ PASS re.toString() is '/c/i'
 PASS re.compile(new RegExp('c'), 'i'); threw exception TypeError: Cannot supply flags when constructing one RegExp from another.
 PASS re.toString() is '/c/i'
 PASS re.compile(new RegExp('+')); threw exception SyntaxError: Invalid regular expression: /+/: Nothing to repeat.
-PASS re.toString() is '/undefined/'
+PASS re.toString() is '/(?:)/'
 PASS re.toString() is '/null/'
 PASS re.toString() is '/(?:)/'
 PASS re.toString() is '/z/'

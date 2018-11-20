@@ -1,0 +1,392 @@
+<html>
+<!--
+Copyright 2016 the V8 project authors. All rights reserved.  Use of this source
+code is governed by a BSD-style license that can be found in the LICENSE file.
+-->
+
+<head>
+  <style>
+    html {
+      font-family: monospace;
+    }
+
+    .entry-details {}
+
+    .entry-details TD {}
+
+    .details {
+      width: 0.1em;
+    }
+
+    .details span {
+      padding: 0 0.4em 0 0.4em;
+      background-color: black;
+      color: white;
+      border-radius: 25px;
+      text-align: center;
+      cursor: -webkit-zoom-in;
+    }
+
+    .count {
+      text-align: right;
+      width: 5em;
+    }
+
+    .percentage {
+      text-align: right;
+      width: 5em;
+    }
+
+    .key {
+      padding-left: 1em;
+    }
+
+    .drilldown-group-title {
+      font-weight: bold;
+      padding: 0.5em 0 0.2em 0;
+    }
+  </style>
+  <script src="./splaytree.js" type="text/javascript"></script>
+  <script src="./codemap.js" type="text/javascript"></script>
+  <script src="./csvparser.js" type="text/javascript"></script>
+  <script src="./consarray.js" type="text/javascript"></script>
+  <script src="./profile.js" type="text/javascript"></script>
+  <script src="./profile_view.js" type="text/javascript"></script>
+  <script src="./logreader.js" type="text/javascript"></script>
+  <script src="./arguments.js" type="text/javascript"></script>
+  <script src="./ic-processor.js" type="text/javascript"></script>
+  <script src="./SourceMap.js" type="text/javascript"></script>
+
+  <script>
+    "use strict"
+    let entries = [];
+
+    let properties = ['type', 'category', 'functionName', 'filePosition',
+      'state', 'key', 'map', 'reason', 'file',
+    ];
+
+    // For compatibility with console scripts:
+    print = console.log;
+
+    class CustomIcProcessor extends IcProcessor {
+      constructor() {
+        super();
+        this.entries = [];
+      }
+
+      functionName(pc) {
+        let entry = this.profile_.findEntry(pc);
+        return this.formatName(entry);
+      }
+
+      processPropertyIC(type, pc, line, column, old_state, new_state, map, key,
+          modifier, slow_reason) {
+        let fnName = this.functionName(pc);
+        this.entries.push(new Entry(type, fnName, line, column, key,
+          old_state, new_state, map, slow_reason));
+
+      }
+    };
+
+
+    class Entry {
+      constructor(type, fn_file, line, column, key, oldState, newState,
+          map, reason, additional) {
+        this.type = type;
+        this.category = "other";
+        if (this.type.indexOf("Store") !== -1) {
+          this.category = "Store";
+        } else if (this.type.indexOf("Load") !== -1) {
+          this.category = "Load";
+        }
+        let parts = fn_file.split(" ");
+        this.functionName = parts[0];
+        this.file = parts[1];
+        let position = line + ":" + column;
+        this.filePosition = this.file + ":" + position;
+        this.oldState = oldState;
+        this.newState = newState;
+        this.state = this.oldState + " → " + this.newState;
+        this.key = key;
+        this.map = map.toString(16);
+        this.reason = reason;
+        this.additional = additional;
+      }
+
+      parseMapProperties(parts, offset) {
+        let next = parts[++offset];
+        if (!next.startsWith('dict')) return offset;
+        this.propertiesMode =
+          next.substr(5) == "0" ? "fast" : "slow";
+        this.numberOfOwnProperties = parts[++offset].substr(4);
+        next = parts[++offset];
+        this.instanceType = next.substr(5, next.length - 6);
+        return offset;
+      }
+
+      parsePositionAndFile(parts, start) {
+        // find the position of 'at' in the parts array.
+        let offset = start;
+        for (let i = start + 1; i < parts.length; i++) {
+          offset++;
+          if (parts[i] == 'at') break;
+        }
+        if (parts[offset] !== 'at') return -1;
+        this.position = parts.slice(start, offset).join(' ');
+        offset += 1;
+        this.isNative = parts[offset] == "native"
+        offset += this.isNative ? 1 : 0;
+        this.file = parts[offset];
+        return offset;
+      }
+    }
+
+    function loadFile() {
+      let files = document.getElementById("uploadInput").files;
+
+      let file = files[0];
+      let reader = new FileReader();
+
+      reader.onload = function(evt) {
+        let icProcessor = new CustomIcProcessor();
+        icProcessor.processString(this.result);
+        entries = icProcessor.entries;
+
+        document.getElementById("count").innerHTML = entries.length;
+        updateTable();
+      }
+      reader.readAsText(file);
+      initGroupKeySelect();
+    }
+
+
+    class Group {
+      constructor(property, key, entry) {
+        this.property = property;
+        this.key = key;
+        this.count = 1;
+        this.entries = [entry];
+        this.percentage = undefined;
+        this.groups = undefined;
+      }
+
+      add(entry) {
+        this.count++;
+        this.entries.push(entry)
+      }
+
+      createSubGroups() {
+        this.groups = {};
+        for (let i = 0; i < properties.length; i++) {
+          let subProperty = properties[i];
+          if (this.property == subProperty) continue;
+          this.groups[subProperty] = groupBy(this.entries, subProperty);
+        }
+      }
+    }
+
+    function groupBy(entries, property) {
+      let accumulator = Object.create(null);
+      let length = entries.length;
+      for (let i = 0; i < length; i++) {
+        let entry = entries[i];
+        let key = entry[property];
+        if (accumulator[key] == undefined) {
+          accumulator[key] = new Group(property, key, entry)
+        } else {
+          let group = accumulator[key];
+          if (group.entries == undefined) console.log([group, entry]);
+          group.add(entry)
+        }
+      }
+      let result = []
+      for (let key in accumulator) {
+        let group = accumulator[key];
+        group.percentage = Math.round(group.count / length * 100 * 100) / 100;
+        result.push(group);
+      }
+      result.sort((a, b) => {
+        return b.count - a.count
+      });
+      return result;
+    }
+
+
+
+    function escapeHtml(unsafe) {
+      if (!unsafe) return "";
+      return unsafe.toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function processValue(unsafe) {
+      if (!unsafe) return "";
+      if (!unsafe.startsWith("http")) return escapeHtml(unsafe);
+      let a = document.createElement("a");
+      a.href = unsafe;
+      a.textContent = unsafe;
+      return a;
+    }
+
+    function updateTable() {
+      let select = document.getElementById("group-key");
+      let key = select.options[select.selectedIndex].text;
+      let tableBody = document.getElementById("table-body");
+      removeAllChildren(tableBody);
+      let groups = groupBy(entries, key, true);
+      display(groups, tableBody);
+    }
+
+    function selecedOption(node) {
+      return node.options[node.selectedIndex]
+    }
+
+    function removeAllChildren(node) {
+      while (node.firstChild) {
+        node.removeChild(node.firstChild);
+      }
+    }
+
+    function display(entries, parent) {
+      let fragment = document.createDocumentFragment();
+
+      function td(tr, content, className) {
+        let node = document.createElement("td");
+        if (typeof content == "object") {
+          node.appendChild(content);
+        } else {
+          node.innerHTML = content;
+        }
+        node.className = className
+        tr.appendChild(node);
+        return node
+      }
+
+      let max = Math.min(1000, entries.length)
+      for (let i = 0; i < max; i++) {
+        let entry = entries[i];
+        let tr = document.createElement("tr");
+        tr.entry = entry;
+        td(tr, '<span onclick="toggleDetails(this)">&#8505;</a>', 'details');
+        td(tr, entry.percentage + "%", 'percentage');
+        td(tr, entry.count, 'count');
+        td(tr, processValue(entry.key), 'key');
+        fragment.appendChild(tr);
+      }
+      let omitted = entries.length - max;
+      if (omitted > 0) {
+        let tr = document.createElement("tr");
+        let tdNode = td(tr, 'Omitted ' + omitted + " entries.");
+        tdNode.colSpan = 4;
+        fragment.appendChild(tr);
+      }
+      parent.appendChild(fragment);
+    }
+
+    function displayDrilldown(entry, previousSibling) {
+      let tr = document.createElement('tr');
+      tr.className = "entry-details";
+      tr.style.display = "none";
+      // indent by one td.
+      tr.appendChild(document.createElement("td"));
+      let td = document.createElement("td");
+      td.colSpan = 3;
+      for (let key in entry.groups) {
+        td.appendChild(displayDrilldownGroup(entry, key));
+      }
+      tr.appendChild(td);
+      // Append the new TR after previousSibling.
+      previousSibling.parentNode.insertBefore(tr, previousSibling.nextSibling)
+    }
+
+    function displayDrilldownGroup(entry, key) {
+      let max = 20;
+      let group = entry.groups[key];
+      let div = document.createElement("div")
+      div.className = 'drilldown-group-title'
+      div.textContent = key + ' [top ' + max + ' out of ' + group.length + ']';
+      let table = document.createElement("table");
+      display(group.slice(0, max), table, false)
+      div.appendChild(table);
+      return div;
+    }
+
+    function toggleDetails(node) {
+      let tr = node.parentNode.parentNode;
+      let entry = tr.entry;
+
+      // Create subgroup in-place if the don't exist yet.
+      if (entry.groups === undefined) {
+        entry.createSubGroups();
+        displayDrilldown(entry, tr);
+      }
+      let details = tr.nextSibling;
+      let display = details.style.display;
+      if (display != "none") {
+        display = "none";
+      } else {
+        display = "table-row"
+      };
+      details.style.display = display;
+    }
+
+    function initGroupKeySelect() {
+      let select = document.getElementById("group-key");
+      for (let i in properties) {
+        let option = document.createElement("option");
+        option.text = properties[i];
+        select.add(option);
+      }
+    }
+
+    function handleOnLoad() {
+      document.querySelector("#uploadInput").focus();
+    }
+  </script>
+</head>
+
+<body onload="handleOnLoad()">
+  <h1>
+    <span style="color: #00FF00">I</span>
+    <span style="color: #FF00FF">C</span>
+    <span style="color: #00FFFF">E</span>
+  </h1> Your IC-Explorer.
+
+  <div id="legend" style="padding-right: 200px">
+    <div style="float:right;  border-style: solid; border-width: 1px; padding:20px">
+      0 uninitialized<br>
+      . premonomorphic<br>
+      1 monomorphic<br>
+      ^ recompute handler<br>
+      P polymorphic<br>
+      N megamorphic<br>
+      G generic
+    </div>
+  </div>
+
+  <h2>Usage</h2> Run your script with <code>--trace_ic</code> and upload <code>v8.log</code> on this page:<br/>
+  <code>/path/to/d8 --trace_ic your_script.js</code>
+  <h2>Data</h2>
+  <form name="fileForm">
+    <p>
+      <input id="uploadInput" type="file" name="files" onchange="loadFile();"> trace entries: <span id="count">0</span>
+    </p>
+  </form>
+  <h2>Result</h2>
+  <p>
+    Group-Key:
+    <select id="group-key" onchange="updateTable()"></select>
+  </p>
+  <p>
+    <table id="table" width="100%">
+      <tbody id="table-body">
+      </tbody>
+    </table>
+  </p>
+</body>
+
+</html>

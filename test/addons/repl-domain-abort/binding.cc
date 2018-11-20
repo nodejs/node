@@ -22,26 +22,29 @@
 #include <node.h>
 #include <v8.h>
 
+using v8::Boolean;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
-using v8::HandleScope;
+using v8::Local;
 using v8::Isolate;
 using v8::Object;
 using v8::Value;
 
 void Method(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  HandleScope scope(isolate);
-  node::MakeCallback(isolate,
-                     isolate->GetCurrentContext()->Global(),
-                     args[0].As<Function>(),
-                     0,
-                     NULL);
+  Local<Value> params[] = {
+    Boolean::New(isolate, true),
+    Boolean::New(isolate, false)
+  };
+  Local<Value> ret =
+      node::MakeCallback(isolate, isolate->GetCurrentContext()->Global(),
+                         args[0].As<Function>(), 2, params,
+                         node::async_context{0, 0}).ToLocalChecked();
+  assert(ret->IsTrue());
 }
 
-void init(Handle<Object> target) {
-  NODE_SET_METHOD(target, "method", Method);
+void init(Local<Object> exports) {
+  NODE_SET_METHOD(exports, "method", Method);
 }
 
-NODE_MODULE(binding, init);
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)

@@ -19,14 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var isWindows = process.platform === 'win32';
-var openCount = 0;
-var mode;
-var content;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+let openCount = 0;
+let mode;
+let content;
+
+if (!common.isMainThread)
+  common.skip('process.umask is not available in Workers');
 
 // Need to hijack fs.open/close to make sure that things
 // get closed once they're opened.
@@ -36,56 +39,53 @@ fs._closeSync = fs.closeSync;
 fs.closeSync = closeSync;
 
 // Reset the umask for testing
-var mask = process.umask(0000);
+process.umask(0o000);
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
-if (isWindows) {
-  mode = 0444;
+if (common.isWindows) {
+  mode = 0o444;
 } else {
-  mode = 0755;
+  mode = 0o755;
 }
+
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
 // Test writeFileSync
-var file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
-removeFile(file1);
+const file1 = path.join(tmpdir.path, 'testWriteFileSync.txt');
 
-fs.writeFileSync(file1, '123', {mode: mode});
+fs.writeFileSync(file1, '123', { mode });
 
-content = fs.readFileSync(file1, {encoding: 'utf8'});
-assert.equal('123', content);
+content = fs.readFileSync(file1, { encoding: 'utf8' });
+assert.strictEqual(content, '123');
 
-assert.equal(mode, fs.statSync(file1).mode & 0777);
-
-removeFile(file1);
+assert.strictEqual(fs.statSync(file1).mode & 0o777, mode);
 
 // Test appendFileSync
-var file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
-removeFile(file2);
+const file2 = path.join(tmpdir.path, 'testAppendFileSync.txt');
 
-fs.appendFileSync(file2, 'abc', {mode: mode});
+fs.appendFileSync(file2, 'abc', { mode });
 
-content = fs.readFileSync(file2, {encoding: 'utf8'});
-assert.equal('abc', content);
+content = fs.readFileSync(file2, { encoding: 'utf8' });
+assert.strictEqual(content, 'abc');
 
-assert.equal(mode, fs.statSync(file2).mode & mode);
+assert.strictEqual(fs.statSync(file2).mode & mode, mode);
 
-removeFile(file2);
+// Test writeFileSync with file descriptor
+const file3 = path.join(tmpdir.path, 'testWriteFileSyncFd.txt');
+
+const fd = fs.openSync(file3, 'w+', mode);
+fs.writeFileSync(fd, '123');
+fs.closeSync(fd);
+
+content = fs.readFileSync(file3, { encoding: 'utf8' });
+assert.strictEqual(content, '123');
+
+assert.strictEqual(fs.statSync(file3).mode & 0o777, mode);
 
 // Verify that all opened files were closed.
-assert.equal(0, openCount);
-
-// Removes a file if it exists.
-function removeFile(file) {
-  try {
-    if (isWindows)
-      fs.chmodSync(file, 0666);
-    fs.unlinkSync(file);
-  } catch (err) {
-    if (err && err.code !== 'ENOENT')
-      throw err;
-  }
-}
+assert.strictEqual(openCount, 0);
 
 function openSync() {
   openCount++;

@@ -19,13 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
-assert.throws(function() {
-  vm.isContext('string is not supported');
-}, TypeError);
+for (const valToTest of [
+  'string', null, undefined, 8.9, Symbol('sym'), true
+]) {
+  common.expectsError(() => {
+    vm.isContext(valToTest);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
+}
 
 assert.strictEqual(vm.isContext({}), false);
 assert.strictEqual(vm.isContext([]), false);
@@ -33,6 +41,6 @@ assert.strictEqual(vm.isContext([]), false);
 assert.strictEqual(vm.isContext(vm.createContext()), true);
 assert.strictEqual(vm.isContext(vm.createContext([])), true);
 
-var sandbox = { foo: 'bar' };
+const sandbox = { foo: 'bar' };
 vm.createContext(sandbox);
 assert.strictEqual(vm.isContext(sandbox), true);

@@ -31,7 +31,7 @@ N/A
 API
 ---
 
-.. c:function:: int uv_check_init(uv_loop_t*, uv_check_t* check)
+.. c:function:: int uv_check_init(uv_loop_t* loop, uv_check_t* check)
 
     Initialize the handle.
 

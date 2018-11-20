@@ -19,30 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var accessedProperties = false;
+'use strict';
+const common = require('../common');
+const net = require('net');
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.end();
 });
 
-server.listen(common.PORT, function() {
-  var client = net.createConnection(common.PORT);
+server.listen(0, common.mustCall(function() {
+  const client = net.createConnection(this.address().port);
   server.close();
-  // server connection event has not yet fired
-  // client is still attempting to connect
-  assert.doesNotThrow(function() {
-    client.remoteAddress;
-    client.remoteFamily;
-    client.remotePort;
-  });
-  accessedProperties = true;
-  // exit now, do not wait for the client error event
+  // Server connection event has not yet fired client is still attempting to
+  // connect. Accessing properties should not throw in this case.
+  client.remoteAddress;
+  client.remoteFamily;
+  client.remotePort;
+  // Exit now, do not wait for the client error event.
   process.exit(0);
-});
-
-process.on('exit', function() {
-  assert(accessedProperties);
-});
+}));

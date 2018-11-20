@@ -1,0 +1,6 @@
+(node:*) ExperimentalWarning: The ESM module loader is experimental.
+file:///*/test/message/esm_display_syntax_error.mjs:3
+await async () => 0;
+^^^^^
+SyntaxError: Unexpected reserved word
+    at translators.set (internal/modules/esm/translators.js:*:*)

@@ -19,65 +19,63 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var path = require('path');
-
-var exits = 0;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const fixtures = require('../common/fixtures');
 
 function errExec(script, callback) {
-  var cmd = '"' + process.argv[0] + '" "' +
-      path.join(common.fixturesDir, script) + '"';
+  const cmd = `"${process.argv[0]}" "${fixtures.path(script)}"`;
   return exec(cmd, function(err, stdout, stderr) {
     // There was some error
     assert.ok(err);
 
     // More than one line of error output.
-    assert.ok(stderr.split('\n').length > 2);
-
-    // Assert the script is mentioned in error output.
-    assert.ok(stderr.indexOf(script) >= 0);
+    assert.ok(stderr.split('\n').length);
 
     // Proxy the args for more tests.
     callback(err, stdout, stderr);
-
-    // Count the tests
-    exits++;
-
-    console.log('.');
   });
 }
 
+const syntaxErrorMessage = /\bSyntaxError\b/;
+
 
 // Simple throw error
-errExec('throws_error.js', function(err, stdout, stderr) {
+errExec('throws_error.js', common.mustCall(function(err, stdout, stderr) {
   assert.ok(/blah/.test(stderr));
-});
+}));
 
 
 // Trying to JSON.parse(undefined)
-errExec('throws_error2.js', function(err, stdout, stderr) {
-  assert.ok(/SyntaxError/.test(stderr));
-});
+errExec('throws_error2.js', common.mustCall(function(err, stdout, stderr) {
+  assert.ok(syntaxErrorMessage.test(stderr));
+}));
 
 
 // Trying to JSON.parse(undefined) in nextTick
-errExec('throws_error3.js', function(err, stdout, stderr) {
-  assert.ok(/SyntaxError/.test(stderr));
-});
+errExec('throws_error3.js', common.mustCall(function(err, stdout, stderr) {
+  assert.ok(syntaxErrorMessage.test(stderr));
+}));
 
 
 // throw ILLEGAL error
-errExec('throws_error4.js', function(err, stdout, stderr) {
-  assert.ok(/\/\*\*/.test(stderr));
-  assert.ok(/SyntaxError/.test(stderr));
-});
+errExec('throws_error4.js', common.mustCall(function(err, stdout, stderr) {
+  assert.ok(syntaxErrorMessage.test(stderr));
+}));
 
+// Specific long exception line doesn't result in stack overflow
+errExec('throws_error5.js', common.mustCall(function(err, stdout, stderr) {
+  assert.ok(syntaxErrorMessage.test(stderr));
+}));
 
-process.on('exit', function() {
-  assert.equal(4, exits);
-});
+// Long exception line with length > errorBuffer doesn't result in assertion
+errExec('throws_error6.js', common.mustCall(function(err, stdout, stderr) {
+  assert.ok(syntaxErrorMessage.test(stderr));
+}));
+
+// Object that throws in toString() doesn't print garbage
+errExec('throws_error7.js', common.mustCall(function(err, stdout, stderr) {
+  assert.ok(/<toString\(\) threw exception/.test(stderr));
+}));

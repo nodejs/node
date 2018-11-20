@@ -14,10 +14,10 @@
 // do not know what you are doing, avoid these routines, and use a Mutex.
 //
 // It is incorrect to make direct assignments to/from an atomic variable.
-// You should use one of the Load or Store routines.  The NoBarrier
-// versions are provided when no barriers are needed:
-//   NoBarrier_Store()
-//   NoBarrier_Load()
+// You should use one of the Load or Store routines.  The Relaxed  versions
+// are provided when no fences are needed:
+//   Relaxed_Store()
+//   Relaxed_Load()
 // Although there are currently no compiler enforcement, you are encouraged
 // to use these.
 //
@@ -26,33 +26,30 @@
 #define V8_BASE_ATOMICOPS_H_
 
 #include <stdint.h>
-#include "src/base/build_config.h"
 
-#if defined(_WIN32) && defined(V8_HOST_ARCH_64_BIT)
-// windows.h #defines this (only on x64). This causes problems because the
-// public API also uses MemoryBarrier at the public name for this fence. So, on
-// X64, undef it, and call its documented
-// (http://msdn.microsoft.com/en-us/library/windows/desktop/ms684208.aspx)
-// implementation directly.
-#undef MemoryBarrier
-#endif
+// Small C++ header which defines implementation specific macros used to
+// identify the STL implementation.
+// - libc++: captures __config for _LIBCPP_VERSION
+// - libstdc++: captures bits/c++config.h for __GLIBCXX__
+#include <cstddef>
+
+#include "src/base/base-export.h"
+#include "src/base/build_config.h"
 
 namespace v8 {
 namespace base {
 
 typedef char Atomic8;
 typedef int32_t Atomic32;
-#if defined(__native_client__)
-typedef int64_t Atomic64;
-#elif defined(V8_HOST_ARCH_64_BIT)
+#if defined(V8_HOST_ARCH_64_BIT)
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
 #if defined(__ILP32__)
 typedef int64_t Atomic64;
 #else
 typedef intptr_t Atomic64;
+#endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
-#endif  // defined(__native_client__)
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
@@ -68,30 +65,29 @@ typedef intptr_t AtomicWord;
 // Always return the old value of "*ptr"
 //
 // This routine implies no memory barriers.
-Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
-                                  Atomic32 old_value,
-                                  Atomic32 new_value);
+Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,
+                                Atomic32 new_value);
 
 // Atomically store new_value into *ptr, returning the previous value held in
 // *ptr.  This routine implies no memory barriers.
-Atomic32 NoBarrier_AtomicExchange(volatile Atomic32* ptr, Atomic32 new_value);
+Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr, Atomic32 new_value);
 
 // Atomically increment *ptr by "increment".  Returns the new value of
 // *ptr with the increment applied.  This routine implies no memory barriers.
-Atomic32 NoBarrier_AtomicIncrement(volatile Atomic32* ptr, Atomic32 increment);
+Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr, Atomic32 increment);
 
 Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
                                  Atomic32 increment);
 
 // These following lower-level operations are typically useful only to people
 // implementing higher-level synchronization operations like spinlocks,
-// mutexes, and condition-variables.  They combine CompareAndSwap(), a load, or
-// a store with appropriate memory-ordering instructions.  "Acquire" operations
-// ensure that no later memory access can be reordered ahead of the operation.
-// "Release" operations ensure that no previous memory access can be reordered
-// after the operation.  "Barrier" operations have both "Acquire" and "Release"
-// semantics.   A MemoryBarrier() has "Barrier" semantics, but does no memory
-// access.
+// mutexes, and condition-variables.  They combine CompareAndSwap(), a load,
+// or a store with appropriate memory-ordering instructions.  "Acquire"
+// operations ensure that no later memory access can be reordered ahead of the
+// operation. "Release" operations ensure that no previous memory access can
+// be reordered after the operation.  "Fence" operations have both "Acquire"
+// and "Release" semantics. A SeqCst_MemoryFence() has "Fence" semantics, but
+// does no memory access.
 Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
@@ -99,24 +95,21 @@ Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
 
-void MemoryBarrier();
-void NoBarrier_Store(volatile Atomic8* ptr, Atomic8 value);
-void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value);
-void Acquire_Store(volatile Atomic32* ptr, Atomic32 value);
+void SeqCst_MemoryFence();
+void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value);
+void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value);
 void Release_Store(volatile Atomic32* ptr, Atomic32 value);
 
-Atomic8 NoBarrier_Load(volatile const Atomic8* ptr);
-Atomic32 NoBarrier_Load(volatile const Atomic32* ptr);
+Atomic8 Relaxed_Load(volatile const Atomic8* ptr);
+Atomic32 Relaxed_Load(volatile const Atomic32* ptr);
 Atomic32 Acquire_Load(volatile const Atomic32* ptr);
-Atomic32 Release_Load(volatile const Atomic32* ptr);
 
 // 64-bit atomic operations (only available on 64-bit processors).
 #ifdef V8_HOST_ARCH_64_BIT
-Atomic64 NoBarrier_CompareAndSwap(volatile Atomic64* ptr,
-                                  Atomic64 old_value,
-                                  Atomic64 new_value);
-Atomic64 NoBarrier_AtomicExchange(volatile Atomic64* ptr, Atomic64 new_value);
-Atomic64 NoBarrier_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
+Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
+                                Atomic64 new_value);
+Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr, Atomic64 new_value);
+Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
 Atomic64 Barrier_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
 
 Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
@@ -125,42 +118,26 @@ Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
 Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
                                 Atomic64 old_value,
                                 Atomic64 new_value);
-void NoBarrier_Store(volatile Atomic64* ptr, Atomic64 value);
-void Acquire_Store(volatile Atomic64* ptr, Atomic64 value);
+void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value);
 void Release_Store(volatile Atomic64* ptr, Atomic64 value);
-Atomic64 NoBarrier_Load(volatile const Atomic64* ptr);
+Atomic64 Relaxed_Load(volatile const Atomic64* ptr);
 Atomic64 Acquire_Load(volatile const Atomic64* ptr);
-Atomic64 Release_Load(volatile const Atomic64* ptr);
 #endif  // V8_HOST_ARCH_64_BIT
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
-// Include our platform specific implementation.
-#if defined(THREAD_SANITIZER)
-#include "src/base/atomicops_internals_tsan.h"
-#elif defined(_MSC_VER) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
-#include "src/base/atomicops_internals_x86_msvc.h"
-#elif defined(__APPLE__)
-#include "src/base/atomicops_internals_mac.h"
-#elif defined(__native_client__)
-#include "src/base/atomicops_internals_portable.h"
-#elif defined(__GNUC__) && V8_HOST_ARCH_ARM64
-#include "src/base/atomicops_internals_arm64_gcc.h"
-#elif defined(__GNUC__) && V8_HOST_ARCH_ARM
-#include "src/base/atomicops_internals_arm_gcc.h"
-#elif defined(__GNUC__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
-#include "src/base/atomicops_internals_x86_gcc.h"
-#elif defined(__GNUC__) && V8_HOST_ARCH_MIPS
-#include "src/base/atomicops_internals_mips_gcc.h"
-#elif defined(__GNUC__) && V8_HOST_ARCH_MIPS64
-#include "src/base/atomicops_internals_mips64_gcc.h"
+#if defined(V8_OS_WIN)
+#include "src/base/atomicops_internals_std.h"
 #else
-#error "Atomic operations are not supported on your platform"
+// TODO(ulan): Switch to std version after performance regression with Wheezy
+// sysroot is no longer relevant. Debian Wheezy LTS ends on 31st of May 2018.
+#include "src/base/atomicops_internals_portable.h"
 #endif
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#if defined(V8_OS_MACOSX) || defined(V8_OS_OPENBSD) || defined(V8_OS_AIX)
 #include "src/base/atomicops_internals_atomicword_compat.h"
 #endif
 

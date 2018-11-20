@@ -1,0 +1,266 @@
+Checks that inspector reports script compiled in Runtime.evaluate, Runtime.callFunctionOn and  Runtime.compileScript
+Runtime.evaluate with valid expression
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 29
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : true
+        hash : 088d339a1527053d718d72a610f9700c32e64eef
+        isLiveEdit : false
+        isModule : false
+        length : 29
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : evaluate.js
+    }
+}
+Runtime.evaluate with syntax error
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 39
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : true
+        hash : 37f7701801762b5e2198ec5dca86af5775b39421
+        isModule : false
+        length : 39
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : evaluate-syntax-error.js
+    }
+}
+Runtime.callFunctionOn with valid functionDeclaration
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 18
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 1169ab358eba9e1a28fa39e19f578ced708a8404
+        isLiveEdit : false
+        isModule : false
+        length : 18
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : 
+    }
+}
+Runtime.callFunctionOn with syntax error
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 3
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 238d40d96f7b2e1582675bc4cd924d3481abe278
+        isModule : false
+        length : 3
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : 
+    }
+}
+Runtime.compileScript with valid expression
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 4
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 337f40d9a52d67b682675bc4cd924d3481abe278
+        isLiveEdit : false
+        isModule : false
+        length : 4
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : compile-script.js
+    }
+}
+Runtime.compileScript with syntax error
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 1
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 021647ffab1f4e4e82675bc4cd924d3481abe278
+        isModule : false
+        length : 1
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : compile-script-syntax-error.js
+    }
+}
+Runtime.compileScript persistScript: false (should be no script events)
+Runtime.evaluate compiled script with stack trace
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 8
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 0435812a3176b201645f85bac0ce254781abe278
+        isLiveEdit : false
+        isModule : false
+        length : 8
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : 
+    }
+}
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 39
+        endLine : 4
+        executionContextId : <executionContextId>
+        hasSourceURL : true
+        hash : 1fe25013058a11e86a218cbdab72a4511253d317
+        isLiveEdit : false
+        isModule : false
+        length : 86
+        scriptId : <scriptId>
+        sourceMapURL : 
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 2
+                    functionName : fooTop
+                    lineNumber : 10
+                    scriptId : <scriptId>
+                    url : top-frame.js
+                }
+            ]
+        }
+        startColumn : 0
+        startLine : 0
+        url : second-frame.js
+    }
+}
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 4
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 337f40d9a52d67b682675bc4cd924d3481abe278
+        isLiveEdit : false
+        isModule : false
+        length : 4
+        scriptId : <scriptId>
+        sourceMapURL : 
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 6
+                    functionName : foo
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : second-frame.js
+                }
+            ]
+        }
+        startColumn : 0
+        startLine : 0
+        url : 
+    }
+}
+Runtime.evaluate compile script error with stack trace
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 12
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 04ea8c553176b201645f85ba59eab978523fb6e1
+        isLiveEdit : false
+        isModule : false
+        length : 12
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : 
+    }
+}
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 48
+        endLine : 4
+        executionContextId : <executionContextId>
+        hasSourceURL : true
+        hash : 0178c875a610447615aeda1073937cd62e4f0919
+        isLiveEdit : false
+        isModule : false
+        length : 98
+        scriptId : <scriptId>
+        sourceMapURL : 
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 2
+                    functionName : fooTopFail
+                    lineNumber : 20
+                    scriptId : <scriptId>
+                    url : top-frame-fail.js
+                }
+            ]
+        }
+        startColumn : 0
+        startLine : 0
+        url : second-frame-fail.js
+    }
+}
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 3
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 337f40d93ac843c682675bc4cd924d3481abe278
+        isModule : false
+        length : 3
+        scriptId : <scriptId>
+        sourceMapURL : 
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 6
+                    functionName : fooFail
+                    lineNumber : 2
+                    scriptId : <scriptId>
+                    url : second-frame-fail.js
+                }
+            ]
+        }
+        startColumn : 0
+        startLine : 0
+        url : 
+    }
+}

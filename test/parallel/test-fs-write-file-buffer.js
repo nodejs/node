@@ -19,12 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var join = require('path').join;
-var util = require('util');
-var fs = require('fs');
+'use strict';
+require('../common');
+const join = require('path').join;
+const util = require('util');
+const fs = require('fs');
 
-var data = [
+let data = [
   '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcH',
   'Bw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/',
   '2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4e',
@@ -45,7 +46,10 @@ var data = [
 
 data = data.join('\n');
 
-var buf = new Buffer(data, 'base64');
-fs.writeFileSync(join(common.tmpDir, 'test.jpg'), buf);
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
+const buf = Buffer.from(data, 'base64');
+fs.writeFileSync(join(tmpdir.path, 'test.jpg'), buf);
 
 util.log('Done!');

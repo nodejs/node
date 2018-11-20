@@ -512,8 +512,8 @@ PASS compileAndSerializeLeftmostTest('var a, b, c') is 'var a, b, c'
 PASS compileAndSerializeLeftmostTest('var a = 1, b = 2, c = 3') is 'var a = 1, b = 2, c = 3'
 PASS compileAndSerializeLeftmostTest('const a = 1') is 'const a = 1'
 PASS compileAndSerializeLeftmostTest('const a = (1, 2)') is 'const a = (1, 2)'
-PASS compileAndSerializeLeftmostTest('const a, b = 1') is 'const a, b = 1'
-PASS compileAndSerializeLeftmostTest('const a = 1, b') is 'const a = 1, b'
+FAIL compileAndSerializeLeftmostTest('const a, b = 1') should be const a, b = 1. Threw exception SyntaxError: Missing initializer in const declaration
+FAIL compileAndSerializeLeftmostTest('const a = 1, b') should be const a = 1, b. Threw exception SyntaxError: Missing initializer in const declaration
 PASS compileAndSerializeLeftmostTest('const a = 1, b = 1') is 'const a = 1, b = 1'
 PASS compileAndSerializeLeftmostTest('const a = (1, 2), b = 1') is 'const a = (1, 2), b = 1'
 PASS compileAndSerializeLeftmostTest('const a = 1, b = (1, 2)') is 'const a = 1, b = (1, 2)'

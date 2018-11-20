@@ -19,69 +19,68 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+const fixtures = require('../common/fixtures');
 
-var common = require('../common');
-var fs = require('fs');
-var path = require('path');
-var net = require('net');
-var tls = require('tls');
-var assert = require('assert');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var options, a, b, portA, portB;
-var gotHello = false;
+const assert = require('assert');
+const tls = require('tls');
 
-options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+const net = require('net');
+
+const options = {
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
+const body = 'A'.repeat(40000);
+
 // the "proxy" server
-a = tls.createServer(options, function (socket) {
-  var options = {
+const a = tls.createServer(options, function(socket) {
+  const myOptions = {
     host: '127.0.0.1',
     port: b.address().port,
     rejectUnauthorized: false
   };
-  var dest = net.connect(options);
+  const dest = net.connect(myOptions);
   dest.pipe(socket);
   socket.pipe(dest);
+
+  dest.on('end', function() {
+    socket.destroy();
+  });
 });
 
 // the "target" server
-b = tls.createServer(options, function (socket) {
-  socket.end('hello');
+const b = tls.createServer(options, function(socket) {
+  socket.end(body);
 });
 
-process.on('exit', function () {
-  assert(gotHello);
-});
-
-a.listen(common.PORT, function () {
-  b.listen(common.PORT + 1, function () {
-    options = {
+a.listen(0, function() {
+  b.listen(0, function() {
+    const myOptions = {
       host: '127.0.0.1',
       port: a.address().port,
       rejectUnauthorized: false
     };
-    var socket = tls.connect(options);
-    var ssl;
-    ssl = tls.connect({
+    const socket = tls.connect(myOptions);
+    const ssl = tls.connect({
       socket: socket,
       rejectUnauthorized: false
     });
     ssl.setEncoding('utf8');
-    ssl.once('data', function (data) {
-      assert.equal('hello', data);
-      gotHello = true;
+    let buf = '';
+    ssl.on('data', function(data) {
+      buf += data;
     });
-    ssl.on('end', function () {
+    ssl.on('end', common.mustCall(function() {
+      assert.strictEqual(buf, body);
       ssl.end();
       a.close();
       b.close();
-    });
+    }));
   });
 });

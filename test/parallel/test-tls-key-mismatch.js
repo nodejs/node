@@ -19,24 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
-var fs = require('fs');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+const fixtures = require('../common/fixtures');
+
+const assert = require('assert');
+const tls = require('tls');
+const errorMessageRegex =
+  /^Error: error:0B080074:x509 certificate routines:X509_check_private_key:key values mismatch$/;
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem')
 };
-
-var cert = null;
 
 assert.throws(function() {
   tls.createSecureContext(options);
-});
+}, errorMessageRegex);

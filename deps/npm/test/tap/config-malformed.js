@@ -1,7 +1,7 @@
 var test = require('tap').test
 
-var npmconf = require("../../lib/config/core.js")
-var common = require("./00-config-setup.js")
+var npmconf = require('../../lib/config/core.js')
+var common = require('./00-config-setup.js')
 
 test('with malformed', function (t) {
   npmconf.load({}, common.malformed, function (er, conf) {

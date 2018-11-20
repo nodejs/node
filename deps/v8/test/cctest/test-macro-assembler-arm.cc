@@ -27,125 +27,34 @@
 
 #include <stdlib.h>
 
+#include "src/assembler-inl.h"
+#include "src/macro-assembler.h"
+#include "src/objects-inl.h"
+#include "src/simulator.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/macro-assembler.h"
+namespace v8 {
+namespace internal {
+namespace test_macro_assembler_arm {
 
-#include "src/arm/macro-assembler-arm.h"
-#include "src/arm/simulator-arm.h"
-
-
-using namespace v8::internal;
-
-typedef void* (*F)(int x, int y, int p2, int p3, int p4);
+using F = void*(int x, int y, int p2, int p3, int p4);
 
 #define __ masm->
 
-
-static byte to_non_zero(int n) {
-  return static_cast<unsigned>(n) % 255 + 1;
-}
-
-
-static bool all_zeroes(const byte* beg, const byte* end) {
-  CHECK(beg);
-  CHECK(beg <= end);
-  while (beg < end) {
-    if (*beg++ != 0)
-      return false;
-  }
-  return true;
-}
-
-
-TEST(CopyBytes) {
-  CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
-  HandleScope handles(isolate);
-
-  const int data_size = 1 * KB;
-  size_t act_size;
-
-  // Allocate two blocks to copy data between.
-  byte* src_buffer =
-      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
-  CHECK(src_buffer);
-  CHECK(act_size >= static_cast<size_t>(data_size));
-  byte* dest_buffer =
-      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
-  CHECK(dest_buffer);
-  CHECK(act_size >= static_cast<size_t>(data_size));
-
-  // Storage for R0 and R1.
-  byte* r0_;
-  byte* r1_;
-
-  MacroAssembler assembler(isolate, NULL, 0);
-  MacroAssembler* masm = &assembler;
-
-  // Code to be generated: The stuff in CopyBytes followed by a store of R0 and
-  // R1, respectively.
-  __ CopyBytes(r0, r1, r2, r3);
-  __ mov(r2, Operand(reinterpret_cast<int>(&r0_)));
-  __ mov(r3, Operand(reinterpret_cast<int>(&r1_)));
-  __ str(r0, MemOperand(r2));
-  __ str(r1, MemOperand(r3));
-  __ bx(lr);
-
-  CodeDesc desc;
-  masm->GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-
-  F f = FUNCTION_CAST<F>(code->entry());
-
-  // Initialise source data with non-zero bytes.
-  for (int i = 0; i < data_size; i++) {
-    src_buffer[i] = to_non_zero(i);
-  }
-
-  const int fuzz = 11;
-
-  for (int size = 0; size < 600; size++) {
-    for (const byte* src = src_buffer; src < src_buffer + fuzz; src++) {
-      for (byte* dest = dest_buffer; dest < dest_buffer + fuzz; dest++) {
-        memset(dest_buffer, 0, data_size);
-        CHECK(dest + size < dest_buffer + data_size);
-        (void) CALL_GENERATED_CODE(f, reinterpret_cast<int>(src),
-                                      reinterpret_cast<int>(dest), size, 0, 0);
-        // R0 and R1 should point at the first byte after the copied data.
-        CHECK_EQ(src + size, r0_);
-        CHECK_EQ(dest + size, r1_);
-        // Check that we haven't written outside the target area.
-        CHECK(all_zeroes(dest_buffer, dest));
-        CHECK(all_zeroes(dest + size, dest_buffer + data_size));
-        // Check the target area.
-        CHECK_EQ(0, memcmp(src, dest, size));
-      }
-    }
-  }
-
-  // Check that the source data hasn't been clobbered.
-  for (int i = 0; i < data_size; i++) {
-    CHECK(src_buffer[i] == to_non_zero(i));
-  }
-}
-
-
-typedef int (*F5)(void*, void*, void*, void*, void*);
-
+using F3 = Object*(void* p0, int p1, int p2, int p3, int p4);
+using F5 = int(void*, void*, void*, void*, void*);
 
 TEST(LoadAndStoreWithRepresentation) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
+
   __ sub(sp, sp, Operand(1 * kPointerSize));
   Label exit;
 
@@ -215,13 +124,281 @@ TEST(LoadAndStoreWithRepresentation) {
   __ bx(lr);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  masm->GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   // Call the function from C++.
-  F5 f = FUNCTION_CAST<F5>(code->entry());
-  CHECK_EQ(0, CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  auto f = GeneratedCode<F5>::FromCode(*code);
+  CHECK(!f.Call(0, 0, 0, 0, 0));
+}
+
+TEST(ExtractLane) {
+  if (!CpuFeatures::IsSupported(NEON)) return;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
+
+  typedef struct {
+    int32_t i32x4_low[4];
+    int32_t i32x4_high[4];
+    int32_t i16x8_low[8];
+    int32_t i16x8_high[8];
+    int32_t i8x16_low[16];
+    int32_t i8x16_high[16];
+    int32_t f32x4_low[4];
+    int32_t f32x4_high[4];
+    int32_t i8x16_low_d[16];
+    int32_t i8x16_high_d[16];
+  } T;
+  T t;
+
+  __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
+
+  for (int i = 0; i < 4; i++) {
+    __ mov(r4, Operand(i));
+    __ vdup(Neon32, q1, r4);
+    __ ExtractLane(r5, q1, NeonS32, i);
+    __ str(r5, MemOperand(r0, offsetof(T, i32x4_low) + 4 * i));
+    SwVfpRegister si = SwVfpRegister::from_code(i);
+    __ ExtractLane(si, q1, i);
+    __ vstr(si, r0, offsetof(T, f32x4_low) + 4 * i);
+  }
+
+  for (int i = 0; i < 8; i++) {
+    __ mov(r4, Operand(i));
+    __ vdup(Neon16, q1, r4);
+    __ ExtractLane(r5, q1, NeonS16, i);
+    __ str(r5, MemOperand(r0, offsetof(T, i16x8_low) + 4 * i));
+  }
+
+  for (int i = 0; i < 16; i++) {
+    __ mov(r4, Operand(i));
+    __ vdup(Neon8, q1, r4);
+    __ ExtractLane(r5, q1, NeonS8, i);
+    __ str(r5, MemOperand(r0, offsetof(T, i8x16_low) + 4 * i));
+  }
+
+  for (int i = 0; i < 8; i++) {
+    __ mov(r4, Operand(i));
+    __ vdup(Neon8, q1, r4);  // q1 = d2,d3
+    __ ExtractLane(r5, d2, NeonS8, i);
+    __ str(r5, MemOperand(r0, offsetof(T, i8x16_low_d) + 4 * i));
+    __ ExtractLane(r5, d3, NeonS8, i);
+    __ str(r5, MemOperand(r0, offsetof(T, i8x16_low_d) + 4 * (i + 8)));
+  }
+
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    for (int i = 0; i < 4; i++) {
+      __ mov(r4, Operand(-i));
+      __ vdup(Neon32, q15, r4);
+      __ ExtractLane(r5, q15, NeonS32, i);
+      __ str(r5, MemOperand(r0, offsetof(T, i32x4_high) + 4 * i));
+      SwVfpRegister si = SwVfpRegister::from_code(i);
+      __ ExtractLane(si, q15, i);
+      __ vstr(si, r0, offsetof(T, f32x4_high) + 4 * i);
+    }
+
+    for (int i = 0; i < 8; i++) {
+      __ mov(r4, Operand(-i));
+      __ vdup(Neon16, q15, r4);
+      __ ExtractLane(r5, q15, NeonS16, i);
+      __ str(r5, MemOperand(r0, offsetof(T, i16x8_high) + 4 * i));
+    }
+
+    for (int i = 0; i < 16; i++) {
+      __ mov(r4, Operand(-i));
+      __ vdup(Neon8, q15, r4);
+      __ ExtractLane(r5, q15, NeonS8, i);
+      __ str(r5, MemOperand(r0, offsetof(T, i8x16_high) + 4 * i));
+    }
+
+    for (int i = 0; i < 8; i++) {
+      __ mov(r4, Operand(-i));
+      __ vdup(Neon8, q15, r4);  // q1 = d30,d31
+      __ ExtractLane(r5, d30, NeonS8, i);
+      __ str(r5, MemOperand(r0, offsetof(T, i8x16_high_d) + 4 * i));
+      __ ExtractLane(r5, d31, NeonS8, i);
+      __ str(r5, MemOperand(r0, offsetof(T, i8x16_high_d) + 4 * (i + 8)));
+    }
+  }
+
+  __ ldm(ia_w, sp, r4.bit() | r5.bit() | pc.bit());
+
+  CodeDesc desc;
+  masm->GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+  StdoutStream os;
+  code->Print(os);
+#endif
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  f.Call(&t, 0, 0, 0, 0);
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(i, t.i32x4_low[i]);
+    CHECK_EQ(i, t.f32x4_low[i]);
+  }
+  for (int i = 0; i < 8; i++) {
+    CHECK_EQ(i, t.i16x8_low[i]);
+  }
+  for (int i = 0; i < 16; i++) {
+    CHECK_EQ(i, t.i8x16_low[i]);
+  }
+  for (int i = 0; i < 8; i++) {
+    CHECK_EQ(i, t.i8x16_low_d[i]);
+    CHECK_EQ(i, t.i8x16_low_d[i + 8]);
+  }
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(-i, t.i32x4_high[i]);
+      CHECK_EQ(-i, t.f32x4_high[i]);
+    }
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(-i, t.i16x8_high[i]);
+    }
+    for (int i = 0; i < 16; i++) {
+      CHECK_EQ(-i, t.i8x16_high[i]);
+    }
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(-i, t.i8x16_high_d[i]);
+      CHECK_EQ(-i, t.i8x16_high_d[i + 8]);
+    }
+  }
+}
+
+TEST(ReplaceLane) {
+  if (!CpuFeatures::IsSupported(NEON)) return;
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
+
+  typedef struct {
+    int32_t i32x4_low[4];
+    int32_t i32x4_high[4];
+    int16_t i16x8_low[8];
+    int16_t i16x8_high[8];
+    int8_t i8x16_low[16];
+    int8_t i8x16_high[16];
+    int32_t f32x4_low[4];
+    int32_t f32x4_high[4];
+  } T;
+  T t;
+
+  __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
+
+  __ veor(q0, q0, q0);  // Zero
+  __ veor(q1, q1, q1);  // Zero
+  for (int i = 0; i < 4; i++) {
+    __ mov(r4, Operand(i));
+    __ ReplaceLane(q0, q0, r4, NeonS32, i);
+    SwVfpRegister si = SwVfpRegister::from_code(i);
+    __ vmov(si, r4);
+    __ ReplaceLane(q1, q1, si, i);
+  }
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i32x4_low))));
+  __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, f32x4_low))));
+  __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+  __ veor(q0, q0, q0);  // Zero
+  for (int i = 0; i < 8; i++) {
+    __ mov(r4, Operand(i));
+    __ ReplaceLane(q0, q0, r4, NeonS16, i);
+  }
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i16x8_low))));
+  __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+
+  __ veor(q0, q0, q0);  // Zero
+  for (int i = 0; i < 16; i++) {
+    __ mov(r4, Operand(i));
+    __ ReplaceLane(q0, q0, r4, NeonS8, i);
+  }
+  __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i8x16_low))));
+  __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    __ veor(q14, q14, q14);  // Zero
+    __ veor(q15, q15, q15);  // Zero
+    for (int i = 0; i < 4; i++) {
+      __ mov(r4, Operand(-i));
+      __ ReplaceLane(q14, q14, r4, NeonS32, i);
+      SwVfpRegister si = SwVfpRegister::from_code(i);
+      __ vmov(si, r4);
+      __ ReplaceLane(q15, q15, si, i);
+    }
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i32x4_high))));
+    __ vst1(Neon8, NeonListOperand(q14), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, f32x4_high))));
+    __ vst1(Neon8, NeonListOperand(q15), NeonMemOperand(r4));
+
+    __ veor(q14, q14, q14);  // Zero
+    for (int i = 0; i < 8; i++) {
+      __ mov(r4, Operand(-i));
+      __ ReplaceLane(q14, q14, r4, NeonS16, i);
+    }
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i16x8_high))));
+    __ vst1(Neon8, NeonListOperand(q14), NeonMemOperand(r4));
+
+    __ veor(q14, q14, q14);  // Zero
+    for (int i = 0; i < 16; i++) {
+      __ mov(r4, Operand(-i));
+      __ ReplaceLane(q14, q14, r4, NeonS8, i);
+    }
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, i8x16_high))));
+    __ vst1(Neon8, NeonListOperand(q14), NeonMemOperand(r4));
+  }
+
+  __ ldm(ia_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | pc.bit());
+
+  CodeDesc desc;
+  masm->GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+  StdoutStream os;
+  code->Print(os);
+#endif
+  auto f = GeneratedCode<F3>::FromCode(*code);
+  f.Call(&t, 0, 0, 0, 0);
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(i, t.i32x4_low[i]);
+    CHECK_EQ(i, t.f32x4_low[i]);
+  }
+  for (int i = 0; i < 8; i++) {
+    CHECK_EQ(i, t.i16x8_low[i]);
+  }
+  for (int i = 0; i < 16; i++) {
+    CHECK_EQ(i, t.i8x16_low[i]);
+  }
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(-i, t.i32x4_high[i]);
+      CHECK_EQ(-i, t.f32x4_high[i]);
+    }
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(-i, t.i16x8_high[i]);
+    }
+    for (int i = 0; i < 16; i++) {
+      CHECK_EQ(-i, t.i8x16_high[i]);
+    }
+  }
 }
 
 #undef __
+
+}  // namespace test_macro_assembler_arm
+}  // namespace internal
+}  // namespace v8

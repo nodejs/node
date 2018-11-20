@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+'use strict';
 // This test starts two clustered HTTP servers on the same port. It expects the
 // first cluster to succeed and the second cluster to fail with EADDRINUSE.
 //
@@ -38,91 +39,74 @@
 //
 // See https://github.com/joyent/node/issues/2721 for more details.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
+const http = require('http');
 
-var id = process.argv[2];
+const id = process.argv[2];
 
 if (!id) {
-  var a = fork(__filename, ['one']);
-  var b = fork(__filename, ['two']);
+  const a = fork(__filename, ['one']);
+  const b = fork(__filename, ['two']);
 
-  a.on('exit', function(c) {
+  a.on('exit', common.mustCall((c) => {
     if (c) {
       b.send('QUIT');
-      throw new Error('A exited with ' + c);
+      throw new Error(`A exited with ${c}`);
     }
-  });
+  }));
 
-  b.on('exit', function(c) {
+  b.on('exit', common.mustCall((c) => {
     if (c) {
       a.send('QUIT');
-      throw new Error('B exited with ' + c);
+      throw new Error(`B exited with ${c}`);
     }
-  });
+  }));
 
 
-  a.on('message', function(m) {
-    if (typeof m === 'object') return;
-    assert.equal(m, 'READY');
-    b.send('START');
-  });
+  a.on('message', common.mustCall((m) => {
+    assert.strictEqual(m.msg, 'READY');
+    b.send({ msg: 'START', port: m.port });
+  }));
 
-  var ok = false;
-
-  b.on('message', function(m) {
-    if (typeof m === 'object') return; // ignore system messages
-    assert.equal(m, 'EADDRINUSE');
-    ok = true;
+  b.on('message', common.mustCall((m) => {
+    assert.strictEqual(m, 'EADDRINUSE');
     a.send('QUIT');
     b.send('QUIT');
-  });
+  }));
 
-  process.on('exit', function() {
-    assert(ok);
-  });
-}
-else if (id === 'one') {
+} else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
-  var server = http.createServer(assert.fail).listen(common.PORT, function() {
-    process.send('READY');
-  });
+  const server = http.createServer(common.mustNotCall());
+  server.listen(0, common.mustCall(() => {
+    process.send({ msg: 'READY', port: server.address().port });
+  }));
 
-  process.on('message', function(m) {
+  process.on('message', common.mustCall((m) => {
     if (m === 'QUIT') process.exit();
-  });
-}
-else if (id === 'two') {
+  }));
+} else if (id === 'two') {
   if (cluster.isMaster) return startWorker();
 
-  var ok = false;
-  process.on('exit', function() {
-    assert(ok);
-  });
-
-  var server = http.createServer(assert.fail);
-  process.on('message', function(m) {
-    if (typeof m === 'object') return; // ignore system messages
+  const server = http.createServer(common.mustNotCall());
+  process.on('message', common.mustCall((m) => {
     if (m === 'QUIT') process.exit();
-    assert.equal(m, 'START');
-    server.listen(common.PORT, assert.fail);
-    server.on('error', function(e) {
-      assert.equal(e.code, 'EADDRINUSE');
+    assert.strictEqual(m.msg, 'START');
+    server.listen(m.port, common.mustNotCall());
+    server.on('error', common.mustCall((e) => {
+      assert.strictEqual(e.code, 'EADDRINUSE');
       process.send(e.code);
-      ok = true;
-    });
-  });
-}
-else {
+    }));
+  }, 2));
+} else {
   assert(0); // bad command line argument
 }
 
 function startWorker() {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.on('exit', process.exit);
   worker.on('message', process.send.bind(process));
   process.on('message', worker.send.bind(worker));

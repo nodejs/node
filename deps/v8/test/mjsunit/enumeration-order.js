@@ -71,9 +71,9 @@ proto2.a = 0;
 proto2[2] = 0;
 proto2[3] = 0;  // also on the 'proto1' object
 proto2.b = 0;
-proto2[4294967295] = 0;
+proto2[4294967294] = 0;
 proto2.c = 0;
-proto2[4294967296] = 0;
+proto2[4294967295] = 0;
 
 var proto1 = {};
 proto1[5] = 0;
@@ -98,8 +98,8 @@ var expected = ['23', '42',  // indexed from 'o'
                 '-23', '300000000000', 'f', 'g', '-4',  // named from 'o'
                 '3', '5',  // indexed from 'proto1'
                 'd', 'e',  // named from 'proto1'
-                '2', '140000', '4294967295',  // indexed from 'proto2'
-                'a', 'b', 'c', '4294967296'];  // named from 'proto2'
+                '2', '140000', '4294967294',  // indexed from 'proto2'
+                'a', 'b', 'c', '4294967295'];  // named from 'proto2'
 var actual = [];
 for (var p in o) actual.push(p);
 assertArrayEquals(expected, actual);

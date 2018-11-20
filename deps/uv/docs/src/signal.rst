@@ -17,13 +17,6 @@ Reception of some signals is emulated on Windows:
   program is given approximately 10 seconds to perform cleanup. After that
   Windows will unconditionally terminate it.
 
-* SIGWINCH is raised whenever libuv detects that the console has been
-  resized. SIGWINCH is emulated by libuv when the program uses a :c:type:`uv_tty_t`
-  handle to write to the console. SIGWINCH may not always be delivered in a
-  timely manner; libuv will only detect size changes when the cursor is
-  being moved. When a readable :c:type:`uv_tty_t` handle is used in raw mode,
-  resizing the console buffer will also trigger a SIGWINCH signal.
-
 Watchers for other signals can be successfully created, but these signals
 are never received. These signals are: `SIGILL`, `SIGABRT`, `SIGFPE`, `SIGSEGV`,
 `SIGTERM` and `SIGKILL.`
@@ -36,6 +29,7 @@ not detected by libuv; these will not trigger a signal watcher.
     manage threads. Installing watchers for those signals will lead to unpredictable behavior
     and is strongly discouraged. Future versions of libuv may simply reject them.
 
+.. versionchanged:: 1.15.0 SIGWINCH support on Windows was improved.
 
 Data types
 ----------
@@ -62,13 +56,20 @@ Public members
 API
 ---
 
-.. c:function:: int uv_signal_init(uv_loop_t*, uv_signal_t* signal)
+.. c:function:: int uv_signal_init(uv_loop_t* loop, uv_signal_t* signal)
 
     Initialize the handle.
 
 .. c:function:: int uv_signal_start(uv_signal_t* signal, uv_signal_cb cb, int signum)
 
     Start the handle with the given callback, watching for the given signal.
+
+.. c:function:: int uv_signal_start_oneshot(uv_signal_t* signal, uv_signal_cb cb, int signum)
+
+    .. versionadded:: 1.12.0
+
+    Same functionality as :c:func:`uv_signal_start` but the signal handler is reset the moment
+    the signal is received.
 
 .. c:function:: int uv_signal_stop(uv_signal_t* signal)
 

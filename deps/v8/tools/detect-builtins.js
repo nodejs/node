@@ -24,6 +24,8 @@
       }
       // Avoid endless recursion.
       if (this_name === "prototype" && name === "constructor") continue;
+      // Avoid needless duplication.
+      if (this_name === "__PROTO__" && name === "constructor") continue;
       // Could get this from the parent, but having it locally is easier.
       var property = { "name": name };
       try {
@@ -39,8 +41,17 @@
         property.length = value.length;
         property.prototype = GetProperties("prototype", value.prototype);
       }
-      property.properties = GetProperties(name, value);
+      if (type === "string" || type === "number") {
+        property.value = value;
+      } else {
+        property.properties = GetProperties(name, value);
+      }
       result[name] = property;
+    }
+    // Print the __proto__ if it's not the default Object prototype.
+    if (typeof object === "object" && object.__proto__ !== null &&
+        !object.__proto__.hasOwnProperty("__proto__")) {
+      result.__PROTO__ = GetProperties("__PROTO__", object.__proto__);
     }
     return result;
   };

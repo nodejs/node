@@ -19,32 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
 
-var clientConnected = 0;
-var serverConnected = 0;
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var server = tls.Server(options, function(socket) {
-  ++serverConnected;
-  server.close();
-});
-server.listen(common.PIPE, function() {
-  var options = { rejectUnauthorized: false };
-  var client = tls.connect(common.PIPE, options, function() {
-    ++clientConnected;
-    client.end();
-  });
-});
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-process.on('exit', function() {
-  assert.equal(clientConnected, 1);
-  assert.equal(serverConnected, 1);
-});
+const server = tls.Server(options, common.mustCall(function(socket) {
+  server.close();
+}));
+server.listen(common.PIPE, common.mustCall(function() {
+  const options = { rejectUnauthorized: false };
+  const client = tls.connect(common.PIPE, options, common.mustCall(function() {
+    client.end();
+  }));
+}));

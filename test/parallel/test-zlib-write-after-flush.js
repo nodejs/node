@@ -19,36 +19,27 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
-var fs = require('fs');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
 
-var gzip = zlib.createGzip();
-var gunz = zlib.createUnzip();
+const gzip = zlib.createGzip();
+const gunz = zlib.createUnzip();
 
 gzip.pipe(gunz);
 
-var output = '';
-var input = 'A line of data\n';
+let output = '';
+const input = 'A line of data\n';
 gunz.setEncoding('utf8');
-gunz.on('data', function(c) {
-  output += c;
-});
-
-process.on('exit', function() {
-  assert.equal(output, input);
-
-  // Make sure that the flush flag was set back to normal
-  assert.equal(gzip._flushFlag, zlib.Z_NO_FLUSH);
-
-  console.log('ok');
-});
+gunz.on('data', (c) => output += c);
+gunz.on('end', common.mustCall(() => {
+  assert.strictEqual(output, input);
+  assert.strictEqual(gzip._flushFlag, zlib.constants.Z_NO_FLUSH);
+}));
 
 // make sure that flush/write doesn't trigger an assert failure
-gzip.flush(); write();
-function write() {
-  gzip.write(input);
-  gzip.end();
-  gunz.read(0);
-}
+gzip.flush();
+gzip.write(input);
+gzip.end();
+gunz.read(0);

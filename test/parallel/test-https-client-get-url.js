@@ -19,40 +19,41 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+const fixtures = require('../common/fixtures');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var fs = require('fs');
+const assert = require('assert');
+const https = require('https');
+const url = require('url');
 
-var seen_req = false;
+const URL = url.URL;
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var server = https.createServer(options, function(req, res) {
-  assert.equal('GET', req.method);
-  assert.equal('/foo?bar', req.url);
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+const server = https.createServer(options, common.mustCall((req, res) => {
+  assert.strictEqual('GET', req.method);
+  assert.strictEqual('/foo?bar', req.url);
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello\n');
   res.end();
-  server.close();
-  seen_req = true;
-});
+}, 3));
 
-server.listen(common.PORT, function() {
-  https.get('https://127.0.0.1:' + common.PORT + '/foo?bar');
-});
-
-process.on('exit', function() {
-  assert(seen_req);
-});
+server.listen(0, common.mustCall(() => {
+  const u = `https://${common.localhostIPv4}:${server.address().port}/foo?bar`;
+  https.get(u, common.mustCall(() => {
+    https.get(url.parse(u), common.mustCall(() => {
+      https.get(new URL(u), common.mustCall(() => {
+        server.close();
+      }));
+    }));
+  }));
+}));

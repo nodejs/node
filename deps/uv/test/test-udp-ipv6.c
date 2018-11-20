@@ -26,6 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#include <sys/sysctl.h>
+#endif
+
 #define CHECK_HANDLE(handle)                \
   ASSERT((uv_udp_t*)(handle) == &server     \
       || (uv_udp_t*)(handle) == &client     \
@@ -42,6 +46,18 @@ static uv_timer_t timeout;
 static int send_cb_called;
 static int recv_cb_called;
 static int close_cb_called;
+
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+static int can_ipv6_ipv4_dual(void) {
+  int v6only;
+  size_t size = sizeof(int);
+
+  if (sysctlbyname("net.inet6.ip6.v6only", &v6only, &size, NULL, 0))
+    return 0;
+
+  return v6only != 1;
+}
+#endif
 
 
 static void alloc_cb(uv_handle_t* handle,
@@ -147,23 +163,34 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
 
 
 TEST_IMPL(udp_dual_stack) {
-#if defined(__DragonFly__)  || \
-    defined(__FreeBSD__)    || \
-    defined(__OpenBSD__)    || \
-    defined(__NetBSD__)
-  RETURN_SKIP("dual stack not enabled by default in this OS.");
-#else
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  /* FIXME: Does Cygwin support this?  */
+  RETURN_SKIP("FIXME: This test needs more investigation on Cygwin");
+#endif
+
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+  if (!can_ipv6_ipv4_dual())
+    RETURN_SKIP("IPv6-IPv4 dual stack not supported");
+#elif defined(__OpenBSD__)
+  RETURN_SKIP("IPv6-IPv4 dual stack not supported");
+#endif
+
   do_test(ipv6_recv_ok, 0);
 
   ASSERT(recv_cb_called == 1);
   ASSERT(send_cb_called == 1);
 
   return 0;
-#endif
 }
 
 
 TEST_IMPL(udp_ipv6_only) {
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   do_test(ipv6_recv_fail, UV_UDP_IPV6ONLY);
 
   ASSERT(recv_cb_called == 0);

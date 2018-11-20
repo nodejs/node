@@ -19,27 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+const fixtures = require('../common/fixtures');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var http = require('http');
-var https = require('https');
+const assert = require('assert');
+const https = require('https');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var body = 'hello world\n';
+const body = 'hello world\n';
 
-var httpsServer = https.createServer(options, function(req, res) {
+const httpsServer = https.createServer(options, function(req, res) {
   res.on('finish', function() {
-    assert(typeof(req.connection.bytesWritten) === 'number');
+    assert.strictEqual(typeof req.connection.bytesWritten, 'number');
     assert(req.connection.bytesWritten > 0);
     httpsServer.close();
     console.log('ok');
@@ -48,9 +46,9 @@ var httpsServer = https.createServer(options, function(req, res) {
   res.end(body);
 });
 
-httpsServer.listen(common.PORT, function() {
+httpsServer.listen(0, function() {
   https.get({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   });
 });

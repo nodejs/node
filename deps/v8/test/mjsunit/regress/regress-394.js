@@ -37,8 +37,8 @@ function getx(){
 
 setx()
 setx()
-__defineSetter__('x',function(){});
-__defineGetter__('x',function(){return 2;});
+this.__defineSetter__('x',function(){});
+this.__defineGetter__('x',function(){return 2;});
 setx()
 assertEquals(2, x);
 

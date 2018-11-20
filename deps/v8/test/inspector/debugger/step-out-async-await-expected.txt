@@ -1,0 +1,67 @@
+StepOut from return position of async function.
+
+Running test: testStepInto
+      p.then(() => 1);
+      #debugger;
+      return p;
+
+      debugger;
+      #return p;
+    }
+
+      return p;
+    #}
+    await foo();
+
+      await p;
+      p.then(() => #1);
+      debugger;
+
+
+Running test: testStepOver
+      p.then(() => 1);
+      #debugger;
+      return p;
+
+      debugger;
+      #return p;
+    }
+
+      return p;
+    #}
+    await foo();
+
+      await p;
+      p.then(() => #1);
+      debugger;
+
+      await p;
+      p.then(() => 1#);
+      debugger;
+
+    await foo();
+  #}
+
+
+
+Running test: testStepOut
+      p.then(() => 1);
+      #debugger;
+      return p;
+
+      debugger;
+      #return p;
+    }
+
+      return p;
+    #}
+    await foo();
+
+      await p;
+      p.then(() => #1);
+      debugger;
+
+    await foo();
+  #}
+
+

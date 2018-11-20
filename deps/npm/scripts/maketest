@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+'use strict'
+const loadFromDir = require('tacks/load-from-dir.js')
+
+process.exit(main(process.argv.slice(2)))
+
+function main (argv) {
+  if (argv.length !== 1) {
+    console.error('Usage: maketest <fixturedir>')
+    return 1
+  }
+  const fixturedir = process.argv[2]
+
+  console.log(generateFromDir(fixturedir))
+  return 0
+}
+
+function indent (ind, str) {
+  return str.replace(/\n/g, '\n' + ind)
+}
+
+function generateFromDir (dir) {
+  const tacks = loadFromDir(dir)
+  return `'use strict'
+const path = require('path')
+const test = require('tap').test
+const mr = require('npm-registry-mock')
+const Tacks = require('tacks')
+const File = Tacks.File
+const Symlink = Tacks.Symlink
+const Dir = Tacks.Dir
+const common = require('../common-tap.js')
+
+const basedir = path.join(__dirname, path.basename(__filename, '.js'))
+const testdir = path.join(basedir, 'testdir')
+const cachedir = path.join(basedir, 'cache')
+const globaldir = path.join(basedir, 'global')
+const tmpdir = path.join(basedir, 'tmp')
+
+const conf = {
+  cwd: testdir,
+  env: Object.assign({}, process.env, {
+    npm_config_cache: cachedir,
+    npm_config_tmp: tmpdir,
+    npm_config_prefix: globaldir,
+    npm_config_registry: common.registry,
+    npm_config_loglevel: 'warn'
+  })
+}
+
+let server
+const fixture = new Tacks(Dir({
+  cache: Dir(),
+  global: Dir(),
+  tmp: Dir(),
+  testdir: ${indent('  ', tacks.fixture.toSource())}
+}))
+
+function setup () {
+  cleanup()
+  fixture.create(basedir)
+}
+
+function cleanup () {
+  fixture.remove(basedir)
+}
+
+test('setup', function (t) {
+  setup()
+  mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
+    if (err) throw err
+    server = s
+    t.done()
+  })
+})
+
+test('example', function (t) {
+  common.npm(['install'], conf, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.is(code, 0, 'command ran ok')
+    t.comment(stdout.trim())
+    t.comment(stderr.trim())
+    // your assertions here
+    t.done()
+  })
+})
+
+test('cleanup', function (t) {
+  server.close()
+  cleanup()
+  t.done()
+})\n`
+}

@@ -32,6 +32,10 @@
 
 
 TEST_IMPL(ip6_addr_link_local) {
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  /* FIXME: Does Cygwin support this?  */
+  RETURN_SKIP("FIXME: This test needs more investigation on Cygwin");
+#endif
   char string_address[INET6_ADDRSTRLEN];
   uv_interface_address_t* addresses;
   uv_interface_address_t* address;
@@ -40,8 +44,12 @@ TEST_IMPL(ip6_addr_link_local) {
   const char* device_name;
   /* 40 bytes address, 16 bytes device name, plus reserve. */
   char scoped_addr[128];
+  size_t scoped_addr_len;
+  char interface_id[UV_IF_NAMESIZE];
+  size_t interface_id_len;
   int count;
   int ix;
+  int r;
 
   ASSERT(0 == uv_interface_addresses(&addresses, &count));
 
@@ -63,32 +71,47 @@ TEST_IMPL(ip6_addr_link_local) {
     iface_index = address->address.address6.sin6_scope_id;
     device_name = address->name;
 
+    scoped_addr_len = sizeof(scoped_addr);
+    ASSERT(0 == uv_if_indextoname(iface_index, scoped_addr, &scoped_addr_len));
+#ifndef _WIN32
+    /* This assert fails on Windows, as Windows semantics are different. */
+    ASSERT(0 == strcmp(device_name, scoped_addr));
+#endif
+
+    interface_id_len = sizeof(interface_id);
+    r = uv_if_indextoiid(iface_index, interface_id, &interface_id_len);
+    ASSERT(0 == r);
 #ifdef _WIN32
-    snprintf(scoped_addr,
-             sizeof(scoped_addr),
-             "%s%%%d",
-             string_address,
-             iface_index);
+    /* On Windows, the interface identifier is the numeric string of the index. */
+    ASSERT(strtol(interface_id, NULL, 10) == iface_index);
 #else
+    /* On Unix/Linux, the interface identifier is the interface device name. */
+    ASSERT(0 == strcmp(device_name, interface_id));
+#endif
+
     snprintf(scoped_addr,
              sizeof(scoped_addr),
              "%s%%%s",
              string_address,
-             device_name);
-#endif
+             interface_id);
 
-    LOGF("Testing link-local address %s "
-         "(iface_index: 0x%02x, device_name: %s)\n",
-         scoped_addr,
-         iface_index,
-         device_name);
+    fprintf(stderr, "Testing link-local address %s "
+            "(iface_index: 0x%02x, device_name: %s)\n",
+            scoped_addr,
+            iface_index,
+            device_name);
+    fflush(stderr);
 
     ASSERT(0 == uv_ip6_addr(scoped_addr, TEST_PORT, &addr));
-    LOGF("Got scope_id 0x%02x\n", addr.sin6_scope_id);
+    fprintf(stderr, "Got scope_id 0x%02x\n", addr.sin6_scope_id);
+    fflush(stderr);
     ASSERT(iface_index == addr.sin6_scope_id);
   }
 
   uv_free_interface_addresses(addresses, count);
+
+  scoped_addr_len = sizeof(scoped_addr);
+  ASSERT(0 != uv_if_indextoname((unsigned int)-1, scoped_addr, &scoped_addr_len));
 
   MAKE_VALGRIND_HAPPY();
   return 0;

@@ -19,33 +19,36 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) process.exit();
+'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var https = require('https');
-var net = require('net');
-var tls = require('tls');
-var fs = require('fs');
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const assert = require('assert');
+const https = require('https');
+const tls = require('tls');
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var server = https.createServer(options, assert.fail);
+const server = https.createServer(options, common.mustNotCall());
 
 server.on('secureConnection', function(cleartext) {
-  cleartext.setTimeout(50, function() {
+  const s = cleartext.setTimeout(50, function() {
     cleartext.destroy();
     server.close();
   });
+  assert.ok(s instanceof tls.TLSSocket);
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   tls.connect({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   });
 });

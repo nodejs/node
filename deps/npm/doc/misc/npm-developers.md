@@ -57,7 +57,7 @@ least, you need:
   use the name to specify that it runs on node, or is in JavaScript.
   You can use the "engines" field to explicitly state the versions of
   node (or whatever else) that your program requires, and it's pretty
-  well assumed that it's javascript.
+  well assumed that it's JavaScript.
 
   It does not necessarily need to match your github repository name.
 
@@ -100,7 +100,17 @@ Use a `.npmignore` file to keep stuff out of your package.  If there's
 no `.npmignore` file, but there *is* a `.gitignore` file, then npm will
 ignore the stuff matched by the `.gitignore` file.  If you *want* to
 include something that is excluded by your `.gitignore` file, you can
-create an empty `.npmignore` file to override it.
+create an empty `.npmignore` file to override it. Like `git`, `npm` looks
+for `.npmignore` and `.gitignore` files in all subdirectories of your
+package, not only the root directory.
+
+`.npmignore` files follow the [same pattern rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files)
+as `.gitignore` files:
+
+* Blank lines or lines starting with `#` are ignored.
+* Standard glob patterns work.
+* You can end patterns with a forward slash `/` to specify a directory.
+* You can negate a pattern by starting it with an exclamation point `!`.
 
 By default, the following paths and files are ignored, so there's no
 need to add them to `.npmignore` explicitly:
@@ -110,9 +120,11 @@ need to add them to `.npmignore` explicitly:
 * `.DS_Store`
 * `.git`
 * `.hg`
+* `.npmrc`
 * `.lock-wscript`
 * `.svn`
 * `.wafpickle-*`
+* `config.gypi`
 * `CVS`
 * `npm-debug.log`
 
@@ -124,7 +136,22 @@ The following paths and files are never ignored, so adding them to
 `.npmignore` is pointless:
 
 * `package.json`
-* `README.*`
+* `README` (and its variants)
+* `CHANGELOG` (and its variants)
+* `LICENSE` / `LICENCE`
+
+If, given the structure of your project, you find `.npmignore` to be a
+maintenance headache, you might instead try populating the `files`
+property of `package.json`, which is an array of file or directory names
+that should be included in your package. Sometimes a whitelist is easier
+to manage than a blacklist.
+
+### Testing whether your `.npmignore` or `files` config works
+
+If you want to double check that your package will include only the files
+you intend it to when published, you can run the `npm pack` command locally
+which will generate a tarball in the working directory, the same way it
+does for publishing.
 
 ## Link Packages
 
@@ -177,7 +204,7 @@ This is documented better in npm-adduser(1).
 
 ## Publish your package
 
-This part's easy.  IN the root of your folder, do this:
+This part's easy.  In the root of your folder, do this:
 
     npm publish
 
@@ -197,7 +224,6 @@ Tell the world how easy it is to install your program!
 
 ## SEE ALSO
 
-* npm-faq(7)
 * npm(1)
 * npm-init(1)
 * package.json(5)

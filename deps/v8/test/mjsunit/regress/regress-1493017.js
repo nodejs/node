@@ -28,7 +28,7 @@
 // Test collection of abandoned maps.  Tests that deleted map
 // transitions do not show up as properties in for in.
 
-// Flags: --expose-gc --collect-maps
+// Flags: --expose-gc
 
 function C() {}
 

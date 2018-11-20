@@ -3,7 +3,7 @@ npm-help-search(1) -- Search npm help documentation
 
 ## SYNOPSIS
 
-    npm help-search some search terms
+    npm help-search <text>
 
 ## DESCRIPTION
 
@@ -21,7 +21,7 @@ command directly.
 ### long
 
 * Type: Boolean
-* Default false
+* Default: false
 
 If true, the "long" flag will cause help-search to output context around
 where the terms were found in the documentation.
@@ -31,5 +31,4 @@ If false, then help-search will just list out the help topics found.
 ## SEE ALSO
 
 * npm(1)
-* npm-faq(7)
 * npm-help(1)

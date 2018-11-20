@@ -1,18 +1,56 @@
 .text
+// Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+//
+// Licensed under the OpenSSL license (the "License").  You may not use
+// this file except in compliance with the License.  You can obtain a copy
+// in the file LICENSE in the source distribution or at
+// https://www.openssl.org/source/license.html
 
 .globl	OPENSSL_s390x_facilities
 .type	OPENSSL_s390x_facilities,@function
 .align	16
 OPENSSL_s390x_facilities:
 	lghi	%r0,0
-	larl	%r2,OPENSSL_s390xcap_P
-	stg	%r0,8(%r2)
-	.long	0xb2b02000	# stfle	0(%r2)
+	larl	%r4,OPENSSL_s390xcap_P
+	stg	%r0,8(%r4)	# wipe capability vectors
+	stg	%r0,16(%r4)
+	stg	%r0,24(%r4)
+	stg	%r0,32(%r4)
+	stg	%r0,40(%r4)
+	stg	%r0,48(%r4)
+	stg	%r0,56(%r4)
+	stg	%r0,64(%r4)
+	stg	%r0,72(%r4)
+
+	.long	0xb2b04000	# stfle	0(%r4)
 	brc	8,.Ldone
 	lghi	%r0,1
-	.long	0xb2b02000	# stfle 0(%r2)
+	.long	0xb2b04000	# stfle 0(%r4)
 .Ldone:
-	lg	%r2,0(%r2)
+	lmg	%r2,%r3,0(%r4)
+	tmhl	%r2,0x4000	# check for message-security-assist
+	jz	.Lret
+
+	lghi	%r0,0		# query kimd capabilities
+	la	%r1,16(%r4)
+	.long	0xb93e0002	# kimd %r0,%r2
+
+	lghi	%r0,0		# query km capability vector
+	la	%r1,32(%r4)
+	.long	0xb92e0042	# km %r4,%r2
+
+	lghi	%r0,0		# query kmc capability vector
+	la	%r1,48(%r4)
+	.long	0xb92f0042	# kmc %r4,%r2
+
+	tmhh	%r3,0x0004	# check for message-security-assist-4
+	jz	.Lret
+
+	lghi	%r0,0		# query kmctr capability vector
+	la	%r1,64(%r4)
+	.long	0xb92d2042	# kmctr %r4,%r2,%r2
+
+.Lret:
 	br	%r14
 .size	OPENSSL_s390x_facilities,.-OPENSSL_s390x_facilities
 
@@ -93,7 +131,48 @@ OPENSSL_cleanse:
 	br	%r14
 .size	OPENSSL_cleanse,.-OPENSSL_cleanse
 
+.globl	CRYPTO_memcmp
+.type	CRYPTO_memcmp,@function
+.align	16
+CRYPTO_memcmp:
+#if !defined(__s390x__) && !defined(__s390x)
+	llgfr	%r4,%r4
+#endif
+	lghi	%r5,0
+	clgr	%r4,%r5
+	je	.Lno_data
+
+.Loop_cmp:
+	llgc	%r0,0(%r2)
+	la	%r2,1(%r2)
+	llgc	%r1,0(%r3)
+	la	%r3,1(%r3)
+	xr	%r1,%r0
+	or	%r5,%r1
+	brctg	%r4,.Loop_cmp
+
+	lnr	%r5,%r5
+	srl	%r5,31
+.Lno_data:
+	lgr	%r2,%r5
+	br	%r14
+.size	CRYPTO_memcmp,.-CRYPTO_memcmp
+
+.globl	OPENSSL_instrument_bus
+.type	OPENSSL_instrument_bus,@function
+.align	16
+OPENSSL_instrument_bus:
+	lghi	%r2,0
+	br	%r14
+.size	OPENSSL_instrument_bus,.-OPENSSL_instrument_bus
+
+.globl	OPENSSL_instrument_bus2
+.type	OPENSSL_instrument_bus2,@function
+.align	16
+OPENSSL_instrument_bus2:
+	lghi	%r2,0
+	br	%r14
+.size	OPENSSL_instrument_bus2,.-OPENSSL_instrument_bus2
+
 .section	.init
 	brasl	%r14,OPENSSL_cpuid_setup
-
-.comm	OPENSSL_s390xcap_P,16,8

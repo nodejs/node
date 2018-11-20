@@ -1,0 +1,52 @@
+{
+  "_from": "@babel/code-frame@7.0.0-beta.36",
+  "_id": "@babel/code-frame@7.0.0-beta.36",
+  "_inBundle": false,
+  "_integrity": "sha512-sW77BFwJ48YvQp3Gzz5xtAUiXuYOL2aMJKDwiaY3OcvdqBFurtYfOpSa4QrNyDxmOGRFSYzUpabU2m9QrlWE7w==",
+  "_location": "/babel-eslint/@babel/code-frame",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "@babel/code-frame@7.0.0-beta.36",
+    "name": "@babel/code-frame",
+    "escapedName": "@babel%2fcode-frame",
+    "scope": "@babel",
+    "rawSpec": "7.0.0-beta.36",
+    "saveSpec": null,
+    "fetchSpec": "7.0.0-beta.36"
+  },
+  "_requiredBy": [
+    "/babel-eslint",
+    "/babel-eslint/@babel/template",
+    "/babel-eslint/@babel/traverse"
+  ],
+  "_resolved": "https://registry.npmjs.org/@babel/code-frame/-/code-frame-7.0.0-beta.36.tgz",
+  "_shasum": "2349d7ec04b3a06945ae173280ef8579b63728e4",
+  "_spec": "@babel/code-frame@7.0.0-beta.36",
+  "_where": "/home/mzasso/git/nodejs/node/tools/babel-eslint-tmp/node_modules/babel-eslint",
+  "author": {
+    "name": "Sebastian McKenzie",
+    "email": "sebmck@gmail.com"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "chalk": "^2.0.0",
+    "esutils": "^2.0.2",
+    "js-tokens": "^3.0.0"
+  },
+  "deprecated": false,
+  "description": "Generate errors that contain a code frame that point to source locations.",
+  "devDependencies": {
+    "strip-ansi": "^4.0.0"
+  },
+  "homepage": "https://babeljs.io/",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "@babel/code-frame",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel/tree/master/packages/babel-code-frame"
+  },
+  "version": "7.0.0-beta.36"
+}

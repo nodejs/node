@@ -23,26 +23,93 @@
 #include "internal.h"
 #include "spinlock.h"
 
+#include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
 #include <termios.h>
 #include <errno.h>
 #include <sys/ioctl.h>
 
+#if defined(__MVS__) && !defined(IMAXBEL)
+#define IMAXBEL 0
+#endif
+
 static int orig_termios_fd = -1;
 static struct termios orig_termios;
 static uv_spinlock_t termios_spinlock = UV_SPINLOCK_INITIALIZER;
 
+static int uv__tty_is_slave(const int fd) {
+  int result;
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+  int dummy;
+
+  result = ioctl(fd, TIOCGPTN, &dummy) != 0;
+#elif defined(__APPLE__)
+  char dummy[256];
+
+  result = ioctl(fd, TIOCPTYGNAME, &dummy) != 0;
+#elif defined(__NetBSD__)
+  /*
+   * NetBSD as an extension returns with ptsname(3) and ptsname_r(3) the slave
+   * device name for both descriptors, the master one and slave one.
+   *
+   * Implement function to compare major device number with pts devices.
+   *
+   * The major numbers are machine-dependent, on NetBSD/amd64 they are
+   * respectively:
+   *  - master tty: ptc - major 6
+   *  - slave tty:  pts - major 5
+   */
+
+  struct stat sb;
+  /* Lookup device's major for the pts driver and cache it. */
+  static devmajor_t pts = NODEVMAJOR;
+
+  if (pts == NODEVMAJOR) {
+    pts = getdevmajor("pts", S_IFCHR);
+    if (pts == NODEVMAJOR)
+      abort();
+  }
+
+  /* Lookup stat structure behind the file descriptor. */
+  if (fstat(fd, &sb) != 0)
+    abort();
+
+  /* Assert character device. */
+  if (!S_ISCHR(sb.st_mode))
+    abort();
+
+  /* Assert valid major. */
+  if (major(sb.st_rdev) == NODEVMAJOR)
+    abort();
+
+  result = (pts == major(sb.st_rdev));
+#else
+  /* Fallback to ptsname
+   */
+  result = ptsname(fd) == NULL;
+#endif
+  return result;
+}
 
 int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
+  uv_handle_type type;
   int flags;
   int newfd;
   int r;
+  int saved_flags;
+  char path[256];
+
+  /* File descriptors that refer to files cannot be monitored with epoll.
+   * That restriction also applies to character devices like /dev/random
+   * (but obviously not /dev/tty.)
+   */
+  type = uv_guess_handle(fd);
+  if (type == UV_FILE || type == UV_UNKNOWN_HANDLE)
+    return UV_EINVAL;
 
   flags = 0;
   newfd = -1;
-
-  uv__stream_init(loop, (uv_stream_t*) tty, UV_TTY);
 
   /* Reopen the file descriptor when it refers to a tty. This lets us put the
    * tty in non-blocking mode without affecting other processes that share it
@@ -54,20 +121,28 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
    * different struct file, hence changing its properties doesn't affect
    * other processes.
    */
-  if (isatty(fd)) {
-    r = uv__open_cloexec("/dev/tty", O_RDWR);
+  if (type == UV_TTY) {
+    /* Reopening a pty in master mode won't work either because the reopened
+     * pty will be in slave mode (*BSD) or reopening will allocate a new
+     * master/slave pair (Linux). Therefore check if the fd points to a
+     * slave device.
+     */
+    if (uv__tty_is_slave(fd) && ttyname_r(fd, path, sizeof(path)) == 0)
+      r = uv__open_cloexec(path, O_RDWR);
+    else
+      r = -1;
 
     if (r < 0) {
       /* fallback to using blocking writes */
       if (!readable)
-        flags |= UV_STREAM_BLOCKING;
+        flags |= UV_HANDLE_BLOCKING_WRITES;
       goto skip;
     }
 
     newfd = r;
 
     r = uv__dup2_cloexec(newfd, fd);
-    if (r < 0 && r != -EINVAL) {
+    if (r < 0 && r != UV_EINVAL) {
       /* EINVAL means newfd == fd which could conceivably happen if another
        * thread called close(fd) between our calls to isatty() and open().
        * That's a rather unlikely event but let's handle it anyway.
@@ -79,40 +154,87 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
     fd = newfd;
   }
 
+#if defined(__APPLE__)
+  /* Save the fd flags in case we need to restore them due to an error. */
+  do
+    saved_flags = fcntl(fd, F_GETFL);
+  while (saved_flags == -1 && errno == EINTR);
+
+  if (saved_flags == -1) {
+    if (newfd != -1)
+      uv__close(newfd);
+    return UV__ERR(errno);
+  }
+#endif
+
+  /* Pacify the compiler. */
+  (void) &saved_flags;
+
 skip:
+  uv__stream_init(loop, (uv_stream_t*) tty, UV_TTY);
+
+  /* If anything fails beyond this point we need to remove the handle from
+   * the handle queue, since it was added by uv__handle_init in uv_stream_init.
+   */
+
+  if (!(flags & UV_HANDLE_BLOCKING_WRITES))
+    uv__nonblock(fd, 1);
+
 #if defined(__APPLE__)
   r = uv__stream_try_select((uv_stream_t*) tty, &fd);
   if (r) {
+    int rc = r;
     if (newfd != -1)
       uv__close(newfd);
-    return r;
+    QUEUE_REMOVE(&tty->handle_queue);
+    do
+      r = fcntl(fd, F_SETFL, saved_flags);
+    while (r == -1 && errno == EINTR);
+    return rc;
   }
 #endif
 
   if (readable)
-    flags |= UV_STREAM_READABLE;
+    flags |= UV_HANDLE_READABLE;
   else
-    flags |= UV_STREAM_WRITABLE;
-
-  if (!(flags & UV_STREAM_BLOCKING))
-    uv__nonblock(fd, 1);
+    flags |= UV_HANDLE_WRITABLE;
 
   uv__stream_open((uv_stream_t*) tty, fd, flags);
-  tty->mode = 0;
+  tty->mode = UV_TTY_MODE_NORMAL;
 
   return 0;
 }
 
+static void uv__tty_make_raw(struct termios* tio) {
+  assert(tio != NULL);
 
-int uv_tty_set_mode(uv_tty_t* tty, int mode) {
-  struct termios raw;
+#if defined __sun || defined __MVS__
+  /*
+   * This implementation of cfmakeraw for Solaris and derivatives is taken from
+   * http://www.perkin.org.uk/posts/solaris-portability-cfmakeraw.html.
+   */
+  tio->c_iflag &= ~(IMAXBEL | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR |
+                    IGNCR | ICRNL | IXON);
+  tio->c_oflag &= ~OPOST;
+  tio->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+  tio->c_cflag &= ~(CSIZE | PARENB);
+  tio->c_cflag |= CS8;
+#else
+  cfmakeraw(tio);
+#endif /* #ifdef __sun */
+}
+
+int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
+  struct termios tmp;
   int fd;
 
-  fd = uv__stream_fd(tty);
+  if (tty->mode == (int) mode)
+    return 0;
 
-  if (mode && tty->mode == 0) {  /* on */
+  fd = uv__stream_fd(tty);
+  if (tty->mode == UV_TTY_MODE_NORMAL && mode != UV_TTY_MODE_NORMAL) {
     if (tcgetattr(fd, &tty->orig_termios))
-      return -errno;
+      return UV__ERR(errno);
 
     /* This is used for uv_tty_reset_mode() */
     uv_spinlock_lock(&termios_spinlock);
@@ -121,36 +243,44 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
       orig_termios_fd = fd;
     }
     uv_spinlock_unlock(&termios_spinlock);
-
-    raw = tty->orig_termios;
-    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    raw.c_oflag |= (ONLCR);
-    raw.c_cflag |= (CS8);
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    raw.c_cc[VMIN] = 1;
-    raw.c_cc[VTIME] = 0;
-
-    /* Put terminal in raw mode after draining */
-    if (tcsetattr(fd, TCSADRAIN, &raw))
-      return -errno;
-
-    tty->mode = 1;
-  } else if (mode == 0 && tty->mode) {  /* off */
-    /* Put terminal in original mode after flushing */
-    if (tcsetattr(fd, TCSAFLUSH, &tty->orig_termios))
-      return -errno;
-    tty->mode = 0;
   }
 
+  tmp = tty->orig_termios;
+  switch (mode) {
+    case UV_TTY_MODE_NORMAL:
+      break;
+    case UV_TTY_MODE_RAW:
+      tmp.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+      tmp.c_oflag |= (ONLCR);
+      tmp.c_cflag |= (CS8);
+      tmp.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+      tmp.c_cc[VMIN] = 1;
+      tmp.c_cc[VTIME] = 0;
+      break;
+    case UV_TTY_MODE_IO:
+      uv__tty_make_raw(&tmp);
+      break;
+  }
+
+  /* Apply changes after draining */
+  if (tcsetattr(fd, TCSADRAIN, &tmp))
+    return UV__ERR(errno);
+
+  tty->mode = mode;
   return 0;
 }
 
 
 int uv_tty_get_winsize(uv_tty_t* tty, int* width, int* height) {
   struct winsize ws;
+  int err;
 
-  if (ioctl(uv__stream_fd(tty), TIOCGWINSZ, &ws))
-    return -errno;
+  do
+    err = ioctl(uv__stream_fd(tty), TIOCGWINSZ, &ws);
+  while (err == -1 && errno == EINTR);
+
+  if (err == -1)
+    return UV__ERR(errno);
 
   *width = ws.ws_col;
   *height = ws.ws_row;
@@ -199,6 +329,15 @@ uv_handle_type uv_guess_handle(uv_file file) {
       return UV_UDP;
 
   if (type == SOCK_STREAM) {
+#if defined(_AIX) || defined(__DragonFly__)
+    /* on AIX/DragonFly the getsockname call returns an empty sa structure
+     * for sockets of type AF_UNIX.  For all other types it will
+     * return a properly filled in structure.
+     */
+    if (len == 0)
+      return UV_NAMED_PIPE;
+#endif /* defined(_AIX) || defined(__DragonFly__) */
+
     if (sa.sa_family == AF_INET || sa.sa_family == AF_INET6)
       return UV_TCP;
     if (sa.sa_family == AF_UNIX)
@@ -214,16 +353,20 @@ uv_handle_type uv_guess_handle(uv_file file) {
  * critical section when the signal was raised.
  */
 int uv_tty_reset_mode(void) {
+  int saved_errno;
   int err;
 
+  saved_errno = errno;
   if (!uv_spinlock_trylock(&termios_spinlock))
-    return -EBUSY;  /* In uv_tty_set_mode(). */
+    return UV_EBUSY;  /* In uv_tty_set_mode(). */
 
   err = 0;
   if (orig_termios_fd != -1)
     if (tcsetattr(orig_termios_fd, TCSANOW, &orig_termios))
-      err = -errno;
+      err = UV__ERR(errno);
 
   uv_spinlock_unlock(&termios_spinlock);
+  errno = saved_errno;
+
   return err;
 }

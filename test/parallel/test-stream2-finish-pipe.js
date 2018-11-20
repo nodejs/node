@@ -19,16 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common.js');
-var stream = require('stream');
-var Buffer = require('buffer').Buffer;
+'use strict';
+require('../common');
+const stream = require('stream');
 
-var r = new stream.Readable();
+const r = new stream.Readable();
 r._read = function(size) {
-  r.push(new Buffer(size));
+  r.push(Buffer.allocUnsafe(size));
 };
 
-var w = new stream.Writable();
+const w = new stream.Writable();
 w._write = function(data, encoding, cb) {
   cb(null);
 };

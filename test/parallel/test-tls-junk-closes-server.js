@@ -19,36 +19,31 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+const fixtures = require('../common/fixtures');
 
-var common = require('../common');
-var tls = require('tls');
-var fs = require('fs');
-var net = require('net');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+const tls = require('tls');
+const net = require('net');
+
+const options = {
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem')
 };
 
-var server = tls.createServer(options, function(s) {
-  s.write('welcome!\n');
-  s.pipe(s);
-});
+const server = tls.createServer(options, common.mustNotCall());
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, common.mustCall(function() {
+  const c = net.createConnection(this.address().port);
 
-  c.on('connect', function() {
+  c.on('connect', common.mustCall(function() {
     c.write('blah\nblah\nblah\n');
-  });
+  }));
 
-  c.on('end', function() {
+  c.on('end', common.mustCall(function() {
     server.close();
-  });
-
-});
-
+  }));
+}));

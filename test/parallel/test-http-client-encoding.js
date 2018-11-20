@@ -19,21 +19,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var http = require('http');
-
-http.createServer(function(req, res) {
-  res.end('ok\n');
-  this.close();
-}).listen(common.PORT, test);
-
-function test() {
+const server = http.createServer((req, res) => {
+  res.end('ok');
+  server.close();
+}).listen(0, common.mustCall(() => {
   http.request({
-    port: common.PORT,
+    port: server.address().port,
     encoding: 'utf8'
-  }, function(res) {
-    res.pipe(process.stdout);
-  }).end();
-}
+  }, common.mustCall((res) => {
+    let data = '';
+    res.on('data', (chunk) => data += chunk);
+    res.on('end', common.mustCall(() => assert.strictEqual(data, 'ok')));
+  })).end();
+}));

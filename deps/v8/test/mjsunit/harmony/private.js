@@ -57,8 +57,6 @@ function TestType() {
     assertEquals("symbol", typeof symbols[i])
     assertTrue(typeof symbols[i] === "symbol")
     assertTrue(%SymbolIsPrivate(symbols[i]))
-    assertEquals(null, %_ClassOf(symbols[i]))
-    assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
   }
 }
 TestType()
@@ -132,8 +130,8 @@ function TestEquality() {
     assertTrue(symbols[i] == symbols[i])
     assertFalse(symbols[i] === Object(symbols[i]))
     assertFalse(Object(symbols[i]) === symbols[i])
-    assertFalse(symbols[i] == Object(symbols[i]))
-    assertFalse(Object(symbols[i]) == symbols[i])
+    assertTrue(symbols[i] == Object(symbols[i]))
+    assertTrue(Object(symbols[i]) == symbols[i])
     assertTrue(symbols[i] === symbols[i].valueOf())
     assertTrue(symbols[i].valueOf() === symbols[i])
     assertTrue(symbols[i] == symbols[i].valueOf())
@@ -196,25 +194,20 @@ TestSet()
 function TestCollections() {
   var set = new Set
   var map = new Map
-  var weakmap = new WeakMap
   for (var i in symbols) {
     set.add(symbols[i])
     map.set(symbols[i], i)
-    weakmap.set(symbols[i], i)
   }
   assertEquals(symbols.length, set.size)
   assertEquals(symbols.length, map.size)
   for (var i in symbols) {
     assertTrue(set.has(symbols[i]))
     assertTrue(map.has(symbols[i]))
-    assertTrue(weakmap.has(symbols[i]))
     assertEquals(i, map.get(symbols[i]))
-    assertEquals(i, weakmap.get(symbols[i]))
   }
   for (var i in symbols) {
     assertTrue(set.delete(symbols[i]))
     assertTrue(map.delete(symbols[i]))
-    assertTrue(weakmap.delete(symbols[i]))
   }
   assertEquals(0, set.size)
   assertEquals(0, map.size)
@@ -246,7 +239,8 @@ function TestKeyGet(obj) {
   var obj2 = Object.create(obj)
   for (var i in symbols) {
     assertEquals(i|0, obj[symbols[i]])
-    assertEquals(i|0, obj2[symbols[i]])
+    // Private symbols key own-properties.
+    assertEquals(undefined, obj2[symbols[i]])
   }
 }
 
@@ -282,8 +276,8 @@ function TestKeyDescriptor(obj) {
     assertEquals(i|0, desc.value)
     assertTrue(desc.configurable)
     assertEquals(i % 2 == 0, desc.writable)
-    assertEquals(i % 2 == 0, desc.enumerable)
-    assertEquals(i % 2 == 0,
+    assertEquals(false, desc.enumerable)
+    assertEquals(false,
         Object.prototype.propertyIsEnumerable.call(obj, symbols[i]))
   }
 }
@@ -299,7 +293,7 @@ function TestKeyDelete(obj) {
 }
 
 
-var objs = [{}, [], Object.create(null), Object(1), new Map, function(){}]
+var objs = [{}, [], Object.create({}), Object(1), new Map, function(){}]
 
 for (var i in objs) {
   var obj = objs[i]
@@ -344,16 +338,83 @@ function TestGetOwnPropertySymbols() {
 TestGetOwnPropertySymbols()
 
 
-function TestSealAndFreeze(freeze) {
+function TestSealAndFreeze(factory, freeze, isFrozen) {
   var sym = %CreatePrivateSymbol("private")
-  var obj = {}
+  var obj = factory();
   obj[sym] = 1
   freeze(obj)
+  assertTrue(isFrozen(obj))
   obj[sym] = 2
   assertEquals(2, obj[sym])
   assertTrue(delete obj[sym])
   assertEquals(undefined, obj[sym])
 }
-TestSealAndFreeze(Object.seal)
-TestSealAndFreeze(Object.freeze)
-TestSealAndFreeze(Object.preventExtensions)
+
+var fastObj = () => {
+  var obj = {}
+  assertTrue(%HasFastProperties(obj))
+  return obj
+}
+var dictObj = () => {
+  var obj = Object.create(null)
+  obj.a = 1
+  delete obj.a
+  assertFalse(%HasFastProperties(obj))
+  return obj
+}
+
+TestSealAndFreeze(fastObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(fastObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(fastObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
+TestSealAndFreeze(dictObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(dictObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(dictObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
+
+
+var s = %CreatePrivateSymbol("s");
+var s1 = %CreatePrivateSymbol("s1");
+
+function TestSimple() {
+  var p = {}
+  p[s] = "moo";
+
+  var o = Object.create(p);
+
+  assertEquals(undefined, o[s]);
+  assertEquals("moo", p[s]);
+
+  o[s] = "bow-wow";
+  assertEquals("bow-wow", o[s]);
+  assertEquals("moo", p[s]);
+}
+TestSimple();
+
+
+function TestICs() {
+  var p = {}
+  p[s] = "moo";
+
+
+  var o = Object.create(p);
+  o[s1] = "bow-wow";
+  function checkNonOwn(o) {
+    assertEquals(undefined, o[s]);
+    assertEquals("bow-wow", o[s1]);
+  }
+
+  checkNonOwn(o);
+
+  // Test monomorphic/optimized.
+  for (var i = 0; i < 1000; i++) {
+    checkNonOwn(o);
+  }
+
+  // Test non-monomorphic.
+  for (var i = 0; i < 1000; i++) {
+    var oNew = Object.create(p);
+    oNew["s" + i] = i;
+    oNew[s1] = "bow-wow";
+    checkNonOwn(oNew);
+  }
+}
+TestICs();

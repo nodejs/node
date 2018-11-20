@@ -5,8 +5,9 @@
 #ifndef V8_VECTOR_H_
 #define V8_VECTOR_H_
 
-#include <string.h>
 #include <algorithm>
+#include <cstring>
+#include <iterator>
 
 #include "src/allocation.h"
 #include "src/checks.h"
@@ -19,10 +20,14 @@ namespace internal {
 template <typename T>
 class Vector {
  public:
-  Vector() : start_(NULL), length_(0) {}
-  Vector(T* data, int length) : start_(data), length_(length) {
-    DCHECK(length == 0 || (length > 0 && data != NULL));
+  constexpr Vector() : start_(nullptr), length_(0) {}
+
+  Vector(T* data, size_t length) : start_(data), length_(length) {
+    DCHECK(length == 0 || data != nullptr);
   }
+
+  template <int N>
+  explicit constexpr Vector(T (&arr)[N]) : start_(arr), length_(N) {}
 
   static Vector<T> New(int length) {
     return Vector<T>(NewArray<T>(length), length);
@@ -30,54 +35,82 @@ class Vector {
 
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
-  Vector<T> SubVector(int from, int to) {
-    SLOW_DCHECK(to <= length_);
-    SLOW_DCHECK(from < to);
-    DCHECK(0 <= from);
+  Vector<T> SubVector(size_t from, size_t to) const {
+    DCHECK_LE(from, to);
+    DCHECK_LE(to, length_);
     return Vector<T>(start() + from, to - from);
   }
 
   // Returns the length of the vector.
-  int length() const { return length_; }
+  int length() const {
+    DCHECK(length_ <= static_cast<size_t>(std::numeric_limits<int>::max()));
+    return static_cast<int>(length_);
+  }
+
+  // Returns the length of the vector as a size_t.
+  constexpr size_t size() const { return length_; }
 
   // Returns whether or not the vector is empty.
-  bool is_empty() const { return length_ == 0; }
+  constexpr bool is_empty() const { return length_ == 0; }
 
   // Returns the pointer to the start of the data in the vector.
-  T* start() const { return start_; }
+  constexpr T* start() const { return start_; }
 
   // Access individual vector elements - checks bounds in debug mode.
-  T& operator[](int index) const {
-    DCHECK(0 <= index && index < length_);
+  T& operator[](size_t index) const {
+    DCHECK_LT(index, length_);
     return start_[index];
   }
 
-  const T& at(int index) const { return operator[](index); }
+  const T& at(size_t index) const { return operator[](index); }
 
   T& first() { return start_[0]; }
 
-  T& last() { return start_[length_ - 1]; }
+  T& last() {
+    DCHECK_LT(0, length_);
+    return start_[length_ - 1];
+  }
 
   typedef T* iterator;
-  inline iterator begin() const { return &start_[0]; }
-  inline iterator end() const { return &start_[length_]; }
+  constexpr iterator begin() const { return start_; }
+  constexpr iterator end() const { return start_ + length_; }
 
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
     T* result = NewArray<T>(length_);
-    for (int i = 0; i < length_; i++) result[i] = start_[i];
+    for (size_t i = 0; i < length_; i++) result[i] = start_[i];
     return Vector<T>(result, length_);
   }
 
-  void Sort(int (*cmp)(const T*, const T*)) {
-    std::sort(start(), start() + length(), RawComparer(cmp));
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp, size_t s, size_t l) {
+    std::sort(start() + s, start() + s + l, RawComparer<CompareFunction>(cmp));
+  }
+
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp) {
+    std::sort(start(), start() + length(), RawComparer<CompareFunction>(cmp));
   }
 
   void Sort() {
     std::sort(start(), start() + length());
   }
 
-  void Truncate(int length) {
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp, size_t s, size_t l) {
+    std::stable_sort(start() + s, start() + s + l,
+                     RawComparer<CompareFunction>(cmp));
+  }
+
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp) {
+    std::stable_sort(start(), start() + length(),
+                     RawComparer<CompareFunction>(cmp));
+  }
+
+  void StableSort() { std::stable_sort(start(), start() + length()); }
+
+  void Truncate(size_t length) {
     DCHECK(length <= length_);
     length_ = length;
   }
@@ -86,20 +119,30 @@ class Vector {
   // vector is empty.
   void Dispose() {
     DeleteArray(start_);
-    start_ = NULL;
+    start_ = nullptr;
     length_ = 0;
   }
 
-  inline Vector<T> operator+(int offset) {
-    DCHECK(offset < length_);
+  Vector<T> operator+(size_t offset) {
+    DCHECK_LE(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
 
-  // Factory method for creating empty vectors.
-  static Vector<T> empty() { return Vector<T>(NULL, 0); }
+  Vector<T> operator+=(size_t offset) {
+    DCHECK_LE(offset, length_);
+    start_ += offset;
+    length_ -= offset;
+    return *this;
+  }
 
-  template<typename S>
-  static Vector<T> cast(Vector<S> input) {
+  // Implicit conversion from Vector<T> to Vector<const T>.
+  inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
+
+  // Factory method for creating empty vectors.
+  static Vector<T> empty() { return Vector<T>(nullptr, 0); }
+
+  template <typename S>
+  static constexpr Vector<T> cast(Vector<S> input) {
     return Vector<T>(reinterpret_cast<T*>(input.start()),
                      input.length() * sizeof(S) / sizeof(T));
   }
@@ -107,7 +150,7 @@ class Vector {
   bool operator==(const Vector<T>& other) const {
     if (length_ != other.length_) return false;
     if (start_ == other.start_) return true;
-    for (int i = 0; i < length_; ++i) {
+    for (size_t i = 0; i < length_; ++i) {
       if (start_[i] != other.start_[i]) {
         return false;
       }
@@ -115,22 +158,20 @@ class Vector {
     return true;
   }
 
- protected:
-  void set_start(T* start) { start_ = start; }
-
  private:
   T* start_;
-  int length_;
+  size_t length_;
 
+  template <typename CookedComparer>
   class RawComparer {
    public:
-    explicit RawComparer(int (*cmp)(const T*, const T*)) : cmp_(cmp) {}
+    explicit RawComparer(CookedComparer cmp) : cmp_(cmp) {}
     bool operator()(const T& a, const T& b) {
       return cmp_(&a, &b) < 0;
     }
 
    private:
-    int (*cmp_)(const T*, const T*);
+    CookedComparer cmp_;
   };
 };
 
@@ -147,6 +188,66 @@ class ScopedVector : public Vector<T> {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
 };
 
+template <typename T>
+class OwnedVector {
+ public:
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(OwnedVector);
+  OwnedVector(std::unique_ptr<T[]> data, size_t length)
+      : data_(std::move(data)), length_(length) {
+    DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
+  }
+  // Implicit conversion from {OwnedVector<U>} to {OwnedVector<T>}, instantiable
+  // if {std::unique_ptr<U>} can be converted to {std::unique_ptr<T>}.
+  // Can be used to convert {OwnedVector<T>} to {OwnedVector<const T>}.
+  template <typename U,
+            typename = typename std::enable_if<std::is_convertible<
+                std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
+  OwnedVector(OwnedVector<U>&& other)
+      : data_(other.ReleaseData()), length_(other.size()) {}
+
+  // Returns the length of the vector as a size_t.
+  constexpr size_t size() const { return length_; }
+
+  // Returns whether or not the vector is empty.
+  constexpr bool is_empty() const { return length_ == 0; }
+
+  // Returns the pointer to the start of the data in the vector.
+  T* start() const {
+    DCHECK_IMPLIES(length_ > 0, data_ != nullptr);
+    return data_.get();
+  }
+
+  // Returns a {Vector<T>} view of the data in this vector.
+  Vector<T> as_vector() const { return Vector<T>(start(), size()); }
+
+  // Releases the backing data from this vector and transfers ownership to the
+  // caller. This vectors data can no longer be used afterwards.
+  std::unique_ptr<T[]> ReleaseData() { return std::move(data_); }
+
+  // Allocates a new vector of the specified size via the default allocator.
+  static OwnedVector<T> New(size_t size) {
+    if (size == 0) return {};
+    return OwnedVector<T>(std::unique_ptr<T[]>(new T[size]), size);
+  }
+
+  // Allocates a new vector containing the specified collection of values.
+  // {Iterator} is the common type of {std::begin} and {std::end} called on a
+  // {const U&}. This function is only instantiable if that type exists.
+  template <typename U, typename Iterator = typename std::common_type<
+                            decltype(std::begin(std::declval<const U&>())),
+                            decltype(std::end(std::declval<const U&>()))>::type>
+  static OwnedVector<T> Of(const U& collection) {
+    Iterator begin = std::begin(collection);
+    Iterator end = std::end(collection);
+    OwnedVector<T> vec = New(std::distance(begin, end));
+    std::copy(begin, end, vec.start());
+    return vec;
+  }
+
+ private:
+  std::unique_ptr<T[]> data_;
+  size_t length_ = 0;
+};
 
 inline int StrLength(const char* string) {
   size_t length = strlen(string);
@@ -180,7 +281,12 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
   return Vector<char>(data, (length < max) ? length : max);
 }
 
+template <typename T, int N>
+inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
+  return Vector<T>(arr);
+}
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VECTOR_H_

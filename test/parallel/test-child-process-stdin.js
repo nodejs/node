@@ -19,71 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
-var is_windows = process.platform === 'win32';
+const spawn = require('child_process').spawn;
 
-var cat = spawn(is_windows ? 'more' : 'cat');
+const cat = spawn('cat');
 cat.stdin.write('hello');
 cat.stdin.write(' ');
 cat.stdin.write('world');
 
-assert.ok(cat.stdin.writable);
-assert.ok(!cat.stdin.readable);
+assert.strictEqual(true, cat.stdin.writable);
+assert.strictEqual(false, cat.stdin.readable);
 
 cat.stdin.end();
 
-var response = '';
-var exitStatus = -1;
-var closed = false;
-
-var gotStdoutEOF = false;
+let response = '';
 
 cat.stdout.setEncoding('utf8');
 cat.stdout.on('data', function(chunk) {
-  console.log('stdout: ' + chunk);
+  console.log(`stdout: ${chunk}`);
   response += chunk;
 });
 
-cat.stdout.on('end', function() {
-  gotStdoutEOF = true;
-});
+cat.stdout.on('end', common.mustCall());
 
+cat.stderr.on('data', common.mustNotCall());
 
-var gotStderrEOF = false;
+cat.stderr.on('end', common.mustCall());
 
-cat.stderr.on('data', function(chunk) {
-  // shouldn't get any stderr output
-  assert.ok(false);
-});
+cat.on('exit', common.mustCall(function(status) {
+  assert.strictEqual(0, status);
+}));
 
-cat.stderr.on('end', function(chunk) {
-  gotStderrEOF = true;
-});
-
-
-cat.on('exit', function(status) {
-  console.log('exit event');
-  exitStatus = status;
-});
-
-cat.on('close', function () {
-  closed = true;
-  if (is_windows) {
-    assert.equal('hello world\r\n', response);
-  } else {
-    assert.equal('hello world', response);
-  }
-});
-
-process.on('exit', function() {
-  assert.equal(0, exitStatus);
-  assert(closed);
-  if (is_windows) {
-    assert.equal('hello world\r\n', response);
-  } else {
-    assert.equal('hello world', response);
-  }
-});
+cat.on('close', common.mustCall(function() {
+  assert.strictEqual('hello world', response);
+}));

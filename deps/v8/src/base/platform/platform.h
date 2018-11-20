@@ -25,7 +25,9 @@
 #include <string>
 #include <vector>
 
+#include "src/base/base-export.h"
 #include "src/base/build_config.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 
@@ -34,6 +36,7 @@
 #endif
 
 namespace v8 {
+
 namespace base {
 
 // ----------------------------------------------------------------------------
@@ -45,7 +48,7 @@ namespace base {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
 
 inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kTibInlineTlsOffset = 0xE10;
@@ -54,12 +57,13 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
   const intptr_t kPointerSize = sizeof(void*);
   DCHECK(0 <= index && index < kMaxSlots);
+  USE(kMaxSlots);
   if (index < kMaxInlineSlots) {
     return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
                                                kPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  DCHECK(extra != 0);
+  DCHECK_NE(extra, 0);
   return *reinterpret_cast<intptr_t*>(extra +
                                       kPointerSize * (index - kMaxInlineSlots));
 }
@@ -68,9 +72,9 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-extern intptr_t kMacTlsBaseOffset;
+extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
 
-INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
 
 inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   intptr_t result;
@@ -90,9 +94,8 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #endif  // V8_NO_FAST_TLS
 
-
+class PageAllocator;
 class TimezoneCache;
-
 
 // ----------------------------------------------------------------------------
 // OS
@@ -101,15 +104,12 @@ class TimezoneCache;
 // functions. Add methods here to cope with differences between the
 // supported platforms.
 
-class OS {
+class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
-  // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
   // - hard_abort: If true, OS::Abort() will crash instead of aborting.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(int64_t random_seed,
-                         bool hard_abort,
-                         const char* const gc_fake_mmap);
+  static void Initialize(bool hard_abort, const char* const gc_fake_mmap);
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -122,25 +122,15 @@ class OS {
   static double TimeCurrentMillis();
 
   static TimezoneCache* CreateTimezoneCache();
-  static void DisposeTimezoneCache(TimezoneCache* cache);
-  static void ClearTimezoneCache(TimezoneCache* cache);
-
-  // Returns a string identifying the current time zone. The
-  // timestamp is used for determining if DST is in effect.
-  static const char* LocalTimezone(double time, TimezoneCache* cache);
-
-  // Returns the local time offset in milliseconds east of UTC without
-  // taking daylight savings time into account.
-  static double LocalTimeOffset(TimezoneCache* cache);
-
-  // Returns the daylight savings offset for the given time.
-  static double DaylightSavingsOffset(double time, TimezoneCache* cache);
 
   // Returns last OS error.
   static int GetLastError();
 
   static FILE* FOpen(const char* path, const char* mode);
   static bool Remove(const char* path);
+
+  static char DirectorySeparator();
+  static bool isDirectorySeparator(const char ch);
 
   // Opens a temporary file, the file is auto removed on close.
   static FILE* OpenTemporaryFile();
@@ -151,48 +141,38 @@ class OS {
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output
   // should go to stdout.
-  static void Print(const char* format, ...);
-  static void VPrint(const char* format, va_list args);
+  static PRINTF_FORMAT(1, 2) void Print(const char* format, ...);
+  static PRINTF_FORMAT(1, 0) void VPrint(const char* format, va_list args);
 
   // Print output to a file. This is mostly used for debugging output.
-  static void FPrint(FILE* out, const char* format, ...);
-  static void VFPrint(FILE* out, const char* format, va_list args);
+  static PRINTF_FORMAT(2, 3) void FPrint(FILE* out, const char* format, ...);
+  static PRINTF_FORMAT(2, 0) void VFPrint(FILE* out, const char* format,
+                                          va_list args);
 
   // Print error output to console. This is mostly used for error message
   // output. On platforms that has standard terminal output, the output
   // should go to stderr.
-  static void PrintError(const char* format, ...);
-  static void VPrintError(const char* format, va_list args);
+  static PRINTF_FORMAT(1, 2) void PrintError(const char* format, ...);
+  static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
-  // Allocate/Free memory used by JS heap. Pages are readable/writable, but
-  // they are not guaranteed to be executable unless 'executable' is true.
-  // Returns the address of allocated memory, or NULL if failed.
-  static void* Allocate(const size_t requested,
-                        size_t* allocated,
-                        bool is_executable);
-  static void Free(void* address, const size_t size);
+  // Memory permissions. These should be kept in sync with the ones in
+  // v8::PageAllocator.
+  enum class MemoryPermission {
+    kNoAccess,
+    kRead,
+    kReadWrite,
+    // TODO(hpayer): Remove this flag. Memory should never be rwx.
+    kReadWriteExecute,
+    kReadExecute
+  };
 
-  // This is the granularity at which the ProtectCode(...) call can set page
-  // permissions.
-  static intptr_t CommitPageSize();
+  static bool HasLazyCommits();
 
-  // Mark code segments non-writable.
-  static void ProtectCode(void* address, const size_t size);
-
-  // Assign memory as a guard page so that access will cause an exception.
-  static void Guard(void* address, const size_t size);
-
-  // Generate a random address to be used for hinting mmap().
-  static void* GetRandomMmapAddr();
-
-  // Get the Alignment guaranteed by Allocate().
-  static size_t AllocateAlignment();
-
-  // Sleep for a number of milliseconds.
-  static void Sleep(const int milliseconds);
+  // Sleep for a specified time interval.
+  static void Sleep(TimeDelta interval);
 
   // Abort the current process.
-  static void Abort();
+  [[noreturn]] static void Abort();
 
   // Debug break.
   static void DebugBreak();
@@ -206,36 +186,44 @@ class OS {
     char text[kStackWalkMaxTextLen];
   };
 
-  class MemoryMappedFile {
+  class V8_BASE_EXPORT MemoryMappedFile {
    public:
+    virtual ~MemoryMappedFile() {}
+    virtual void* memory() const = 0;
+    virtual size_t size() const = 0;
+
     static MemoryMappedFile* open(const char* name);
-    static MemoryMappedFile* create(const char* name, int size, void* initial);
-    virtual ~MemoryMappedFile() { }
-    virtual void* memory() = 0;
-    virtual int size() = 0;
+    static MemoryMappedFile* create(const char* name, size_t size,
+                                    void* initial);
   };
 
   // Safe formatting print. Ensures that str is always null-terminated.
   // Returns the number of chars written, or -1 if output was truncated.
-  static int SNPrintF(char* str, int length, const char* format, ...);
-  static int VSNPrintF(char* str,
-                       int length,
-                       const char* format,
-                       va_list args);
+  static PRINTF_FORMAT(3, 4) int SNPrintF(char* str, int length,
+                                          const char* format, ...);
+  static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, int length,
+                                           const char* format, va_list args);
 
   static char* StrChr(char* str, int c);
   static void StrNCpy(char* dest, int length, const char* src, size_t n);
 
   // Support for the profiler.  Can do nothing, in which case ticks
-  // occuring in shared libraries will not be properly accounted for.
+  // occurring in shared libraries will not be properly accounted for.
   struct SharedLibraryAddress {
-    SharedLibraryAddress(
-        const std::string& library_path, uintptr_t start, uintptr_t end)
-        : library_path(library_path), start(start), end(end) {}
+    SharedLibraryAddress(const std::string& library_path, uintptr_t start,
+                         uintptr_t end)
+        : library_path(library_path), start(start), end(end), aslr_slide(0) {}
+    SharedLibraryAddress(const std::string& library_path, uintptr_t start,
+                         uintptr_t end, intptr_t aslr_slide)
+        : library_path(library_path),
+          start(start),
+          end(end),
+          aslr_slide(aslr_slide) {}
 
     std::string library_path;
     uintptr_t start;
     uintptr_t end;
+    intptr_t aslr_slide;
   };
 
   static std::vector<SharedLibraryAddress> GetSharedLibraryAddresses();
@@ -245,9 +233,6 @@ class OS {
   // nothing, in which case the code objects must not move (e.g., by
   // using --never-compact) if accurate profiling is desired.
   static void SignalCodeMovingGC();
-
-  // Returns the double constant NAN
-  static double nan_value();
 
   // Support runtime detection of whether the hard float option of the
   // EABI is used.
@@ -261,7 +246,33 @@ class OS {
 
   static int GetCurrentThreadId();
 
+  static void ExitProcess(int exit_code);
+
  private:
+  // These classes use the private memory management API below.
+  friend class MemoryMappedFile;
+  friend class PosixMemoryMappedFile;
+  friend class v8::base::PageAllocator;
+
+  static size_t AllocatePageSize();
+
+  static size_t CommitPageSize();
+
+  static void SetRandomMmapSeed(int64_t seed);
+
+  static void* GetRandomMmapAddr();
+
+  V8_WARN_UNUSED_RESULT static void* Allocate(void* address, size_t size,
+                                              size_t alignment,
+                                              MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
+
+  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
+                                                   MemoryPermission access);
+
   static const int msPerSecond = 1000;
 
 #if V8_OS_POSIX
@@ -271,98 +282,17 @@ class OS {
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
 
-// Represents and controls an area of reserved memory.
-// Control of the reserved memory can be assigned to another VirtualMemory
-// object by assignment or copy-contructing. This removes the reserved memory
-// from the original object.
-class VirtualMemory {
- public:
-  // Empty VirtualMemory object, controlling no reserved memory.
-  VirtualMemory();
+#if (defined(_WIN32) || defined(_WIN64))
+V8_BASE_EXPORT void EnsureConsoleOutputWin32();
+#endif  // (defined(_WIN32) || defined(_WIN64))
 
-  // Reserves virtual memory with size.
-  explicit VirtualMemory(size_t size);
-
-  // Reserves virtual memory containing an area of the given size that
-  // is aligned per alignment. This may not be at the position returned
-  // by address().
-  VirtualMemory(size_t size, size_t alignment);
-
-  // Releases the reserved memory, if any, controlled by this VirtualMemory
-  // object.
-  ~VirtualMemory();
-
-  // Returns whether the memory has been reserved.
-  bool IsReserved();
-
-  // Initialize or resets an embedded VirtualMemory object.
-  void Reset();
-
-  // Returns the start address of the reserved memory.
-  // If the memory was reserved with an alignment, this address is not
-  // necessarily aligned. The user might need to round it up to a multiple of
-  // the alignment to get the start of the aligned block.
-  void* address() {
-    DCHECK(IsReserved());
-    return address_;
-  }
-
-  // Returns the size of the reserved memory. The returned value is only
-  // meaningful when IsReserved() returns true.
-  // If the memory was reserved with an alignment, this size may be larger
-  // than the requested size.
-  size_t size() { return size_; }
-
-  // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size, bool is_executable);
-
-  // Uncommit real memory.  Returns whether the operation succeeded.
-  bool Uncommit(void* address, size_t size);
-
-  // Creates a single guard page at the given address.
-  bool Guard(void* address);
-
-  void Release() {
-    DCHECK(IsReserved());
-    // Notice: Order is important here. The VirtualMemory object might live
-    // inside the allocated region.
-    void* address = address_;
-    size_t size = size_;
-    Reset();
-    bool result = ReleaseRegion(address, size);
-    USE(result);
-    DCHECK(result);
-  }
-
-  // Assign control of the reserved region to a different VirtualMemory object.
-  // The old object is no longer functional (IsReserved() returns false).
-  void TakeControl(VirtualMemory* from) {
-    DCHECK(!IsReserved());
-    address_ = from->address_;
-    size_ = from->size_;
-    from->Reset();
-  }
-
-  static void* ReserveRegion(size_t size);
-
-  static bool CommitRegion(void* base, size_t size, bool is_executable);
-
-  static bool UncommitRegion(void* base, size_t size);
-
-  // Must be called with a base pointer that has been returned by ReserveRegion
-  // and the same size it was reserved with.
-  static bool ReleaseRegion(void* base, size_t size);
-
-  // Returns true if OS performs lazy commits, i.e. the memory allocation call
-  // defers actual physical memory allocation till the first memory access.
-  // Otherwise returns false.
-  static bool HasLazyCommits();
-
- private:
-  void* address_;  // Start address of the virtual memory.
-  size_t size_;  // Size of the virtual memory.
-};
-
+inline void EnsureConsoleOutput() {
+#if (defined(_WIN32) || defined(_WIN64))
+  // Windows requires extra calls to send assert output to the console
+  // rather than a dialog box.
+  EnsureConsoleOutputWin32();
+#endif  // (defined(_WIN32) || defined(_WIN64))
+}
 
 // ----------------------------------------------------------------------------
 // Thread
@@ -372,7 +302,7 @@ class VirtualMemory {
 // thread. The Thread object should not be deallocated before the thread has
 // terminated.
 
-class Thread {
+class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
   typedef int32_t LocalStorageKey;
@@ -404,7 +334,7 @@ class Thread {
     Start();
     start_semaphore_->Wait();
     delete start_semaphore_;
-    start_semaphore_ = NULL;
+    start_semaphore_ = nullptr;
   }
 
   // Wait until thread terminates.
@@ -429,7 +359,7 @@ class Thread {
     SetThreadLocal(key, reinterpret_cast<void*>(static_cast<intptr_t>(value)));
   }
   static bool HasThreadLocal(LocalStorageKey key) {
-    return GetThreadLocal(key) != NULL;
+    return GetThreadLocal(key) != nullptr;
   }
 
 #ifdef V8_FAST_TLS_SUPPORTED
@@ -444,10 +374,6 @@ class Thread {
     return GetThreadLocal(key);
   }
 #endif
-
-  // A hint to the scheduler to let another thread run.
-  static void YieldCPU();
-
 
   // The thread name length is limited to 16 based on Linux's implementation of
   // prctl().
@@ -473,6 +399,7 @@ class Thread {
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_PLATFORM_H_

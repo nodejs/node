@@ -105,10 +105,19 @@ Public members
 API
 ---
 
-.. c:function:: int uv_udp_init(uv_loop_t*, uv_udp_t* handle)
+.. c:function:: int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle)
 
     Initialize a new UDP handle. The actual socket is created lazily.
     Returns 0 on success.
+
+.. c:function:: int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags)
+
+    Initialize the handle with the specified flags. At the moment the lower 8 bits
+    of the `flags` parameter are used as the socket domain. A socket will be created
+    for the given domain. If the specified domain is ``AF_UNSPEC`` no socket is created,
+    just like :c:func:`uv_udp_init`.
+
+    .. versionadded:: 1.7.0
 
 .. c:function:: int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock)
 
@@ -119,6 +128,12 @@ API
     contract (works in unconnected mode, supports sendmsg()/recvmsg(), etc).
     In other words, other datagram-type sockets like raw sockets or netlink
     sockets can also be passed to this function.
+
+    .. versionchanged:: 1.2.1 the file descriptor is set to non-blocking mode.
+
+    .. note::
+        The passed file descriptor or SOCKET is not checked for its type, but
+        it's required that it represents a valid datagram socket.
 
 .. c:function:: int uv_udp_bind(uv_udp_t* handle, const struct sockaddr* addr, unsigned int flags)
 
@@ -228,6 +243,10 @@ API
     with :c:func:`uv_udp_bind` it will be bound to 0.0.0.0
     (the "all interfaces" IPv4 address) and a random port number.
 
+    On Windows if the `addr` is initialized to point to an unspecified address
+    (``0.0.0.0`` or ``::``) it will be changed to point to ``localhost``.
+    This is done to match the behavior of Linux systems.
+
     :param req: UDP request handle. Need not be initialized.
 
     :param handle: UDP handle. Should have been initialized with
@@ -243,6 +262,9 @@ API
     :param send_cb: Callback to invoke when the data has been sent out.
 
     :returns: 0 on success, or an error code < 0 on failure.
+
+    .. versionchanged:: 1.19.0 added ``0.0.0.0`` and ``::`` to ``localhost``
+        mapping
 
 .. c:function:: int uv_udp_try_send(uv_udp_t* handle, const uv_buf_t bufs[], unsigned int nbufs, const struct sockaddr* addr)
 
@@ -276,5 +298,17 @@ API
         :c:func:`uv_udp_init`.
 
     :returns: 0 on success, or an error code < 0 on failure.
+
+.. c:function:: size_t uv_udp_get_send_queue_size(const uv_udp_t* handle)
+
+    Returns `handle->send_queue_size`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: size_t uv_udp_get_send_queue_count(const uv_udp_t* handle)
+
+    Returns `handle->send_queue_count`.
+
+    .. versionadded:: 1.19.0
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

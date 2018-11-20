@@ -46,10 +46,9 @@ f(null);
 // Check called from eval.
 eval('f(null)');
 
-// Check called from strict builtin functions.
+// Check called from builtin functions.
 [null, null].sort(f);
-
-// Check called from sloppy builtin functions.
+[null].forEach(f, null);
 "abel".replace(/b/g, function h() {
-   assertEquals(String.prototype.replace, h.caller);
+   assertEquals(null, h.caller);
 });

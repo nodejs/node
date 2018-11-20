@@ -9,8 +9,11 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/operator-properties-inl.h"
+#include "src/compiler/node.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/schedule.h"
+#include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -44,19 +47,18 @@ static const Operator* PointerConstant(CommonOperatorBuilder* common,
                    static_cast<int32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
-
 BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
-    CompilationInfo* info, Graph* graph, Schedule* schedule) {
+    OptimizedCompilationInfo* info, Graph* graph, Schedule* schedule,
+    Isolate* isolate) {
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
   size_t n_blocks = static_cast<size_t>(schedule->RpoBlockCount()) - 1;
   BasicBlockProfiler::Data* data =
-      info->isolate()->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
+      isolate->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
   // Set the function name.
-  if (!info->shared_info().is_null() &&
-      info->shared_info()->name()->IsString()) {
+  if (info->has_shared_info()) {
     std::ostringstream os;
-    String::cast(info->shared_info()->name())->PrintUC16(os);
+    info->shared_info()->Name()->PrintUC16(os);
     data->SetFunctionName(&os);
   }
   // Capture the schedule string before instrumentation.
@@ -69,7 +71,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   CommonOperatorBuilder common(graph->zone());
   Node* zero = graph->NewNode(common.Int32Constant(0));
   Node* one = graph->NewNode(common.Int32Constant(1));
-  MachineOperatorBuilder machine;
+  MachineOperatorBuilder machine(graph->zone());
   BasicBlockVector* blocks = schedule->rpo_order();
   size_t block_number = 0;
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
@@ -80,11 +82,13 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
     // Construct increment operation.
     Node* base = graph->NewNode(
         PointerConstant(&common, data->GetCounterAddress(block_number)));
-    Node* load = graph->NewNode(machine.Load(kMachUint32), base, zero);
+    Node* load = graph->NewNode(machine.Load(MachineType::Uint32()), base, zero,
+                                graph->start(), graph->start());
     Node* inc = graph->NewNode(machine.Int32Add(), load, one);
-    Node* store = graph->NewNode(
-        machine.Store(StoreRepresentation(kMachUint32, kNoWriteBarrier)), base,
-        zero, inc);
+    Node* store =
+        graph->NewNode(machine.Store(StoreRepresentation(
+                           MachineRepresentation::kWord32, kNoWriteBarrier)),
+                       base, zero, inc, graph->start(), graph->start());
     // Insert the new nodes.
     static const int kArraySize = 6;
     Node* to_insert[kArraySize] = {zero, one, base, load, inc, store};

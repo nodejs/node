@@ -19,11 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var origNextTick = process.nextTick;
+const origNextTick = process.nextTick;
 
 require('domain');
 
-assert.strictEqual(origNextTick, process.nextTick, 'Requiring domain should not change nextTick');
+// Requiring domain should not change nextTick.
+assert.strictEqual(origNextTick, process.nextTick);

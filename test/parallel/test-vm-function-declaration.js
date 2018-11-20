@@ -19,29 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+require('../common');
+const assert = require('assert');
 
-var vm = require('vm');
-var o = vm.createContext({ console: console });
+const vm = require('vm');
+const o = vm.createContext({ console });
 
-// This triggers the setter callback in node_contextify.cc
-var code = 'var a = function() {};\n';
-
-// but this does not, since function decls are defineProperties,
-// not simple sets.
+// Function declaration and expression should both be copied to the
+// sandboxed context.
+let code = 'var a = function() {};\n';
 code += 'function b(){}\n';
 
 // Grab the global b function as the completion value, to ensure that
 // we are getting the global function, and not some other thing
-code += '(function(){return this})().b;\n'
+code += '(function(){return this})().b;\n';
 
-var res = vm.runInContext(code, o, 'test');
+const res = vm.runInContext(code, o, 'test');
 
-assert.equal(typeof res, 'function', 'result should be function');
-assert.equal(res.name, 'b', 'res should be named b');
-assert.equal(typeof o.a, 'function', 'a should be function');
-assert.equal(typeof o.b, 'function', 'b should be function');
-assert.equal(res, o.b, 'result should be global b function');
-
-console.log('ok');
+assert.strictEqual(typeof res, 'function');
+assert.strictEqual(res.name, 'b');
+assert.strictEqual(typeof o.a, 'function');
+assert.strictEqual(typeof o.b, 'function');
+assert.strictEqual(res, o.b);

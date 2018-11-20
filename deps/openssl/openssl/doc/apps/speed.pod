@@ -2,45 +2,32 @@
 
 =head1 NAME
 
+openssl-speed,
 speed - test library performance
 
 =head1 SYNOPSIS
 
 B<openssl speed>
+[B<-help>]
 [B<-engine id>]
-[B<md2>]
-[B<mdc2>]
-[B<md5>]
-[B<hmac>]
-[B<sha1>]
-[B<rmd160>]
-[B<idea-cbc>]
-[B<rc2-cbc>]
-[B<rc5-cbc>]
-[B<bf-cbc>]
-[B<des-cbc>]
-[B<des-ede3>]
-[B<rc4>]
-[B<rsa512>]
-[B<rsa1024>]
-[B<rsa2048>]
-[B<rsa4096>]
-[B<dsa512>]
-[B<dsa1024>]
-[B<dsa2048>]
-[B<idea>]
-[B<rc2>]
-[B<des>]
-[B<rsa>]
-[B<blowfish>]
+[B<-elapsed>]
+[B<-evp algo>]
+[B<-decrypt>]
+[B<algorithm...>]
 
 =head1 DESCRIPTION
 
 This command is used to test the performance of cryptographic algorithms.
+To see the list of supported algorithms, use the I<list --digest-commands>
+or I<list --cipher-commands> command.
 
 =head1 OPTIONS
 
 =over 4
+
+=item B<-help>
+
+Print out a usage message.
 
 =item B<-engine id>
 
@@ -49,11 +36,33 @@ to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
 
+=item B<-elapsed>
+
+Measure time in real time instead of CPU time. It can be useful when testing
+speed of hardware engines.
+
+=item B<-evp algo>
+
+Use the specified cipher or message digest algorithm via the EVP interface.
+
+=item B<-decrypt>
+
+Time the decryption instead of encryption. Affects only the EVP testing.
+
 =item B<[zero or more test algorithms]>
 
 If any options are given, B<speed> tests those algorithms, otherwise all of
 the above are tested.
 
 =back
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

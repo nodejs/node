@@ -19,44 +19,48 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+// Test that the usage of elliptic curves are not permitted if disabled during
+// server initialization.
 
-if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
-}
+'use strict';
+const common = require('../common');
+const { readKey } = require('../common/fixtures');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-var assert = require('assert');
-var exec = require('child_process').exec;
-var tls = require('tls');
-var fs = require('fs');
+if (!common.opensslCli)
+  common.skip('missing openssl-cli');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-  ciphers: 'ECDHE-RSA-RC4-SHA',
+const OPENSSL_VERSION_NUMBER =
+  require('crypto').constants.OPENSSL_VERSION_NUMBER;
+if (OPENSSL_VERSION_NUMBER >= 0x10100000)
+  common.skip('false ecdhCurve not supported in OpenSSL 1.1.0');
+
+const assert = require('assert');
+const tls = require('tls');
+const exec = require('child_process').exec;
+
+const options = {
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem'),
+  ciphers: 'ECDHE-RSA-AES128-SHA',
   ecdhCurve: false
 };
 
-var nconns = 0;
+common.expectWarning('DeprecationWarning',
+                     '{ ecdhCurve: false } is deprecated.',
+                     'DEP0083');
 
-process.on('exit', function() {
-  assert.equal(nconns, 0);
-});
+const server = tls.createServer(options, common.mustNotCall());
 
-var server = tls.createServer(options, function(conn) {
-  conn.end();
-  nconns++;
-});
+server.listen(0, '127.0.0.1', common.mustCall(function() {
+  const cmd = `"${common.opensslCli}" s_client -cipher ${
+    options.ciphers} -connect 127.0.0.1:${this.address().port}`;
 
-server.listen(common.PORT, '127.0.0.1', function() {
-  var cmd = common.opensslCli + ' s_client -cipher ' + options.ciphers +
-            ' -connect 127.0.0.1:' + common.PORT;
-
-  exec(cmd, function(err, stdout, stderr) {
+  exec(cmd, common.mustCall(function(err, stdout, stderr) {
     // Old versions of openssl will still exit with 0 so we
     // can't just check if err is not null.
-    assert.notEqual(stderr.indexOf('handshake failure'), -1);
+    assert(stderr.includes('handshake failure'));
     server.close();
-  });
-});
+  }));
+}));

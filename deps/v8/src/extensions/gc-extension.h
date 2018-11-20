@@ -5,7 +5,8 @@
 #ifndef V8_EXTENSIONS_GC_EXTENSION_H_
 #define V8_EXTENSIONS_GC_EXTENSION_H_
 
-#include "src/v8.h"
+#include "include/v8.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -15,9 +16,8 @@ class GCExtension : public v8::Extension {
   explicit GCExtension(const char* fun_name)
       : v8::Extension("v8/gc",
                       BuildSource(buffer_, sizeof(buffer_), fun_name)) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name);
   static void GC(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
@@ -30,6 +30,7 @@ class GCExtension : public v8::Extension {
   char buffer_[50];
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXTENSIONS_GC_EXTENSION_H_

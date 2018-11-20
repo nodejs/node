@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var a = "a";
-for (var i = 0; i < 5; i++) a += a;
-var b = "b";
-for (var i = 0; i < 23; i++) b += b;
+// Flags: --allow-natives-syntax
+
+var a = 'a'.repeat(32);
+var b = 'b'.repeat(%StringMaxLength() / 32 + 1);
 
 function replace() {
   a.replace(/a/g, function() { return b });

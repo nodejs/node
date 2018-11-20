@@ -19,91 +19,116 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
-function p(x) {
-  common.error(common.inspect(x));
-}
+const expectedRequests = ['/hello', '/there', '/world'];
 
-var responses_sent = 0;
-var responses_recvd = 0;
-var body0 = '';
-var body1 = '';
+const server = http.Server(common.mustCall(function(req, res) {
+  assert.strictEqual(expectedRequests.shift(), req.url);
 
-var server = http.Server(function(req, res) {
-  if (responses_sent == 0) {
-    assert.equal('GET', req.method);
-    assert.equal('/hello', url.parse(req.url).pathname);
-
-    console.dir(req.headers);
-    assert.equal(true, 'accept' in req.headers);
-    assert.equal('*/*', req.headers['accept']);
-
-    assert.equal(true, 'foo' in req.headers);
-    assert.equal('bar', req.headers['foo']);
+  switch (req.url) {
+    case '/hello':
+      assert.strictEqual(req.method, 'GET');
+      assert.strictEqual(req.headers.accept, '*/*');
+      assert.strictEqual(req.headers.foo, 'bar');
+      assert.strictEqual(req.headers.cookie, 'foo=bar; bar=baz; baz=quux');
+      break;
+    case '/there':
+      assert.strictEqual(req.method, 'PUT');
+      assert.strictEqual(req.headers.cookie, 'node=awesome; ta=da');
+      break;
+    case '/world':
+      assert.strictEqual(req.method, 'POST');
+      assert.deepStrictEqual(req.headers.cookie, 'abc=123; def=456; ghi=789');
+      break;
+    default:
+      assert(false, `Unexpected request for ${req.url}`);
   }
 
-  if (responses_sent == 1) {
-    assert.equal('POST', req.method);
-    assert.equal('/world', url.parse(req.url).pathname);
+  if (expectedRequests.length === 0)
     this.close();
-  }
 
   req.on('end', function() {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
-    res.write('The path was ' + url.parse(req.url).pathname);
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.write(`The path was ${url.parse(req.url).pathname}`);
     res.end();
-    responses_sent += 1;
   });
   req.resume();
-
-  //assert.equal('127.0.0.1', res.connection.remoteAddress);
-});
-server.listen(common.PORT);
+}, 3));
+server.listen(0);
 
 server.on('listening', function() {
-  var agent = new http.Agent({ port: common.PORT, maxSockets: 1 });
-  http.get({
-    port: common.PORT,
+  const agent = new http.Agent({ port: this.address().port, maxSockets: 1 });
+  const req = http.get({
+    port: this.address().port,
     path: '/hello',
-    headers: {'Accept': '*/*', 'Foo': 'bar'},
+    headers: {
+      Accept: '*/*',
+      Foo: 'bar',
+      Cookie: [ 'foo=bar', 'bar=baz', 'baz=quux' ]
+    },
     agent: agent
-  }, function(res) {
-    assert.equal(200, res.statusCode);
-    responses_recvd += 1;
+  }, common.mustCall((res) => {
+    const cookieHeaders = req._header.match(/^Cookie: .+$/img);
+    assert.deepStrictEqual(cookieHeaders,
+                           ['Cookie: foo=bar; bar=baz; baz=quux']);
+    assert.strictEqual(res.statusCode, 200);
+    let body = '';
     res.setEncoding('utf8');
-    res.on('data', function(chunk) { body0 += chunk; });
-    common.debug('Got /hello response');
-  });
+    res.on('data', (chunk) => { body += chunk; });
+    res.on('end', common.mustCall(() => {
+      assert.strictEqual(body, 'The path was /hello');
+    }));
+  }));
 
-  setTimeout(function() {
-    var req = http.request({
-      port: common.PORT,
+  setTimeout(common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port,
+      method: 'PUT',
+      path: '/there',
+      agent: agent
+    }, common.mustCall((res) => {
+      const cookieHeaders = req._header.match(/^Cookie: .+$/img);
+      assert.deepStrictEqual(cookieHeaders, ['Cookie: node=awesome; ta=da']);
+      assert.strictEqual(res.statusCode, 200);
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', common.mustCall(() => {
+        assert.strictEqual(body, 'The path was /there');
+      }));
+    }));
+    req.setHeader('Cookie', ['node=awesome', 'ta=da']);
+    req.end();
+  }), 1);
+
+  setTimeout(common.mustCall(() => {
+    const req = http.request({
+      port: server.address().port,
       method: 'POST',
       path: '/world',
+      headers: [ ['Cookie', 'abc=123'],
+                 ['Cookie', 'def=456'],
+                 ['Cookie', 'ghi=789'] ],
       agent: agent
-    }, function(res) {
-      assert.equal(200, res.statusCode);
-      responses_recvd += 1;
+    }, common.mustCall((res) => {
+      const cookieHeaders = req._header.match(/^Cookie: .+$/img);
+      assert.deepStrictEqual(cookieHeaders,
+                             ['Cookie: abc=123',
+                              'Cookie: def=456',
+                              'Cookie: ghi=789']);
+      assert.strictEqual(res.statusCode, 200);
+      let body = '';
       res.setEncoding('utf8');
-      res.on('data', function(chunk) { body1 += chunk; });
-      common.debug('Got /world response');
-    });
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', common.mustCall(() => {
+        assert.strictEqual(body, 'The path was /world');
+      }));
+    }));
     req.end();
-  }, 1);
+  }), 2);
 });
-
-process.on('exit', function() {
-  common.debug('responses_recvd: ' + responses_recvd);
-  assert.equal(2, responses_recvd);
-
-  common.debug('responses_sent: ' + responses_sent);
-  assert.equal(2, responses_sent);
-
-  assert.equal('The path was /hello', body0);
-  assert.equal('The path was /world', body1);
-});
-

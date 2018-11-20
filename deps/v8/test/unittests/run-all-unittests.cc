@@ -9,37 +9,38 @@
 
 namespace {
 
-class DefaultPlatformEnvironment FINAL : public ::testing::Environment {
+class DefaultPlatformEnvironment final : public ::testing::Environment {
  public:
-  DefaultPlatformEnvironment() : platform_(NULL) {}
-  ~DefaultPlatformEnvironment() {}
+  DefaultPlatformEnvironment() {}
 
-  virtual void SetUp() OVERRIDE {
-    EXPECT_EQ(NULL, platform_);
-    platform_ = v8::platform::CreateDefaultPlatform();
-    ASSERT_TRUE(platform_ != NULL);
-    v8::V8::InitializePlatform(platform_);
+  void SetUp() override {
+    platform_ = v8::platform::NewDefaultPlatform(
+        0, v8::platform::IdleTaskSupport::kEnabled);
+    ASSERT_TRUE(platform_.get() != NULL);
+    v8::V8::InitializePlatform(platform_.get());
     ASSERT_TRUE(v8::V8::Initialize());
   }
 
-  virtual void TearDown() OVERRIDE {
-    ASSERT_TRUE(platform_ != NULL);
+  void TearDown() override {
+    ASSERT_TRUE(platform_.get() != NULL);
     v8::V8::Dispose();
     v8::V8::ShutdownPlatform();
-    delete platform_;
-    platform_ = NULL;
   }
 
  private:
-  v8::Platform* platform_;
+  std::unique_ptr<v8::Platform> platform_;
 };
 
 }  // namespace
 
 
 int main(int argc, char** argv) {
+  // Don't catch SEH exceptions and continue as the following tests might hang
+  // in an broken environment on windows.
+  testing::GTEST_FLAG(catch_exceptions) = false;
   testing::InitGoogleMock(&argc, argv);
   testing::AddGlobalTestEnvironment(new DefaultPlatformEnvironment);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
+  v8::V8::InitializeExternalStartupData(argv[0]);
   return RUN_ALL_TESTS();
 }

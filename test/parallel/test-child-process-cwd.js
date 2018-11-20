@@ -19,76 +19,55 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var path = require('path');
-
-var returns = 0;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const { spawn } = require('child_process');
 
 /*
   Spawns 'pwd' with given options, then test
-  - whether the exit code equals forCode,
-  - optionally whether the stdout result matches forData
-    (after removing traling whitespace)
+  - whether the exit code equals expectCode,
+  - optionally whether the trimmed stdout result matches expectData
 */
-function testCwd(options, forCode, forData) {
-  var data = '';
-
-  var child = common.spawnPwd(options);
+function testCwd(options, expectCode = 0, expectData) {
+  const child = spawn(...common.pwdCommand, options);
 
   child.stdout.setEncoding('utf8');
 
+  // No need to assert callback since `data` is asserted.
+  let data = '';
   child.stdout.on('data', function(chunk) {
     data += chunk;
   });
 
+  // Can't assert callback, as stayed in to API:
+  // _The 'exit' event may or may not fire after an error has occurred._
   child.on('exit', function(code, signal) {
-    assert.strictEqual(forCode, code);
+    assert.strictEqual(expectCode, code);
   });
 
-  child.on('close', function () {
-    forData && assert.strictEqual(forData, data.replace(/[\s\r\n]+$/, ''));
-    returns--;
-  });
-
-  returns++;
+  child.on('close', common.mustCall(function() {
+    expectData && assert.strictEqual(data.trim(), expectData);
+  }));
 
   return child;
 }
 
-// Assume these exist, and 'pwd' gives us the right directory back
-if (process.platform == 'win32') {
-  testCwd({cwd: process.env.windir}, 0, process.env.windir);
-  testCwd({cwd: 'c:\\'}, 0, 'c:\\');
-} else {
-  testCwd({cwd: '/dev'}, 0, '/dev');
-  testCwd({cwd: '/'}, 0, '/');
-}
 
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
-(function() {
-  var errors = 0;
+{
+  testCwd({ cwd: 'does-not-exist' }, -1)
+    .on('error', common.mustCall(function(e) {
+      assert.strictEqual(e.code, 'ENOENT');
+    }));
+}
 
-  testCwd({cwd: 'does-not-exist'}, -1).on('error', function(e) {
-    assert.equal(e.code, 'ENOENT');
-    errors++;
-  });
+// Assume these exist, and 'pwd' gives us the right directory back
+testCwd({ cwd: common.rootDir }, 0, common.rootDir);
+const shouldExistDir = common.isWindows ? process.env.windir : '/dev';
+testCwd({ cwd: shouldExistDir }, 0, shouldExistDir);
 
-  process.on('exit', function() {
-    assert.equal(errors, 1);
-  });
-})();
-
-// Spawn() shouldn't try to chdir() so this should just work
-testCwd(undefined, 0);
-testCwd({}, 0);
-testCwd({cwd: ''}, 0);
-testCwd({cwd: undefined}, 0);
-testCwd({cwd: null}, 0);
-
-// Check whether all tests actually returned
-assert.notEqual(0, returns);
-process.on('exit', function() {
-  assert.equal(0, returns);
-});
+// Spawn() shouldn't try to chdir() to invalid arg, so this should just work
+testCwd({ cwd: '' });
+testCwd({ cwd: undefined });
+testCwd({ cwd: null });

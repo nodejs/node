@@ -19,31 +19,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var http = require('http');
-var path = require('path');
-var cp = require('child_process');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
+const cp = require('child_process');
 
-var filename = path.join(common.tmpDir || '/tmp', 'big');
-var clientReqComplete = false;
-var count = 0;
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-var server = http.createServer(function(req, res) {
-  console.error('SERVER request');
-  var timeoutId;
-  assert.equal('POST', req.method);
+const filename = path.join(tmpdir.path || '/tmp', 'big');
+let count = 0;
+
+const server = http.createServer(function(req, res) {
+  let timeoutId;
+  assert.strictEqual('POST', req.method);
   req.pause();
-  common.error('request paused');
 
   setTimeout(function() {
     req.resume();
-    common.error('request resumed');
   }, 1000);
 
   req.on('data', function(chunk) {
-    common.error('recv data! nchars = ' + chunk.length);
     count += chunk.length;
   });
 
@@ -51,59 +50,42 @@ var server = http.createServer(function(req, res) {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    console.log('request complete from server');
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end();
   });
 });
-server.listen(common.PORT);
+server.listen(0);
 
 server.on('listening', function() {
-  var cmd = common.ddCommand(filename, 10240);
-  console.log('dd command: ', cmd);
+  const cmd = common.ddCommand(filename, 10240);
 
-  cp.exec(cmd, function(err, stdout, stderr) {
-    if (err) throw err;
-    console.error('EXEC returned successfully stdout=%d stderr=%d',
-                  stdout.length, stderr.length);
+  cp.exec(cmd, function(err) {
+    assert.ifError(err);
     makeRequest();
   });
 });
 
 function makeRequest() {
-  var req = http.request({
-    port: common.PORT,
+  const req = http.request({
+    port: server.address().port,
     path: '/',
     method: 'POST'
   });
 
-  common.error('pipe!');
-
-  var s = fs.ReadStream(filename);
+  const s = fs.ReadStream(filename);
   s.pipe(req);
-  s.on('data', function(chunk) {
-    console.error('FS data chunk=%d', chunk.length);
-  });
-  s.on('end', function() {
-    console.error('FS end');
-  });
-  s.on('close', function(err) {
-    if (err) throw err;
-    clientReqComplete = true;
-    common.error('client finished sending request');
-  });
+  s.on('close', common.mustCall((err) => {
+    assert.ifError(err);
+  }));
 
   req.on('response', function(res) {
-    console.error('RESPONSE', res.statusCode, res.headers);
     res.resume();
     res.on('end', function() {
-      console.error('RESPONSE end');
       server.close();
     });
   });
 }
 
 process.on('exit', function() {
-  assert.equal(1024 * 10240, count);
-  assert.ok(clientReqComplete);
+  assert.strictEqual(1024 * 10240, count);
 });

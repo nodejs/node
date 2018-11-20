@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/extensions/trigger-failure-extension.h"
-#include "src/v8.h"
+
+#include "src/base/logging.h"
+#include "src/checks.h"
 
 namespace v8 {
 namespace internal {
@@ -15,20 +17,21 @@ const char* const TriggerFailureExtension::kSource =
     "native function triggerSlowAssertFalse();";
 
 
-v8::Handle<v8::FunctionTemplate>
-TriggerFailureExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
-  if (strcmp(*v8::String::Utf8Value(str), "triggerCheckFalse") == 0) {
+v8::Local<v8::FunctionTemplate>
+TriggerFailureExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
+                                                   v8::Local<v8::String> str) {
+  if (strcmp(*v8::String::Utf8Value(isolate, str), "triggerCheckFalse") == 0) {
     return v8::FunctionTemplate::New(
         isolate,
         TriggerFailureExtension::TriggerCheckFalse);
-  } else if (strcmp(*v8::String::Utf8Value(str), "triggerAssertFalse") == 0) {
+  } else if (strcmp(*v8::String::Utf8Value(isolate, str),
+                    "triggerAssertFalse") == 0) {
     return v8::FunctionTemplate::New(
         isolate,
         TriggerFailureExtension::TriggerAssertFalse);
   } else {
-    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(str), "triggerSlowAssertFalse"));
+    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(isolate, str),
+                       "triggerSlowAssertFalse"));
     return v8::FunctionTemplate::New(
         isolate,
         TriggerFailureExtension::TriggerSlowAssertFalse);
@@ -53,4 +56,5 @@ void TriggerFailureExtension::TriggerSlowAssertFalse(
   SLOW_DCHECK(false);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

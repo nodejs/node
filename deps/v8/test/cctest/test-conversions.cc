@@ -27,13 +27,17 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
 #include "src/base/platform/platform.h"
+#include "src/conversions.h"
+#include "src/heap/factory-inl.h"
+#include "src/isolate.h"
+#include "src/objects.h"
+#include "src/unicode-cache.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(Hex) {
   UnicodeCache uc;
@@ -41,8 +45,8 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff",
-                                 ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(255.0,
+           StringToDouble(&uc, "0xFF", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF",
                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
@@ -50,7 +54,7 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff", ALLOW_HEX));
+  CHECK_EQ(255.0, StringToDouble(&uc, "0xFF", ALLOW_HEX));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF", ALLOW_HEX));
 }
 
@@ -172,12 +176,12 @@ TEST(TrailingJunk) {
 
 TEST(NonStrDecimalLiteral) {
   UnicodeCache uc;
-  CHECK(std::isnan(
-      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
-  CHECK(
-      std::isnan(StringToDouble(&uc, "", NO_FLAGS, v8::base::OS::nan_value())));
-  CHECK(std::isnan(
-      StringToDouble(&uc, " ", NO_FLAGS, v8::base::OS::nan_value())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble(&uc, "", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(StringToDouble(&uc, " ", NO_FLAGS,
+                                  std::numeric_limits<double>::quiet_NaN())));
   CHECK_EQ(0.0, StringToDouble(&uc, "", NO_FLAGS));
   CHECK_EQ(0.0, StringToDouble(&uc, " ", NO_FLAGS));
 }
@@ -318,7 +322,7 @@ TEST(BitField) {
   // One bit bit field can hold values 0 and 1.
   CHECK(!OneBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!OneBit2::is_valid(static_cast<uint32_t>(-1)));
-  for (int i = 0; i < 2; i++) {
+  for (unsigned i = 0; i < 2; i++) {
     CHECK(OneBit1::is_valid(i));
     x = OneBit1::encode(i);
     CHECK_EQ(i, OneBit1::decode(x));
@@ -333,7 +337,7 @@ TEST(BitField) {
   // Eight bit bit field can hold values from 0 tp 255.
   CHECK(!EightBit1::is_valid(static_cast<uint32_t>(-1)));
   CHECK(!EightBit2::is_valid(static_cast<uint32_t>(-1)));
-  for (int i = 0; i < 256; i++) {
+  for (unsigned i = 0; i < 256; i++) {
     CHECK(EightBit1::is_valid(i));
     x = EightBit1::encode(i);
     CHECK_EQ(i, EightBit1::decode(x));
@@ -362,3 +366,135 @@ TEST(BitField64) {
   CHECK(x == MiddleBits::encode(3));
   CHECK_EQ(3, MiddleBits::decode(x));
 }
+
+
+static void CheckNonArrayIndex(bool expected, const char* chars) {
+  auto isolate = CcTest::i_isolate();
+  auto string = isolate->factory()->NewStringFromAsciiChecked(chars);
+  CHECK_EQ(expected, IsSpecialIndex(isolate->unicode_cache(), *string));
+}
+
+
+TEST(SpecialIndexParsing) {
+  auto isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  CheckNonArrayIndex(false, "");
+  CheckNonArrayIndex(false, "-");
+  CheckNonArrayIndex(true, "0");
+  CheckNonArrayIndex(true, "-0");
+  CheckNonArrayIndex(false, "01");
+  CheckNonArrayIndex(false, "-01");
+  CheckNonArrayIndex(true, "0.5");
+  CheckNonArrayIndex(true, "-0.5");
+  CheckNonArrayIndex(true, "1");
+  CheckNonArrayIndex(true, "-1");
+  CheckNonArrayIndex(true, "10");
+  CheckNonArrayIndex(true, "-10");
+  CheckNonArrayIndex(true, "NaN");
+  CheckNonArrayIndex(true, "Infinity");
+  CheckNonArrayIndex(true, "-Infinity");
+  CheckNonArrayIndex(true, "4294967295");
+  CheckNonArrayIndex(true, "429496.7295");
+  CheckNonArrayIndex(true, "1.3333333333333333");
+  CheckNonArrayIndex(false, "1.3333333333333339");
+  CheckNonArrayIndex(true, "1.333333333333331e+222");
+  CheckNonArrayIndex(true, "-1.3333333333333211e+222");
+  CheckNonArrayIndex(false, "-1.3333333333333311e+222");
+  CheckNonArrayIndex(true, "429496.7295");
+  CheckNonArrayIndex(false, "43s3");
+  CheckNonArrayIndex(true, "4294967296");
+  CheckNonArrayIndex(true, "-4294967296");
+  CheckNonArrayIndex(true, "999999999999999");
+  CheckNonArrayIndex(false, "9999999999999999");
+  CheckNonArrayIndex(true, "-999999999999999");
+  CheckNonArrayIndex(false, "-9999999999999999");
+  CheckNonArrayIndex(false, "42949672964294967296429496729694966");
+}
+
+TEST(NoHandlesForTryNumberToSize) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  size_t result = 0;
+  {
+    SealHandleScope no_handles(isolate);
+    Smi* smi = Smi::FromInt(1);
+    CHECK(TryNumberToSize(smi, &result));
+    CHECK_EQ(result, 1u);
+  }
+  result = 0;
+  {
+    HandleScope scope(isolate);
+    Handle<HeapNumber> heap_number1 = isolate->factory()->NewHeapNumber(2.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(TryNumberToSize(*heap_number1, &result));
+      CHECK_EQ(result, 2u);
+    }
+    Handle<HeapNumber> heap_number2 = isolate->factory()->NewHeapNumber(
+        static_cast<double>(std::numeric_limits<size_t>::max()) + 10000.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(!TryNumberToSize(*heap_number2, &result));
+    }
+  }
+}
+
+TEST(TryNumberToSizeWithMaxSizePlusOne) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  {
+    HandleScope scope(isolate);
+    // 1 << 64, larger than the limit of size_t.
+    double value = 18446744073709551616.0;
+    size_t result = 0;
+    Handle<HeapNumber> heap_number = isolate->factory()->NewHeapNumber(value);
+    CHECK(!TryNumberToSize(*heap_number, &result));
+  }
+}
+
+TEST(PositiveNumberToUint32) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  uint32_t max = std::numeric_limits<uint32_t>::max();
+  HandleScope scope(isolate);
+  // Test Smi conversions.
+  Handle<Object> number = handle(Smi::FromInt(0), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(-1), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(-1), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(Smi::kMinValue), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(Smi::kMaxValue), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number),
+           static_cast<uint32_t>(Smi::kMaxValue));
+  // Test Double conversions.
+  number = factory->NewHeapNumber(0.0);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(0.999);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(1.999);
+  CHECK_EQ(PositiveNumberToUint32(*number), 1u);
+  number = factory->NewHeapNumber(-12.0);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(12000.0);
+  CHECK_EQ(PositiveNumberToUint32(*number), 12000u);
+  number = factory->NewHeapNumber(static_cast<double>(Smi::kMaxValue) + 1);
+  CHECK_EQ(PositiveNumberToUint32(*number),
+           static_cast<uint32_t>(Smi::kMaxValue) + 1);
+  number = factory->NewHeapNumber(max);
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number = factory->NewHeapNumber(static_cast<double>(max) * 1000);
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number = factory->NewHeapNumber(std::numeric_limits<double>::max());
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number = factory->NewHeapNumber(std::numeric_limits<double>::infinity());
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number =
+      factory->NewHeapNumber(-1.0 * std::numeric_limits<double>::infinity());
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(std::nan(""));
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+}
+
+}  // namespace internal
+}  // namespace v8

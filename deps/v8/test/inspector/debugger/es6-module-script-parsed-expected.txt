@@ -1,0 +1,58 @@
+Debugger.scriptParsed and Debugger.scriptFailedToParse with ES6 module
+
+Running test: testLoadedModulesOnDebuggerEnable
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 1
+        endLine : 3
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 03b276dd81b75bf832afbeccbbd273c62dad100c
+        isLiveEdit : false
+        isModule : true
+        length : 39
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : module1.js
+    }
+}
+
+Running test: testScriptEventsWhenDebuggerIsEnabled
+{
+    method : Debugger.scriptParsed
+    params : {
+        endColumn : 1
+        endLine : 3
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 03b276dd81b75bf832afbeccbbd273c62dad100c
+        isLiveEdit : false
+        isModule : true
+        length : 39
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : module2.js
+    }
+}
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        endColumn : 1
+        endLine : 0
+        executionContextId : <executionContextId>
+        hasSourceURL : false
+        hash : 021647ffab1f4e4e82675bc4cd924d3481abe278
+        isModule : true
+        length : 1
+        scriptId : <scriptId>
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : module-with-syntax-error-2.js
+    }
+}

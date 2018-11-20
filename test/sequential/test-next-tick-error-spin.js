@@ -19,51 +19,48 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
 if (process.argv[2] !== 'child') {
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child'], {
-    stdio: 'pipe'//'inherit'
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child'], {
+    stdio: 'pipe'// 'inherit'
   });
-  var timer = setTimeout(function() {
+  const timer = setTimeout(function() {
     throw new Error('child is hung');
-  }, 3000);
-  child.on('exit', function(code) {
-    console.error('ok');
-    assert(!code);
+  }, common.platformTimeout(3000));
+  child.on('exit', common.mustCall(function(code) {
+    assert.strictEqual(code, 0);
     clearTimeout(timer);
-  });
+  }));
 } else {
 
-  var domain = require('domain');
-  var d = domain.create();
-  process.maxTickDepth = 10;
+  const domain = require('domain');
+  const d = domain.create();
 
   // in the error handler, we trigger several MakeCallback events
-  d.on('error', function(e) {
-    console.log('a')
-    console.log('b')
-    console.log('c')
-    console.log('d')
-    console.log('e')
+  d.on('error', function() {
+    console.log('a');
+    console.log('b');
+    console.log('c');
+    console.log('d');
+    console.log('e');
     f();
   });
 
   function f() {
     process.nextTick(function() {
       d.run(function() {
-        throw(new Error('x'));
+        throw new Error('x');
       });
     });
   }
 
   f();
-  setTimeout(function () {
+  setImmediate(function() {
     console.error('broke in!');
-    //process.stdout.close();
-    //process.stderr.close();
     process.exit(0);
   });
 }

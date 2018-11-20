@@ -19,23 +19,24 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+'use strict';
+require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var events = [];
-var sockets = [];
+const events = [];
+const sockets = [];
 
 process.on('exit', function() {
-  assert.equal(server.connections, 0);
-  assert.equal(events.length, 3);
+  assert.strictEqual(server.connections, 0);
+  assert.strictEqual(events.length, 3);
   // Expect to see one server event and two client events. The order of the
   // events is undefined because they arrive on the same event loop tick.
-  assert.equal(events.join(' ').match(/server/g).length, 1);
-  assert.equal(events.join(' ').match(/client/g).length, 2);
+  assert.strictEqual(events.join(' ').match(/server/g).length, 1);
+  assert.strictEqual(events.join(' ').match(/client/g).length, 2);
 });
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   c.on('close', function() {
     events.push('client');
   });
@@ -43,8 +44,8 @@ var server = net.createServer(function(c) {
   sockets.push(c);
 
   if (sockets.length === 2) {
-    server.close();
-    sockets.forEach(function(c) { c.destroy() });
+    assert.strictEqual(server.close(), server);
+    sockets.forEach(function(c) { c.destroy(); });
   }
 });
 
@@ -52,7 +53,7 @@ server.on('close', function() {
   events.push('server');
 });
 
-server.listen(common.PORT, function() {
-  net.createConnection(common.PORT);
-  net.createConnection(common.PORT);
-});
+assert.strictEqual(server, server.listen(0, function() {
+  net.createConnection(this.address().port);
+  net.createConnection(this.address().port);
+}));

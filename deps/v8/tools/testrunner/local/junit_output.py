@@ -34,9 +34,10 @@ class JUnitTestOutput:
     self.root = xml.Element("testsuite")
     self.root.attrib["name"] = test_suite_name
 
-  def HasRunTest(self, test_name, test_duration, test_failure):
+  def HasRunTest(self, test_name, test_cmd, test_duration, test_failure):
     testCaseElement = xml.Element("testcase")
-    testCaseElement.attrib["name"] = " ".join(test_name)
+    testCaseElement.attrib["name"] = test_name
+    testCaseElement.attrib["cmd"] = test_cmd
     testCaseElement.attrib["time"] = str(round(test_duration, 3))
     if len(test_failure):
       failureElement = xml.Element("failure")
@@ -44,5 +45,5 @@ class JUnitTestOutput:
       testCaseElement.append(failureElement)
     self.root.append(testCaseElement)
 
-  def FinishAndWrite(self, file):
-    xml.ElementTree(self.root).write(file, "UTF-8")
+  def FinishAndWrite(self, f):
+    xml.ElementTree(self.root).write(f, "UTF-8")

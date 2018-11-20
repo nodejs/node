@@ -19,57 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var http = require('http');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
+const http = require('http');
 
-var server = http.Server(function(req, res) {
-  console.log('Server accepted request.');
+let serverRes;
+const server = http.Server((req, res) => {
+  serverRes = res;
   res.writeHead(200);
   res.write('Part of my res.');
-
-  res.destroy();
 });
 
-var responseClose = false;
-
-server.listen(common.PORT, function() {
-  var client = http.get({
-    port: common.PORT,
+server.listen(0, common.mustCall(() => {
+  http.get({
+    port: server.address().port,
     headers: { connection: 'keep-alive' }
-
-  }, function(res) {
+  }, common.mustCall((res) => {
     server.close();
+    serverRes.destroy();
 
-    console.log('Got res: ' + res.statusCode);
-    console.dir(res.headers);
-
-    res.on('data', function(chunk) {
-      console.log('Read ' + chunk.length + ' bytes');
-      console.log(' chunk=%j', chunk.toString());
-    });
-
-    res.on('end', function() {
-      console.log('Response ended.');
-    });
-
-    res.on('aborted', function() {
-      console.log('Response aborted.');
-    });
-
-    res.socket.on('close', function() {
-      console.log('socket closed, but not res');
-    })
-
-    // it would be nice if this worked:
-    res.on('close', function() {
-      console.log('Response aborted');
-      responseClose = true;
-    });
-  });
-});
-
-
-process.on('exit', function() {
-  assert.ok(responseClose);
-});
+    res.resume();
+    res.on('end', common.mustCall());
+    res.on('aborted', common.mustCall());
+    res.on('close', common.mustCall());
+    res.socket.on('close', common.mustCall());
+  }));
+}));

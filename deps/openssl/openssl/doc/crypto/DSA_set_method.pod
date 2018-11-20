@@ -8,7 +8,6 @@ DSA_set_method, DSA_new_method, DSA_OpenSSL - select DSA method
 =head1 SYNOPSIS
 
  #include <openssl/dsa.h>
- #include <openssl/engine.h>
 
  void DSA_set_default_method(const DSA_METHOD *meth);
 
@@ -32,12 +31,15 @@ Initially, the default DSA_METHOD is the OpenSSL internal implementation,
 as returned by DSA_OpenSSL().
 
 DSA_set_default_method() makes B<meth> the default method for all DSA
-structures created later. B<NB>: This is true only whilst no ENGINE has
+structures created later.
+B<NB>: This is true only whilst no ENGINE has
 been set as a default for DSA, so this function is no longer recommended.
+This function is not thread-safe and should not be called at the same time
+as other OpenSSL functions.
 
 DSA_get_default_method() returns a pointer to the current default
 DSA_METHOD. However, the meaningfulness of this result is dependent on
-whether the ENGINE API is being used, so this function is no longer 
+whether the ENGINE API is being used, so this function is no longer
 recommended.
 
 DSA_set_method() selects B<meth> to perform all operations using the key
@@ -47,54 +49,13 @@ be released during the change. It is possible to have DSA keys that only
 work with certain DSA_METHOD implementations (eg. from an ENGINE module
 that supports embedded hardware-protected keys), and in such cases
 attempting to change the DSA_METHOD for the key can have unexpected
-results.
+results. See L<DSA_meth_new> for information on constructing custom DSA_METHOD
+objects;
 
 DSA_new_method() allocates and initializes a DSA structure so that B<engine>
 will be used for the DSA operations. If B<engine> is NULL, the default engine
 for DSA operations is used, and if no default ENGINE is set, the DSA_METHOD
 controlled by DSA_set_default_method() is used.
-
-=head1 THE DSA_METHOD STRUCTURE
-
-struct
- {
-     /* name of the implementation */
-        const char *name;
-
-     /* sign */
-	DSA_SIG *(*dsa_do_sign)(const unsigned char *dgst, int dlen,
-                                 DSA *dsa);
-
-     /* pre-compute k^-1 and r */
-	int (*dsa_sign_setup)(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp,
-                                 BIGNUM **rp);
-
-     /* verify */
-	int (*dsa_do_verify)(const unsigned char *dgst, int dgst_len,
-                                 DSA_SIG *sig, DSA *dsa);
-
-     /* compute rr = a1^p1 * a2^p2 mod m (May be NULL for some
-                                          implementations) */
-	int (*dsa_mod_exp)(DSA *dsa, BIGNUM *rr, BIGNUM *a1, BIGNUM *p1,
-                                 BIGNUM *a2, BIGNUM *p2, BIGNUM *m,
-                                 BN_CTX *ctx, BN_MONT_CTX *in_mont);
-
-     /* compute r = a ^ p mod m (May be NULL for some implementations) */
-        int (*bn_mod_exp)(DSA *dsa, BIGNUM *r, BIGNUM *a,
-                                 const BIGNUM *p, const BIGNUM *m,
-                                 BN_CTX *ctx, BN_MONT_CTX *m_ctx);
-
-     /* called at DSA_new */
-        int (*init)(DSA *DSA);
-
-     /* called at DSA_free */
-        int (*finish)(DSA *DSA);
-
-        int flags;
-
-        char *app_data; /* ?? */
-
- } DSA_METHOD;
 
 =head1 RETURN VALUES
 
@@ -108,36 +69,20 @@ the method for B<dsa> (including unloading the ENGINE handle if the previous
 method was supplied by an ENGINE).
 
 DSA_new_method() returns NULL and sets an error code that can be
-obtained by L<ERR_get_error(3)|ERR_get_error(3)> if the allocation
+obtained by L<ERR_get_error(3)> if the allocation
 fails. Otherwise it returns a pointer to the newly allocated structure.
-
-=head1 NOTES
-
-As of version 0.9.7, DSA_METHOD implementations are grouped together with other
-algorithmic APIs (eg. RSA_METHOD, EVP_CIPHER, etc) in B<ENGINE> modules. If a
-default ENGINE is specified for DSA functionality using an ENGINE API function,
-that will override any DSA defaults set using the DSA API (ie.
-DSA_set_default_method()). For this reason, the ENGINE API is the recommended way
-to control default implementations for use in DSA and other cryptographic
-algorithms.
 
 =head1 SEE ALSO
 
-L<dsa(3)|dsa(3)>, L<DSA_new(3)|DSA_new(3)>
+L<dsa(3)>, L<DSA_new(3)>, L<DSA_meth_new(3)>
 
-=head1 HISTORY
+=head1 COPYRIGHT
 
-DSA_set_default_method(), DSA_get_default_method(), DSA_set_method(),
-DSA_new_method() and DSA_OpenSSL() were added in OpenSSL 0.9.4.
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
 
-DSA_set_default_openssl_method() and DSA_get_default_openssl_method() replaced
-DSA_set_default_method() and DSA_get_default_method() respectively, and
-DSA_set_method() and DSA_new_method() were altered to use B<ENGINE>s rather than
-B<DSA_METHOD>s during development of the engine version of OpenSSL 0.9.6. For
-0.9.7, the handling of defaults in the ENGINE API was restructured so that this
-change was reversed, and behaviour of the other functions resembled more closely
-the previous behaviour. The behaviour of defaults in the ENGINE API now
-transparently overrides the behaviour of defaults in the DSA API without
-requiring changing these function prototypes.
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
 
 =cut

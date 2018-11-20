@@ -24,16 +24,23 @@
 // prototypally inherits from Readable, and then parasitically from
 // Writable.
 
-module.exports = Duplex;
+'use strict';
+
+/*<replacement>*/
+
+var pna = require('process-nextick-args');
+/*</replacement>*/
 
 /*<replacement>*/
 var objectKeys = Object.keys || function (obj) {
   var keys = [];
-  for (var key in obj) keys.push(key);
-  return keys;
-}
+  for (var key in obj) {
+    keys.push(key);
+  }return keys;
+};
 /*</replacement>*/
 
+module.exports = Duplex;
 
 /*<replacement>*/
 var util = require('core-util-is');
@@ -45,45 +52,80 @@ var Writable = require('./_stream_writable');
 
 util.inherits(Duplex, Readable);
 
-forEach(objectKeys(Writable.prototype), function(method) {
-  if (!Duplex.prototype[method])
-    Duplex.prototype[method] = Writable.prototype[method];
-});
+{
+  // avoid scope creep, the keys array can then be collected
+  var keys = objectKeys(Writable.prototype);
+  for (var v = 0; v < keys.length; v++) {
+    var method = keys[v];
+    if (!Duplex.prototype[method]) Duplex.prototype[method] = Writable.prototype[method];
+  }
+}
 
 function Duplex(options) {
-  if (!(this instanceof Duplex))
-    return new Duplex(options);
+  if (!(this instanceof Duplex)) return new Duplex(options);
 
   Readable.call(this, options);
   Writable.call(this, options);
 
-  if (options && options.readable === false)
-    this.readable = false;
+  if (options && options.readable === false) this.readable = false;
 
-  if (options && options.writable === false)
-    this.writable = false;
+  if (options && options.writable === false) this.writable = false;
 
   this.allowHalfOpen = true;
-  if (options && options.allowHalfOpen === false)
-    this.allowHalfOpen = false;
+  if (options && options.allowHalfOpen === false) this.allowHalfOpen = false;
 
   this.once('end', onend);
 }
+
+Object.defineProperty(Duplex.prototype, 'writableHighWaterMark', {
+  // making it explicit this property is not enumerable
+  // because otherwise some prototype manipulation in
+  // userland will fail
+  enumerable: false,
+  get: function () {
+    return this._writableState.highWaterMark;
+  }
+});
 
 // the no-half-open enforcer
 function onend() {
   // if we allow half-open state, or if the writable side ended,
   // then we're ok.
-  if (this.allowHalfOpen || this._writableState.ended)
-    return;
+  if (this.allowHalfOpen || this._writableState.ended) return;
 
   // no more data can be written.
   // But allow more writes to happen in this tick.
-  process.nextTick(this.end.bind(this));
+  pna.nextTick(onEndNT, this);
 }
 
-function forEach (xs, f) {
-  for (var i = 0, l = xs.length; i < l; i++) {
-    f(xs[i], i);
-  }
+function onEndNT(self) {
+  self.end();
 }
+
+Object.defineProperty(Duplex.prototype, 'destroyed', {
+  get: function () {
+    if (this._readableState === undefined || this._writableState === undefined) {
+      return false;
+    }
+    return this._readableState.destroyed && this._writableState.destroyed;
+  },
+  set: function (value) {
+    // we ignore the value if the stream
+    // has not been initialized yet
+    if (this._readableState === undefined || this._writableState === undefined) {
+      return;
+    }
+
+    // backward compatibility, the user is explicitly
+    // managing destroyed
+    this._readableState.destroyed = value;
+    this._writableState.destroyed = value;
+  }
+});
+
+Duplex.prototype._destroy = function (err, cb) {
+  this.push(null);
+  this.end();
+
+  pna.nextTick(cb, err);
+};

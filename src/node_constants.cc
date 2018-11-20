@@ -20,8 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_constants.h"
+#include "node_internals.h"
 
-#include "uv.h"
+#include "zlib.h"
 
 #include <errno.h>
 #if !defined(_MSC_VER)
@@ -31,6 +32,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <limits>
 
 #if HAVE_OPENSSL
 # include <openssl/ec.h>
@@ -40,12 +42,18 @@
 # endif  // !OPENSSL_NO_ENGINE
 #endif
 
+#if defined(__POSIX__)
+#include <dlfcn.h>
+#endif
+
 namespace node {
 
-using v8::Handle;
+using v8::Local;
 using v8::Object;
 
-void DefineErrnoConstants(Handle<Object> target) {
+namespace {
+
+void DefineErrnoConstants(Local<Object> target) {
 #ifdef E2BIG
   NODE_DEFINE_CONSTANT(target, E2BIG);
 #endif
@@ -363,7 +371,7 @@ void DefineErrnoConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineWindowsErrorConstants(Handle<Object> target) {
+void DefineWindowsErrorConstants(Local<Object> target) {
 #ifdef WSAEINTR
   NODE_DEFINE_CONSTANT(target, WSAEINTR);
 #endif
@@ -597,7 +605,7 @@ void DefineWindowsErrorConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSignalConstants(Handle<Object> target) {
+void DefineSignalConstants(Local<Object> target) {
 #ifdef SIGHUP
   NODE_DEFINE_CONSTANT(target, SIGHUP);
 #endif
@@ -733,6 +741,10 @@ void DefineSignalConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, SIGPWR);
 #endif
 
+#ifdef SIGINFO
+  NODE_DEFINE_CONSTANT(target, SIGINFO);
+#endif
+
 #ifdef SIGSYS
   NODE_DEFINE_CONSTANT(target, SIGSYS);
 #endif
@@ -742,7 +754,49 @@ void DefineSignalConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineOpenSSLConstants(Handle<Object> target) {
+void DefinePriorityConstants(Local<Object> target) {
+#ifdef UV_PRIORITY_LOW
+# define PRIORITY_LOW UV_PRIORITY_LOW
+  NODE_DEFINE_CONSTANT(target, PRIORITY_LOW);
+# undef PRIORITY_LOW
+#endif
+
+#ifdef UV_PRIORITY_BELOW_NORMAL
+# define PRIORITY_BELOW_NORMAL UV_PRIORITY_BELOW_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_BELOW_NORMAL);
+# undef PRIORITY_BELOW_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_NORMAL
+# define PRIORITY_NORMAL UV_PRIORITY_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_NORMAL);
+# undef PRIORITY_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_ABOVE_NORMAL
+# define PRIORITY_ABOVE_NORMAL UV_PRIORITY_ABOVE_NORMAL
+  NODE_DEFINE_CONSTANT(target, PRIORITY_ABOVE_NORMAL);
+# undef PRIORITY_ABOVE_NORMAL
+#endif
+
+#ifdef UV_PRIORITY_HIGH
+# define PRIORITY_HIGH UV_PRIORITY_HIGH
+  NODE_DEFINE_CONSTANT(target, PRIORITY_HIGH);
+# undef PRIORITY_HIGH
+#endif
+
+#ifdef UV_PRIORITY_HIGHEST
+# define PRIORITY_HIGHEST UV_PRIORITY_HIGHEST
+  NODE_DEFINE_CONSTANT(target, PRIORITY_HIGHEST);
+# undef PRIORITY_HIGHEST
+#endif
+}
+
+void DefineOpenSSLConstants(Local<Object> target) {
+#ifdef OPENSSL_VERSION_NUMBER
+    NODE_DEFINE_CONSTANT(target, OPENSSL_VERSION_NUMBER);
+#endif
+
 #ifdef SSL_OP_ALL
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
@@ -881,6 +935,10 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 
 # ifndef OPENSSL_NO_ENGINE
 
+# ifdef ENGINE_METHOD_RSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RSA);
+# endif
+
 # ifdef ENGINE_METHOD_DSA
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
 # endif
@@ -893,12 +951,8 @@ void DefineOpenSSLConstants(Handle<Object> target) {
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RAND);
 # endif
 
-# ifdef ENGINE_METHOD_ECDH
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDH);
-# endif
-
-# ifdef ENGINE_METHOD_ECDSA
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDSA);
+# ifdef ENGINE_METHOD_EC
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_EC);
 # endif
 
 # ifdef ENGINE_METHOD_CIPHERS
@@ -907,10 +961,6 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 
 # ifdef ENGINE_METHOD_DIGESTS
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DIGESTS);
-# endif
-
-# ifdef ENGINE_METHOD_STORE
-    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_STORE);
 # endif
 
 # ifdef ENGINE_METHOD_PKEY_METHS
@@ -947,9 +997,9 @@ void DefineOpenSSLConstants(Handle<Object> target) {
     NODE_DEFINE_CONSTANT(target, DH_NOT_SUITABLE_GENERATOR);
 #endif
 
-#ifdef OPENSSL_NPN_NEGOTIATED
-#define NPN_ENABLED 1
-    NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+#define ALPN_ENABLED 1
+    NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);
 #endif
 
 #ifdef RSA_PKCS1_PADDING
@@ -976,6 +1026,18 @@ void DefineOpenSSLConstants(Handle<Object> target) {
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
 #endif
 
+#ifdef RSA_PSS_SALTLEN_DIGEST
+    NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_DIGEST);
+#endif
+
+#ifdef RSA_PSS_SALTLEN_MAX_SIGN
+    NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_MAX_SIGN);
+#endif
+
+#ifdef RSA_PSS_SALTLEN_AUTO
+    NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_AUTO);
+#endif
+
 #if HAVE_OPENSSL
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
@@ -986,11 +1048,23 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSystemConstants(Handle<Object> target) {
+void DefineSystemConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_DIR);
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_JUNCTION);
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
   NODE_DEFINE_CONSTANT(target, O_RDWR);
+
+  // file types from readdir
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_UNKNOWN);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_FILE);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_DIR);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_LINK);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_FIFO);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_SOCKET);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_CHAR);
+  NODE_DEFINE_CONSTANT(target, UV_DIRENT_BLOCK);
 
   NODE_DEFINE_CONSTANT(target, S_IFMT);
   NODE_DEFINE_CONSTANT(target, S_IFREG);
@@ -1040,6 +1114,10 @@ void DefineSystemConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_EXCL);
 #endif
 
+#ifdef O_NOATIME
+  NODE_DEFINE_CONSTANT(target, O_NOATIME);
+#endif
+
 #ifdef O_NOFOLLOW
   NODE_DEFINE_CONSTANT(target, O_NOFOLLOW);
 #endif
@@ -1047,6 +1125,11 @@ void DefineSystemConstants(Handle<Object> target) {
 #ifdef O_SYNC
   NODE_DEFINE_CONSTANT(target, O_SYNC);
 #endif
+
+#ifdef O_DSYNC
+  NODE_DEFINE_CONSTANT(target, O_DSYNC);
+#endif
+
 
 #ifdef O_SYMLINK
   NODE_DEFINE_CONSTANT(target, O_SYMLINK);
@@ -1123,19 +1206,219 @@ void DefineSystemConstants(Handle<Object> target) {
 #ifdef X_OK
   NODE_DEFINE_CONSTANT(target, X_OK);
 #endif
+
+#ifdef UV_FS_COPYFILE_EXCL
+# define COPYFILE_EXCL UV_FS_COPYFILE_EXCL
+  NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_EXCL);
+  NODE_DEFINE_CONSTANT(target, COPYFILE_EXCL);
+# undef COPYFILE_EXCL
+#endif
+
+#ifdef UV_FS_COPYFILE_FICLONE
+# define COPYFILE_FICLONE UV_FS_COPYFILE_FICLONE
+  NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_FICLONE);
+  NODE_DEFINE_CONSTANT(target, COPYFILE_FICLONE);
+# undef COPYFILE_FICLONE
+#endif
+
+#ifdef UV_FS_COPYFILE_FICLONE_FORCE
+# define COPYFILE_FICLONE_FORCE UV_FS_COPYFILE_FICLONE_FORCE
+  NODE_DEFINE_CONSTANT(target, UV_FS_COPYFILE_FICLONE_FORCE);
+  NODE_DEFINE_CONSTANT(target, COPYFILE_FICLONE_FORCE);
+# undef COPYFILE_FICLONE_FORCE
+#endif
 }
 
-void DefineUVConstants(Handle<Object> target) {
-  NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
+void DefineCryptoConstants(Local<Object> target) {
+#if HAVE_OPENSSL
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCoreCipherList",
+                              DEFAULT_CIPHER_LIST_CORE);
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCipherList",
+                              per_process_opts->tls_cipher_list.c_str());
+#endif
+  NODE_DEFINE_CONSTANT(target, INT_MAX);
 }
 
-void DefineConstants(Handle<Object> target) {
-  DefineErrnoConstants(target);
-  DefineWindowsErrorConstants(target);
-  DefineSignalConstants(target);
-  DefineOpenSSLConstants(target);
-  DefineSystemConstants(target);
-  DefineUVConstants(target);
+void DefineZlibConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FINISH);
+  NODE_DEFINE_CONSTANT(target, Z_BLOCK);
+
+  // return/error codes
+  NODE_DEFINE_CONSTANT(target, Z_OK);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
+  NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
+  NODE_DEFINE_CONSTANT(target, Z_ERRNO);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_DATA_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
+
+  NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_FILTERED);
+  NODE_DEFINE_CONSTANT(target, Z_HUFFMAN_ONLY);
+  NODE_DEFINE_CONSTANT(target, Z_RLE);
+  NODE_DEFINE_CONSTANT(target, Z_FIXED);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_STRATEGY);
+  NODE_DEFINE_CONSTANT(target, ZLIB_VERNUM);
+
+  enum node_zlib_mode {
+    NONE,
+    DEFLATE,
+    INFLATE,
+    GZIP,
+    GUNZIP,
+    DEFLATERAW,
+    INFLATERAW,
+    UNZIP
+  };
+
+  NODE_DEFINE_CONSTANT(target, DEFLATE);
+  NODE_DEFINE_CONSTANT(target, INFLATE);
+  NODE_DEFINE_CONSTANT(target, GZIP);
+  NODE_DEFINE_CONSTANT(target, GUNZIP);
+  NODE_DEFINE_CONSTANT(target, DEFLATERAW);
+  NODE_DEFINE_CONSTANT(target, INFLATERAW);
+  NODE_DEFINE_CONSTANT(target, UNZIP);
+
+  NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
+}
+
+void DefineDLOpenConstants(Local<Object> target) {
+#ifdef RTLD_LAZY
+  NODE_DEFINE_CONSTANT(target, RTLD_LAZY);
+#endif
+
+#ifdef RTLD_NOW
+  NODE_DEFINE_CONSTANT(target, RTLD_NOW);
+#endif
+
+#ifdef RTLD_GLOBAL
+  NODE_DEFINE_CONSTANT(target, RTLD_GLOBAL);
+#endif
+
+#ifdef RTLD_LOCAL
+  NODE_DEFINE_CONSTANT(target, RTLD_LOCAL);
+#endif
+
+#ifdef RTLD_DEEPBIND
+  NODE_DEFINE_CONSTANT(target, RTLD_DEEPBIND);
+#endif
+}
+
+void DefineTraceConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_COMPLETE);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_INSTANT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_STEP_INTO);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_STEP_PAST);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ASYNC_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_NESTABLE_ASYNC_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_NESTABLE_ASYNC_INSTANT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_FLOW_BEGIN);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_FLOW_STEP);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_FLOW_END);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_METADATA);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_COUNTER);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_SAMPLE);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_CREATE_OBJECT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_SNAPSHOT_OBJECT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_DELETE_OBJECT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_MEMORY_DUMP);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_MARK);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_CLOCK_SYNC);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_ENTER_CONTEXT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LEAVE_CONTEXT);
+  NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_LINK_IDS);
+}
+
+}  // anonymous namespace
+
+void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
+  Environment* env = Environment::GetCurrent(isolate);
+
+  Local<Object> os_constants = Object::New(isolate);
+  CHECK(os_constants->SetPrototype(env->context(),
+                                   Null(env->isolate())).FromJust());
+
+  Local<Object> err_constants = Object::New(isolate);
+  CHECK(err_constants->SetPrototype(env->context(),
+                                    Null(env->isolate())).FromJust());
+
+  Local<Object> sig_constants = Object::New(isolate);
+  CHECK(sig_constants->SetPrototype(env->context(),
+                                    Null(env->isolate())).FromJust());
+
+  Local<Object> priority_constants = Object::New(isolate);
+  CHECK(priority_constants->SetPrototype(env->context(),
+                                         Null(env->isolate())).FromJust());
+
+  Local<Object> fs_constants = Object::New(isolate);
+  CHECK(fs_constants->SetPrototype(env->context(),
+                                   Null(env->isolate())).FromJust());
+
+  Local<Object> crypto_constants = Object::New(isolate);
+  CHECK(crypto_constants->SetPrototype(env->context(),
+                                       Null(env->isolate())).FromJust());
+
+  Local<Object> zlib_constants = Object::New(isolate);
+  CHECK(zlib_constants->SetPrototype(env->context(),
+                                     Null(env->isolate())).FromJust());
+
+  Local<Object> dlopen_constants = Object::New(isolate);
+  CHECK(dlopen_constants->SetPrototype(env->context(),
+                                       Null(env->isolate())).FromJust());
+
+  Local<Object> trace_constants = Object::New(isolate);
+  CHECK(trace_constants->SetPrototype(env->context(),
+                                      Null(env->isolate())).FromJust());
+
+  DefineErrnoConstants(err_constants);
+  DefineWindowsErrorConstants(err_constants);
+  DefineSignalConstants(sig_constants);
+  DefinePriorityConstants(priority_constants);
+  DefineSystemConstants(fs_constants);
+  DefineOpenSSLConstants(crypto_constants);
+  DefineCryptoConstants(crypto_constants);
+  DefineZlibConstants(zlib_constants);
+  DefineDLOpenConstants(dlopen_constants);
+  DefineTraceConstants(trace_constants);
+
+  // Define libuv constants.
+  NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
+
+  os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
+  os_constants->Set(OneByteString(isolate, "errno"), err_constants);
+  os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
+  os_constants->Set(OneByteString(isolate, "priority"), priority_constants);
+  target->Set(OneByteString(isolate, "os"), os_constants);
+  target->Set(OneByteString(isolate, "fs"), fs_constants);
+  target->Set(OneByteString(isolate, "crypto"), crypto_constants);
+  target->Set(OneByteString(isolate, "zlib"), zlib_constants);
+  target->Set(OneByteString(isolate, "trace"), trace_constants);
 }
 
 }  // namespace node

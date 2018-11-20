@@ -1,0 +1,504 @@
+{
+  "name": "remark-preset-lint-node",
+  "version": "1.0.2",
+  "lockfileVersion": 1,
+  "requires": true,
+  "dependencies": {
+    "co": {
+      "version": "3.1.0",
+      "resolved": "https://registry.npmjs.org/co/-/co-3.1.0.tgz",
+      "integrity": "sha1-TqVOpaCJOBUxheFSEMaNkJK8G3g="
+    },
+    "irregular-plurals": {
+      "version": "2.0.0",
+      "resolved": "https://registry.npmjs.org/irregular-plurals/-/irregular-plurals-2.0.0.tgz",
+      "integrity": "sha512-Y75zBYLkh0lJ9qxeHlMjQ7bSbyiSqNW/UOPWDmzC7cXskL1hekSITh1Oc6JV0XCWWZ9DE8VYSB71xocLk3gmGw=="
+    },
+    "mdast-comment-marker": {
+      "version": "1.0.3",
+      "resolved": "https://registry.npmjs.org/mdast-comment-marker/-/mdast-comment-marker-1.0.3.tgz",
+      "integrity": "sha512-FZXxBBYeJ/R6k9zgyVGygHWka6FDJdzSbP6kcvB+L4Yqz62po57rZlnA2I14LIKsb3XPEky4vgP0Y83tZXTw7Q=="
+    },
+    "mdast-util-heading-style": {
+      "version": "1.0.4",
+      "resolved": "https://registry.npmjs.org/mdast-util-heading-style/-/mdast-util-heading-style-1.0.4.tgz",
+      "integrity": "sha512-n4fUvwpR5Uj1Ti658KxYDq9gR0UF3FK1UVTVig12imrSOssQU2OpUysje8nps5Cb85b6eau5akpWW7Zkxtv1XA=="
+    },
+    "mdast-util-to-string": {
+      "version": "1.0.5",
+      "resolved": "https://registry.npmjs.org/mdast-util-to-string/-/mdast-util-to-string-1.0.5.tgz",
+      "integrity": "sha512-2qLt/DEOo5F6nc2VFScQiHPzQ0XXcabquRJxKMhKte8nt42o08HUxNDPk7tt0YPxnWjAT11I1SYi0X0iPnfI5A=="
+    },
+    "plur": {
+      "version": "3.0.1",
+      "resolved": "https://registry.npmjs.org/plur/-/plur-3.0.1.tgz",
+      "integrity": "sha512-lJl0ojUynAM1BZn58Pas2WT/TXeC1+bS+UqShl0x9+49AtOn7DixRXVzaC8qrDOIxNDmepKnLuMTH7NQmkX0PA==",
+      "requires": {
+        "irregular-plurals": "^2.0.0"
+      }
+    },
+    "remark-lint": {
+      "version": "6.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint/-/remark-lint-6.0.2.tgz",
+      "integrity": "sha512-zrIx7InZLLOUYUViT6lSa8T80pDyl3Ywvliog+4hoc7LoiJZRV74ejq+RBZK70bg/p2dU/CV6ycedgypFFePPg==",
+      "requires": {
+        "remark-message-control": "^4.0.0"
+      }
+    },
+    "remark-lint-blockquote-indentation": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-blockquote-indentation/-/remark-lint-blockquote-indentation-1.0.2.tgz",
+      "integrity": "sha512-u3ruA+4ZZOpt3YmTCdCOcYiGBMSQ/b/iJvZs/fibF6rwSBmkod48aGGJVoOLMuIuTYYbbXpzigxS+PeJwN0CDQ==",
+      "requires": {
+        "mdast-util-to-string": "^1.0.2",
+        "plur": "^3.0.0",
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-checkbox-character-style": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-checkbox-character-style/-/remark-lint-checkbox-character-style-1.0.2.tgz",
+      "integrity": "sha512-8hTvHHGj0Ko5Qx9RjBVj9yPO/pOpSFzWVMvszyhZkuH/uy92bab/bmfUwl0/4f8gqsxqyRS/QC/Sp+KivWvYlw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1",
+        "vfile-location": "^2.0.1"
+      }
+    },
+    "remark-lint-checkbox-content-indent": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-checkbox-content-indent/-/remark-lint-checkbox-content-indent-1.0.2.tgz",
+      "integrity": "sha512-9cPEpd3GpN5ZoAEBTl6qkVOIXpJSms+AC6L/gGLHOcfmSaR5jfgzQWE7GkCj6OvUqjV69zrGGHlWLu7uMujf3g==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1",
+        "vfile-location": "^2.0.1"
+      }
+    },
+    "remark-lint-code-block-style": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-code-block-style/-/remark-lint-code-block-style-1.0.2.tgz",
+      "integrity": "sha512-fTSCga/lJ710zBaD808NwqzAatVoLQFizvXWpetygKwoAfXCyMYQ9DUdDE5jdDhwOu2JPnKbxY+4t6m4SrKKWA==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-definition-spacing": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-definition-spacing/-/remark-lint-definition-spacing-1.0.2.tgz",
+      "integrity": "sha512-Yg1BcI/nydXii1B6kiqKIBsqDW7KlOCBMpJO2jMGmNuEuZe8sv1AWNmaCtiSCdPuDiX0CZRidklrkrZwAthPdw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-fenced-code-flag": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-fenced-code-flag/-/remark-lint-fenced-code-flag-1.0.2.tgz",
+      "integrity": "sha512-6/412zYtz+qKpFJryEPSMurWr6tO5MTVohJF3byFc3+3SSEZLWY3Dg8gbwFlumZ9T4HgmfUm/LT7Idm96zj0nw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-fenced-code-marker": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-fenced-code-marker/-/remark-lint-fenced-code-marker-1.0.2.tgz",
+      "integrity": "sha512-yAP59Q1JoI1jjOFCn0GoNx4uDji99ROLvdwvmz7+9YR9guDArBcR4i9Wem/wN6apauWPk2DbAZFavHvbZaT8HQ==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-file-extension": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-file-extension/-/remark-lint-file-extension-1.0.2.tgz",
+      "integrity": "sha512-qx0uki74rmALIKE3r5J3neasbXnz6h+l88OngvpwWkELsnJmfk81JdxfEd0tZ++uTj6CN0TZuhMKad9smfNtRw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0"
+      }
+    },
+    "remark-lint-final-definition": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-final-definition/-/remark-lint-final-definition-1.0.2.tgz",
+      "integrity": "sha512-F+n8eauYOJGdcSrnD7w2YgQSERx1rAwXTxStaJ2tLmoXlT7eQgpVGHz1U4Y76cg8OANbq8pT0KTNJ85JNqkq4g==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-final-newline": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-final-newline/-/remark-lint-final-newline-1.0.2.tgz",
+      "integrity": "sha512-hW/lbDwVKtME3jIcJWJ16wBtoJdFPWIiu0fEI93yzNTjeB1g3VSWJp66dHbtCLYwquRS5fr8UlGx7JxIu1kiuA==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0"
+      }
+    },
+    "remark-lint-first-heading-level": {
+      "version": "1.1.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-first-heading-level/-/remark-lint-first-heading-level-1.1.2.tgz",
+      "integrity": "sha512-4LXZmaeQwlkOoK7PVGoI53ohwdaSB54MgQ+FZ353oVxRO1fY+nbNu70/qxvnyu8/23NK4GkCgHvDVb3+unRJNQ==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-hard-break-spaces": {
+      "version": "1.0.3",
+      "resolved": "https://registry.npmjs.org/remark-lint-hard-break-spaces/-/remark-lint-hard-break-spaces-1.0.3.tgz",
+      "integrity": "sha512-GiC0uXeFwef6/Pfo+EYBN0WIVlEFffh+9TdeJ4uLt89ZweaRVDPCTJQqkkuXoiXSPnZGD7cGHdkWCfXU1PaU7Q==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-heading-style": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-heading-style/-/remark-lint-heading-style-1.0.2.tgz",
+      "integrity": "sha512-d0aIbL8PU5LWfZVI8p49vEV5wWIfD/DdUjc+O8j5E0UWUgcRgPGB66xznkOb8AiniXpcaYggRW8hGZsxoYNt1g==",
+      "requires": {
+        "mdast-util-heading-style": "^1.0.2",
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-maximum-line-length": {
+      "version": "1.1.0",
+      "resolved": "https://registry.npmjs.org/remark-lint-maximum-line-length/-/remark-lint-maximum-line-length-1.1.0.tgz",
+      "integrity": "sha512-L+jI6+DReoxHyAWRIxABjX8hPDgxB8B5Lzp0/nDYjWbjl7I4vTsdEvejpmP1K8LVvZ7Ew0XcVHd1zt+p2O8tDg==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-auto-link-without-protocol": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-auto-link-without-protocol/-/remark-lint-no-auto-link-without-protocol-1.0.2.tgz",
+      "integrity": "sha512-3GtkSxOyd6we4b8JdtJsNgt8+3UN+hpw1UiMoE9X96ahc1rqsCFm6miorNUnF/gfPQ1liHBvZUed2SIenDmpkg==",
+      "requires": {
+        "mdast-util-to-string": "^1.0.2",
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-blockquote-without-caret": {
+      "version": "1.0.0",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-blockquote-without-caret/-/remark-lint-no-blockquote-without-caret-1.0.0.tgz",
+      "integrity": "sha1-gd0i3V8EVOupwqU3u6Jgh0ShrW8=",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1",
+        "vfile-location": "^2.0.1"
+      }
+    },
+    "remark-lint-no-duplicate-definitions": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-duplicate-definitions/-/remark-lint-no-duplicate-definitions-1.0.2.tgz",
+      "integrity": "sha512-e5tSoIBChG3UCz4eJ+JPKV915iNeIeT7uKBKzXBPxnMcEgQaT3V7DBDdN8Wn1oPw9fLp/5AjDN5l9x7iddLsRw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-stringify-position": "^1.1.2",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-file-name-articles": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-file-name-articles/-/remark-lint-no-file-name-articles-1.0.2.tgz",
+      "integrity": "sha512-5FuxJ0Hd2AgVSP1javG51qPbMBWxma1LrCKI6JmBsu/GM7ZYOgemMyH5v4I1ejTPGj7P30xmIjMNSnV8IBMq3g==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0"
+      }
+    },
+    "remark-lint-no-file-name-consecutive-dashes": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-file-name-consecutive-dashes/-/remark-lint-no-file-name-consecutive-dashes-1.0.2.tgz",
+      "integrity": "sha512-VvCxG3AfRm6ROFNJ8+tdOOkk61mEKj+PytB8xg5WNQypKWhhJ734mJ3GzXD4XEov7Bdd1GVXJFXlLFtfoAewHw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0"
+      }
+    },
+    "remark-lint-no-file-name-outer-dashes": {
+      "version": "1.0.3",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-file-name-outer-dashes/-/remark-lint-no-file-name-outer-dashes-1.0.3.tgz",
+      "integrity": "sha512-imUWm8Bi9PxV+IQtQC2/BV1Yj0VboC9hPMZh3sae8pZvCjXquTyYiSFa7hQxX6KWCNUiRPHMSlaSVvfvM2e4pQ==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0"
+      }
+    },
+    "remark-lint-no-heading-content-indent": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-heading-content-indent/-/remark-lint-no-heading-content-indent-1.0.2.tgz",
+      "integrity": "sha512-g2MVmJhHbfFungca5WGWVB9bBY4YTrY6og20U+6DxkdS4ngoc8ezXUt8zV1HHEn0M/GdKr9F7fYhXcekJd/qaw==",
+      "requires": {
+        "mdast-util-heading-style": "^1.0.2",
+        "plur": "^3.0.0",
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-heading-indent": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-heading-indent/-/remark-lint-no-heading-indent-1.0.2.tgz",
+      "integrity": "sha512-BJ9mPGIFn6Pv0KN9Qwy27wQGllM6mPCv6VI6khDcURlzdAaX5hfFarGJVGKEgPWoL8zs8fPRoXMpsAHIonnnyA==",
+      "requires": {
+        "plur": "^3.0.0",
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-inline-padding": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-inline-padding/-/remark-lint-no-inline-padding-1.0.2.tgz",
+      "integrity": "sha512-SHYqEH27yxzgcXSyaIzvqImvktDhXGltRSOEhAHiL2nJktuPt3nosFfGy4/oKAJMWJ2N3aMudXq/zuw1dAkQSg==",
+      "requires": {
+        "mdast-util-to-string": "^1.0.2",
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-multiple-toplevel-headings": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-multiple-toplevel-headings/-/remark-lint-no-multiple-toplevel-headings-1.0.2.tgz",
+      "integrity": "sha512-Zxkw7wIyMOyYQb5C5NTswSttZPCLqm/60Wnt0TEWzXVDkVk5DrxrCCxbMKgpXve1Co5CXPmMixNr/xYBqzxzWg==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-stringify-position": "^1.1.2",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-shell-dollars": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-shell-dollars/-/remark-lint-no-shell-dollars-1.0.2.tgz",
+      "integrity": "sha512-eIjBebX9iOFWbMdjol5JJBXI7ku+7UyJpNrd++rl8QenLLZ76beh+xONCzJw/k5dhEw5voBmQLh7VK9HPU/ang==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-shortcut-reference-image": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-shortcut-reference-image/-/remark-lint-no-shortcut-reference-image-1.0.2.tgz",
+      "integrity": "sha512-IVYv5pgyf70jYcrn+BNHVO37BuQJg26rFOLzi2mj+/8EdFpolJiJcTvkChJgz5yip7317DmQQSNLX6gCExuDrQ==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-table-indentation": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-table-indentation/-/remark-lint-no-table-indentation-1.0.2.tgz",
+      "integrity": "sha512-wH0lMGV3DGf7WeDLYGle7SODkXNKqmFtGuh6sG5oa0XgA17rI/L35Vq5tal4DE/5gQG+l4+/0Iy9FPKdBODSDA==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-no-tabs": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-tabs/-/remark-lint-no-tabs-1.0.2.tgz",
+      "integrity": "sha512-jPjRLHyzO4lO6orhOmHd6AN6mVc/uMWvYZ3qD41dniktnLyHEbIG6DpPxixjfpmEe0wi73RXMywKHrWshLJwAg==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "vfile-location": "^2.0.1"
+      }
+    },
+    "remark-lint-no-unused-definitions": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-no-unused-definitions/-/remark-lint-no-unused-definitions-1.0.2.tgz",
+      "integrity": "sha512-Qv4J2hI2S0NJdrlFuQhBVOlGNUSBLpe+2VBm/hSJAnBE7FW2ZGkVwwrs9h7HdZ/vW3LqfBrNcTKTVw+5ZzWTiA==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-prohibited-strings": {
+      "version": "1.0.3",
+      "resolved": "https://registry.npmjs.org/remark-lint-prohibited-strings/-/remark-lint-prohibited-strings-1.0.3.tgz",
+      "integrity": "sha512-XgxDXQrNjnHd4+cGavdiW8y5ipN+DwJxWIZDUIWuWjEhmRmgUl8nJHXOKjIYZ8inYxuhVit9m1Y9kX12wO3Edw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.2",
+        "unist-util-visit": "^1.2.0"
+      }
+    },
+    "remark-lint-rule-style": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-rule-style/-/remark-lint-rule-style-1.0.2.tgz",
+      "integrity": "sha512-D9mMPKA7rtCe4Yx+ryip6FyfNG9uGOaHxRgJClfte7D66QzxiiWtHYyNCXI4rkv8Ax9PrEdpWCPcIl3D2LrXhw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-strong-marker": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-strong-marker/-/remark-lint-strong-marker-1.0.2.tgz",
+      "integrity": "sha512-oUSKqYJVLgbXe25NmcTOfQ8wsFasc+qhEoGjPEGPuJMV2aZIGuOEbGVqD5B1ckYGBEwbTuet3btvMohz8HaBDQ==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-table-cell-padding": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-table-cell-padding/-/remark-lint-table-cell-padding-1.0.2.tgz",
+      "integrity": "sha512-uYm8ia0joAFeK0XLpxVtGW37Ry1XRBDmWH1gDiO2MXWcUip1w1Brvyue4H8JfXB4IM+S5eI/zPR5zN5Wpj9kfA==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-lint-table-pipes": {
+      "version": "1.0.2",
+      "resolved": "https://registry.npmjs.org/remark-lint-table-pipes/-/remark-lint-table-pipes-1.0.2.tgz",
+      "integrity": "sha512-BGKcOviuUC6fILIOPYFe6awqk57ApzNJpK3OYBrweGoFF55nZ/qf3q6JpzA0chd6wKj7VrcfQEd3QSQQ+8Wcrw==",
+      "requires": {
+        "unified-lint-rule": "^1.0.0",
+        "unist-util-generated": "^1.1.0",
+        "unist-util-position": "^3.0.0",
+        "unist-util-visit": "^1.1.1"
+      }
+    },
+    "remark-message-control": {
+      "version": "4.1.0",
+      "resolved": "https://registry.npmjs.org/remark-message-control/-/remark-message-control-4.1.0.tgz",
+      "integrity": "sha512-e1dszks4YKY7hLAkhS2367jBjBpAfvi+kVgSN/tOFrdp3qxITjiNR5fOFnyYF8vvorkQ9uxlKJoZUOW8T7rKDg==",
+      "requires": {
+        "mdast-comment-marker": "^1.0.0",
+        "unified-message-control": "^1.0.0",
+        "xtend": "^4.0.1"
+      }
+    },
+    "sliced": {
+      "version": "1.0.1",
+      "resolved": "https://registry.npmjs.org/sliced/-/sliced-1.0.1.tgz",
+      "integrity": "sha1-CzpmK10Ewxd7GSa+qCsD+Dei70E="
+    },
+    "trim": {
+      "version": "0.0.1",
+      "resolved": "https://registry.npmjs.org/trim/-/trim-0.0.1.tgz",
+      "integrity": "sha1-WFhUf2spB1fulczMZm+1AITEYN0="
+    },
+    "unified-lint-rule": {
+      "version": "1.0.3",
+      "resolved": "https://registry.npmjs.org/unified-lint-rule/-/unified-lint-rule-1.0.3.tgz",
+      "integrity": "sha512-6z+HH3mtlFdj/w3MaQpObrZAd9KRiro370GxBFh13qkV8LYR21lLozA4iQiZPhe7KuX/lHewoGOEgQ4AWrAR3Q==",
+      "requires": {
+        "wrapped": "^1.0.1"
+      }
+    },
+    "unified-message-control": {
+      "version": "1.0.4",
+      "resolved": "https://registry.npmjs.org/unified-message-control/-/unified-message-control-1.0.4.tgz",
+      "integrity": "sha512-e1dEtN4Z/TvLn/qHm+xeZpzqhJTtfZusFErk336kkZVpqrJYiV9ptxq+SbRPFMlN0OkjDYHmVJ929KYjsMTo3g==",
+      "requires": {
+        "trim": "0.0.1",
+        "unist-util-visit": "^1.0.0",
+        "vfile-location": "^2.0.0"
+      }
+    },
+    "unist-util-generated": {
+      "version": "1.1.2",
+      "resolved": "https://registry.npmjs.org/unist-util-generated/-/unist-util-generated-1.1.2.tgz",
+      "integrity": "sha512-1HcwiEO62dr0XWGT+abVK4f0aAm8Ik8N08c5nAYVmuSxfvpA9rCcNyX/le8xXj1pJK5nBrGlZefeWB6bN8Pstw=="
+    },
+    "unist-util-is": {
+      "version": "2.1.2",
+      "resolved": "https://registry.npmjs.org/unist-util-is/-/unist-util-is-2.1.2.tgz",
+      "integrity": "sha512-YkXBK/H9raAmG7KXck+UUpnKiNmUdB+aBGrknfQ4EreE1banuzrKABx3jP6Z5Z3fMSPMQQmeXBlKpCbMwBkxVw=="
+    },
+    "unist-util-position": {
+      "version": "3.0.1",
+      "resolved": "https://registry.npmjs.org/unist-util-position/-/unist-util-position-3.0.1.tgz",
+      "integrity": "sha512-05QfJDPI7PE1BIUtAxeSV+cDx21xP7+tUZgSval5CA7tr0pHBwybF7OnEa1dOFqg6BfYH/qiMUnWwWj+Frhlww=="
+    },
+    "unist-util-stringify-position": {
+      "version": "1.1.2",
+      "resolved": "https://registry.npmjs.org/unist-util-stringify-position/-/unist-util-stringify-position-1.1.2.tgz",
+      "integrity": "sha512-pNCVrk64LZv1kElr0N1wPiHEUoXNVFERp+mlTg/s9R5Lwg87f9bM/3sQB99w+N9D/qnM9ar3+AKDBwo/gm/iQQ=="
+    },
+    "unist-util-visit": {
+      "version": "1.4.0",
+      "resolved": "https://registry.npmjs.org/unist-util-visit/-/unist-util-visit-1.4.0.tgz",
+      "integrity": "sha512-FiGu34ziNsZA3ZUteZxSFaczIjGmksfSgdKqBfOejrrfzyUy5b7YrlzT1Bcvi+djkYDituJDy2XB7tGTeBieKw==",
+      "requires": {
+        "unist-util-visit-parents": "^2.0.0"
+      }
+    },
+    "unist-util-visit-parents": {
+      "version": "2.0.1",
+      "resolved": "https://registry.npmjs.org/unist-util-visit-parents/-/unist-util-visit-parents-2.0.1.tgz",
+      "integrity": "sha512-6B0UTiMfdWql4cQ03gDTCSns+64Zkfo2OCbK31Ov0uMizEz+CJeAp0cgZVb5Fhmcd7Bct2iRNywejT0orpbqUA==",
+      "requires": {
+        "unist-util-is": "^2.1.2"
+      }
+    },
+    "vfile-location": {
+      "version": "2.0.3",
+      "resolved": "https://registry.npmjs.org/vfile-location/-/vfile-location-2.0.3.tgz",
+      "integrity": "sha512-zM5/l4lfw1CBoPx3Jimxoc5RNDAHHpk6AM6LM0pTIkm5SUSsx8ZekZ0PVdf0WEZ7kjlhSt7ZlqbRL6Cd6dBs6A=="
+    },
+    "wrapped": {
+      "version": "1.0.1",
+      "resolved": "https://registry.npmjs.org/wrapped/-/wrapped-1.0.1.tgz",
+      "integrity": "sha1-x4PZ2Aeyc+mwHoUWgKk4yHyQckI=",
+      "requires": {
+        "co": "3.1.0",
+        "sliced": "^1.0.1"
+      }
+    },
+    "xtend": {
+      "version": "4.0.1",
+      "resolved": "https://registry.npmjs.org/xtend/-/xtend-4.0.1.tgz",
+      "integrity": "sha1-pcbVMr5lbiPbgg77lDofBJmNY68="
+    }
+  }
+}

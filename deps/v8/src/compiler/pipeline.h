@@ -5,54 +5,93 @@
 #ifndef V8_COMPILER_PIPELINE_H_
 #define V8_COMPILER_PIPELINE_H_
 
-#include "src/v8.h"
-
-#include "src/compiler.h"
-
-// Note: TODO(turbofan) implies a performance improvement opportunity,
-//   and TODO(name) implies an incomplete implementation
+// Clients of this interface shouldn't depend on lots of compiler internals.
+// Do not include anything from src/compiler here!
+#include "src/globals.h"
+#include "src/objects.h"
+#include "src/objects/code.h"
 
 namespace v8 {
 namespace internal {
+
+struct AssemblerOptions;
+class OptimizedCompilationInfo;
+class OptimizedCompilationJob;
+class RegisterConfiguration;
+class JumpOptimizationInfo;
+
+namespace wasm {
+enum ModuleOrigin : uint8_t;
+struct FunctionBody;
+class NativeModule;
+class WasmEngine;
+struct WasmModule;
+}  // namespace wasm
+
 namespace compiler {
 
-// Clients of this interface shouldn't depend on lots of compiler internals.
+class CallDescriptor;
 class Graph;
-class Linkage;
-class PipelineData;
+class InstructionSequence;
+class MachineGraph;
+class NodeOriginTable;
 class Schedule;
+class SourcePositionTable;
+class WasmCompilationData;
 
-class Pipeline {
+class Pipeline : public AllStatic {
  public:
-  explicit Pipeline(CompilationInfo* info) : info_(info) {}
+  // Returns a new compilation job for the given JavaScript function.
+  static OptimizedCompilationJob* NewCompilationJob(Isolate* isolate,
+                                                    Handle<JSFunction> function,
+                                                    bool has_script);
 
-  // Run the entire pipeline and generate a handle to a code object.
-  Handle<Code> GenerateCode();
+  // Returns a new compilation job for the WebAssembly compilation info.
+  static OptimizedCompilationJob* NewWasmCompilationJob(
+      OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
+      MachineGraph* mcgraph, CallDescriptor* call_descriptor,
+      SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+      WasmCompilationData* wasm_compilation_data,
+      wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
+      wasm::NativeModule* native_module, int function_index,
+      wasm::ModuleOrigin wasm_origin);
 
-  // Run the pipeline on a machine graph and generate code. If {schedule}
-  // is {NULL}, then compute a new schedule for code generation.
-  Handle<Code> GenerateCodeForMachineGraph(Linkage* linkage, Graph* graph,
-                                           Schedule* schedule = NULL);
+  // Run the pipeline on a machine graph and generate code. The {schedule} must
+  // be valid, hence the given {graph} does not need to be schedulable.
+  static MaybeHandle<Code> GenerateCodeForCodeStub(
+      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+      Schedule* schedule, Code::Kind kind, const char* debug_name,
+      uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+      PoisoningMitigationLevel poisoning_level,
+      const AssemblerOptions& options);
 
-  static inline bool SupportedBackend() { return V8_TURBOFAN_BACKEND != 0; }
-  static inline bool SupportedTarget() { return V8_TURBOFAN_TARGET != 0; }
+  // ---------------------------------------------------------------------------
+  // The following methods are for testing purposes only. Avoid production use.
+  // ---------------------------------------------------------------------------
 
-  static void SetUp();
-  static void TearDown();
+  // Run the pipeline on JavaScript bytecode and generate code.
+  static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate);
+
+  // Run the pipeline on a machine graph and generate code. If {schedule} is
+  // {nullptr}, then compute a new schedule for code generation.
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      CallDescriptor* call_descriptor, Graph* graph,
+      const AssemblerOptions& options, Schedule* schedule = nullptr,
+      SourcePositionTable* source_positions = nullptr);
+
+  // Run just the register allocator phases.
+  V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
+      const RegisterConfiguration* config, InstructionSequence* sequence,
+      bool run_verifier);
 
  private:
-  CompilationInfo* info_;
-
-  CompilationInfo* info() const { return info_; }
-  Isolate* isolate() { return info_->isolate(); }
-
-  void ComputeSchedule(PipelineData* data);
-  void VerifyAndPrintGraph(Graph* graph, const char* phase,
-                           bool untyped = false);
-  Handle<Code> GenerateCode(Linkage* linkage, PipelineData* data);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_PIPELINE_H_

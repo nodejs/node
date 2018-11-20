@@ -19,35 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var fork = require('child_process').fork;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const { fork, spawn } = require('child_process');
 
 // Fork, then spawn. The spawned process should not hang.
 switch (process.argv[2] || '') {
-case '':
-  fork(__filename, ['fork']).on('exit', checkExit);
-  process.on('exit', haveExit);
-  break;
-case 'fork':
-  spawn(process.execPath, [__filename, 'spawn']).on('exit', checkExit);
-  process.on('exit', haveExit);
-  break;
-case 'spawn':
-  break;
-default:
-  assert(0);
+  case '':
+    fork(__filename, ['fork']).on('exit', common.mustCall(checkExit));
+    break;
+  case 'fork':
+    spawn(process.execPath, [__filename, 'spawn'])
+      .on('exit', common.mustCall(checkExit));
+    break;
+  case 'spawn':
+    break;
+  default:
+    assert.fail();
 }
-
-var seenExit = false;
 
 function checkExit(statusCode) {
-  seenExit = true;
-  assert.equal(statusCode, 0);
-  process.nextTick(process.exit);
-}
-
-function haveExit() {
-  assert.equal(seenExit, true);
+  assert.strictEqual(statusCode, 0);
 }
