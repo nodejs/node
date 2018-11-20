@@ -293,14 +293,12 @@ dtls1_buffer_record(SSL *s, record_pqueue *queue, unsigned char *priority)
         return (-1);
     }
 
-    /* insert should not fail, since duplicates are dropped */
     if (pqueue_insert(queue->q, item) == NULL) {
-        SSLerr(SSL_F_DTLS1_BUFFER_RECORD, ERR_R_INTERNAL_ERROR);
+        /* Must be a duplicate so ignore it */
         if (rdata->rbuf.buf != NULL)
             OPENSSL_free(rdata->rbuf.buf);
         OPENSSL_free(rdata);
         pitem_free(item);
-        return (-1);
     }
 
     return (1);

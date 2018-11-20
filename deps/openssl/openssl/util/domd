@@ -11,7 +11,6 @@ if [ "$1" = "-MD" ]; then
         MAKEDEPEND="$MAKEDEPEND $1"
         shift
     done
-    shift
 fi
 if [ "$MAKEDEPEND" = "" ]; then MAKEDEPEND=makedepend; fi
 

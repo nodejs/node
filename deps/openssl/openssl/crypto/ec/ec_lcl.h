@@ -3,7 +3,7 @@
  * Originally written by Bodo Moeller for the OpenSSL project.
  */
 /* ====================================================================
- * Copyright (c) 1998-2010 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2018 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -214,7 +214,7 @@ struct ec_group_st {
     int asn1_flag;              /* flag to control the asn1 encoding */
     /*
      * Kludge: upper bit of ans1_flag is used to denote structure
-     * version. Is set, then last field is present. This is done
+     * version. If set, then last field is present. This is done
      * for interoperation with FIPS code.
      */
 #define EC_GROUP_ASN1_FLAG_MASK 0x7fffffff
@@ -549,7 +549,6 @@ void ec_GFp_nistp_points_make_affine_internal(size_t num, void *point_array,
 void ec_GFp_nistp_recode_scalar_bits(unsigned char *sign,
                                      unsigned char *digit, unsigned char in);
 #endif
-int ec_precompute_mont_data(EC_GROUP *);
 
 #ifdef ECP_NISTZ256_ASM
 /** Returns GFp methods using montgomery multiplication, with x86-64 optimized

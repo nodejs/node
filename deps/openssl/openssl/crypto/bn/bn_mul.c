@@ -936,6 +936,16 @@ void bn_mul_high(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, BN_ULONG *l, int n2,
 
 int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
 {
+    int ret = bn_mul_fixed_top(r, a, b, ctx);
+
+    bn_correct_top(r);
+    bn_check_top(r);
+
+    return ret;
+}
+
+int bn_mul_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
+{
     int ret = 0;
     int top, al, bl;
     BIGNUM *rr;
@@ -1042,7 +1052,7 @@ int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
 #if defined(BN_MUL_COMBA) || defined(BN_RECURSION)
  end:
 #endif
-    bn_correct_top(rr);
+    rr->flags |= BN_FLG_FIXED_TOP;
     if (r != rr && BN_copy(r, rr) == NULL)
         goto err;
 

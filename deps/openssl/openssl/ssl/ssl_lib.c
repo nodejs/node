@@ -2259,10 +2259,10 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher)
     int rsa_tmp_export, dh_tmp_export, kl;
     unsigned long mask_k, mask_a, emask_k, emask_a;
 #ifndef OPENSSL_NO_ECDSA
-    int have_ecc_cert, ecdsa_ok, ecc_pkey_size;
+    int have_ecc_cert, ecdsa_ok;
 #endif
 #ifndef OPENSSL_NO_ECDH
-    int have_ecdh_tmp, ecdh_ok;
+    int have_ecdh_tmp, ecdh_ok, ecc_pkey_size;
 #endif
 #ifndef OPENSSL_NO_EC
     X509 *x = NULL;
@@ -2405,7 +2405,9 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher)
         if (!(cpk->valid_flags & CERT_PKEY_SIGN))
             ecdsa_ok = 0;
         ecc_pkey = X509_get_pubkey(x);
+# ifndef OPENSSL_NO_ECDH
         ecc_pkey_size = (ecc_pkey != NULL) ? EVP_PKEY_bits(ecc_pkey) : 0;
+# endif
         EVP_PKEY_free(ecc_pkey);
         if ((x->sig_alg) && (x->sig_alg->algorithm)) {
             signature_nid = OBJ_obj2nid(x->sig_alg->algorithm);
@@ -2467,7 +2469,7 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher)
 #define ku_reject(x, usage) \
         (((x)->ex_flags & EXFLAG_KUSAGE) && !((x)->ex_kusage & (usage)))
 
-#ifndef OPENSSL_NO_EC
+#ifndef OPENSSL_NO_ECDH
 
 int ssl_check_srvr_ecc_cert_and_alg(X509 *x, SSL *s)
 {

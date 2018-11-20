@@ -992,5 +992,6 @@ if [ $? = "0" ]; then
   fi
 else
   echo "This system ($OUT) is not supported. See file INSTALL for details."
+  exit 1
 fi
 )

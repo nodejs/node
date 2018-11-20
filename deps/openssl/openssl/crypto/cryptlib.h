@@ -104,6 +104,8 @@ void OPENSSL_showfatal(const char *fmta, ...);
 void *OPENSSL_stderr(void);
 extern int OPENSSL_NONPIC_relocated;
 
+char *ossl_safe_getenv(const char *);
+
 #ifdef  __cplusplus
 }
 #endif

@@ -396,11 +396,7 @@ static void x509v3_cache_extensions(X509 *x)
     ASN1_BIT_STRING *ns;
     EXTENDED_KEY_USAGE *extusage;
     X509_EXTENSION *ex;
-
     int i;
-
-    if (x->ex_flags & EXFLAG_SET)
-        return;
 
     CRYPTO_w_lock(CRYPTO_LOCK_X509);
     if (x->ex_flags & EXFLAG_SET) {
