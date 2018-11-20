@@ -55,6 +55,7 @@ void FatalException(v8::Isolate* isolate,
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
   V(ERR_STRING_TOO_LONG, Error)                                              \
+  V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                              \
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)              \
 
 #define V(code, type)                                                         \
