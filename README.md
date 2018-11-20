@@ -530,6 +530,8 @@ maintaining the Node.js project.
 
 GPG keys used to sign Node.js releases:
 
+* **Beth Griggs** &lt;bethany.griggs@uk.ibm.com&gt;
+`4ED778F539E3634C779C87C6D7062848A1AB005C`
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
 * **Evan Lucas** &lt;evanlucas@me.com&gt;
@@ -550,6 +552,7 @@ GPG keys used to sign Node.js releases:
 To import the full set of trusted release keys:
 
 ```shell
+gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys B9AE9905FFD7803F25714661B63B535A4C206CA9
 gpg --keyserver pool.sks-keyservers.net --recv-keys 77984A986EBC2AA786BC0F66B01FBB92821C587A
