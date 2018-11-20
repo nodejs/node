@@ -56,8 +56,8 @@ our %config = (
   shlib_version_number => "1.1",
   sourcedir => ".",
   target => "solaris-x86-gcc",
-  version => "1.1.0i",
-  version_num => "0x1010009fL",
+  version => "1.1.0j",
+  version_num => "0x101000afL",
 );
 
 our %target = (
@@ -5082,6 +5082,12 @@ our %unified_info = (
                     "crypto/include",
                     "include",
                 ],
+            "crypto/getenv.o" =>
+                [
+                    ".",
+                    "crypto/include",
+                    "include",
+                ],
             "crypto/hmac/hm_ameth.o" =>
                 [
                     ".",
@@ -7333,6 +7339,10 @@ our %unified_info = (
                 [
                     "include",
                 ],
+            "test/rsa_complex.o" =>
+                [
+                    "include",
+                ],
             "test/rsa_test.o" =>
                 [
                     ".",
@@ -7401,8 +7411,8 @@ our %unified_info = (
             "test/testutil.o" =>
                 [
                     "crypto/include",
-                    "test",
                     "include",
+                    "test",
                     ".",
                 ],
             "test/threadstest.o" =>
@@ -7619,6 +7629,7 @@ our %unified_info = (
             "test/rc4test",
             "test/rc5test",
             "test/rmdtest",
+            "test/rsa_complex",
             "test/rsa_test",
             "test/sanitytest",
             "test/secmemtest",
@@ -7705,459 +7716,6 @@ our %unified_info = (
         ],
     "shared_sources" =>
         {
-            "apps/openssl" =>
-                [
-                ],
-            "fuzz/asn1-test" =>
-                [
-                ],
-            "fuzz/asn1parse-test" =>
-                [
-                ],
-            "fuzz/bignum-test" =>
-                [
-                ],
-            "fuzz/bndiv-test" =>
-                [
-                ],
-            "fuzz/cms-test" =>
-                [
-                ],
-            "fuzz/conf-test" =>
-                [
-                ],
-            "fuzz/crl-test" =>
-                [
-                ],
-            "fuzz/ct-test" =>
-                [
-                ],
-            "fuzz/server-test" =>
-                [
-                ],
-            "fuzz/x509-test" =>
-                [
-                ],
-            "libcrypto" =>
-                [
-                ],
-            "libssl" =>
-                [
-                ],
-            "test/aborttest" =>
-                [
-                ],
-            "test/afalgtest" =>
-                [
-                ],
-            "test/asynciotest" =>
-                [
-                ],
-            "test/asynctest" =>
-                [
-                ],
-            "test/bad_dtls_test" =>
-                [
-                ],
-            "test/bftest" =>
-                [
-                ],
-            "test/bio_enc_test" =>
-                [
-                ],
-            "test/bioprinttest" =>
-                [
-                ],
-            "test/bntest" =>
-                [
-                ],
-            "test/buildtest_aes" =>
-                [
-                ],
-            "test/buildtest_asn1" =>
-                [
-                ],
-            "test/buildtest_asn1t" =>
-                [
-                ],
-            "test/buildtest_async" =>
-                [
-                ],
-            "test/buildtest_bio" =>
-                [
-                ],
-            "test/buildtest_blowfish" =>
-                [
-                ],
-            "test/buildtest_bn" =>
-                [
-                ],
-            "test/buildtest_buffer" =>
-                [
-                ],
-            "test/buildtest_camellia" =>
-                [
-                ],
-            "test/buildtest_cast" =>
-                [
-                ],
-            "test/buildtest_cmac" =>
-                [
-                ],
-            "test/buildtest_cms" =>
-                [
-                ],
-            "test/buildtest_conf" =>
-                [
-                ],
-            "test/buildtest_conf_api" =>
-                [
-                ],
-            "test/buildtest_crypto" =>
-                [
-                ],
-            "test/buildtest_ct" =>
-                [
-                ],
-            "test/buildtest_des" =>
-                [
-                ],
-            "test/buildtest_dh" =>
-                [
-                ],
-            "test/buildtest_dsa" =>
-                [
-                ],
-            "test/buildtest_dtls1" =>
-                [
-                ],
-            "test/buildtest_e_os2" =>
-                [
-                ],
-            "test/buildtest_ebcdic" =>
-                [
-                ],
-            "test/buildtest_ec" =>
-                [
-                ],
-            "test/buildtest_ecdh" =>
-                [
-                ],
-            "test/buildtest_ecdsa" =>
-                [
-                ],
-            "test/buildtest_engine" =>
-                [
-                ],
-            "test/buildtest_err" =>
-                [
-                ],
-            "test/buildtest_evp" =>
-                [
-                ],
-            "test/buildtest_hmac" =>
-                [
-                ],
-            "test/buildtest_idea" =>
-                [
-                ],
-            "test/buildtest_kdf" =>
-                [
-                ],
-            "test/buildtest_lhash" =>
-                [
-                ],
-            "test/buildtest_md4" =>
-                [
-                ],
-            "test/buildtest_md5" =>
-                [
-                ],
-            "test/buildtest_mdc2" =>
-                [
-                ],
-            "test/buildtest_modes" =>
-                [
-                ],
-            "test/buildtest_obj_mac" =>
-                [
-                ],
-            "test/buildtest_objects" =>
-                [
-                ],
-            "test/buildtest_ocsp" =>
-                [
-                ],
-            "test/buildtest_opensslv" =>
-                [
-                ],
-            "test/buildtest_ossl_typ" =>
-                [
-                ],
-            "test/buildtest_pem" =>
-                [
-                ],
-            "test/buildtest_pem2" =>
-                [
-                ],
-            "test/buildtest_pkcs12" =>
-                [
-                ],
-            "test/buildtest_pkcs7" =>
-                [
-                ],
-            "test/buildtest_rand" =>
-                [
-                ],
-            "test/buildtest_rc2" =>
-                [
-                ],
-            "test/buildtest_rc4" =>
-                [
-                ],
-            "test/buildtest_ripemd" =>
-                [
-                ],
-            "test/buildtest_rsa" =>
-                [
-                ],
-            "test/buildtest_safestack" =>
-                [
-                ],
-            "test/buildtest_seed" =>
-                [
-                ],
-            "test/buildtest_sha" =>
-                [
-                ],
-            "test/buildtest_srp" =>
-                [
-                ],
-            "test/buildtest_srtp" =>
-                [
-                ],
-            "test/buildtest_ssl" =>
-                [
-                ],
-            "test/buildtest_ssl2" =>
-                [
-                ],
-            "test/buildtest_stack" =>
-                [
-                ],
-            "test/buildtest_symhacks" =>
-                [
-                ],
-            "test/buildtest_tls1" =>
-                [
-                ],
-            "test/buildtest_ts" =>
-                [
-                ],
-            "test/buildtest_txt_db" =>
-                [
-                ],
-            "test/buildtest_ui" =>
-                [
-                ],
-            "test/buildtest_whrlpool" =>
-                [
-                ],
-            "test/buildtest_x509" =>
-                [
-                ],
-            "test/buildtest_x509_vfy" =>
-                [
-                ],
-            "test/buildtest_x509v3" =>
-                [
-                ],
-            "test/casttest" =>
-                [
-                ],
-            "test/cipherlist_test" =>
-                [
-                ],
-            "test/clienthellotest" =>
-                [
-                ],
-            "test/constant_time_test" =>
-                [
-                ],
-            "test/crltest" =>
-                [
-                ],
-            "test/ct_test" =>
-                [
-                ],
-            "test/d2i_test" =>
-                [
-                ],
-            "test/danetest" =>
-                [
-                ],
-            "test/destest" =>
-                [
-                ],
-            "test/dhtest" =>
-                [
-                ],
-            "test/dsatest" =>
-                [
-                ],
-            "test/dtlstest" =>
-                [
-                ],
-            "test/dtlsv1listentest" =>
-                [
-                ],
-            "test/ecdsatest" =>
-                [
-                ],
-            "test/ectest" =>
-                [
-                ],
-            "test/enginetest" =>
-                [
-                ],
-            "test/errtest" =>
-                [
-                ],
-            "test/evp_extra_test" =>
-                [
-                ],
-            "test/evp_test" =>
-                [
-                ],
-            "test/exdatatest" =>
-                [
-                ],
-            "test/exptest" =>
-                [
-                ],
-            "test/fatalerrtest" =>
-                [
-                ],
-            "test/gmdifftest" =>
-                [
-                ],
-            "test/heartbeat_test" =>
-                [
-                ],
-            "test/hmactest" =>
-                [
-                ],
-            "test/ideatest" =>
-                [
-                ],
-            "test/igetest" =>
-                [
-                ],
-            "test/md2test" =>
-                [
-                ],
-            "test/md4test" =>
-                [
-                ],
-            "test/md5test" =>
-                [
-                ],
-            "test/mdc2test" =>
-                [
-                ],
-            "test/memleaktest" =>
-                [
-                ],
-            "test/ocspapitest" =>
-                [
-                ],
-            "test/p5_crpt2_test" =>
-                [
-                ],
-            "test/packettest" =>
-                [
-                ],
-            "test/pbelutest" =>
-                [
-                ],
-            "test/randtest" =>
-                [
-                ],
-            "test/rc2test" =>
-                [
-                ],
-            "test/rc4test" =>
-                [
-                ],
-            "test/rc5test" =>
-                [
-                ],
-            "test/rmdtest" =>
-                [
-                ],
-            "test/rsa_test" =>
-                [
-                ],
-            "test/sanitytest" =>
-                [
-                ],
-            "test/secmemtest" =>
-                [
-                ],
-            "test/sha1test" =>
-                [
-                ],
-            "test/sha256t" =>
-                [
-                ],
-            "test/sha512t" =>
-                [
-                ],
-            "test/srptest" =>
-                [
-                ],
-            "test/ssl_test" =>
-                [
-                ],
-            "test/ssl_test_ctx_test" =>
-                [
-                ],
-            "test/sslapitest" =>
-                [
-                ],
-            "test/sslcorrupttest" =>
-                [
-                ],
-            "test/ssltest_old" =>
-                [
-                ],
-            "test/threadstest" =>
-                [
-                ],
-            "test/v3ext" =>
-                [
-                ],
-            "test/v3nametest" =>
-                [
-                ],
-            "test/verify_extra_test" =>
-                [
-                ],
-            "test/versions" =>
-                [
-                ],
-            "test/wp_test" =>
-                [
-                ],
-            "test/x509_dup_cert_test" =>
-                [
-                ],
-            "test/x509_time_test" =>
-                [
-                ],
-            "test/x509aux" =>
-                [
-                ],
         },
     "sources" =>
         {
@@ -9883,6 +9441,10 @@ our %unified_info = (
                 [
                     "crypto/ex_data.c",
                 ],
+            "crypto/getenv.o" =>
+                [
+                    "crypto/getenv.c",
+                ],
             "crypto/hmac/hm_ameth.o" =>
                 [
                     "crypto/hmac/hm_ameth.c",
@@ -11295,6 +10857,7 @@ our %unified_info = (
                     "crypto/evp/pmeth_lib.o",
                     "crypto/evp/scrypt.o",
                     "crypto/ex_data.o",
+                    "crypto/getenv.o",
                     "crypto/hmac/hm_ameth.o",
                     "crypto/hmac/hm_pmeth.o",
                     "crypto/hmac/hmac.o",
@@ -12683,6 +12246,14 @@ our %unified_info = (
             "test/rmdtest.o" =>
                 [
                     "test/rmdtest.c",
+                ],
+            "test/rsa_complex" =>
+                [
+                    "test/rsa_complex.o",
+                ],
+            "test/rsa_complex.o" =>
+                [
+                    "test/rsa_complex.c",
                 ],
             "test/rsa_test" =>
                 [
