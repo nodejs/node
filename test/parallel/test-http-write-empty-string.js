@@ -25,7 +25,7 @@ const assert = require('assert');
 
 const http = require('http');
 
-const server = http.createServer((request, response) => {
+const server = http.createServer(function (request, response) {
   console.log(`responding to ${request.url}`);
 
   response.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -39,7 +39,7 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(0, common.mustCall(() => {
-  http.get({ port: this.address().port }, common.mustCall((res) => {
+  http.get({ port: server.address().port }, common.mustCall((res) => {
     let response = '';
 
     assert.strictEqual(res.statusCode, 200);
