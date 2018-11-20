@@ -28,5 +28,5 @@
 // Flags: --allow-natives-syntax
 
 assertThrows("f()", ReferenceError);
-assertThrows("%f()", TypeError);
+assertThrows("%f()", Error);
 assertThrows("%_f()", SyntaxError);

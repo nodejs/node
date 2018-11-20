@@ -121,23 +121,23 @@ Strength.strongest = function (s1, s2) {
 
 Strength.prototype.nextWeaker = function () {
   switch (this.strengthValue) {
-    case 0: return Strength.WEAKEST;
-    case 1: return Strength.WEAK_DEFAULT;
-    case 2: return Strength.NORMAL;
-    case 3: return Strength.STRONG_DEFAULT;
-    case 4: return Strength.PREFERRED;
-    case 5: return Strength.REQUIRED;
+    case 0: return Strength.STRONG_PREFERRED;
+    case 1: return Strength.PREFERRED;
+    case 2: return Strength.STRONG_DEFAULT;
+    case 3: return Strength.NORMAL;
+    case 4: return Strength.WEAK_DEFAULT;
+    case 5: return Strength.WEAKEST;
   }
 }
 
 // Strength constants.
-Strength.REQUIRED        = new Strength(0, "required");
-Strength.STONG_PREFERRED = new Strength(1, "strongPreferred");
-Strength.PREFERRED       = new Strength(2, "preferred");
-Strength.STRONG_DEFAULT  = new Strength(3, "strongDefault");
-Strength.NORMAL          = new Strength(4, "normal");
-Strength.WEAK_DEFAULT    = new Strength(5, "weakDefault");
-Strength.WEAKEST         = new Strength(6, "weakest");
+Strength.REQUIRED         = new Strength(0, "required");
+Strength.STRONG_PREFERRED = new Strength(1, "strongPreferred");
+Strength.PREFERRED        = new Strength(2, "preferred");
+Strength.STRONG_DEFAULT   = new Strength(3, "strongDefault");
+Strength.NORMAL           = new Strength(4, "normal");
+Strength.WEAK_DEFAULT     = new Strength(5, "weakDefault");
+Strength.WEAKEST          = new Strength(6, "weakest");
 
 /* --- *
  * C o n s t r a i n t

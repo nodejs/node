@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node_dtrace.h"
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
@@ -26,7 +5,8 @@
 
 namespace node {
 
-using namespace v8;
+using v8::JitCodeEvent;
+using v8::V8;
 
 HMODULE advapi;
 REGHANDLE node_provider;
@@ -123,13 +103,16 @@ void CodeAddressNotification(const JitCodeEvent* jevent) {
 // Note: It is possible to call v8 from ETW thread, but then
 //       event callbacks are received in the same thread. Attempts
 //       to write ETW events in this thread will fail.
-void etw_events_change_async(uv_async_t* handle, int status) {
+void etw_events_change_async(uv_async_t* handle) {
   if (events_enabled > 0) {
     NODE_V8SYMBOL_RESET();
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,
-                               CodeAddressNotification);
+    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+        v8::kJitCodeEventEnumExisting,
+        CodeAddressNotification);
   } else {
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+        v8::kJitCodeEventDefault,
+        nullptr);
   }
 }
 
@@ -163,7 +146,7 @@ void NTAPI etw_events_enable_callback(
 void init_etw() {
   events_enabled = 0;
 
-  advapi = LoadLibrary("advapi32.dll");
+  advapi = LoadLibraryW(L"advapi32.dll");
   if (advapi) {
     event_register = (EventRegisterFunc)
       GetProcAddress(advapi, "EventRegister");
@@ -173,16 +156,16 @@ void init_etw() {
 
     // create async object used to invoke main thread from callback
     uv_async_init(uv_default_loop(),
-                &dispatch_etw_events_change_async,
-                etw_events_change_async);
-    uv_unref((uv_handle_t*) &dispatch_etw_events_change_async);
+                  &dispatch_etw_events_change_async,
+                  etw_events_change_async);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_etw_events_change_async));
 
-    if (event_register) {    
+    if (event_register) {
       DWORD status = event_register(&NODE_ETW_PROVIDER,
                                     etw_events_enable_callback,
-                                    NULL,
+                                    nullptr,
                                     &node_provider);
-      assert(status == ERROR_SUCCESS);
+      CHECK_EQ(status, ERROR_SUCCESS);
     }
   }
 }
@@ -195,11 +178,13 @@ void shutdown_etw() {
   }
 
   events_enabled = 0;
-  V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+  v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+      v8::kJitCodeEventDefault,
+      nullptr);
 
   if (advapi) {
     FreeLibrary(advapi);
-    advapi = NULL;
+    advapi = nullptr;
   }
 }
 }

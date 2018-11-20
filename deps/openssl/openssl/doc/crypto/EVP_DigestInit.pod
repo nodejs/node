@@ -4,10 +4,10 @@
 
 EVP_MD_CTX_init, EVP_MD_CTX_create, EVP_DigestInit_ex, EVP_DigestUpdate,
 EVP_DigestFinal_ex, EVP_MD_CTX_cleanup, EVP_MD_CTX_destroy, EVP_MAX_MD_SIZE,
-EVP_MD_CTX_copy_ex, EVP_MD_CTX_copy, EVP_MD_type, EVP_MD_pkey_type, EVP_MD_size,
-EVP_MD_block_size, EVP_MD_CTX_md, EVP_MD_CTX_size, EVP_MD_CTX_block_size, EVP_MD_CTX_type,
-EVP_md_null, EVP_md2, EVP_md5, EVP_sha, EVP_sha1, EVP_sha224, EVP_sha256,
-EVP_sha384, EVP_sha512, EVP_dss, EVP_dss1, EVP_mdc2,
+EVP_MD_CTX_copy_ex, EVP_DigestInit, EVP_DigestFinal, EVP_MD_CTX_copy, EVP_MD_type,
+EVP_MD_pkey_type, EVP_MD_size, EVP_MD_block_size, EVP_MD_CTX_md, EVP_MD_CTX_size,
+EVP_MD_CTX_block_size, EVP_MD_CTX_type, EVP_md_null, EVP_md2, EVP_md5, EVP_sha, EVP_sha1,
+EVP_sha224, EVP_sha256, EVP_sha384, EVP_sha512, EVP_dss, EVP_dss1, EVP_mdc2,
 EVP_ripemd160, EVP_get_digestbyname, EVP_get_digestbynid, EVP_get_digestbyobj -
 EVP digest routines
 
@@ -26,13 +26,13 @@ EVP digest routines
  int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx);
  void EVP_MD_CTX_destroy(EVP_MD_CTX *ctx);
 
- int EVP_MD_CTX_copy_ex(EVP_MD_CTX *out,const EVP_MD_CTX *in);  
+ int EVP_MD_CTX_copy_ex(EVP_MD_CTX *out,const EVP_MD_CTX *in);
 
  int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type);
  int EVP_DigestFinal(EVP_MD_CTX *ctx, unsigned char *md,
         unsigned int *s);
 
- int EVP_MD_CTX_copy(EVP_MD_CTX *out,EVP_MD_CTX *in);  
+ int EVP_MD_CTX_copy(EVP_MD_CTX *out,EVP_MD_CTX *in);
 
  #define EVP_MAX_MD_SIZE 64	/* SHA512 */
 
@@ -136,10 +136,10 @@ reasons.
 EVP_md2(), EVP_md5(), EVP_sha(), EVP_sha1(), EVP_sha224(), EVP_sha256(),
 EVP_sha384(), EVP_sha512(), EVP_mdc2() and EVP_ripemd160() return B<EVP_MD>
 structures for the MD2, MD5, SHA, SHA1, SHA224, SHA256, SHA384, SHA512, MDC2
-and RIPEMD160 digest algorithms respectively. 
+and RIPEMD160 digest algorithms respectively.
 
 EVP_dss() and EVP_dss1() return B<EVP_MD> structures for SHA and SHA1 digest
-algorithms but using DSS (DSA) for the signature algorithm. Note: there is 
+algorithms but using DSS (DSA) for the signature algorithm. Note: there is
 no need to use these pseudo-digests in OpenSSL 1.0.0 and later, they are
 however retained for compatibility.
 
@@ -161,9 +161,8 @@ EVP_MD_CTX_copy_ex() returns 1 if successful or 0 for failure.
 EVP_MD_type(), EVP_MD_pkey_type() and EVP_MD_type() return the NID of the
 corresponding OBJECT IDENTIFIER or NID_undef if none exists.
 
-EVP_MD_size(), EVP_MD_block_size(), EVP_MD_CTX_size(e), EVP_MD_size(),
-EVP_MD_CTX_block_size()	and EVP_MD_block_size() return the digest or block
-size in bytes.
+EVP_MD_size(), EVP_MD_block_size(), EVP_MD_CTX_size() and
+EVP_MD_CTX_block_size() return the digest or block size in bytes.
 
 EVP_md_null(), EVP_md2(), EVP_md5(), EVP_sha(), EVP_sha1(), EVP_dss(),
 EVP_dss1(), EVP_mdc2() and EVP_ripemd160() return pointers to the
@@ -178,21 +177,21 @@ The B<EVP> interface to message digests should almost always be used in
 preference to the low level interfaces. This is because the code then becomes
 transparent to the digest used and much more flexible.
 
-New applications should use the SHA2 digest algorithms such as SHA256. 
+New applications should use the SHA2 digest algorithms such as SHA256.
 The other digest algorithms are still in common use.
 
 For most applications the B<impl> parameter to EVP_DigestInit_ex() will be
 set to NULL to use the default digest implementation.
 
-The functions EVP_DigestInit(), EVP_DigestFinal() and EVP_MD_CTX_copy() are 
+The functions EVP_DigestInit(), EVP_DigestFinal() and EVP_MD_CTX_copy() are
 obsolete but are retained to maintain compatibility with existing code. New
-applications should use EVP_DigestInit_ex(), EVP_DigestFinal_ex() and 
+applications should use EVP_DigestInit_ex(), EVP_DigestFinal_ex() and
 EVP_MD_CTX_copy_ex() because they can efficiently reuse a digest context
 instead of initializing and cleaning it up on each call and allow non default
 implementations of digests to be specified.
 
 In OpenSSL 0.9.7 and later if digest contexts are not cleaned up after use
-memory leaks will occur. 
+memory leaks will occur.
 
 Stack allocation of EVP_MD_CTX structures is common, for example:
 
@@ -246,15 +245,19 @@ digest name passed on the command line.
  EVP_MD_CTX_destroy(mdctx);
 
  printf("Digest is: ");
- for(i = 0; i < md_len; i++) printf("%02x", md_value[i]);
+ for(i = 0; i < md_len; i++)
+ 	printf("%02x", md_value[i]);
  printf("\n");
+
+ /* Call this once before exit. */
+ EVP_cleanup();
+ exit(0);
  }
 
 =head1 SEE ALSO
 
-L<evp(3)|evp(3)>, L<hmac(3)|hmac(3)>, L<md2(3)|md2(3)>,
-L<md5(3)|md5(3)>, L<mdc2(3)|mdc2(3)>, L<ripemd(3)|ripemd(3)>,
-L<sha(3)|sha(3)>, L<dgst(1)|dgst(1)>
+L<dgst(1)|dgst(1)>,
+L<evp(3)|evp(3)>
 
 =head1 HISTORY
 
@@ -267,10 +270,10 @@ and EVP_DigestFinal_ex() were added in OpenSSL 0.9.7.
 
 EVP_md_null(), EVP_md2(), EVP_md5(), EVP_sha(), EVP_sha1(),
 EVP_dss(), EVP_dss1(), EVP_mdc2() and EVP_ripemd160() were
-changed to return truely const EVP_MD * in OpenSSL 0.9.7.
+changed to return truly const EVP_MD * in OpenSSL 0.9.7.
 
 The link between digests and signing algorithms was fixed in OpenSSL 1.0 and
-later, so now EVP_sha1() can be used with RSA and DSA, there is no need to
+later, so now EVP_sha1() can be used with RSA and DSA; there is no need to
 use EVP_dss1() any more.
 
 OpenSSL 1.0 and later does not include the MD2 digest algorithm in the

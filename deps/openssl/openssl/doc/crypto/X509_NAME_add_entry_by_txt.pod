@@ -44,7 +44,7 @@ B<loc>. The deleted entry is returned and must be freed up.
 =head1 NOTES
 
 The use of string types such as B<MBSTRING_ASC> or B<MBSTRING_UTF8>
-is strongly recommened for the B<type> parameter. This allows the
+is strongly recommended for the B<type> parameter. This allows the
 internal code to correctly determine the type of the field and to
 apply length checks according to the relevant standards. This is
 done using ASN1_STRING_set_by_NID().
@@ -81,14 +81,14 @@ Create an B<X509_NAME> structure:
  nm = X509_NAME_new();
  if (nm == NULL)
 	/* Some error */
- if (!X509_NAME_add_entry_by_txt(nm, MBSTRING_ASC,
-			"C", "UK", -1, -1, 0))
+ if (!X509_NAME_add_entry_by_txt(nm, "C", MBSTRING_ASC, 
+			"UK", -1, -1, 0))
 	/* Error */
- if (!X509_NAME_add_entry_by_txt(nm, MBSTRING_ASC,
-			"O", "Disorganized Organization", -1, -1, 0))
+ if (!X509_NAME_add_entry_by_txt(nm, "O", MBSTRING_ASC,
+			"Disorganized Organization", -1, -1, 0))
 	/* Error */
- if (!X509_NAME_add_entry_by_txt(nm, MBSTRING_ASC,
-			"CN", "Joe Bloggs", -1, -1, 0))
+ if (!X509_NAME_add_entry_by_txt(nm, "CN", MBSTRING_ASC,
+			"Joe Bloggs", -1, -1, 0))
 	/* Error */
 
 =head1 RETURN VALUES

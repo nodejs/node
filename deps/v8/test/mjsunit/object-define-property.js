@@ -27,7 +27,7 @@
 
 // Tests the object.defineProperty method - ES 15.2.3.6
 
-// Flags: --allow-natives-syntax --es5-readonly
+// Flags: --allow-natives-syntax
 
 // Check that an exception is thrown when null is passed as object.
 var exception = false;
@@ -467,35 +467,35 @@ try {
 }
 
 
-// Test runtime calls to DefineOrRedefineDataProperty and
-// DefineOrRedefineAccessorProperty - make sure we don't
+// Test runtime calls to DefineDataPropertyUnchecked and
+// DefineAccessorPropertyUnchecked - make sure we don't
 // crash.
 try {
-  %DefineOrRedefineAccessorProperty(0, 0, 0, 0, 0);
+  %DefineAccessorPropertyUnchecked(0, 0, 0, 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty(0, 0, 0, 0);
+  %DefineDataPropertyUnchecked(0, 0, 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty(null, null, null, null);
+  %DefineDataPropertyUnchecked(null, null, null, null);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineAccessorProperty(null, null, null, null, null);
+  %DefineAccessorPropertyUnchecked(null, null, null, null, null);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty({}, null, null, null);
+  %DefineDataPropertyUnchecked({}, null, null, null);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
@@ -503,13 +503,13 @@ try {
 // Defining properties null should fail even when we have
 // other allowed values
 try {
-  %DefineOrRedefineAccessorProperty(null, 'foo', func, null, 0);
+  %DefineAccessorPropertyUnchecked(null, 'foo', func, null, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
 
 try {
-  %DefineOrRedefineDataProperty(null, 'foo', 0, 0);
+  %DefineDataPropertyUnchecked(null, 'foo', 0, 0);
 } catch (e) {
   assertTrue(/illegal access/.test(e));
 }
@@ -918,6 +918,11 @@ assertFalse(desc.writable);
 assertFalse(desc.enumerable);
 assertFalse(desc.configurable);
 
+// Define non-array property, check that .length is unaffected.
+assertEquals(16, arr.length);
+Object.defineProperty(arr, '0x20', descElement);
+assertEquals(16, arr.length);
+
 // See issue 968: http://code.google.com/p/v8/issues/detail?id=968
 var o = { x : 42 };
 Object.defineProperty(o, "x", { writable: false });
@@ -1190,3 +1195,12 @@ Assign(new C);
 %OptimizeFunctionOnNextCall(Assign);
 Object.defineProperty(C.prototype, "blubb", {get: function() { return -42; }});
 Assign(new C);
+
+// Test that changes to the prototype of a simple constructor are not ignored,
+// even after creating initial instances.
+function C() {
+  this.x = 23;
+}
+assertEquals(23, new C().x);
+C.prototype.__defineSetter__('x', function(value) { this.y = 23; });
+assertEquals(void 0, new C().x);

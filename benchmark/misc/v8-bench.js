@@ -10,9 +10,13 @@ global.print = function(s) {
   console.log('misc/v8_bench.js %s', s);
 };
 
-global.load = function (x) {
-  var source = fs.readFileSync(path.join(dir, x), 'utf8');
-  vm.runInThisContext(source, x);
-}
+global.load = function(filename) {
+  var source = fs.readFileSync(path.join(dir, filename), 'utf8');
+  // deps/v8/benchmarks/regexp.js breaks console.log() because it clobbers
+  // the RegExp global,  Restore the original when the script is done.
+  var $RegExp = global.RegExp;
+  vm.runInThisContext(source, { filename: filename });
+  global.RegExp = $RegExp;
+};
 
 load('run.js');

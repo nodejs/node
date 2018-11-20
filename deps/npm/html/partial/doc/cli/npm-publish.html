@@ -1,0 +1,46 @@
+<h1><a href="../cli/npm-publish.html">npm-publish</a></h1> <p>Publish a package</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm publish &lt;tarball&gt; [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;]
+npm publish &lt;folder&gt; [--tag &lt;tag&gt;] [--access &lt;public|restricted&gt;]
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>Publishes a package to the registry so that it can be installed by name. See
+<code><a href="../misc/npm-developers.html">npm-developers(7)</a></code> for details on what&#39;s included in the published package, as
+well as details on how the package is built.</p>
+<p>By default npm will publish to the public registry. This can be overridden by
+specifying a different default registry or using a <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code> in the name
+(see <code><a href="../files/package.json.html">package.json(5)</a></code>).</p>
+<ul>
+<li><p><code>&lt;folder&gt;</code>:
+A folder containing a package.json file</p>
+</li>
+<li><p><code>&lt;tarball&gt;</code>:
+A url or file path to a gzipped tar archive containing a single folder
+with a package.json file inside.</p>
+</li>
+<li><p><code>[--tag &lt;tag&gt;]</code>
+Registers the published package with the given tag, such that <code>npm install
+&lt;name&gt;@&lt;tag&gt;</code> will install this version.  By default, <code>npm publish</code> updates
+and <code>npm install</code> installs the <code>latest</code> tag.</p>
+</li>
+<li><p><code>[--access &lt;public|restricted&gt;]</code>
+Tells the registry whether this package should be published as public or
+restricted. Only applies to scoped packages, which default to <code>restricted</code>.
+If you don&#39;t have a paid account, you must publish with <code>--access public</code>
+to publish scoped packages.</p>
+</li>
+</ul>
+<p>Fails if the package name and version combination already exists in
+the specified registry.</p>
+<p>Once a package is published with a given name and version, that
+specific name and version combination can never be used again, even if
+it is removed with <a href="../cli/npm-unpublish.html">npm-unpublish(1)</a>.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
+<li><a href="../misc/npm-scope.html">npm-scope(7)</a></li>
+<li><a href="../cli/npm-adduser.html">npm-adduser(1)</a></li>
+<li><a href="../cli/npm-owner.html">npm-owner(1)</a></li>
+<li><a href="../cli/npm-deprecate.html">npm-deprecate(1)</a></li>
+<li><a href="../cli/npm-tag.html">npm-tag(1)</a></li>
+</ul>
+

@@ -12,6 +12,9 @@ B<openssl> B<verify>
 [B<-purpose purpose>]
 [B<-policy arg>]
 [B<-ignore_critical>]
+[B<-attime timestamp>]
+[B<-check_ss_sig>]
+[B<-crlfile file>]
 [B<-crl_check>]
 [B<-crl_check_all>]
 [B<-policy_check>]
@@ -47,9 +50,28 @@ of the B<x509> utility). Under Unix the B<c_rehash> script will automatically
 create symbolic links to a directory of certificates.
 
 =item B<-CAfile file>
-
 A file of trusted certificates. The file should contain multiple certificates
 in PEM format concatenated together.
+
+=item B<-attime timestamp>
+
+Perform validation checks using time specified by B<timestamp> and not
+current system time. B<timestamp> is the number of seconds since
+01.01.1970 (UNIX time).
+
+=item B<-check_ss_sig>
+
+Verify the signature on the self-signed root CA. This is disabled by default
+because it doesn't add any security.
+
+=item B<-crlfile file>
+
+File containing one or more CRL's (in PEM format) to load.
+
+=item B<-crl_check>
+
+Checks end entity certificate validity by attempting to look up a valid CRL.
+If a valid CRL cannot be found an error occurs.
 
 =item B<-untrusted file>
 
@@ -386,7 +408,7 @@ an application specific error. Unused.
 
 =head1 BUGS
 
-Although the issuer checks are a considerably improvement over the old technique they still
+Although the issuer checks are a considerable improvement over the old technique they still
 suffer from limitations in the underlying X509_LOOKUP API. One consequence of this is that
 trusted certificates with matching subject name must either appear in a file (as specified by the
 B<-CAfile> option) or a directory (as specified by B<-CApath>. If they occur in both then only

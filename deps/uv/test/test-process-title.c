@@ -26,24 +26,28 @@
 
 static void set_title(const char* title) {
   char buffer[512];
-  uv_err_t err;
+  int err;
 
   err = uv_get_process_title(buffer, sizeof(buffer));
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   err = uv_set_process_title(title);
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   err = uv_get_process_title(buffer, sizeof(buffer));
-  ASSERT(UV_OK == err.code);
+  ASSERT(err == 0);
 
   ASSERT(strcmp(buffer, title) == 0);
 }
 
 
 TEST_IMPL(process_title) {
+#if defined(__sun)
+  RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
+#else
   /* Check for format string vulnerabilities. */
-  set_title("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s");
+  set_title("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s");
   set_title("new title");
   return 0;
+#endif
 }

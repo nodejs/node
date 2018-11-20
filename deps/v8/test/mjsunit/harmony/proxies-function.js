@@ -53,8 +53,7 @@ var receiver
 
 function TestCall(isStrict, callTrap) {
   assertEquals(42, callTrap(5, 37))
-  // TODO(rossberg): strict mode seems to be broken on x64...
-  // assertSame(isStrict ? undefined : global_object, receiver)
+  assertSame(isStrict ? undefined : global_object, receiver)
 
   var handler = {
     get: function(r, k) {
@@ -67,8 +66,7 @@ function TestCall(isStrict, callTrap) {
 
   receiver = 333
   assertEquals(42, f(11, 31))
-  // TODO(rossberg): strict mode seems to be broken on x64...
-  // assertSame(isStrict ? undefined : global_object, receiver)
+  assertSame(isStrict ? undefined : global_object, receiver)
   receiver = 333
   assertEquals(42, o.f(10, 32))
   assertSame(o, receiver)
@@ -709,7 +707,7 @@ function TestCalls() {
     function(f, x, y, o) { if (typeof o == "object") return (1, o)["f"](x, y) },
   ]
   var receivers = [o, global_object, undefined, null, 2, "bla", true]
-  var expectedNonStricts = [o, global_object, global_object, global_object]
+  var expectedSloppies = [o, global_object, global_object, global_object]
 
   for (var t = 0; t < traps.length; ++t) {
     for (var i = 0; i < creates.length; ++i) {
@@ -721,7 +719,7 @@ function TestCalls() {
               var receiver = receivers[n]
               var func = binds[j](creates[i](traps[t]), bound, 31, 11)
               var expected = j > 0 ? bound : receiver
-              var expectedNonStrict = expectedNonStricts[j > 0 ? m : n]
+              var expectedSloppy = expectedSloppies[j > 0 ? m : n]
               o.f = func
               global_object.f = func
               var x = calls[k](func, 11, 31, receiver)
@@ -731,10 +729,10 @@ function TestCalls() {
                   assertSame(x.strict ? undefined : global_object, x.receiver)
                 else if (x.strict)
                   assertSame(expected, x.receiver)
-                else if (expectedNonStrict === undefined)
+                else if (expectedSloppy === undefined)
                   assertSame(expected, x.receiver.valueOf())
                 else
-                  assertSame(expectedNonStrict, x.receiver)
+                  assertSame(expectedSloppy, x.receiver)
               }
             }
           }
@@ -746,3 +744,31 @@ function TestCalls() {
 
 TestCalls()
 */
+
+var realms = [Realm.create(), Realm.create()];
+Realm.shared = {};
+
+Realm.eval(realms[0], "function f() { return this; };");
+Realm.eval(realms[0], "Realm.shared.f = f;");
+Realm.eval(realms[0], "Realm.shared.fg = this;");
+Realm.eval(realms[1], "function g() { return this; };");
+Realm.eval(realms[1], "Realm.shared.g = g;");
+Realm.eval(realms[1], "Realm.shared.gg = this;");
+
+var fp = Proxy.createFunction({}, Realm.shared.f);
+var gp = Proxy.createFunction({}, Realm.shared.g);
+
+for (var i = 0; i < 10; i++) {
+  assertEquals(Realm.shared.fg, fp());
+  assertEquals(Realm.shared.gg, gp());
+
+  with (this) {
+    assertEquals(this, fp());
+    assertEquals(this, gp());
+  }
+
+  with ({}) {
+    assertEquals(Realm.shared.fg, fp());
+    assertEquals(Realm.shared.gg, gp());
+  }
+}

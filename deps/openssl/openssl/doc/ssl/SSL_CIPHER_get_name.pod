@@ -23,8 +23,12 @@ SSL_CIPHER_get_bits() returns the number of secret bits used for B<cipher>. If
 B<alg_bits> is not NULL, it contains the number of bits processed by the
 chosen algorithm. If B<cipher> is NULL, 0 is returned.
 
-SSL_CIPHER_get_version() returns the protocol version for B<cipher>, currently
-"SSLv2", "SSLv3", or "TLSv1". If B<cipher> is NULL, "(NONE)" is returned.
+SSL_CIPHER_get_version() returns string which indicates the SSL/TLS protocol
+version that first defined the cipher.
+This is currently B<SSLv2> or B<TLSv1/SSLv3>.
+In some cases it should possibly return "TLSv1.2" but does not;
+use SSL_CIPHER_description() instead.
+If B<cipher> is NULL, "(NONE)" is returned.
 
 SSL_CIPHER_description() returns a textual description of the cipher used
 into the buffer B<buf> of length B<len> provided. B<len> must be at least
@@ -52,7 +56,8 @@ Textual representation of the cipher name.
 
 =item <protocol version>
 
-Protocol version: B<SSLv2>, B<SSLv3>. The TLSv1 ciphers are flagged with SSLv3.
+Protocol version: B<SSLv2>, B<SSLv3>, B<TLSv1.2>. The TLSv1.0 ciphers are
+flagged with SSLv3. No new ciphers were added by TLSv1.1.
 
 =item Kx=<key exchange>
 
@@ -91,6 +96,10 @@ Some examples for the output of SSL_CIPHER_description():
  RC4-MD5                 SSLv3 Kx=RSA      Au=RSA  Enc=RC4(128)  Mac=MD5
  EXP-RC4-MD5             SSLv3 Kx=RSA(512) Au=RSA  Enc=RC4(40)   Mac=MD5  export
 
+A comp[lete list can be retrieved by invoking the following command:
+
+ openssl ciphers -v ALL
+
 =head1 BUGS
 
 If SSL_CIPHER_description() is called with B<cipher> being NULL, the
@@ -100,6 +109,16 @@ If SSL_CIPHER_description() cannot handle a built-in cipher, the according
 description of the cipher property is B<unknown>. This case should not
 occur.
 
+The standard terminology for ephemeral Diffie-Hellman schemes is DHE
+(finite field) or ECDHE (elliptic curve).  This version of OpenSSL
+idiosyncratically reports these schemes as EDH and EECDH, even though
+it also accepts the standard terminology.
+
+It is recommended to use the standard terminology (DHE and ECDHE)
+during configuration (e.g. via SSL_CTX_set_cipher_list) for clarity of
+configuration.  OpenSSL versions after 1.0.2 will report the standard
+terms via SSL_CIPHER_get_name and SSL_CIPHER_description.
+
 =head1 RETURN VALUES
 
 See DESCRIPTION
@@ -107,6 +126,7 @@ See DESCRIPTION
 =head1 SEE ALSO
 
 L<ssl(3)|ssl(3)>, L<SSL_get_current_cipher(3)|SSL_get_current_cipher(3)>,
-L<SSL_get_ciphers(3)|SSL_get_ciphers(3)>, L<ciphers(1)|ciphers(1)>
+L<SSL_get_ciphers(3)|SSL_get_ciphers(3)>, L<ciphers(1)|ciphers(1)>,
+L<SSL_CTX_set_cipher_list(3)|SSL_CTX_set_cipher_list(3)>
 
 =cut

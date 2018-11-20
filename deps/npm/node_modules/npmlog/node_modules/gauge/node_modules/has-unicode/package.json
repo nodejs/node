@@ -1,0 +1,52 @@
+{
+  "name": "has-unicode",
+  "version": "1.0.0",
+  "description": "Try to guess if your terminal supports unicode",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iarna/has-unicode"
+  },
+  "keywords": [
+    "unicode",
+    "terminal"
+  ],
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/iarna/has-unicode/issues"
+  },
+  "homepage": "https://github.com/iarna/has-unicode",
+  "devDependencies": {
+    "require-inject": "^1.1.1",
+    "tap": "^0.4.13"
+  },
+  "gitHead": "a8c3dcf3be5f0c8f8e26a3e7ffea7da24344a006",
+  "_id": "has-unicode@1.0.0",
+  "_shasum": "bac5c44e064c2ffc3b8fcbd8c71afe08f9afc8cc",
+  "_from": "has-unicode@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.1.11",
+  "_nodeVersion": "0.10.33",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "dist": {
+    "shasum": "bac5c44e064c2ffc3b8fcbd8c71afe08f9afc8cc",
+    "tarball": "http://registry.npmjs.org/has-unicode/-/has-unicode-1.0.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/has-unicode/-/has-unicode-1.0.0.tgz"
+}

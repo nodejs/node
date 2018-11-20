@@ -1,0 +1,64 @@
+{
+  "name": "sntp",
+  "description": "SNTP Client",
+  "version": "1.0.9",
+  "author": {
+    "name": "Eran Hammer",
+    "email": "eran@hammer.io",
+    "url": "http://hueniverse.com"
+  },
+  "contributors": [],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hueniverse/sntp"
+  },
+  "main": "index",
+  "keywords": [
+    "sntp",
+    "ntp",
+    "time"
+  ],
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "dependencies": {
+    "hoek": "2.x.x"
+  },
+  "devDependencies": {
+    "lab": "4.x.x"
+  },
+  "scripts": {
+    "test": "make test-cov"
+  },
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "http://github.com/hueniverse/sntp/raw/master/LICENSE"
+    }
+  ],
+  "gitHead": "ee2e35284f684609990681734d39010cd356d7da",
+  "bugs": {
+    "url": "https://github.com/hueniverse/sntp/issues"
+  },
+  "homepage": "https://github.com/hueniverse/sntp",
+  "_id": "sntp@1.0.9",
+  "_shasum": "6541184cc90aeea6c6e7b35e2659082443c66198",
+  "_from": "sntp@>=1.0.0 <2.0.0",
+  "_npmVersion": "1.4.23",
+  "_npmUser": {
+    "name": "hueniverse",
+    "email": "eran@hueniverse.com"
+  },
+  "maintainers": [
+    {
+      "name": "hueniverse",
+      "email": "eran@hueniverse.com"
+    }
+  ],
+  "dist": {
+    "shasum": "6541184cc90aeea6c6e7b35e2659082443c66198",
+    "tarball": "http://registry.npmjs.org/sntp/-/sntp-1.0.9.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/sntp/-/sntp-1.0.9.tgz"
+}

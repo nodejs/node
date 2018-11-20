@@ -150,7 +150,7 @@ assertTrue(isNaN(l.getUTCMilliseconds()));
 // date without the timezone information.
 function testToLocaleTimeString() {
   var d = new Date();
-  var s = d.toLocaleTimeString();
+  var s = d.toLocaleTimeString("en-GB");
   assertEquals(8, s.length);
 }
 
@@ -333,11 +333,10 @@ date.getTime();
 date.getTime();
 %OptimizeFunctionOnNextCall(Date.prototype.getTime);
 assertThrows(function() { Date.prototype.getTime.call(""); }, TypeError);
-assertTrue(%GetOptimizationStatus(Date.prototype.getTime) != 1);
+assertUnoptimized(Date.prototype.getTime);
 
 date.getYear();
 date.getYear();
 %OptimizeFunctionOnNextCall(Date.prototype.getYear);
 assertThrows(function() { Date.prototype.getYear.call(""); }, TypeError);
-opt_status = %GetOptimizationStatus(Date.prototype.getYear);
-assertTrue(%GetOptimizationStatus(Date.prototype.getTime) != 1);
+assertUnoptimized(Date.prototype.getYear);

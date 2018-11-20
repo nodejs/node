@@ -124,15 +124,6 @@ def Update():
   scriptname = os.path.abspath(sys.argv[0])
   _Cmd("svn cat %s > %s" % (path, scriptname))
 
-  # The testcfg.py files currently need to be able to import the old test.py
-  # script, so we temporarily need to make that available.
-  # TODO(jkummerow): Remove this when removing test.py.
-  for filename in ("test.py", "utils.py"):
-    url = ("http://v8.googlecode.com/svn/branches/bleeding_edge/"
-           "tools/%s" % filename)
-    filepath = os.path.join(os.path.dirname(scriptname), filename)
-    _Cmd("svn cat %s > %s" % (url, filepath))
-
   # Check out or update V8.
   v8_dir = os.path.join(ROOT, "v8")
   if os.path.exists(v8_dir):

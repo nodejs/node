@@ -1,0 +1,54 @@
+{
+  "name": "char-spinner",
+  "version": "1.0.1",
+  "description": "Put a little spinner on process.stderr, as unobtrusively as possible.",
+  "main": "spin.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "^0.4.10"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/char-spinner"
+  },
+  "keywords": [
+    "char",
+    "spinner"
+  ],
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/isaacs/char-spinner/issues"
+  },
+  "homepage": "https://github.com/isaacs/char-spinner",
+  "gitHead": "091b2ff5960aa083f68a5619fa93999d072aa152",
+  "_id": "char-spinner@1.0.1",
+  "_shasum": "e6ea67bd247e107112983b7ab0479ed362800081",
+  "_from": "char-spinner@latest",
+  "_npmVersion": "1.4.13",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "dist": {
+    "shasum": "e6ea67bd247e107112983b7ab0479ed362800081",
+    "tarball": "http://registry.npmjs.org/char-spinner/-/char-spinner-1.0.1.tgz"
+  },
+  "_resolved": "https://registry.npmjs.org/char-spinner/-/char-spinner-1.0.1.tgz"
+}

@@ -29,4 +29,3 @@
 
 assertThrows(function() { %_CallFunction(null, 0, ""); });
 assertThrows(function() { %_CallFunction(null, 0, 1); });
-

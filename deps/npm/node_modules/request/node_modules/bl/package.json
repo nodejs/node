@@ -1,0 +1,61 @@
+{
+  "name": "bl",
+  "version": "0.9.4",
+  "description": "Buffer List: collect buffers and access with a standard readable Buffer interface, streamable too!",
+  "main": "bl.js",
+  "scripts": {
+    "test": "node test/test.js | faucet",
+    "test-local": "brtapsauce-local test/basic-test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rvagg/bl.git"
+  },
+  "homepage": "https://github.com/rvagg/bl",
+  "authors": [
+    "Rod Vagg <rod@vagg.org> (https://github.com/rvagg)",
+    "Matteo Collina <matteo.collina@gmail.com> (https://github.com/mcollina)",
+    "Jarett Cruger <jcrugzz@gmail.com> (https://github.com/jcrugzz)"
+  ],
+  "keywords": [
+    "buffer",
+    "buffers",
+    "stream",
+    "awesomesauce"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "readable-stream": "~1.0.26"
+  },
+  "devDependencies": {
+    "tape": "~2.12.3",
+    "hash_file": "~0.1.1",
+    "faucet": "~0.0.1",
+    "brtapsauce": "~0.3.0"
+  },
+  "gitHead": "e7f90703c5f90ca26f60455ea6ad0b6be4a9feee",
+  "bugs": {
+    "url": "https://github.com/rvagg/bl/issues"
+  },
+  "_id": "bl@0.9.4",
+  "_shasum": "4702ddf72fbe0ecd82787c00c113aea1935ad0e7",
+  "_from": "bl@>=0.9.0 <0.10.0",
+  "_npmVersion": "2.1.18",
+  "_nodeVersion": "1.0.3",
+  "_npmUser": {
+    "name": "rvagg",
+    "email": "rod@vagg.org"
+  },
+  "maintainers": [
+    {
+      "name": "rvagg",
+      "email": "rod@vagg.org"
+    }
+  ],
+  "dist": {
+    "shasum": "4702ddf72fbe0ecd82787c00c113aea1935ad0e7",
+    "tarball": "http://registry.npmjs.org/bl/-/bl-0.9.4.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/bl/-/bl-0.9.4.tgz"
+}

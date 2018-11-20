@@ -41,27 +41,28 @@ static int sv_recv_cb_called;
 static int close_cb_called;
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
   static char slab[65536];
-
   CHECK_HANDLE(handle);
-  ASSERT(suggested_size <= sizeof slab);
-
-  return uv_buf_init(slab, sizeof slab);
+  ASSERT(suggested_size <= sizeof(slab));
+  buf->base = slab;
+  buf->len = sizeof(slab);
 }
 
 
 static void close_cb(uv_handle_t* handle) {
   CHECK_HANDLE(handle);
-  ASSERT(uv_is_closing(handle));
+  ASSERT(1 == uv_is_closing(handle));
   close_cb_called++;
 }
 
 
 static void cl_recv_cb(uv_udp_t* handle,
                        ssize_t nread,
-                       uv_buf_t buf,
-                       struct sockaddr* addr,
+                       const uv_buf_t* buf,
+                       const struct sockaddr* addr,
                        unsigned flags) {
   CHECK_HANDLE(handle);
   ASSERT(flags == 0);
@@ -79,7 +80,7 @@ static void cl_recv_cb(uv_udp_t* handle,
 
   ASSERT(addr != NULL);
   ASSERT(nread == 4);
-  ASSERT(!memcmp("PONG", buf.base, nread));
+  ASSERT(!memcmp("PONG", buf->base, nread));
 
   cl_recv_cb_called++;
 
@@ -115,10 +116,11 @@ static void sv_send_cb(uv_udp_send_t* req, int status) {
 
 static void sv_recv_cb(uv_udp_t* handle,
                        ssize_t nread,
-                       uv_buf_t buf,
-                       struct sockaddr* addr,
+                       const uv_buf_t* rcvbuf,
+                       const struct sockaddr* addr,
                        unsigned flags) {
   uv_udp_send_t* req;
+  uv_buf_t sndbuf;
   int r;
 
   if (nread < 0) {
@@ -137,7 +139,7 @@ static void sv_recv_cb(uv_udp_t* handle,
 
   ASSERT(addr != NULL);
   ASSERT(nread == 4);
-  ASSERT(!memcmp("PING", buf.base, nread));
+  ASSERT(!memcmp("PING", rcvbuf->base, nread));
 
   /* FIXME? `uv_udp_recv_stop` does what it says: recv_cb is not called
     * anymore. That's problematic because the read buffer won't be returned
@@ -149,14 +151,8 @@ static void sv_recv_cb(uv_udp_t* handle,
   req = malloc(sizeof *req);
   ASSERT(req != NULL);
 
-  buf = uv_buf_init("PONG", 4);
-
-  r = uv_udp_send(req,
-                  handle,
-                  &buf,
-                  1,
-                  *(struct sockaddr_in*)addr,
-                  sv_send_cb);
+  sndbuf = uv_buf_init("PONG", 4);
+  r = uv_udp_send(req, handle, &sndbuf, 1, addr, sv_send_cb);
   ASSERT(r == 0);
 
   sv_recv_cb_called++;
@@ -169,18 +165,18 @@ TEST_IMPL(udp_send_and_recv) {
   uv_buf_t buf;
   int r;
 
-  addr = uv_ip4_addr("0.0.0.0", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
-  r = uv_udp_bind(&server, addr, 0);
+  r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&server, alloc_cb, sv_recv_cb);
   ASSERT(r == 0);
 
-  addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
@@ -188,7 +184,12 @@ TEST_IMPL(udp_send_and_recv) {
   /* client sends "PING", expects "PONG" */
   buf = uv_buf_init("PING", 4);
 
-  r = uv_udp_send(&req, &client, &buf, 1, addr, cl_send_cb);
+  r = uv_udp_send(&req,
+                  &client,
+                  &buf,
+                  1,
+                  (const struct sockaddr*) &addr,
+                  cl_send_cb);
   ASSERT(r == 0);
 
   ASSERT(close_cb_called == 0);
@@ -204,6 +205,9 @@ TEST_IMPL(udp_send_and_recv) {
   ASSERT(sv_send_cb_called == 1);
   ASSERT(sv_recv_cb_called == 1);
   ASSERT(close_cb_called == 2);
+
+  ASSERT(client.send_queue_size == 0);
+  ASSERT(server.send_queue_size == 0);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

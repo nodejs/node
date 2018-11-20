@@ -1,36 +1,61 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 var fs = require('fs');
 var marked = require('marked');
 var path = require('path');
+var preprocess = require('./preprocess.js');
 
 module.exports = toHTML;
 
+// TODO(chrisdickinson): never stop vomitting / fix this.
+var gtocPath = path.resolve(path.join(__dirname, '..', '..', 'doc', 'api', '_toc.markdown'));
+var gtocLoading = null;
+var gtocData = null;
+
 function toHTML(input, filename, template, cb) {
-  var lexed = marked.lexer(input);
-  fs.readFile(template, 'utf8', function(er, template) {
-    if (er) return cb(er);
-    render(lexed, filename, template, cb);
+  if (gtocData) {
+    return onGtocLoaded();
+  }
+
+  if (gtocLoading === null) {
+    gtocLoading = [onGtocLoaded];
+    return loadGtoc(function(err, data) {
+      if (err) throw err;
+      gtocData = data;
+      gtocLoading.forEach(function(xs) {
+        xs();
+      });
+    });
+  }
+
+  if (gtocLoading) {
+    return gtocLoading.push(onGtocLoaded);
+  }
+
+  function onGtocLoaded() {
+    var lexed = marked.lexer(input);
+    fs.readFile(template, 'utf8', function(er, template) {
+      if (er) return cb(er);
+      render(lexed, filename, template, cb);
+    });
+  }
+}
+
+function loadGtoc(cb) {
+  fs.readFile(gtocPath, 'utf8', function(err, data) {
+    if (err) return cb(err);
+
+    preprocess(gtocPath, data, function(err, data) {
+      if (err) return cb(err);
+
+      data = marked(data).replace(/<a href="(.*?)"/gm, function(a, m) {
+        return '<a class="nav-' + toID(m) + '" href="' + m + '"';
+      });
+      return cb(null, data);
+    });
   });
+}
+
+function toID(filename) {
+  return filename.replace('.html', '').replace(/[^\w\-]/g, '-').replace(/-+/g, '-');
 }
 
 function render(lexed, filename, template, cb) {
@@ -46,10 +71,17 @@ function render(lexed, filename, template, cb) {
   buildToc(lexed, filename, function(er, toc) {
     if (er) return cb(er);
 
+    var id = toID(path.basename(filename));
+
+    template = template.replace(/__ID__/g, id);
     template = template.replace(/__FILENAME__/g, filename);
     template = template.replace(/__SECTION__/g, section);
     template = template.replace(/__VERSION__/g, process.version);
     template = template.replace(/__TOC__/g, toc);
+    template = template.replace(
+      /__GTOC__/g,
+      gtocData.replace('class="nav-' + id, 'class="nav-' + id + ' active')
+    );
 
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
@@ -122,9 +154,15 @@ function parseLists(input) {
 
 
 function parseListItem(text) {
-  text = text.replace(/\{([^\}]+)\}/, '<span class="type">$1</span>');
+  var parts = text.split('`');
+  var i;
+
+  for (i = 0; i < parts.length; i += 2) {
+    parts[i] = parts[i].replace(/\{([^\}]+)\}/, '<span class="type">$1</span>');
+  }
+
   //XXX maybe put more stuff here?
-  return text;
+  return parts.join('`');
 }
 
 function parseAPIHeader(text) {

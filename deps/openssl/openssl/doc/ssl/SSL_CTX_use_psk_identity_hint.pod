@@ -81,7 +81,14 @@ SSL_CTX_use_psk_identity_hint() and SSL_use_psk_identity_hint() return
 
 Return values from the server callback are interpreted as follows:
 
-=item > 0
+=over 4
+
+=item Z<>0
+
+PSK identity was not found. An "unknown_psk_identity" alert message
+will be sent and the connection setup fails.
+
+=item E<gt>0
 
 PSK identity was found and the server callback has provided the PSK
 successfully in parameter B<psk>. Return value is the length of
@@ -94,9 +101,6 @@ data to B<psk> and return the length of the random data, so the
 connection will fail with decryption_error before it will be finished
 completely.
 
-=item 0
-
-PSK identity was not found. An "unknown_psk_identity" alert message
-will be sent and the connection setup fails.
+=back
 
 =cut

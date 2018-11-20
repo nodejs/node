@@ -29,8 +29,21 @@
 import imp
 import os
 
+from . import commands
 from . import statusfile
 from . import utils
+from ..objects import testcase
+
+# Use this to run several variants of the tests.
+VARIANT_FLAGS = {
+    "default": [],
+    "stress": ["--stress-opt", "--always-opt"],
+    "turbofan": ["--turbo-deoptimization", "--turbo-filter=*", "--always-opt"],
+    "nocrankshaft": ["--nocrankshaft"]}
+
+FAST_VARIANT_FLAGS = [
+    f for v, f in VARIANT_FLAGS.iteritems() if v in ["default", "turbofan"]
+]
 
 class TestSuite(object):
 
@@ -41,11 +54,13 @@ class TestSuite(object):
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
       module = imp.load_module("testcfg", f, pathname, description)
-      suite = module.GetSuite(name, root)
+      return module.GetSuite(name, root)
+    except:
+      # Use default if no testcfg is present.
+      return GoogleTestSuite(name, root)
     finally:
       if f:
         f.close()
-    return suite
 
   def __init__(self, name, root):
     self.name = name  # string
@@ -66,13 +81,20 @@ class TestSuite(object):
 
   # Used in the status file and for stdout printing.
   def CommonTestName(self, testcase):
-    return testcase.path
+    if utils.IsWindows():
+      return testcase.path.replace("\\", "/")
+    else:
+      return testcase.path
 
   def ListTests(self, context):
     raise NotImplementedError
 
-  def VariantFlags(self):
-    return None
+  def VariantFlags(self, testcase, default_flags):
+    if testcase.outcomes and statusfile.OnlyStandardVariant(testcase.outcomes):
+      return [[]]
+    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
+      return filter(lambda flags: flags in FAST_VARIANT_FLAGS, default_flags)
+    return default_flags
 
   def DownloadData(self):
     pass
@@ -84,32 +106,58 @@ class TestSuite(object):
   def ReadTestCases(self, context):
     self.tests = self.ListTests(context)
 
-  def FilterTestCasesByStatus(self, warn_unused_rules):
+  @staticmethod
+  def _FilterFlaky(flaky, mode):
+    return (mode == "run" and not flaky) or (mode == "skip" and flaky)
+
+  @staticmethod
+  def _FilterSlow(slow, mode):
+    return (mode == "run" and not slow) or (mode == "skip" and slow)
+
+  @staticmethod
+  def _FilterPassFail(pass_fail, mode):
+    return (mode == "run" and not pass_fail) or (mode == "skip" and pass_fail)
+
+  def FilterTestCasesByStatus(self, warn_unused_rules,
+                              flaky_tests="dontcare",
+                              slow_tests="dontcare",
+                              pass_fail_tests="dontcare"):
     filtered = []
     used_rules = set()
     for t in self.tests:
+      flaky = False
+      slow = False
+      pass_fail = False
       testname = self.CommonTestName(t)
-      if utils.IsWindows():
-        testname = testname.replace("\\", "/")
       if testname in self.rules:
         used_rules.add(testname)
-        outcomes = self.rules[testname]
-        t.outcomes = outcomes  # Even for skipped tests, as the TestCase
-        # object stays around and PrintReport() uses it.
-        if statusfile.DoSkip(outcomes):
+        # Even for skipped tests, as the TestCase object stays around and
+        # PrintReport() uses it.
+        t.outcomes = self.rules[testname]
+        if statusfile.DoSkip(t.outcomes):
           continue  # Don't add skipped tests to |filtered|.
-      if len(self.wildcards) != 0:
-        skip = False
-        for rule in self.wildcards:
-          assert rule[-1] == '*'
-          if testname.startswith(rule[:-1]):
-            used_rules.add(rule)
-            outcomes = self.wildcards[rule]
-            t.outcomes = outcomes
-            if statusfile.DoSkip(outcomes):
-              skip = True
-              break  # "for rule in self.wildcards"
-        if skip: continue  # "for t in self.tests"
+        for outcome in t.outcomes:
+          if outcome.startswith('Flags: '):
+            t.flags += outcome[7:].split()
+        flaky = statusfile.IsFlaky(t.outcomes)
+        slow = statusfile.IsSlow(t.outcomes)
+        pass_fail = statusfile.IsPassOrFail(t.outcomes)
+      skip = False
+      for rule in self.wildcards:
+        assert rule[-1] == '*'
+        if testname.startswith(rule[:-1]):
+          used_rules.add(rule)
+          t.outcomes = self.wildcards[rule]
+          if statusfile.DoSkip(t.outcomes):
+            skip = True
+            break  # "for rule in self.wildcards"
+          flaky = flaky or statusfile.IsFlaky(t.outcomes)
+          slow = slow or statusfile.IsSlow(t.outcomes)
+          pass_fail = pass_fail or statusfile.IsPassOrFail(t.outcomes)
+      if (skip or self._FilterFlaky(flaky, flaky_tests)
+          or self._FilterSlow(slow, slow_tests)
+          or self._FilterPassFail(pass_fail, pass_fail_tests)):
+        continue  # "for t in self.tests"
       filtered.append(t)
     self.tests = filtered
 
@@ -162,18 +210,19 @@ class TestSuite(object):
     else:
       return execution_failed
 
-  def HasUnexpectedOutput(self, testcase):
+  def GetOutcome(self, testcase):
     if testcase.output.HasCrashed():
-      outcome = statusfile.CRASH
+      return statusfile.CRASH
     elif testcase.output.HasTimedOut():
-      outcome = statusfile.TIMEOUT
+      return statusfile.TIMEOUT
     elif self.HasFailed(testcase):
-      outcome = statusfile.FAIL
+      return statusfile.FAIL
     else:
-      outcome = statusfile.PASS
-    if not testcase.outcomes:
-      return outcome != statusfile.PASS
-    return not outcome in testcase.outcomes
+      return statusfile.PASS
+
+  def HasUnexpectedOutput(self, testcase):
+    outcome = self.GetOutcome(testcase)
+    return not outcome in (testcase.outcomes or [statusfile.PASS])
 
   def StripOutputForTransmit(self, testcase):
     if not self.HasUnexpectedOutput(testcase):
@@ -185,3 +234,40 @@ class TestSuite(object):
     for t in self.tests:
       self.total_duration += t.duration
     return self.total_duration
+
+
+class GoogleTestSuite(TestSuite):
+  def __init__(self, name, root):
+    super(GoogleTestSuite, self).__init__(name, root)
+
+  def ListTests(self, context):
+    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
+    if utils.IsWindows():
+      shell += ".exe"
+    output = commands.Execute(context.command_prefix +
+                              [shell, "--gtest_list_tests"] +
+                              context.extra_flags)
+    if output.exit_code != 0:
+      print output.stdout
+      print output.stderr
+      raise Exception("Test executable failed to list the tests.")
+    tests = []
+    test_case = ''
+    for line in output.stdout.splitlines():
+      test_desc = line.strip().split()[0]
+      if test_desc.endswith('.'):
+        test_case = test_desc
+      elif test_case and test_desc:
+        test = testcase.TestCase(self, test_case + test_desc, dependency=None)
+        tests.append(test)
+    tests.sort()
+    return tests
+
+  def GetFlagsForTestCase(self, testcase, context):
+    return (testcase.flags + ["--gtest_filter=" + testcase.path] +
+            ["--gtest_random_seed=%s" % context.random_seed] +
+            ["--gtest_print_time=0"] +
+            context.mode_flags)
+
+  def shell(self):
+    return self.name

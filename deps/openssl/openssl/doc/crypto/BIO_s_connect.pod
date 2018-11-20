@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-BIO_s_connect, BIO_set_conn_hostname, BIO_set_conn_port,
+BIO_s_connect, BIO_new_connect, BIO_set_conn_hostname, BIO_set_conn_port,
 BIO_set_conn_ip, BIO_set_conn_int_port, BIO_get_conn_hostname,
 BIO_get_conn_port, BIO_get_conn_ip, BIO_get_conn_int_port,
 BIO_set_nbio, BIO_do_connect - connect BIO

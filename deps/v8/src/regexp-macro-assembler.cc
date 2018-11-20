@@ -1,65 +1,34 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
-#include "ast.h"
-#include "assembler.h"
-#include "regexp-stack.h"
-#include "regexp-macro-assembler.h"
-#include "simulator.h"
+#include "src/v8.h"
+
+#include "src/assembler.h"
+#include "src/ast.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {
 
-RegExpMacroAssembler::RegExpMacroAssembler(Zone* zone)
-  : slow_safe_compiler_(false),
-    global_mode_(NOT_GLOBAL),
-    zone_(zone) {
-}
+RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
+    : slow_safe_compiler_(false),
+      global_mode_(NOT_GLOBAL),
+      isolate_(isolate),
+      zone_(zone) {}
 
 
 RegExpMacroAssembler::~RegExpMacroAssembler() {
 }
 
 
-bool RegExpMacroAssembler::CanReadUnaligned() {
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  return true;
-#else
-  return false;
-#endif
-}
-
-
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
-NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Zone* zone)
-    : RegExpMacroAssembler(zone) {
-}
+NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Isolate* isolate,
+                                                       Zone* zone)
+    : RegExpMacroAssembler(isolate, zone) {}
 
 
 NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() {
@@ -74,16 +43,16 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
     String* subject,
     int start_index) {
   // Not just flat, but ultra flat.
-  ASSERT(subject->IsExternalString() || subject->IsSeqString());
-  ASSERT(start_index >= 0);
-  ASSERT(start_index <= subject->length());
+  DCHECK(subject->IsExternalString() || subject->IsSeqString());
+  DCHECK(start_index >= 0);
+  DCHECK(start_index <= subject->length());
   if (subject->IsOneByteRepresentation()) {
     const byte* address;
     if (StringShape(subject).IsExternal()) {
-      const uint8_t* data = ExternalAsciiString::cast(subject)->GetChars();
+      const uint8_t* data = ExternalOneByteString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     } else {
-      ASSERT(subject->IsSeqOneByteString());
+      DCHECK(subject->IsSeqOneByteString());
       const uint8_t* data = SeqOneByteString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     }
@@ -93,7 +62,7 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   if (StringShape(subject).IsExternal()) {
     data = ExternalTwoByteString::cast(subject)->GetChars();
   } else {
-    ASSERT(subject->IsSeqTwoByteString());
+    DCHECK(subject->IsSeqTwoByteString());
     data = SeqTwoByteString::cast(subject)->GetChars();
   }
   return reinterpret_cast<const byte*>(data + start_index);
@@ -108,13 +77,13 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     int previous_index,
     Isolate* isolate) {
 
-  ASSERT(subject->IsFlat());
-  ASSERT(previous_index >= 0);
-  ASSERT(previous_index <= subject->length());
+  DCHECK(subject->IsFlat());
+  DCHECK(previous_index >= 0);
+  DCHECK(previous_index <= subject->length());
 
   // No allocations before calling the regexp, but we can't use
-  // AssertNoAllocation, since regexps might be preempted, and another thread
-  // might do allocation anyway.
+  // DisallowHeapAllocation, since regexps might be preempted, and another
+  // thread might do allocation anyway.
 
   String* subject_ptr = *subject;
   // Character offsets into string.
@@ -125,18 +94,18 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
   // The string has been flattened, so if it is a cons string it contains the
   // full string in the first part.
   if (StringShape(subject_ptr).IsCons()) {
-    ASSERT_EQ(0, ConsString::cast(subject_ptr)->second()->length());
+    DCHECK_EQ(0, ConsString::cast(subject_ptr)->second()->length());
     subject_ptr = ConsString::cast(subject_ptr)->first();
   } else if (StringShape(subject_ptr).IsSliced()) {
     SlicedString* slice = SlicedString::cast(subject_ptr);
     subject_ptr = slice->parent();
     slice_offset = slice->offset();
   }
-  // Ensure that an underlying string has the same ASCII-ness.
-  bool is_ascii = subject_ptr->IsOneByteRepresentation();
-  ASSERT(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
+  // Ensure that an underlying string has the same representation.
+  bool is_one_byte = subject_ptr->IsOneByteRepresentation();
+  DCHECK(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
   // String is now either Sequential or External
-  int char_size_shift = is_ascii ? 0 : 1;
+  int char_size_shift = is_one_byte ? 0 : 1;
 
   const byte* input_start =
       StringCharacterPosition(subject_ptr, start_offset + slice_offset);
@@ -163,7 +132,6 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     int* output,
     int output_size,
     Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   // Ensure that the minimum stack has been allocated.
   RegExpStackScope stack_scope(isolate);
   Address stack_base = stack_scope.stack()->stack_base();
@@ -179,7 +147,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
                                           stack_base,
                                           direct_call,
                                           isolate);
-  ASSERT(result >= RETRY);
+  DCHECK(result >= RETRY);
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
@@ -238,13 +206,12 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
     Address byte_offset2,
     size_t byte_length,
     Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
       isolate->regexp_macro_assembler_canonicalize();
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
-  ASSERT(byte_length % 2 == 0);
+  DCHECK(byte_length % 2 == 0);
   uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
   uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
   size_t length = byte_length >> 1;
@@ -271,13 +238,12 @@ int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
 Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
                                               Address* stack_base,
                                               Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   RegExpStack* regexp_stack = isolate->regexp_stack();
   size_t size = regexp_stack->stack_capacity();
   Address old_stack_base = regexp_stack->stack_base();
-  ASSERT(old_stack_base == *stack_base);
-  ASSERT(stack_pointer <= old_stack_base);
-  ASSERT(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
+  DCHECK(old_stack_base == *stack_base);
+  DCHECK(stack_pointer <= old_stack_base);
+  DCHECK(static_cast<size_t>(old_stack_base - stack_pointer) <= size);
   Address new_stack_base = regexp_stack->EnsureCapacity(size * 2);
   if (new_stack_base == NULL) {
     return NULL;

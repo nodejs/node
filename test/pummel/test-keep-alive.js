@@ -1,32 +1,15 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+if (process.platform === 'win32') {
+  console.log('skipping this test because there is no wrk on windows');
+  process.exit(0);
+}
 
-
-
-
-// This test requires the program 'ab'
+// This test requires the program 'wrk'
 var common = require('../common');
 var assert = require('assert');
+var spawn = require('child_process').spawn;
 var http = require('http');
-var exec = require('child_process').exec;
+var path = require('path');
+var url = require('url');
 
 var body = 'hello world\n';
 var server = http.createServer(function(req, res) {
@@ -43,17 +26,39 @@ var normalReqSec = 0;
 
 
 function runAb(opts, callback) {
-  var command = 'ab ' + opts + ' http://127.0.0.1:' + common.PORT + '/';
-  exec(command, function(err, stdout, stderr) {
-    if (err) {
-      if (stderr.indexOf('ab') >= 0) {
-        console.log('ab not installed? skipping test.\n' + stderr);
-        process.reallyExit(0);
-      }
+  var args = [
+    '-c', opts.concurrent || 100,
+    '-t', opts.threads || 2,
+    '-d', opts.duration || '10s',
+  ];
+
+  if (!opts.keepalive) {
+    args.push('-H');
+    args.push('Connection: close');
+  }
+
+  args.push(url.format({ hostname: '127.0.0.1', port: common.PORT, protocol: 'http'}));
+
+  //console.log(comm, args.join(' '));
+
+  var child = spawn('wrk', args);
+  child.stderr.pipe(process.stderr);
+  child.stdout.setEncoding('utf8');
+
+  var stdout;
+
+  child.stdout.on('data', function(data) {
+    stdout += data;
+  });
+
+  child.on('close', function(code, signal) {
+    if (code) {
+      console.error(code, signal);
+      process.exit(code);
       return;
     }
-    if (err) throw err;
-    var matches = /Requests per second:\s*(\d+)\./mi.exec(stdout);
+
+    var matches = /Requests\/sec:\s*(\d+)\./mi.exec(stdout);
     var reqSec = parseInt(matches[1]);
 
     matches = /Keep-Alive requests:\s*(\d+)/mi.exec(stdout);
@@ -69,15 +74,13 @@ function runAb(opts, callback) {
 }
 
 server.listen(common.PORT, function() {
-  runAb('-k -c 100 -t 2', function(reqSec, keepAliveRequests) {
+  runAb({ keepalive: true }, function(reqSec) {
     keepAliveReqSec = reqSec;
-    assert.equal(true, keepAliveRequests > 0);
-    console.log('keep-alive: ' + keepAliveReqSec + ' req/sec');
+    console.log('keep-alive:', keepAliveReqSec, 'req/sec');
 
-    runAb('-c 100 -t 2', function(reqSec, keepAliveRequests) {
+    runAb({ keepalive: false }, function(reqSec) {
       normalReqSec = reqSec;
-      assert.equal(0, keepAliveRequests);
-      console.log('normal: ' + normalReqSec + ' req/sec');
+      console.log('normal:' + normalReqSec + ' req/sec');
       server.close();
     });
   });

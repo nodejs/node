@@ -145,3 +145,22 @@ for (var i = 0; i < 128; i++) {
   assertEquals(1, split_chars[i].length);
   assertEquals(i, split_chars[i].charCodeAt(0));
 }
+
+// Check that the separator is converted to string before returning due to
+// limit == 0.
+var counter = 0;
+var separator = { toString: function() { counter++; return "b"; }};
+assertEquals([], "abc".split(separator, 0));
+assertEquals(1, counter);
+
+// Check that the subject is converted to string before the separator.
+counter = 0;
+var subject = { toString: function() { assertEquals(0, counter);
+                                       counter++;
+                                       return "abc"; }};
+separator = { toString: function() { assertEquals(1, counter);
+                                     counter++;
+                                     return "b"; }};
+
+assertEquals(["a", "c"], String.prototype.split.call(subject, separator));
+assertEquals(2, counter);

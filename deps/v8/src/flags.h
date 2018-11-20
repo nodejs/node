@@ -1,38 +1,18 @@
 // Copyright 2006-2008 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #ifndef V8_FLAGS_H_
 #define V8_FLAGS_H_
+
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
 // Declare all of our flags.
 #define FLAG_MODE_DECLARE
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT
 
 // The global list of all flags.
 class FlagList {
@@ -60,7 +40,9 @@ class FlagList {
   //   --flag=value  (non-bool flags only, no spaces around '=')
   //   --flag value  (non-bool flags only)
   //   --            (equivalent to --js_arguments, captures all remaining args)
-  static int SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags);
+  static int SetFlagsFromCommandLine(int* argc,
+                                     char** argv,
+                                     bool remove_flags);
 
   // Set the flag values by parsing the string str. Splits string into argc
   // substrings argv[], each of which consisting of non-white-space chars,
@@ -75,6 +57,9 @@ class FlagList {
 
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();
+
+  // Hash of current flags (to quickly determine flag changes).
+  static uint32_t Hash();
 };
 
 } }  // namespace v8::internal

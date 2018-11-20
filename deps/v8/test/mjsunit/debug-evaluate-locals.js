@@ -36,19 +36,21 @@ exception = false;
 function h() {
   var a = 1;
   var b = 2;
+  var eval = 5;  // Overriding eval should not break anything.
   debugger;  // Breakpoint.
+  return a;
 }
 
 function checkFrame0(frame) {
   // Frame 0 (h) has normal variables a and b.
   var count = frame.localCount();
-  assertEquals(2, count);
+  assertEquals(3, count);
   for (var i = 0; i < count; ++i) {
     var name = frame.localName(i);
     var value = frame.localValue(i).value();
     if (name == 'a') {
       assertEquals(1, value);
-    } else {
+    } else if (name !='eval') {
       assertEquals('b', name);
       assertEquals(2, value);
     }
@@ -59,7 +61,7 @@ function checkFrame0(frame) {
 function g() {
   var a = 3;
   eval("var b = 4;");
-  h();
+  return h() + a;
 }
 
 function checkFrame1(frame) {
@@ -82,7 +84,7 @@ function f() {
   var a = 5;
   var b = 0;
   with ({b:6}) {
-    g();
+    return g();
   }
 }
 
@@ -115,24 +117,35 @@ function listener(event, exec_state, event_data, data) {
       // Evaluating a and b on frames 0, 1 and 2 produces 1, 2, 3, 4, 5 and 6.
       assertEquals(1, exec_state.frame(0).evaluate('a').value());
       assertEquals(2, exec_state.frame(0).evaluate('b').value());
+      assertEquals(5, exec_state.frame(0).evaluate('eval').value());
       assertEquals(3, exec_state.frame(1).evaluate('a').value());
       assertEquals(4, exec_state.frame(1).evaluate('b').value());
+      assertEquals("function",
+                   typeof exec_state.frame(1).evaluate('eval').value());
       assertEquals(5, exec_state.frame(2).evaluate('a').value());
       assertEquals(6, exec_state.frame(2).evaluate('b').value());
-
+      assertEquals("function",
+                   typeof exec_state.frame(2).evaluate('eval').value());
+      assertEquals("foo",
+                   exec_state.frame(0).evaluate('a = "foo"').value());
+      assertEquals("bar",
+                   exec_state.frame(1).evaluate('a = "bar"').value());
       // Indicate that all was processed.
       listenerComplete = true;
     }
   } catch (e) {
-    exception = e
+    exception = e;
+    print("Caught something. " + e + " " + e.stack);
   };
 };
 
 // Add the debug event listener.
 Debug.setListener(listener);
 
-f();
+var f_result = f();
 
-// Make sure that the debug event listener vas invoked.
-assertTrue(listenerComplete);
+assertEquals('foobar', f_result);
+
+// Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")
+assertTrue(listenerComplete);

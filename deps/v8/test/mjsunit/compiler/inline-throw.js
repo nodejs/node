@@ -66,4 +66,3 @@ try {
 } catch(e) {
   assertEquals("wow", e);
 }
-

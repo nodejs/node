@@ -1,7 +1,31 @@
-Node's license follows:
+io.js is licensed for use as follows:
 
-====
+"""
+Copyright io.js contributors. All rights reserved.
 
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+"""
+
+This license applies to parts of io.js originating from the
+https://github.com/joyent/node repository:
+
+"""
 Copyright Joyent, Inc. and other Node contributors. All rights reserved.
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -20,11 +44,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
+"""
 
-====
+The io.js license applies to all parts of io.js that are not externally
+maintained libraries.
 
-This license applies to all parts of Node that are not externally
-maintained libraries. The externally maintained libraries used by Node are:
+The externally maintained libraries used by io.js are:
 
 - V8, located at deps/v8. V8's license follows:
   """
@@ -221,6 +246,38 @@ maintained libraries. The externally maintained libraries used by Node are:
     # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   """
 
+- python-gflags is located at tools/gflags.  Its license follows:
+  """
+    # Copyright (c) 2006, Google Inc.
+    # All rights reserved.
+    #
+    # Redistribution and use in source and binary forms, with or without
+    # modification, are permitted provided that the following conditions are
+    # met:
+    #
+    #     * Redistributions of source code must retain the above copyright
+    # notice, this list of conditions and the following disclaimer.
+    #     * Redistributions in binary form must reproduce the above
+    # copyright notice, this list of conditions and the following disclaimer
+    # in the documentation and/or other materials provided with the
+    # distribution.
+    #     * Neither the name of Google Inc. nor the names of its
+    # contributors may be used to endorse or promote products derived from
+    # this software without specific prior written permission.
+    #
+    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
 - tools/cpplint.py is a C++ linter. Its license follows:
   """
     # Copyright (c) 2009 Google Inc. All rights reserved.
@@ -294,9 +351,9 @@ maintained libraries. The externally maintained libraries used by Node are:
 - Zlib at deps/zlib. zlib's license follows:
   """
     /* zlib.h -- interface of the 'zlib' general purpose compression library
-      version 1.2.4, March 14th, 2010
+      version 1.2.8, April 28th, 2013
 
-      Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
+      Copyright (C) 1995-2013 Jean-loup Gailly and Mark Adler
 
       This software is provided 'as-is', without any express or implied
       warranty.  In no event will the authors be held liable for any damages
@@ -314,79 +371,249 @@ maintained libraries. The externally maintained libraries used by Node are:
          misrepresented as being the original software.
       3. This notice may not be removed or altered from any source distribution.
 
-      Jean-loup Gailly
-      Mark Adler
-
+      Jean-loup Gailly        Mark Adler
+      jloup@gzip.org          madler@alumni.caltech.edu
     */
   """
 
 - npm is a package manager program located at deps/npm.
   npm's license follows:
   """
-    Copyright 2009-2012, Isaac Z. Schlueter (the "Original Author")
+    Copyright (c) Isaac Z. Schlueter
     All rights reserved.
 
-    MIT +no-false-attribs License
-
-    Permission is hereby granted, free of charge, to any person
-    obtaining a copy of this software and associated documentation
-    files (the "Software"), to deal in the Software without
-    restriction, including without limitation the rights to use,
-    copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the
-    Software is furnished to do so, subject to the following
-    conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    Distributions of all or part of the Software intended to be used
-    by the recipients as they would use the unmodified Software,
-    containing modifications that substantially alter, remove, or
-    disable functionality of the Software, outside of the documented
-    configuration mechanisms provided by the Software, shall be
-    modified such that the Original Author's bug reporting email
-    addresses and urls are either replaced with the contact information
-    of the parties responsible for the changes, or removed entirely.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-    OTHER DEALINGS IN THE SOFTWARE.
+    npm is released under the Artistic 2.0 License.
+    The text of the License follows:
 
 
-    Except where noted, this license applies to any and all software
-    programs and associated documentation files created by the
-    Original Author, when distributed with the Software.
+    --------
+
+
+    The Artistic License 2.0
+
+    Copyright (c) 2000-2006, The Perl Foundation.
+
+    Everyone is permitted to copy and distribute verbatim copies
+    of this license document, but changing it is not allowed.
+
+    Preamble
+
+    This license establishes the terms under which a given free software
+    Package may be copied, modified, distributed, and/or redistributed.
+    The intent is that the Copyright Holder maintains some artistic
+    control over the development of that Package while still keeping the
+    Package available as open source and free software.
+
+    You are always permitted to make arrangements wholly outside of this
+    license directly with the Copyright Holder of a given Package.  If the
+    terms of this license do not permit the full use that you propose to
+    make of the Package, you should contact the Copyright Holder and seek
+    a different licensing arrangement.
+
+    Definitions
+
+        "Copyright Holder" means the individual(s) or organization(s)
+        named in the copyright notice for the entire Package.
+
+        "Contributor" means any party that has contributed code or other
+        material to the Package, in accordance with the Copyright Holder's
+        procedures.
+
+        "You" and "your" means any person who would like to copy,
+        distribute, or modify the Package.
+
+        "Package" means the collection of files distributed by the
+        Copyright Holder, and derivatives of that collection and/or of
+        those files. A given Package may consist of either the Standard
+        Version, or a Modified Version.
+
+        "Distribute" means providing a copy of the Package or making it
+        accessible to anyone else, or in the case of a company or
+        organization, to others outside of your company or organization.
+
+        "Distributor Fee" means any fee that you charge for Distributing
+        this Package or providing support for this Package to another
+        party.  It does not mean licensing fees.
+
+        "Standard Version" refers to the Package if it has not been
+        modified, or has been modified only in ways explicitly requested
+        by the Copyright Holder.
+
+        "Modified Version" means the Package, if it has been changed, and
+        such changes were not explicitly requested by the Copyright
+        Holder.
+
+        "Original License" means this Artistic License as Distributed with
+        the Standard Version of the Package, in its current version or as
+        it may be modified by The Perl Foundation in the future.
+
+        "Source" form means the source code, documentation source, and
+        configuration files for the Package.
+
+        "Compiled" form means the compiled bytecode, object code, binary,
+        or any other form resulting from mechanical transformation or
+        translation of the Source form.
+
+
+    Permission for Use and Modification Without Distribution
+
+    (1)  You are permitted to use the Standard Version and create and use
+    Modified Versions for any purpose without restriction, provided that
+    you do not Distribute the Modified Version.
+
+
+    Permissions for Redistribution of the Standard Version
+
+    (2)  You may Distribute verbatim copies of the Source form of the
+    Standard Version of this Package in any medium without restriction,
+    either gratis or for a Distributor Fee, provided that you duplicate
+    all of the original copyright notices and associated disclaimers.  At
+    your discretion, such verbatim copies may or may not include a
+    Compiled form of the Package.
+
+    (3)  You may apply any bug fixes, portability changes, and other
+    modifications made available from the Copyright Holder.  The resulting
+    Package will still be considered the Standard Version, and as such
+    will be subject to the Original License.
+
+
+    Distribution of Modified Versions of the Package as Source
+
+    (4)  You may Distribute your Modified Version as Source (either gratis
+    or for a Distributor Fee, and with or without a Compiled form of the
+    Modified Version) provided that you clearly document how it differs
+    from the Standard Version, including, but not limited to, documenting
+    any non-standard features, executables, or modules, and provided that
+    you do at least ONE of the following:
+
+        (a)  make the Modified Version available to the Copyright Holder
+        of the Standard Version, under the Original License, so that the
+        Copyright Holder may include your modifications in the Standard
+        Version.
+
+        (b)  ensure that installation of your Modified Version does not
+        prevent the user installing or running the Standard Version. In
+        addition, the Modified Version must bear a name that is different
+        from the name of the Standard Version.
+
+        (c)  allow anyone who receives a copy of the Modified Version to
+        make the Source form of the Modified Version available to others
+        under
+
+            (i)  the Original License or
+
+            (ii)  a license that permits the licensee to freely copy,
+            modify and redistribute the Modified Version using the same
+            licensing terms that apply to the copy that the licensee
+            received, and requires that the Source form of the Modified
+            Version, and of any works derived from it, be made freely
+            available in that license fees are prohibited but Distributor
+            Fees are allowed.
+
+
+    Distribution of Compiled Forms of the Standard Version
+    or Modified Versions without the Source
+
+    (5)  You may Distribute Compiled forms of the Standard Version without
+    the Source, provided that you include complete instructions on how to
+    get the Source of the Standard Version.  Such instructions must be
+    valid at the time of your distribution.  If these instructions, at any
+    time while you are carrying out such distribution, become invalid, you
+    must provide new instructions on demand or cease further distribution.
+    If you provide valid instructions or cease distribution within thirty
+    days after you become aware that the instructions are invalid, then
+    you do not forfeit any of your rights under this license.
+
+    (6)  You may Distribute a Modified Version in Compiled form without
+    the Source, provided that you comply with Section 4 with respect to
+    the Source of the Modified Version.
+
+
+    Aggregating or Linking the Package
+
+    (7)  You may aggregate the Package (either the Standard Version or
+    Modified Version) with other packages and Distribute the resulting
+    aggregation provided that you do not charge a licensing fee for the
+    Package.  Distributor Fees are permitted, and licensing fees for other
+    components in the aggregation are permitted. The terms of this license
+    apply to the use and Distribution of the Standard or Modified Versions
+    as included in the aggregation.
+
+    (8) You are permitted to link Modified and Standard Versions with
+    other works, to embed the Package in a larger work of your own, or to
+    build stand-alone binary or bytecode versions of applications that
+    include the Package, and Distribute the result without restriction,
+    provided the result does not expose a direct interface to the Package.
+
+
+    Items That are Not Considered Part of a Modified Version
+
+    (9) Works (including, but not limited to, modules and scripts) that
+    merely extend or make use of the Package, do not, by themselves, cause
+    the Package to be a Modified Version.  In addition, such works are not
+    considered parts of the Package itself, and are not subject to the
+    terms of this license.
+
+
+    General Provisions
+
+    (10)  Any use, modification, and distribution of the Standard or
+    Modified Versions is governed by this Artistic License. By using,
+    modifying or distributing the Package, you accept this license. Do not
+    use, modify, or distribute the Package, if you do not accept this
+    license.
+
+    (11)  If your Modified Version has been derived from a Modified
+    Version made by someone other than you, you are nevertheless required
+    to ensure that your Modified Version complies with the requirements of
+    this license.
+
+    (12)  This license does not grant you the right to use any trademark,
+    service mark, tradename, or logo of the Copyright Holder.
+
+    (13)  This license includes the non-exclusive, worldwide,
+    free-of-charge patent license to make, have made, use, offer to sell,
+    sell, import and otherwise transfer the Package with respect to any
+    patent claims licensable by the Copyright Holder that are necessarily
+    infringed by the Package. If you institute patent litigation
+    (including a cross-claim or counterclaim) against any party alleging
+    that the Package constitutes direct or contributory patent
+    infringement, then this Artistic License to you shall terminate on the
+    date that such litigation is filed.
+
+    (14)  Disclaimer of Warranty:
+    THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER AND CONTRIBUTORS "AS
+    IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES. THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR
+    NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY YOUR LOCAL
+    LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR CONTRIBUTOR WILL
+    BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+    DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE, EVEN IF
+    ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+    --------
+
 
     "Node.js" and "node" trademark Joyent, Inc. npm is not officially
     part of the Node.js project, and is neither owned by nor
     officially affiliated with Joyent, Inc.
 
-    Packages published in the npm registry are not part of npm
-    itself, are the sole property of their respective maintainers,
-    and are not covered by this license.
+    Packages published in the npm registry (other than the Software and
+    its included dependencies) are not part of npm itself, are the sole
+    property of their respective maintainers, and are not covered by
+    this license.
 
     "npm Logo" created by Mathias Pettersson and Brian Hammond,
     used with permission.
 
     "Gubblebum Blocky" font
-    Copyright (c) 2007 by Tjarda Koster, http://jelloween.deviantart.com
+    Copyright (c) by Tjarda Koster, http://jelloween.deviantart.com
     included for use in the npm website and documentation,
     used with permission.
 
-    This program uses "node-uuid", Copyright (c) 2010 Robert Kieffer,
-    according to the terms of the MIT license.
-
-    This program uses "request", Copyright (c) 2011 Mikeal Rogers,
-    according to the terms of the Apache license.
-
-    This program uses "mkdirp",  Copyright (c) 2010 James Halliday,
-    according to the terms of the MIT/X11 license.
+    This program uses several io.js modules contained in the node_modules/
+    subdirectory, according to the terms of their respective licenses.
   """
 
 - tools/doc/node_modules/marked. Marked is a Markdown parser. Marked's
@@ -429,213 +656,4 @@ maintained libraries. The externally maintained libraries used by Node are:
     WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
     ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
     OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-  """
-
-- src/ngx-queue.h. ngx-queue.h is taken from the nginx source tree. nginx's
-  license follows:
-  """
-    Copyright (C) 2002-2012 Igor Sysoev
-    Copyright (C) 2011,2012 Nginx, Inc.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions
-    are met:
-    1. Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright
-       notice, this list of conditions and the following disclaimer in the
-       documentation and/or other materials provided with the distribution.
-
-    THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-    ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
-    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-    OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-    LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-    OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-    SUCH DAMAGE.
-  """
-
-- wrk is located at tools/wrk. wrk's license follows:
-  """
-
-                                     Apache License
-                               Version 2.0, January 2004
-                            http://www.apache.org/licenses/
-
-       TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
-
-       1. Definitions.
-
-          "License" shall mean the terms and conditions for use, reproduction,
-          and distribution as defined by Sections 1 through 9 of this document.
-
-          "Licensor" shall mean the copyright owner or entity authorized by
-          the copyright owner that is granting the License.
-
-          "Legal Entity" shall mean the union of the acting entity and all
-          other entities that control, are controlled by, or are under common
-          control with that entity. For the purposes of this definition,
-          "control" means (i) the power, direct or indirect, to cause the
-          direction or management of such entity, whether by contract or
-          otherwise, or (ii) ownership of fifty percent (50%) or more of the
-          outstanding shares, or (iii) beneficial ownership of such entity.
-
-          "You" (or "Your") shall mean an individual or Legal Entity
-          exercising permissions granted by this License.
-
-          "Source" form shall mean the preferred form for making modifications,
-          including but not limited to software source code, documentation
-          source, and configuration files.
-
-          "Object" form shall mean any form resulting from mechanical
-          transformation or translation of a Source form, including but
-          not limited to compiled object code, generated documentation,
-          and conversions to other media types.
-
-          "Work" shall mean the work of authorship, whether in Source or
-          Object form, made available under the License, as indicated by a
-          copyright notice that is included in or attached to the work
-          (an example is provided in the Appendix below).
-
-          "Derivative Works" shall mean any work, whether in Source or Object
-          form, that is based on (or derived from) the Work and for which the
-          editorial revisions, annotations, elaborations, or other modifications
-          represent, as a whole, an original work of authorship. For the purposes
-          of this License, Derivative Works shall not include works that remain
-          separable from, or merely link (or bind by name) to the interfaces of,
-          the Work and Derivative Works thereof.
-
-          "Contribution" shall mean any work of authorship, including
-          the original version of the Work and any modifications or additions
-          to that Work or Derivative Works thereof, that is intentionally
-          submitted to Licensor for inclusion in the Work by the copyright owner
-          or by an individual or Legal Entity authorized to submit on behalf of
-          the copyright owner. For the purposes of this definition, "submitted"
-          means any form of electronic, verbal, or written communication sent
-          to the Licensor or its representatives, including but not limited to
-          communication on electronic mailing lists, source code control systems,
-          and issue tracking systems that are managed by, or on behalf of, the
-          Licensor for the purpose of discussing and improving the Work, but
-          excluding communication that is conspicuously marked or otherwise
-          designated in writing by the copyright owner as "Not a Contribution."
-
-          "Contributor" shall mean Licensor and any individual or Legal Entity
-          on behalf of whom a Contribution has been received by Licensor and
-          subsequently incorporated within the Work.
-
-       2. Grant of Copyright License. Subject to the terms and conditions of
-          this License, each Contributor hereby grants to You a perpetual,
-          worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-          copyright license to reproduce, prepare Derivative Works of,
-          publicly display, publicly perform, sublicense, and distribute the
-          Work and such Derivative Works in Source or Object form.
-
-       3. Grant of Patent License. Subject to the terms and conditions of
-          this License, each Contributor hereby grants to You a perpetual,
-          worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-          (except as stated in this section) patent license to make, have made,
-          use, offer to sell, sell, import, and otherwise transfer the Work,
-          where such license applies only to those patent claims licensable
-          by such Contributor that are necessarily infringed by their
-          Contribution(s) alone or by combination of their Contribution(s)
-          with the Work to which such Contribution(s) was submitted. If You
-          institute patent litigation against any entity (including a
-          cross-claim or counterclaim in a lawsuit) alleging that the Work
-          or a Contribution incorporated within the Work constitutes direct
-          or contributory patent infringement, then any patent licenses
-          granted to You under this License for that Work shall terminate
-          as of the date such litigation is filed.
-
-       4. Redistribution. You may reproduce and distribute copies of the
-          Work or Derivative Works thereof in any medium, with or without
-          modifications, and in Source or Object form, provided that You
-          meet the following conditions:
-
-          (a) You must give any other recipients of the Work or
-              Derivative Works a copy of this License; and
-
-          (b) You must cause any modified files to carry prominent notices
-              stating that You changed the files; and
-
-          (c) You must retain, in the Source form of any Derivative Works
-              that You distribute, all copyright, patent, trademark, and
-              attribution notices from the Source form of the Work,
-              excluding those notices that do not pertain to any part of
-              the Derivative Works; and
-
-          (d) If the Work includes a "NOTICE" text file as part of its
-              distribution, then any Derivative Works that You distribute must
-              include a readable copy of the attribution notices contained
-              within such NOTICE file, excluding those notices that do not
-              pertain to any part of the Derivative Works, in at least one
-              of the following places: within a NOTICE text file distributed
-              as part of the Derivative Works; within the Source form or
-              documentation, if provided along with the Derivative Works; or,
-              within a display generated by the Derivative Works, if and
-              wherever such third-party notices normally appear. The contents
-              of the NOTICE file are for informational purposes only and
-              do not modify the License. You may add Your own attribution
-              notices within Derivative Works that You distribute, alongside
-              or as an addendum to the NOTICE text from the Work, provided
-              that such additional attribution notices cannot be construed
-              as modifying the License.
-
-          You may add Your own copyright statement to Your modifications and
-          may provide additional or different license terms and conditions
-          for use, reproduction, or distribution of Your modifications, or
-          for any such Derivative Works as a whole, provided Your use,
-          reproduction, and distribution of the Work otherwise complies with
-          the conditions stated in this License.
-
-       5. Submission of Contributions. Unless You explicitly state otherwise,
-          any Contribution intentionally submitted for inclusion in the Work
-          by You to the Licensor shall be under the terms and conditions of
-          this License, without any additional terms or conditions.
-          Notwithstanding the above, nothing herein shall supersede or modify
-          the terms of any separate license agreement you may have executed
-          with Licensor regarding such Contributions.
-
-       6. Trademarks. This License does not grant permission to use the trade
-          names, trademarks, service marks, or product names of the Licensor,
-          except as required for reasonable and customary use in describing the
-          origin of the Work and reproducing the content of the NOTICE file.
-
-       7. Disclaimer of Warranty. Unless required by applicable law or
-          agreed to in writing, Licensor provides the Work (and each
-          Contributor provides its Contributions) on an "AS IS" BASIS,
-          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-          implied, including, without limitation, any warranties or conditions
-          of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-          PARTICULAR PURPOSE. You are solely responsible for determining the
-          appropriateness of using or redistributing the Work and assume any
-          risks associated with Your exercise of permissions under this License.
-
-       8. Limitation of Liability. In no event and under no legal theory,
-          whether in tort (including negligence), contract, or otherwise,
-          unless required by applicable law (such as deliberate and grossly
-          negligent acts) or agreed to in writing, shall any Contributor be
-          liable to You for damages, including any direct, indirect, special,
-          incidental, or consequential damages of any character arising as a
-          result of this License or out of the use or inability to use the
-          Work (including but not limited to damages for loss of goodwill,
-          work stoppage, computer failure or malfunction, or any and all
-          other commercial damages or losses), even if such Contributor
-          has been advised of the possibility of such damages.
-
-       9. Accepting Warranty or Additional Liability. While redistributing
-          the Work or Derivative Works thereof, You may choose to offer,
-          and charge a fee for, acceptance of support, warranty, indemnity,
-          or other liability obligations and/or rights consistent with this
-          License. However, in accepting such obligations, You may act only
-          on Your own behalf and on Your sole responsibility, not on behalf
-          of any other Contributor, and only if You agree to indemnify,
-          defend, and hold each Contributor harmless for any liability
-          incurred by, or claims asserted against, such Contributor by reason
-          of your accepting any such warranty or additional liability.
-
-       END OF TERMS AND CONDITIONS
   """

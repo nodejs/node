@@ -1,0 +1,44 @@
+{
+  "author": {
+    "name": "Mikeal Rogers",
+    "email": "mikeal.rogers@gmail.com",
+    "url": "http://www.futurealoof.com"
+  },
+  "name": "tunnel-agent",
+  "description": "HTTP proxy tunneling agent. Formerly part of mikeal/request, now a standalone module.",
+  "version": "0.4.0",
+  "repository": {
+    "url": "https://github.com/mikeal/tunnel-agent"
+  },
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "bugs": {
+    "url": "https://github.com/mikeal/tunnel-agent/issues"
+  },
+  "homepage": "https://github.com/mikeal/tunnel-agent",
+  "_id": "tunnel-agent@0.4.0",
+  "dist": {
+    "shasum": "b1184e312ffbcf70b3b4c78e8c219de7ebb1c550",
+    "tarball": "http://registry.npmjs.org/tunnel-agent/-/tunnel-agent-0.4.0.tgz"
+  },
+  "_from": "tunnel-agent@>=0.4.0 <0.5.0",
+  "_npmVersion": "1.3.21",
+  "_npmUser": {
+    "name": "mikeal",
+    "email": "mikeal.rogers@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "mikeal",
+      "email": "mikeal.rogers@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_shasum": "b1184e312ffbcf70b3b4c78e8c219de7ebb1c550",
+  "_resolved": "https://registry.npmjs.org/tunnel-agent/-/tunnel-agent-0.4.0.tgz"
+}

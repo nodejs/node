@@ -87,12 +87,6 @@ This section is written from the point of view of the tools/ directory.
   Implementation needed to run tests locally. Used by run-tests.py. Inspired by
   (and partly copied verbatim from) the original test.py script.
 
-./testrunner/local/old_statusfile.py:
-  Provides functionality to read an old-style <testsuite>.status file and
-  convert it to new-style syntax. This can be removed once the new-style
-  syntax becomes authoritative (and old-style syntax is no longer supported).
-  ./status-file-converter.py provides a stand-alone interface to this.
-
 ./testrunner/objects/*:
   A bunch of data container classes, used by the scripts in the various other
   directories; serializable for transmission over the network.

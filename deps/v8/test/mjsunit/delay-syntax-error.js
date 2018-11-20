@@ -25,18 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// To be compatible with JSC syntax errors for illegal returns should be delayed
-// to runtime.
-// Invalid continue and break statements are caught at compile time.
-
-// Do not throw syntax errors for illegal return at compile time.
-assertDoesNotThrow("if (false) return;");
-
-// Throw syntax errors for illegal break and continue at compile time.
+// Throw syntax errors for illegal return, break and continue at compile time.
+assertThrows("if (false) return;");
 assertThrows("if (false) break;");
 assertThrows("if (false) continue;");
 
-// Throw syntax errors for illegal return, break and continue at runtime.
 assertThrows("return;");
 assertThrows("break;");
 assertThrows("continue;");

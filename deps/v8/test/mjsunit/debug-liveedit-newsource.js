@@ -32,6 +32,7 @@ Debug = debug.Debug
 
 eval("var something1 = 25; \n"
      + "var something2 = 2010; \n"
+     + "// Array(); \n"
      + "function ChooseAnimal() {\n"
      + "  return 'Cat';\n"
      + "} \n"
@@ -54,6 +55,13 @@ var new_source = script.source.replace("Cat", "Cap' + 'yb' + 'ara");
 var new_source = new_source.replace("25", "26");
 var new_source = new_source.replace("Help", "Hello");
 var new_source = new_source.replace("17", "18");
+// The call to array causes a change in the number of type feedback slots for
+// the script.
+//
+// TODO(mvstanton): For now, the inclusion of the Array() call at the top level
+// of the script causes us to visit a corner case, but I'd like to validate
+// correctness more explicitly.
+var new_source = new_source.replace("// Array", "Array");
 print("new source: " + new_source);
 
 var change_log = new Array();

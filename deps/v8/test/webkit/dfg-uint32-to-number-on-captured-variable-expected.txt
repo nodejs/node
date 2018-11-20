@@ -1,0 +1,132 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Tests that storing the result of a uint32 to number conversion into a captured variable does not crash the compiler.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS foo(0)() is 0
+PASS foo(1)() is 1
+PASS foo(2)() is 2
+PASS foo(3)() is 3
+PASS foo(4)() is 4
+PASS foo(5)() is 5
+PASS foo(6)() is 6
+PASS foo(7)() is 7
+PASS foo(8)() is 8
+PASS foo(9)() is 9
+PASS foo(10)() is 10
+PASS foo(11)() is 11
+PASS foo(12)() is 12
+PASS foo(13)() is 13
+PASS foo(14)() is 14
+PASS foo(15)() is 15
+PASS foo(16)() is 16
+PASS foo(17)() is 17
+PASS foo(18)() is 18
+PASS foo(19)() is 19
+PASS foo(20)() is 20
+PASS foo(21)() is 21
+PASS foo(22)() is 22
+PASS foo(23)() is 23
+PASS foo(24)() is 24
+PASS foo(25)() is 25
+PASS foo(26)() is 26
+PASS foo(27)() is 27
+PASS foo(28)() is 28
+PASS foo(29)() is 29
+PASS foo(30)() is 30
+PASS foo(31)() is 31
+PASS foo(32)() is 32
+PASS foo(33)() is 33
+PASS foo(34)() is 34
+PASS foo(35)() is 35
+PASS foo(36)() is 36
+PASS foo(37)() is 37
+PASS foo(38)() is 38
+PASS foo(39)() is 39
+PASS foo(40)() is 40
+PASS foo(41)() is 41
+PASS foo(42)() is 42
+PASS foo(43)() is 43
+PASS foo(44)() is 44
+PASS foo(45)() is 45
+PASS foo(46)() is 46
+PASS foo(47)() is 47
+PASS foo(48)() is 48
+PASS foo(49)() is 49
+PASS foo(50)() is 50
+PASS foo(51)() is 51
+PASS foo(52)() is 52
+PASS foo(53)() is 53
+PASS foo(54)() is 54
+PASS foo(55)() is 55
+PASS foo(56)() is 56
+PASS foo(57)() is 57
+PASS foo(58)() is 58
+PASS foo(59)() is 59
+PASS foo(60)() is 60
+PASS foo(61)() is 61
+PASS foo(62)() is 62
+PASS foo(63)() is 63
+PASS foo(64)() is 64
+PASS foo(65)() is 65
+PASS foo(66)() is 66
+PASS foo(67)() is 67
+PASS foo(68)() is 68
+PASS foo(69)() is 69
+PASS foo(70)() is 70
+PASS foo(71)() is 71
+PASS foo(72)() is 72
+PASS foo(73)() is 73
+PASS foo(74)() is 74
+PASS foo(75)() is 75
+PASS foo(76)() is 76
+PASS foo(77)() is 77
+PASS foo(78)() is 78
+PASS foo(79)() is 79
+PASS foo(80)() is 80
+PASS foo(81)() is 81
+PASS foo(82)() is 82
+PASS foo(83)() is 83
+PASS foo(84)() is 84
+PASS foo(85)() is 85
+PASS foo(86)() is 86
+PASS foo(87)() is 87
+PASS foo(88)() is 88
+PASS foo(89)() is 89
+PASS foo(90)() is 90
+PASS foo(91)() is 91
+PASS foo(92)() is 92
+PASS foo(93)() is 93
+PASS foo(94)() is 94
+PASS foo(95)() is 95
+PASS foo(96)() is 96
+PASS foo(97)() is 97
+PASS foo(98)() is 98
+PASS foo(99)() is 99
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

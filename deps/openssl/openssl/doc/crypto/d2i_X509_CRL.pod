@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-d2i_X509_CRL, i2d_X509_CRL, d2i_X509_CRL_bio, d2i_509_CRL_fp,
+d2i_X509_CRL, i2d_X509_CRL, d2i_X509_CRL_bio, d2i_X509_CRL_fp,
 i2d_X509_CRL_bio, i2d_X509_CRL_fp - PKCS#10 certificate request functions.
 
 =head1 SYNOPSIS

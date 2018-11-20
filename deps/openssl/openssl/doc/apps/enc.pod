@@ -215,6 +215,10 @@ unsupported options (for example B<openssl enc -help>) includes a
 list of ciphers, supported by your versesion of OpenSSL, including
 ones provided by configured engines.
 
+The B<enc> program does not support authenticated encryption modes
+like CCM and GCM. The utility does not store or retrieve the
+authentication tag.
+
 
  base64             Base 64
 

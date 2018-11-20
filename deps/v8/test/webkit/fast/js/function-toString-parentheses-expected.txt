@@ -1,0 +1,525 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test checks that parentheses are preserved when significant, and not added where inappropriate. We need this test because the JavaScriptCore parser removes all parentheses and the serializer then adds them back.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS compileAndSerialize('a * b * c') is 'a * b * c'
+PASS compileAndSerialize('(a * b) * c') is '(a * b) * c'
+PASS compileAndSerialize('a * (b * c)') is 'a * (b * c)'
+PASS compileAndSerialize('a * b + c') is 'a * b + c'
+PASS compileAndSerialize('(a * b) + c') is '(a * b) + c'
+PASS compileAndSerialize('a * (b + c)') is 'a * (b + c)'
+PASS compileAndSerialize('a * b - c') is 'a * b - c'
+PASS compileAndSerialize('(a * b) - c') is '(a * b) - c'
+PASS compileAndSerialize('a * (b - c)') is 'a * (b - c)'
+PASS compileAndSerialize('a / b / c') is 'a / b / c'
+PASS compileAndSerialize('(a / b) / c') is '(a / b) / c'
+PASS compileAndSerialize('a / (b / c)') is 'a / (b / c)'
+PASS compileAndSerialize('a * b / c') is 'a * b / c'
+PASS compileAndSerialize('(a * b) / c') is '(a * b) / c'
+PASS compileAndSerialize('a * (b / c)') is 'a * (b / c)'
+PASS compileAndSerialize('a / b + c') is 'a / b + c'
+PASS compileAndSerialize('(a / b) + c') is '(a / b) + c'
+PASS compileAndSerialize('a / (b + c)') is 'a / (b + c)'
+PASS compileAndSerialize('a % b % c') is 'a % b % c'
+PASS compileAndSerialize('(a % b) % c') is '(a % b) % c'
+PASS compileAndSerialize('a % (b % c)') is 'a % (b % c)'
+PASS compileAndSerialize('a * b % c') is 'a * b % c'
+PASS compileAndSerialize('(a * b) % c') is '(a * b) % c'
+PASS compileAndSerialize('a * (b % c)') is 'a * (b % c)'
+PASS compileAndSerialize('a % b + c') is 'a % b + c'
+PASS compileAndSerialize('(a % b) + c') is '(a % b) + c'
+PASS compileAndSerialize('a % (b + c)') is 'a % (b + c)'
+PASS compileAndSerialize('a + b + c') is 'a + b + c'
+PASS compileAndSerialize('(a + b) + c') is '(a + b) + c'
+PASS compileAndSerialize('a + (b + c)') is 'a + (b + c)'
+PASS compileAndSerialize('a + b << c') is 'a + b << c'
+PASS compileAndSerialize('(a + b) << c') is '(a + b) << c'
+PASS compileAndSerialize('a + (b << c)') is 'a + (b << c)'
+PASS compileAndSerialize('a + b >> c') is 'a + b >> c'
+PASS compileAndSerialize('(a + b) >> c') is '(a + b) >> c'
+PASS compileAndSerialize('a + (b >> c)') is 'a + (b >> c)'
+PASS compileAndSerialize('a + b >>> c') is 'a + b >>> c'
+PASS compileAndSerialize('(a + b) >>> c') is '(a + b) >>> c'
+PASS compileAndSerialize('a + (b >>> c)') is 'a + (b >>> c)'
+PASS compileAndSerialize('a - b - c') is 'a - b - c'
+PASS compileAndSerialize('(a - b) - c') is '(a - b) - c'
+PASS compileAndSerialize('a - (b - c)') is 'a - (b - c)'
+PASS compileAndSerialize('a + b - c') is 'a + b - c'
+PASS compileAndSerialize('(a + b) - c') is '(a + b) - c'
+PASS compileAndSerialize('a + (b - c)') is 'a + (b - c)'
+PASS compileAndSerialize('a - b << c') is 'a - b << c'
+PASS compileAndSerialize('(a - b) << c') is '(a - b) << c'
+PASS compileAndSerialize('a - (b << c)') is 'a - (b << c)'
+PASS compileAndSerialize('a << b << c') is 'a << b << c'
+PASS compileAndSerialize('(a << b) << c') is '(a << b) << c'
+PASS compileAndSerialize('a << (b << c)') is 'a << (b << c)'
+PASS compileAndSerialize('a << b < c') is 'a << b < c'
+PASS compileAndSerialize('(a << b) < c') is '(a << b) < c'
+PASS compileAndSerialize('a << (b < c)') is 'a << (b < c)'
+PASS compileAndSerialize('a << b > c') is 'a << b > c'
+PASS compileAndSerialize('(a << b) > c') is '(a << b) > c'
+PASS compileAndSerialize('a << (b > c)') is 'a << (b > c)'
+PASS compileAndSerialize('a << b <= c') is 'a << b <= c'
+PASS compileAndSerialize('(a << b) <= c') is '(a << b) <= c'
+PASS compileAndSerialize('a << (b <= c)') is 'a << (b <= c)'
+PASS compileAndSerialize('a << b >= c') is 'a << b >= c'
+PASS compileAndSerialize('(a << b) >= c') is '(a << b) >= c'
+PASS compileAndSerialize('a << (b >= c)') is 'a << (b >= c)'
+PASS compileAndSerialize('a << b instanceof c') is 'a << b instanceof c'
+PASS compileAndSerialize('(a << b) instanceof c') is '(a << b) instanceof c'
+PASS compileAndSerialize('a << (b instanceof c)') is 'a << (b instanceof c)'
+PASS compileAndSerialize('a << b in c') is 'a << b in c'
+PASS compileAndSerialize('(a << b) in c') is '(a << b) in c'
+PASS compileAndSerialize('a << (b in c)') is 'a << (b in c)'
+PASS compileAndSerialize('a >> b >> c') is 'a >> b >> c'
+PASS compileAndSerialize('(a >> b) >> c') is '(a >> b) >> c'
+PASS compileAndSerialize('a >> (b >> c)') is 'a >> (b >> c)'
+PASS compileAndSerialize('a << b >> c') is 'a << b >> c'
+PASS compileAndSerialize('(a << b) >> c') is '(a << b) >> c'
+PASS compileAndSerialize('a << (b >> c)') is 'a << (b >> c)'
+PASS compileAndSerialize('a >> b < c') is 'a >> b < c'
+PASS compileAndSerialize('(a >> b) < c') is '(a >> b) < c'
+PASS compileAndSerialize('a >> (b < c)') is 'a >> (b < c)'
+PASS compileAndSerialize('a >>> b >>> c') is 'a >>> b >>> c'
+PASS compileAndSerialize('(a >>> b) >>> c') is '(a >>> b) >>> c'
+PASS compileAndSerialize('a >>> (b >>> c)') is 'a >>> (b >>> c)'
+PASS compileAndSerialize('a << b >>> c') is 'a << b >>> c'
+PASS compileAndSerialize('(a << b) >>> c') is '(a << b) >>> c'
+PASS compileAndSerialize('a << (b >>> c)') is 'a << (b >>> c)'
+PASS compileAndSerialize('a >>> b < c') is 'a >>> b < c'
+PASS compileAndSerialize('(a >>> b) < c') is '(a >>> b) < c'
+PASS compileAndSerialize('a >>> (b < c)') is 'a >>> (b < c)'
+PASS compileAndSerialize('a < b < c') is 'a < b < c'
+PASS compileAndSerialize('(a < b) < c') is '(a < b) < c'
+PASS compileAndSerialize('a < (b < c)') is 'a < (b < c)'
+PASS compileAndSerialize('a < b == c') is 'a < b == c'
+PASS compileAndSerialize('(a < b) == c') is '(a < b) == c'
+PASS compileAndSerialize('a < (b == c)') is 'a < (b == c)'
+PASS compileAndSerialize('a < b != c') is 'a < b != c'
+PASS compileAndSerialize('(a < b) != c') is '(a < b) != c'
+PASS compileAndSerialize('a < (b != c)') is 'a < (b != c)'
+PASS compileAndSerialize('a < b === c') is 'a < b === c'
+PASS compileAndSerialize('(a < b) === c') is '(a < b) === c'
+PASS compileAndSerialize('a < (b === c)') is 'a < (b === c)'
+PASS compileAndSerialize('a < b !== c') is 'a < b !== c'
+PASS compileAndSerialize('(a < b) !== c') is '(a < b) !== c'
+PASS compileAndSerialize('a < (b !== c)') is 'a < (b !== c)'
+PASS compileAndSerialize('a > b > c') is 'a > b > c'
+PASS compileAndSerialize('(a > b) > c') is '(a > b) > c'
+PASS compileAndSerialize('a > (b > c)') is 'a > (b > c)'
+PASS compileAndSerialize('a < b > c') is 'a < b > c'
+PASS compileAndSerialize('(a < b) > c') is '(a < b) > c'
+PASS compileAndSerialize('a < (b > c)') is 'a < (b > c)'
+PASS compileAndSerialize('a > b == c') is 'a > b == c'
+PASS compileAndSerialize('(a > b) == c') is '(a > b) == c'
+PASS compileAndSerialize('a > (b == c)') is 'a > (b == c)'
+PASS compileAndSerialize('a <= b <= c') is 'a <= b <= c'
+PASS compileAndSerialize('(a <= b) <= c') is '(a <= b) <= c'
+PASS compileAndSerialize('a <= (b <= c)') is 'a <= (b <= c)'
+PASS compileAndSerialize('a < b <= c') is 'a < b <= c'
+PASS compileAndSerialize('(a < b) <= c') is '(a < b) <= c'
+PASS compileAndSerialize('a < (b <= c)') is 'a < (b <= c)'
+PASS compileAndSerialize('a <= b == c') is 'a <= b == c'
+PASS compileAndSerialize('(a <= b) == c') is '(a <= b) == c'
+PASS compileAndSerialize('a <= (b == c)') is 'a <= (b == c)'
+PASS compileAndSerialize('a >= b >= c') is 'a >= b >= c'
+PASS compileAndSerialize('(a >= b) >= c') is '(a >= b) >= c'
+PASS compileAndSerialize('a >= (b >= c)') is 'a >= (b >= c)'
+PASS compileAndSerialize('a < b >= c') is 'a < b >= c'
+PASS compileAndSerialize('(a < b) >= c') is '(a < b) >= c'
+PASS compileAndSerialize('a < (b >= c)') is 'a < (b >= c)'
+PASS compileAndSerialize('a >= b == c') is 'a >= b == c'
+PASS compileAndSerialize('(a >= b) == c') is '(a >= b) == c'
+PASS compileAndSerialize('a >= (b == c)') is 'a >= (b == c)'
+PASS compileAndSerialize('a instanceof b instanceof c') is 'a instanceof b instanceof c'
+PASS compileAndSerialize('(a instanceof b) instanceof c') is '(a instanceof b) instanceof c'
+PASS compileAndSerialize('a instanceof (b instanceof c)') is 'a instanceof (b instanceof c)'
+PASS compileAndSerialize('a < b instanceof c') is 'a < b instanceof c'
+PASS compileAndSerialize('(a < b) instanceof c') is '(a < b) instanceof c'
+PASS compileAndSerialize('a < (b instanceof c)') is 'a < (b instanceof c)'
+PASS compileAndSerialize('a instanceof b == c') is 'a instanceof b == c'
+PASS compileAndSerialize('(a instanceof b) == c') is '(a instanceof b) == c'
+PASS compileAndSerialize('a instanceof (b == c)') is 'a instanceof (b == c)'
+PASS compileAndSerialize('a in b in c') is 'a in b in c'
+PASS compileAndSerialize('(a in b) in c') is '(a in b) in c'
+PASS compileAndSerialize('a in (b in c)') is 'a in (b in c)'
+PASS compileAndSerialize('a < b in c') is 'a < b in c'
+PASS compileAndSerialize('(a < b) in c') is '(a < b) in c'
+PASS compileAndSerialize('a < (b in c)') is 'a < (b in c)'
+PASS compileAndSerialize('a in b == c') is 'a in b == c'
+PASS compileAndSerialize('(a in b) == c') is '(a in b) == c'
+PASS compileAndSerialize('a in (b == c)') is 'a in (b == c)'
+PASS compileAndSerialize('a == b == c') is 'a == b == c'
+PASS compileAndSerialize('(a == b) == c') is '(a == b) == c'
+PASS compileAndSerialize('a == (b == c)') is 'a == (b == c)'
+PASS compileAndSerialize('a == b & c') is 'a == b & c'
+PASS compileAndSerialize('(a == b) & c') is '(a == b) & c'
+PASS compileAndSerialize('a == (b & c)') is 'a == (b & c)'
+PASS compileAndSerialize('a != b != c') is 'a != b != c'
+PASS compileAndSerialize('(a != b) != c') is '(a != b) != c'
+PASS compileAndSerialize('a != (b != c)') is 'a != (b != c)'
+PASS compileAndSerialize('a == b != c') is 'a == b != c'
+PASS compileAndSerialize('(a == b) != c') is '(a == b) != c'
+PASS compileAndSerialize('a == (b != c)') is 'a == (b != c)'
+PASS compileAndSerialize('a != b & c') is 'a != b & c'
+PASS compileAndSerialize('(a != b) & c') is '(a != b) & c'
+PASS compileAndSerialize('a != (b & c)') is 'a != (b & c)'
+PASS compileAndSerialize('a === b === c') is 'a === b === c'
+PASS compileAndSerialize('(a === b) === c') is '(a === b) === c'
+PASS compileAndSerialize('a === (b === c)') is 'a === (b === c)'
+PASS compileAndSerialize('a == b === c') is 'a == b === c'
+PASS compileAndSerialize('(a == b) === c') is '(a == b) === c'
+PASS compileAndSerialize('a == (b === c)') is 'a == (b === c)'
+PASS compileAndSerialize('a === b & c') is 'a === b & c'
+PASS compileAndSerialize('(a === b) & c') is '(a === b) & c'
+PASS compileAndSerialize('a === (b & c)') is 'a === (b & c)'
+PASS compileAndSerialize('a !== b !== c') is 'a !== b !== c'
+PASS compileAndSerialize('(a !== b) !== c') is '(a !== b) !== c'
+PASS compileAndSerialize('a !== (b !== c)') is 'a !== (b !== c)'
+PASS compileAndSerialize('a == b !== c') is 'a == b !== c'
+PASS compileAndSerialize('(a == b) !== c') is '(a == b) !== c'
+PASS compileAndSerialize('a == (b !== c)') is 'a == (b !== c)'
+PASS compileAndSerialize('a !== b & c') is 'a !== b & c'
+PASS compileAndSerialize('(a !== b) & c') is '(a !== b) & c'
+PASS compileAndSerialize('a !== (b & c)') is 'a !== (b & c)'
+PASS compileAndSerialize('a & b & c') is 'a & b & c'
+PASS compileAndSerialize('(a & b) & c') is '(a & b) & c'
+PASS compileAndSerialize('a & (b & c)') is 'a & (b & c)'
+PASS compileAndSerialize('a & b ^ c') is 'a & b ^ c'
+PASS compileAndSerialize('(a & b) ^ c') is '(a & b) ^ c'
+PASS compileAndSerialize('a & (b ^ c)') is 'a & (b ^ c)'
+PASS compileAndSerialize('a ^ b ^ c') is 'a ^ b ^ c'
+PASS compileAndSerialize('(a ^ b) ^ c') is '(a ^ b) ^ c'
+PASS compileAndSerialize('a ^ (b ^ c)') is 'a ^ (b ^ c)'
+PASS compileAndSerialize('a ^ b | c') is 'a ^ b | c'
+PASS compileAndSerialize('(a ^ b) | c') is '(a ^ b) | c'
+PASS compileAndSerialize('a ^ (b | c)') is 'a ^ (b | c)'
+PASS compileAndSerialize('a | b | c') is 'a | b | c'
+PASS compileAndSerialize('(a | b) | c') is '(a | b) | c'
+PASS compileAndSerialize('a | (b | c)') is 'a | (b | c)'
+PASS compileAndSerialize('a | b && c') is 'a | b && c'
+PASS compileAndSerialize('(a | b) && c') is '(a | b) && c'
+PASS compileAndSerialize('a | (b && c)') is 'a | (b && c)'
+PASS compileAndSerialize('a && b && c') is 'a && b && c'
+PASS compileAndSerialize('(a && b) && c') is '(a && b) && c'
+PASS compileAndSerialize('a && (b && c)') is 'a && (b && c)'
+PASS compileAndSerialize('a && b || c') is 'a && b || c'
+PASS compileAndSerialize('(a && b) || c') is '(a && b) || c'
+PASS compileAndSerialize('a && (b || c)') is 'a && (b || c)'
+PASS compileAndSerialize('a || b || c') is 'a || b || c'
+PASS compileAndSerialize('(a || b) || c') is '(a || b) || c'
+PASS compileAndSerialize('a || (b || c)') is 'a || (b || c)'
+PASS compileAndSerialize('a = b = c') is 'a = b = c'
+FAIL compileAndSerialize('(a = b) = c') should be (a = b) = c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b = c)') is 'a = (b = c)'
+PASS compileAndSerialize('a = b + c') is 'a = b + c'
+PASS compileAndSerialize('(a = b) + c') is '(a = b) + c'
+PASS compileAndSerialize('a = (b + c)') is 'a = (b + c)'
+PASS compileAndSerialize('a + b = c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) = c') should be (a + b) = c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b = c)') is 'a + (b = c)'
+PASS compileAndSerialize('a *= b *= c') is 'a *= b *= c'
+FAIL compileAndSerialize('(a *= b) *= c') should be (a *= b) *= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a *= (b *= c)') is 'a *= (b *= c)'
+PASS compileAndSerialize('a = b *= c') is 'a = b *= c'
+FAIL compileAndSerialize('(a = b) *= c') should be (a = b) *= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b *= c)') is 'a = (b *= c)'
+PASS compileAndSerialize('a *= b + c') is 'a *= b + c'
+PASS compileAndSerialize('(a *= b) + c') is '(a *= b) + c'
+PASS compileAndSerialize('a *= (b + c)') is 'a *= (b + c)'
+PASS compileAndSerialize('a + b *= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) *= c') should be (a + b) *= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b *= c)') is 'a + (b *= c)'
+PASS compileAndSerialize('a /= b /= c') is 'a /= b /= c'
+FAIL compileAndSerialize('(a /= b) /= c') should be (a /= b) /= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a /= (b /= c)') is 'a /= (b /= c)'
+PASS compileAndSerialize('a = b /= c') is 'a = b /= c'
+FAIL compileAndSerialize('(a = b) /= c') should be (a = b) /= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b /= c)') is 'a = (b /= c)'
+PASS compileAndSerialize('a /= b + c') is 'a /= b + c'
+PASS compileAndSerialize('(a /= b) + c') is '(a /= b) + c'
+PASS compileAndSerialize('a /= (b + c)') is 'a /= (b + c)'
+PASS compileAndSerialize('a + b /= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) /= c') should be (a + b) /= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b /= c)') is 'a + (b /= c)'
+PASS compileAndSerialize('a %= b %= c') is 'a %= b %= c'
+FAIL compileAndSerialize('(a %= b) %= c') should be (a %= b) %= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a %= (b %= c)') is 'a %= (b %= c)'
+PASS compileAndSerialize('a = b %= c') is 'a = b %= c'
+FAIL compileAndSerialize('(a = b) %= c') should be (a = b) %= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b %= c)') is 'a = (b %= c)'
+PASS compileAndSerialize('a %= b + c') is 'a %= b + c'
+PASS compileAndSerialize('(a %= b) + c') is '(a %= b) + c'
+PASS compileAndSerialize('a %= (b + c)') is 'a %= (b + c)'
+PASS compileAndSerialize('a + b %= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) %= c') should be (a + b) %= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b %= c)') is 'a + (b %= c)'
+PASS compileAndSerialize('a += b += c') is 'a += b += c'
+FAIL compileAndSerialize('(a += b) += c') should be (a += b) += c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a += (b += c)') is 'a += (b += c)'
+PASS compileAndSerialize('a = b += c') is 'a = b += c'
+FAIL compileAndSerialize('(a = b) += c') should be (a = b) += c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b += c)') is 'a = (b += c)'
+PASS compileAndSerialize('a += b + c') is 'a += b + c'
+PASS compileAndSerialize('(a += b) + c') is '(a += b) + c'
+PASS compileAndSerialize('a += (b + c)') is 'a += (b + c)'
+PASS compileAndSerialize('a + b += c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) += c') should be (a + b) += c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b += c)') is 'a + (b += c)'
+PASS compileAndSerialize('a -= b -= c') is 'a -= b -= c'
+FAIL compileAndSerialize('(a -= b) -= c') should be (a -= b) -= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a -= (b -= c)') is 'a -= (b -= c)'
+PASS compileAndSerialize('a = b -= c') is 'a = b -= c'
+FAIL compileAndSerialize('(a = b) -= c') should be (a = b) -= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b -= c)') is 'a = (b -= c)'
+PASS compileAndSerialize('a -= b + c') is 'a -= b + c'
+PASS compileAndSerialize('(a -= b) + c') is '(a -= b) + c'
+PASS compileAndSerialize('a -= (b + c)') is 'a -= (b + c)'
+PASS compileAndSerialize('a + b -= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) -= c') should be (a + b) -= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b -= c)') is 'a + (b -= c)'
+PASS compileAndSerialize('a <<= b <<= c') is 'a <<= b <<= c'
+FAIL compileAndSerialize('(a <<= b) <<= c') should be (a <<= b) <<= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a <<= (b <<= c)') is 'a <<= (b <<= c)'
+PASS compileAndSerialize('a = b <<= c') is 'a = b <<= c'
+FAIL compileAndSerialize('(a = b) <<= c') should be (a = b) <<= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b <<= c)') is 'a = (b <<= c)'
+PASS compileAndSerialize('a <<= b + c') is 'a <<= b + c'
+PASS compileAndSerialize('(a <<= b) + c') is '(a <<= b) + c'
+PASS compileAndSerialize('a <<= (b + c)') is 'a <<= (b + c)'
+PASS compileAndSerialize('a + b <<= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) <<= c') should be (a + b) <<= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b <<= c)') is 'a + (b <<= c)'
+PASS compileAndSerialize('a >>= b >>= c') is 'a >>= b >>= c'
+FAIL compileAndSerialize('(a >>= b) >>= c') should be (a >>= b) >>= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a >>= (b >>= c)') is 'a >>= (b >>= c)'
+PASS compileAndSerialize('a = b >>= c') is 'a = b >>= c'
+FAIL compileAndSerialize('(a = b) >>= c') should be (a = b) >>= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b >>= c)') is 'a = (b >>= c)'
+PASS compileAndSerialize('a >>= b + c') is 'a >>= b + c'
+PASS compileAndSerialize('(a >>= b) + c') is '(a >>= b) + c'
+PASS compileAndSerialize('a >>= (b + c)') is 'a >>= (b + c)'
+PASS compileAndSerialize('a + b >>= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) >>= c') should be (a + b) >>= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b >>= c)') is 'a + (b >>= c)'
+PASS compileAndSerialize('a >>>= b >>>= c') is 'a >>>= b >>>= c'
+FAIL compileAndSerialize('(a >>>= b) >>>= c') should be (a >>>= b) >>>= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a >>>= (b >>>= c)') is 'a >>>= (b >>>= c)'
+PASS compileAndSerialize('a = b >>>= c') is 'a = b >>>= c'
+FAIL compileAndSerialize('(a = b) >>>= c') should be (a = b) >>>= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b >>>= c)') is 'a = (b >>>= c)'
+PASS compileAndSerialize('a >>>= b + c') is 'a >>>= b + c'
+PASS compileAndSerialize('(a >>>= b) + c') is '(a >>>= b) + c'
+PASS compileAndSerialize('a >>>= (b + c)') is 'a >>>= (b + c)'
+PASS compileAndSerialize('a + b >>>= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) >>>= c') should be (a + b) >>>= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b >>>= c)') is 'a + (b >>>= c)'
+PASS compileAndSerialize('a &= b &= c') is 'a &= b &= c'
+FAIL compileAndSerialize('(a &= b) &= c') should be (a &= b) &= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a &= (b &= c)') is 'a &= (b &= c)'
+PASS compileAndSerialize('a = b &= c') is 'a = b &= c'
+FAIL compileAndSerialize('(a = b) &= c') should be (a = b) &= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b &= c)') is 'a = (b &= c)'
+PASS compileAndSerialize('a &= b + c') is 'a &= b + c'
+PASS compileAndSerialize('(a &= b) + c') is '(a &= b) + c'
+PASS compileAndSerialize('a &= (b + c)') is 'a &= (b + c)'
+PASS compileAndSerialize('a + b &= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) &= c') should be (a + b) &= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b &= c)') is 'a + (b &= c)'
+PASS compileAndSerialize('a ^= b ^= c') is 'a ^= b ^= c'
+FAIL compileAndSerialize('(a ^= b) ^= c') should be (a ^= b) ^= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a ^= (b ^= c)') is 'a ^= (b ^= c)'
+PASS compileAndSerialize('a = b ^= c') is 'a = b ^= c'
+FAIL compileAndSerialize('(a = b) ^= c') should be (a = b) ^= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b ^= c)') is 'a = (b ^= c)'
+PASS compileAndSerialize('a ^= b + c') is 'a ^= b + c'
+PASS compileAndSerialize('(a ^= b) + c') is '(a ^= b) + c'
+PASS compileAndSerialize('a ^= (b + c)') is 'a ^= (b + c)'
+PASS compileAndSerialize('a + b ^= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) ^= c') should be (a + b) ^= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b ^= c)') is 'a + (b ^= c)'
+PASS compileAndSerialize('a |= b |= c') is 'a |= b |= c'
+FAIL compileAndSerialize('(a |= b) |= c') should be (a |= b) |= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a |= (b |= c)') is 'a |= (b |= c)'
+PASS compileAndSerialize('a = b |= c') is 'a = b |= c'
+FAIL compileAndSerialize('(a = b) |= c') should be (a = b) |= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a = (b |= c)') is 'a = (b |= c)'
+PASS compileAndSerialize('a |= b + c') is 'a |= b + c'
+PASS compileAndSerialize('(a |= b) + c') is '(a |= b) + c'
+PASS compileAndSerialize('a |= (b + c)') is 'a |= (b + c)'
+PASS compileAndSerialize('a + b |= c') threw exception ReferenceError: Invalid left-hand side in assignment.
+FAIL compileAndSerialize('(a + b) |= c') should be (a + b) |= c. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerialize('a + (b |= c)') is 'a + (b |= c)'
+PASS compileAndSerialize('delete a + b') is 'delete a + b'
+PASS compileAndSerialize('(delete a) + b') is '(delete a) + b'
+PASS compileAndSerialize('delete (a + b)') is 'delete (a + b)'
+PASS compileAndSerialize('!delete a') is '!delete a'
+PASS compileAndSerialize('!(delete a)') is '!(delete a)'
+PASS compileAndSerialize('void a + b') is 'void a + b'
+PASS compileAndSerialize('(void a) + b') is '(void a) + b'
+PASS compileAndSerialize('void (a + b)') is 'void (a + b)'
+PASS compileAndSerialize('!void a') is '!void a'
+PASS compileAndSerialize('!(void a)') is '!(void a)'
+PASS compileAndSerialize('typeof a + b') is 'typeof a + b'
+PASS compileAndSerialize('(typeof a) + b') is '(typeof a) + b'
+PASS compileAndSerialize('typeof (a + b)') is 'typeof (a + b)'
+PASS compileAndSerialize('!typeof a') is '!typeof a'
+PASS compileAndSerialize('!(typeof a)') is '!(typeof a)'
+PASS compileAndSerialize('++a + b') is '++a + b'
+PASS compileAndSerialize('(++a) + b') is '(++a) + b'
+FAIL compileAndSerialize('++(a + b)') should be ++(a + b). Threw exception ReferenceError: Invalid left-hand side expression in prefix operation
+PASS compileAndSerialize('!++a') is '!++a'
+PASS compileAndSerialize('!(++a)') is '!(++a)'
+PASS compileAndSerialize('--a + b') is '--a + b'
+PASS compileAndSerialize('(--a) + b') is '(--a) + b'
+FAIL compileAndSerialize('--(a + b)') should be --(a + b). Threw exception ReferenceError: Invalid left-hand side expression in prefix operation
+PASS compileAndSerialize('!--a') is '!--a'
+PASS compileAndSerialize('!(--a)') is '!(--a)'
+PASS compileAndSerialize('+ a + b') is '+ a + b'
+PASS compileAndSerialize('(+ a) + b') is '(+ a) + b'
+PASS compileAndSerialize('+ (a + b)') is '+ (a + b)'
+PASS compileAndSerialize('!+ a') is '!+ a'
+PASS compileAndSerialize('!(+ a)') is '!(+ a)'
+PASS compileAndSerialize('- a + b') is '- a + b'
+PASS compileAndSerialize('(- a) + b') is '(- a) + b'
+PASS compileAndSerialize('- (a + b)') is '- (a + b)'
+PASS compileAndSerialize('!- a') is '!- a'
+PASS compileAndSerialize('!(- a)') is '!(- a)'
+PASS compileAndSerialize('~a + b') is '~a + b'
+PASS compileAndSerialize('(~a) + b') is '(~a) + b'
+PASS compileAndSerialize('~(a + b)') is '~(a + b)'
+PASS compileAndSerialize('!~a') is '!~a'
+PASS compileAndSerialize('!(~a)') is '!(~a)'
+PASS compileAndSerialize('!a + b') is '!a + b'
+PASS compileAndSerialize('(!a) + b') is '(!a) + b'
+PASS compileAndSerialize('!(a + b)') is '!(a + b)'
+PASS compileAndSerialize('!!a') is '!!a'
+PASS compileAndSerialize('!(!a)') is '!(!a)'
+PASS compileAndSerialize('!a++') is '!a++'
+PASS compileAndSerialize('!(a++)') is '!(a++)'
+FAIL compileAndSerialize('(!a)++') should be (!a)++. Threw exception ReferenceError: Invalid left-hand side expression in postfix operation
+PASS compileAndSerialize('!a--') is '!a--'
+PASS compileAndSerialize('!(a--)') is '!(a--)'
+FAIL compileAndSerialize('(!a)--') should be (!a)--. Threw exception ReferenceError: Invalid left-hand side expression in postfix operation
+PASS compileAndSerialize('(-1)[a]') is '(-1)[a]'
+PASS compileAndSerialize('(-1)[a] = b') is '(-1)[a] = b'
+PASS compileAndSerialize('(-1)[a] += b') is '(-1)[a] += b'
+PASS compileAndSerialize('(-1)[a]++') is '(-1)[a]++'
+PASS compileAndSerialize('++(-1)[a]') is '++(-1)[a]'
+PASS compileAndSerialize('(-1)[a]()') is '(-1)[a]()'
+PASS compileAndSerialize('new (-1)()') is 'new (-1)()'
+PASS compileAndSerialize('(-1).a') is '(-1).a'
+PASS compileAndSerialize('(-1).a = b') is '(-1).a = b'
+PASS compileAndSerialize('(-1).a += b') is '(-1).a += b'
+PASS compileAndSerialize('(-1).a++') is '(-1).a++'
+PASS compileAndSerialize('++(-1).a') is '++(-1).a'
+PASS compileAndSerialize('(-1).a()') is '(-1).a()'
+PASS compileAndSerialize('(- 0)[a]') is '(- 0)[a]'
+PASS compileAndSerialize('(- 0)[a] = b') is '(- 0)[a] = b'
+PASS compileAndSerialize('(- 0)[a] += b') is '(- 0)[a] += b'
+PASS compileAndSerialize('(- 0)[a]++') is '(- 0)[a]++'
+PASS compileAndSerialize('++(- 0)[a]') is '++(- 0)[a]'
+PASS compileAndSerialize('(- 0)[a]()') is '(- 0)[a]()'
+PASS compileAndSerialize('new (- 0)()') is 'new (- 0)()'
+PASS compileAndSerialize('(- 0).a') is '(- 0).a'
+PASS compileAndSerialize('(- 0).a = b') is '(- 0).a = b'
+PASS compileAndSerialize('(- 0).a += b') is '(- 0).a += b'
+PASS compileAndSerialize('(- 0).a++') is '(- 0).a++'
+PASS compileAndSerialize('++(- 0).a') is '++(- 0).a'
+PASS compileAndSerialize('(- 0).a()') is '(- 0).a()'
+PASS compileAndSerialize('(1)[a]') is '(1)[a]'
+PASS compileAndSerialize('(1)[a] = b') is '(1)[a] = b'
+PASS compileAndSerialize('(1)[a] += b') is '(1)[a] += b'
+PASS compileAndSerialize('(1)[a]++') is '(1)[a]++'
+PASS compileAndSerialize('++(1)[a]') is '++(1)[a]'
+PASS compileAndSerialize('(1)[a]()') is '(1)[a]()'
+PASS compileAndSerialize('new (1)()') is 'new (1)()'
+PASS compileAndSerialize('(1).a') is '(1).a'
+PASS compileAndSerialize('(1).a = b') is '(1).a = b'
+PASS compileAndSerialize('(1).a += b') is '(1).a += b'
+PASS compileAndSerialize('(1).a++') is '(1).a++'
+PASS compileAndSerialize('++(1).a') is '++(1).a'
+PASS compileAndSerialize('(1).a()') is '(1).a()'
+FAIL compileAndSerialize('(-1) = a') should be (-1) = a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) = a') should be (- 0) = a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 = a') should be 1 = a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) *= a') should be (-1) *= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) *= a') should be (- 0) *= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 *= a') should be 1 *= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) /= a') should be (-1) /= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) /= a') should be (- 0) /= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 /= a') should be 1 /= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) %= a') should be (-1) %= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) %= a') should be (- 0) %= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 %= a') should be 1 %= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) += a') should be (-1) += a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) += a') should be (- 0) += a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 += a') should be 1 += a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) -= a') should be (-1) -= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) -= a') should be (- 0) -= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 -= a') should be 1 -= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) <<= a') should be (-1) <<= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) <<= a') should be (- 0) <<= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 <<= a') should be 1 <<= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) >>= a') should be (-1) >>= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) >>= a') should be (- 0) >>= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 >>= a') should be 1 >>= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) >>>= a') should be (-1) >>>= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) >>>= a') should be (- 0) >>>= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 >>>= a') should be 1 >>>= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) &= a') should be (-1) &= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) &= a') should be (- 0) &= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 &= a') should be 1 &= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) ^= a') should be (-1) ^= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) ^= a') should be (- 0) ^= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 ^= a') should be 1 ^= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(-1) |= a') should be (-1) |= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('(- 0) |= a') should be (- 0) |= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+FAIL compileAndSerialize('1 |= a') should be 1 |= a. Threw exception ReferenceError: Invalid left-hand side in assignment
+PASS compileAndSerializeLeftmostTest('({ }).x') is '({ }).x'
+PASS compileAndSerializeLeftmostTest('x = { }') is 'x = { }'
+PASS compileAndSerializeLeftmostTest('(function () { })()') is '(function () { })()'
+PASS compileAndSerializeLeftmostTest('x = function () { }') is 'x = function () { }'
+PASS compileAndSerializeLeftmostTest('var a') is 'var a'
+PASS compileAndSerializeLeftmostTest('var a = 1') is 'var a = 1'
+PASS compileAndSerializeLeftmostTest('var a, b') is 'var a, b'
+PASS compileAndSerializeLeftmostTest('var a = 1, b = 2') is 'var a = 1, b = 2'
+PASS compileAndSerializeLeftmostTest('var a, b, c') is 'var a, b, c'
+PASS compileAndSerializeLeftmostTest('var a = 1, b = 2, c = 3') is 'var a = 1, b = 2, c = 3'
+PASS compileAndSerializeLeftmostTest('const a = 1') is 'const a = 1'
+PASS compileAndSerializeLeftmostTest('const a = (1, 2)') is 'const a = (1, 2)'
+PASS compileAndSerializeLeftmostTest('const a, b = 1') is 'const a, b = 1'
+PASS compileAndSerializeLeftmostTest('const a = 1, b') is 'const a = 1, b'
+PASS compileAndSerializeLeftmostTest('const a = 1, b = 1') is 'const a = 1, b = 1'
+PASS compileAndSerializeLeftmostTest('const a = (1, 2), b = 1') is 'const a = (1, 2), b = 1'
+PASS compileAndSerializeLeftmostTest('const a = 1, b = (1, 2)') is 'const a = 1, b = (1, 2)'
+PASS compileAndSerializeLeftmostTest('const a = (1, 2), b = (1, 2)') is 'const a = (1, 2), b = (1, 2)'
+PASS compileAndSerialize('(function () { new (a.b()).c })') is '(function () { new (a.b()).c })'
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

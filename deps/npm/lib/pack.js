@@ -11,6 +11,8 @@ var npm = require("./npm.js")
   , chain = require("slide").chain
   , path = require("path")
   , cwd = process.cwd()
+  , writeStream = require('fs-write-stream-atomic')
+  , cachedPackageRoot = require("./cache/cached-package-root.js")
 
 pack.usage = "npm pack <pkg>"
 
@@ -40,15 +42,17 @@ function printFiles (files, cb) {
 
 // add to cache, then cp to the cwd
 function pack_ (pkg, cb) {
-  cache.add(pkg, function (er, data) {
+  cache.add(pkg, null, null, false, function (er, data) {
     if (er) return cb(er)
-    var fname = path.resolve(data._id.replace(/@/g, "-") + ".tgz")
-      , cached = path.resolve( npm.cache
-                             , data.name
-                             , data.version
-                             , "package.tgz" )
+
+    // scoped packages get special treatment
+    var name = data.name
+    if (name[0] === "@") name = name.substr(1).replace(/\//g, "-")
+    var fname = name + "-" + data.version + ".tgz"
+
+    var cached = path.join(cachedPackageRoot(data), "package.tgz")
       , from = fs.createReadStream(cached)
-      , to = fs.createWriteStream(fname)
+      , to = writeStream(fname)
       , errState = null
 
     from.on("error", cb_)

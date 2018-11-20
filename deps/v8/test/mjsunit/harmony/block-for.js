@@ -27,7 +27,6 @@
 
 // Flags: --harmony-scoping
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 function props(x) {
@@ -93,7 +92,6 @@ assertEquals('ab', result);
 
 // Check that there is exactly one variable without initializer
 // in a for-in statement with let variables.
-// TODO(ES6): properly activate extended mode
 assertThrows("function foo() { 'use strict'; for (let in {}) { } }", SyntaxError);
 assertThrows("function foo() { 'use strict'; for (let x = 3 in {}) { } }", SyntaxError);
 assertThrows("function foo() { 'use strict'; for (let x, y in {}) { } }", SyntaxError);
@@ -102,7 +100,7 @@ assertThrows("function foo() { 'use strict'; for (let x, y = 4 in {}) { } }", Sy
 assertThrows("function foo() { 'use strict'; for (let x = 3, y = 4 in {}) { } }", SyntaxError);
 
 
-// In a normal for statement the iteration variable is not
+// In a normal for statement the iteration variable is
 // freshly allocated for each iteration.
 function closures1() {
   let a = [];
@@ -110,7 +108,7 @@ function closures1() {
     a.push(function () { return i; });
   }
   for (let j = 0; j < 5; ++j) {
-    assertEquals(5, a[j]());
+    assertEquals(j, a[j]());
   }
 }
 closures1();
@@ -123,11 +121,43 @@ function closures2() {
     b.push(function () { return j; });
   }
   for (let k = 0; k < 5; ++k) {
-    assertEquals(5, a[k]());
-    assertEquals(15, b[k]());
+    assertEquals(k, a[k]());
+    assertEquals(k + 10, b[k]());
   }
 }
 closures2();
+
+
+function closure_in_for_init() {
+  let a = [];
+  for (let i = 0, f = function() { return i }; i < 5; ++i) {
+    a.push(f);
+  }
+  for (let k = 0; k < 5; ++k) {
+    assertEquals(0, a[k]());
+  }
+}
+closure_in_for_init();
+
+
+function closure_in_for_cond() {
+  let a = [];
+  for (let i = 0; a.push(function () { return i; }), i < 5; ++i) { }
+  for (let k = 0; k < 5; ++k) {
+    assertEquals(k, a[k]());
+  }
+}
+closure_in_for_next();
+
+
+function closure_in_for_next() {
+  let a = [];
+  for (let i = 0; i < 5; a.push(function () { return i; }), ++i) { }
+  for (let k = 0; k < 5; ++k) {
+    assertEquals(k + 1, a[k]());
+  }
+}
+closure_in_for_next();
 
 
 // In a for-in statement the iteration variable is fresh

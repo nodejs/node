@@ -27,14 +27,15 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "disassembler.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "platform.h"
-#include "serialize.h"
-#include "cctest.h"
+#include "src/base/platform/platform.h"
+#include "src/disassembler.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/ostreams.h"
+#include "src/serialize.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -44,21 +45,11 @@ typedef int (*F1)(int x);
 typedef int (*F2)(int x, int y);
 
 
-static v8::Persistent<v8::Context> env;
-
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
-
-
 #define __ assm.
 
 TEST(AssemblerIa320) {
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
@@ -70,15 +61,13 @@ TEST(AssemblerIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = f(3, 4);
   ::printf("f() = %d\n", res);
   CHECK_EQ(7, res);
@@ -86,8 +75,8 @@ TEST(AssemblerIa320) {
 
 
 TEST(AssemblerIa321) {
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
@@ -109,15 +98,13 @@ TEST(AssemblerIa321) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(100);
   ::printf("f() = %d\n", res);
   CHECK_EQ(5050, res);
@@ -125,8 +112,8 @@ TEST(AssemblerIa321) {
 
 
 TEST(AssemblerIa322) {
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
@@ -147,20 +134,18 @@ TEST(AssemblerIa322) {
   __ ret(0);
 
   // some relocated stuff here, not executed
-  __ mov(eax, FACTORY->true_value());
+  __ mov(eax, isolate->factory()->true_value());
   __ jmp(NULL, RelocInfo::RUNTIME_ENTRY);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(10);
   ::printf("f() = %d\n", res);
   CHECK_EQ(3628800, res);
@@ -170,32 +155,25 @@ TEST(AssemblerIa322) {
 typedef int (*F3)(float x);
 
 TEST(AssemblerIa323) {
-  InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  CcTest::InitializeVM();
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  { CpuFeatureScope fscope(&assm, SSE2);
-    __ cvttss2si(eax, Operand(esp, 4));
-    __ ret(0);
-  }
+  __ cvttss2si(eax, Operand(esp, 4));
+  __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  // don't print the code - our disassembler can't handle cvttss2si
-  // instead print bytes
-  Disassembler::Dump(stdout,
-                     code->instruction_start(),
-                     code->instruction_start() + code->instruction_size());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
   int res = f(static_cast<float>(-3.1415));
   ::printf("f() = %d\n", res);
@@ -206,31 +184,25 @@ TEST(AssemblerIa323) {
 typedef int (*F4)(double x);
 
 TEST(AssemblerIa324) {
-  InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  CcTest::InitializeVM();
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  CpuFeatureScope fscope(&assm, SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  // don't print the code - our disassembler can't handle cvttsd2si
-  // instead print bytes
-  Disassembler::Dump(stdout,
-                     code->instruction_start(),
-                     code->instruction_start() + code->instruction_size());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
   F4 f = FUNCTION_CAST<F4>(code->entry());
   int res = f(2.718281828);
   ::printf("f() = %d\n", res);
@@ -240,8 +212,8 @@ TEST(AssemblerIa324) {
 
 static int baz = 42;
 TEST(AssemblerIa325) {
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[256];
@@ -252,10 +224,8 @@ TEST(AssemblerIa325) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
   CHECK_EQ(42, res);
@@ -265,41 +235,33 @@ TEST(AssemblerIa325) {
 typedef double (*F5)(double x, double y);
 
 TEST(AssemblerIa326) {
-  InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  CcTest::InitializeVM();
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CpuFeatureScope fscope(&assm, SSE2);
-  __ movdbl(xmm0, Operand(esp, 1 * kPointerSize));
-  __ movdbl(xmm1, Operand(esp, 3 * kPointerSize));
+  __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
+  __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
   __ addsd(xmm0, xmm1);
   __ mulsd(xmm0, xmm1);
   __ subsd(xmm0, xmm1);
   __ divsd(xmm0, xmm1);
   // Copy xmm0 to st(0) using eight bytes of stack.
   __ sub(esp, Immediate(8));
-  __ movdbl(Operand(esp, 0), xmm0);
+  __ movsd(Operand(esp, 0), xmm0);
   __ fld_d(Operand(esp, 0));
   __ add(esp, Immediate(8));
   __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-#ifdef DEBUG
-  ::printf("\n---\n");
-  // don't print the code - our disassembler can't handle SSE instructions
-  // instead print bytes
-  Disassembler::Dump(stdout,
-                     code->instruction_start(),
-                     code->instruction_start() + code->instruction_size());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F5 f = FUNCTION_CAST<F5>(code->entry());
   double res = f(2.2, 1.1);
@@ -311,33 +273,29 @@ TEST(AssemblerIa326) {
 typedef double (*F6)(int x);
 
 TEST(AssemblerIa328) {
-  InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
+  CcTest::InitializeVM();
 
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
-  CpuFeatureScope fscope(&assm, SSE2);
   __ mov(eax, Operand(esp, 4));
   __ cvtsi2sd(xmm0, eax);
   // Copy xmm0 to st(0) using eight bytes of stack.
   __ sub(esp, Immediate(8));
-  __ movdbl(Operand(esp, 0), xmm0);
+  __ movsd(Operand(esp, 0), xmm0);
   __ fld_d(Operand(esp, 0));
   __ add(esp, Immediate(8));
   __ ret(0);
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-  F6 f = FUNCTION_CAST<F6>(Code::cast(code)->entry());
+  F6 f = FUNCTION_CAST<F6>(code->entry());
   double res = f(12);
 
   ::printf("f() = %f\n", res);
@@ -348,8 +306,8 @@ TEST(AssemblerIa328) {
 typedef int (*F7)(double x, double y);
 
 TEST(AssemblerIa329) {
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   MacroAssembler assm(isolate, buffer, sizeof buffer);
@@ -385,27 +343,25 @@ TEST(AssemblerIa329) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
 
-  F7 f = FUNCTION_CAST<F7>(Code::cast(code)->entry());
+  F7 f = FUNCTION_CAST<F7>(code->entry());
   CHECK_EQ(kLess, f(1.1, 2.2));
   CHECK_EQ(kEqual, f(2.2, 2.2));
   CHECK_EQ(kGreater, f(3.3, 2.2));
-  CHECK_EQ(kNaN, f(OS::nan_value(), 1.1));
+  CHECK_EQ(kNaN, f(std::numeric_limits<double>::quiet_NaN(), 1.1));
 }
 
 
 TEST(AssemblerIa3210) {
   // Test chaining of label usages within instructions (issue 1644).
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   Assembler assm(isolate, NULL, 0);
 
@@ -418,8 +374,8 @@ TEST(AssemblerIa3210) {
 
 
 TEST(AssemblerMultiByteNop) {
-  InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
   Assembler assm(isolate, buffer, sizeof(buffer));
@@ -471,10 +427,8 @@ TEST(AssemblerMultiByteNop) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   CHECK(code->IsCode());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
@@ -483,6 +437,706 @@ TEST(AssemblerMultiByteNop) {
 }
 
 
+#ifdef __GNUC__
+#define ELEMENT_COUNT 4u
 
+void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+
+  CHECK(args[0]->IsArray());
+  v8::Local<v8::Array> vec = v8::Local<v8::Array>::Cast(args[0]);
+  CHECK_EQ(ELEMENT_COUNT, vec->Length());
+
+  v8::internal::byte buffer[256];
+  Assembler assm(isolate, buffer, sizeof buffer);
+
+  // Remove return address from the stack for fix stack frame alignment.
+  __ pop(ecx);
+
+  // Store input vector on the stack.
+  for (unsigned i = 0; i < ELEMENT_COUNT; ++i) {
+    __ push(Immediate(vec->Get(i)->Int32Value()));
+  }
+
+  // Read vector into a xmm register.
+  __ pxor(xmm0, xmm0);
+  __ movdqa(xmm0, Operand(esp, 0));
+  // Create mask and store it in the return register.
+  __ movmskps(eax, xmm0);
+
+  // Remove unused data from the stack.
+  __ add(esp, Immediate(ELEMENT_COUNT * sizeof(int32_t)));
+  // Restore return address.
+  __ push(ecx);
+
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  int res = f();
+  args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
+}
+
+
+TEST(StackAlignmentForSSE2) {
+  CcTest::InitializeVM();
+  CHECK_EQ(0, v8::base::OS::ActivationFrameAlignment() % 16);
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
+  global_template->Set(v8_str("do_sse2"),
+                       v8::FunctionTemplate::New(isolate, DoSSE2));
+
+  LocalContext env(NULL, global_template);
+  CompileRun(
+      "function foo(vec) {"
+      "  return do_sse2(vec);"
+      "}");
+
+  v8::Local<v8::Object> global_object = env->Global();
+  v8::Local<v8::Function> foo =
+      v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
+
+  int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
+  v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
+  for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
+      v8_vec->Set(i, v8_num(vec[i]));
+  }
+
+  v8::Local<v8::Value> args[] = { v8_vec };
+  v8::Local<v8::Value> result = foo->Call(global_object, 1, args);
+
+  // The mask should be 0b1000.
+  CHECK_EQ(8, result->Int32Value());
+}
+
+#undef ELEMENT_COUNT
+#endif  // __GNUC__
+
+
+TEST(AssemblerIa32Extractps) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE4_1)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  { CpuFeatureScope fscope41(&assm, SSE4_1);
+    __ movsd(xmm1, Operand(esp, 4));
+    __ extractps(eax, xmm1, 0x1);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+  uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
+  CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
+  uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
+  CHECK_EQ(static_cast<int>(0x87654321), f(uint64_to_double(value2)));
+}
+
+
+typedef int (*F8)(float x, float y);
+TEST(AssemblerIa32SSE) {
+  CcTest::InitializeVM();
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    __ movss(xmm0, Operand(esp, kPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
+    __ shufps(xmm0, xmm0, 0x0);
+    __ shufps(xmm1, xmm1, 0x0);
+    __ movaps(xmm2, xmm1);
+    __ addps(xmm2, xmm0);
+    __ mulps(xmm2, xmm1);
+    __ subps(xmm2, xmm0);
+    __ divps(xmm2, xmm1);
+    __ cvttss2si(eax, xmm2);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F8 f = FUNCTION_CAST<F8>(code->entry());
+  CHECK_EQ(2, f(1.0, 2.0));
+}
+
+
+typedef int (*F9)(double x, double y, double z);
+TEST(AssemblerX64FMA_sd) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(FMA3)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, FMA3);
+    Label exit;
+    __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
+    __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
+    __ movsd(xmm2, Operand(esp, 5 * kPointerSize));
+    // argument in xmm0, xmm1 and xmm2
+    // xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ addsd(xmm3, xmm2);  // Expected result in xmm3
+
+    __ sub(esp, Immediate(kDoubleSize));  // For memory operand
+    // vfmadd132sd
+    __ mov(eax, Immediate(1));  // Test number
+    __ movaps(xmm4, xmm0);
+    __ vfmadd132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmadd213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmadd231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmadd132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmadd132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfmadd213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmadd231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ subsd(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfmsub132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmsub213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmsub231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmsub132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfmsub213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfmsub231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ Move(xmm4, (uint64_t)1 << 63);
+    __ xorpd(xmm3, xmm4);
+    __ addsd(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmadd132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmadd132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmadd213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmadd231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmadd132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmadd132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfnmadd213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmadd231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulsd(xmm3, xmm1);
+    __ Move(xmm4, (uint64_t)1 << 63);
+    __ xorpd(xmm3, xmm4);
+    __ subsd(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmsub132sd(xmm4, xmm2, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmsub213sd(xmm4, xmm0, xmm2);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmsub231sd(xmm4, xmm0, xmm1);
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmsub132sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmsub132sd(xmm4, xmm2, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub213sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movsd(Operand(esp, 0), xmm2);
+    __ vfnmsub213sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231sd
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movsd(Operand(esp, 0), xmm1);
+    __ vfnmsub231sd(xmm4, xmm0, Operand(esp, 0));
+    __ ucomisd(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ add(esp, Immediate(kDoubleSize));
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F9 f = FUNCTION_CAST<F9>(code->entry());
+  CHECK_EQ(0, f(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
+}
+
+
+typedef int (*F10)(float x, float y, float z);
+TEST(AssemblerX64FMA_ss) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(FMA3)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[1024];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    CpuFeatureScope fscope(&assm, FMA3);
+    Label exit;
+    __ movss(xmm0, Operand(esp, 1 * kPointerSize));
+    __ movss(xmm1, Operand(esp, 2 * kPointerSize));
+    __ movss(xmm2, Operand(esp, 3 * kPointerSize));
+    // arguments in xmm0, xmm1 and xmm2
+    // xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ addss(xmm3, xmm2);  // Expected result in xmm3
+
+    __ sub(esp, Immediate(kDoubleSize));  // For memory operand
+    // vfmadd132ss
+    __ mov(eax, Immediate(1));  // Test number
+    __ movaps(xmm4, xmm0);
+    __ vfmadd132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmadd213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmadd231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmadd132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmadd132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfmadd213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmadd231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ subss(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfmsub132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfmsub213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfmsub231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmsub132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfmsub213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfmsub231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 + xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ Move(xmm4, (uint32_t)1 << 31);
+    __ xorps(xmm3, xmm4);
+    __ addss(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmadd132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmadd132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmadd213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmadd231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmadd132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmadd132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfnmadd213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmadd231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmadd231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    // - xmm0 * xmm1 - xmm2
+    __ movaps(xmm3, xmm0);
+    __ mulss(xmm3, xmm1);
+    __ Move(xmm4, (uint32_t)1 << 31);
+    __ xorps(xmm3, xmm4);
+    __ subss(xmm3, xmm2);  // Expected result in xmm3
+
+    // vfnmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ vfnmsub132ss(xmm4, xmm2, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfmsub213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ vfnmsub213ss(xmm4, xmm0, xmm2);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ vfnmsub231ss(xmm4, xmm0, xmm1);
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+    // vfnmsub132ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm0);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmsub132ss(xmm4, xmm2, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub213ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm1);
+    __ movss(Operand(esp, 0), xmm2);
+    __ vfnmsub213ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+    // vfnmsub231ss
+    __ inc(eax);
+    __ movaps(xmm4, xmm2);
+    __ movss(Operand(esp, 0), xmm1);
+    __ vfnmsub231ss(xmm4, xmm0, Operand(esp, 0));
+    __ ucomiss(xmm4, xmm3);
+    __ j(not_equal, &exit);
+
+
+    __ xor_(eax, eax);
+    __ bind(&exit);
+    __ add(esp, Immediate(kDoubleSize));
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F10 f = FUNCTION_CAST<F10>(code->entry());
+  CHECK_EQ(0, f(9.26621069e-05f, -2.4607749f, -1.09587872f));
+}
+
+
+TEST(AssemblerIa32JumpTables1) {
+  // Test jump tables with forward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  Label done, table;
+  __ mov(eax, Operand(esp, 4));
+  __ jmp(Operand::JumpTable(eax, times_4, &table));
+  __ ud2();
+  __ bind(&table);
+  for (int i = 0; i < kNumCases; ++i) {
+    __ dd(&labels[i]);
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ mov(eax, Immediate(values[i]));
+    __ jmp(&done);
+  }
+
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = f(i);
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
+
+TEST(AssemblerIa32JumpTables2) {
+  // Test jump tables with backward jumps.
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+
+  Label done, table;
+  __ mov(eax, Operand(esp, 4));
+  __ jmp(Operand::JumpTable(eax, times_4, &table));
+  __ ud2();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ mov(eax, Immediate(values[i]));
+    __ jmp(&done);
+  }
+
+  __ bind(&table);
+  for (int i = 0; i < kNumCases; ++i) {
+    __ dd(&labels[i]);
+  }
+
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int res = f(i);
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
 
 #undef __

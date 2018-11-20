@@ -52,7 +52,7 @@ ab.load <- function (filename, name) {
 
 
 filename <- args[0:1]
-data <- ab.load(filename, "node")
+data <- ab.load(filename, "iojs")
 
 
 # histogram

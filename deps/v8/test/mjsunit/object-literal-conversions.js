@@ -43,4 +43,3 @@ var test6 = { 17.31: function() {}, "17.31": 7 };
 
 assertEquals(7, test5[13]);
 assertEquals(7, test6[17.31]);
-

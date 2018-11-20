@@ -6,7 +6,10 @@ module.exports = exports = shrinkwrap
 var npm = require("./npm.js")
   , log = require("npmlog")
   , fs = require("fs")
+  , writeFileAtomic = require("write-file-atomic")
   , path = require("path")
+  , readJson = require("read-package-json")
+  , sortedObject = require("sorted-object")
 
 shrinkwrap.usage = "npm shrinkwrap"
 
@@ -17,20 +20,56 @@ function shrinkwrap (args, silent, cb) {
     log.warn("shrinkwrap", "doesn't take positional args")
   }
 
+  // https://github.com/npm/npm/issues/7641
+  // introduced because `npm ls` can now show dev and prod depenednecy
+  // trees separately
+  if (npm.config.get("dev")) {
+    npm.config.set("production", true)
+  }
   npm.commands.ls([], true, function (er, _, pkginfo) {
     if (er) return cb(er)
-    shrinkwrap_(pkginfo, silent, cb)
+    shrinkwrap_(pkginfo, silent, npm.config.get("dev"), cb)
   })
 }
 
-function shrinkwrap_ (pkginfo, silent, cb) {
+function shrinkwrap_ (pkginfo, silent, dev, cb) {
   if (pkginfo.problems) {
     return cb(new Error("Problems were encountered\n"
                        +"Please correct and try again.\n"
                        +pkginfo.problems.join("\n")))
   }
+
+  if (!dev) {
+    // remove dev deps unless the user does --dev
+    readJson(path.resolve(npm.prefix, "package.json"), function (er, data) {
+      if (er)
+        return cb(er)
+      if (data.devDependencies) {
+        Object.keys(data.devDependencies).forEach(function (dep) {
+          if (data.dependencies && data.dependencies[dep]) {
+            // do not exclude the dev dependency if it's also listed as a dependency
+            return
+          }
+
+          log.warn("shrinkwrap", "Excluding devDependency: %s", dep, data.dependencies)
+          delete pkginfo.dependencies[dep]
+        })
+      }
+      save(pkginfo, silent, cb)
+    })
+  } else {
+    save(pkginfo, silent, cb)
+  }
+}
+
+
+function save (pkginfo, silent, cb) {
+  // copy the keys over in a well defined order
+  // because javascript objects serialize arbitrarily
+  pkginfo.dependencies = sortedObject(pkginfo.dependencies || {})
+  var swdata
   try {
-    var swdata = JSON.stringify(pkginfo, null, 2) + "\n"
+    swdata = JSON.stringify(pkginfo, null, 2) + "\n"
   } catch (er) {
     log.error("shrinkwrap", "Error converting package info to json")
     return cb(er)
@@ -38,7 +77,7 @@ function shrinkwrap_ (pkginfo, silent, cb) {
 
   var file = path.resolve(npm.prefix, "npm-shrinkwrap.json")
 
-  fs.writeFile(file, swdata, function (er) {
+  writeFileAtomic(file, swdata, function (er) {
     if (er) return cb(er)
     if (silent) return cb(null, pkginfo)
     console.log("wrote npm-shrinkwrap.json")

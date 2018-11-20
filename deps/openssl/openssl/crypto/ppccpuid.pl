@@ -31,6 +31,7 @@ $code=<<___;
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
+.size	.OPENSSL_ppc64_probe,.-.OPENSSL_ppc64_probe
 
 .globl	.OPENSSL_altivec_probe
 .align	4
@@ -39,6 +40,17 @@ $code=<<___;
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
+.size	.OPENSSL_altivec_probe,.-..OPENSSL_altivec_probe
+
+.globl	.OPENSSL_crypto207_probe
+.align	4
+.OPENSSL_crypto207_probe:
+	lvx_u	v0,0,r1
+	vcipher	v0,v0,v0
+	blr
+	.long	0
+	.byte	0,12,0x14,0,0,0,0,0
+.size	.OPENSSL_crypto207_probe,.-.OPENSSL_crypto207_probe
 
 .globl	.OPENSSL_wipe_cpu
 .align	4
@@ -71,6 +83,7 @@ $code=<<___;
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
+.size	.OPENSSL_wipe_cpu,.-.OPENSSL_wipe_cpu
 
 .globl	.OPENSSL_atomic_add
 .align	4
@@ -84,6 +97,7 @@ Ladd:	lwarx	r5,0,r3
 	.long	0
 	.byte	0,12,0x14,0,0,0,2,0
 	.long	0
+.size	.OPENSSL_atomic_add,.-.OPENSSL_atomic_add
 
 .globl	.OPENSSL_rdtsc
 .align	4
@@ -93,6 +107,7 @@ Ladd:	lwarx	r5,0,r3
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
+.size	.OPENSSL_rdtsc,.-.OPENSSL_rdtsc
 
 .globl	.OPENSSL_cleanse
 .align	4
@@ -125,6 +140,7 @@ Laligned:
 	.long	0
 	.byte	0,12,0x14,0,0,0,2,0
 	.long	0
+.size	.OPENSSL_cleanse,.-.OPENSSL_cleanse
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

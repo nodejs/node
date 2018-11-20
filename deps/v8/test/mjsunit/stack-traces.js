@@ -64,13 +64,13 @@ function testNestedEval() {
 }
 
 function testEvalWithSourceURL() {
-  eval("function Doo() { FAIL; }; Doo();\n//@ sourceURL=res://name");
+  eval("function Doo() { FAIL; }; Doo();\n//# sourceURL=res://name");
 }
 
 function testNestedEvalWithSourceURL() {
   var x = "FAIL";
   var innerEval = 'function Inner() { eval(x); }\n//@ sourceURL=res://inner-eval';
-  eval("function Outer() { eval(innerEval); Inner(); }; Outer();\n//@ sourceURL=res://outer-eval");
+  eval("function Outer() { eval(innerEval); Inner(); }; Outer();\n//# sourceURL=res://outer-eval");
 }
 
 function testValue() {
@@ -315,7 +315,11 @@ assertTrue(fired);
 Error.prepareStackTrace = function() { throw new Error("abc"); };
 var message;
 try {
-  throw new Error();
+  try {
+    throw new Error();
+  } catch (e) {
+    e.stack;
+  }
 } catch (e) {
   message = e.message;
 }
@@ -324,6 +328,26 @@ assertEquals("abc", message);
 
 // Test that modifying Error.prepareStackTrace by itself works.
 Error.prepareStackTrace = function() { Error.prepareStackTrace = "custom"; };
-new Error();
+new Error().stack;
 
 assertEquals("custom", Error.prepareStackTrace);
+
+// Check that the formatted stack trace can be set to undefined.
+error = new Error();
+error.stack = undefined;
+assertEquals(undefined, error.stack);
+
+// Check that the stack trace accessors are not forcibly set.
+var my_error = {};
+Object.freeze(my_error);
+assertThrows(function() { Error.captureStackTrace(my_error); });
+
+my_error = {};
+Object.preventExtensions(my_error);
+assertThrows(function() { Error.captureStackTrace(my_error); });
+
+var fake_error = {};
+my_error = new Error();
+var stolen_getter = Object.getOwnPropertyDescriptor(my_error, 'stack').get;
+Object.defineProperty(fake_error, 'stack', { get: stolen_getter });
+assertEquals(undefined, fake_error.stack);

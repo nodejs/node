@@ -1,43 +1,90 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "compiler.h"
-#include "debug.h"
-#include "prettyprinter.h"
-#include "rewriter.h"
-#include "runtime.h"
-#include "stub-cache.h"
+#if defined(V8_OS_AIX)
+#include <fenv.h>
+#endif
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/compiler.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/prettyprinter.h"
+#include "src/rewriter.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
+
+
+#if defined(_WIN64)
+typedef double (*ModuloFunction)(double, double);
+static ModuloFunction modulo_function = NULL;
+// Defined in codegen-x64.cc.
+ModuloFunction CreateModuloFunction();
+
+void init_modulo_function() {
+  modulo_function = CreateModuloFunction();
+}
+
+
+double modulo(double x, double y) {
+  // Note: here we rely on dependent reads being ordered. This is true
+  // on all architectures we currently support.
+  return (*modulo_function)(x, y);
+}
+#elif defined(_WIN32)
+
+double modulo(double x, double y) {
+  // Workaround MS fmod bugs. ECMA-262 says:
+  // dividend is finite and divisor is an infinity => result equals dividend
+  // dividend is a zero and divisor is nonzero finite => result equals dividend
+  if (!(std::isfinite(x) && (!std::isfinite(y) && !std::isnan(y))) &&
+      !(x == 0 && (y != 0 && std::isfinite(y)))) {
+    x = fmod(x, y);
+  }
+  return x;
+}
+#else  // POSIX
+
+double modulo(double x, double y) {
+#if defined(V8_OS_AIX)
+  // AIX raises an underflow exception for (Number.MIN_VALUE % Number.MAX_VALUE)
+  feclearexcept(FE_ALL_EXCEPT);
+  double result = std::fmod(x, y);
+  int exception = fetestexcept(FE_UNDERFLOW);
+  return (exception ? x : result);
+#else
+  return std::fmod(x, y);
+#endif
+}
+#endif  // defined(_WIN64)
+
+
+#define UNARY_MATH_FUNCTION(name, generator)             \
+static UnaryMathFunction fast_##name##_function = NULL;  \
+void init_fast_##name##_function() {                     \
+  fast_##name##_function = generator;                    \
+}                                                        \
+double fast_##name(double x) {                           \
+  return (*fast_##name##_function)(x);                   \
+}
+
+UNARY_MATH_FUNCTION(exp, CreateExpFunction())
+UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
+
+#undef UNARY_MATH_FUNCTION
+
+
+void lazily_initialize_fast_exp() {
+  if (fast_exp_function == NULL) {
+    init_fast_exp_function();
+  }
+}
+
 
 #define __ ACCESS_MASM(masm_)
 
@@ -58,13 +105,12 @@ Comment::~Comment() {
 #undef __
 
 
-void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
-#ifdef DEBUG
+void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
   bool print_source = false;
   bool print_ast = false;
   const char* ftype;
 
-  if (Isolate::Current()->bootstrapper()->IsActive()) {
+  if (info->isolate()->bootstrapper()->IsActive()) {
     print_source = FLAG_print_builtin_source;
     print_ast = FLAG_print_builtin_ast;
     ftype = "builtin";
@@ -75,25 +121,28 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
   }
 
   if (FLAG_trace_codegen || print_source || print_ast) {
-    PrintF("*** Generate code for %s function: ", ftype);
+    PrintF("[generating %s code for %s function: ", kind, ftype);
     if (info->IsStub()) {
       const char* name =
           CodeStub::MajorName(info->code_stub()->MajorKey(), true);
       PrintF("%s", name == NULL ? "<unknown>" : name);
     } else {
-      info->function()->name()->ShortPrint();
+      AllowDeferredHandleDereference allow_deference_for_trace;
+      PrintF("%s", info->function()->debug_name()->ToCString().get());
     }
-    PrintF(" ***\n");
+    PrintF("]\n");
   }
 
+#ifdef DEBUG
   if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
-           PrettyPrinter().PrintProgram(info->function()));
+           PrettyPrinter(info->isolate(), info->zone())
+               .PrintProgram(info->function()));
   }
 
   if (!info->IsStub() && print_ast) {
-    PrintF("--- AST ---\n%s\n",
-           AstPrinter().PrintProgram(info->function()));
+    PrintF("--- AST ---\n%s\n", AstPrinter(info->isolate(), info->zone())
+                                    .PrintProgram(info->function()));
   }
 #endif  // DEBUG
 }
@@ -106,22 +155,27 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 
   // Allocate and install the code.
   CodeDesc desc;
+  bool is_crankshafted =
+      Code::ExtractKindFromFlags(flags) == Code::OPTIMIZED_FUNCTION ||
+      info->IsStub();
   masm->GetCode(&desc);
   Handle<Code> code =
-      isolate->factory()->NewCode(desc, flags, masm->CodeObject());
-
-  if (!code.is_null()) {
-    isolate->counters()->total_compiled_code_size()->Increment(
-        code->instruction_size());
-    code->set_prologue_offset(info->prologue_offset());
-  }
+      isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
+                                  false, is_crankshafted,
+                                  info->prologue_offset(),
+                                  info->is_debug() && !is_crankshafted);
+  isolate->counters()->total_compiled_code_size()->Increment(
+      code->instruction_size());
+  isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
+      code->instruction_size());
   return code;
 }
 
 
 void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #ifdef ENABLE_DISASSEMBLER
-  bool print_code = Isolate::Current()->bootstrapper()->IsActive()
+  AllowDeferredHandleDereference allow_deference_for_print_code;
+  bool print_code = info->isolate()->bootstrapper()->IsActive()
       ? FLAG_print_builtin_code
       : (FLAG_print_code ||
          (info->IsStub() && FLAG_print_code_stubs) ||
@@ -129,58 +183,52 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
   if (print_code) {
     // Print the source code if available.
     FunctionLiteral* function = info->function();
-    if (code->kind() != Code::COMPILED_STUB) {
+    bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION ||
+        code->kind() == Code::FUNCTION;
+
+    CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    if (print_source) {
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-        PrintF("--- Raw source ---\n");
-        ConsStringIteratorOp op;
+        os << "--- Raw source ---\n";
         StringCharacterStream stream(String::cast(script->source()),
-                                     &op,
                                      function->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
         int source_len =
             function->end_position() - function->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
-          if (stream.HasMore()) PrintF("%c", stream.GetNext());
+          if (stream.HasMore()) {
+            os << AsReversiblyEscapedUC16(stream.GetNext());
+          }
         }
-        PrintF("\n\n");
+        os << "\n\n";
       }
     }
     if (info->IsOptimizing()) {
       if (FLAG_print_unopt_code) {
-        PrintF("--- Unoptimized code ---\n");
+        os << "--- Unoptimized code ---\n";
         info->closure()->shared()->code()->Disassemble(
-            *function->debug_name()->ToCString());
+            function->debug_name()->ToCString().get(), os);
       }
-      PrintF("--- Optimized code ---\n");
+      os << "--- Optimized code ---\n"
+         << "optimization_id = " << info->optimization_id() << "\n";
     } else {
-      PrintF("--- Code ---\n");
+      os << "--- Code ---\n";
+    }
+    if (print_source) {
+      os << "source_position = " << function->start_position() << "\n";
     }
     if (info->IsStub()) {
       CodeStub::Major major_key = info->code_stub()->MajorKey();
-      code->Disassemble(CodeStub::MajorName(major_key, false));
+      code->Disassemble(CodeStub::MajorName(major_key, false), os);
     } else {
-      code->Disassemble(*function->debug_name()->ToCString());
+      code->Disassemble(function->debug_name()->ToCString().get(), os);
     }
+    os << "--- End code ---\n";
   }
 #endif  // ENABLE_DISASSEMBLER
-}
-
-
-bool CodeGenerator::ShouldGenerateLog(Expression* type) {
-  ASSERT(type != NULL);
-  Isolate* isolate = Isolate::Current();
-  if (!isolate->logger()->is_logging() &&
-      !isolate->cpu_profiler()->is_profiling()) {
-    return false;
-  }
-  Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
-  if (FLAG_log_regexp) {
-    if (name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("regexp")))
-      return true;
-  }
-  return false;
 }
 
 
@@ -196,35 +244,5 @@ bool CodeGenerator::RecordPositions(MacroAssembler* masm,
   }
   return false;
 }
-
-
-void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  switch (type_) {
-    case READ_ELEMENT:
-      GenerateReadElement(masm);
-      break;
-    case NEW_NON_STRICT_FAST:
-      GenerateNewNonStrictFast(masm);
-      break;
-    case NEW_NON_STRICT_SLOW:
-      GenerateNewNonStrictSlow(masm);
-      break;
-    case NEW_STRICT:
-      GenerateNewStrict(masm);
-      break;
-  }
-}
-
-
-int CEntryStub::MinorKey() {
-  int result = (save_doubles_ == kSaveFPRegs) ? 1 : 0;
-  ASSERT(result_size_ == 1 || result_size_ == 2);
-#ifdef _WIN64
-  return result | ((result_size_ == 1) ? 0 : 2);
-#else
-  return result;
-#endif
-}
-
 
 } }  // namespace v8::internal

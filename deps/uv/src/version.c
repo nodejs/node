@@ -19,18 +19,7 @@
  * IN THE SOFTWARE.
  */
 
-
- /*
- * Versions with an even minor version (e.g. 0.6.1 or 1.0.4) are API and ABI
- * stable. When the minor version is odd, the API can change between patch
- * releases.
- */
-
-#define UV_VERSION_MAJOR 0
-#define UV_VERSION_MINOR 10
-#define UV_VERSION_PATCH 3
-#define UV_VERSION_IS_RELEASE 1
-
+#include "uv.h"
 
 #define UV_VERSION  ((UV_VERSION_MAJOR << 16) | \
                      (UV_VERSION_MINOR <<  8) | \
@@ -46,7 +35,7 @@
 #if UV_VERSION_IS_RELEASE
 # define UV_VERSION_STRING  UV_VERSION_STRING_BASE
 #else
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE "-pre"
+# define UV_VERSION_STRING  UV_VERSION_STRING_BASE "-" UV_VERSION_SUFFIX
 #endif
 
 

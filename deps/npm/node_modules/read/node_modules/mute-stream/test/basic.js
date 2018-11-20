@@ -19,6 +19,7 @@ PassThrough.prototype = Object.create(Stream.prototype, {
   write: {
     value: function (c) {
       this.emit('data', c)
+      return true
     }
   },
   end: {

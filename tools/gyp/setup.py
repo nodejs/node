@@ -4,10 +4,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from distutils.core import setup
-from distutils.command.install import install
-from distutils.command.install_lib import install_lib
-from distutils.command.install_scripts import install_scripts
+from setuptools import setup
 
 setup(
   name='gyp',
@@ -18,9 +15,5 @@ setup(
   url='http://code.google.com/p/gyp',
   package_dir = {'': 'pylib'},
   packages=['gyp', 'gyp.generator'],
-
-  scripts = ['gyp'],
-  cmdclass = {'install': install,
-              'install_lib': install_lib,
-              'install_scripts': install_scripts},
+  entry_points = {'console_scripts': ['gyp=gyp:script_main'] }
 )

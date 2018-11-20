@@ -103,7 +103,3 @@ var expected = ['23', '42',  // indexed from 'o'
 var actual = [];
 for (var p in o) actual.push(p);
 assertArrayEquals(expected, actual);
-
-
-
-

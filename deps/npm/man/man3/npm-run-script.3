@@ -1,0 +1,37 @@
+.TH "NPM\-RUN\-SCRIPT" "3" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-run-script\fR \- Run arbitrary package scripts
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm\.commands\.run\-script(args, callback)
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This runs an arbitrary command from a package's "scripts" object\.
+.P
+It is used by the test, start, restart, and stop commands, but can be
+called directly, as well\.
+.P
+The 'args' parameter is an array of strings\. Behavior depends on the number
+of elements\.  If there is only one element, npm assumes that the element
+represents a command to be run on the local repository\. If there is more than
+one element, then the first is assumed to be the package and the second is
+assumed to be the command to run\. All other elements are ignored\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm apihelp test
+.IP \(bu 2
+npm apihelp start
+.IP \(bu 2
+npm apihelp restart
+.IP \(bu 2
+npm apihelp stop
+
+.RE
+

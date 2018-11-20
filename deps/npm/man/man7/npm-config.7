@@ -1,0 +1,1261 @@
+.TH "NPM\-CONFIG" "7" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-config\fR \- More than you probably want to know about npm configuration
+.SH DESCRIPTION
+.P
+npm gets its configuration values from the following sources, sorted by priority:
+.SS Command Line Flags
+.P
+Putting \fB\-\-foo bar\fR on the command line sets the \fBfoo\fR configuration
+parameter to \fB"bar"\fR\|\.  A \fB\-\-\fR argument tells the cli parser to stop
+reading flags\.  A \fB\-\-flag\fR parameter that is at the \fIend\fR of the
+command will be given the value of \fBtrue\fR\|\.
+.SS Environment Variables
+.P
+Any environment variables that start with \fBnpm_config_\fR will be
+interpreted as a configuration parameter\.  For example, putting
+\fBnpm_config_foo=bar\fR in your environment will set the \fBfoo\fR
+configuration parameter to \fBbar\fR\|\.  Any environment configurations that
+are not given a value will be given the value of \fBtrue\fR\|\.  Config
+values are case\-insensitive, so \fBNPM_CONFIG_FOO=bar\fR will work the
+same\.
+.SS npmrc Files
+.P
+The four relevant files are:
+.RS 0
+.IP \(bu 2
+per\-project config file (/path/to/my/project/\.npmrc)
+.IP \(bu 2
+per\-user config file (~/\.npmrc)
+.IP \(bu 2
+global config file ($PREFIX/npmrc)
+.IP \(bu 2
+npm builtin config file (/path/to/npm/npmrc)
+
+.RE
+.P
+See npm help 5 npmrc for more details\.
+.SS Default Configs
+.P
+A set of configuration parameters that are internal to npm, and are
+defaults if nothing else is specified\.
+.SH Shorthands and Other CLI Niceties
+.P
+The following shorthands are parsed on the command\-line:
+.RS 0
+.IP \(bu 2
+\fB\-v\fR: \fB\-\-version\fR
+.IP \(bu 2
+\fB\-h\fR, \fB\-?\fR, \fB\-\-help\fR, \fB\-H\fR: \fB\-\-usage\fR
+.IP \(bu 2
+\fB\-s\fR, \fB\-\-silent\fR: \fB\-\-loglevel silent\fR
+.IP \(bu 2
+\fB\-q\fR, \fB\-\-quiet\fR: \fB\-\-loglevel warn\fR
+.IP \(bu 2
+\fB\-d\fR: \fB\-\-loglevel info\fR
+.IP \(bu 2
+\fB\-dd\fR, \fB\-\-verbose\fR: \fB\-\-loglevel verbose\fR
+.IP \(bu 2
+\fB\-ddd\fR: \fB\-\-loglevel silly\fR
+.IP \(bu 2
+\fB\-g\fR: \fB\-\-global\fR
+.IP \(bu 2
+\fB\-C\fR: \fB\-\-prefix\fR
+.IP \(bu 2
+\fB\-l\fR: \fB\-\-long\fR
+.IP \(bu 2
+\fB\-m\fR: \fB\-\-message\fR
+.IP \(bu 2
+\fB\-p\fR, \fB\-\-porcelain\fR: \fB\-\-parseable\fR
+.IP \(bu 2
+\fB\-reg\fR: \fB\-\-registry\fR
+.IP \(bu 2
+\fB\-f\fR: \fB\-\-force\fR
+.IP \(bu 2
+\fB\-desc\fR: \fB\-\-description\fR
+.IP \(bu 2
+\fB\-S\fR: \fB\-\-save\fR
+.IP \(bu 2
+\fB\-D\fR: \fB\-\-save\-dev\fR
+.IP \(bu 2
+\fB\-O\fR: \fB\-\-save\-optional\fR
+.IP \(bu 2
+\fB\-B\fR: \fB\-\-save\-bundle\fR
+.IP \(bu 2
+\fB\-E\fR: \fB\-\-save\-exact\fR
+.IP \(bu 2
+\fB\-y\fR: \fB\-\-yes\fR
+.IP \(bu 2
+\fB\-n\fR: \fB\-\-yes false\fR
+.IP \(bu 2
+\fBll\fR and \fBla\fR commands: \fBls \-\-long\fR
+
+.RE
+.P
+If the specified configuration param resolves unambiguously to a known
+configuration parameter, then it is expanded to that configuration
+parameter\.  For example:
+.P
+.RS 2
+.nf
+npm ls \-\-par
+# same as:
+npm ls \-\-parseable
+.fi
+.RE
+.P
+If multiple single\-character shorthands are strung together, and the
+resulting combination is unambiguously not some other configuration
+param, then it is expanded to its various component pieces\.  For
+example:
+.P
+.RS 2
+.nf
+npm ls \-gpld
+# same as:
+npm ls \-\-global \-\-parseable \-\-long \-\-loglevel info
+.fi
+.RE
+.SH Per\-Package Config Settings
+.P
+When running scripts (see npm help 7 \fBnpm\-scripts\fR) the package\.json "config"
+keys are overwritten in the environment if there is a config param of
+\fB<name>[@<version>]:<key>\fR\|\.  For example, if the package\.json has
+this:
+.P
+.RS 2
+.nf
+{ "name" : "foo"
+, "config" : { "port" : "8080" }
+, "scripts" : { "start" : "node server\.js" } }
+.fi
+.RE
+.P
+and the server\.js is this:
+.P
+.RS 2
+.nf
+http\.createServer(\.\.\.)\.listen(process\.env\.npm_package_config_port)
+.fi
+.RE
+.P
+then the user could change the behavior by doing:
+.P
+.RS 2
+.nf
+npm config set foo:port 80
+.fi
+.RE
+.P
+See npm help 5 package\.json for more information\.
+.SH Config Settings
+.SS access
+.RS 0
+.IP \(bu 2
+Default: \fBrestricted\fR
+.IP \(bu 2
+Type: Access
+
+.RE
+.P
+When publishing scoped packages, the access level defaults to \fBrestricted\fR\|\.  If
+you want your scoped package to be publicly viewable (and installable) set
+\fB\-\-access=public\fR\|\. The only valid values for \fBaccess\fR are \fBpublic\fR and
+\fBrestricted\fR\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fR\|\.
+.SS always\-auth
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Force npm to always require authentication when accessing the registry,
+even for \fBGET\fR requests\.
+.SS bin\-links
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fR
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Tells npm to create symlinks (or \fB\|\.cmd\fR shims on Windows) for package
+executables\.
+.P
+Set to false to have it not do this\.  This can be used to work around
+the fact that some file systems don't support symlinks, even on
+ostensibly Unix systems\.
+.SS browser
+.RS 0
+.IP \(bu 2
+Default: OS X: \fB"open"\fR, Windows: \fB"start"\fR, Others: \fB"xdg\-open"\fR
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The browser that is called by the \fBnpm docs\fR command to open websites\.
+.SS ca
+.RS 0
+.IP \(bu 2
+Default: The npm CA certificate
+.IP \(bu 2
+Type: String, Array or null
+
+.RE
+.P
+The Certificate Authority signing certificate that is trusted for SSL
+connections to the registry\. Values should be in PEM format with newlines
+replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+ca="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIFICATE\-\-\-\-\-"
+.fi
+.RE
+.P
+Set to \fBnull\fR to only allow "known" registrars, or to a specific CA cert
+to trust only that specific signing authority\.
+.P
+Multiple CAs can be trusted by specifying an array of certificates:
+.P
+.RS 2
+.nf
+ca[]="\.\.\."
+ca[]="\.\.\."
+.fi
+.RE
+.P
+See also the \fBstrict\-ssl\fR config\.
+.SS cafile
+.RS 0
+.IP \(bu 2
+Default: \fBnull\fR
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+A path to a file containing one or multiple Certificate Authority signing
+certificates\. Similar to the \fBca\fR setting, but allows for multiple CA's, as
+well as for the CA information to be stored in a file on disk\.
+.SS cache
+.RS 0
+.IP \(bu 2
+Default: Windows: \fB%AppData%\\npm\-cache\fR, Posix: \fB~/\.npm\fR
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+The location of npm's cache directory\.  See npm help \fBnpm\-cache\fR
+.SS cache\-lock\-stale
+.RS 0
+.IP \(bu 2
+Default: 60000 (1 minute)
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The number of ms before cache folder lockfiles are considered stale\.
+.SS cache\-lock\-retries
+.RS 0
+.IP \(bu 2
+Default: 10
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+Number of times to retry to acquire a lock on cache folder lockfiles\.
+.SS cache\-lock\-wait
+.RS 0
+.IP \(bu 2
+Default: 10000 (10 seconds)
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+Number of ms to wait for cache lock files to expire\.
+.SS cache\-max
+.RS 0
+.IP \(bu 2
+Default: Infinity
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The maximum time (in seconds) to keep items in the registry cache before
+re\-checking against the registry\.
+.P
+Note that no purging is done unless the \fBnpm cache clean\fR command is
+explicitly used, and that only GET requests use the cache\.
+.SS cache\-min
+.RS 0
+.IP \(bu 2
+Default: 10
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The minimum time (in seconds) to keep items in the registry cache before
+re\-checking against the registry\.
+.P
+Note that no purging is done unless the \fBnpm cache clean\fR command is
+explicitly used, and that only GET requests use the cache\.
+.SS cert
+.RS 0
+.IP \(bu 2
+Default: \fBnull\fR
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+A client certificate to pass when accessing the registry\.
+.SS color
+.RS 0
+.IP \(bu 2
+Default: true on Posix, false on Windows
+.IP \(bu 2
+Type: Boolean or \fB"always"\fR
+
+.RE
+.P
+If false, never shows colors\.  If \fB"always"\fR then always shows colors\.
+If true, then only prints color codes for tty file descriptors\.
+.SS depth
+.RS 0
+.IP \(bu 2
+Default: Infinity
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The depth to go when recursing directories for \fBnpm ls\fR,
+\fBnpm cache ls\fR, and \fBnpm outdated\fR\|\.
+.P
+For \fBnpm outdated\fR, a setting of \fBInfinity\fR will be treated as \fB0\fR
+since that gives more useful information\.  To show the outdated status
+of all packages and dependents, use a large integer value,
+e\.g\., \fBnpm outdated \-\-depth 9999\fR
+.SS description
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show the description in \fBnpm search\fR
+.SS dev
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Install \fBdev\-dependencies\fR along with packages\.
+.P
+Note that \fBdev\-dependencies\fR are also installed if the \fBnpat\fR flag is
+set\.
+.SS editor
+.RS 0
+.IP \(bu 2
+Default: \fBEDITOR\fR environment variable if set, or \fB"vi"\fR on Posix,
+or \fB"notepad"\fR on Windows\.
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+The command to run for \fBnpm edit\fR or \fBnpm config edit\fR\|\.
+.SS engine\-strict
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node\.js version\.
+.SS force
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Makes various commands more forceful\.
+.RS 0
+.IP \(bu 2
+lifecycle script failure does not block progress\.
+.IP \(bu 2
+publishing clobbers previously published versions\.
+.IP \(bu 2
+skips cache when requesting from the registry\.
+.IP \(bu 2
+prevents checks against clobbering non\-npm files\.
+
+.RE
+.SS fetch\-retries
+.RS 0
+.IP \(bu 2
+Default: 2
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The "retries" config for the \fBretry\fR module to use when fetching
+packages from the registry\.
+.SS fetch\-retry\-factor
+.RS 0
+.IP \(bu 2
+Default: 10
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The "factor" config for the \fBretry\fR module to use when fetching
+packages\.
+.SS fetch\-retry\-mintimeout
+.RS 0
+.IP \(bu 2
+Default: 10000 (10 seconds)
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The "minTimeout" config for the \fBretry\fR module to use when fetching
+packages\.
+.SS fetch\-retry\-maxtimeout
+.RS 0
+.IP \(bu 2
+Default: 60000 (1 minute)
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The "maxTimeout" config for the \fBretry\fR module to use when fetching
+packages\.
+.SS git
+.RS 0
+.IP \(bu 2
+Default: \fB"git"\fR
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The command to use for git commands\.  If git is installed on the
+computer, but is not in the \fBPATH\fR, then set this to the full path to
+the git binary\.
+.SS git\-tag\-version
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fR
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Tag the commit when using the \fBnpm version\fR command\.
+.SS global
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the
+\fBprefix\fR folder instead of the current working directory\.  See
+npm help 5 \fBnpm\-folders\fR for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the
+current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fR
+
+.RE
+.SS globalconfig
+.RS 0
+.IP \(bu 2
+Default: {prefix}/etc/npmrc
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+The config file to read for global config options\.
+.SS group
+.RS 0
+.IP \(bu 2
+Default: GID of the current process
+.IP \(bu 2
+Type: String or Number
+
+.RE
+.P
+The group to use when running package scripts in global mode as the root
+user\.
+.SS heading
+.RS 0
+.IP \(bu 2
+Default: \fB"npm"\fR
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The string that starts all the debugging log output\.
+.SS https\-proxy
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: url
+
+.RE
+.P
+A proxy to use for outgoing https requests\. If the \fBHTTPS_PROXY\fR or
+\fBhttps_proxy\fR or \fBHTTP_PROXY\fR or \fBhttp_proxy\fR environment variables are set,
+proxy settings will be honored by the underlying \fBrequest\fR library\.
+.SS if\-present
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm will not exit with an error code when \fBrun\-script\fR is invoked for
+a script that isn't defined in the \fBscripts\fR section of \fBpackage\.json\fR\|\. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails\. This is useful, for example, when running
+scripts that may only apply for some builds in an otherwise generic CI setup\.
+.SS ignore\-scripts
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.SS init\-module
+.RS 0
+.IP \(bu 2
+Default: ~/\.npm\-init\.js
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+A module that will be loaded by the \fBnpm init\fR command\.  See the
+documentation for the
+init\-package\-json \fIhttps://github\.com/isaacs/init\-package\-json\fR module
+for more information, or npm help init\.
+.SS init\-author\-name
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The value \fBnpm init\fR should use by default for the package author's name\.
+.SS init\-author\-email
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The value \fBnpm init\fR should use by default for the package author's email\.
+.SS init\-author\-url
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The value \fBnpm init\fR should use by default for the package author's homepage\.
+.SS init\-license
+.RS 0
+.IP \(bu 2
+Default: "ISC"
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The value \fBnpm init\fR should use by default for the package license\.
+.SS init\-version
+.RS 0
+.IP \(bu 2
+Default: "1\.0\.0"
+.IP \(bu 2
+Type: semver
+
+.RE
+.P
+The value that \fBnpm init\fR should use by default for the package
+version number, if not already set in package\.json\.
+.SS json
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.P
+This feature is currently experimental, and the output data structures
+for many commands is either not implemented in JSON yet, or subject to
+change\.  Only the output from \fBnpm ls \-\-json\fR is currently valid\.
+.SS key
+.RS 0
+.IP \(bu 2
+Default: \fBnull\fR
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+A client key to pass when accessing the registry\.
+.SS link
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, then local installs will link if there is a suitable globally
+installed package\.
+.P
+Note that this means that local installs can cause things to be
+installed into the global space at the same time\.  The link is only done
+if one of the two conditions are met:
+.RS 0
+.IP \(bu 2
+The package is not already installed globally, or
+.IP \(bu 2
+the globally installed version is identical to the version that is
+being installed locally\.
+
+.RE
+.SS local\-address
+.RS 0
+.IP \(bu 2
+Default: undefined
+.IP \(bu 2
+Type: IP Address
+
+.RE
+.P
+The IP address of the local interface to use when making connections
+to the npm registry\.  Must be IPv4 in versions of Node prior to 0\.12\.
+.SS loglevel
+.RS 0
+.IP \(bu 2
+Default: "warn"
+.IP \(bu 2
+Type: String
+.IP \(bu 2
+Values: "silent", "error", "warn", "http", "info", "verbose", "silly"
+
+.RE
+.P
+What level of logs to report\.  On failure, \fIall\fR logs are written to
+\fBnpm\-debug\.log\fR in the current working directory\.
+.P
+Any logs of a higher level than the setting are shown\.
+The default is "warn", which shows warn and error output\.
+.SS logstream
+.RS 0
+.IP \(bu 2
+Default: process\.stderr
+.IP \(bu 2
+Type: Stream
+
+.RE
+.P
+This is the stream that is passed to the
+npmlog \fIhttps://github\.com/npm/npmlog\fR module at run time\.
+.P
+It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr\.
+.P
+If the \fBcolor\fR config is set to true, then this stream will receive
+colored output if it is a TTY\.
+.SS long
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information in \fBnpm ls\fR and \fBnpm search\fR\|\.
+.SS message
+.RS 0
+.IP \(bu 2
+Default: "%s"
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Commit message which is used by \fBnpm version\fR when creating version commit\.
+.P
+Any "%s" in the message will be replaced with the version number\.
+.SS node\-version
+.RS 0
+.IP \(bu 2
+Default: process\.version
+.IP \(bu 2
+Type: semver or false
+
+.RE
+.P
+The node version to use when checking a package's \fBengines\fR map\.
+.SS npat
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run tests on installation\.
+.SS onload\-script
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+A node module to \fBrequire()\fR when npm loads\.  Useful for programmatic
+usage\.
+.SS optional
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Attempt to install packages in the \fBoptionalDependencies\fR object\.  Note
+that if these packages fail to install, the overall installation
+process is not aborted\.
+.SS parseable
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Output parseable results from commands that write to
+standard output\.
+.SS prefix
+.RS 0
+.IP \(bu 2
+Default: see npm help 5 folders
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+The location to install global items\.  If set on the command line, then
+it forces non\-global commands to run in the specified folder\.
+.SS production
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Set to true to run in "production" mode\.
+.RS 0
+.IP 1. 3
+devDependencies are not installed at the topmost level when running
+local \fBnpm install\fR without any arguments\.
+.IP 2. 3
+Set the NODE_ENV="production" for lifecycle scripts\.
+
+.RE
+.SS proprietary\-attribs
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to include proprietary extended attributes in the
+tarballs created by npm\.
+.P
+Unless you are expecting to unpack package tarballs with something other
+than npm \-\- particularly a very outdated tar implementation \-\- leave
+this as true\.
+.SS proxy
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: url
+
+.RE
+.P
+A proxy to use for outgoing http requests\. If the \fBHTTP_PROXY\fR or
+\fBhttp_proxy\fR environment variables are set, proxy settings will be
+honored by the underlying \fBrequest\fR library\.
+.SS rebuild\-bundle
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Rebuild bundled dependencies after installation\.
+.SS registry
+.RS 0
+.IP \(bu 2
+Default: https://registry\.npmjs\.org/
+.IP \(bu 2
+Type: url
+
+.RE
+.P
+The base URL of the npm package registry\.
+.SS rollback
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Remove failed installs\.
+.SS save
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Save installed packages to a package\.json file as dependencies\.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the \fBdependencies\fR
+object\.
+.P
+Only works if there is already a package\.json file present\.
+.SS save\-bundle
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If a package would be saved at install time by the use of \fB\-\-save\fR,
+\fB\-\-save\-dev\fR, or \fB\-\-save\-optional\fR, then also put it in the
+\fBbundleDependencies\fR list\.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the
+bundledDependencies list\.
+.SS save\-dev
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Save installed packages to a package\.json file as \fBdevDependencies\fR\|\.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the
+\fBdevDependencies\fR object\.
+.P
+Only works if there is already a package\.json file present\.
+.SS save\-exact
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Dependencies saved to package\.json using \fB\-\-save\fR, \fB\-\-save\-dev\fR or
+\fB\-\-save\-optional\fR will be configured with an exact version rather than
+using npm's default semver range operator\.
+.SS save\-optional
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Save installed packages to a package\.json file as
+optionalDependencies\.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the
+\fBdevDependencies\fR object\.
+.P
+Only works if there is already a package\.json file present\.
+.SS save\-prefix
+.RS 0
+.IP \(bu 2
+Default: '^'
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Configure how versions of packages installed to a package\.json file via
+\fB\-\-save\fR or \fB\-\-save\-dev\fR get prefixed\.
+.P
+For example if a package has version \fB1\.2\.3\fR, by default its version is
+set to \fB^1\.2\.3\fR which allows minor upgrades for that package, but after
+\fBnpm config set save\-prefix='~'\fR it would be set to \fB~1\.2\.3\fR which only allows
+patch upgrades\.
+.SS scope
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Associate an operation with a scope for a scoped registry\. Useful when logging
+in to a private registry for the first time:
+\fBnpm login \-\-scope=@organization \-\-registry=registry\.organization\.com\fR, which
+will cause \fB@organization\fR to be mapped to the registry for future installation
+of packages specified according to the pattern \fB@organization/package\fR\|\.
+.SS searchopts
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Space\-separated options that are always passed to search\.
+.SS searchexclude
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Space\-separated options that limit the results from search\.
+.SS searchsort
+.RS 0
+.IP \(bu 2
+Default: "name"
+.IP \(bu 2
+Type: String
+.IP \(bu 2
+Values: "name", "\-name", "date", "\-date", "description",
+"\-description", "keywords", "\-keywords"
+
+.RE
+.P
+Indication of which field to sort search results by\.  Prefix with a \fB\-\fR
+character to indicate reverse sort\.
+.SS shell
+.RS 0
+.IP \(bu 2
+Default: SHELL environment variable, or "bash" on Posix, or "cmd" on
+Windows
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+The shell to run for the \fBnpm explore\fR command\.
+.SS shrinkwrap
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to false, then ignore \fBnpm\-shrinkwrap\.json\fR files when
+installing\.
+.SS sign\-git\-tag
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to true, then the \fBnpm version\fR command will tag the version
+using \fB\-s\fR to add a signature\.
+.P
+Note that git requires you to have set up GPG keys in your git configs
+for this to work properly\.
+.SS spin
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean or \fB"always"\fR
+
+.RE
+.P
+When set to \fBtrue\fR, npm will display an ascii spinner while it is doing
+things, if \fBprocess\.stderr\fR is a TTY\.
+.P
+Set to \fBfalse\fR to suppress the spinner, or set to \fBalways\fR to output
+the spinner even for non\-TTY outputs\.
+.SS strict\-ssl
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to do SSL key validation when making requests to the
+registry via https\.
+.P
+See also the \fBca\fR config\.
+.SS tag
+.RS 0
+.IP \(bu 2
+Default: latest
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+If you ask npm to install a package and don't tell it a specific version, then
+it will install the specified tag\.
+.P
+Also the tag that is added to the package@version specified by the \fBnpm
+tag\fR command, if no explicit tag is given\.
+.SS tag\-version\-prefix
+.RS 0
+.IP \(bu 2
+Default: \fB"v"\fR
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+If set, alters the prefix used when tagging a new version when performing a
+version increment using  \fBnpm\-version\fR\|\. To remove the prefix altogether, set it
+to the empty string: \fB""\fR\|\.
+.P
+Because other tools may rely on the convention that npm version tags look like
+\fBv1\.0\.0\fR, \fIonly use this property if it is absolutely necessary\fR\|\. In
+particular, use care when overriding this setting for public packages\.
+.SS tmp
+.RS 0
+.IP \(bu 2
+Default: TMPDIR environment variable, or "/tmp"
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+Where to store temporary files and folders\.  All temp files are deleted
+on success, but left behind on failure for forensic purposes\.
+.SS unicode
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set to true, npm uses unicode characters in the tree output\.  When
+false, it uses ascii characters to draw trees\.
+.SS unsafe\-perm
+.RS 0
+.IP \(bu 2
+Default: false if running as root, true otherwise
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Set to true to suppress the UID/GID switching when running package
+scripts\.  If set explicitly to false, then installing as a non\-root user
+will fail\.
+.SS usage
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Set to show short usage output (like the \-H output)
+instead of complete help when doing npm help \fBnpm\-help\fR\|\.
+.SS user
+.RS 0
+.IP \(bu 2
+Default: "nobody"
+.IP \(bu 2
+Type: String or Number
+
+.RE
+.P
+The UID to set to when running package scripts as root\.
+.SS userconfig
+.RS 0
+.IP \(bu 2
+Default: ~/\.npmrc
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+The location of user\-level configuration settings\.
+.SS umask
+.RS 0
+.IP \(bu 2
+Default: 022
+.IP \(bu 2
+Type: Octal numeric string in range 0000\.\.0777 (0\.\.511)
+
+.RE
+.P
+The "umask" value to use when setting the file creation mode on files
+and folders\.
+.P
+Folders and executables are given a mode which is \fB0777\fR masked against
+this value\.  Other files are given a mode which is \fB0666\fR masked against
+this value\.  Thus, the defaults are \fB0755\fR and \fB0644\fR respectively\.
+.SS user\-agent
+.RS 0
+.IP \(bu 2
+Default: node/{process\.version} {process\.platform} {process\.arch}
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Sets a User\-Agent to the request header
+.SS version
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: boolean
+
+.RE
+.P
+If true, output the npm version and exit successfully\.
+.P
+Only relevant when specified explicitly on the command line\.
+.SS versions
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: boolean
+
+.RE
+.P
+If true, output the npm version as well as node's \fBprocess\.versions\fR map, and
+exit successfully\.
+.P
+Only relevant when specified explicitly on the command line\.
+.SS viewer
+.RS 0
+.IP \(bu 2
+Default: "man" on Posix, "browser" on Windows
+.IP \(bu 2
+Type: path
+
+.RE
+.P
+The program to use to view help content\.
+.P
+Set to \fB"browser"\fR to view html help content in the default web browser\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help npm
+
+.RE
+

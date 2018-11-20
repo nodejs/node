@@ -1,6 +1,7 @@
 /* crypto/srp/srp_lcl.h */
-/* Written by Peter Sylvester (peter.sylvester@edelweb.fr)  
- * for the EdelKey project and contributed to the OpenSSL project 2004.
+/*
+ * Written by Peter Sylvester (peter.sylvester@edelweb.fr) for the EdelKey
+ * project and contributed to the OpenSSL project 2004.
  */
 /* ====================================================================
  * Copyright (c) 2004 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -56,17 +57,17 @@
  *
  */
 #ifndef HEADER_SRP_LCL_H
-#define HEADER_SRP_LCL_H
+# define HEADER_SRP_LCL_H
 
-#include <openssl/srp.h>
-#include <openssl/sha.h>
+# include <openssl/srp.h>
+# include <openssl/sha.h>
 
-#if 0
-#define srp_bn_print(a) {fprintf(stderr, #a "="); BN_print_fp(stderr,a); \
+# if 0
+#  define srp_bn_print(a) {fprintf(stderr, #a "="); BN_print_fp(stderr,a); \
    fprintf(stderr,"\n");}
-#else
-#define   srp_bn_print(a)
-#endif
+# else
+#  define   srp_bn_print(a)
+# endif
 
 
 

@@ -1,10 +1,12 @@
 var usage = 'node benchmark/compare.js ' +
             '<node-binary1> <node-binary2> ' +
-            '[--html] [--red|-r] [--green|-g]';
+            '[--html] [--red|-r] [--green|-g] ' +
+            '[-- <type> [testFilter]]';
 
 var show = 'both';
 var nodes = [];
 var html = false;
+var benchmarks;
 
 for (var i = 2; i < process.argv.length; i++) {
   var arg = process.argv[i];
@@ -21,8 +23,15 @@ for (var i = 2; i < process.argv.length; i++) {
     case '-h': case '-?': case '--help':
       console.log(usage);
       process.exit(0);
+      break;
+    case '--':
+      benchmarks = [];
+      break;
     default:
-      nodes.push(arg);
+      if (Array.isArray(benchmarks))
+        benchmarks.push(arg);
+      else
+        nodes.push(arg);
       break;
   }
 }
@@ -65,7 +74,11 @@ function run() {
   env.NODE = node;
 
   var out = '';
-  var child = spawn('make', [runBench], { env: env });
+  var child;
+  if (Array.isArray(benchmarks) && benchmarks.length)
+    child = spawn(node, ['benchmark/common.js'].concat(benchmarks), { env: env });
+  else
+    child = spawn('make', [runBench], { env: env });
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(c) {
     out += c;

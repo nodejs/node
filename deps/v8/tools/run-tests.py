@@ -28,10 +28,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from collections import OrderedDict
+import itertools
 import multiprocessing
 import optparse
 import os
 from os.path import join
+import platform
+import random
 import shlex
 import subprocess
 import sys
@@ -40,6 +44,7 @@ import time
 from testrunner.local import execution
 from testrunner.local import progress
 from testrunner.local import testsuite
+from testrunner.local.testsuite import VARIANT_FLAGS
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.network import network_execution
@@ -47,33 +52,109 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = ["mjsunit", "cctest", "message", "preparser"]
-TIMEOUT_DEFAULT = 60
-TIMEOUT_SCALEFACTOR = {"debug"   : 4,
-                       "release" : 1 }
+DEFAULT_TESTS = [
+  "mjsunit",
+  "unittests",
+  "cctest",
+  "message",
+  "preparser",
+]
 
-# Use this to run several variants of the tests.
-VARIANT_FLAGS = [[],
-                 ["--stress-opt", "--always-opt"],
-                 ["--nocrankshaft"]]
-MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
-                 "--nofold-constants", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap"],
-    "release" : ["--nobreak-on-abort", "--nodead-code-elimination",
-                 "--nofold-constants"]}
+# Map of test name synonyms to lists of test suites. Should be ordered by
+# expected runtimes (suites with slow test cases first). These groups are
+# invoked in seperate steps on the bots.
+TEST_MAP = {
+  "default": [
+    "mjsunit",
+    "cctest",
+    "message",
+    "preparser",
+  ],
+  "optimize_for_size": [
+    "mjsunit",
+    "cctest",
+    "webkit",
+  ],
+  "unittests": [
+    "unittests",
+  ],
+}
+
+TIMEOUT_DEFAULT = 60
+
+VARIANTS = ["default", "stress", "turbofan", "nocrankshaft"]
+
+DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
+               "--nofold-constants", "--enable-slow-asserts",
+               "--debug-code", "--verify-heap"]
+RELEASE_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
+                 "--nofold-constants"]
+
+MODES = {
+  "debug": {
+    "flags": DEBUG_FLAGS,
+    "timeout_scalefactor": 4,
+    "status_mode": "debug",
+    "execution_mode": "debug",
+    "output_folder": "debug",
+  },
+  "optdebug": {
+    "flags": DEBUG_FLAGS,
+    "timeout_scalefactor": 4,
+    "status_mode": "debug",
+    "execution_mode": "debug",
+    "output_folder": "optdebug",
+  },
+  "release": {
+    "flags": RELEASE_FLAGS,
+    "timeout_scalefactor": 1,
+    "status_mode": "release",
+    "execution_mode": "release",
+    "output_folder": "release",
+  },
+  # This mode requires v8 to be compiled with dchecks and slow dchecks.
+  "tryrelease": {
+    "flags": RELEASE_FLAGS + ["--enable-slow-asserts"],
+    "timeout_scalefactor": 2,
+    "status_mode": "debug",
+    "execution_mode": "release",
+    "output_folder": "release",
+  },
+}
+
+GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
+                   "--concurrent-recompilation-queue-length=64",
+                   "--concurrent-recompilation-delay=500",
+                   "--concurrent-recompilation"]
 
 SUPPORTED_ARCHS = ["android_arm",
+                   "android_arm64",
                    "android_ia32",
                    "arm",
                    "ia32",
+                   "x87",
+                   "mips",
                    "mipsel",
-                   "x64"]
+                   "mips64el",
+                   "nacl_ia32",
+                   "nacl_x64",
+                   "ppc",
+                   "ppc64",
+                   "x64",
+                   "x32",
+                   "arm64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
+              "android_arm64",
               "android_ia32",
               "arm",
-              "mipsel"]
+              "mips",
+              "mipsel",
+              "mips64el",
+              "nacl_ia32",
+              "nacl_x64",
+              "x87",
+              "arm64"]
 
 
 def BuildOptions():
@@ -85,10 +166,28 @@ def BuildOptions():
   result.add_option("--arch-and-mode",
                     help="Architecture and mode in the format 'arch.mode'",
                     default=None)
+  result.add_option("--asan",
+                    help="Regard test expectations for ASAN",
+                    default=False, action="store_true")
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
+  result.add_option("--dcheck-always-on",
+                    help="Indicates that V8 was compiled with DCHECKs enabled",
+                    default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
+                    default=False, action="store_true")
+  result.add_option("--flaky-tests",
+                    help="Regard tests marked as flaky (run|skip|dontcare)",
+                    default="dontcare")
+  result.add_option("--slow-tests",
+                    help="Regard slow tests (run|skip|dontcare)",
+                    default="dontcare")
+  result.add_option("--pass-fail-tests",
+                    help="Regard pass|fail tests (run|skip|dontcare)",
+                    default="dontcare")
+  result.add_option("--gc-stress",
+                    help="Switch on GC stress mode",
                     default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
@@ -105,6 +204,12 @@ def BuildOptions():
   result.add_option("-m", "--mode",
                     help="The test modes in which to run (comma-separated)",
                     default="release,debug")
+  result.add_option("--no-harness", "--noharness",
+                    help="Run without test harness of a given suite",
+                    default=False, action="store_true")
+  result.add_option("--no-i18n", "--noi18n",
+                    help="Skip internationalization tests",
+                    default=False, action="store_true")
   result.add_option("--no-network", "--nonetwork",
                     help="Don't distribute tests on the network",
                     default=(utils.GuessOS() != "linux"),
@@ -112,17 +217,42 @@ def BuildOptions():
   result.add_option("--no-presubmit", "--nopresubmit",
                     help='Skip presubmit checks',
                     default=False, dest="no_presubmit", action="store_true")
+  result.add_option("--no-snap", "--nosnap",
+                    help='Test a build compiled without snapshot.',
+                    default=False, dest="no_snap", action="store_true")
+  result.add_option("--no-sorting", "--nosorting",
+                    help="Don't sort tests according to duration of last run.",
+                    default=False, dest="no_sorting", action="store_true")
   result.add_option("--no-stress", "--nostress",
                     help="Don't run crankshaft --always-opt --stress-op test",
                     default=False, dest="no_stress", action="store_true")
+  result.add_option("--no-variants", "--novariants",
+                    help="Don't run any testing variants",
+                    default=False, dest="no_variants", action="store_true")
+  result.add_option("--variants",
+                    help="Comma-separated list of testing variants")
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
+  result.add_option("--predictable",
+                    help="Compare output of several reruns of each test",
+                    default=False, action="store_true")
   result.add_option("-p", "--progress",
                     help=("The style of progress indicator"
                           " (verbose, dots, color, mono)"),
                     choices=progress.PROGRESS_INDICATORS.keys(), default="mono")
+  result.add_option("--quickcheck", default=False, action="store_true",
+                    help=("Quick check mode (skip slow/flaky tests)"))
   result.add_option("--report", help="Print a summary of the tests to be run",
                     default=False, action="store_true")
+  result.add_option("--json-test-results",
+                    help="Path to a file for storing json results.")
+  result.add_option("--rerun-failures-count",
+                    help=("Number of times to rerun each failing test case. "
+                          "Very slow tests will be rerun only once."),
+                    default=0, type="int")
+  result.add_option("--rerun-failures-max",
+                    help="Maximum number of failing test cases to rerun.",
+                    default=100, type="int")
   result.add_option("--shard-count",
                     help="Split testsuites into this number of shards",
                     default=1, type="int")
@@ -132,6 +262,10 @@ def BuildOptions():
   result.add_option("--shell", help="DEPRECATED! use --shell-dir", default="")
   result.add_option("--shell-dir", help="Directory containing executables",
                     default="")
+  result.add_option("--dont-skip-slow-simulator-tests",
+                    help="Don't skip more slow tests when using a simulator.",
+                    default=False, action="store_true",
+                    dest="dont_skip_simulator_slow_tests")
   result.add_option("--stress-only",
                     help="Only run tests with --always-opt --stress-opt",
                     default=False, action="store_true")
@@ -139,26 +273,40 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
                     default= -1, type="int")
+  result.add_option("--tsan",
+                    help="Regard test expectations for TSAN",
+                    default=False, action="store_true")
   result.add_option("-v", "--verbose", help="Verbose output",
                     default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
                     default=False, action="store_true")
   result.add_option("--warn-unused", help="Report unused rules",
                     default=False, action="store_true")
+  result.add_option("--junitout", help="File name of the JUnit output")
+  result.add_option("--junittestsuite",
+                    help="The testsuite name in the JUnit output file",
+                    default="v8tests")
+  result.add_option("--random-seed", default=0, dest="random_seed",
+                    help="Default seed for initializing random generator")
+  result.add_option("--msan",
+                    help="Regard test expectations for MSAN",
+                    default=False, action="store_true")
   return result
 
 
 def ProcessOptions(options):
   global VARIANT_FLAGS
+  global VARIANTS
 
   # Architecture and mode related stuff.
   if options.arch_and_mode:
-    tokens = options.arch_and_mode.split(".")
-    options.arch = tokens[0]
-    options.mode = tokens[1]
+    options.arch_and_mode = [arch_and_mode.split(".")
+        for arch_and_mode in options.arch_and_mode.split(",")]
+    options.arch = ",".join([tokens[0] for tokens in options.arch_and_mode])
+    options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode.lower() in ["debug", "release"]:
+    if not mode.lower() in MODES:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
@@ -168,6 +316,11 @@ def ProcessOptions(options):
     if not arch in SUPPORTED_ARCHS:
       print "Unknown architecture %s" % arch
       return False
+
+  # Store the final configuration in arch_and_mode list. Don't overwrite
+  # predefined arch_and_mode since it is more expressive than arch and mode.
+  if not options.arch_and_mode:
+    options.arch_and_mode = itertools.product(options.arch, options.mode)
 
   # Special processing of other options, sorted alphabetically.
 
@@ -181,21 +334,80 @@ def ProcessOptions(options):
     options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
   options.extra_flags = shlex.split(options.extra_flags)
+
+  if options.gc_stress:
+    options.extra_flags += GC_STRESS_FLAGS
+
+  if options.asan:
+    options.extra_flags.append("--invoke-weak-callbacks")
+
+  if options.tsan:
+    VARIANTS = ["default"]
+    suppressions_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     'sanitizers', 'tsan_suppressions.txt')
+    tsan_options = '%s suppressions=%s' % (
+        os.environ.get('TSAN_OPTIONS', ''), suppressions_file)
+    os.environ['TSAN_OPTIONS'] = tsan_options
+
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
+
+  while options.random_seed == 0:
+    options.random_seed = random.SystemRandom().randint(-2147483648, 2147483647)
+
+  def excl(*args):
+    """Returns true if zero or one of multiple arguments are true."""
+    return reduce(lambda x, y: x + y, args) <= 1
+
+  if not excl(options.no_stress, options.stress_only, options.no_variants,
+              bool(options.variants)):
+    print("Use only one of --no-stress, --stress-only, --no-variants, "
+          "or --variants.")
+    return False
+  if options.quickcheck:
+    VARIANTS = ["default", "stress"]
+    options.flaky_tests = "skip"
+    options.slow_tests = "skip"
+    options.pass_fail_tests = "skip"
   if options.no_stress:
-    VARIANT_FLAGS = [[], ["--nocrankshaft"]]
+    VARIANTS = ["default", "nocrankshaft"]
+  if options.no_variants:
+    VARIANTS = ["default"]
+  if options.stress_only:
+    VARIANTS = ["stress"]
+  if options.variants:
+    VARIANTS = options.variants.split(",")
+    if not set(VARIANTS).issubset(VARIANT_FLAGS.keys()):
+      print "All variants must be in %s" % str(VARIANT_FLAGS.keys())
+      return False
+  if options.predictable:
+    VARIANTS = ["default"]
+    options.extra_flags.append("--predictable")
+    options.extra_flags.append("--verify_predictable")
+    options.extra_flags.append("--no-inline-new")
+
   if not options.shell_dir:
     if options.shell:
       print "Warning: --shell is deprecated, use --shell-dir instead."
       options.shell_dir = os.path.dirname(options.shell)
-  if options.stress_only:
-    VARIANT_FLAGS = [["--stress-opt", "--always-opt"]]
   if options.valgrind:
     run_valgrind = os.path.join("tools", "run-valgrind.py")
     # This is OK for distributed running, so we don't need to set no_network.
     options.command_prefix = (["python", "-u", run_valgrind] +
                               options.command_prefix)
+  def CheckTestMode(name, option):
+    if not option in ["run", "skip", "dontcare"]:
+      print "Unknown %s mode %s" % (name, option)
+      return False
+    return True
+  if not CheckTestMode("flaky test", options.flaky_tests):
+    return False
+  if not CheckTestMode("slow test", options.slow_tests):
+    return False
+  if not CheckTestMode("pass|fail test", options.pass_fail_tests):
+    return False
+  if not options.no_i18n:
+    DEFAULT_TESTS.append("intl")
   return True
 
 
@@ -226,21 +438,29 @@ def Main():
   workspace = os.path.abspath(join(os.path.dirname(sys.argv[0]), ".."))
   if not options.no_presubmit:
     print ">>> running presubmit tests"
-    code = subprocess.call(
+    exit_code = subprocess.call(
         [sys.executable, join(workspace, "tools", "presubmit.py")])
-    exit_code = code
 
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 
+  # Expand arguments with grouped tests. The args should reflect the list of
+  # suites as otherwise filters would break.
+  def ExpandTestGroups(name):
+    if name in TEST_MAP:
+      return [suite for suite in TEST_MAP[arg]]
+    else:
+      return [name]
+  args = reduce(lambda x, y: x + y,
+         [ExpandTestGroups(arg) for arg in args],
+         [])
+
   if len(args) == 0:
-    suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
+    suite_paths = [ s for s in DEFAULT_TESTS if s in suite_paths ]
   else:
-    args_suites = set()
+    args_suites = OrderedDict() # Used as set
     for arg in args:
-      suite = arg.split(os.path.sep)[0]
-      if not suite in args_suites:
-        args_suites.add(suite)
-    suite_paths = [ s for s in suite_paths if s in args_suites ]
+      args_suites[arg.split(os.path.sep)[0]] = True
+    suite_paths = [ s for s in args_suites if s in suite_paths ]
 
   suites = []
   for root in suite_paths:
@@ -253,10 +473,12 @@ def Main():
     for s in suites:
       s.DownloadData()
 
-  for mode in options.mode:
-    for arch in options.arch:
+  for (arch, mode) in options.arch_and_mode:
+    try:
       code = Execute(arch, mode, args, options, suites, workspace)
-      exit_code = exit_code or code
+    except KeyboardInterrupt:
+      return 2
+    exit_code = exit_code or code
   return exit_code
 
 
@@ -266,15 +488,20 @@ def Execute(arch, mode, args, options, suites, workspace):
   shell_dir = options.shell_dir
   if not shell_dir:
     if options.buildbot:
+      # TODO(machenbach): Get rid of different output folder location on
+      # buildbot. Currently this is capitalized Release and Debug.
       shell_dir = os.path.join(workspace, options.outdir, mode)
       mode = mode.lower()
     else:
-      shell_dir = os.path.join(workspace, options.outdir,
-                               "%s.%s" % (arch, mode))
+      shell_dir = os.path.join(
+          workspace,
+          options.outdir,
+          "%s.%s" % (arch, MODES[mode]["output_folder"]),
+      )
   shell_dir = os.path.relpath(shell_dir)
 
   # Populate context object.
-  mode_flags = MODE_FLAGS[mode]
+  mode_flags = MODES[mode]["flags"]
   timeout = options.timeout
   if timeout == -1:
     # Simulators are slow, therefore allow a longer default timeout.
@@ -283,19 +510,47 @@ def Execute(arch, mode, args, options, suites, workspace):
     else:
       timeout = TIMEOUT_DEFAULT;
 
-  timeout *= TIMEOUT_SCALEFACTOR[mode]
-  ctx = context.Context(arch, mode, shell_dir,
+  timeout *= MODES[mode]["timeout_scalefactor"]
+
+  if options.predictable:
+    # Predictable mode is slower.
+    timeout *= 2
+
+  ctx = context.Context(arch, MODES[mode]["execution_mode"], shell_dir,
                         mode_flags, options.verbose,
                         timeout, options.isolates,
                         options.command_prefix,
-                        options.extra_flags)
+                        options.extra_flags,
+                        options.no_i18n,
+                        options.random_seed,
+                        options.no_sorting,
+                        options.rerun_failures_count,
+                        options.rerun_failures_max,
+                        options.predictable,
+                        options.no_harness)
 
+  # TODO(all): Combine "simulator" and "simulator_run".
+  simulator_run = not options.dont_skip_simulator_slow_tests and \
+      arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64el', \
+               'ppc', 'ppc64'] and \
+      ARCH_GUESS and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
-    "mode": mode,
     "arch": arch,
+    "asan": options.asan,
+    "deopt_fuzzer": False,
+    "gc_stress": options.gc_stress,
+    "isolates": options.isolates,
+    "mode": MODES[mode]["status_mode"],
+    "no_i18n": options.no_i18n,
+    "no_snap": options.no_snap,
+    "simulator_run": simulator_run,
+    "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
-    "isolates": options.isolates
+    "tsan": options.tsan,
+    "msan": options.msan,
+    "dcheck_always_on": options.dcheck_always_on,
+    "byteorder": sys.byteorder,
   }
   all_tests = []
   num_tests = 0
@@ -306,12 +561,15 @@ def Execute(arch, mode, args, options, suites, workspace):
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
     all_tests += s.tests
-    s.FilterTestCasesByStatus(options.warn_unused)
+    s.FilterTestCasesByStatus(options.warn_unused, options.flaky_tests,
+                              options.slow_tests, options.pass_fail_tests)
     if options.cat:
       verbose.PrintTestSource(s.tests)
       continue
-    variant_flags = s.VariantFlags() or VARIANT_FLAGS
-    s.tests = [ t.CopyAddingFlags(v) for t in s.tests for v in variant_flags ]
+    variant_flags = [VARIANT_FLAGS[var] for var in VARIANTS]
+    s.tests = [ t.CopyAddingFlags(v)
+                for t in s.tests
+                for v in s.VariantFlags(t, variant_flags) ]
     s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
     num_tests += len(s.tests)
     for t in s.tests:
@@ -329,41 +587,43 @@ def Execute(arch, mode, args, options, suites, workspace):
     return 0
 
   # Run the tests, either locally or distributed on the network.
-  try:
-    start_time = time.time()
-    progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+  start_time = time.time()
+  progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+  if options.junitout:
+    progress_indicator = progress.JUnitTestProgressIndicator(
+        progress_indicator, options.junitout, options.junittestsuite)
+  if options.json_test_results:
+    progress_indicator = progress.JsonTestProgressIndicator(
+        progress_indicator, options.json_test_results, arch,
+        MODES[mode]["execution_mode"])
 
-    run_networked = not options.no_network
-    if not run_networked:
-      print("Network distribution disabled, running tests locally.")
-    elif utils.GuessOS() != "linux":
-      print("Network distribution is only supported on Linux, sorry!")
+  run_networked = not options.no_network
+  if not run_networked:
+    print("Network distribution disabled, running tests locally.")
+  elif utils.GuessOS() != "linux":
+    print("Network distribution is only supported on Linux, sorry!")
+    run_networked = False
+  peers = []
+  if run_networked:
+    peers = network_execution.GetPeers()
+    if not peers:
+      print("No connection to distribution server; running tests locally.")
       run_networked = False
-    peers = []
-    if run_networked:
-      peers = network_execution.GetPeers()
-      if not peers:
-        print("No connection to distribution server; running tests locally.")
-        run_networked = False
-      elif len(peers) == 1:
-        print("No other peers on the network; running tests locally.")
-        run_networked = False
-      elif num_tests <= 100:
-        print("Less than 100 tests, running them locally.")
-        run_networked = False
+    elif len(peers) == 1:
+      print("No other peers on the network; running tests locally.")
+      run_networked = False
+    elif num_tests <= 100:
+      print("Less than 100 tests, running them locally.")
+      run_networked = False
 
-    if run_networked:
-      runner = network_execution.NetworkedRunner(suites, progress_indicator,
-                                                 ctx, peers, workspace)
-    else:
-      runner = execution.Runner(suites, progress_indicator, ctx)
+  if run_networked:
+    runner = network_execution.NetworkedRunner(suites, progress_indicator,
+                                               ctx, peers, workspace)
+  else:
+    runner = execution.Runner(suites, progress_indicator, ctx)
 
-    exit_code = runner.Run(options.j)
-    if runner.terminate:
-      return exit_code
-    overall_duration = time.time() - start_time
-  except KeyboardInterrupt:
-    return 1
+  exit_code = runner.Run(options.j)
+  overall_duration = time.time() - start_time
 
   if options.time:
     verbose.PrintTestDurations(suites, overall_duration)

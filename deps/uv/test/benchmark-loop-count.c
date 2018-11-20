@@ -32,18 +32,18 @@ static uv_idle_t idle_handle;
 static uv_timer_t timer_handle;
 
 
-static void idle_cb(uv_idle_t* handle, int status) {
+static void idle_cb(uv_idle_t* handle) {
   if (++ticks == NUM_TICKS)
     uv_idle_stop(handle);
 }
 
 
-static void idle2_cb(uv_idle_t* handle, int status) {
+static void idle2_cb(uv_idle_t* handle) {
   ticks++;
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   uv_idle_stop(&idle_handle);
   uv_timer_stop(&timer_handle);
 }
@@ -62,10 +62,11 @@ BENCHMARK_IMPL(loop_count) {
 
   ASSERT(ticks == NUM_TICKS);
 
-  LOGF("loop_count: %d ticks in %.2fs (%.0f/s)\n",
-       NUM_TICKS,
-       ns / 1e9,
-       NUM_TICKS / (ns / 1e9));
+  fprintf(stderr, "loop_count: %d ticks in %.2fs (%.0f/s)\n",
+          NUM_TICKS,
+          ns / 1e9,
+          NUM_TICKS / (ns / 1e9));
+  fflush(stderr);
 
   MAKE_VALGRIND_HAPPY();
   return 0;
@@ -83,7 +84,8 @@ BENCHMARK_IMPL(loop_count_timed) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  LOGF("loop_count: %lu ticks (%.0f ticks/s)\n", ticks, ticks / 5.0);
+  fprintf(stderr, "loop_count: %lu ticks (%.0f ticks/s)\n", ticks, ticks / 5.0);
+  fflush(stderr);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

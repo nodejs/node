@@ -16,14 +16,19 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
 #endif
-
-#include <time.h>
 
 #include "ares.h"
 #include "ares_private.h"
+
+/* return time offset between now and (future) check, in milliseconds */
+static long timeoffset(struct timeval *now, struct timeval *check)
+{
+  return (check->tv_sec - now->tv_sec)*1000 +
+         (check->tv_usec - now->tv_usec)/1000;
+}
 
 /* WARNING: Beware that this is linear in the number of outstanding
  * requests! You are probably far better off just calling ares_process()
@@ -55,7 +60,7 @@ struct timeval *ares_timeout(ares_channel channel, struct timeval *maxtv,
       query = list_node->data;
       if (query->timeout.tv_sec == 0)
         continue;
-      offset = ares__timeoffset(&now, &query->timeout);
+      offset = timeoffset(&now, &query->timeout);
       if (offset < 0)
         offset = 0;
       if (min_offset == -1 || offset < min_offset)
@@ -67,8 +72,10 @@ struct timeval *ares_timeout(ares_channel channel, struct timeval *maxtv,
    */
   if (min_offset != -1)
     {
-      nextstop.tv_sec = min_offset/1000;
-      nextstop.tv_usec = (min_offset%1000)*1000;
+      int ioffset = (min_offset > (long)INT_MAX) ? INT_MAX : (int)min_offset;
+
+      nextstop.tv_sec = ioffset/1000;
+      nextstop.tv_usec = (ioffset%1000)*1000;
 
       if (!maxtv || ares__timedout(maxtv, &nextstop))
         {

@@ -43,6 +43,7 @@
 
 (add-to-list 'auto-mode-alist '("\\.gyp\\'" . gyp-mode))
 (add-to-list 'auto-mode-alist '("\\.gypi\\'" . gyp-mode))
+(add-to-list 'auto-mode-alist '("/\\.gclient\\'" . gyp-mode))
 
 ;;; Font-lock support
 
@@ -135,7 +136,7 @@
             (setq sections (cdr sections)) ; pop out a level
           (cond ((looking-at-p "['\"]") ; a string
                  (setq string-start (point))
-                 (forward-sexp 1)
+                 (goto-char (scan-sexps (point) 1))
                  (if (gyp-inside-dictionary-p)
                      ;; Look for sections inside a dictionary
                      (let ((section (gyp-section-name

@@ -351,7 +351,8 @@ class LogReader(object):
     "ia32": ctypes.c_uint32,
     "arm": ctypes.c_uint32,
     "mips": ctypes.c_uint32,
-    "x64": ctypes.c_uint64
+    "x64": ctypes.c_uint64,
+    "arm64": ctypes.c_uint64
   }
 
   _CODE_CREATE_TAG = "C"

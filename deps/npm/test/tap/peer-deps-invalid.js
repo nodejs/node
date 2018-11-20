@@ -1,76 +1,102 @@
-var fs = require("fs")
-var test = require("tap").test
-var rimraf = require("rimraf")
-var npm = require("../../")
-var http = require("http")
+var fs = require('graceful-fs')
+var path = require('path')
 
-var okFile = new Buffer(
-'/**package\n' + 
-' * { "name": "npm-test-peer-deps-file"\n' + 
-' * , "main": "index.js"\n' + 
-' * , "version": "1.2.3"\n' + 
-' * , "description":"No package.json in sight!"\n' + 
-' * , "peerDependencies": { "dict": "1.1.0" }\n' + 
-' * , "dependencies": { "opener": "1.3.0" }\n' + 
-' * }\n' + 
-' **/\n' + 
-'\n' + 
-'module.exports = "I\'m just a lonely index, naked as the day I was born."\n'
-)
+var mkdirp = require('mkdirp')
+var mr = require('npm-registry-mock')
+var osenv = require('osenv')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
-var failFile = new Buffer(
-'/**package\n' +
-' * { "name": "npm-test-peer-deps-file-invalid"\n' +
-' * , "main": "index.js"\n' +
-' * , "version": "1.2.3"\n' +
-' * , "description":"This one should conflict with the other one"\n' +
-' * , "peerDependencies": { "dict": "1.0.0" }\n' +
-' * }\n' +
-' **/\n' +
-'\n' +
-'module.exports = "I\'m just a lonely index, naked as the day I was born."\n'
-)
+var npm = require('../../')
+var common = require('../common-tap')
 
-var server
-test("setup", function(t) {
-  server = http.createServer(function (req, res) {
-    res.setHeader('content-type', 'application/javascript')
-    switch (req.url) {
-      case "/ok.js":
-        return res.end(okFile)
-      default:
-        return res.end(failFile)
+var pkg = path.resolve(__dirname, 'peer-deps-invalid')
+var cache = path.resolve(pkg, 'cache')
+
+var json = {
+  author: 'Domenic Denicola <domenic@domenicdenicola.com> (http://domenicdenicola.com/)',
+  name: 'peer-deps-invalid',
+  version: '0.0.0',
+  dependencies: {
+    'npm-test-peer-deps-file': 'http://localhost:1337/ok.js',
+    'npm-test-peer-deps-file-invalid': 'http://localhost:1337/invalid.js'
+  }
+}
+
+test('setup', function (t) {
+  cleanup()
+  mkdirp.sync(cache)
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  fs.writeFileSync(path.join(pkg, 'file-ok.js'), fileOK)
+  fs.writeFileSync(path.join(pkg, 'file-fail.js'), fileFail)
+
+  process.chdir(pkg)
+  t.end()
+})
+
+test('installing dependencies that have conflicting peerDependencies', function (t) {
+  var customMocks = {
+    'get': {
+      '/ok.js': [200, path.join(pkg, 'file-ok.js')],
+      '/invalid.js': [200, path.join(pkg, 'file-fail.js')]
     }
-  })
-  server.listen(1337, function() {
-    t.pass("listening")
-    t.end()
-  })
-})
-
-
-
-test("installing dependencies that having conflicting peerDependencies", function (t) {
-  rimraf.sync(__dirname + "/peer-deps-invalid/node_modules")
-  process.chdir(__dirname + "/peer-deps-invalid")
-
-  npm.load(function () {
-    console.error('back from load')
-    npm.commands.install([], function (err) {
-      console.error('back from install')
-      if (!err) {
-        t.fail("No error!")
-      } else {
-        t.equal(err.code, "EPEERINVALID")
+  }
+  mr({port: common.port, mocks: customMocks}, function (err, s) {
+    t.ifError(err, 'mock registry started')
+    npm.load(
+      {
+        cache: cache,
+        registry: common.registry
+      },
+      function () {
+        npm.commands.install([], function (err) {
+          if (!err) {
+            t.fail('No error!')
+          } else {
+            t.equal(err.code, 'EPEERINVALID')
+          }
+          s.close()
+          t.end()
+        })
       }
-      t.end()
-    })
+    )
   })
 })
 
-test("shutdown", function(t) {
-  server.close(function() {
-    t.pass("closed")
-    t.end()
-  })
+test('cleanup', function (t) {
+  cleanup()
+  t.end()
 })
+
+function cleanup () {
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(pkg)
+}
+
+var fileFail = function () {
+/**package
+* { "name": "npm-test-peer-deps-file-invalid"
+* , "main": "index.js"
+* , "version": "1.2.3"
+* , "description":"This one should conflict with the other one"
+* , "peerDependencies": { "underscore": "1.3.3" }
+* }
+**/
+  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
+}.toString().split('\n').slice(1, -1).join('\n')
+
+var fileOK = function () {
+/**package
+* { "name": "npm-test-peer-deps-file"
+* , "main": "index.js"
+* , "version": "1.2.3"
+* , "description":"No package.json in sight!"
+* , "peerDependencies": { "underscore": "1.3.1" }
+* , "dependencies": { "mkdirp": "0.3.5" }
+* }
+**/
+  module.exports = 'I\'m just a lonely index, naked as the day I was born.'
+}.toString().split('\n').slice(1, -1).join('\n')

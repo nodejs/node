@@ -13,6 +13,12 @@ B<openssl> B<dsa>
 [B<-passin arg>]
 [B<-out filename>]
 [B<-passout arg>]
+[B<-aes128>]
+[B<-aes192>]
+[B<-aes256>]
+[B<-camellia128>]
+[B<-camellia192>]
+[B<-camellia256>]
 [B<-des>]
 [B<-des3>]
 [B<-idea>]
@@ -74,10 +80,10 @@ filename.
 the output file password source. For more information about the format of B<arg>
 see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
 
-=item B<-des|-des3|-idea>
+=item B<-aes128|-aes192|-aes256|-camellia128|-camellia192|-camellia256|-des|-des3|-idea>
 
-These options encrypt the private key with the DES, triple DES, or the 
-IDEA ciphers respectively before outputting it. A pass phrase is prompted for.
+These options encrypt the private key with the specified
+cipher before outputting it. A pass phrase is prompted for.
 If none of these options is specified the key is written in plain text. This
 means that using the B<dsa> utility to read in an encrypted key with no
 encryption option can be used to remove the pass phrase from a key, or by

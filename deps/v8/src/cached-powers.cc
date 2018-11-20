@@ -1,38 +1,15 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include <stdarg.h>
-#include <math.h>
 #include <limits.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <cmath>
 
-#include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "cached-powers.h"
+#include "src/base/logging.h"
+#include "src/cached-powers.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -133,7 +110,10 @@ static const CachedPower kCachedPowers[] = {
   {V8_2PART_UINT64_C(0xaf87023b, 9bf0ee6b), 1066, 340},
 };
 
-static const int kCachedPowersLength = ARRAY_SIZE(kCachedPowers);
+#ifdef DEBUG
+static const int kCachedPowersLength = arraysize(kCachedPowers);
+#endif
+
 static const int kCachedPowersOffset = 348;  // -1 * the first decimal_exponent.
 static const double kD_1_LOG2_10 = 0.30102999566398114;  //  1 / lg(10)
 // Difference between the decimal exponents in the table above.
@@ -149,14 +129,14 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
   int kQ = DiyFp::kSignificandSize;
   // Some platforms return incorrect sign on 0 result. We can ignore that here,
   // which means we can avoid depending on platform.h.
-  double k = ceil((min_exponent + kQ - 1) * kD_1_LOG2_10);
+  double k = std::ceil((min_exponent + kQ - 1) * kD_1_LOG2_10);
   int foo = kCachedPowersOffset;
   int index =
       (foo + static_cast<int>(k) - 1) / kDecimalExponentDistance + 1;
-  ASSERT(0 <= index && index < kCachedPowersLength);
+  DCHECK(0 <= index && index < kCachedPowersLength);
   CachedPower cached_power = kCachedPowers[index];
-  ASSERT(min_exponent <= cached_power.binary_exponent);
-  ASSERT(cached_power.binary_exponent <= max_exponent);
+  DCHECK(min_exponent <= cached_power.binary_exponent);
+  DCHECK(cached_power.binary_exponent <= max_exponent);
   *decimal_exponent = cached_power.decimal_exponent;
   *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
 }
@@ -165,15 +145,15 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
 void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
                                                         DiyFp* power,
                                                         int* found_exponent) {
-  ASSERT(kMinDecimalExponent <= requested_exponent);
-  ASSERT(requested_exponent < kMaxDecimalExponent + kDecimalExponentDistance);
+  DCHECK(kMinDecimalExponent <= requested_exponent);
+  DCHECK(requested_exponent < kMaxDecimalExponent + kDecimalExponentDistance);
   int index =
       (requested_exponent + kCachedPowersOffset) / kDecimalExponentDistance;
   CachedPower cached_power = kCachedPowers[index];
   *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
   *found_exponent = cached_power.decimal_exponent;
-  ASSERT(*found_exponent <= requested_exponent);
-  ASSERT(requested_exponent < *found_exponent + kDecimalExponentDistance);
+  DCHECK(*found_exponent <= requested_exponent);
+  DCHECK(requested_exponent < *found_exponent + kDecimalExponentDistance);
 }
 
 } }  // namespace v8::internal

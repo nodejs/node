@@ -29,8 +29,8 @@
 static void connection_cb(uv_stream_t* server, int status);
 static void connect_cb(uv_connect_t* req, int status);
 static void write_cb(uv_write_t* req, int status);
-static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size);
+static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
+static void alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
 
 static uv_tcp_t tcp_server;
 static uv_tcp_t tcp_client;
@@ -65,17 +65,19 @@ static void connection_cb(uv_stream_t* server, int status) {
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
   static char slab[1024];
-  return uv_buf_init(slab, sizeof slab);
+  buf->base = slab;
+  buf->len = sizeof(slab);
 }
 
 
-static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
-  if (nread == -1) {
-    fprintf(stderr, "read_cb error: %s\n", uv_err_name(uv_last_error(stream->loop)));
-    ASSERT(uv_last_error(stream->loop).code == UV_ECONNRESET ||
-      uv_last_error(stream->loop).code == UV_EOF);
+static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
+  if (nread < 0) {
+    fprintf(stderr, "read_cb error: %s\n", uv_err_name(nread));
+    ASSERT(nread == UV_ECONNRESET || nread == UV_EOF);
 
     uv_close((uv_handle_t*)&tcp_server, NULL);
     uv_close((uv_handle_t*)&tcp_peer, NULL);
@@ -101,8 +103,11 @@ static void write_cb(uv_write_t* req, int status) {
 
 
 TEST_IMPL(tcp_write_to_half_open_connection) {
+  struct sockaddr_in addr;
   uv_loop_t* loop;
   int r;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   loop = uv_default_loop();
   ASSERT(loop != NULL);
@@ -110,7 +115,7 @@ TEST_IMPL(tcp_write_to_half_open_connection) {
   r = uv_tcp_init(loop, &tcp_server);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(&tcp_server, uv_ip4_addr("127.0.0.1", TEST_PORT));
+  r = uv_tcp_bind(&tcp_server, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)&tcp_server, 1, connection_cb);
@@ -121,7 +126,7 @@ TEST_IMPL(tcp_write_to_half_open_connection) {
 
   r = uv_tcp_connect(&connect_req,
                      &tcp_client,
-                     uv_ip4_addr("127.0.0.1", TEST_PORT),
+                     (const struct sockaddr*) &addr,
                      connect_cb);
   ASSERT(r == 0);
 

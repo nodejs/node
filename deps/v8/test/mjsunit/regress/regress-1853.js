@@ -102,15 +102,14 @@ eval('function test1() {                \n' +
      '  assertFalse(test_break_1);      \n' +
      '  assertTrue(test_break_1);       \n' +
      '}                                 \n' +
-     '//@ sourceURL=testScriptOne');
+     '//# sourceURL=testScriptOne');
 
 eval('function test2() {                \n' +
      '  assertFalse(test_break_2);      \n' +
      '  assertTrue(test_break_2);       \n' +
      '}                                 \n' +
-     '//@ sourceURL=testScriptTwo');
+     '//# sourceURL=testScriptTwo');
 
 test1();
 test2();
 assertEquals(3, break_count);
-

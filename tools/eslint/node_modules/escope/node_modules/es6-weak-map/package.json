@@ -1,0 +1,64 @@
+{
+  "name": "es6-weak-map",
+  "version": "0.1.4",
+  "description": "ECMAScript6 WeakMap polyfill",
+  "author": {
+    "name": "Mariusz Nowak",
+    "email": "medyk@medikoo.com",
+    "url": "http://www.medikoo.com/"
+  },
+  "keywords": [
+    "map",
+    "weakmap",
+    "collection",
+    "es6",
+    "harmony",
+    "list",
+    "hash",
+    "gc"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/medikoo/es6-weak-map.git"
+  },
+  "dependencies": {
+    "d": "~0.1.1",
+    "es5-ext": "~0.10.6",
+    "es6-iterator": "~0.1.3",
+    "es6-symbol": "~2.0.1"
+  },
+  "devDependencies": {
+    "tad": "~0.2.2"
+  },
+  "scripts": {
+    "test": "node ./node_modules/tad/bin/tad"
+  },
+  "license": "MIT",
+  "gitHead": "e68802395b82a700257374c379cfaafe84ee8552",
+  "bugs": {
+    "url": "https://github.com/medikoo/es6-weak-map/issues"
+  },
+  "homepage": "https://github.com/medikoo/es6-weak-map",
+  "_id": "es6-weak-map@0.1.4",
+  "_shasum": "706cef9e99aa236ba7766c239c8b9e286ea7d228",
+  "_from": "es6-weak-map@>=0.1.2 <0.2.0",
+  "_npmVersion": "2.7.4",
+  "_nodeVersion": "0.12.2",
+  "_npmUser": {
+    "name": "medikoo",
+    "email": "medikoo+npm@medikoo.com"
+  },
+  "maintainers": [
+    {
+      "name": "medikoo",
+      "email": "medikoo+npm@medikoo.com"
+    }
+  ],
+  "dist": {
+    "shasum": "706cef9e99aa236ba7766c239c8b9e286ea7d228",
+    "tarball": "http://registry.npmjs.org/es6-weak-map/-/es6-weak-map-0.1.4.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/es6-weak-map/-/es6-weak-map-0.1.4.tgz",
+  "readme": "ERROR: No README data found!"
+}

@@ -34,15 +34,19 @@ from testrunner.local import utils
 from testrunner.objects import testcase
 
 
+FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+INVALID_FLAGS = ["--enable-slow-asserts"]
+
+
 class PreparserTestSuite(testsuite.TestSuite):
   def __init__(self, name, root):
     super(PreparserTestSuite, self).__init__(name, root)
 
   def shell(self):
-    return "preparser"
+    return "d8"
 
   def _GetExpectations(self):
-    expects_file = join(self.root, "preparser.expectation")
+    expects_file = os.path.join(self.root, "preparser.expectation")
     expectations_map = {}
     if not os.path.exists(expects_file): return expectations_map
     rule_regex = re.compile("^([\w\-]+)(?::([\w\-]+))?(?::(\d+),(\d+))?$")
@@ -58,13 +62,14 @@ class PreparserTestSuite(testsuite.TestSuite):
     return expectations_map
 
   def _ParsePythonTestTemplates(self, result, filename):
-    pathname = join(self.root, filename + ".pyt")
-    def Test(name, source, expectation):
+    pathname = os.path.join(self.root, filename + ".pyt")
+    def Test(name, source, expectation, extra_flags=[]):
       source = source.replace("\n", " ")
       testname = os.path.join(filename, name)
       flags = ["-e", source]
       if expectation:
-        flags += ["throws", expectation]
+        flags += ["--throws"]
+      flags += extra_flags
       test = testcase.TestCase(self, testname, flags=flags)
       result.append(test)
     def Template(name, source):
@@ -89,7 +94,7 @@ class PreparserTestSuite(testsuite.TestSuite):
       throws = expectations.get(f, None)
       flags = [f + ".js"]
       if throws:
-        flags += ["throws", throws]
+        flags += ["--throws"]
       test = testcase.TestCase(self, f, flags=flags)
       result.append(test)
 
@@ -104,6 +109,15 @@ class PreparserTestSuite(testsuite.TestSuite):
     first = testcase.flags[0]
     if first != "-e":
       testcase.flags[0] = os.path.join(self.root, first)
+      source = self.GetSourceForTest(testcase)
+      result = []
+      flags_match = re.findall(FLAGS_PATTERN, source)
+      for match in flags_match:
+        result += match.strip().split()
+      result += context.mode_flags
+      result = [x for x in result if x not in INVALID_FLAGS]
+      result.append(os.path.join(self.root, testcase.path + ".js"))
+      return testcase.flags + result
     return testcase.flags
 
   def GetSourceForTest(self, testcase):
@@ -112,149 +126,9 @@ class PreparserTestSuite(testsuite.TestSuite):
     with open(testcase.flags[0]) as f:
       return f.read()
 
-  def VariantFlags(self):
+  def VariantFlags(self, testcase, default_flags):
     return [[]];
 
 
 def GetSuite(name, root):
   return PreparserTestSuite(name, root)
-
-
-# Deprecated definitions below.
-# TODO(jkummerow): Remove when SCons is no longer supported.
-
-
-from os.path import join, exists, isfile
-import test
-
-
-class PreparserTestCase(test.TestCase):
-
-  def __init__(self, root, path, executable, mode, throws, context, source):
-    super(PreparserTestCase, self).__init__(context, path, mode)
-    self.executable = executable
-    self.root = root
-    self.throws = throws
-    self.source = source
-
-  def GetLabel(self):
-    return "%s %s %s" % (self.mode, self.path[-2], self.path[-1])
-
-  def GetName(self):
-    return self.path[-1]
-
-  def HasSource(self):
-    return self.source is not None
-
-  def GetSource(self):
-    return self.source
-
-  def BuildCommand(self, path):
-    if (self.source is not None):
-      result = [self.executable, "-e", self.source]
-    else:
-      testfile = join(self.root, self.GetName()) + ".js"
-      result = [self.executable, testfile]
-    if (self.throws):
-      result += ['throws'] + self.throws
-    return result
-
-  def GetCommand(self):
-    return self.BuildCommand(self.path)
-
-  def Run(self):
-    return test.TestCase.Run(self)
-
-
-class PreparserTestConfiguration(test.TestConfiguration):
-
-  def __init__(self, context, root):
-    super(PreparserTestConfiguration, self).__init__(context, root)
-
-  def GetBuildRequirements(self):
-    return ['preparser']
-
-  def GetExpectations(self):
-    expects_file = join(self.root, 'preparser.expectation')
-    map = {}
-    if exists(expects_file):
-      rule_regex = re.compile("^([\w\-]+)(?::([\w\-]+))?(?::(\d+),(\d+))?$")
-      for line in utils.ReadLinesFrom(expects_file):
-        if (line[0] == '#'): continue
-        rule_match = rule_regex.match(line)
-        if rule_match:
-          expects = []
-          if (rule_match.group(2)):
-            expects = expects + [rule_match.group(2)]
-            if (rule_match.group(3)):
-              expects = expects + [rule_match.group(3), rule_match.group(4)]
-          map[rule_match.group(1)] = expects
-    return map;
-
-  def ParsePythonTestTemplates(self, result, filename,
-                               executable, current_path, mode):
-    pathname = join(self.root, filename + ".pyt")
-    def Test(name, source, expectation):
-      throws = None
-      if (expectation is not None):
-        throws = [expectation]
-      test = PreparserTestCase(self.root,
-                               current_path + [filename, name],
-                               executable,
-                               mode, throws, self.context,
-                               source.replace("\n", " "))
-      result.append(test)
-    def Template(name, source):
-      def MkTest(replacement, expectation):
-        testname = name
-        testsource = source
-        for key in replacement.keys():
-          testname = testname.replace("$"+key, replacement[key]);
-          testsource = testsource.replace("$"+key, replacement[key]);
-        Test(testname, testsource, expectation)
-      return MkTest
-    execfile(pathname, {"Test": Test, "Template": Template})
-
-  def ListTests(self, current_path, path, mode, variant_flags):
-    executable = 'preparser'
-    if utils.IsWindows():
-      executable += '.exe'
-    executable = join(self.context.buildspace, executable)
-    if not isfile(executable):
-      executable = join('obj', 'preparser', mode, 'preparser')
-      if utils.IsWindows():
-        executable += '.exe'
-      executable = join(self.context.buildspace, executable)
-    expectations = self.GetExpectations()
-    result = []
-    # Find all .js files in tests/preparser directory.
-    filenames = [f[:-3] for f in os.listdir(self.root) if f.endswith(".js")]
-    filenames.sort()
-    for file in filenames:
-      throws = None;
-      if (file in expectations):
-        throws = expectations[file]
-      result.append(PreparserTestCase(self.root,
-                                      current_path + [file], executable,
-                                      mode, throws, self.context, None))
-    # Find all .pyt files in test/preparser directory.
-    filenames = [f[:-4] for f in os.listdir(self.root) if f.endswith(".pyt")]
-    filenames.sort()
-    for file in filenames:
-      # Each file as a python source file to be executed in a specially
-      # created environment (defining the Template and Test functions)
-      self.ParsePythonTestTemplates(result, file,
-                                    executable, current_path, mode)
-    return result
-
-  def GetTestStatus(self, sections, defs):
-    status_file = join(self.root, 'preparser.status')
-    if exists(status_file):
-      test.ReadConfigurationInto(status_file, sections, defs)
-
-  def VariantFlags(self):
-    return [[]];
-
-
-def GetConfiguration(context, root):
-  return PreparserTestConfiguration(context, root)

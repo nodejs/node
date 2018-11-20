@@ -42,5 +42,3 @@ for (var i = 0; i < 15; i++) {
   var res = re.test("xx");
   assertEquals(i % 3 != 2, res, "testres" + i);
 }
-
-

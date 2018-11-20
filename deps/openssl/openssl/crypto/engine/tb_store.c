@@ -6,7 +6,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -54,70 +54,76 @@
 
 #include "eng_int.h"
 
-/* If this symbol is defined then ENGINE_get_default_STORE(), the function that is
- * used by STORE to hook in implementation code and cache defaults (etc), will
- * display brief debugging summaries to stderr with the 'nid'. */
+/*
+ * If this symbol is defined then ENGINE_get_default_STORE(), the function
+ * that is used by STORE to hook in implementation code and cache defaults
+ * (etc), will display brief debugging summaries to stderr with the 'nid'.
+ */
 /* #define ENGINE_STORE_DEBUG */
 
 static ENGINE_TABLE *store_table = NULL;
 static const int dummy_nid = 1;
 
 void ENGINE_unregister_STORE(ENGINE *e)
-	{
-	engine_table_unregister(&store_table, e);
-	}
+{
+    engine_table_unregister(&store_table, e);
+}
 
 static void engine_unregister_all_STORE(void)
-	{
-	engine_table_cleanup(&store_table);
-	}
+{
+    engine_table_cleanup(&store_table);
+}
 
 int ENGINE_register_STORE(ENGINE *e)
-	{
-	if(e->store_meth)
-		return engine_table_register(&store_table,
-				engine_unregister_all_STORE, e, &dummy_nid, 1, 0);
-	return 1;
-	}
+{
+    if (e->store_meth)
+        return engine_table_register(&store_table,
+                                     engine_unregister_all_STORE, e,
+                                     &dummy_nid, 1, 0);
+    return 1;
+}
 
 void ENGINE_register_all_STORE()
-	{
-	ENGINE *e;
+{
+    ENGINE *e;
 
-	for(e=ENGINE_get_first() ; e ; e=ENGINE_get_next(e))
-		ENGINE_register_STORE(e);
-	}
+    for (e = ENGINE_get_first(); e; e = ENGINE_get_next(e))
+        ENGINE_register_STORE(e);
+}
 
 /* The following two functions are removed because they're useless. */
 #if 0
 int ENGINE_set_default_STORE(ENGINE *e)
-	{
-	if(e->store_meth)
-		return engine_table_register(&store_table,
-				engine_unregister_all_STORE, e, &dummy_nid, 1, 1);
-	return 1;
-	}
+{
+    if (e->store_meth)
+        return engine_table_register(&store_table,
+                                     engine_unregister_all_STORE, e,
+                                     &dummy_nid, 1, 1);
+    return 1;
+}
 #endif
 
 #if 0
-/* Exposed API function to get a functional reference from the implementation
+/*
+ * Exposed API function to get a functional reference from the implementation
  * table (ie. try to get a functional reference from the tabled structural
- * references). */
+ * references).
+ */
 ENGINE *ENGINE_get_default_STORE(void)
-	{
-	return engine_table_select(&store_table, dummy_nid);
-	}
+{
+    return engine_table_select(&store_table, dummy_nid);
+}
 #endif
 
 /* Obtains an STORE implementation from an ENGINE functional reference */
 const STORE_METHOD *ENGINE_get_STORE(const ENGINE *e)
-	{
-	return e->store_meth;
-	}
+{
+    return e->store_meth;
+}
 
 /* Sets an STORE implementation in an ENGINE structure */
 int ENGINE_set_STORE(ENGINE *e, const STORE_METHOD *store_meth)
-	{
-	e->store_meth = store_meth;
-	return 1;
-	}
+{
+    e->store_meth = store_meth;
+    return 1;
+}

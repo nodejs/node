@@ -23,7 +23,8 @@ function main(conf) {
   var cert_dir = path.resolve(__dirname, '../../test/fixtures'),
       options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
                   cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
-                  ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ] };
+                  ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
+                  ciphers: 'AES256-GCM-SHA384' };
 
   server = tls.createServer(options, onConnection);
   server.listen(common.PORT, onListening);

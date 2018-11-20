@@ -37,7 +37,7 @@ typedef struct {
 RB_HEAD(uv__signal_tree_s, uv_signal_s);
 
 
-static int uv__signal_unlock();
+static int uv__signal_unlock(void);
 static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);
@@ -116,7 +116,7 @@ static void uv__signal_unlock_and_unblock(sigset_t* saved_sigmask) {
 }
 
 
-inline static uv_signal_t* uv__signal_first_handle(int signum) {
+static uv_signal_t* uv__signal_first_handle(int signum) {
   /* This function must be called with the signal lock held. */
   uv_signal_t lookup;
   uv_signal_t* handle;
@@ -141,7 +141,10 @@ static void uv__signal_handler(int signum) {
   saved_errno = errno;
   memset(&msg, 0, sizeof msg);
 
-  uv__signal_lock();
+  if (uv__signal_lock()) {
+    errno = saved_errno;
+    return;
+  }
 
   for (handle = uv__signal_first_handle(signum);
        handle != NULL && handle->signum == signum;
@@ -160,7 +163,7 @@ static void uv__signal_handler(int signum) {
     } while (r == -1 && errno == EINTR);
 
     assert(r == sizeof msg ||
-           (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK));
+           (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)));
 
     if (r != -1)
       handle->caught_signals++;
@@ -171,7 +174,7 @@ static void uv__signal_handler(int signum) {
 }
 
 
-static uv_err_t uv__signal_register_handler(int signum) {
+static int uv__signal_register_handler(int signum) {
   /* When this function is called, the signal lock must be held. */
   struct sigaction sa;
 
@@ -183,9 +186,9 @@ static uv_err_t uv__signal_register_handler(int signum) {
 
   /* XXX save old action so we can restore it later on? */
   if (sigaction(signum, &sa, NULL))
-    return uv__new_sys_error(errno);
+    return -errno;
 
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -206,12 +209,15 @@ static void uv__signal_unregister_handler(int signum) {
 
 
 static int uv__signal_loop_once_init(uv_loop_t* loop) {
+  int err;
+
   /* Return if already initialized. */
   if (loop->signal_pipefd[0] != -1)
     return 0;
 
-  if (uv__make_pipe(loop->signal_pipefd, UV__F_NONBLOCK))
-    return -1;
+  err = uv__make_pipe(loop->signal_pipefd, UV__F_NONBLOCK);
+  if (err)
+    return err;
 
   uv__io_init(&loop->signal_io_watcher,
               uv__signal_event,
@@ -223,34 +229,37 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
 
 
 void uv__signal_loop_cleanup(uv_loop_t* loop) {
-  ngx_queue_t* q;
+  QUEUE* q;
 
   /* Stop all the signal watchers that are still attached to this loop. This
    * ensures that the (shared) signal tree doesn't contain any invalid entries
    * entries, and that signal handlers are removed when appropriate.
    */
-  ngx_queue_foreach(q, &loop->handle_queue) {
-    uv_handle_t* handle = ngx_queue_data(q, uv_handle_t, handle_queue);
+  QUEUE_FOREACH(q, &loop->handle_queue) {
+    uv_handle_t* handle = QUEUE_DATA(q, uv_handle_t, handle_queue);
 
     if (handle->type == UV_SIGNAL)
       uv__signal_stop((uv_signal_t*) handle);
   }
 
   if (loop->signal_pipefd[0] != -1) {
-    close(loop->signal_pipefd[0]);
+    uv__close(loop->signal_pipefd[0]);
     loop->signal_pipefd[0] = -1;
   }
 
   if (loop->signal_pipefd[1] != -1) {
-    close(loop->signal_pipefd[1]);
+    uv__close(loop->signal_pipefd[1]);
     loop->signal_pipefd[1] = -1;
   }
 }
 
 
 int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
-  if (uv__signal_loop_once_init(loop))
-    return uv__set_sys_error(loop, errno);
+  int err;
+
+  err = uv__signal_loop_once_init(loop);
+  if (err)
+    return err;
 
   uv__handle_init(loop, (uv_handle_t*) handle, UV_SIGNAL);
   handle->signum = 0;
@@ -277,6 +286,7 @@ void uv__signal_close(uv_signal_t* handle) {
 
 int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   sigset_t saved_sigmask;
+  int err;
 
   assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
 
@@ -284,10 +294,8 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
    * signum is otherwise invalid then uv__signal_register will find out
    * eventually.
    */
-  if (signum == 0) {
-    uv__set_artificial_error(handle->loop, UV_EINVAL);
-    return -1;
-  }
+  if (signum == 0)
+    return -EINVAL;
 
   /* Short circuit: if the signal watcher is already watching {signum} don't
    * go through the process of deregistering and registering the handler.
@@ -310,12 +318,11 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
    * any of the loops), it's time to try and register a handler for it here.
    */
   if (uv__signal_first_handle(signum) == NULL) {
-    uv_err_t err = uv__signal_register_handler(signum);
-    if (err.code != UV_OK) {
+    err = uv__signal_register_handler(signum);
+    if (err) {
       /* Registering the signal handler failed. Must be an invalid signal. */
-      handle->loop->last_err = err;
       uv__signal_unlock_and_unblock(&saved_sigmask);
-      return -1;
+      return err;
     }
   }
 
@@ -331,7 +338,9 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
 }
 
 
-static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
+static void uv__signal_event(uv_loop_t* loop,
+                             uv__io_t* w,
+                             unsigned int events) {
   uv__signal_msg_t* msg;
   uv_signal_t* handle;
   char buf[sizeof(uv__signal_msg_t) * 32];
@@ -339,6 +348,7 @@ static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events) 
   int r;
 
   bytes = 0;
+  end = 0;
 
   do {
     r = read(loop->signal_pipefd[0], buf + bytes, sizeof(buf) - bytes);

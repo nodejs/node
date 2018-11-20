@@ -50,4 +50,3 @@ test(-0, -0);
 test(Infinity, Infinity);
 // -Infinity is smaller than 0 so it should return NaN
 test(NaN, -Infinity);
-

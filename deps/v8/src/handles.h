@@ -1,38 +1,78 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
-#include "allocation.h"
-#include "apiutils.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
+
+// A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
+// into a Handle requires checking that it does not point to NULL.  This
+// ensures NULL checks before use.
+// Do not use MaybeHandle as argument type.
+
+template<typename T>
+class MaybeHandle {
+ public:
+  INLINE(MaybeHandle()) : location_(NULL) { }
+
+  // Constructor for handling automatic up casting from Handle.
+  // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
+  template <class S> MaybeHandle(Handle<S> handle) {
+#ifdef DEBUG
+    T* a = NULL;
+    S* b = NULL;
+    a = b;  // Fake assignment to enforce type checks.
+    USE(a);
+#endif
+    this->location_ = reinterpret_cast<T**>(handle.location());
+  }
+
+  // Constructor for handling automatic up casting.
+  // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
+  template <class S> MaybeHandle(MaybeHandle<S> maybe_handle) {
+#ifdef DEBUG
+    T* a = NULL;
+    S* b = NULL;
+    a = b;  // Fake assignment to enforce type checks.
+    USE(a);
+#endif
+    location_ = reinterpret_cast<T**>(maybe_handle.location_);
+  }
+
+  INLINE(void Assert() const) { DCHECK(location_ != NULL); }
+  INLINE(void Check() const) { CHECK(location_ != NULL); }
+
+  INLINE(Handle<T> ToHandleChecked()) const {
+    Check();
+    return Handle<T>(location_);
+  }
+
+  // Convert to a Handle with a type that can be upcasted to.
+  template <class S>
+  V8_INLINE bool ToHandle(Handle<S>* out) const {
+    if (location_ == NULL) {
+      *out = Handle<T>::null();
+      return false;
+    } else {
+      *out = Handle<T>(location_);
+      return true;
+    }
+  }
+
+  bool is_null() const { return location_ == NULL; }
+
+ protected:
+  T** location_;
+
+  // MaybeHandles of different classes are allowed to access each
+  // other's location_.
+  template<class S> friend class MaybeHandle;
+};
 
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
@@ -47,7 +87,9 @@ class Handle {
   INLINE(explicit Handle(T* obj));
   INLINE(Handle(T* obj, Isolate* isolate));
 
-  INLINE(Handle()) : location_(NULL) {}
+  // TODO(yangguo): Values that contain empty handles should be declared as
+  // MaybeHandle to force validation before being used as handles.
+  INLINE(Handle()) : location_(NULL) { }
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
@@ -61,7 +103,7 @@ class Handle {
     location_ = reinterpret_cast<T**>(handle.location_);
   }
 
-  INLINE(T* operator ->() const) { return operator*(); }
+  INLINE(T* operator->() const) { return operator*(); }
 
   // Check if this handle refers to the exact same object as the other handle.
   INLINE(bool is_identical_to(const Handle<T> other) const);
@@ -73,16 +115,24 @@ class Handle {
   INLINE(T** location() const);
 
   template <class S> static Handle<T> cast(Handle<S> that) {
-    T::cast(*that);
-    return Handle<T>(reinterpret_cast<T**>(that.location()));
+    T::cast(*reinterpret_cast<T**>(that.location_));
+    return Handle<T>(reinterpret_cast<T**>(that.location_));
   }
 
+  // TODO(yangguo): Values that contain empty handles should be declared as
+  // MaybeHandle to force validation before being used as handles.
   static Handle<T> null() { return Handle<T>(); }
   bool is_null() const { return location_ == NULL; }
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
-  inline Handle<T> EscapeFrom(v8::HandleScope* scope);
+  inline Handle<T> EscapeFrom(v8::EscapableHandleScope* scope);
+
+#ifdef DEBUG
+  enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
+
+  bool IsDereferenceAllowed(DereferenceCheckMode mode) const;
+#endif  // DEBUG
 
  private:
   T** location_;
@@ -96,6 +146,20 @@ class Handle {
 template<class T>
 inline Handle<T> handle(T* t, Isolate* isolate) {
   return Handle<T>(t, isolate);
+}
+
+
+// Convenience wrapper.
+template<class T>
+inline Handle<T> handle(T* t) {
+  return Handle<T>(t, t->GetIsolate());
+}
+
+
+// Key comparison function for Map handles.
+inline bool operator<(const Handle<Map>& lhs, const Handle<Map>& rhs) {
+  // This is safe because maps don't move.
+  return *lhs < *rhs;
 }
 
 
@@ -151,22 +215,26 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
-  inline void CloseScope();
-
   Isolate* isolate_;
   Object** prev_next_;
   Object** prev_limit_;
 
+  // Close the handle scope resetting limits to a previous state.
+  static inline void CloseScope(Isolate* isolate,
+                                Object** prev_next,
+                                Object** prev_limit);
+
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend(Isolate* isolate);
 
+#ifdef ENABLE_HANDLE_ZAPPING
   // Zaps the handles in the half-open interval [start, end).
-  static void ZapRange(internal::Object** start, internal::Object** end);
+  static void ZapRange(Object** start, Object** end);
+#endif
 
-  friend class v8::internal::DeferredHandles;
   friend class v8::HandleScope;
+  friend class v8::internal::DeferredHandles;
   friend class v8::internal::HandleScopeImplementer;
-  friend class v8::ImplementationUtilities;
   friend class v8::internal::Isolate;
 };
 
@@ -197,161 +265,32 @@ class DeferredHandleScope {
 };
 
 
-// ----------------------------------------------------------------------------
-// Handle operations.
-// They might invoke garbage collection. The result is an handle to
-// an object of expected type, or the handle is an error if running out
-// of space or encountering an internal error.
-
-// Flattens a string.
-void FlattenString(Handle<String> str);
-
-// Flattens a string and returns the underlying external or sequential
-// string.
-Handle<String> FlattenGetString(Handle<String> str);
-
-Handle<Object> SetProperty(Isolate* isolate,
-                           Handle<Object> object,
-                           Handle<Object> key,
-                           Handle<Object> value,
-                           PropertyAttributes attributes,
-                           StrictModeFlag strict_mode);
-
-Handle<Object> ForceSetProperty(Handle<JSObject> object,
-                                Handle<Object> key,
-                                Handle<Object> value,
-                                PropertyAttributes attributes);
-
-Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
-                                   Handle<Object> key);
-
-Handle<Object> GetProperty(Handle<JSReceiver> obj,
-                           const char* name);
-
-Handle<Object> GetProperty(Isolate* isolate,
-                           Handle<Object> obj,
-                           Handle<Object> key);
-
-Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
-                                          Handle<JSObject> holder,
-                                          Handle<String> name,
-                                          PropertyAttributes* attributes);
-
-Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
-
-Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
-                                                   uint32_t index);
-
-Handle<JSObject> Copy(Handle<JSObject> obj);
-
-Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info);
-
-Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
-                                      Handle<JSArray> array);
-
-// Get the JS object corresponding to the given script; create it
-// if none exists.
-Handle<JSValue> GetScriptWrapper(Handle<Script> script);
-
-// Script line number computations. Note that the line number is zero-based.
-void InitScriptLineEnds(Handle<Script> script);
-// For string calculates an array of line end positions. If the string
-// does not end with a new line character, this character may optionally be
-// imagined.
-Handle<FixedArray> CalculateLineEnds(Handle<String> string,
-                                     bool with_imaginary_last_new_line);
-int GetScriptLineNumber(Handle<Script> script, int code_position);
-// The safe version does not make heap allocations but may work much slower.
-int GetScriptLineNumberSafe(Handle<Script> script, int code_position);
-int GetScriptColumnNumber(Handle<Script> script, int code_position);
-Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script);
-
-// Computes the enumerable keys from interceptors. Used for debug mirrors and
-// by GetKeysInFixedArrayFor below.
-v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
-                                                 Handle<JSObject> object);
-v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
-                                                   Handle<JSObject> object);
-
-enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
-
-// Computes the enumerable keys for a JSObject. Used for implementing
-// "for (n in object) { }".
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
-                                          KeyCollectionType type,
-                                          bool* threw);
-Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw);
-Handle<FixedArray> ReduceFixedArrayTo(Handle<FixedArray> array, int length);
-Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
-                                       bool cache_result);
-
-// Computes the union of keys and return the result.
-// Used for implementing "for (n in object) { }"
-Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
-                               Handle<FixedArray> second);
-
-Handle<String> SubString(Handle<String> str,
-                         int start,
-                         int end,
-                         PretenureFlag pretenure = NOT_TENURED);
-
-// Sets the expected number of properties for the function's instances.
-void SetExpectedNofProperties(Handle<JSFunction> func, int nof);
-
-// Sets the prototype property for a function instance.
-void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value);
-
-// Sets the expected number of properties based on estimate from compiler.
-void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
-                                          int estimate);
-
-
-Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
-    Handle<JSFunction> constructor,
-    Handle<JSGlobalProxy> global);
-
-Handle<Object> SetPrototype(Handle<JSFunction> function,
-                            Handle<Object> prototype);
-
-Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
-                                       Handle<Object> key);
-
-Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
-                                          Handle<Object> key);
-
-Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<Object> key,
-                                               Handle<Object> value);
-
-class NoHandleAllocation BASE_EMBEDDED {
+// Seal off the current HandleScope so that new handles can only be created
+// if a new HandleScope is entered.
+class SealHandleScope BASE_EMBEDDED {
  public:
 #ifndef DEBUG
-  explicit NoHandleAllocation(Isolate* isolate) {}
-  ~NoHandleAllocation() {}
+  explicit SealHandleScope(Isolate* isolate) {}
+  ~SealHandleScope() {}
 #else
-  explicit inline NoHandleAllocation(Isolate* isolate);
-  inline ~NoHandleAllocation();
+  explicit inline SealHandleScope(Isolate* isolate);
+  inline ~SealHandleScope();
  private:
   Isolate* isolate_;
+  Object** limit_;
   int level_;
-  bool active_;
 #endif
 };
 
+struct HandleScopeData {
+  internal::Object** next;
+  internal::Object** limit;
+  int level;
 
-class HandleDereferenceGuard BASE_EMBEDDED {
- public:
-  enum State { ALLOW, DISALLOW };
-#ifndef DEBUG
-  HandleDereferenceGuard(Isolate* isolate, State state) { }
-  ~HandleDereferenceGuard() { }
-#else
-  inline HandleDereferenceGuard(Isolate* isolate,  State state);
-  inline ~HandleDereferenceGuard();
- private:
-  Isolate* isolate_;
-  bool old_state_;
-#endif
+  void Initialize() {
+    next = limit = NULL;
+    level = 0;
+  }
 };
 
 } }  // namespace v8::internal

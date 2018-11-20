@@ -1,0 +1,32 @@
+<h1><a href="../cli/npm-help.html">npm-help</a></h1> <p>Get help on npm</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm help &lt;topic&gt;
+npm help some search terms
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>If supplied a topic, then show the appropriate documentation page.</p>
+<p>If the topic does not exist, or if multiple terms are provided, then run
+the <code>help-search</code> command to find a match.  Note that, if <code>help-search</code>
+finds a single subject, then it will run <code>help</code> on that topic, so unique
+matches are equivalent to specifying a topic name.</p>
+<h2 id="configuration">CONFIGURATION</h2>
+<h3 id="viewer">viewer</h3>
+<ul>
+<li>Default: &quot;man&quot; on Posix, &quot;browser&quot; on Windows</li>
+<li>Type: path</li>
+</ul>
+<p>The program to use to view help content.</p>
+<p>Set to <code>&quot;browser&quot;</code> to view html help content in the default web browser.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../cli/npm.html">npm(1)</a></li>
+<li><a href="../../doc/README.html">README</a></li>
+<li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
+<li><a href="../files/npm-folders.html">npm-folders(5)</a></li>
+<li><a href="../cli/npm-config.html">npm-config(1)</a></li>
+<li><a href="../misc/npm-config.html">npm-config(7)</a></li>
+<li><a href="../files/npmrc.html">npmrc(5)</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
+<li><a href="../cli/npm-help-search.html">npm-help-search(1)</a></li>
+<li><a href="../misc/npm-index.html">npm-index(7)</a></li>
+</ul>
+

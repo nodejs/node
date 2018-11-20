@@ -1,0 +1,64 @@
+{
+  "name": "cryptiles",
+  "description": "General purpose crypto utilities",
+  "version": "2.0.4",
+  "author": {
+    "name": "Eran Hammer",
+    "email": "eran@hammer.io",
+    "url": "http://hueniverse.com"
+  },
+  "contributors": [],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hapijs/cryptiles"
+  },
+  "main": "index",
+  "keywords": [
+    "cryptography",
+    "security",
+    "utilites"
+  ],
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "dependencies": {
+    "boom": "2.x.x"
+  },
+  "devDependencies": {
+    "lab": "4.x.x"
+  },
+  "scripts": {
+    "test": "make test-cov"
+  },
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "http://github.com/hapijs/cryptiles/raw/master/LICENSE"
+    }
+  ],
+  "gitHead": "944263dbb628b9b3da542d35600d587f861eeaf0",
+  "bugs": {
+    "url": "https://github.com/hapijs/cryptiles/issues"
+  },
+  "homepage": "https://github.com/hapijs/cryptiles",
+  "_id": "cryptiles@2.0.4",
+  "_shasum": "09ea1775b9e1c7de7e60a99d42ab6f08ce1a1285",
+  "_from": "cryptiles@>=2.0.0 <3.0.0",
+  "_npmVersion": "1.4.23",
+  "_npmUser": {
+    "name": "hueniverse",
+    "email": "eran@hueniverse.com"
+  },
+  "maintainers": [
+    {
+      "name": "hueniverse",
+      "email": "eran@hueniverse.com"
+    }
+  ],
+  "dist": {
+    "shasum": "09ea1775b9e1c7de7e60a99d42ab6f08ce1a1285",
+    "tarball": "http://registry.npmjs.org/cryptiles/-/cryptiles-2.0.4.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/cryptiles/-/cryptiles-2.0.4.tgz"
+}

@@ -1,0 +1,70 @@
+{
+  "name": "escape-string-regexp",
+  "version": "1.0.3",
+  "description": "Escape RegExp special characters",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/escape-string-regexp.git"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "http://sindresorhus.com"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "jbnicolai",
+      "email": "jappelman@xebia.com"
+    }
+  ],
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "regex",
+    "regexp",
+    "re",
+    "regular",
+    "expression",
+    "escape",
+    "string",
+    "str",
+    "special",
+    "characters"
+  ],
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "gitHead": "1e446e6b4449b5f1f8868cd31bf8fd25ee37fb4b",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/escape-string-regexp/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/escape-string-regexp",
+  "_id": "escape-string-regexp@1.0.3",
+  "_shasum": "9e2d8b25bc2555c3336723750e03f099c2735bb5",
+  "_from": "escape-string-regexp@>=1.0.2 <2.0.0",
+  "_npmVersion": "2.1.16",
+  "_nodeVersion": "0.10.35",
+  "_npmUser": {
+    "name": "jbnicolai",
+    "email": "jappelman@xebia.com"
+  },
+  "dist": {
+    "shasum": "9e2d8b25bc2555c3336723750e03f099c2735bb5",
+    "tarball": "http://registry.npmjs.org/escape-string-regexp/-/escape-string-regexp-1.0.3.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/escape-string-regexp/-/escape-string-regexp-1.0.3.tgz",
+  "readme": "ERROR: No README data found!"
+}

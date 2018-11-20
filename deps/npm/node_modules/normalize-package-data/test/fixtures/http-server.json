@@ -1,0 +1,53 @@
+{
+  "name": "http-server",
+  "preferGlobal": true,
+  "version": "0.3.0",
+  "author": "Nodejitsu <support@nodejitsu.com>",
+  "description": "a simple zero-configuration command-line http server",
+  "contributors": [ 
+    {
+      "name": "Marak Squires",
+      "email": "marak@nodejitsu.com"
+    } 
+  ],
+  "bin": {
+    "http-server": "./bin/http-server"
+  },
+  "scripts": {
+    "start": "node ./bin/http-server",
+    "test": "vows --spec --isolate",
+    "predeploy": "echo This will be run before deploying the app",
+    "postdeploy": "echo This will be run after deploying the app"
+  },
+  "main": "./lib/http-server",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nodejitsu/http-server.git"
+  },
+  "keywords": [
+    "cli",
+    "http",
+    "server"
+  ],
+  "dependencies" : {
+    "colors"   :  "*",
+    "flatiron" :  "0.1.x",
+    "optimist" :  "0.2.x",
+    "union"    :  "0.1.x",
+    "ecstatic" :  "0.1.x",
+    "plates"   :  "https://github.com/flatiron/plates/tarball/master"
+  },
+  "analyze": false,
+  "devDependencies": {
+    "vows"    :  "0.5.x",
+    "request" :  "2.1.x"
+  },
+  "bundledDependencies": [
+    "union",
+    "ecstatic"
+  ],  
+  "license": "MIT",
+  "engines": {
+    "node": ">=0.6"
+  }
+}

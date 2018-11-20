@@ -124,7 +124,7 @@ function errorMessage () {
 function issueMessage () {
   errorMessage()
   log.error('', [ 'This is a bug in `node-gyp`.'
-                , 'Please file an Issue:'
+                , 'Try to update node-gyp and file an Issue if it does not help:'
                 , '    <https://github.com/TooTallNate/node-gyp/issues>'
                 ].join('\n'))
 }

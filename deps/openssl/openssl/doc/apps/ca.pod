@@ -13,6 +13,8 @@ B<openssl> B<ca>
 [B<-name section>]
 [B<-gencrl>]
 [B<-revoke file>]
+[B<-status serial>]
+[B<-updatedb>]
 [B<-crl_reason reason>]
 [B<-crl_hold instruction>]
 [B<-crl_compromise time>]
@@ -26,6 +28,7 @@ B<openssl> B<ca>
 [B<-md arg>]
 [B<-policy arg>]
 [B<-keyfile arg>]
+[B<-keyform PEM|DER>]
 [B<-key arg>]
 [B<-passin arg>]
 [B<-cert file>]
@@ -83,7 +86,7 @@ a single self signed certificate to be signed by the CA.
 
 a file containing a single Netscape signed public key and challenge
 and additional field values to be signed by the CA. See the B<SPKAC FORMAT>
-section for information on the required format.
+section for information on the required input and output format.
 
 =item B<-infiles>
 
@@ -94,7 +97,7 @@ are assumed to the the names of files containing certificate requests.
 
 the output file to output certificates to. The default is standard
 output. The certificate details will also be printed out to this
-file.
+file in PEM format (except that B<-spkac> outputs DER format).
 
 =item B<-outdir directory>
 
@@ -109,6 +112,11 @@ the CA certificate file.
 =item B<-keyfile filename>
 
 the private key to sign requests with.
+
+=item B<-keyform PEM|DER>
+
+the format of the data in the private key file.
+The default is PEM.
 
 =item B<-key password>
 
@@ -266,6 +274,15 @@ the number of hours before the next CRL is due.
 =item B<-revoke filename>
 
 a filename containing a certificate to revoke.
+
+=item B<-status serial>
+
+displays the revocation status of the certificate with the specified
+serial number and exits.
+
+=item B<-updatedb>
+
+Updates the database index to purge expired certificates.
 
 =item B<-crl_reason reason>
 
@@ -498,6 +515,10 @@ The file should contain the variable SPKAC set to the value of
 the SPKAC and also the required DN components as name value pairs.
 If you need to include the same component twice then it can be
 preceded by a number and a '.'.
+
+When processing SPKAC format, the output is DER if the B<-out>
+flag is used, but PEM format if sending to stdout or the B<-outdir>
+flag is used.
 
 =head1 EXAMPLES
 

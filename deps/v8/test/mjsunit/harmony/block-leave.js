@@ -27,7 +27,6 @@
 
 // Flags: --harmony-scoping
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 // We want to test the context chain shape.  In each of the tests cases

@@ -38,6 +38,16 @@ function testRound(expect, input) {
   assertEquals(expect, doRound(input));
   %OptimizeFunctionOnNextCall(doRound);
   assertEquals(expect, doRound(input));
+
+  // Force the Math.round() representation to double to exercise the associated
+  // optimized code.
+  var doRoundToDouble = new Function('input',
+                                     '"' + (test_id++) + '";return Math.round(input) + -0.0');
+  assertEquals(expect, doRoundToDouble(input));
+  assertEquals(expect, doRoundToDouble(input));
+  assertEquals(expect, doRoundToDouble(input));
+  %OptimizeFunctionOnNextCall(doRoundToDouble);
+  assertEquals(expect, doRoundToDouble(input));
 }
 
 testRound(0, 0);
@@ -80,6 +90,15 @@ testRound(-9007199254740990, -9007199254740990);
 testRound(-9007199254740991, -9007199254740991);
 testRound(Number.MAX_VALUE, Number.MAX_VALUE);
 testRound(-Number.MAX_VALUE, -Number.MAX_VALUE);
+testRound(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+testRound(Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER + 1);
+testRound(Number.MAX_SAFE_INTEGER + 2, Number.MAX_SAFE_INTEGER + 2);
+testRound(Number.MAX_SAFE_INTEGER + 3, Number.MAX_SAFE_INTEGER + 3);
+testRound(Number.MAX_SAFE_INTEGER + 4, Number.MAX_SAFE_INTEGER + 4);
+testRound(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
+testRound(Number.MIN_SAFE_INTEGER - 1, Number.MIN_SAFE_INTEGER - 1);
+testRound(Number.MIN_SAFE_INTEGER - 2, Number.MIN_SAFE_INTEGER - 2);
+testRound(Number.MIN_SAFE_INTEGER - 3, Number.MIN_SAFE_INTEGER - 3);
 
 testRound(536870911, 536870910.5);
 testRound(536870911, 536870911);
@@ -170,5 +189,3 @@ testRound(min_smi31, min_smi31 - 0.5);
 testRound(min_smi31 + 1, min_smi31 + 0.5);
 testRound(min_smi32, min_smi32 - 0.5);
 testRound(min_smi32 + 1, min_smi32 + 0.5);
-
-

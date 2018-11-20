@@ -47,4 +47,3 @@ for (var i in a) {
   assertEquals(f < x, 'f' < x, ">r" + x);
   assertEquals(f <= x, 'f' <= x, ">=r" + x);
 }
-

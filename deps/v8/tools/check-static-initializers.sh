@@ -28,13 +28,11 @@
 
 # Checks that the number of compilation units having at least one static
 # initializer in d8 matches the one defined below.
-# Note that the project must be built with SCons before running this script.
 
 # Allow:
 #  - _GLOBAL__I__ZN2v810LineEditor6first_E
 #  - _GLOBAL__I__ZN2v88internal32AtomicOps_Internalx86CPUFeaturesE
-#  - _GLOBAL__I__ZN2v88internal8ThreadId18highest_thread_id_E
-expected_static_init_count=3
+expected_static_init_count=2
 
 v8_root=$(readlink -f $(dirname $BASH_SOURCE)/../)
 

@@ -29,15 +29,16 @@
 from . import output
 
 class TestCase(object):
-  def __init__(self, suite, path, flags=[], dependency=None):
-    self.suite = suite  # TestSuite object
-    self.path = path    # string, e.g. 'div-mod', 'test-api/foo'
-    self.flags = flags  # list of strings, flags specific to this test case
+  def __init__(self, suite, path, flags=None, dependency=None):
+    self.suite = suite        # TestSuite object
+    self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
+    self.flags = flags or []  # list of strings, flags specific to this test
     self.dependency = dependency  # |path| for testcase that must be run first
     self.outcomes = None
     self.output = None
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
+    self.run = 1  # The nth time this test is executed.
 
   def CopyAddingFlags(self, flags):
     copy = TestCase(self.suite, self.path, self.flags + flags, self.dependency)
@@ -60,6 +61,7 @@ class TestCase(object):
     test = TestCase(str(task[0]), task[1], task[2], task[3])
     test.outcomes = set(task[4])
     test.id = task[5]
+    test.run = 1
     return test
 
   def SetSuiteObject(self, suites):

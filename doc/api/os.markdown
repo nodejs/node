@@ -1,6 +1,6 @@
-# os
+# OS
 
-    Stability: 4 - API Frozen
+    Stability: 2 - Stable
 
 Provides a few basic operating-system related utility functions.
 
@@ -8,11 +8,12 @@ Use `require('os')` to access this module.
 
 ## os.tmpdir()
 
-Returns the operating system's default directory for temp files.
+Returns the operating system's default directory for temporary files.
 
 ## os.endianness()
 
-Returns the endianness of the CPU. Possible values are `"BE"` or `"LE"`.
+Returns the endianness of the CPU. Possible values are `'BE'` for big endian
+or `'LE'` for little endian.
 
 ## os.hostname()
 
@@ -20,15 +21,19 @@ Returns the hostname of the operating system.
 
 ## os.type()
 
-Returns the operating system name.
+Returns the operating system name. For example `'Linux'` on Linux, `'Darwin'`
+on OS X and `'Windows_NT'` on Windows.
 
 ## os.platform()
 
-Returns the operating system platform.
+Returns the operating system platform. Possible values are `'darwin'`,
+`'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
+`process.platform`.
 
 ## os.arch()
 
-Returns the operating system CPU architecture.
+Returns the operating system CPU architecture. Possible values are `'x64'`,
+`'arm'` and `'ia32'`. Returns the value of `process.arch`.
 
 ## os.release()
 
@@ -41,6 +46,14 @@ Returns the system uptime in seconds.
 ## os.loadavg()
 
 Returns an array containing the 1, 5, and 15 minute load averages.
+
+The load average is a measure of system activity, calculated by the operating
+system and expressed as a fractional number.  As a rule of thumb, the load
+average should ideally be less than the number of logical CPUs in the system.
+
+The load average is a very UNIX-y concept; there is no real equivalent on
+Windows platforms.  That is why this function always returns `[0, 0, 0]` on
+Windows.
 
 ## os.totalmem()
 
@@ -123,22 +136,40 @@ Example inspection of os.cpus:
            idle: 1072572010,
            irq: 30 } } ]
 
+Note that since `nice` values are UNIX centric in Windows the `nice` values of
+all processors are always 0.
+
 ## os.networkInterfaces()
 
 Get a list of network interfaces:
 
-    { lo0: 
-       [ { address: '::1', family: 'IPv6', internal: true },
-         { address: 'fe80::1', family: 'IPv6', internal: true },
-         { address: '127.0.0.1', family: 'IPv4', internal: true } ],
-      en1: 
-       [ { address: 'fe80::cabc:c8ff:feef:f996', family: 'IPv6',
+    { lo:
+       [ { address: '127.0.0.1',
+           netmask: '255.0.0.0',
+           family: 'IPv4',
+           mac: '00:00:00:00:00:00',
+           internal: true },
+         { address: '::1',
+           netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+           family: 'IPv6',
+           mac: '00:00:00:00:00:00',
+           internal: true } ],
+      eth0:
+       [ { address: '192.168.1.108',
+           netmask: '255.255.255.0',
+           family: 'IPv4',
+           mac: '01:02:03:0a:0b:0c',
            internal: false },
-         { address: '10.0.1.123', family: 'IPv4', internal: false } ],
-      vmnet1: [ { address: '10.99.99.254', family: 'IPv4', internal: false } ],
-      vmnet8: [ { address: '10.88.88.1', family: 'IPv4', internal: false } ],
-      ppp0: [ { address: '10.2.0.231', family: 'IPv4', internal: false } ] }
+         { address: 'fe80::a00:27ff:fe4e:66a1',
+           netmask: 'ffff:ffff:ffff:ffff::',
+           family: 'IPv6',
+           mac: '01:02:03:0a:0b:0c',
+           internal: false } ] }
+
+Note that due to the underlying implementation this will only return network
+interfaces that have been assigned an address.
 
 ## os.EOL
 
-A constant defining the appropriate End-of-line marker for the operating system.
+A constant defining the appropriate End-of-line marker for the operating
+system.

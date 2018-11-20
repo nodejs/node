@@ -171,7 +171,6 @@ ERR_get_string_table(void) respectively.
 
 =head1 SEE ALSO
 
-L<CRYPTO_set_id_callback(3)|CRYPTO_set_id_callback(3)>,
 L<CRYPTO_set_locking_callback(3)|CRYPTO_set_locking_callback(3)>,
 L<ERR_get_error(3)|ERR_get_error(3)>,
 L<ERR_GET_LIB(3)|ERR_GET_LIB(3)>,

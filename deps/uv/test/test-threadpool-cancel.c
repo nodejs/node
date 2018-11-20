@@ -46,7 +46,6 @@ static unsigned work_cb_called;
 static unsigned done_cb_called;
 static unsigned done2_cb_called;
 static unsigned timer_cb_called;
-static unsigned getaddrinfo_cb_called;
 
 
 static void work_cb(uv_work_t* req) {
@@ -86,7 +85,9 @@ static void saturate_threadpool(void) {
      * the thread pool is saturated. As with any timing dependent test,
      * this is obviously not ideal.
      */
-    if (uv_cond_timedwait(&signal_cond, &signal_mutex, 350 * 1e6)) {
+    if (uv_cond_timedwait(&signal_cond,
+                          &signal_mutex,
+                          (uint64_t) (350 * 1e6))) {
       ASSERT(0 == uv_cancel((uv_req_t*) req));
       break;
     }
@@ -111,7 +112,7 @@ static void cleanup_threadpool(void) {
 
 
 static void fs_cb(uv_fs_t* req) {
-  ASSERT(req->errorno == UV_ECANCELED);
+  ASSERT(req->result == UV_ECANCELED);
   uv_fs_req_cleanup(req);
   fs_cb_called++;
 }
@@ -120,9 +121,19 @@ static void fs_cb(uv_fs_t* req) {
 static void getaddrinfo_cb(uv_getaddrinfo_t* req,
                            int status,
                            struct addrinfo* res) {
-  ASSERT(UV_ECANCELED == uv_last_error(req->loop).code);
-  ASSERT(UV_ECANCELED == status);
-  getaddrinfo_cb_called++;
+  ASSERT(status == UV_EAI_CANCELED);
+  ASSERT(res == NULL);
+  uv_freeaddrinfo(res);  /* Should not crash. */
+}
+
+
+static void getnameinfo_cb(uv_getnameinfo_t* handle,
+                           int status,
+                           const char* hostname,
+                           const char* service) {
+  ASSERT(status == UV_EAI_CANCELED);
+  ASSERT(hostname == NULL);
+  ASSERT(service == NULL);
 }
 
 
@@ -132,13 +143,12 @@ static void work2_cb(uv_work_t* req) {
 
 
 static void done2_cb(uv_work_t* req, int status) {
-  ASSERT(uv_last_error(req->loop).code == UV_ECANCELED);
-  ASSERT(status == -1);
+  ASSERT(status == UV_ECANCELED);
   done2_cb_called++;
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   struct cancel_info* ci;
   uv_req_t* req;
   unsigned i;
@@ -186,6 +196,44 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
   ASSERT(r == 0);
 
   r = uv_getaddrinfo(loop, reqs + 3, getaddrinfo_cb, "fail", NULL, &hints);
+  ASSERT(r == 0);
+
+  ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
+  ASSERT(0 == uv_timer_start(&ci.timer_handle, timer_cb, 10, 0));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+  ASSERT(1 == timer_cb_called);
+
+  cleanup_threadpool();
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(threadpool_cancel_getnameinfo) {
+  uv_getnameinfo_t reqs[4];
+  struct sockaddr_in addr4;
+  struct cancel_info ci;
+  uv_loop_t* loop;
+  int r;
+
+  r = uv_ip4_addr("127.0.0.1", 80, &addr4);
+  ASSERT(r == 0);
+
+  INIT_CANCEL_INFO(&ci, reqs);
+  loop = uv_default_loop();
+  saturate_threadpool();
+
+  r = uv_getnameinfo(loop, reqs + 0, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
+  ASSERT(r == 0);
+
+  r = uv_getnameinfo(loop, reqs + 1, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
+  ASSERT(r == 0);
+
+  r = uv_getnameinfo(loop, reqs + 2, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
+  ASSERT(r == 0);
+
+  r = uv_getnameinfo(loop, reqs + 3, getnameinfo_cb, (const struct sockaddr*)&addr4, 0);
   ASSERT(r == 0);
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
@@ -253,7 +301,7 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_open(loop, reqs + n++, "/", 0, 0, fs_cb));
   ASSERT(0 == uv_fs_read(loop, reqs + n++, 0, NULL, 0, 0, fs_cb));
-  ASSERT(0 == uv_fs_readdir(loop, reqs + n++, "/", 0, fs_cb));
+  ASSERT(0 == uv_fs_scandir(loop, reqs + n++, "/", 0, fs_cb));
   ASSERT(0 == uv_fs_readlink(loop, reqs + n++, "/", fs_cb));
   ASSERT(0 == uv_fs_rename(loop, reqs + n++, "/", "/", fs_cb));
   ASSERT(0 == uv_fs_mkdir(loop, reqs + n++, "/", 0, fs_cb));

@@ -51,7 +51,3 @@ f();
 assertEquals(42, a[0]);
 assertEquals(49, a[7]);
 assertEquals(-19, a[23]);
-
-
-
-

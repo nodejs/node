@@ -1,104 +1,166 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_OPTIMIZING_COMPILER_THREAD_H_
 #define V8_OPTIMIZING_COMPILER_THREAD_H_
 
-#include "atomicops.h"
-#include "flags.h"
-#include "platform.h"
-#include "unbound-queue.h"
+#include "src/base/atomicops.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
+#include "src/flags.h"
+#include "src/list.h"
+#include "src/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {
 
 class HOptimizedGraphBuilder;
-class OptimizingCompiler;
+class OptimizedCompileJob;
 class SharedFunctionInfo;
 
-class OptimizingCompilerThread : public Thread {
+class OptimizingCompilerThread : public base::Thread {
  public:
-  explicit OptimizingCompilerThread(Isolate *isolate) :
-      Thread("OptimizingCompilerThread"),
+  explicit OptimizingCompilerThread(Isolate* isolate)
+      : Thread(Options("OptimizingCompilerThread")),
 #ifdef DEBUG
-      thread_id_(0),
+        thread_id_(0),
 #endif
-      isolate_(isolate),
-      stop_semaphore_(OS::CreateSemaphore(0)),
-      input_queue_semaphore_(OS::CreateSemaphore(0)),
-      time_spent_compiling_(0),
-      time_spent_total_(0) {
-    NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
-    NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
+        isolate_(isolate),
+        stop_semaphore_(0),
+        input_queue_semaphore_(0),
+        input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
+        input_queue_length_(0),
+        input_queue_shift_(0),
+        osr_buffer_capacity_(FLAG_concurrent_recompilation_queue_length + 4),
+        osr_buffer_cursor_(0),
+        task_count_(0),
+        osr_hits_(0),
+        osr_attempts_(0),
+        blocked_jobs_(0),
+        tracing_enabled_(FLAG_trace_concurrent_recompilation),
+        job_based_recompilation_(FLAG_job_based_recompilation),
+        recompilation_delay_(FLAG_concurrent_recompilation_delay) {
+    base::NoBarrier_Store(&stop_thread_,
+                          static_cast<base::AtomicWord>(CONTINUE));
+    input_queue_ = NewArray<OptimizedCompileJob*>(input_queue_capacity_);
+    if (FLAG_concurrent_osr) {
+      // Allocate and mark OSR buffer slots as empty.
+      osr_buffer_ = NewArray<OptimizedCompileJob*>(osr_buffer_capacity_);
+      for (int i = 0; i < osr_buffer_capacity_; i++) osr_buffer_[i] = NULL;
+    }
   }
+
+  ~OptimizingCompilerThread();
 
   void Run();
   void Stop();
-  void CompileNext();
-  void QueueForOptimization(OptimizingCompiler* optimizing_compiler);
+  void Flush();
+  void QueueForOptimization(OptimizedCompileJob* optimizing_compiler);
+  void Unblock();
   void InstallOptimizedFunctions();
+  OptimizedCompileJob* FindReadyOSRCandidate(Handle<JSFunction> function,
+                                             BailoutId osr_ast_id);
+  bool IsQueuedForOSR(Handle<JSFunction> function, BailoutId osr_ast_id);
+
+  bool IsQueuedForOSR(JSFunction* function);
 
   inline bool IsQueueAvailable() {
-    // We don't need a barrier since we have a data dependency right
-    // after.
-    Atomic32 current_length = NoBarrier_Load(&queue_length_);
+    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
+    return input_queue_length_ < input_queue_capacity_;
+  }
 
-    // This can be queried only from the execution thread.
-    ASSERT(!IsOptimizerThread());
-    // Since only the execution thread increments queue_length_ and
-    // only one thread can run inside an Isolate at one time, a direct
-    // doesn't introduce a race -- queue_length_ may decreased in
-    // meantime, but not increased.
-    return (current_length < FLAG_parallel_recompilation_queue_length);
+  inline void AgeBufferedOsrJobs() {
+    // Advance cursor of the cyclic buffer to next empty slot or stale OSR job.
+    // Dispose said OSR job in the latter case.  Calling this on every GC
+    // should make sure that we do not hold onto stale jobs indefinitely.
+    AddToOsrBuffer(NULL);
+  }
+
+  static bool Enabled(int max_available) {
+    return (FLAG_concurrent_recompilation && max_available > 1);
   }
 
 #ifdef DEBUG
+  static bool IsOptimizerThread(Isolate* isolate);
   bool IsOptimizerThread();
 #endif
 
-  ~OptimizingCompilerThread() {
-    delete input_queue_semaphore_;
-    delete stop_semaphore_;
+ private:
+  class CompileTask;
+
+  enum StopFlag { CONTINUE, STOP, FLUSH };
+
+  void FlushInputQueue(bool restore_function_code);
+  void FlushOutputQueue(bool restore_function_code);
+  void FlushOsrBuffer(bool restore_function_code);
+  void CompileNext(OptimizedCompileJob* job);
+  OptimizedCompileJob* NextInput(StopFlag* flag = NULL);
+
+  // Add a recompilation task for OSR to the cyclic buffer, awaiting OSR entry.
+  // Tasks evicted from the cyclic buffer are discarded.
+  void AddToOsrBuffer(OptimizedCompileJob* compiler);
+
+  inline int InputQueueIndex(int i) {
+    int result = (i + input_queue_shift_) % input_queue_capacity_;
+    DCHECK_LE(0, result);
+    DCHECK_LT(result, input_queue_capacity_);
+    return result;
   }
 
- private:
 #ifdef DEBUG
   int thread_id_;
+  base::Mutex thread_id_mutex_;
 #endif
 
   Isolate* isolate_;
-  Semaphore* stop_semaphore_;
-  Semaphore* input_queue_semaphore_;
-  UnboundQueue<OptimizingCompiler*> input_queue_;
-  UnboundQueue<OptimizingCompiler*> output_queue_;
-  volatile AtomicWord stop_thread_;
-  volatile Atomic32 queue_length_;
-  int64_t time_spent_compiling_;
-  int64_t time_spent_total_;
+  base::Semaphore stop_semaphore_;
+  base::Semaphore input_queue_semaphore_;
+
+  // Circular queue of incoming recompilation tasks (including OSR).
+  OptimizedCompileJob** input_queue_;
+  int input_queue_capacity_;
+  int input_queue_length_;
+  int input_queue_shift_;
+  base::Mutex input_queue_mutex_;
+
+  // Queue of recompilation tasks ready to be installed (excluding OSR).
+  UnboundQueue<OptimizedCompileJob*> output_queue_;
+  // Used for job based recompilation which has multiple producers on
+  // different threads.
+  base::Mutex output_queue_mutex_;
+
+  // Cyclic buffer of recompilation tasks for OSR.
+  OptimizedCompileJob** osr_buffer_;
+  int osr_buffer_capacity_;
+  int osr_buffer_cursor_;
+
+  volatile base::AtomicWord stop_thread_;
+  base::TimeDelta time_spent_compiling_;
+  base::TimeDelta time_spent_total_;
+
+  int task_count_;
+  // TODO(jochen): This is currently a RecursiveMutex since both Flush/Stop and
+  // Unblock try to get it, but the former methods both can call Unblock. Once
+  // job based recompilation is on by default, and the dedicated thread can be
+  // removed, this should be refactored to not use a RecursiveMutex.
+  base::RecursiveMutex task_count_mutex_;
+
+  int osr_hits_;
+  int osr_attempts_;
+
+  int blocked_jobs_;
+
+  // Copies of FLAG_trace_concurrent_recompilation,
+  // FLAG_concurrent_recompilation_delay and
+  // FLAG_job_based_recompilation that will be used from the background thread.
+  //
+  // Since flags might get modified while the background thread is running, it
+  // is not safe to access them directly.
+  bool tracing_enabled_;
+  bool job_based_recompilation_;
+  int recompilation_delay_;
 };
 
 } }  // namespace v8::internal

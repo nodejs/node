@@ -32,8 +32,8 @@ function TestEgal(expected, x, y) {
   assertSame(expected, Object.is(x, y));
 }
 
-var test_set = [ {}, [], 1/0, -1/0, "s", 0, 0/-1, null, undefined ];
-print(test_set);
+var test_set = [ {}, [], Infinity, -Infinity, "s", "ア", 0, 0/-1, null,
+    undefined, true, false, Symbol("foo"), NaN ];
 for (var i = 0; i < test_set.length; i++) {
   for (var j = 0; j < test_set.length; j++) {
     if (i == j) {

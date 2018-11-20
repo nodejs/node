@@ -1,118 +1,197 @@
-# libuv
+![libuv][libuv_banner]
 
-libuv is a new platform layer for Node. Its purpose is to abstract IOCP on
-Windows and epoll/kqueue/event ports/etc. on Unix systems. We intend to
-eventually contain all platform differences in this library.
+## Overview
 
-http://nodejs.org/
+libuv is a multi-platform support library with a focus on asynchronous I/O. It
+was primarily developed for use by [Node.js](http://nodejs.org), but it's also
+used by [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
+[pyuv](https://github.com/saghul/pyuv), and [others](https://github.com/libuv/libuv/wiki/Projects-that-use-libuv).
 
-## Features
+## Feature highlights
 
- * Non-blocking TCP sockets
+ * Full-featured event loop backed by epoll, kqueue, IOCP, event ports.
 
- * Non-blocking named pipes
+ * Asynchronous TCP and UDP sockets
 
- * UDP
+ * Asynchronous DNS resolution
 
- * Timers
+ * Asynchronous file and file system operations
 
- * Child process spawning
+ * File system events
 
- * Asynchronous DNS via `uv_getaddrinfo`.
+ * ANSI escape code controlled TTY
 
- * Asynchronous file system APIs `uv_fs_*`
+ * IPC with socket sharing, using Unix domain sockets or named pipes (Windows)
 
- * High resolution time `uv_hrtime`
+ * Child processes
 
- * Current executable path look up `uv_exepath`
+ * Thread pool
 
- * Thread pool scheduling `uv_queue_work`
+ * Signal handling
 
- * ANSI escape code controlled TTY `uv_tty_t`
+ * High resolution clock
 
- * File system events Currently supports inotify, `ReadDirectoryChangesW`
-   and kqueue. Event ports in the near future.
-   `uv_fs_event_t`
+ * Threading and synchronization primitives
 
- * IPC and socket sharing between processes `uv_write2`
+## Versioning
+
+Starting with version 1.0.0 libuv follows the [semantic versioning](http://semver.org/)
+scheme. The API change and backwards compatibility rules are those indicated by
+SemVer. libuv will keep a stable ABI across major releases.
 
 ## Community
 
  * [Mailing list](http://groups.google.com/group/libuv)
+ * [IRC chatroom (#libuv@irc.freenode.org)](http://webchat.freenode.net?channels=libuv&uio=d4)
 
 ## Documentation
 
- * [include/uv.h](https://github.com/joyent/libuv/blob/master/include/uv.h)
-   &mdash; API documentation in the form of detailed header comments.
- * [An Introduction to libuv](http://nikhilm.github.com/uvbook/) &mdash; An
-   overview of libuv with tutorials.
- * [LXJS 2012 talk](http://www.youtube.com/watch?v=nGn60vDSxQ4) - High-level
-   introductory talk about libuv.
- * [Tests and benchmarks](https://github.com/joyent/libuv/tree/master/test) -
-   API specification and usage examples.
+### Official API documentation
+
+Located in the docs/ subdirectory. It uses the [Sphinx](http://sphinx-doc.org/)
+framework, which makes it possible to build the documentation in multiple
+formats.
+
+Show different supported building options:
+
+    $ make help
+
+Build documentation as HTML:
+
+    $ make html
+
+Build documentation as man pages:
+
+    $ make man
+
+Build documentation as ePub:
+
+    $ make epub
+
+NOTE: Windows users need to use make.bat instead of plain 'make'.
+
+Documentation can be browsed online [here](http://docs.libuv.org).
+
+The [tests and benchmarks](https://github.com/libuv/libuv/tree/master/test)
+also serve as API specification and usage examples.
+
+### Other resources
+
+ * [An Introduction to libuv](http://nikhilm.github.com/uvbook/)
+   &mdash; An overview of libuv with tutorials.
+ * [LXJS 2012 talk](http://www.youtube.com/watch?v=nGn60vDSxQ4)
+   &mdash; High-level introductory talk about libuv.
+ * [libuv-dox](https://github.com/thlorenz/libuv-dox)
+   &mdash; Documenting types and methods of libuv, mostly by reading uv.h.
+ * [learnuv](https://github.com/thlorenz/learnuv)
+   &mdash; Learn uv for fun and profit, a self guided workshop to libuv.
+
+These resources are not handled by libuv maintainers and might be out of
+date. Please verify it before opening new issues.
 
 ## Build Instructions
 
-For GCC (including MinGW) there are two methods building: via normal
-makefiles or via GYP. GYP is a meta-build system which can generate MSVS,
-Makefile, and XCode backends. It is best used for integration into other
-projects.  The old system is using plain GNU Makefiles.
+For GCC there are two build methods: via autotools or via [GYP][].
+GYP is a meta-build system which can generate MSVS, Makefile, and XCode
+backends. It is best used for integration into other projects.
 
-To build via Makefile simply execute:
+To build with autotools:
 
-    make
+    $ sh autogen.sh
+    $ ./configure
+    $ make
+    $ make check
+    $ make install
 
-MinGW users should run this instead:
+### Windows
 
-    make PLATFORM=mingw
+First, [Python][] 2.6 or 2.7 must be installed as it is required by [GYP][].
+If python is not in your path, set the environment variable `PYTHON` to its
+location. For example: `set PYTHON=C:\Python27\python.exe`
 
-Out-of-tree builds are supported:
+To build with Visual Studio, launch a git shell (e.g. Cmd or PowerShell)
+and run vcbuild.bat which will checkout the GYP code into build/gyp and
+generate uv.sln as well as related project files.
 
-    make builddir_name=/path/to/builddir
-
-To build with Visual Studio run the vcbuild.bat file which will
-checkout the GYP code into build/gyp and generate the uv.sln and
-related files.
-
-Windows users can also build from cmd-line using msbuild.  This is
-done by running vcbuild.bat from Visual Studio command prompt.
-
-To have GYP generate build script for another system, make sure that
-you have Python 2.6 or 2.7 installed, then checkout GYP into the
+To have GYP generate build script for another system, checkout GYP into the
 project tree manually:
 
-    mkdir -p build
-    svn co http://gyp.googlecode.com/svn/trunk build/gyp
+    $ git clone https://chromium.googlesource.com/external/gyp.git build/gyp
 
-Or:
+### Unix
 
-    mkdir -p build
-    git clone https://git.chromium.org/external/gyp.git build/gyp
+Run:
 
-Unix users run
+    $ ./gyp_uv.py -f make
+    $ make -C out
 
-    ./gyp_uv -f make
-    make -C out
+Run `./gyp_uv.py -f make -Dtarget_arch=x32` to build [x32][] binaries.
 
-Macintosh users run
+### OS X
 
-    ./gyp_uv -f xcode
-    xcodebuild -project uv.xcodeproj -configuration Release -target All
+Run:
+
+    $ ./gyp_uv.py -f xcode
+    $ xcodebuild -ARCHS="x86_64" -project uv.xcodeproj \
+         -configuration Release -target All
+
+Using Homebrew:
+
+    $ brew install --HEAD libuv
+
+Note to OS X users:
+
+Make sure that you specify the architecture you wish to build for in the
+"ARCHS" flag. You can specify more than one by delimiting with a space
+(e.g. "x86_64 i386").
+
+### Android
+
+Run:
+
+    $ source ./android-configure NDK_PATH gyp
+    $ make -C out
 
 Note for UNIX users: compile your project with `-D_LARGEFILE_SOURCE` and
 `-D_FILE_OFFSET_BITS=64`. GYP builds take care of that automatically.
 
-Note for Linux users: compile your project with `-D_GNU_SOURCE` when you
-include `uv.h`. GYP builds take care of that automatically. If you use
-autotools, add a `AC_GNU_SOURCE` declaration to your `configure.ac`.
+### Using Ninja
+
+To use ninja for build on ninja supported platforms, run:
+
+    $ ./gyp_uv.py -f ninja
+    $ ninja -C out/Debug     #for debug build OR
+    $ ninja -C out/Release
+
+
+### Running tests
+
+Run:
+
+    $ ./gyp_uv.py -f make
+    $ make -C out
+    $ ./out/Debug/run-tests
 
 ## Supported Platforms
 
 Microsoft Windows operating systems since Windows XP SP2. It can be built
-with either Visual Studio or MinGW.
+with either Visual Studio or MinGW. Consider using
+[Visual Studio Express 2010][] or later if you do not have a full Visual
+Studio license.
 
-Linux 2.6 using the GCC toolchain.
+Linux using the GCC toolchain.
 
-MacOS using the GCC or XCode toolchain.
+OS X using the GCC or XCode toolchain.
 
 Solaris 121 and later using GCC toolchain.
+
+## Patches
+
+See the [guidelines for contributing][].
+
+[node.js]: http://nodejs.org/
+[GYP]: http://code.google.com/p/gyp/
+[Python]: https://www.python.org/downloads/
+[Visual Studio Express 2010]: http://www.microsoft.com/visualstudio/eng/products/visual-studio-2010-express
+[guidelines for contributing]: https://github.com/libuv/libuv/blob/master/CONTRIBUTING.md
+[libuv_banner]: https://raw.githubusercontent.com/libuv/libuv/master/img/banner.png

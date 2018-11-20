@@ -1,10 +1,12 @@
 before
 
-*test*message*undefined_reference_in_new_context.js:34
-script.runInNewContext();
-       ^
+evalmachine.<anonymous>:1
+foo.bar = 5;
+^
 ReferenceError: foo is not defined
-    at evalmachine.<anonymous>:*
+    at evalmachine.<anonymous>:1:1
+    at ContextifyScript.Script.runInNewContext (vm.js:*)
+    at Object.exports.runInNewContext (vm.js:*)
     at Object.<anonymous> (*test*message*undefined_reference_in_new_context.js:*)
     at Module._compile (module.js:*)
     at *..js (module.js:*)
@@ -12,4 +14,3 @@ ReferenceError: foo is not defined
     at Function.Module._load (module.js:*:*)
     at Function.Module.runMain (module.js:*:*)
     at startup (node.js:*:*)
-    at node.js:*:*

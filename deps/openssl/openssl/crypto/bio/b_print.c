@@ -5,21 +5,21 @@
  * This package is an SSL implementation written
  * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
- * 
+ *
  * This library is free for commercial and non-commercial use as long as
  * the following conditions are aheared to.  The following conditions
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
  * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- * 
+ *
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
  * If this package is used in a product, Eric Young should be given attribution
  * as the author of the parts of the library used.
  * This can be in the form of a textual message at program startup or
  * in documentation (online or textual) provided with the package.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -34,10 +34,10 @@
  *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from 
+ * 4. If you include any Windows specific code (or a derivative thereof) from
  *    the apps directory (application code) you must include an acknowledgement:
  *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -49,7 +49,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * The licence and distribution terms for any publically available version or
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
@@ -63,7 +63,7 @@
 # endif
 #endif
 
-/* 
+/*
  * Stolen from tjh's ssl/ssl_trc.c stuff.
  */
 
@@ -74,7 +74,7 @@
 #include <limits.h>
 #include "cryptlib.h"
 #ifndef NO_SYS_TYPES_H
-#include <sys/types.h>
+# include <sys/types.h>
 #endif
 #include <openssl/bn.h>         /* To get BN_LLONG properly defined */
 #include <openssl/bio.h>
@@ -94,7 +94,7 @@
  * on all source code distributions.
  */
 
-/*
+/*-
  * This code contains numerious changes and enhancements which were
  * made by lots of contributors over the last years to Patrick Powell's
  * original code:
@@ -110,31 +110,31 @@
  */
 
 #ifdef HAVE_LONG_DOUBLE
-#define LDOUBLE long double
+# define LDOUBLE long double
 #else
-#define LDOUBLE double
+# define LDOUBLE double
 #endif
 
 #ifdef HAVE_LONG_LONG
 # if defined(_WIN32) && !defined(__GNUC__)
-# define LLONG __int64
+#  define LLONG __int64
 # else
-# define LLONG long long
+#  define LLONG long long
 # endif
 #else
-#define LLONG long
+# define LLONG long
 #endif
 
-static void fmtstr     (char **, char **, size_t *, size_t *,
-			const char *, int, int, int);
-static void fmtint     (char **, char **, size_t *, size_t *,
-			LLONG, int, int, int, int);
-static void fmtfp      (char **, char **, size_t *, size_t *,
-			LDOUBLE, int, int, int);
-static void doapr_outch (char **, char **, size_t *, size_t *, int);
+static void fmtstr(char **, char **, size_t *, size_t *,
+                   const char *, int, int, int);
+static void fmtint(char **, char **, size_t *, size_t *,
+                   LLONG, int, int, int, int);
+static void fmtfp(char **, char **, size_t *, size_t *,
+                  LDOUBLE, int, int, int);
+static void doapr_outch(char **, char **, size_t *, size_t *, int);
 static void _dopr(char **sbuffer, char **buffer,
-		  size_t *maxlen, size_t *retlen, int *truncated,
-		  const char *format, va_list args);
+                  size_t *maxlen, size_t *retlen, int *truncated,
+                  const char *format, va_list args);
 
 /* format read states */
 #define DP_S_DEFAULT    0
@@ -166,14 +166,10 @@ static void _dopr(char **sbuffer, char **buffer,
 #define OSSL_MAX(p,q) ((p >= q) ? p : q)
 
 static void
-_dopr(
-    char **sbuffer,
-    char **buffer,
-    size_t *maxlen,
-    size_t *retlen,
-    int *truncated,
-    const char *format,
-    va_list args)
+_dopr(char **sbuffer,
+      char **buffer,
+      size_t *maxlen,
+      size_t *retlen, int *truncated, const char *format, va_list args)
 {
     char ch;
     LLONG value;
@@ -200,7 +196,7 @@ _dopr(
             if (ch == '%')
                 state = DP_S_FLAGS;
             else
-                doapr_outch(sbuffer,buffer, &currlen, maxlen, ch);
+                doapr_outch(sbuffer, buffer, &currlen, maxlen, ch);
             ch = *format++;
             break;
         case DP_S_FLAGS:
@@ -321,15 +317,13 @@ _dopr(
                     value = (unsigned short int)va_arg(args, unsigned int);
                     break;
                 case DP_C_LONG:
-                    value = (LLONG) va_arg(args,
-                        unsigned long int);
+                    value = (LLONG) va_arg(args, unsigned long int);
                     break;
                 case DP_C_LLONG:
                     value = va_arg(args, unsigned LLONG);
                     break;
                 default:
-                    value = (LLONG) va_arg(args,
-                        unsigned int);
+                    value = (LLONG) va_arg(args, unsigned int);
                     break;
                 }
                 fmtint(sbuffer, buffer, &currlen, maxlen, value,
@@ -362,25 +356,25 @@ _dopr(
                 break;
             case 'c':
                 doapr_outch(sbuffer, buffer, &currlen, maxlen,
-                    va_arg(args, int));
+                            va_arg(args, int));
                 break;
             case 's':
                 strvalue = va_arg(args, char *);
                 if (max < 0) {
-		    if (buffer)
-			max = INT_MAX;
-		    else
-			max = *maxlen;
-		}
+                    if (buffer)
+                        max = INT_MAX;
+                    else
+                        max = *maxlen;
+                }
                 fmtstr(sbuffer, buffer, &currlen, maxlen, strvalue,
                        flags, min, max);
                 break;
             case 'p':
                 value = (long)va_arg(args, void *);
                 fmtint(sbuffer, buffer, &currlen, maxlen,
-                    value, 16, min, max, flags|DP_F_NUM);
+                       value, 16, min, max, flags | DP_F_NUM);
                 break;
-            case 'n': /* XXX */
+            case 'n':          /* XXX */
                 if (cflags == DP_C_SHORT) {
                     short int *num;
                     num = va_arg(args, short int *);
@@ -388,13 +382,13 @@ _dopr(
                 } else if (cflags == DP_C_LONG) { /* XXX */
                     long int *num;
                     num = va_arg(args, long int *);
-                    *num = (long int) currlen;
+                    *num = (long int)currlen;
                 } else if (cflags == DP_C_LLONG) { /* XXX */
                     LLONG *num;
                     num = va_arg(args, LLONG *);
                     *num = (LLONG) currlen;
                 } else {
-                    int    *num;
+                    int *num;
                     num = va_arg(args, int *);
                     *num = currlen;
                 }
@@ -430,23 +424,17 @@ _dopr(
 }
 
 static void
-fmtstr(
-    char **sbuffer,
-    char **buffer,
-    size_t *currlen,
-    size_t *maxlen,
-    const char *value,
-    int flags,
-    int min,
-    int max)
+fmtstr(char **sbuffer,
+       char **buffer,
+       size_t *currlen,
+       size_t *maxlen, const char *value, int flags, int min, int max)
 {
     int padlen, strln;
     int cnt = 0;
 
     if (value == 0)
         value = "<NULL>";
-    for (strln = 0; value[strln]; ++strln)
-        ;
+    for (strln = 0; value[strln]; ++strln) ;
     padlen = min - strln;
     if (padlen < 0)
         padlen = 0;
@@ -470,21 +458,15 @@ fmtstr(
 }
 
 static void
-fmtint(
-    char **sbuffer,
-    char **buffer,
-    size_t *currlen,
-    size_t *maxlen,
-    LLONG value,
-    int base,
-    int min,
-    int max,
-    int flags)
+fmtint(char **sbuffer,
+       char **buffer,
+       size_t *currlen,
+       size_t *maxlen, LLONG value, int base, int min, int max, int flags)
 {
     int signvalue = 0;
     const char *prefix = "";
     unsigned LLONG uvalue;
-    char convert[DECIMAL_SIZE(value)+3];
+    char convert[DECIMAL_SIZE(value) + 3];
     int place = 0;
     int spadlen = 0;
     int zpadlen = 0;
@@ -503,23 +485,25 @@ fmtint(
             signvalue = ' ';
     }
     if (flags & DP_F_NUM) {
-	if (base == 8) prefix = "0";
-	if (base == 16) prefix = "0x";
+        if (base == 8)
+            prefix = "0";
+        if (base == 16)
+            prefix = "0x";
     }
     if (flags & DP_F_UP)
         caps = 1;
     do {
-        convert[place++] =
-            (caps ? "0123456789ABCDEF" : "0123456789abcdef")
-            [uvalue % (unsigned) base];
-        uvalue = (uvalue / (unsigned) base);
+        convert[place++] = (caps ? "0123456789ABCDEF" : "0123456789abcdef")
+            [uvalue % (unsigned)base];
+        uvalue = (uvalue / (unsigned)base);
     } while (uvalue && (place < (int)sizeof(convert)));
     if (place == sizeof(convert))
         place--;
     convert[place] = 0;
 
     zpadlen = max - place;
-    spadlen = min - OSSL_MAX(max, place) - (signvalue ? 1 : 0) - strlen(prefix);
+    spadlen =
+        min - OSSL_MAX(max, place) - (signvalue ? 1 : 0) - strlen(prefix);
     if (zpadlen < 0)
         zpadlen = 0;
     if (spadlen < 0)
@@ -543,8 +527,8 @@ fmtint(
 
     /* prefix */
     while (*prefix) {
-	doapr_outch(sbuffer, buffer, currlen, maxlen, *prefix);
-	prefix++;
+        doapr_outch(sbuffer, buffer, currlen, maxlen, *prefix);
+        prefix++;
     }
 
     /* zeros */
@@ -566,8 +550,7 @@ fmtint(
     return;
 }
 
-static LDOUBLE
-abs_val(LDOUBLE value)
+static LDOUBLE abs_val(LDOUBLE value)
 {
     LDOUBLE result = value;
     if (value < 0)
@@ -575,8 +558,7 @@ abs_val(LDOUBLE value)
     return result;
 }
 
-static LDOUBLE
-pow_10(int in_exp)
+static LDOUBLE pow_10(int in_exp)
 {
     LDOUBLE result = 1;
     while (in_exp) {
@@ -586,11 +568,10 @@ pow_10(int in_exp)
     return result;
 }
 
-static long
-roundv(LDOUBLE value)
+static long roundv(LDOUBLE value)
 {
     long intpart;
-    intpart = (long) value;
+    intpart = (long)value;
     value = value - intpart;
     if (value >= 0.5)
         intpart++;
@@ -598,15 +579,10 @@ roundv(LDOUBLE value)
 }
 
 static void
-fmtfp(
-    char **sbuffer,
-    char **buffer,
-    size_t *currlen,
-    size_t *maxlen,
-    LDOUBLE fvalue,
-    int min,
-    int max,
-    int flags)
+fmtfp(char **sbuffer,
+      char **buffer,
+      size_t *currlen,
+      size_t *maxlen, LDOUBLE fvalue, int min, int max, int flags)
 {
     int signvalue = 0;
     LDOUBLE ufvalue;
@@ -616,7 +592,6 @@ fmtfp(
     int fplace = 0;
     int padlen = 0;
     int zpadlen = 0;
-    int caps = 0;
     long intpart;
     long fracpart;
     long max10;
@@ -633,13 +608,17 @@ fmtfp(
 
     intpart = (long)ufvalue;
 
-    /* sorry, we only support 9 digits past the decimal because of our
-       conversion method */
+    /*
+     * sorry, we only support 9 digits past the decimal because of our
+     * conversion method
+     */
     if (max > 9)
         max = 9;
 
-    /* we "cheat" by converting the fractional part to integer by
-       multiplying by a factor of 10 */
+    /*
+     * we "cheat" by converting the fractional part to integer by multiplying
+     * by a factor of 10
+     */
     max10 = roundv(pow_10(max));
     fracpart = roundv(pow_10(max) * (ufvalue - intpart));
 
@@ -650,9 +629,7 @@ fmtfp(
 
     /* convert integer part */
     do {
-        iconvert[iplace++] =
-            (caps ? "0123456789ABCDEF"
-              : "0123456789abcdef")[intpart % 10];
+        iconvert[iplace++] = "0123456789"[intpart % 10];
         intpart = (intpart / 10);
     } while (intpart && (iplace < (int)sizeof(iconvert)));
     if (iplace == sizeof iconvert)
@@ -661,9 +638,7 @@ fmtfp(
 
     /* convert fractional part */
     do {
-        fconvert[fplace++] =
-            (caps ? "0123456789ABCDEF"
-              : "0123456789abcdef")[fracpart % 10];
+        fconvert[fplace++] = "0123456789"[fracpart % 10];
         fracpart = (fracpart / 10);
     } while (fplace < max);
     if (fplace == sizeof fconvert)
@@ -723,41 +698,45 @@ fmtfp(
 }
 
 static void
-doapr_outch(
-    char **sbuffer,
-    char **buffer,
-    size_t *currlen,
-    size_t *maxlen,
-    int c)
+doapr_outch(char **sbuffer,
+            char **buffer, size_t *currlen, size_t *maxlen, int c)
 {
     /* If we haven't at least one buffer, someone has doe a big booboo */
     assert(*sbuffer != NULL || buffer != NULL);
 
     if (buffer) {
-	while (*currlen >= *maxlen) {
-	    if (*buffer == NULL) {
-		if (*maxlen == 0)
-		    *maxlen = 1024;
-		*buffer = OPENSSL_malloc(*maxlen);
-		if (*currlen > 0) {
-		    assert(*sbuffer != NULL);
-		    memcpy(*buffer, *sbuffer, *currlen);
-		}
-		*sbuffer = NULL;
-	    } else {
-		*maxlen += 1024;
-		*buffer = OPENSSL_realloc(*buffer, *maxlen);
-	    }
-	}
-	/* What to do if *buffer is NULL? */
-	assert(*sbuffer != NULL || *buffer != NULL);
+        while (*currlen >= *maxlen) {
+            if (*buffer == NULL) {
+                if (*maxlen == 0)
+                    *maxlen = 1024;
+                *buffer = OPENSSL_malloc(*maxlen);
+                if(!*buffer) {
+                    /* Panic! Can't really do anything sensible. Just return */
+                    return;
+                }
+                if (*currlen > 0) {
+                    assert(*sbuffer != NULL);
+                    memcpy(*buffer, *sbuffer, *currlen);
+                }
+                *sbuffer = NULL;
+            } else {
+                *maxlen += 1024;
+                *buffer = OPENSSL_realloc(*buffer, *maxlen);
+                if(!*buffer) {
+                    /* Panic! Can't really do anything sensible. Just return */
+                    return;
+                }
+            }
+        }
+        /* What to do if *buffer is NULL? */
+        assert(*sbuffer != NULL || *buffer != NULL);
     }
 
     if (*currlen < *maxlen) {
-	if (*sbuffer)
-	    (*sbuffer)[(*currlen)++] = (char)c;
-	else
-	    (*buffer)[(*currlen)++] = (char)c;
+        if (*sbuffer)
+            (*sbuffer)[(*currlen)++] = (char)c;
+        else
+            (*buffer)[(*currlen)++] = (char)c;
     }
 
     return;
@@ -765,78 +744,78 @@ doapr_outch(
 
 /***************************************************************************/
 
-int BIO_printf (BIO *bio, const char *format, ...)
-	{
-	va_list args;
-	int ret;
+int BIO_printf(BIO *bio, const char *format, ...)
+{
+    va_list args;
+    int ret;
 
-	va_start(args, format);
+    va_start(args, format);
 
-	ret = BIO_vprintf(bio, format, args);
+    ret = BIO_vprintf(bio, format, args);
 
-	va_end(args);
-	return(ret);
-	}
+    va_end(args);
+    return (ret);
+}
 
-int BIO_vprintf (BIO *bio, const char *format, va_list args)
-	{
-	int ret;
-	size_t retlen;
-	char hugebuf[1024*2];	/* Was previously 10k, which is unreasonable
-				   in small-stack environments, like threads
-				   or DOS programs. */
-	char *hugebufp = hugebuf;
-	size_t hugebufsize = sizeof(hugebuf);
-	char *dynbuf = NULL;
-	int ignored;
+int BIO_vprintf(BIO *bio, const char *format, va_list args)
+{
+    int ret;
+    size_t retlen;
+    char hugebuf[1024 * 2];     /* Was previously 10k, which is unreasonable
+                                 * in small-stack environments, like threads
+                                 * or DOS programs. */
+    char *hugebufp = hugebuf;
+    size_t hugebufsize = sizeof(hugebuf);
+    char *dynbuf = NULL;
+    int ignored;
 
-	dynbuf = NULL;
-	CRYPTO_push_info("doapr()");
-	_dopr(&hugebufp, &dynbuf, &hugebufsize,
-		&retlen, &ignored, format, args);
-	if (dynbuf)
-		{
-		ret=BIO_write(bio, dynbuf, (int)retlen);
-		OPENSSL_free(dynbuf);
-		}
-	else
-		{
-		ret=BIO_write(bio, hugebuf, (int)retlen);
-		}
-	CRYPTO_pop_info();
-	return(ret);
-	}
+    dynbuf = NULL;
+    CRYPTO_push_info("doapr()");
+    _dopr(&hugebufp, &dynbuf, &hugebufsize, &retlen, &ignored, format, args);
+    if (dynbuf) {
+        ret = BIO_write(bio, dynbuf, (int)retlen);
+        OPENSSL_free(dynbuf);
+    } else {
+        ret = BIO_write(bio, hugebuf, (int)retlen);
+    }
+    CRYPTO_pop_info();
+    return (ret);
+}
 
-/* As snprintf is not available everywhere, we provide our own implementation.
- * This function has nothing to do with BIOs, but it's closely related
- * to BIO_printf, and we need *some* name prefix ...
- * (XXX  the function should be renamed, but to what?) */
+/*
+ * As snprintf is not available everywhere, we provide our own
+ * implementation. This function has nothing to do with BIOs, but it's
+ * closely related to BIO_printf, and we need *some* name prefix ... (XXX the
+ * function should be renamed, but to what?)
+ */
 int BIO_snprintf(char *buf, size_t n, const char *format, ...)
-	{
-	va_list args;
-	int ret;
+{
+    va_list args;
+    int ret;
 
-	va_start(args, format);
+    va_start(args, format);
 
-	ret = BIO_vsnprintf(buf, n, format, args);
+    ret = BIO_vsnprintf(buf, n, format, args);
 
-	va_end(args);
-	return(ret);
-	}
+    va_end(args);
+    return (ret);
+}
 
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args)
-	{
-	size_t retlen;
-	int truncated;
+{
+    size_t retlen;
+    int truncated;
 
-	_dopr(&buf, NULL, &n, &retlen, &truncated, format, args);
+    _dopr(&buf, NULL, &n, &retlen, &truncated, format, args);
 
-	if (truncated)
-		/* In case of truncation, return -1 like traditional snprintf.
-		 * (Current drafts for ISO/IEC 9899 say snprintf should return
-		 * the number of characters that would have been written,
-		 * had the buffer been large enough.) */
-		return -1;
-	else
-		return (retlen <= INT_MAX) ? (int)retlen : -1;
-	}
+    if (truncated)
+        /*
+         * In case of truncation, return -1 like traditional snprintf.
+         * (Current drafts for ISO/IEC 9899 say snprintf should return the
+         * number of characters that would have been written, had the buffer
+         * been large enough.)
+         */
+        return -1;
+    else
+        return (retlen <= INT_MAX) ? (int)retlen : -1;
+}

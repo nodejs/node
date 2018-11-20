@@ -1,5 +1,8 @@
 #!/usr/local/bin/perl -w
 
+# Written by Dr Stephen N Henson (steve@openssl.org).
+# Licensed under the terms of the OpenSSL license.
+
 use strict;
 
 my ($i, @arr);

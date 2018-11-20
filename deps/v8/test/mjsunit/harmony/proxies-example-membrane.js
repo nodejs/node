@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony
+// Flags: --harmony --harmony-proxies
 
 
 // A simple no-op handler. Adapted from:
@@ -72,7 +72,7 @@ function createHandler(obj) {
     hasOwn: function(name) { return ({}).hasOwnProperty.call(obj, name); },
     get: function(receiver, name) { return obj[name]; },
     set: function(receiver, name, val) {
-      obj[name] = val;  // bad behavior when set fails in non-strict mode
+      obj[name] = val;  // bad behavior when set fails in sloppy mode
       return true;
     },
     enumerate: function() {
@@ -285,8 +285,8 @@ assertEquals(4, wh4.q);
 // http://wiki.ecmascript.org/doku.php?id=harmony:proxies#an_identity-preserving_membrane
 
 function createMembrane(wetTarget) {
-  var wet2dry = WeakMap();
-  var dry2wet = WeakMap();
+  var wet2dry = new WeakMap();
+  var dry2wet = new WeakMap();
 
   function asDry(obj) {
     registerObject(obj)

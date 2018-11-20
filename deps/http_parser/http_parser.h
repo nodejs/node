@@ -24,12 +24,15 @@
 extern "C" {
 #endif
 
-#define HTTP_PARSER_VERSION_MAJOR 1
-#define HTTP_PARSER_VERSION_MINOR 0
+/* Also update SONAME in the Makefile whenever you change these. */
+#define HTTP_PARSER_VERSION_MAJOR 2
+#define HTTP_PARSER_VERSION_MINOR 5
+#define HTTP_PARSER_VERSION_PATCH 0
 
 #include <sys/types.h>
 #if defined(_WIN32) && !defined(__MINGW32__) && (!defined(_MSC_VER) || _MSC_VER<1600)
 #include <BaseTsd.h>
+#include <stddef.h>
 typedef __int8 int8_t;
 typedef unsigned __int8 uint8_t;
 typedef __int16 int16_t;
@@ -38,8 +41,6 @@ typedef __int32 int32_t;
 typedef unsigned __int32 uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-typedef SIZE_T size_t;
-typedef SSIZE_T ssize_t;
 #else
 #include <stdint.h>
 #endif
@@ -51,17 +52,16 @@ typedef SSIZE_T ssize_t;
 # define HTTP_PARSER_STRICT 1
 #endif
 
-/* Compile with -DHTTP_PARSER_DEBUG=1 to add extra debugging information to
- * the error reporting facility.
+/* Maximium header size allowed. If the macro is not defined
+ * before including this header then the default is used. To
+ * change the maximum header size, define the macro in the build
+ * environment (e.g. -DHTTP_MAX_HEADER_SIZE=<value>). To remove
+ * the effective limit on the size of the header, define the macro
+ * to a very large number (e.g. -DHTTP_MAX_HEADER_SIZE=0x7fffffff)
  */
-#ifndef HTTP_PARSER_DEBUG
-# define HTTP_PARSER_DEBUG 0
+#ifndef HTTP_MAX_HEADER_SIZE
+# define HTTP_MAX_HEADER_SIZE (80*1024)
 #endif
-
-
-/* Maximium header size allowed */
-#define HTTP_MAX_HEADER_SIZE (80*1024)
-
 
 typedef struct http_parser http_parser;
 typedef struct http_parser_settings http_parser_settings;
@@ -76,8 +76,8 @@ typedef struct http_parser_settings http_parser_settings;
  * HEAD request which may contain 'Content-Length' or 'Transfer-Encoding:
  * chunked' headers that indicate the presence of a body.
  *
- * http_data_cb does not return data chunks. It will be call arbitrarally
- * many times for each string. E.G. you might get 10 callbacks for "on_path"
+ * http_data_cb does not return data chunks. It will be called arbitrarily
+ * many times for each string. E.G. you might get 10 callbacks for "on_url"
  * each providing just a few characters more data.
  */
 typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);
@@ -117,6 +117,8 @@ typedef int (*http_cb) (http_parser*);
   /* RFC-5789 */                    \
   XX(24, PATCH,       PATCH)        \
   XX(25, PURGE,       PURGE)        \
+  /* CalDAV */                      \
+  XX(26, MKCALENDAR,  MKCALENDAR)   \
 
 enum http_method
   {
@@ -134,9 +136,10 @@ enum flags
   { F_CHUNKED               = 1 << 0
   , F_CONNECTION_KEEP_ALIVE = 1 << 1
   , F_CONNECTION_CLOSE      = 1 << 2
-  , F_TRAILING              = 1 << 3
-  , F_UPGRADE               = 1 << 4
-  , F_SKIPBODY              = 1 << 5
+  , F_CONNECTION_UPGRADE    = 1 << 3
+  , F_TRAILING              = 1 << 4
+  , F_UPGRADE               = 1 << 5
+  , F_SKIPBODY              = 1 << 6
   };
 
 
@@ -156,6 +159,9 @@ enum flags
   XX(CB_headers_complete, "the on_headers_complete callback failed") \
   XX(CB_body, "the on_body callback failed")                         \
   XX(CB_message_complete, "the on_message_complete callback failed") \
+  XX(CB_status, "the on_status callback failed")                     \
+  XX(CB_chunk_header, "the on_chunk_header callback failed")         \
+  XX(CB_chunk_complete, "the on_chunk_complete callback failed")     \
                                                                      \
   /* Parsing-related errors */                                       \
   XX(INVALID_EOF_STATE, "stream ended at an unexpected time")        \
@@ -196,21 +202,14 @@ enum http_errno {
 /* Get an http_errno value from an http_parser */
 #define HTTP_PARSER_ERRNO(p)            ((enum http_errno) (p)->http_errno)
 
-/* Get the line number that generated the current error */
-#if HTTP_PARSER_DEBUG
-#define HTTP_PARSER_ERRNO_LINE(p)       ((p)->error_lineno)
-#else
-#define HTTP_PARSER_ERRNO_LINE(p)       0
-#endif
-
 
 struct http_parser {
   /** PRIVATE **/
-  unsigned char type : 2;     /* enum http_parser_type */
-  unsigned char flags : 6;    /* F_* values from 'flags' enum; semi-public */
-  unsigned char state;        /* enum state from http_parser.c */
-  unsigned char header_state; /* enum header_state from http_parser.c */
-  unsigned char index;        /* index into current matcher */
+  unsigned int type : 2;         /* enum http_parser_type */
+  unsigned int flags : 7;        /* F_* values from 'flags' enum; semi-public */
+  unsigned int state : 7;        /* enum state from http_parser.c */
+  unsigned int header_state : 8; /* enum header_state from http_parser.c */
+  unsigned int index : 8;        /* index into current matcher */
 
   uint32_t nread;          /* # bytes read in various scenarios */
   uint64_t content_length; /* # bytes in body (0 if no Content-Length header) */
@@ -218,20 +217,16 @@ struct http_parser {
   /** READ-ONLY **/
   unsigned short http_major;
   unsigned short http_minor;
-  unsigned short status_code; /* responses only */
-  unsigned char method;       /* requests only */
-  unsigned char http_errno : 7;
+  unsigned int status_code : 16; /* responses only */
+  unsigned int method : 8;       /* requests only */
+  unsigned int http_errno : 7;
 
   /* 1 = Upgrade header was present and the parser has exited because of that.
    * 0 = No upgrade header present.
    * Should be checked when http_parser_execute() returns in addition to
    * error checking.
    */
-  unsigned char upgrade : 1;
-
-#if HTTP_PARSER_DEBUG
-  uint32_t error_lineno;
-#endif
+  unsigned int upgrade : 1;
 
   /** PUBLIC **/
   void *data; /* A pointer to get hook to the "connection" or "socket" object */
@@ -241,11 +236,17 @@ struct http_parser {
 struct http_parser_settings {
   http_cb      on_message_begin;
   http_data_cb on_url;
+  http_data_cb on_status;
   http_data_cb on_header_field;
   http_data_cb on_header_value;
   http_cb      on_headers_complete;
   http_data_cb on_body;
   http_cb      on_message_complete;
+  /* When on_chunk_header is called, the current chunk length is stored
+   * in parser->content_length.
+   */
+  http_cb      on_chunk_header;
+  http_cb      on_chunk_complete;
 };
 
 
@@ -279,9 +280,28 @@ struct http_parser_url {
 };
 
 
+/* Returns the library version. Bits 16-23 contain the major version number,
+ * bits 8-15 the minor version number and bits 0-7 the patch level.
+ * Usage example:
+ *
+ *   unsigned long version = http_parser_version();
+ *   unsigned major = (version >> 16) & 255;
+ *   unsigned minor = (version >> 8) & 255;
+ *   unsigned patch = version & 255;
+ *   printf("http_parser v%u.%u.%u\n", major, minor, patch);
+ */
+unsigned long http_parser_version(void);
+
 void http_parser_init(http_parser *parser, enum http_parser_type type);
 
 
+/* Initialize http_parser_settings members to 0
+ */
+void http_parser_settings_init(http_parser_settings *settings);
+
+
+/* Executes the parser. Returns number of parsed bytes. Sets
+ * `parser->http_errno` on error. */
 size_t http_parser_execute(http_parser *parser,
                            const http_parser_settings *settings,
                            const char *data,
@@ -312,6 +332,9 @@ int http_parser_parse_url(const char *buf, size_t buflen,
 
 /* Pause or un-pause the parser; a nonzero value pauses */
 void http_parser_pause(http_parser *parser, int paused);
+
+/* Checks if this is the final chunk of the body. */
+int http_body_is_final(const http_parser *parser);
 
 #ifdef __cplusplus
 }

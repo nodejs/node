@@ -1,0 +1,16 @@
+v0.1.1  --  2014.10.07
+* Fix isImplemented so native Maps are detected properly
+* Configure lint scripts
+
+v0.1.0  --  2014.04.29
+* Assure strictly npm hosted dependencies
+* Update to use latest versions of dependencies
+
+v0.0.1  --  2014.04.25
+* Provide @@toStringTag symbol, and use other ES 6 symbols
+* Fix iterators handling
+* Fix isImplemented so it doesn't crash
+* Update up to changes in dependencies
+
+v0.0.0  --  2013.11.10
+- Initial (dev) version

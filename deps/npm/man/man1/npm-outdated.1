@@ -1,0 +1,79 @@
+.TH "NPM\-OUTDATED" "1" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-outdated\fR \- Check for outdated packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm outdated [<name> [<name> \.\.\.]]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command will check the registry to see if any (or, specific) installed
+packages are currently outdated\.
+.P
+The resulting field 'wanted' shows the latest version according to the
+version specified in the package\.json, the field 'latest' the very latest
+version of the package\.
+.SH CONFIGURATION
+.SS json
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show information in JSON format\.
+.SS long
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information\.
+.SS parseable
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show parseable output instead of tree view\.
+.SS global
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Check packages in the global install prefix instead of in the current
+project\.
+.SS depth
+.RS 0
+.IP \(bu 2
+Type: Int
+
+.RE
+.P
+Max depth for checking dependency tree\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help update
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help 5 folders
+
+.RE
+

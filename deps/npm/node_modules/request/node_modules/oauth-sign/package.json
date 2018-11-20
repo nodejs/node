@@ -1,0 +1,52 @@
+{
+  "author": {
+    "name": "Mikeal Rogers",
+    "email": "mikeal.rogers@gmail.com",
+    "url": "http://www.futurealoof.com"
+  },
+  "name": "oauth-sign",
+  "description": "OAuth 1 signing. Formerly a vendor lib in mikeal/request, now a standalone module.",
+  "version": "0.6.0",
+  "repository": {
+    "url": "https://github.com/mikeal/oauth-sign"
+  },
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "gitHead": "f1b5d7714712ab7eec485cca9d18ae95db58aa6b",
+  "bugs": {
+    "url": "https://github.com/mikeal/oauth-sign/issues"
+  },
+  "homepage": "https://github.com/mikeal/oauth-sign",
+  "_id": "oauth-sign@0.6.0",
+  "_shasum": "7dbeae44f6ca454e1f168451d630746735813ce3",
+  "_from": "oauth-sign@>=0.6.0 <0.7.0",
+  "_npmVersion": "1.4.14",
+  "_npmUser": {
+    "name": "nylen",
+    "email": "jnylen@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "mikeal",
+      "email": "mikeal.rogers@gmail.com"
+    },
+    {
+      "name": "nylen",
+      "email": "jnylen@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "7dbeae44f6ca454e1f168451d630746735813ce3",
+    "tarball": "http://registry.npmjs.org/oauth-sign/-/oauth-sign-0.6.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/oauth-sign/-/oauth-sign-0.6.0.tgz"
+}

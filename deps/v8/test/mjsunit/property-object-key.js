@@ -33,4 +33,3 @@ object[key] = 87;
 assertEquals(87, object[key]);
 object[key]++;
 assertEquals(88, object[key]);
-

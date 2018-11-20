@@ -37,21 +37,20 @@ static void close_cb(uv_handle_t* handle) {
 
 
 static void connect_cb(uv_connect_t* req, int status) {
-  ASSERT(status == -1);
-  ASSERT(uv_last_error(req->handle->loop).code == UV_ECANCELED);
+  ASSERT(status == UV_ECANCELED);
   uv_timer_stop(&timer2_handle);
   connect_cb_called++;
 }
 
 
-static void timer1_cb(uv_timer_t* handle, int status) {
+static void timer1_cb(uv_timer_t* handle) {
   uv_close((uv_handle_t*)handle, close_cb);
   uv_close((uv_handle_t*)&tcp_handle, close_cb);
   timer1_cb_called++;
 }
 
 
-static void timer2_cb(uv_timer_t* handle, int status) {
+static void timer2_cb(uv_timer_t* handle) {
   ASSERT(0 && "should not be called");
 }
 
@@ -61,11 +60,13 @@ TEST_IMPL(tcp_close_while_connecting) {
   struct sockaddr_in addr;
   uv_loop_t* loop;
 
-  addr = uv_ip4_addr("1.2.3.4", TEST_PORT);
   loop = uv_default_loop();
-
+  ASSERT(0 == uv_ip4_addr("1.2.3.4", TEST_PORT, &addr));
   ASSERT(0 == uv_tcp_init(loop, &tcp_handle));
-  ASSERT(0 == uv_tcp_connect(&connect_req, &tcp_handle, addr, connect_cb));
+  ASSERT(0 == uv_tcp_connect(&connect_req,
+                             &tcp_handle,
+                             (const struct sockaddr*) &addr,
+                             connect_cb));
   ASSERT(0 == uv_timer_init(loop, &timer1_handle));
   ASSERT(0 == uv_timer_start(&timer1_handle, timer1_cb, 50, 0));
   ASSERT(0 == uv_timer_init(loop, &timer2_handle));

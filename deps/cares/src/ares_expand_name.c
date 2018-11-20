@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -31,7 +28,6 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <stdlib.h>
 #include "ares.h"
 #include "ares_nowarn.h"
 #include "ares_private.h" /* for the memdebug */
@@ -147,7 +143,7 @@ static int name_length(const unsigned char *encoded, const unsigned char *abuf,
   int n = 0, offset, indir = 0;
 
   /* Allow the caller to pass us abuf + alen and have us check for it. */
-  if (encoded == abuf + alen)
+  if (encoded >= abuf + alen)
     return -1;
 
   while (*encoded)

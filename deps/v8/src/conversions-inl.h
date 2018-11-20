@@ -1,53 +1,31 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_CONVERSIONS_INL_H_
 #define V8_CONVERSIONS_INL_H_
 
-#include <limits.h>        // Required for INT_MAX etc.
-#include <math.h>
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
+#include <limits.h>        // Required for INT_MAX etc.
 #include <stdarg.h>
-#include "globals.h"       // Required for V8_INFINITY
+#include <cmath>
+#include "src/globals.h"       // Required for V8_INFINITY
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
-#include "conversions.h"
-#include "double.h"
-#include "platform.h"
-#include "scanner.h"
-#include "strtod.h"
+#include "src/base/bits.h"
+#include "src/base/platform/platform.h"
+#include "src/conversions.h"
+#include "src/double.h"
+#include "src/scanner.h"
+#include "src/strtod.h"
 
 namespace v8 {
 namespace internal {
 
 inline double JunkStringValue() {
-  return BitCast<double, uint64_t>(kQuietNaNMask);
+  return bit_cast<double, uint64_t>(kQuietNaNMask);
 }
 
 
@@ -75,7 +53,11 @@ inline unsigned int FastD2UI(double x) {
   if (x < k2Pow52) {
     x += k2Pow52;
     uint32_t result;
+#ifndef V8_TARGET_BIG_ENDIAN
     Address mantissa_ptr = reinterpret_cast<Address>(&x);
+#else
+    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
+#endif
     // Copy least significant 32 bits of mantissa.
     memcpy(&result, mantissa_ptr, sizeof(result));
     return negative ? ~result + 1 : result;
@@ -85,10 +67,18 @@ inline unsigned int FastD2UI(double x) {
 }
 
 
+inline float DoubleToFloat32(double x) {
+  // TODO(yanggou): This static_cast is implementation-defined behaviour in C++,
+  // so we may need to do the conversion manually instead to match the spec.
+  volatile float f = static_cast<float>(x);
+  return f;
+}
+
+
 inline double DoubleToInteger(double x) {
-  if (isnan(x)) return 0;
-  if (!isfinite(x) || x == 0) return x;
-  return (x >= 0) ? floor(x) : ceil(x);
+  if (std::isnan(x)) return 0;
+  if (!std::isfinite(x) || x == 0) return x;
+  return (x >= 0) ? std::floor(x) : std::ceil(x);
 }
 
 
@@ -111,7 +101,7 @@ template <class Iterator, class EndMark>
 bool SubStringEquals(Iterator* current,
                      EndMark end,
                      const char* substring) {
-  ASSERT(**current == *substring);
+  DCHECK(**current == *substring);
   for (substring++; *substring != '\0'; substring++) {
     ++*current;
     if (*current == end || **current != *substring) return false;
@@ -128,7 +118,7 @@ inline bool AdvanceToNonspace(UnicodeCache* unicode_cache,
                               Iterator* current,
                               EndMark end) {
   while (*current != end) {
-    if (!unicode_cache->IsWhiteSpace(**current)) return true;
+    if (!unicode_cache->IsWhiteSpaceOrLineTerminator(**current)) return true;
     ++*current;
   }
   return false;
@@ -142,7 +132,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
                                  EndMark end,
                                  bool negative,
                                  bool allow_trailing_junk) {
-  ASSERT(current != end);
+  DCHECK(current != end);
 
   // Skip leading 0s.
   while (*current == '0') {
@@ -221,8 +211,8 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
     ++current;
   } while (current != end);
 
-  ASSERT(number < ((int64_t)1 << 53));
-  ASSERT(static_cast<int64_t>(static_cast<double>(number)) == number);
+  DCHECK(number < ((int64_t)1 << 53));
+  DCHECK(static_cast<int64_t>(static_cast<double>(number)) == number);
 
   if (exponent == 0) {
     if (negative) {
@@ -232,8 +222,8 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
     return static_cast<double>(number);
   }
 
-  ASSERT(number != 0);
-  return ldexp(static_cast<double>(negative ? -number : number), exponent);
+  DCHECK(number != 0);
+  return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
 
@@ -307,7 +297,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
     return JunkStringValue();
   }
 
-  if (IsPowerOf2(radix)) {
+  if (base::bits::IsPowerOfTwo32(radix)) {
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(
@@ -343,7 +333,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
       if (buffer_pos <= kMaxSignificantDigits) {
         // If the number has more than kMaxSignificantDigits it will be parsed
         // as infinity.
-        ASSERT(buffer_pos < kBufferSize);
+        DCHECK(buffer_pos < kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
       }
       ++current;
@@ -355,7 +345,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
       return JunkStringValue();
     }
 
-    ASSERT(buffer_pos < kBufferSize);
+    SLOW_DCHECK(buffer_pos < kBufferSize);
     buffer[buffer_pos] = '\0';
     Vector<const char> buffer_vector(buffer, buffer_pos);
     return negative ? -Strtod(buffer_vector, 0) : Strtod(buffer_vector, 0);
@@ -403,7 +393,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
       if (m > kMaximumMultiplier) break;
       part = part * radix + d;
       multiplier = m;
-      ASSERT(multiplier > part);
+      DCHECK(multiplier > part);
 
       ++current;
       if (current == end) {
@@ -492,7 +482,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
       return JunkStringValue();
     }
 
-    ASSERT(buffer_pos == 0);
+    DCHECK(buffer_pos == 0);
     return (sign == NEGATIVE) ? -V8_INFINITY : V8_INFINITY;
   }
 
@@ -515,6 +505,32 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
                                           end,
                                           false,
                                           allow_trailing_junk);
+
+    // It could be an explicit octal value.
+    } else if ((flags & ALLOW_OCTAL) && (*current == 'o' || *current == 'O')) {
+      ++current;
+      if (current == end || !isDigit(*current, 8) || sign != NONE) {
+        return JunkStringValue();  // "0o".
+      }
+
+      return InternalStringToIntDouble<3>(unicode_cache,
+                                          current,
+                                          end,
+                                          false,
+                                          allow_trailing_junk);
+
+    // It could be a binary value.
+    } else if ((flags & ALLOW_BINARY) && (*current == 'b' || *current == 'B')) {
+      ++current;
+      if (current == end || !isBinaryDigit(*current) || sign != NONE) {
+        return JunkStringValue();  // "0b".
+      }
+
+      return InternalStringToIntDouble<1>(unicode_cache,
+                                          current,
+                                          end,
+                                          false,
+                                          allow_trailing_junk);
     }
 
     // Ignore leading zeros in the integer part.
@@ -524,12 +540,12 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     }
   }
 
-  bool octal = leading_zero && (flags & ALLOW_OCTALS) != 0;
+  bool octal = leading_zero && (flags & ALLOW_IMPLICIT_OCTAL) != 0;
 
   // Copy significant digits of the integer part (if any) to the buffer.
   while (*current >= '0' && *current <= '9') {
     if (significant_digits < kMaxSignificantDigits) {
-      ASSERT(buffer_pos < kBufferSize);
+      DCHECK(buffer_pos < kBufferSize);
       buffer[buffer_pos++] = static_cast<char>(*current);
       significant_digits++;
       // Will later check if it's an octal in the buffer.
@@ -574,7 +590,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     // instead.
     while (*current >= '0' && *current <= '9') {
       if (significant_digits < kMaxSignificantDigits) {
-        ASSERT(buffer_pos < kBufferSize);
+        DCHECK(buffer_pos < kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
         significant_digits++;
         exponent--;
@@ -628,7 +644,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     }
 
     const int max_exponent = INT_MAX / 2;
-    ASSERT(-max_exponent / 2 <= exponent && exponent <= max_exponent / 2);
+    DCHECK(-max_exponent / 2 <= exponent && exponent <= max_exponent / 2);
     int num = 0;
     do {
       // Check overflow.
@@ -666,7 +682,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     exponent--;
   }
 
-  ASSERT(buffer_pos < kBufferSize);
+  SLOW_DCHECK(buffer_pos < kBufferSize);
   buffer[buffer_pos] = '\0';
 
   double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);

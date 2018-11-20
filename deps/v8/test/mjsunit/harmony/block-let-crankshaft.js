@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping --allow-natives-syntax --noparallel-recompilation
+// Flags: --harmony-scoping --allow-natives-syntax
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 // Check that the following functions are optimizable.
 var functions = [ f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14,
-                  f15, f16, f17, f18, f19, f20, f21, f22, f23 ];
+                  f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26,
+                  f27, f28, f29, f30, f31, f32, f33];
 
 for (var i = 0; i < functions.length; ++i) {
   var func = functions[i];
@@ -43,7 +43,7 @@ for (var i = 0; i < functions.length; ++i) {
   }
   %OptimizeFunctionOnNextCall(func);
   func(12);
-  assertTrue(%GetOptimizationStatus(func) != 2);
+  assertOptimized(func);
 }
 
 function f1() { }
@@ -156,6 +156,184 @@ function f23() {
   (function() { x; });
 }
 
+function f24() {
+  let x = 1;
+  {
+    let x = 2;
+    {
+      let x = 3;
+      assertEquals(3, x);
+    }
+    assertEquals(2, x);
+  }
+  assertEquals(1, x);
+}
+
+function f25() {
+  {
+    let x = 2;
+    L: {
+      let x = 3;
+      assertEquals(3, x);
+      break L;
+      assertTrue(false);
+    }
+    assertEquals(2, x);
+  }
+  assertTrue(true);
+}
+
+function f26() {
+  {
+    let x = 1;
+    L: {
+      let x = 2;
+      {
+        let x = 3;
+        assertEquals(3, x);
+        break L;
+        assertTrue(false);
+      }
+      assertTrue(false);
+    }
+    assertEquals(1, x);
+  }
+}
+
+
+function f27() {
+  do {
+    let x = 4;
+    assertEquals(4,x);
+    {
+      let x = 5;
+      assertEquals(5, x);
+      continue;
+      assertTrue(false);
+    }
+  } while (false);
+}
+
+function f28() {
+  label: for (var i = 0; i < 10; ++i) {
+    let x = 'middle' + i;
+    for (var j = 0; j < 10; ++j) {
+      let x = 'inner' + j;
+      continue label;
+    }
+  }
+}
+
+function f29() {
+  // Verify that the context is correctly set in the stack frame after exiting
+  // from with.
+
+  let x = 'outer';
+  label: {
+    let x = 'inner';
+    break label;
+  }
+  f();  // The context could be restored from the stack after the call.
+  assertEquals('outer', x);
+
+  function f() {
+    assertEquals('outer', x);
+  };
+}
+
+function f30() {
+  let x = 'outer';
+  for (var i = 0; i < 10; ++i) {
+    let x = 'inner';
+    continue;
+  }
+  f();
+  assertEquals('outer', x);
+
+  function f() {
+    assertEquals('outer', x);
+  };
+}
+
+function f31() {
+  {
+    let x = 'outer';
+    label: for (var i = 0; assertEquals('outer', x), i < 10; ++i) {
+      let x = 'middle' + i;
+      {
+        let x = 'inner' + j;
+        continue label;
+      }
+    }
+    assertEquals('outer', x);
+  }
+}
+
+var c = true;
+
+function f32() {
+  {
+    let x = 'outer';
+    L: {
+      {
+        let x = 'inner';
+        if (c) {
+          break L;
+        }
+      }
+      foo();
+    }
+  }
+
+  function foo() {
+    return 'bar';
+  }
+}
+
+function f33() {
+  {
+    let x = 'outer';
+    L: {
+      {
+        let x = 'inner';
+        if (c) {
+          break L;
+        }
+        foo();
+      }
+    }
+  }
+
+  function foo() {
+    return 'bar';
+  }
+}
+
+function TestThrow() {
+  function f() {
+    let x = 'outer';
+    {
+      let x = 'inner';
+      throw x;
+    }
+  }
+  for (var i = 0; i < 5; i++) {
+    try {
+      f();
+    } catch (e) {
+      assertEquals('inner', e);
+    }
+  }
+  %OptimizeFunctionOnNextCall(f);
+  try {
+    f();
+  } catch (e) {
+    assertEquals('inner', e);
+  }
+  assertOptimized(f);
+}
+
+TestThrow();
 
 // Test that temporal dead zone semantics for function and block scoped
 // let bindings are handled by the optimizing compiler.
@@ -208,9 +386,59 @@ function TestFunctionContext(s) {
   }
 }
 
+function TestBlockLocal(s) {
+  'use strict';
+  var func = eval("(function baz(){ { " + s + "; } })");
+  print("Testing:");
+  print(func);
+  for (var i = 0; i < 5; ++i) {
+    try {
+      func();
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, ReferenceError);
+    }
+  }
+  %OptimizeFunctionOnNextCall(func);
+  try {
+    func();
+    assertUnreachable();
+  } catch (e) {
+    assertInstanceof(e, ReferenceError);
+  }
+}
+
+function TestBlockContext(s) {
+  'use strict';
+  var func = eval("(function baz(){ { " + s + "; (function() { x; }); } })");
+  print("Testing:");
+  print(func);
+  for (var i = 0; i < 5; ++i) {
+    print(i);
+    try {
+      func();
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, ReferenceError);
+    }
+  }
+  print("optimize");
+  %OptimizeFunctionOnNextCall(func);
+  try {
+    print("call");
+    func();
+    assertUnreachable();
+  } catch (e) {
+    print("catch");
+    assertInstanceof(e, ReferenceError);
+  }
+}
+
 function TestAll(s) {
   TestFunctionLocal(s);
   TestFunctionContext(s);
+  TestBlockLocal(s);
+  TestBlockContext(s);
 }
 
 // Use before initialization in declaration statement.
@@ -229,34 +457,28 @@ TestAll('x++; let x;');
 TestAll('let y = x; const x = 1;');
 
 
-function f(x, b) {
-  let y = (b ? y : x) + 42;
+function f(x) {
+  let y = x + 42;
   return y;
 }
 
-function g(x, b) {
+function g(x) {
   {
-    let y = (b ? y : x) + 42;
+    let y = x + 42;
     return y;
   }
 }
 
 for (var i=0; i<10; i++) {
-  f(i, false);
-  g(i, false);
+  f(i);
+  g(i);
 }
 
 %OptimizeFunctionOnNextCall(f);
 %OptimizeFunctionOnNextCall(g);
 
-try {
-  f(42, true);
-} catch (e) {
-  assertInstanceof(e, ReferenceError);
-}
+f(12);
+g(12);
 
-try {
-  g(42, true);
-} catch (e) {
-  assertInstanceof(e, ReferenceError);
-}
+assertTrue(%GetOptimizationStatus(f) != 2);
+assertTrue(%GetOptimizationStatus(g) != 2);

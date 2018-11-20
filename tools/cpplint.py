@@ -210,7 +210,7 @@ _ERROR_CATEGORIES = [
 # flag. By default all errors are on, so only add here categories that should be
 # off by default (i.e., categories that must be enabled by the --filter= flags).
 # All entries here should start with a '-' or '+', as in the --filter= flag.
-_DEFAULT_FILTERS = [ '-build/include_alpha' ]
+_DEFAULT_FILTERS = [ '-build/include_alpha', '-legal/copyright' ]
 
 # We used to check for high-bit characters, but after much discussion we
 # decided those were OK, as long as they were in UTF-8 and didn't represent
@@ -280,11 +280,11 @@ for op, inv_replacement in [('==', 'NE'), ('!=', 'EQ'),
 
 # These constants define types of headers for use with
 # _IncludeState.CheckNextIncludeOrder().
-_C_SYS_HEADER = 1
-_CPP_SYS_HEADER = 2
-_LIKELY_MY_HEADER = 3
-_POSSIBLE_MY_HEADER = 4
-_OTHER_HEADER = 5
+_LIKELY_MY_HEADER = 1
+_POSSIBLE_MY_HEADER = 2
+_OTHER_HEADER = 3
+_C_SYS_HEADER = 4
+_CPP_SYS_HEADER = 5
 
 
 _regexp_compile_cache = {}
@@ -377,9 +377,9 @@ class _IncludeState(dict):
   # needs to move backwards, CheckNextIncludeOrder will raise an error.
   _INITIAL_SECTION = 0
   _MY_H_SECTION = 1
-  _C_SECTION = 2
-  _CPP_SECTION = 3
-  _OTHER_H_SECTION = 4
+  _OTHER_H_SECTION = 2
+  _C_SECTION = 3
+  _CPP_SECTION = 4
 
   _TYPE_NAMES = {
       _C_SYS_HEADER: 'C system header',
@@ -453,33 +453,32 @@ class _IncludeState(dict):
 
     last_section = self._section
 
-    if header_type == _C_SYS_HEADER:
-      if self._section <= self._C_SECTION:
-        self._section = self._C_SECTION
-      else:
-        self._last_header = ''
-        return error_message
-    elif header_type == _CPP_SYS_HEADER:
-      if self._section <= self._CPP_SECTION:
-        self._section = self._CPP_SECTION
-      else:
-        self._last_header = ''
-        return error_message
-    elif header_type == _LIKELY_MY_HEADER:
+    if header_type == _LIKELY_MY_HEADER:
       if self._section <= self._MY_H_SECTION:
         self._section = self._MY_H_SECTION
       else:
-        self._section = self._OTHER_H_SECTION
+        self._last_header = ''
+        return error_message
     elif header_type == _POSSIBLE_MY_HEADER:
       if self._section <= self._MY_H_SECTION:
         self._section = self._MY_H_SECTION
       else:
-        # This will always be the fallback because we're not sure
-        # enough that the header is associated with this file.
+        self._last_header = ''
+        return error_message
+    elif header_type == _OTHER_HEADER:
+      if self._section <= self._OTHER_H_SECTION:
         self._section = self._OTHER_H_SECTION
+      else:
+        self._last_header = ''
+        return error_message
+    elif header_type == _C_SYS_HEADER:
+      if self._section <= self._C_SECTION:
+        self._section = self._C_SECTION
+      else:
+        self._section = self._CPP_SECTION
     else:
-      assert header_type == _OTHER_HEADER
-      self._section = self._OTHER_H_SECTION
+      assert header_type == _CPP_SYS_HEADER
+      self._section = self._CPP_SECTION
 
     if last_section != self._section:
       self._last_header = ''
@@ -1087,9 +1086,11 @@ def CheckForHeaderGuard(filename, lines, error):
     error(filename, ifndef_linenum, 'build/header_guard', error_level,
           '#ifndef header guard has wrong style, please use: %s' % cppvar)
 
-  if endif != ('#endif  // %s' % cppvar):
+  if (endif != ('#endif  // %s' % cppvar) and
+      endif != ('#endif  /* %s */' % cppvar)):
     error_level = 0
-    if endif != ('#endif  // %s' % (cppvar + '_')):
+    if (endif != ('#endif  // %s' % (cppvar + '_')) and
+        endif != ('#endif  /* %s */' % (cppvar + '_'))):
       error_level = 5
 
     ParseNolintSuppressions(filename, lines[endif_linenum], endif_linenum,
@@ -1380,7 +1381,8 @@ def CheckForNonStandardConstructs(filename, clean_lines, linenum,
   classinfo_stack = class_state.classinfo_stack
   # Look for a class declaration
   class_decl_match = Match(
-      r'\s*(template\s*<[\w\s<>,:]*>\s*)?(class|struct)\s+(\w+(::\w+)*)', line)
+      r'\s*(template\s*<[\w\s<>,:]*>\s*)?(class|struct)\s+' +
+      r'(?:NODE_EXTERN\s+)?(\w+(::\w+)*)', line)
   if class_decl_match:
     classinfo_stack.append(_ClassInfo(class_decl_match.group(3), linenum))
 
@@ -1711,6 +1713,7 @@ def CheckSpacing(filename, clean_lines, linenum, error):
       if (next_line
           and Match(r'\s*}', next_line)
           and next_line.find('namespace') == -1
+          and next_line.find('extern') == -1
           and next_line.find('} else ') == -1):
         error(filename, linenum, 'whitespace/blank_line', 3,
               'Blank line at the end of a code block.  Is this needed?')
@@ -1760,6 +1763,10 @@ def CheckSpacing(filename, clean_lines, linenum, error):
   if Search(r'[\w.]=[\w.]', line) and not Search(r'\b(if|while) ', line):
     error(filename, linenum, 'whitespace/operators', 4,
           'Missing spaces around =')
+
+  if Match(r'^\s*(if|while) .*[^\{,)&|\\]$', line):
+    error(filename, linenum, 'whitespace/if-one-line', 4,
+          'If\'s body on the same line as if itself')
 
   # It's ok not to have spaces around binary operators like + - * /, but if
   # there's too little whitespace, we get concerned.  It's hard to tell,
@@ -2105,6 +2112,9 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, error):
           'the base class list in a class definition, the colon should '
           'be on the following line.')
 
+  if len(line) > initial_spaces and line[initial_spaces] == ',':
+    error(filename, linenum, 'whitespace/commafirst', 4,
+          'Comma-first style is not allowed')
 
   # Check if the line is a header guard.
   is_header_guard = False
@@ -2112,7 +2122,8 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, error):
     cppvar = GetHeaderGuardCPPVariable(filename)
     if (line.startswith('#ifndef %s' % cppvar) or
         line.startswith('#define %s' % cppvar) or
-        line.startswith('#endif  // %s' % cppvar)):
+        line.startswith('#endif  // %s' % cppvar) or
+        line.startswith('#endif  /* %s */' % cppvar)):
       is_header_guard = True
   # #include lines and header guards can be long, since there's no clean way to
   # split them.
@@ -2279,11 +2290,7 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
   fileinfo = FileInfo(filename)
 
   line = clean_lines.lines[linenum]
-
-  # "include" should use the new style "foo/bar.h" instead of just "bar.h"
-  if _RE_PATTERN_INCLUDE_NEW_STYLE.search(line):
-    error(filename, linenum, 'build/include', 4,
-          'Include the directory when naming .h files')
+  ParseNolintSuppressions(filename, line, linenum, error)
 
   # we shouldn't include a file more than once. actually, there are a
   # handful of instances where doing so is okay, but in general it's
@@ -2293,9 +2300,10 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
     include = match.group(2)
     is_system = (match.group(1) == '<')
     if include in include_state:
-      error(filename, linenum, 'build/include', 4,
-            '"%s" already included at %s:%s' %
-            (include, filename, include_state[include]))
+      if not IsErrorSuppressedByNolint('build/include', linenum):
+        error(filename, linenum, 'build/include', 4,
+              '"%s" already included at %s:%s' %
+              (include, filename, include_state[include]))
     else:
       include_state[include] = linenum
 
@@ -2310,15 +2318,17 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
       # using a number of techniques. The include_state object keeps
       # track of the highest type seen, and complains if we see a
       # lower type after that.
-      error_message = include_state.CheckNextIncludeOrder(
-          _ClassifyInclude(fileinfo, include, is_system))
-      if error_message:
-        error(filename, linenum, 'build/include_order', 4,
-              '%s. Should be: %s.h, c system, c++ system, other.' %
-              (error_message, fileinfo.BaseName()))
+      if not IsErrorSuppressedByNolint('build/include_order', linenum):
+        error_message = include_state.CheckNextIncludeOrder(
+            _ClassifyInclude(fileinfo, include, is_system))
+        if error_message:
+          error(filename, linenum, 'build/include_order', 4,
+                '%s. Should be: %s.h, c system, c++ system, other.' %
+                (error_message, fileinfo.BaseName()))
       if not include_state.IsInAlphabeticalOrder(include):
-        error(filename, linenum, 'build/include_alpha', 4,
-              'Include "%s" not in alphabetical order' % include)
+        if not IsErrorSuppressedByNolint('build/include_alpha', linenum):
+          error(filename, linenum, 'build/include_alpha', 4,
+                'Include "%s" not in alphabetical order' % include)
 
   # Look for any of the stream classes that are part of standard C++.
   match = _RE_PATTERN_INCLUDE.match(line)
@@ -2327,8 +2337,9 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
     if Match(r'(f|ind|io|i|o|parse|pf|stdio|str|)?stream$', include):
       # Many unit tests use cout, so we exempt them.
       if not _IsTestFilename(filename):
-        error(filename, linenum, 'readability/streams', 3,
-              'Streams are highly discouraged.')
+        if not IsErrorSuppressedByNolint('readability/streams', linenum):
+          error(filename, linenum, 'readability/streams', 3,
+                'Streams are highly discouraged.')
 
 def CheckLanguage(filename, clean_lines, linenum, file_extension, include_state,
                   error):
@@ -2469,11 +2480,11 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension, include_state,
     if not Search(r'\bunsigned short port\b', line):
       error(filename, linenum, 'runtime/int', 4,
             'Use "unsigned short" for ports, not "short"')
-  else:
-    match = Search(r'\b(short|long(?! +double)|long long)\b', line)
-    if match:
-      error(filename, linenum, 'runtime/int', 4,
-            'Use int16/int64/etc, rather than the C type %s' % match.group(1))
+#  else:
+#    match = Search(r'\b(short|long(?! +double)|long long)\b', line)
+#    if match:
+#      error(filename, linenum, 'runtime/int', 4,
+#            'Use int16/int64/etc, rather than the C type %s' % match.group(1))
 
   # When snprintf is used, the second argument shouldn't be a literal.
   match = Search(r'snprintf\s*\(([^,]*),\s*([0-9]*)\s*,', line)
@@ -2825,15 +2836,6 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
     line = clean_lines.elided[linenum]
     if not line or line[0] == '#':
       continue
-
-    # String is special -- it is a non-templatized type in STL.
-    m = _RE_PATTERN_STRING.search(line)
-    if m:
-      # Don't warn about strings in non-STL namespaces:
-      # (We check only the first match per line; good enough.)
-      prefix = line[:m.start()]
-      if prefix.endswith('std::') or not prefix.endswith('::'):
-        required['<string>'] = (linenum, 'string')
 
     for pattern, template, header in _re_pattern_algorithm_header:
       if pattern.search(line):

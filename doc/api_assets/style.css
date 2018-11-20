@@ -1,94 +1,98 @@
 /*--------------------- Layout and Typography ----------------------------*/
 html {
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-variant-ligatures: none;
+          font-variant-ligatures: none;
 }
 
 body {
-  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
-  font-size: 14px;
-  line-height: 180%;
-  color: black;
-  background-color: white;
-  margin: 0; padding: 49px 0 0 0;
-  border-top: 6px #8CC84B solid;
+  font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+  font-size: 62.5%;
+  margin: 0;
+  padding: 0;
+  color: #3a3a3a;
+  background: #fcfefa;
+}
+
+#content {
+  font-size: 1.8em;
 }
 
 a {
-  color: #480;
-  text-decoration: underline;
+  color: #FE5210;
+  text-decoration: none;
 }
 
 a:visited {
-  color: #46483e;
-  text-decoration: underline;
+  color: #FE7110;
 }
 
 a:hover,
 a:focus {
-  text-decoration: none;
+  color: #FFA158;
+}
+
+strong {
+  font-weight: 700;
 }
 
 code a:hover {
   background: none;
-  color: #b950b7;
 }
 
 #changelog #gtoc {
   display: none;
 }
 
+#gtoc {
+  font-size: 0.8em;
+}
+
 #gtoc p {
-  margin: 0;
-  font-size: 18px;
-  line-height: 30px;
 }
 
 #gtoc a {
-  font-family: Georgia, FreeSerif, Times, serif;
-  text-decoration: none;
-  color: #46483e;
 }
 
 #gtoc a:hover {
-  color: #669900;
-  text-decoration: underline;
 }
 
-.notice {
-  display: block;
-  padding: 1em;
-  margin: 1.4667em 0 2.9334em;
-  background: #FFF6BF;
-  color: #514721;
-  border: 1px solid #FFD324;
+.api_stability_0,
+.api_stability_1,
+.api_stability_2,
+.api_stability_3,
+.api_stability_4,
+.api_stability_5 {
+  color: white !important;
+  margin: 0em 0 1.0em 0;
+  font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+  font-weight: 700;
 }
 
-.notice p {
-  margin: 0;
+.api_stability_0 *,
+.api_stability_1 *,
+.api_stability_2 *,
+.api_stability_3 *,
+.api_stability_4 *,
+.api_stability_5 * {
+  color: white !important;
 }
 
 .api_stability_0 {
-  border-color: #D60027;
+  background-color: #D60027;
 }
 
 .api_stability_1 {
-  border-color: #EC5315;
+  background-color: #EC5315;
 }
 
 .api_stability_2 {
-  border-color: #FFD700;
+  background-color: #4EBA0F;
 }
 
 .api_stability_3 {
-  border-color: #AEC516;
-}
-
-.api_stability_4 {
-  border-color: #009431;
-}
-
-.api_stability_5 {
-  border-color: #0084B6;
+  background-color: #0084B6;
 }
 
 ul.plain {
@@ -100,33 +104,41 @@ abbr {
 }
 
 p {
-  margin: 0 0 1.4667em 0;
   position: relative;
   text-rendering: optimizeLegibility;
+  margin: 0 0 1em 0;
+  line-height: 1.5em;
 }
 
-.apidoc #apicontent p,
-.apidoc #apicontent li {
-  font-size: 15px;
-  line-height: 22px;
-  color: #000;
-  font-family: Georgia, FreeSerif, Times, serif;
+#apicontent > *:last-child {
+  margin-bottom: 0;
+  padding-bottom: 2.0em;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 0 0 1.5em 0;
+}
+
+th, td {
+  border: 1px solid #aaa;
+}
+
+table p {
+}
+
+th {
+  text-align:left;
 }
 
 ol, ul, dl {
-  margin: 0 0 1em 0;
+  margin: 0 0 0.6em 0;
   padding: 0;
 }
 
 ol ul, ol ol, ol dl,
 ul ul, ul ol, ul dl,
 dl ul, dl ol, dl dl {
-  margin-bottom: 0;
-}
-
-ol p:first-child,
-ul p:first-child,
-dl p:first-child {
   margin-bottom: 0;
 }
 
@@ -149,25 +161,20 @@ dd + dt.pre {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: Helvetica, Arial, sans-serif;
-  color: #000;
+  color: #301004;
   text-rendering: optimizeLegibility;
+  font-weight: 700;
   position: relative;
+  margin-bottom: 0.5em;
 }
 
 header h1 {
-  font-family: Georgia, FreeSerif, Times, serif;
-  font-size: 30px;
-  font-weight: normal;
-  line-height: 36px;
-  color: #480;
-  margin: 15px 0 11px;
+  line-height: 2.0em;
+  margin: 0;
 }
 
-h1 {
-  font-size: 29px;
-  line-height: 33px;
-  margin: 2em 0 15px;
+#apicontent {
+  padding-top: 1.0em;
 }
 
 #toc + h1 {
@@ -176,9 +183,8 @@ h1 {
 }
 
 h2 {
-  font-size: 1.4em;
-  line-height: 1.0909em;
-  margin: 1.5em 0 0.5em;
+  font-size: 1.5em;
+  margin: 1.0em 0 0.5em;
 }
 
 h2 + h2 {
@@ -186,9 +192,8 @@ h2 + h2 {
 }
 
 h3 {
-  font-size: 1.3em;
-  line-height: 1.1282em;
-  margin: 2.2em 0 0.5em;
+  font-size: 1.0em;
+  margin: 1.5em 0 0.5em;
 }
 
 h3 + h3 {
@@ -201,12 +206,10 @@ h2, h3, h4 {
 }
 
 h1 span, h2 span, h3 span, h4 span {
-  font-size: 25px;
   position: absolute;
   display: block;
   top: 0;
   right: 0;
-  opacity: 0.3;
 }
 
 h1 span:hover, h2 span:hover, h3 span:hover, h4 span:hover {
@@ -217,17 +220,7 @@ h1 span a, h2 span a, h3 span a, h4 span a {
   font-size: 0.8em;
   color: #000;
   text-decoration: none;
-  font-family: Helvetica, Arial, sans-serif;
   font-weight: bold;
-}
-
-h1 span a.top, h2 span a.top, h3 span a.top, h4 span a.top {
-  /* XXX Get an image and clean up these two links
-  * so that they look nice next to one another.
-  * http://www.chrisglass.com/work/nodejs/website/v05/docs.html
-  * -isaacs
-  */
-  display: none;
 }
 
 h5 {
@@ -241,26 +234,27 @@ h6 {
 }
 
 pre, tt, code {
-  font-size: 14px;
-  line-height: 1.5438em;
+  line-height: 1.5em;
   font-family: Monaco, Consolas, "Lucida Console", monospace;
   margin: 0; padding: 0;
 }
 
 .pre {
   font-family: Monaco, Consolas, "Lucida Console", monospace;
-  line-height: 1.5438em;
-  font-size: 0.95em;
+  line-height: 1.5em;
+  font-size: 1.2em;
 }
 
 pre {
-  padding: 1em 1.6em 1em 1.2em;
+  padding: 1.0em 1.5em;
   vertical-align: top;
-  background: #f8f8f8;
-  border: 1px solid #e8e8e8;
-  border-width: 1px 1px 1px 6px;
-  margin: -0.5em 0 1.1em;
+  background: #f2f5f0;
+  margin: 0.166666em -4.0em 1.0em 0em;
   overflow-x: auto;
+}
+
+pre > code {
+  font-size: 0.8em;
 }
 
 pre + h3 {
@@ -272,76 +266,77 @@ code.pre {
 }
 
 #intro {
-  width: 775px;
-  margin: 0 auto;
-  text-align: center;
-  color: #d2d8ba;
-  /* preload platform-icons.png */
-  background-image: url(http://nodejs.org/images/platform-icons.png);
-  background-repeat: no-repeat;
-  background-position: -999em -999em;
+  margin-top: 1.25em;
+  margin-left: 1.0em;
 }
 
-#intro.interior #logo {
-  margin-left: -298px;
-  border: 0;
+#intro a {
+  color: #333;
+  font-size: 1.25em;
+  font-weight: bold;
 }
 
 hr {
   background: none;
   border: medium none;
-  border-bottom: 1px solid #ccc;
-  margin: 1em 0;
+  border-bottom: 1px solid #7a7a7a;
+  margin: 0em 0em 1em 0;
 }
 
 #toc {
-  font-size: 15px;
-  line-height: 1.5em;
-  line-height: 22px;
-  padding-top: 4px;
 }
 
 #toc h2 {
-  font-size: 15px;
-  line-height: 21px;
-  margin: 0 0 0.5em;
+  color: #C73E09;
+  margin-top: 0;
+  font-size: 1.0em;
+  line-height: 0;
+  margin: 1.5em 0;
 }
 
-#toc h2 a {
-  float: right;
+#toc ul {
+  font-size: 0.8125em;
 }
 
-#toc hr {
-  margin: 1em 0 2em;
-}
-
-#toc ul,
-#api-section-index #apicontent ul li,
-#api-section-index #apicontent ul {
-  font-family: Georgia, FreeSerif, Times, serif;
-  color: #666 !important;
-}
+#toc ul ul { font-size: 1.0em; }
 
 #toc ul a {
-  text-decoration: none;
-  border-bottom: 1px dotted #480;
+  text-decoration:none;
+}
+
+#toc ul li {
+  margin-bottom: 0.6666em;
+  list-style: square outside;
+}
+
+#toc li > ul {
+  margin-top: 0.6666em;
 }
 
 #toc ul a:hover,
 #toc ul a:focus {
-  border-bottom: 1px dotted #fff;
-  color: #000;
+}
+
+#apicontent li {
+  margin-bottom: 0.5em;
+}
+
+#apicontent li:last-child {
+  margin-bottom: 0;
 }
 
 p tt,
-p code {
-  background: #f8f8ff;
-  border: 1px solid #dedede;
-  padding: 0 0.2em;
+p code,
+li code {
+  font-size: 0.9em;
+  color: #040404;
+}
+
+span.type {
+  color: #222;
 }
 
 #content {
-  width: 953px;
   margin: 0 auto;
   overflow: visible;
   clear: both;
@@ -349,187 +344,86 @@ p code {
 }
 
 #column1.interior {
-  width: 749px;
-  float: right;
-  padding-top: 7px;
-  padding-top: 11px;
-  font-size: 18px;
+  width: 702px;
+  border-left: 13em solid #f2f5f0;
+  padding-left: 2.0em;
 }
 
 #column2.interior {
-  width: 140px;
-  float: left;
-  margin-top: -55px;
-  overflow: visible;
+  width: 234px;
+  position: fixed;
+  height: 100%;
+  overflow-y: scroll;
 }
 
-#column2.interior ul {
-  margin-left: 0;
+#column2.interior:after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 234px;
+  height: 5em;
+  background: linear-gradient(rgba(242,245,240, 0), rgba(242,245,240, 1));
+  pointer-events: none;
 }
 
-#column2.interior li {
-  list-style-type: none;
+#column2 ul {
+  list-style: none;
+  margin-left: 0em;
+  margin-top: 1.25em;
+  background: #f2f5f0;
+  margin-bottom: 0;
+  padding-bottom: 4em;
 }
 
-#column2.interior li a {
-  display: block;
-  padding: 0 0 0 35px;
-  color: #878b78;
-  text-transform: uppercase;
-  text-decoration: none;
-  font-size: 11px;
-  line-height: 23px;
+#column2 ul li {
+  padding-left: 1.4em;
+  margin-bottom: 0.5em;
+  padding-bottom: 0.5em;
+  font-size: 0.8em;
 }
 
-#column2.interior li a.home { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px 3px; }
-#column2.interior li a.download { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -21px; }
-#column2.interior li a.about { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -45px; }
-#column2.interior li a.npm { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -69px; }
-#column2.interior li a.docs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -93px; }
-#column2.interior li a.blog { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -117px; }
-#column2.interior li a.community { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -141px; }
-#column2.interior li a.logos { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -165px; }
-#column2.interior li a.jobs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -189px; }
-
-#column2.interior li a.home.current { background-position: 2px 3px; }
-#column2.interior li a.download.current { background-position: 2px -21px; }
-#column2.interior li a.about.current { background-position: 2px -45px; }
-#column2.interior li a.npm.current { background-position: 2px -69px; }
-#column2.interior li a.docs.current { background-position: 2px -93px; }
-#column2.interior li a.blog.current { background-position: 2px -117px; }
-#column2.interior li a.community.current { background-position: 2px -141px; }
-#column2.interior li a.logos.current { background-position: 2px -165px; }
-#column2.interior li a.jobs.current { background-position: 2px -189px; }
-
-#column2.interior li a.home:hover { background-position: -331px 3px; }
-#column2.interior li a.download:hover { background-position: -331px -21px; }
-#column2.interior li a.about:hover { background-position: -331px -45px; }
-#column2.interior li a.npm:hover { background-position: -331px -69px; }
-#column2.interior li a.docs:hover { background-position: -331px -93px; }
-#column2.interior li a.blog:hover { background-position: -331px -117px; }
-#column2.interior li a.community:hover { background-position: -331px -141px; }
-#column2.interior li a.logos:hover { background-position: -331px -165px; }
-#column2.interior li a.jobs:hover { background-position: -331px -189px; }
-
-#column2.interior li a.current {
-  color: #8cc84b;
-  font-weight: bold;
+#column2 ul li:last-child {
+  margin-bottom: 0;
 }
 
-#column2.interior li a:hover {
-  color: #000000;
-  text-decoration: none;
+#column2 ul li a {
+  color: #7a7a7a;
 }
 
-#column2.interior li + li {
-  border-top: 1px solid #c1c7ac;
-}
-
-#column2.interior p.twitter {
-  padding-top: 20px;
-}
-
-#column2.interior p.twitter a {
-  background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 0 4px;
-  padding-left: 37px;
-  text-decoration: none;
-}
-
-#column2.interior p.twitter a:hover {
-  text-decoration: underline;
-}
-
-a.totop {
-  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
-  font-weight: bold;
-  text-indent: -9999999px;
-  background: url(http://nodejs.org/images/anchor.png) no-repeat top left;
-  margin-right: 7px;
-  display: block;
-  width: 13px;
-  border-bottom: 1px solid #cccccc;
-}
-
-a.anchor {
-  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
-  font-weight: bold;
-  text-indent: -9999999px;
-  background: url(http://nodejs.org/images/anchor.png) no-repeat top right;
-  display: block;
-  width: 13px;
-  border-bottom: 1px solid #cccccc;
+#column2 ul li a.active {
+  color: #533;
+  border-bottom: 1px solid #533;
 }
 
 #footer {
-  width: 942px;
-  margin: 150px auto 55px auto;
   padding: 0;
+  min-height: 24px;
+  background: #333;
+  color: white;
 }
 
-#footer p {
-  font-size: 11px;
-  line-height: 1em;
-  padding: 0 0 0 195px;
-  color: #666;
+span > .mark,
+span > .mark:visited {
+  font-size: 18px;
+  color: #707070;
+  position: absolute;
+  top: 0px;
+  right: 0px;
 }
 
-#footer p,
-#footer li {
-  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+span > .mark:hover {
+  color: #FE7110;
 }
 
-#footer a {
-  text-decoration: none;
-  border: none;
-  color: #480;
+th, td {
+  padding: 0.75em 1.0em 0.75em 1.0em;
+  vertical-align: top;
 }
 
-#footer a:hover {
-  color: #000;
-}
-
-#footer p a {
-  border-bottom: 1px dotted #480;
-  color: #878b78;
-}
-
-#footer ul {
-  background: url(http://nodejs.org/images/footer-logo-alt.png) left 17px no-repeat;
-  padding: 23px 0 0 195px;
-  height: 26px;
-  margin-left: -1px;
-  border-top: 1px solid #626557;
-}
-
-#footer ul li {
-  list-style-type: none;
-  float: left;
-  font-size: 12px;
-  margin: 0 !important;
-  padding: 0;
-  height: 12px;
-}
-
-#footer ul li a {
-  margin: 0;
-  padding: 0 6px 0 0;
-  display: block;
-  height: 12px;
-  line-height: 12px;
-}
-
-#footer ul li + li {
-  margin-left: 3px;
-}
-
-#footer ul li + li a {
-  padding: 0 6px 0 6px;
-  border-left: 1px solid #878b78;
-}
-
-#footer ul li a.twitter  {
-  background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 5px 0px;
-  padding-left: 25px;
+th > *:last-child,
+td > *:last-child {
+  margin-bottom: 0;
 }
 
 /* simpler clearfix */
@@ -539,4 +433,40 @@ a.anchor {
   height: 0;
   clear: both;
   visibility: hidden;
+}
+
+@media only screen and (max-width: 1024px) {
+  #content {
+    font-size: 2.1em;
+  }
+  #column1.interior {
+    border-left: 0;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    width: auto;
+  }
+  pre {
+    margin-right: 0;
+  }
+  #column2 {
+    display: none;
+  }
+}
+
+@media only screen and (max-width: 1024px) and (orientation: portrait) {
+  #content {
+    font-size: 2.4em;
+  }
+  #column1.interior {
+    border-left: 0;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    width: auto;
+  }
+  pre {
+    margin-right: 0;
+  }
+  #column2 {
+    display: none;
+  }
 }

@@ -68,7 +68,7 @@ bp1 = Debug.setBreakPoint(f, 1);
 state = 0;
 result = -1;
 f();
-assertEquals(499, result);
+assertEquals(332, result);
 
 // Check that performing 1000 steps with a break point on the statement in the
 // for loop (line 2) will only make i 0 as a real break point breaks even when

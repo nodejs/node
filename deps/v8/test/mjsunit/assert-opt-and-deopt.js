@@ -26,7 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-%SetFlags("--noparallel-recompilation");
+// Flags: --noconcurrent-recompilation --noconcurrent-osr
+
+if (%IsConcurrentRecompilationSupported()) {
+  print("Concurrent recompilation is turned on after all. Skipping this test.");
+  quit();
+}
 
 /**
  * This class shows how to use %GetOptimizationCount() and
@@ -132,7 +137,7 @@ OptTracker.prototype.DisableAsserts_ = function(func) {
     case OptTracker.OptimizationState.NEVER:
       return true;
   }
-  return false;
+  return true;
 }
 // (End of class OptTracker.)
 

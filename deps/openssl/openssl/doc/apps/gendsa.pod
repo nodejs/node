@@ -8,6 +8,12 @@ gendsa - generate a DSA private key from a set of parameters
 
 B<openssl> B<gendsa>
 [B<-out filename>]
+[B<-aes128>]
+[B<-aes192>]
+[B<-aes256>]
+[B<-camellia128>]
+[B<-camellia192>]
+[B<-camellia256>]
 [B<-des>]
 [B<-des3>]
 [B<-idea>]
@@ -24,10 +30,10 @@ The B<gendsa> command generates a DSA private key from a DSA parameter file
 
 =over 4
 
-=item B<-des|-des3|-idea>
+=item B<-aes128|-aes192|-aes256|-camellia128|-camellia192|-camellia256|-des|-des3|-idea>
 
-These options encrypt the private key with the DES, triple DES, or the 
-IDEA ciphers respectively before outputting it. A pass phrase is prompted for.
+These options encrypt the private key with specified
+cipher before outputting it. A pass phrase is prompted for.
 If none of these options is specified no encryption is used.
 
 =item B<-rand file(s)>

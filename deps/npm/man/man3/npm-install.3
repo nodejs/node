@@ -1,0 +1,23 @@
+.TH "NPM\-INSTALL" "3" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-install\fR \- install a package programmatically
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm\.commands\.install([where,] packages, callback)
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This acts much the same ways as installing on the command\-line\.
+.P
+The 'where' parameter is optional and only used internally, and it specifies
+where the packages should be installed to\.
+.P
+The 'packages' parameter is an array of strings\. Each element in the array is
+the name of a package to be installed\.
+.P
+Finally, 'callback' is a function that will be called when all packages have been
+installed or when an error has been encountered\.
+

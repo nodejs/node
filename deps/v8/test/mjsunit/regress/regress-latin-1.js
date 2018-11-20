@@ -29,6 +29,7 @@ assertEquals(String.fromCharCode(97, 220, 256), 'a' + '\u00DC' + '\u0100');
 assertEquals(String.fromCharCode(97, 220, 256), 'a\u00DC\u0100');
 
 assertEquals(0x80, JSON.stringify("\x80").charCodeAt(1));
+assertEquals(0x80, JSON.stringify("\x80", 0, null).charCodeAt(1));
 
 assertEquals(['a', 'b', '\xdc'], ['b', '\xdc', 'a'].sort());
 

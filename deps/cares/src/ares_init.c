@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2007-2012 by Daniel Stenberg
+ * Copyright (C) 2007-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -19,14 +19,6 @@
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif
-
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H
@@ -50,16 +42,6 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-
 #if defined(ANDROID) || defined(__ANDROID__)
 #include <sys/system_properties.h>
 /* From the Bionic sources */
@@ -68,8 +50,7 @@
 #endif
 
 #include "ares.h"
-#include "inet_ntop.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
 #include "ares_library_init.h"
 #include "ares_nowarn.h"
 #include "ares_platform.h"
@@ -163,6 +144,7 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
   channel->rotate = -1;
   channel->udp_port = -1;
   channel->tcp_port = -1;
+  channel->ednspsz = -1;
   channel->socket_send_buffer_size = -1;
   channel->socket_receive_buffer_size = -1;
   channel->nservers = -1;
@@ -284,7 +266,10 @@ int ares_dup(ares_channel *dest, ares_channel src)
      which is most of them */
   rc = ares_save_options(src, &opts, &optmask);
   if(rc)
+  {
+    ares_destroy_options(&opts);
     return rc;
+  }
 
   /* Then create the new channel with those options */
   rc = ares_init_options(dest, &opts, optmask);
@@ -452,6 +437,9 @@ static int init_by_options(ares_channel channel,
   if ((optmask & ARES_OPT_SOCK_RCVBUF)
       && channel->socket_receive_buffer_size == -1)
     channel->socket_receive_buffer_size = options->socket_receive_buffer_size;
+
+  if ((optmask & ARES_OPT_EDNSPSZ) && channel->ednspsz == -1)
+    channel->ednspsz = options->ednspsz;
 
   /* Copy the IPv4 servers, if given. */
   if ((optmask & ARES_OPT_SERVERS) && channel->nservers == -1)
@@ -1020,7 +1008,7 @@ static int get_DNS_AdaptersAddresses(char **outptr)
         if (memcmp(&namesrvr.sa6->sin6_addr, &ares_in6addr_any,
                    sizeof(namesrvr.sa6->sin6_addr)) == 0)
           continue;
-        if (! ares_inet_ntop(AF_INET, &namesrvr.sa6->sin6_addr,
+        if (! ares_inet_ntop(AF_INET6, &namesrvr.sa6->sin6_addr,
                              txtaddr, sizeof(txtaddr)))
           continue;
       }
@@ -1173,20 +1161,24 @@ static int init_by_resolv_conf(ares_channel channel)
     FILE *fp;
     size_t linesize;
     int error;
+    int update_domains;
 
     /* Don't read resolv.conf and friends if we don't have to */
     if (ARES_CONFIG_CHECK(channel))
         return ARES_SUCCESS;
 
+    /* Only update search domains if they're not already specified */
+    update_domains = (channel->ndomains == -1);
+
     fp = fopen(PATH_RESOLV_CONF, "r");
     if (fp) {
       while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
       {
-        if ((p = try_config(line, "domain", ';')))
+        if ((p = try_config(line, "domain", ';')) && update_domains)
           status = config_domain(channel, p);
         else if ((p = try_config(line, "lookup", ';')) && !channel->lookups)
           status = config_lookup(channel, p, "bind", "file");
-        else if ((p = try_config(line, "search", ';')))
+        else if ((p = try_config(line, "search", ';')) && update_domains)
           status = set_search(channel, p);
         else if ((p = try_config(line, "nameserver", ';')) &&
                  channel->nservers == -1)
@@ -1363,6 +1355,9 @@ static int init_by_defaults(ares_channel channel)
   if (channel->tcp_port == -1)
     channel->tcp_port = htons(NAMESERVER_PORT);
 
+  if (channel->ednspsz == -1)
+    channel->ednspsz = EDNSPACKETSZ;
+
   if (channel->nservers == -1) {
     /* If nobody specified servers, try a local named. */
     channel->servers = malloc(sizeof(struct server_state));
@@ -1422,7 +1417,7 @@ static int init_by_defaults(ares_channel channel)
         goto error;
       }
 
-    } WHILE_FALSE;
+    } while (res != 0);
 
     dot = strchr(hostname, '.');
     if (dot) {
@@ -1958,13 +1953,6 @@ static int init_id_key(rc4_key* key,int key_data_len)
   }
   free(key_data_ptr);
   return ARES_SUCCESS;
-}
-
-unsigned short ares__generate_new_id(rc4_key* key)
-{
-  unsigned short r=0;
-  ares__rc4(key, (unsigned char *)&r, sizeof(r));
-  return r;
 }
 
 void ares_set_local_ip4(ares_channel channel, unsigned int local_ip)

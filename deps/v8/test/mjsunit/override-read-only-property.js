@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --es5_readonly
-
 // According to ECMA-262, sections 8.6.2.2 and 8.6.2.3 you're not
 // allowed to override read-only properties, not even if the read-only
 // property is in the prototype chain.

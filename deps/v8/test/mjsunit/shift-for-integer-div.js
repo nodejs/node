@@ -25,34 +25,74 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function divp4(x) {
   return x / 4;
 }
 
-for (var i = 0; i < 10000; i+=4) {
-  assertEquals(i >> 2, divp4(i));
-}
-
+divp4(8);
+divp4(8);
+%OptimizeFunctionOnNextCall(divp4);
+assertEquals(2, divp4(8));
 assertEquals(0.5, divp4(2));
+
 
 function divn4(x) {
   return x / (-4);
 }
 
-for (var i = 0; i < 10000; i+=4) {
-  assertEquals(-(i >> 2), divn4(i));
-}
-
+divn4(8);
+divn4(8);
+%OptimizeFunctionOnNextCall(divn4);
+assertEquals(-2, divn4(8));
+// Check for (0 / -x)
 assertEquals(-0, divn4(0));
 
 
+// Check for (kMinInt / -1)
 function divn1(x) {
   return x / (-1);
 }
 
-for (var i = 0; i < 10000; i++) {
-  assertEquals(-i, divn1(i));
+var two_31 = 1 << 31;
+divn1(2);
+divn1(2);
+%OptimizeFunctionOnNextCall(divn1);
+assertEquals(-2, divn1(2));
+assertEquals(-two_31, divn1(two_31));
+
+
+//Check for truncating to int32 case
+function divp4t(x) {
+  return (x / 4) | 0;
 }
 
-var min_int = -(0x7FFFFFFF)-1;
-assertEquals(-min_int, divn1(min_int));
+divp4t(8);
+divp4t(8);
+%OptimizeFunctionOnNextCall(divp4t);
+assertEquals(-1, divp4t(-5));
+assertEquals(1, divp4t(5));
+assertOptimized(divp4t);
+
+function divn4t(x) {
+  return (x / -4) | 0;
+}
+
+divn4t(8);
+divn4t(8);
+%OptimizeFunctionOnNextCall(divn4t);
+assertEquals(1, divn4t(-5));
+assertEquals(-1, divn4t(5));
+assertOptimized(divn4t);
+
+// Check kMinInt case.
+function div_by_two(x) {
+  return (x / 2) | 0;
+}
+
+div_by_two(12);
+div_by_two(34);
+%OptimizeFunctionOnNextCall(div_by_two);
+div_by_two(56);
+assertEquals(-(1 << 30), div_by_two(1 << 31));

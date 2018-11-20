@@ -307,7 +307,7 @@ CppEntriesProviderMock.prototype.parseVmSymbols = function(
     name, startAddr, endAddr, symbolAdder) {
   var symbols = {
     'shell':
-        [['v8::internal::JSObject::LocalLookupRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)', 0x080f8800, 0x080f8d90],
+        [['v8::internal::JSObject::LookupOwnRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)', 0x080f8800, 0x080f8d90],
          ['v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)', 0x080f8210, 0x080f8800],
          ['v8::internal::Runtime_Math_exp(v8::internal::Arguments)', 0x08123b20, 0x08123b80]],
     '/lib32/libm-2.7.so':
@@ -323,7 +323,7 @@ CppEntriesProviderMock.prototype.parseVmSymbols = function(
 
 
 function PrintMonitor(outputOrFileName) {
-  var expectedOut = typeof outputOrFileName == 'string' ?
+  var expectedOut = this.expectedOut = typeof outputOrFileName == 'string' ?
       this.loadExpectedOutput(outputOrFileName) : outputOrFileName;
   var outputPos = 0;
   var diffs = this.diffs = [];
@@ -359,7 +359,10 @@ PrintMonitor.prototype.loadExpectedOutput = function(fileName) {
 PrintMonitor.prototype.finish = function() {
   print = this.oldPrint;
   if (this.diffs.length > 0 || this.unexpectedOut != null) {
+    print("===== actual output: =====");
     print(this.realOut.join('\n'));
+    print("===== expected output: =====");
+    print(this.expectedOut.join('\n'));
     assertEquals([], this.diffs);
     assertNull(this.unexpectedOut);
   }
@@ -383,7 +386,8 @@ function driveTickProcessorTest(
                              stateFilter,
                              undefined,
                              "0",
-                             "auto,auto");
+                             "auto,auto",
+                             false);
   var pm = new PrintMonitor(testsPath + refOutput);
   tp.processLogFileInTest(testsPath + logInput);
   tp.printStatistics();

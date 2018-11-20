@@ -1,45 +1,23 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
-#include "ast.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-macro-assembler-tracer.h"
+#include "src/v8.h"
+
+#include "src/ast.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-macro-assembler-tracer.h"
 
 namespace v8 {
 namespace internal {
 
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
-    RegExpMacroAssembler* assembler) :
-  RegExpMacroAssembler(assembler->zone()),
-  assembler_(assembler) {
+    Isolate* isolate, RegExpMacroAssembler* assembler)
+    : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
   unsigned int type = assembler->Implementation();
-  ASSERT(type < 5);
-  const char* impl_names[] = {"IA32", "ARM", "MIPS", "X64", "Bytecode"};
+  DCHECK(type < 6);
+  const char* impl_names[] = {"IA32", "ARM", "ARM64",
+                              "MIPS", "X64", "X87", "Bytecode"};
   PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
 }
 
@@ -214,7 +192,7 @@ class PrintablePrinter {
       buffer_[0] = '\0';
     }
     return &buffer_[0];
-  };
+  }
 
  private:
   uc16 character_;
@@ -383,21 +361,6 @@ void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
 }
 
 
-void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
-                                                 int cp_offset,
-                                                 Label* on_failure,
-                                                 bool check_end_of_string) {
-  PrintF(" %s(str=\"",
-         check_end_of_string ? "CheckCharacters" : "CheckCharactersUnchecked");
-  for (int i = 0; i < str.length(); i++) {
-    PrintF("0x%04x", str[i]);
-  }
-  PrintF("\", cp_offset=%d, label[%08x])\n",
-         cp_offset, LabelToInt(on_failure));
-  assembler_->CheckCharacters(str, cp_offset, on_failure, check_end_of_string);
-}
-
-
 bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
     uc16 type,
     Label* on_no_match) {
@@ -442,7 +405,7 @@ RegExpMacroAssembler::IrregexpImplementation
 
 
 Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
-  PrintF(" GetCode(%s);\n", *(source->ToCString()));
+  PrintF(" GetCode(%s);\n", source->ToCString().get());
   return assembler_->GetCode(source);
 }
 

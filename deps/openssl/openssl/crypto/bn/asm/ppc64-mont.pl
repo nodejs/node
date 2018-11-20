@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -65,6 +65,14 @@
 # others alternative would be to break dependence on upper halves of
 # GPRs by sticking to 32-bit integer operations...
 
+# December 2012
+
+# Remove above mentioned dependence on GPRs' upper halves in 32-bit
+# build. No signal masking overhead, but integer instructions are
+# *more* numerous... It's still "universally" faster than 32-bit
+# ppc-mont.pl, but improvement coefficient is not as impressive
+# for longer keys...
+
 $flavour = shift;
 
 if ($flavour =~ /32/) {
@@ -110,6 +118,9 @@ $tp="r10";
 $j="r11";
 $i="r12";
 # non-volatile registers
+$c1="r19";
+$n1="r20";
+$a1="r21";
 $nap_d="r22";	# interleaved ap and np in double format
 $a0="r23";	# ap[0]
 $t0="r24";	# temporary registers
@@ -180,8 +191,8 @@ $T3a="f30";	$T3b="f31";
 #		.				.
 #		+-------------------------------+
 #		.				.
-#   -12*size_t	+-------------------------------+
-#		| 10 saved gpr, r22-r31		|
+#   -13*size_t	+-------------------------------+
+#		| 13 saved gpr, r19-r31		|
 #		.				.
 #		.				.
 #   -12*8	+-------------------------------+
@@ -215,6 +226,9 @@ $code=<<___;
 	mr	$i,$sp
 	$STUX	$sp,$sp,$tp	; alloca
 
+	$PUSH	r19,`-12*8-13*$SIZE_T`($i)
+	$PUSH	r20,`-12*8-12*$SIZE_T`($i)
+	$PUSH	r21,`-12*8-11*$SIZE_T`($i)
 	$PUSH	r22,`-12*8-10*$SIZE_T`($i)
 	$PUSH	r23,`-12*8-9*$SIZE_T`($i)
 	$PUSH	r24,`-12*8-8*$SIZE_T`($i)
@@ -237,40 +251,26 @@ $code=<<___;
 	stfd	f29,`-3*8`($i)
 	stfd	f30,`-2*8`($i)
 	stfd	f31,`-1*8`($i)
-___
-$code.=<<___ if ($SIZE_T==8);
-	ld	$a0,0($ap)	; pull ap[0] value
-	ld	$n0,0($n0)	; pull n0[0] value
-	ld	$t3,0($bp)	; bp[0]
-___
-$code.=<<___ if ($SIZE_T==4);
-	mr	$t1,$n0
-	lwz	$a0,0($ap)	; pull ap[0,1] value
-	lwz	$t0,4($ap)
-	lwz	$n0,0($t1)	; pull n0[0,1] value
-	lwz	$t1,4($t1)
-	lwz	$t3,0($bp)	; bp[0,1]
-	lwz	$t2,4($bp)
-	insrdi	$a0,$t0,32,0
-	insrdi	$n0,$t1,32,0
-	insrdi	$t3,$t2,32,0
-___
-$code.=<<___;
+
 	addi	$tp,$sp,`$FRAME+$TRANSFER+8+64`
 	li	$i,-64
 	add	$nap_d,$tp,$num
 	and	$nap_d,$nap_d,$i	; align to 64 bytes
-
-	mulld	$t7,$a0,$t3	; ap[0]*bp[0]
 	; nap_d is off by 1, because it's used with stfdu/lfdu
 	addi	$nap_d,$nap_d,-8
 	srwi	$j,$num,`3+1`	; counter register, num/2
-	mulld	$t7,$t7,$n0	; tp[0]*n0
 	addi	$j,$j,-1
 	addi	$tp,$sp,`$FRAME+$TRANSFER-8`
 	li	$carry,0
 	mtctr	$j
+___
+
+$code.=<<___ if ($SIZE_T==8);
+	ld	$a0,0($ap)		; pull ap[0] value
+	ld	$t3,0($bp)		; bp[0]
+	ld	$n0,0($n0)		; pull n0[0] value
 
+	mulld	$t7,$a0,$t3		; ap[0]*bp[0]
 	; transfer bp[0] to FPU as 4x16-bit values
 	extrdi	$t0,$t3,16,48
 	extrdi	$t1,$t3,16,32
@@ -280,6 +280,8 @@ $code.=<<___;
 	std	$t1,`$FRAME+8`($sp)
 	std	$t2,`$FRAME+16`($sp)
 	std	$t3,`$FRAME+24`($sp)
+
+	mulld	$t7,$t7,$n0		; tp[0]*n0
 	; transfer (ap[0]*bp[0])*n0 to FPU as 4x16-bit values
 	extrdi	$t4,$t7,16,48
 	extrdi	$t5,$t7,16,32
@@ -289,21 +291,61 @@ $code.=<<___;
 	std	$t5,`$FRAME+40`($sp)
 	std	$t6,`$FRAME+48`($sp)
 	std	$t7,`$FRAME+56`($sp)
-___
-$code.=<<___ if ($SIZE_T==8);
-	lwz	$t0,4($ap)		; load a[j] as 32-bit word pair
-	lwz	$t1,0($ap)
-	lwz	$t2,12($ap)		; load a[j+1] as 32-bit word pair
+
+	extrdi	$t0,$a0,32,32		; lwz	$t0,4($ap)
+	extrdi	$t1,$a0,32,0		; lwz	$t1,0($ap)
+	lwz	$t2,12($ap)		; load a[1] as 32-bit word pair
 	lwz	$t3,8($ap)
-	lwz	$t4,4($np)		; load n[j] as 32-bit word pair
+	lwz	$t4,4($np)		; load n[0] as 32-bit word pair
 	lwz	$t5,0($np)
-	lwz	$t6,12($np)		; load n[j+1] as 32-bit word pair
+	lwz	$t6,12($np)		; load n[1] as 32-bit word pair
 	lwz	$t7,8($np)
 ___
 $code.=<<___ if ($SIZE_T==4);
-	lwz	$t0,0($ap)		; load a[j..j+3] as 32-bit word pairs
-	lwz	$t1,4($ap)
-	lwz	$t2,8($ap)
+	lwz	$a0,0($ap)		; pull ap[0,1] value
+	mr	$n1,$n0
+	lwz	$a1,4($ap)
+	li	$c1,0
+	lwz	$t1,0($bp)		; bp[0,1]
+	lwz	$t3,4($bp)
+	lwz	$n0,0($n1)		; pull n0[0,1] value
+	lwz	$n1,4($n1)
+
+	mullw	$t4,$a0,$t1		; mulld ap[0]*bp[0]
+	mulhwu	$t5,$a0,$t1
+	mullw	$t6,$a1,$t1
+	mullw	$t7,$a0,$t3
+	add	$t5,$t5,$t6
+	add	$t5,$t5,$t7
+	; transfer bp[0] to FPU as 4x16-bit values
+	extrwi	$t0,$t1,16,16
+	extrwi	$t1,$t1,16,0
+	extrwi	$t2,$t3,16,16
+	extrwi	$t3,$t3,16,0
+	std	$t0,`$FRAME+0`($sp)	; yes, std in 32-bit build
+	std	$t1,`$FRAME+8`($sp)
+	std	$t2,`$FRAME+16`($sp)
+	std	$t3,`$FRAME+24`($sp)
+
+	mullw	$t0,$t4,$n0		; mulld tp[0]*n0
+	mulhwu	$t1,$t4,$n0
+	mullw	$t2,$t5,$n0
+	mullw	$t3,$t4,$n1
+	add	$t1,$t1,$t2
+	add	$t1,$t1,$t3
+	; transfer (ap[0]*bp[0])*n0 to FPU as 4x16-bit values
+	extrwi	$t4,$t0,16,16
+	extrwi	$t5,$t0,16,0
+	extrwi	$t6,$t1,16,16
+	extrwi	$t7,$t1,16,0
+	std	$t4,`$FRAME+32`($sp)	; yes, std in 32-bit build
+	std	$t5,`$FRAME+40`($sp)
+	std	$t6,`$FRAME+48`($sp)
+	std	$t7,`$FRAME+56`($sp)
+
+	mr	$t0,$a0			; lwz	$t0,0($ap)
+	mr	$t1,$a1			; lwz	$t1,4($ap)
+	lwz	$t2,8($ap)		; load a[j..j+3] as 32-bit word pairs
 	lwz	$t3,12($ap)
 	lwz	$t4,0($np)		; load n[j..j+3] as 32-bit word pairs
 	lwz	$t5,4($np)
@@ -319,7 +361,7 @@ $code.=<<___;
 	lfd	$nb,`$FRAME+40`($sp)
 	lfd	$nc,`$FRAME+48`($sp)
 	lfd	$nd,`$FRAME+56`($sp)
-	std	$t0,`$FRAME+64`($sp)
+	std	$t0,`$FRAME+64`($sp)	; yes, std even in 32-bit build
 	std	$t1,`$FRAME+72`($sp)
 	std	$t2,`$FRAME+80`($sp)
 	std	$t3,`$FRAME+88`($sp)
@@ -441,7 +483,7 @@ $code.=<<___ if ($SIZE_T==4);
 	lwz	$t7,12($np)
 ___
 $code.=<<___;
-	std	$t0,`$FRAME+64`($sp)
+	std	$t0,`$FRAME+64`($sp)	; yes, std even in 32-bit build
 	std	$t1,`$FRAME+72`($sp)
 	std	$t2,`$FRAME+80`($sp)
 	std	$t3,`$FRAME+88`($sp)
@@ -449,6 +491,9 @@ $code.=<<___;
 	std	$t5,`$FRAME+104`($sp)
 	std	$t6,`$FRAME+112`($sp)
 	std	$t7,`$FRAME+120`($sp)
+___
+if ($SIZE_T==8 or $flavour =~ /osx/) {
+$code.=<<___;
 	ld	$t0,`$FRAME+0`($sp)
 	ld	$t1,`$FRAME+8`($sp)
 	ld	$t2,`$FRAME+16`($sp)
@@ -457,6 +502,20 @@ $code.=<<___;
 	ld	$t5,`$FRAME+40`($sp)
 	ld	$t6,`$FRAME+48`($sp)
 	ld	$t7,`$FRAME+56`($sp)
+___
+} else {
+$code.=<<___;
+	lwz	$t1,`$FRAME+0`($sp)
+	lwz	$t0,`$FRAME+4`($sp)
+	lwz	$t3,`$FRAME+8`($sp)
+	lwz	$t2,`$FRAME+12`($sp)
+	lwz	$t5,`$FRAME+16`($sp)
+	lwz	$t4,`$FRAME+20`($sp)
+	lwz	$t7,`$FRAME+24`($sp)
+	lwz	$t6,`$FRAME+28`($sp)
+___
+}
+$code.=<<___;
 	lfd	$A0,`$FRAME+64`($sp)
 	lfd	$A1,`$FRAME+72`($sp)
 	lfd	$A2,`$FRAME+80`($sp)
@@ -488,7 +547,9 @@ $code.=<<___;
 	fmadd	$T0b,$A0,$bb,$dotb
 	stfd	$A2,24($nap_d)		; save a[j+1] in double format
 	stfd	$A3,32($nap_d)
-
+___
+if ($SIZE_T==8 or $flavour =~ /osx/) {
+$code.=<<___;
 	fmadd	$T1a,$A0,$bc,$T1a
 	fmadd	$T1b,$A0,$bd,$T1b
 	fmadd	$T2a,$A1,$bc,$T2a
@@ -561,11 +622,123 @@ $code.=<<___;
 	stfd	$T3b,`$FRAME+56`($sp)
 	 std	$t0,8($tp)		; tp[j-1]
 	 stdu	$t4,16($tp)		; tp[j]
+___
+} else {
+$code.=<<___;
+	fmadd	$T1a,$A0,$bc,$T1a
+	fmadd	$T1b,$A0,$bd,$T1b
+	 addc	$t0,$t0,$carry
+	 adde	$t1,$t1,$c1
+	 srwi	$carry,$t0,16
+	fmadd	$T2a,$A1,$bc,$T2a
+	fmadd	$T2b,$A1,$bd,$T2b
+	stfd	$N0,40($nap_d)		; save n[j] in double format
+	stfd	$N1,48($nap_d)
+	 srwi	$c1,$t1,16
+	 insrwi	$carry,$t1,16,0
+	fmadd	$T3a,$A2,$bc,$T3a
+	fmadd	$T3b,$A2,$bd,$T3b
+	 addc	$t2,$t2,$carry
+	 adde	$t3,$t3,$c1
+	 srwi	$carry,$t2,16
+	fmul	$dota,$A3,$bc
+	fmul	$dotb,$A3,$bd
+	stfd	$N2,56($nap_d)		; save n[j+1] in double format
+	stfdu	$N3,64($nap_d)
+	 insrwi	$t0,$t2,16,0		; 0..31 bits
+	 srwi	$c1,$t3,16
+	 insrwi	$carry,$t3,16,0
+
+	fmadd	$T1a,$N1,$na,$T1a
+	fmadd	$T1b,$N1,$nb,$T1b
+	 lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	 lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	 addc	$t4,$t4,$carry
+	 adde	$t5,$t5,$c1
+	 srwi	$carry,$t4,16
+	fmadd	$T2a,$N2,$na,$T2a
+	fmadd	$T2b,$N2,$nb,$T2b
+	 srwi	$c1,$t5,16
+	 insrwi	$carry,$t5,16,0
+	fmadd	$T3a,$N3,$na,$T3a
+	fmadd	$T3b,$N3,$nb,$T3b
+	 addc	$t6,$t6,$carry
+	 adde	$t7,$t7,$c1
+	 srwi	$carry,$t6,16
+	fmadd	$T0a,$N0,$na,$T0a
+	fmadd	$T0b,$N0,$nb,$T0b
+	 insrwi	$t4,$t6,16,0		; 32..63 bits
+	 srwi	$c1,$t7,16
+	 insrwi	$carry,$t7,16,0
+
+	fmadd	$T1a,$N0,$nc,$T1a
+	fmadd	$T1b,$N0,$nd,$T1b
+	 lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	 lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	 addc	$t2,$t2,$carry
+	 adde	$t3,$t3,$c1
+	 srwi	$carry,$t2,16
+	fmadd	$T2a,$N1,$nc,$T2a
+	fmadd	$T2b,$N1,$nd,$T2b
+	 stw	$t0,12($tp)		; tp[j-1]
+	 stw	$t4,8($tp)
+	 srwi	$c1,$t3,16
+	 insrwi	$carry,$t3,16,0
+	fmadd	$T3a,$N2,$nc,$T3a
+	fmadd	$T3b,$N2,$nd,$T3b
+	 lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	 lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	 addc	$t6,$t6,$carry
+	 adde	$t7,$t7,$c1
+	 srwi	$carry,$t6,16
+	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$dotb,$N3,$nd,$dotb
+	 insrwi	$t2,$t6,16,0		; 64..95 bits
+	 srwi	$c1,$t7,16
+	 insrwi	$carry,$t7,16,0
+
+	fctid	$T0a,$T0a
+	fctid	$T0b,$T0b
+	 lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	 lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+	 addc	$t0,$t0,$carry
+	 adde	$t1,$t1,$c1
+	 srwi	$carry,$t0,16
+	fctid	$T1a,$T1a
+	fctid	$T1b,$T1b
+	 srwi	$c1,$t1,16
+	 insrwi	$carry,$t1,16,0
+	fctid	$T2a,$T2a
+	fctid	$T2b,$T2b
+	 addc	$t4,$t4,$carry
+	 adde	$t5,$t5,$c1
+	 srwi	$carry,$t4,16
+	fctid	$T3a,$T3a
+	fctid	$T3b,$T3b
+	 insrwi	$t0,$t4,16,0		; 96..127 bits
+	 srwi	$c1,$t5,16
+	 insrwi	$carry,$t5,16,0
+
+	stfd	$T0a,`$FRAME+0`($sp)
+	stfd	$T0b,`$FRAME+8`($sp)
+	stfd	$T1a,`$FRAME+16`($sp)
+	stfd	$T1b,`$FRAME+24`($sp)
+	stfd	$T2a,`$FRAME+32`($sp)
+	stfd	$T2b,`$FRAME+40`($sp)
+	stfd	$T3a,`$FRAME+48`($sp)
+	stfd	$T3b,`$FRAME+56`($sp)
+	 stw	$t2,20($tp)		; tp[j]
+	 stwu	$t0,16($tp)
+___
+}
+$code.=<<___;
 	bdnz-	L1st
 
 	fctid	$dota,$dota
 	fctid	$dotb,$dotb
-
+___
+if ($SIZE_T==8 or $flavour =~ /osx/) {
+$code.=<<___;
 	ld	$t0,`$FRAME+0`($sp)
 	ld	$t1,`$FRAME+8`($sp)
 	ld	$t2,`$FRAME+16`($sp)
@@ -611,33 +784,117 @@ $code.=<<___;
 	insrdi	$t6,$t7,48,0
 	srdi	$ovf,$t7,48
 	std	$t6,8($tp)		; tp[num-1]
+___
+} else {
+$code.=<<___;
+	lwz	$t1,`$FRAME+0`($sp)
+	lwz	$t0,`$FRAME+4`($sp)
+	lwz	$t3,`$FRAME+8`($sp)
+	lwz	$t2,`$FRAME+12`($sp)
+	lwz	$t5,`$FRAME+16`($sp)
+	lwz	$t4,`$FRAME+20`($sp)
+	lwz	$t7,`$FRAME+24`($sp)
+	lwz	$t6,`$FRAME+28`($sp)
+	stfd	$dota,`$FRAME+64`($sp)
+	stfd	$dotb,`$FRAME+72`($sp)
 
+	addc	$t0,$t0,$carry
+	adde	$t1,$t1,$c1
+	srwi	$carry,$t0,16
+	insrwi	$carry,$t1,16,0
+	srwi	$c1,$t1,16
+	addc	$t2,$t2,$carry
+	adde	$t3,$t3,$c1
+	srwi	$carry,$t2,16
+	 insrwi	$t0,$t2,16,0		; 0..31 bits
+	insrwi	$carry,$t3,16,0
+	srwi	$c1,$t3,16
+	addc	$t4,$t4,$carry
+	adde	$t5,$t5,$c1
+	srwi	$carry,$t4,16
+	insrwi	$carry,$t5,16,0
+	srwi	$c1,$t5,16
+	addc	$t6,$t6,$carry
+	adde	$t7,$t7,$c1
+	srwi	$carry,$t6,16
+	 insrwi	$t4,$t6,16,0		; 32..63 bits
+	insrwi	$carry,$t7,16,0
+	srwi	$c1,$t7,16
+	 stw	$t0,12($tp)		; tp[j-1]
+	 stw	$t4,8($tp)
+
+	lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+
+	addc	$t2,$t2,$carry
+	adde	$t3,$t3,$c1
+	srwi	$carry,$t2,16
+	insrwi	$carry,$t3,16,0
+	srwi	$c1,$t3,16
+	addc	$t6,$t6,$carry
+	adde	$t7,$t7,$c1
+	srwi	$carry,$t6,16
+	 insrwi	$t2,$t6,16,0		; 64..95 bits
+	insrwi	$carry,$t7,16,0
+	srwi	$c1,$t7,16
+	addc	$t0,$t0,$carry
+	adde	$t1,$t1,$c1
+	srwi	$carry,$t0,16
+	insrwi	$carry,$t1,16,0
+	srwi	$c1,$t1,16
+	addc	$t4,$t4,$carry
+	adde	$t5,$t5,$c1
+	srwi	$carry,$t4,16
+	 insrwi	$t0,$t4,16,0		; 96..127 bits
+	insrwi	$carry,$t5,16,0
+	srwi	$c1,$t5,16
+	 stw	$t2,20($tp)		; tp[j]
+	 stwu	$t0,16($tp)
+
+	lwz	$t7,`$FRAME+64`($sp)
+	lwz	$t6,`$FRAME+68`($sp)
+	lwz	$t5,`$FRAME+72`($sp)
+	lwz	$t4,`$FRAME+76`($sp)
+
+	addc	$t6,$t6,$carry
+	adde	$t7,$t7,$c1
+	srwi	$carry,$t6,16
+	insrwi	$carry,$t7,16,0
+	srwi	$c1,$t7,16
+	addc	$t4,$t4,$carry
+	adde	$t5,$t5,$c1
+
+	insrwi	$t6,$t4,16,0
+	srwi	$t4,$t4,16
+	insrwi	$t4,$t5,16,0
+	srwi	$ovf,$t5,16
+	stw	$t6,12($tp)		; tp[num-1]
+	stw	$t4,8($tp)
+___
+}
+$code.=<<___;
 	slwi	$t7,$num,2
 	subf	$nap_d,$t7,$nap_d	; rewind pointer
 
 	li	$i,8			; i=1
 .align	5
 Louter:
+	addi	$tp,$sp,`$FRAME+$TRANSFER`
+	li	$carry,0
+	mtctr	$j
 ___
 $code.=<<___ if ($SIZE_T==8);
-	ldx	$t3,$bp,$i	; bp[i]
-___
-$code.=<<___ if ($SIZE_T==4);
-	add	$t0,$bp,$i
-	lwz	$t3,0($t0)		; bp[i,i+1]
-	lwz	$t0,4($t0)
-	insrdi	$t3,$t0,32,0
-___
-$code.=<<___;
+	ldx	$t3,$bp,$i		; bp[i]
+
 	ld	$t6,`$FRAME+$TRANSFER+8`($sp)	; tp[0]
-	mulld	$t7,$a0,$t3	; ap[0]*bp[i]
-
-	addi	$tp,$sp,`$FRAME+$TRANSFER`
-	add	$t7,$t7,$t6	; ap[0]*bp[i]+tp[0]
-	li	$carry,0
-	mulld	$t7,$t7,$n0	; tp[0]*n0
-	mtctr	$j
-
+	mulld	$t7,$a0,$t3		; ap[0]*bp[i]
+	add	$t7,$t7,$t6		; ap[0]*bp[i]+tp[0]
 	; transfer bp[i] to FPU as 4x16-bit values
 	extrdi	$t0,$t3,16,48
 	extrdi	$t1,$t3,16,32
@@ -647,6 +904,8 @@ $code.=<<___;
 	std	$t1,`$FRAME+8`($sp)
 	std	$t2,`$FRAME+16`($sp)
 	std	$t3,`$FRAME+24`($sp)
+
+	mulld	$t7,$t7,$n0		; tp[0]*n0
 	; transfer (ap[0]*bp[i]+tp[0])*n0 to FPU as 4x16-bit values
 	extrdi	$t4,$t7,16,48
 	extrdi	$t5,$t7,16,32
@@ -656,7 +915,50 @@ $code.=<<___;
 	std	$t5,`$FRAME+40`($sp)
 	std	$t6,`$FRAME+48`($sp)
 	std	$t7,`$FRAME+56`($sp)
+___
+$code.=<<___ if ($SIZE_T==4);
+	add	$t0,$bp,$i
+	li	$c1,0
+	lwz	$t1,0($t0)		; bp[i,i+1]
+	lwz	$t3,4($t0)
 
+	mullw	$t4,$a0,$t1		; ap[0]*bp[i]
+	lwz	$t0,`$FRAME+$TRANSFER+8+4`($sp)	; tp[0]
+	mulhwu	$t5,$a0,$t1
+	lwz	$t2,`$FRAME+$TRANSFER+8`($sp)	; tp[0]
+	mullw	$t6,$a1,$t1
+	mullw	$t7,$a0,$t3
+	add	$t5,$t5,$t6
+	add	$t5,$t5,$t7
+	addc	$t4,$t4,$t0		; ap[0]*bp[i]+tp[0]
+	adde	$t5,$t5,$t2
+	; transfer bp[i] to FPU as 4x16-bit values
+	extrwi	$t0,$t1,16,16
+	extrwi	$t1,$t1,16,0
+	extrwi	$t2,$t3,16,16
+	extrwi	$t3,$t3,16,0
+	std	$t0,`$FRAME+0`($sp)	; yes, std in 32-bit build
+	std	$t1,`$FRAME+8`($sp)
+	std	$t2,`$FRAME+16`($sp)
+	std	$t3,`$FRAME+24`($sp)
+
+	mullw	$t0,$t4,$n0		; mulld tp[0]*n0
+	mulhwu	$t1,$t4,$n0
+	mullw	$t2,$t5,$n0
+	mullw	$t3,$t4,$n1
+	add	$t1,$t1,$t2
+	add	$t1,$t1,$t3
+	; transfer (ap[0]*bp[i]+tp[0])*n0 to FPU as 4x16-bit values
+	extrwi	$t4,$t0,16,16
+	extrwi	$t5,$t0,16,0
+	extrwi	$t6,$t1,16,16
+	extrwi	$t7,$t1,16,0
+	std	$t4,`$FRAME+32`($sp)	; yes, std in 32-bit build
+	std	$t5,`$FRAME+40`($sp)
+	std	$t6,`$FRAME+48`($sp)
+	std	$t7,`$FRAME+56`($sp)
+___
+$code.=<<___;
 	lfd	$A0,8($nap_d)		; load a[j] in double format
 	lfd	$A1,16($nap_d)
 	lfd	$A2,24($nap_d)		; load a[j+1] in double format
@@ -769,7 +1071,9 @@ Linner:
 	fmul	$dotb,$A3,$bd
 	 lfd	$A2,24($nap_d)		; load a[j+1] in double format
 	 lfd	$A3,32($nap_d)
-
+___
+if ($SIZE_T==8 or $flavour =~ /osx/) {
+$code.=<<___;
 	fmadd	$T1a,$N1,$na,$T1a
 	fmadd	$T1b,$N1,$nb,$T1b
 	 ld	$t0,`$FRAME+0`($sp)
@@ -856,10 +1160,131 @@ $code.=<<___;
 	 addze	$carry,$carry
 	 std	$t3,-16($tp)		; tp[j-1]
 	 std	$t5,-8($tp)		; tp[j]
+___
+} else {
+$code.=<<___;
+	fmadd	$T1a,$N1,$na,$T1a
+	fmadd	$T1b,$N1,$nb,$T1b
+	 lwz	$t1,`$FRAME+0`($sp)
+	 lwz	$t0,`$FRAME+4`($sp)
+	fmadd	$T2a,$N2,$na,$T2a
+	fmadd	$T2b,$N2,$nb,$T2b
+	 lwz	$t3,`$FRAME+8`($sp)
+	 lwz	$t2,`$FRAME+12`($sp)
+	fmadd	$T3a,$N3,$na,$T3a
+	fmadd	$T3b,$N3,$nb,$T3b
+	 lwz	$t5,`$FRAME+16`($sp)
+	 lwz	$t4,`$FRAME+20`($sp)
+	 addc	$t0,$t0,$carry
+	 adde	$t1,$t1,$c1
+	 srwi	$carry,$t0,16
+	fmadd	$T0a,$N0,$na,$T0a
+	fmadd	$T0b,$N0,$nb,$T0b
+	 lwz	$t7,`$FRAME+24`($sp)
+	 lwz	$t6,`$FRAME+28`($sp)
+	 srwi	$c1,$t1,16
+	 insrwi	$carry,$t1,16,0
+
+	fmadd	$T1a,$N0,$nc,$T1a
+	fmadd	$T1b,$N0,$nd,$T1b
+	 addc	$t2,$t2,$carry
+	 adde	$t3,$t3,$c1
+	 srwi	$carry,$t2,16
+	fmadd	$T2a,$N1,$nc,$T2a
+	fmadd	$T2b,$N1,$nd,$T2b
+	 insrwi	$t0,$t2,16,0		; 0..31 bits
+	 srwi	$c1,$t3,16
+	 insrwi	$carry,$t3,16,0
+	fmadd	$T3a,$N2,$nc,$T3a
+	fmadd	$T3b,$N2,$nd,$T3b
+	 lwz	$t2,12($tp)		; tp[j]
+	 lwz	$t3,8($tp)
+	 addc	$t4,$t4,$carry
+	 adde	$t5,$t5,$c1
+	 srwi	$carry,$t4,16
+	fmadd	$dota,$N3,$nc,$dota
+	fmadd	$dotb,$N3,$nd,$dotb
+	 srwi	$c1,$t5,16
+	 insrwi	$carry,$t5,16,0
+
+	fctid	$T0a,$T0a
+	 addc	$t6,$t6,$carry
+	 adde	$t7,$t7,$c1
+	 srwi	$carry,$t6,16
+	fctid	$T0b,$T0b
+	 insrwi	$t4,$t6,16,0		; 32..63 bits
+	 srwi	$c1,$t7,16
+	 insrwi	$carry,$t7,16,0
+	fctid	$T1a,$T1a
+	 addc	$t0,$t0,$t2
+	 adde	$t4,$t4,$t3
+	 lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	 lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	fctid	$T1b,$T1b
+	 addze	$carry,$carry
+	 addze	$c1,$c1
+	 stw	$t0,4($tp)		; tp[j-1]
+	 stw	$t4,0($tp)
+	fctid	$T2a,$T2a
+	 addc	$t2,$t2,$carry
+	 adde	$t3,$t3,$c1
+	 srwi	$carry,$t2,16
+	 lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	 lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	fctid	$T2b,$T2b
+	 srwi	$c1,$t3,16
+	 insrwi	$carry,$t3,16,0
+	 lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	 lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	fctid	$T3a,$T3a
+	 addc	$t6,$t6,$carry
+	 adde	$t7,$t7,$c1
+	 srwi	$carry,$t6,16
+	 lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	 lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+	fctid	$T3b,$T3b
+
+	 insrwi	$t2,$t6,16,0		; 64..95 bits
+	insrwi	$carry,$t7,16,0
+	srwi	$c1,$t7,16
+	 lwz	$t6,20($tp)
+	 lwzu	$t7,16($tp)
+	addc	$t0,$t0,$carry
+	 stfd	$T0a,`$FRAME+0`($sp)
+	adde	$t1,$t1,$c1
+	srwi	$carry,$t0,16
+	 stfd	$T0b,`$FRAME+8`($sp)
+	insrwi	$carry,$t1,16,0
+	srwi	$c1,$t1,16
+	addc	$t4,$t4,$carry
+	 stfd	$T1a,`$FRAME+16`($sp)
+	adde	$t5,$t5,$c1
+	srwi	$carry,$t4,16
+	 insrwi	$t0,$t4,16,0		; 96..127 bits
+	 stfd	$T1b,`$FRAME+24`($sp)
+	insrwi	$carry,$t5,16,0
+	srwi	$c1,$t5,16
+
+	addc	$t2,$t2,$t6
+	 stfd	$T2a,`$FRAME+32`($sp)
+	adde	$t0,$t0,$t7
+	 stfd	$T2b,`$FRAME+40`($sp)
+	addze	$carry,$carry
+	 stfd	$T3a,`$FRAME+48`($sp)
+	addze	$c1,$c1
+	 stfd	$T3b,`$FRAME+56`($sp)
+	 stw	$t2,-4($tp)		; tp[j]
+	 stw	$t0,-8($tp)
+___
+}
+$code.=<<___;
 	bdnz-	Linner
 
 	fctid	$dota,$dota
 	fctid	$dotb,$dotb
+___
+if ($SIZE_T==8 or $flavour =~ /osx/) {
+$code.=<<___;
 	ld	$t0,`$FRAME+0`($sp)
 	ld	$t1,`$FRAME+8`($sp)
 	ld	$t2,`$FRAME+16`($sp)
@@ -926,7 +1351,116 @@ $code.=<<___;
 	insrdi	$t6,$t7,48,0
 	srdi	$ovf,$t7,48
 	std	$t6,0($tp)		; tp[num-1]
+___
+} else {
+$code.=<<___;
+	lwz	$t1,`$FRAME+0`($sp)
+	lwz	$t0,`$FRAME+4`($sp)
+	lwz	$t3,`$FRAME+8`($sp)
+	lwz	$t2,`$FRAME+12`($sp)
+	lwz	$t5,`$FRAME+16`($sp)
+	lwz	$t4,`$FRAME+20`($sp)
+	lwz	$t7,`$FRAME+24`($sp)
+	lwz	$t6,`$FRAME+28`($sp)
+	stfd	$dota,`$FRAME+64`($sp)
+	stfd	$dotb,`$FRAME+72`($sp)
 
+	addc	$t0,$t0,$carry
+	adde	$t1,$t1,$c1
+	srwi	$carry,$t0,16
+	insrwi	$carry,$t1,16,0
+	srwi	$c1,$t1,16
+	addc	$t2,$t2,$carry
+	adde	$t3,$t3,$c1
+	srwi	$carry,$t2,16
+	 insrwi	$t0,$t2,16,0		; 0..31 bits
+	 lwz	$t2,12($tp)		; tp[j]
+	insrwi	$carry,$t3,16,0
+	srwi	$c1,$t3,16
+	 lwz	$t3,8($tp)
+	addc	$t4,$t4,$carry
+	adde	$t5,$t5,$c1
+	srwi	$carry,$t4,16
+	insrwi	$carry,$t5,16,0
+	srwi	$c1,$t5,16
+	addc	$t6,$t6,$carry
+	adde	$t7,$t7,$c1
+	srwi	$carry,$t6,16
+	 insrwi	$t4,$t6,16,0		; 32..63 bits
+	insrwi	$carry,$t7,16,0
+	srwi	$c1,$t7,16
+
+	addc	$t0,$t0,$t2
+	adde	$t4,$t4,$t3
+	addze	$carry,$carry
+	addze	$c1,$c1
+	 stw	$t0,4($tp)		; tp[j-1]
+	 stw	$t4,0($tp)
+
+	lwz	$t3,`$FRAME+32`($sp)	; permuted $t1
+	lwz	$t2,`$FRAME+36`($sp)	; permuted $t0
+	lwz	$t7,`$FRAME+40`($sp)	; permuted $t3
+	lwz	$t6,`$FRAME+44`($sp)	; permuted $t2
+	lwz	$t1,`$FRAME+48`($sp)	; permuted $t5
+	lwz	$t0,`$FRAME+52`($sp)	; permuted $t4
+	lwz	$t5,`$FRAME+56`($sp)	; permuted $t7
+	lwz	$t4,`$FRAME+60`($sp)	; permuted $t6
+
+	addc	$t2,$t2,$carry
+	adde	$t3,$t3,$c1
+	srwi	$carry,$t2,16
+	insrwi	$carry,$t3,16,0
+	srwi	$c1,$t3,16
+	addc	$t6,$t6,$carry
+	adde	$t7,$t7,$c1
+	srwi	$carry,$t6,16
+	 insrwi	$t2,$t6,16,0		; 64..95 bits
+	 lwz	$t6,20($tp)
+	insrwi	$carry,$t7,16,0
+	srwi	$c1,$t7,16
+	 lwzu	$t7,16($tp)
+	addc	$t0,$t0,$carry
+	adde	$t1,$t1,$c1
+	srwi	$carry,$t0,16
+	insrwi	$carry,$t1,16,0
+	srwi	$c1,$t1,16
+	addc	$t4,$t4,$carry
+	adde	$t5,$t5,$c1
+	srwi	$carry,$t4,16
+	 insrwi	$t0,$t4,16,0		; 96..127 bits
+	insrwi	$carry,$t5,16,0
+	srwi	$c1,$t5,16
+
+	addc	$t2,$t2,$t6
+	adde	$t0,$t0,$t7
+	 lwz	$t7,`$FRAME+64`($sp)
+	 lwz	$t6,`$FRAME+68`($sp)
+	addze	$carry,$carry
+	addze	$c1,$c1
+	 lwz	$t5,`$FRAME+72`($sp)
+	 lwz	$t4,`$FRAME+76`($sp)
+
+	addc	$t6,$t6,$carry
+	adde	$t7,$t7,$c1
+	 stw	$t2,-4($tp)		; tp[j]
+	 stw	$t0,-8($tp)
+	addc	$t6,$t6,$ovf
+	addze	$t7,$t7
+	srwi	$carry,$t6,16
+	insrwi	$carry,$t7,16,0
+	srwi	$c1,$t7,16
+	addc	$t4,$t4,$carry
+	adde	$t5,$t5,$c1
+
+	insrwi	$t6,$t4,16,0
+	srwi	$t4,$t4,16
+	insrwi	$t4,$t5,16,0
+	srwi	$ovf,$t5,16
+	stw	$t6,4($tp)		; tp[num-1]
+	stw	$t4,0($tp)
+___
+}
+$code.=<<___;
 	slwi	$t7,$num,2
 	addi	$i,$i,8
 	subf	$nap_d,$t7,$nap_d	; rewind pointer
@@ -994,14 +1528,14 @@ $code.=<<___ if ($SIZE_T==4);
 	mtctr	$j
 
 .align	4
-Lsub:	ld	$t0,8($tp)	; load tp[j..j+3] in 64-bit word order
-	ldu	$t2,16($tp)
+Lsub:	lwz	$t0,12($tp)	; load tp[j..j+3] in 64-bit word order
+	lwz	$t1,8($tp)
+	lwz	$t2,20($tp)
+	lwzu	$t3,16($tp)
 	lwz	$t4,4($np)	; load np[j..j+3] in 32-bit word order
 	lwz	$t5,8($np)
 	lwz	$t6,12($np)
 	lwzu	$t7,16($np)
-	extrdi	$t1,$t0,32,0
-	extrdi	$t3,$t2,32,0
 	subfe	$t4,$t4,$t0	; tp[j]-np[j]
 	 stw	$t0,4($ap)	; save tp[j..j+3] in 32-bit word order
 	subfe	$t5,$t5,$t1	; tp[j+1]-np[j+1]
@@ -1052,6 +1586,9 @@ ___
 $code.=<<___;
 	$POP	$i,0($sp)
 	li	r3,1	; signal "handled"
+	$POP	r19,`-12*8-13*$SIZE_T`($i)
+	$POP	r20,`-12*8-12*$SIZE_T`($i)
+	$POP	r21,`-12*8-11*$SIZE_T`($i)
 	$POP	r22,`-12*8-10*$SIZE_T`($i)
 	$POP	r23,`-12*8-9*$SIZE_T`($i)
 	$POP	r24,`-12*8-8*$SIZE_T`($i)
@@ -1077,8 +1614,9 @@ $code.=<<___;
 	mr	$sp,$i
 	blr
 	.long	0
-	.byte	0,12,4,0,0x8c,10,6,0
+	.byte	0,12,4,0,0x8c,13,6,0
 	.long	0
+.size	.$fname,.-.$fname
 
 .asciz  "Montgomery Multiplication for PPC64, CRYPTOGAMS by <appro\@openssl.org>"
 ___

@@ -2,6 +2,7 @@
 // as many bytes as we can in the specified time (default = 10s)
 
 var common = require('../common.js');
+var util = require('util');
 
 // if there are --dur=N and --len=N args, then
 // run the function with those settings.
@@ -13,6 +14,8 @@ var bench = common.createBenchmark(main, {
 });
 
 var TCP = process.binding('tcp_wrap').TCP;
+var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
+var WriteWrap = process.binding('stream_wrap').WriteWrap;
 var PORT = common.PORT;
 
 var dur;
@@ -27,26 +30,23 @@ function main(conf) {
 }
 
 
-function fail(syscall) {
-  var e = new Error(syscall + ' ' + errno);
-  e.errno = e.code = errno;
-  e.syscall = syscall;
-  throw e;
+function fail(err, syscall) {
+  throw util._errnoException(err, syscall);
 }
 
 function server() {
   var serverHandle = new TCP();
-  var r = serverHandle.bind('127.0.0.1', PORT);
-  if (r)
-    fail('bind');
+  var err = serverHandle.bind('127.0.0.1', PORT);
+  if (err)
+    fail(err, 'bind');
 
-  var r = serverHandle.listen(511);
-  if (r)
-    fail('listen');
+  err = serverHandle.listen(511);
+  if (err)
+    fail(err, 'listen');
 
-  serverHandle.onconnection = function(clientHandle) {
-    if (!clientHandle)
-      fail('connect');
+  serverHandle.onconnection = function(err, clientHandle) {
+    if (err)
+      fail(err, 'connect');
 
     // the meat of the benchmark is right here:
     bench.start();
@@ -57,16 +57,15 @@ function server() {
       bench.end((bytes * 8) / (1024 * 1024 * 1024));
     }, dur * 1000);
 
-    clientHandle.onread = function(buffer, offset, length) {
+    clientHandle.onread = function(nread, buffer) {
       // we're not expecting to ever get an EOF from the client.
       // just lots of data forever.
-      if (!buffer)
-        fail('read');
+      if (nread < 0)
+        fail(nread, 'read');
 
       // don't slice the buffer.  the point of this is to isolate, not
       // simulate real traffic.
-      // var chunk = buffer.slice(offset, offset + length);
-      bytes += length;
+      bytes += buffer.length;
     };
 
     clientHandle.readStart();
@@ -94,41 +93,45 @@ function client() {
   }
 
   var clientHandle = new TCP();
-  var connectReq = clientHandle.connect('127.0.0.1', PORT);
+  var connectReq = new TCPConnectWrap();
+  var err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
 
-  if (!connectReq)
-    fail('connect');
+  if (err)
+    fail(err, 'connect');
 
   clientHandle.readStart();
 
-  connectReq.oncomplete = function() {
+  connectReq.oncomplete = function(err) {
+    if (err)
+      fail(err, 'connect');
+
     while (clientHandle.writeQueueSize === 0)
       write();
   };
 
   function write() {
-    var writeReq
+    var writeReq = new WriteWrap();
+    writeReq.oncomplete = afterWrite;
+    var err;
     switch (type) {
       case 'buf':
-        writeReq = clientHandle.writeBuffer(chunk);
+        err = clientHandle.writeBuffer(writeReq, chunk);
         break;
       case 'utf':
-        writeReq = clientHandle.writeUtf8String(chunk);
+        err = clientHandle.writeUtf8String(writeReq, chunk);
         break;
       case 'asc':
-        writeReq = clientHandle.writeAsciiString(chunk);
+        err = clientHandle.writeAsciiString(writeReq, chunk);
         break;
     }
 
-    if (!writeReq)
-      fail('write');
-
-    writeReq.oncomplete = afterWrite;
+    if (err)
+      fail(err, 'write');
   }
 
-  function afterWrite(status, handle, req) {
-    if (status)
-      fail('write');
+  function afterWrite(err, handle, req) {
+    if (err)
+      fail(err, 'write');
 
     while (clientHandle.writeQueueSize === 0)
       write();

@@ -1,0 +1,9 @@
+{
+  "name": "benchmarks",
+  "private": true,
+  "dependencies": {
+    "json5": "*",
+    "js-yaml": "*",
+    "benchmark": "*"
+  }
+}

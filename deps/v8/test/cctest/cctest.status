@@ -25,68 +25,385 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix cctest
+[
+[ALWAYS, {
+  # All tests prefixed with 'Bug' are expected to fail.
+  'test-api/Bug*': [FAIL],
+  'test-serialize/Bug*': [FAIL],
 
-# All tests prefixed with 'Bug' are expected to fail.
-test-api/Bug*: FAIL
+  ##############################################################################
+
+  # BUG(382): Weird test. Can't guarantee that it never times out.
+  'test-api/ApplyInterruption': [PASS, TIMEOUT],
+
+  # These tests always fail.  They are here to test test.py.  If
+  # they don't fail then test.py has failed.
+  'test-serialize/TestThatAlwaysFails': [FAIL],
+  'test-serialize/DependentTestThatAlwaysFails': [FAIL],
+  'test-api/SealHandleScope': [FAIL],
+
+  # This test always fails.  It tests that LiveEdit causes abort when turned off.
+  'test-debug/LiveEditDisabled': [FAIL],
+
+  # This test always fails.  It tests that DisallowJavascriptExecutionScope
+  # works as intended.
+  'test-api/DisallowJavascriptExecutionScope': [FAIL],
+
+  # TODO(gc): Temporarily disabled in the GC branch.
+  'test-log/EquivalenceOfLoggingAndTraversal': [PASS, FAIL],
+
+  # We do not yet shrink weak maps after they have been emptied by the GC
+  'test-weakmaps/Shrinking': [FAIL],
+  'test-weaksets/WeakSet_Shrinking': [FAIL],
+
+  # Boot up memory use is bloated in debug mode.
+  'test-mark-compact/BootUpMemoryUse': [PASS, PASS, ['mode == debug', FAIL]],
+
+  # This tests only that the preparser and parser agree, so there is no point in
+  # running several variants. Note that this still takes ages, because there
+  # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
+  'test-parsing/ParserSync': [PASS, NO_VARIANTS],
+
+  # Modules are busted
+  'test-parsing/ExportsMaybeAssigned': [SKIP],
+
+  # This tests only the type system, so there is no point in running several
+  # variants.
+  'test-hydrogen-types/*': [PASS, NO_VARIANTS],
+  'test-types/*': [PASS, NO_VARIANTS],
+
+  # The cpu profiler tests are notoriously flaky.
+  # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
+  # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
+  'test-cpu-profiler/*': [PASS, FLAKY],
+  'test-cpu-profiler/*': [SKIP],
+
+  # BUG(3525). Test crashes flakily.
+  'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
+  'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
+
+  ##############################################################################
+  # TurboFan compiler failures.
+
+  # Some tests are just too slow to run for now.
+  'test-api/Threading*': [PASS, NO_VARIANTS],
+  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
+  'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
+  'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
+  # BUG(3742).
+  'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
+
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'test-debug/DebugStepNatives': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
+
+  # TODO(jochen): Reenable after we removed the CHECK() from the marking queue.
+  'test-mark-compact/MarkingDeque': [SKIP],
+
+  ############################################################################
+  # Slow tests.
+  'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
+  'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
+  'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
+}],  # ALWAYS
 
 ##############################################################################
-# BUG(382): Weird test. Can't guarantee that it never times out.
-test-api/ApplyInterruption: PASS || TIMEOUT
+['arch == arm64', {
 
-# BUG(484): This test which we thought was originally corrected in r5236
-# is re-appearing. Disabled until bug in test is fixed. This only fails
-# when snapshot is on, so I am marking it PASS || FAIL
-test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
+  'test-api/Bug618': [PASS],
 
-# These tests always fail.  They are here to test test.py.  If
-# they don't fail then test.py has failed.
-test-serialize/TestThatAlwaysFails: FAIL
-test-serialize/DependentTestThatAlwaysFails: FAIL
+  # BUG(v8:3385).
+  'test-serialize/DeserializeFromSecondSerialization': [PASS, FAIL],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, FAIL],
 
-# This test always fails.  It tests that LiveEdit causes abort when turned off.
-test-debug/LiveEditDisabled: FAIL
+  # BUG(v8:2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
 
-# TODO(gc): Temporarily disabled in the GC branch.
-test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
+  # BUG(v8:3154).
+  'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
-# BUG(1261): Flakey test.
-test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
+  # BUG(v8:3155).
+  'test-strings/OneByteArrayJoin': [PASS, ['mode == debug', FAIL]],
 
-# We do not yet shrink weak maps after they have been emptied by the GC
-test-weakmaps/Shrinking: FAIL
+  # BUG(v8:3247).
+  'test-mark-compact/NoPromotion': [SKIP],
 
-# Deferred stack trace formatting is temporarily disabled.
-test-heap/ReleaseStackTraceData: PASS || FAIL
+  # BUG(v8:3446).
+  'test-mark-compact/Promotion': [PASS, FAIL],
+
+  # BUG(v8:3434).
+  ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+}],  # 'arch == arm64'
+
+['arch == arm64 and simulator_run == True', {
+
+  # Pass but take too long with the simulator.
+  'test-api/ExternalArrays': [PASS, TIMEOUT],
+  'test-api/Threading1': [SKIP],
+  'test-api/Threading2': [SKIP],
+}],  # 'arch == arm64 and simulator_run == True'
+
+['arch == arm64 and mode == debug and simulator_run == True', {
+
+  # Pass but take too long with the simulator in debug mode.
+  'test-api/ExternalDoubleArray': [SKIP],
+  'test-api/ExternalFloat32Array': [SKIP],
+  'test-api/ExternalFloat64Array': [SKIP],
+  'test-api/ExternalFloatArray': [SKIP],
+  'test-api/Float32Array': [SKIP],
+  'test-api/Float64Array': [SKIP],
+  'test-debug/DebugBreakLoop': [SKIP],
+}],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################
-[ $arch == arm ]
-
-# We cannot assume that we can throw OutOfMemory exceptions in all situations.
-# Apparently our ARM box is in such a state. Skip the test as it also runs for
-# a long time.
-test-api/OutOfMemory: SKIP
-test-api/OutOfMemoryNested: SKIP
-
-# BUG(355): Test crashes on ARM.
-test-log/ProfLazyMode: SKIP
-
-# BUG(1075): Unresolved crashes.
-test-serialize/Deserialize: SKIP
-test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
-test-serialize/DeserializeAndRunScript2: SKIP
-test-serialize/DeserializeFromSecondSerialization: SKIP
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
+}],  # 'asan == True'
 
 ##############################################################################
-[ $arch == android_arm || $arch == android_ia32 ]
+['no_snap == True', {
+}],  # 'no_snap == True'
 
-# Tests crash as there is no /tmp directory in Android.
-test-log/LogAccessorCallbacks: SKIP
-test-log/LogCallbacks: SKIP
-test-log/ProfLazyMode: SKIP
+##############################################################################
+# TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
+# section to not overwrite the expectations for TestThatAlwaysFails.
+['no_snap == True and system == windows', {
+  # Windows doesn't support nosnap mode.
+  'test-serialize/*': [SKIP],
+}],  # 'no_snap == True and system == windows'
 
-# platform-tls.h does not contain an ANDROID-related header.
-test-platform-tls/FastTLS: SKIP
+##############################################################################
+['system == windows', {
 
-# This test times out.
-test-threads/ThreadJoinSelf: SKIP
+  # BUG(2999).
+  'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
+
+  # BUG(3005).
+  'test-alloc/CodeRange': [PASS, FAIL],
+
+  # BUG(3331). Fails on windows.
+  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
+
+  # BUG(v8:3433). Crashes on windows.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+
+}],  # 'system == windows'
+
+##############################################################################
+['system == macos', {
+
+  # BUG(3125).
+  'test-debug/DebugGetLoadedScripts': [PASS, FLAKY],
+  'test-debug/DebugStepLinear': [PASS, FLAKY],
+  'test-debug/DebuggerClearMessageHandler': [PASS, FLAKY],
+}],  # 'system == macos'
+
+##############################################################################
+['arch == arm', {
+
+  # BUG(355): Test crashes on ARM.
+  'test-log/ProfLazyMode': [SKIP],
+
+  # BUG(1075): Unresolved crashes.
+  'test-serialize/Deserialize': [SKIP],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
+  'test-serialize/DeserializeAndRunScript2': [SKIP],
+  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  ############################################################################
+  # Slow tests.
+  'test-api/Threading1': [PASS, SLOW],
+  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading3': [PASS, SLOW],
+  'test-api/Threading4': [PASS, SLOW],
+
+  # Crashes due to OOM in simulator.
+  'test-types/Distributivity1': [PASS, FLAKY],
+  'test-types/Distributivity2': [PASS, FLAKY],
+}],  # 'arch == arm'
+
+##############################################################################
+['arch == mipsel or arch == mips', {
+
+  # BUG(2657): Test sometimes times out on MIPS simulator.
+  'test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate': [PASS, TIMEOUT],
+
+  # BUG(1075): Unresolved crashes on MIPS also.
+  'test-serialize/Deserialize': [SKIP],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
+  'test-serialize/DeserializeAndRunScript2': [SKIP],
+  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
+}],  # 'arch == mipsel or arch == mips'
+
+##############################################################################
+['arch == mips', {
+  # Too slow with TF.
+  'test-api/ExternalArrays': [PASS, NO_VARIANTS],
+
+  # TODO(mips-team): Currently fails on mips board.
+  'test-simplified-lowering/RunNumberMultiply_TruncatingToUint32': [SKIP],
+  'test-parsing/TooManyArguments': [SKIP],
+  'test-api/Threading3': [SKIP],
+  'test-api/RequestInterruptTestWithNativeAccessor': [SKIP],
+  'test-api/RequestInterruptTestWithAccessor': [SKIP],
+}],  # 'arch == mips'
+
+##############################################################################
+['arch == mips64el', {
+
+  # BUG(2657): Test sometimes times out on MIPS simulator.
+  'test-thread-termination/TerminateMultipleV8ThreadsDefaultIsolate': [PASS, TIMEOUT],
+
+  # BUG(v8:3154).
+  'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
+
+  # BUG(1075): Unresolved crashes on MIPS also.
+  'test-serialize/Deserialize': [SKIP],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
+  'test-serialize/DeserializeAndRunScript2': [SKIP],
+  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
+}],  # 'arch == mips64el'
+
+##############################################################################
+['arch == x87', {
+
+  # Test requires turbofan:
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+}],  # 'arch == x87'
+
+##############################################################################
+['arch == android_arm or arch == android_ia32', {
+
+  # Tests crash as there is no /tmp directory in Android.
+  'test-log/LogAccessorCallbacks': [SKIP],
+  'test-log/LogCallbacks': [SKIP],
+  'test-log/ProfLazyMode': [SKIP],
+}],  # 'arch == android_arm or arch == android_ia32'
+
+##############################################################################
+['arch == nacl_ia32 or arch == nacl_x64', {
+
+  # NaCl builds have problems with threaded tests since Pepper_28.
+  # V8 Issue 2786
+  'test-api/Threading1': [SKIP],
+  'test-lockers/ExtensionsRegistration': [SKIP],
+
+  # These tests fail as there is no /tmp directory in Native Client.
+  'test-log/LogAccessorCallbacks': [SKIP],
+  'test-log/LogCallbacks': [SKIP],
+  'test-log/ProfLazyMode': [SKIP],
+
+  # Native Client doesn't support sockets.
+  'test-debug/DebuggerAgent': [SKIP],
+  'test-debug/DebuggerAgentProtocolOverflowHeader': [SKIP],
+  'test-socket/Socket': [SKIP],
+
+  # Profiling doesn't work on Native Client.
+  'test-cpu-profiler/*': [SKIP],
+
+  # Fails since 16322 (new test).
+  'test-code-stubs-arm/ConvertDToI': [SKIP],
+
+  # BUG(2998).
+  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
+
+  # BUG(3150).
+  'test-api/PreCompileInvalidPreparseDataError': [SKIP],
+
+  'test-types/Convert' : [SKIP],
+  'test-symbols/Create' : [SKIP],
+  'test-parsing/ParserSync' : [SKIP],
+  'test-parsing/ErrorsEvalAndArguments' : [SKIP],
+  'test-parsing/ErrorsFutureStrictReservedWords' : [SKIP],
+  'test-parsing/ErrorsReservedWords' : [SKIP],
+  'test-parsing/ErrorsYieldStrict' : [SKIP],
+  'test-parsing/ErrorsNotAnIdentifierName' : [SKIP],
+  'test-parsing/FunctionDeclaresItselfStrict' : [SKIP],
+  'test-parsing/ErrorsObjectLiteralChecking' : [SKIP],
+  'test-parsing/InvalidLeftHandSide' : [SKIP],
+  'test-heap/GarbageCollection' : [SKIP],
+  'test-heap/GlobalHandles' : [SKIP],
+  'test-heap/WeakGlobalHandlesScavenge' : [SKIP],
+  'test-heap/DeleteWeakGlobalHandle' : [SKIP],
+  'test-heap/GrowAndShrinkNewSpace' : [SKIP],
+  'test-heap/OptimizedAllocationAlwaysInNewSpace' : [SKIP],
+  'test-heap/OptimizedPretenuringAllocationFolding' : [SKIP],
+  'test-heap/OptimizedPretenuringObjectArrayLiterals' : [SKIP],
+  'test-heap/OptimizedPretenuringAllocationFoldingBlocks' : [SKIP],
+  'test-heap/OptimizedPretenuringMixedInObjectProperties' : [SKIP],
+  'test-heap/OptimizedPretenuringDoubleArrayProperties' : [SKIP],
+  'test-heap/OptimizedPretenuringdoubleArrayLiterals' : [SKIP],
+  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals' : [SKIP],
+  'test-heap/OptimizedPretenuringNestedObjectLiterals' : [SKIP],
+  'test-heap/OptimizedPretenuringNestedDoubleLiterals' : [SKIP],
+  'test-heap/Regress169928' : [SKIP],
+  'test-decls/Unknown' : [SKIP],
+  'test-decls/Present' : [SKIP],
+  'test-decls/Absent' : [SKIP],
+  'test-decls/Appearing' : [SKIP],
+  'test-decls/Reappearing' : [SKIP],
+  'test-decls/ExistsInPrototype' : [SKIP],
+  'test-decls/AbsentInPrototype' : [SKIP],
+  'test-decls/ExistsInHiddenPrototype' : [SKIP],
+  'test-debug/ConditionalScriptBreakPoint' : [SKIP],
+  'test-debug/DebugEvaluate' : [SKIP],
+  'test-debug/ConditionalBreakpointWithCodeGenerationDisallowed' : [SKIP],
+  'test-debug/DebugEvaluateWithCodeGenerationDisallowed' : [SKIP],
+  'test-debug/DebugBreak' : [SKIP],
+  'test-debug/ThreadedDebugging' : [SKIP],
+  'test-debug/RecursiveBreakpoints' : [SKIP],
+  'test-dictionary/HashMap' : [SKIP],
+  'test-debug/Backtrace' : [SKIP],
+  'test-debug/DebugBreakLoop' : [SKIP],
+  'test-constantpool/ConstantPool' : [SKIP],
+  'test-compiler/GetScriptLineNumber' : [SKIP],
+  'test-api/ScriptMakingExternalString' : [SKIP],
+  'test-api/ScriptMakingExternalOneByteString' : [SKIP],
+  'test-api/MakingExternalStringConditions' : [SKIP],
+  'test-api/MakingExternalOneByteStringConditions' : [SKIP],
+  'test-api/MakingExternalUnalignedOneByteString' : [SKIP],
+  'test-api/IndexedInterceptorUnboxedDoubleWithIndexedAccessor' : [SKIP],
+  'test-api/IndependentWeakHandle' : [SKIP],
+  'test-api/GCFromWeakCallbacks' : [SKIP],
+  'test-api/IndependentHandleRevival' : [SKIP],
+  'test-api/StringWrite' : [SKIP],
+  'test-api/Threading3' : [SKIP],
+  'test-api/Threading4' : [SKIP],
+  'test-api/Threading2' : [SKIP],
+  'test-api/FixedFloat32Array' : [SKIP],
+  'test-api/FixedFloat64Array' : [SKIP],
+  'test-api/ExternalFloat32Array' : [SKIP],
+  'test-api/ExternalFloat64Array' : [SKIP],
+  'test-api/ExternalArrays' : [SKIP],
+  'test-api/Float32Array' : [SKIP],
+  'test-api/Float64Array' : [SKIP],
+  'test-api/Regress2333' : [SKIP],
+  'test-alloc/StressHandles' : [SKIP],
+  'test-alloc/StressJS' : [SKIP],
+  'test-accessors/HandleScopePop' : [SKIP],
+  'test-accessors/Gc' : [SKIP],
+
+}],  # 'arch == nacl_ia32 or arch == nacl_x64'
+
+['arch == ppc64', {
+  #issue 2857
+  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
+}],  # 'arch == ppc64'
+]

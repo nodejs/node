@@ -1,39 +1,16 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "../include/v8stdint.h"
-#include "checks.h"
-#include "utils.h"
+#include <stdint.h>
+#include "src/base/logging.h"
+#include "src/utils.h"
 
-#include "fast-dtoa.h"
+#include "src/fast-dtoa.h"
 
-#include "cached-powers.h"
-#include "diy-fp.h"
-#include "double.h"
+#include "src/cached-powers.h"
+#include "src/diy-fp.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace internal {
@@ -143,7 +120,7 @@ static bool RoundWeed(Vector<char> buffer,
   // Conceptually rest ~= too_high - buffer
   // We need to do the following tests in this order to avoid over- and
   // underflows.
-  ASSERT(rest <= unsafe_interval);
+  DCHECK(rest <= unsafe_interval);
   while (rest < small_distance &&  // Negated condition 1
          unsafe_interval - rest >= ten_kappa &&  // Negated condition 2
          (rest + ten_kappa < small_distance ||  // buffer{-1} > w_high
@@ -189,7 +166,7 @@ static bool RoundWeedCounted(Vector<char> buffer,
                              uint64_t ten_kappa,
                              uint64_t unit,
                              int* kappa) {
-  ASSERT(rest < ten_kappa);
+  DCHECK(rest < ten_kappa);
   // The following tests are done in a specific order to avoid overflows. They
   // will work correctly with any uint64 values of rest < ten_kappa and unit.
   //
@@ -388,9 +365,9 @@ static bool DigitGen(DiyFp low,
                      Vector<char> buffer,
                      int* length,
                      int* kappa) {
-  ASSERT(low.e() == w.e() && w.e() == high.e());
-  ASSERT(low.f() + 1 <= high.f() - 1);
-  ASSERT(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
+  DCHECK(low.e() == w.e() && w.e() == high.e());
+  DCHECK(low.f() + 1 <= high.f() - 1);
+  DCHECK(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
   // low, w and high are imprecise, but by less than one ulp (unit in the last
   // place).
   // If we remove (resp. add) 1 ulp from low (resp. high) we are certain that
@@ -458,9 +435,9 @@ static bool DigitGen(DiyFp low,
   // data (like the interval or 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  ASSERT(one.e() >= -60);
-  ASSERT(fractionals < one.f());
-  ASSERT(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
+  DCHECK(one.e() >= -60);
+  DCHECK(fractionals < one.f());
+  DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   while (true) {
     fractionals *= 10;
     unit *= 10;
@@ -513,9 +490,9 @@ static bool DigitGenCounted(DiyFp w,
                             Vector<char> buffer,
                             int* length,
                             int* kappa) {
-  ASSERT(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
-  ASSERT(kMinimalTargetExponent >= -60);
-  ASSERT(kMaximalTargetExponent <= -32);
+  DCHECK(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
+  DCHECK(kMinimalTargetExponent >= -60);
+  DCHECK(kMaximalTargetExponent <= -32);
   // w is assumed to have an error less than 1 unit. Whenever w is scaled we
   // also scale its error.
   uint64_t w_error = 1;
@@ -566,9 +543,9 @@ static bool DigitGenCounted(DiyFp w,
   // data (the 'unit'), too.
   // Note that the multiplication by 10 does not overflow, because w.e >= -60
   // and thus one.e >= -60.
-  ASSERT(one.e() >= -60);
-  ASSERT(fractionals < one.f());
-  ASSERT(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
+  DCHECK(one.e() >= -60);
+  DCHECK(fractionals < one.f());
+  DCHECK(V8_2PART_UINT64_C(0xFFFFFFFF, FFFFFFFF) / 10 >= one.f());
   while (requested_digits > 0 && fractionals > w_error) {
     fractionals *= 10;
     w_error *= 10;
@@ -608,7 +585,7 @@ static bool Grisu3(double v,
   // Grisu3 will never output representations that lie exactly on a boundary.
   DiyFp boundary_minus, boundary_plus;
   Double(v).NormalizedBoundaries(&boundary_minus, &boundary_plus);
-  ASSERT(boundary_plus.e() == w.e());
+  DCHECK(boundary_plus.e() == w.e());
   DiyFp ten_mk;  // Cached power of ten: 10^-k
   int mk;        // -k
   int ten_mk_minimal_binary_exponent =
@@ -619,7 +596,7 @@ static bool Grisu3(double v,
       ten_mk_minimal_binary_exponent,
       ten_mk_maximal_binary_exponent,
       &ten_mk, &mk);
-  ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
+  DCHECK((kMinimalTargetExponent <= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize) &&
          (kMaximalTargetExponent >= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize));
@@ -633,7 +610,7 @@ static bool Grisu3(double v,
   // In other words: let f = scaled_w.f() and e = scaled_w.e(), then
   //           (f-1) * 2^e < w*10^k < (f+1) * 2^e
   DiyFp scaled_w = DiyFp::Times(w, ten_mk);
-  ASSERT(scaled_w.e() ==
+  DCHECK(scaled_w.e() ==
          boundary_plus.e() + ten_mk.e() + DiyFp::kSignificandSize);
   // In theory it would be possible to avoid some recomputations by computing
   // the difference between w and boundary_minus/plus (a power of 2) and to
@@ -678,7 +655,7 @@ static bool Grisu3Counted(double v,
       ten_mk_minimal_binary_exponent,
       ten_mk_maximal_binary_exponent,
       &ten_mk, &mk);
-  ASSERT((kMinimalTargetExponent <= w.e() + ten_mk.e() +
+  DCHECK((kMinimalTargetExponent <= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize) &&
          (kMaximalTargetExponent >= w.e() + ten_mk.e() +
           DiyFp::kSignificandSize));
@@ -712,8 +689,8 @@ bool FastDtoa(double v,
               Vector<char> buffer,
               int* length,
               int* decimal_point) {
-  ASSERT(v > 0);
-  ASSERT(!Double(v).IsSpecial());
+  DCHECK(v > 0);
+  DCHECK(!Double(v).IsSpecial());
 
   bool result = false;
   int decimal_exponent = 0;

@@ -1,5 +1,5 @@
 
-/* Copyright (C) 2009-2012 by Daniel Stenberg
+/* Copyright (C) 2009-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -198,34 +198,4 @@ void *ares_malloc_data(ares_datatype type)
   ptr->type = type;
 
   return &ptr->data;
-}
-
-
-/*
-** ares_get_datatype() - c-ares internal helper function.
-**
-** This function returns the ares_datatype of the data stored in a
-** private ares_data struct when given the public API pointer.
-*/
-
-ares_datatype ares_get_datatype(void * dataptr)
-{
-  struct ares_data *ptr;
-
-#ifdef __INTEL_COMPILER
-#  pragma warning(push)
-#  pragma warning(disable:1684)
-   /* 1684: conversion from pointer to same-sized integral type */
-#endif
-
-  ptr = (void *)((char *)dataptr - offsetof(struct ares_data, data));
-
-#ifdef __INTEL_COMPILER
-#  pragma warning(pop)
-#endif
-
-  if (ptr->mark == ARES_DATATYPE_MARK)
-    return ptr->type;
-
-  return ARES_DATATYPE_UNKNOWN;
 }

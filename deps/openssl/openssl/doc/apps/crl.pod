@@ -12,6 +12,7 @@ B<openssl> B<crl>
 [B<-text>]
 [B<-in filename>]
 [B<-out filename>]
+[B<-nameopt option>]
 [B<-noout>]
 [B<-hash>]
 [B<-issuer>]
@@ -53,6 +54,11 @@ default.
 
 print out the CRL in text form.
 
+=item B<-nameopt option>
+
+option which determines how the subject or issuer names are displayed. See
+the description of B<-nameopt> in L<x509(1)|x509(1)>.
+
 =item B<-noout>
 
 don't output the encoded version of the CRL.
@@ -61,6 +67,11 @@ don't output the encoded version of the CRL.
 
 output a hash of the issuer name. This can be use to lookup CRLs in
 a directory by issuer name.
+
+=item B<-hash_old>
+
+outputs the "hash" of the CRL issuer name using the older algorithm
+as used by OpenSSL versions before 1.0.0.
 
 =item B<-issuer>
 

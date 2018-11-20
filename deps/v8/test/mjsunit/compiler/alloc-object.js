@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --inline-construct
+// Flags: --allow-natives-syntax --inline-construct
 
 // Test that inlined object allocation works for different layouts of
 // objects (e.g. in object properties, slack tracking in progress or
@@ -53,7 +53,7 @@ function test(construct) {
   assertEquals(5, o.y);
   assertEquals(6, o.z);
   %DeoptimizeFunction(test_helper);
-  gc();  // Makes V8 forget about type information for test_helper.
+  %ClearFunctionTypeFeedback(test_helper);
 }
 
 function finalize_slack_tracking(construct) {

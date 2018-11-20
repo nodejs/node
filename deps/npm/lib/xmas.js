@@ -1,6 +1,5 @@
 // happy xmas
-var npm = require("./npm.js")
-  , log = require("npmlog")
+var log = require("npmlog")
 
 module.exports = function (args, cb) {
 var s = process.platform === "win32" ? " *" : " \u2605"
@@ -20,26 +19,26 @@ w("\n")
   for (var i = 0; i < H; i ++) w(" ")
   w(x+"\033[33m"+s+"\n")
   var M = H * 2 - 1
-  for (L = 1; L <= H; L ++) {
+  for (var L = 1; L <= H; L ++) {
     var O = L * 2 - 2
     var S = (M - O) / 2
-    for (var i = 0; i < S; i ++) w(" ")
+    for (i = 0; i < S; i ++) w(" ")
     w(x+"\033[32m"+f)
-    for (var i = 0; i < O; i ++) w(
+    for (i = 0; i < O; i ++) w(
       "\033["+oc[Math.floor(Math.random()*oc.length)]+"m"+
       o[Math.floor(Math.random() * o.length)]
     )
     w(x+"\033[32m"+b+"\n")
   }
   w(" ")
-  for (var i = 1; i < H; i ++) w("\033[32m"+l)
+  for (i = 1; i < H; i ++) w("\033[32m"+l)
   w("| "+x+" |")
-  for (var i = 1; i < H; i ++) w("\033[32m"+l)
+  for (i = 1; i < H; i ++) w("\033[32m"+l)
   if (H > 10) {
     w("\n ")
-    for (var i = 1; i < H; i ++) w(" ")
+    for (i = 1; i < H; i ++) w(" ")
     w("| "+x+" |")
-    for (var i = 1; i < H; i ++) w(" ")
+    for (i = 1; i < H; i ++) w(" ")
   }
 })(20)
 w("\n\n")

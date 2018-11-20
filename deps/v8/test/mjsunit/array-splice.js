@@ -285,8 +285,8 @@
     assertFalse(array.hasOwnProperty(15), "array.hasOwnProperty(15)");
     assertFalse(array.hasOwnProperty(31), "array.hasOwnProperty(31)");
     assertFalse(array.hasOwnProperty(63), "array.hasOwnProperty(63)");
-    assertFalse(array.hasOwnProperty(2 << 32 - 1),
-                "array.hasOwnProperty(2 << 31 - 1)");
+    assertFalse(array.hasOwnProperty(Math.pow(2, 32) - 2),
+                "array.hasOwnProperty(Math.pow(2, 32) - 2)");
   }
 })();
 
@@ -333,8 +333,8 @@
     assertFalse(array.hasOwnProperty(15), "array.hasOwnProperty(15)");
     assertFalse(array.hasOwnProperty(31), "array.hasOwnProperty(31)");
     assertFalse(array.hasOwnProperty(63), "array.hasOwnProperty(63)");
-    assertFalse(array.hasOwnProperty(2 << 32 - 1),
-                "array.hasOwnProperty(2 << 31 - 1)");
+    assertFalse(array.hasOwnProperty(Math.pow(2, 32) - 2),
+                "array.hasOwnProperty(Math.pow(2, 32) - 2)");
   }
 })();
 
@@ -357,7 +357,7 @@
 (function() {
   for (var i = 0; i < 7; i++) {
     try {
-      new Array((1 << 32) - 3).splice(-1, 0, 1, 2, 3, 4, 5);
+      new Array(Math.pow(2, 32) - 3).splice(-1, 0, 1, 2, 3, 4, 5);
       throw 'Should have thrown RangeError';
     } catch (e) {
       assertTrue(e instanceof RangeError);

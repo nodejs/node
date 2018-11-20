@@ -22,7 +22,6 @@
 #include <assert.h>
 #include <direct.h>
 #include <limits.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -31,9 +30,12 @@
 #include "uv.h"
 #include "internal.h"
 
+#include <winsock2.h>
+#include <winperf.h>
 #include <iphlpapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
+#include <windows.h>
 
 
 /*
@@ -41,7 +43,7 @@
  * of the console title is that it is smaller than 64K. However in practice
  * it is much smaller, and there is no way to figure out what the exact length
  * of the title is or can be, at least not on XP. To make it even more
- * annoying, GetConsoleTitle failes when the buffer to be read into is bigger
+ * annoying, GetConsoleTitle fails when the buffer to be read into is bigger
  * than the actual maximum length. So we make a conservative guess here;
  * just don't put the novel you're writing in the title, unless the plot
  * survives truncation.
@@ -49,28 +51,34 @@
 #define MAX_TITLE_LENGTH 8192
 
 /* The number of nanoseconds in one second. */
-#undef NANOSEC
-#define NANOSEC 1000000000
+#define UV__NANOSEC 1000000000
 
 
 /* Cached copy of the process title, plus a mutex guarding it. */
 static char *process_title;
 static CRITICAL_SECTION process_title_lock;
 
-/* The tick frequency of the high-resolution clock. */
-static uint64_t hrtime_frequency_ = 0;
+/* Interval (in seconds) of the high-resolution clock. */
+static double hrtime_interval_ = 0;
 
 
 /*
- * One-time intialization code for functionality defined in util.c.
+ * One-time initialization code for functionality defined in util.c.
  */
 void uv__util_init() {
+  LARGE_INTEGER perf_frequency;
+
   /* Initialize process title access mutex. */
   InitializeCriticalSection(&process_title_lock);
 
-  /* Retrieve high-resolution timer frequency. */
-  if (!QueryPerformanceFrequency((LARGE_INTEGER*) &hrtime_frequency_))
-    hrtime_frequency_ = 0;
+  /* Retrieve high-resolution timer frequency
+   * and precompute its reciprocal. 
+   */
+  if (QueryPerformanceFrequency(&perf_frequency)) {
+    hrtime_interval_ = 1.0 / perf_frequency.QuadPart;
+  } else {
+    hrtime_interval_= 0;
+  }
 }
 
 
@@ -101,9 +109,10 @@ int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
 int uv_exepath(char* buffer, size_t* size_ptr) {
   int utf8_len, utf16_buffer_len, utf16_len;
   WCHAR* utf16_buffer;
+  int err;
 
   if (buffer == NULL || size_ptr == NULL || *size_ptr == 0) {
-    return -1;
+    return UV_EINVAL;
   }
 
   if (*size_ptr > 32768) {
@@ -115,12 +124,13 @@ int uv_exepath(char* buffer, size_t* size_ptr) {
 
   utf16_buffer = (WCHAR*) malloc(sizeof(WCHAR) * utf16_buffer_len);
   if (!utf16_buffer) {
-    return -1;
+    return UV_ENOMEM;
   }
 
   /* Get the path as UTF-16. */
   utf16_len = GetModuleFileNameW(NULL, utf16_buffer, utf16_buffer_len);
   if (utf16_len <= 0) {
+    err = GetLastError();
     goto error;
   }
 
@@ -137,6 +147,7 @@ int uv_exepath(char* buffer, size_t* size_ptr) {
                                  NULL,
                                  NULL);
   if (utf8_len == 0) {
+    err = GetLastError();
     goto error;
   }
 
@@ -149,26 +160,26 @@ int uv_exepath(char* buffer, size_t* size_ptr) {
 
  error:
   free(utf16_buffer);
-  return -1;
+  return uv_translate_sys_error(err);
 }
 
 
-uv_err_t uv_cwd(char* buffer, size_t size) {
+int uv_cwd(char* buffer, size_t* size) {
   DWORD utf16_len;
   WCHAR utf16_buffer[MAX_PATH];
   int r;
 
-  if (buffer == NULL || size == 0) {
-    return uv__new_artificial_error(UV_EINVAL);
+  if (buffer == NULL || size == NULL) {
+    return UV_EINVAL;
   }
 
   utf16_len = GetCurrentDirectoryW(MAX_PATH, utf16_buffer);
   if (utf16_len == 0) {
-    return uv__new_sys_error(GetLastError());
+    return uv_translate_sys_error(GetLastError());
   } else if (utf16_len > MAX_PATH) {
     /* This should be impossible;  however the CRT has a code path to deal */
     /* with this scenario, so I added a check anyway. */
-    return uv__new_artificial_error(UV_EIO);
+    return UV_EIO;
   }
 
   /* utf16_len contains the length, *not* including the terminating null. */
@@ -182,30 +193,47 @@ uv_err_t uv_cwd(char* buffer, size_t size) {
     utf16_buffer[utf16_len] = L'\0';
   }
 
+  /* Check how much space we need */
+  r = WideCharToMultiByte(CP_UTF8,
+                          0,
+                          utf16_buffer,
+                          -1,
+                          NULL,
+                          0,
+                          NULL,
+                          NULL);
+  if (r == 0) {
+    return uv_translate_sys_error(GetLastError());
+  } else if (r > (int) *size) {
+    *size = r -1;
+    return UV_ENOBUFS;
+  }
+
   /* Convert to UTF-8 */
   r = WideCharToMultiByte(CP_UTF8,
                           0,
                           utf16_buffer,
                           -1,
                           buffer,
-                          size > INT_MAX ? INT_MAX : (int) size,
+                          *size > INT_MAX ? INT_MAX : (int) *size,
                           NULL,
                           NULL);
   if (r == 0) {
-    return uv__new_sys_error(GetLastError());
+    return uv_translate_sys_error(GetLastError());
   }
 
-  return uv_ok_;
+  *size = r - 1;
+  return 0;
 }
 
 
-uv_err_t uv_chdir(const char* dir) {
+int uv_chdir(const char* dir) {
   WCHAR utf16_buffer[MAX_PATH];
   size_t utf16_len;
   WCHAR drive_letter, env_var[4];
 
   if (dir == NULL) {
-    return uv__new_artificial_error(UV_EINVAL);
+    return UV_EINVAL;
   }
 
   if (MultiByteToWideChar(CP_UTF8,
@@ -219,14 +247,14 @@ uv_err_t uv_chdir(const char* dir) {
     /* including terminating null. If it doesn't fit, the path name must be */
     /* too long. */
     if (error == ERROR_INSUFFICIENT_BUFFER) {
-      return uv__new_artificial_error(UV_ENAMETOOLONG);
+      return UV_ENAMETOOLONG;
     } else {
-      return uv__new_sys_error(error);
+      return uv_translate_sys_error(error);
     }
   }
 
   if (!SetCurrentDirectoryW(utf16_buffer)) {
-    return uv__new_sys_error(GetLastError());
+    return uv_translate_sys_error(GetLastError());
   }
 
   /* Windows stores the drive-local path in an "hidden" environment variable, */
@@ -234,9 +262,9 @@ uv_err_t uv_chdir(const char* dir) {
   /* update this, so we'll have to do it. */
   utf16_len = GetCurrentDirectoryW(MAX_PATH, utf16_buffer);
   if (utf16_len == 0) {
-    return uv__new_sys_error(GetLastError());
+    return uv_translate_sys_error(GetLastError());
   } else if (utf16_len > MAX_PATH) {
-    return uv__new_artificial_error(UV_EIO);
+    return UV_EIO;
   }
 
   /* The returned directory should not have a trailing slash, unless it */
@@ -269,11 +297,11 @@ uv_err_t uv_chdir(const char* dir) {
     env_var[3] = L'\0';
 
     if (!SetEnvironmentVariableW(env_var, utf16_buffer)) {
-      return uv__new_sys_error(GetLastError());
+      return uv_translate_sys_error(GetLastError());
     }
   }
 
-  return uv_ok_;
+  return 0;
 }
 
 
@@ -287,8 +315,7 @@ uint64_t uv_get_free_memory(void) {
   MEMORYSTATUSEX memory_status;
   memory_status.dwLength = sizeof(memory_status);
 
-  if(!GlobalMemoryStatusEx(&memory_status))
-  {
+  if (!GlobalMemoryStatusEx(&memory_status)) {
      return -1;
   }
 
@@ -300,8 +327,7 @@ uint64_t uv_get_total_memory(void) {
   MEMORYSTATUSEX memory_status;
   memory_status.dwLength = sizeof(memory_status);
 
-  if(!GlobalMemoryStatusEx(&memory_status))
-  {
+  if (!GlobalMemoryStatusEx(&memory_status)) {
     return -1;
   }
 
@@ -313,7 +339,7 @@ int uv_parent_pid() {
   int parent_pid = -1;
   HANDLE handle;
   PROCESSENTRY32 pe;
-  int current_pid = GetCurrentProcessId();
+  DWORD current_pid = GetCurrentProcessId();
 
   pe.dwSize = sizeof(PROCESSENTRY32);
   handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -337,8 +363,8 @@ char** uv_setup_args(int argc, char** argv) {
 }
 
 
-uv_err_t uv_set_process_title(const char* title) {
-  uv_err_t err;
+int uv_set_process_title(const char* title) {
+  int err;
   int length;
   WCHAR* title_w = NULL;
 
@@ -347,7 +373,7 @@ uv_err_t uv_set_process_title(const char* title) {
   /* Find out how big the buffer for the wide-char title must be */
   length = uv_utf8_to_utf16(title, NULL, 0);
   if (!length) {
-    err = uv__new_sys_error(GetLastError());
+    err = GetLastError();
     goto done;
   }
 
@@ -359,9 +385,9 @@ uv_err_t uv_set_process_title(const char* title) {
 
   length = uv_utf8_to_utf16(title, title_w, length);
   if (!length) {
-    err = uv__new_sys_error(GetLastError());
+    err = GetLastError();
     goto done;
-  };
+  }
 
   /* If the title must be truncated insert a \0 terminator there */
   if (length > MAX_TITLE_LENGTH) {
@@ -369,7 +395,7 @@ uv_err_t uv_set_process_title(const char* title) {
   }
 
   if (!SetConsoleTitleW(title_w)) {
-    err = uv__new_sys_error(GetLastError());
+    err = GetLastError();
     goto done;
   }
 
@@ -378,11 +404,11 @@ uv_err_t uv_set_process_title(const char* title) {
   process_title = strdup(title);
   LeaveCriticalSection(&process_title_lock);
 
-  err = uv_ok_;
+  err = 0;
 
 done:
   free(title_w);
-  return err;
+  return uv_translate_sys_error(err);
 }
 
 
@@ -416,7 +442,7 @@ static int uv__get_process_title() {
 }
 
 
-uv_err_t uv_get_process_title(char* buffer, size_t size) {
+int uv_get_process_title(char* buffer, size_t size) {
   uv__once_init();
 
   EnterCriticalSection(&process_title_lock);
@@ -425,59 +451,60 @@ uv_err_t uv_get_process_title(char* buffer, size_t size) {
    * we must query it with getConsoleTitleW
    */
   if (!process_title && uv__get_process_title() == -1) {
-    return uv__new_sys_error(GetLastError());
+    LeaveCriticalSection(&process_title_lock);
+    return uv_translate_sys_error(GetLastError());
   }
 
   assert(process_title);
   strncpy(buffer, process_title, size);
   LeaveCriticalSection(&process_title_lock);
 
-  return uv_ok_;
+  return 0;
 }
 
 
 uint64_t uv_hrtime(void) {
+  uv__once_init();
+  return uv__hrtime(UV__NANOSEC);
+}
+
+uint64_t uv__hrtime(double scale) {
   LARGE_INTEGER counter;
 
-  uv__once_init();
-
-  /* If the performance frequency is zero, there's no support. */
-  if (!hrtime_frequency_) {
-    /* uv__set_sys_error(loop, ERROR_NOT_SUPPORTED); */
+  /* If the performance interval is zero, there's no support. */
+  if (hrtime_interval_ == 0) {
     return 0;
   }
 
   if (!QueryPerformanceCounter(&counter)) {
-    /* uv__set_sys_error(loop, GetLastError()); */
     return 0;
   }
 
-  /* Because we have no guarantee about the order of magnitude of the */
-  /* performance counter frequency, and there may not be much headroom to */
-  /* multiply by NANOSEC without overflowing, we use 128-bit math instead. */
-  return ((uint64_t) counter.LowPart * NANOSEC / hrtime_frequency_) +
-         (((uint64_t) counter.HighPart * NANOSEC / hrtime_frequency_)
-         << 32);
+  /* Because we have no guarantee about the order of magnitude of the
+   * performance counter interval, integer math could cause this computation
+   * to overflow. Therefore we resort to floating point math.
+   */
+  return (uint64_t) ((double) counter.QuadPart * hrtime_interval_ * scale);
 }
 
 
-uv_err_t uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t* rss) {
   HANDLE current_process;
   PROCESS_MEMORY_COUNTERS pmc;
 
   current_process = GetCurrentProcess();
 
   if (!GetProcessMemoryInfo(current_process, &pmc, sizeof(pmc))) {
-    return uv__new_sys_error(GetLastError());
+    return uv_translate_sys_error(GetLastError());
   }
 
   *rss = pmc.WorkingSetSize;
 
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_uptime(double* uptime) {
+int uv_uptime(double* uptime) {
   BYTE stack_buffer[4096];
   BYTE* malloced_buffer = NULL;
   BYTE* buffer = (BYTE*) stack_buffer;
@@ -504,10 +531,8 @@ uv_err_t uv_uptime(double* uptime) {
       break;
     } else if (result != ERROR_MORE_DATA) {
       *uptime = 0;
-      return uv__new_sys_error(result);
+      return uv_translate_sys_error(result);
     }
-
-    free(malloced_buffer);
 
     buffer_size *= 2;
     /* Don't let the buffer grow infinitely. */
@@ -515,10 +540,12 @@ uv_err_t uv_uptime(double* uptime) {
       goto internalError;
     }
 
+    free(malloced_buffer);
+
     buffer = malloced_buffer = (BYTE*) malloc(buffer_size);
     if (malloced_buffer == NULL) {
       *uptime = 0;
-      return uv__new_artificial_error(UV_ENOMEM);
+      return UV_ENOMEM;
     }
   }
 
@@ -558,7 +585,7 @@ uv_err_t uv_uptime(double* uptime) {
         *uptime = (double) (object_type->PerfTime.QuadPart - value) /
                   (double) object_type->PerfFreq.QuadPart;
         free(malloced_buffer);
-        return uv_ok_;
+        return 0;
       }
     }
 
@@ -569,55 +596,58 @@ uv_err_t uv_uptime(double* uptime) {
   /* If we get here, the uptime value was not found. */
   free(malloced_buffer);
   *uptime = 0;
-  return uv__new_artificial_error(UV_ENOSYS);
+  return UV_ENOSYS;
 
  internalError:
   free(malloced_buffer);
   *uptime = 0;
-  return uv__new_artificial_error(UV_EIO);
+  return UV_EIO;
 }
 
 
-uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
+  uv_cpu_info_t* cpu_infos;
   SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION* sppi;
   DWORD sppi_size;
   SYSTEM_INFO system_info;
-  DWORD cpu_count, i, r;
+  DWORD cpu_count, r, i;
+  NTSTATUS status;
   ULONG result_size;
-  size_t size;
-  uv_err_t err;
+  int err;
   uv_cpu_info_t* cpu_info;
 
-  *cpu_infos = NULL;
-  *count = 0;
+  cpu_infos = NULL;
+  cpu_count = 0;
+  sppi = NULL;
 
   uv__once_init();
 
   GetSystemInfo(&system_info);
   cpu_count = system_info.dwNumberOfProcessors;
 
-  size = cpu_count * sizeof(uv_cpu_info_t);
-  *cpu_infos = (uv_cpu_info_t*) malloc(size);
-  if (*cpu_infos == NULL) {
-    err = uv__new_artificial_error(UV_ENOMEM);
-    goto out;
-  }
-  memset(*cpu_infos, 0, size);
-
-  sppi_size = sizeof(*sppi) * cpu_count;
-  sppi = (SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION*) malloc(sppi_size);
-  if (!sppi) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+  cpu_infos = calloc(cpu_count, sizeof *cpu_infos);
+  if (cpu_infos == NULL) {
+    err = ERROR_OUTOFMEMORY;
+    goto error;
   }
 
-  r = pNtQuerySystemInformation(SystemProcessorPerformanceInformation,
-                                sppi,
-                                sppi_size,
-                                &result_size);
-  if (r != ERROR_SUCCESS || result_size != sppi_size) {
-    err = uv__new_sys_error(GetLastError());
-    goto out;
+  sppi_size = cpu_count * sizeof(*sppi);
+  sppi = malloc(sppi_size);
+  if (sppi == NULL) {
+    err = ERROR_OUTOFMEMORY;
+    goto error;
   }
+
+  status = pNtQuerySystemInformation(SystemProcessorPerformanceInformation,
+                                     sppi,
+                                     sppi_size,
+                                     &result_size);
+  if (!NT_SUCCESS(status)) {
+    err = pRtlNtStatusToDosError(status);
+    goto error;
+  }
+
+  assert(result_size == sppi_size);
 
   for (i = 0; i < cpu_count; i++) {
     WCHAR key_name[128];
@@ -626,11 +656,14 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     DWORD cpu_speed_size = sizeof(cpu_speed);
     WCHAR cpu_brand[256];
     DWORD cpu_brand_size = sizeof(cpu_brand);
+    size_t len;
 
-    _snwprintf(key_name,
-               ARRAY_SIZE(key_name),
-               L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\%d",
-               i);
+    len = _snwprintf(key_name,
+                     ARRAY_SIZE(key_name),
+                     L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\%d",
+                     i);
+
+    assert(len > 0 && len < ARRAY_SIZE(key_name));
 
     r = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                       key_name,
@@ -638,33 +671,35 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
                       KEY_QUERY_VALUE,
                       &processor_key);
     if (r != ERROR_SUCCESS) {
-      err = uv__new_sys_error(GetLastError());
-      goto out;
+      err = GetLastError();
+      goto error;
     }
 
     if (RegQueryValueExW(processor_key,
                          L"~MHz",
-                         NULL, NULL,
+                         NULL,
+                         NULL,
                          (BYTE*) &cpu_speed,
                          &cpu_speed_size) != ERROR_SUCCESS) {
-      err = uv__new_sys_error(GetLastError());
+      err = GetLastError();
       RegCloseKey(processor_key);
-      goto out;
+      goto error;
     }
 
     if (RegQueryValueExW(processor_key,
                          L"ProcessorNameString",
-                         NULL, NULL,
+                         NULL,
+                         NULL,
                          (BYTE*) &cpu_brand,
                          &cpu_brand_size) != ERROR_SUCCESS) {
-      err = uv__new_sys_error(GetLastError());
+      err = GetLastError();
       RegCloseKey(processor_key);
-      goto out;
+      goto error;
     }
 
     RegCloseKey(processor_key);
 
-    cpu_info = &(*cpu_infos)[i];
+    cpu_info = &cpu_infos[i];
     cpu_info->speed = cpu_speed;
     cpu_info->cpu_times.user = sppi[i].UserTime.QuadPart / 10000;
     cpu_info->cpu_times.sys = (sppi[i].KernelTime.QuadPart -
@@ -673,59 +708,61 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.irq = sppi[i].InterruptTime.QuadPart / 10000;
     cpu_info->cpu_times.nice = 0;
 
-    size = uv_utf16_to_utf8(cpu_brand,
-                            cpu_brand_size / sizeof(WCHAR),
-                            NULL,
-                            0);
-    if (size == 0) {
-      err = uv__new_sys_error(GetLastError());
-      goto out;
+
+    len = WideCharToMultiByte(CP_UTF8,
+                              0,
+                              cpu_brand,
+                              cpu_brand_size / sizeof(WCHAR),
+                              NULL,
+                              0,
+                              NULL,
+                              NULL);
+    if (len == 0) {
+      err = GetLastError();
+      goto error;
     }
+
+    assert(len > 0);
 
     /* Allocate 1 extra byte for the null terminator. */
-    cpu_info->model = (char*) malloc(size + 1);
+    cpu_info->model = malloc(len + 1);
     if (cpu_info->model == NULL) {
-      err = uv__new_artificial_error(UV_ENOMEM);
-      goto out;
+      err = ERROR_OUTOFMEMORY;
+      goto error;
     }
 
-    if (uv_utf16_to_utf8(cpu_brand,
-                         cpu_brand_size / sizeof(WCHAR),
-                         cpu_info->model,
-                         size) == 0) {
-      err = uv__new_sys_error(GetLastError());
-      goto out;
+    if (WideCharToMultiByte(CP_UTF8,
+                            0,
+                            cpu_brand,
+                            cpu_brand_size / sizeof(WCHAR),
+                            cpu_info->model,
+                            len,
+                            NULL,
+                            NULL) == 0) {
+      err = GetLastError();
+      goto error;
     }
 
     /* Ensure that cpu_info->model is null terminated. */
-    cpu_info->model[size] = '\0';
-
-    (*count)++;
+    cpu_info->model[len] = '\0';
   }
 
-  err = uv_ok_;
+  free(sppi);
 
- out:
-  if (sppi) {
-    free(sppi);
-  }
+  *cpu_count_ptr = cpu_count;
+  *cpu_infos_ptr = cpu_infos;
 
-  if (err.code != UV_OK &&
-      *cpu_infos != NULL) {
-    int i;
+  return 0;
 
-    for (i = 0; i < *count; i++) {
-      /* This is safe because the cpu_infos memory area is zeroed out */
-      /* immediately after allocating it. */
-      free((*cpu_infos)[i].model);
-    }
-    free(*cpu_infos);
+ error:
+  /* This is safe because the cpu_infos array is zeroed on allocation. */
+  for (i = 0; i < cpu_count; i++)
+    free(cpu_infos[i].model);
 
-    *cpu_infos = NULL;
-    *count = 0;
-  }
+  free(cpu_infos);
+  free(sppi);
 
-  return err;
+  return uv_translate_sys_error(err);
 }
 
 
@@ -740,11 +777,76 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 }
 
 
-uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
+static int is_windows_version_or_greater(DWORD os_major,
+                                         DWORD os_minor,
+                                         WORD service_pack_major,
+                                         WORD service_pack_minor) {
+  OSVERSIONINFOEX osvi;
+  DWORDLONG condition_mask = 0;
+  int op = VER_GREATER_EQUAL;
+
+  /* Initialize the OSVERSIONINFOEX structure. */
+  ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+  osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+  osvi.dwMajorVersion = os_major;
+  osvi.dwMinorVersion = os_minor;
+  osvi.wServicePackMajor = service_pack_major;
+  osvi.wServicePackMinor = service_pack_minor;
+
+  /* Initialize the condition mask. */
+  VER_SET_CONDITION(condition_mask, VER_MAJORVERSION, op);
+  VER_SET_CONDITION(condition_mask, VER_MINORVERSION, op);
+  VER_SET_CONDITION(condition_mask, VER_SERVICEPACKMAJOR, op);
+  VER_SET_CONDITION(condition_mask, VER_SERVICEPACKMINOR, op);
+
+  /* Perform the test. */
+  return (int) VerifyVersionInfo(
+    &osvi, 
+    VER_MAJORVERSION | VER_MINORVERSION | 
+    VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
+    condition_mask);
+}
+
+
+static int address_prefix_match(int family,
+                                struct sockaddr* address,
+                                struct sockaddr* prefix_address,
+                                int prefix_len) {
+  uint8_t* address_data;
+  uint8_t* prefix_address_data;
+  int i;
+
+  assert(address->sa_family == family);
+  assert(prefix_address->sa_family == family);
+
+  if (family == AF_INET6) {
+    address_data = (uint8_t*) &(((struct sockaddr_in6 *) address)->sin6_addr);
+    prefix_address_data =
+      (uint8_t*) &(((struct sockaddr_in6 *) prefix_address)->sin6_addr);
+  } else {
+    address_data = (uint8_t*) &(((struct sockaddr_in *) address)->sin_addr);
+    prefix_address_data =
+      (uint8_t*) &(((struct sockaddr_in *) prefix_address)->sin_addr);
+  }
+
+  for (i = 0; i < prefix_len >> 3; i++) {
+    if (address_data[i] != prefix_address_data[i])
+      return 0;
+  }
+
+  if (prefix_len % 8)
+    return prefix_address_data[i] ==
+      (address_data[i] & (0xff << (8 - prefix_len % 8)));
+
+  return 1;
+}
+
+
+int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     int* count_ptr) {
   IP_ADAPTER_ADDRESSES* win_address_buf;
   ULONG win_address_buf_size;
-  IP_ADAPTER_ADDRESSES* win_address;
+  IP_ADAPTER_ADDRESSES* adapter;
 
   uv_interface_address_t* uv_address_buf;
   char* name_buf;
@@ -752,6 +854,23 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   uv_interface_address_t* uv_address;
 
   int count;
+
+  int is_vista_or_greater;
+  ULONG flags;
+
+  is_vista_or_greater = is_windows_version_or_greater(6, 0, 0, 0);
+  if (is_vista_or_greater) {
+    flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST |
+      GAA_FLAG_SKIP_DNS_SERVER;
+  } else {
+    /* We need at least XP SP1. */
+    if (!is_windows_version_or_greater(5, 1, 1, 0))
+      return UV_ENOTSUP;
+
+    flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST |
+      GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_INCLUDE_PREFIX;
+  }
+  
 
   /* Fetch the size of the adapters reported by windows, and then get the */
   /* list itself. */
@@ -765,7 +884,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     /* ERROR_BUFFER_OVERFLOW, and the required buffer size will be stored in */
     /* win_address_buf_size. */
     r = GetAdaptersAddresses(AF_UNSPEC,
-                             0,
+                             flags,
                              NULL,
                              win_address_buf,
                              &win_address_buf_size);
@@ -781,7 +900,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
         /* all adapters. */
         win_address_buf = malloc(win_address_buf_size);
         if (win_address_buf == NULL)
-          return uv__new_artificial_error(UV_ENOMEM);
+          return UV_ENOMEM;
 
         continue;
 
@@ -789,16 +908,16 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
         /* No adapters were found. */
         uv_address_buf = malloc(1);
         if (uv_address_buf == NULL)
-          return uv__new_artificial_error(UV_ENOMEM);
+          return UV_ENOMEM;
 
         *count_ptr = 0;
         *addresses_ptr = uv_address_buf;
 
-        return uv_ok_;
+        return 0;
       }
 
       case ERROR_ADDRESS_NOT_ASSOCIATED:
-        return uv__new_artificial_error(UV_EAGAIN);
+        return UV_EAGAIN;
 
       case ERROR_INVALID_PARAMETER:
         /* MSDN says:
@@ -809,13 +928,13 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
          * Since the first two conditions are not met, it must be that the
          * adapter data is too big.
          */
-        return uv__new_artificial_error(UV_ENOBUFS);
+        return UV_ENOBUFS;
 
       default:
         /* Other (unspecified) errors can happen, but we don't have any */
         /* special meaning for them. */
         assert(r != ERROR_SUCCESS);
-        return uv__new_sys_error(r);
+        return uv_translate_sys_error(r);
     }
   }
 
@@ -824,25 +943,23 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   count = 0;
   uv_address_buf_size = 0;
 
-  for (win_address = win_address_buf;
-       win_address != NULL;
-       win_address = win_address->Next) {
-    /* Use IP_ADAPTER_UNICAST_ADDRESS_XP to retain backwards compatibility */
-    /* with Windows XP */
-    IP_ADAPTER_UNICAST_ADDRESS_XP* unicast_address;
+  for (adapter = win_address_buf;
+       adapter != NULL;
+       adapter = adapter->Next) {
+    IP_ADAPTER_UNICAST_ADDRESS* unicast_address;
     int name_size;
 
     /* Interfaces that are not 'up' should not be reported. Also skip */
     /* interfaces that have no associated unicast address, as to avoid */
     /* allocating space for the name for this interface. */
-    if (win_address->OperStatus != IfOperStatusUp ||
-        win_address->FirstUnicastAddress == NULL)
+    if (adapter->OperStatus != IfOperStatusUp ||
+        adapter->FirstUnicastAddress == NULL)
       continue;
 
     /* Compute the size of the interface name. */
     name_size = WideCharToMultiByte(CP_UTF8,
                                     0,
-                                    win_address->FriendlyName,
+                                    adapter->FriendlyName,
                                     -1,
                                     NULL,
                                     0,
@@ -850,14 +967,14 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
                                     FALSE);
     if (name_size <= 0) {
       free(win_address_buf);
-      return uv__new_sys_error(GetLastError());
+      return uv_translate_sys_error(GetLastError());
     }
     uv_address_buf_size += name_size;
 
     /* Count the number of addresses associated with this interface, and */
     /* compute the size. */
-    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
-                           win_address->FirstUnicastAddress;
+    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS*)
+                           adapter->FirstUnicastAddress;
          unicast_address != NULL;
          unicast_address = unicast_address->Next) {
       count++;
@@ -869,7 +986,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   uv_address_buf = malloc(uv_address_buf_size);
   if (uv_address_buf == NULL) {
     free(win_address_buf);
-    return uv__new_artificial_error(UV_ENOMEM);
+    return UV_ENOMEM;
   }
 
   /* Compute the start of the uv_interface_address_t array, and the place in */
@@ -878,15 +995,15 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   name_buf = (char*) (uv_address_buf + count);
 
   /* Fill out the output buffer. */
-  for (win_address = win_address_buf;
-       win_address != NULL;
-       win_address = win_address->Next) {
-    IP_ADAPTER_UNICAST_ADDRESS_XP* unicast_address;
+  for (adapter = win_address_buf;
+       adapter != NULL;
+       adapter = adapter->Next) {
+    IP_ADAPTER_UNICAST_ADDRESS* unicast_address;
     int name_size;
     size_t max_name_size;
 
-    if (win_address->OperStatus != IfOperStatusUp ||
-        win_address->FirstUnicastAddress == NULL)
+    if (adapter->OperStatus != IfOperStatusUp ||
+        adapter->FirstUnicastAddress == NULL)
       continue;
 
     /* Convert the interface name to UTF8. */
@@ -895,7 +1012,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
       max_name_size = INT_MAX;
     name_size = WideCharToMultiByte(CP_UTF8,
                                     0,
-                                    win_address->FriendlyName,
+                                    adapter->FriendlyName,
                                     -1,
                                     name_buf,
                                     (int) max_name_size,
@@ -904,26 +1021,82 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
     if (name_size <= 0) {
       free(win_address_buf);
       free(uv_address_buf);
-      return uv__new_sys_error(GetLastError());
+      return uv_translate_sys_error(GetLastError());
     }
 
     /* Add an uv_interface_address_t element for every unicast address. */
-    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
-                           win_address->FirstUnicastAddress;
+    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS*)
+                           adapter->FirstUnicastAddress;
          unicast_address != NULL;
          unicast_address = unicast_address->Next) {
       struct sockaddr* sa;
+      ULONG prefix_len;
+
+      sa = unicast_address->Address.lpSockaddr;
+
+      /* XP has no OnLinkPrefixLength field. */
+      if (is_vista_or_greater) {
+        prefix_len =
+          ((IP_ADAPTER_UNICAST_ADDRESS_LH*) unicast_address)->OnLinkPrefixLength;
+      } else {
+        /* Prior to Windows Vista the FirstPrefix pointed to the list with
+         * single prefix for each IP address assigned to the adapter.
+         * Order of FirstPrefix does not match order of FirstUnicastAddress,
+         * so we need to find corresponding prefix.
+         */
+        IP_ADAPTER_PREFIX* prefix;
+        prefix_len = 0;
+
+        for (prefix = adapter->FirstPrefix; prefix; prefix = prefix->Next) {
+          /* We want the longest matching prefix. */
+          if (prefix->Address.lpSockaddr->sa_family != sa->sa_family ||
+              prefix->PrefixLength <= prefix_len)
+            continue;
+
+          if (address_prefix_match(sa->sa_family, sa, 
+              prefix->Address.lpSockaddr, prefix->PrefixLength)) {
+            prefix_len = prefix->PrefixLength;
+          }
+        }
+
+        /* If there is no matching prefix information, return a single-host
+         * subnet mask (e.g. 255.255.255.255 for IPv4). 
+         */
+        if (!prefix_len)
+          prefix_len = (sa->sa_family == AF_INET6) ? 128 : 32;
+      }
+
+      memset(uv_address, 0, sizeof *uv_address);
 
       uv_address->name = name_buf;
 
-      sa = unicast_address->Address.lpSockaddr;
-      if (sa->sa_family == AF_INET6)
-        uv_address->address.address6 = *((struct sockaddr_in6 *) sa);
-      else
-        uv_address->address.address4 = *((struct sockaddr_in *) sa);
+      if (adapter->PhysicalAddressLength == sizeof(uv_address->phys_addr)) {
+        memcpy(uv_address->phys_addr,
+               adapter->PhysicalAddress,
+               sizeof(uv_address->phys_addr));
+      }
 
       uv_address->is_internal =
-          (win_address->IfType == IF_TYPE_SOFTWARE_LOOPBACK);
+          (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK);
+
+      if (sa->sa_family == AF_INET6) {
+        uv_address->address.address6 = *((struct sockaddr_in6 *) sa);
+
+        uv_address->netmask.netmask6.sin6_family = AF_INET6;
+        memset(uv_address->netmask.netmask6.sin6_addr.s6_addr, 0xff, prefix_len >> 3);
+        /* This check ensures that we don't write past the size of the data. */
+        if (prefix_len % 8) {
+          uv_address->netmask.netmask6.sin6_addr.s6_addr[prefix_len >> 3] =
+              0xff << (8 - prefix_len % 8);
+        }
+
+      } else {
+        uv_address->address.address4 = *((struct sockaddr_in *) sa);
+
+        uv_address->netmask.netmask4.sin_family = AF_INET;
+        uv_address->netmask.netmask4.sin_addr.s_addr = (prefix_len > 0) ?
+            htonl(0xffffffff << (32 - prefix_len)) : 0;
+      }
 
       uv_address++;
     }
@@ -936,11 +1109,47 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
   *addresses_ptr = uv_address_buf;
   *count_ptr = count;
 
-  return uv_ok_;
+  return 0;
 }
 
 
 void uv_free_interface_addresses(uv_interface_address_t* addresses,
     int count) {
   free(addresses);
+}
+
+
+int uv_getrusage(uv_rusage_t *uv_rusage) {
+  FILETIME createTime, exitTime, kernelTime, userTime;
+  SYSTEMTIME kernelSystemTime, userSystemTime;
+  int ret;
+
+  ret = GetProcessTimes(GetCurrentProcess(), &createTime, &exitTime, &kernelTime, &userTime);
+  if (ret == 0) {
+    return uv_translate_sys_error(GetLastError());
+  }
+
+  ret = FileTimeToSystemTime(&kernelTime, &kernelSystemTime);
+  if (ret == 0) {
+    return uv_translate_sys_error(GetLastError());
+  }
+
+  ret = FileTimeToSystemTime(&userTime, &userSystemTime);
+  if (ret == 0) {
+    return uv_translate_sys_error(GetLastError());
+  }
+
+  memset(uv_rusage, 0, sizeof(*uv_rusage));
+
+  uv_rusage->ru_utime.tv_sec = userSystemTime.wHour * 3600 +
+                               userSystemTime.wMinute * 60 +
+                               userSystemTime.wSecond;
+  uv_rusage->ru_utime.tv_usec = userSystemTime.wMilliseconds * 1000;
+
+  uv_rusage->ru_stime.tv_sec = kernelSystemTime.wHour * 3600 +
+                               kernelSystemTime.wMinute * 60 +
+                               kernelSystemTime.wSecond;
+  uv_rusage->ru_stime.tv_usec = kernelSystemTime.wMilliseconds * 1000;
+
+  return 0;
 }

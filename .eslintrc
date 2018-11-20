@@ -1,0 +1,91 @@
+env:
+  node: true
+
+# enable ECMAScript features
+ecmaFeatures:
+  blockBindings: true
+  templateStrings: true
+  octalLiterals: true
+  binaryLiterals: true
+  generators: true
+
+rules:
+  # Possible Errors
+  # list: https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
+  ## check debugger sentence
+  no-debugger: 2
+  ## check duplicate arguments
+  no-dupe-args: 2
+  ## check duplicate object keys
+  no-dupe-keys: 2
+  ## check duplicate switch-case
+  no-duplicate-case: 2
+  ## disallow assignment of exceptional params
+  no-ex-assign: 2
+  ## disallow use of reserved words as keys like enum, class
+  no-reserved-keys: 2
+  ## disallow unreachable code
+  no-unreachable: 2
+  ## require valid typeof compared string like typeof foo === 'strnig'
+  valid-typeof: 2
+
+  # Best Practices
+  # list: https://github.com/eslint/eslint/tree/master/docs/rules#best-practices
+  ## require falls through comment on switch-case
+  no-fallthrough: 2
+
+  # Stylistic Issues
+  # list: https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues
+  ## use single quote, we can use double quote when escape chars
+  quotes:
+    - 2
+    - "single"
+    - "avoid-escape"
+  ## 2 space indentation
+  indent:
+    - 2
+    - 2
+  ## add space after comma
+  ## set to 'warn' because of https://github.com/eslint/eslint/issues/2408
+  comma-spacing: 1
+  ## put semi-colon
+  semi: 2
+  ## require spaces operator like var sum = 1 + 1;
+  space-infix-ops: 2
+  ## require spaces return, throw, case
+  space-return-throw-case: 2
+  ## require parens for Constructor
+  new-parens: 2
+  ## max 80 length
+  max-len:
+    - 2
+    - 80
+    - 2
+
+  # Strict Mode
+  # list: https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
+  ## 'use strict' on top
+  strict:
+    - 2
+    - "global"
+
+# Global scoped method and vars
+globals:
+  DTRACE_HTTP_CLIENT_REQUEST: true
+  LTTNG_HTTP_CLIENT_REQUEST: true
+  COUNTER_HTTP_CLIENT_REQUEST: true
+  DTRACE_HTTP_CLIENT_RESPONSE: true
+  LTTNG_HTTP_CLIENT_RESPONSE: true
+  COUNTER_HTTP_CLIENT_RESPONSE: true
+  DTRACE_HTTP_SERVER_REQUEST: true
+  LTTNG_HTTP_SERVER_REQUEST: true
+  COUNTER_HTTP_SERVER_REQUEST: true
+  DTRACE_HTTP_SERVER_RESPONSE: true
+  LTTNG_HTTP_SERVER_RESPONSE: true
+  COUNTER_HTTP_SERVER_RESPONSE: true
+  DTRACE_NET_STREAM_END: true
+  LTTNG_NET_STREAM_END: true
+  COUNTER_NET_SERVER_CONNECTION_CLOSE: true
+  DTRACE_NET_SERVER_CONNECTION: true
+  LTTNG_NET_SERVER_CONNECTION: true
+  COUNTER_NET_SERVER_CONNECTION: true

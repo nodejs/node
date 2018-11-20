@@ -44,6 +44,14 @@ def ExceptionAppend(e, msg):
     e.args = (str(e.args[0]) + ' ' + msg,) + e.args[1:]
 
 
+def FindQualifiedTargets(target, qualified_list):
+  """
+  Given a list of qualified targets, return the qualified targets for the
+  specified |target|.
+  """
+  return [t for t in qualified_list if ParseQualifiedTarget(t)[1] == target]
+
+
 def ParseQualifiedTarget(target):
   # Splits a qualified target into a build file, target name and toolset.
 
@@ -127,9 +135,16 @@ def RelativePath(path, relative_to):
   # directory, returns a relative path that identifies path relative to
   # relative_to.
 
-  # Convert to absolute (and therefore normalized paths).
-  path = os.path.abspath(path)
-  relative_to = os.path.abspath(relative_to)
+  # Convert to normalized (and therefore absolute paths).
+  path = os.path.realpath(path)
+  relative_to = os.path.realpath(relative_to)
+
+  # On Windows, we can't create a relative path to a different drive, so just
+  # use the absolute path.
+  if sys.platform == 'win32':
+    if (os.path.splitdrive(path)[0].lower() !=
+        os.path.splitdrive(relative_to)[0].lower()):
+      return path
 
   # Split the paths into components.
   path_split = path.split(os.path.sep)
@@ -149,6 +164,20 @@ def RelativePath(path, relative_to):
 
   # Turn it back into a string and we're done.
   return os.path.join(*relative_split)
+
+
+@memoize
+def InvertRelativePath(path, toplevel_dir=None):
+  """Given a path like foo/bar that is relative to toplevel_dir, return
+  the inverse relative path back to the toplevel_dir.
+
+  E.g. os.path.normpath(os.path.join(path, InvertRelativePath(path)))
+  should always produce the empty string, unless the path contains symlinks.
+  """
+  if not path:
+    return path
+  toplevel_dir = '.' if toplevel_dir is None else toplevel_dir
+  return RelativePath(toplevel_dir, os.path.join(toplevel_dir, path))
 
 
 def FixIfRelativePath(path, relative_to):
@@ -362,6 +391,14 @@ def WriteOnDiff(filename):
   return Writer()
 
 
+def EnsureDirExists(path):
+  """Make sure the directory for |path| exists."""
+  try:
+    os.makedirs(os.path.dirname(path))
+  except OSError:
+    pass
+
+
 def GetFlavor(params):
   """Returns |params.flavor| if it's set, the system's default flavor else."""
   flavors = {
@@ -378,14 +415,25 @@ def GetFlavor(params):
     return 'solaris'
   if sys.platform.startswith('freebsd'):
     return 'freebsd'
+  if sys.platform.startswith('openbsd'):
+    return 'openbsd'
+  if sys.platform.startswith('aix'):
+    return 'aix'
 
   return 'linux'
 
 
 def CopyTool(flavor, out_path):
-  """Finds (mac|sun|win)_tool.gyp in the gyp directory and copies it
+  """Finds (flock|mac|win)_tool.gyp in the gyp directory and copies it
   to |out_path|."""
-  prefix = { 'solaris': 'sun', 'mac': 'mac', 'win': 'win' }.get(flavor, None)
+  # aix and solaris just need flock emulation. mac and win use more complicated
+  # support scripts.
+  prefix = {
+      'aix': 'flock',
+      'solaris': 'flock',
+      'mac': 'mac',
+      'win': 'win'
+      }.get(flavor, None)
   if not prefix:
     return
 

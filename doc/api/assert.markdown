@@ -1,6 +1,6 @@
 # Assert
 
-    Stability: 5 - Locked
+    Stability: 2 - Stable
 
 This module is used for writing unit tests for your applications, you can
 access it with `require('assert')`.
@@ -9,37 +9,48 @@ access it with `require('assert')`.
 
 Throws an exception that displays the values for `actual` and `expected` separated by the provided operator.
 
-## assert(value, message), assert.ok(value, [message])
+## assert(value[, message]), assert.ok(value[, message])
 
 Tests if value is truthy, it is equivalent to `assert.equal(true, !!value, message);`
 
-## assert.equal(actual, expected, [message])
+## assert.equal(actual, expected[, message])
 
 Tests shallow, coercive equality with the equal comparison operator ( `==` ).
 
-## assert.notEqual(actual, expected, [message])
+## assert.notEqual(actual, expected[, message])
 
 Tests shallow, coercive non-equality with the not equal comparison operator ( `!=` ).
 
-## assert.deepEqual(actual, expected, [message])
+## assert.deepEqual(actual, expected[, message])
 
-Tests for deep equality.
+Tests for deep equality. Primitive values are compared with the equal comparison
+operator ( `==` ). Doesn't take object prototypes into account.
 
-## assert.notDeepEqual(actual, expected, [message])
+## assert.notDeepEqual(actual, expected[, message])
 
-Tests for any deep inequality.
+Tests for any deep inequality. Opposite of `assert.deepEqual`.
 
-## assert.strictEqual(actual, expected, [message])
+## assert.strictEqual(actual, expected[, message])
 
 Tests strict equality, as determined by the strict equality operator ( `===` )
 
-## assert.notStrictEqual(actual, expected, [message])
+## assert.notStrictEqual(actual, expected[, message])
 
-Tests strict non-equality, as determined by the strict not equal operator ( `!==` )
+Tests strict non-equality, as determined by the strict not equal
+operator ( `!==` )
 
-## assert.throws(block, [error], [message])
+## assert.deepStrictEqual(actual, expected[, message])
 
-Expects `block` to throw an error. `error` can be constructor, regexp or 
+Tests for deep equality. Primitive values are compared with the strict equality
+operator ( `===` ).
+
+## assert.notDeepStrictEqual(actual, expected[, message])
+
+Tests for deep inequality. Opposite of `assert.deepStrictEqual`.
+
+## assert.throws(block[, error][, message])
+
+Expects `block` to throw an error. `error` can be constructor, `RegExp` or
 validation function.
 
 Validate instanceof using constructor:
@@ -74,9 +85,9 @@ Custom error validation:
       "unexpected error"
     );
 
-## assert.doesNotThrow(block, [message])
+## assert.doesNotThrow(block[, message])
 
-Expects `block` not to throw an error, see assert.throws for details.
+Expects `block` not to throw an error, see `assert.throws` for details.
 
 ## assert.ifError(value)
 

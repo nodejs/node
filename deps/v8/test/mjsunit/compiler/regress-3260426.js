@@ -33,4 +33,3 @@ function always_false() {}
 function test() { return always_false() ? 0 : 1; }
 
 assertEquals(1, test());
-

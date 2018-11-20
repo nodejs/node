@@ -1,0 +1,21 @@
+<h1><a href="../api/npm-run-script.html">npm-run-script</a></h1> <p>Run arbitrary package scripts</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.run-script(args, callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This runs an arbitrary command from a package&#39;s &quot;scripts&quot; object.</p>
+<p>It is used by the test, start, restart, and stop commands, but can be
+called directly, as well.</p>
+<p>The &#39;args&#39; parameter is an array of strings. Behavior depends on the number
+of elements.  If there is only one element, npm assumes that the element
+represents a command to be run on the local repository. If there is more than
+one element, then the first is assumed to be the package and the second is
+assumed to be the command to run. All other elements are ignored.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
+<li><a href="../api/npm-test.html">npm-test(3)</a></li>
+<li><a href="../api/npm-start.html">npm-start(3)</a></li>
+<li><a href="../api/npm-restart.html">npm-restart(3)</a></li>
+<li><a href="../api/npm-stop.html">npm-stop(3)</a></li>
+</ul>
+

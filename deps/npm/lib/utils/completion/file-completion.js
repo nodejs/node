@@ -2,7 +2,6 @@ module.exports = fileCompletion
 
 var mkdir = require("mkdirp")
   , path = require("path")
-  , fs = require("graceful-fs")
   , glob = require("glob")
 
 function fileCompletion (root, req, depth, cb) {
@@ -16,10 +15,8 @@ function fileCompletion (root, req, depth, cb) {
     glob(pattern, opts, function (er, files) {
       if (er) return cb(er)
       return cb(null, (files || []).map(function (f) {
-        return path.join(req, f.substr(root.length + 1)
-                               .substr((f === req ? path.dirname(req)
-                                                  : req).length)
-                               .replace(/^\//, ""))
+        var tail = f.substr(root.length + 1).replace(/^\//, "")
+        return path.join(req, tail)
       }))
     })
   })

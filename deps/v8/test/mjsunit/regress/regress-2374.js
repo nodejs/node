@@ -31,3 +31,4 @@ var obj = JSON.parse(msg);
 var obj2 = JSON.parse(msg);
 
 assertEquals(JSON.stringify(obj), JSON.stringify(obj2));
+assertEquals(JSON.stringify(obj, null, 0), JSON.stringify(obj2));

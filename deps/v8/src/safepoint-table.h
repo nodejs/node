@@ -1,37 +1,14 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SAFEPOINT_TABLE_H_
 #define V8_SAFEPOINT_TABLE_H_
 
-#include "allocation.h"
-#include "heap.h"
-#include "v8memory.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/heap/heap.h"
+#include "src/v8memory.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +20,7 @@ class SafepointEntry BASE_EMBEDDED {
   SafepointEntry() : info_(0), bits_(NULL) {}
 
   SafepointEntry(unsigned info, uint8_t* bits) : info_(info), bits_(bits) {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
 
   bool is_valid() const { return bits_ != NULL; }
@@ -58,7 +35,7 @@ class SafepointEntry BASE_EMBEDDED {
   }
 
   int deoptimization_index() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return DeoptimizationIndexField::decode(info_);
   }
 
@@ -78,17 +55,17 @@ class SafepointEntry BASE_EMBEDDED {
                     kSaveDoublesFieldBits> { }; // NOLINT
 
   int argument_count() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return ArgumentsField::decode(info_);
   }
 
   bool has_doubles() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return SaveDoublesField::decode(info_);
   }
 
   uint8_t* bits() {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return bits_;
   }
 
@@ -107,17 +84,18 @@ class SafepointTable BASE_EMBEDDED {
 
   int size() const {
     return kHeaderSize +
-           (length_ * (kPcAndDeoptimizationIndexSize + entry_size_)); }
+           (length_ * (kPcAndDeoptimizationIndexSize + entry_size_));
+  }
   unsigned length() const { return length_; }
   unsigned entry_size() const { return entry_size_; }
 
   unsigned GetPcOffset(unsigned index) const {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     return Memory::uint32_at(GetPcOffsetLocation(index));
   }
 
   SafepointEntry GetEntry(unsigned index) const {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     unsigned info = Memory::uint32_at(GetInfoLocation(index));
     uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
     return SafepointEntry(info, bits);
@@ -126,7 +104,7 @@ class SafepointTable BASE_EMBEDDED {
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
 
-  void PrintEntry(unsigned index) const;
+  void PrintEntry(unsigned index, std::ostream& os) const;  // NOLINT
 
  private:
   static const uint8_t kNoRegisters = 0xFF;
@@ -149,9 +127,10 @@ class SafepointTable BASE_EMBEDDED {
     return GetPcOffsetLocation(index) + kPcSize;
   }
 
-  static void PrintBits(uint8_t byte, int digits);
+  static void PrintBits(std::ostream& os,  // NOLINT
+                        uint8_t byte, int digits);
 
-  AssertNoAllocation no_allocation_;
+  DisallowHeapAllocation no_allocation_;
   Code* code_;
   unsigned length_;
   unsigned entry_size_;
@@ -187,8 +166,8 @@ class Safepoint BASE_EMBEDDED {
   void DefinePointerRegister(Register reg, Zone* zone);
 
  private:
-  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers) :
-      indexes_(indexes), registers_(registers) { }
+  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers)
+      : indexes_(indexes), registers_(registers) {}
   ZoneList<int>* indexes_;
   ZoneList<int>* registers_;
 
@@ -219,6 +198,9 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // Record deoptimization index for lazy deoptimization for the last
   // outstanding safepoints.
   void RecordLazyDeoptimizationIndex(int index);
+  void BumpLastLazySafepointIndex() {
+    last_lazy_safepoint_ = deopt_index_list_.length();
+  }
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.

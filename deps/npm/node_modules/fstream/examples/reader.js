@@ -2,13 +2,12 @@ var fstream = require("../fstream.js")
 var tap = require("tap")
 var fs = require("fs")
 var path = require("path")
-var children = -1
 var dir = path.dirname(__dirname)
 
-var gotReady = false
-var ended = false
-
 tap.test("reader test", function (t) {
+  var children = -1
+  var gotReady = false
+  var ended = false
 
   var r = fstream.Reader({ path: dir
                          , filter: function () {
@@ -51,4 +50,19 @@ tap.test("reader test", function (t) {
     t.end()
   })
 
+})
+
+tap.test("reader error test", function (t) {
+  // assumes non-root on a *nix system
+  var r = fstream.Reader({ path: '/etc/shadow' })
+
+  r.once("error", function (er) {
+    t.ok(true);
+    t.end()
+  })
+
+  r.on("end", function () {
+    t.fail("reader ended without error");
+    t.end()
+  })
 })

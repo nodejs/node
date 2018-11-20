@@ -2,16 +2,19 @@
 
 =head1 NAME
 
-dgst, md5, md4, md2, sha1, sha, mdc2, ripemd160 - message digests
+dgst, sha, sha1, mdc2, ripemd160, sha224, sha256, sha384, sha512, md2, md4, md5, dss1 - message digests
 
 =head1 SYNOPSIS
 
 B<openssl> B<dgst> 
-[B<-md5|-md4|-md2|-sha1|-sha|-mdc2|-ripemd160|-dss1>]
+[B<-sha|-sha1|-mdc2|-ripemd160|-sha224|-sha256|-sha384|-sha512|-md2|-md4|-md5|-dss1>]
 [B<-c>]
 [B<-d>]
 [B<-hex>]
 [B<-binary>]
+[B<-r>]
+[B<-hmac arg>]
+[B<-non-fips-allow>]
 [B<-out filename>]
 [B<-sign filename>]
 [B<-keyform arg>]
@@ -20,17 +23,19 @@ B<openssl> B<dgst>
 [B<-prverify filename>]
 [B<-signature filename>]
 [B<-hmac key>]
+[B<-non-fips-allow>]
+[B<-fips-fingerprint>]
 [B<file...>]
 
-[B<md5|md4|md2|sha1|sha|mdc2|ripemd160>]
-[B<-c>]
-[B<-d>]
-[B<file...>]
+B<openssl>
+[I<digest>]
+[B<...>]
 
 =head1 DESCRIPTION
 
 The digest functions output the message digest of a supplied file or files
-in hexadecimal form. They can also be used for digital signing and verification.
+in hexadecimal.  The digest functions also generate and verify digital
+signatures using message digests.
 
 =head1 OPTIONS
 
@@ -48,11 +53,25 @@ print out BIO debugging information.
 =item B<-hex>
 
 digest is to be output as a hex dump. This is the default case for a "normal"
-digest as opposed to a digital signature.
+digest as opposed to a digital signature.  See NOTES below for digital
+signatures using B<-hex>.
 
 =item B<-binary>
 
 output the digest or signature in binary form.
+
+=item B<-r>
+
+output the digest in the "coreutils" format used by programs like B<sha1sum>.
+
+=item B<-hmac arg>
+
+set the HMAC key to "arg".
+
+=item B<-non-fips-allow>
+
+Allow use of non FIPS digest when in FIPS mode.  This has no effect when not in
+FIPS mode.
 
 =item B<-out filename>
 
@@ -64,8 +83,8 @@ digitally sign the digest using the private key in "filename".
 
 =item B<-keyform arg>
 
-Specifies the key format to sign digest with. Only PEM and ENGINE
-formats are supported by the B<dgst> command.
+Specifies the key format to sign digest with. The DER, PEM, P12,
+and ENGINE formats are supported.
 
 =item B<-engine id>
 
@@ -117,7 +136,7 @@ Following options are supported by both by B<HMAC> and B<gost-mac>:
 =over 8
 
 =item B<key:string>
-	
+
 Specifies MAC key as alphnumeric string (use if key contain printable
 characters only). String length must conform to any restrictions of
 the MAC algorithm for example exactly 32 chars for gost-mac.
@@ -138,6 +157,15 @@ Multiple files can be specified separated by a OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others. 
 
+=item B<-non-fips-allow>
+
+enable use of non-FIPS algorithms such as MD5 even in FIPS mode.
+
+=item B<-fips-fingerprint>
+
+compute HMAC using a specific key
+for certain OpenSSL-FIPS operations.
+
 =item B<file...>
 
 file or files to digest. If no files are specified then standard input is
@@ -145,18 +173,41 @@ used.
 
 =back
 
+
+=head1 EXAMPLES
+
+To create a hex-encoded message digest of a file:
+ openssl dgst -md5 -hex file.txt
+
+To sign a file using SHA-256 with binary file output:
+ openssl dgst -sha256 -sign privatekey.pem -out signature.sign file.txt
+
+To verify a signature:
+ openssl dgst -sha256 -verify publickey.pem \
+ -signature signature.sign \
+ file.txt
+
+
 =head1 NOTES
 
 The digest of choice for all new applications is SHA1. Other digests are
 however still widely used.
 
-If you wish to sign or verify data using the DSA algorithm then the dss1
-digest must be used.
+When signing a file, B<dgst> will automatically determine the algorithm
+(RSA, ECC, etc) to use for signing based on the private key's ASN.1 info.
+When verifying signatures, it only handles the RSA, DSA, or ECDSA signature
+itself, not the related data to identify the signer and algorithm used in
+formats such as x.509, CMS, and S/MIME.
 
 A source of random numbers is required for certain signing algorithms, in
-particular DSA.
+particular ECDSA and DSA.
 
 The signing and verify options should only be used if a single file is
 being signed or verified.
+
+Hex signatures cannot be verified using B<openssl>.  Instead, use "xxd -r"
+or similar program to transform the hex signature into a binary signature
+prior to verification.
+
 
 =cut

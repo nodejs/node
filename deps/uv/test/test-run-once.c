@@ -28,9 +28,8 @@ static uv_idle_t idle_handle;
 static int idle_counter;
 
 
-static void idle_cb(uv_idle_t* handle, int status) {
+static void idle_cb(uv_idle_t* handle) {
   ASSERT(handle == &idle_handle);
-  ASSERT(status == 0);
 
   if (++idle_counter == NUM_TICKS)
     uv_idle_stop(handle);

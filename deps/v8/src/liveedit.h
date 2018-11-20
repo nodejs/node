@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_LIVEEDIT_H_
 #define V8_LIVEEDIT_H_
@@ -49,8 +26,8 @@
 // instantiate newly compiled functions.
 
 
-#include "allocation.h"
-#include "compiler.h"
+#include "src/allocation.h"
+#include "src/compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -75,39 +52,56 @@ class LiveEditFunctionTracker {
   static bool IsActive(Isolate* isolate);
 
  private:
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Isolate* isolate_;
-#endif
 };
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 
 class LiveEdit : AllStatic {
  public:
-  static JSArray* GatherCompileInfo(Handle<Script> script,
-                                    Handle<String> source);
+  // Describes how exactly a frame has been dropped from stack.
+  enum FrameDropMode {
+    // No frame has been dropped.
+    FRAMES_UNTOUCHED,
+    // The top JS frame had been calling IC stub. IC stub mustn't be called now.
+    FRAME_DROPPED_IN_IC_CALL,
+    // The top JS frame had been calling debug break slot stub. Patch the
+    // address this stub jumps to in the end.
+    FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
+    // The top JS frame had been calling some C++ function. The return address
+    // gets patched automatically.
+    FRAME_DROPPED_IN_DIRECT_CALL,
+    FRAME_DROPPED_IN_RETURN_CALL,
+    CURRENTLY_SET_MODE
+  };
+
+  static void InitializeThreadLocal(Debug* debug);
+
+  static bool SetAfterBreakTarget(Debug* debug);
+
+  MUST_USE_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
+      Handle<Script> script,
+      Handle<String> source);
 
   static void WrapSharedFunctionInfos(Handle<JSArray> array);
 
-  MUST_USE_RESULT static MaybeObject* ReplaceFunctionCode(
-      Handle<JSArray> new_compile_info_array,
-      Handle<JSArray> shared_info_array);
+  static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                  Handle<JSArray> shared_info_array);
 
-  static MaybeObject* FunctionSourceUpdated(Handle<JSArray> shared_info_array);
+  static void FunctionSourceUpdated(Handle<JSArray> shared_info_array);
 
   // Updates script field in FunctionSharedInfo.
   static void SetFunctionScript(Handle<JSValue> function_wrapper,
                                 Handle<Object> script_handle);
 
-  MUST_USE_RESULT static MaybeObject* PatchFunctionPositions(
-      Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array);
+  static void PatchFunctionPositions(Handle<JSArray> shared_info_array,
+                                     Handle<JSArray> position_change_array);
 
   // For a script updates its source field. If old_script_name is provided
   // (i.e. is a String), also creates a copy of the script with its original
   // source and sends notification to debugger.
-  static Object* ChangeScriptSource(Handle<Script> original_script,
-                                    Handle<String> new_source,
-                                    Handle<Object> old_script_name);
+  static Handle<Object> ChangeScriptSource(Handle<Script> original_script,
+                                           Handle<String> new_source,
+                                           Handle<Object> old_script_name);
 
   // In a code of a parent function replaces original function as embedded
   // object with a substitution one.
@@ -115,17 +109,22 @@ class LiveEdit : AllStatic {
                                          Handle<JSValue> orig_function_shared,
                                          Handle<JSValue> subst_function_shared);
 
+  // Find open generator activations, and set corresponding "result" elements to
+  // FUNCTION_BLOCKED_ACTIVE_GENERATOR.
+  static bool FindActiveGenerators(Handle<FixedArray> shared_info_array,
+                                   Handle<FixedArray> result, int len);
+
   // Checks listed functions on stack and return array with corresponding
   // FunctionPatchabilityStatus statuses; extra array element may
   // contain general error message. Modifies the current stack and
   // has restart the lowest found frames and drops all other frames above
   // if possible and if do_drop is true.
   static Handle<JSArray> CheckAndDropActivations(
-      Handle<JSArray> shared_info_array, bool do_drop, Zone* zone);
+      Handle<JSArray> shared_info_array, bool do_drop);
 
   // Restarts the call frame and completely drops all frames above it.
   // Return error message or NULL.
-  static const char* RestartFrame(JavaScriptFrame* frame, Zone* zone);
+  static const char* RestartFrame(JavaScriptFrame* frame);
 
   // A copy of this is in liveedit-debugger.js.
   enum FunctionPatchabilityStatus {
@@ -133,7 +132,9 @@ class LiveEdit : AllStatic {
     FUNCTION_BLOCKED_ON_ACTIVE_STACK = 2,
     FUNCTION_BLOCKED_ON_OTHER_STACK = 3,
     FUNCTION_BLOCKED_UNDER_NATIVE_CODE = 4,
-    FUNCTION_REPLACED_ON_ACTIVE_STACK = 5
+    FUNCTION_REPLACED_ON_ACTIVE_STACK = 5,
+    FUNCTION_BLOCKED_UNDER_GENERATOR = 6,
+    FUNCTION_BLOCKED_ACTIVE_GENERATOR = 7
   };
 
   // Compares 2 strings line-by-line, then token-wise and returns diff in form
@@ -141,6 +142,46 @@ class LiveEdit : AllStatic {
   // of diff chunks.
   static Handle<JSArray> CompareStrings(Handle<String> s1,
                                         Handle<String> s2);
+
+  // Architecture-specific constant.
+  static const bool kFrameDropperSupported;
+
+  /**
+   * Defines layout of a stack frame that supports padding. This is a regular
+   * internal frame that has a flexible stack structure. LiveEdit can shift
+   * its lower part up the stack, taking up the 'padding' space when additional
+   * stack memory is required.
+   * Such frame is expected immediately above the topmost JavaScript frame.
+   *
+   * Stack Layout:
+   *   --- Top
+   *   LiveEdit routine frames
+   *   ---
+   *   C frames of debug handler
+   *   ---
+   *   ...
+   *   ---
+   *      An internal frame that has n padding words:
+   *      - any number of words as needed by code -- upper part of frame
+   *      - padding size: a Smi storing n -- current size of padding
+   *      - padding: n words filled with kPaddingValue in form of Smi
+   *      - 3 context/type words of a regular InternalFrame
+   *      - fp
+   *   ---
+   *      Topmost JavaScript frame
+   *   ---
+   *   ...
+   *   --- Bottom
+   */
+  // A size of frame base including fp. Padding words starts right above
+  // the base.
+  static const int kFrameDropperFrameSize = 4;
+  // A number of words that should be reserved on stack for the LiveEdit use.
+  // Stored on stack in form of Smi.
+  static const int kFramePaddingInitialSize = 1;
+  // A value that padding words are filled with (in form of Smi). Going
+  // bottom-top, the first word not having this value is a counter word.
+  static const int kFramePaddingValue = kFramePaddingInitialSize + 1;
 };
 
 
@@ -175,8 +216,155 @@ class Comparator {
                                   Output* result_writer);
 };
 
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
+
+// Simple helper class that creates more or less typed structures over
+// JSArray object. This is an adhoc method of passing structures from C++
+// to JavaScript.
+template<typename S>
+class JSArrayBasedStruct {
+ public:
+  static S Create(Isolate* isolate) {
+    Factory* factory = isolate->factory();
+    Handle<JSArray> array = factory->NewJSArray(S::kSize_);
+    return S(array);
+  }
+
+  static S cast(Object* object) {
+    JSArray* array = JSArray::cast(object);
+    Handle<JSArray> array_handle(array);
+    return S(array_handle);
+  }
+
+  explicit JSArrayBasedStruct(Handle<JSArray> array) : array_(array) {
+  }
+
+  Handle<JSArray> GetJSArray() {
+    return array_;
+  }
+
+  Isolate* isolate() const {
+    return array_->GetIsolate();
+  }
+
+ protected:
+  void SetField(int field_position, Handle<Object> value) {
+    JSObject::SetElement(array_, field_position, value, NONE, SLOPPY).Assert();
+  }
+
+  void SetSmiValueField(int field_position, int value) {
+    SetField(field_position, Handle<Smi>(Smi::FromInt(value), isolate()));
+  }
+
+  Handle<Object> GetField(int field_position) {
+    return Object::GetElement(
+        isolate(), array_, field_position).ToHandleChecked();
+  }
+
+  int GetSmiValueField(int field_position) {
+    Handle<Object> res = GetField(field_position);
+    return Handle<Smi>::cast(res)->value();
+  }
+
+ private:
+  Handle<JSArray> array_;
+};
+
+
+// Represents some function compilation details. This structure will be used
+// from JavaScript. It contains Code object, which is kept wrapped
+// into a BlindReference for sanitizing reasons.
+class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
+ public:
+  explicit FunctionInfoWrapper(Handle<JSArray> array)
+      : JSArrayBasedStruct<FunctionInfoWrapper>(array) {
+  }
+
+  void SetInitialProperties(Handle<String> name, int start_position,
+                            int end_position, int param_num, int literal_count,
+                            int parent_index);
+
+  void SetFunctionCode(Handle<Code> function_code,
+                       Handle<HeapObject> code_scope_info);
+
+  void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
+    this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
+  }
+
+  void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+
+  int GetLiteralCount() {
+    return this->GetSmiValueField(kLiteralNumOffset_);
+  }
+
+  int GetParentIndex() {
+    return this->GetSmiValueField(kParentIndexOffset_);
+  }
+
+  Handle<Code> GetFunctionCode();
+
+  MaybeHandle<TypeFeedbackVector> GetFeedbackVector();
+
+  Handle<Object> GetCodeScopeInfo();
+
+  int GetStartPosition() {
+    return this->GetSmiValueField(kStartPositionOffset_);
+  }
+
+  int GetEndPosition() { return this->GetSmiValueField(kEndPositionOffset_); }
+
+ private:
+  static const int kFunctionNameOffset_ = 0;
+  static const int kStartPositionOffset_ = 1;
+  static const int kEndPositionOffset_ = 2;
+  static const int kParamNumOffset_ = 3;
+  static const int kCodeOffset_ = 4;
+  static const int kCodeScopeInfoOffset_ = 5;
+  static const int kFunctionScopeInfoOffset_ = 6;
+  static const int kParentIndexOffset_ = 7;
+  static const int kSharedFunctionInfoOffset_ = 8;
+  static const int kLiteralNumOffset_ = 9;
+  static const int kSize_ = 10;
+
+  friend class JSArrayBasedStruct<FunctionInfoWrapper>;
+};
+
+
+// Wraps SharedFunctionInfo along with some of its fields for passing it
+// back to JavaScript. SharedFunctionInfo object itself is additionally
+// wrapped into BlindReference for sanitizing reasons.
+class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
+ public:
+  static bool IsInstance(Handle<JSArray> array) {
+    if (array->length() != Smi::FromInt(kSize_)) return false;
+    Handle<Object> element(
+        Object::GetElement(array->GetIsolate(),
+                           array,
+                           kSharedInfoOffset_).ToHandleChecked());
+    if (!element->IsJSValue()) return false;
+    return Handle<JSValue>::cast(element)->value()->IsSharedFunctionInfo();
+  }
+
+  explicit SharedInfoWrapper(Handle<JSArray> array)
+      : JSArrayBasedStruct<SharedInfoWrapper>(array) {
+  }
+
+  void SetProperties(Handle<String> name,
+                     int start_position,
+                     int end_position,
+                     Handle<SharedFunctionInfo> info);
+
+  Handle<SharedFunctionInfo> GetInfo();
+
+ private:
+  static const int kFunctionNameOffset_ = 0;
+  static const int kStartPositionOffset_ = 1;
+  static const int kEndPositionOffset_ = 2;
+  static const int kSharedInfoOffset_ = 3;
+  static const int kSize_ = 4;
+
+  friend class JSArrayBasedStruct<SharedInfoWrapper>;
+};
 
 } }  // namespace v8::internal
 

@@ -1,15 +1,14 @@
 # punycode
 
-    Stability: 2 - Unstable
+    Stability: 2 - Stable
 
-[Punycode.js](http://mths.be/punycode) is bundled with Node.js v0.6.2+. Use
-`require('punycode')` to access it. (To use it with other Node.js versions,
-use npm to install the `punycode` module first.)
+[Punycode.js](https://mths.be/punycode) is bundled with io.js v1.0.0+ and
+Node.js v0.6.2+. Use `require('punycode')` to access it. (To use it with
+other io.js versions, use npm to install the `punycode` module first.)
 
 ## punycode.decode(string)
 
-Converts a Punycode string of ASCII code points to a string of Unicode code
-points.
+Converts a Punycode string of ASCII-only symbols to a string of Unicode symbols.
 
     // decode domain name parts
     punycode.decode('maana-pta'); // 'mañana'
@@ -17,8 +16,7 @@ points.
 
 ## punycode.encode(string)
 
-Converts a string of Unicode code points to a Punycode string of ASCII code
-points.
+Converts a string of Unicode symbols to a Punycode string of ASCII-only symbols.
 
     // encode domain name parts
     punycode.encode('mañana'); // 'maana-pta'
@@ -48,21 +46,21 @@ you call it with a domain that's already in ASCII.
 
 ### punycode.ucs2.decode(string)
 
-Creates an array containing the decimal code points of each Unicode character
-in the string. While [JavaScript uses UCS-2
+Creates an array containing the numeric code point values of each Unicode
+symbol in the string. While [JavaScript uses UCS-2
 internally](http://mathiasbynens.be/notes/javascript-encoding), this function
 will convert a pair of surrogate halves (each of which UCS-2 exposes as
 separate characters) into a single code point, matching UTF-16.
 
-    punycode.ucs2.decode('abc'); // [97, 98, 99]
+    punycode.ucs2.decode('abc'); // [0x61, 0x62, 0x63]
     // surrogate pair for U+1D306 tetragram for centre:
     punycode.ucs2.decode('\uD834\uDF06'); // [0x1D306]
 
 ### punycode.ucs2.encode(codePoints)
 
-Creates a string based on an array of decimal code points.
+Creates a string based on an array of numeric code point values.
 
-    punycode.ucs2.encode([97, 98, 99]); // 'abc'
+    punycode.ucs2.encode([0x61, 0x62, 0x63]); // 'abc'
     punycode.ucs2.encode([0x1D306]); // '\uD834\uDF06'
 
 ## punycode.version

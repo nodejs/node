@@ -144,16 +144,8 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('arguments').isUndefined()) {
     scope_size--;
   }
-  // Also ignore synthetic variable from catch block.
-  if (!scope.scopeObject().property('.catch-var').isUndefined()) {
-    scope_size--;
-  }
   // Skip property with empty name.
   if (!scope.scopeObject().property('').isUndefined()) {
-    scope_size--;
-  }
-  // Also ignore synthetic variable from block scopes.
-  if (!scope.scopeObject().property('.block').isUndefined()) {
     scope_size--;
   }
 

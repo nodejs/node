@@ -126,9 +126,15 @@ function compute_mod(dividend, divisor) {
   var example_numbers = [
     NaN,
     0,
+
+    // Due to a bug in fmod(), modulos involving denormals
+    // return the wrong result for glibc <= 2.16.
+    // Details: http://sourceware.org/bugzilla/show_bug.cgi?id=14048
+
     Number.MIN_VALUE,
     3 * Number.MIN_VALUE,
     max_denormal,
+
     min_normal,
     repeating_decimal,
     finite_decimal,

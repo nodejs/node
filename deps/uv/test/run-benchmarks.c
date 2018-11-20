@@ -29,23 +29,24 @@
 #include "benchmark-list.h"
 
 
-/* The time in milliseconds after which a single benchmark times out. */
-#define BENCHMARK_TIMEOUT  60000
-
 static int maybe_run_test(int argc, char **argv);
 
 
 int main(int argc, char **argv) {
-  platform_init(argc, argv);
+  if (platform_init(argc, argv))
+    return EXIT_FAILURE;
 
   switch (argc) {
-  case 1: return run_tests(BENCHMARK_TIMEOUT, 1);
+  case 1: return run_tests(1);
   case 2: return maybe_run_test(argc, argv);
   case 3: return run_test_part(argv[1], argv[2]);
   default:
-    LOGF("Too many arguments.\n");
-    return 1;
+    fprintf(stderr, "Too many arguments.\n");
+    fflush(stderr);
+    return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
 }
 
 
@@ -60,5 +61,5 @@ static int maybe_run_test(int argc, char **argv) {
     return 42;
   }
 
-  return run_test(argv[1], BENCHMARK_TIMEOUT, 1, 1);
+  return run_test(argv[1], 1, 1);
 }

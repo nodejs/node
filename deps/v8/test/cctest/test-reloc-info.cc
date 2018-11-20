@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "cctest.h"
-#include "assembler.h"
+#include "src/assembler.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -47,27 +47,34 @@ TEST(Positions) {
   const int buffer_size = code_size + relocation_info_size;
   SmartArrayPointer<byte> buffer(new byte[buffer_size]);
 
-  byte* pc = *buffer;
-  byte* buffer_end = *buffer + buffer_size;
+  byte* pc = buffer.get();
+  byte* buffer_end = buffer.get() + buffer_size;
 
   RelocInfoWriter writer(buffer_end, pc);
   byte* relocation_info_end = buffer_end - relocation_info_size;
   for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
     RelocInfo::Mode mode = (i % 2 == 0) ?
         RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;
+    if (mode == RelocInfo::STATEMENT_POSITION) {
+      printf("TEST WRITING STATEMENT %p %d\n", pc, pos);
+    } else {
+      printf("TEST WRITING POSITION %p %d\n", pc, pos);
+    }
     WriteRinfo(&writer, pc, mode, pos);
     CHECK(writer.pos() - RelocInfoWriter::kMaxSize >= relocation_info_end);
   }
 
+  writer.Finish();
   relocation_info_size = static_cast<int>(buffer_end - writer.pos());
-  CodeDesc desc = { *buffer, buffer_size, code_size,
+  CodeDesc desc = { buffer.get(), buffer_size, code_size,
                     relocation_info_size, NULL };
 
   // Read only (non-statement) positions.
   {
     RelocIterator it(desc, RelocInfo::ModeMask(RelocInfo::POSITION));
-    pc = *buffer;
+    pc = buffer.get();
     for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
+      printf("TESTING 1: %d\n", i);
       RelocInfo::Mode mode = (i % 2 == 0) ?
           RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;
       if (mode == RelocInfo::POSITION) {
@@ -83,7 +90,7 @@ TEST(Positions) {
   // Read only statement positions.
   {
     RelocIterator it(desc, RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION));
-    pc = *buffer;
+    pc = buffer.get();
     for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
       RelocInfo::Mode mode = (i % 2 == 0) ?
           RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;
@@ -100,7 +107,7 @@ TEST(Positions) {
   // Read both types of positions.
   {
     RelocIterator it(desc, RelocInfo::kPositionMask);
-    pc = *buffer;
+    pc = buffer.get();
     for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
       RelocInfo::Mode mode = (i % 2 == 0) ?
           RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;

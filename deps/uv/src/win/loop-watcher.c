@@ -49,11 +49,11 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
                                                                               \
     assert(handle->type == UV_##NAME);                                        \
                                                                               \
-    if (handle->flags & UV_HANDLE_ACTIVE)                                     \
+    if (uv__is_active(handle))                                                \
       return 0;                                                               \
                                                                               \
     if (cb == NULL)                                                           \
-      return uv__set_artificial_error(handle->loop, UV_EINVAL);               \
+      return UV_EINVAL;                                                       \
                                                                               \
     old_head = loop->name##_handles;                                          \
                                                                               \
@@ -67,7 +67,6 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
     loop->name##_handles = handle;                                            \
                                                                               \
     handle->name##_cb = cb;                                                   \
-    handle->flags |= UV_HANDLE_ACTIVE;                                        \
     uv__handle_start(handle);                                                 \
                                                                               \
     return 0;                                                                 \
@@ -79,7 +78,7 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
                                                                               \
     assert(handle->type == UV_##NAME);                                        \
                                                                               \
-    if (!(handle->flags & UV_HANDLE_ACTIVE))                                  \
+    if (!uv__is_active(handle))                                               \
       return 0;                                                               \
                                                                               \
     /* Update loop head if needed */                                          \
@@ -99,7 +98,6 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
       handle->name##_next->name##_prev = handle->name##_prev;                 \
     }                                                                         \
                                                                               \
-    handle->flags &= ~UV_HANDLE_ACTIVE;                                       \
     uv__handle_stop(handle);                                                  \
                                                                               \
     return 0;                                                                 \
@@ -115,7 +113,7 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
       handle = (loop)->next_##name##_handle;                                  \
       (loop)->next_##name##_handle = handle->name##_next;                     \
                                                                               \
-      handle->name##_cb(handle, 0);                                           \
+      handle->name##_cb(handle);                                              \
     }                                                                         \
   }
 

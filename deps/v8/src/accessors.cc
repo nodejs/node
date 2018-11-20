@@ -1,72 +1,177 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
-#include "accessors.h"
+#include "src/v8.h"
 
-#include "contexts.h"
-#include "deoptimizer.h"
-#include "execution.h"
-#include "factory.h"
-#include "frames-inl.h"
-#include "isolate.h"
-#include "list-inl.h"
-#include "property-details.h"
+#include "src/accessors.h"
+#include "src/api.h"
+#include "src/contexts.h"
+#include "src/deoptimizer.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/frames-inl.h"
+#include "src/isolate.h"
+#include "src/list-inl.h"
+#include "src/property-details.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
 
 
-template <class C>
-static C* FindInstanceOf(Isolate* isolate, Object* obj) {
-  for (Object* cur = obj; !cur->IsNull(); cur = cur->GetPrototype(isolate)) {
-    if (Is<C>(cur)) return C::cast(cur);
+Handle<AccessorInfo> Accessors::MakeAccessor(
+    Isolate* isolate,
+    Handle<Name> name,
+    AccessorNameGetterCallback getter,
+    AccessorNameSetterCallback setter,
+    PropertyAttributes attributes) {
+  Factory* factory = isolate->factory();
+  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
+  info->set_property_attributes(attributes);
+  info->set_all_can_read(false);
+  info->set_all_can_write(false);
+  info->set_name(*name);
+  Handle<Object> get = v8::FromCData(isolate, getter);
+  Handle<Object> set = v8::FromCData(isolate, setter);
+  info->set_getter(*get);
+  info->set_setter(*set);
+  return info;
+}
+
+
+Handle<ExecutableAccessorInfo> Accessors::CloneAccessor(
+    Isolate* isolate,
+    Handle<ExecutableAccessorInfo> accessor) {
+  Factory* factory = isolate->factory();
+  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
+  info->set_name(accessor->name());
+  info->set_flag(accessor->flag());
+  info->set_expected_receiver_type(accessor->expected_receiver_type());
+  info->set_getter(accessor->getter());
+  info->set_setter(accessor->setter());
+  info->set_data(accessor->data());
+  return info;
+}
+
+
+static V8_INLINE bool CheckForName(Handle<Name> name,
+                                   Handle<String> property_name,
+                                   int offset,
+                                   int* object_offset) {
+  if (Name::Equals(name, property_name)) {
+    *object_offset = offset;
+    return true;
   }
-  return NULL;
+  return false;
 }
 
 
-// Entry point that never should be called.
-MaybeObject* Accessors::IllegalSetter(JSObject*, Object*, void*) {
-  UNREACHABLE();
-  return NULL;
+// Returns true for properties that are accessors to object fields.
+// If true, *object_offset contains offset of object field.
+bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
+                                        int* object_offset) {
+  Isolate* isolate = name->GetIsolate();
+
+  switch (map->instance_type()) {
+    case JS_ARRAY_TYPE:
+      return
+        CheckForName(name, isolate->factory()->length_string(),
+                     JSArray::kLengthOffset, object_offset);
+    case JS_TYPED_ARRAY_TYPE:
+      return
+        CheckForName(name, isolate->factory()->length_string(),
+                     JSTypedArray::kLengthOffset, object_offset) ||
+        CheckForName(name, isolate->factory()->byte_length_string(),
+                     JSTypedArray::kByteLengthOffset, object_offset) ||
+        CheckForName(name, isolate->factory()->byte_offset_string(),
+                     JSTypedArray::kByteOffsetOffset, object_offset);
+    case JS_ARRAY_BUFFER_TYPE:
+      return
+        CheckForName(name, isolate->factory()->byte_length_string(),
+                     JSArrayBuffer::kByteLengthOffset, object_offset);
+    case JS_DATA_VIEW_TYPE:
+      return
+        CheckForName(name, isolate->factory()->byte_length_string(),
+                     JSDataView::kByteLengthOffset, object_offset) ||
+        CheckForName(name, isolate->factory()->byte_offset_string(),
+                     JSDataView::kByteOffsetOffset, object_offset);
+    default:
+      if (map->instance_type() < FIRST_NONSTRING_TYPE) {
+        return CheckForName(name, isolate->factory()->length_string(),
+                            String::kLengthOffset, object_offset);
+      }
+
+      return false;
+  }
 }
 
 
-Object* Accessors::IllegalGetAccessor(Object* object, void*) {
-  UNREACHABLE();
-  return object;
+bool SetPropertyOnInstanceIfInherited(
+    Isolate* isolate, const v8::PropertyCallbackInfo<void>& info,
+    v8::Local<v8::Name> name, Handle<Object> value) {
+  Handle<Object> holder = Utils::OpenHandle(*info.Holder());
+  Handle<Object> receiver = Utils::OpenHandle(*info.This());
+  if (*holder == *receiver) return false;
+  if (receiver->IsJSObject()) {
+    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+    // This behaves sloppy since we lost the actual strict-mode.
+    // TODO(verwaest): Fix by making ExecutableAccessorInfo behave like data
+    // properties.
+    if (object->IsJSGlobalProxy()) {
+      PrototypeIterator iter(isolate, object);
+      if (iter.IsAtEnd()) return true;
+      DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+      object = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+    }
+    if (!object->map()->is_extensible()) return true;
+    JSObject::SetOwnPropertyIgnoreAttributes(object, Utils::OpenHandle(*name),
+                                             value, NONE).Check();
+  }
+  return true;
 }
 
 
-MaybeObject* Accessors::ReadOnlySetAccessor(JSObject*, Object* value, void*) {
-  // According to ECMA-262, section 8.6.2.2, page 28, setting
-  // read-only properties must be silently ignored.
-  return value;
+//
+// Accessors::ArgumentsIterator
+//
+
+
+void Accessors::ArgumentsIteratorGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* result = isolate->native_context()->array_values_iterator();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
+}
+
+
+void Accessors::ArgumentsIteratorSetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<Object> value = Utils::OpenHandle(*val);
+
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) return;
+
+  LookupIterator it(object, Utils::OpenHandle(*name));
+  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
+  DCHECK(it.HolderIsReceiverOrHiddenPrototype());
+
+  if (Object::SetDataProperty(&it, value).is_null()) {
+    isolate->OptionalRescheduleException(false);
+  }
+}
+
+
+Handle<AccessorInfo> Accessors::ArgumentsIteratorInfo(
+    Isolate* isolate, PropertyAttributes attributes) {
+  Handle<Name> name = isolate->factory()->iterator_symbol();
+  return MakeAccessor(isolate, name, &ArgumentsIteratorGetter,
+                      &ArgumentsIteratorSetter, attributes);
 }
 
 
@@ -75,160 +180,226 @@ MaybeObject* Accessors::ReadOnlySetAccessor(JSObject*, Object* value, void*) {
 //
 
 
-MaybeObject* Accessors::ArrayGetLength(Object* object, void*) {
-  // Traverse the prototype chain until we reach an array.
-  JSArray* holder = FindInstanceOf<JSArray>(Isolate::Current(), object);
-  return holder == NULL ? Smi::FromInt(0) : holder->length();
-}
-
-
 // The helper function will 'flatten' Number objects.
-Object* Accessors::FlattenNumber(Object* value) {
+Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
+                                        Handle<Object> value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
-  JSValue* wrapper = JSValue::cast(value);
-  ASSERT(Isolate::Current()->context()->native_context()->number_function()->
+  Handle<JSValue> wrapper = Handle<JSValue>::cast(value);
+  DCHECK(wrapper->GetIsolate()->native_context()->number_function()->
       has_initial_map());
-  Map* number_map = Isolate::Current()->context()->native_context()->
-      number_function()->initial_map();
-  if (wrapper->map() == number_map) return wrapper->value();
+  if (wrapper->map() == isolate->number_function()->initial_map()) {
+    return handle(wrapper->value(), isolate);
+  }
+
   return value;
 }
 
 
-MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
-  Isolate* isolate = object->GetIsolate();
-
-  // This means one of the object's prototypes is a JSArray and the
-  // object does not have a 'length' property.  Calling SetProperty
-  // causes an infinite loop.
-  if (!object->IsJSArray()) {
-    return object->SetLocalPropertyIgnoreAttributes(
-        isolate->heap()->length_string(), value, NONE);
-  }
-
-  value = FlattenNumber(value);
-
-  // Need to call methods that may trigger GC.
+void Accessors::ArrayLengthGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-
-  // Protect raw pointers.
-  Handle<JSArray> array_handle(JSArray::cast(object), isolate);
-  Handle<Object> value_handle(value, isolate);
-
-  bool has_exception;
-  Handle<Object> uint32_v = Execution::ToUint32(value_handle, &has_exception);
-  if (has_exception) return Failure::Exception();
-  Handle<Object> number_v = Execution::ToNumber(value_handle, &has_exception);
-  if (has_exception) return Failure::Exception();
-
-  if (uint32_v->Number() == number_v->Number()) {
-    return array_handle->SetElementsLength(*uint32_v);
-  }
-  return isolate->Throw(
-      *isolate->factory()->NewRangeError("invalid_array_length",
-                                         HandleVector<Object>(NULL, 0)));
+  JSArray* holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
+  Object* result = holder->length();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ArrayLength = {
-  ArrayGetLength,
-  ArraySetLength,
-  0
-};
+void Accessors::ArrayLengthSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<Object> value = Utils::OpenHandle(*val);
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
+    return;
+  }
+
+  value = FlattenNumber(isolate, value);
+
+  Handle<JSArray> array_handle = Handle<JSArray>::cast(object);
+  MaybeHandle<Object> maybe;
+  Handle<Object> uint32_v;
+  maybe = Execution::ToUint32(isolate, value);
+  if (!maybe.ToHandle(&uint32_v)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+  Handle<Object> number_v;
+  maybe = Execution::ToNumber(isolate, value);
+  if (!maybe.ToHandle(&number_v)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+
+  if (uint32_v->Number() == number_v->Number()) {
+    maybe = JSArray::SetElementsLength(array_handle, uint32_v);
+    if (maybe.is_null()) isolate->OptionalRescheduleException(false);
+    return;
+  }
+
+  Handle<Object> exception;
+  maybe = isolate->factory()->NewRangeError("invalid_array_length",
+                                            HandleVector<Object>(NULL, 0));
+  if (!maybe.ToHandle(&exception)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+
+  isolate->ScheduleThrow(*exception);
+}
+
+
+Handle<AccessorInfo> Accessors::ArrayLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &ArrayLengthGetter,
+                      &ArrayLengthSetter,
+                      attributes);
+}
+
 
 
 //
 // Accessors::StringLength
 //
 
+void Accessors::StringLengthGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
 
-MaybeObject* Accessors::StringGetLength(Object* object, void*) {
-  Object* value = object;
-  if (object->IsJSValue()) value = JSValue::cast(object)->value();
-  if (value->IsString()) return Smi::FromInt(String::cast(value)->length());
-  // If object is not a string we return 0 to be compatible with WebKit.
-  // Note: Firefox returns the length of ToString(object).
-  return Smi::FromInt(0);
+  // We have a slight impedance mismatch between the external API and the way we
+  // use callbacks internally: Externally, callbacks can only be used with
+  // v8::Object, but internally we have callbacks on entities which are higher
+  // in the hierarchy, in this case for String values.
+
+  Object* value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
+  if (!value->IsString()) {
+    // Not a string value. That means that we either got a String wrapper or
+    // a Value with a String wrapper in its prototype chain.
+    value = JSValue::cast(*Utils::OpenHandle(*info.Holder()))->value();
+  }
+  Object* result = Smi::FromInt(String::cast(value)->length());
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::StringLength = {
-  StringGetLength,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptSource
-//
-
-
-MaybeObject* Accessors::ScriptGetSource(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->source();
+void Accessors::StringLengthSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
 }
 
 
-const AccessorDescriptor Accessors::ScriptSource = {
-  ScriptGetSource,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptName
-//
-
-
-MaybeObject* Accessors::ScriptGetName(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->name();
+Handle<AccessorInfo> Accessors::StringLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &StringLengthGetter,
+                      &StringLengthSetter,
+                      attributes);
 }
 
 
-const AccessorDescriptor Accessors::ScriptName = {
-  ScriptGetName,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptId
-//
-
-
-MaybeObject* Accessors::ScriptGetId(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->id();
+template <typename Char>
+inline int CountRequiredEscapes(Handle<String> source) {
+  DisallowHeapAllocation no_gc;
+  int escapes = 0;
+  Vector<const Char> src = source->GetCharVector<Char>();
+  for (int i = 0; i < src.length(); i++) {
+    if (src[i] == '/' && (i == 0 || src[i - 1] != '\\')) escapes++;
+  }
+  return escapes;
 }
 
 
-const AccessorDescriptor Accessors::ScriptId = {
-  ScriptGetId,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptLineOffset
-//
-
-
-MaybeObject* Accessors::ScriptGetLineOffset(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->line_offset();
+template <typename Char, typename StringType>
+inline Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
+                                                   Handle<StringType> result) {
+  DisallowHeapAllocation no_gc;
+  Vector<const Char> src = source->GetCharVector<Char>();
+  Vector<Char> dst(result->GetChars(), result->length());
+  int s = 0;
+  int d = 0;
+  while (s < src.length()) {
+    if (src[s] == '/' && (s == 0 || src[s - 1] != '\\')) dst[d++] = '\\';
+    dst[d++] = src[s++];
+  }
+  DCHECK_EQ(result->length(), d);
+  return result;
 }
 
 
-const AccessorDescriptor Accessors::ScriptLineOffset = {
-  ScriptGetLineOffset,
-  IllegalSetter,
-  0
-};
+MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
+                                       Handle<String> source) {
+  String::Flatten(source);
+  if (source->length() == 0) return isolate->factory()->query_colon_string();
+  bool one_byte = source->IsOneByteRepresentationUnderneath();
+  int escapes = one_byte ? CountRequiredEscapes<uint8_t>(source)
+                         : CountRequiredEscapes<uc16>(source);
+  if (escapes == 0) return source;
+  int length = source->length() + escapes;
+  if (one_byte) {
+    Handle<SeqOneByteString> result;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               isolate->factory()->NewRawOneByteString(length),
+                               String);
+    return WriteEscapedRegExpSource<uint8_t>(source, result);
+  } else {
+    Handle<SeqTwoByteString> result;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               isolate->factory()->NewRawTwoByteString(length),
+                               String);
+    return WriteEscapedRegExpSource<uc16>(source, result);
+  }
+}
+
+
+// Implements ECMA262 ES6 draft 21.2.5.9
+void Accessors::RegExpSourceGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+
+  Handle<Object> holder =
+      Utils::OpenHandle(*v8::Local<v8::Value>(info.Holder()));
+  Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(holder);
+  Handle<String> result;
+  if (regexp->TypeTag() == JSRegExp::NOT_COMPILED) {
+    result = isolate->factory()->empty_string();
+  } else {
+    Handle<String> pattern(regexp->Pattern(), isolate);
+    MaybeHandle<String> maybe = EscapeRegExpSource(isolate, pattern);
+    if (!maybe.ToHandle(&result)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+
+void Accessors::RegExpSourceSetter(v8::Local<v8::Name> name,
+                                   v8::Local<v8::Value> value,
+                                   const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::RegExpSourceInfo(
+    Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate, isolate->factory()->source_string(),
+                      &RegExpSourceGetter, &RegExpSourceSetter, attributes);
+}
 
 
 //
@@ -236,35 +407,180 @@ const AccessorDescriptor Accessors::ScriptLineOffset = {
 //
 
 
-MaybeObject* Accessors::ScriptGetColumnOffset(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->column_offset();
+void Accessors::ScriptColumnOffsetGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->column_offset();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptColumnOffset = {
-  ScriptGetColumnOffset,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptData
-//
-
-
-MaybeObject* Accessors::ScriptGetData(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->data();
+void Accessors::ScriptColumnOffsetSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
 }
 
 
-const AccessorDescriptor Accessors::ScriptData = {
-  ScriptGetData,
-  IllegalSetter,
-  0
-};
+Handle<AccessorInfo> Accessors::ScriptColumnOffsetInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("column_offset")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptColumnOffsetGetter,
+                      &ScriptColumnOffsetSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptId
+//
+
+
+void Accessors::ScriptIdGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* id = Script::cast(JSValue::cast(object)->value())->id();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(id, isolate)));
+}
+
+
+void Accessors::ScriptIdSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptIdInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(
+      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("id")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptIdGetter,
+                      &ScriptIdSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptName
+//
+
+
+void Accessors::ScriptNameGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* source = Script::cast(JSValue::cast(object)->value())->name();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
+}
+
+
+void Accessors::ScriptNameSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptNameInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->name_string(),
+                      &ScriptNameGetter,
+                      &ScriptNameSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptSource
+//
+
+
+void Accessors::ScriptSourceGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* source = Script::cast(JSValue::cast(object)->value())->source();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
+}
+
+
+void Accessors::ScriptSourceSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptSourceInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->source_string(),
+                      &ScriptSourceGetter,
+                      &ScriptSourceSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptLineOffset
+//
+
+
+void Accessors::ScriptLineOffsetGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->line_offset();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
+}
+
+
+void Accessors::ScriptLineOffsetSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptLineOffsetInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("line_offset")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptLineOffsetGetter,
+                      &ScriptLineOffsetSetter,
+                      attributes);
+}
 
 
 //
@@ -272,17 +588,36 @@ const AccessorDescriptor Accessors::ScriptData = {
 //
 
 
-MaybeObject* Accessors::ScriptGetType(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->type();
+void Accessors::ScriptTypeGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->type();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptType = {
-  ScriptGetType,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptTypeSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptTypeInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(
+      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("type")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptTypeGetter,
+                      &ScriptTypeSetter,
+                      attributes);
+}
 
 
 //
@@ -290,17 +625,37 @@ const AccessorDescriptor Accessors::ScriptType = {
 //
 
 
-MaybeObject* Accessors::ScriptGetCompilationType(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->compilation_type();
+void Accessors::ScriptCompilationTypeGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Smi::FromInt(
+      Script::cast(JSValue::cast(object)->value())->compilation_type());
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptCompilationType = {
-  ScriptGetCompilationType,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptCompilationTypeSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("compilation_type")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptCompilationTypeGetter,
+                      &ScriptCompilationTypeSetter,
+                      attributes);
+}
 
 
 //
@@ -308,28 +663,149 @@ const AccessorDescriptor Accessors::ScriptCompilationType = {
 //
 
 
-MaybeObject* Accessors::ScriptGetLineEnds(Object* object, void*) {
-  JSValue* wrapper = JSValue::cast(object);
-  Isolate* isolate = wrapper->GetIsolate();
+void Accessors::ScriptLineEndsGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Script> script(Script::cast(wrapper->value()), isolate);
-  InitScriptLineEnds(script);
-  ASSERT(script->line_ends()->IsFixedArray());
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Script::InitLineEnds(script);
+  DCHECK(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
   // We do not want anyone to modify this array from JS.
-  ASSERT(*line_ends == isolate->heap()->empty_fixed_array() ||
+  DCHECK(*line_ends == isolate->heap()->empty_fixed_array() ||
          line_ends->map() == isolate->heap()->fixed_cow_array_map());
   Handle<JSArray> js_array =
       isolate->factory()->NewJSArrayWithElements(line_ends);
-  return *js_array;
+  info.GetReturnValue().Set(Utils::ToLocal(js_array));
 }
 
 
-const AccessorDescriptor Accessors::ScriptLineEnds = {
-  ScriptGetLineEnds,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptLineEndsSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptLineEndsInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("line_ends")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptLineEndsGetter,
+                      &ScriptLineEndsSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptSourceUrl
+//
+
+
+void Accessors::ScriptSourceUrlGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* url = Script::cast(JSValue::cast(object)->value())->source_url();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(url, isolate)));
+}
+
+
+void Accessors::ScriptSourceUrlSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptSourceUrlInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->source_url_string(),
+                      &ScriptSourceUrlGetter,
+                      &ScriptSourceUrlSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptSourceMappingUrl
+//
+
+
+void Accessors::ScriptSourceMappingUrlGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* url =
+      Script::cast(JSValue::cast(object)->value())->source_mapping_url();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(url, isolate)));
+}
+
+
+void Accessors::ScriptSourceMappingUrlSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptSourceMappingUrlInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->source_mapping_url_string(),
+                      &ScriptSourceMappingUrlGetter,
+                      &ScriptSourceMappingUrlSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptIsEmbedderDebugScript
+//
+
+
+void Accessors::ScriptIsEmbedderDebugScriptGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  bool is_embedder_debug_script =
+      Script::cast(JSValue::cast(object)->value())->is_embedder_debug_script();
+  Object* res = *isolate->factory()->ToBoolean(is_embedder_debug_script);
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
+}
+
+
+void Accessors::ScriptIsEmbedderDebugScriptSetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptIsEmbedderDebugScriptInfo(
+    Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("is_debugger_script")));
+  return MakeAccessor(isolate, name, &ScriptIsEmbedderDebugScriptGetter,
+                      &ScriptIsEmbedderDebugScriptSetter, attributes);
+}
 
 
 //
@@ -337,17 +813,36 @@ const AccessorDescriptor Accessors::ScriptLineEnds = {
 //
 
 
-MaybeObject* Accessors::ScriptGetContextData(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->context_data();
+void Accessors::ScriptContextDataGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->context_data();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptContextData = {
-  ScriptGetContextData,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptContextDataSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptContextDataInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("context_data")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptContextDataGetter,
+                      &ScriptContextDataSetter,
+                      attributes);
+}
 
 
 //
@@ -355,26 +850,46 @@ const AccessorDescriptor Accessors::ScriptContextData = {
 //
 
 
-MaybeObject* Accessors::ScriptGetEvalFromScript(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  if (!Script::cast(script)->eval_from_shared()->IsUndefined()) {
+void Accessors::ScriptEvalFromScriptGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Handle<Object> result = isolate->factory()->undefined_value();
+  if (!script->eval_from_shared()->IsUndefined()) {
     Handle<SharedFunctionInfo> eval_from_shared(
-        SharedFunctionInfo::cast(Script::cast(script)->eval_from_shared()));
-
+        SharedFunctionInfo::cast(script->eval_from_shared()));
     if (eval_from_shared->script()->IsScript()) {
       Handle<Script> eval_from_script(Script::cast(eval_from_shared->script()));
-      return *GetScriptWrapper(eval_from_script);
+      result = Script::GetWrapper(eval_from_script);
     }
   }
-  return HEAP->undefined_value();
+
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromScript = {
-  ScriptGetEvalFromScript,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptEvalFromScriptSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptEvalFromScriptInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("eval_from_script")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptEvalFromScriptGetter,
+                      &ScriptEvalFromScriptSetter,
+                      attributes);
+}
 
 
 //
@@ -382,31 +897,45 @@ const AccessorDescriptor Accessors::ScriptEvalFromScript = {
 //
 
 
-MaybeObject* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
-  Script* raw_script = Script::cast(JSValue::cast(object)->value());
-  HandleScope scope(raw_script->GetIsolate());
-  Handle<Script> script(raw_script);
-
-  // If this is not a script compiled through eval there is no eval position.
-  int compilation_type = Smi::cast(script->compilation_type())->value();
-  if (compilation_type != Script::COMPILATION_TYPE_EVAL) {
-    return script->GetHeap()->undefined_value();
+void Accessors::ScriptEvalFromScriptPositionGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Handle<Object> result = isolate->factory()->undefined_value();
+  if (script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+    Handle<Code> code(SharedFunctionInfo::cast(
+        script->eval_from_shared())->code());
+    result = Handle<Object>(
+        Smi::FromInt(code->SourcePosition(code->instruction_start() +
+                     script->eval_from_instructions_offset()->value())),
+        isolate);
   }
-
-  // Get the function from where eval was called and find the source position
-  // from the instruction offset.
-  Handle<Code> code(SharedFunctionInfo::cast(
-      script->eval_from_shared())->code());
-  return Smi::FromInt(code->SourcePosition(code->instruction_start() +
-                      script->eval_from_instructions_offset()->value()));
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromScriptPosition = {
-  ScriptGetEvalFromScriptPosition,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptEvalFromScriptPositionSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptEvalFromScriptPositionInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("eval_from_script_position")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptEvalFromScriptPositionGetter,
+                      &ScriptEvalFromScriptPositionSetter,
+                      attributes);
+}
 
 
 //
@@ -414,81 +943,65 @@ const AccessorDescriptor Accessors::ScriptEvalFromScriptPosition = {
 //
 
 
-MaybeObject* Accessors::ScriptGetEvalFromFunctionName(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(
-      Script::cast(script)->eval_from_shared()));
-
-
+void Accessors::ScriptEvalFromFunctionNameGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Handle<Object> result;
+  Handle<SharedFunctionInfo> shared(
+      SharedFunctionInfo::cast(script->eval_from_shared()));
   // Find the name of the function calling eval.
   if (!shared->name()->IsUndefined()) {
-    return shared->name();
+    result = Handle<Object>(shared->name(), isolate);
   } else {
-    return shared->inferred_name();
+    result = Handle<Object>(shared->inferred_name(), isolate);
   }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
-  ScriptGetEvalFromFunctionName,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptEvalFromFunctionNameSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptEvalFromFunctionNameInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("eval_from_function_name")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptEvalFromFunctionNameGetter,
+                      &ScriptEvalFromFunctionNameSetter,
+                      attributes);
+}
 
 
 //
 // Accessors::FunctionPrototype
 //
 
-
-MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
-  Isolate* isolate = Isolate::Current();
-  JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
-  if (function == NULL) return isolate->heap()->undefined_value();
-  while (!function->should_have_prototype()) {
-    function = FindInstanceOf<JSFunction>(isolate, function->GetPrototype());
-    // There has to be one because we hit the getter.
-    ASSERT(function != NULL);
-  }
-
+static Handle<Object> GetFunctionPrototype(Isolate* isolate,
+                                           Handle<JSFunction> function) {
   if (!function->has_prototype()) {
-    Object* prototype;
-    { MaybeObject* maybe_prototype
-          = isolate->heap()->AllocateFunctionPrototype(function);
-      if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-    }
-    Object* result;
-    { MaybeObject* maybe_result = function->SetPrototype(prototype);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
+    Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
+    JSFunction::SetPrototype(function, proto);
   }
-  return function->prototype();
+  return Handle<Object>(function->prototype(), isolate);
 }
 
 
-MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
-                                             Object* value_raw,
-                                             void*) {
-  Isolate* isolate = object->GetIsolate();
-  Heap* heap = isolate->heap();
-  JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, object);
-  if (function_raw == NULL) return heap->undefined_value();
-  if (!function_raw->should_have_prototype()) {
-    // Since we hit this accessor, object will have no prototype property.
-    return object->SetLocalPropertyIgnoreAttributes(heap->prototype_string(),
-                                                    value_raw,
-                                                    NONE);
-  }
-
-  HandleScope scope(isolate);
-  Handle<JSFunction> function(function_raw, isolate);
-  Handle<Object> value(value_raw, isolate);
-
+MUST_USE_RESULT static MaybeHandle<Object> SetFunctionPrototype(
+    Isolate* isolate, Handle<JSFunction> function, Handle<Object> value) {
   Handle<Object> old_value;
-  bool is_observed =
-      FLAG_harmony_observation &&
-      *function == object &&
-      function->map()->is_observed();
+  bool is_observed = function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
       old_value = handle(function->prototype(), isolate);
@@ -496,25 +1009,65 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
       old_value = isolate->factory()->NewFunctionPrototype(function);
   }
 
-  Handle<Object> result;
-  MaybeObject* maybe_result = function->SetPrototype(*value);
-  if (!maybe_result->ToHandle(&result, isolate)) return maybe_result;
-  ASSERT(function->prototype() == *value);
+  JSFunction::SetPrototype(function, value);
+  DCHECK(function->prototype() == *value);
 
   if (is_observed && !old_value->SameValue(*value)) {
-    JSObject::EnqueueChangeRecord(
-        function, "updated", isolate->factory()->prototype_string(), old_value);
+    MaybeHandle<Object> result = JSObject::EnqueueChangeRecord(
+        function, "update", isolate->factory()->prototype_string(), old_value);
+    if (result.is_null()) return MaybeHandle<Object>();
   }
 
-  return *function;
+  return function;
 }
 
 
-const AccessorDescriptor Accessors::FunctionPrototype = {
-  FunctionGetPrototype,
-  FunctionSetPrototype,
-  0
-};
+MaybeHandle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
+                                                    Handle<Object> prototype) {
+  DCHECK(function->should_have_prototype());
+  Isolate* isolate = function->GetIsolate();
+  return SetFunctionPrototype(isolate, function, prototype);
+}
+
+
+void Accessors::FunctionPrototypeGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result = GetFunctionPrototype(isolate, function);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+
+void Accessors::FunctionPrototypeSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> value = Utils::OpenHandle(*val);
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
+    return;
+  }
+  Handle<JSFunction> object =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  if (SetFunctionPrototype(isolate, object, value).is_null()) {
+    isolate->OptionalRescheduleException(false);
+  }
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionPrototypeInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->prototype_string(),
+                      &FunctionPrototypeGetter,
+                      &FunctionPrototypeSetter,
+                      attributes);
+}
 
 
 //
@@ -522,30 +1075,49 @@ const AccessorDescriptor Accessors::FunctionPrototype = {
 //
 
 
-MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
-  Isolate* isolate = Isolate::Current();
-  JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
-  if (function == NULL) return Smi::FromInt(0);
-  // Check if already compiled.
-  if (function->shared()->is_compiled()) {
-    return Smi::FromInt(function->shared()->length());
-  }
-  // If the function isn't compiled yet, the length is not computed correctly
-  // yet. Compile it now and return the right length.
+void Accessors::FunctionLengthGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSFunction> handle(function);
-  if (JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
-    return Smi::FromInt(handle->shared()->length());
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+
+  int length = 0;
+  if (function->shared()->is_compiled()) {
+    length = function->shared()->length();
+  } else {
+    // If the function isn't compiled yet, the length is not computed
+    // correctly yet. Compile it now and return the right length.
+    if (Compiler::EnsureCompiled(function, KEEP_EXCEPTION)) {
+      length = function->shared()->length();
+    }
+    if (isolate->has_pending_exception()) {
+      isolate->OptionalRescheduleException(false);
+    }
   }
-  return Failure::Exception();
+  Handle<Object> result(Smi::FromInt(length), isolate);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::FunctionLength = {
-  FunctionGetLength,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionLengthSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Function length is non writable, non configurable.
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &FunctionLengthGetter,
+                      &FunctionLengthSetter,
+                      attributes);
+}
 
 
 //
@@ -553,20 +1125,35 @@ const AccessorDescriptor Accessors::FunctionLength = {
 //
 
 
-MaybeObject* Accessors::FunctionGetName(Object* object, void*) {
-  Isolate* isolate = Isolate::Current();
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  return holder == NULL
-      ? isolate->heap()->undefined_value()
-      : holder->shared()->name();
+void Accessors::FunctionNameGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result(function->shared()->name(), isolate);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::FunctionName = {
-  FunctionGetName,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionNameSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Function name is non writable, non configurable.
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionNameInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->name_string(),
+                      &FunctionNameGetter,
+                      &FunctionNameSetter,
+                      attributes);
+}
 
 
 //
@@ -574,103 +1161,135 @@ const AccessorDescriptor Accessors::FunctionName = {
 //
 
 
-static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
+static Handle<Object> ArgumentsForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
   Isolate* isolate = inlined_function->GetIsolate();
   Factory* factory = isolate->factory();
-  Vector<SlotRef> args_slots =
-      SlotRef::ComputeSlotMappingForArguments(
-          frame,
-          inlined_frame_index,
-          inlined_function->shared()->formal_parameter_count());
-  int args_count = args_slots.length();
+  SlotRefValueBuilder slot_refs(
+      frame, inlined_frame_index,
+      inlined_function->shared()->internal_formal_parameter_count());
+
+  int args_count = slot_refs.args_length();
   Handle<JSObject> arguments =
       factory->NewArgumentsObject(inlined_function, args_count);
   Handle<FixedArray> array = factory->NewFixedArray(args_count);
+  slot_refs.Prepare(isolate);
   for (int i = 0; i < args_count; ++i) {
-    Handle<Object> value = args_slots[i].GetValue(isolate);
+    Handle<Object> value = slot_refs.GetNext(isolate, 0);
     array->set(i, *value);
   }
+  slot_refs.Finish(isolate);
   arguments->set_elements(*array);
-  args_slots.Dispose();
 
   // Return the freshly allocated arguments object.
-  return *arguments;
+  return arguments;
 }
 
 
-MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
-  Isolate* isolate = Isolate::Current();
-  HandleScope scope(isolate);
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  if (holder == NULL) return isolate->heap()->undefined_value();
-  Handle<JSFunction> function(holder, isolate);
-
-  if (function->shared()->native()) return isolate->heap()->null_value();
-  // Find the top invocation of the function by traversing frames.
+static int FindFunctionInFrame(JavaScriptFrame* frame,
+                               Handle<JSFunction> function) {
+  DisallowHeapAllocation no_allocation;
   List<JSFunction*> functions(2);
+  frame->GetFunctions(&functions);
+  for (int i = functions.length() - 1; i >= 0; i--) {
+    if (functions[i] == *function) return i;
+  }
+  return -1;
+}
+
+
+Handle<Object> GetFunctionArguments(Isolate* isolate,
+                                    Handle<JSFunction> function) {
+  if (function->shared()->native()) return isolate->factory()->null_value();
+
+  // Find the top invocation of the function by traversing frames.
   for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
-    frame->GetFunctions(&functions);
-    for (int i = functions.length() - 1; i >= 0; i--) {
-      // Skip all frames that aren't invocations of the given function.
-      if (functions[i] != *function) continue;
+    int function_index = FindFunctionInFrame(frame, function);
+    if (function_index < 0) continue;
 
-      if (i > 0) {
-        // The function in question was inlined.  Inlined functions have the
-        // correct number of arguments and no allocated arguments object, so
-        // we can construct a fresh one by interpreting the function's
-        // deoptimization input data.
-        return ConstructArgumentsObjectForInlinedFunction(frame, function, i);
-      }
-
-      if (!frame->is_optimized()) {
-        // If there is an arguments variable in the stack, we return that.
-        Handle<ScopeInfo> scope_info(function->shared()->scope_info());
-        int index = scope_info->StackSlotIndex(
-            isolate->heap()->arguments_string());
-        if (index >= 0) {
-          Handle<Object> arguments(frame->GetExpression(index), isolate);
-          if (!arguments->IsArgumentsMarker()) return *arguments;
-        }
-      }
-
-      // If there is no arguments variable in the stack or we have an
-      // optimized frame, we find the frame that holds the actual arguments
-      // passed to the function.
-      it.AdvanceToArgumentsFrame();
-      frame = it.frame();
-
-      // Get the number of arguments and construct an arguments object
-      // mirror for the right frame.
-      const int length = frame->ComputeParametersCount();
-      Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
-          function, length);
-      Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
-
-      // Copy the parameters to the arguments object.
-      ASSERT(array->length() == length);
-      for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
-      arguments->set_elements(*array);
-
-      // Return the freshly allocated arguments object.
-      return *arguments;
+    if (function_index > 0) {
+      // The function in question was inlined.  Inlined functions have the
+      // correct number of arguments and no allocated arguments object, so
+      // we can construct a fresh one by interpreting the function's
+      // deoptimization input data.
+      return ArgumentsForInlinedFunction(frame, function, function_index);
     }
-    functions.Rewind(0);
+
+    if (!frame->is_optimized()) {
+      // If there is an arguments variable in the stack, we return that.
+      Handle<ScopeInfo> scope_info(function->shared()->scope_info());
+      int index = scope_info->StackSlotIndex(
+          isolate->heap()->arguments_string());
+      if (index >= 0) {
+        Handle<Object> arguments(frame->GetExpression(index), isolate);
+        if (!arguments->IsArgumentsMarker()) return arguments;
+      }
+    }
+
+    // If there is no arguments variable in the stack or we have an
+    // optimized frame, we find the frame that holds the actual arguments
+    // passed to the function.
+    it.AdvanceToArgumentsFrame();
+    frame = it.frame();
+
+    // Get the number of arguments and construct an arguments object
+    // mirror for the right frame.
+    const int length = frame->ComputeParametersCount();
+    Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
+        function, length);
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+
+    // Copy the parameters to the arguments object.
+    DCHECK(array->length() == length);
+    for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+    arguments->set_elements(*array);
+
+    // Return the freshly allocated arguments object.
+    return arguments;
   }
 
   // No frame corresponding to the given function found. Return null.
-  return isolate->heap()->null_value();
+  return isolate->factory()->null_value();
 }
 
 
-const AccessorDescriptor Accessors::FunctionArguments = {
-  FunctionGetArguments,
-  ReadOnlySetAccessor,
-  0
-};
+Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
+  return GetFunctionArguments(function->GetIsolate(), function);
+}
+
+
+void Accessors::FunctionArgumentsGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result = GetFunctionArguments(isolate, function);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+
+void Accessors::FunctionArgumentsSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Function arguments is non writable, non configurable.
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionArgumentsInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->arguments_string(),
+                      &FunctionArgumentsGetter,
+                      &FunctionArgumentsSetter,
+                      attributes);
+}
 
 
 //
@@ -678,22 +1297,33 @@ const AccessorDescriptor Accessors::FunctionArguments = {
 //
 
 
+static inline bool AllowAccessToFunction(Context* current_context,
+                                         JSFunction* function) {
+  return current_context->HasSameSecurityTokenAs(function->context());
+}
+
+
 class FrameFunctionIterator {
  public:
-  FrameFunctionIterator(Isolate* isolate, const AssertNoAllocation& promise)
-      : frame_iterator_(isolate),
+  FrameFunctionIterator(Isolate* isolate, const DisallowHeapAllocation& promise)
+      : isolate_(isolate),
+        frame_iterator_(isolate),
         functions_(2),
         index_(0) {
     GetFunctions();
   }
   JSFunction* next() {
-    if (functions_.length() == 0) return NULL;
-    JSFunction* next_function = functions_[index_];
-    index_--;
-    if (index_ < 0) {
-      GetFunctions();
+    while (true) {
+      if (functions_.length() == 0) return NULL;
+      JSFunction* next_function = functions_[index_];
+      index_--;
+      if (index_ < 0) {
+        GetFunctions();
+      }
+      // Skip functions from other origins.
+      if (!AllowAccessToFunction(isolate_->context(), next_function)) continue;
+      return next_function;
     }
-    return next_function;
   }
 
   // Iterate through functions until the first occurence of 'function'.
@@ -714,38 +1344,34 @@ class FrameFunctionIterator {
     if (frame_iterator_.done()) return;
     JavaScriptFrame* frame = frame_iterator_.frame();
     frame->GetFunctions(&functions_);
-    ASSERT(functions_.length() > 0);
+    DCHECK(functions_.length() > 0);
     frame_iterator_.Advance();
     index_ = functions_.length() - 1;
   }
+  Isolate* isolate_;
   JavaScriptFrameIterator frame_iterator_;
   List<JSFunction*> functions_;
   int index_;
 };
 
 
-MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
-  Isolate* isolate = Isolate::Current();
-  HandleScope scope(isolate);
-  AssertNoAllocation no_alloc;
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  if (holder == NULL) return isolate->heap()->undefined_value();
-  if (holder->shared()->native()) return isolate->heap()->null_value();
-  Handle<JSFunction> function(holder, isolate);
-
-  FrameFunctionIterator it(isolate, no_alloc);
-
+MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
+                                   Handle<JSFunction> function) {
+  DisallowHeapAllocation no_allocation;
+  FrameFunctionIterator it(isolate, no_allocation);
+  if (function->shared()->native()) {
+    return MaybeHandle<JSFunction>();
+  }
   // Find the function from the frames.
   if (!it.Find(*function)) {
     // No frame corresponding to the given function found. Return null.
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
-
   // Find previously called non-toplevel function.
   JSFunction* caller;
   do {
     caller = it.next();
-    if (caller == NULL) return isolate->heap()->null_value();
+    if (caller == NULL) return MaybeHandle<JSFunction>();
   } while (caller->shared()->is_toplevel());
 
   // If caller is a built-in function and caller's caller is also built-in,
@@ -762,123 +1388,113 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   // allows us to make bound functions use the strict function map
   // and its associated throwing caller and arguments.
   if (caller->shared()->bound()) {
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
-  // Censor if the caller is not a classic mode function.
+  // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
-  if (!caller->shared()->is_classic_mode()) {
-    return isolate->heap()->null_value();
+  if (is_strict(caller->shared()->language_mode())) {
+    return MaybeHandle<JSFunction>();
   }
-
-  return caller;
-}
-
-
-const AccessorDescriptor Accessors::FunctionCaller = {
-  FunctionGetCaller,
-  ReadOnlySetAccessor,
-  0
-};
-
-
-//
-// Accessors::ObjectPrototype
-//
-
-
-static inline Object* GetPrototypeSkipHiddenPrototypes(Isolate* isolate,
-                                                       Object* receiver) {
-  Object* current = receiver->GetPrototype(isolate);
-  while (current->IsJSObject() &&
-         JSObject::cast(current)->map()->is_hidden_prototype()) {
-    current = current->GetPrototype(isolate);
+  // Don't return caller from another security context.
+  if (!AllowAccessToFunction(isolate->context(), caller)) {
+    return MaybeHandle<JSFunction>();
   }
-  return current;
+  return Handle<JSFunction>(caller);
 }
 
 
-MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
-  return GetPrototypeSkipHiddenPrototypes(Isolate::Current(), receiver);
-}
-
-
-MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver_raw,
-                                           Object* value_raw,
-                                           void*) {
-  const bool kSkipHiddenPrototypes = true;
-  // To be consistent with other Set functions, return the value.
-  if (!(FLAG_harmony_observation && receiver_raw->map()->is_observed()))
-    return receiver_raw->SetPrototype(value_raw, kSkipHiddenPrototypes);
-
-  Isolate* isolate = receiver_raw->GetIsolate();
+void Accessors::FunctionCallerGetter(
+    v8::Local<v8::Name> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> receiver(receiver_raw);
-  Handle<Object> value(value_raw, isolate);
-  Handle<Object> old_value(GetPrototypeSkipHiddenPrototypes(isolate, *receiver),
-                           isolate);
-
-  MaybeObject* result = receiver->SetPrototype(*value, kSkipHiddenPrototypes);
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
-
-  Handle<Object> new_value(GetPrototypeSkipHiddenPrototypes(isolate, *receiver),
-                           isolate);
-  if (!new_value->SameValue(*old_value)) {
-    JSObject::EnqueueChangeRecord(receiver, "prototype",
-                                  isolate->factory()->proto_string(),
-                                  old_value);
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result;
+  MaybeHandle<JSFunction> maybe_caller;
+  maybe_caller = FindCaller(isolate, function);
+  Handle<JSFunction> caller;
+  if (maybe_caller.ToHandle(&caller)) {
+    result = caller;
+  } else {
+    result = isolate->factory()->null_value();
   }
-  return *hresult;
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::ObjectPrototype = {
-  ObjectGetPrototype,
-  ObjectSetPrototype,
-  0
-};
+void Accessors::FunctionCallerSetter(
+    v8::Local<v8::Name> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Function caller is non writable, non configurable.
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionCallerInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->caller_string(),
+                      &FunctionCallerGetter,
+                      &FunctionCallerSetter,
+                      attributes);
+}
 
 
 //
 // Accessors::MakeModuleExport
 //
 
-static v8::Handle<v8::Value> ModuleGetExport(
+static void ModuleGetExport(
     v8::Local<v8::String> property,
-    const v8::AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
-  ASSERT(context->IsModuleContext());
+  DCHECK(context->IsModuleContext());
   int slot = info.Data()->Int32Value();
   Object* value = context->get(slot);
   Isolate* isolate = instance->GetIsolate();
   if (value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
-    isolate->ScheduleThrow(
-        *isolate->factory()->NewReferenceError("not_defined",
-                                               HandleVector(&name, 1)));
-    return v8::Handle<v8::Value>();
+
+    Handle<Object> exception;
+    MaybeHandle<Object> maybe = isolate->factory()->NewReferenceError(
+        "not_defined", HandleVector(&name, 1));
+    if (!maybe.ToHandle(&exception)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
+
+    isolate->ScheduleThrow(*exception);
+    return;
   }
-  return v8::Utils::ToLocal(Handle<Object>(value, isolate));
+  info.GetReturnValue().Set(v8::Utils::ToLocal(Handle<Object>(value, isolate)));
 }
 
 
 static void ModuleSetExport(
     v8::Local<v8::String> property,
     v8::Local<v8::Value> value,
-    const v8::AccessorInfo& info) {
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
-  ASSERT(context->IsModuleContext());
+  DCHECK(context->IsModuleContext());
   int slot = info.Data()->Int32Value();
   Object* old_value = context->get(slot);
+  Isolate* isolate = context->GetIsolate();
   if (old_value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
-    Isolate* isolate = instance->GetIsolate();
-    isolate->ScheduleThrow(
-        *isolate->factory()->NewReferenceError("not_defined",
-                                               HandleVector(&name, 1)));
+    Handle<Object> exception;
+    MaybeHandle<Object> maybe = isolate->factory()->NewReferenceError(
+        "not_defined", HandleVector(&name, 1));
+    if (!maybe.ToHandle(&exception)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
+
+    isolate->ScheduleThrow(*exception);
     return;
   }
   context->set(slot, *v8::Utils::OpenHandle(*value));
@@ -889,15 +1505,16 @@ Handle<AccessorInfo> Accessors::MakeModuleExport(
     Handle<String> name,
     int index,
     PropertyAttributes attributes) {
-  Factory* factory = name->GetIsolate()->factory();
+  Isolate* isolate = name->GetIsolate();
+  Factory* factory = isolate->factory();
   Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
   info->set_property_attributes(attributes);
   info->set_all_can_read(true);
   info->set_all_can_write(true);
   info->set_name(*name);
   info->set_data(Smi::FromInt(index));
-  Handle<Object> getter = v8::FromCData(&ModuleGetExport);
-  Handle<Object> setter = v8::FromCData(&ModuleSetExport);
+  Handle<Object> getter = v8::FromCData(isolate, &ModuleGetExport);
+  Handle<Object> setter = v8::FromCData(isolate, &ModuleSetExport);
   info->set_getter(*getter);
   if (!(attributes & ReadOnly)) info->set_setter(*setter);
   return info;

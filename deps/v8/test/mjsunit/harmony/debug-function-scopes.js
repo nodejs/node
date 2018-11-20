@@ -28,6 +28,7 @@
 // Flags: --expose-debug-as debug --harmony-scoping
 
 "use strict";
+let top_level_let = 255;
 
 // Get the Debug object exposed from the debug context global object.
 var Debug = debug.Debug;
@@ -50,7 +51,8 @@ var ScopeType = { Global: 0,
                   With: 2,
                   Closure: 3,
                   Catch: 4,
-                  Block: 5 };
+                  Block: 5,
+                  Script: 6};
 
 var f1 = (function F1(x) {
   function F2(y) {
@@ -72,12 +74,13 @@ var f1 = (function F1(x) {
 
 var mirror = Debug.MakeMirror(f1);
 
-assertEquals(4, mirror.scopeCount());
+assertEquals(5, mirror.scopeCount());
 
 CheckScope(mirror.scope(0), { a: 4, b: 5 }, ScopeType.Closure);
 CheckScope(mirror.scope(1), { z: 22, w: 5, v: "Capybara" }, ScopeType.Closure);
 CheckScope(mirror.scope(2), { x: 5 }, ScopeType.Closure);
-CheckScope(mirror.scope(3), {}, ScopeType.Global);
+CheckScope(mirror.scope(3), { top_level_let: 255 }, ScopeType.Script);
+CheckScope(mirror.scope(4), {}, ScopeType.Global);
 
 var f2 = (function() {
   var v1 = 3;
@@ -104,7 +107,7 @@ var f2 = (function() {
 
 var mirror = Debug.MakeMirror(f2);
 
-assertEquals(5, mirror.scopeCount());
+assertEquals(6, mirror.scopeCount());
 
 // Implementation artifact: l4 isn't used in closure, but still it is saved.
 CheckScope(mirror.scope(0), { l4: 11 }, ScopeType.Block);
@@ -112,4 +115,5 @@ CheckScope(mirror.scope(0), { l4: 11 }, ScopeType.Block);
 CheckScope(mirror.scope(1), { l3: 9 }, ScopeType.Block);
 CheckScope(mirror.scope(2), { l1: 6, l2: 7 }, ScopeType.Block);
 CheckScope(mirror.scope(3), { v1:3, l0: 0, v3: 5, v6: 11 }, ScopeType.Closure);
-CheckScope(mirror.scope(4), {}, ScopeType.Global);
+CheckScope(mirror.scope(4), { top_level_let: 255 }, ScopeType.Script);
+CheckScope(mirror.scope(5), {}, ScopeType.Global);

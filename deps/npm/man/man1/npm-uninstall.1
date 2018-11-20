@@ -1,0 +1,68 @@
+.TH "NPM\-RM" "1" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-rm\fR \- Remove a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm uninstall [@<scope>/]<package> [\-\-save|\-\-save\-dev|\-\-save\-optional]
+npm rm (with any of the previous argument usage)
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This uninstalls a package, completely removing everything npm installed
+on its behalf\.
+.P
+Example:
+.P
+.RS 2
+.nf
+npm uninstall sax
+.fi
+.RE
+.P
+In global mode (ie, with \fB\-g\fR or \fB\-\-global\fR appended to the command),
+it uninstalls the current package context as a global package\.
+.P
+\fBnpm uninstall\fR takes 3 exclusive, optional flags which save or update
+the package version in your main package\.json:
+.RS 0
+.IP \(bu 2
+\fB\-\-save\fR: Package will be removed from your \fBdependencies\fR\|\.
+.IP \(bu 2
+\fB\-\-save\-dev\fR: Package will be removed from your \fBdevDependencies\fR\|\.
+.IP \(bu 2
+\fB\-\-save\-optional\fR: Package will be removed from your \fBoptionalDependencies\fR\|\.
+
+.RE
+.P
+Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fR\|\.
+.P
+Examples:
+.P
+.RS 2
+.nf
+npm uninstall sax \-\-save
+npm uninstall @myorg/privatepackage \-\-save
+npm uninstall node\-tap \-\-save\-dev
+npm uninstall dtrace\-provider \-\-save\-optional
+.fi
+.RE
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help prune
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+
+.RE
+

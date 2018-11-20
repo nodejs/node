@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse_inlining --noparallel-recompilation
+// Flags: --allow-natives-syntax --nouse_inlining
 
 // Test for negative zero that doesn't need bail out
 
@@ -38,4 +38,4 @@ test_div_no_deopt_minus_zero();
 test_div_no_deopt_minus_zero();
 %OptimizeFunctionOnNextCall(test_div_no_deopt_minus_zero);
 test_div_no_deopt_minus_zero();
-assertTrue(2 != %GetOptimizationStatus(test_div_no_deopt_minus_zero));
+assertOptimized(test_div_no_deopt_minus_zero);

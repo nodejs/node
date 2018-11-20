@@ -54,4 +54,3 @@ function h(value) {
   }
 }
 h(undefined);
-

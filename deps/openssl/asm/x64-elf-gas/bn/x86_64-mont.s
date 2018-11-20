@@ -1,6 +1,7 @@
 .text
 
 
+
 .globl	bn_mul_mont
 .type	bn_mul_mont,@function
 .align	16
@@ -9,9 +10,12 @@ bn_mul_mont:
 	jnz	.Lmul_enter
 	cmpl	$8,%r9d
 	jb	.Lmul_enter
+	movl	OPENSSL_ia32cap_P+8(%rip),%r11d
 	cmpq	%rsi,%rdx
 	jne	.Lmul4x_enter
-	jmp	.Lsqr4x_enter
+	testl	$7,%r9d
+	jz	.Lsqr8x_enter
+	jmp	.Lmul4x_enter
 
 .align	16
 .Lmul_enter:
@@ -164,7 +168,7 @@ bn_mul_mont:
 
 	leaq	1(%r14),%r14
 	cmpq	%r9,%r14
-	jl	.Louter
+	jb	.Louter
 
 	xorq	%r14,%r14
 	movq	(%rsp),%rax
@@ -212,6 +216,9 @@ bn_mul_mont:
 .align	16
 bn_mul4x_mont:
 .Lmul4x_enter:
+	andl	$524544,%r11d
+	cmpl	$524544,%r11d
+	je	.Lmulx4x_enter
 	pushq	%rbx
 	pushq	%rbp
 	pushq	%r12
@@ -330,7 +337,7 @@ bn_mul4x_mont:
 	movq	%rdi,-32(%rsp,%r15,8)
 	movq	%rdx,%r13
 	cmpq	%r9,%r15
-	jl	.L1st4x
+	jb	.L1st4x
 
 	mulq	%rbx
 	addq	%rax,%r10
@@ -478,7 +485,7 @@ bn_mul4x_mont:
 	movq	%rdi,-32(%rsp,%r15,8)
 	movq	%rdx,%r13
 	cmpq	%r9,%r15
-	jl	.Linner4x
+	jb	.Linner4x
 
 	mulq	%rbx
 	addq	%rax,%r10
@@ -524,7 +531,7 @@ bn_mul4x_mont:
 	movq	%rdi,(%rsp,%r15,8)
 
 	cmpq	%r9,%r14
-	jl	.Louter4x
+	jb	.Louter4x
 	movq	16(%rsp,%r9,8),%rdi
 	movq	0(%rsp),%rax
 	pxor	%xmm0,%xmm0
@@ -606,10 +613,138 @@ bn_mul4x_mont:
 .Lmul4x_epilogue:
 	.byte	0xf3,0xc3
 .size	bn_mul4x_mont,.-bn_mul4x_mont
-.type	bn_sqr4x_mont,@function
-.align	16
-bn_sqr4x_mont:
-.Lsqr4x_enter:
+
+
+
+.type	bn_sqr8x_mont,@function
+.align	32
+bn_sqr8x_mont:
+.Lsqr8x_enter:
+	movq	%rsp,%rax
+	pushq	%rbx
+	pushq	%rbp
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
+
+	movl	%r9d,%r10d
+	shll	$3,%r9d
+	shlq	$3+2,%r10
+	negq	%r9
+
+
+
+
+
+
+	leaq	-64(%rsp,%r9,4),%r11
+	movq	(%r8),%r8
+	subq	%rsi,%r11
+	andq	$4095,%r11
+	cmpq	%r11,%r10
+	jb	.Lsqr8x_sp_alt
+	subq	%r11,%rsp
+	leaq	-64(%rsp,%r9,4),%rsp
+	jmp	.Lsqr8x_sp_done
+
+.align	32
+.Lsqr8x_sp_alt:
+	leaq	4096-64(,%r9,4),%r10
+	leaq	-64(%rsp,%r9,4),%rsp
+	subq	%r10,%r11
+	movq	$0,%r10
+	cmovcq	%r10,%r11
+	subq	%r11,%rsp
+.Lsqr8x_sp_done:
+	andq	$-64,%rsp
+	movq	%r9,%r10
+	negq	%r9
+
+	leaq	64(%rsp,%r9,2),%r11
+	movq	%r8,32(%rsp)
+	movq	%rax,40(%rsp)
+.Lsqr8x_body:
+
+	movq	%r9,%rbp
+.byte	102,73,15,110,211
+	shrq	$3+2,%rbp
+	movl	OPENSSL_ia32cap_P+8(%rip),%eax
+	jmp	.Lsqr8x_copy_n
+
+.align	32
+.Lsqr8x_copy_n:
+	movq	0(%rcx),%xmm0
+	movq	8(%rcx),%xmm1
+	movq	16(%rcx),%xmm3
+	movq	24(%rcx),%xmm4
+	leaq	32(%rcx),%rcx
+	movdqa	%xmm0,0(%r11)
+	movdqa	%xmm1,16(%r11)
+	movdqa	%xmm3,32(%r11)
+	movdqa	%xmm4,48(%r11)
+	leaq	64(%r11),%r11
+	decq	%rbp
+	jnz	.Lsqr8x_copy_n
+
+	pxor	%xmm0,%xmm0
+.byte	102,72,15,110,207
+.byte	102,73,15,110,218
+	andl	$524544,%eax
+	cmpl	$524544,%eax
+	jne	.Lsqr8x_nox
+
+	call	bn_sqrx8x_internal
+
+	pxor	%xmm0,%xmm0
+	leaq	48(%rsp),%rax
+	leaq	64(%rsp,%r9,2),%rdx
+	shrq	$3+2,%r9
+	movq	40(%rsp),%rsi
+	jmp	.Lsqr8x_zero
+
+.align	32
+.Lsqr8x_nox:
+	call	bn_sqr8x_internal
+
+	pxor	%xmm0,%xmm0
+	leaq	48(%rsp),%rax
+	leaq	64(%rsp,%r9,2),%rdx
+	shrq	$3+2,%r9
+	movq	40(%rsp),%rsi
+	jmp	.Lsqr8x_zero
+
+.align	32
+.Lsqr8x_zero:
+	movdqa	%xmm0,0(%rax)
+	movdqa	%xmm0,16(%rax)
+	movdqa	%xmm0,32(%rax)
+	movdqa	%xmm0,48(%rax)
+	leaq	64(%rax),%rax
+	movdqa	%xmm0,0(%rdx)
+	movdqa	%xmm0,16(%rdx)
+	movdqa	%xmm0,32(%rdx)
+	movdqa	%xmm0,48(%rdx)
+	leaq	64(%rdx),%rdx
+	decq	%r9
+	jnz	.Lsqr8x_zero
+
+	movq	$1,%rax
+	movq	-48(%rsi),%r15
+	movq	-40(%rsi),%r14
+	movq	-32(%rsi),%r13
+	movq	-24(%rsi),%r12
+	movq	-16(%rsi),%rbp
+	movq	-8(%rsi),%rbx
+	leaq	(%rsi),%rsp
+.Lsqr8x_epilogue:
+	.byte	0xf3,0xc3
+.size	bn_sqr8x_mont,.-bn_sqr8x_mont
+.type	bn_mulx4x_mont,@function
+.align	32
+bn_mulx4x_mont:
+.Lmulx4x_enter:
+	movq	%rsp,%rax
 	pushq	%rbx
 	pushq	%rbp
 	pushq	%r12
@@ -618,12 +753,13 @@ bn_sqr4x_mont:
 	pushq	%r15
 
 	shll	$3,%r9d
+.byte	0x67
 	xorq	%r10,%r10
-	movq	%rsp,%r11
 	subq	%r9,%r10
 	movq	(%r8),%r8
-	leaq	-72(%rsp,%r10,2),%rsp
-	andq	$-1024,%rsp
+	leaq	-72(%rsp,%r10,1),%rsp
+	leaq	(%rdx,%r9,1),%r10
+	andq	$-128,%rsp
 
 
 
@@ -635,741 +771,285 @@ bn_sqr4x_mont:
 
 
 
-	movq	%rdi,32(%rsp)
-	movq	%rcx,40(%rsp)
-	movq	%r8,48(%rsp)
-	movq	%r11,56(%rsp)
-.Lsqr4x_body:
 
-
-
-
-
-
-
-	leaq	32(%r10),%rbp
-	leaq	(%rsi,%r9,1),%rsi
-
-	movq	%r9,%rcx
-
-
-	movq	-32(%rsi,%rbp,1),%r14
-	leaq	64(%rsp,%r9,2),%rdi
-	movq	-24(%rsi,%rbp,1),%rax
-	leaq	-32(%rdi,%rbp,1),%rdi
-	movq	-16(%rsi,%rbp,1),%rbx
-	movq	%rax,%r15
-
-	mulq	%r14
-	movq	%rax,%r10
-	movq	%rbx,%rax
-	movq	%rdx,%r11
-	movq	%r10,-24(%rdi,%rbp,1)
-
-	xorq	%r10,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	movq	%r11,-16(%rdi,%rbp,1)
-
-	leaq	-16(%rbp),%rcx
-
-
-	movq	8(%rsi,%rcx,1),%rbx
-	mulq	%r15
-	movq	%rax,%r12
-	movq	%rbx,%rax
-	movq	%rdx,%r13
-
-	xorq	%r11,%r11
-	addq	%r12,%r10
-	leaq	16(%rcx),%rcx
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,-8(%rdi,%rcx,1)
-	jmp	.Lsqr4x_1st
-
-.align	16
-.Lsqr4x_1st:
-	movq	(%rsi,%rcx,1),%rbx
-	xorq	%r12,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	%rbx,%rax
-	adcq	%rdx,%r12
-
-	xorq	%r10,%r10
-	addq	%r13,%r11
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	movq	%r11,(%rdi,%rcx,1)
-
-
-	movq	8(%rsi,%rcx,1),%rbx
-	xorq	%r13,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	%rdx,%r13
-
-	xorq	%r11,%r11
-	addq	%r12,%r10
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,8(%rdi,%rcx,1)
-
-	movq	16(%rsi,%rcx,1),%rbx
-	xorq	%r12,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	%rbx,%rax
-	adcq	%rdx,%r12
-
-	xorq	%r10,%r10
-	addq	%r13,%r11
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	movq	%r11,16(%rdi,%rcx,1)
-
-
-	movq	24(%rsi,%rcx,1),%rbx
-	xorq	%r13,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	%rdx,%r13
-
-	xorq	%r11,%r11
-	addq	%r12,%r10
-	leaq	32(%rcx),%rcx
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,-8(%rdi,%rcx,1)
-
-	cmpq	$0,%rcx
-	jne	.Lsqr4x_1st
-
-	xorq	%r12,%r12
-	addq	%r11,%r13
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	adcq	%rdx,%r12
-
-	movq	%r13,(%rdi)
-	leaq	16(%rbp),%rbp
-	movq	%r12,8(%rdi)
-	jmp	.Lsqr4x_outer
-
-.align	16
-.Lsqr4x_outer:
-	movq	-32(%rsi,%rbp,1),%r14
-	leaq	64(%rsp,%r9,2),%rdi
-	movq	-24(%rsi,%rbp,1),%rax
-	leaq	-32(%rdi,%rbp,1),%rdi
-	movq	-16(%rsi,%rbp,1),%rbx
-	movq	%rax,%r15
-
-	movq	-24(%rdi,%rbp,1),%r10
-	xorq	%r11,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,-24(%rdi,%rbp,1)
-
-	xorq	%r10,%r10
-	addq	-16(%rdi,%rbp,1),%r11
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	movq	%r11,-16(%rdi,%rbp,1)
-
-	leaq	-16(%rbp),%rcx
-	xorq	%r12,%r12
-
-
-	movq	8(%rsi,%rcx,1),%rbx
-	xorq	%r13,%r13
-	addq	8(%rdi,%rcx,1),%r12
-	adcq	$0,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	%rdx,%r13
-
-	xorq	%r11,%r11
-	addq	%r12,%r10
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,8(%rdi,%rcx,1)
-
-	leaq	16(%rcx),%rcx
-	jmp	.Lsqr4x_inner
-
-.align	16
-.Lsqr4x_inner:
-	movq	(%rsi,%rcx,1),%rbx
-	xorq	%r12,%r12
-	addq	(%rdi,%rcx,1),%r13
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	%rbx,%rax
-	adcq	%rdx,%r12
-
-	xorq	%r10,%r10
-	addq	%r13,%r11
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	movq	%r11,(%rdi,%rcx,1)
-
-	movq	8(%rsi,%rcx,1),%rbx
-	xorq	%r13,%r13
-	addq	8(%rdi,%rcx,1),%r12
-	adcq	$0,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	%rdx,%r13
-
-	xorq	%r11,%r11
-	addq	%r12,%r10
-	leaq	16(%rcx),%rcx
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,-8(%rdi,%rcx,1)
-
-	cmpq	$0,%rcx
-	jne	.Lsqr4x_inner
-
-	xorq	%r12,%r12
-	addq	%r11,%r13
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	adcq	%rdx,%r12
-
-	movq	%r13,(%rdi)
-	movq	%r12,8(%rdi)
-
-	addq	$16,%rbp
-	jnz	.Lsqr4x_outer
-
-
-	movq	-32(%rsi),%r14
-	leaq	64(%rsp,%r9,2),%rdi
-	movq	-24(%rsi),%rax
-	leaq	-32(%rdi,%rbp,1),%rdi
-	movq	-16(%rsi),%rbx
-	movq	%rax,%r15
-
-	xorq	%r11,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,-24(%rdi)
-
-	xorq	%r10,%r10
-	addq	%r13,%r11
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	movq	%r11,-16(%rdi)
-
-	movq	-8(%rsi),%rbx
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	$0,%rdx
-
-	xorq	%r11,%r11
-	addq	%r12,%r10
-	movq	%rdx,%r13
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%rbx,%rax
-	adcq	%rdx,%r11
-	movq	%r10,-8(%rdi)
-
-	xorq	%r12,%r12
-	addq	%r11,%r13
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	-16(%rsi),%rax
-	adcq	%rdx,%r12
-
-	movq	%r13,(%rdi)
-	movq	%r12,8(%rdi)
-
-	mulq	%rbx
-	addq	$16,%rbp
-	xorq	%r14,%r14
-	subq	%r9,%rbp
-	xorq	%r15,%r15
-
-	addq	%r12,%rax
-	adcq	$0,%rdx
-	movq	%rax,8(%rdi)
-	movq	%rdx,16(%rdi)
-	movq	%r15,24(%rdi)
-
-	movq	-16(%rsi,%rbp,1),%rax
-	leaq	64(%rsp,%r9,2),%rdi
-	xorq	%r10,%r10
-	movq	-24(%rdi,%rbp,2),%r11
-
-	leaq	(%r14,%r10,2),%r12
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r13
-	shrq	$63,%r11
-	orq	%r10,%r13
-	movq	-16(%rdi,%rbp,2),%r10
-	movq	%r11,%r14
-	mulq	%rax
-	negq	%r15
-	movq	-8(%rdi,%rbp,2),%r11
-	adcq	%rax,%r12
-	movq	-8(%rsi,%rbp,1),%rax
-	movq	%r12,-32(%rdi,%rbp,2)
-	adcq	%rdx,%r13
-
-	leaq	(%r14,%r10,2),%rbx
-	movq	%r13,-24(%rdi,%rbp,2)
-	sbbq	%r15,%r15
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r8
-	shrq	$63,%r11
-	orq	%r10,%r8
-	movq	0(%rdi,%rbp,2),%r10
-	movq	%r11,%r14
-	mulq	%rax
-	negq	%r15
-	movq	8(%rdi,%rbp,2),%r11
-	adcq	%rax,%rbx
-	movq	0(%rsi,%rbp,1),%rax
-	movq	%rbx,-16(%rdi,%rbp,2)
-	adcq	%rdx,%r8
-	leaq	16(%rbp),%rbp
-	movq	%r8,-40(%rdi,%rbp,2)
-	sbbq	%r15,%r15
-	jmp	.Lsqr4x_shift_n_add
-
-.align	16
-.Lsqr4x_shift_n_add:
-	leaq	(%r14,%r10,2),%r12
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r13
-	shrq	$63,%r11
-	orq	%r10,%r13
-	movq	-16(%rdi,%rbp,2),%r10
-	movq	%r11,%r14
-	mulq	%rax
-	negq	%r15
-	movq	-8(%rdi,%rbp,2),%r11
-	adcq	%rax,%r12
-	movq	-8(%rsi,%rbp,1),%rax
-	movq	%r12,-32(%rdi,%rbp,2)
-	adcq	%rdx,%r13
-
-	leaq	(%r14,%r10,2),%rbx
-	movq	%r13,-24(%rdi,%rbp,2)
-	sbbq	%r15,%r15
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r8
-	shrq	$63,%r11
-	orq	%r10,%r8
-	movq	0(%rdi,%rbp,2),%r10
-	movq	%r11,%r14
-	mulq	%rax
-	negq	%r15
-	movq	8(%rdi,%rbp,2),%r11
-	adcq	%rax,%rbx
-	movq	0(%rsi,%rbp,1),%rax
-	movq	%rbx,-16(%rdi,%rbp,2)
-	adcq	%rdx,%r8
-
-	leaq	(%r14,%r10,2),%r12
-	movq	%r8,-8(%rdi,%rbp,2)
-	sbbq	%r15,%r15
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r13
-	shrq	$63,%r11
-	orq	%r10,%r13
-	movq	16(%rdi,%rbp,2),%r10
-	movq	%r11,%r14
-	mulq	%rax
-	negq	%r15
-	movq	24(%rdi,%rbp,2),%r11
-	adcq	%rax,%r12
-	movq	8(%rsi,%rbp,1),%rax
-	movq	%r12,0(%rdi,%rbp,2)
-	adcq	%rdx,%r13
-
-	leaq	(%r14,%r10,2),%rbx
-	movq	%r13,8(%rdi,%rbp,2)
-	sbbq	%r15,%r15
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r8
-	shrq	$63,%r11
-	orq	%r10,%r8
-	movq	32(%rdi,%rbp,2),%r10
-	movq	%r11,%r14
-	mulq	%rax
-	negq	%r15
-	movq	40(%rdi,%rbp,2),%r11
-	adcq	%rax,%rbx
-	movq	16(%rsi,%rbp,1),%rax
-	movq	%rbx,16(%rdi,%rbp,2)
-	adcq	%rdx,%r8
-	movq	%r8,24(%rdi,%rbp,2)
-	sbbq	%r15,%r15
-	addq	$32,%rbp
-	jnz	.Lsqr4x_shift_n_add
-
-	leaq	(%r14,%r10,2),%r12
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r13
-	shrq	$63,%r11
-	orq	%r10,%r13
-	movq	-16(%rdi),%r10
-	movq	%r11,%r14
-	mulq	%rax
-	negq	%r15
-	movq	-8(%rdi),%r11
-	adcq	%rax,%r12
-	movq	-8(%rsi),%rax
-	movq	%r12,-32(%rdi)
-	adcq	%rdx,%r13
-
-	leaq	(%r14,%r10,2),%rbx
-	movq	%r13,-24(%rdi)
-	sbbq	%r15,%r15
-	shrq	$63,%r10
-	leaq	(%rcx,%r11,2),%r8
-	shrq	$63,%r11
-	orq	%r10,%r8
-	mulq	%rax
-	negq	%r15
-	adcq	%rax,%rbx
-	adcq	%rdx,%r8
-	movq	%rbx,-16(%rdi)
-	movq	%r8,-8(%rdi)
-	movq	40(%rsp),%rsi
-	movq	48(%rsp),%r8
-	xorq	%rcx,%rcx
 	movq	%r9,0(%rsp)
-	subq	%r9,%rcx
-	movq	64(%rsp),%r10
-	movq	%r8,%r14
-	leaq	64(%rsp,%r9,2),%rax
-	leaq	64(%rsp,%r9,1),%rdi
-	movq	%rax,8(%rsp)
-	leaq	(%rsi,%r9,1),%rsi
-	xorq	%rbp,%rbp
-
-	movq	0(%rsi,%rcx,1),%rax
-	movq	8(%rsi,%rcx,1),%r9
-	imulq	%r10,%r14
-	movq	%rax,%rbx
-	jmp	.Lsqr4x_mont_outer
-
-.align	16
-.Lsqr4x_mont_outer:
-	xorq	%r11,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%r9,%rax
-	adcq	%rdx,%r11
-	movq	%r8,%r15
-
-	xorq	%r10,%r10
-	addq	8(%rdi,%rcx,1),%r11
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-
-	imulq	%r11,%r15
-
-	movq	16(%rsi,%rcx,1),%rbx
-	xorq	%r13,%r13
-	addq	%r11,%r12
-	adcq	$0,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	%rdx,%r13
-	movq	%r12,8(%rdi,%rcx,1)
-
-	xorq	%r11,%r11
-	addq	16(%rdi,%rcx,1),%r10
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%r9,%rax
-	adcq	%rdx,%r11
-
-	movq	24(%rsi,%rcx,1),%r9
-	xorq	%r12,%r12
-	addq	%r10,%r13
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	%r9,%rax
-	adcq	%rdx,%r12
-	movq	%r13,16(%rdi,%rcx,1)
-
-	xorq	%r10,%r10
-	addq	24(%rdi,%rcx,1),%r11
-	leaq	32(%rcx),%rcx
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	jmp	.Lsqr4x_mont_inner
-
-.align	16
-.Lsqr4x_mont_inner:
-	movq	(%rsi,%rcx,1),%rbx
-	xorq	%r13,%r13
-	addq	%r11,%r12
-	adcq	$0,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	%rdx,%r13
-	movq	%r12,-8(%rdi,%rcx,1)
-
-	xorq	%r11,%r11
-	addq	(%rdi,%rcx,1),%r10
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%r9,%rax
-	adcq	%rdx,%r11
-
-	movq	8(%rsi,%rcx,1),%r9
-	xorq	%r12,%r12
-	addq	%r10,%r13
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	%r9,%rax
-	adcq	%rdx,%r12
-	movq	%r13,(%rdi,%rcx,1)
-
-	xorq	%r10,%r10
-	addq	8(%rdi,%rcx,1),%r11
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-
-
-	movq	16(%rsi,%rcx,1),%rbx
-	xorq	%r13,%r13
-	addq	%r11,%r12
-	adcq	$0,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%rbx,%rax
-	adcq	%rdx,%r13
-	movq	%r12,8(%rdi,%rcx,1)
-
-	xorq	%r11,%r11
-	addq	16(%rdi,%rcx,1),%r10
-	adcq	$0,%r11
-	mulq	%r14
-	addq	%rax,%r10
-	movq	%r9,%rax
-	adcq	%rdx,%r11
-
-	movq	24(%rsi,%rcx,1),%r9
-	xorq	%r12,%r12
-	addq	%r10,%r13
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	%r9,%rax
-	adcq	%rdx,%r12
-	movq	%r13,16(%rdi,%rcx,1)
-
-	xorq	%r10,%r10
-	addq	24(%rdi,%rcx,1),%r11
-	leaq	32(%rcx),%rcx
-	adcq	$0,%r10
-	mulq	%r14
-	addq	%rax,%r11
-	movq	%rbx,%rax
-	adcq	%rdx,%r10
-	cmpq	$0,%rcx
-	jne	.Lsqr4x_mont_inner
-
-	subq	0(%rsp),%rcx
-	movq	%r8,%r14
-
-	xorq	%r13,%r13
-	addq	%r11,%r12
-	adcq	$0,%r13
-	mulq	%r15
-	addq	%rax,%r12
-	movq	%r9,%rax
-	adcq	%rdx,%r13
-	movq	%r12,-8(%rdi)
-
-	xorq	%r11,%r11
-	addq	(%rdi),%r10
-	adcq	$0,%r11
-	movq	0(%rsi,%rcx,1),%rbx
-	addq	%rbp,%r10
-	adcq	$0,%r11
-
-	imulq	16(%rdi,%rcx,1),%r14
-	xorq	%r12,%r12
-	movq	8(%rsi,%rcx,1),%r9
-	addq	%r10,%r13
-	movq	16(%rdi,%rcx,1),%r10
-	adcq	$0,%r12
-	mulq	%r15
-	addq	%rax,%r13
-	movq	%rbx,%rax
-	adcq	%rdx,%r12
-	movq	%r13,(%rdi)
-
-	xorq	%rbp,%rbp
-	addq	8(%rdi),%r12
-	adcq	%rbp,%rbp
-	addq	%r11,%r12
-	leaq	16(%rdi),%rdi
-	adcq	$0,%rbp
-	movq	%r12,-8(%rdi)
-	cmpq	8(%rsp),%rdi
-	jb	.Lsqr4x_mont_outer
-
-	movq	0(%rsp),%r9
-	movq	%rbp,(%rdi)
-	movq	64(%rsp,%r9,1),%rax
-	leaq	64(%rsp,%r9,1),%rbx
-	movq	40(%rsp),%rsi
 	shrq	$5,%r9
-	movq	8(%rbx),%rdx
+	movq	%r10,16(%rsp)
+	subq	$1,%r9
+	movq	%r8,24(%rsp)
+	movq	%rdi,32(%rsp)
+	movq	%rax,40(%rsp)
+	movq	%r9,48(%rsp)
+	jmp	.Lmulx4x_body
+
+.align	32
+.Lmulx4x_body:
+	leaq	8(%rdx),%rdi
+	movq	(%rdx),%rdx
+	leaq	64+32(%rsp),%rbx
+	movq	%rdx,%r9
+
+	mulxq	0(%rsi),%r8,%rax
+	mulxq	8(%rsi),%r11,%r14
+	addq	%rax,%r11
+	movq	%rdi,8(%rsp)
+	mulxq	16(%rsi),%r12,%r13
+	adcq	%r14,%r12
+	adcq	$0,%r13
+
+	movq	%r8,%rdi
+	imulq	24(%rsp),%r8
 	xorq	%rbp,%rbp
 
+	mulxq	24(%rsi),%rax,%r14
+	movq	%r8,%rdx
+	leaq	32(%rsi),%rsi
+	adcxq	%rax,%r13
+	adcxq	%rbp,%r14
+
+	mulxq	0(%rcx),%rax,%r10
+	adcxq	%rax,%rdi
+	adoxq	%r11,%r10
+	mulxq	8(%rcx),%rax,%r11
+	adcxq	%rax,%r10
+	adoxq	%r12,%r11
+.byte	0xc4,0x62,0xfb,0xf6,0xa1,0x10,0x00,0x00,0x00
+	movq	48(%rsp),%rdi
+	movq	%r10,-32(%rbx)
+	adcxq	%rax,%r11
+	adoxq	%r13,%r12
+	mulxq	24(%rcx),%rax,%r15
+	movq	%r9,%rdx
+	movq	%r11,-24(%rbx)
+	adcxq	%rax,%r12
+	adoxq	%rbp,%r15
+	leaq	32(%rcx),%rcx
+	movq	%r12,-16(%rbx)
+
+	jmp	.Lmulx4x_1st
+
+.align	32
+.Lmulx4x_1st:
+	adcxq	%rbp,%r15
+	mulxq	0(%rsi),%r10,%rax
+	adcxq	%r14,%r10
+	mulxq	8(%rsi),%r11,%r14
+	adcxq	%rax,%r11
+	mulxq	16(%rsi),%r12,%rax
+	adcxq	%r14,%r12
+	mulxq	24(%rsi),%r13,%r14
+.byte	0x67,0x67
+	movq	%r8,%rdx
+	adcxq	%rax,%r13
+	adcxq	%rbp,%r14
+	leaq	32(%rsi),%rsi
+	leaq	32(%rbx),%rbx
+
+	adoxq	%r15,%r10
+	mulxq	0(%rcx),%rax,%r15
+	adcxq	%rax,%r10
+	adoxq	%r15,%r11
+	mulxq	8(%rcx),%rax,%r15
+	adcxq	%rax,%r11
+	adoxq	%r15,%r12
+	mulxq	16(%rcx),%rax,%r15
+	movq	%r10,-40(%rbx)
+	adcxq	%rax,%r12
+	movq	%r11,-32(%rbx)
+	adoxq	%r15,%r13
+	mulxq	24(%rcx),%rax,%r15
+	movq	%r9,%rdx
+	movq	%r12,-24(%rbx)
+	adcxq	%rax,%r13
+	adoxq	%rbp,%r15
+	leaq	32(%rcx),%rcx
+	movq	%r13,-16(%rbx)
+
+	decq	%rdi
+	jnz	.Lmulx4x_1st
+
+	movq	0(%rsp),%rax
+	movq	8(%rsp),%rdi
+	adcq	%rbp,%r15
+	addq	%r15,%r14
+	sbbq	%r15,%r15
+	movq	%r14,-8(%rbx)
+	jmp	.Lmulx4x_outer
+
+.align	32
+.Lmulx4x_outer:
+	movq	(%rdi),%rdx
+	leaq	8(%rdi),%rdi
+	subq	%rax,%rsi
+	movq	%r15,(%rbx)
+	leaq	64+32(%rsp),%rbx
+	subq	%rax,%rcx
+
+	mulxq	0(%rsi),%r8,%r11
+	xorl	%ebp,%ebp
+	movq	%rdx,%r9
+	mulxq	8(%rsi),%r14,%r12
+	adoxq	-32(%rbx),%r8
+	adcxq	%r14,%r11
+	mulxq	16(%rsi),%r15,%r13
+	adoxq	-24(%rbx),%r11
+	adcxq	%r15,%r12
+	adoxq	%rbp,%r12
+	adcxq	%rbp,%r13
+
+	movq	%rdi,8(%rsp)
+.byte	0x67
+	movq	%r8,%r15
+	imulq	24(%rsp),%r8
+	xorl	%ebp,%ebp
+
+	mulxq	24(%rsi),%rax,%r14
+	movq	%r8,%rdx
+	adoxq	-16(%rbx),%r12
+	adcxq	%rax,%r13
+	adoxq	-8(%rbx),%r13
+	adcxq	%rbp,%r14
+	leaq	32(%rsi),%rsi
+	adoxq	%rbp,%r14
+
+	mulxq	0(%rcx),%rax,%r10
+	adcxq	%rax,%r15
+	adoxq	%r11,%r10
+	mulxq	8(%rcx),%rax,%r11
+	adcxq	%rax,%r10
+	adoxq	%r12,%r11
+	mulxq	16(%rcx),%rax,%r12
+	movq	%r10,-32(%rbx)
+	adcxq	%rax,%r11
+	adoxq	%r13,%r12
+	mulxq	24(%rcx),%rax,%r15
+	movq	%r9,%rdx
+	movq	%r11,-24(%rbx)
+	leaq	32(%rcx),%rcx
+	adcxq	%rax,%r12
+	adoxq	%rbp,%r15
+	movq	48(%rsp),%rdi
+	movq	%r12,-16(%rbx)
+
+	jmp	.Lmulx4x_inner
+
+.align	32
+.Lmulx4x_inner:
+	mulxq	0(%rsi),%r10,%rax
+	adcxq	%rbp,%r15
+	adoxq	%r14,%r10
+	mulxq	8(%rsi),%r11,%r14
+	adcxq	0(%rbx),%r10
+	adoxq	%rax,%r11
+	mulxq	16(%rsi),%r12,%rax
+	adcxq	8(%rbx),%r11
+	adoxq	%r14,%r12
+	mulxq	24(%rsi),%r13,%r14
+	movq	%r8,%rdx
+	adcxq	16(%rbx),%r12
+	adoxq	%rax,%r13
+	adcxq	24(%rbx),%r13
+	adoxq	%rbp,%r14
+	leaq	32(%rsi),%rsi
+	leaq	32(%rbx),%rbx
+	adcxq	%rbp,%r14
+
+	adoxq	%r15,%r10
+	mulxq	0(%rcx),%rax,%r15
+	adcxq	%rax,%r10
+	adoxq	%r15,%r11
+	mulxq	8(%rcx),%rax,%r15
+	adcxq	%rax,%r11
+	adoxq	%r15,%r12
+	mulxq	16(%rcx),%rax,%r15
+	movq	%r10,-40(%rbx)
+	adcxq	%rax,%r12
+	adoxq	%r15,%r13
+	mulxq	24(%rcx),%rax,%r15
+	movq	%r9,%rdx
+	movq	%r11,-32(%rbx)
+	movq	%r12,-24(%rbx)
+	adcxq	%rax,%r13
+	adoxq	%rbp,%r15
+	leaq	32(%rcx),%rcx
+	movq	%r13,-16(%rbx)
+
+	decq	%rdi
+	jnz	.Lmulx4x_inner
+
+	movq	0(%rsp),%rax
+	movq	8(%rsp),%rdi
+	adcq	%rbp,%r15
+	subq	0(%rbx),%rbp
+	adcq	%r15,%r14
+	movq	-8(%rcx),%r8
+	sbbq	%r15,%r15
+	movq	%r14,-8(%rbx)
+
+	cmpq	16(%rsp),%rdi
+	jne	.Lmulx4x_outer
+
+	subq	%r14,%r8
+	sbbq	%r8,%r8
+	orq	%r8,%r15
+
+	negq	%rax
+	xorq	%rdx,%rdx
 	movq	32(%rsp),%rdi
-	subq	0(%rsi),%rax
-	movq	16(%rbx),%r10
-	movq	24(%rbx),%r11
-	sbbq	8(%rsi),%rdx
-	leaq	-1(%r9),%rcx
-	jmp	.Lsqr4x_sub
-.align	16
-.Lsqr4x_sub:
-	movq	%rax,0(%rdi,%rbp,8)
-	movq	%rdx,8(%rdi,%rbp,8)
-	sbbq	16(%rsi,%rbp,8),%r10
-	movq	32(%rbx,%rbp,8),%rax
-	movq	40(%rbx,%rbp,8),%rdx
-	sbbq	24(%rsi,%rbp,8),%r11
-	movq	%r10,16(%rdi,%rbp,8)
-	movq	%r11,24(%rdi,%rbp,8)
-	sbbq	32(%rsi,%rbp,8),%rax
-	movq	48(%rbx,%rbp,8),%r10
-	movq	56(%rbx,%rbp,8),%r11
-	sbbq	40(%rsi,%rbp,8),%rdx
-	leaq	4(%rbp),%rbp
-	decq	%rcx
-	jnz	.Lsqr4x_sub
-
-	movq	%rax,0(%rdi,%rbp,8)
-	movq	32(%rbx,%rbp,8),%rax
-	sbbq	16(%rsi,%rbp,8),%r10
-	movq	%rdx,8(%rdi,%rbp,8)
-	sbbq	24(%rsi,%rbp,8),%r11
-	movq	%r10,16(%rdi,%rbp,8)
-
-	sbbq	$0,%rax
-	movq	%r11,24(%rdi,%rbp,8)
-	xorq	%rbp,%rbp
-	andq	%rax,%rbx
-	notq	%rax
-	movq	%rdi,%rsi
-	andq	%rax,%rsi
-	leaq	-1(%r9),%rcx
-	orq	%rsi,%rbx
+	leaq	64(%rsp),%rbx
 
 	pxor	%xmm0,%xmm0
-	leaq	64(%rsp,%r9,8),%rsi
-	movdqu	(%rbx),%xmm1
-	leaq	(%rsi,%r9,8),%rsi
-	movdqa	%xmm0,64(%rsp)
-	movdqa	%xmm0,(%rsi)
-	movdqu	%xmm1,(%rdi)
-	jmp	.Lsqr4x_copy
-.align	16
-.Lsqr4x_copy:
-	movdqu	16(%rbx,%rbp,1),%xmm2
-	movdqu	32(%rbx,%rbp,1),%xmm1
-	movdqa	%xmm0,80(%rsp,%rbp,1)
-	movdqa	%xmm0,96(%rsp,%rbp,1)
-	movdqa	%xmm0,16(%rsi,%rbp,1)
-	movdqa	%xmm0,32(%rsi,%rbp,1)
-	movdqu	%xmm2,16(%rdi,%rbp,1)
-	movdqu	%xmm1,32(%rdi,%rbp,1)
-	leaq	32(%rbp),%rbp
-	decq	%rcx
-	jnz	.Lsqr4x_copy
+	movq	0(%rcx,%rax,1),%r8
+	movq	8(%rcx,%rax,1),%r9
+	negq	%r8
+	jmp	.Lmulx4x_sub_entry
 
-	movdqu	16(%rbx,%rbp,1),%xmm2
-	movdqa	%xmm0,80(%rsp,%rbp,1)
-	movdqa	%xmm0,16(%rsi,%rbp,1)
-	movdqu	%xmm2,16(%rdi,%rbp,1)
-	movq	56(%rsp),%rsi
+.align	32
+.Lmulx4x_sub:
+	movq	0(%rcx,%rax,1),%r8
+	movq	8(%rcx,%rax,1),%r9
+	notq	%r8
+.Lmulx4x_sub_entry:
+	movq	16(%rcx,%rax,1),%r10
+	notq	%r9
+	andq	%r15,%r8
+	movq	24(%rcx,%rax,1),%r11
+	notq	%r10
+	andq	%r15,%r9
+	notq	%r11
+	andq	%r15,%r10
+	andq	%r15,%r11
+
+	negq	%rdx
+	adcq	0(%rbx),%r8
+	adcq	8(%rbx),%r9
+	movdqa	%xmm0,(%rbx)
+	adcq	16(%rbx),%r10
+	adcq	24(%rbx),%r11
+	movdqa	%xmm0,16(%rbx)
+	leaq	32(%rbx),%rbx
+	sbbq	%rdx,%rdx
+
+	movq	%r8,0(%rdi)
+	movq	%r9,8(%rdi)
+	movq	%r10,16(%rdi)
+	movq	%r11,24(%rdi)
+	leaq	32(%rdi),%rdi
+
+	addq	$32,%rax
+	jnz	.Lmulx4x_sub
+
+	movq	40(%rsp),%rsi
 	movq	$1,%rax
-	movq	0(%rsi),%r15
-	movq	8(%rsi),%r14
-	movq	16(%rsi),%r13
-	movq	24(%rsi),%r12
-	movq	32(%rsi),%rbp
-	movq	40(%rsi),%rbx
-	leaq	48(%rsi),%rsp
-.Lsqr4x_epilogue:
+	movq	-48(%rsi),%r15
+	movq	-40(%rsi),%r14
+	movq	-32(%rsi),%r13
+	movq	-24(%rsi),%r12
+	movq	-16(%rsi),%rbp
+	movq	-8(%rsi),%rbx
+	leaq	(%rsi),%rsp
+.Lmulx4x_epilogue:
 	.byte	0xf3,0xc3
-.size	bn_sqr4x_mont,.-bn_sqr4x_mont
+.size	bn_mulx4x_mont,.-bn_mulx4x_mont
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	16

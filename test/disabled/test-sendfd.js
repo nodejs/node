@@ -1,27 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
 // Test sending and receiving a file descriptor.
 //
 // This test is pretty complex. It ends up spawning test/fixtures/recvfd.js
@@ -34,7 +10,7 @@
 //     path, they are sent the write end of the pipe from above.
 //  3. The client is sent n JSON representations of the DATA variable, each
 //     with a different ordinal. We send these delimited by '\n' strings
-//     so that the receiving end can avoid any coalescing that hapepns
+//     so that the receiving end can avoid any coalescing that happens
 //     due to the stream nature of the socket (e.g. '{}{}' is not a valid
 //     JSON string).
 //  4. The child process receives file descriptors and JSON blobs and,

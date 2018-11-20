@@ -1,32 +1,12 @@
 // Copyright 2010 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_CIRCULAR_QUEUE_H_
 #define V8_CIRCULAR_QUEUE_H_
+
+#include "src/base/atomicops.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -35,64 +15,49 @@ namespace internal {
 // Lock-free cache-friendly sampling circular queue for large
 // records. Intended for fast transfer of large records between a
 // single producer and a single consumer. If the queue is full,
-// previous unread records are overwritten. The queue is designed with
+// StartEnqueue will return NULL. The queue is designed with
 // a goal in mind to evade cache lines thrashing by preventing
 // simultaneous reads and writes to adjanced memory locations.
-//
-// IMPORTANT: as a producer never checks for chunks cleanness, it is
-// possible that it can catch up and overwrite a chunk that a consumer
-// is currently reading, resulting in a corrupt record being read.
+template<typename T, unsigned Length>
 class SamplingCircularQueue {
  public:
   // Executed on the application thread.
-  SamplingCircularQueue(int record_size_in_bytes,
-                        int desired_chunk_size_in_bytes,
-                        int buffer_size_in_chunks);
+  SamplingCircularQueue();
   ~SamplingCircularQueue();
 
-  // Enqueue returns a pointer to a memory location for storing the next
-  // record.
-  INLINE(void* Enqueue());
+  // StartEnqueue returns a pointer to a memory location for storing the next
+  // record or NULL if all entries are full at the moment.
+  T* StartEnqueue();
+  // Notifies the queue that the producer has complete writing data into the
+  // memory returned by StartEnqueue and it can be passed to the consumer.
+  void FinishEnqueue();
 
   // Executed on the consumer (analyzer) thread.
-  // StartDequeue returns a pointer to a memory location for retrieving
-  // the next record. After the record had been read by a consumer,
-  // FinishDequeue must be called. Until that moment, subsequent calls
-  // to StartDequeue will return the same pointer.
-  void* StartDequeue();
-  void FinishDequeue();
-  // Due to a presence of slipping between the producer and the consumer,
-  // the queue must be notified whether producing has been finished in order
-  // to process remaining records from the buffer.
-  void FlushResidualRecords();
-
-  typedef AtomicWord Cell;
-  // Reserved values for the first cell of a record.
-  static const Cell kClear = 0;  // Marks clean (processed) chunks.
-  static const Cell kEnd = -1;   // Marks the end of the buffer.
+  // Retrieves, but does not remove, the head of this queue, returning NULL
+  // if this queue is empty. After the record had been read by a consumer,
+  // Remove must be called.
+  T* Peek();
+  void Remove();
 
  private:
-  struct ProducerPosition {
-    Cell* enqueue_pos;
-  };
-  struct ConsumerPosition {
-    Cell* dequeue_chunk_pos;
-    Cell* dequeue_chunk_poll_pos;
-    Cell* dequeue_pos;
-    Cell* dequeue_end_pos;
+  // Reserved values for the entry marker.
+  enum {
+    kEmpty,  // Marks clean (processed) entries.
+    kFull    // Marks entries already filled by the producer but not yet
+             // completely processed by the consumer.
   };
 
-  INLINE(void WrapPositionIfNeeded(Cell** pos));
+  struct V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry {
+    Entry() : marker(kEmpty) {}
+    T record;
+    base::Atomic32 marker;
+  };
 
-  const int record_size_;
-  const int chunk_size_in_bytes_;
-  const int chunk_size_;
-  const int buffer_size_;
-  const int producer_consumer_distance_;
-  Cell* buffer_;
-  byte* positions_;
-  ProducerPosition* producer_pos_;
-  ConsumerPosition* consumer_pos_;
+  Entry* Next(Entry* entry);
+
+  Entry buffer_[Length];
+  V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry* enqueue_pos_;
+  V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry* dequeue_pos_;
 
   DISALLOW_COPY_AND_ASSIGN(SamplingCircularQueue);
 };

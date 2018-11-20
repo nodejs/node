@@ -1,0 +1,126 @@
+{
+  "name": "clone",
+  "description": "deep cloning of objects and arrays",
+  "tags": [
+    "clone",
+    "object",
+    "array",
+    "function",
+    "date"
+  ],
+  "version": "0.1.19",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/pvorb/node-clone.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pvorb/node-clone/issues"
+  },
+  "main": "clone.js",
+  "author": {
+    "name": "Paul Vorbach",
+    "email": "paul@vorba.ch",
+    "url": "http://paul.vorba.ch/"
+  },
+  "contributors": [
+    {
+      "name": "Blake Miner",
+      "email": "miner.blake@gmail.com",
+      "url": "http://www.blakeminer.com/"
+    },
+    {
+      "name": "Tian You",
+      "email": "axqd001@gmail.com",
+      "url": "http://blog.axqd.net/"
+    },
+    {
+      "name": "George Stagas",
+      "email": "gstagas@gmail.com",
+      "url": "http://stagas.com/"
+    },
+    {
+      "name": "Tobiasz Cudnik",
+      "email": "tobiasz.cudnik@gmail.com",
+      "url": "https://github.com/TobiaszCudnik"
+    },
+    {
+      "name": "Pavel Lang",
+      "email": "langpavel@phpskelet.org",
+      "url": "https://github.com/langpavel"
+    },
+    {
+      "name": "Dan MacTough",
+      "url": "http://yabfog.com/"
+    },
+    {
+      "name": "w1nk",
+      "url": "https://github.com/w1nk"
+    },
+    {
+      "name": "Hugh Kennedy",
+      "url": "http://twitter.com/hughskennedy"
+    },
+    {
+      "name": "Dustin Diaz",
+      "url": "http://dustindiaz.com"
+    },
+    {
+      "name": "Ilya Shaisultanov",
+      "url": "https://github.com/diversario"
+    },
+    {
+      "name": "Nathan MacInnes",
+      "email": "nathan@macinn.es",
+      "url": "http://macinn.es/"
+    },
+    {
+      "name": "Benjamin E. Coe",
+      "email": "ben@npmjs.com",
+      "url": "https://twitter.com/benjamincoe"
+    },
+    {
+      "name": "Nathan Zadoks",
+      "url": "https://github.com/nathan7"
+    },
+    {
+      "name": "Róbert Oroszi",
+      "email": "robert+gh@oroszi.net",
+      "url": "https://github.com/oroce"
+    }
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": "*"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "underscore": "*",
+    "nodeunit": "*"
+  },
+  "optionalDependencies": {},
+  "scripts": {
+    "test": "nodeunit test.js"
+  },
+  "gitHead": "bb11a43363a0f69e8ac014cb5376ce215ea1f8fd",
+  "homepage": "https://github.com/pvorb/node-clone",
+  "_id": "clone@0.1.19",
+  "_shasum": "613fb68639b26a494ac53253e15b1a6bd88ada85",
+  "_from": "clone@>=0.1.5 <0.2.0",
+  "_npmVersion": "1.4.14",
+  "_npmUser": {
+    "name": "pvorb",
+    "email": "paul@vorba.ch"
+  },
+  "maintainers": [
+    {
+      "name": "pvorb",
+      "email": "paul@vorb.de"
+    }
+  ],
+  "dist": {
+    "shasum": "613fb68639b26a494ac53253e15b1a6bd88ada85",
+    "tarball": "http://registry.npmjs.org/clone/-/clone-0.1.19.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/clone/-/clone-0.1.19.tgz"
+}

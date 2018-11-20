@@ -225,23 +225,28 @@ TestInvalid('"Garbage""After string"');
 
 // Stringify
 
-assertEquals("true", JSON.stringify(true));
-assertEquals("false", JSON.stringify(false));
-assertEquals("null", JSON.stringify(null));
-assertEquals("false", JSON.stringify({toJSON: function () { return false; }}));
-assertEquals("4", JSON.stringify(4));
-assertEquals('"foo"', JSON.stringify("foo"));
-assertEquals("null", JSON.stringify(Infinity));
-assertEquals("null", JSON.stringify(-Infinity));
-assertEquals("null", JSON.stringify(NaN));
-assertEquals("4", JSON.stringify(new Number(4)));
-assertEquals('"bar"', JSON.stringify(new String("bar")));
+function TestStringify(expected, input) {
+  assertEquals(expected, JSON.stringify(input));
+  assertEquals(expected, JSON.stringify(input, null, 0));
+}
 
-assertEquals('"foo\\u0000bar"', JSON.stringify("foo\0bar"));
-assertEquals('"f\\"o\'o\\\\b\\ba\\fr\\nb\\ra\\tz"',
-             JSON.stringify("f\"o\'o\\b\ba\fr\nb\ra\tz"));
+TestStringify("true", true);
+TestStringify("false", false);
+TestStringify("null", null);
+TestStringify("false", {toJSON: function () { return false; }});
+TestStringify("4", 4);
+TestStringify('"foo"', "foo");
+TestStringify("null", Infinity);
+TestStringify("null", -Infinity);
+TestStringify("null", NaN);
+TestStringify("4", new Number(4));
+TestStringify('"bar"', new String("bar"));
 
-assertEquals("[1,2,3]", JSON.stringify([1, 2, 3]));
+TestStringify('"foo\\u0000bar"', "foo\0bar");
+TestStringify('"f\\"o\'o\\\\b\\ba\\fr\\nb\\ra\\tz"',
+              "f\"o\'o\\b\ba\fr\nb\ra\tz");
+
+TestStringify("[1,2,3]", [1, 2, 3]);
 assertEquals("[\n 1,\n 2,\n 3\n]", JSON.stringify([1, 2, 3], null, 1));
 assertEquals("[\n  1,\n  2,\n  3\n]", JSON.stringify([1, 2, 3], null, 2));
 assertEquals("[\n  1,\n  2,\n  3\n]",
@@ -256,33 +261,38 @@ assertEquals("[1,2,[3,[4],5],6,7]",
              JSON.stringify([1, 2, [3, [4], 5], 6, 7], null));
 assertEquals("[2,4,[6,[8],10],12,14]",
              JSON.stringify([1, 2, [3, [4], 5], 6, 7], DoubleNumbers));
-assertEquals('["a","ab","abc"]', JSON.stringify(["a","ab","abc"]));
-assertEquals('{"a":1,"c":true}',
-              JSON.stringify({ a : 1,
-                               b : function() { 1 },
-                               c : true,
-                               d : function() { 2 } }));
-assertEquals('[1,null,true,null]',
-             JSON.stringify([1, function() { 1 }, true, function() { 2 }]));
-assertEquals('"toJSON 123"',
-             JSON.stringify({ toJSON : function() { return 'toJSON 123'; } }));
-assertEquals('{"a":321}',
-             JSON.stringify({ a : { toJSON : function() { return 321; } } }));
+TestStringify('["a","ab","abc"]', ["a","ab","abc"]);
+TestStringify('{"a":1,"c":true}', { a : 1,
+                                    b : function() { 1 },
+                                    c : true,
+                                    d : function() { 2 } });
+TestStringify('[1,null,true,null]',
+              [1, function() { 1 }, true, function() { 2 }]);
+TestStringify('"toJSON 123"',
+              { toJSON : function() { return 'toJSON 123'; } });
+TestStringify('{"a":321}',
+              { a : { toJSON : function() { return 321; } } });
 var counter = 0;
 assertEquals('{"getter":123}',
              JSON.stringify({ get getter() { counter++; return 123; } }));
 assertEquals(1, counter);
-assertEquals('{"a":"abc","b":"\u1234bc"}',
-             JSON.stringify({ a : "abc", b : "\u1234bc" }));
+assertEquals('{"getter":123}',
+             JSON.stringify({ get getter() { counter++; return 123; } },
+                            null,
+                            0));
+assertEquals(2, counter);
+
+TestStringify('{"a":"abc","b":"\u1234bc"}',
+              { a : "abc", b : "\u1234bc" });
 
 
 var a = { a : 1, b : 2 };
 delete a.a;
-assertEquals('{"b":2}', JSON.stringify(a));
+TestStringify('{"b":2}', a);
 
 var b = {};
 b.__proto__ = { toJSON : function() { return 321;} };
-assertEquals("321", JSON.stringify(b));
+TestStringify("321", b);
 
 var array = [""];
 var expected = '""';
@@ -291,18 +301,19 @@ for (var i = 0; i < 10000; i++) {
   expected = '"",' + expected;
 }
 expected = '[' + expected + ']';
-assertEquals(expected, JSON.stringify(array));
+TestStringify(expected, array);
 
 
 var circular = [1, 2, 3];
 circular[2] = circular;
 assertThrows(function () { JSON.stringify(circular); }, TypeError);
+assertThrows(function () { JSON.stringify(circular, null, 0); }, TypeError);
 
 var singleton = [];
 var multiOccurrence = [singleton, singleton, singleton];
-assertEquals("[[],[],[]]", JSON.stringify(multiOccurrence));
+TestStringify("[[],[],[]]", multiOccurrence);
 
-assertEquals('{"x":5,"y":6}', JSON.stringify({x:5,y:6}));
+TestStringify('{"x":5,"y":6}', {x:5,y:6});
 assertEquals('{"x":5}', JSON.stringify({x:5,y:6}, ['x']));
 assertEquals('{\n "a": "b",\n "c": "d"\n}',
              JSON.stringify({a:"b",c:"d"}, null, 1));
@@ -312,7 +323,7 @@ assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
 var checker = {};
 var array = [checker];
 checker.toJSON = function(key) { return 1 + key; };
-assertEquals('["10"]', JSON.stringify(array));
+TestStringify('["10"]', array);
 
 // The gap is capped at ten characters if specified as string.
 assertEquals('{\n          "a": "b",\n          "c": "d"\n}',
@@ -329,12 +340,11 @@ assertEquals('{"x":"42"}', JSON.stringify({x: String}, newx));
 assertEquals('{"x":42}', JSON.stringify({x: Number}, newx));
 assertEquals('{"x":true}', JSON.stringify({x: Boolean}, newx));
 
-assertEquals(undefined, JSON.stringify(undefined));
-assertEquals(undefined, JSON.stringify(function () { }));
+TestStringify(undefined, undefined);
+TestStringify(undefined, function () { });
 // Arrays with missing, undefined or function elements have those elements
 // replaced by null.
-assertEquals("[null,null,null]",
-             JSON.stringify([undefined,,function(){}]));
+TestStringify("[null,null,null]", [undefined,,function(){}]);
 
 // Objects with undefined or function properties (including replaced properties)
 // have those properties ignored.
@@ -415,16 +425,15 @@ var re = /Is callable/;
 var reJSON = /Is callable/;
 reJSON.toJSON = function() { return "has toJSON"; };
 
-assertEquals(
-    '[37,null,1,"foo","37","true",null,"has toJSON",{},"has toJSON"]',
-    JSON.stringify([num37, numFoo, numTrue,
-                    strFoo, str37, strTrue,
-                    func, funcJSON, re, reJSON]));
+TestStringify('[37,null,1,"foo","37","true",null,"has toJSON",{},"has toJSON"]',
+              [num37, numFoo, numTrue,
+               strFoo, str37, strTrue,
+               func, funcJSON, re, reJSON]);
 
 
 var oddball = Object(42);
 oddball.__proto__ = { __proto__: null, toString: function() { return true; } };
-assertEquals('1', JSON.stringify(oddball));
+TestStringify('1', oddball);
 
 var getCount = 0;
 var callCount = 0;
@@ -433,10 +442,10 @@ var counter = { get toJSON() { getCount++;
                                                    return 42; }; } };
 
 // RegExps are not callable, so they are stringified as objects.
-assertEquals('{}', JSON.stringify(/regexp/));
-assertEquals('42', JSON.stringify(counter));
-assertEquals(1, getCount);
-assertEquals(1, callCount);
+TestStringify('{}', /regexp/);
+TestStringify('42', counter);
+assertEquals(2, getCount);
+assertEquals(2, callCount);
 
 var oddball2 = Object(42);
 var oddball3 = Object("foo");
@@ -445,13 +454,13 @@ oddball3.__proto__ = { __proto__: null,
                        valueOf: function() { return true; } };
 oddball2.__proto__ = { __proto__: null,
                        toJSON: function () { return oddball3; } }
-assertEquals('"true"', JSON.stringify(oddball2));
+TestStringify('"true"', oddball2);
 
 
 var falseNum = Object("37");
 falseNum.__proto__ = Number.prototype;
 falseNum.toString = function() { return 42; };
-assertEquals('"42"', JSON.stringify(falseNum));
+TestStringify('"42"', falseNum);
 
 // Parse an object value as __proto__.
 var o1 = JSON.parse('{"__proto__":[]}');
@@ -472,4 +481,4 @@ assertTrue(o2.hasOwnProperty("__proto__"));
 assertTrue(Object.prototype.isPrototypeOf(o2));
 
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
-assertEquals(json, JSON.stringify(JSON.parse(json)));
+TestStringify(json, JSON.parse(json));

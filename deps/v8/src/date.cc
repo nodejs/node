@@ -1,42 +1,18 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "date.h"
+#include "src/date.h"
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "objects.h"
-#include "objects-inl.h"
+#include "src/objects.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
-static const int kDays4Years[] = {0, 365, 2 * 365, 3 * 365 + 1};
 static const int kDaysIn4Years = 4 * 365 + 1;
 static const int kDaysIn100Years = 25 * kDaysIn4Years - 1;
 static const int kDaysIn400Years = 4 * kDaysIn100Years + 1;
@@ -50,11 +26,12 @@ static const char kDaysInMonths[] =
 
 void DateCache::ResetDateCache() {
   static const int kMaxStamp = Smi::kMaxValue;
-  stamp_ = Smi::FromInt(stamp_->value() + 1);
-  if (stamp_->value() > kMaxStamp) {
+  if (stamp_->value() >= kMaxStamp) {
     stamp_ = Smi::FromInt(0);
+  } else {
+    stamp_ = Smi::FromInt(stamp_->value() + 1);
   }
-  ASSERT(stamp_ != Smi::FromInt(kInvalidStamp));
+  DCHECK(stamp_ != Smi::FromInt(kInvalidStamp));
   for (int i = 0; i < kDSTSize; ++i) {
     ClearSegment(&dst_[i]);
   }
@@ -63,6 +40,7 @@ void DateCache::ResetDateCache() {
   after_ = &dst_[1];
   local_offset_ms_ = kInvalidLocalOffsetInMs;
   ymd_valid_ = false;
+  base::OS::ClearTimezoneCache(tz_cache_);
 }
 
 
@@ -95,7 +73,7 @@ void DateCache::YearMonthDayFromDays(
   *year = 400 * (days / kDaysIn400Years) - kYearsOffset;
   days %= kDaysIn400Years;
 
-  ASSERT(DaysFromYearMonth(*year, 0) + days == save_days);
+  DCHECK(DaysFromYearMonth(*year, 0) + days == save_days);
 
   days--;
   int yd1 = days / kDaysIn100Years;
@@ -115,18 +93,18 @@ void DateCache::YearMonthDayFromDays(
 
   bool is_leap = (!yd1 || yd2) && !yd3;
 
-  ASSERT(days >= -1);
-  ASSERT(is_leap || (days >= 0));
-  ASSERT((days < 365) || (is_leap && (days < 366)));
-  ASSERT(is_leap == ((*year % 4 == 0) && (*year % 100 || (*year % 400 == 0))));
-  ASSERT(is_leap || ((DaysFromYearMonth(*year, 0) + days) == save_days));
-  ASSERT(!is_leap || ((DaysFromYearMonth(*year, 0) + days + 1) == save_days));
+  DCHECK(days >= -1);
+  DCHECK(is_leap || (days >= 0));
+  DCHECK((days < 365) || (is_leap && (days < 366)));
+  DCHECK(is_leap == ((*year % 4 == 0) && (*year % 100 || (*year % 400 == 0))));
+  DCHECK(is_leap || ((DaysFromYearMonth(*year, 0) + days) == save_days));
+  DCHECK(!is_leap || ((DaysFromYearMonth(*year, 0) + days + 1) == save_days));
 
   days += is_leap;
 
   // Check if the date is after February.
-  if (days >= 31 + 28 + is_leap) {
-    days -= 31 + 28 + is_leap;
+  if (days >= 31 + 28 + BoolToInt(is_leap)) {
+    days -= 31 + 28 + BoolToInt(is_leap);
     // Find the date starting from March.
     for (int i = 2; i < 12; i++) {
       if (days < kDaysInMonths[i]) {
@@ -146,7 +124,7 @@ void DateCache::YearMonthDayFromDays(
       *day = days - 31 + 1;
     }
   }
-  ASSERT(DaysFromYearMonth(*year, *month) + *day - 1 == save_days);
+  DCHECK(DaysFromYearMonth(*year, *month) + *day - 1 == save_days);
   ymd_valid_ = true;
   ymd_year_ = *year;
   ymd_month_ = *month;
@@ -168,8 +146,8 @@ int DateCache::DaysFromYearMonth(int year, int month) {
     month += 12;
   }
 
-  ASSERT(month >= 0);
-  ASSERT(month < 12);
+  DCHECK(month >= 0);
+  DCHECK(month < 12);
 
   // year_delta is an arbitrary number such that:
   // a) year_delta = -1 (mod 400)
@@ -244,8 +222,8 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
 
   ProbeDST(time_sec);
 
-  ASSERT(InvalidSegment(before_) || before_->start_sec <= time_sec);
-  ASSERT(InvalidSegment(after_) || time_sec < after_->start_sec);
+  DCHECK(InvalidSegment(before_) || before_->start_sec <= time_sec);
+  DCHECK(InvalidSegment(after_) || time_sec < after_->start_sec);
 
   if (InvalidSegment(before_)) {
     // Cache miss.
@@ -286,7 +264,7 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
     int new_offset_ms = GetDaylightSavingsOffsetFromOS(new_after_start_sec);
     ExtendTheAfterSegment(new_after_start_sec, new_offset_ms);
   } else {
-    ASSERT(!InvalidSegment(after_));
+    DCHECK(!InvalidSegment(after_));
     // Update the usage counter of after_ since it is going to be used.
     after_->last_used = ++dst_usage_counter_;
   }
@@ -313,7 +291,7 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
         return offset_ms;
       }
     } else {
-      ASSERT(after_->offset_ms == offset_ms);
+      DCHECK(after_->offset_ms == offset_ms);
       after_->start_sec = middle_sec;
       if (time_sec >= after_->start_sec) {
         // This swap helps the optimistic fast check in subsequent invocations.
@@ -332,7 +310,7 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
 void DateCache::ProbeDST(int time_sec) {
   DST* before = NULL;
   DST* after = NULL;
-  ASSERT(before_ != after_);
+  DCHECK(before_ != after_);
 
   for (int i = 0; i < kDSTSize; ++i) {
     if (dst_[i].start_sec <= time_sec) {
@@ -356,12 +334,12 @@ void DateCache::ProbeDST(int time_sec) {
             ? after_ : LeastRecentlyUsedDST(before);
   }
 
-  ASSERT(before != NULL);
-  ASSERT(after != NULL);
-  ASSERT(before != after);
-  ASSERT(InvalidSegment(before) || before->start_sec <= time_sec);
-  ASSERT(InvalidSegment(after) || time_sec < after->start_sec);
-  ASSERT(InvalidSegment(before) || InvalidSegment(after) ||
+  DCHECK(before != NULL);
+  DCHECK(after != NULL);
+  DCHECK(before != after);
+  DCHECK(InvalidSegment(before) || before->start_sec <= time_sec);
+  DCHECK(InvalidSegment(after) || time_sec < after->start_sec);
+  DCHECK(InvalidSegment(before) || InvalidSegment(after) ||
          before->end_sec < after->start_sec);
 
   before_ = before;

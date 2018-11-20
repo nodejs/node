@@ -1,6 +1,7 @@
 /* evp_cnf.c */
-/* Written by Stephen Henson (steve@openssl.org) for the OpenSSL
- * project 2007.
+/*
+ * Written by Stephen Henson (steve@openssl.org) for the OpenSSL project
+ * 2007.
  */
 /* ====================================================================
  * Copyright (c) 2007 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -65,61 +66,53 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
+# include <openssl/fips.h>
 #endif
-
 
 /* Algorithm configuration module. */
 
 static int alg_module_init(CONF_IMODULE *md, const CONF *cnf)
-	{
-	int i;
-	const char *oid_section;
-	STACK_OF(CONF_VALUE) *sktmp;
-	CONF_VALUE *oval;
-	oid_section = CONF_imodule_get_value(md);
-	if(!(sktmp = NCONF_get_section(cnf, oid_section)))
-		{
-		EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_ERROR_LOADING_SECTION);
-		return 0;
-		}
-	for(i = 0; i < sk_CONF_VALUE_num(sktmp); i++)
-		{
-		oval = sk_CONF_VALUE_value(sktmp, i);
-		if (!strcmp(oval->name, "fips_mode"))
-			{
-			int m;
-			if (!X509V3_get_value_bool(oval, &m))
-				{
-				EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_INVALID_FIPS_MODE);
-				return 0;
-				}
-			if (m > 0)
-				{
+{
+    int i;
+    const char *oid_section;
+    STACK_OF(CONF_VALUE) *sktmp;
+    CONF_VALUE *oval;
+    oid_section = CONF_imodule_get_value(md);
+    if (!(sktmp = NCONF_get_section(cnf, oid_section))) {
+        EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_ERROR_LOADING_SECTION);
+        return 0;
+    }
+    for (i = 0; i < sk_CONF_VALUE_num(sktmp); i++) {
+        oval = sk_CONF_VALUE_value(sktmp, i);
+        if (!strcmp(oval->name, "fips_mode")) {
+            int m;
+            if (!X509V3_get_value_bool(oval, &m)) {
+                EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_INVALID_FIPS_MODE);
+                return 0;
+            }
+            if (m > 0) {
 #ifdef OPENSSL_FIPS
-				if (!FIPS_mode() && !FIPS_mode_set(1))
-					{
-					EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_ERROR_SETTING_FIPS_MODE);
-					return 0;
-					}
+                if (!FIPS_mode() && !FIPS_mode_set(1)) {
+                    EVPerr(EVP_F_ALG_MODULE_INIT,
+                           EVP_R_ERROR_SETTING_FIPS_MODE);
+                    return 0;
+                }
 #else
-				EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_FIPS_MODE_NOT_SUPPORTED);
-				return 0;
+                EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_FIPS_MODE_NOT_SUPPORTED);
+                return 0;
 #endif
-				}
-			}
-		else
-			{
-			EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_UNKNOWN_OPTION);
-			ERR_add_error_data(4, "name=", oval->name,
-						", value=", oval->value);
-			}
-				
-		}
-	return 1;
-	}
+            }
+        } else {
+            EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_UNKNOWN_OPTION);
+            ERR_add_error_data(4, "name=", oval->name,
+                               ", value=", oval->value);
+        }
+
+    }
+    return 1;
+}
 
 void EVP_add_alg_module(void)
-	{
-	CONF_module_add("alg_section", alg_module_init, 0);
-	}
+{
+    CONF_module_add("alg_section", alg_module_init, 0);
+}

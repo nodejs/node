@@ -46,6 +46,8 @@
 .ident "des_enc.m4 2.1"
 .file  "des_enc-sparc.S"
 
+#include <openssl/opensslconf.h>
+
 #if defined(__SUNPRO_C) && defined(__sparcv9)
 # define ABI64  /* They've said -xarch=v9 at command line */
 #elif defined(__GNUC__) && defined(__arch64__)

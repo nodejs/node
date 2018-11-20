@@ -24,8 +24,6 @@ You'll find all c-ares details and news here:
 
 NOTES FOR C-ARES HACKERS
 
-The following notes apply to c-ares version 1.7.0 and later.
-
 * The distributed ares_build.h file is only intended to be used on systems
   which can not run the also distributed configure script.
 

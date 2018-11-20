@@ -3,18 +3,21 @@ module.exports = publish
 
 var npm = require("./npm.js")
   , log = require("npmlog")
-  , tar = require("./utils/tar.js")
   , path = require("path")
   , readJson = require("read-package-json")
-  , fs = require("graceful-fs")
   , lifecycle = require("./utils/lifecycle.js")
   , chain = require("slide").chain
-  , Conf = require("npmconf").Conf
-  , RegClient = require("npm-registry-client")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , cachedPackageRoot = require("./cache/cached-package-root.js")
+  , createReadStream = require("graceful-fs").createReadStream
+  , npa = require("npm-package-arg")
+  , semver = require('semver')
+  , getPublishConfig = require("./utils/get-publish-config.js")
 
-publish.usage = "npm publish <tarball>"
-              + "\nnpm publish <folder>"
+publish.usage = "npm publish <tarball> [--tag <tagname>]"
+              + "\nnpm publish <folder> [--tag <tagname>]"
               + "\n\nPublishes '.' if no argument supplied"
+              + "\n\nSets tag `latest` if no --tag specified"
 
 publish.completion = function (opts, cb) {
   // publish can complete to a folder with a package.json
@@ -24,22 +27,36 @@ publish.completion = function (opts, cb) {
 }
 
 function publish (args, isRetry, cb) {
-  if (typeof cb !== "function") cb = isRetry, isRetry = false
+  if (typeof cb !== "function") {
+    cb = isRetry
+    isRetry = false
+  }
   if (args.length === 0) args = ["."]
   if (args.length !== 1) return cb(publish.usage)
 
   log.verbose("publish", args)
+
+  var t = npm.config.get('tag').trim()
+  if (semver.validRange(t)) {
+    var er = new Error("Tag name must not be a valid SemVer range: " + t)
+    return cb(er)
+  }
+
   var arg = args[0]
   // if it's a local folder, then run the prepublish there, first.
   readJson(path.resolve(arg, "package.json"), function (er, data) {
-    er = needVersion(er, data)
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
-    // error is ok.  could be publishing a url or tarball
-    // however, that means that we will not have automatically run
-    // the prepublish script, since that gets run when adding a folder
-    // to the cache.
+
+    if (data) {
+      if (!data.name) return cb(new Error("No name provided"))
+      if (!data.version) return cb(new Error("No version provided"))
+    }
+
+    // Error is OK. Could be publishing a URL or tarball, however, that means
+    // that we will not have automatically run the prepublish script, since
+    // that gets run when adding a folder to the cache.
     if (er) return cacheAddPublish(arg, false, isRetry, cb)
-    cacheAddPublish(arg, true, isRetry, cb)
+    else cacheAddPublish(arg, true, isRetry, cb)
   })
 }
 
@@ -49,15 +66,12 @@ function publish (args, isRetry, cb) {
 // That means that we can run publish/postpublish in the dir, rather than
 // in the cache dir.
 function cacheAddPublish (dir, didPre, isRetry, cb) {
-  npm.commands.cache.add(dir, function (er, data) {
+  npm.commands.cache.add(dir, null, null, false, function (er, data) {
     if (er) return cb(er)
     log.silly("publish", data)
-    var cachedir = path.resolve( npm.cache
-                               , data.name
-                               , data.version
-                               , "package" )
-    chain
-      ( [ !didPre && [lifecycle, data, "prepublish", cachedir]
+    var cachedir = path.resolve(cachedPackageRoot(data), "package")
+    chain([ !didPre &&
+          [lifecycle, data, "prepublish", cachedir]
         , [publish_, dir, data, isRetry, cachedir]
         , [lifecycle, data, "publish", didPre ? dir : cachedir]
         , [lifecycle, data, "postpublish", didPre ? dir : cachedir] ]
@@ -68,47 +82,70 @@ function cacheAddPublish (dir, didPre, isRetry, cb) {
 function publish_ (arg, data, isRetry, cachedir, cb) {
   if (!data) return cb(new Error("no package.json file found"))
 
-  // check for publishConfig hash
-  var registry = npm.registry
-  if (data.publishConfig) {
-    var pubConf = new Conf(npm.config)
+  var mappedConfig = getPublishConfig(
+    data.publishConfig,
+    npm.config,
+    npm.registry
+  )
+  var config = mappedConfig.config
+  var registry = mappedConfig.client
 
-    // don't modify the actual publishConfig object, in case we have
-    // to set a login token or some other data.
-    pubConf.unshift(Object.keys(data.publishConfig).reduce(function (s, k) {
-      s[k] = data.publishConfig[k]
-      return s
-    }, {}))
-    registry = new RegClient(pubConf)
-  }
-
-  data._npmVersion = npm.version
-  data._npmUser = { name: npm.config.get("username")
-                  , email: npm.config.get("email") }
+  data._npmVersion  = npm.version
+  data._nodeVersion = process.versions.node
 
   delete data.modules
-  if (data.private) return cb(new Error
-    ("This package has been marked as private\n"
-    +"Remove the 'private' field from the package.json to publish it."))
+  if (data.private) return cb(
+    new Error(
+      "This package has been marked as private\n" +
+      "Remove the 'private' field from the package.json to publish it."
+    )
+  )
 
-  var tarball = cachedir + ".tgz"
-  registry.publish(data, tarball, function (er) {
-    if (er && er.code === "EPUBLISHCONFLICT"
-        && npm.config.get("force") && !isRetry) {
-      log.warn("publish", "Forced publish over "+data._id)
-      return npm.commands.unpublish([data._id], function (er) {
-        // ignore errors.  Use the force.  Reach out with your feelings.
-        publish([arg], true, cb)
-      })
-    }
+  mapToRegistry(data.name, config, function (er, registryURI, auth, registryBase) {
     if (er) return cb(er)
-    console.log("+ " + data._id)
-    cb()
-  })
-}
 
-function needVersion(er, data) {
-  return er ? er
-       : (data && !data.version) ? new Error("No version provided")
-       : null
+    var tarballPath = cachedir + ".tgz"
+
+    // we just want the base registry URL in this case
+    log.verbose("publish", "registryBase", registryBase)
+    log.silly("publish", "uploading", tarballPath)
+
+    data._npmUser = {
+      name  : auth.username,
+      email : auth.email
+    }
+
+    var params = {
+      metadata : data,
+      body     : createReadStream(tarballPath),
+      auth     : auth
+    }
+
+    // registry-frontdoor cares about the access level, which is only
+    // configurable for scoped packages
+    if (config.get("access")) {
+      if (!npa(data.name).scope && config.get("access") === "restricted") {
+        return cb(new Error("Can't restrict access to unscoped packages."))
+      }
+
+      params.access = config.get("access")
+    }
+
+    registry.publish(registryBase, params, function (er) {
+      if (er && er.code === "EPUBLISHCONFLICT" &&
+          npm.config.get("force") && !isRetry) {
+        log.warn("publish", "Forced publish over " + data._id)
+        return npm.commands.unpublish([data._id], function (er) {
+          // ignore errors.  Use the force.  Reach out with your feelings.
+          // but if it fails again, then report the first error.
+          publish([arg], er || true, cb)
+        })
+      }
+      // report the unpublish error if this was a retry and unpublish failed
+      if (er && isRetry && isRetry !== true) return cb(isRetry)
+      if (er) return cb(er)
+      console.log("+ " + data._id)
+      cb()
+    })
+  })
 }

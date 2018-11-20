@@ -153,7 +153,9 @@ function TickProcessor(
     stateFilter,
     snapshotLogProcessor,
     distortion,
-    range) {
+    range,
+    sourceMap,
+    timedRange) {
   LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -169,7 +171,7 @@ function TickProcessor(
       'snapshot-pos': { parsers: [parseInt, parseInt],
           processor: this.processSnapshotPosition },
       'tick': {
-          parsers: [parseInt, parseInt, parseInt, parseInt,
+          parsers: [parseInt, parseInt, parseInt,
                     parseInt, parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
@@ -186,16 +188,19 @@ function TickProcessor(
       'function-move': null,
       'function-delete': null,
       'heap-sample-item': null,
+      'current-time': null,  // Handled specially, not parsed.
       // Obsolete row types.
       'code-allocate': null,
       'begin-code-region': null,
-      'end-code-region': null });
+      'end-code-region': null },
+      timedRange);
 
   this.cppEntriesProvider_ = cppEntriesProvider;
   this.callGraphSize_ = callGraphSize;
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
   this.snapshotLogProcessor_ = snapshotLogProcessor;
+  this.sourceMap = sourceMap;
   this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
@@ -204,7 +209,7 @@ function TickProcessor(
   // Convert picoseconds to nanoseconds.
   this.distortion_per_entry = isNaN(distortion) ? 0 : (distortion / 1000);
   this.distortion = 0;
-  var rangelimits = range.split(",");
+  var rangelimits = range ? range.split(",") : [];
   var range_start = parseInt(rangelimits[0]);
   var range_end = parseInt(rangelimits[1]);
   // Convert milliseconds to nanoseconds.
@@ -248,9 +253,9 @@ TickProcessor.VmStates = {
   JS: 0,
   GC: 1,
   COMPILER: 2,
-  PARALLEL_COMPILER: 3,
-  OTHER: 4,
-  EXTERNAL: 5
+  OTHER: 3,
+  EXTERNAL: 4,
+  IDLE: 5
 };
 
 
@@ -290,7 +295,7 @@ TickProcessor.prototype.isCppCode = function(name) {
 
 
 TickProcessor.prototype.isJsCode = function(name) {
-  return !(name in this.codeTypes_);
+  return name !== "UNKNOWN" && !(name in this.codeTypes_);
 };
 
 
@@ -366,7 +371,6 @@ TickProcessor.prototype.includeTick = function(vmState) {
 };
 
 TickProcessor.prototype.processTick = function(pc,
-                                               sp,
                                                ns_since_start,
                                                is_external_callback,
                                                tos_or_external_callback,
@@ -440,12 +444,6 @@ TickProcessor.prototype.printStatistics = function() {
 
   if (this.ticks_.total == 0) return;
 
-  // Print the unknown ticks percentage if they are not ignored.
-  if (!this.ignoreUnknown_ && this.ticks_.unaccounted > 0) {
-    this.printHeader('Unknown');
-    this.printCounter(this.ticks_.unaccounted, this.ticks_.total);
-  }
-
   var flatProfile = this.profile_.getFlatProfile();
   var flatView = this.viewBuilder_.buildView(flatProfile);
   // Sort by self time, desc, then by name, desc.
@@ -456,33 +454,48 @@ TickProcessor.prototype.printStatistics = function() {
   if (this.ignoreUnknown_) {
     totalTicks -= this.ticks_.unaccounted;
   }
-  // Our total time contains all the ticks encountered,
-  // while profile only knows about the filtered ticks.
-  flatView.head.totalTime = totalTicks;
 
   // Count library ticks
   var flatViewNodes = flatView.head.children;
   var self = this;
+
   var libraryTicks = 0;
-  this.processProfile(flatViewNodes,
+  this.printHeader('Shared libraries');
+  this.printEntries(flatViewNodes, totalTicks, null,
       function(name) { return self.isSharedLibrary(name); },
       function(rec) { libraryTicks += rec.selfTime; });
   var nonLibraryTicks = totalTicks - libraryTicks;
 
-  this.printHeader('Shared libraries');
-  this.printEntries(flatViewNodes, null,
-      function(name) { return self.isSharedLibrary(name); });
-
+  var jsTicks = 0;
   this.printHeader('JavaScript');
-  this.printEntries(flatViewNodes, nonLibraryTicks,
-      function(name) { return self.isJsCode(name); });
+  this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
+      function(name) { return self.isJsCode(name); },
+      function(rec) { jsTicks += rec.selfTime; });
 
+  var cppTicks = 0;
   this.printHeader('C++');
-  this.printEntries(flatViewNodes, nonLibraryTicks,
-      function(name) { return self.isCppCode(name); });
+  this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
+      function(name) { return self.isCppCode(name); },
+      function(rec) { cppTicks += rec.selfTime; });
 
-  this.printHeader('GC');
-  this.printCounter(this.ticks_.gc, totalTicks);
+  this.printHeader('Summary');
+  this.printLine('JavaScript', jsTicks, totalTicks, nonLibraryTicks);
+  this.printLine('C++', cppTicks, totalTicks, nonLibraryTicks);
+  this.printLine('GC', this.ticks_.gc, totalTicks, nonLibraryTicks);
+  this.printLine('Shared libraries', libraryTicks, totalTicks, null);
+  if (!this.ignoreUnknown_ && this.ticks_.unaccounted > 0) {
+    this.printLine('Unaccounted', this.ticks_.unaccounted,
+                   this.ticks_.total, null);
+  }
+
+  print('\n [C++ entry points]:');
+  print('   ticks    cpp   total   name');
+  var c_entry_functions = this.profile_.getCEntryProfile();
+  var total_c_entry = c_entry_functions[0].ticks;
+  for (var i = 1; i < c_entry_functions.length; i++) {
+    c = c_entry_functions[i];
+    this.printLine(c.name, c.ticks, total_c_entry, totalTicks);
+  }
 
   this.printHeavyProfHeader();
   var heavyProfile = this.profile_.getBottomUpProfile();
@@ -516,6 +529,18 @@ TickProcessor.prototype.printHeader = function(headerTitle) {
 };
 
 
+TickProcessor.prototype.printLine = function(
+    entry, ticks, totalTicks, nonLibTicks) {
+  var pct = ticks * 100 / totalTicks;
+  var nonLibPct = nonLibTicks != null
+      ? padLeft((ticks * 100 / nonLibTicks).toFixed(1), 5) + '%  '
+      : '        ';
+  print('  ' + padLeft(ticks, 5) + '  ' +
+        padLeft(pct.toFixed(1), 5) + '%  ' +
+        nonLibPct +
+        entry);
+}
+
 TickProcessor.prototype.printHeavyProfHeader = function() {
   print('\n [Bottom up (heavy) profile]:');
   print('  Note: percentage shows a share of a particular caller in the ' +
@@ -525,12 +550,6 @@ TickProcessor.prototype.printHeavyProfHeader = function() {
         TickProcessor.CALL_PROFILE_CUTOFF_PCT.toFixed(1) +
         '% are not shown.\n');
   print('   ticks parent  name');
-};
-
-
-TickProcessor.prototype.printCounter = function(ticksCount, totalTicksCount) {
-  var pct = ticksCount * 100.0 / totalTicksCount;
-  print('  ' + padLeft(ticksCount, 5) + '  ' + padLeft(pct.toFixed(1), 5) + '%');
 };
 
 
@@ -545,17 +564,47 @@ TickProcessor.prototype.processProfile = function(
   }
 };
 
+TickProcessor.prototype.getLineAndColumn = function(name) {
+  var re = /:([0-9]+):([0-9]+)$/;
+  var array = re.exec(name);
+  if (!array) {
+    return null;
+  }
+  return {line: array[1], column: array[2]};
+}
+
+TickProcessor.prototype.hasSourceMap = function() {
+  return this.sourceMap != null;
+};
+
+
+TickProcessor.prototype.formatFunctionName = function(funcName) {
+  if (!this.hasSourceMap()) {
+    return funcName;
+  }
+  var lc = this.getLineAndColumn(funcName);
+  if (lc == null) {
+    return funcName;
+  }
+  // in source maps lines and columns are zero based
+  var lineNumber = lc.line - 1;
+  var column = lc.column - 1;
+  var entry = this.sourceMap.findEntry(lineNumber, column);
+  var sourceFile = entry[2];
+  var sourceLine = entry[3] + 1;
+  var sourceColumn = entry[4] + 1;
+
+  return sourceFile + ':' + sourceLine + ':' + sourceColumn + ' -> ' + funcName;
+};
 
 TickProcessor.prototype.printEntries = function(
-    profile, nonLibTicks, filterP) {
+    profile, totalTicks, nonLibTicks, filterP, callback) {
+  var that = this;
   this.processProfile(profile, filterP, function (rec) {
     if (rec.selfTime == 0) return;
-    var nonLibPct = nonLibTicks != null ?
-        rec.selfTime * 100.0 / nonLibTicks : 0.0;
-    print('  ' + padLeft(rec.selfTime, 5) + '  ' +
-          padLeft(rec.selfPercent.toFixed(1), 5) + '%  ' +
-          padLeft(nonLibPct.toFixed(1), 5) + '%  ' +
-          rec.internalFuncName);
+    callback(rec);
+    var funcName = that.formatFunctionName(rec.internalFuncName);
+    that.printLine(funcName, rec.selfTime, totalTicks, nonLibTicks);
   });
 };
 
@@ -567,9 +616,10 @@ TickProcessor.prototype.printHeavyProfile = function(profile, opt_indent) {
   this.processProfile(profile, function() { return true; }, function (rec) {
     // Cut off too infrequent callers.
     if (rec.parentTotalPercent < TickProcessor.CALL_PROFILE_CUTOFF_PCT) return;
+    var funcName = self.formatFunctionName(rec.internalFuncName);
     print('  ' + padLeft(rec.totalTime, 5) + '  ' +
           padLeft(rec.parentTotalPercent.toFixed(1), 5) + '%  ' +
-          indentStr + rec.internalFuncName);
+          indentStr + funcName);
     // Limit backtrace depth.
     if (indent < 2 * self.callGraphSize_) {
       self.printHeavyProfile(rec.children, indent + 2);
@@ -824,9 +874,13 @@ function ArgumentsProcessor(args) {
     '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
         'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)'],
     '--range': ['range', 'auto,auto',
-                'Specify the range limit as [start],[end]'],
+        'Specify the range limit as [start],[end]'],
     '--distortion': ['distortion', 0,
-                     'Specify the logging overhead in picoseconds']
+        'Specify the logging overhead in picoseconds'],
+    '--source-map': ['sourceMap', null,
+        'Specify the source map that should be used for output'],
+    '--timed-range': ['timedRange', true,
+        'Ignore ticks before first and after last Date.now() call']
   };
   this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
   this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
@@ -847,7 +901,8 @@ ArgumentsProcessor.DEFAULTS = {
   targetRootFS: '',
   nm: 'nm',
   range: 'auto,auto',
-  distortion: 0
+  distortion: 0,
+  timedRange: false
 };
 
 
@@ -911,4 +966,3 @@ ArgumentsProcessor.prototype.printUsageAndExit = function() {
   }
   quit(2);
 };
-

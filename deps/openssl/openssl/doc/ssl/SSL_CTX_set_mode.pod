@@ -71,6 +71,16 @@ SSL_CTX->freelist_max_len, which defaults to 32.  Using this flag can
 save around 34k per idle SSL connection.
 This flag has no effect on SSL v2 connections, or on DTLS connections.
 
+=item SSL_MODE_SEND_FALLBACK_SCSV
+
+Send TLS_FALLBACK_SCSV in the ClientHello.
+To be set only by applications that reconnect with a downgraded protocol
+version; see draft-ietf-tls-downgrade-scsv-00 for details.
+
+DO NOT ENABLE THIS if your application attempts a normal handshake.
+Only use this in explicit fallback retries, following the guidance
+in draft-ietf-tls-downgrade-scsv-00.
+
 =back
 
 =head1 RETURN VALUES

@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
@@ -51,7 +28,9 @@ enum AllocationFlags {
   // Align the allocation to a multiple of kDoubleSize
   DOUBLE_ALIGNMENT = 1 << 3,
   // Directly allocate in old pointer space
-  PRETENURE_OLD_POINTER_SPACE = 1 << 4
+  PRETENURE_OLD_POINTER_SPACE = 1 << 4,
+  // Directly allocate in old data space
+  PRETENURE_OLD_DATA_SPACE = 1 << 5
 };
 
 
@@ -59,31 +38,59 @@ enum AllocationFlags {
 const int kInvalidProtoDepth = -1;
 
 #if V8_TARGET_ARCH_IA32
-#include "assembler.h"
-#include "ia32/assembler-ia32.h"
-#include "ia32/assembler-ia32-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "ia32/macro-assembler-ia32.h"
+#include "src/assembler.h"
+#include "src/ia32/assembler-ia32.h"
+#include "src/ia32/assembler-ia32-inl.h"
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/ia32/macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "assembler.h"
-#include "x64/assembler-x64.h"
-#include "x64/assembler-x64-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "x64/macro-assembler-x64.h"
+#include "src/assembler.h"
+#include "src/x64/assembler-x64.h"
+#include "src/x64/assembler-x64-inl.h"
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/x64/macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "src/arm64/constants-arm64.h"
+#include "src/assembler.h"
+#include "src/arm64/assembler-arm64.h"  // NOLINT
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/arm64/macro-assembler-arm64.h"  // NOLINT
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/constants-arm.h"
-#include "assembler.h"
-#include "arm/assembler-arm.h"
-#include "arm/assembler-arm-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "arm/macro-assembler-arm.h"
+#include "src/arm/constants-arm.h"
+#include "src/assembler.h"
+#include "src/arm/assembler-arm.h"  // NOLINT
+#include "src/arm/assembler-arm-inl.h"
+#include "src/code.h"                     // NOLINT, must be after assembler_*.h
+#include "src/arm/macro-assembler-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/constants-ppc.h"
+#include "src/assembler.h"          // NOLINT
+#include "src/ppc/assembler-ppc.h"  // NOLINT
+#include "src/ppc/assembler-ppc-inl.h"
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/ppc/macro-assembler-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/constants-mips.h"
-#include "assembler.h"
-#include "mips/assembler-mips.h"
-#include "mips/assembler-mips-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "mips/macro-assembler-mips.h"
+#include "src/mips/constants-mips.h"
+#include "src/assembler.h"            // NOLINT
+#include "src/mips/assembler-mips.h"  // NOLINT
+#include "src/mips/assembler-mips-inl.h"
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/mips/macro-assembler-mips.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/constants-mips64.h"
+#include "src/assembler.h"                // NOLINT
+#include "src/mips64/assembler-mips64.h"  // NOLINT
+#include "src/mips64/assembler-mips64-inl.h"
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/mips64/macro-assembler-mips64.h"
+#elif V8_TARGET_ARCH_X87
+#include "src/assembler.h"
+#include "src/x87/assembler-x87.h"
+#include "src/x87/assembler-x87-inl.h"
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
+#include "src/x87/macro-assembler-x87.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -114,6 +121,7 @@ class FrameScope {
   // scope, the MacroAssembler is still marked as being in a frame scope, and
   // the code will be generated again when it goes out of scope.
   void GenerateLeaveFrame() {
+    DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
     masm_->LeaveFrame(type_);
   }
 
@@ -121,6 +129,74 @@ class FrameScope {
   MacroAssembler* masm_;
   StackFrame::Type type_;
   bool old_has_frame_;
+};
+
+class FrameAndConstantPoolScope {
+ public:
+  FrameAndConstantPoolScope(MacroAssembler* masm, StackFrame::Type type)
+      : masm_(masm),
+        type_(type),
+        old_has_frame_(masm->has_frame()),
+        old_constant_pool_available_(FLAG_enable_ool_constant_pool &&
+                                     masm->is_ool_constant_pool_available()) {
+    masm->set_has_frame(true);
+    if (FLAG_enable_ool_constant_pool) {
+      masm->set_ool_constant_pool_available(true);
+    }
+    if (type_ != StackFrame::MANUAL && type_ != StackFrame::NONE) {
+      masm->EnterFrame(type, !old_constant_pool_available_);
+    }
+  }
+
+  ~FrameAndConstantPoolScope() {
+    masm_->LeaveFrame(type_);
+    masm_->set_has_frame(old_has_frame_);
+    if (FLAG_enable_ool_constant_pool) {
+      masm_->set_ool_constant_pool_available(old_constant_pool_available_);
+    }
+  }
+
+  // Normally we generate the leave-frame code when this object goes
+  // out of scope.  Sometimes we may need to generate the code somewhere else
+  // in addition.  Calling this will achieve that, but the object stays in
+  // scope, the MacroAssembler is still marked as being in a frame scope, and
+  // the code will be generated again when it goes out of scope.
+  void GenerateLeaveFrame() {
+    DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
+    masm_->LeaveFrame(type_);
+  }
+
+ private:
+  MacroAssembler* masm_;
+  StackFrame::Type type_;
+  bool old_has_frame_;
+  bool old_constant_pool_available_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FrameAndConstantPoolScope);
+};
+
+// Class for scoping the the unavailability of constant pool access.
+class ConstantPoolUnavailableScope {
+ public:
+  explicit ConstantPoolUnavailableScope(MacroAssembler* masm)
+      : masm_(masm),
+        old_constant_pool_available_(FLAG_enable_ool_constant_pool &&
+                                     masm->is_ool_constant_pool_available()) {
+    if (FLAG_enable_ool_constant_pool) {
+      masm_->set_ool_constant_pool_available(false);
+    }
+  }
+  ~ConstantPoolUnavailableScope() {
+    if (FLAG_enable_ool_constant_pool) {
+      masm_->set_ool_constant_pool_available(old_constant_pool_available_);
+    }
+  }
+
+ private:
+  MacroAssembler* masm_;
+  int old_constant_pool_available_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolUnavailableScope);
 };
 
 
@@ -175,17 +251,26 @@ class AllocationUtils {
  public:
   static ExternalReference GetAllocationTopReference(
       Isolate* isolate, AllocationFlags flags) {
-    return ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) ?
-        ExternalReference::old_pointer_space_allocation_top_address(isolate) :
-        ExternalReference::new_space_allocation_top_address(isolate);
+    if ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) {
+      return ExternalReference::old_pointer_space_allocation_top_address(
+          isolate);
+    } else if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      return ExternalReference::old_data_space_allocation_top_address(isolate);
+    }
+    return ExternalReference::new_space_allocation_top_address(isolate);
   }
 
 
   static ExternalReference GetAllocationLimitReference(
       Isolate* isolate, AllocationFlags flags) {
-    return ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) ?
-        ExternalReference::old_pointer_space_allocation_limit_address(isolate) :
-        ExternalReference::new_space_allocation_limit_address(isolate);
+    if ((flags & PRETENURE_OLD_POINTER_SPACE) != 0) {
+      return ExternalReference::old_pointer_space_allocation_limit_address(
+          isolate);
+    } else if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      return ExternalReference::old_data_space_allocation_limit_address(
+          isolate);
+    }
+    return ExternalReference::new_space_allocation_limit_address(isolate);
   }
 };
 

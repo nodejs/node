@@ -1,0 +1,64 @@
+{
+  "name": "hoek",
+  "description": "General purpose node utilities",
+  "version": "2.12.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hapijs/hoek"
+  },
+  "main": "index",
+  "keywords": [
+    "utilities"
+  ],
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "code": "1.x.x",
+    "lab": "5.x.x"
+  },
+  "scripts": {
+    "test": "make test-cov"
+  },
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "http://github.com/hapijs/hoek/raw/master/LICENSE"
+    }
+  ],
+  "gitHead": "9bbb8f149b5b824f66b47ae4cf3afb1e2877396f",
+  "bugs": {
+    "url": "https://github.com/hapijs/hoek/issues"
+  },
+  "homepage": "https://github.com/hapijs/hoek",
+  "_id": "hoek@2.12.0",
+  "_shasum": "5d1196e0bf20c5cec957e8927101164effdaf1c9",
+  "_from": "hoek@>=2.0.0 <3.0.0",
+  "_npmVersion": "2.6.1",
+  "_nodeVersion": "0.10.36",
+  "_npmUser": {
+    "name": "nlf",
+    "email": "quitlahok@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "hueniverse",
+      "email": "eran@hueniverse.com"
+    },
+    {
+      "name": "wyatt",
+      "email": "wpreul@gmail.com"
+    },
+    {
+      "name": "nlf",
+      "email": "quitlahok@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "5d1196e0bf20c5cec957e8927101164effdaf1c9",
+    "tarball": "http://registry.npmjs.org/hoek/-/hoek-2.12.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/hoek/-/hoek-2.12.0.tgz"
+}

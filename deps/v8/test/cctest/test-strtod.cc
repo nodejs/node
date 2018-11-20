@@ -27,13 +27,14 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "bignum.h"
-#include "cctest.h"
-#include "diy-fp.h"
-#include "double.h"
-#include "strtod.h"
+#include "src/base/utils/random-number-generator.h"
+#include "src/bignum.h"
+#include "src/diy-fp.h"
+#include "src/double.h"
+#include "src/strtod.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -432,7 +433,7 @@ static uint32_t DeterministicRandom() {
   static uint32_t lo = 0;
 
   // Initialization values don't have any special meaning. (They are the result
-  // of two calls to random().)
+  // of two calls to rand().)
   if (hi == 0) hi = 0xbfe166e7;
   if (lo == 0) lo = 0x64d1c3c9;
 
@@ -448,12 +449,13 @@ static const int kShortStrtodRandomCount = 2;
 static const int kLargeStrtodRandomCount = 2;
 
 TEST(RandomStrtod) {
+  v8::base::RandomNumberGenerator rng;
   char buffer[kBufferSize];
   for (int length = 1; length < 15; length++) {
     for (int i = 0; i < kShortStrtodRandomCount; ++i) {
       int pos = 0;
       for (int j = 0; j < length; ++j) {
-        buffer[pos++] = random() % 10 + '0';
+        buffer[pos++] = rng.NextInt(10) + '0';
       }
       int exponent = DeterministicRandom() % (25*2 + 1) - 25 - length;
       buffer[pos] = '\0';
@@ -466,7 +468,7 @@ TEST(RandomStrtod) {
     for (int i = 0; i < kLargeStrtodRandomCount; ++i) {
       int pos = 0;
       for (int j = 0; j < length; ++j) {
-        buffer[pos++] = random() % 10 + '0';
+        buffer[pos++] = rng.NextInt(10) + '0';
       }
       int exponent = DeterministicRandom() % (308*2 + 1) - 308 - length;
       buffer[pos] = '\0';

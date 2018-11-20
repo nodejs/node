@@ -27,9 +27,10 @@
 //
 // Tests of the unbound queue.
 
-#include "v8.h"
-#include "unbound-queue-inl.h"
-#include "cctest.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
+
+#include "src/unbound-queue-inl.h"
 
 using i::UnboundQueue;
 
@@ -74,4 +75,3 @@ TEST(MultipleRecords) {
   }
   CHECK(cq.IsEmpty());
 }
-

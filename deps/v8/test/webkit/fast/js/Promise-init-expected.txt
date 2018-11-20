@@ -1,0 +1,19 @@
+Test Promise construction.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS promise instanceof Promise is true
+PASS promise.constructor is Promise
+PASS thisInInit is undefined
+PASS resolve instanceof Function is true
+PASS reject instanceof Function is true
+PASS new Promise() threw exception TypeError: Promise resolver undefined is not a function.
+PASS new Promise(37) threw exception TypeError: Promise resolver 37 is not a function.
+PASS promise = new Promise(function() { throw Error("foo"); }) did not throw exception.
+PASS result.message is "foo"
+PASS fulfilled
+PASS result is "hello"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

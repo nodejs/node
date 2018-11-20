@@ -37,9 +37,8 @@ static int close_cb_called = 0;
 
 
 static void shutdown_cb(uv_shutdown_t* req, int status) {
-  int err = uv_last_error(uv_default_loop()).code;
   ASSERT(req == &shutdown_req);
-  ASSERT(status == 0 || (status == -1 && err == UV_ECANCELED));
+  ASSERT(status == 0 || status == UV_ECANCELED);
   shutdown_cb_called++;
 }
 
@@ -57,22 +56,26 @@ static void connect_cb(uv_connect_t* req, int status) {
 
   r = uv_shutdown(&shutdown_req, req->handle, shutdown_cb);
   ASSERT(r == 0);
-  ASSERT(!uv_is_closing((uv_handle_t*) req->handle));
+  ASSERT(0 == uv_is_closing((uv_handle_t*) req->handle));
   uv_close((uv_handle_t*) req->handle, close_cb);
-  ASSERT(uv_is_closing((uv_handle_t*) req->handle));
+  ASSERT(1 == uv_is_closing((uv_handle_t*) req->handle));
 
   connect_cb_called++;
 }
 
 
 TEST_IMPL(shutdown_close_tcp) {
-  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  struct sockaddr_in addr;
   uv_tcp_t h;
   int r;
 
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   r = uv_tcp_init(uv_default_loop(), &h);
   ASSERT(r == 0);
-  r = uv_tcp_connect(&connect_req, &h, addr, connect_cb);
+  r = uv_tcp_connect(&connect_req,
+                     &h,
+                     (const struct sockaddr*) &addr,
+                     connect_cb);
   ASSERT(r == 0);
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);

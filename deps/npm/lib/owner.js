@@ -1,9 +1,13 @@
-
 module.exports = owner
 
 owner.usage = "npm owner add <username> <pkg>"
             + "\nnpm owner rm <username> <pkg>"
             + "\nnpm owner ls <pkg>"
+
+var npm = require("./npm.js")
+  , log = require("npmlog")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , readLocalPkg = require("./utils/read-local-package.js")
 
 owner.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -14,60 +18,74 @@ owner.completion = function (opts, cb) {
     else subs.push("ls", "list")
     return cb(null, subs)
   }
-  var un = encodeURIComponent(npm.config.get("username"))
-  switch (argv[2]) {
-    case "ls":
-      if (argv.length > 3) return cb()
-      else return registry.get("/-/short", cb)
 
-    case "rm":
-      if (argv.length > 3) {
-        var theUser = encodeURIComponent(argv[3])
-          , uri = "/-/by-user/"+theUser+"|"+un
-        console.error(uri)
-        return registry.get(uri, function (er, d) {
-          if (er) return cb(er)
-          // return the intersection
-          return cb(null, d[theUser].filter(function (p) {
-            // kludge for server adminery.
-            return un === "isaacs" || d[un].indexOf(p) === -1
-          }))
-        })
-      }
-      // else fallthrough
-    case "add":
-      if (argv.length > 3) {
-        var theUser = encodeURIComponent(argv[3])
-          , uri = "/-/by-user/"+theUser+"|"+un
-        console.error(uri)
-        return registry.get(uri, function (er, d) {
-          console.error(uri, er || d)
-          // return mine that they're not already on.
-          if (er) return cb(er)
-          var mine = d[un] || []
-            , theirs = d[theUser] || []
-          return cb(null, mine.filter(function (p) {
-            return theirs.indexOf(p) === -1
-          }))
-        })
-      }
-      // just list all users who aren't me.
-      return registry.get("/-/users", function (er, list) {
-        if (er) return cb()
-        return cb(null, Object.keys(list).filter(function (n) {
-          return n !== un
-        }))
-      })
+  npm.commands.whoami([], true, function (er, username) {
+    if (er) return cb()
 
-    default:
-      return cb()
-  }
+    var un = encodeURIComponent(username)
+    var byUser, theUser
+    switch (argv[2]) {
+      case "ls":
+        // FIXME: there used to be registry completion here, but it stopped
+        // making sense somewhere around 50,000 packages on the registry
+        return cb()
+
+      case "rm":
+        if (argv.length > 3) {
+          theUser = encodeURIComponent(argv[3])
+          byUser = "-/by-user/" + theUser + "|" + un
+          return mapToRegistry(byUser, npm.config, function (er, uri, auth) {
+            if (er) return cb(er)
+
+            console.error(uri)
+            npm.registry.get(uri, { auth : auth }, function (er, d) {
+              if (er) return cb(er)
+              // return the intersection
+              return cb(null, d[theUser].filter(function (p) {
+                // kludge for server adminery.
+                return un === "isaacs" || d[un].indexOf(p) === -1
+              }))
+            })
+          })
+        }
+        // else fallthrough
+      case "add":
+        if (argv.length > 3) {
+          theUser = encodeURIComponent(argv[3])
+          byUser = "-/by-user/" + theUser + "|" + un
+          return mapToRegistry(byUser, npm.config, function (er, uri, auth) {
+            if (er) return cb(er)
+
+            console.error(uri)
+            npm.registry.get(uri, { auth : auth }, function (er, d) {
+              console.error(uri, er || d)
+              // return mine that they're not already on.
+              if (er) return cb(er)
+              var mine = d[un] || []
+                , theirs = d[theUser] || []
+              return cb(null, mine.filter(function (p) {
+                return theirs.indexOf(p) === -1
+              }))
+            })
+          })
+        }
+        // just list all users who aren't me.
+        return mapToRegistry("-/users", npm.config, function (er, uri, auth) {
+          if (er) return cb(er)
+
+          npm.registry.get(uri, { auth : auth }, function (er, list) {
+            if (er) return cb()
+            return cb(null, Object.keys(list).filter(function (n) {
+              return n !== un
+            }))
+          })
+        })
+
+      default:
+        return cb()
+    }
+  })
 }
-
-var npm = require("./npm.js")
-  , registry = npm.registry
-  , log = require("npmlog")
-  , readJson = require("read-package-json")
 
 function owner (args, cb) {
   var action = args.shift()
@@ -86,17 +104,23 @@ function ls (pkg, cb) {
     ls(pkg, cb)
   })
 
-  registry.get(pkg, function (er, data) {
-    var msg = ""
-    if (er) {
-      log.error("owner ls", "Couldn't get owner data", pkg)
-      return cb(er)
-    }
-    var owners = data.maintainers
-    if (!owners || !owners.length) msg = "admin party!"
-    else msg = owners.map(function (o) { return o.name +" <"+o.email+">" }).join("\n")
-    console.log(msg)
-    cb(er, owners)
+  mapToRegistry(pkg, npm.config, function (er, uri, auth) {
+    if (er) return cb(er)
+
+    npm.registry.get(uri, { auth : auth }, function (er, data) {
+      var msg = ""
+      if (er) {
+        log.error("owner ls", "Couldn't get owner data", pkg)
+        return cb(er)
+      }
+      var owners = data.maintainers
+      if (!owners || !owners.length) msg = "admin party!"
+      else msg = owners.map(function (o) {
+        return o.name + " <" + o.email + ">"
+      }).join("\n")
+      console.log(msg)
+      cb(er, owners)
+    })
   })
 }
 
@@ -115,7 +139,7 @@ function add (user, pkg, cb) {
       var o = owners[i]
       if (o.name === u.name) {
         log.info( "owner add"
-                , "Already a package owner: "+o.name+" <"+o.email+">")
+                , "Already a package owner: " + o.name + " <" + o.email + ">")
         return false
       }
     }
@@ -132,7 +156,7 @@ function rm (user, pkg, cb) {
   })
 
   log.verbose("owner rm", "%s from %s", user, pkg)
-  mutate(pkg, null, function (u, owners) {
+  mutate(pkg, user, function (u, owners) {
     var found = false
       , m = owners.filter(function (o) {
           var match = (o.name === user)
@@ -140,7 +164,7 @@ function rm (user, pkg, cb) {
           return !match
         })
     if (!found) {
-      log.info("owner rm", "Not a package owner: "+user)
+      log.info("owner rm", "Not a package owner: " + user)
       return false
     }
     if (!m.length) return new Error(
@@ -151,14 +175,19 @@ function rm (user, pkg, cb) {
 
 function mutate (pkg, user, mutation, cb) {
   if (user) {
-    registry.get("/-/user/org.couchdb.user:"+user, mutate_)
+    var byUser = "-/user/org.couchdb.user:" + user
+    mapToRegistry(byUser, npm.config, function (er, uri, auth) {
+      if (er) return cb(er)
+
+      npm.registry.get(uri, { auth : auth }, mutate_)
+    })
   } else {
     mutate_(null, null)
   }
 
   function mutate_ (er, u) {
     if (!er && user && (!u || u.error)) er = new Error(
-      "Couldn't get user data for "+user+": "+JSON.stringify(u))
+      "Couldn't get user data for " + user + ": " + JSON.stringify(u))
 
     if (er) {
       log.error("owner mutate", "Error getting user data for %s", user)
@@ -166,40 +195,60 @@ function mutate (pkg, user, mutation, cb) {
     }
 
     if (u) u = { "name" : u.name, "email" : u.email }
-    registry.get(pkg, function (er, data) {
-      if (er) {
-        log.error("owner mutate", "Error getting package data for %s", pkg)
-        return cb(er)
-      }
-      var m = mutation(u, data.maintainers)
-      if (!m) return cb() // handled
-      if (m instanceof Error) return cb(m) // error
-      data = { _id : data._id
-             , _rev : data._rev
-             , maintainers : m
-             }
-      registry.request("PUT"
-          , pkg+"/-rev/"+data._rev, data
-          , function (er, data) {
-        if (!er && data.error) er = new Error(
-          "Failed to update package metadata: "+JSON.stringify(data))
+    mapToRegistry(pkg, npm.config, function (er, uri, auth) {
+      if (er) return cb(er)
+
+      npm.registry.get(uri, { auth : auth }, function (er, data) {
         if (er) {
-          log.error("owner mutate", "Failed to update package metadata")
+          log.error("owner mutate", "Error getting package data for %s", pkg)
+          return cb(er)
         }
-        cb(er, data)
+
+        // save the number of maintainers before mutation so that we can figure
+        // out if maintainers were added or removed
+        var beforeMutation = data.maintainers.length
+
+        var m = mutation(u, data.maintainers)
+        if (!m) return cb() // handled
+        if (m instanceof Error) return cb(m) // error
+
+        data = {
+          _id : data._id,
+          _rev : data._rev,
+          maintainers : m
+        }
+        var dataPath = pkg.replace("/", "%2f") + "/-rev/" + data._rev
+        mapToRegistry(dataPath, npm.config, function (er, uri, auth) {
+          if (er) return cb(er)
+
+          var params = {
+            method : "PUT",
+            body : data,
+            auth : auth
+          }
+          npm.registry.request(uri, params, function (er, data) {
+            if (!er && data.error) {
+              er = new Error("Failed to update package metadata: "+JSON.stringify(data))
+            }
+
+            if (er) {
+              log.error("owner mutate", "Failed to update package metadata")
+            }
+            else if (m.length > beforeMutation) {
+              console.log("+ %s (%s)", user, pkg)
+            }
+            else if (m.length < beforeMutation) {
+              console.log("- %s (%s)", user, pkg)
+            }
+
+            cb(er, data)
+          })
+        })
       })
     })
   }
 }
 
-function readLocalPkg (cb) {
-  if (npm.config.get("global")) return cb()
-  var path = require("path")
-  readJson(path.resolve(npm.prefix, "package.json"), function (er, d) {
-    return cb(er, d && d.name)
-  })
-}
-
 function unknown (action, cb) {
-  cb("Usage: \n"+owner.usage)
+  cb("Usage: \n" + owner.usage)
 }

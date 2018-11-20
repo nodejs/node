@@ -26,7 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // On MacOS X 10.7.5, this test needs a stack size of at least 788 kBytes.
+// On PPC64, this test needs a stack size of at least 698 kBytes.
 // Flags: --stack-size=800
+// Flags: --turbo-deoptimization
 
 // Test that we can make large object literals that work.
 // Also test that we can attempt to make even larger object literals without
@@ -92,16 +94,25 @@ for (var i = 0; i < sizes.length; i++) {
   testLiteral(sizes[i], true);
 }
 
+
+function checkExpectedException(e) {
+  assertInstanceof(e, RangeError);
+  assertTrue(e.message.indexOf("Maximum call stack size exceeded") >= 0);
+}
+
+
 function testLiteralAndCatch(size) {
   var big_enough = false;
   try {
     testLiteral(size, false);
   } catch (e) {
+    checkExpectedException(e);
     big_enough = true;
   }
   try {
     testLiteral(size, true);
   } catch (e) {
+    checkExpectedException(e);
     big_enough = true;
   }
   return big_enough;

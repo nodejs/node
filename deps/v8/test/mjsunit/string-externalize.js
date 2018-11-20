@@ -36,27 +36,27 @@ function test() {
   for (var i = 0; i < size; i++) {
       str += String.fromCharCode(i & 0x7f);
   }
-  assertTrue(isAsciiString(str));
+  assertTrue(isOneByteString(str));
 
-  var twoByteExternalWithAsciiData =
+  var twoByteExternalWithOneByteData =
       "AA" + (function() { return "A"; })();
-  externalizeString(twoByteExternalWithAsciiData, true /* force two-byte */);
-  assertFalse(isAsciiString(twoByteExternalWithAsciiData));
+  externalizeString(twoByteExternalWithOneByteData, true /* force two-byte */);
+  assertFalse(isOneByteString(twoByteExternalWithOneByteData));
 
   var realTwoByteExternalString =
       "\u1234\u1234\u1234\u1234" + (function() { return "\u1234"; })();
   externalizeString(realTwoByteExternalString);
-  assertFalse(isAsciiString(realTwoByteExternalString));
+  assertFalse(isOneByteString(realTwoByteExternalString));
 
-  assertTrue(isAsciiString(["a", twoByteExternalWithAsciiData].join("")));
+  assertTrue(isOneByteString(["a", twoByteExternalWithOneByteData].join("")));
 
   // Appending a two-byte string that contains only ascii chars should
   // still produce an ascii cons.
-  var str1 = str + twoByteExternalWithAsciiData;
-  assertTrue(isAsciiString(str1));
+  var str1 = str + twoByteExternalWithOneByteData;
+  assertTrue(isOneByteString(str1));
 
   // Force flattening of the string.
-  var old_length = str1.length - twoByteExternalWithAsciiData.length;
+  var old_length = str1.length - twoByteExternalWithOneByteData.length;
   for (var i = 0; i < old_length; i++) {
     assertEquals(String.fromCharCode(i & 0x7f), str1[i]);
   }
@@ -65,16 +65,16 @@ function test() {
   }
 
   // Flattened string should still be ascii.
-  assertTrue(isAsciiString(str1));
+  assertTrue(isOneByteString(str1));
 
   // Lower-casing an ascii string should produce ascii.
-  assertTrue(isAsciiString(str1.toLowerCase()));
+  assertTrue(isOneByteString(str1.toLowerCase()));
 
-  assertFalse(isAsciiString(["a", realTwoByteExternalString].join("")));
+  assertFalse(isOneByteString(["a", realTwoByteExternalString].join("")));
 
   // Appending a real two-byte string should produce a two-byte cons.
   var str2 = str + realTwoByteExternalString;
-  assertFalse(isAsciiString(str2));
+  assertFalse(isOneByteString(str2));
 
   // Force flattening of the string.
   old_length = str2.length - realTwoByteExternalString.length;
@@ -86,7 +86,7 @@ function test() {
   }
 
   // Flattened string should still be two-byte.
-  assertFalse(isAsciiString(str2));
+  assertFalse(isOneByteString(str2));
 }
 
 // Run the test many times to ensure IC-s don't break things.

@@ -1,100 +1,70 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+#define __INIT_node_perfctr_provider_IMP
 #include "node_counters.h"
-#include <perflib.h>
 #include "node_win32_perfctr_provider.h"
 
-#define __INIT_node_perfctr_provider_IMP
-#include <node_perfctr_provider.h>
+#include <perflib.h>
+
+#include "node_perfctr_provider.h"
+
 
 typedef ULONG (WINAPI *PerfStartProviderExFunc)(
     __in LPGUID ProviderGuid,
     __in_opt PPERF_PROVIDER_CONTEXT ProviderContext,
-    __out PHANDLE Provider
-    );
+    __out PHANDLE Provider);
 
 typedef ULONG (WINAPI *PerfStopProviderFunc)(
-    __in HANDLE ProviderHandle
-    );
+    __in HANDLE ProviderHandle);
 
 typedef ULONG (WINAPI *PerfSetCounterSetInfoFunc)(
     __in HANDLE ProviderHandle,
     __inout_bcount(TemplateSize) PPERF_COUNTERSET_INFO Template,
-    __in ULONG TemplateSize
-    );
+    __in ULONG TemplateSize);
 
 typedef PPERF_COUNTERSET_INSTANCE (WINAPI *PerfCreateInstanceFunc)(
     __in HANDLE ProviderHandle,
     __in LPCGUID CounterSetGuid,
     __in PCWSTR Name,
-    __in ULONG Id
-    );
+    __in ULONG Id);
 
 typedef ULONG (WINAPI *PerfDeleteInstanceFunc)(
     __in HANDLE Provider,
-    __in PPERF_COUNTERSET_INSTANCE InstanceBlock
-    );
+    __in PPERF_COUNTERSET_INSTANCE InstanceBlock);
 
 typedef ULONG (WINAPI *PerfSetULongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONG Value
-    );
+    __in ULONG Value);
 
 typedef ULONG (WINAPI *PerfSetULongLongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONGLONG Value
-    );
+    __in ULONGLONG Value);
 
 typedef ULONG (WINAPI *PerfIncrementULongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONG Value
-    );
+    __in ULONG Value);
 
 typedef ULONG (WINAPI *PerfIncrementULongLongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONGLONG Value
-    );
+    __in ULONGLONG Value);
 
 typedef ULONG (WINAPI *PerfDecrementULongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONG Value
-    );
+    __in ULONG Value);
 
 typedef ULONG (WINAPI *PerfDecrementULongLongCounterValueFunc)(
     __in HANDLE Provider,
     __inout PPERF_COUNTERSET_INSTANCE Instance,
     __in ULONG CounterId,
-    __in ULONGLONG Value
-    );
+    __in ULONGLONG Value);
 
 
 HMODULE advapimod;
@@ -128,7 +98,7 @@ PPERF_COUNTERSET_INSTANCE perfctr_instance;
 namespace node {
 
 
-EXTERN_C DECLSPEC_SELECTANY HANDLE NodeCounterProvider = NULL;
+EXTERN_C DECLSPEC_SELECTANY HANDLE NodeCounterProvider = nullptr;
 
 void InitPerfCountersWin32() {
   ULONG status;
@@ -144,7 +114,7 @@ void InitPerfCountersWin32() {
   wcscpy_s(Inst, INST_MAX_LEN, INST_PREFIX);
   _itow_s(pid, Inst + INST_PREFIX_LEN, INST_MAX_LEN - INST_PREFIX_LEN, 10);
 
-  advapimod = LoadLibrary("advapi32.dll");
+  advapimod = LoadLibraryW(L"advapi32.dll");
   if (advapimod) {
     perfctr_startProvider = (PerfStartProviderExFunc)
       GetProcAddress(advapimod, "PerfStartProviderEx");
@@ -175,7 +145,7 @@ void InitPerfCountersWin32() {
     if (!perfctr_startProvider ||
         !perfctr_setCounterSetInfo ||
         !perfctr_createInstance) {
-      NodeCounterProvider = NULL;
+      NodeCounterProvider = nullptr;
       return;
     }
 
@@ -183,7 +153,7 @@ void InitPerfCountersWin32() {
                                    &providerContext,
                                    &NodeCounterProvider);
     if (status != ERROR_SUCCESS) {
-      NodeCounterProvider = NULL;
+      NodeCounterProvider = nullptr;
       return;
     }
 
@@ -192,7 +162,7 @@ void InitPerfCountersWin32() {
                                        sizeof(NodeCounterSetInfo));
     if (status != ERROR_SUCCESS) {
       perfctr_stopProvider(NodeCounterProvider);
-      NodeCounterProvider = NULL;
+      NodeCounterProvider = nullptr;
       return;
     }
 
@@ -200,30 +170,30 @@ void InitPerfCountersWin32() {
                                               &NodeCounterSetGuid,
                                               Inst,
                                               1);
-    if (perfctr_instance == NULL) {
+    if (perfctr_instance == nullptr) {
       perfctr_stopProvider(NodeCounterProvider);
-      NodeCounterProvider = NULL;
+      NodeCounterProvider = nullptr;
     }
   }
 }
 
 
 void TermPerfCountersWin32() {
-  if (NodeCounterProvider != NULL &&
-    perfctr_stopProvider != NULL) {
+  if (NodeCounterProvider != nullptr &&
+    perfctr_stopProvider != nullptr) {
     perfctr_stopProvider(NodeCounterProvider);
-    NodeCounterProvider = NULL;
+    NodeCounterProvider = nullptr;
   }
 
   if (advapimod) {
     FreeLibrary(advapimod);
-    advapimod = NULL;
+    advapimod = nullptr;
   }
 }
 
 
 void NODE_COUNT_HTTP_SERVER_REQUEST() {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_SERVER_REQUEST,
@@ -233,7 +203,7 @@ void NODE_COUNT_HTTP_SERVER_REQUEST() {
 
 
 void NODE_COUNT_HTTP_SERVER_RESPONSE() {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_SERVER_RESPONSE,
@@ -243,7 +213,7 @@ void NODE_COUNT_HTTP_SERVER_RESPONSE() {
 
 
 void NODE_COUNT_HTTP_CLIENT_REQUEST() {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_CLIENT_REQUEST,
@@ -253,7 +223,7 @@ void NODE_COUNT_HTTP_CLIENT_REQUEST() {
 
 
 void NODE_COUNT_HTTP_CLIENT_RESPONSE() {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_CLIENT_RESPONSE,
@@ -263,7 +233,7 @@ void NODE_COUNT_HTTP_CLIENT_RESPONSE() {
 
 
 void NODE_COUNT_SERVER_CONN_OPEN() {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_SERVER_CONNS,
@@ -273,7 +243,7 @@ void NODE_COUNT_SERVER_CONN_OPEN() {
 
 
 void NODE_COUNT_SERVER_CONN_CLOSE() {
-  if (NodeCounterProvider != NULL && perfctr_decrementULongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_decrementULongValue != nullptr) {
     perfctr_decrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_SERVER_CONNS,
@@ -283,7 +253,7 @@ void NODE_COUNT_SERVER_CONN_CLOSE() {
 
 
 void NODE_COUNT_NET_BYTES_SENT(int bytes) {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongLongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_NET_BYTES_SENT,
@@ -293,7 +263,7 @@ void NODE_COUNT_NET_BYTES_SENT(int bytes) {
 
 
 void NODE_COUNT_NET_BYTES_RECV(int bytes) {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongLongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_NET_BYTES_RECV,
@@ -313,7 +283,7 @@ uint64_t NODE_COUNT_GET_GC_RAWTIME() {
 
 
 void NODE_COUNT_GC_PERCENTTIME(unsigned int percent) {
-  if (NodeCounterProvider != NULL && perfctr_setULongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_setULongValue != nullptr) {
     perfctr_setULongValue(NodeCounterProvider,
                           perfctr_instance,
                           NODE_COUNTER_GC_PERCENTTIME,
@@ -323,7 +293,7 @@ void NODE_COUNT_GC_PERCENTTIME(unsigned int percent) {
 
 
 void NODE_COUNT_PIPE_BYTES_SENT(int bytes) {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongLongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_PIPE_BYTES_SENT,
@@ -333,7 +303,7 @@ void NODE_COUNT_PIPE_BYTES_SENT(int bytes) {
 
 
 void NODE_COUNT_PIPE_BYTES_RECV(int bytes) {
-  if (NodeCounterProvider != NULL && perfctr_incrementULongLongValue != NULL) {
+  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_PIPE_BYTES_RECV,
@@ -341,5 +311,4 @@ void NODE_COUNT_PIPE_BYTES_RECV(int bytes) {
   }
 }
 
-
-}
+}  // namespace node

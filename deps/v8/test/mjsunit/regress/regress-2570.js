@@ -29,3 +29,4 @@ var o = ["\u56e7",   // Switch JSON stringifier to two-byte mode.
          "\u00e6"];  // Latin-1 character.
 
 assertEquals('["\u56e7","\u00e6"]', JSON.stringify(o));
+assertEquals('["\u56e7","\u00e6"]', JSON.stringify(o, null, 0));

@@ -9165,5 +9165,3 @@ var thai_l_regexp = new RegExp(thai_l_thingy);
 var thai_l_regexp2 = new RegExp("[" + thai_l_thingy + "]");
 assertTrue(thai_l_regexp.test(thai_l_thingy));
 assertTrue(thai_l_regexp2.test(thai_l_thingy));
-
-

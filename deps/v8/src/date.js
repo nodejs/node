@@ -1,43 +1,18 @@
 // Copyright 2006-2008 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
+"use strict";
 
 // This file relies on the fact that the following declarations have been made
 // in v8natives.js:
 // var $isFinite = GlobalIsFinite;
 
+var $Date = global.Date;
+
 // -------------------------------------------------------------------
 
 // This file contains date support implemented in JavaScript.
-
-// Keep reference to original values of some global properties.  This
-// has the added benefit that the code in this file is isolated from
-// changes to these properties.
-var $Date = global.Date;
 
 // Helper function to throw error.
 function ThrowDateTypeError() {
@@ -45,11 +20,12 @@ function ThrowDateTypeError() {
 }
 
 
-var timezone_cache_time = $NaN;
+var timezone_cache_time = NAN;
 var timezone_cache_timezone;
 
 function LocalTimezone(t) {
   if (NUMBER_IS_NAN(t)) return "";
+  CheckDateCacheCurrent();
   if (t == timezone_cache_time) {
     return timezone_cache_timezone;
   }
@@ -70,10 +46,10 @@ function UTC(time) {
 
 // ECMA 262 - 15.9.1.11
 function MakeTime(hour, min, sec, ms) {
-  if (!$isFinite(hour)) return $NaN;
-  if (!$isFinite(min)) return $NaN;
-  if (!$isFinite(sec)) return $NaN;
-  if (!$isFinite(ms)) return $NaN;
+  if (!$isFinite(hour)) return NAN;
+  if (!$isFinite(min)) return NAN;
+  if (!$isFinite(sec)) return NAN;
+  if (!$isFinite(ms)) return NAN;
   return TO_INTEGER(hour) * msPerHour
       + TO_INTEGER(min) * msPerMinute
       + TO_INTEGER(sec) * msPerSecond
@@ -94,7 +70,7 @@ function TimeInYear(year) {
 //     MakeDay(2007, -33, 1) --> MakeDay(2004, 3, 1)
 //     MakeDay(2007, 14, -50) --> MakeDay(2007, 8, 11)
 function MakeDay(year, month, date) {
-  if (!$isFinite(year) || !$isFinite(month) || !$isFinite(date)) return $NaN;
+  if (!$isFinite(year) || !$isFinite(month) || !$isFinite(date)) return NAN;
 
   // Convert to integer and map -0 to 0.
   year = TO_INTEGER_MAP_MINUS_ZERO(year);
@@ -103,7 +79,7 @@ function MakeDay(year, month, date) {
 
   if (year < kMinYear || year > kMaxYear ||
       month < kMinMonth || month > kMaxMonth) {
-    return $NaN;
+    return NAN;
   }
 
   // Now we rely on year and month being SMIs.
@@ -119,15 +95,15 @@ function MakeDate(day, time) {
   // is no way that the time can be within range even after UTC
   // conversion we return NaN immediately instead of relying on
   // TimeClip to do it.
-  if ($abs(time) > MAX_TIME_BEFORE_UTC) return $NaN;
+  if ($abs(time) > MAX_TIME_BEFORE_UTC) return NAN;
   return time;
 }
 
 
 // ECMA 262 - 15.9.1.14
 function TimeClip(time) {
-  if (!$isFinite(time)) return $NaN;
-  if ($abs(time) > MAX_TIME_MS) return $NaN;
+  if (!$isFinite(time)) return NAN;
+  if ($abs(time) > MAX_TIME_MS) return NAN;
   return TO_INTEGER(time);
 }
 
@@ -136,13 +112,13 @@ function TimeClip(time) {
 // strings over and over again.
 var Date_cache = {
   // Cached time value.
-  time: $NaN,
+  time: 0,
   // String input for which the cached time is valid.
   string: null
 };
 
 
-%SetCode($Date, function(year, month, date, hours, minutes, seconds, ms) {
+function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
   if (!%_IsConstructCall()) {
     // ECMA 262 - 15.9.2
     return (new $Date()).toString();
@@ -160,6 +136,7 @@ var Date_cache = {
     } else if (IS_STRING(year)) {
       // Probe the Date cache. If we already have a time value for the
       // given time, we re-use that instead of parsing the string again.
+      CheckDateCacheCurrent();
       var cache = Date_cache;
       if (cache.string === year) {
         value = cache.time;
@@ -199,10 +176,7 @@ var Date_cache = {
     value = MakeDate(day, time);
     SET_LOCAL_DATE_VALUE(this, value);
   }
-});
-
-
-%FunctionSetPrototype($Date, new $Date($NaN));
+}
 
 
 var WeekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -276,7 +250,7 @@ var parse_buffer = $Array(8);
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
   var arr = %DateParseString(ToString(string), parse_buffer);
-  if (IS_NULL(arr)) return $NaN;
+  if (IS_NULL(arr)) return NAN;
 
   var day = MakeDay(arr[0], arr[1], arr[2]);
   var time = MakeTime(arr[3], arr[4], arr[5], arr[6]);
@@ -309,8 +283,7 @@ function DateUTC(year, month, date, hours, minutes, seconds, ms) {
 }
 
 
-// Mozilla-specific extension. Returns the number of milliseconds
-// elapsed since 1 January 1970 00:00:00 UTC.
+// ECMA 262 - 15.9.4.4
 function DateNow() {
   return %DateCurrentTime();
 }
@@ -678,7 +651,7 @@ function DateGetYear() {
 function DateSetYear(year) {
   CHECK_DATE(this);
   year = ToNumber(year);
-  if (NUMBER_IS_NAN(year)) return SET_UTC_DATE_VALUE(this, $NaN);
+  if (NUMBER_IS_NAN(year)) return SET_UTC_DATE_VALUE(this, NAN);
   year = (0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
       ? 1900 + TO_INTEGER(year) : year;
   var t = LOCAL_DATE_VALUE(this);
@@ -751,22 +724,43 @@ function DateToJSON(key) {
 }
 
 
-function ResetDateCache() {
+var date_cache_version_holder;
+var date_cache_version = NAN;
+
+
+function CheckDateCacheCurrent() {
+  if (!date_cache_version_holder) {
+    date_cache_version_holder = %DateCacheVersion();
+  }
+  if (date_cache_version_holder[0] == date_cache_version) {
+    return;
+  }
+  date_cache_version = date_cache_version_holder[0];
+
   // Reset the timezone cache:
-  timezone_cache_time = $NaN;
-  timezone_cache_timezone = undefined;
+  timezone_cache_time = NAN;
+  timezone_cache_timezone = UNDEFINED;
 
   // Reset the date cache:
-  cache = Date_cache;
-  cache.time = $NaN;
-  cache.string = null;
+  Date_cache.time = NAN;
+  Date_cache.string = null;
 }
 
+
+function CreateDate(time) {
+  var date = new $Date();
+  date.setTime(time);
+  return date;
+}
 
 // -------------------------------------------------------------------
 
 function SetUpDate() {
   %CheckIsBootstrapping();
+
+  %SetCode($Date, DateConstructor);
+  %FunctionSetPrototype($Date, new $Date(NAN));
+
   // Set up non-enumerable properties of the Date object itself.
   InstallFunctions($Date, DONT_ENUM, $Array(
     "UTC", DateUTC,
@@ -775,7 +769,7 @@ function SetUpDate() {
   ));
 
   // Set up non-enumerable constructor property of the Date prototype object.
-  %SetProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
+  %AddNamedProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
 
   // Set up non-enumerable functions of the Date prototype object and
   // set their names.

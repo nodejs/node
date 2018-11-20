@@ -177,6 +177,21 @@ function crankshaft_test_2() {
 
 run(crankshaft_test_2);
 
+var o = { a: 1, b: 2 };
+
+// Test smi-based Math.min.
+function f(o) {
+  return Math.min(o.a, o.b);
+}
+
+assertEquals(1, f(o));
+assertEquals(1, f(o));
+%OptimizeFunctionOnNextCall(f);
+assertEquals(1, f(o));
+o.a = 5;
+o.b = 4;
+assertEquals(4, f(o));
+
 // Test overriding Math.min and Math.max
 Math.min = function(a, b) { return a + b; }
 Math.max = function(a, b) { return a - b; }

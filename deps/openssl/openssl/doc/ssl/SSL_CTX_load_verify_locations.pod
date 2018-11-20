@@ -100,13 +100,13 @@ The following return values can occur:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 The operation failed because B<CAfile> and B<CApath> are NULL or the
 processing at one of the locations specified failed. Check the error
 stack to find out the reason.
 
-=item 1
+=item Z<>1
 
 The operation succeeded.
 

@@ -80,6 +80,10 @@ FileReader.prototype._getStream = function () {
     }
   })
 
+  stream.on("error", function (e) {
+    me.emit("error", e);
+  });
+
   me._read()
 }
 

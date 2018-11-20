@@ -37,9 +37,7 @@
 })();
 
 
-// Check that unshift with no args has a side-effect of
-// filling the holes with elements from the prototype
-// (if present, of course)
+// Check that unshift with no args has no side-effects.
 (function() {
   var len = 3;
   var array = new Array(len);
@@ -65,15 +63,15 @@
   assertTrue(delete Array.prototype[0]);
   assertTrue(delete Array.prototype[2]);
 
-  // unshift makes array own 0 and 2...
-  assertTrue(array.hasOwnProperty(0));
+  // array still owns nothing...
+  assertFalse(array.hasOwnProperty(0));
   assertFalse(array.hasOwnProperty(1));
-  assertTrue(array.hasOwnProperty(2));
+  assertFalse(array.hasOwnProperty(2));
 
   // ... so they are not affected be delete.
-  assertEquals(array[0], at0);
+  assertEquals(array[0], undefined);
   assertEquals(array[1], undefined);
-  assertEquals(array[2], at2);
+  assertEquals(array[2], undefined);
 })();
 
 
@@ -115,9 +113,7 @@
   assertTrue(delete Array.prototype[7]);
 })();
 
-// Check that unshift with no args has a side-effect of
-// filling the holes with elements from the prototype
-// (if present, of course)
+// Check that unshift with no args has no side-effects.
 (function() {
   var len = 3;
   var array = new Array(len);
@@ -142,12 +138,12 @@
 
   assertEquals(len, array.unshift());
 
-  // unshift makes array own 0 and 2...
-  assertTrue(array.hasOwnProperty(0));
+  // array still owns nothing.
+  assertFalse(array.hasOwnProperty(0));
   assertFalse(array.hasOwnProperty(1));
-  assertTrue(array.hasOwnProperty(2));
+  assertFalse(array.hasOwnProperty(2));
 
-  // ... so they are not affected be delete.
+  // ... but still sees values from array_proto.
   assertEquals(array[0], at0);
   assertEquals(array[1], undefined);
   assertEquals(array[2], at2);
@@ -194,7 +190,7 @@
 (function() {
   for (var i = 0; i < 7; i++) {
     try {
-      new Array((1 << 32) - 3).unshift(1, 2, 3, 4, 5);
+      new Array(Math.pow(2, 32) - 3).unshift(1, 2, 3, 4, 5);
       throw 'Should have thrown RangeError';
     } catch (e) {
       assertTrue(e instanceof RangeError);
@@ -212,4 +208,19 @@
     a.unshift(1, 2, 3, 4, 5);
     assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], a);
   }
+})();
+
+// Check that non-enumerable elements are treated appropriately
+(function() {
+  var array = [2, 3];
+  Object.defineProperty(array, '1', {enumerable: false});
+  array.unshift(1)
+  assertEquals([1, 2, 3], array);
+
+  array = [2];
+  array.length = 2;
+  array.__proto__[1] = 3;
+  Object.defineProperty(array.__proto__, '1', {enumerable: false});
+  array.unshift(1);
+  assertEquals([1, 2, 3], array);
 })();

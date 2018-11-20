@@ -2,7 +2,7 @@
 #define __ARES_BITNCMP_H
 
 
-/* Copyright (C) 2005 by Dominick Meglio
+/* Copyright (C) 2005, 2013 by Dominick Meglio
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -18,9 +18,9 @@
  */
 
 #ifndef HAVE_BITNCMP
-int ares_bitncmp(const void *l, const void *r, int n);
+int ares__bitncmp(const void *l, const void *r, int n);
 #else
-#define ares_bitncmp(x,y,z) bitncmp(x,y,z)
+#define ares__bitncmp(x,y,z) bitncmp(x,y,z)
 #endif
 
 #endif /* __ARES_BITNCMP_H */

@@ -13,8 +13,8 @@ import shutil
 import sys
 
 # set at init time
-dst_dir = None
-node_prefix = None # dst_dir without DESTDIR prefix
+node_prefix = '/usr/local' # PREFIX variable from Makefile
+install_path = None # base target directory (DESTDIR + PREFIX from Makefile)
 target_defaults = None
 variables = None
 
@@ -47,7 +47,7 @@ def try_mkdir_r(path):
 
 def try_rmdir_r(path):
   path = abspath(path)
-  while path.startswith(dst_dir):
+  while path.startswith(install_path):
     try:
       os.rmdir(path)
     except OSError, e:
@@ -58,9 +58,9 @@ def try_rmdir_r(path):
 
 def mkpaths(path, dst):
   if dst.endswith('/'):
-    target_path = abspath(dst_dir, dst, os.path.basename(path))
+    target_path = abspath(install_path, dst, os.path.basename(path))
   else:
-    target_path = abspath(dst_dir, dst)
+    target_path = abspath(install_path, dst)
   return path, target_path
 
 def try_copy(path, dst):
@@ -90,7 +90,7 @@ def npm_files(action):
 
   # don't install npm if the target path is a symlink, it probably means
   # that a dev version of npm is installed there
-  if os.path.islink(abspath(dst_dir, target_path)): return
+  if os.path.islink(abspath(install_path, target_path)): return
 
   # npm has a *lot* of files and it'd be a pain to maintain a fixed list here
   # so we walk its source directory instead...
@@ -100,7 +100,7 @@ def npm_files(action):
     action(paths, target_path + dirname[9:] + '/')
 
   # create/remove symlink
-  link_path = abspath(dst_dir, 'bin/npm')
+  link_path = abspath(install_path, 'bin/npm')
   if action == uninstall:
     action([link_path], 'bin/npm')
   elif action == install:
@@ -108,33 +108,85 @@ def npm_files(action):
     if os.environ.get('PORTABLE'):
       # This crazy hack is necessary to make the shebang execute the copy
       # of node relative to the same directory as the npm script. The precompiled
-      # binary tarballs use a prefix of "/" which gets translated to "/bin/node"
+      # binary tarballs use a prefix of "/" which gets translated to "/bin/iojs"
       # in the regular shebang modifying logic, which is incorrect since the
       # precompiled bundle should be able to be extracted anywhere and "just work"
-      shebang = '/bin/sh\n// 2>/dev/null; exec "`dirname "$0"`/node" "$0" "$@"'
+      shebang = '/bin/sh\n// 2>/dev/null; exec "`dirname "$0"`/iojs" "$0" "$@"'
     else:
-      shebang = os.path.join(node_prefix, 'bin/node')
+      shebang = os.path.join(node_prefix or '/', 'bin/iojs')
     update_shebang(link_path, shebang)
   else:
     assert(0) # unhandled action type
 
-def files(action):
-  action(['out/Release/node'], 'bin/node')
+def subdir_files(path, dest, action):
+  ret = {}
+  for dirpath, dirnames, filenames in os.walk(path):
+    files = [dirpath + '/' + f for f in filenames if f.endswith('.h')]
+    ret[dest + dirpath.replace(path, '')] = files
+  for subdir, files in ret.items():
+    action(files, subdir + '/')
 
-  # install unconditionally, checking if the platform supports dtrace doesn't
-  # work when cross-compiling and besides, there's at least one linux flavor
-  # with dtrace support now (oracle's "unbreakable" linux)
-  action(['src/node.d'], 'lib/dtrace/')
+def files(action):
+  is_windows = sys.platform == 'win32'
+
+  exeext = '.exe' if is_windows else ''
+  action(['out/Release/iojs' + exeext], 'bin/iojs' + exeext)
+
+  if not is_windows:
+    # Install iojs -> node compatibility symlink.
+    link_target = 'bin/node'
+    link_path = abspath(install_path, link_target)
+    if action == uninstall:
+      action([link_path], link_target)
+    elif action == install:
+      try_symlink('iojs', link_path)
+    else:
+      assert(0)  # Unhandled action type.
+
+  if 'true' == variables.get('node_use_dtrace'):
+    action(['out/Release/node.d'], 'lib/dtrace/node.d')
+
+  # behave similarly for systemtap
+  action(['src/node.stp'], 'share/systemtap/tapset/')
 
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
-    action(['doc/node.1'], 'man/man1/')
+    action(['doc/iojs.1'], 'man/man1/')
   else:
-    action(['doc/node.1'], 'share/man/man1/')
+    action(['doc/iojs.1'], 'share/man/man1/')
 
   if 'true' == variables.get('node_install_npm'): npm_files(action)
 
+  action([
+    'common.gypi',
+    'config.gypi',
+    'src/node.h',
+    'src/node_buffer.h',
+    'src/node_internals.h',
+    'src/node_object_wrap.h',
+    'src/node_version.h',
+    'src/smalloc.h',
+  ], 'include/node/')
+
+  subdir_files('deps/cares/include', 'include/node/', action)
+  subdir_files('deps/v8/include', 'include/node/', action)
+
+  if 'false' == variables.get('node_shared_libuv'):
+    subdir_files('deps/uv/include', 'include/node/', action)
+
+  if 'false' == variables.get('node_shared_openssl'):
+    subdir_files('deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
+    subdir_files('deps/openssl/config/archs', 'include/node/openssl/archs', action)
+    action(['deps/openssl/config/opensslconf.h'], 'include/node/openssl/')
+
+
+  if 'false' == variables.get('node_shared_zlib'):
+    action([
+      'deps/zlib/zconf.h',
+      'deps/zlib/zlib.h',
+    ], 'include/node/')
+
 def run(args):
-  global dst_dir, node_prefix, target_defaults, variables
+  global node_prefix, install_path, target_defaults, variables
 
   # chdir to the project's top-level directory
   os.chdir(abspath(os.path.dirname(__file__), '..'))
@@ -144,8 +196,15 @@ def run(args):
   target_defaults = conf['target_defaults']
 
   # argv[2] is a custom install prefix for packagers (think DESTDIR)
-  dst_dir = node_prefix = variables.get('node_prefix') or '/usr/local'
-  if len(args) > 2: dst_dir = abspath(args[2] + '/' + dst_dir)
+  # argv[3] is a custom install prefix (think PREFIX)
+  # Difference is that dst_dir won't be included in shebang lines etc.
+  dst_dir = args[2] if len(args) > 2 else ''
+
+  if len(args) > 3:
+    node_prefix = args[3]
+
+  # install_path thus becomes the base target directory.
+  install_path = dst_dir + node_prefix + '/'
 
   cmd = args[1] if len(args) > 1 else 'install'
   if cmd == 'install': return files(install)

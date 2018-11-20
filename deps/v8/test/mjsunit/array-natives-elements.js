@@ -25,24 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays
-// Flags: --noparallel-recompilation
-// Flags: --notrack-allocation-sites
-
-// Test element kind of objects.
-// Since --smi-only-arrays affects builtins, its default setting at compile time
-// sticks if built with snapshot. If --smi-only-arrays is deactivated by
-// default, only a no-snapshot build actually has smi-only arrays enabled in
-// this test case. Depending on whether smi-only arrays are actually enabled,
-// this test takes the appropriate code path to check smi-only arrays.
-
-support_smi_only_arrays = %HasFastSmiElements([1,2,3,4,5,6,7,8,9,10]);
-
-if (support_smi_only_arrays) {
-  print("Tests include smi-only arrays.");
-} else {
-  print("Tests do NOT include smi-only arrays.");
-}
+// Flags: --allow-natives-syntax
 
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
@@ -56,29 +39,30 @@ function array_natives_test() {
   assertTrue(%HasFastDoubleElements([1.1]));
   assertTrue(%HasFastDoubleElements([1.1,2]));
 
-  // Push
-  var a0 = [1, 2, 3];
-  if (%HasFastSmiElements(a0)) {
-    assertTrue(%HasFastSmiElements(a0));
-    a0.push(4);
-    assertTrue(%HasFastSmiElements(a0));
-    a0.push(1.3);
-    assertTrue(%HasFastDoubleElements(a0));
-    a0.push(1.5);
-    assertTrue(%HasFastDoubleElements(a0));
-    a0.push({});
-    assertTrue(%HasFastObjectElements(a0));
-    a0.push({});
-    assertTrue(%HasFastObjectElements(a0));
-  } else {
-    assertTrue(%HasFastObjectElements(a0));
-    a0.push(4);
-    a0.push(1.3);
-    a0.push(1.5);
-    a0.push({});
-    a0.push({});
-    assertTrue(%HasFastObjectElements(a0));
+  // This code exists to eliminate the learning influence of AllocationSites
+  // on the following tests.
+  var __sequence = 0;
+  function make_array_string(literal) {
+    this.__sequence = this.__sequence + 1;
+    return "/* " + this.__sequence + " */  " + literal;
   }
+  function make_array(literal) {
+    return eval(make_array_string(literal));
+  }
+
+  // Push
+  var a0 = make_array("[1, 2, 3]");
+  assertTrue(%HasFastSmiElements(a0));
+  a0.push(4);
+  assertTrue(%HasFastSmiElements(a0));
+  a0.push(1.3);
+  assertTrue(%HasFastDoubleElements(a0));
+  a0.push(1.5);
+  assertTrue(%HasFastDoubleElements(a0));
+  a0.push({});
+  assertTrue(%HasFastObjectElements(a0));
+  a0.push({});
+  assertTrue(%HasFastObjectElements(a0));
   assertEquals([1,2,3,4,1.3,1.5,{},{}], a0);
 
   // Concat
@@ -290,14 +274,11 @@ function array_natives_test() {
   assertEquals([1,1,2,3], a4);
   a4 = [1,2,3];
   a4.unshift(1.1);
-  // TODO(verwaest): We'll want to support double unshifting as well.
-  // assertTrue(%HasFastDoubleElements(a4));
-  assertTrue(%HasFastObjectElements(a4));
+  assertTrue(%HasFastDoubleElements(a4));
   assertEquals([1.1,1,2,3], a4);
   a4 = [1.1,2,3];
   a4.unshift(1);
-  // assertTrue(%HasFastDoubleElements(a4));
-  assertTrue(%HasFastObjectElements(a4));
+  assertTrue(%HasFastDoubleElements(a4));
   assertEquals([1,1.1,2,3], a4);
   a4 = [{},2,3];
   a4.unshift(1);
@@ -309,10 +290,8 @@ function array_natives_test() {
   assertEquals([1.1,{},2,3], a4);
 }
 
-if (support_smi_only_arrays) {
-  for (var i = 0; i < 3; i++) {
-    array_natives_test();
-  }
-  %OptimizeFunctionOnNextCall(array_natives_test);
+for (var i = 0; i < 3; i++) {
   array_natives_test();
 }
+%OptimizeFunctionOnNextCall(array_natives_test);
+array_natives_test();

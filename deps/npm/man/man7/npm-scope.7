@@ -1,0 +1,127 @@
+.TH "NPM\-SCOPE" "7" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-scope\fR \- Scoped packages
+.SH DESCRIPTION
+.P
+All npm packages have a name\. Some package names also have a scope\. A scope
+follows the usual rules for package names (url\-safe characters, no leading dots
+or underscores)\. When used in package names, preceded by an @\-symbol and
+followed by a slash, e\.g\.
+.P
+.RS 2
+.nf
+@somescope/somepackagename
+.fi
+.RE
+.P
+Scopes are a way of grouping related packages together, and also affect a few
+things about the way npm treats the package\.
+.P
+Scoped packages are supported by the public npm registry\.  The npm
+client is backwards\-compatible with un\-scoped registries, so it can be
+used to work with scoped and un\-scoped registries at the same time\.
+.SH Installing scoped packages
+.P
+Scoped packages are installed to a sub\-folder of the regular installation
+folder, e\.g\. if your other packages are installed in \fBnode_modules/packagename\fR,
+scoped modules will be in \fBnode_modules/@myorg/packagename\fR\|\. The scope folder
+(\fB@myorg\fR) is simply the name of the scope preceded by an @\-symbol, and can
+contain any number of scoped packages\.
+.P
+A scoped package is installed by referencing it by name, preceded by an
+@\-symbol, in \fBnpm install\fR:
+.P
+.RS 2
+.nf
+npm install @myorg/mypackage
+.fi
+.RE
+.P
+Or in \fBpackage\.json\fR:
+.P
+.RS 2
+.nf
+"dependencies": {
+  "@myorg/mypackage": "^1\.3\.0"
+}
+.fi
+.RE
+.P
+Note that if the @\-symbol is omitted in either case npm will instead attempt to
+install from GitHub; see npm help \fBnpm\-install\fR\|\.
+.SH Requiring scoped packages
+.P
+Because scoped packages are installed into a scope folder, you have to
+include the name of the scope when requiring them in your code, e\.g\.
+.P
+.RS 2
+.nf
+require('@myorg/mypackage')
+.fi
+.RE
+.P
+There is nothing special about the way Node treats scope folders, this is
+just specifying to require the module \fBmypackage\fR in the folder called \fB@myorg\fR\|\.
+.SH Publishing scoped packages
+.P
+Scoped packages can be published to any registry that supports them, including
+the public npm registry\.
+.P
+(As of 2015\-04\-19, the public npm registry \fBdoes\fR support scoped packages)
+.P
+If you wish, you may associate a scope with a registry; see below\.
+.SS Publishing public scoped packages to the public npm registry
+.P
+To publish a public scoped package, you must specify \fB\-\-access public\fR with
+the initial publication\.  This will publish the package and set access
+to \fBpublic\fR as if you had run \fBnpm access public\fR after publishing\.
+.SS Publishing private scoped packages to the npm registry
+.P
+To publish a private scoped package to the npm registry, you must have
+an npm Private Modules \fIhttps://www\.npmjs\.com/private\-modules\fR
+account\.
+.P
+You can then publish the module with \fBnpm publish\fR or \fBnpm publish
+\-\-access restricted\fR, and it will be present in the npm registry, with
+restricted access\.  You can then change the access permissions, if
+desired, with \fBnpm access\fR or on the npmjs\.com website\.
+.SH Associating a scope with a registry
+.P
+Scopes can be associated with a separate registry\. This allows you to
+seamlessly use a mix of packages from the public npm registry and one or more
+private registries, such as npm Enterprise\.
+.P
+You can associate a scope with a registry at login, e\.g\.
+.P
+.RS 2
+.nf
+npm login \-\-registry=http://reg\.example\.com \-\-scope=@myco
+.fi
+.RE
+.P
+Scopes have a many\-to\-one relationship with registries: one registry can
+host multiple scopes, but a scope only ever points to one registry\.
+.P
+You can also associate a scope with a registry using \fBnpm config\fR:
+.P
+.RS 2
+.nf
+npm config set @myco:registry http://reg\.example\.com
+.fi
+.RE
+.P
+Once a scope is associated with a registry, any \fBnpm install\fR for a package
+with that scope will request packages from that registry instead\. Any
+\fBnpm publish\fR for a package name that contains the scope will be published to
+that registry instead\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help access
+
+.RE
+

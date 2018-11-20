@@ -107,14 +107,14 @@ static int idle_2_cb_started = 0;
 static int idle_2_is_active = 0;
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer_handle);
-  ASSERT(status == 0);
 }
 
 
 static void idle_2_close_cb(uv_handle_t* handle) {
-  LOG("IDLE_2_CLOSE_CB\n");
+  fprintf(stderr, "%s", "IDLE_2_CLOSE_CB\n");
+  fflush(stderr);
 
   ASSERT(handle == (uv_handle_t*)&idle_2_handle);
 
@@ -125,11 +125,11 @@ static void idle_2_close_cb(uv_handle_t* handle) {
 }
 
 
-static void idle_2_cb(uv_idle_t* handle, int status) {
-  LOG("IDLE_2_CB\n");
+static void idle_2_cb(uv_idle_t* handle) {
+  fprintf(stderr, "%s", "IDLE_2_CB\n");
+  fflush(stderr);
 
   ASSERT(handle == &idle_2_handle);
-  ASSERT(status == 0);
 
   idle_2_cb_called++;
 
@@ -137,14 +137,13 @@ static void idle_2_cb(uv_idle_t* handle, int status) {
 }
 
 
-static void idle_1_cb(uv_idle_t* handle, int status) {
+static void idle_1_cb(uv_idle_t* handle) {
   int r;
 
-  LOG("IDLE_1_CB\n");
+  fprintf(stderr, "%s", "IDLE_1_CB\n");
+  fflush(stderr);
 
   ASSERT(handle != NULL);
-  ASSERT(status == 0);
-
   ASSERT(idles_1_active > 0);
 
   /* Init idle_2 and make it active */
@@ -168,7 +167,8 @@ static void idle_1_cb(uv_idle_t* handle, int status) {
 
 
 static void idle_1_close_cb(uv_handle_t* handle) {
-  LOG("IDLE_1_CLOSE_CB\n");
+  fprintf(stderr, "%s", "IDLE_1_CLOSE_CB\n");
+  fflush(stderr);
 
   ASSERT(handle != NULL);
 
@@ -177,7 +177,8 @@ static void idle_1_close_cb(uv_handle_t* handle) {
 
 
 static void prepare_1_close_cb(uv_handle_t* handle) {
-  LOG("PREPARE_1_CLOSE_CB");
+  fprintf(stderr, "%s", "PREPARE_1_CLOSE_CB");
+  fflush(stderr);
   ASSERT(handle == (uv_handle_t*)&prepare_1_handle);
 
   prepare_1_close_cb_called++;
@@ -185,7 +186,8 @@ static void prepare_1_close_cb(uv_handle_t* handle) {
 
 
 static void check_close_cb(uv_handle_t* handle) {
-  LOG("CHECK_CLOSE_CB\n");
+  fprintf(stderr, "%s", "CHECK_CLOSE_CB\n");
+  fflush(stderr);
   ASSERT(handle == (uv_handle_t*)&check_handle);
 
   check_close_cb_called++;
@@ -193,20 +195,20 @@ static void check_close_cb(uv_handle_t* handle) {
 
 
 static void prepare_2_close_cb(uv_handle_t* handle) {
-  LOG("PREPARE_2_CLOSE_CB\n");
+  fprintf(stderr, "%s", "PREPARE_2_CLOSE_CB\n");
+  fflush(stderr);
   ASSERT(handle == (uv_handle_t*)&prepare_2_handle);
 
   prepare_2_close_cb_called++;
 }
 
 
-static void check_cb(uv_check_t* handle, int status) {
+static void check_cb(uv_check_t* handle) {
   int i, r;
 
-  LOG("CHECK_CB\n");
-
+  fprintf(stderr, "%s", "CHECK_CB\n");
+  fflush(stderr);
   ASSERT(handle == &check_handle);
-  ASSERT(status == 0);
 
   if (loop_iteration < ITERATIONS) {
     /* Make some idle watchers active */
@@ -237,13 +239,12 @@ static void check_cb(uv_check_t* handle, int status) {
 }
 
 
-static void prepare_2_cb(uv_prepare_t* handle, int status) {
+static void prepare_2_cb(uv_prepare_t* handle) {
   int r;
 
-  LOG("PREPARE_2_CB\n");
-
+  fprintf(stderr, "%s", "PREPARE_2_CB\n");
+  fflush(stderr);
   ASSERT(handle == &prepare_2_handle);
-  ASSERT(status == 0);
 
   /* prepare_2 gets started by prepare_1 when (loop_iteration % 2 == 0), */
   /* and it stops itself immediately. A started watcher is not queued */
@@ -258,13 +259,12 @@ static void prepare_2_cb(uv_prepare_t* handle, int status) {
 }
 
 
-static void prepare_1_cb(uv_prepare_t* handle, int status) {
+static void prepare_1_cb(uv_prepare_t* handle) {
   int r;
 
-  LOG("PREPARE_1_CB\n");
-
+  fprintf(stderr, "%s", "PREPARE_1_CB\n");
+  fflush(stderr);
   ASSERT(handle == &prepare_1_handle);
-  ASSERT(status == 0);
 
   if (loop_iteration % 2 == 0) {
     r = uv_prepare_start(&prepare_2_handle, prepare_2_cb);

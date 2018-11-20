@@ -28,6 +28,7 @@
 // Tests the Object.freeze and Object.isFrozen methods - ES 15.2.3.9 and
 // ES 15.2.3.12
 
+// Flags: --allow-natives-syntax
 
 // Test that we throw an error if an object is not passed as argument.
 var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
@@ -191,3 +192,159 @@ assertFalse(Object.isFrozen(obj5));
 // Make sure that Object.freeze returns the frozen object.
 var obj6 = {}
 assertTrue(obj6 === Object.freeze(obj6))
+
+// Test that the enumerable attribute is unperturbed by freezing.
+obj = { x: 42, y: 'foo' };
+Object.defineProperty(obj, 'y', {enumerable: false});
+Object.freeze(obj);
+assertTrue(Object.isFrozen(obj));
+desc = Object.getOwnPropertyDescriptor(obj, 'x');
+assertTrue(desc.enumerable);
+desc = Object.getOwnPropertyDescriptor(obj, 'y');
+assertFalse(desc.enumerable);
+
+// Fast properties should remain fast
+obj = { x: 42, y: 'foo' };
+assertTrue(%HasFastProperties(obj));
+Object.freeze(obj);
+assertTrue(Object.isFrozen(obj));
+assertTrue(%HasFastProperties(obj));
+
+// Frozen objects should share maps where possible
+obj = { prop1: 1, prop2: 2 };
+obj2 = { prop1: 3, prop2: 4 };
+assertTrue(%HaveSameMap(obj, obj2));
+Object.freeze(obj);
+Object.freeze(obj2);
+assertTrue(Object.isFrozen(obj));
+assertTrue(Object.isFrozen(obj2));
+assertTrue(%HaveSameMap(obj, obj2));
+
+// Frozen objects should share maps even when they have elements
+obj = { prop1: 1, prop2: 2, 75: 'foo' };
+obj2 = { prop1: 3, prop2: 4, 150: 'bar' };
+assertTrue(%HaveSameMap(obj, obj2));
+Object.freeze(obj);
+Object.freeze(obj2);
+assertTrue(Object.isFrozen(obj));
+assertTrue(Object.isFrozen(obj2));
+assertTrue(%HaveSameMap(obj, obj2));
+
+// Setting elements after freezing should not be allowed
+obj = { prop: 'thing' };
+Object.freeze(obj);
+assertTrue(Object.isFrozen(obj));
+obj[0] = 'hello';
+assertFalse(obj.hasOwnProperty(0));
+
+// Freezing an object in dictionary mode should work
+// Also testing that getter/setter properties work after freezing
+obj = { };
+for (var i = 0; i < 100; ++i) {
+  obj['x' + i] = i;
+}
+var accessorDidRun = false;
+Object.defineProperty(obj, 'accessor', {
+  get: function() { return 42 },
+  set: function() { accessorDidRun = true },
+  configurable: true,
+  enumerable: true
+});
+
+assertFalse(%HasFastProperties(obj));
+Object.freeze(obj);
+assertFalse(%HasFastProperties(obj));
+assertTrue(Object.isFrozen(obj));
+assertFalse(Object.isExtensible(obj));
+for (var i = 0; i < 100; ++i) {
+  desc = Object.getOwnPropertyDescriptor(obj, 'x' + i);
+  assertFalse(desc.writable);
+  assertFalse(desc.configurable);
+}
+assertEquals(42, obj.accessor);
+assertFalse(accessorDidRun);
+obj.accessor = 'ignored value';
+assertTrue(accessorDidRun);
+
+// Freezing arguments should work
+var func = function(arg) {
+  Object.freeze(arguments);
+  assertTrue(Object.isFrozen(arguments));
+};
+func('hello', 'world');
+func('goodbye', 'world');
+
+// Freezing sparse arrays
+var sparseArr = [0, 1];
+sparseArr[10000] = 10000;
+Object.freeze(sparseArr);
+assertTrue(Object.isFrozen(sparseArr));
+
+// Accessors on fast object should behavior properly after freezing
+obj = {};
+Object.defineProperty(obj, 'accessor', {
+  get: function() { return 42 },
+  set: function() { accessorDidRun = true },
+  configurable: true,
+  enumerable: true
+});
+assertTrue(%HasFastProperties(obj));
+Object.freeze(obj);
+assertTrue(Object.isFrozen(obj));
+assertTrue(%HasFastProperties(obj));
+assertEquals(42, obj.accessor);
+accessorDidRun = false;
+obj.accessor = 'ignored value';
+assertTrue(accessorDidRun);
+
+// Test for regression in mixed accessor/data property objects.
+// The strict function is one such object.
+assertTrue(Object.isFrozen(Object.freeze(function(){"use strict";})));
+
+// Also test a simpler case
+obj = {};
+Object.defineProperty(obj, 'accessor2', {
+  get: function() { return 42 },
+  set: function() { accessorDidRun = true },
+  configurable: true,
+  enumerable: true
+});
+obj.data = 'foo';
+assertTrue(%HasFastProperties(obj));
+Object.freeze(obj);
+assertTrue(%HasFastProperties(obj));
+assertTrue(Object.isFrozen(obj));
+
+// Test array built-in functions with freeze.
+obj = [1,2,3];
+Object.freeze(obj);
+// if frozen implies sealed, then the tests in object-seal.js are mostly
+// sufficient.
+assertTrue(Object.isSealed(obj));
+
+// Verify that the length can't be written by builtins.
+assertThrows(function() { obj.push(); }, TypeError);
+assertThrows(function() { obj.unshift(); }, TypeError);
+assertThrows(function() { obj.splice(0,0); }, TypeError);
+assertTrue(Object.isFrozen(obj));
+
+// Verify that an item can't be changed with splice.
+assertThrows(function() { obj.splice(0,1,1); }, TypeError);
+assertTrue(Object.isFrozen(obj));
+
+// Verify that unshift() with no arguments will fail if it reifies from
+// the prototype into the object.
+obj = [1,,3];
+obj.__proto__[1] = 1;
+assertEquals(1, obj[1]);
+Object.freeze(obj);
+assertThrows(function() { obj.unshift(); }, TypeError);
+
+// Sealing and then Freezing should do the right thing.
+var obj = { foo: 'bar', 0: 'element' };
+Object.seal(obj);
+assertTrue(Object.isSealed(obj));
+assertFalse(Object.isFrozen(obj));
+Object.freeze(obj);
+assertTrue(Object.isSealed(obj));
+assertTrue(Object.isFrozen(obj));

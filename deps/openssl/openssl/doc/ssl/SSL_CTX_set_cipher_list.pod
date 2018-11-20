@@ -41,7 +41,7 @@ RSA export ciphers with a keylength of 512 bits for the RSA key require
 a temporary 512 bit RSA key, as typically the supplied key has a length
 of 1024 bit (see
 L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>).
-RSA ciphers using EDH need a certificate and key and additional DH-parameters
+RSA ciphers using DHE need a certificate and key and additional DH-parameters
 (see L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>).
 
 A DSA cipher can only be chosen, when a DSA certificate is available.
@@ -53,6 +53,10 @@ client only supports export RSA ciphers with a asymmetric key length
 of 512 bits and the server is not configured to use temporary RSA
 keys), the "no shared cipher" (SSL_R_NO_SHARED_CIPHER) error is generated
 and the handshake will fail.
+
+If the cipher list does not contain any SSLv2 cipher suites (this is the
+default) then SSLv2 is effectively disabled and neither clients nor servers
+will attempt to use SSLv2.
 
 =head1 RETURN VALUES
 

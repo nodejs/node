@@ -1,0 +1,22 @@
+<h1><a href="../api/npm-cache.html">npm-cache</a></h1> <p>manage the npm cache programmatically</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.cache([args], callback)
+
+// helpers
+npm.commands.cache.clean([args], callback)
+npm.commands.cache.add([args], callback)
+npm.commands.cache.read(name, version, forceBypass, callback)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This acts much the same ways as the <a href="../cli/npm-cache.html">npm-cache(1)</a> command line
+functionality.</p>
+<p>The callback is called with the package.json data of the thing that is
+eventually added to or read from the cache.</p>
+<p>The top level <code>npm.commands.cache(...)</code> functionality is a public
+interface, and like all commands on the <code>npm.commands</code> object, it will
+match the command line behavior exactly.</p>
+<p>However, the cache folder structure and the cache helper functions are
+considered <strong>internal</strong> API surface, and as such, may change in future
+releases of npm, potentially without warning or significant version
+incrementation.</p>
+<p>Use at your own risk.</p>
+

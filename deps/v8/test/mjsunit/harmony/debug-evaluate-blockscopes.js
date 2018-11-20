@@ -30,7 +30,6 @@
 // Test debug evaluation for functions without local context, but with
 // nested catch contexts.
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 var x;
@@ -68,3 +67,43 @@ assertEquals(1, result);
 Debug.clearBreakPoint(bp);
 // Get rid of the debug event listener.
 Debug.setListener(null);
+
+
+function f1() {
+  {
+    let i = 1;
+    debugger;
+    assertEquals(2, i);
+  }
+}
+
+function f2() {
+  {
+    let i = 1;
+    debugger;
+    assertEquals(2, i);
+    return function() { return i++; }
+  }
+}
+
+var exception;
+Debug.setListener(function (event, exec_state, event_data, data) {
+  try {
+    if (event == Debug.DebugEvent.Break) {
+      var frame = exec_state.frame();
+      assertEquals(1, frame.evaluate("i").value());
+      var allScopes = frame.allScopes();
+      assertEquals(1, allScopes[0].scopeObject().value().i);
+      allScopes[0].setVariableValue("i", 2);
+    }
+  } catch (e) {
+    exception = e;
+  }
+});
+
+exception = null;
+f1();
+assertEquals(null, exception, exception);
+exception = null;
+f2();
+assertEquals(null, exception, exception);

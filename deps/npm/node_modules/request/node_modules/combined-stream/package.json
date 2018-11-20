@@ -1,0 +1,59 @@
+{
+  "author": {
+    "name": "Felix Geisendörfer",
+    "email": "felix@debuggable.com",
+    "url": "http://debuggable.com/"
+  },
+  "name": "combined-stream",
+  "description": "A stream that emits multiple other streams one after another.",
+  "version": "0.0.7",
+  "homepage": "https://github.com/felixge/node-combined-stream",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/felixge/node-combined-stream.git"
+  },
+  "main": "./lib/combined_stream",
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "engines": {
+    "node": ">= 0.8"
+  },
+  "dependencies": {
+    "delayed-stream": "0.0.5"
+  },
+  "devDependencies": {
+    "far": "~0.0.7"
+  },
+  "bugs": {
+    "url": "https://github.com/felixge/node-combined-stream/issues"
+  },
+  "_id": "combined-stream@0.0.7",
+  "dist": {
+    "shasum": "0137e657baa5a7541c57ac37ac5fc07d73b4dc1f",
+    "tarball": "http://registry.npmjs.org/combined-stream/-/combined-stream-0.0.7.tgz"
+  },
+  "_from": "combined-stream@>=0.0.5 <0.1.0",
+  "_npmVersion": "1.4.3",
+  "_npmUser": {
+    "name": "felixge",
+    "email": "felix@debuggable.com"
+  },
+  "maintainers": [
+    {
+      "name": "felixge",
+      "email": "felix@debuggable.com"
+    },
+    {
+      "name": "celer",
+      "email": "celer@scrypt.net"
+    },
+    {
+      "name": "alexindigo",
+      "email": "iam@alexindigo.com"
+    }
+  ],
+  "directories": {},
+  "_shasum": "0137e657baa5a7541c57ac37ac5fc07d73b4dc1f",
+  "_resolved": "https://registry.npmjs.org/combined-stream/-/combined-stream-0.0.7.tgz"
+}

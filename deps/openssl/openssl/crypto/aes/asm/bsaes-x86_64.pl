@@ -38,8 +38,9 @@
 #		Emilia's	this(*)		difference
 #
 # Core 2    	9.30		8.69		+7%
-# Nehalem(**) 	7.63		6.98		+9%
-# Atom	    	17.1		17.4		-2%(***)
+# Nehalem(**) 	7.63		6.88		+11%
+# Atom	    	17.1		16.4		+4%
+# Silvermont	-		12.9
 #
 # (*)	Comparison is not completely fair, because "this" is ECB,
 #	i.e. no extra processing such as counter values calculation
@@ -50,14 +51,6 @@
 # (**)	Results were collected on Westmere, which is considered to
 #	be equivalent to Nehalem for this code.
 #
-# (***)	Slowdown on Atom is rather strange per se, because original
-#	implementation has a number of 9+-bytes instructions, which
-#	are bad for Atom front-end, and which I eliminated completely.
-#	In attempt to address deterioration sbox() was tested in FP
-#	SIMD "domain" (movaps instead of movdqa, xorps instead of
-#	pxor, etc.). While it resulted in nominal 4% improvement on
-#	Atom, it hurted Westmere by more than 2x factor.
-#
 # As for key schedule conversion subroutine. Interface to OpenSSL
 # relies on per-invocation on-the-fly conversion. This naturally
 # has impact on performance, especially for short inputs. Conversion
@@ -67,7 +60,7 @@
 # 		conversion	conversion/8x block
 # Core 2	240		0.22
 # Nehalem	180		0.20
-# Atom		430		0.19
+# Atom		430		0.20
 #
 # The ratio values mean that 128-byte blocks will be processed
 # 16-18% slower, 256-byte blocks - 9-10%, 384-byte blocks - 6-7%,
@@ -83,9 +76,10 @@
 # Add decryption procedure. Performance in CPU cycles spent to decrypt
 # one byte out of 4096-byte buffer with 128-bit key is:
 #
-# Core 2	11.0
-# Nehalem	9.16
-# Atom		20.9
+# Core 2	9.98
+# Nehalem	7.80
+# Atom		17.9
+# Silvermont	14.0
 #
 # November 2011.
 #
@@ -434,21 +428,21 @@ my $mask=pop;
 $code.=<<___;
 	pxor	0x00($key),@x[0]
 	pxor	0x10($key),@x[1]
-	pshufb	$mask,@x[0]
 	pxor	0x20($key),@x[2]
-	pshufb	$mask,@x[1]
 	pxor	0x30($key),@x[3]
-	pshufb	$mask,@x[2]
+	pshufb	$mask,@x[0]
+	pshufb	$mask,@x[1]
 	pxor	0x40($key),@x[4]
-	pshufb	$mask,@x[3]
 	pxor	0x50($key),@x[5]
-	pshufb	$mask,@x[4]
+	pshufb	$mask,@x[2]
+	pshufb	$mask,@x[3]
 	pxor	0x60($key),@x[6]
-	pshufb	$mask,@x[5]
 	pxor	0x70($key),@x[7]
+	pshufb	$mask,@x[4]
+	pshufb	$mask,@x[5]
 	pshufb	$mask,@x[6]
-	lea	0x80($key),$key
 	pshufb	$mask,@x[7]
+	lea	0x80($key),$key
 ___
 }
 
@@ -456,6 +450,7 @@ sub MixColumns {
 # modified to emit output in order suitable for feeding back to aesenc[last]
 my @x=@_[0..7];
 my @t=@_[8..15];
+my $inv=@_[16];	# optional
 $code.=<<___;
 	pshufd	\$0x93, @x[0], @t[0]	# x0 <<< 32
 	pshufd	\$0x93, @x[1], @t[1]
@@ -497,7 +492,8 @@ $code.=<<___;
 	pxor	@t[4], @t[0]
 	 pshufd	\$0x4E, @x[2], @x[6]
 	pxor	@t[5], @t[1]
-
+___
+$code.=<<___ if (!$inv);
 	pxor	@t[3], @x[4]
 	pxor	@t[7], @x[5]
 	pxor	@t[6], @x[3]
@@ -505,9 +501,20 @@ $code.=<<___;
 	pxor	@t[2], @x[6]
 	 movdqa	@t[1], @x[7]
 ___
+$code.=<<___ if ($inv);
+	pxor	@x[4], @t[3]
+	pxor	@t[7], @x[5]
+	pxor	@x[3], @t[6]
+	 movdqa	@t[0], @x[3]
+	pxor	@t[2], @x[6]
+	 movdqa	@t[6], @x[2]
+	 movdqa	@t[1], @x[7]
+	 movdqa	@x[6], @x[4]
+	 movdqa	@t[3], @x[6]
+___
 }
 
-sub InvMixColumns {
+sub InvMixColumns_orig {
 my @x=@_[0..7];
 my @t=@_[8..15];
 
@@ -661,6 +668,54 @@ $code.=<<___;
 ___
 }
 
+sub InvMixColumns {
+my @x=@_[0..7];
+my @t=@_[8..15];
+
+# Thanks to Jussi Kivilinna for providing pointer to
+#
+# | 0e 0b 0d 09 |   | 02 03 01 01 |   | 05 00 04 00 |
+# | 09 0e 0b 0d | = | 01 02 03 01 | x | 00 05 00 04 |
+# | 0d 09 0e 0b |   | 01 01 02 03 |   | 04 00 05 00 |
+# | 0b 0d 09 0e |   | 03 01 01 02 |   | 00 04 00 05 |
+
+$code.=<<___;
+	# multiplication by 0x05-0x00-0x04-0x00
+	pshufd	\$0x4E, @x[0], @t[0]
+	pshufd	\$0x4E, @x[6], @t[6]
+	pxor	@x[0], @t[0]
+	pshufd	\$0x4E, @x[7], @t[7]
+	pxor	@x[6], @t[6]
+	pshufd	\$0x4E, @x[1], @t[1]
+	pxor	@x[7], @t[7]
+	pshufd	\$0x4E, @x[2], @t[2]
+	pxor	@x[1], @t[1]
+	pshufd	\$0x4E, @x[3], @t[3]
+	pxor	@x[2], @t[2]
+	 pxor	@t[6], @x[0]
+	 pxor	@t[6], @x[1]
+	pshufd	\$0x4E, @x[4], @t[4]
+	pxor	@x[3], @t[3]
+	 pxor	@t[0], @x[2]
+	 pxor	@t[1], @x[3]
+	pshufd	\$0x4E, @x[5], @t[5]
+	pxor	@x[4], @t[4]
+	 pxor	@t[7], @x[1]
+	 pxor	@t[2], @x[4]
+	pxor	@x[5], @t[5]
+
+	 pxor	@t[7], @x[2]
+	 pxor	@t[6], @x[3]
+	 pxor	@t[6], @x[4]
+	 pxor	@t[3], @x[5]
+	 pxor	@t[4], @x[6]
+	 pxor	@t[7], @x[4]
+	 pxor	@t[7], @x[5]
+	 pxor	@t[5], @x[7]
+___
+	&MixColumns	(@x,@t,1);	# flipped 2<->3 and 4<->6
+}
+
 sub aesenc {				# not used
 my @b=@_[0..7];
 my @t=@_[8..15];
@@ -759,18 +814,18 @@ _bsaes_encrypt8:
 	movdqa	0x50($const), @XMM[8]	# .LM0SR
 	pxor	@XMM[9], @XMM[0]	# xor with round0 key
 	pxor	@XMM[9], @XMM[1]
-	 pshufb	@XMM[8], @XMM[0]
 	pxor	@XMM[9], @XMM[2]
-	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[3]
-	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[0]
+	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[4]
-	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[5]
-	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[6]
-	 pshufb	@XMM[8], @XMM[5]
 	pxor	@XMM[9], @XMM[7]
+	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[5]
 	 pshufb	@XMM[8], @XMM[6]
 	 pshufb	@XMM[8], @XMM[7]
 _bsaes_encrypt8_bitslice:
@@ -823,18 +878,18 @@ _bsaes_decrypt8:
 	movdqa	-0x30($const), @XMM[8]	# .LM0ISR
 	pxor	@XMM[9], @XMM[0]	# xor with round0 key
 	pxor	@XMM[9], @XMM[1]
-	 pshufb	@XMM[8], @XMM[0]
 	pxor	@XMM[9], @XMM[2]
-	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[3]
-	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[0]
+	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[4]
-	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[5]
-	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[6]
-	 pshufb	@XMM[8], @XMM[5]
 	pxor	@XMM[9], @XMM[7]
+	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[5]
 	 pshufb	@XMM[8], @XMM[6]
 	 pshufb	@XMM[8], @XMM[7]
 ___
@@ -1876,21 +1931,21 @@ $code.=<<___;
 	movdqa	-0x10(%r11), @XMM[8]	# .LSWPUPM0SR
 	pxor	@XMM[9], @XMM[0]	# xor with round0 key
 	pxor	@XMM[9], @XMM[1]
-	 pshufb	@XMM[8], @XMM[0]
 	pxor	@XMM[9], @XMM[2]
-	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[3]
-	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[0]
+	 pshufb	@XMM[8], @XMM[1]
 	pxor	@XMM[9], @XMM[4]
-	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[5]
-	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[3]
 	pxor	@XMM[9], @XMM[6]
-	 pshufb	@XMM[8], @XMM[5]
 	pxor	@XMM[9], @XMM[7]
+	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[5]
 	 pshufb	@XMM[8], @XMM[6]
-	lea	.LBS0(%rip), %r11	# constants table
 	 pshufb	@XMM[8], @XMM[7]
+	lea	.LBS0(%rip), %r11	# constants table
 	mov	%ebx,%r10d		# pass rounds
 
 	call	_bsaes_encrypt8_bitslice
@@ -2028,6 +2083,8 @@ ___
 #	const unsigned char iv[16]);
 #
 my ($twmask,$twres,$twtmp)=@XMM[13..15];
+$arg6=~s/d$//;
+
 $code.=<<___;
 .globl	bsaes_xts_encrypt
 .type	bsaes_xts_encrypt,\@abi-omnipotent

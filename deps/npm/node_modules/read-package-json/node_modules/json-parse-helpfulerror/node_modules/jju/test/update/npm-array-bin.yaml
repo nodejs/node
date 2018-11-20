@@ -1,0 +1,29 @@
+input: |
+  { "name":"npm-test-array-bin"
+  , "version":"1.2.5"
+  , "bin": [ "bin/array-bin" ]
+  , "scripts": { "test": "node test.js" } }
+
+# less than ideal, I know...
+output: |
+  { "name":"npm-test-array-bin"
+  , "version":"1.2.5"
+  , "bin": {"array-bin":"bin/array-bin"}
+  , "scripts": { "test": "node test.js" }, "readme": "just an npm test\n", "readmeFilename": "README", "description": "just an npm test", "_id": "npm-test-array-bin@1.2.5", "dist": {"shasum":"9c426a1bd55e98718ab4ddcc01fa57ea83c649f1"}, "_from": "npm-test-array-bin/" }
+
+test: !!js/function |
+  function(jju, input) {
+    obj =
+    { name: 'npm-test-array-bin',
+      version: '1.2.5',
+      bin: { 'array-bin': 'bin/array-bin' },
+      scripts: { test: 'node test.js' },
+      readme: 'just an npm test\n',
+      readmeFilename: 'README',
+      description: 'just an npm test',
+      _id: 'npm-test-array-bin@1.2.5',
+      dist: { shasum: '9c426a1bd55e98718ab4ddcc01fa57ea83c649f1' },
+      _from: 'npm-test-array-bin/' }
+    return jju.update(input, obj)
+  }
+

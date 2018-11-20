@@ -42,11 +42,11 @@ and SSL_set_ssl_method():
 
 =over 4
 
-=item 0
+=item Z<>0
 
 The new choice failed, check the error stack to find out the reason.
 
-=item 1
+=item Z<>1
 
 The operation succeeded.
 

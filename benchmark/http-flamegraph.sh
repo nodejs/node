@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$(dirname $0)")"
 
-node=${NODE:-./node}
+node=${NODE:-./iojs}
 
 name=${NAME:-stacks}
 
@@ -22,7 +22,7 @@ fi
 ulimit -n 100000
 $node benchmark/http_simple.js &
 nodepid=$!
-echo "node pid = $nodepid"
+echo "iojs pid = $nodepid"
 sleep 1
 
 # has to stay alive until dtrace exits
@@ -62,7 +62,7 @@ echo 'Turn the stacks into a svg'
 stackvis dtrace flamegraph-svg < "$name".src > "$name".raw.svg
 
 echo 'Prune tiny stacks out of the graph'
-node -e '
+iojs -e '
 var infile = process.argv[1];
 var outfile = process.argv[2];
 var output = "";

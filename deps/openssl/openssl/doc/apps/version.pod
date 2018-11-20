@@ -13,6 +13,7 @@ B<openssl version>
 [B<-o>]
 [B<-f>]
 [B<-p>]
+[B<-d>]
 
 =head1 DESCRIPTION
 
@@ -38,7 +39,7 @@ the date the current version of OpenSSL was built.
 
 option information: various options set when the library was built.
 
-=item B<-c>
+=item B<-f>
 
 compilation flags.
 

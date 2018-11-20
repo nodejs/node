@@ -36,7 +36,7 @@ static const char stop[]    = "stop";
 static const char stopped[] = "stopped";
 
 
-static void async_cb(uv_async_t* handle, int status) {
+static void async_cb(uv_async_t* handle) {
   if (++callbacks == NUM_PINGS) {
     /* Tell the pummel thread to stop. */
     ACCESS_ONCE(const char*, handle->data) = stop;

@@ -29,6 +29,8 @@ typedef struct {
   uv_barrier_t barrier;
   int delay;
   volatile int posted;
+  int main_barrier_wait_rval;
+  int worker_barrier_wait_rval;
 } worker_config;
 
 
@@ -38,7 +40,7 @@ static void worker(void* arg) {
   if (c->delay)
     uv_sleep(c->delay);
 
-  uv_barrier_wait(&c->barrier);
+  c->worker_barrier_wait_rval = uv_barrier_wait(&c->barrier);
 }
 
 
@@ -52,10 +54,12 @@ TEST_IMPL(barrier_1) {
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
   uv_sleep(100);
-  uv_barrier_wait(&wc.barrier);
+  wc.main_barrier_wait_rval = uv_barrier_wait(&wc.barrier);
 
   ASSERT(0 == uv_thread_join(&thread));
   uv_barrier_destroy(&wc.barrier);
+
+  ASSERT(1 == (wc.main_barrier_wait_rval ^ wc.worker_barrier_wait_rval));
 
   return 0;
 }
@@ -71,10 +75,12 @@ TEST_IMPL(barrier_2) {
   ASSERT(0 == uv_barrier_init(&wc.barrier, 2));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
-  uv_barrier_wait(&wc.barrier);
+  wc.main_barrier_wait_rval = uv_barrier_wait(&wc.barrier);
 
   ASSERT(0 == uv_thread_join(&thread));
   uv_barrier_destroy(&wc.barrier);
+
+  ASSERT(1 == (wc.main_barrier_wait_rval ^ wc.worker_barrier_wait_rval));
 
   return 0;
 }
@@ -89,10 +95,12 @@ TEST_IMPL(barrier_3) {
   ASSERT(0 == uv_barrier_init(&wc.barrier, 2));
   ASSERT(0 == uv_thread_create(&thread, worker, &wc));
 
-  uv_barrier_wait(&wc.barrier);
+  wc.main_barrier_wait_rval = uv_barrier_wait(&wc.barrier);
 
   ASSERT(0 == uv_thread_join(&thread));
   uv_barrier_destroy(&wc.barrier);
+
+  ASSERT(1 == (wc.main_barrier_wait_rval ^ wc.worker_barrier_wait_rval));
 
   return 0;
 }

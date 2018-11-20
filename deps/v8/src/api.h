@@ -1,41 +1,17 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_API_H_
 #define V8_API_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "../include/v8-testing.h"
-#include "apiutils.h"
-#include "contexts.h"
-#include "factory.h"
-#include "isolate.h"
-#include "list-inl.h"
+#include "include/v8-testing.h"
+#include "src/contexts.h"
+#include "src/factory.h"
+#include "src/isolate.h"
+#include "src/list-inl.h"
 
 namespace v8 {
 
@@ -56,7 +32,7 @@ class Consts {
 // env-independent JSObjects used by the api.
 class NeanderObject {
  public:
-  explicit NeanderObject(int size);
+  explicit NeanderObject(v8::internal::Isolate* isolate, int size);
   explicit inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
   explicit inline NeanderObject(v8::internal::Object* obj);
   inline v8::internal::Object* get(int index);
@@ -72,13 +48,14 @@ class NeanderObject {
 // array abstraction built on neander-objects.
 class NeanderArray {
  public:
-  NeanderArray();
+  explicit NeanderArray(v8::internal::Isolate* isolate);
   explicit inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
   inline v8::internal::Handle<v8::internal::JSObject> value() {
     return obj_.value();
   }
 
-  void add(v8::internal::Handle<v8::internal::Object> value);
+  void add(internal::Isolate* isolate,
+           v8::internal::Handle<v8::internal::Object> value);
 
   int length();
 
@@ -105,13 +82,13 @@ NeanderArray::NeanderArray(v8::internal::Handle<v8::internal::Object> obj)
 
 
 v8::internal::Object* NeanderObject::get(int offset) {
-  ASSERT(value()->HasFastObjectElements());
+  DCHECK(value()->HasFastObjectElements());
   return v8::internal::FixedArray::cast(value()->elements())->get(offset);
 }
 
 
 void NeanderObject::set(int offset, v8::internal::Object* value) {
-  ASSERT(value_->HasFastObjectElements());
+  DCHECK(value_->HasFastObjectElements());
   v8::internal::FixedArray::cast(value_->elements())->set(offset, value);
 }
 
@@ -125,9 +102,10 @@ template <typename T> inline T ToCData(v8::internal::Object* obj) {
 
 
 template <typename T>
-inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
+inline v8::internal::Handle<v8::internal::Object> FromCData(
+    v8::internal::Isolate* isolate, T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
-  return FACTORY->NewForeign(
+  return isolate->factory()->NewForeign(
       reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
 }
 
@@ -149,41 +127,59 @@ class RegisteredExtension {
   static void UnregisterAll();
   Extension* extension() { return extension_; }
   RegisteredExtension* next() { return next_; }
-  RegisteredExtension* next_auto() { return next_auto_; }
   static RegisteredExtension* first_extension() { return first_extension_; }
  private:
   Extension* extension_;
   RegisteredExtension* next_;
-  RegisteredExtension* next_auto_;
   static RegisteredExtension* first_extension_;
 };
 
 
-#define OPEN_HANDLE_LIST(V)                    \
-  V(Template, TemplateInfo)                    \
-  V(FunctionTemplate, FunctionTemplateInfo)    \
-  V(ObjectTemplate, ObjectTemplateInfo)        \
-  V(Signature, SignatureInfo)                  \
-  V(AccessorSignature, FunctionTemplateInfo)   \
-  V(TypeSwitch, TypeSwitchInfo)                \
-  V(Data, Object)                              \
-  V(RegExp, JSRegExp)                          \
-  V(Object, JSObject)                          \
-  V(Array, JSArray)                            \
-  V(String, String)                            \
-  V(Script, Object)                            \
-  V(Function, JSFunction)                      \
-  V(Message, JSObject)                         \
-  V(Context, Context)                          \
-  V(External, Foreign)                         \
-  V(StackTrace, JSArray)                       \
-  V(StackFrame, JSObject)                      \
-  V(DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
-
+#define OPEN_HANDLE_LIST(V)                  \
+  V(Template, TemplateInfo)                  \
+  V(FunctionTemplate, FunctionTemplateInfo)  \
+  V(ObjectTemplate, ObjectTemplateInfo)      \
+  V(Signature, FunctionTemplateInfo)         \
+  V(AccessorSignature, FunctionTemplateInfo) \
+  V(TypeSwitch, TypeSwitchInfo)              \
+  V(Data, Object)                            \
+  V(RegExp, JSRegExp)                        \
+  V(Object, JSObject)                        \
+  V(Array, JSArray)                          \
+  V(ArrayBuffer, JSArrayBuffer)              \
+  V(ArrayBufferView, JSArrayBufferView)      \
+  V(TypedArray, JSTypedArray)                \
+  V(Uint8Array, JSTypedArray)                \
+  V(Uint8ClampedArray, JSTypedArray)         \
+  V(Int8Array, JSTypedArray)                 \
+  V(Uint16Array, JSTypedArray)               \
+  V(Int16Array, JSTypedArray)                \
+  V(Uint32Array, JSTypedArray)               \
+  V(Int32Array, JSTypedArray)                \
+  V(Float32Array, JSTypedArray)              \
+  V(Float64Array, JSTypedArray)              \
+  V(DataView, JSDataView)                    \
+  V(Name, Name)                              \
+  V(String, String)                          \
+  V(Symbol, Symbol)                          \
+  V(Script, JSFunction)                      \
+  V(UnboundScript, SharedFunctionInfo)       \
+  V(Function, JSFunction)                    \
+  V(Message, JSMessageObject)                \
+  V(Context, Context)                        \
+  V(External, Object)                        \
+  V(StackTrace, JSArray)                     \
+  V(StackFrame, JSObject)                    \
+  V(NativeWeakMap, JSWeakMap)
 
 class Utils {
  public:
-  static bool ReportApiFailure(const char* location, const char* message);
+  static inline bool ApiCheck(bool condition,
+                              const char* location,
+                              const char* message) {
+    if (!condition) Utils::ReportApiFailure(location, message);
+    return condition;
+  }
 
   static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
   static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);
@@ -194,16 +190,50 @@ class Utils {
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Function> ToLocal(
       v8::internal::Handle<v8::internal::JSFunction> obj);
+  static inline Local<Name> ToLocal(
+      v8::internal::Handle<v8::internal::Name> obj);
   static inline Local<String> ToLocal(
       v8::internal::Handle<v8::internal::String> obj);
+  static inline Local<Symbol> ToLocal(
+      v8::internal::Handle<v8::internal::Symbol> obj);
   static inline Local<RegExp> ToLocal(
       v8::internal::Handle<v8::internal::JSRegExp> obj);
   static inline Local<Object> ToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
+  static inline Local<ArrayBuffer> ToLocal(
+      v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
+  static inline Local<ArrayBufferView> ToLocal(
+      v8::internal::Handle<v8::internal::JSArrayBufferView> obj);
+  static inline Local<DataView> ToLocal(
+      v8::internal::Handle<v8::internal::JSDataView> obj);
+
+  static inline Local<TypedArray> ToLocal(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint8Array> ToLocalUint8Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint8ClampedArray> ToLocalUint8ClampedArray(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Int8Array> ToLocalInt8Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint16Array> ToLocalUint16Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Int16Array> ToLocalInt16Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Uint32Array> ToLocalUint32Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Int32Array> ToLocalInt32Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Float32Array> ToLocalFloat32Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+  static inline Local<Float64Array> ToLocalFloat64Array(
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
+  static inline Local<Promise> PromiseToLocal(
+      v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<StackTrace> StackTraceToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
@@ -218,16 +248,16 @@ class Utils {
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<ObjectTemplate> ToLocal(
       v8::internal::Handle<v8::internal::ObjectTemplateInfo> obj);
-  static inline Local<Signature> ToLocal(
-      v8::internal::Handle<v8::internal::SignatureInfo> obj);
+  static inline Local<Signature> SignatureToLocal(
+      v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<AccessorSignature> AccessorSignatureToLocal(
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<TypeSwitch> ToLocal(
       v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
-  static inline Local<DeclaredAccessorDescriptor> ToLocal(
-      v8::internal::Handle<v8::internal::DeclaredAccessorDescriptor> obj);
+  static inline Local<NativeWeakMap> NativeWeakMapToLocal(
+      v8::internal::Handle<v8::internal::JSWeakMap> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To) \
   static inline v8::internal::Handle<v8::internal::To> \
@@ -236,7 +266,45 @@ class Utils {
 OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
 #undef DECLARE_OPEN_HANDLE
+
+  template<class From, class To>
+  static inline Local<To> Convert(v8::internal::Handle<From> obj) {
+    DCHECK(obj.is_null() || !obj->IsTheHole());
+    return Local<To>(reinterpret_cast<To*>(obj.location()));
+  }
+
+  template <class T>
+  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+      const v8::Persistent<T>& persistent) {
+    return v8::internal::Handle<v8::internal::Object>(
+        reinterpret_cast<v8::internal::Object**>(persistent.val_));
+  }
+
+  template <class T>
+  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+      v8::Persistent<T>* persistent) {
+    return OpenPersistent(*persistent);
+  }
+
+  template <class From, class To>
+  static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
+    return OpenHandle(*handle);
+  }
+
+ private:
+  static void ReportApiFailure(const char* location, const char* message);
 };
+
+
+template <class T>
+v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
+    v8::EscapableHandleScope* scope) {
+  v8::internal::Handle<T> handle;
+  if (!is_null()) {
+    handle = *this;
+  }
+  return Utils::OpenHandle(*scope->Escape(Utils::ToLocal(handle)), true);
+}
 
 
 template <class T>
@@ -244,15 +312,10 @@ inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
   return reinterpret_cast<T*>(obj.location());
 }
 
-
 template <class T>
-v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
-    v8::HandleScope* scope) {
-  v8::internal::Handle<T> handle;
-  if (!is_null()) {
-    handle = *this;
-  }
-  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(handle)), true);
+inline v8::Local<T> ToApiHandle(
+    v8::internal::Handle<v8::internal::Object> obj) {
+  return Utils::Convert<v8::internal::Object, T>(obj);
 }
 
 
@@ -260,42 +323,63 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
 
 #define MAKE_TO_LOCAL(Name, From, To)                                       \
   Local<v8::To> Utils::Name(v8::internal::Handle<v8::internal::From> obj) { \
-    ASSERT(obj.is_null() || !obj->IsTheHole());                             \
-    return Local<To>(reinterpret_cast<To*>(obj.location()));                \
+    return Convert<v8::internal::From, v8::To>(obj);  \
   }
+
+
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)        \
+  Local<v8::Type##Array> Utils::ToLocal##Type##Array(                       \
+      v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
+    DCHECK(obj->type() == kExternal##Type##Array);                          \
+    return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);       \
+  }
+
 
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
 MAKE_TO_LOCAL(ToLocal, JSFunction, Function)
+MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
+MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
+MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
+MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
+MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
+MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
+
+TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
+
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
-MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)
+MAKE_TO_LOCAL(SignatureToLocal, FunctionTemplateInfo, Signature)
 MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(ToLocal, TypeSwitchInfo, TypeSwitch)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
+MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
 MAKE_TO_LOCAL(StackTraceToLocal, JSArray, StackTrace)
 MAKE_TO_LOCAL(StackFrameToLocal, JSObject, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
-MAKE_TO_LOCAL(ToLocal, DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
+MAKE_TO_LOCAL(NativeWeakMapToLocal, JSWeakMap, NativeWeakMap)
 
+#undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
 
 
 // Implementations of OpenHandle
 
-#define MAKE_OPEN_HANDLE(From, To)                                          \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                 \
-    const v8::From* that, bool allow_empty_handle) {                        \
-    EXTRA_CHECK(allow_empty_handle || that != NULL);                        \
-    return v8::internal::Handle<v8::internal::To>(                          \
-        reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
+#define MAKE_OPEN_HANDLE(From, To)                                             \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                    \
+      const v8::From* that, bool allow_empty_handle) {                         \
+    DCHECK(allow_empty_handle || that != NULL);                                \
+    DCHECK(that == NULL ||                                                     \
+           (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
+    return v8::internal::Handle<v8::internal::To>(                             \
+        reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that)));    \
   }
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
@@ -441,12 +525,13 @@ class HandleScopeImplementer {
   inline void DecrementCallDepth() {call_depth_--;}
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
-  inline void EnterContext(Handle<Object> context);
-  inline bool LeaveLastContext();
+  inline void EnterContext(Handle<Context> context);
+  inline void LeaveContext();
+  inline bool LastEnteredContextWas(Handle<Context> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
-  inline Handle<Object> LastEnteredContext();
+  inline Handle<Context> LastEnteredContext();
 
   inline void SaveContext(Context* context);
   inline Context* RestoreContext();
@@ -456,7 +541,7 @@ class HandleScopeImplementer {
   Isolate* isolate() const { return isolate_; }
 
   void ReturnBlock(Object** block) {
-    ASSERT(block != NULL);
+    DCHECK(block != NULL);
     if (spare_ != NULL) DeleteArray(spare_);
     spare_ = block;
   }
@@ -472,9 +557,9 @@ class HandleScopeImplementer {
   }
 
   void Free() {
-    ASSERT(blocks_.length() == 0);
-    ASSERT(entered_contexts_.length() == 0);
-    ASSERT(saved_contexts_.length() == 0);
+    DCHECK(blocks_.length() == 0);
+    DCHECK(entered_contexts_.length() == 0);
+    DCHECK(saved_contexts_.length() == 0);
     blocks_.Free();
     entered_contexts_.Free();
     saved_contexts_.Free();
@@ -482,7 +567,7 @@ class HandleScopeImplementer {
       DeleteArray(spare_);
       spare_ = NULL;
     }
-    ASSERT(call_depth_ == 0);
+    DCHECK(call_depth_ == 0);
   }
 
   void BeginDeferredScope();
@@ -491,14 +576,14 @@ class HandleScopeImplementer {
   Isolate* isolate_;
   List<internal::Object**> blocks_;
   // Used as a stack to keep track of entered contexts.
-  List<Handle<Object> > entered_contexts_;
+  List<Context*> entered_contexts_;
   // Used as a stack to keep track of saved contexts.
   List<Context*> saved_contexts_;
   Object** spare_;
   int call_depth_;
   Object** last_handle_before_deferred_block_;
   // This is only used for threading support.
-  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
+  HandleScopeData handle_scope_data_;
 
   void IterateThis(ObjectVisitor* v);
   char* RestoreThreadHelper(char* from);
@@ -529,21 +614,24 @@ bool HandleScopeImplementer::HasSavedContexts() {
 }
 
 
-void HandleScopeImplementer::EnterContext(Handle<Object> context) {
-  entered_contexts_.Add(context);
+void HandleScopeImplementer::EnterContext(Handle<Context> context) {
+  entered_contexts_.Add(*context);
 }
 
 
-bool HandleScopeImplementer::LeaveLastContext() {
-  if (entered_contexts_.is_empty()) return false;
+void HandleScopeImplementer::LeaveContext() {
   entered_contexts_.RemoveLast();
-  return true;
 }
 
 
-Handle<Object> HandleScopeImplementer::LastEnteredContext() {
-  if (entered_contexts_.is_empty()) return Handle<Object>::null();
-  return entered_contexts_.last();
+bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
+  return !entered_contexts_.is_empty() && entered_contexts_.last() == *context;
+}
+
+
+Handle<Context> HandleScopeImplementer::LastEnteredContext() {
+  if (entered_contexts_.is_empty()) return Handle<Context>::null();
+  return Handle<Context>(entered_contexts_.last());
 }
 
 
@@ -561,26 +649,38 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
   while (!blocks_.is_empty()) {
     internal::Object** block_start = blocks_.last();
     internal::Object** block_limit = block_start + kHandleBlockSize;
-#ifdef DEBUG
-    // NoHandleAllocation may make the prev_limit to point inside the block.
-    if (block_start <= prev_limit && prev_limit <= block_limit) break;
-#else
-    if (prev_limit == block_limit) break;
+
+    // SealHandleScope may make the prev_limit to point inside the block.
+    if (block_start <= prev_limit && prev_limit <= block_limit) {
+#ifdef ENABLE_HANDLE_ZAPPING
+      internal::HandleScope::ZapRange(prev_limit, block_limit);
 #endif
+      break;
+    }
 
     blocks_.RemoveLast();
-#ifdef DEBUG
-    v8::ImplementationUtilities::ZapHandleRange(block_start, block_limit);
+#ifdef ENABLE_HANDLE_ZAPPING
+    internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
     if (spare_ != NULL) {
       DeleteArray(spare_);
     }
     spare_ = block_start;
   }
-  ASSERT((blocks_.is_empty() && prev_limit == NULL) ||
+  DCHECK((blocks_.is_empty() && prev_limit == NULL) ||
          (!blocks_.is_empty() && prev_limit != NULL));
 }
 
+
+// Interceptor functions called from generated inline caches to notify
+// CPU profiler that external callbacks are invoked.
+void InvokeAccessorGetterCallback(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value>& info,
+    v8::AccessorNameGetterCallback getter);
+
+void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                            v8::FunctionCallback callback);
 
 class Testing {
  public:

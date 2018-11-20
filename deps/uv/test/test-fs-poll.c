@@ -26,12 +26,17 @@
 
 #define FIXTURE "testfile"
 
-static void timer_cb(uv_timer_t* handle, int status);
+static void timer_cb(uv_timer_t* handle);
 static void close_cb(uv_handle_t* handle);
 static void poll_cb(uv_fs_poll_t* handle,
                     int status,
                     const uv_stat_t* prev,
                     const uv_stat_t* curr);
+
+static void poll_cb_fail(uv_fs_poll_t* handle,
+                         int status,
+                         const uv_stat_t* prev,
+                         const uv_stat_t* curr);
 
 static uv_fs_poll_t poll_handle;
 static uv_timer_t timer_handle;
@@ -66,9 +71,17 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   touch_file(FIXTURE);
   timer_cb_called++;
+}
+
+
+static void poll_cb_fail(uv_fs_poll_t* handle,
+                         int status,
+                         const uv_stat_t* prev,
+                         const uv_stat_t* curr) {
+  ASSERT(0 && "fail_cb called");
 }
 
 
@@ -81,14 +94,13 @@ static void poll_cb(uv_fs_poll_t* handle,
   memset(&zero_statbuf, 0, sizeof(zero_statbuf));
 
   ASSERT(handle == &poll_handle);
-  ASSERT(uv_is_active((uv_handle_t*)handle));
+  ASSERT(1 == uv_is_active((uv_handle_t*) handle));
   ASSERT(prev != NULL);
   ASSERT(curr != NULL);
 
   switch (poll_cb_called++) {
   case 0:
-    ASSERT(status == -1);
-    ASSERT(uv_last_error(loop).code == UV_ENOENT);
+    ASSERT(status == UV_ENOENT);
     ASSERT(0 == memcmp(prev, &zero_statbuf, sizeof(zero_statbuf)));
     ASSERT(0 == memcmp(curr, &zero_statbuf, sizeof(zero_statbuf)));
     touch_file(FIXTURE);
@@ -116,10 +128,9 @@ static void poll_cb(uv_fs_poll_t* handle,
     break;
 
   case 4:
-    ASSERT(status == -1);
+    ASSERT(status == UV_ENOENT);
     ASSERT(0 != memcmp(prev, &zero_statbuf, sizeof(zero_statbuf)));
     ASSERT(0 == memcmp(curr, &zero_statbuf, sizeof(zero_statbuf)));
-    ASSERT(uv_last_error(loop).code == UV_ENOENT);
     uv_close((uv_handle_t*)handle, close_cb);
     break;
 
@@ -141,6 +152,33 @@ TEST_IMPL(fs_poll) {
 
   ASSERT(poll_cb_called == 5);
   ASSERT(timer_cb_called == 2);
+  ASSERT(close_cb_called == 1);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(fs_poll_getpath) {
+  char buf[1024];
+  size_t len;
+  loop = uv_default_loop();
+
+  remove(FIXTURE);
+
+  ASSERT(0 == uv_fs_poll_init(loop, &poll_handle));
+  len = sizeof buf;
+  ASSERT(UV_EINVAL == uv_fs_poll_getpath(&poll_handle, buf, &len));
+  ASSERT(0 == uv_fs_poll_start(&poll_handle, poll_cb_fail, FIXTURE, 100));
+  len = sizeof buf;
+  ASSERT(0 == uv_fs_poll_getpath(&poll_handle, buf, &len));
+  ASSERT(buf[len - 1] != 0);
+  ASSERT(0 == memcmp(buf, FIXTURE, len));
+
+  uv_close((uv_handle_t*) &poll_handle, close_cb);
+
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
+
   ASSERT(close_cb_called == 1);
 
   MAKE_VALGRIND_HAPPY();

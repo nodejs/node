@@ -34,7 +34,7 @@ function f(p) {
   return y+x;
 }
 
-for (var i=0; i<10000000; i++) f(42);
+for (var i=0; i<100000; i++) f(42);
 
 var result = f("foo");
 assertEquals("0foo6", result);

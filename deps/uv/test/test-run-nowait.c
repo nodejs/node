@@ -26,9 +26,8 @@ static uv_timer_t timer_handle;
 static int timer_called = 0;
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer_handle);
-  ASSERT(status == 0);
   timer_called = 1;
 }
 

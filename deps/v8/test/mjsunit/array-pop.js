@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+//
 // Check pops with various number of arguments.
 (function() {
   var a = [];
@@ -120,4 +122,19 @@
   for (var i = 0; i < 100; i++) {
     assertEquals(99 - i, x.pop(), i + 'th iteration');
   }
+})();
+
+(function () {
+  function f(a, deopt) {
+    var v = a.pop() ? 1 : 2;
+    if (deopt) %DeoptimizeFunction(f);
+    return v;
+  }
+
+  var a = [true, true, true, true]
+  assertEquals(1, f(a, false));
+  assertEquals(1, f(a, false));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(1, f(a, false));
+  assertEquals(1, f(a, true));
 })();

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256 --allow-natives-syntax
+// Flags: --max-semi-space-size=1 --allow-natives-syntax
 
 function zero() {
   var x = 0.5;
@@ -109,3 +109,14 @@ for(var i = 0; i < 1000; i++) {
 assertEquals(42, foo(-42));
 %OptimizeFunctionOnNextCall(foo)
 assertEquals(42, foo(-42));
+
+// Regression test for SMI input of Math.abs on X64, see:
+// https://codereview.chromium.org/21180004/
+var a = [-1, -2];
+function foo2() {
+  return Math.abs(a[0]);
+}
+assertEquals(1, foo2());
+assertEquals(1, foo2());
+%OptimizeFunctionOnNextCall(foo2);
+assertEquals(1, foo2());

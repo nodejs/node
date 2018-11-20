@@ -45,8 +45,7 @@
 
   function outer() {
     inner(1,2,3);
-    // Trigger OSR.
-    while (%GetOptimizationStatus(outer) == 2) {}
+    for (var i = 0; i < 3; i++) %OptimizeOsr();
   }
 
   outer();

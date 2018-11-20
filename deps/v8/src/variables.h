@@ -1,35 +1,12 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_VARIABLES_H_
 #define V8_VARIABLES_H_
 
-#include "zone.h"
-#include "interface.h"
+#include "src/ast-value-factory.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -41,11 +18,7 @@ namespace internal {
 
 class Variable: public ZoneObject {
  public:
-  enum Kind {
-    NORMAL,
-    THIS,
-    ARGUMENTS
-  };
+  enum Kind { NORMAL, THIS, NEW_TARGET, ARGUMENTS };
 
   enum Location {
     // Before and during variable allocation, a variable whose location is
@@ -74,36 +47,35 @@ class Variable: public ZoneObject {
     LOOKUP
   };
 
-  Variable(Scope* scope,
-           Handle<String> name,
-           VariableMode mode,
-           bool is_valid_lhs,
-           Kind kind,
-           InitializationFlag initialization_flag,
-           Interface* interface = Interface::NewValue());
+  Variable(Scope* scope, const AstRawString* name, VariableMode mode,
+           bool is_valid_ref, Kind kind, InitializationFlag initialization_flag,
+           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
 
-  bool IsValidLeftHandSide() { return is_valid_LHS_; }
+  bool IsValidReference() { return is_valid_ref_; }
 
   // The source code for an eval() call may refer to a variable that is
   // in an outer scope about which we don't know anything (it may not
-  // be the global scope). scope() is NULL in that case. Currently the
+  // be the script scope). scope() is NULL in that case. Currently the
   // scope is only used to follow the context chain length.
   Scope* scope() const { return scope_; }
 
-  Handle<String> name() const { return name_; }
+  Handle<String> name() const { return name_->string(); }
+  const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return mode_; }
   bool has_forced_context_allocation() const {
     return force_context_allocation_;
   }
   void ForceContextAllocation() {
-    ASSERT(mode_ != TEMPORARY);
+    DCHECK(mode_ != TEMPORARY);
     force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
-  void set_is_used(bool flag) { is_used_ = flag; }
+  void set_is_used() { is_used_ = true; }
+  MaybeAssignedFlag maybe_assigned() const { return maybe_assigned_; }
+  void set_maybe_assigned() { maybe_assigned_ = kMaybeAssigned; }
 
   int initializer_position() { return initializer_position_; }
   void set_initializer_position(int pos) { initializer_position_ = pos; }
@@ -127,6 +99,7 @@ class Variable: public ZoneObject {
   }
 
   bool is_this() const { return kind_ == THIS; }
+  bool is_new_target() const { return kind_ == NEW_TARGET; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
 
   // True if the variable is named eval and not known to be shadowed.
@@ -135,7 +108,7 @@ class Variable: public ZoneObject {
   }
 
   Variable* local_if_not_shadowed() const {
-    ASSERT(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
+    DCHECK(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
     return local_if_not_shadowed_;
   }
 
@@ -148,7 +121,6 @@ class Variable: public ZoneObject {
   InitializationFlag initialization_flag() const {
     return initialization_flag_;
   }
-  Interface* interface() const { return interface_; }
 
   void AllocateTo(Location location, int index) {
     location_ = location;
@@ -159,7 +131,7 @@ class Variable: public ZoneObject {
 
  private:
   Scope* scope_;
-  Handle<String> name_;
+  const AstRawString* name_;
   VariableMode mode_;
   Kind kind_;
   Location location_;
@@ -168,20 +140,18 @@ class Variable: public ZoneObject {
 
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by
-  // non-strict 'eval' calls between the reference scope (inclusive) and the
+  // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
 
-  // Valid as a LHS? (const and this are not valid LHS, for example)
-  bool is_valid_LHS_;
+  // Valid as a reference? (const and this are not valid, for example)
+  bool is_valid_ref_;
 
   // Usage info.
   bool force_context_allocation_;  // set by variable resolver
   bool is_used_;
   InitializationFlag initialization_flag_;
-
-  // Module type info.
-  Interface* interface_;
+  MaybeAssignedFlag maybe_assigned_;
 };
 
 

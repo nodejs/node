@@ -26,31 +26,28 @@
 
 TEST_IMPL(dlerror) {
   const char* path = "test/fixtures/load_error.node";
+  const char* dlerror_no_error = "no error";
   const char* msg;
   uv_lib_t lib;
   int r;
 
-#ifdef __linux__
-  const char* dlerror_desc = "file too short";
-#elif defined (__sun__)
-  const char* dlerror_desc = "unknown file type";
-#elif defined (_WIN32)
-  const char* dlerror_desc = "%1 is not a valid Win32 application";
-#else
-  const char* dlerror_desc = "";
-#endif
+  lib.errmsg = NULL;
+  lib.handle = NULL;
+  msg = uv_dlerror(&lib);
+  ASSERT(msg != NULL);
+  ASSERT(strstr(msg, dlerror_no_error) != NULL);
 
   r = uv_dlopen(path, &lib);
   ASSERT(r == -1);
 
   msg = uv_dlerror(&lib);
   ASSERT(msg != NULL);
-  ASSERT(strstr(msg, dlerror_desc) != NULL);
+  ASSERT(strstr(msg, dlerror_no_error) == NULL);
 
   /* Should return the same error twice in a row. */
   msg = uv_dlerror(&lib);
   ASSERT(msg != NULL);
-  ASSERT(strstr(msg, dlerror_desc) != NULL);
+  ASSERT(strstr(msg, dlerror_no_error) == NULL);
 
   uv_dlclose(&lib);
 

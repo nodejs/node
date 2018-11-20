@@ -24,8 +24,10 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "atomic-ops.h"
 
 #include <errno.h>
+#include <stdio.h>  /* snprintf() */
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,19 +36,21 @@
 static void uv__async_event(uv_loop_t* loop,
                             struct uv__async* w,
                             unsigned int nevents);
-static int uv__async_make_pending(int* pending);
 static int uv__async_eventfd(void);
 
 
 int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
-  if (uv__async_start(loop, &loop->async_watcher, uv__async_event))
-    return uv__set_sys_error(loop, errno);
+  int err;
+
+  err = uv__async_start(loop, &loop->async_watcher, uv__async_event);
+  if (err)
+    return err;
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_ASYNC);
   handle->async_cb = async_cb;
   handle->pending = 0;
 
-  ngx_queue_insert_tail(&loop->async_handles, &handle->queue);
+  QUEUE_INSERT_TAIL(&loop->async_handles, &handle->queue);
   uv__handle_start(handle);
 
   return 0;
@@ -54,7 +58,11 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
 
 
 int uv_async_send(uv_async_t* handle) {
-  if (uv__async_make_pending(&handle->pending) == 0)
+  /* Do a cheap read first. */
+  if (ACCESS_ONCE(int, handle->pending) != 0)
+    return 0;
+
+  if (cmpxchgi(&handle->pending, 0, 1) == 0)
     uv__async_send(&handle->loop->async_watcher);
 
   return 0;
@@ -62,7 +70,7 @@ int uv_async_send(uv_async_t* handle) {
 
 
 void uv__async_close(uv_async_t* handle) {
-  ngx_queue_remove(&handle->queue);
+  QUEUE_REMOVE(&handle->queue);
   uv__handle_stop(handle);
 }
 
@@ -70,46 +78,19 @@ void uv__async_close(uv_async_t* handle) {
 static void uv__async_event(uv_loop_t* loop,
                             struct uv__async* w,
                             unsigned int nevents) {
-  ngx_queue_t* q;
+  QUEUE* q;
   uv_async_t* h;
 
-  ngx_queue_foreach(q, &loop->async_handles) {
-    h = ngx_queue_data(q, uv_async_t, queue);
-    if (!h->pending) continue;
-    h->pending = 0;
-    h->async_cb(h, 0);
+  QUEUE_FOREACH(q, &loop->async_handles) {
+    h = QUEUE_DATA(q, uv_async_t, queue);
+
+    if (cmpxchgi(&h->pending, 1, 0) == 0)
+      continue;
+
+    if (h->async_cb == NULL)
+      continue;
+    h->async_cb(h);
   }
-}
-
-
-static int uv__async_make_pending(int* pending) {
-  /* Do a cheap read first. */
-  if (ACCESS_ONCE(int, *pending) != 0)
-    return 1;
-
-  /* Micro-optimization: use atomic memory operations to detect if we've been
-   * preempted by another thread and don't have to make an expensive syscall.
-   * This speeds up the heavily contended case by about 1-2% and has little
-   * if any impact on the non-contended case.
-   *
-   * Use XCHG instead of the CMPXCHG that __sync_val_compare_and_swap() emits
-   * on x86, it's about 4x faster. It probably makes zero difference in the
-   * grand scheme of things but I'm OCD enough not to let this one pass.
-   */
-#if defined(__i386__) || defined(__x86_64__)
-  {
-    unsigned int val = 1;
-    __asm__ __volatile__ ("xchgl %0, %1"
-                         : "+r" (val)
-                         : "m"  (*pending));
-    return val != 0;
-  }
-#elif defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ > 0)
-  return __sync_val_compare_and_swap(pending, 0, 1) != 0;
-#else
-  ACCESS_ONCE(int, *pending) = 1;
-  return 0;
-#endif
 }
 
 
@@ -199,20 +180,41 @@ void uv__async_init(struct uv__async* wa) {
 
 int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb) {
   int pipefd[2];
-  int fd;
+  int err;
 
   if (wa->io_watcher.fd != -1)
     return 0;
 
-  fd = uv__async_eventfd();
-  if (fd >= 0) {
-    pipefd[0] = fd;
+  err = uv__async_eventfd();
+  if (err >= 0) {
+    pipefd[0] = err;
     pipefd[1] = -1;
   }
-  else if (fd != -ENOSYS)
-    return -1;
-  else if (uv__make_pipe(pipefd, UV__F_NONBLOCK))
-    return -1;
+  else if (err == -ENOSYS) {
+    err = uv__make_pipe(pipefd, UV__F_NONBLOCK);
+#if defined(__linux__)
+    /* Save a file descriptor by opening one of the pipe descriptors as
+     * read/write through the procfs.  That file descriptor can then
+     * function as both ends of the pipe.
+     */
+    if (err == 0) {
+      char buf[32];
+      int fd;
+
+      snprintf(buf, sizeof(buf), "/proc/self/fd/%d", pipefd[0]);
+      fd = uv__open_cloexec(buf, O_RDWR);
+      if (fd >= 0) {
+        uv__close(pipefd[0]);
+        uv__close(pipefd[1]);
+        pipefd[0] = fd;
+        pipefd[1] = fd;
+      }
+    }
+#endif
+  }
+
+  if (err < 0)
+    return err;
 
   uv__io_init(&wa->io_watcher, uv__async_io, pipefd[0]);
   uv__io_start(loop, &wa->io_watcher, UV__POLLIN);
@@ -227,14 +229,15 @@ void uv__async_stop(uv_loop_t* loop, struct uv__async* wa) {
   if (wa->io_watcher.fd == -1)
     return;
 
-  uv__io_stop(loop, &wa->io_watcher, UV__POLLIN);
-  close(wa->io_watcher.fd);
-  wa->io_watcher.fd = -1;
-
   if (wa->wfd != -1) {
-    close(wa->wfd);
+    if (wa->wfd != wa->io_watcher.fd)
+      uv__close(wa->wfd);
     wa->wfd = -1;
   }
+
+  uv__io_stop(loop, &wa->io_watcher, UV__POLLIN);
+  uv__close(wa->io_watcher.fd);
+  wa->io_watcher.fd = -1;
 }
 
 

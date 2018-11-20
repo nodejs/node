@@ -169,24 +169,6 @@ ProfileView.Node = function(
 
 
 /**
- * Returns a share of the function's total time in application's total time.
- */
-ProfileView.Node.prototype.__defineGetter__(
-    'totalPercent',
-    function() { return this.totalTime /
-      (this.head ? this.head.totalTime : this.totalTime) * 100.0; });
-
-
-/**
- * Returns a share of the function's self time in application's total time.
- */
-ProfileView.Node.prototype.__defineGetter__(
-    'selfPercent',
-    function() { return this.selfTime /
-      (this.head ? this.head.totalTime : this.totalTime) * 100.0; });
-
-
-/**
  * Returns a share of the function's total time in its parent's total time.
  */
 ProfileView.Node.prototype.__defineGetter__(

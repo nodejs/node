@@ -26,14 +26,32 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
-  'includes': ['../build/common.gypi'],
+  'variables': {
+    'v8_code': 1,
+    'v8_enable_i18n_support%': 1,
+  },
+  'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
   'target_defaults': {
     'type': 'executable',
     'dependencies': [
       '../tools/gyp/v8.gyp:v8',
+      '../tools/gyp/v8.gyp:v8_libplatform',
     ],
     'include_dirs': [
-      '../include',
+      '..',
+    ],
+    'conditions': [
+      ['v8_enable_i18n_support==1', {
+        'dependencies': [
+          '<(icu_gyp_path):icui18n',
+          '<(icu_gyp_path):icuuc',
+        ],
+      }],
+      ['OS=="win" and v8_enable_i18n_support==1', {
+        'dependencies': [
+          '<(icu_gyp_path):icudata',
+        ],
+      }],
     ],
   },
   'targets': [
@@ -49,11 +67,5 @@
         'process.cc',
       ],
     },
-    {
-      'target_name': 'lineprocessor',
-      'sources': [
-        'lineprocessor.cc',
-      ],
-    }
   ],
 }

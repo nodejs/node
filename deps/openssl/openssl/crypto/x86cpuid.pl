@@ -22,6 +22,8 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&xor	("eax","eax");
 	&bt	("ecx",21);
 	&jnc	(&label("nocpuid"));
+	&mov	("esi",&wparam(0));
+	&mov	(&DWP(8,"esi"),"eax");	# clear 3rd word
 	&cpuid	();
 	&mov	("edi","eax");		# max value for standard query level
 
@@ -67,6 +69,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&inc	("esi");		# number of cores
 
 	&mov	("eax",1);
+	&xor	("ecx","ecx");
 	&cpuid	();
 	&bt	("edx",28);
 	&jnc	(&label("generic"));
@@ -78,6 +81,16 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&jmp	(&label("generic"));
 	
 &set_label("intel");
+	&cmp	("edi",7);
+	&jb	(&label("cacheinfo"));
+
+	&mov	("esi",&wparam(0));
+	&mov	("eax",7);
+	&xor	("ecx","ecx");
+	&cpuid	();
+	&mov	(&DWP(8,"esi"),"ebx");
+
+&set_label("cacheinfo");
 	&cmp	("edi",4);
 	&mov	("edi",-1);
 	&jb	(&label("nocacheinfo"));
@@ -91,6 +104,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 
 &set_label("nocacheinfo");
 	&mov	("eax",1);
+	&xor	("ecx","ecx");
 	&cpuid	();
 	&and	("edx",0xbfefffff);	# force reserved bits #20, #30 to 0
 	&cmp	("ebp",0);
@@ -133,6 +147,8 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&and	("esi",0xfeffffff);	# clear FXSR
 &set_label("clear_avx");
 	&and	("ebp",0xefffe7ff);	# clear AVX, FMA and AMD XOP bits
+	&mov	("edi",&wparam(0));
+	&and	(&DWP(8,"edi"),0xffffffdf);	# clear AVX2
 &set_label("done");
 	&mov	("eax","esi");
 	&mov	("edx","ebp");
@@ -196,7 +212,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 
 &function_begin_B("OPENSSL_far_spin");
 	&pushf	();
-	&pop	("eax")
+	&pop	("eax");
 	&bt	("eax",9);
 	&jnc	(&label("nospin"));	# interrupts are disabled
 
@@ -351,6 +367,21 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&ret	();
 &function_end_B("OPENSSL_ia32_rdrand");
 
+&function_begin_B("OPENSSL_ia32_rdseed");
+	&mov	("ecx",8);
+&set_label("loop");
+	&rdseed	("eax");
+	&jc	(&label("break"));
+	&loop	(&label("loop"));
+&set_label("break");
+	&cmp	("eax",0);
+	&cmove	("eax","ecx");
+	&ret	();
+&function_end_B("OPENSSL_ia32_rdseed");
+
 &initseg("OPENSSL_cpuid_setup");
+
+&hidden("OPENSSL_cpuid_setup");
+&hidden("OPENSSL_ia32cap_P");
 
 &asm_finish();

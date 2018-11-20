@@ -137,7 +137,7 @@
         ],
       }],
 
-      [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+      [ 'OS in "linux freebsd openbsd solaris android"', {
         'variables': {
           'gcc_version%': '<!(python build/gcc_version.py)>)'
         },

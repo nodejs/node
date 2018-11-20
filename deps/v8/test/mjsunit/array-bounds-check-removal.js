@@ -105,7 +105,7 @@ test_base(dictionary_map_array, 5, false);
 test_base(dictionary_map_array, 6, false);
 %OptimizeFunctionOnNextCall(test_base);
 test_base(dictionary_map_array, -2, true);
-assertTrue(%GetOptimizationStatus(test_base) != 1);
+assertUnoptimized(test_base);
 
 // Forget about the dictionary_map_array's map.
 %ClearFunctionTypeFeedback(test_base);
@@ -116,7 +116,7 @@ test_base(a, 5, false);
 test_base(a, 6, false);
 %OptimizeFunctionOnNextCall(test_base);
 test_base(a, 2048, true);
-assertTrue(%GetOptimizationStatus(test_base) != 1);
+assertUnoptimized(test_base);
 
 function test_minus(base,cond) {
   a[base - 1] = 1;
@@ -173,7 +173,7 @@ short_test(short_a, 50);
 %OptimizeFunctionOnNextCall(short_test);
 short_a.length = 10;
 short_test(short_a, 0);
-assertTrue(%GetOptimizationStatus(short_test) != 1);
+assertUnoptimized(test_base);
 
 
 // A test for when we would modify a phi index.

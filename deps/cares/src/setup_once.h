@@ -2,7 +2,7 @@
 #define __SETUP_ONCE_H
 
 
-/* Copyright (C) 2004 - 2012 by Daniel Stenberg et al
+/* Copyright (C) 2004 - 2013 by Daniel Stenberg et al
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose and without fee is hereby granted, provided
@@ -74,6 +74,34 @@
 
 #if defined(HAVE_STDBOOL_H) && defined(HAVE_BOOL_T)
 #include <stdbool.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef __hpux
+#  if !defined(_XOPEN_SOURCE_EXTENDED) || defined(_KERNEL)
+#    ifdef _APP32_64BIT_OFF_T
+#      define OLD_APP32_64BIT_OFF_T _APP32_64BIT_OFF_T
+#      undef _APP32_64BIT_OFF_T
+#    else
+#      undef OLD_APP32_64BIT_OFF_T
+#    endif
+#  endif
+#endif
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+
+#ifdef __hpux
+#  if !defined(_XOPEN_SOURCE_EXTENDED) || defined(_KERNEL)
+#    ifdef OLD_APP32_64BIT_OFF_T
+#      define _APP32_64BIT_OFF_T OLD_APP32_64BIT_OFF_T
+#      undef OLD_APP32_64BIT_OFF_T
+#    endif
+#  endif
 #endif
 
 
@@ -232,6 +260,8 @@ struct timeval {
 #  define sclose(x)  closesocket((x))
 #elif defined(HAVE_CLOSESOCKET_CAMEL)
 #  define sclose(x)  CloseSocket((x))
+#elif defined(HAVE_CLOSE_S)
+#  define sclose(x)  close_s((x))
 #else
 #  define sclose(x)  close((x))
 #endif
@@ -257,6 +287,18 @@ struct timeval {
                           (((unsigned char)x) == '\t'))
 
 #define TOLOWER(x)  (tolower((int)  ((unsigned char)x)))
+
+
+/*
+ * 'bool' stuff compatible with HP-UX headers.
+ */
+
+#if defined(__hpux) && !defined(HAVE_BOOL_T)
+   typedef int bool;
+#  define false 0
+#  define true 1
+#  define HAVE_BOOL_T
+#endif
 
 
 /*

@@ -84,4 +84,3 @@ assertFalse(typeof 'x' == 'object');  // bug #674753
 assertFalse(typeof 'x' === 'object');
 assertFalse(typeof Object == 'object');
 assertFalse(typeof Object === 'object');
-

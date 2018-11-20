@@ -48,4 +48,3 @@ arguments -= ++arguments;
 arguments *= arguments--;
 function arguments(arguments) {};
 try {} catch (arguments) {}
-

@@ -25,14 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "liveedit.h"
-#include "cctest.h"
+#include "src/liveedit.h"
+#include "test/cctest/cctest.h"
 
 
 using namespace v8::internal;
@@ -76,19 +74,20 @@ class DiffChunkStruct : public ZoneObject {
 
 class ListDiffOutputWriter : public Comparator::Output {
  public:
-  explicit ListDiffOutputWriter(DiffChunkStruct** next_chunk_pointer)
-      : next_chunk_pointer_(next_chunk_pointer) {
+  explicit ListDiffOutputWriter(DiffChunkStruct** next_chunk_pointer,
+                                Zone* zone)
+      : next_chunk_pointer_(next_chunk_pointer), zone_(zone) {
     (*next_chunk_pointer_) = NULL;
   }
   void AddChunk(int pos1, int pos2, int len1, int len2) {
-    current_chunk_ = new(Isolate::Current()->runtime_zone()) DiffChunkStruct(
-        pos1, pos2, len1, len2);
+    current_chunk_ = new(zone_) DiffChunkStruct(pos1, pos2, len1, len2);
     (*next_chunk_pointer_) = current_chunk_;
     next_chunk_pointer_ = &current_chunk_->next;
   }
  private:
   DiffChunkStruct** next_chunk_pointer_;
   DiffChunkStruct* current_chunk_;
+  Zone* zone_;
 };
 
 
@@ -96,10 +95,10 @@ void CompareStringsOneWay(const char* s1, const char* s2,
                           int expected_diff_parameter = -1) {
   StringCompareInput input(s1, s2);
 
-  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Zone zone;
 
   DiffChunkStruct* first_chunk;
-  ListDiffOutputWriter writer(&first_chunk);
+  ListDiffOutputWriter writer(&first_chunk, &zone);
 
   Comparator::CalculateDifference(&input, &writer);
 
@@ -118,12 +117,12 @@ void CompareStringsOneWay(const char* s1, const char* s2,
     int similar_part_length = diff_pos1 - pos1;
     int diff_pos2 = pos2 + similar_part_length;
 
-    ASSERT_EQ(diff_pos2, chunk->pos2);
+    DCHECK_EQ(diff_pos2, chunk->pos2);
 
     for (int j = 0; j < similar_part_length; j++) {
-      ASSERT(pos1 + j < len1);
-      ASSERT(pos2 + j < len2);
-      ASSERT_EQ(s1[pos1 + j], s2[pos2 + j]);
+      DCHECK(pos1 + j < len1);
+      DCHECK(pos2 + j < len2);
+      DCHECK_EQ(s1[pos1 + j], s2[pos2 + j]);
     }
     diff_parameter += chunk->len1 + chunk->len2;
     pos1 = diff_pos1 + chunk->len1;
@@ -132,17 +131,17 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   {
     // After last chunk.
     int similar_part_length = len1 - pos1;
-    ASSERT_EQ(similar_part_length, len2 - pos2);
+    DCHECK_EQ(similar_part_length, len2 - pos2);
     USE(len2);
     for (int j = 0; j < similar_part_length; j++) {
-      ASSERT(pos1 + j < len1);
-      ASSERT(pos2 + j < len2);
-      ASSERT_EQ(s1[pos1 + j], s2[pos2 + j]);
+      DCHECK(pos1 + j < len1);
+      DCHECK(pos2 + j < len2);
+      DCHECK_EQ(s1[pos1 + j], s2[pos2 + j]);
     }
   }
 
   if (expected_diff_parameter != -1) {
-    ASSERT_EQ(expected_diff_parameter, diff_parameter);
+    DCHECK_EQ(expected_diff_parameter, diff_parameter);
   }
 }
 
@@ -159,7 +158,6 @@ void CompareStrings(const char* s1, const char* s2,
 // --- T h e   A c t u a l   T e s t s
 
 TEST(LiveEditDiffer) {
-  v8::internal::V8::Initialize(NULL);
   CompareStrings("zz1zzz12zz123zzz", "zzzzzzzzzz", 6);
   CompareStrings("zz1zzz12zz123zzz", "zz0zzz0zz0zzz", 9);
   CompareStrings("123456789", "987654321", 16);
@@ -176,5 +174,3 @@ TEST(LiveEditDiffer) {
   CompareStrings("abbabababababaaabbabababababbabbbbbbbababa",
                  "bbbbabababbbabababbbabababababbabbababa");
 }
-
-#endif  // ENABLE_DEBUGGER_SUPPORT

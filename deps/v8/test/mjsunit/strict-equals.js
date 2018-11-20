@@ -84,7 +84,3 @@ assertFalse(0 === new Number(0));
 assertFalse(1 === new Number(1));
 assertTrue(4.2 === 4.2);
 assertTrue(4.2 === Number(4.2));
-
-
-
-

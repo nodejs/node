@@ -124,7 +124,7 @@ The name of an EGD socket to get random data from. (Optional)
 =item [request]...
 
 List of files containing B<RFC 3161> DER-encoded time stamp requests. If no
-requests are specifed only one request will be sent to the server and it will be
+requests are specified only one request will be sent to the server and it will be
 read from the standard input. (Optional)
 
 =back

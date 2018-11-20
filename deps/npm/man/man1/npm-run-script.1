@@ -1,0 +1,59 @@
+.TH "NPM\-RUN\-SCRIPT" "1" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-run-script\fR \- Run arbitrary package scripts
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm run\-script [command] [\-\- <args>]
+npm run [command] [\-\- <args>]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This runs an arbitrary command from a package's \fB"scripts"\fR object\.  If no
+\fB"command"\fR is provided, it will list the available scripts\.  \fBrun[\-script]\fR is
+used by the test, start, restart, and stop commands, but can be called
+directly, as well\. When the scripts in the package are printed out, they're
+separated into lifecycle (test, start, restart) and directly\-run scripts\.
+.P
+As of \fBnpm@2\.0\.0\fR \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
+use custom arguments when executing scripts\. The special option \fB\-\-\fR is used by
+getopt \fIhttp://goo\.gl/KxMmtG\fR to delimit the end of the options\. npm will pass
+all the arguments after the \fB\-\-\fR directly to your script:
+.P
+.RS 2
+.nf
+npm run test \-\- \-\-grep="pattern"
+.fi
+.RE
+.P
+The arguments will only be passed to the script specified after \fBnpm run\fR
+and not to any pre or post script\.
+.P
+The \fBenv\fR script is a special built\-in command that can be used to list
+environment variables that will be available to the script at runtime\. If an
+"env" command is defined in your package it will take precedence over the
+built\-in\.
+.P
+In addition to the shell's pre\-existing \fBPATH\fR, \fBnpm run\fR adds
+\fBnode_modules/\.bin\fR to the \fBPATH\fR provided to scripts\. Any binaries provided by
+locally\-installed dependencies can be used without the \fBnode_modules/\.bin\fR
+prefix\. For example, if there is a \fBdevDependency\fR on \fBtap\fR in your package,
+you should write \fB"scripts": {"test": "tap test/\\*\.js"}\fR instead of \fB"scripts":
+{"test": "node_modules/\.bin/tap test/\\*\.js"}\fR to run your tests\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+.IP \(bu 2
+npm help restart
+.IP \(bu 2
+npm help stop
+
+.RE
+

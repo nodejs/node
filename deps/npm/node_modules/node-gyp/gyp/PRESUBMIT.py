@@ -17,7 +17,6 @@ PYLINT_BLACKLIST = [
     'test/lib/TestCommon.py',
     'test/lib/TestGyp.py',
     # Needs style fix.
-    'pylib/gyp/generator/scons.py',
     'pylib/gyp/generator/xcode.py',
 ]
 
@@ -75,13 +74,20 @@ def CheckChangeOnUpload(input_api, output_api):
 
 def CheckChangeOnCommit(input_api, output_api):
   report = []
+
+  # Accept any year number from 2009 to the current year.
+  current_year = int(input_api.time.strftime('%Y'))
+  allowed_years = (str(s) for s in reversed(xrange(2009, current_year + 1)))
+  years_re = '(' + '|'.join(allowed_years) + ')'
+
+  # The (c) is deprecated, but tolerate it until it's removed from all files.
   license = (
-      r'.*? Copyright \(c\) %(year)s Google Inc\. All rights reserved\.\n'
+      r'.*? Copyright (\(c\) )?%(year)s Google Inc\. All rights reserved\.\n'
       r'.*? Use of this source code is governed by a BSD-style license that '
         r'can be\n'
       r'.*? found in the LICENSE file\.\n'
   ) % {
-      'year': input_api.time.strftime('%Y'),
+      'year': years_re,
   }
 
   report.extend(input_api.canned_checks.PanProjectChecks(
@@ -91,14 +97,19 @@ def CheckChangeOnCommit(input_api, output_api):
       'http://gyp-status.appspot.com/status',
       'http://gyp-status.appspot.com/current'))
 
+  import os
   import sys
   old_sys_path = sys.path
   try:
     sys.path = ['pylib', 'test/lib'] + sys.path
+    blacklist = PYLINT_BLACKLIST
+    if sys.platform == 'win32':
+      blacklist = [os.path.normpath(x).replace('\\', '\\\\')
+                   for x in PYLINT_BLACKLIST]
     report.extend(input_api.canned_checks.RunPylint(
         input_api,
         output_api,
-        black_list=PYLINT_BLACKLIST,
+        black_list=blacklist,
         disabled_warnings=PYLINT_DISABLED_WARNINGS))
   finally:
     sys.path = old_sys_path
@@ -106,4 +117,4 @@ def CheckChangeOnCommit(input_api, output_api):
 
 
 def GetPreferredTrySlaves():
-  return ['gyp-win32', 'gyp-win64', 'gyp-linux', 'gyp-mac']
+  return ['gyp-win32', 'gyp-win64', 'gyp-linux', 'gyp-mac', 'gyp-android']

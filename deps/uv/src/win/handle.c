@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <io.h>
+#include <stdlib.h>
 
 #include "uv.h"
 #include "internal.h"
@@ -35,7 +36,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
     return UV_UNKNOWN_HANDLE;
   }
 
-  handle = (HANDLE) _get_osfhandle(file);
+  handle = uv__get_osfhandle(file);
 
   switch (GetFileType(handle)) {
     case FILE_TYPE_CHAR:
@@ -149,5 +150,5 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
 
 
 int uv_is_closing(const uv_handle_t* handle) {
-  return handle->flags & (UV__HANDLE_CLOSING | UV_HANDLE_CLOSED);
+  return !!(handle->flags & (UV__HANDLE_CLOSING | UV_HANDLE_CLOSED));
 }

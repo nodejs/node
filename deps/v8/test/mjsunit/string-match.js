@@ -66,7 +66,6 @@ function testMatch(name, input, regexp, result, captures, from, to) {
   assertEquals(undefined, RegExp.$10, name + "-nocapture-10");
 
   assertEquals(input, RegExp.input, name + "-input");
-  assertEquals(input, RegExp.$input, name + "-$input");
   assertEquals(input, RegExp.$_, name + "-$_");
 
   assertEquals(preMatch, RegExp["$`"], name + "-$`");

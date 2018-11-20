@@ -31,4 +31,3 @@ function XXX(x) {
 }
 
 assertFalse(XXX('Hello'));
-

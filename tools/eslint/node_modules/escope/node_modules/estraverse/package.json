@@ -1,0 +1,66 @@
+{
+  "name": "estraverse",
+  "description": "ECMAScript JS AST traversal functions",
+  "homepage": "https://github.com/estools/estraverse",
+  "main": "estraverse.js",
+  "version": "3.1.0",
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "maintainers": [
+    {
+      "name": "constellation",
+      "email": "utatane.tea@gmail.com"
+    },
+    {
+      "name": "michaelficarra",
+      "email": "npm@michael.ficarra.me"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/estools/estraverse.git"
+  },
+  "devDependencies": {
+    "chai": "^2.1.1",
+    "coffee-script": "^1.8.0",
+    "espree": "^1.11.0",
+    "gulp": "^3.8.10",
+    "gulp-bump": "^0.2.2",
+    "gulp-filter": "^2.0.0",
+    "gulp-git": "^1.0.1",
+    "gulp-tag-version": "^1.2.1",
+    "jshint": "^2.5.6",
+    "mocha": "^2.1.0"
+  },
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "http://github.com/estools/estraverse/raw/master/LICENSE.BSD"
+    }
+  ],
+  "scripts": {
+    "test": "npm run-script lint && npm run-script unit-test",
+    "lint": "jshint estraverse.js",
+    "unit-test": "mocha --compilers coffee:coffee-script/register"
+  },
+  "gitHead": "166ebbe0a8d45ceb2391b6f5ef5d1bab6bfb267a",
+  "bugs": {
+    "url": "https://github.com/estools/estraverse/issues"
+  },
+  "_id": "estraverse@3.1.0",
+  "_shasum": "15e28a446b8b82bc700ccc8b96c78af4da0d6cba",
+  "_from": "estraverse@>=3.1.0 <4.0.0",
+  "_npmVersion": "2.0.0-alpha-5",
+  "_npmUser": {
+    "name": "constellation",
+    "email": "utatane.tea@gmail.com"
+  },
+  "dist": {
+    "shasum": "15e28a446b8b82bc700ccc8b96c78af4da0d6cba",
+    "tarball": "http://registry.npmjs.org/estraverse/-/estraverse-3.1.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/estraverse/-/estraverse-3.1.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

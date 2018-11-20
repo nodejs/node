@@ -1,0 +1,93 @@
+{
+  "name": "mime-db",
+  "description": "Media Type Database",
+  "version": "1.8.0",
+  "contributors": [
+    {
+      "name": "Douglas Christopher Wilson",
+      "email": "doug@somethingdoug.com"
+    },
+    {
+      "name": "Jonathan Ong",
+      "email": "me@jongleberry.com",
+      "url": "http://jongleberry.com"
+    },
+    {
+      "name": "Robert Kieffer",
+      "email": "robert@broofa.com",
+      "url": "http://github.com/broofa"
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "mime",
+    "db",
+    "type",
+    "types",
+    "database",
+    "charset",
+    "charsets"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jshttp/mime-db"
+  },
+  "devDependencies": {
+    "bluebird": "~2.9.14",
+    "co": "~4.4.0",
+    "cogent": "1",
+    "csv-parse": "0.0.9",
+    "gnode": "0.1.1",
+    "istanbul": "0.3.7",
+    "mocha": "~1.21.4",
+    "raw-body": "~1.3.3",
+    "stream-to-array": "2"
+  },
+  "files": [
+    "HISTORY.md",
+    "LICENSE",
+    "README.md",
+    "db.json",
+    "index.js"
+  ],
+  "engines": {
+    "node": ">= 0.6"
+  },
+  "scripts": {
+    "build": "node scripts/build",
+    "fetch": "gnode scripts/extensions && gnode scripts/types",
+    "test": "mocha --reporter spec --bail --check-leaks test/",
+    "test-cov": "istanbul cover node_modules/mocha/bin/_mocha -- --reporter dot --check-leaks test/",
+    "test-travis": "istanbul cover node_modules/mocha/bin/_mocha --report lcovonly -- --reporter spec --check-leaks test/",
+    "update": "npm run fetch && npm run build"
+  },
+  "gitHead": "cd5730a475ff03d2ef49fc571d5510a548b63494",
+  "bugs": {
+    "url": "https://github.com/jshttp/mime-db/issues"
+  },
+  "homepage": "https://github.com/jshttp/mime-db",
+  "_id": "mime-db@1.8.0",
+  "_shasum": "82a9b385f22b0f5954dec4d445faba0722c4ad25",
+  "_from": "mime-db@>=1.8.0 <1.9.0",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "dougwilson",
+    "email": "doug@somethingdoug.com"
+  },
+  "maintainers": [
+    {
+      "name": "jongleberry",
+      "email": "jonathanrichardong@gmail.com"
+    },
+    {
+      "name": "dougwilson",
+      "email": "doug@somethingdoug.com"
+    }
+  ],
+  "dist": {
+    "shasum": "82a9b385f22b0f5954dec4d445faba0722c4ad25",
+    "tarball": "http://registry.npmjs.org/mime-db/-/mime-db-1.8.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.8.0.tgz"
+}

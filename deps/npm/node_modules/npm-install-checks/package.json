@@ -1,0 +1,65 @@
+{
+  "name": "npm-install-checks",
+  "version": "1.0.5",
+  "description": "checks that npm runs during the installation of a module",
+  "main": "index.js",
+  "dependencies": {
+    "npmlog": "0.1 || 1",
+    "semver": "^2.3.0 || 3.x || 4"
+  },
+  "devDependencies": {
+    "tap": "~0.4.8",
+    "rimraf": "~2.2.5",
+    "mkdirp": "~0.3.5"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/npm-install-checks.git"
+  },
+  "homepage": "https://github.com/npm/npm-install-checks",
+  "keywords": [
+    "npm,",
+    "install"
+  ],
+  "author": {
+    "name": "Robert Kowalski",
+    "email": "rok@kowalski.gd"
+  },
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/npm/npm-install-checks/issues"
+  },
+  "gitHead": "c36e052a0a54ad82932689fa86fd59197277f80d",
+  "_id": "npm-install-checks@1.0.5",
+  "_shasum": "a1b5beabfd60e0535b14f763157c410cb6bdae56",
+  "_from": "npm-install-checks@>=1.0.5 <1.1.0",
+  "_npmVersion": "2.1.11",
+  "_nodeVersion": "0.10.33",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "maintainers": [
+    {
+      "name": "robertkowalski",
+      "email": "rok@kowalski.gd"
+    },
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    },
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "dist": {
+    "shasum": "a1b5beabfd60e0535b14f763157c410cb6bdae56",
+    "tarball": "http://registry.npmjs.org/npm-install-checks/-/npm-install-checks-1.0.5.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/npm-install-checks/-/npm-install-checks-1.0.5.tgz"
+}

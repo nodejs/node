@@ -37,4 +37,3 @@ function test() {
 
 // Crash does not occur when code is run at the top level.
 test();
-

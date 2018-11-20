@@ -1,29 +1,6 @@
 // Copyright 2008 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_TRACER_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_TRACER_H_
@@ -34,7 +11,7 @@ namespace internal {
 // Decorator on a RegExpMacroAssembler that write all calls.
 class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
  public:
-  explicit RegExpMacroAssemblerTracer(RegExpMacroAssembler* assembler);
+  RegExpMacroAssemblerTracer(Isolate* isolate, RegExpMacroAssembler* assembler);
   virtual ~RegExpMacroAssemblerTracer();
   virtual int stack_limit_slack() { return assembler_->stack_limit_slack(); }
   virtual bool CanReadUnaligned() { return assembler_->CanReadUnaligned(); }
@@ -49,11 +26,6 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                                       Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
-  virtual void CheckCharacters(
-      Vector<const uc16> str,
-      int cp_offset,
-      Label* on_failure,
-      bool check_end_of_string);
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);

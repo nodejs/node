@@ -19,6 +19,7 @@ B<openssl> B<x509>
 [B<-hash>]
 [B<-subject_hash>]
 [B<-issuer_hash>]
+[B<-ocspid>]
 [B<-subject>]
 [B<-issuer>]
 [B<-nameopt option>]
@@ -28,6 +29,7 @@ B<openssl> B<x509>
 [B<-enddate>]
 [B<-purpose>]
 [B<-dates>]
+[B<-checkend num>]
 [B<-modulus>]
 [B<-pubkey>]
 [B<-fingerprint>]
@@ -42,13 +44,16 @@ B<openssl> B<x509>
 [B<-days arg>]
 [B<-set_serial n>]
 [B<-signkey filename>]
+[B<-passin arg>]
 [B<-x509toreq>]
 [B<-req>]
 [B<-CA filename>]
 [B<-CAkey filename>]
 [B<-CAcreateserial>]
 [B<-CAserial filename>]
+[B<-force_pubkey key>]
 [B<-text>]
+[B<-certopt option>]
 [B<-C>]
 [B<-md2|-md5|-sha1|-mdc2>]
 [B<-clrext>]
@@ -159,6 +164,10 @@ name.
 
 outputs the "hash" of the certificate issuer name.
 
+=item B<-ocspid>
+
+outputs the OCSP hash values for the subject name and public key.
+
 =item B<-hash>
 
 synonym for "-subject_hash" for backward compatibility reasons.
@@ -207,6 +216,11 @@ prints out the expiry date of the certificate, that is the notAfter date.
 =item B<-dates>
 
 prints out the start and expiry dates of a certificate.
+
+=item B<-checkend arg>
+
+checks if the certificate expires within the next B<arg> seconds and exits
+non-zero if yes it will expire or zero if not.
 
 =item B<-fingerprint>
 
@@ -313,6 +327,11 @@ If the input is a certificate request then a self signed certificate
 is created using the supplied private key using the subject name in
 the request.
 
+=item B<-passin arg>
+
+the key password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+
 =item B<-clrext>
 
 delete any extensions from a certificate. This option is used when a
@@ -400,6 +419,15 @@ specified then the extensions should either be contained in the unnamed
 L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
 extension section format.
 
+=item B<-force_pubkey key>
+
+when a certificate is created set its public key to B<key> instead of the
+key in the certificate or certificate request. This option is useful for
+creating certificates where the algorithm can't normally sign requests, for
+example DH.
+
+The format or B<key> can be specified using the B<-keyform> option.
+
 =back
 
 =head2 NAME OPTIONS
@@ -468,7 +496,7 @@ using the format \UXXXX for 16 bits and \WXXXXXXXX for 32 bits.
 Also if this option is off any UTF8Strings will be converted to their
 character form first.
 
-=item B<no_type>
+=item B<ignore_type>
 
 this option does not attempt to interpret multibyte characters in any
 way. That is their content octets are merely dumped as though one octet

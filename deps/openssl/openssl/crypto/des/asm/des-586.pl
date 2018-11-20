@@ -25,6 +25,7 @@ $small_footprint=1 if (grep(/\-DOPENSSL_SMALL_FOOTPRINT/,@ARGV));
 # the folded loop is only 3% slower than unrolled, but >7 times smaller
 
 &public_label("DES_SPtrans");
+&static_label("des_sptrans");
 
 &DES_encrypt_internal();
 &DES_decrypt_internal();
@@ -158,7 +159,7 @@ sub DES_encrypt
 	&call	(&label("pic_point"));
 	&set_label("pic_point");
 	&blindpop($trans);
-	&lea	($trans,&DWP(&label("DES_SPtrans")."-".&label("pic_point"),$trans));
+	&lea	($trans,&DWP(&label("des_sptrans")."-".&label("pic_point"),$trans));
 
 	&mov(	"ecx",	&wparam(1)	);
 
@@ -315,6 +316,7 @@ sub FP_new
 sub DES_SPtrans
 	{
 	&set_label("DES_SPtrans",64);
+	&set_label("des_sptrans");
 	&data_word(0x02080800, 0x00080000, 0x02000002, 0x02080802);
 	&data_word(0x02000000, 0x00080802, 0x00080002, 0x02000002);
 	&data_word(0x00080802, 0x02080800, 0x02080000, 0x00000802);

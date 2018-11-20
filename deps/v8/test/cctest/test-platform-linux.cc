@@ -31,69 +31,16 @@
 #include <stdlib.h>
 #include <unistd.h>  // for usleep()
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
+#include "src/base/platform/platform.h"
+#include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
 
 
-static void yield() {
-  usleep(1);
-}
-
-static const int kLockCounterLimit = 50;
-static int busy_lock_counter = 0;
-
-
-static void LoopIncrement(Mutex* mutex, int rem) {
-  while (true) {
-    int count = 0;
-    int last_count = -1;
-    do {
-      CHECK_EQ(0, mutex->Lock());
-      count = busy_lock_counter;
-      CHECK_EQ(0, mutex->Unlock());
-      yield();
-    } while (count % 2 == rem && count < kLockCounterLimit);
-    if (count >= kLockCounterLimit) break;
-    CHECK_EQ(0, mutex->Lock());
-    CHECK_EQ(count, busy_lock_counter);
-    CHECK(last_count == -1 || count == last_count + 1);
-    busy_lock_counter++;
-    last_count = count;
-    CHECK_EQ(0, mutex->Unlock());
-    yield();
-  }
-}
-
-
-static void* RunTestBusyLock(void* arg) {
-  LoopIncrement(static_cast<Mutex*>(arg), 0);
-  return 0;
-}
-
-
-// Runs two threads that repeatedly acquire the lock and conditionally
-// increment a variable.
-TEST(BusyLock) {
-  pthread_t other;
-  Mutex* mutex = OS::CreateMutex();
-  int thread_created = pthread_create(&other,
-                                      NULL,
-                                      &RunTestBusyLock,
-                                      mutex);
-  CHECK_EQ(0, thread_created);
-  LoopIncrement(mutex, 1);
-  pthread_join(other, NULL);
-  delete mutex;
-}
-
-
 TEST(VirtualMemory) {
-  OS::SetUp();
-  VirtualMemory* vm = new VirtualMemory(1 * MB);
+  v8::base::VirtualMemory* vm = new v8::base::VirtualMemory(1 * MB);
   CHECK(vm->IsReserved());
   void* block_addr = vm->address();
   size_t block_size = 4 * KB;
@@ -103,10 +50,4 @@ TEST(VirtualMemory) {
   addr[KB-1] = 2;
   CHECK(vm->Uncommit(block_addr, block_size));
   delete vm;
-}
-
-
-TEST(GetCurrentProcessId) {
-  OS::SetUp();
-  CHECK_EQ(static_cast<int>(getpid()), OS::GetCurrentProcessId());
 }

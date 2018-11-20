@@ -36,5 +36,4 @@ foo();
 %OptimizeFunctionOnNextCall(foo);
 foo();
 
-// Function should be optimized now.
-assertTrue(%GetOptimizationStatus(foo) != 2);
+assertOptimized(foo);

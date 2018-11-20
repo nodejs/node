@@ -1,10 +1,10 @@
-npm(3) -- node package manager
-==============================
+npm(3) -- javascript package manager
+====================================
 
 ## SYNOPSIS
 
     var npm = require("npm")
-    npm.load([configObject,] function (er, npm) {
+    npm.load([configObject, ]function (er, npm) {
       // use the npm object, now that it's loaded.
 
       npm.config.set(key, val)
@@ -25,16 +25,15 @@ This is the API documentation for npm.
 To find documentation of the command line
 client, see `npm(1)`.
 
-Prior to using npm's commands, `npm.load()` must be called.
-If you provide `configObject` as an object hash of top-level
-configs, they override the values stored in the various config
-locations. In the npm command line client, this set of configs
-is parsed from the command line options. Additional configuration
-params are loaded from two configuration files. See `npm-config(1)`
-for more information.
+Prior to using npm's commands, `npm.load()` must be called.  If you provide
+`configObject` as an object map of top-level configs, they override the values
+stored in the various config locations. In the npm command line client, this
+set of configs is parsed from the command line options. Additional
+configuration params are loaded from two configuration files. See
+`npm-config(1)`, `npm-config(7)`, and `npmrc(5)` for more information.
 
 After that, each of the functions are accessible in the
-commands object: `npm.commands.<cmd>`.  See `npm-index(1)` for a list of
+commands object: `npm.commands.<cmd>`.  See `npm-index(7)` for a list of
 all possible commands.
 
 All commands on the command object take an **array** of positional argument
@@ -88,9 +87,9 @@ command.
 
 ## MAGIC
 
-For each of the methods in the `npm.commands` hash, a method is added to
-the npm object, which takes a set of positional string arguments rather
-than an array and a callback.
+For each of the methods in the `npm.commands` object, a method is added to the
+npm object, which takes a set of positional string arguments rather than an
+array and a callback.
 
 If the last argument is a callback, then it will use the supplied
 callback.  However, if no callback is provided, then it will print out

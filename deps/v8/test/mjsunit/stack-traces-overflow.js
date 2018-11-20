@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --stack-size=100
+
 function rec1(a) { rec1(a+1); }
 function rec2(a) { rec3(a+1); }
 function rec3(a) { rec2(a+1); }
@@ -61,8 +63,8 @@ try {
 function testErrorPrototype(prototype) {
   var object = {};
   object.__proto__ = prototype;
-  object.stack = "123";
-  assertEquals("123", object.stack);
+  object.stack = "123";  // Overwriting stack property fails.
+  assertEquals(prototype.stack, object.stack);
   assertTrue("123" != prototype.stack);
 }
 
@@ -106,11 +108,28 @@ try {
   assertEquals(1, e.stack.split('\n').length);
 }
 
+// A limit outside the range of integers.
+Error.stackTraceLimit = 1e12;
+try {
+  rec1(0);
+} catch (e) {
+  assertTrue(e.stack.split('\n').length > 100);
+}
+
+Error.stackTraceLimit = Infinity;
+try {
+  rec1(0);
+} catch (e) {
+  assertTrue(e.stack.split('\n').length > 100);
+}
+
 Error.stackTraceLimit = "not a number";
 try {
   rec1(0);
 } catch (e) {
   assertEquals(undefined, e.stack);
+  e.stack = "abc";
+  assertEquals("abc", e.stack);
 }
 
 Error.stackTraceLimit = 3;

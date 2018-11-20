@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -51,9 +51,23 @@ $key="r11";
 $rounds="r12";
 
 $code=<<___;
-#include "arm_arch.h"
+#ifndef __KERNEL__
+# include "arm_arch.h"
+#else
+# define __ARM_ARCH__ __LINUX_ARM_ARCH__
+#endif
+
 .text
+#if __ARM_ARCH__<7
 .code	32
+#else
+.syntax	unified
+# ifdef __thumb2__
+.thumb
+# else
+.code	32
+# endif
+#endif
 
 .type	AES_Te,%object
 .align	5
@@ -167,7 +181,11 @@ AES_Te:
 .type   AES_encrypt,%function
 .align	5
 AES_encrypt:
+#if __ARM_ARCH__<7
 	sub	r3,pc,#8		@ AES_encrypt
+#else
+	adr	r3,AES_encrypt
+#endif
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	$rounds,r0		@ inp
 	mov	$key,r2
@@ -409,11 +427,21 @@ _armv4_AES_encrypt:
 .align	5
 private_AES_set_encrypt_key:
 _armv4_AES_set_encrypt_key:
+#if __ARM_ARCH__<7
 	sub	r3,pc,#8		@ AES_set_encrypt_key
+#else
+	adr	r3,private_AES_set_encrypt_key
+#endif
 	teq	r0,#0
+#if __ARM_ARCH__>=7
+	itt	eq			@ Thumb2 thing, sanity check in ARM
+#endif
 	moveq	r0,#-1
 	beq	.Labrt
 	teq	r2,#0
+#if __ARM_ARCH__>=7
+	itt	eq			@ Thumb2 thing, sanity check in ARM
+#endif
 	moveq	r0,#-1
 	beq	.Labrt
 
@@ -422,6 +450,9 @@ _armv4_AES_set_encrypt_key:
 	teq	r1,#192
 	beq	.Lok
 	teq	r1,#256
+#if __ARM_ARCH__>=7
+	itt	ne			@ Thumb2 thing, sanity check in ARM
+#endif
 	movne	r0,#-1
 	bne	.Labrt
 
@@ -576,6 +607,9 @@ _armv4_AES_set_encrypt_key:
 	str	$s2,[$key,#-16]
 	subs	$rounds,$rounds,#1
 	str	$s3,[$key,#-12]
+#if __ARM_ARCH__>=7
+	itt	eq				@ Thumb2 thing, sanity check in ARM
+#endif
 	subeq	r2,$key,#216
 	beq	.Ldone
 
@@ -645,6 +679,9 @@ _armv4_AES_set_encrypt_key:
 	str	$s2,[$key,#-24]
 	subs	$rounds,$rounds,#1
 	str	$s3,[$key,#-20]
+#if __ARM_ARCH__>=7
+	itt	eq				@ Thumb2 thing, sanity check in ARM
+#endif
 	subeq	r2,$key,#256
 	beq	.Ldone
 
@@ -674,11 +711,17 @@ _armv4_AES_set_encrypt_key:
 	str	$i3,[$key,#-4]
 	b	.L256_loop
 
+.align	2
 .Ldone:	mov	r0,#0
 	ldmia   sp!,{r4-r12,lr}
-.Labrt:	tst	lr,#1
+.Labrt:
+#if __ARM_ARCH__>=5
+	ret				@ bx lr
+#else
+	tst	lr,#1
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
+#endif
 .size	private_AES_set_encrypt_key,.-private_AES_set_encrypt_key
 
 .global private_AES_set_decrypt_key
@@ -688,34 +731,57 @@ private_AES_set_decrypt_key:
 	str	lr,[sp,#-4]!            @ push lr
 	bl	_armv4_AES_set_encrypt_key
 	teq	r0,#0
-	ldrne	lr,[sp],#4              @ pop lr
+	ldr	lr,[sp],#4              @ pop lr
 	bne	.Labrt
 
-	stmdb   sp!,{r4-r12}
+	mov	r0,r2			@ AES_set_encrypt_key preserves r2,
+	mov	r1,r2			@ which is AES_KEY *key
+	b	_armv4_AES_set_enc2dec_key
+.size	private_AES_set_decrypt_key,.-private_AES_set_decrypt_key
 
-	ldr	$rounds,[r2,#240]	@ AES_set_encrypt_key preserves r2,
-	mov	$key,r2			@ which is AES_KEY *key
-	mov	$i1,r2
-	add	$i2,r2,$rounds,lsl#4
+@ void AES_set_enc2dec_key(const AES_KEY *inp,AES_KEY *out)
+.global	AES_set_enc2dec_key
+.type	AES_set_enc2dec_key,%function
+.align	5
+AES_set_enc2dec_key:
+_armv4_AES_set_enc2dec_key:
+	stmdb   sp!,{r4-r12,lr}
 
-.Linv:	ldr	$s0,[$i1]
+	ldr	$rounds,[r0,#240]
+	mov	$i1,r0			@ input
+	add	$i2,r0,$rounds,lsl#4
+	mov	$key,r1			@ ouput
+	add	$tbl,r1,$rounds,lsl#4
+	str	$rounds,[r1,#240]
+
+.Linv:	ldr	$s0,[$i1],#16
+	ldr	$s1,[$i1,#-12]
+	ldr	$s2,[$i1,#-8]
+	ldr	$s3,[$i1,#-4]
+	ldr	$t1,[$i2],#-16
+	ldr	$t2,[$i2,#16+4]
+	ldr	$t3,[$i2,#16+8]
+	ldr	$i3,[$i2,#16+12]
+	str	$s0,[$tbl],#-16
+	str	$s1,[$tbl,#16+4]
+	str	$s2,[$tbl,#16+8]
+	str	$s3,[$tbl,#16+12]
+	str	$t1,[$key],#16
+	str	$t2,[$key,#-12]
+	str	$t3,[$key,#-8]
+	str	$i3,[$key,#-4]
+	teq	$i1,$i2
+	bne	.Linv
+
+	ldr	$s0,[$i1]
 	ldr	$s1,[$i1,#4]
 	ldr	$s2,[$i1,#8]
 	ldr	$s3,[$i1,#12]
-	ldr	$t1,[$i2]
-	ldr	$t2,[$i2,#4]
-	ldr	$t3,[$i2,#8]
-	ldr	$i3,[$i2,#12]
-	str	$s0,[$i2],#-16
-	str	$s1,[$i2,#16+4]
-	str	$s2,[$i2,#16+8]
-	str	$s3,[$i2,#16+12]
-	str	$t1,[$i1],#16
-	str	$t2,[$i1,#-12]
-	str	$t3,[$i1,#-8]
-	str	$i3,[$i1,#-4]
-	teq	$i1,$i2
-	bne	.Linv
+	str	$s0,[$key]
+	str	$s1,[$key,#4]
+	str	$s2,[$key,#8]
+	str	$s3,[$key,#12]
+	sub	$key,$key,$rounds,lsl#3
 ___
 $mask80=$i1;
 $mask1b=$i2;
@@ -773,7 +839,7 @@ $code.=<<___;
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
 #endif
-.size	private_AES_set_decrypt_key,.-private_AES_set_decrypt_key
+.size	AES_set_enc2dec_key,.-AES_set_enc2dec_key
 
 .type	AES_Td,%object
 .align	5
@@ -883,7 +949,11 @@ AES_Td:
 .type   AES_decrypt,%function
 .align	5
 AES_decrypt:
+#if __ARM_ARCH__<7
 	sub	r3,pc,#8		@ AES_decrypt
+#else
+	adr	r3,AES_decrypt
+#endif
 	stmdb   sp!,{r1,r4-r12,lr}
 	mov	$rounds,r0		@ inp
 	mov	$key,r2
@@ -1080,8 +1150,9 @@ _armv4_AES_decrypt:
 	ldrb	$t3,[$tbl,$i3]		@ Td4[s0>>0]
 	and	$i3,lr,$s1,lsr#8
 
+	add	$s1,$tbl,$s1,lsr#24
 	ldrb	$i1,[$tbl,$i1]		@ Td4[s1>>0]
-	ldrb	$s1,[$tbl,$s1,lsr#24]	@ Td4[s1>>24]
+	ldrb	$s1,[$s1]		@ Td4[s1>>24]
 	ldrb	$i2,[$tbl,$i2]		@ Td4[s1>>16]
 	eor	$s0,$i1,$s0,lsl#24
 	ldrb	$i3,[$tbl,$i3]		@ Td4[s1>>8]
@@ -1094,7 +1165,8 @@ _armv4_AES_decrypt:
 	ldrb	$i2,[$tbl,$i2]		@ Td4[s2>>0]
 	and	$i3,lr,$s2,lsr#16
 
-	ldrb	$s2,[$tbl,$s2,lsr#24]	@ Td4[s2>>24]
+	add	$s2,$tbl,$s2,lsr#24
+	ldrb	$s2,[$s2]		@ Td4[s2>>24]
 	eor	$s0,$s0,$i1,lsl#8
 	ldrb	$i3,[$tbl,$i3]		@ Td4[s2>>16]
 	eor	$s1,$i2,$s1,lsl#16
@@ -1106,8 +1178,9 @@ _armv4_AES_decrypt:
 	ldrb	$i2,[$tbl,$i2]		@ Td4[s3>>8]
 	and	$i3,lr,$s3		@ i2
 
+	add	$s3,$tbl,$s3,lsr#24
 	ldrb	$i3,[$tbl,$i3]		@ Td4[s3>>0]
-	ldrb	$s3,[$tbl,$s3,lsr#24]	@ Td4[s3>>24]
+	ldrb	$s3,[$s3]		@ Td4[s3>>24]
 	eor	$s0,$s0,$i1,lsl#16
 	ldr	$i1,[$key,#0]
 	eor	$s1,$s1,$i2,lsl#8
@@ -1130,5 +1203,15 @@ _armv4_AES_decrypt:
 ___
 
 $code =~ s/\bbx\s+lr\b/.word\t0xe12fff1e/gm;	# make it possible to compile with -march=armv4
+$code =~ s/\bret\b/bx\tlr/gm;
+
+open SELF,$0;
+while(<SELF>) {
+	next if (/^#!/);
+	last if (!s/^#/@/ and !/^$/);
+	print;
+}
+close SELF;
+
 print $code;
 close STDOUT;	# enforce flush

@@ -1,34 +1,11 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ELEMENTS_KIND_H_
 #define V8_ELEMENTS_KIND_H_
 
-#include "v8checks.h"
+#include "src/checks.h"
 
 namespace v8 {
 namespace internal {
@@ -51,25 +28,38 @@ enum ElementsKind {
 
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
-  NON_STRICT_ARGUMENTS_ELEMENTS,
+  SLOPPY_ARGUMENTS_ELEMENTS,
   // The "fast" kind for external arrays
-  EXTERNAL_BYTE_ELEMENTS,
-  EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
-  EXTERNAL_SHORT_ELEMENTS,
-  EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
-  EXTERNAL_INT_ELEMENTS,
-  EXTERNAL_UNSIGNED_INT_ELEMENTS,
-  EXTERNAL_FLOAT_ELEMENTS,
-  EXTERNAL_DOUBLE_ELEMENTS,
-  EXTERNAL_PIXEL_ELEMENTS,
+  EXTERNAL_INT8_ELEMENTS,
+  EXTERNAL_UINT8_ELEMENTS,
+  EXTERNAL_INT16_ELEMENTS,
+  EXTERNAL_UINT16_ELEMENTS,
+  EXTERNAL_INT32_ELEMENTS,
+  EXTERNAL_UINT32_ELEMENTS,
+  EXTERNAL_FLOAT32_ELEMENTS,
+  EXTERNAL_FLOAT64_ELEMENTS,
+  EXTERNAL_UINT8_CLAMPED_ELEMENTS,
+
+  // Fixed typed arrays
+  UINT8_ELEMENTS,
+  INT8_ELEMENTS,
+  UINT16_ELEMENTS,
+  INT16_ELEMENTS,
+  UINT32_ELEMENTS,
+  INT32_ELEMENTS,
+  FLOAT32_ELEMENTS,
+  FLOAT64_ELEMENTS,
+  UINT8_CLAMPED_ELEMENTS,
 
   // Derived constants from ElementsKind
   FIRST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
-  LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
+  LAST_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   FIRST_FAST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
   LAST_FAST_ELEMENTS_KIND = FAST_HOLEY_DOUBLE_ELEMENTS,
-  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_BYTE_ELEMENTS,
-  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
+  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_INT8_ELEMENTS,
+  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_UINT8_CLAMPED_ELEMENTS,
+  FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
+  LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = FAST_HOLEY_ELEMENTS
 };
 
@@ -77,18 +67,28 @@ const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 const int kFastElementsKindCount = LAST_FAST_ELEMENTS_KIND -
     FIRST_FAST_ELEMENTS_KIND + 1;
 
+// The number to add to a packed elements kind to reach a holey elements kind
+const int kFastElementsKindPackedToHoley =
+    FAST_HOLEY_SMI_ELEMENTS - FAST_SMI_ELEMENTS;
+
+int ElementsKindToShiftSize(ElementsKind elements_kind);
+int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind);
 const char* ElementsKindToString(ElementsKind kind);
-void PrintElementsKind(FILE* out, ElementsKind kind);
 
-ElementsKind GetInitialFastElementsKind();
+inline ElementsKind GetInitialFastElementsKind() { return FAST_SMI_ELEMENTS; }
 
-ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_index);
-
+ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_number);
 int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind);
 
+ElementsKind GetNextTransitionElementsKind(ElementsKind elements_kind);
 
 inline bool IsDictionaryElementsKind(ElementsKind kind) {
   return kind == DICTIONARY_ELEMENTS;
+}
+
+
+inline bool IsSloppyArgumentsElements(ElementsKind kind) {
+  return kind == SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 
@@ -98,9 +98,26 @@ inline bool IsExternalArrayElementsKind(ElementsKind kind) {
 }
 
 
+inline bool IsTerminalElementsKind(ElementsKind kind) {
+  return kind == TERMINAL_FAST_ELEMENTS_KIND ||
+      IsExternalArrayElementsKind(kind);
+}
+
+
+inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
+  return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
+      kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+}
+
+
 inline bool IsFastElementsKind(ElementsKind kind) {
-  ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
+  DCHECK(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= FAST_HOLEY_DOUBLE_ELEMENTS;
+}
+
+
+inline bool IsTransitionElementsKind(ElementsKind kind) {
+  return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind);
 }
 
 
@@ -110,10 +127,21 @@ inline bool IsFastDoubleElementsKind(ElementsKind kind) {
 }
 
 
+inline bool IsExternalFloatOrDoubleElementsKind(ElementsKind kind) {
+  return kind == EXTERNAL_FLOAT64_ELEMENTS ||
+      kind == EXTERNAL_FLOAT32_ELEMENTS;
+}
+
+
+inline bool IsFixedFloatElementsKind(ElementsKind kind) {
+  return kind == FLOAT32_ELEMENTS || kind == FLOAT64_ELEMENTS;
+}
+
+
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsFastDoubleElementsKind(kind) ||
-      kind == EXTERNAL_DOUBLE_ELEMENTS ||
-      kind == EXTERNAL_FLOAT_ELEMENTS;
+      IsExternalFloatOrDoubleElementsKind(kind) ||
+      IsFixedFloatElementsKind(kind);
 }
 
 
@@ -186,7 +214,7 @@ inline ElementsKind GetHoleyElementsKind(ElementsKind packed_kind) {
 
 
 inline ElementsKind FastSmiToObjectElementsKind(ElementsKind from_kind) {
-  ASSERT(IsFastSmiElementsKind(from_kind));
+  DCHECK(IsFastSmiElementsKind(from_kind));
   return (from_kind == FAST_SMI_ELEMENTS)
       ? FAST_ELEMENTS
       : FAST_HOLEY_ELEMENTS;

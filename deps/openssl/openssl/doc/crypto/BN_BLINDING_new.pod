@@ -4,7 +4,7 @@
 
 BN_BLINDING_new, BN_BLINDING_free, BN_BLINDING_update, BN_BLINDING_convert, 
 BN_BLINDING_invert, BN_BLINDING_convert_ex, BN_BLINDING_invert_ex, 
-BN_BLINDING_get_thread_id, BN_BLINDING_set_thread_id, BN_BLINDING_get_flags,
+BN_BLINDING_get_thread_id, BN_BLINDING_set_thread_id, BN_BLINDING_thread_id, BN_BLINDING_get_flags,
 BN_BLINDING_set_flags, BN_BLINDING_create_param - blinding related BIGNUM
 functions.
 
@@ -48,7 +48,7 @@ necessary parameters are set, by re-creating the blinding parameters.
 
 BN_BLINDING_convert_ex() multiplies B<n> with the blinding factor B<A>.
 If B<r> is not NULL a copy the inverse blinding factor B<Ai> will be
-returned in B<r> (this is useful if a B<RSA> object is shared amoung
+returned in B<r> (this is useful if a B<RSA> object is shared among
 several threads). BN_BLINDING_invert_ex() multiplies B<n> with the
 inverse blinding factor B<Ai>. If B<r> is not NULL it will be used as
 the inverse blinding.
@@ -84,7 +84,7 @@ or NULL in case of an error.
 
 BN_BLINDING_update(), BN_BLINDING_convert(), BN_BLINDING_invert(),
 BN_BLINDING_convert_ex() and BN_BLINDING_invert_ex() return 1 on
-success and 0 if an error occured.
+success and 0 if an error occurred.
 
 BN_BLINDING_thread_id() returns a pointer to the thread id object
 within a B<BN_BLINDING> object.

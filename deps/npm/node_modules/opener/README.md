@@ -22,6 +22,19 @@ opener("firefox");
 opener("npm run lint");
 ```
 
+Plus, it returns the child process created, so you can do things like let your script exit while the window stays open:
+
+```js
+var editor = opener("documentation.odt");
+editor.unref();
+// These other unrefs may be necessary if your OS's opener process
+// exits before the process it started is complete.
+editor.stdin.unref();
+editor.stdout.unref();
+editor.stderr.unref();
+```
+
+
 ## Use It for Good
 
 Like opening the user's browser with a test harness in your package's test script:

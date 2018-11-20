@@ -30,7 +30,6 @@
 function CheckException(e) {
   var string = e.toString();
   assertInstanceof(e, SyntaxError);
-  assertTrue(string.indexOf("Illegal let") >= 0);
 }
 
 function Check(str) {
@@ -49,7 +48,7 @@ function Check(str) {
 }
 
 // Check for early syntax errors when using let
-// declarations outside of extended mode.
+// declarations outside of strict mode.
 Check("let x;");
 Check("let x = 1;");
 Check("let x, y;");

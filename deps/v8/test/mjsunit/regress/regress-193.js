@@ -40,5 +40,3 @@ f()();
 // The call to f should get the constructor of the receiver which is
 // the constructor of the global object.
 assertEquals(constructor, f());
-
-

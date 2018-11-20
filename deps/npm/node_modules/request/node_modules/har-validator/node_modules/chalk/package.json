@@ -1,0 +1,82 @@
+{
+  "name": "chalk",
+  "version": "1.0.0",
+  "description": "Terminal string styling done right. Much color.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sindresorhus/chalk"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "jbnicolai",
+      "email": "jappelman@xebia.com"
+    }
+  ],
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "mocha",
+    "bench": "matcha benchmark.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "string",
+    "ansi",
+    "styles",
+    "tty",
+    "formatting",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "log",
+    "logging",
+    "command-line",
+    "text"
+  ],
+  "dependencies": {
+    "ansi-styles": "^2.0.1",
+    "escape-string-regexp": "^1.0.2",
+    "has-ansi": "^1.0.3",
+    "strip-ansi": "^2.0.1",
+    "supports-color": "^1.3.0"
+  },
+  "devDependencies": {
+    "matcha": "^0.6.0",
+    "mocha": "*"
+  },
+  "gitHead": "8864d3563313ed15574a38dd5c9d5966080c46ce",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/chalk/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/chalk",
+  "_id": "chalk@1.0.0",
+  "_shasum": "b3cf4ed0ff5397c99c75b8f679db2f52831f96dc",
+  "_from": "chalk@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.5.1",
+  "_nodeVersion": "0.12.0",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "dist": {
+    "shasum": "b3cf4ed0ff5397c99c75b8f679db2f52831f96dc",
+    "tarball": "http://registry.npmjs.org/chalk/-/chalk-1.0.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/chalk/-/chalk-1.0.0.tgz"
+}

@@ -1,0 +1,21 @@
+.TH "NPM\-PRUNE" "3" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-prune\fR \- Remove extraneous packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm\.commands\.prune([packages,] callback)
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command removes "extraneous" packages\.
+.P
+The first parameter is optional, and it specifies packages to be removed\.
+.P
+No packages are specified, then all packages will be checked\.
+.P
+Extraneous packages are packages that are not listed on the parent
+package's dependencies list\.
+

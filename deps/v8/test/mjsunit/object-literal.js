@@ -190,3 +190,73 @@ function testKeywordProperty(keyword) {
 for (var i = 0; i < keywords.length; i++) {
   testKeywordProperty(keywords[i]);
 }
+
+
+(function TestNumericNames() {
+  var o = {
+    1: 1,
+    2.: 2,
+    3.0: 3,
+    4e0: 4,
+    5E0: 5,
+    6e-0: 6,
+    7E-0: 7,
+    0x8: 8,
+    0X9: 9,
+  }
+  assertEquals(['1', '2', '3', '4', '5', '6', '7', '8', '9'], Object.keys(o));
+
+  o = {
+    1.2: 1.2,
+    1.30: 1.3
+  };
+  assertEquals(['1.2', '1.3'], Object.keys(o));
+})();
+
+
+function TestNumericNamesGetter(expectedKeys, object) {
+  assertEquals(expectedKeys, Object.keys(object));
+  expectedKeys.forEach(function(key) {
+    var descr = Object.getOwnPropertyDescriptor(object, key);
+    assertEquals(key, descr.get.name);
+  });
+}
+TestNumericNamesGetter(['1', '2', '3', '4', '5', '6', '7', '8', '9'], {
+  get 1() {},
+  get 2.() {},
+  get 3.0() {},
+  get 4e0() {},
+  get 5E0() {},
+  get 6e-0() {},
+  get 7E-0() {},
+  get 0x8() {},
+  get 0X9() {},
+});
+TestNumericNamesGetter(['1.2', '1.3'], {
+  get 1.2() {},
+  get 1.30() {}
+});
+
+
+function TestNumericNamesSetter(expectedKeys, object) {
+  assertEquals(expectedKeys, Object.keys(object));
+  expectedKeys.forEach(function(key) {
+    var descr = Object.getOwnPropertyDescriptor(object, key);
+    assertEquals(key, descr.set.name);
+  });
+}
+TestNumericNamesSetter(['1', '2', '3', '4', '5', '6', '7', '8', '9'], {
+  set 1(_) {},
+  set 2.(_) {},
+  set 3.0(_) {},
+  set 4e0(_) {},
+  set 5E0(_) {},
+  set 6e-0(_) {},
+  set 7E-0(_) {},
+  set 0x8(_) {},
+  set 0X9(_) {},
+});
+TestNumericNamesSetter(['1.2', '1.3'], {
+  set 1.2(_) {; },
+  set 1.30(_) {; }
+});

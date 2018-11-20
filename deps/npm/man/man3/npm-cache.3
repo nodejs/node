@@ -1,0 +1,34 @@
+.TH "NPM\-CACHE" "3" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-cache\fR \- manage the npm cache programmatically
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm\.commands\.cache([args], callback)
+
+// helpers
+npm\.commands\.cache\.clean([args], callback)
+npm\.commands\.cache\.add([args], callback)
+npm\.commands\.cache\.read(name, version, forceBypass, callback)
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This acts much the same ways as the npm help cache command line
+functionality\.
+.P
+The callback is called with the package\.json data of the thing that is
+eventually added to or read from the cache\.
+.P
+The top level \fBnpm\.commands\.cache(\.\.\.)\fR functionality is a public
+interface, and like all commands on the \fBnpm\.commands\fR object, it will
+match the command line behavior exactly\.
+.P
+However, the cache folder structure and the cache helper functions are
+considered \fBinternal\fR API surface, and as such, may change in future
+releases of npm, potentially without warning or significant version
+incrementation\.
+.P
+Use at your own risk\.
+

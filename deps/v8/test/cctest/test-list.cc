@@ -27,8 +27,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "v8.h"
-#include "cctest.h"
+#include "src/v8.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -51,6 +51,7 @@ class ZeroingAllocationPolicy {
   }
 };
 
+
 // Check that we can add (a reference to) an element of the list
 // itself.
 TEST(ListAdd) {
@@ -65,6 +66,7 @@ TEST(ListAdd) {
   list.Add(list[0]);
   CHECK_EQ(1, list[4]);
 }
+
 
 // Test that we can add all elements from a list to another list.
 TEST(ListAddAll) {

@@ -36,4 +36,3 @@ test("assertEquals(27, x);");
 test("(function() { assertEquals(27, x) })();");
 test("(function() { var y = 42; eval('1'); assertEquals(42, y); })();");
 test("(function() { var y = 42; eval('var y = 2; var z = 2;'); assertEquals(2, y); })();");
-

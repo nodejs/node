@@ -1,34 +1,11 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_CHAR_PREDICATES_H_
 #define V8_CHAR_PREDICATES_H_
 
-#include "unicode.h"
+#include "src/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -40,27 +17,62 @@ inline bool IsCarriageReturn(uc32 c);
 inline bool IsLineFeed(uc32 c);
 inline bool IsDecimalDigit(uc32 c);
 inline bool IsHexDigit(uc32 c);
+inline bool IsOctalDigit(uc32 c);
+inline bool IsBinaryDigit(uc32 c);
 inline bool IsRegExpWord(uc32 c);
 inline bool IsRegExpNewline(uc32 c);
 
+
+struct SupplementaryPlanes {
+  static bool IsIDStart(uc32 c);
+  static bool IsIDPart(uc32 c);
+};
+
+
+// ES6 draft section 11.6
+// This includes '_', '$' and '\', and ID_Start according to
+// http://www.unicode.org/reports/tr31/, which consists of categories
+// 'Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl', but excluding properties
+// 'Pattern_Syntax' or 'Pattern_White_Space'.
+// For code points in the SMPs, we can resort to ICU (if available).
 struct IdentifierStart {
   static inline bool Is(uc32 c) {
-    switch (c) {
-      case '$': case '_': case '\\': return true;
-      default: return unibrow::Letter::Is(c);
-    }
+    if (c > 0xFFFF) return SupplementaryPlanes::IsIDStart(c);
+    return unibrow::ID_Start::Is(c);
   }
 };
 
 
+// ES6 draft section 11.6
+// This includes \u200c and \u200d, and ID_Continue according to
+// http://www.unicode.org/reports/tr31/, which consists of ID_Start,
+// the categories 'Mn', 'Mc', 'Nd', 'Pc', but excluding properties
+// 'Pattern_Syntax' or 'Pattern_White_Space'.
+// For code points in the SMPs, we can resort to ICU (if available).
 struct IdentifierPart {
   static inline bool Is(uc32 c) {
-    return IdentifierStart::Is(c)
-        || unibrow::Number::Is(c)
-        || c == 0x200C  // U+200C is Zero-Width Non-Joiner.
-        || c == 0x200D  // U+200D is Zero-Width Joiner.
-        || unibrow::CombiningMark::Is(c)
-        || unibrow::ConnectorPunctuation::Is(c);
+    if (c > 0xFFFF) return SupplementaryPlanes::IsIDPart(c);
+    return unibrow::ID_Start::Is(c) || unibrow::ID_Continue::Is(c);
+  }
+};
+
+
+// ES6 draft section 11.2
+// This includes all code points of Unicode category 'Zs'.
+// \u180e stops being one as of Unicode 6.3.0, but ES6 adheres to Unicode 5.1,
+// so it is also included.
+// Further included are \u0009, \u000b, \u0020, \u00a0, \u000c, and \ufeff.
+// There are no category 'Zs' code points in the SMPs.
+struct WhiteSpace {
+  static inline bool Is(uc32 c) { return unibrow::WhiteSpace::Is(c); }
+};
+
+
+// WhiteSpace and LineTerminator according to ES6 draft section 11.2 and 11.3
+// This consists of \000a, \000d, \u2028, and \u2029.
+struct WhiteSpaceOrLineTerminator {
+  static inline bool Is(uc32 c) {
+    return WhiteSpace::Is(c) || unibrow::LineTerminator::Is(c);
   }
 };
 

@@ -27,11 +27,11 @@ The following return values can occur:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 A new session was negotiated.
 
-=item 1
+=item Z<>1
 
 A session was reused.
 

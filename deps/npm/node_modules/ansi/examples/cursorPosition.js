@@ -5,7 +5,7 @@ var cursor = require('../')(process.stdout)
 
 // listen for the queryPosition report on stdin
 process.stdin.resume()
-tty.setRawMode(true)
+raw(true)
 
 process.stdin.once('data', function (b) {
   var match = /\[(\d+)\;(\d+)R$/.exec(b.toString())
@@ -15,10 +15,18 @@ process.stdin.once('data', function (b) {
   }
 
   // cleanup and close stdin
-  tty.setRawMode(false)
+  raw(false)
   process.stdin.pause()
 })
 
 
 // send the query position request code to stdout
 cursor.queryPosition()
+
+function raw (mode) {
+  if (process.stdin.setRawMode) {
+    process.stdin.setRawMode(mode)
+  } else {
+    tty.setRawMode(mode)
+  }
+}

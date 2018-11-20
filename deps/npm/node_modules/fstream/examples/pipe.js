@@ -4,7 +4,7 @@ var path = require("path")
 var r = fstream.Reader({ path: path.dirname(__dirname)
                        , filter: function () {
                            return !this.basename.match(/^\./) &&
-                                  !this.basename.match(/^node_modules$/)
+                                  !this.basename.match(/^node_modules$/) &&
                                   !this.basename.match(/^deep-copy$/)
                          }
                        })

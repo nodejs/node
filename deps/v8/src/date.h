@@ -1,36 +1,13 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_DATE_H_
 #define V8_DATE_H_
 
-#include "allocation.h"
-#include "globals.h"
-#include "platform.h"
+#include "src/allocation.h"
+#include "src/base/platform/platform.h"
+#include "src/globals.h"
 
 
 namespace v8 {
@@ -62,11 +39,14 @@ class DateCache {
   // It is an invariant of DateCache that cache stamp is non-negative.
   static const int kInvalidStamp = -1;
 
-  DateCache() : stamp_(0) {
+  DateCache() : stamp_(0), tz_cache_(base::OS::CreateTimezoneCache()) {
     ResetDateCache();
   }
 
-  virtual ~DateCache() {}
+  virtual ~DateCache() {
+    base::OS::DisposeTimezoneCache(tz_cache_);
+    tz_cache_ = NULL;
+  }
 
 
   // Clears cached timezone information and increments the cache stamp.
@@ -113,7 +93,7 @@ class DateCache {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
       time_ms = EquivalentTime(time_ms);
     }
-    return OS::LocalTimezone(static_cast<double>(time_ms));
+    return base::OS::LocalTimezone(static_cast<double>(time_ms), tz_cache_);
   }
 
   // ECMA 262 - 15.9.5.26
@@ -123,14 +103,52 @@ class DateCache {
   }
 
   // ECMA 262 - 15.9.1.9
+  // LocalTime(t) = t + LocalTZA + DaylightSavingTA(t)
   int64_t ToLocal(int64_t time_ms) {
     return time_ms + LocalOffsetInMs() + DaylightSavingsOffsetInMs(time_ms);
   }
 
   // ECMA 262 - 15.9.1.9
+  // UTC(t) = t - LocalTZA - DaylightSavingTA(t - LocalTZA)
   int64_t ToUTC(int64_t time_ms) {
+    // We need to compute UTC time that corresponds to the given local time.
+    // Literally following spec here leads to incorrect time computation at
+    // the points were we transition to and from DST.
+    //
+    // The following shows that using DST for (t - LocalTZA - hour) produces
+    // correct conversion.
+    //
+    // Consider transition to DST at local time L1.
+    // Let L0 = L1 - hour, L2 = L1 + hour,
+    //     U1 = UTC time that corresponds to L1,
+    //     U0 = U1 - hour.
+    // Transitioning to DST moves local clock one hour forward L1 => L2, so
+    // U0 = UTC time that corresponds to L0 = L0 - LocalTZA,
+    // U1 = UTC time that corresponds to L1 = L1 - LocalTZA,
+    // U1 = UTC time that corresponds to L2 = L2 - LocalTZA - hour.
+    // Note that DST(U0 - hour) = 0, DST(U0) = 0, DST(U1) = 1.
+    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour),
+    // U1 = L1 - LocalTZA - DST(L1 - LocalTZA - hour),
+    // U1 = L2 - LocalTZA - DST(L2 - LocalTZA - hour).
+    //
+    // Consider transition from DST at local time L1.
+    // Let L0 = L1 - hour,
+    //     U1 = UTC time that corresponds to L1,
+    //     U0 = U1 - hour, U2 = U1 + hour.
+    // Transitioning from DST moves local clock one hour back L1 => L0, so
+    // U0 = UTC time that corresponds to L0 (before transition)
+    //    = L0 - LocalTZA - hour.
+    // U1 = UTC time that corresponds to L0 (after transition)
+    //    = L0 - LocalTZA = L1 - LocalTZA - hour
+    // U2 = UTC time that corresponds to L1 = L1 - LocalTZA.
+    // Note that DST(U0) = 1, DST(U1) = 0, DST(U2) = 0.
+    // U0 = L0 - LocalTZA - DST(L0 - LocalTZA - hour) = L0 - LocalTZA - DST(U0).
+    // U2 = L1 - LocalTZA - DST(L1 - LocalTZA - hour) = L1 - LocalTZA - DST(U1).
+    // It is impossible to get U1 from local time.
+
+    const int kMsPerHour = 3600 * 1000;
     time_ms -= LocalOffsetInMs();
-    return time_ms - DaylightSavingsOffsetInMs(time_ms);
+    return time_ms - DaylightSavingsOffsetInMs(time_ms - kMsPerHour);
   }
 
 
@@ -182,12 +200,13 @@ class DateCache {
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
     double time_ms = static_cast<double>(time_sec * 1000);
-    return static_cast<int>(OS::DaylightSavingsOffset(time_ms));
+    return static_cast<int>(
+        base::OS::DaylightSavingsOffset(time_ms, tz_cache_));
   }
 
   virtual int GetLocalOffsetFromOS() {
-    double offset = OS::LocalTimeOffset();
-    ASSERT(offset < kInvalidLocalOffsetInMs);
+    double offset = base::OS::LocalTimeOffset(tz_cache_);
+    DCHECK(offset < kInvalidLocalOffsetInMs);
     return static_cast<int>(offset);
   }
 
@@ -253,6 +272,8 @@ class DateCache {
   int ymd_year_;
   int ymd_month_;
   int ymd_day_;
+
+  base::TimezoneCache* tz_cache_;
 };
 
 } }   // namespace v8::internal

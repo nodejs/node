@@ -21,7 +21,7 @@ PREREQUISITES -----------------------------------------------------------------
 
 1) Install Lua 5.1
 
-2) Get LLVM and Clang sources and build them. 
+2) Get LLVM 2.9 and Clang 2.9 sources and build them.
 
 Follow the instructions on http://clang.llvm.org/get_started.html.
 

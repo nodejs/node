@@ -1,11 +1,11 @@
 # Readline
 
-    Stability: 2 - Unstable
+    Stability: 2 - Stable
 
 To use this module, do `require('readline')`. Readline allows reading of a
 stream (such as `process.stdin`) on a line-by-line basis.
 
-Note that once you've invoked this module, your node program will not
+Note that once you've invoked this module, your io.js program will not
 terminate until you've closed the interface. Here's how to allow your
 program to gracefully exit:
 
@@ -16,7 +16,7 @@ program to gracefully exit:
       output: process.stdout
     });
 
-    rl.question("What do you think of node.js? ", function(answer) {
+    rl.question("What do you think of io.js? ", function(answer) {
       // TODO: Log the answer in a database
       console.log("Thank you for your valuable feedback:", answer);
 
@@ -30,7 +30,7 @@ the following values:
 
  - `input` - the readable stream to listen to (Required).
 
- - `output` - the writable stream to write readline data to (Required).
+ - `output` - the writable stream to write readline data to (Optional).
 
  - `completer` - an optional function that is used for Tab autocompletion. See
    below for an example of using this.
@@ -39,7 +39,9 @@ the following values:
    treated like a TTY, and have ANSI/VT100 escape codes written to it.
    Defaults to checking `isTTY` on the `output` stream upon instantiation.
 
-The `completer` function is given a the current line entered by the user, and
+ - `historySize` - maximum number of history lines retained. Defaults to `30`.
+
+The `completer` function is given the current line entered by the user, and
 is supposed to return an Array with 2 entries:
 
  1. An Array with matching entries for the completion.
@@ -88,8 +90,8 @@ stream.
 
 ### rl.setPrompt(prompt)
 
-Sets the prompt, for example when you run `node` on the command line, you see
-`> `, which is node's prompt.
+Sets the prompt, for example when you run `iojs` on the command line, you see
+`> `, which is io.js's prompt.
 
 ### rl.prompt([preserveCursor])
 
@@ -100,6 +102,9 @@ to `true` to prevent the cursor placement being reset to `0`.
 This will also resume the `input` stream used with `createInterface` if it has
 been paused.
 
+If `output` is set to `null` or `undefined` when calling `createInterface`, the
+prompt is not written.
+
 ### rl.question(query, callback)
 
 Prepends the prompt with `query` and invokes `callback` with the user's
@@ -108,6 +113,9 @@ with the user's response after it has been typed.
 
 This will also resume the `input` stream used with `createInterface` if
 it has been paused.
+
+If `output` is set to `null` or `undefined` when calling `createInterface`,
+nothing is displayed.
 
 Example usage:
 
@@ -119,6 +127,8 @@ Example usage:
 
 Pauses the readline `input` stream, allowing it to be resumed later if needed.
 
+Note that this doesn't immediately pause the stream of events. Several events may be emitted after calling `pause`, including `line`.
+
 ### rl.resume()
 
 Resumes the readline `input` stream.
@@ -128,10 +138,11 @@ Resumes the readline `input` stream.
 Closes the `Interface` instance, relinquishing control on the `input` and
 `output` streams. The "close" event will also be emitted.
 
-### rl.write(data, [key])
+### rl.write(data[, key])
 
-Writes `data` to `output` stream. `key` is an object literal to represent a key
-sequence; available if the terminal is a TTY.
+Writes `data` to `output` stream, unless `output` is set to `null` or
+`undefined` when calling `createInterface`. `key` is an object literal to
+represent a key sequence; available if the terminal is a TTY.
 
 This will also resume the `input` stream if it has been paused.
 
@@ -281,3 +292,23 @@ line interface:
       process.exit(0);
     });
 
+## readline.cursorTo(stream, x, y)
+
+Move cursor to the specified position in a given TTY stream.
+
+## readline.moveCursor(stream, dx, dy)
+
+Move cursor relative to it's current position in a given TTY stream.
+
+## readline.clearLine(stream, dir)
+
+Clears current line of given TTY stream in a specified direction.
+`dir` should have one of following values:
+
+* `-1` - to the left from cursor
+* `1` - to the right from cursor
+* `0` - the entire line
+
+## readline.clearScreenDown(stream)
+
+Clears the screen from the current position of the cursor down.

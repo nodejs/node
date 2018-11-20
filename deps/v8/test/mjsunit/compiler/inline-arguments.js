@@ -115,9 +115,9 @@ F4(1);
 })();
 
 // Test arguments access from the inlined function.
+%NeverOptimizeFunction(uninlinable);
 function uninlinable(v) {
   assertEquals(0, v);
-  try { } catch (e) { }
   return 0;
 }
 
@@ -265,4 +265,73 @@ test_toarr(toarr2);
       }
     }
   }
+})();
+
+
+// Test materialization of arguments object with values in registers.
+(function () {
+  "use strict";
+  var forceDeopt = { deopt:false };
+  function inner(a,b,c,d,e,f,g,h,i,j) {
+    var args = arguments;
+    forceDeopt.deopt;
+    assertSame(10, args.length);
+    assertSame(a, args[0]);
+    assertSame(b, args[1]);
+    assertSame(c, args[2]);
+    assertSame(d, args[3]);
+    assertSame(e, args[4]);
+    assertSame(f, args[5]);
+    assertSame(g, args[6]);
+    assertSame(h, args[7]);
+    assertSame(i, args[8]);
+    assertSame(j, args[9]);
+  }
+
+  var a = 0.5;
+  var b = 1.7;
+  var c = 123;
+  function outer() {
+    inner(
+      a - 0.3,  // double in double register
+      b + 2.3,  // integer in double register
+      c + 321,  // integer in general register
+      c - 456,  // integer in stack slot
+      a + 0.1, a + 0.2, a + 0.3, a + 0.4, a + 0.5,
+      a + 0.6   // double in stack slot
+    );
+  }
+
+  outer();
+  outer();
+  %OptimizeFunctionOnNextCall(outer);
+  outer();
+  delete forceDeopt.deopt;
+  outer();
+})();
+
+
+// Test inlining of functions with %_Arguments and %_ArgumentsLength intrinsic.
+(function () {
+  function inner(len,a,b,c) {
+    assertSame(len, %_ArgumentsLength());
+    for (var i = 1; i < len; ++i) {
+      var c = String.fromCharCode(96 + i);
+      assertSame(c, %_Arguments(i));
+    }
+  }
+
+  function outer() {
+    inner(1);
+    inner(2, 'a');
+    inner(3, 'a', 'b');
+    inner(4, 'a', 'b', 'c');
+    inner(5, 'a', 'b', 'c', 'd');
+    inner(6, 'a', 'b', 'c', 'd', 'e');
+  }
+
+  outer();
+  outer();
+  %OptimizeFunctionOnNextCall(outer);
+  outer();
 })();

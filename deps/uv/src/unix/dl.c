@@ -59,13 +59,13 @@ int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr) {
 }
 
 
-const char* uv_dlerror(uv_lib_t* lib) {
+const char* uv_dlerror(const uv_lib_t* lib) {
   return lib->errmsg ? lib->errmsg : "no error";
 }
 
 
 static int uv__dlerror(uv_lib_t* lib) {
-  char* errmsg;
+  const char* errmsg;
 
   if (lib->errmsg)
     free(lib->errmsg);

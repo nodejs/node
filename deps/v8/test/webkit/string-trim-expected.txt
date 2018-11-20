@@ -1,0 +1,152 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This test checks String.trim(), String.trimLeft() and String.trimRight() methods.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS whitespace[0].s.trim() is ''
+PASS whitespace[0].s.trimLeft() is ''
+PASS whitespace[0].s.trimRight() is ''
+PASS whitespace[1].s.trim() is ''
+PASS whitespace[1].s.trimLeft() is ''
+PASS whitespace[1].s.trimRight() is ''
+PASS whitespace[2].s.trim() is ''
+PASS whitespace[2].s.trimLeft() is ''
+PASS whitespace[2].s.trimRight() is ''
+PASS whitespace[3].s.trim() is ''
+PASS whitespace[3].s.trimLeft() is ''
+PASS whitespace[3].s.trimRight() is ''
+PASS whitespace[4].s.trim() is ''
+PASS whitespace[4].s.trimLeft() is ''
+PASS whitespace[4].s.trimRight() is ''
+PASS whitespace[5].s.trim() is ''
+PASS whitespace[5].s.trimLeft() is ''
+PASS whitespace[5].s.trimRight() is ''
+PASS whitespace[6].s.trim() is ''
+PASS whitespace[6].s.trimLeft() is ''
+PASS whitespace[6].s.trimRight() is ''
+PASS whitespace[7].s.trim() is ''
+PASS whitespace[7].s.trimLeft() is ''
+PASS whitespace[7].s.trimRight() is ''
+PASS whitespace[8].s.trim() is ''
+PASS whitespace[8].s.trimLeft() is ''
+PASS whitespace[8].s.trimRight() is ''
+PASS whitespace[9].s.trim() is ''
+PASS whitespace[9].s.trimLeft() is ''
+PASS whitespace[9].s.trimRight() is ''
+PASS whitespace[10].s.trim() is ''
+PASS whitespace[10].s.trimLeft() is ''
+PASS whitespace[10].s.trimRight() is ''
+PASS whitespace[11].s.trim() is ''
+PASS whitespace[11].s.trimLeft() is ''
+PASS whitespace[11].s.trimRight() is ''
+PASS whitespace[12].s.trim() is ''
+PASS whitespace[12].s.trimLeft() is ''
+PASS whitespace[12].s.trimRight() is ''
+PASS whitespace[13].s.trim() is ''
+PASS whitespace[13].s.trimLeft() is ''
+PASS whitespace[13].s.trimRight() is ''
+PASS whitespace[14].s.trim() is ''
+PASS whitespace[14].s.trimLeft() is ''
+PASS whitespace[14].s.trimRight() is ''
+PASS whitespace[15].s.trim() is ''
+PASS whitespace[15].s.trimLeft() is ''
+PASS whitespace[15].s.trimRight() is ''
+PASS whitespace[16].s.trim() is ''
+PASS whitespace[16].s.trimLeft() is ''
+PASS whitespace[16].s.trimRight() is ''
+PASS whitespace[17].s.trim() is ''
+PASS whitespace[17].s.trimLeft() is ''
+PASS whitespace[17].s.trimRight() is ''
+PASS whitespace[18].s.trim() is ''
+PASS whitespace[18].s.trimLeft() is ''
+PASS whitespace[18].s.trimRight() is ''
+PASS whitespace[19].s.trim() is ''
+PASS whitespace[19].s.trimLeft() is ''
+PASS whitespace[19].s.trimRight() is ''
+PASS whitespace[20].s.trim() is ''
+PASS whitespace[20].s.trimLeft() is ''
+PASS whitespace[20].s.trimRight() is ''
+FAIL whitespace[21].s.trim() should be . Was ​.
+FAIL whitespace[21].s.trimLeft() should be . Was ​.
+FAIL whitespace[21].s.trimRight() should be . Was ​.
+FAIL wsString.trim() should be . Was ​.
+FAIL wsString.trimLeft() should be . Was ​.
+FAIL wsString.trimRight() should be . Was   
+
+             　  ​.
+FAIL trimString.trim() should be foo bar. Was ​foo bar  
+
+             　  ​.
+FAIL trimString.trimLeft() should be foo bar  
+
+             　  ​. Was ​foo bar 
+
+             　  ​.
+FAIL trimString.trimRight() should be   
+
+             　  ​foo bar. Was   
+
+             　  ​foo bar  
+
+             　  ​.
+FAIL leftTrimString.trim() should be foo bar. Was foo bar 
+
+             　  ​.
+PASS leftTrimString.trimLeft() is leftTrimString
+FAIL leftTrimString.trimRight() should be foo bar. Was foo bar  
+
+             　  ​.
+FAIL rightTrimString.trim() should be foo bar. Was ​foo bar.
+FAIL rightTrimString.trimLeft() should be foo bar. Was ​foo bar.
+PASS rightTrimString.trimRight() is rightTrimString
+PASS trim.call(0) is '0'
+PASS trimLeft.call(0) is '0'
+PASS trimRight.call(0) is '0'
+PASS trim.call(Infinity) is 'Infinity'
+PASS trimLeft.call(Infinity) is 'Infinity'
+PASS trimRight.call(Infinity) is 'Infinity'
+PASS trim.call(NaN) is 'NaN'
+PASS trimLeft.call(NaN) is 'NaN'
+PASS trimRight.call(NaN) is 'NaN'
+PASS trim.call(true) is 'true'
+PASS trimLeft.call(true) is 'true'
+PASS trimRight.call(true) is 'true'
+PASS trim.call(false) is 'false'
+PASS trimLeft.call(false) is 'false'
+PASS trimRight.call(false) is 'false'
+PASS trim.call(({})) is '[object Object]'
+PASS trimLeft.call(({})) is '[object Object]'
+PASS trimRight.call(({})) is '[object Object]'
+PASS trim.call(({toString:function(){return 'wibble'}})) is 'wibble'
+PASS trimLeft.call(({toString:function(){return 'wibble'}})) is 'wibble'
+PASS trimRight.call(({toString:function(){return 'wibble'}})) is 'wibble'
+PASS trim.call(['an','array']) is 'an,array'
+PASS trimLeft.call(['an','array']) is 'an,array'
+PASS trimRight.call(['an','array']) is 'an,array'
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

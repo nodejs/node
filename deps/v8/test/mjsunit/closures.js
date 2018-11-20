@@ -44,4 +44,3 @@ function test(n) {
 test(1);
 test(42);
 test(239);
-

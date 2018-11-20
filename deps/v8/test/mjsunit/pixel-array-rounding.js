@@ -27,12 +27,15 @@
 
 // Flags: --allow-natives-syntax
 
-var pixels = new Uint8ClampedArray(8);
+var pixels = new Uint8ClampedArray(11);
 
 function f() {
   for (var i = 0; i < 8; i++) {
     pixels[i] = (i * 1.1);
   }
+  pixels[8] = 255.5;
+  pixels[9] = NaN;
+  pixels[10] = -0.5;
   return pixels[1] + pixels[6];
 }
 
@@ -42,3 +45,6 @@ assertEquals(6, pixels[5]);
 %OptimizeFunctionOnNextCall(f);
 f();
 assertEquals(6, pixels[5]);
+assertEquals(255, pixels[8]);
+assertEquals(0, pixels[9]);
+assertEquals(0, pixels[10]);

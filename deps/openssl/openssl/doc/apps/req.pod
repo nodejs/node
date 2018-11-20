@@ -235,8 +235,8 @@ this option outputs a self signed certificate instead of a certificate
 request. This is typically used to generate a test certificate or
 a self signed root CA. The extensions added to the certificate
 (if any) are specified in the configuration file. Unless specified
-using the B<set_serial> option B<0> will be used for the serial
-number.
+using the B<set_serial> option, a large random number will be used for
+the serial number.
 
 =item B<-days n>
 
@@ -303,7 +303,7 @@ Reverses effect of B<-asn1-kludge>
 
 =item B<-newhdr>
 
-Adds the word B<NEW> to the PEM file header and footer lines on the outputed
+Adds the word B<NEW> to the PEM file header and footer lines on the outputted
 request. Some software (Netscape certificate server) and some CAs need this.
 
 =item B<-batch>

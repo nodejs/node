@@ -35,9 +35,6 @@
     'variables': {
       'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
       'android_toolchain%': '<!(/bin/echo -n $ANDROID_TOOLCHAIN)',
-      # This is set when building the Android WebView inside the Android build
-      # system, using the 'android' gyp backend.
-      'android_webview_build%': 0,
     },
     'conditions': [
       ['android_ndk_root==""', {
@@ -51,7 +48,7 @@
         'android_stlport_libs': '<(android_stlport)/libs',
       }, {
         'variables': {
-          'android_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(android_target_arch)',
+          'android_sysroot': '<(android_ndk_root)/platforms/android-<(android_target_platform)/arch-<(android_target_arch)',
           'android_stlport': '<(android_ndk_root)/sources/cxx-stl/stlport/',
         },
         'android_include': '<(android_sysroot)/usr/include',
@@ -64,9 +61,6 @@
     # link the NDK one?
     'use_system_stlport%': '<(android_webview_build)',
     'android_stlport_library': 'stlport_static',
-    # Copy it out one scope.
-    'android_webview_build%': '<(android_webview_build)',
-    'OS': 'android',
   },  # variables
   'target_defaults': {
     'defines': [
@@ -75,37 +69,36 @@
     ],
     'configurations': {
       'Release': {
-        'cflags!': [
-          '-O2',
-          '-Os',
-        ],
         'cflags': [
-          '-fdata-sections',
-          '-ffunction-sections',
           '-fomit-frame-pointer',
-          '-O3',
         ],
       },  # Release
     },  # configurations
-    'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter',
-                '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions', ],
+    'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter'],
+    'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
+                   # Note: Using -std=c++0x will define __STRICT_ANSI__, which
+                   # in turn will leave out some template stuff for 'long
+                   # long'.  What we want is -std=c++11, but this is not
+                   # supported by GCC 4.6 or Xcode 4.2
+                   '-std=gnu++0x' ],
     'target_conditions': [
       ['_toolset=="target"', {
         'cflags!': [
           '-pthread',  # Not supported by Android toolchain.
         ],
         'cflags': [
-          '-U__linux__',  # Don't allow toolchain to claim -D__linux__
           '-ffunction-sections',
           '-funwind-tables',
           '-fstack-protector',
           '-fno-short-enums',
           '-finline-limit=64',
           '-Wa,--noexecstack',
-          '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
           # Note: This include is in cflags to ensure that it comes after
           # all of the includes.
           '-I<(android_include)',
+        ],
+        'cflags_cc': [
+          '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
         ],
         'defines': [
           'ANDROID',
@@ -153,7 +146,7 @@
               '-Wl,--icf=safe',
             ],
           }],
-          ['target_arch=="arm" and armv7==1', {
+          ['target_arch=="arm" and arm_version==7', {
             'cflags': [
               '-march=armv7-a',
               '-mtune=cortex-a8',
@@ -171,12 +164,12 @@
               '-I<(android_stlport_include)',
             ],
             'conditions': [
-              ['target_arch=="arm" and armv7==1', {
+              ['target_arch=="arm" and arm_version==7', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/armeabi-v7a',
                 ],
               }],
-              ['target_arch=="arm" and armv7==0', {
+              ['target_arch=="arm" and arm_version < 7', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/armeabi',
                 ],
@@ -186,14 +179,24 @@
                   '-L<(android_stlport_libs)/mips',
                 ],
               }],
-              ['target_arch=="ia32"', {
+              ['target_arch=="ia32" or target_arch=="x87"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/x86',
                 ],
               }],
+              ['target_arch=="x64"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/x86_64',
+                ],
+              }],
+              ['target_arch=="arm64"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/arm64-v8a',
+                ],
+              }],
             ],
           }],
-          ['target_arch=="ia32"', {
+          ['target_arch=="ia32" or target_arch=="x87"', {
             # The x86 toolchain currently has problems with stack-protector.
             'cflags!': [
               '-fstack-protector',
@@ -212,13 +215,30 @@
               '-fno-stack-protector',
             ],
           }],
+          ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64") and component!="shared_library"', {
+            'cflags': [
+              '-fPIE',
+            ],
+            'ldflags': [
+              '-pie',
+            ],
+          }],
         ],
         'target_conditions': [
           ['_type=="executable"', {
+            'conditions': [
+              ['target_arch=="arm64"', {
+                'ldflags': [
+                  '-Wl,-dynamic-linker,/system/bin/linker64',
+                ],
+              }, {
+                'ldflags': [
+                  '-Wl,-dynamic-linker,/system/bin/linker',
+                ],
+              }]
+            ],
             'ldflags': [
               '-Bdynamic',
-              '-Wl,-dynamic-linker,/system/bin/linker',
-              '-Wl,--gc-sections',
               '-Wl,-z,nocopyreloc',
               # crtbegin_dynamic.o should be the last item in ldflags.
               '<(android_lib)/crtbegin_dynamic.o',
@@ -245,8 +265,8 @@
       }],  # _toolset=="target"
       # Settings for building host targets using the system toolchain.
       ['_toolset=="host"', {
-        'cflags': [ '-m32', '-pthread' ],
-        'ldflags': [ '-m32', '-pthread' ],
+        'cflags': [ '-pthread' ],
+        'ldflags': [ '-pthread' ],
         'ldflags!': [
           '-Wl,-z,noexecstack',
           '-Wl,--gc-sections',

@@ -1,0 +1,19 @@
+.TH "NPM\-REBUILD" "3" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-rebuild\fR \- Rebuild a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm\.commands\.rebuild([packages,] callback)
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command runs the \fBnpm build\fR command on each of the matched packages\.  This is useful
+when you install a new version of node, and must recompile all your C++ addons with
+the new binary\. If no 'packages' parameter is specify, every package will be rebuilt\.
+.SH CONFIGURATION
+.P
+See \fBnpm help build\fR
+

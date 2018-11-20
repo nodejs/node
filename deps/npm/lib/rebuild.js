@@ -4,18 +4,16 @@ module.exports = rebuild
 var readInstalled = require("read-installed")
   , semver = require("semver")
   , log = require("npmlog")
-  , path = require("path")
   , npm = require("./npm.js")
-  , asyncMap = require("slide").asyncMap
-  , fs = require("graceful-fs")
-  , exec = require("./utils/exec.js")
+  , npa = require("npm-package-arg")
 
 rebuild.usage = "npm rebuild [<name>[@<version>] [name[@<version>] ...]]"
 
 rebuild.completion = require("./utils/completion/installed-deep.js")
 
 function rebuild (args, cb) {
-  readInstalled(npm.prefix, npm.config.get("depth"), function (er, data) {
+  var opt = { depth: npm.config.get("depth"), dev: true }
+  readInstalled(npm.prefix, opt, function (er, data) {
     log.info("readInstalled", typeof data)
     if (er) return cb(er)
     var set = filter(data, args)
@@ -49,11 +47,11 @@ function filter (data, args, set, seen) {
   else if (data.name && data._id) {
     for (var i = 0, l = args.length; i < l; i ++) {
       var arg = args[i]
-        , nv = arg.split("@")
-        , n = nv.shift()
-        , v = nv.join("@")
+        , nv = npa(arg)
+        , n = nv.name
+        , v = nv.rawSpec
       if (n !== data.name) continue
-      if (!semver.satisfies(data.version, v)) continue
+      if (!semver.satisfies(data.version, v, true)) continue
       pass = true
       break
     }

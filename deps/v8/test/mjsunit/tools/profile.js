@@ -345,4 +345,3 @@ function assertNodeWeights(root, path, selfTicks, totalTicks) {
   }
 
 })();
-

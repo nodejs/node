@@ -1,0 +1,79 @@
+{
+  "author": {
+    "name": "Felix Geisendörfer",
+    "email": "felix@debuggable.com",
+    "url": "http://debuggable.com/"
+  },
+  "name": "form-data",
+  "description": "A module to create readable \"multipart/form-data\" streams.  Can be used to submit forms and file uploads to other web applications.",
+  "version": "0.2.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/felixge/node-form-data.git"
+  },
+  "main": "./lib/form_data",
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "engines": {
+    "node": ">= 0.8"
+  },
+  "dependencies": {
+    "async": "~0.9.0",
+    "combined-stream": "~0.0.4",
+    "mime-types": "~2.0.3"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://raw.github.com/felixge/node-form-data/master/License"
+    }
+  ],
+  "devDependencies": {
+    "fake": "~0.2.2",
+    "far": "~0.0.7",
+    "formidable": "~1.0.14",
+    "request": "~2.36.0"
+  },
+  "gitHead": "dfc1a2aef40b97807e2ffe477da06cb2c37e259f",
+  "bugs": {
+    "url": "https://github.com/felixge/node-form-data/issues"
+  },
+  "homepage": "https://github.com/felixge/node-form-data",
+  "_id": "form-data@0.2.0",
+  "_shasum": "26f8bc26da6440e299cbdcfb69035c4f77a6e466",
+  "_from": "form-data@>=0.2.0 <0.3.0",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "alexindigo",
+    "email": "iam@alexindigo.com"
+  },
+  "maintainers": [
+    {
+      "name": "felixge",
+      "email": "felix@debuggable.com"
+    },
+    {
+      "name": "idralyuk",
+      "email": "igor@buran.us"
+    },
+    {
+      "name": "alexindigo",
+      "email": "iam@alexindigo.com"
+    },
+    {
+      "name": "mikeal",
+      "email": "mikeal.rogers@gmail.com"
+    },
+    {
+      "name": "celer",
+      "email": "dtyree77@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "26f8bc26da6440e299cbdcfb69035c4f77a6e466",
+    "tarball": "http://registry.npmjs.org/form-data/-/form-data-0.2.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/form-data/-/form-data-0.2.0.tgz"
+}

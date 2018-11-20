@@ -56,4 +56,3 @@ for (var i = 0; i < 3; i++) assertEquals(i, f(i));
 
 assertEquals(0, f(0));
 assertEquals(1, f(1));
-

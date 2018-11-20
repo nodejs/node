@@ -1,0 +1,127 @@
+<h1><a href="../misc/npm-coding-style.html">npm-coding-style</a></h1> <p>npm&#39;s &quot;funny&quot; coding style</p>
+<h2 id="description">DESCRIPTION</h2>
+<p>npm&#39;s coding style is a bit unconventional.  It is not different for
+difference&#39;s sake, but rather a carefully crafted style that is
+designed to reduce visual clutter and make bugs more apparent.</p>
+<p>If you want to contribute to npm (which is very encouraged), you should
+make your code conform to npm&#39;s style.</p>
+<p>Note: this concerns npm&#39;s code not the specific packages that you can download from the npm registry.</p>
+<h2 id="line-length">Line Length</h2>
+<p>Keep lines shorter than 80 characters.  It&#39;s better for lines to be
+too short than to be too long.  Break up long lists, objects, and other
+statements onto multiple lines.</p>
+<h2 id="indentation">Indentation</h2>
+<p>Two-spaces.  Tabs are better, but they look like hell in web browsers
+(and on GitHub), and node uses 2 spaces, so that&#39;s that.</p>
+<p>Configure your editor appropriately.</p>
+<h2 id="curly-braces">Curly braces</h2>
+<p>Curly braces belong on the same line as the thing that necessitates them.</p>
+<p>Bad:</p>
+<pre><code>function ()
+{
+</code></pre><p>Good:</p>
+<pre><code>function () {
+</code></pre><p>If a block needs to wrap to the next line, use a curly brace.  Don&#39;t
+use it if it doesn&#39;t.</p>
+<p>Bad:</p>
+<pre><code>if (foo) { bar() }
+while (foo)
+  bar()
+</code></pre><p>Good:</p>
+<pre><code>if (foo) bar()
+while (foo) {
+  bar()
+}
+</code></pre><h2 id="semicolons">Semicolons</h2>
+<p>Don&#39;t use them except in four situations:</p>
+<ul>
+<li><code>for (;;)</code> loops.  They&#39;re actually required.</li>
+<li>null loops like: <code>while (something) ;</code> (But you&#39;d better have a good
+reason for doing that.)</li>
+<li><code>case &quot;foo&quot;: doSomething(); break</code></li>
+<li>In front of a leading <code>(</code> or <code>[</code> at the start of the line.
+This prevents the expression from being interpreted
+as a function call or property access, respectively.</li>
+</ul>
+<p>Some examples of good semicolon usage:</p>
+<pre><code>;(x || y).doSomething()
+;[a, b, c].forEach(doSomething)
+for (var i = 0; i &lt; 10; i ++) {
+  switch (state) {
+    case &quot;begin&quot;: start(); continue
+    case &quot;end&quot;: finish(); break
+    default: throw new Error(&quot;unknown state&quot;)
+  }
+  end()
+}
+</code></pre><p>Note that starting lines with <code>-</code> and <code>+</code> also should be prefixed
+with a semicolon, but this is much less common.</p>
+<h2 id="comma-first">Comma First</h2>
+<p>If there is a list of things separated by commas, and it wraps
+across multiple lines, put the comma at the start of the next
+line, directly below the token that starts the list.  Put the
+final token in the list on a line by itself.  For example:</p>
+<pre><code>var magicWords = [ &quot;abracadabra&quot;
+                 , &quot;gesundheit&quot;
+                 , &quot;ventrilo&quot;
+                 ]
+  , spells = { &quot;fireball&quot; : function () { setOnFire() }
+             , &quot;water&quot; : function () { putOut() }
+             }
+  , a = 1
+  , b = &quot;abc&quot;
+  , etc
+  , somethingElse
+</code></pre><h2 id="whitespace">Whitespace</h2>
+<p>Put a single space in front of ( for anything other than a function call.
+Also use a single space wherever it makes things more readable.</p>
+<p>Don&#39;t leave trailing whitespace at the end of lines.  Don&#39;t indent empty
+lines.  Don&#39;t use more spaces than are helpful.</p>
+<h2 id="functions">Functions</h2>
+<p>Use named functions.  They make stack traces a lot easier to read.</p>
+<h2 id="callbacks-sync-async-style">Callbacks, Sync/async Style</h2>
+<p>Use the asynchronous/non-blocking versions of things as much as possible.
+It might make more sense for npm to use the synchronous fs APIs, but this
+way, the fs and http and child process stuff all uses the same callback-passing
+methodology.</p>
+<p>The callback should always be the last argument in the list.  Its first
+argument is the Error or null.</p>
+<p>Be very careful never to ever ever throw anything.  It&#39;s worse than useless.
+Just send the error message back as the first argument to the callback.</p>
+<h2 id="errors">Errors</h2>
+<p>Always create a new Error object with your message.  Don&#39;t just return a
+string message to the callback.  Stack traces are handy.</p>
+<h2 id="logging">Logging</h2>
+<p>Logging is done using the <a href="https://github.com/npm/npmlog">npmlog</a>
+utility.</p>
+<p>Please clean up logs when they are no longer helpful.  In particular,
+logging the same object over and over again is not helpful.  Logs should
+report what&#39;s happening so that it&#39;s easier to track down where a fault
+occurs.</p>
+<p>Use appropriate log levels.  See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> and search for
+&quot;loglevel&quot;.</p>
+<h2 id="case-naming-etc-">Case, naming, etc.</h2>
+<p>Use <code>lowerCamelCase</code> for multiword identifiers when they refer to objects,
+functions, methods, properties, or anything not specified in this section.</p>
+<p>Use <code>UpperCamelCase</code> for class names (things that you&#39;d pass to &quot;new&quot;).</p>
+<p>Use <code>all-lower-hyphen-css-case</code> for multiword filenames and config keys.</p>
+<p>Use named functions.  They make stack traces easier to follow.</p>
+<p>Use <code>CAPS_SNAKE_CASE</code> for constants, things that should never change
+and are rarely used.</p>
+<p>Use a single uppercase letter for function names where the function
+would normally be anonymous, but needs to call itself recursively.  It
+makes it clear that it&#39;s a &quot;throwaway&quot; function.</p>
+<h2 id="null-undefined-false-0">null, undefined, false, 0</h2>
+<p>Boolean variables and functions should always be either <code>true</code> or
+<code>false</code>.  Don&#39;t set it to 0 unless it&#39;s supposed to be a number.</p>
+<p>When something is intentionally missing or removed, set it to <code>null</code>.</p>
+<p>Don&#39;t set things to <code>undefined</code>.  Reserve that value to mean &quot;not yet
+set to anything.&quot;</p>
+<p>Boolean objects are verboten.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../misc/npm-developers.html">npm-developers(7)</a></li>
+<li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
+<li><a href="../cli/npm.html">npm(1)</a></li>
+</ul>
+

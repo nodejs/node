@@ -1,6 +1,7 @@
 /* pem_x509.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project 2001.
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 2001.
  */
 /* ====================================================================
  * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -65,4 +66,3 @@
 #include <openssl/pem.h>
 
 IMPLEMENT_PEM_rw(X509, X509, PEM_STRING_X509, X509)
-

@@ -54,6 +54,7 @@ build/class
 build/deprecated
 build/endif_comment
 build/forward_decl
+build/include_alpha
 build/include_order
 build/printf_format
 build/storage_class
@@ -61,7 +62,6 @@ legal/copyright
 readability/boost
 readability/braces
 readability/casting
-readability/check
 readability/constructors
 readability/fn_size
 readability/function
@@ -80,7 +80,6 @@ runtime/mutex
 runtime/nonconf
 runtime/printf
 runtime/printf_format
-runtime/references
 runtime/rtti
 runtime/sizeof
 runtime/string
@@ -101,6 +100,7 @@ whitespace/tab
 whitespace/todo
 """.split()
 
+# TODO(bmeurer): Fix and re-enable readability/check
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 
@@ -144,8 +144,8 @@ class FileContentsCache(object):
       try:
         sums_file = open(self.sums_file_name, 'r')
         self.sums = pickle.load(sums_file)
-      except IOError:
-        # File might not exist, this is OK.
+      except:
+        # Cannot parse pickle for any reason. Not much we can do about it.
         pass
     finally:
       if sums_file:
@@ -155,6 +155,14 @@ class FileContentsCache(object):
     try:
       sums_file = open(self.sums_file_name, 'w')
       pickle.dump(self.sums, sums_file)
+    except:
+      # Failed to write pickle. Try to clean-up behind us.
+      if sums_file:
+        sums_file.close()
+      try:
+        os.unlink(self.sums_file_name)
+      except:
+        pass
     finally:
       sums_file.close()
 
@@ -191,7 +199,9 @@ class SourceFileProcessor(object):
     return True
 
   def IgnoreDir(self, name):
-    return name.startswith('.') or name == 'data' or name == 'sputniktests'
+    return (name.startswith('.') or
+            name in ('buildtools', 'data', 'gmock', 'gtest', 'kraken',
+                     'octane', 'sunspider'))
 
   def IgnoreFile(self, name):
     return name.startswith('.')
@@ -226,7 +236,17 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'preparser', 'include', 'samples', join('test', 'cctest')]
+    return ['src', 'include', 'samples', join('test', 'cctest'),
+            join('test', 'unittests')]
+
+  def GetCpplintScript(self, prio_path):
+    for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
+      path = path.strip('"')
+      cpplint = os.path.join(path, "cpplint.py")
+      if os.path.isfile(cpplint):
+        return cpplint
+
+    return None
 
   def ProcessFiles(self, files, path):
     good_files_cache = FileContentsCache('.cpplint-cache')
@@ -237,10 +257,14 @@ class CppLintProcessor(SourceFileProcessor):
       return True
 
     filt = '-,' + ",".join(['+' + n for n in ENABLED_LINT_RULES])
-    command = ['cpplint.py', '--filter', filt]
-    local_cpplint = join(path, "tools", "cpplint.py")
-    if exists(local_cpplint):
-      command = ['python', local_cpplint, '--filter', filt]
+    command = [sys.executable, 'cpplint.py', '--filter', filt]
+    cpplint = self.GetCpplintScript(join(path, "tools"))
+    if cpplint is None:
+      print('Could not find cpplint.py. Make sure '
+            'depot_tools is installed and in the path.')
+      sys.exit(1)
+
+    command = [sys.executable, cpplint, '--filter', filt]
 
     commands = join([command + [file] for file in files])
     count = multiprocessing.cpu_count()
@@ -269,8 +293,8 @@ class SourceProcessor(SourceFileProcessor):
   Check that all files include a copyright notice and no trailing whitespaces.
   """
 
-  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', 'SConscript',
-      'SConstruct', '.status', '.gyp', '.gypi']
+  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c',
+                         '.status', '.gyp', '.gypi']
 
   # Overwriting the one in the parent class.
   def FindFilesIn(self, path):
@@ -279,11 +303,12 @@ class SourceProcessor(SourceFileProcessor):
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
       for file in output.stdout.read().split():
-        for dir_part in os.path.dirname(file).split(os.sep):
+        for dir_part in os.path.dirname(file).replace(os.sep, '/').split('/'):
           if self.IgnoreDir(dir_part):
             break
         else:
-          if self.IsRelevant(file) and not self.IgnoreFile(file):
+          if (self.IsRelevant(file) and os.path.exists(file)
+              and not self.IgnoreFile(file)):
             result.append(join(path, file))
       if output.wait() == 0:
         return result
@@ -299,23 +324,37 @@ class SourceProcessor(SourceFileProcessor):
     return ['.']
 
   def IgnoreDir(self, name):
-    return (super(SourceProcessor, self).IgnoreDir(name)
-              or (name == 'third_party')
-              or (name == 'gyp')
-              or (name == 'out')
-              or (name == 'obj')
-              or (name == 'DerivedSources'))
+    return (super(SourceProcessor, self).IgnoreDir(name) or
+            name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources'))
 
-  IGNORE_COPYRIGHTS = ['cpplint.py',
+  IGNORE_COPYRIGHTS = ['box2d.js',
+                       'cpplint.py',
+                       'copy.js',
+                       'corrections.js',
+                       'crypto.js',
                        'daemon.py',
                        'earley-boyer.js',
-                       'raytrace.js',
-                       'crypto.js',
+                       'fannkuch.js',
+                       'fasta.js',
+                       'jsmin.py',
                        'libraries.cc',
                        'libraries-empty.cc',
-                       'jsmin.py',
-                       'regexp-pcre.js']
+                       'lua_binarytrees.js',
+                       'memops.js',
+                       'primes.js',
+                       'raytrace.js',
+                       'regexp-pcre.js',
+                       'gnuplot-4.6.3-emscripten.js',
+                       'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
+
+  def EndOfDeclaration(self, line):
+    return line == "}" or line == "};"
+
+  def StartOfDeclaration(self, line):
+    return line.find("//") == 0 or \
+           line.find("/*") == 0 or \
+           line.find(") {") != -1
 
   def ProcessContents(self, name, contents):
     result = True
@@ -328,7 +367,6 @@ class SourceProcessor(SourceFileProcessor):
       if not COPYRIGHT_HEADER_PATTERN.search(contents):
         print "%s is missing a correct copyright header." % name
         result = False
-    ext = base.split('.').pop()
     if ' \n' in contents or contents.endswith(' '):
       line = 0
       lines = []
@@ -344,6 +382,33 @@ class SourceProcessor(SourceFileProcessor):
       else:
         print "%s has trailing whitespaces in line %s." % (name, linenumbers)
       result = False
+    if not contents.endswith('\n') or contents.endswith('\n\n'):
+      print "%s does not end with a single new line." % name
+      result = False
+    # Check two empty lines between declarations.
+    if name.endswith(".cc"):
+      line = 0
+      lines = []
+      parts = contents.split('\n')
+      while line < len(parts) - 2:
+        if self.EndOfDeclaration(parts[line]):
+          if self.StartOfDeclaration(parts[line + 1]):
+            lines.append(str(line + 1))
+            line += 1
+          elif parts[line + 1] == "" and \
+               self.StartOfDeclaration(parts[line + 2]):
+            lines.append(str(line + 1))
+            line += 2
+        line += 1
+      if len(lines) >= 1:
+        linenumbers = ', '.join(lines)
+        if len(lines) > 1:
+          print "%s does not have two empty lines between declarations " \
+                "in lines %s." % (name, linenumbers)
+        else:
+          print "%s does not have two empty lines between declarations " \
+                "in line %s." % (name, linenumbers)
+        result = False
     return result
 
   def ProcessFiles(self, files, path):
@@ -362,6 +427,45 @@ class SourceProcessor(SourceFileProcessor):
     return success
 
 
+def CheckRuntimeVsNativesNameClashes(workspace):
+  code = subprocess.call(
+      [sys.executable, join(workspace, "tools", "check-name-clashes.py")])
+  return code == 0
+
+
+def CheckExternalReferenceRegistration(workspace):
+  code = subprocess.call(
+      [sys.executable, join(workspace, "tools", "external-reference-check.py")])
+  return code == 0
+
+def CheckAuthorizedAuthor(input_api, output_api):
+  """For non-googler/chromites committers, verify the author's email address is
+  in AUTHORS.
+  """
+  # TODO(maruel): Add it to input_api?
+  import fnmatch
+
+  author = input_api.change.author_email
+  if not author:
+    input_api.logging.info('No author, skipping AUTHOR check')
+    return []
+  authors_path = input_api.os_path.join(
+      input_api.PresubmitLocalPath(), 'AUTHORS')
+  valid_authors = (
+      input_api.re.match(r'[^#]+\s+\<(.+?)\>\s*$', line)
+      for line in open(authors_path))
+  valid_authors = [item.group(1).lower() for item in valid_authors if item]
+  if not any(fnmatch.fnmatch(author.lower(), valid) for valid in valid_authors):
+    input_api.logging.info('Valid authors are %s', ', '.join(valid_authors))
+    return [output_api.PresubmitPromptWarning(
+        ('%s is not in AUTHORS file. If you are a new contributor, please visit'
+        '\n'
+        'http://www.chromium.org/developers/contributing-code and read the '
+        '"Legal" section\n'
+        'If you are a chromite, verify the contributor signed the CLA.') %
+        author)]
+  return []
+
 def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
@@ -377,8 +481,11 @@ def Main():
   print "Running C++ lint check..."
   if not options.no_lint:
     success = CppLintProcessor().Run(workspace) and success
-  print "Running copyright header and trailing whitespaces check..."
+  print "Running copyright header, trailing whitespaces and " \
+        "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
+  success = CheckRuntimeVsNativesNameClashes(workspace) and success
+  success = CheckExternalReferenceRegistration(workspace) and success
   if success:
     return 0
   else:

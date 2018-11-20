@@ -1,0 +1,61 @@
+// Copyright 2014 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
+#define V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
+
+#include "src/compiler/graph-reducer.h"
+#include "src/compiler/simplified-operator.h"
+
+namespace v8 {
+namespace internal {
+
+// Forward declarations.
+class Factory;
+class Heap;
+
+namespace compiler {
+
+// Forward declarations.
+class CommonOperatorBuilder;
+class JSGraph;
+class MachineOperatorBuilder;
+
+class SimplifiedOperatorReducer FINAL : public Reducer {
+ public:
+  explicit SimplifiedOperatorReducer(JSGraph* jsgraph);
+  ~SimplifiedOperatorReducer() FINAL;
+
+  Reduction Reduce(Node* node) FINAL;
+
+ private:
+  Reduction ReduceAnyToBoolean(Node* node);
+
+  Reduction Change(Node* node, const Operator* op, Node* a);
+  Reduction ReplaceFloat64(double value);
+  Reduction ReplaceInt32(int32_t value);
+  Reduction ReplaceUint32(uint32_t value) {
+    return ReplaceInt32(bit_cast<int32_t>(value));
+  }
+  Reduction ReplaceNumber(double value);
+  Reduction ReplaceNumber(int32_t value);
+
+  Graph* graph() const;
+  Factory* factory() const;
+  JSGraph* jsgraph() const { return jsgraph_; }
+  CommonOperatorBuilder* common() const;
+  MachineOperatorBuilder* machine() const;
+  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+
+  JSGraph* jsgraph_;
+  SimplifiedOperatorBuilder simplified_;
+
+  DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
+};
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_

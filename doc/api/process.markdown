@@ -5,22 +5,81 @@
 The `process` object is a global object and can be accessed from anywhere.
 It is an instance of [EventEmitter][].
 
+## Exit Codes
+
+io.js will normally exit with a `0` status code when no more async
+operations are pending.  The following status codes are used in other
+cases:
+
+* `1` **Uncaught Fatal Exception** - There was an uncaught exception,
+  and it was not handled by a domain or an `uncaughtException` event
+  handler.
+* `2` - Unused (reserved by Bash for builtin misuse)
+* `3` **Internal JavaScript Parse Error** - The JavaScript source code
+  internal in io.js's bootstrapping process caused a parse error.  This
+  is extremely rare, and generally can only happen during development
+  of io.js itself.
+* `4` **Internal JavaScript Evaluation Failure** - The JavaScript
+  source code internal in io.js's bootstrapping process failed to
+  return a function value when evaluated.  This is extremely rare, and
+  generally can only happen during development of io.js itself.
+* `5` **Fatal Error** - There was a fatal unrecoverable error in V8.
+  Typically a message will be printed to stderr with the prefix `FATAL
+  ERROR`.
+* `6` **Non-function Internal Exception Handler** - There was an
+  uncaught exception, but the internal fatal exception handler
+  function was somehow set to a non-function, and could not be called.
+* `7` **Internal Exception Handler Run-Time Failure** - There was an
+  uncaught exception, and the internal fatal exception handler
+  function itself threw an error while attempting to handle it.  This
+  can happen, for example, if a `process.on('uncaughtException')` or
+  `domain.on('error')` handler throws an error.
+* `8` - Unused.  In previous versions of io.js, exit code 8 sometimes
+  indicated an uncaught exception.
+* `9` - **Invalid Argument** - Either an unknown option was specified,
+  or an option requiring a value was provided without a value.
+* `10` **Internal JavaScript Run-Time Failure** - The JavaScript
+  source code internal in io.js's bootstrapping process threw an error
+  when the bootstrapping function was called.  This is extremely rare,
+  and generally can only happen during development of io.js itself.
+* `12` **Invalid Debug Argument** - The `--debug` and/or `--debug-brk`
+  options were set, but an invalid port number was chosen.
+* `>128` **Signal Exits** - If io.js receives a fatal signal such as
+  `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
+  value of the signal code.  This is a standard Unix practice, since
+  exit codes are defined to be 7-bit integers, and signal exits set
+  the high-order bit, and then contain the value of the signal code.
 
 ## Event: 'exit'
 
-Emitted when the process is about to exit.  This is a good hook to perform
-constant time checks of the module's state (like for unit tests).  The main
-event loop will no longer be run after the 'exit' callback finishes, so
-timers may not be scheduled.
+Emitted when the process is about to exit. There is no way to prevent the
+exiting of the event loop at this point, and once all `exit` listeners have
+finished running the process will exit. Therefore you **must** only perform
+**synchronous** operations in this handler. This is a good hook to perform
+checks on the module's state (like for unit tests). The callback takes one
+argument, the code the process is exiting with.
 
 Example of listening for `exit`:
 
-    process.on('exit', function() {
+    process.on('exit', function(code) {
+      // do *NOT* do this
       setTimeout(function() {
         console.log('This will not run');
       }, 0);
-      console.log('About to exit.');
+      console.log('About to exit with code:', code);
     });
+
+
+## Event: 'beforeExit'
+
+This event is emitted when io.js empties its event loop and has nothing else to
+schedule. Normally, io.js exits when there is no work scheduled, but a listener
+for 'beforeExit' can make asynchronous calls, and cause io.js to continue.
+
+'beforeExit' is not emitted for conditions causing explicit termination, such as
+`process.exit()` or uncaught exceptions, and should not be used as an
+alternative to the 'exit' event unless the intention is to schedule more work.
+
 
 ## Event: 'uncaughtException'
 
@@ -43,13 +102,13 @@ Example of listening for `uncaughtException`:
     console.log('This will not run.');
 
 Note that `uncaughtException` is a very crude mechanism for exception
-handling and may be removed in the future.
+handling.
 
 Don't use it, use [domains](domain.html) instead. If you do use it, restart
 your application after every unhandled exception!
 
-Do *not* use it as the node.js equivalent of `On Error Resume Next`. An
-unhandled exception means your application - and by extension node.js itself -
+Do *not* use it as the io.js equivalent of `On Error Resume Next`. An
+unhandled exception means your application - and by extension io.js itself -
 is in an undefined state. Blindly resuming means *anything* could happen.
 
 Think of resuming as pulling the power cord when you are upgrading your system.
@@ -57,13 +116,75 @@ Nine out of ten times nothing happens - but the 10th time, your system is bust.
 
 You have been warned.
 
+## Event: 'unhandledRejection'
+
+Emitted whenever a `Promise` is rejected and no error handler is attached to
+the promise within a turn of the event loop. When programming with promises
+exceptions are encapsulated as rejected promises. Such promises can be caught
+and handled using `promise.catch(...)` and rejections are propagated through
+a promise chain. This event is useful for detecting and keeping track of
+promises that were rejected whose rejections were not handled yet. This event
+is emitted with the following arguments:
+
+ - `reason` the object with which the promise was rejected (usually an `Error`
+instance).
+ - `p` the promise that was rejected.
+
+Here is an example that logs every unhandled rejection to the console
+
+    process.on('unhandledRejection', function(reason, p) {
+        console.log("Unhandled Rejection at: Promise ", p, " reason: ", reason);
+        // application specific logging, throwing an error, or other logic here
+    });
+
+For example, here is a rejection that will trigger the `'unhandledRejection'`
+event:
+
+    somePromise.then(function(res) {
+      return reportToUser(JSON.pasre(res)); // note the typo
+    }); // no `.catch` or `.then`
+
+## Event: 'rejectionHandled'
+
+Emitted whenever a Promise was rejected and an error handler was attached to it
+(for example with `.catch()`) later than after an event loop turn. This event
+is emitted with the following arguments:
+
+ - `p` the promise that was previously emitted in an 'unhandledRejection'
+ event, but which has now gained a rejection handler.
+
+There is no notion of a top level for a promise chain at which rejections can
+always be handled. Being inherently asynchronous in nature, a promise rejection
+can be be handled at a future point in time — possibly much later than the
+event loop turn it takes for the 'unhandledRejection' event to be emitted.
+
+Another way of stating this is that, unlike in synchronous code where there is
+an ever-growing list of unhandled exceptions, with promises there is a
+growing-and-shrinking list of unhandled rejections. In synchronous code, the
+'uncaughtException' event tells you when the list of unhandled exceptions
+grows. And in asynchronous code, the 'unhandledRejection' event tells you
+when the list of unhandled rejections grows, while the 'rejectionHandled'
+event tells you when the list of unhandled rejections shrinks.
+
+For example using the rejection detection hooks in order to keep a list of all
+the rejected promises at a given time:
+
+    var unhandledRejections = [];
+    process.on('unhandledRejection', function(reason, p) {
+        unhandledRejections.push(p);
+    });
+    process.on('rejectionHandled', function(p) {
+        var index = unhandledRejections.indexOf(p);
+        unhandledRejections.splice(index, 1);
+    });
+
 ## Signal Events
 
 <!--type=event-->
-<!--name=SIGINT, SIGUSR1, etc.-->
+<!--name=SIGINT, SIGHUP, etc.-->
 
 Emitted when the processes receives a signal. See sigaction(2) for a list of
-standard POSIX signal names such as SIGINT, SIGUSR1, etc.
+standard POSIX signal names such as SIGINT, SIGHUP, etc.
 
 Example of listening for `SIGINT`:
 
@@ -77,70 +198,125 @@ Example of listening for `SIGINT`:
 An easy way to send the `SIGINT` signal is with `Control-C` in most terminal
 programs.
 
+Note:
+
+- `SIGUSR1` is reserved by io.js to start the debugger.  It's possible to
+  install a listener but that won't stop the debugger from starting.
+- `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that resets
+  the terminal mode before exiting with code `128 + signal number`. If one of
+  these signals has a listener installed, its default behaviour will be removed
+  (io.js will no longer exit).
+- `SIGPIPE` is ignored by default, it can have a listener installed.
+- `SIGHUP` is generated on Windows when the console window is closed, and on other
+  platforms under various similar conditions, see signal(7). It can have a
+  listener installed, however io.js will be unconditionally terminated by
+  Windows about 10 seconds later. On non-Windows platforms, the default
+  behaviour of `SIGHUP` is to terminate io.js, but once a listener has been
+  installed its default behaviour will be removed.
+- `SIGTERM` is not supported on Windows, it can be listened on.
+- `SIGINT` from the terminal is supported on all platforms, and can usually be
+  generated with `CTRL+C` (though this may be configurable). It is not generated
+  when terminal raw mode is enabled.
+- `SIGBREAK` is delivered on Windows when `CTRL+BREAK` is pressed, on non-Windows
+  platforms it can be listened on, but there is no way to send or generate it.
+- `SIGWINCH` is delivered when the console has been resized. On Windows, this will
+  only happen on write to the console when the cursor is being moved, or when a
+  readable tty is used in raw mode.
+- `SIGKILL` cannot have a listener installed, it will unconditionally terminate
+  io.js on all platforms.
+- `SIGSTOP` cannot have a listener installed.
+
+Note that Windows does not support sending Signals, but io.js offers some
+emulation with `process.kill()`, and `child_process.kill()`:
+- Sending signal `0` can be used to search for the existence of a process
+- Sending `SIGINT`, `SIGTERM`, and `SIGKILL` cause the unconditional exit of the
+  target process.
 
 ## process.stdout
 
-A `Writable Stream` to `stdout`.
+A `Writable Stream` to `stdout` (on fd `1`).
 
-Example: the definition of `console.log`
+For example, a `console.log` equivalent could look like this:
 
-    console.log = function(d) {
-      process.stdout.write(d + '\n');
+    console.log = function(msg) {
+      process.stdout.write(msg + '\n');
     };
 
-`process.stderr` and `process.stdout` are unlike other streams in Node in
-that writes to them are usually blocking.  They are blocking in the case
-that they refer to regular files or TTY file descriptors. In the case they
-refer to pipes, they are non-blocking like other streams.
+`process.stderr` and `process.stdout` are unlike other streams in io.js in
+that they cannot be closed (`end()` will throw), they never emit the `finish`
+event and that writes are usually blocking.
 
-To check if Node is being run in a TTY context, read the `isTTY` property
+- They are blocking in the case that they refer to regular files or TTY file
+  descriptors.
+- In the case they refer to pipes:
+  - They are blocking in Linux/Unix.
+  - They are non-blocking like other streams in Windows.
+
+To check if io.js is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
 
-    $ node -p "Boolean(process.stdin.isTTY)"
+    $ iojs -p "Boolean(process.stdin.isTTY)"
     true
-    $ echo "foo" | node -p "Boolean(process.stdin.isTTY)"
+    $ echo "foo" | iojs -p "Boolean(process.stdin.isTTY)"
     false
 
-    $ node -p "Boolean(process.stdout.isTTY)"
+    $ iojs -p "Boolean(process.stdout.isTTY)"
     true
-    $ node -p "Boolean(process.stdout.isTTY)" | cat
+    $ iojs -p "Boolean(process.stdout.isTTY)" | cat
     false
 
 See [the tty docs](tty.html#tty_tty) for more information.
 
 ## process.stderr
 
-A writable stream to stderr.
+A writable stream to stderr (on fd `2`).
 
-`process.stderr` and `process.stdout` are unlike other streams in Node in
-that writes to them are usually blocking.  They are blocking in the case
-that they refer to regular files or TTY file descriptors. In the case they
-refer to pipes, they are non-blocking like other streams.
+`process.stderr` and `process.stdout` are unlike other streams in io.js in
+that they cannot be closed (`end()` will throw), they never emit the `finish`
+event and that writes are usually blocking.
+
+- They are blocking in the case that they refer to regular files or TTY file
+  descriptors.
+- In the case they refer to pipes:
+  - They are blocking in Linux/Unix.
+  - They are non-blocking like other streams in Windows.
 
 
 ## process.stdin
 
-A `Readable Stream` for stdin. The stdin stream is paused by default, so one
-must call `process.stdin.resume()` to read from it.
+A `Readable Stream` for stdin (on fd `0`).
 
 Example of opening standard input and listening for both events:
 
-    process.stdin.resume();
     process.stdin.setEncoding('utf8');
 
-    process.stdin.on('data', function(chunk) {
-      process.stdout.write('data: ' + chunk);
+    process.stdin.on('readable', function() {
+      var chunk = process.stdin.read();
+      if (chunk !== null) {
+        process.stdout.write('data: ' + chunk);
+      }
     });
 
     process.stdin.on('end', function() {
       process.stdout.write('end');
     });
 
+As a Stream, `process.stdin` can also be used in "old" mode that is compatible
+with scripts written for node.js prior to v0.10.
+For more information see
+[Stream compatibility](stream.html#stream_compatibility_with_older_node_js_versions).
+
+In "old" Streams mode the stdin stream is paused by default, so one
+must call `process.stdin.resume()` to read from it. Note also that calling
+`process.stdin.resume()` itself would switch stream to "old" mode.
+
+If you are starting a new project you should prefer a more recent "new" Streams
+mode over "old" one.
 
 ## process.argv
 
 An array containing the command line arguments.  The first element will be
-'node', the second element will be the name of the JavaScript file.  The
+'iojs', the second element will be the name of the JavaScript file.  The
 next elements will be any additional command line arguments.
 
     // print process.argv
@@ -150,9 +326,9 @@ next elements will be any additional command line arguments.
 
 This will generate:
 
-    $ node process-2.js one two=three four
-    0: node
-    1: /Users/mjr/work/node/process-2.js
+    $ iojs process-2.js one two=three four
+    0: iojs
+    1: /Users/mjr/work/iojs/process-2.js
     2: one
     3: two=three
     4: four
@@ -164,12 +340,34 @@ This is the absolute pathname of the executable that started the process.
 
 Example:
 
-    /usr/local/bin/node
+    /usr/local/bin/iojs
+
+
+## process.execArgv
+
+This is the set of io.js-specific command line options from the
+executable that started the process.  These options do not show up in
+`process.argv`, and do not include the io.js executable, the name of
+the script, or any options following the script name. These options
+are useful in order to spawn child processes with the same execution
+environment as the parent.
+
+Example:
+
+    $ iojs --harmony script.js --version
+
+results in process.execArgv:
+
+    ['--harmony']
+
+and process.argv:
+
+    ['/usr/local/bin/iojs', 'script.js', '--version']
 
 
 ## process.abort()
 
-This causes node to emit an abort. This will cause node to exit and
+This causes io.js to emit an abort. This will cause io.js to exit and
 generate a core file.
 
 ## process.chdir(directory)
@@ -198,6 +396,29 @@ Returns the current working directory of the process.
 
 An object containing the user environment. See environ(7).
 
+An example of this object looks like:
+
+    { TERM: 'xterm-256color',
+      SHELL: '/usr/local/bin/bash',
+      USER: 'maciej',
+      PATH: '~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin',
+      PWD: '/Users/maciej',
+      EDITOR: 'vim',
+      SHLVL: '1',
+      HOME: '/Users/maciej',
+      LOGNAME: 'maciej',
+      _: '/usr/local/bin/iojs' }
+
+You can write to this object, but changes won't be reflected outside of your
+process. That means that the following won't work:
+
+    $ iojs -e 'process.env.foo = "bar"' && echo $foo
+
+But this will:
+
+    process.env.foo = 'bar';
+    console.log(process.env.foo);
+
 
 ## process.exit([code])
 
@@ -208,12 +429,23 @@ To exit with a 'failure' code:
 
     process.exit(1);
 
-The shell that executed node should see the exit code as 1.
+The shell that executed io.js should see the exit code as 1.
+
+
+## process.exitCode
+
+A number which will be the process exit code, when the process either
+exits gracefully, or is exited via `process.exit()` without specifying
+a code.
+
+Specifying a code to `process.exit(code)` will override any previous
+setting of `process.exitCode`.
 
 
 ## process.getgid()
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Gets the group identity of the process. (See getgid(2).)
 This is the numerical group id, not the group name.
@@ -223,9 +455,23 @@ This is the numerical group id, not the group name.
     }
 
 
+## process.getegid()
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Gets the effective group identity of the process. (See getegid(2).)
+This is the numerical group id, not the group name.
+
+    if (process.getegid) {
+      console.log('Current gid: ' + process.getegid());
+    }
+
+
 ## process.setgid(id)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Sets the group identity of the process. (See setgid(2).)  This accepts either
 a numerical ID or a groupname string. If a groupname is specified, this method
@@ -243,9 +489,31 @@ blocks while resolving it to a numerical ID.
     }
 
 
+## process.setegid(id)
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Sets the effective group identity of the process. (See setegid(2).)
+This accepts either a numerical ID or a groupname string. If a groupname
+is specified, this method blocks while resolving it to a numerical ID.
+
+    if (process.getegid && process.setegid) {
+      console.log('Current gid: ' + process.getegid());
+      try {
+        process.setegid(501);
+        console.log('New gid: ' + process.getegid());
+      }
+      catch (err) {
+        console.log('Failed to set gid: ' + err);
+      }
+    }
+
+
 ## process.getuid()
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Gets the user identity of the process. (See getuid(2).)
 This is the numerical userid, not the username.
@@ -255,9 +523,23 @@ This is the numerical userid, not the username.
     }
 
 
+## process.geteuid()
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Gets the effective user identity of the process. (See geteuid(2).)
+This is the numerical userid, not the username.
+
+    if (process.geteuid) {
+      console.log('Current uid: ' + process.geteuid());
+    }
+
+
 ## process.setuid(id)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Sets the user identity of the process. (See setuid(2).)  This accepts either
 a numerical ID or a username string.  If a username is specified, this method
@@ -275,17 +557,40 @@ blocks while resolving it to a numerical ID.
     }
 
 
+## process.seteuid(id)
+
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
+
+Sets the effective user identity of the process. (See seteuid(2).)
+This accepts either a numerical ID or a username string.  If a username
+is specified, this method blocks while resolving it to a numerical ID.
+
+    if (process.geteuid && process.seteuid) {
+      console.log('Current uid: ' + process.geteuid());
+      try {
+        process.seteuid(501);
+        console.log('New uid: ' + process.geteuid());
+      }
+      catch (err) {
+        console.log('Failed to set uid: ' + err);
+      }
+    }
+
+
 ## process.getgroups()
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Returns an array with the supplementary group IDs. POSIX leaves it unspecified
-if the effective group ID is included but node.js ensures it always is.
+if the effective group ID is included but io.js ensures it always is.
 
 
 ## process.setgroups(groups)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Sets the supplementary group IDs. This is a privileged operation, meaning you
 need to be root or have the CAP_SETGID capability.
@@ -295,7 +600,8 @@ The list can contain group IDs, group names or both.
 
 ## process.initgroups(user, extra_group)
 
-Note: this function is only available on POSIX platforms (i.e. not Windows)
+Note: this function is only available on POSIX platforms (i.e. not Windows,
+Android)
 
 Reads /etc/group and initializes the group access list, using all groups of
 which the user is a member. This is a privileged operation, meaning you need
@@ -320,22 +626,25 @@ A compiled-in property that exposes `NODE_VERSION`.
 
 ## process.versions
 
-A property exposing version strings of node and its dependencies.
+A property exposing version strings of io.js and its dependencies.
 
     console.log(process.versions);
 
-Will output:
+Will print something like:
 
-    { node: '0.4.12',
-      v8: '3.1.8.26',
-      ares: '1.7.4',
-      ev: '4.4',
-      openssl: '1.0.0e-fips' }
+    { http_parser: '2.3.0',
+      node: '1.1.1',
+      v8: '4.1.0.14',
+      uv: '1.3.0',
+      zlib: '1.2.8',
+      ares: '1.10.0-DEV',
+      modules: '43',
+      openssl: '1.0.1k' }
 
 ## process.config
 
 An Object containing the JavaScript representation of the configure options
-that were used to compile the current node executable. This is the same as
+that were used to compile the current io.js executable. This is the same as
 the "config.gypi" file that was produced when running the `./configure` script.
 
 An example of the possible output looks like:
@@ -353,7 +662,6 @@ An example of the possible output looks like:
          node_shared_cares: 'false',
          node_shared_http_parser: 'false',
          node_shared_libuv: 'false',
-         node_shared_v8: 'false',
          node_shared_zlib: 'false',
          node_use_dtrace: 'false',
          node_use_openssl: 'true',
@@ -362,12 +670,15 @@ An example of the possible output looks like:
          target_arch: 'x64',
          v8_use_snapshot: 'true' } }
 
-## process.kill(pid, [signal])
+## process.kill(pid[, signal])
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
-'SIGINT' or 'SIGUSR1'.  If omitted, the signal will be 'SIGTERM'.
-See kill(2) for more information.
+'SIGINT' or 'SIGHUP'.  If omitted, the signal will be 'SIGTERM'.
+See [Signal Events](#process_signal_events) and kill(2) for more information.
+
+Will throw an error if target does not exist, and as a special case, a signal of
+`0` can be used to test for the existence of a process.
 
 Note that just because the name of this function is `process.kill`, it is
 really just a signal sender, like the `kill` system call.  The signal sent
@@ -386,6 +697,8 @@ Example of sending a signal to yourself:
 
     process.kill(process.pid, 'SIGHUP');
 
+Note: When SIGUSR1 is received by io.js it starts the debugger, see
+[Signal Events](#process_signal_events).
 
 ## process.pid
 
@@ -426,7 +739,7 @@ What platform you're running on:
 
 ## process.memoryUsage()
 
-Returns an object describing the memory usage of the Node process
+Returns an object describing the memory usage of the io.js process
 measured in bytes.
 
     var util = require('util');
@@ -442,16 +755,26 @@ This will generate:
 `heapTotal` and `heapUsed` refer to V8's memory usage.
 
 
-## process.nextTick(callback)
+## process.nextTick(callback[, arg][, ...])
 
-On the next loop around the event loop call this callback.
+* `callback` {Function}
+
+Once the current event loop turn runs to completion, call the callback
+function.
+
 This is *not* a simple alias to `setTimeout(fn, 0)`, it's much more
-efficient.  It typically runs before any other I/O events fire, but there
-are some exceptions.  See `process.maxTickDepth` below.
+efficient.  It runs before any additional I/O events (including
+timers) fire in subsequent ticks of the event loop.
 
+    console.log('start');
     process.nextTick(function() {
       console.log('nextTick callback');
     });
+    console.log('scheduled');
+    // Output:
+    // start
+    // scheduled
+    // nextTick callback
 
 This is important in developing APIs where you want to give the user the
 chance to assign event handlers after an object has been constructed,
@@ -503,28 +826,10 @@ This approach is much better:
       fs.stat('file', cb);
     }
 
-## process.maxTickDepth
-
-* {Number} Default = 1000
-
-Callbacks passed to `process.nextTick` will *usually* be called at the
-end of the current flow of execution, and are thus approximately as fast
-as calling a function synchronously.  Left unchecked, this would starve
-the event loop, preventing any I/O from occurring.
-
-Consider this code:
-
-    process.nextTick(function foo() {
-      process.nextTick(foo);
-    });
-
-In order to avoid the situation where Node is blocked by an infinite
-loop of recursive series of nextTick calls, it defers to allow some I/O
-to be done every so often.
-
-The `process.maxTickDepth` value is the maximum depth of
-nextTick-calling nextTick-callbacks that will be evaluated before
-allowing other forms of I/O to occur.
+Note: the nextTick queue is completely drained on each pass of the
+event loop **before** additional I/O is processed.  As a result,
+recursively setting nextTick callbacks will block any I/O from
+happening, just like a `while(true);` loop.
 
 ## process.umask([mask])
 
@@ -532,7 +837,7 @@ Sets or reads the process's file mode creation mask. Child processes inherit
 the mask from the parent process. Returns the old mask if `mask` argument is
 given, otherwise returns the current mask.
 
-    var oldmask, newmask = 0644;
+    var oldmask, newmask = 0022;
 
     oldmask = process.umask(newmask);
     console.log('Changed umask from: ' + oldmask.toString(8) +
@@ -541,7 +846,7 @@ given, otherwise returns the current mask.
 
 ## process.uptime()
 
-Number of seconds Node has been running.
+Number of seconds io.js has been running.
 
 
 ## process.hrtime()
@@ -564,5 +869,17 @@ a diff reading, useful for benchmarks and measuring intervals:
       console.log('benchmark took %d nanoseconds', diff[0] * 1e9 + diff[1]);
       // benchmark took 1000000527 nanoseconds
     }, 1000);
+
+
+## process.mainModule
+
+Alternate way to retrieve
+[`require.main`](modules.html#modules_accessing_the_main_module).
+The difference is that if the main module changes at runtime, `require.main`
+might still refer to the original main module in modules that were required
+before the change occurred. Generally it's safe to assume that the two refer
+to the same module.
+
+As with `require.main`, it will be `undefined` if there was no entry script.
 
 [EventEmitter]: events.html#events_class_events_eventemitter

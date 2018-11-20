@@ -13,8 +13,8 @@ actually in the global scope but in the module scope - this will be noted.
 
 In browsers, the top-level scope is the global scope. That means that in
 browsers if you're in the global scope `var something` will define a global
-variable. In Node this is different. The top-level scope is not the global
-scope; `var something` inside a Node module will be local to that module.
+variable. In io.js this is different. The top-level scope is not the global
+scope; `var something` inside an io.js module will be local to that module.
 
 ## process
 
@@ -30,7 +30,7 @@ The process object. See the [process object][] section.
 
 * {Object}
 
-Used to print to stdout and stderr. See the [stdio][] section.
+Used to print to stdout and stderr. See the [console][] section.
 
 ## Class: Buffer
 
@@ -63,13 +63,25 @@ value from this object, the next `require` will reload the module.
 
 ### require.extensions
 
-* {Array}
+    Stability: 0 - Deprecated
+
+* {Object}
 
 Instruct `require` on how to handle certain file extensions.
 
 Process files with the extension `.sjs` as `.js`:
 
     require.extensions['.sjs'] = require.extensions['.js'];
+
+**Deprecated**  In the past, this list has been used to load
+non-JavaScript modules into io.js by compiling them on-demand.
+However, in practice, there are much better ways to do this, such as
+loading modules via some other io.js program, or compiling them to
+JavaScript ahead of time.
+
+Since the Module system is locked, this feature will probably never go
+away.  However, it may have subtle bugs and complexities that are best
+left untouched.
 
 ## __filename
 
@@ -82,7 +94,7 @@ of this code file.  For a main program this is not necessarily the same
 filename used in the command line.  The value inside a module is the path
 to that module file.
 
-Example: running `node example.js` from `/Users/mjr`
+Example: running `iojs example.js` from `/Users/mjr`
 
     console.log(__filename);
     // /Users/mjr/example.js
@@ -97,7 +109,7 @@ Example: running `node example.js` from `/Users/mjr`
 
 The name of the directory that the currently executing script resides in.
 
-Example: running `node example.js` from `/Users/mjr`
+Example: running `iojs example.js` from `/Users/mjr`
 
     console.log(__dirname);
     // /Users/mjr
@@ -112,7 +124,9 @@ Example: running `node example.js` from `/Users/mjr`
 * {Object}
 
 A reference to the current module. In particular
-`module.exports` is the same as the `exports` object.
+`module.exports` is used for defining what a module exports and makes
+available through `require()`.
+
 `module` isn't actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
@@ -121,9 +135,10 @@ See the [module system documentation][] for more information.
 
 <!-- type=var -->
 
-An object which is shared between all instances of the current module and
-made accessible through `require()`.
-`exports` is the same as the `module.exports` object.
+A reference to the `module.exports` that is shorter to type.
+See [module system documentation][] for details on when to use `exports` and
+when to use `module.exports`.
+
 `exports` isn't actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
@@ -172,5 +187,5 @@ The timer functions are global variables. See the [timers][] section.
 [module system documentation]: modules.html
 [Modules]: modules.html#modules_modules
 [process object]: process.html#process_process
-[stdio]: stdio.html
+[console]: console.html
 [timers]: timers.html

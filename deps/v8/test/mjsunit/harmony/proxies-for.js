@@ -62,10 +62,10 @@ TestForIn(["b", "d"], {
   getPropertyNames: function() { return ["a", "b", "c", "d", "e"] },
   getPropertyDescriptor: function(k) {
     switch (k) {
-      case "a": return {enumerable: false, value: "3"};
-      case "b": return {enumerable: true, get get() {}};
-      case "c": return {value: 4};
-      case "d": return {get enumerable() { return true }};
+      case "a": return {enumerable: false, value: "3", configurable: true};
+      case "b": return {enumerable: true, get get() {}, configurable: true};
+      case "c": return {value: 4, configurable: true};
+      case "d": return {get enumerable() { return true }, configurable: true};
       default: return undefined;
     }
   }
@@ -103,7 +103,7 @@ function TestForInDerived2(create, properties, handler) {
 TestForInDerived(["0", "a"], {
   enumerate: function() { return [0, "a"] },
   getPropertyDescriptor: function(k) {
-    return k == "0" || k == "a" ? {} : undefined
+    return k == "0" || k == "a" ? {configurable: true} : undefined
   }
 })
 
@@ -111,7 +111,7 @@ TestForInDerived(["null", "a"], {
   enumerate: function() { return this.enumerate2() },
   enumerate2: function() { return [null, "a"] },
   getPropertyDescriptor: function(k) {
-    return k == "null" || k == "a" ? {} : undefined
+    return k == "null" || k == "a" ? {configurable: true} : undefined
   }
 })
 
@@ -119,10 +119,10 @@ TestForInDerived(["b", "d"], {
   getPropertyNames: function() { return ["a", "b", "c", "d", "e"] },
   getPropertyDescriptor: function(k) {
     switch (k) {
-      case "a": return {enumerable: false, value: "3"};
-      case "b": return {enumerable: true, get get() {}};
-      case "c": return {value: 4};
-      case "d": return {get enumerable() { return true }};
+      case "a": return {enumerable: false, value: "3", configurable: true};
+      case "b": return {enumerable: true, get get() {}, configurable: true};
+      case "c": return {value: 4, configurable: true};
+      case "d": return {get enumerable() { return true }, configurable: true};
       default: return undefined;
     }
   }

@@ -70,9 +70,17 @@ tap.test('run the example', function (t) {
     }
     if (output.match(/keywords: $/)) {
       c.stdin.write('fugazi function waiting room\n')
+      // "read" module is weird on node >= 0.10 when not a TTY
+      // requires explicit ending for reasons.
+      // could dig in, but really just wanna make tests pass, whatever.
+      c.stdin.end()
       return
     }
   }
+
+  c.on('exit', function () {
+    console.error('exit event')
+  })
 
   c.on('close', function () {
     console.error('actual', actual)

@@ -1,36 +1,13 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SMALL_POINTER_LIST_H_
 #define V8_SMALL_POINTER_LIST_H_
 
-#include "checks.h"
-#include "v8globals.h"
-#include "zone.h"
+#include "src/base/logging.h"
+#include "src/globals.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -61,7 +38,7 @@ class SmallPointerList {
     if ((data_ & kTagMask) == kSingletonTag) {
       list->Add(single_value(), zone);
     }
-    ASSERT(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
+    DCHECK(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
     data_ = reinterpret_cast<intptr_t>(list) | kListTag;
   }
 
@@ -84,7 +61,7 @@ class SmallPointerList {
   }
 
   void Add(T* pointer, Zone* zone) {
-    ASSERT(IsAligned(reinterpret_cast<intptr_t>(pointer), kPointerAlignment));
+    DCHECK(IsAligned(reinterpret_cast<intptr_t>(pointer), kPointerAlignment));
     if ((data_ & kTagMask) == kEmptyTag) {
       data_ = reinterpret_cast<intptr_t>(pointer) | kSingletonTag;
       return;
@@ -93,7 +70,7 @@ class SmallPointerList {
       PointerList* list = new(zone) PointerList(2, zone);
       list->Add(single_value(), zone);
       list->Add(pointer, zone);
-      ASSERT(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
+      DCHECK(IsAligned(reinterpret_cast<intptr_t>(list), kPointerAlignment));
       data_ = reinterpret_cast<intptr_t>(list) | kListTag;
       return;
     }
@@ -103,9 +80,9 @@ class SmallPointerList {
   // Note: returns T* and not T*& (unlike List from list.h).
   // This makes the implementation simpler and more const correct.
   T* at(int i) const {
-    ASSERT((data_ & kTagMask) != kEmptyTag);
+    DCHECK((data_ & kTagMask) != kEmptyTag);
     if ((data_ & kTagMask) == kSingletonTag) {
-      ASSERT(i == 0);
+      DCHECK(i == 0);
       return single_value();
     }
     return list()->at(i);
@@ -127,7 +104,7 @@ class SmallPointerList {
   }
 
   T* RemoveLast() {
-    ASSERT((data_ & kTagMask) != kEmptyTag);
+    DCHECK((data_ & kTagMask) != kEmptyTag);
     if ((data_ & kTagMask) == kSingletonTag) {
       T* result = single_value();
       data_ = kEmptyTag;
@@ -138,11 +115,11 @@ class SmallPointerList {
 
   void Rewind(int pos) {
     if ((data_ & kTagMask) == kEmptyTag) {
-      ASSERT(pos == 0);
+      DCHECK(pos == 0);
       return;
     }
     if ((data_ & kTagMask) == kSingletonTag) {
-      ASSERT(pos == 0 || pos == 1);
+      DCHECK(pos == 0 || pos == 1);
       if (pos == 0) {
         data_ = kEmptyTag;
       }
@@ -178,13 +155,13 @@ class SmallPointerList {
   STATIC_ASSERT(kTagMask + 1 <= kPointerAlignment);
 
   T* single_value() const {
-    ASSERT((data_ & kTagMask) == kSingletonTag);
+    DCHECK((data_ & kTagMask) == kSingletonTag);
     STATIC_ASSERT(kSingletonTag == 0);
     return reinterpret_cast<T*>(data_);
   }
 
   PointerList* list() const {
-    ASSERT((data_ & kTagMask) == kListTag);
+    DCHECK((data_ & kTagMask) == kListTag);
     return reinterpret_cast<PointerList*>(data_ & kValueMask);
   }
 

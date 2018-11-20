@@ -1,0 +1,48 @@
+.TH "NPM\-SEARCH" "1" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-search\fR \- Search for packages
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm search [\-\-long] [search terms \.\.\.]
+npm s [search terms \.\.\.]
+npm se [search terms \.\.\.]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Search the registry for packages matching the search terms\.
+.P
+If a term starts with \fB/\fR, then it's interpreted as a regular expression\.
+A trailing \fB/\fR will be ignored in this case\.  (Note that many regular
+expression characters must be escaped or quoted in most shells\.)
+.SH CONFIGURATION
+.SS long
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Display full package descriptions and other long text across multiple
+lines\. When disabled (default) search results are truncated to fit
+neatly on a single line\. Modules with extremely long names will
+fall on multiple lines\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 7 registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 npmrc
+.IP \(bu 2
+npm help view
+
+.RE
+

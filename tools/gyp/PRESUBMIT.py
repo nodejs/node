@@ -16,9 +16,6 @@ PYLINT_BLACKLIST = [
     'test/lib/TestCmd.py',
     'test/lib/TestCommon.py',
     'test/lib/TestGyp.py',
-    # Needs style fix.
-    'pylib/gyp/generator/scons.py',
-    'pylib/gyp/generator/xcode.py',
 ]
 
 
@@ -26,6 +23,10 @@ PYLINT_DISABLED_WARNINGS = [
     # TODO: fix me.
     # Many tests include modules they don't use.
     'W0611',
+    # Possible unbalanced tuple unpacking with sequence.
+    'W0632',
+    # Attempting to unpack a non-sequence.
+    'W0633',
     # Include order doesn't properly include local files?
     'F0401',
     # Some use of built-in names.
@@ -41,6 +42,10 @@ PYLINT_DISABLED_WARNINGS = [
     'W0613',
     # String has no effect (docstring in wrong place).
     'W0105',
+    # map/filter on lambda could be replaced by comprehension.
+    'W0110',
+    # Use of eval.
+    'W0123',
     # Comma not followed by space.
     'C0324',
     # Access to a protected member.
@@ -57,6 +62,8 @@ PYLINT_DISABLED_WARNINGS = [
     'E1101',
     # Dangerous default {}.
     'W0102',
+    # Cyclic import.
+    'R0401',
     # Others, too many to sort.
     'W0201', 'W0232', 'E1103', 'W0621', 'W0108', 'W0223', 'W0231',
     'R0201', 'E0101', 'C0321',
@@ -98,19 +105,35 @@ def CheckChangeOnCommit(input_api, output_api):
       'http://gyp-status.appspot.com/status',
       'http://gyp-status.appspot.com/current'))
 
+  import os
   import sys
   old_sys_path = sys.path
   try:
     sys.path = ['pylib', 'test/lib'] + sys.path
+    blacklist = PYLINT_BLACKLIST
+    if sys.platform == 'win32':
+      blacklist = [os.path.normpath(x).replace('\\', '\\\\')
+                   for x in PYLINT_BLACKLIST]
     report.extend(input_api.canned_checks.RunPylint(
         input_api,
         output_api,
-        black_list=PYLINT_BLACKLIST,
+        black_list=blacklist,
         disabled_warnings=PYLINT_DISABLED_WARNINGS))
   finally:
     sys.path = old_sys_path
   return report
 
 
-def GetPreferredTrySlaves():
-  return ['gyp-win32', 'gyp-win64', 'gyp-linux', 'gyp-mac', 'gyp-android']
+TRYBOTS = [
+    'gyp-win32',
+    'gyp-win64',
+    'gyp-linux',
+    'gyp-mac',
+    'gyp-android'
+]
+
+
+def GetPreferredTryMasters(_, change):
+  return {
+      'tryserver.nacl': { t: set(['defaulttests']) for t in TRYBOTS },
+  }

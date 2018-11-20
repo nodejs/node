@@ -1,0 +1,43 @@
+.TH "NPM\-DEPRECATE" "3" "May 2015" "" ""
+.SH "NAME"
+\fBnpm-deprecate\fR \- Deprecate a version of a package
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm\.commands\.deprecate(args, callback)
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This command will update the npm registry entry for a package, providing
+a deprecation warning to all who attempt to install it\.
+.P
+The 'args' parameter must have exactly two elements:
+.RS 0
+.IP \(bu 2
+\fBpackage[@version]\fR
+  The \fBversion\fR portion is optional, and may be either a range, or a
+  specific version, or a tag\.
+.IP \(bu 2
+\fBmessage\fR
+  The warning message that will be printed whenever a user attempts to
+  install the package\.
+
+.RE
+.P
+Note that you must be the package owner to deprecate something\.  See the
+\fBowner\fR and \fBadduser\fR help topics\.
+.P
+To un\-deprecate a package, specify an empty string (\fB""\fR) for the \fBmessage\fR argument\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm apihelp publish
+.IP \(bu 2
+npm apihelp unpublish
+.IP \(bu 2
+npm help 7 registry
+
+.RE
+

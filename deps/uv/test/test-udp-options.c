@@ -27,7 +27,7 @@
 #include <string.h>
 
 
-TEST_IMPL(udp_options) {
+static int udp_options_test(const struct sockaddr* addr) {
   static int invalid_ttls[] = { -1, 0, 256 };
   uv_loop_t* loop;
   uv_udp_t h;
@@ -40,7 +40,7 @@ TEST_IMPL(udp_options) {
 
   uv_unref((uv_handle_t*)&h); /* don't keep the loop alive */
 
-  r = uv_udp_bind(&h, uv_ip4_addr("0.0.0.0", TEST_PORT), 0);
+  r = uv_udp_bind(&h, addr, 0);
   ASSERT(r == 0);
 
   r = uv_udp_set_broadcast(&h, 1);
@@ -57,8 +57,7 @@ TEST_IMPL(udp_options) {
 
   for (i = 0; i < (int) ARRAY_SIZE(invalid_ttls); i++) {
     r = uv_udp_set_ttl(&h, invalid_ttls[i]);
-    ASSERT(r == -1);
-    ASSERT(uv_last_error(loop).code == UV_EINVAL);
+    ASSERT(r == UV_EINVAL);
   }
 
   r = uv_udp_set_multicast_loop(&h, 1);
@@ -75,12 +74,52 @@ TEST_IMPL(udp_options) {
 
   /* anything >255 should fail */
   r = uv_udp_set_multicast_ttl(&h, 256);
-  ASSERT(r == -1);
-  ASSERT(uv_last_error(loop).code == UV_EINVAL);
+  ASSERT(r == UV_EINVAL);
   /* don't test ttl=-1, it's a valid value on some platforms */
 
   r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(udp_options) {
+  struct sockaddr_in addr;
+
+  ASSERT(0 == uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+  return udp_options_test((const struct sockaddr*) &addr);
+}
+
+
+TEST_IMPL(udp_options6) {
+  struct sockaddr_in6 addr;
+
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
+  ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr));
+  return udp_options_test((const struct sockaddr*) &addr);
+}
+
+
+TEST_IMPL(udp_no_autobind) {
+  uv_loop_t* loop;
+  uv_udp_t h;
+
+  loop = uv_default_loop();
+
+  ASSERT(0 == uv_udp_init(loop, &h));
+  ASSERT(UV_EBADF == uv_udp_set_multicast_ttl(&h, 32));
+  ASSERT(UV_EBADF == uv_udp_set_broadcast(&h, 1));
+  ASSERT(UV_EBADF == uv_udp_set_ttl(&h, 1));
+  ASSERT(UV_EBADF == uv_udp_set_multicast_loop(&h, 1));
+  ASSERT(UV_EBADF == uv_udp_set_multicast_interface(&h, "0.0.0.0"));
+
+  uv_close((uv_handle_t*) &h, NULL);
+
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   MAKE_VALGRIND_HAPPY();
   return 0;

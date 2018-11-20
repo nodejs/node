@@ -142,8 +142,19 @@ function bind1() {
   bound();
 }
 
+// Test step into apply of bound function.
+function applyAndBind1() {
+  var bound = g.bind(null, 3);
+  debugger;
+  bound.apply(null, [3]);
+  var aLocalVar = 'test';
+  var anotherLocalVar  = g(aLocalVar) + 's';
+  var yetAnotherLocal = 10;
+}
+
 var testFunctions =
-    [call1, call2, call3, call4, apply1, apply2, apply3, apply4, bind1];
+    [call1, call2, call3, call4, apply1, apply2, apply3, apply4, bind1,
+    applyAndBind1];
 
 for (var i = 0; i < testFunctions.length; i++) {
   state = 0;

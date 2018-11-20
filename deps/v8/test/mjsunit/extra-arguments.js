@@ -50,5 +50,3 @@ for (var i = 0; i < 25; i++) {
   }
   assertEquals(expected, f.apply(null, array), String(i));
 }
-
-

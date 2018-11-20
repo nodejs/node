@@ -1,43 +1,21 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "ast.h"
+#include "src/ast.h"
 
-#include <math.h>  // For isfinite.
-#include "builtins.h"
-#include "code-stubs.h"
-#include "conversions.h"
-#include "hashmap.h"
-#include "parser.h"
-#include "property-details.h"
-#include "property.h"
-#include "scopes.h"
-#include "string-stream.h"
-#include "type-info.h"
+#include <cmath>  // For isfinite.
+#include "src/builtins.h"
+#include "src/code-stubs.h"
+#include "src/contexts.h"
+#include "src/conversions.h"
+#include "src/hashmap.h"
+#include "src/parser.h"
+#include "src/property.h"
+#include "src/property-details.h"
+#include "src/scopes.h"
+#include "src/string-stream.h"
+#include "src/type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -55,84 +33,74 @@ AST_NODE_LIST(DECL_ACCEPT)
 // Implementation of other node functionality.
 
 
-bool Expression::IsSmiLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->handle()->IsSmi();
+bool Expression::IsSmiLiteral() const {
+  return IsLiteral() && AsLiteral()->value()->IsSmi();
 }
 
 
-bool Expression::IsStringLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->handle()->IsString();
+bool Expression::IsStringLiteral() const {
+  return IsLiteral() && AsLiteral()->value()->IsString();
 }
 
 
-bool Expression::IsNullLiteral() {
-  return AsLiteral() != NULL && AsLiteral()->handle()->IsNull();
+bool Expression::IsNullLiteral() const {
+  return IsLiteral() && AsLiteral()->value()->IsNull();
 }
 
 
-VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
-    : Expression(isolate),
-      name_(var->name()),
-      var_(NULL),  // Will be set by the call to BindTo.
-      is_this_(var->is_this()),
-      is_trivial_(false),
-      is_lvalue_(false),
-      position_(RelocInfo::kNoPosition),
-      interface_(var->interface()) {
+bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
+  const VariableProxy* var_proxy = AsVariableProxy();
+  if (var_proxy == NULL) return false;
+  Variable* var = var_proxy->var();
+  // The global identifier "undefined" is immutable. Everything
+  // else could be reassigned.
+  return var != NULL && var->location() == Variable::UNALLOCATED &&
+         var_proxy->raw_name()->IsOneByteEqualTo("undefined");
+}
+
+
+VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
+    : Expression(zone, position),
+      bit_field_(IsThisField::encode(var->is_this()) |
+                 IsAssignedField::encode(false) |
+                 IsResolvedField::encode(false)),
+      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
+      raw_name_(var->raw_name()) {
   BindTo(var);
 }
 
 
-VariableProxy::VariableProxy(Isolate* isolate,
-                             Handle<String> name,
-                             bool is_this,
-                             Interface* interface,
+VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                              int position)
-    : Expression(isolate),
-      name_(name),
-      var_(NULL),
-      is_this_(is_this),
-      is_trivial_(false),
-      is_lvalue_(false),
-      position_(position),
-      interface_(interface) {
-  // Names must be canonicalized for fast equality checks.
-  ASSERT(name->IsInternalizedString());
-}
+    : Expression(zone, position),
+      bit_field_(IsThisField::encode(is_this) | IsAssignedField::encode(false) |
+                 IsResolvedField::encode(false)),
+      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
+      raw_name_(name) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
-  ASSERT(var_ == NULL);  // must be bound only once
-  ASSERT(var != NULL);  // must bind
-  ASSERT(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
-  ASSERT((is_this() && var->is_this()) || name_.is_identical_to(var->name()));
-  // Ideally CONST-ness should match. However, this is very hard to achieve
-  // because we don't know the exact semantics of conflicting (const and
-  // non-const) multiple variable declarations, const vars introduced via
-  // eval() etc.  Const-ness and variable declarations are a complete mess
-  // in JS. Sigh...
-  var_ = var;
-  var->set_is_used(true);
+  DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
+  set_var(var);
+  set_is_resolved();
+  var->set_is_used();
 }
 
 
-Assignment::Assignment(Isolate* isolate,
-                       Token::Value op,
-                       Expression* target,
-                       Expression* value,
-                       int pos)
-    : Expression(isolate),
-      op_(op),
+Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
+                       Expression* value, int pos)
+    : Expression(zone, pos),
+      bit_field_(IsUninitializedField::encode(false) |
+                 KeyTypeField::encode(ELEMENT) |
+                 StoreModeField::encode(STANDARD_STORE) |
+                 TokenField::encode(op)),
       target_(target),
       value_(value),
-      pos_(pos),
-      binary_operation_(NULL),
-      assignment_id_(GetNextId(isolate)),
-      is_monomorphic_(false) { }
+      binary_operation_(NULL) {}
 
 
 Token::Value Assignment::binary_op() const {
-  switch (op_) {
+  switch (op()) {
     case Token::ASSIGN_BIT_OR: return Token::BIT_OR;
     case Token::ASSIGN_BIT_XOR: return Token::BIT_XOR;
     case Token::ASSIGN_BIT_AND: return Token::BIT_AND;
@@ -175,30 +143,62 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
-ObjectLiteral::Property::Property(Literal* key,
-                                  Expression* value,
-                                  Isolate* isolate) {
-  emit_store_ = true;
-  key_ = key;
-  value_ = value;
-  Object* k = *key->handle();
-  if (k->IsInternalizedString() &&
-      isolate->heap()->proto_string()->Equals(String::cast(k))) {
-    kind_ = PROTOTYPE;
-  } else if (value_->AsMaterializedLiteral() != NULL) {
-    kind_ = MATERIALIZED_LITERAL;
-  } else if (value_->AsLiteral() != NULL) {
-    kind_ = CONSTANT;
-  } else {
-    kind_ = COMPUTED;
+bool FunctionLiteral::uses_super_property() const {
+  DCHECK_NOT_NULL(scope());
+  return scope()->uses_super_property() || scope()->inner_uses_super_property();
+}
+
+
+// Helper to find an existing shared function info in the baseline code for the
+// given function literal. Used to canonicalize SharedFunctionInfo objects.
+void FunctionLiteral::InitializeSharedInfo(
+    Handle<Code> unoptimized_code) {
+  for (RelocIterator it(*unoptimized_code); !it.done(); it.next()) {
+    RelocInfo* rinfo = it.rinfo();
+    if (rinfo->rmode() != RelocInfo::EMBEDDED_OBJECT) continue;
+    Object* obj = rinfo->target_object();
+    if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+      if (shared->start_position() == start_position()) {
+        shared_info_ = Handle<SharedFunctionInfo>(shared);
+        break;
+      }
+    }
   }
 }
 
 
-ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
-  emit_store_ = true;
-  value_ = value;
-  kind_ = is_getter ? GETTER : SETTER;
+ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
+                                             Kind kind, bool is_static,
+                                             bool is_computed_name)
+    : key_(key),
+      value_(value),
+      kind_(kind),
+      emit_store_(true),
+      is_static_(is_static),
+      is_computed_name_(is_computed_name) {}
+
+
+ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
+                                             Expression* key, Expression* value,
+                                             bool is_static,
+                                             bool is_computed_name)
+    : key_(key),
+      value_(value),
+      emit_store_(true),
+      is_static_(is_static),
+      is_computed_name_(is_computed_name) {
+  if (!is_computed_name &&
+      key->AsLiteral()->raw_value()->EqualsString(
+          ast_value_factory->proto_string())) {
+    kind_ = PROTOTYPE;
+  } else if (value_->AsMaterializedLiteral() != NULL) {
+    kind_ = MATERIALIZED_LITERAL;
+  } else if (value_->IsLiteral()) {
+    kind_ = CONSTANT;
+  } else {
+    kind_ = COMPUTED;
+  }
 }
 
 
@@ -219,99 +219,225 @@ bool ObjectLiteral::Property::emit_store() {
 }
 
 
-bool IsEqualString(void* first, void* second) {
-  ASSERT((*reinterpret_cast<String**>(first))->IsString());
-  ASSERT((*reinterpret_cast<String**>(second))->IsString());
-  Handle<String> h1(reinterpret_cast<String**>(first));
-  Handle<String> h2(reinterpret_cast<String**>(second));
-  return (*h1)->Equals(*h2);
-}
-
-
-bool IsEqualNumber(void* first, void* second) {
-  ASSERT((*reinterpret_cast<Object**>(first))->IsNumber());
-  ASSERT((*reinterpret_cast<Object**>(second))->IsNumber());
-
-  Handle<Object> h1(reinterpret_cast<Object**>(first));
-  Handle<Object> h2(reinterpret_cast<Object**>(second));
-  if (h1->IsSmi()) {
-    return h2->IsSmi() && *h1 == *h2;
-  }
-  if (h2->IsSmi()) return false;
-  Handle<HeapNumber> n1 = Handle<HeapNumber>::cast(h1);
-  Handle<HeapNumber> n2 = Handle<HeapNumber>::cast(h2);
-  ASSERT(isfinite(n1->value()));
-  ASSERT(isfinite(n2->value()));
-  return n1->value() == n2->value();
-}
-
-
 void ObjectLiteral::CalculateEmitStore(Zone* zone) {
+  const auto GETTER = ObjectLiteral::Property::GETTER;
+  const auto SETTER = ObjectLiteral::Property::SETTER;
+
   ZoneAllocationPolicy allocator(zone);
 
   ZoneHashMap table(Literal::Match, ZoneHashMap::kDefaultHashMapCapacity,
                     allocator);
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
-    Literal* literal = property->key();
-    if (literal->handle()->IsNull()) continue;
+    if (property->is_computed_name()) continue;
+    if (property->kind() == ObjectLiteral::Property::PROTOTYPE) continue;
+    Literal* literal = property->key()->AsLiteral();
+    DCHECK(!literal->value()->IsNull());
+
+    // If there is an existing entry do not emit a store unless the previous
+    // entry was also an accessor.
     uint32_t hash = literal->Hash();
-    // If the key of a computed property is in the table, do not emit
-    // a store for the property later.
-    if (property->kind() == ObjectLiteral::Property::COMPUTED &&
-        table.Lookup(literal, hash, false, allocator) != NULL) {
-      property->set_emit_store(false);
+    ZoneHashMap::Entry* entry = table.Lookup(literal, hash, true, allocator);
+    if (entry->value != NULL) {
+      auto previous_kind =
+          static_cast<ObjectLiteral::Property*>(entry->value)->kind();
+      if (!((property->kind() == GETTER && previous_kind == SETTER) ||
+            (property->kind() == SETTER && previous_kind == GETTER))) {
+        property->set_emit_store(false);
+      }
+    }
+    entry->value = property;
+  }
+}
+
+
+bool ObjectLiteral::IsBoilerplateProperty(ObjectLiteral::Property* property) {
+  return property != NULL &&
+         property->kind() != ObjectLiteral::Property::PROTOTYPE;
+}
+
+
+void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
+  if (!constant_properties_.is_null()) return;
+
+  // Allocate a fixed array to hold all the constant properties.
+  Handle<FixedArray> constant_properties = isolate->factory()->NewFixedArray(
+      boilerplate_properties_ * 2, TENURED);
+
+  int position = 0;
+  // Accumulate the value in local variables and store it at the end.
+  bool is_simple = true;
+  int depth_acc = 1;
+  uint32_t max_element_index = 0;
+  uint32_t elements = 0;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    if (!IsBoilerplateProperty(property)) {
+      is_simple = false;
+      continue;
+    }
+
+    if (position == boilerplate_properties_ * 2) {
+      DCHECK(property->is_computed_name());
+      break;
+    }
+    DCHECK(!property->is_computed_name());
+
+    MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
+    if (m_literal != NULL) {
+      m_literal->BuildConstants(isolate);
+      if (m_literal->depth() >= depth_acc) depth_acc = m_literal->depth() + 1;
+    }
+
+    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
+    // value for COMPUTED properties, the real value is filled in at
+    // runtime. The enumeration order is maintained.
+    Handle<Object> key = property->key()->AsLiteral()->value();
+    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
+
+    // Ensure objects that may, at any point in time, contain fields with double
+    // representation are always treated as nested objects. This is true for
+    // computed fields (value is undefined), and smi and double literals
+    // (value->IsNumber()).
+    // TODO(verwaest): Remove once we can store them inline.
+    if (FLAG_track_double_fields &&
+        (value->IsNumber() || value->IsUninitialized())) {
+      may_store_doubles_ = true;
+    }
+
+    is_simple = is_simple && !value->IsUninitialized();
+
+    // Keep track of the number of elements in the object literal and
+    // the largest element index.  If the largest element index is
+    // much larger than the number of elements, creating an object
+    // literal with fast elements will be a waste of space.
+    uint32_t element_index = 0;
+    if (key->IsString()
+        && Handle<String>::cast(key)->AsArrayIndex(&element_index)
+        && element_index > max_element_index) {
+      max_element_index = element_index;
+      elements++;
+    } else if (key->IsSmi()) {
+      int key_value = Smi::cast(*key)->value();
+      if (key_value > 0
+          && static_cast<uint32_t>(key_value) > max_element_index) {
+        max_element_index = key_value;
+      }
+      elements++;
+    }
+
+    // Add name, value pair to the fixed array.
+    constant_properties->set(position++, *key);
+    constant_properties->set(position++, *value);
+  }
+
+  constant_properties_ = constant_properties;
+  fast_elements_ =
+      (max_element_index <= 32) || ((2 * elements) >= max_element_index);
+  set_is_simple(is_simple);
+  set_depth(depth_acc);
+}
+
+
+void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
+  if (!constant_elements_.is_null()) return;
+
+  // Allocate a fixed array to hold all the object literals.
+  Handle<JSArray> array =
+      isolate->factory()->NewJSArray(0, FAST_HOLEY_SMI_ELEMENTS);
+  JSArray::Expand(array, values()->length());
+
+  // Fill in the literals.
+  bool is_simple = true;
+  int depth_acc = 1;
+  bool is_holey = false;
+  for (int i = 0, n = values()->length(); i < n; i++) {
+    Expression* element = values()->at(i);
+    MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
+    if (m_literal != NULL) {
+      m_literal->BuildConstants(isolate);
+      if (m_literal->depth() + 1 > depth_acc) {
+        depth_acc = m_literal->depth() + 1;
+      }
+    }
+    Handle<Object> boilerplate_value = GetBoilerplateValue(element, isolate);
+    if (boilerplate_value->IsTheHole()) {
+      is_holey = true;
+    } else if (boilerplate_value->IsUninitialized()) {
+      is_simple = false;
+      JSObject::SetOwnElement(
+          array, i, handle(Smi::FromInt(0), isolate), SLOPPY).Assert();
     } else {
-      // Add key to the table.
-      table.Lookup(literal, hash, true, allocator);
+      JSObject::SetOwnElement(array, i, boilerplate_value, SLOPPY).Assert();
     }
   }
+
+  Handle<FixedArrayBase> element_values(array->elements());
+
+  // Simple and shallow arrays can be lazily copied, we transform the
+  // elements array to a copy-on-write array.
+  if (is_simple && depth_acc == 1 && values()->length() > 0 &&
+      array->HasFastSmiOrObjectElements()) {
+    element_values->set_map(isolate->heap()->fixed_cow_array_map());
+  }
+
+  // Remember both the literal's constant values as well as the ElementsKind
+  // in a 2-element FixedArray.
+  Handle<FixedArray> literals = isolate->factory()->NewFixedArray(2, TENURED);
+
+  ElementsKind kind = array->GetElementsKind();
+  kind = is_holey ? GetHoleyElementsKind(kind) : GetPackedElementsKind(kind);
+
+  literals->set(0, Smi::FromInt(kind));
+  literals->set(1, *element_values);
+
+  constant_elements_ = literals;
+  set_is_simple(is_simple);
+  set_depth(depth_acc);
 }
 
 
-void TargetCollector::AddTarget(Label* target, Zone* zone) {
-  // Add the label to the collector, but discard duplicates.
-  int length = targets_.length();
-  for (int i = 0; i < length; i++) {
-    if (targets_[i] == target) return;
+Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
+                                                        Isolate* isolate) {
+  if (expression->IsLiteral()) {
+    return expression->AsLiteral()->value();
   }
-  targets_.Add(target, zone);
+  if (CompileTimeValue::IsCompileTimeValue(expression)) {
+    return CompileTimeValue::GetValue(isolate, expression);
+  }
+  return isolate->factory()->uninitialized_value();
 }
 
 
-bool UnaryOperation::ResultOverwriteAllowed() {
-  switch (op_) {
-    case Token::BIT_NOT:
-    case Token::SUB:
-      return true;
-    default:
-      return false;
+void MaterializedLiteral::BuildConstants(Isolate* isolate) {
+  if (IsArrayLiteral()) {
+    return AsArrayLiteral()->BuildConstantElements(isolate);
   }
+  if (IsObjectLiteral()) {
+    return AsObjectLiteral()->BuildConstantProperties(isolate);
+  }
+  DCHECK(IsRegExpLiteral());
+  DCHECK(depth() >= 1);  // Depth should be initialized.
 }
 
 
-bool BinaryOperation::ResultOverwriteAllowed() {
-  switch (op_) {
-    case Token::COMMA:
-    case Token::OR:
-    case Token::AND:
-      return false;
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-      return true;
-    default:
-      UNREACHABLE();
-  }
-  return false;
+void UnaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  // TODO(olivf) If this Operation is used in a test context, then the
+  // expression has a ToBoolean stub and we want to collect the type
+  // information. However the GraphBuilder expects it to be on the instruction
+  // corresponding to the TestContext, therefore we have to store it here and
+  // not on the operand.
+  set_to_boolean_types(oracle->ToBooleanTypes(expression()->test_id()));
+}
+
+
+void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  // TODO(olivf) If this Operation is used in a test context, then the right
+  // hand side has a ToBoolean stub and we want to collect the type information.
+  // However the GraphBuilder expects it to be on the instruction corresponding
+  // to the TestContext, therefore we have to store it here and not on the
+  // right hand operand.
+  set_to_boolean_types(oracle->ToBooleanTypes(right()->test_id()));
 }
 
 
@@ -329,7 +455,7 @@ static bool MatchLiteralCompareTypeof(Expression* left,
                                       Handle<String>* check) {
   if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
     *expr = left->AsUnaryOperation()->expression();
-    *check = Handle<String>::cast(right->AsLiteral()->handle());
+    *check = Handle<String>::cast(right->AsLiteral()->value());
     return true;
   }
   return false;
@@ -347,16 +473,22 @@ static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != NULL &&
       maybe_unary->op() == Token::VOID &&
-      maybe_unary->expression()->AsLiteral() != NULL;
+      maybe_unary->expression()->IsLiteral();
 }
 
 
-// Check for the pattern: void <literal> equals <expression>
+// Check for the pattern: void <literal> equals <expression> or
+// undefined equals <expression>
 static bool MatchLiteralCompareUndefined(Expression* left,
                                          Token::Value op,
                                          Expression* right,
-                                         Expression** expr) {
+                                         Expression** expr,
+                                         Isolate* isolate) {
   if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
+    *expr = right;
+    return true;
+  }
+  if (left->IsUndefinedLiteral(isolate) && Token::IsEqualityOp(op)) {
     *expr = right;
     return true;
   }
@@ -364,9 +496,10 @@ static bool MatchLiteralCompareUndefined(Expression* left,
 }
 
 
-bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
-  return MatchLiteralCompareUndefined(left_, op_, right_, expr) ||
-      MatchLiteralCompareUndefined(right_, op_, left_, expr);
+bool CompareOperation::IsLiteralCompareUndefined(
+    Expression** expr, Isolate* isolate) {
+  return MatchLiteralCompareUndefined(left_, op_, right_, expr, isolate) ||
+      MatchLiteralCompareUndefined(right_, op_, left_, expr, isolate);
 }
 
 
@@ -404,154 +537,69 @@ bool FunctionDeclaration::IsInlineable() const {
 // ----------------------------------------------------------------------------
 // Recording of type feedback
 
-void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                                  Zone* zone) {
-  // Record type feedback from the oracle in the AST.
-  is_uninitialized_ = oracle->LoadIsUninitialized(this);
-  if (is_uninitialized_) return;
+// TODO(rossberg): all RecordTypeFeedback functions should disappear
+// once we use the common type field in the AST consistently.
 
-  is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
-  receiver_types_.Clear();
-  if (key()->IsPropertyName()) {
-    ArrayLengthStub array_stub(Code::LOAD_IC);
-    FunctionPrototypeStub proto_stub(Code::LOAD_IC);
-    StringLengthStub string_stub(Code::LOAD_IC, false);
-    if (oracle->LoadIsStub(this, &array_stub)) {
-      is_array_length_ = true;
-    } else if (oracle->LoadIsStub(this, &string_stub)) {
-      is_string_length_ = true;
-    } else if (oracle->LoadIsStub(this, &proto_stub)) {
-      is_function_prototype_ = true;
-    } else {
-      Literal* lit_key = key()->AsLiteral();
-      ASSERT(lit_key != NULL && lit_key->handle()->IsString());
-      Handle<String> name = Handle<String>::cast(lit_key->handle());
-      oracle->LoadReceiverTypes(this, name, &receiver_types_);
+void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
+  set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
+}
+
+
+bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
+  CallType call_type = GetCallType(isolate);
+  if (IsUsingCallFeedbackSlot(isolate) || call_type == POSSIBLY_EVAL_CALL) {
+    return false;
+  }
+  return true;
+}
+
+
+bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
+  // SuperConstructorCall uses a CallConstructStub, which wants
+  // a Slot, not an IC slot.
+  return GetCallType(isolate) == SUPER_CALL;
+}
+
+
+FeedbackVectorRequirements Call::ComputeFeedbackRequirements(Isolate* isolate) {
+  int ic_slots = IsUsingCallFeedbackICSlot(isolate) ? 1 : 0;
+  int slots = IsUsingCallFeedbackSlot(isolate) ? 1 : 0;
+  // A Call uses either a slot or an IC slot.
+  DCHECK((ic_slots & slots) == 0);
+  return FeedbackVectorRequirements(slots, ic_slots);
+}
+
+
+Call::CallType Call::GetCallType(Isolate* isolate) const {
+  VariableProxy* proxy = expression()->AsVariableProxy();
+  if (proxy != NULL) {
+    if (proxy->var()->is_possibly_eval(isolate)) {
+      return POSSIBLY_EVAL_CALL;
+    } else if (proxy->var()->IsUnallocated()) {
+      return GLOBAL_CALL;
+    } else if (proxy->var()->IsLookupSlot()) {
+      return LOOKUP_SLOT_CALL;
     }
-  } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
-    is_string_access_ = true;
-  } else if (is_monomorphic_) {
-    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this),
-                        zone);
-  } else if (oracle->LoadIsPolymorphic(this)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
   }
-}
 
+  if (expression()->AsSuperReference() != NULL) return SUPER_CALL;
 
-void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                                    Zone* zone) {
-  Property* prop = target()->AsProperty();
-  ASSERT(prop != NULL);
-  TypeFeedbackId id = AssignmentFeedbackId();
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
-  receiver_types_.Clear();
-  if (prop->key()->IsPropertyName()) {
-    Literal* lit_key = prop->key()->AsLiteral();
-    ASSERT(lit_key != NULL && lit_key->handle()->IsString());
-    Handle<String> name = Handle<String>::cast(lit_key->handle());
-    oracle->StoreReceiverTypes(this, name, &receiver_types_);
-  } else if (is_monomorphic_) {
-    // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsPolymorphic(id)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
-  }
-}
-
-
-void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                                        Zone* zone) {
-  TypeFeedbackId id = CountStoreFeedbackId();
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
-  receiver_types_.Clear();
-  if (is_monomorphic_) {
-    // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(
-        oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsPolymorphic(id)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
-  }
-}
-
-
-void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo info = oracle->SwitchType(this);
-  if (info.IsUninitialized()) info = TypeInfo::Unknown();
-  if (info.IsSmi()) {
-    compare_type_ = SMI_ONLY;
-  } else if (info.IsInternalizedString()) {
-    compare_type_ = NAME_ONLY;
-  } else if (info.IsNonInternalizedString()) {
-    compare_type_ = STRING_ONLY;
-  } else if (info.IsNonPrimitive()) {
-    compare_type_ = OBJECT_ONLY;
-  } else {
-    ASSERT(compare_type_ == NONE);
-  }
-}
-
-
-bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
-  // If there is an interceptor, we can't compute the target for a direct call.
-  if (type->has_named_interceptor()) return false;
-
-  if (check_type_ == RECEIVER_MAP_CHECK) {
-    // For primitive checks the holder is set up to point to the corresponding
-    // prototype object, i.e. one step of the algorithm below has been already
-    // performed. For non-primitive checks we clear it to allow computing
-    // targets for polymorphic calls.
-    holder_ = Handle<JSObject>::null();
-  }
-  LookupResult lookup(type->GetIsolate());
-  while (true) {
-    type->LookupDescriptor(NULL, *name, &lookup);
-    if (lookup.IsFound()) {
-      switch (lookup.type()) {
-        case CONSTANT_FUNCTION:
-          // We surely know the target for a constant function.
-          target_ =
-              Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-          return true;
-        case NORMAL:
-        case FIELD:
-        case CALLBACKS:
-        case HANDLER:
-        case INTERCEPTOR:
-          // We don't know the target.
-          return false;
-        case TRANSITION:
-        case NONEXISTENT:
-          UNREACHABLE();
-          break;
-      }
-    }
-    // If we reach the end of the prototype chain, we don't know the target.
-    if (!type->prototype()->IsJSObject()) return false;
-    // Go up the prototype chain, recording where we are currently.
-    holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
-    if (!holder_->HasFastProperties()) return false;
-    type = Handle<Map>(holder()->map());
-  }
+  Property* property = expression()->AsProperty();
+  return property != NULL ? PROPERTY_CALL : OTHER_CALL;
 }
 
 
 bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
-                               LookupResult* lookup) {
+                               LookupIterator* it) {
   target_ = Handle<JSFunction>::null();
-  cell_ = Handle<JSGlobalPropertyCell>::null();
-  ASSERT(lookup->IsFound() &&
-         lookup->type() == NORMAL &&
-         lookup->holder() == *global);
-  cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(lookup));
+  cell_ = Handle<Cell>::null();
+  DCHECK(it->IsFound() && it->GetHolder<JSObject>().is_identical_to(global));
+  cell_ = it->GetPropertyCell();
   if (cell_->value()->IsJSFunction()) {
     Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
     // If the function is in new space we assume it's more likely to
     // change and thus prefer the general IC code.
-    if (!HEAP->InNewSpace(*candidate)) {
+    if (!it->isolate()->heap()->InNewSpace(*candidate)) {
       target_ = candidate;
       return true;
     }
@@ -560,60 +608,26 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 }
 
 
-void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                              CallKind call_kind) {
-  is_monomorphic_ = oracle->CallIsMonomorphic(this);
-  Property* property = expression()->AsProperty();
-  if (property == NULL) {
-    // Function call.  Specialize for monomorphic calls.
-    if (is_monomorphic_) target_ = oracle->GetCallTarget(this);
-  } else {
-    // Method call.  Specialize for the receiver types seen at runtime.
-    Literal* key = property->key()->AsLiteral();
-    ASSERT(key != NULL && key->handle()->IsString());
-    Handle<String> name = Handle<String>::cast(key->handle());
-    receiver_types_.Clear();
-    oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
-#ifdef DEBUG
-    if (FLAG_enable_slow_asserts) {
-      int length = receiver_types_.length();
-      for (int i = 0; i < length; i++) {
-        Handle<Map> map = receiver_types_.at(i);
-        ASSERT(!map.is_null() && *map != NULL);
-      }
-    }
-#endif
-    check_type_ = oracle->GetCallCheckType(this);
-    if (is_monomorphic_) {
-      Handle<Map> map;
-      if (receiver_types_.length() > 0) {
-        ASSERT(check_type_ == RECEIVER_MAP_CHECK);
-        map = receiver_types_.at(0);
-      } else {
-        ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-        holder_ = Handle<JSObject>(
-            oracle->GetPrototypeForPrimitiveCheck(check_type_));
-        map = Handle<Map>(holder_->map());
-      }
-      is_monomorphic_ = ComputeTarget(map, name);
-    }
-  }
-}
-
-
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
+  FeedbackVectorSlot allocation_site_feedback_slot =
+      FLAG_pretenuring_call_new ? AllocationSiteFeedbackSlot()
+                                : CallNewFeedbackSlot();
+  allocation_site_ =
+      oracle->GetCallNewAllocationSite(allocation_site_feedback_slot);
+  is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
   if (is_monomorphic_) {
-    target_ = oracle->GetCallNewTarget(this);
-    elements_kind_ = oracle->GetCallNewElementsKind(this);
+    target_ = oracle->GetCallNewTarget(CallNewFeedbackSlot());
   }
 }
 
 
 void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(this)
-      ? oracle->GetObjectLiteralStoreMap(this)
-      : Handle<Map>::null();
+  DCHECK(!is_computed_name());
+  TypeFeedbackId id = key()->AsLiteral()->LiteralFeedbackId();
+  SmallMapList maps;
+  oracle->CollectReceiverTypes(id, &maps);
+  receiver_type_ = maps.length() == 1 ? maps.at(0)
+                                      : Handle<Map>::null();
 }
 
 
@@ -629,7 +643,9 @@ void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
 
 void AstVisitor::VisitStatements(ZoneList<Statement*>* statements) {
   for (int i = 0; i < statements->length(); i++) {
-    Visit(statements->at(i));
+    Statement* stmt = statements->at(i);
+    Visit(stmt);
+    if (stmt->IsJump()) break;
   }
 }
 
@@ -708,12 +724,12 @@ Interval RegExpQuantifier::CaptureRegisters() {
 
 
 bool RegExpAssertion::IsAnchoredAtStart() {
-  return type() == RegExpAssertion::START_OF_INPUT;
+  return assertion_type() == RegExpAssertion::START_OF_INPUT;
 }
 
 
 bool RegExpAssertion::IsAnchoredAtEnd() {
-  return type() == RegExpAssertion::END_OF_INPUT;
+  return assertion_type() == RegExpAssertion::END_OF_INPUT;
 }
 
 
@@ -779,52 +795,46 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // in as many cases as possible, to make it more difficult for incorrect
 // parses to look as correct ones which is likely if the input and
 // output formats are alike.
-class RegExpUnparser: public RegExpVisitor {
+class RegExpUnparser FINAL : public RegExpVisitor {
  public:
-  explicit RegExpUnparser(Zone* zone);
+  RegExpUnparser(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
-  SmartArrayPointer<const char> ToString() { return stream_.ToCString(); }
-#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void* data);
+#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*,          \
+                                                  void* data) OVERRIDE;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
-  StringStream* stream() { return &stream_; }
-  HeapStringAllocator alloc_;
-  StringStream stream_;
+  std::ostream& os_;
   Zone* zone_;
 };
 
 
-RegExpUnparser::RegExpUnparser(Zone* zone) : stream_(&alloc_), zone_(zone) {
-}
-
-
 void* RegExpUnparser::VisitDisjunction(RegExpDisjunction* that, void* data) {
-  stream()->Add("(|");
+  os_ << "(|";
   for (int i = 0; i <  that->alternatives()->length(); i++) {
-    stream()->Add(" ");
+    os_ << " ";
     that->alternatives()->at(i)->Accept(this, data);
   }
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
-  stream()->Add("(:");
+  os_ << "(:";
   for (int i = 0; i <  that->nodes()->length(); i++) {
-    stream()->Add(" ");
+    os_ << " ";
     that->nodes()->at(i)->Accept(this, data);
   }
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
-  stream()->Add("%k", that.from());
+  os_ << AsUC16(that.from());
   if (!that.IsSingleton()) {
-    stream()->Add("-%k", that.to());
+    os_ << "-" << AsUC16(that.to());
   }
 }
 
@@ -832,37 +842,36 @@ void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
 
 void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
                                           void* data) {
-  if (that->is_negated())
-    stream()->Add("^");
-  stream()->Add("[");
+  if (that->is_negated()) os_ << "^";
+  os_ << "[";
   for (int i = 0; i < that->ranges(zone_)->length(); i++) {
-    if (i > 0) stream()->Add(" ");
+    if (i > 0) os_ << " ";
     VisitCharacterRange(that->ranges(zone_)->at(i));
   }
-  stream()->Add("]");
+  os_ << "]";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
-  switch (that->type()) {
+  switch (that->assertion_type()) {
     case RegExpAssertion::START_OF_INPUT:
-      stream()->Add("@^i");
+      os_ << "@^i";
       break;
     case RegExpAssertion::END_OF_INPUT:
-      stream()->Add("@$i");
+      os_ << "@$i";
       break;
     case RegExpAssertion::START_OF_LINE:
-      stream()->Add("@^l");
+      os_ << "@^l";
       break;
     case RegExpAssertion::END_OF_LINE:
-      stream()->Add("@$l");
+      os_ << "@$l";
        break;
     case RegExpAssertion::BOUNDARY:
-      stream()->Add("@b");
+      os_ << "@b";
       break;
     case RegExpAssertion::NON_BOUNDARY:
-      stream()->Add("@B");
+      os_ << "@B";
       break;
   }
   return NULL;
@@ -870,85 +879,84 @@ void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
 
 
 void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
-  stream()->Add("'");
+  os_ << "'";
   Vector<const uc16> chardata = that->data();
   for (int i = 0; i < chardata.length(); i++) {
-    stream()->Add("%k", chardata[i]);
+    os_ << AsUC16(chardata[i]);
   }
-  stream()->Add("'");
+  os_ << "'";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitText(RegExpText* that, void* data) {
   if (that->elements()->length() == 1) {
-    that->elements()->at(0).data.u_atom->Accept(this, data);
+    that->elements()->at(0).tree()->Accept(this, data);
   } else {
-    stream()->Add("(!");
+    os_ << "(!";
     for (int i = 0; i < that->elements()->length(); i++) {
-      stream()->Add(" ");
-      that->elements()->at(i).data.u_atom->Accept(this, data);
+      os_ << " ";
+      that->elements()->at(i).tree()->Accept(this, data);
     }
-    stream()->Add(")");
+    os_ << ")";
   }
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitQuantifier(RegExpQuantifier* that, void* data) {
-  stream()->Add("(# %i ", that->min());
+  os_ << "(# " << that->min() << " ";
   if (that->max() == RegExpTree::kInfinity) {
-    stream()->Add("- ");
+    os_ << "- ";
   } else {
-    stream()->Add("%i ", that->max());
+    os_ << that->max() << " ";
   }
-  stream()->Add(that->is_greedy() ? "g " : that->is_possessive() ? "p " : "n ");
+  os_ << (that->is_greedy() ? "g " : that->is_possessive() ? "p " : "n ");
   that->body()->Accept(this, data);
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
-  stream()->Add("(^ ");
+  os_ << "(^ ";
   that->body()->Accept(this, data);
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitLookahead(RegExpLookahead* that, void* data) {
-  stream()->Add("(-> ");
-  stream()->Add(that->is_positive() ? "+ " : "- ");
+  os_ << "(-> " << (that->is_positive() ? "+ " : "- ");
   that->body()->Accept(this, data);
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitBackReference(RegExpBackReference* that,
                                          void* data) {
-  stream()->Add("(<- %i)", that->index());
+  os_ << "(<- " << that->index() << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
-  stream()->Put('%');
+  os_ << '%';
   return NULL;
 }
 
 
-SmartArrayPointer<const char> RegExpTree::ToString(Zone* zone) {
-  RegExpUnparser unparser(zone);
+std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {  // NOLINT
+  RegExpUnparser unparser(os, zone);
   Accept(&unparser, NULL);
-  return unparser.ToString();
+  return os;
 }
 
 
 RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
     : alternatives_(alternatives) {
-  ASSERT(alternatives->length() > 1);
+  DCHECK(alternatives->length() > 1);
   RegExpTree* first_alternative = alternatives->at(0);
   min_match_ = first_alternative->min_match();
   max_match_ = first_alternative->max_match();
@@ -970,7 +978,7 @@ static int IncreaseBy(int previous, int increase) {
 
 RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
     : nodes_(nodes) {
-  ASSERT(nodes->length() > 1);
+  DCHECK(nodes->length() > 1);
   min_match_ = 0;
   max_match_ = 0;
   for (int i = 0; i < nodes->length(); i++) {
@@ -983,134 +991,27 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 }
 
 
-CaseClause::CaseClause(Isolate* isolate,
-                       Expression* label,
-                       ZoneList<Statement*>* statements,
-                       int pos)
-    : label_(label),
+CaseClause::CaseClause(Zone* zone, Expression* label,
+                       ZoneList<Statement*>* statements, int pos)
+    : Expression(zone, pos),
+      label_(label),
       statements_(statements),
-      position_(pos),
-      compare_type_(NONE),
-      compare_id_(AstNode::GetNextId(isolate)),
-      entry_id_(AstNode::GetNextId(isolate)) {
+      compare_type_(Type::None(zone)) {}
+
+
+uint32_t Literal::Hash() {
+  return raw_value()->IsString()
+             ? raw_value()->AsString()->hash()
+             : ComputeLongHash(double_to_uint64(raw_value()->AsNumber()));
 }
 
 
-#define REGULAR_NODE(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-  }
-#define DONT_OPTIMIZE_NODE(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_flag(kDontOptimize); \
-    add_flag(kDontInline); \
-    add_flag(kDontSelfOptimize); \
-  }
-#define DONT_SELFOPTIMIZE_NODE(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_flag(kDontSelfOptimize); \
-  }
-#define DONT_CACHE_NODE(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_flag(kDontOptimize); \
-    add_flag(kDontInline); \
-    add_flag(kDontSelfOptimize); \
-    add_flag(kDontCache); \
-  }
-
-REGULAR_NODE(VariableDeclaration)
-REGULAR_NODE(FunctionDeclaration)
-REGULAR_NODE(Block)
-REGULAR_NODE(ExpressionStatement)
-REGULAR_NODE(EmptyStatement)
-REGULAR_NODE(IfStatement)
-REGULAR_NODE(ContinueStatement)
-REGULAR_NODE(BreakStatement)
-REGULAR_NODE(ReturnStatement)
-REGULAR_NODE(SwitchStatement)
-REGULAR_NODE(Conditional)
-REGULAR_NODE(Literal)
-REGULAR_NODE(ArrayLiteral)
-REGULAR_NODE(ObjectLiteral)
-REGULAR_NODE(RegExpLiteral)
-REGULAR_NODE(FunctionLiteral)
-REGULAR_NODE(Assignment)
-REGULAR_NODE(Throw)
-REGULAR_NODE(Property)
-REGULAR_NODE(UnaryOperation)
-REGULAR_NODE(CountOperation)
-REGULAR_NODE(BinaryOperation)
-REGULAR_NODE(CompareOperation)
-REGULAR_NODE(ThisFunction)
-REGULAR_NODE(Call)
-REGULAR_NODE(CallNew)
-// In theory, for VariableProxy we'd have to add:
-// if (node->var()->IsLookupSlot()) add_flag(kDontInline);
-// But node->var() is usually not bound yet at VariableProxy creation time, and
-// LOOKUP variables only result from constructs that cannot be inlined anyway.
-REGULAR_NODE(VariableProxy)
-
-// We currently do not optimize any modules.
-DONT_OPTIMIZE_NODE(ModuleDeclaration)
-DONT_OPTIMIZE_NODE(ImportDeclaration)
-DONT_OPTIMIZE_NODE(ExportDeclaration)
-DONT_OPTIMIZE_NODE(ModuleVariable)
-DONT_OPTIMIZE_NODE(ModulePath)
-DONT_OPTIMIZE_NODE(ModuleUrl)
-DONT_OPTIMIZE_NODE(ModuleStatement)
-DONT_OPTIMIZE_NODE(WithStatement)
-DONT_OPTIMIZE_NODE(TryCatchStatement)
-DONT_OPTIMIZE_NODE(TryFinallyStatement)
-DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
-
-DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
-DONT_SELFOPTIMIZE_NODE(WhileStatement)
-DONT_SELFOPTIMIZE_NODE(ForStatement)
-DONT_SELFOPTIMIZE_NODE(ForInStatement)
-
-DONT_CACHE_NODE(ModuleLiteral)
-
-void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
-  increase_node_count();
-  if (node->is_jsruntime()) {
-    // Don't try to inline JS runtime calls because we don't (currently) even
-    // optimize them.
-    add_flag(kDontInline);
-  } else if (node->function()->intrinsic_type == Runtime::INLINE &&
-      (node->name()->IsOneByteEqualTo(
-          STATIC_ASCII_VECTOR("_ArgumentsLength")) ||
-       node->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_Arguments")))) {
-    // Don't inline the %_ArgumentsLength or %_Arguments because their
-    // implementation will not work.  There is no stack frame to get them
-    // from.
-    add_flag(kDontInline);
-  }
-}
-
-#undef REGULAR_NODE
-#undef DONT_OPTIMIZE_NODE
-#undef DONT_SELFOPTIMIZE_NODE
-#undef DONT_CACHE_NODE
-
-
-Handle<String> Literal::ToString() {
-  if (handle_->IsString()) return Handle<String>::cast(handle_);
-  ASSERT(handle_->IsNumber());
-  char arr[100];
-  Vector<char> buffer(arr, ARRAY_SIZE(arr));
-  const char* str;
-  if (handle_->IsSmi()) {
-    // Optimization only, the heap number case would subsume this.
-    OS::SNPrintF(buffer, "%d", Smi::cast(*handle_)->value());
-    str = arr;
-  } else {
-    str = DoubleToCString(handle_->Number(), buffer);
-  }
-  return FACTORY->NewStringFromAscii(CStrVector(str));
+// static
+bool Literal::Match(void* literal1, void* literal2) {
+  const AstValue* x = static_cast<Literal*>(literal1)->raw_value();
+  const AstValue* y = static_cast<Literal*>(literal2)->raw_value();
+  return (x->IsString() && y->IsString() && *x->AsString() == *y->AsString()) ||
+         (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
 }
 
 

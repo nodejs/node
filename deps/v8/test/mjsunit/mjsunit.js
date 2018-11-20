@@ -54,6 +54,10 @@ var assertSame;
 // and the properties of non-Array objects).
 var assertEquals;
 
+
+// The difference between expected and found value is within certain tolerance.
+var assertEqualsDelta;
+
 // The found object is an Array with the same length and elements
 // as the expected object. The expected object doesn't need to be an Array,
 // as long as it's "array-ish".
@@ -98,6 +102,14 @@ var assertInstanceof;
 
 // Assert that this code is never executed (i.e., always fails if executed).
 var assertUnreachable;
+
+// Assert that the function code is (not) optimized.  If "no sync" is passed
+// as second argument, we do not wait for the concurrent optimization thread to
+// finish when polling for optimization status.
+// Only works with --allow-natives-syntax.
+var assertOptimized;
+var assertUnoptimized;
+
 
 (function () {  // Scope for utility functions.
 
@@ -190,8 +202,8 @@ var assertUnreachable;
       if (a === 0) return (1 / a) === (1 / b);
       return true;
     }
-    if (typeof a != typeof b) return false;
-    if (typeof a == "number") return isNaN(a) && isNaN(b);
+    if (typeof a !== typeof b) return false;
+    if (typeof a === "number") return isNaN(a) && isNaN(b);
     if (typeof a !== "object" && typeof a !== "function") return false;
     // Neither a nor b is primitive.
     var objectClass = classOf(a);
@@ -204,7 +216,7 @@ var assertUnreachable;
     if (objectClass === "Function") return false;
     if (objectClass === "Array") {
       var elementCount = 0;
-      if (a.length != b.length) {
+      if (a.length !== b.length) {
         return false;
       }
       for (var i = 0; i < a.length; i++) {
@@ -212,19 +224,18 @@ var assertUnreachable;
       }
       return true;
     }
-    if (objectClass == "String" || objectClass == "Number" ||
-      objectClass == "Boolean" || objectClass == "Date") {
+    if (objectClass === "String" || objectClass === "Number" ||
+      objectClass === "Boolean" || objectClass === "Date") {
       if (a.valueOf() !== b.valueOf()) return false;
     }
     return deepObjectEquals(a, b);
   }
 
-
   assertSame = function assertSame(expected, found, name_opt) {
     // TODO(mstarzinger): We should think about using Harmony's egal operator
     // or the function equivalent Object.is() here.
     if (found === expected) {
-      if (expected !== 0 || (1 / expected) == (1 / found)) return;
+      if (expected !== 0 || (1 / expected) === (1 / found)) return;
     } else if ((expected !== expected) && (found !== found)) {
       return;
     }
@@ -239,13 +250,19 @@ var assertUnreachable;
   };
 
 
+  assertEqualsDelta =
+      function assertEqualsDelta(expected, found, delta, name_opt) {
+    assertTrue(Math.abs(expected - found) <= delta, name_opt);
+  };
+
+
   assertArrayEquals = function assertArrayEquals(expected, found, name_opt) {
     var start = "";
     if (name_opt) {
       start = name_opt + " - ";
     }
     assertEquals(expected.length, found.length, start + "array length");
-    if (expected.length == found.length) {
+    if (expected.length === found.length) {
       for (var i = 0; i < expected.length; ++i) {
         assertEquals(expected[i], found[i],
                      start + "array element at index " + i);
@@ -265,7 +282,7 @@ var assertUnreachable;
 
   assertToStringEquals = function assertToStringEquals(expected, found,
                                                        name_opt) {
-    if (expected != String(found)) {
+    if (expected !== String(found)) {
       fail(expected, found, name_opt);
     }
   };
@@ -298,14 +315,14 @@ var assertUnreachable;
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
     var threwException = true;
     try {
-      if (typeof code == 'function') {
+      if (typeof code === 'function') {
         code();
       } else {
         eval(code);
       }
       threwException = false;
     } catch (e) {
-      if (typeof type_opt == 'function') {
+      if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
       }
       if (arguments.length >= 3) {
@@ -322,7 +339,7 @@ var assertUnreachable;
     if (!(obj instanceof type)) {
       var actualTypeName = null;
       var actualConstructor = Object.getPrototypeOf(obj).constructor;
-      if (typeof actualConstructor == "function") {
+      if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
       fail("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
@@ -334,7 +351,7 @@ var assertUnreachable;
 
    assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
-      if (typeof code == 'function') {
+      if (typeof code === 'function') {
         code();
       } else {
         eval(code);
@@ -353,5 +370,28 @@ var assertUnreachable;
     throw new MjsUnitAssertionError(message);
   };
 
-})();
+  var OptimizationStatusImpl = undefined;
 
+  var OptimizationStatus = function(fun, sync_opt) {
+    if (OptimizationStatusImpl === undefined) {
+      try {
+        OptimizationStatusImpl = new Function(
+            "fun", "sync", "return %GetOptimizationStatus(fun, sync);");
+      } catch (e) {
+        throw new Error("natives syntax not allowed");
+      }
+    }
+    return OptimizationStatusImpl(fun, sync_opt);
+  }
+
+  assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt) {
+    if (sync_opt === undefined) sync_opt = "";
+    assertTrue(OptimizationStatus(fun, sync_opt) !== 1, name_opt);
+  }
+
+  assertOptimized = function assertOptimized(fun, sync_opt, name_opt) {
+    if (sync_opt === undefined) sync_opt = "";
+    assertTrue(OptimizationStatus(fun, sync_opt) !== 2, name_opt);
+  }
+
+})();

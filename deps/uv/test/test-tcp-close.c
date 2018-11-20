@@ -77,12 +77,15 @@ static void connection_cb(uv_stream_t* server, int status) {
 
 
 static void start_server(uv_loop_t* loop, uv_tcp_t* handle) {
+  struct sockaddr_in addr;
   int r;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_tcp_init(loop, handle);
   ASSERT(r == 0);
 
-  r = uv_tcp_bind(handle, uv_ip4_addr("127.0.0.1", TEST_PORT));
+  r = uv_tcp_bind(handle, (const struct sockaddr*) &addr, 0);
   ASSERT(r == 0);
 
   r = uv_listen((uv_stream_t*)handle, 128, connection_cb);
@@ -96,9 +99,12 @@ static void start_server(uv_loop_t* loop, uv_tcp_t* handle) {
  * invoked when the handle is closed.
  */
 TEST_IMPL(tcp_close) {
-  uv_loop_t* loop;
+  struct sockaddr_in addr;
   uv_tcp_t tcp_server;
+  uv_loop_t* loop;
   int r;
+
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   loop = uv_default_loop();
 
@@ -110,7 +116,7 @@ TEST_IMPL(tcp_close) {
 
   r = uv_tcp_connect(&connect_req,
                      &tcp_handle,
-                     uv_ip4_addr("127.0.0.1", TEST_PORT),
+                     (const struct sockaddr*) &addr,
                      connect_cb);
   ASSERT(r == 0);
 

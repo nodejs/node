@@ -52,6 +52,8 @@ function child () {
                        pass: pass,
                        verify: pass2,
                        passMatch: (pass === pass2)}))
+        if (process.stdin.unref)
+          process.stdin.unref()
       })
     })
   })

@@ -3,19 +3,34 @@
 module.exports = view
 view.usage = "npm view pkg[@version] [<field>[.subfield]...]"
 
+var npm = require("./npm.js")
+  , readJson = require("read-package-json")
+  , log = require("npmlog")
+  , util = require("util")
+  , semver = require("semver")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , npa = require("npm-package-arg")
+  , path = require("path")
+
 view.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length <= 2) {
-    return registry.get("/-/short", cb)
+    // FIXME: there used to be registry completion here, but it stopped making
+    // sense somewhere around 50,000 packages on the registry
+    return cb()
   }
   // have the package, get the fields.
   var tag = npm.config.get("tag")
-  registry.get(opts.conf.argv.remain[2], function (er, d) {
+  mapToRegistry(opts.conf.argv.remain[2], npm.config, function (er, uri, auth) {
     if (er) return cb(er)
-    var dv = d.versions[d["dist-tags"][tag]]
-      , fields = []
-    d.versions = Object.keys(d.versions).sort(semver.compare)
-    fields = getFields(d).concat(getFields(dv))
-    cb(null, fields)
+
+    npm.registry.get(uri, { auth : auth }, function (er, d) {
+      if (er) return cb(er)
+      var dv = d.versions[d["dist-tags"][tag]]
+        , fields = []
+      d.versions = Object.keys(d.versions).sort(semver.compareLoose)
+      fields = getFields(d).concat(getFields(dv))
+      cb(null, fields)
+    })
   })
 
   function getFields (d, f, pref) {
@@ -27,11 +42,12 @@ view.completion = function (opts, cb) {
       var p = pref.concat(k).join(".")
       f.push(p)
       if (Array.isArray(d[k])) {
-        return d[k].forEach(function (val, i) {
+        d[k].forEach(function (val, i) {
           var pi = p + "[" + i + "]"
           if (val && typeof val === "object") getFields(val, f, [p])
           else f.push(pi)
         })
+        return
       }
       if (typeof d[k] === "object") getFields(d[k], f, [p])
     })
@@ -39,58 +55,95 @@ view.completion = function (opts, cb) {
   }
 }
 
-var npm = require("./npm.js")
-  , registry = npm.registry
-  , log = require("npmlog")
-  , util = require("util")
-  , semver = require("semver")
-
 function view (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
-  if (!args.length) return cb("Usage: "+view.usage)
+
+  if (!args.length) args = ["."]
+
   var pkg = args.shift()
-    , nv = pkg.split("@")
-    , name = nv.shift()
-    , version = nv.join("@") || npm.config.get("tag")
+    , nv = npa(pkg)
+    , name = nv.name
+    , local = (name === "." || !name)
 
-  if (name === ".") return cb(view.usage)
+  if (npm.config.get("global") && local) {
+    return cb(new Error("Cannot use view command in global mode."))
+  }
 
-  // get the data about this package
-  registry.get(name, 600, function (er, data) {
-    if (er) return cb(er)
-    if (data["dist-tags"].hasOwnProperty(version)) {
-      version = data["dist-tags"][version]
-    }
-    var results = []
-      , error = null
-      , versions = data.versions
-    data.versions = Object.keys(data.versions).sort(semver.compare)
-    if (!args.length) args = [""]
+  if (local) {
+    var dir = npm.prefix
+    readJson(path.resolve(dir, "package.json"), function (er, d) {
+      d = d || {}
+      if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
+      if (!d.name) return cb(new Error("Invalid package.json"))
 
-    // remove readme unless we asked for it
-    if (-1 === args.indexOf("readme")) {
-      delete data.readme
-    }
+      var p = d.name
+      nv = npa(p)
+      if (pkg && ~pkg.indexOf("@")) {
+        nv.rawSpec = pkg.split("@")[pkg.indexOf("@")]
+      }
 
-    Object.keys(versions).forEach(function (v) {
-      if (semver.satisfies(v, version)) args.forEach(function (args) {
-        // remove readme unless we asked for it
-        if (-1 === args.indexOf("readme")) {
-          delete versions[v].readme
-        }
-        results.push(showFields(data, versions[v], args))
-      })
+      fetchAndRead(nv, args, silent, cb)
     })
-    results = results.reduce(reducer, {})
-    var retval = results
+  } else {
+    fetchAndRead(nv, args, silent, cb)
+  }
+}
 
-    if (args.length === 1 && args[0] === "") {
-      retval = cleanBlanks(retval)
-      log.silly("cleanup", retval)
-    }
+function fetchAndRead (nv, args, silent, cb) {
+  // get the data about this package
+  var name = nv.name
+    , version = nv.rawSpec || npm.config.get("tag")
 
-    if (error || silent) cb(error, retval)
-    else printData(results, data._id, cb.bind(null, error, retval))
+  mapToRegistry(name, npm.config, function (er, uri, auth) {
+    if (er) return cb(er)
+
+    npm.registry.get(uri, { auth : auth }, function (er, data) {
+      if (er) return cb(er)
+      if (data["dist-tags"] && data["dist-tags"].hasOwnProperty(version)) {
+        version = data["dist-tags"][version]
+      }
+
+      if (data.time && data.time.unpublished) {
+        var u = data.time.unpublished
+        er = new Error("Unpublished by " + u.name + " on " + u.time)
+        er.statusCode = 404
+        er.code = "E404"
+        er.pkgid = data._id
+        return cb(er, data)
+      }
+
+
+      var results = []
+        , error = null
+        , versions = data.versions || {}
+      data.versions = Object.keys(versions).sort(semver.compareLoose)
+      if (!args.length) args = [""]
+
+      // remove readme unless we asked for it
+      if (-1 === args.indexOf("readme")) {
+        delete data.readme
+      }
+
+      Object.keys(versions).forEach(function (v) {
+        if (semver.satisfies(v, version, true)) args.forEach(function (args) {
+          // remove readme unless we asked for it
+          if (-1 === args.indexOf("readme")) {
+            delete versions[v].readme
+          }
+          results.push(showFields(data, versions[v], args))
+        })
+      })
+      results = results.reduce(reducer, {})
+      var retval = results
+
+      if (args.length === 1 && args[0] === "") {
+        retval = cleanBlanks(retval)
+        log.silly("cleanup", retval)
+      }
+
+      if (error || silent) cb(error, retval)
+      else printData(results, data._id, cb.bind(null, error, retval))
+    })
   })
 }
 
@@ -128,8 +181,9 @@ function search (data, fields, version, title) {
     , tail = fields
   while (!field && fields.length) field = tail.shift()
   fields = [field].concat(tail)
+  var o
   if (!field && !tail.length) {
-    var o = {}
+    o = {}
     o[version] = {}
     o[version][title] = data
     return o
@@ -149,7 +203,6 @@ function search (data, fields, version, title) {
       return search(data[0], fields, version, title)
     }
     var results = []
-      , res = null
     data.forEach(function (data, i) {
       var tl = title.length
         , newt = title.substr(0, tl-(fields.join(".").length) - 1)
@@ -159,9 +212,7 @@ function search (data, fields, version, title) {
     results = results.reduce(reducer, {})
     return results
   }
-  if (!data.hasOwnProperty(field)) {
-    return
-  }
+  if (!data.hasOwnProperty(field)) return undefined
   data = data[field]
   if (tail.length) {
     if (typeof data === "object") {
@@ -171,7 +222,7 @@ function search (data, fields, version, title) {
       return new Error("Not an object: "+data)
     }
   }
-  var o = {}
+  o = {}
   o[version] = {}
   o[version][title] = data
   return o
@@ -180,15 +231,15 @@ function search (data, fields, version, title) {
 function printData (data, name, cb) {
   var versions = Object.keys(data)
     , msg = ""
-    , showVersions = versions.length > 1
-    , showFields
+    , includeVersions = versions.length > 1
+    , includeFields
 
-  versions.forEach(function (v, i) {
+  versions.forEach(function (v) {
     var fields = Object.keys(data[v])
-    showFields = showFields || (fields.length > 1)
+    includeFields = includeFields || (fields.length > 1)
     fields.forEach(function (f) {
       var d = cleanup(data[v][f])
-      if (showVersions || showFields || typeof d !== "string") {
+      if (includeVersions || includeFields || typeof d !== "string") {
         d = cleanup(data[v][f])
         d = npm.config.get("json")
           ? JSON.stringify(d, null, 2)
@@ -196,10 +247,10 @@ function printData (data, name, cb) {
       } else if (typeof d === "string" && npm.config.get("json")) {
         d = JSON.stringify(d)
       }
-      if (f && showFields) f += " = "
-      if (d.indexOf("\n") !== -1) d = "\n" + d
-      msg += (showVersions ? name + "@" + v + " " : "")
-           + (showFields ? f : "") + d + "\n"
+      if (f && includeFields) f += " = "
+      if (d.indexOf("\n") !== -1) d = " \n" + d
+      msg += (includeVersions ? name + "@" + v + " " : "")
+           + (includeFields ? f : "") + d + "\n"
     })
   })
 
@@ -243,4 +294,3 @@ function unparsePerson (d) {
        + (d.email ? " <"+d.email+">" : "")
        + (d.url ? " ("+d.url+")" : "")
 }
-

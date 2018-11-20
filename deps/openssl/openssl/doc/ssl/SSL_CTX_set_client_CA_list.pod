@@ -35,7 +35,7 @@ the chosen B<ssl>, overriding the setting valid for B<ssl>'s SSL_CTX object.
 =head1 NOTES
 
 When a TLS/SSL server requests a client certificate (see
-B<SSL_CTX_set_verify_options()>), it sends a list of CAs, for which
+B<SSL_CTX_set_verify(3)>), it sends a list of CAs, for which
 it will accept certificates, to the client.
 
 This list must explicitly be set using SSL_CTX_set_client_CA_list() for
@@ -66,15 +66,15 @@ values:
 
 =over 4
 
-=item 1
-
-The operation succeeded.
-
-=item 0
+=item Z<>0
 
 A failure while manipulating the STACK_OF(X509_NAME) object occurred or
 the X509_NAME could not be extracted from B<cacert>. Check the error stack
 to find out the reason.
+
+=item Z<>1
+
+The operation succeeded.
 
 =back
 

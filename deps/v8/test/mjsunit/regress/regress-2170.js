@@ -55,4 +55,3 @@ try {
 } catch (e) {
   assertUnreachable();
 }
-

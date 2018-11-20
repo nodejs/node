@@ -138,4 +138,3 @@ test = new TestBase("Test with C++ frame above ChooseAnimal frame");
 exception_holder = {};
 assertEquals("Cat", test.ChooseAnimal(WrapInNativeCall(WrapInDebuggerCall(WrapInCatcher(test.ScriptChanger, exception_holder)))));
 assertTrue(!!exception_holder[0]);
-

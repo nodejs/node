@@ -4,7 +4,7 @@
   "dependencies": {
     "npm-test-single-file": {
       "version": "1.2.3",
-      "resolved": "https://raw.github.com/gist/1837112/index.js"
+      "resolved": "https://gist.github.com/isaacs/1837112/raw/9ef57a59fc22aeb1d1ca346b68826dcb638b8416/index.js"
     },
     "glob": {
       "version": "3.1.5",

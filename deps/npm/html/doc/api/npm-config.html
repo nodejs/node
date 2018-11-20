@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+  <title>npm-config</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="../../static/style.css">
+  <link rel="canonical" href="https://www.npmjs.org/doc/api/npm-config.html">
+  <script async=true src="../../static/toc.js"></script>
+
+  <body>
+    <div id="wrapper">
+
+<h1><a href="../api/npm-config.html">npm-config</a></h1> <p>Manage the npm configuration files</p>
+<h2 id="synopsis">SYNOPSIS</h2>
+<pre><code>npm.commands.config(args, callback)
+var val = npm.config.get(key)
+npm.config.set(key, val)
+</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>This function acts much the same way as the command-line version.  The first
+element in the array tells config what to do. Possible values are:</p>
+<ul>
+<li><p><code>set</code></p>
+<p>  Sets a config parameter.  The second element in <code>args</code> is interpreted as the
+  key, and the third element is interpreted as the value.</p>
+</li>
+<li><p><code>get</code></p>
+<p>  Gets the value of a config parameter. The second element in <code>args</code> is the
+  key to get the value of.</p>
+</li>
+<li><p><code>delete</code> (<code>rm</code> or <code>del</code>)</p>
+<p>  Deletes a parameter from the config. The second element in <code>args</code> is the
+  key to delete.</p>
+</li>
+<li><p><code>list</code> (<code>ls</code>)</p>
+<p>  Show all configs that aren&#39;t secret. No parameters necessary.</p>
+</li>
+<li><p><code>edit</code>:</p>
+<p>  Opens the config file in the default editor. This command isn&#39;t very useful
+  programmatically, but it is made available.</p>
+</li>
+</ul>
+<p>To programmatically access npm configuration settings, or set them for
+the duration of a program, use the <code>npm.config.set</code> and <code>npm.config.get</code>
+functions instead.</p>
+<h2 id="see-also">SEE ALSO</h2>
+<ul>
+<li><a href="../api/npm.html"><a href="../api/npm.html">npm(3)</a></a></li>
+</ul>
+
+</div>
+
+<table border=0 cellspacing=0 cellpadding=0 id=npmlogo>
+<tr><td style="width:180px;height:10px;background:rgb(237,127,127)" colspan=18>&nbsp;</td></tr>
+<tr><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td><td style="width:40px;height:10px;background:#fff" colspan=4>&nbsp;</td><td rowspan=4 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td><td colspan=6 style="width:60px;height:10px;background:#fff">&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=4>&nbsp;</td></tr>
+<tr><td colspan=2 style="width:20px;height:30px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=4 colspan=2>&nbsp;</td><td style="width:10px;height:20px;background:rgb(237,127,127)" rowspan=2>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:20px;height:10px;background:#fff" rowspan=3 colspan=2>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:#fff" rowspan=3>&nbsp;</td><td style="width:10px;height:10px;background:rgb(237,127,127)" rowspan=3>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff" rowspan=2>&nbsp;</td></tr>
+<tr><td style="width:10px;height:10px;background:#fff">&nbsp;</td></tr>
+<tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
+<tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
+</table>
+<p id="footer">npm-config &mdash; npm@2.9.0</p>
+

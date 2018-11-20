@@ -46,10 +46,10 @@ f(null);
 // Check called from eval.
 eval('f(null)');
 
-// Check called from builtin functions. Only show the initially called
-// (publicly exposed) builtin function, not it's internal helper functions.
-[Array.prototype.sort, Array.prototype.sort].sort(f);
+// Check called from strict builtin functions.
+[null, null].sort(f);
 
+// Check called from sloppy builtin functions.
 "abel".replace(/b/g, function h() {
    assertEquals(String.prototype.replace, h.caller);
 });

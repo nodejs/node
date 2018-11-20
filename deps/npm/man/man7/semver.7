@@ -1,0 +1,389 @@
+.TH "SEMVER" "7" "May 2015" "" ""
+.SH "NAME"
+\fBsemver\fR \- The semantic versioner for npm
+.SH Usage
+.P
+.RS 2
+.nf
+$ npm install semver
+
+semver\.valid('1\.2\.3') // '1\.2\.3'
+semver\.valid('a\.b\.c') // null
+semver\.clean('  =v1\.2\.3   ') // '1\.2\.3'
+semver\.satisfies('1\.2\.3', '1\.x || >=2\.5\.0 || 5\.0\.0 \- 7\.2\.3') // true
+semver\.gt('1\.2\.3', '9\.8\.7') // false
+semver\.lt('1\.2\.3', '9\.8\.7') // true
+.fi
+.RE
+.P
+As a command\-line utility:
+.P
+.RS 2
+.nf
+$ semver \-h
+
+Usage: semver <version> [<version> [\.\.\.]] [\-r <range> | \-i <inc> | \-\-preid <identifier> | \-l | \-rv]
+Test if version(s) satisfy the supplied range(s), and sort them\.
+
+Multiple versions or ranges may be supplied, unless increment
+option is specified\.  In that case, only a single version may
+be used, and it is incremented by the specified level
+
+Program exits successfully if any valid version satisfies
+all supplied ranges, and prints all satisfying versions\.
+
+If no versions are valid, or ranges are not satisfied,
+then exits failure\.
+
+Versions are printed in ascending order, so supplying
+multiple versions to the utility will just sort them\.
+.fi
+.RE
+.SH Versions
+.P
+A "version" is described by the \fBv2\.0\.0\fR specification found at
+http://semver\.org/\|\.
+.P
+A leading \fB"="\fR or \fB"v"\fR character is stripped off and ignored\.
+.SH Ranges
+.P
+A \fBversion range\fR is a set of \fBcomparators\fR which specify versions
+that satisfy the range\.
+.P
+A \fBcomparator\fR is composed of an \fBoperator\fR and a \fBversion\fR\|\.  The set
+of primitive \fBoperators\fR is:
+.RS 0
+.IP \(bu 2
+\fB<\fR Less than
+.IP \(bu 2
+\fB<=\fR Less than or equal to
+.IP \(bu 2
+\fB>\fR Greater than
+.IP \(bu 2
+\fB>=\fR Greater than or equal to
+.IP \(bu 2
+\fB=\fR Equal\.  If no operator is specified, then equality is assumed,
+so this operator is optional, but MAY be included\.
+
+.RE
+.P
+For example, the comparator \fB>=1\.2\.7\fR would match the versions
+\fB1\.2\.7\fR, \fB1\.2\.8\fR, \fB2\.5\.3\fR, and \fB1\.3\.9\fR, but not the versions \fB1\.2\.6\fR
+or \fB1\.1\.0\fR\|\.
+.P
+Comparators can be joined by whitespace to form a \fBcomparator set\fR,
+which is satisfied by the \fBintersection\fR of all of the comparators
+it includes\.
+.P
+A range is composed of one or more comparator sets, joined by \fB||\fR\|\.  A
+version matches a range if and only if every comparator in at least
+one of the \fB||\fR\-separated comparator sets is satisfied by the version\.
+.P
+For example, the range \fB>=1\.2\.7 <1\.3\.0\fR would match the versions
+\fB1\.2\.7\fR, \fB1\.2\.8\fR, and \fB1\.2\.99\fR, but not the versions \fB1\.2\.6\fR, \fB1\.3\.0\fR,
+or \fB1\.1\.0\fR\|\.
+.P
+The range \fB1\.2\.7 || >=1\.2\.9 <2\.0\.0\fR would match the versions \fB1\.2\.7\fR,
+\fB1\.2\.9\fR, and \fB1\.4\.6\fR, but not the versions \fB1\.2\.8\fR or \fB2\.0\.0\fR\|\.
+.SS Prerelease Tags
+.P
+If a version has a prerelease tag (for example, \fB1\.2\.3\-alpha\.3\fR) then
+it will only be allowed to satisfy comparator sets if at least one
+comparator with the same \fB[major, minor, patch]\fR tuple also has a
+prerelease tag\.
+.P
+For example, the range \fB>1\.2\.3\-alpha\.3\fR would be allowed to match the
+version \fB1\.2\.3\-alpha\.7\fR, but it would \fInot\fR be satisfied by
+\fB3\.4\.5\-alpha\.9\fR, even though \fB3\.4\.5\-alpha\.9\fR is technically "greater
+than" \fB1\.2\.3\-alpha\.3\fR according to the SemVer sort rules\.  The version
+range only accepts prerelease tags on the \fB1\.2\.3\fR version\.  The
+version \fB3\.4\.5\fR \fIwould\fR satisfy the range, because it does not have a
+prerelease flag, and \fB3\.4\.5\fR is greater than \fB1\.2\.3\-alpha\.7\fR\|\.
+.P
+The purpose for this behavior is twofold\.  First, prerelease versions
+frequently are updated very quickly, and contain many breaking changes
+that are (by the author's design) not yet fit for public consumption\.
+Therefore, by default, they are excluded from range matching
+semantics\.
+.P
+Second, a user who has opted into using a prerelease version has
+clearly indicated the intent to use \fIthat specific\fR set of
+alpha/beta/rc versions\.  By including a prerelease tag in the range,
+the user is indicating that they are aware of the risk\.  However, it
+is still not appropriate to assume that they have opted into taking a
+similar risk on the \fInext\fR set of prerelease versions\.
+.SS Prerelease Identifiers
+.P
+The method \fB\|\.inc\fR takes an additional \fBidentifier\fR string argument that
+will append the value of the string as a prerelease identifier:
+.P
+.RS 2
+.nf
+> semver\.inc('1\.2\.3', 'pre', 'beta')
+\|'1\.2\.4\-beta\.0'
+.fi
+.RE
+.P
+command\-line example:
+.P
+.RS 2
+.nf
+$ semver 1\.2\.3 \-i prerelease \-\-preid beta
+1\.2\.4\-beta\.0
+.fi
+.RE
+.P
+Which then can be used to increment further:
+.P
+.RS 2
+.nf
+$ semver 1\.2\.4\-beta\.0 \-i prerelease
+1\.2\.4\-beta\.1
+.fi
+.RE
+.SS Advanced Range Syntax
+.P
+Advanced range syntax desugars to primitive comparators in
+deterministic ways\.
+.P
+Advanced ranges may be combined in the same way as primitive
+comparators using white space or \fB||\fR\|\.
+.SS Hyphen Ranges \fBX\.Y\.Z \- A\.B\.C\fR
+.P
+Specifies an inclusive set\.
+.RS 0
+.IP \(bu 2
+\fB1\.2\.3 \- 2\.3\.4\fR := \fB>=1\.2\.3 <=2\.3\.4\fR
+
+.RE
+.P
+If a partial version is provided as the first version in the inclusive
+range, then the missing pieces are replaced with zeroes\.
+.RS 0
+.IP \(bu 2
+\fB1\.2 \- 2\.3\.4\fR := \fB>=1\.2\.0 <=2\.3\.4\fR
+
+.RE
+.P
+If a partial version is provided as the second version in the
+inclusive range, then all versions that start with the supplied parts
+of the tuple are accepted, but nothing that would be greater than the
+provided tuple parts\.
+.RS 0
+.IP \(bu 2
+\fB1\.2\.3 \- 2\.3\fR := \fB>=1\.2\.3 <2\.4\.0\fR
+.IP \(bu 2
+\fB1\.2\.3 \- 2\fR := \fB>=1\.2\.3 <3\.0\.0\fR
+
+.RE
+.SS X\-Ranges \fB1\.2\.x\fR \fB1\.X\fR \fB1\.2\.*\fR \fB*\fR
+.P
+Any of \fBX\fR, \fBx\fR, or \fB*\fR may be used to "stand in" for one of the
+numeric values in the \fB[major, minor, patch]\fR tuple\.
+.RS 0
+.IP \(bu 2
+\fB*\fR := \fB>=0\.0\.0\fR (Any version satisfies)
+.IP \(bu 2
+\fB1\.x\fR := \fB>=1\.0\.0 <2\.0\.0\fR (Matching major version)
+.IP \(bu 2
+\fB1\.2\.x\fR := \fB>=1\.2\.0 <1\.3\.0\fR (Matching major and minor versions)
+
+.RE
+.P
+A partial version range is treated as an X\-Range, so the special
+character is in fact optional\.
+.RS 0
+.IP \(bu 2
+\fB""\fR (empty string) := \fB*\fR := \fB>=0\.0\.0\fR
+.IP \(bu 2
+\fB1\fR := \fB1\.x\.x\fR := \fB>=1\.0\.0 <2\.0\.0\fR
+.IP \(bu 2
+\fB1\.2\fR := \fB1\.2\.x\fR := \fB>=1\.2\.0 <1\.3\.0\fR
+
+.RE
+.SS Tilde Ranges \fB~1\.2\.3\fR \fB~1\.2\fR \fB~1\fR
+.P
+Allows patch\-level changes if a minor version is specified on the
+comparator\.  Allows minor\-level changes if not\.
+.RS 0
+.IP \(bu 2
+\fB~1\.2\.3\fR := \fB>=1\.2\.3 <1\.(2+1)\.0\fR := \fB>=1\.2\.3 <1\.3\.0\fR
+.IP \(bu 2
+\fB~1\.2\fR := \fB>=1\.2\.0 <1\.(2+1)\.0\fR := \fB>=1\.2\.0 <1\.3\.0\fR (Same as \fB1\.2\.x\fR)
+.IP \(bu 2
+\fB~1\fR := \fB>=1\.0\.0 <(1+1)\.0\.0\fR := \fB>=1\.0\.0 <2\.0\.0\fR (Same as \fB1\.x\fR)
+.IP \(bu 2
+\fB~0\.2\.3\fR := \fB>=0\.2\.3 <0\.(2+1)\.0\fR := \fB>=0\.2\.3 <0\.3\.0\fR
+.IP \(bu 2
+\fB~0\.2\fR := \fB>=0\.2\.0 <0\.(2+1)\.0\fR := \fB>=0\.2\.0 <0\.3\.0\fR (Same as \fB0\.2\.x\fR)
+.IP \(bu 2
+\fB~0\fR := \fB>=0\.0\.0 <(0+1)\.0\.0\fR := \fB>=0\.0\.0 <1\.0\.0\fR (Same as \fB0\.x\fR)
+.IP \(bu 2
+\fB~1\.2\.3\-beta\.2\fR := \fB>=1\.2\.3\-beta\.2 <1\.3\.0\fR Note that prereleases in
+the \fB1\.2\.3\fR version will be allowed, if they are greater than or
+equal to \fBbeta\.2\fR\|\.  So, \fB1\.2\.3\-beta\.4\fR would be allowed, but
+\fB1\.2\.4\-beta\.2\fR would not, because it is a prerelease of a
+different \fB[major, minor, patch]\fR tuple\.
+
+.RE
+.SS Caret Ranges \fB^1\.2\.3\fR \fB^0\.2\.5\fR \fB^0\.0\.4\fR
+.P
+Allows changes that do not modify the left\-most non\-zero digit in the
+\fB[major, minor, patch]\fR tuple\.  In other words, this allows patch and
+minor updates for versions \fB1\.0\.0\fR and above, patch updates for
+versions \fB0\.X >=0\.1\.0\fR, and \fIno\fR updates for versions \fB0\.0\.X\fR\|\.
+.P
+Many authors treat a \fB0\.x\fR version as if the \fBx\fR were the major
+"breaking\-change" indicator\.
+.P
+Caret ranges are ideal when an author may make breaking changes
+between \fB0\.2\.4\fR and \fB0\.3\.0\fR releases, which is a common practice\.
+However, it presumes that there will \fInot\fR be breaking changes between
+\fB0\.2\.4\fR and \fB0\.2\.5\fR\|\.  It allows for changes that are presumed to be
+additive (but non\-breaking), according to commonly observed practices\.
+.RS 0
+.IP \(bu 2
+\fB^1\.2\.3\fR := \fB>=1\.2\.3 <2\.0\.0\fR
+.IP \(bu 2
+\fB^0\.2\.3\fR := \fB>=0\.2\.3 <0\.3\.0\fR
+.IP \(bu 2
+\fB^0\.0\.3\fR := \fB>=0\.0\.3 <0\.0\.4\fR
+.IP \(bu 2
+\fB^1\.2\.3\-beta\.2\fR := \fB>=1\.2\.3\-beta\.2 <2\.0\.0\fR Note that prereleases in
+the \fB1\.2\.3\fR version will be allowed, if they are greater than or
+equal to \fBbeta\.2\fR\|\.  So, \fB1\.2\.3\-beta\.4\fR would be allowed, but
+\fB1\.2\.4\-beta\.2\fR would not, because it is a prerelease of a
+different \fB[major, minor, patch]\fR tuple\.
+.IP \(bu 2
+\fB^0\.0\.3\-beta\fR := \fB>=0\.0\.3\-beta <0\.0\.4\fR  Note that prereleases in the
+\fB0\.0\.3\fR version \fIonly\fR will be allowed, if they are greater than or
+equal to \fBbeta\fR\|\.  So, \fB0\.0\.3\-pr\.2\fR would be allowed\.
+
+.RE
+.P
+When parsing caret ranges, a missing \fBpatch\fR value desugars to the
+number \fB0\fR, but will allow flexibility within that value, even if the
+major and minor versions are both \fB0\fR\|\.
+.RS 0
+.IP \(bu 2
+\fB^1\.2\.x\fR := \fB>=1\.2\.0 <2\.0\.0\fR
+.IP \(bu 2
+\fB^0\.0\.x\fR := \fB>=0\.0\.0 <0\.1\.0\fR
+.IP \(bu 2
+\fB^0\.0\fR := \fB>=0\.0\.0 <0\.1\.0\fR
+
+.RE
+.P
+A missing \fBminor\fR and \fBpatch\fR values will desugar to zero, but also
+allow flexibility within those values, even if the major version is
+zero\.
+.RS 0
+.IP \(bu 2
+\fB^1\.x\fR := \fB>=1\.0\.0 <2\.0\.0\fR
+.IP \(bu 2
+\fB^0\.x\fR := \fB>=0\.0\.0 <1\.0\.0\fR
+
+.RE
+.SH Functions
+.P
+All methods and classes take a final \fBloose\fR boolean argument that, if
+true, will be more forgiving about not\-quite\-valid semver strings\.
+The resulting output will always be 100% strict, of course\.
+.P
+Strict\-mode Comparators and Ranges will be strict about the SemVer
+strings that they parse\.
+.RS 0
+.IP \(bu 2
+\fBvalid(v)\fR: Return the parsed version, or null if it's not valid\.
+.IP \(bu 2
+\fBinc(v, release)\fR: Return the version incremented by the release
+type (\fBmajor\fR,   \fBpremajor\fR, \fBminor\fR, \fBpreminor\fR, \fBpatch\fR,
+\fBprepatch\fR, or \fBprerelease\fR), or null if it's not valid
+.RS 0
+.IP \(bu 2
+\fBpremajor\fR in one call will bump the version up to the next major
+version and down to a prerelease of that major version\.
+\fBpreminor\fR, and \fBprepatch\fR work the same way\.
+.IP \(bu 2
+If called from a non\-prerelease version, the \fBprerelease\fR will work the
+same as \fBprepatch\fR\|\. It increments the patch version, then makes a
+prerelease\. If the input version is already a prerelease it simply
+increments it\.
+
+.RE
+.IP \(bu 2
+\fBmajor(v)\fR: Return the major version number\.
+.IP \(bu 2
+\fBminor(v)\fR: Return the minor version number\.
+.IP \(bu 2
+\fBpatch(v)\fR: Return the patch version number\.
+
+.RE
+.SS Comparison
+.RS 0
+.IP \(bu 2
+\fBgt(v1, v2)\fR: \fBv1 > v2\fR
+.IP \(bu 2
+\fBgte(v1, v2)\fR: \fBv1 >= v2\fR
+.IP \(bu 2
+\fBlt(v1, v2)\fR: \fBv1 < v2\fR
+.IP \(bu 2
+\fBlte(v1, v2)\fR: \fBv1 <= v2\fR
+.IP \(bu 2
+\fBeq(v1, v2)\fR: \fBv1 == v2\fR This is true if they're logically equivalent,
+even if they're not the exact same string\.  You already know how to
+compare strings\.
+.IP \(bu 2
+\fBneq(v1, v2)\fR: \fBv1 != v2\fR The opposite of \fBeq\fR\|\.
+.IP \(bu 2
+\fBcmp(v1, comparator, v2)\fR: Pass in a comparison string, and it'll call
+the corresponding function above\.  \fB"==="\fR and \fB"!=="\fR do simple
+string comparison, but are included for completeness\.  Throws if an
+invalid comparison string is provided\.
+.IP \(bu 2
+\fBcompare(v1, v2)\fR: Return \fB0\fR if \fBv1 == v2\fR, or \fB1\fR if \fBv1\fR is greater, or \fB\-1\fR if
+\fBv2\fR is greater\.  Sorts in ascending order if passed to \fBArray\.sort()\fR\|\.
+.IP \(bu 2
+\fBrcompare(v1, v2)\fR: The reverse of compare\.  Sorts an array of versions
+in descending order when passed to \fBArray\.sort()\fR\|\.
+.IP \(bu 2
+\fBdiff(v1, v2)\fR: Returns difference between two versions by the release type
+(\fBmajor\fR, \fBpremajor\fR, \fBminor\fR, \fBpreminor\fR, \fBpatch\fR, \fBprepatch\fR, or \fBprerelease\fR),
+or null if the versions are the same\.
+
+.RE
+.SS Ranges
+.RS 0
+.IP \(bu 2
+\fBvalidRange(range)\fR: Return the valid range or null if it's not valid
+.IP \(bu 2
+\fBsatisfies(version, range)\fR: Return true if the version satisfies the
+range\.
+.IP \(bu 2
+\fBmaxSatisfying(versions, range)\fR: Return the highest version in the list
+that satisfies the range, or \fBnull\fR if none of them do\.
+.IP \(bu 2
+\fBgtr(version, range)\fR: Return \fBtrue\fR if version is greater than all the
+versions possible in the range\.
+.IP \(bu 2
+\fBltr(version, range)\fR: Return \fBtrue\fR if version is less than all the
+versions possible in the range\.
+.IP \(bu 2
+\fBoutside(version, range, hilo)\fR: Return true if the version is outside
+the bounds of the range in either the high or low direction\.  The
+\fBhilo\fR argument must be either the string \fB\|'>'\fR or \fB\|'<'\fR\|\.  (This is
+the function called by \fBgtr\fR and \fBltr\fR\|\.)
+
+.RE
+.P
+Note that, since ranges may be non\-contiguous, a version might not be
+greater than a range, less than a range, \fIor\fR satisfy a range!  For
+example, the range \fB1\.2 <1\.2\.9 || >2\.0\.0\fR would have a hole from \fB1\.2\.9\fR
+until \fB2\.0\.0\fR, so the version \fB1\.2\.10\fR would not be greater than the
+range (because \fB2\.0\.1\fR satisfies, which is higher), nor less than the
+range (since \fB1\.2\.8\fR satisfies, which is lower), and it also does not
+satisfy the range\.
+.P
+If you want to know if a version satisfies or does not satisfy a
+range, use the \fBsatisfies(version, range)\fR function\.
+

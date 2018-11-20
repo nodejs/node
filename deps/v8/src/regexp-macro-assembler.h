@@ -1,34 +1,11 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_H_
 
-#include "ast.h"
+#include "src/ast.h"
 
 namespace v8 {
 namespace internal {
@@ -53,8 +30,11 @@ class RegExpMacroAssembler {
   enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
+    kARM64Implementation,
     kMIPSImplementation,
+    kPPCImplementation,
     kX64Implementation,
+    kX87Implementation,
     kBytecodeImplementation
   };
 
@@ -63,13 +43,13 @@ class RegExpMacroAssembler {
     kCheckStackLimit = true
   };
 
-  explicit RegExpMacroAssembler(Zone* zone);
+  RegExpMacroAssembler(Isolate* isolate, Zone* zone);
   virtual ~RegExpMacroAssembler();
   // The maximal number of pushes between stack checks. Users must supply
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
   // at least once for every stack_limit() pushes that are executed.
   virtual int stack_limit_slack() = 0;
-  virtual bool CanReadUnaligned();
+  virtual bool CanReadUnaligned() = 0;
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
   // Continues execution from the position pushed on the top of the backtrack
@@ -87,17 +67,6 @@ class RegExpMacroAssembler {
                                       Label* on_equal) = 0;
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
-  // Check the current character for a match with a literal string.  If we
-  // fail to match then goto the on_failure label.  If check_eos is set then
-  // the end of input always fails.  If check_eos is clear then it is the
-  // caller's responsibility to ensure that the end of string is not hit.
-  // If the label is NULL then we should pop a backtrack address off
-  // the stack and go to that.
-  virtual void CheckCharacters(
-      Vector<const uc16> str,
-      int cp_offset,
-      Label* on_failure,
-      bool check_eos) = 0;
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
   virtual void CheckNotAtStart(Label* on_not_at_start) = 0;
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
@@ -189,11 +158,13 @@ class RegExpMacroAssembler {
     return global_mode_ == GLOBAL;
   }
 
+  Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
  private:
   bool slow_safe_compiler_;
   bool global_mode_;
+  Isolate* isolate_;
   Zone* zone_;
 };
 
@@ -203,7 +174,7 @@ class RegExpMacroAssembler {
 class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
  public:
   // Type of input string to generate code for.
-  enum Mode { ASCII = 1, UC16 = 2 };
+  enum Mode { LATIN1 = 1, UC16 = 2 };
 
   // Result of calling generated native RegExp code.
   // RETRY: Something significant changed during execution, and the matching
@@ -216,7 +187,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   //        capture positions.
   enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
 
-  explicit NativeRegExpMacroAssembler(Zone* zone);
+  NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone);
   virtual ~NativeRegExpMacroAssembler();
   virtual bool CanReadUnaligned();
 

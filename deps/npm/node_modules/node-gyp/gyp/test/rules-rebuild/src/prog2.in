@@ -1,7 +1,0 @@
-#include <stdio.h>
-#include "prog2.h"
-
-void prog2(void)
-{
-  printf("Hello from %s!\n", NAME);
-}

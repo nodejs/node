@@ -33,12 +33,12 @@ static uv_connect_t connect_req;
 static unsigned long ticks; /* event loop ticks */
 
 
-static void check_cb(uv_check_t* handle, int status) {
+static void check_cb(uv_check_t* handle) {
   ticks++;
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   uv_close((uv_handle_t*) &check_handle, NULL);
   uv_close((uv_handle_t*) &timer_handle, NULL);
   uv_close((uv_handle_t*) &server_handle, NULL);
@@ -47,14 +47,14 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
+static void alloc_cb(uv_handle_t* handle,
+                     size_t suggested_size,
+                     uv_buf_t* buf) {
   ASSERT(0 && "alloc_cb should not have been called");
-  /* Satisfy the compiler. */
-  return uv_buf_init(NULL, 0);
 }
 
 
-static void read_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+static void read_cb(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
   ASSERT(0 && "read_cb should not have been called");
 }
 
@@ -88,7 +88,7 @@ TEST_IMPL(tcp_unexpected_read) {
   struct sockaddr_in addr;
   uv_loop_t* loop;
 
-  addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
   loop = uv_default_loop();
 
   ASSERT(0 == uv_timer_init(loop, &timer_handle));
@@ -98,9 +98,12 @@ TEST_IMPL(tcp_unexpected_read) {
   ASSERT(0 == uv_tcp_init(loop, &server_handle));
   ASSERT(0 == uv_tcp_init(loop, &client_handle));
   ASSERT(0 == uv_tcp_init(loop, &peer_handle));
-  ASSERT(0 == uv_tcp_bind(&server_handle, addr));
+  ASSERT(0 == uv_tcp_bind(&server_handle, (const struct sockaddr*) &addr, 0));
   ASSERT(0 == uv_listen((uv_stream_t*) &server_handle, 1, connection_cb));
-  ASSERT(0 == uv_tcp_connect(&connect_req, &client_handle, addr, connect_cb));
+  ASSERT(0 == uv_tcp_connect(&connect_req,
+                             &client_handle,
+                             (const struct sockaddr*) &addr,
+                             connect_cb));
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   /* This is somewhat inexact but the idea is that the event loop should not

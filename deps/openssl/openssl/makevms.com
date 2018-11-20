@@ -242,7 +242,7 @@ $ WRITE H_FILE ""
 $ WRITE H_FILE "#ifndef OPENSSL_SYS_VMS"
 $ WRITE H_FILE "# define OPENSSL_SYS_VMS"
 $ WRITE H_FILE "#endif"
-$
+$!
 $! One of the best way to figure out what the list should be is to do
 $! the following on a Unix system:
 $!   grep OPENSSL_NO_ crypto/*/*.h ssl/*.h engines/*.h engines/*/*.h|grep ':# *if'|sed -e 's/^.*def //'|sort|uniq
@@ -274,6 +274,7 @@ $ CONFIG_LOGICALS := AES,-
 		     GMP,-
 		     GOST,-
 		     HASH_COMP,-
+		     HEARTBEATS,-
 		     HMAC,-
 		     IDEA,-
 		     JPAKE,-
@@ -283,6 +284,7 @@ $ CONFIG_LOGICALS := AES,-
 		     MD4,-
 		     MD5,-
 		     MDC2,-
+		     NEXTPROTONEG,-
 		     OCSP,-
 		     PSK,-
 		     RC2,-
@@ -291,6 +293,7 @@ $ CONFIG_LOGICALS := AES,-
 		     RFC3779,-
 		     RIPEMD,-
 		     RSA,-
+		     SCTP,-
 		     SEED,-
 		     SHA,-
 		     SHA0,-
@@ -301,6 +304,7 @@ $ CONFIG_LOGICALS := AES,-
 		     SRP,-
 		     SSL2,-
 		     SSL_INTERN,-
+		     SSL_TRACE,-
 		     STACK,-
 		     STATIC_ENGINE,-
 		     STDIO,-
@@ -340,7 +344,13 @@ $ CONFIG_DISABLE_RULES := RIJNDAEL/AES;-
 			  DH/GOST;-
 			  /STATIC_ENGINE;-
 			  /KRB5;-
-			  /EC_NISTP_64_GCC_128
+			  /EC_NISTP_64_GCC_128;-
+			  /GMP;-
+			  /MD2;-
+			  /RC5;-
+			  /RFC3779;-
+			  /SCTP;-
+			  /SSL_TRACE
 $ CONFIG_ENABLE_RULES := ZLIB_DYNAMIC/ZLIB;-
 			 /THREADS
 $
@@ -506,6 +516,7 @@ $ WRITE H_FILE "#define OPENSSL_NO_SETVBUF_IONBF"
 $ WRITE H_FILE "/* STCP support comes with TCPIP 5.7 ECO 2 "
 $ WRITE H_FILE " * enable on newer systems / 2012-02-24 arpadffy */"
 $ WRITE H_FILE "#define OPENSSL_NO_SCTP"
+$ WRITE H_FILE "#define OPENSSL_NO_LIBUNBOUND"
 $ WRITE H_FILE ""
 $!
 $! Add in the common "crypto/opensslconf.h.in".
@@ -640,9 +651,10 @@ $   if (CFLAGS .nes. "") then CFLAGS = CFLAGS+ " "
 $   CFLAGS = CFLAGS+ "/DEFINE=ZLIB"
 $ endif
 $! 
-$ WRITE H_FILE "#define CFLAGS ""''CFLAGS'"""
-$ WRITE H_FILE "#define PLATFORM ""VMS ''ARCHD' ''VMS_VERSION'"""
-$ WRITE H_FILE "#define DATE ""''TIME'"" "
+$ WRITE H_FILE "#define CFLAGS cflags"
+$ WRITE H_FILE "static const char cflags[] = ""compiler: ''CFLAGS'"";"
+$ WRITE H_FILE "#define PLATFORM ""platform: VMS ''ARCHD' ''VMS_VERSION'"""
+$ WRITE H_FILE "#define DATE ""built on: ''TIME'"" "
 $!
 $! Close The [.CRYPTO._xxx]BUILDINF.H File.
 $!
@@ -706,8 +718,8 @@ $!
 $ SDIRS := , -
    'ARCHD', -
    OBJECTS, -
-   MD2, MD4, MD5, SHA, MDC2, HMAC, RIPEMD, WHRLPOOL, -
-   DES, AES, RC2, RC4, RC5, IDEA, BF, CAST, CAMELLIA, SEED, MODES, -
+   MD4, MD5, SHA, MDC2, HMAC, RIPEMD, WHRLPOOL, -
+   DES, AES, RC2, RC4, IDEA, BF, CAST, CAMELLIA, SEED, MODES, -
    BN, EC, RSA, DSA, ECDSA, DH, ECDH, DSO, ENGINE, -
    BUFFER, BIO, STACK, LHASH, RAND, ERR, -
    EVP, ASN1, PEM, X509, X509V3, CONF, TXT_DB, PKCS7, PKCS12, -
@@ -818,9 +830,10 @@ $ @CRYPTO-LIB LIBRARY 'DEBUGGER' "''COMPILER'" "''TCPIP_TYPE'" -
    "''ISSEVEN'" "''BUILDPART'" "''POINTER_SIZE'" "''ZLIB'"
 $!
 $! Build The [.xxx.EXE.CRYPTO]*.EXE Test Applications.
-$!  
-$ @CRYPTO-LIB APPS 'DEBUGGER' "''COMPILER'" "''TCPIP_TYPE'" -
-   "''ISSEVEN'" "''BUILDPART'" "''POINTER_SIZE'" "''ZLIB'"
+$!
+$!!! DISABLED, as these test programs lack any support
+$!!!$ @CRYPTO-LIB APPS 'DEBUGGER' "''COMPILER'" "''TCPIP_TYPE'" -
+$!!!   "''ISSEVEN'" "''BUILDPART'" "''POINTER_SIZE'" "''ZLIB'"
 $!
 $! Go Back To The Main Directory.
 $!
@@ -1009,9 +1022,9 @@ $!
 $!    Tell The User We Don't Know What They Want.
 $!
 $     WRITE SYS$OUTPUT ""
-$     WRITE SYS$OUTPUT "USAGE:   @MAKEVMS.COM [Target] [Pointer size] [Debug option] <Compiler>"
+$     WRITE SYS$OUTPUT "USAGE:   @MAKEVMS.COM [Target] [Pointer size] [Debug option] <Compiler> <TCP/IP library>"
 $     WRITE SYS$OUTPUT ""
-$     WRITE SYS$OUTPUT "Example: @MAKEVMS.COM ALL """" NODEBUG "
+$     WRITE SYS$OUTPUT "Example: @MAKEVMS.COM ALL """" NODEBUG DECC TCPIP"
 $     WRITE SYS$OUTPUT ""
 $     WRITE SYS$OUTPUT "The Target ",P1," Is Invalid.  The Valid Target Options Are:"
 $     WRITE SYS$OUTPUT ""

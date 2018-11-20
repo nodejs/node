@@ -1,3 +1,4473 @@
+2015-02-19: Version 4.2.77
+
+        Make generator constructors configurable (issue 3902).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-19: Version 4.2.76
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-18: Version 4.2.75
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-18: Version 4.2.74
+
+        Correctly propagate terminate exception in TryCall (issue 3892).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-17: Version 4.2.73
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-17: Version 4.2.72
+
+        [turbofan] Fix control reducer with re-reducing branches (Chromium issue
+        458876).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-16: Version 4.2.71
+
+        Implement ES6 rest parameters (issue 2159).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-13: Version 4.2.70
+
+        new classes: no longer experimental (issue 3834).
+
+        Make it possible to define arguments for CompileFunctionInContext.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-12: Version 4.2.69
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-11: Version 4.2.68
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-11: Version 4.2.67
+
+        Throw on range error when creating a string via API (issue 3853).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-11: Version 4.2.66
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-10: Version 4.2.65
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-10: Version 4.2.64
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-10: Version 4.2.63
+
+        Introduce a compile method that takes context extensions (Chromium issue
+        456192).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-09: Version 4.2.62
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-09: Version 4.2.61
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-07: Version 4.2.60
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-07: Version 4.2.59
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-07: Version 4.2.58
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-06: Version 4.2.57
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-06: Version 4.2.56
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-06: Version 4.2.55
+
+        Protect against uninitialized lexical variables at top-level (Chromium
+        issue 452510).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-05: Version 4.2.54
+
+        Fix HConstant(double, ...) constructor (issue 3865).
+
+        Add NativeWeakMap to v8.h (Chromium issue 437416).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-05: Version 4.2.53
+
+        Fix issue with multiple properties and emit store (issue 3856).
+
+        Class methods should be non enumerable (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-04: Version 4.2.52
+
+        Add WeakKeyMap to v8.h (Chromium issue 437416).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-04: Version 4.2.51
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-03: Version 4.2.50
+
+        Reset inlining limits due to overly long compilation times in
+        Speedometer, Dart2JS (Chromium issue 454625).
+
+        Add WeakMap to v8.h (Chromium issue 437416).
+
+        [V8] Added line, column and script symbols for SyntaxError (Chromium
+        issue 443140).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-03: Version 4.2.49
+
+        Compute the same hash for all NaN values (issue 3859).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-03: Version 4.2.48
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-02: Version 4.2.47
+
+        Check global object behind global proxy for extensibility (Chromium
+        issue 454091).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-02: Version 4.2.46
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-02: Version 4.2.45
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-01: Version 4.2.44
+
+        Performance and stability improvements on all platforms.
+
+
+2015-02-01: Version 4.2.43
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-31: Version 4.2.42
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-31: Version 4.2.41
+
+        Layout descriptor sharing issue fixed (issue 3832, Chromium issue
+        437713).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-30: Version 4.2.40
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-30: Version 4.2.38
+
+        Move object literal checking into checker classes (issue 3819).
+
+        [turbofan] Fix OSR compilations of for-in.
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-30: Version 4.2.37
+
+        Do not create unresolved variables when parsing arrow functions lazily
+        (issue 3501).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-29: Version 4.2.36
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-29: Version 4.2.35
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-28: Version 4.2.34
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-28: Version 4.2.33
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-27: Version 4.2.32
+
+        Do not generalize field representations when making elements kind or
+        observed transition (Chromium issue 448711).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-27: Version 4.2.31
+
+        [x86] Disable AVX unless the operating system explicitly claims to
+        support it (issue 3846, Chromium issue 452033).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-27: Version 4.2.30
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-26: Version 4.2.29
+
+        MIPS: Fixed Hydrogen environment handling for mul-i ARM and ARM64 (issue
+        451322).
+
+        [turbofan] Simplify reduction if IfTrue and IfFalse and fix bugs
+        (Chromium issue 451958).
+
+        Add HeapNumber fast path to v8::Value::{Uint,Int}32Value() (Chromium
+        issue 446097).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-26: Version 4.2.28
+
+        Fixed Hydrogen environment handling for mul-i on ARM and ARM64 (issue
+        451322).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-25: Version 4.2.27
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-24: Version 4.2.26
+
+        ES6 Array.prototype.toString falls back on Object.prototype.toString if
+        method "join" is not callable (issue 3793).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.25
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.24
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.23
+
+        [x86] Blacklist AVX for Windows versions before 6.1 (Windows 7) (issue
+        3846).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-23: Version 4.2.22
+
+        Fix run-time ARMv6 detection (issue 3844).
+
+        Support concatenating with zero-size arrays with DICTIONARY_ELEMENTS in
+        Runtime_ArrayConcat (Chromium issue 450895).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-22: Version 4.2.21
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-22: Version 4.2.20
+
+        Add a pretty printer to improve the error message non-function calls
+        (Chromium issue 259443).
+
+        Remove implicit uint8_t to char cast in string replace (Chromium issue
+        446196).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-21: Version 4.2.19
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-20: Version 4.2.18
+
+        Fix issue with __proto__ when using ES6 object literals (issue 3818).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-20: Version 4.2.17
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-20: Version 4.2.16
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-19: Version 4.2.15
+
+        Unobscurified OFStream (Chromium issue 448102).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-19: Version 4.2.14
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-18: Version 4.2.13
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-18: Version 4.2.12
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-17: Version 4.2.11
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-16: Version 4.2.10
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-16: Version 4.2.9
+
+        MIPS: ES6 computed property names (issue 3754).
+
+        ES6 computed property names (issue 3754).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.8
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.7
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-15: Version 4.2.5
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.4
+
+        Auto-generate v8 version based on tags (Chromium issue 446166).
+
+        Remove support for signatures with arguments.
+
+        Add proper support for proxies to HType (Chromium issue 448730).
+
+        [turbofan] Fix truncation/representation sloppiness wrt. bool/bit (issue
+        3812).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.3
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.2
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-14: Version 4.2.1
+
+        Map -0 to integer 0 for typed array constructors (Chromium issue
+        447756).
+
+        Introduce a gyp variable to control whether or not slow dchecks are on.
+
+        Correctly setup the freelist of the coderange on Win64 (Chromium issue
+        447555).
+
+        Fast forward V8 to version 4.2.
+
+        Remove "extra checks".
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-08: Version 3.32.7
+
+        Correctly parse line ends for debugging (issue 2825).
+
+        Fixed printing during DCE (issue 3679).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-08: Version 3.32.6
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-08: Version 3.32.5
+
+        Correct handling of exceptions occured during getting of exception stack
+        trace (Chromium issue 444805).
+
+        Fix bug in Runtime_CompileOptimized resulting from stack overflow
+        (Chromium issue 446774).
+
+        Turn on job-based recompilation (issue 3608).
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-07: Version 3.32.4
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-07: Version 3.32.3
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-07: Version 3.32.2
+
+        Performance and stability improvements on all platforms.
+
+
+2015-01-07: Version 3.32.1
+
+        [turbofan] Don't crash when typing load from a Uint8ClampedArray
+        (Chromium issue 446156).
+
+        [turbofan] Truncation of Bit/Word8/16 to Word32 is a no-op (Chromium
+        issue 445859).
+
+        [x64] Rearrange code for OOB integer loads (Chromium issue 445858).
+
+        Fix %NeverOptimizeFunction() intrinsic (Chromium issue 445732).
+
+        [turbofan] Fix invalid bounds check with overflowing offset (Chromium
+        issue 445267).
+
+        [turbofan] Raise max virtual registers and call parameter limit (issue
+        3786).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-23: Version 3.31.74
+
+        [turbofan] Turn DCHECK for fixed slot index into a CHECK (Chromium issue
+        444681).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-23: Version 3.31.73
+
+        [turbofan] Fix missing ChangeUint32ToUint64 in lowering of LoadBuffer
+        (Chromium issue 444695).
+
+        Enable the embedder to specify what kind of context was disposed.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-22: Version 3.31.72
+
+        [turbofan] Correctify lowering of Uint8ClampedArray buffer access
+        (Chromium issue 444508).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-20: Version 3.31.71
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-20: Version 3.31.70
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-20: Version 3.31.69
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-19: Version 3.31.68
+
+        [turbofan] Fix unsafe out-of-bounds check for checked loads/stores
+        (Chromium issue 443744).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-19: Version 3.31.67
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-19: Version 3.31.66
+
+        Ship ES6 template literals (issue 3230).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-18: Version 3.31.65
+
+        ES6 template literals should not use legacy octal strings (issue 3736).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-18: Version 3.31.64
+
+        Fixed -fsanitize=float-cast-overflow problems (issue 3773).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-18: Version 3.31.63
+
+        ES6 computed property names (issue 3754).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-17: Version 3.31.62
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-17: Version 3.31.61
+
+        ES6: Update unscopables to match spec (issue 3632).
+
+        ES6 computed property names (issue 3754).
+
+        More -fsanitize=vptr fixes (Chromium issue 441099).
+
+        [turbofan] Cache conversions inserted during typed lowering (issue
+        3763).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-16: Version 3.31.60
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-16: Version 3.31.59
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-16: Version 3.31.58
+
+        Ship ES6 classes (issue 3330).
+
+        ES6 computed property names (issue 3754).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-12: Version 3.31.57
+
+        Consistently use only one of virtual/OVERRIDE/FINAL (issue 3753).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-12: Version 3.31.56
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-12: Version 3.31.55
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-11: Version 3.31.54
+
+        Implement Array.from() (issue 3336).
+
+        move v8_use_external_startup_data to standalone.gypi (Chromium issue
+        421063).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-11: Version 3.31.53
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-11: Version 3.31.52
+
+        Ship ES6 block scoping (issue 2198).
+
+        Optimize Object.seal and Object.preventExtensions (issue 3662, Chromium
+        issue 115960).
+
+        Add Array.prototype.includes (issue 3575).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-10: Version 3.31.51
+
+        [x64] Fix optimization for certain checked load/stores (Chromium issue
+        439743).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.50
+
+        Temporarily restore make dependencies.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.49
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.48
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-09: Version 3.31.47
+
+        Temporarily restore make dependencies.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-08: Version 3.31.46
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-08: Version 3.31.45
+
+        Update all DEPS to match chromium's DEPS at edb488e.
+
+        Turn on DCHECKs and other debugging code if dcheck_always_on is 1 (issue
+        3731).
+
+        Optimize GetPrototype.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-05: Version 3.31.44
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-04: Version 3.31.43
+
+        ES6 template literals: Fix issue with template after rbrace (issue
+        3734).
+
+        Stage ES6 template literals (issue 3230).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-04: Version 3.31.42
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-04: Version 3.31.41
+
+        Simplify template literal raw string creation (issue 3710).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-03: Version 3.31.40
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-03: Version 3.31.39
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-03: Version 3.31.38
+
+        Stage ES6 classes and object literal extensions (issue 3330).
+
+        Fixed environment handling for LFlooringDivI on ARM (Chromium issue
+        437765).
+
+        Add GetIdentityHash to v8::Name object API (Chromium issue 437416).
+
+        Set V8_CC_GNU or V8_CC_MSVC for clang in gcc / cl mode (Chromium issue
+        82385).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-02: Version 3.31.37
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-02: Version 3.31.36
+
+        Set V8_CC_GNU or V8_CC_MSVC for clang in gcc / cl mode (Chromium issue
+        82385).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-02: Version 3.31.35
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.34
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.33
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.32
+
+        Performance and stability improvements on all platforms.
+
+
+2014-12-01: Version 3.31.31
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-29: Version 3.31.30
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.29
+
+        Stage @@toStringTag (--harmony-tostring).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.28
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.27
+
+        Ship harmony-strings.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-28: Version 3.31.26
+
+        Abort optimization in corner case (Chromium issue 436893).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-26: Version 3.31.25
+
+        Stage ES6 block scoping (issue 2198).
+
+        Introduce legacy const slots in correct context (Chromium issue 410030).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-26: Version 3.31.24
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-25: Version 3.31.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-25: Version 3.31.22
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-24: Version 3.31.21
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-24: Version 3.31.20
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-22: Version 3.31.19
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-21: Version 3.31.18
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-21: Version 3.31.17
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-21: Version 3.31.16
+
+        Cache template literal callSiteObj (issue 3230).
+
+        Rename String.prototype.contains to 'includes'.
+
+        Reserve code range block for evacuation (Chromium issue 430118).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-20: Version 3.31.15
+
+        Rename String.prototype.contains to 'includes'.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-19: Version 3.31.14
+
+        Remove Weak{Map,Set}.prototype.clear.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-19: Version 3.31.13
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-19: Version 3.31.12
+
+        Classes: Expand test to cover strict runtime behavior (issue 3330).
+
+        v8::String::Concat must not throw (Chromium issue 420240).
+
+        Fix disabling all break points from within the debug event callback
+        (Chromium issue 432493).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-18: Version 3.31.11
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-17: Version 3.31.10
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-17: Version 3.31.9
+
+        Expose internal properties of map/set iterators via mirrors.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-17: Version 3.31.8
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-15: Version 3.31.7
+
+        Classes: Add support for stepping through default constructors (issue
+        3674).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.6
+
+        Fix desugaring of let bindings in for loops to handle continue properly
+        (issue 3683).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.5
+
+        Classes: Implement correct name binding (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.4
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-14: Version 3.31.3
+
+        Classes: Cleanup default constructor flag.
+
+        Soft fail for invalid cache data.
+
+        Implement .of() on typed arrays (issue 3578).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-13: Version 3.31.2
+
+        MIPS: Leaving a generator via an exception causes it to close (issue
+        3096).
+
+        MIPS: ES6: Add support for super in object literals (issue 3571).
+
+        Increase the target new space size to the max new space size (issue
+        3626).
+
+        Leaving a generator via an exception causes it to close (issue 3096).
+
+        Correctly compute line numbers in functions from the function
+        constructor (Chromium issue 109362).
+
+        Rename v8::Exception::GetMessage to CreateMessage.
+
+        Classes: Add support for arguments in default constructor (issue 3672).
+
+        ES6: Add support for super in object literals (issue 3571).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-12: Version 3.31.1
+
+        Fix has_constant_parameter_count() confusion in LReturn (Chromium issue
+        431602).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-05: Version 3.30.33
+
+        `1..isPrototypeOf.call(null)` should return false, not throw TypeError
+        (issue 3483).
+
+        Refactor ObjectGetOwnPropertyKeys to accept bitmask rather than boolean
+        (issue 3549).
+
+        Add debug mirror support for ES6 Map/Set iterators (Chromium issue
+        427868).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-04: Version 3.30.30
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-02: Version 3.30.27
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-02: Version 3.30.26
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-01: Version 3.30.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-11-01: Version 3.30.24
+
+        Ensure we don't try to inline raw access to indexed interceptor
+        receivers (Chromium issue 419220).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-31: Version 3.30.23
+
+        Introduce v8::Exception::GetMessage to find location of an error object
+        (Chromium issue 427954).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-30: Version 3.30.22
+
+        MIPS: Classes: Add super support in methods and accessors (issue 3330).
+
+        Classes: Add super support in methods and accessors (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-29: Version 3.30.21
+
+        MIPS: Classes: Add basic support for properties (issue 3330).
+
+        Classes: Add more tests for prototype edge cases (Chromium issue 3655).
+
+        Classes: Add test for method prototype (issue 3330).
+
+        Get stack trace for uncaught exceptions/promise rejections from the
+        simple stack when available.
+
+        Classes: Add basic support for properties (issue 3330).
+
+        Allow duplicate property names in classes (issue 3570).
+
+        Windows: use SystemTimeToTzSpecificLocalTime instead of localtime_s
+        (Chromium issue 417640).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-28: Version 3.30.20
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-27: Version 3.30.19
+
+        Check string literals with escapes in PreParserTraits::GetSymbol()
+        (issue 3606).
+
+        only define ARRAYSIZE_UNSAFE for NaCl builds (Chromium issue 405225).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-24: Version 3.30.18
+
+        Narrow cases where Sparse/Smart versions of Array methods are used
+        (issues 2615, 3612, 3621).
+
+        Shrink new space in idle notification (Chromium issue 424423).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-23: Version 3.30.17
+
+        ARM64: Fix stack manipulation (Chromium issue 425585).
+
+        Speed up creation of Objects whose prototype has dictionary elements
+        (Chromium issue 422754).
+
+        Enable libstdc++ debug mode in debug builds (issue 3638).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-22: Version 3.30.16
+
+        Remove v8stdint.h, it doesn't serve a purpose anymore.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-21: Version 3.30.15
+
+        Avoid the Marsaglia effect in 3D (Chromium issue 423311).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-20: Version 3.30.14
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-17: Version 3.30.13
+
+        Don't expose Array.prototype.values as it breaks webcompat (Chromium
+        issue 409858).
+
+        Fix break location calculation (Chromium issue 419663).
+
+        Enable libstdc++ debug mode in debug builds (issue 3638).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-17: Version 3.30.12
+
+        Implement .forEach() on typed arrays (issue 3578).
+
+        Introduce v8::Exception::GetStackTrace API method.
+
+        Remove SmartMove, bringing Array methods further into spec compliance
+        (issue 2615).
+
+        Convert argument toObject() in Object.getOwnPropertyNames/Descriptors
+        (issue 3443).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-15: Version 3.30.11
+
+        Array.prototype.{every, filter, find, findIndex, forEach, map, some}:
+        Use fresh primitive wrapper for calls (issue 3536).
+
+        Correctly expand literal buffer for surrogate pairs (Chromium issue
+        423212).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-15: Version 3.30.10
+
+        Squeeze the layout of various AST node types (Chromium issue 417697).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-14: Version 3.30.9
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-13: Version 3.30.8
+
+        AST nodes have at most one bailout/typefeedback ID now, saving lots of
+        memory (Chromium issue 417697).
+
+        Allow identifier code points from supplementary multilingual planes
+        (issue 3617).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-10: Version 3.30.7
+
+        Fix computation of UTC time from local time at DST change points (issue
+        3116, Chromium issues 415424, 417640).
+
+        Convert `obj` ToObject in Object.keys() (issue 3587).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-09: Version 3.30.6
+
+        Update unicode to 7.0.0 (issue 2892).
+
+        Classes: Add support for toString (issue 3330).
+
+        Don't enable WPO on Win64 and require Server 2003 / x64 for win64
+        (Chromium issue 421363).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-08: Version 3.30.5
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-08: Version 3.30.4
+
+        This uses a runtime function to set up the the constructor and its
+        prototype (issue 3330).
+
+        Remove PersistentBase::ClearAndLeak.
+
+        Squeeze the layout of variable proxy nodes (Chromium issue 417697).
+
+        Add MonotonicallyIncreasingTime to V8 Platform (Chromium issue 417668).
+
+        Fix representation of HLoadRoot (Chromium issue 419036).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-03: Version 3.30.3
+
+        Removed the Isolate* field from literal nodes (Chromium issue 417697).
+
+        Squeeze the layout of expression nodes a bit (Chromium issue 417697).
+
+        Merged FeedbackSlotInterface into AstNode, removing the need for a 2nd
+        vtable (Chromium issue 417697).
+
+        Extend CPU profiler with mapping ticks to source lines.
+
+        Remove support for parallel sweeping.
+
+        Introduce v8::Object::GetIsolate().
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-02: Version 3.30.2
+
+        Fix Hydrogen's BuildStore() (Chromium issue 417508).
+
+        Move unit tests to test/unittests (issue 3489).
+
+        Changes to ALLOW_UNUSED to match upcoming changes to the Chromium trunk:
+        * Eliminate usage of ALLOW_UNUSED to define COMPILE_ASSERT and just use
+        static_assert() in all cases now that all platforms build with C++11. *
+        Convert remaining uses of ALLOW_UNUSED to ALLOW_UNUSED_TYPE to match how
+        Chromium will be splitting this functionality.  (In Chromium we'll have
+        both   ALLOW_UNUSED_TYPE and ALLOW_UNUSED_LOCAL, which have different
+        syntax to   enable us to use these with MSVC.) (Chromium issue 81439).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-10-01: Version 3.30.1
+
+        Introduce PromiseRejectCallback (issue 3093).
+
+        ES6: Implement object literal property shorthand (issue 3584).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-30: Version 3.29.93
+
+        Add a getter for the address and size of the code range to the pulic API
+        (issue 3598).
+
+        Convert `obj` ToObject in Object.keys() (issue 3587).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-29: Version 3.29.92
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-26: Version 3.29.91
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-25: Version 3.29.88
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-24: Version 3.29.87
+
+        Preserve message when rethrowing exception (issue 3583).
+
+        Fix escaped index JSON parsing (Chromium issue 416449).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-23: Version 3.29.84
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-23: Version 3.29.83
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-23: Version 3.29.82
+
+        Fix escaped index JSON parsing (Chromium issue 416449).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-17: Version 3.29.70
+
+        Enable ES6 generators (issue 2355).
+
+        Fixed int vs. uintptr_t confusion (plus some cleanup on the way) (issue
+        3556).
+
+        Move configuration of ResourceConstraints to Isolate construction.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-16: Version 3.29.66
+
+        Currently, a new isolate is created in an uninitialized state, and
+        several API methods will automatically initialize it. During this
+        uninitialized state, code event handlers and function entry handlers can
+        be attached to the isolate.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-15: Version 3.29.64
+
+        ES6: String(symbol) should work like symbol.toString (issue 3554).
+
+        Arrow functions: Cleanup handling of the prototype property (issue
+        2700).
+
+        Remove V8_HOST_CAN_READ_UNALIGNED and its uses (Chromium issue 412967).
+
+        Fix Smi vs. HeapObject confusion in HConstants (Chromium issue 412215).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-12: Version 3.29.59
+
+        Do not use wide reads in CopyCharsUnsigned (Chromium issue 412967).
+
+        Fix inaccurate type condition in Hydrogen (Chromium issue 412210).
+
+        Fix crash in ScriptDebugServer::wrapCallFrames (Chromium issue 411196).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-11: Version 3.29.57
+
+        ES6: Add support for method shorthand in object literals (issue 3516).
+
+        Unbreak FreeBSD build (hopefully) (issue 3548).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-09: Version 3.29.53
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-08: Version 3.29.50
+
+        Allocate a new empty number dictionary when resetting elements (Chromium
+        issue 410332).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-05: Version 3.29.43
+
+        Enforce correct number comparisons when inlining Array.indexOf (Chromium
+        issue 407946).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-04: Version 3.29.41
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-03: Version 3.29.40
+
+        Use correct receiver for DOM accessors on the prototype chain (issue
+        3538).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-02: Version 3.29.38
+
+        Do not clear weak monomorphic IC after context disposal (Chromium issue
+        404020).
+
+        Turn on job-based sweeping (issue 3104).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-09-01: Version 3.29.35
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-29: Version 3.29.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.27
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.24
+
+        Tweaks to generate XP-compatible .exes (Chromium issue 407517).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-28: Version 3.29.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-27: Version 3.29.20
+
+        Handle empty allocation list in CodeRange properly (issue 3540, Chromium
+        issue 407566).
+
+        Fixed inlining of constant values (issue 3529).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-25: Version 3.29.17
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-24: Version 3.29.16
+
+        Fix issue with numeric property names (issue 3507).
+
+        Add back the duplicate property checker (issue 3498).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-22: Version 3.29.14
+
+        Don't inline Array.shift() if receiver map is not extensible (Chromium
+        issue 405517).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-21: Version 3.29.11
+
+        Refactor ParseObjectLiteral.
+
+        Support symbol-named properties in API (issue 3394).
+
+        Suppress test262 test that tests duplicate properties.
+
+        ES6: Duplicate properties are no longer an error (issue 3498).
+
+        Expose function CheckDebugBreak in the debugger api.
+
+        Remove RegExp.$input (issue 3486).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-21: Version 3.29.10
+
+        ES6: Make sure we do not store -0 as the key in Map/Set (issue 3515).
+
+        Remove removed flags from tests.
+
+        Expose well-known Symbols to C++ API (Chromium issue 341423).
+
+        Implement ES6 Array.of() (issue 3427).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-20: Version 3.29.9
+
+        Correctly handle holes when concat()ing double arrays (Chromium issue
+        403409).
+
+        [turbofan] Refactor the InstructionSelector tests (issue 3489).
+
+        ES6: Make Map/Set constructors support iterable values (issue 3508).
+
+        WeakMap/WeakSet: Add test for non object keys (issue 3399).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-12: Version 3.28.71
+
+        ToNumber(Symbol) should throw TypeError (issue 3499).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-11: Version 3.28.69
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-09: Version 3.28.65
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-08: Version 3.28.64
+
+        ES6: Implement WeakMap and WeakSet constructor logic (issue 3399).
+
+        Enable ES6 unscopables (issue 3401).
+
+        Turn on harmony_unscopables for es_staging (issue 3401).
+
+        Remove proxies from --harmony switch for M38, because problems.
+
+        Reland "Add initial support for compiler unit tests using GTest/GMock."
+        (issue 3489).
+
+        Enable ES6 iteration by default (issue 2214).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-07: Version 3.28.62
+
+        Only escape U+0022 in argument values of `String.prototype` HTML methods
+        (issue 2217).
+
+        Update webkit test for expected own properties.
+
+        This implements unscopables (issue 3401).
+
+        Add `CheckObjectCoercible` for the `String.prototype` HTML methods
+        (issue 2218).
+
+        Add initial support for compiler unit tests using GTest/GMock (issue
+        3489).
+
+        Trigger exception debug events on Promise reject (Chromium issue
+        393913).
+
+        Refactor unit tests for the base library to use GTest (issue 3489).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-06: Version 3.28.60
+
+        Enable ES6 Map and Set by default (issue 1622).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-06: Version 3.28.59
+
+        Removed GetConstructor from the API. Instead either get the
+        "constructor" property stored in the prototype, or keep a side-table.
+
+        Enable ES6 Symbols by default (issue 2158).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-05: Version 3.28.57
+
+        Add dependencies on gtest and gmock.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-04: Version 3.28.54
+
+        Performance and stability improvements on all platforms.
+
+
+2014-08-01: Version 3.28.53
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-31: Version 3.28.52
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-31: Version 3.28.51
+
+        Drop deprecated memory related notification API (Chromium issue 397026).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-31: Version 3.28.50
+
+        Use emergency memory in the case of out of memory during evacuation
+        (Chromium issue 395314).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-30: Version 3.28.48
+
+        Fix Object.freeze with field type tracking. Keep the descriptor properly
+        intact while update the field type (issue 3458).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-29: Version 3.28.45
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-28: Version 3.28.43
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-25: Version 3.28.38
+
+        Fix issue with setters and their holders in accessors.cc (Chromium issue
+        3462).
+
+        Introduce more debug events for promises (issue 3093).
+
+        Move gc notifications from V8 to Isolate and make idle hint mandatory
+        (Chromium issue 397026).
+
+        The accessors should get the value from the holder and not from this
+        (issue 3461).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-24: Version 3.28.35
+
+        Rebaseline/update the intl tests with ICU 52 (issue 3454).
+
+        Expose the content of Sets and WeakSets through SetMirror (issue 3093).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-23: Version 3.28.32
+
+        Update ICU to 5.2 (matching chromium) (issue 3452).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-22: Version 3.28.31
+
+        Remove harmony-typeof.
+
+        Implement String.prototype.codePointAt and String.fromCodePoint (issue
+        2840).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-21: Version 3.28.30
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-21: Version 3.28.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-18: Version 3.28.28
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-17: Version 3.28.26
+
+        Ship ES6 Math functions (issue 2938).
+
+        Make ToPrimitive throw on symbol wrappers (issue 3442).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-16: Version 3.28.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-16: Version 3.28.24
+
+        Removed some copy-n-paste from StackFrame::Foo API entries (issue 3436).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-15: Version 3.28.23
+
+        Fix error message about read-only symbol properties (issue 3441).
+
+        Include symbol properties in Object.{create,defineProperties} (issue
+        3440).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-14: Version 3.28.22
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-11: Version 3.28.21
+
+        Make `let` usable as an identifier in ES6 sloppy mode (issue 2198).
+
+        Support ES6 Map and Set in heap profiler (issue 3368).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-10: Version 3.28.20
+
+        Remove deprecate counter/histogram methods.
+
+        Fixed printing of external references (Chromium issue 392068).
+
+        Fix several issues with ES6 redeclaration checks (issue 3426).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-09: Version 3.28.19
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-09: Version 3.28.18
+
+        Reland "Postpone termination exceptions in debug scope." (issue 3408).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-08: Version 3.28.17
+
+        MIPS: Fix computed properties on object literals with a double as
+        propertyname (Chromium issue 390732).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-08: Version 3.28.16
+
+        Fix computed properties on object literals with a double as propertyname
+        (Chromium issue 390732).
+
+        Avoid brittle use of .bind in Promise.all (issue 3420).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-07: Version 3.28.15
+
+        Remove a bunch of Isolate::UncheckedCurrent calls.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-07: Version 3.28.14
+
+        Use the HeapObjectIterator to scan-on-scavenge map pages (Chromium issue
+        390732).
+
+        Introduce debug events for Microtask queue (Chromium issue 272416).
+
+        Split out libplatform into a separate libary.
+
+        Add clang-format to presubmit checks.
+
+        Stack traces exposed to Javascript should omit extensions (issue 311).
+
+        Remove deprecated v8::Context::HasOutOfMemoryException.
+
+        Postpone termination exceptions in debug scope (issue 3408).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-04: Version 3.28.13
+
+        Rollback to r22134.
+
+
+2014-07-04: Version 3.28.12
+
+        Use the HeapObjectIterator to scan-on-scavenge map pages (Chromium issue
+        390732).
+
+        Introduce debug events for Microtask queue (Chromium issue 272416).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-03: Version 3.28.11
+
+        Split out libplatform into a separate libary.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-03: Version 3.28.10
+
+        Add clang-format to presubmit checks.
+
+        Stack traces exposed to Javascript should omit extensions (issue 311).
+
+        Remove deprecated v8::Context::HasOutOfMemoryException.
+
+        Postpone termination exceptions in debug scope (issue 3408).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-02: Version 3.28.9
+
+        Make freeze & friends ignore private properties (issue 3419).
+
+        Introduce a builddeps make target (issue 3418).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-07-01: Version 3.28.8
+
+        Remove static initializer from isolate.
+
+        ES6: Add missing Set.prototype.keys function (issue 3411).
+
+        Introduce debug events for promises (issue 3093).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-30: Version 3.28.7
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-30: Version 3.28.6
+
+        Unbreak "os" stuff in shared d8 builds (issue 3407).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-26: Version 3.28.4
+
+        Compile optimized code with active debugger but no break points
+        (Chromium issue 386492).
+
+        Optimize Map/Set.prototype.forEach.
+
+        Collect garbage with kReduceMemoryFootprintMask in IdleNotification
+        (Chromium issue 350720).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-26: Version 3.28.3
+
+        Grow heap slower if GC freed many global handles (Chromium issue
+        263503).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-25: Version 3.28.2
+
+        Remove bogus assertions in HCompareObjectEqAndBranch (Chromium issue
+        387636).
+
+        Do not eagerly update allow_osr_at_loop_nesting_level (Chromium issue
+        387599).
+
+        Set host_arch to ia32 on machines with a 32bit userland but a 64bit
+        kernel (Chromium issue 368384).
+
+        Map/Set: Implement constructor parameter handling (issue 3398).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-24: Version 3.28.1
+
+        Support LiveEdit on Arm64 (Chromium issue 368580).
+
+        Run JS micro tasks in the appropriate context (Chromium issue 385349).
+
+        Add a use counter API.
+
+        Set host_arch to ia32 on machines with a 32bit userland but a 64bit
+        kernel.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-23: Version 3.28.0
+
+        MIPS: Support LiveEdit (Chromium issue 368580).
+
+        Array.concat: properly go to dictionary mode when required (Chromium
+        issue 387031).
+
+        Support LiveEdit on ARM (Chromium issue 368580).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-18: Version 3.27.34
+
+        Reduce number of writes to DependentCode array when inserting dependent
+        IC (Chromium issue 305878).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-17: Version 3.27.33
+
+        Do GC if CodeRange fails to allocate a block (Chromium issue 305878).
+
+        Throw syntax error when a getter/setter has the wrong number of params
+        (issue 3371).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-17: Version 3.27.32
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-16: Version 3.27.31
+
+        Version fix.
+
+
+2014-06-16: Version 3.27.30
+
+        Fix representation of Phis for mutable-heapnumber-in-object-literal
+        properties (issue 3392).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-16: Version 3.27.29
+
+        Emulate MLS on pre-ARMv6T2. Cleaned up thumbee vs. thumb2 confusion.
+
+        X87: Fixed flooring division by a power of 2, once again.. (issue 3259).
+
+        Fixed undefined behavior in RNG (Chromium issue 377790).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-13: Version 3.27.28
+
+        Add v8::Promise::Then (Chromium issue 371288).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-12: Version 3.27.27
+
+        Fix detection of VFP3D16 on Galaxy Tab 10.1 (issue 3387).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-12: Version 3.27.26
+
+        MIPS: Fixed flooring division by a power of 2, once again.. (issue
+        3259).
+
+        Fixed flooring division by a power of 2, once again.. (issue 3259).
+
+        Fix unsigned comparisons (issue 3380).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-11: Version 3.27.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-11: Version 3.27.24
+
+        Fix invalid attributes when generalizing because of incompatible map
+        change (Chromium issue 382143).
+
+        Fix missing smi check in inlined indexOf/lastIndexOf (Chromium issue
+        382513).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-06: Version 3.27.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-06: Version 3.27.22
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-06: Version 3.27.21
+
+        Turn on harmony_collections for es_staging (issue 1622).
+
+        Do not make heap iterable eagerly (Chromium issue 379740).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-05: Version 3.27.20
+
+        Fix invalid loop condition for Array.lastIndexOf() (Chromium issue
+        380512).
+
+        Add API support for passing a C++ function as a microtask callback.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-04: Version 3.27.19
+
+        Split Put into Put and Remove.
+
+        ES6: Add support for values/keys/entries for Map and Set (issue 1793).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-03: Version 3.27.18
+
+        Remove PROHIBITS_OVERWRITING as it is subsumed by non-configurable
+        properties.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-06-02: Version 3.27.17
+
+        BuildNumberToString: Check for undefined keys in the cache (Chromium
+        issue 368114).
+
+        HRor and HSar can deoptimize (issue 3359).
+
+        Simplify, speed-up correct-context ObjectObserve calls.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-29: Version 3.27.16
+
+        Allow microtasks to throw exceptions and handle them gracefully
+        (Chromium issue 371566).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-28: Version 3.27.15
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-27: Version 3.27.14
+
+        Reland "Customized support for feedback on calls to Array." and follow-
+        up fixes (Chromium issues 377198, 377290).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-26: Version 3.27.13
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-26: Version 3.27.12
+
+        Check for cached transition to ExternalArray elements kind (issue 3337).
+
+        Support ES6 weak collections in heap profiler (Chromium issue 376196).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-23: Version 3.27.11
+
+        Add support for ES6 Symbol in heap profiler (Chromium issue 376194).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-22: Version 3.27.10
+
+        Implement Mirror object for Symbols (issue 3290).
+
+        Allow debugger to step into Map and Set forEach callbacks (issue 3341).
+
+        Fix ArrayShift hydrogen support (Chromium issue 374838).
+
+        Use SameValueZero for Map and Set (issue 1622).
+
+        Array Iterator next should check for own property.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-21: Version 3.27.9
+
+        Disable ArrayShift hydrogen support (Chromium issue 374838).
+
+        ES6 Map/Set iterators/forEach improvements (issue 1793).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-20: Version 3.27.8
+
+        Move microtask queueing logic from JavaScript to C++.
+
+        Partial revert of "Next bunch of fixes for check elimination" (Chromium
+        issue 372173).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-19: Version 3.27.7
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-19: Version 3.27.6
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-16: Version 3.27.5
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-15: Version 3.27.4
+
+        Drop thenable coercion cache (Chromium issue 372788).
+
+        Skip write barriers when updating the weak hash table (Chromium issue
+        359401).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-14: Version 3.27.3
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-13: Version 3.27.2
+
+        Harden %SetIsObserved with RUNTIME_ASSERTs (Chromium issue 371782).
+
+        Drop unused static microtask API.
+
+        Introduce an api to query the microtask autorun state of an isolate.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-12: Version 3.27.1
+
+        Object.observe: avoid accessing acceptList properties more than once
+        (issue 3315).
+
+        Array Iterator prototype should not have a constructor (issue 3293).
+
+        Fix typos in unit test for Array.prototype.fill().
+
+        Shorten autogenerated error message for functions only (issue 3019,
+        Chromium issue 331971).
+
+        Reland "Removed default Isolate." (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-09: Version 3.27.0
+
+        Unbreak samples and tools.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-08: Version 3.26.33
+
+        Removed default Isolate (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-07: Version 3.26.32
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-06: Version 3.26.31
+
+        Add a basic gn file for V8.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-05: Version 3.26.30
+
+        Introduce a microtask suppression scope and move microtask methods to
+        isolate (Chromium issue 369503).
+
+        Re-enable Object.observe and add enforcement for security invariants.
+
+        Move cache line size calculation directly into CPU::FlushICache
+        (Chromium issue 359977).
+
+        Generation of our home-grown memmove doesn't depend on serializer state
+        anymore (Chromium issue 359977).
+
+        Fix |RunMicrotasks()| leaking reference to the last context being run
+        on.
+
+        Object.defineProperty shouldn't be a hint that we're constructing a
+        dictionary (Chromium issue 362870).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-01: Version 3.26.29
+
+        Added a Isolate* parameter to Serializer::enabled() (Chromium issue
+        359977).
+
+        ES6: Add support for Array.prototype.fill() (issue 3273).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-29: Version 3.26.28
+
+        PromiseThen should ignore non-function parameters (Chromium issue
+        347455).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-29: Version 3.26.27
+
+        Error stack getter should not overwrite itself with a data property
+        (issue 3294).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-28: Version 3.26.26
+
+        Expose promise value through promise mirror (issue 3093).
+
+        Simplified CPU/CpuFeatures a bit (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-28: Version 3.26.25
+
+        Add timestamps to CPU profile samples (Chromium issue 363976).
+
+        Expose promise status through promise mirror (issue 3093).
+
+        Remove static CallCompletedCallback handlers.
+
+        Added an Isolate* field to NoTrackDoubleFieldsForSerializerScope,
+        PlatformFeatureScope and BinaryOpIC::State (Chromium issue 359977).
+
+        Trigger debug event on not yet caught exception in promises (issue
+        3093).
+
+        Unbreak vtunejit=on (issue 3288).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-25: Version 3.26.24
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 2)
+        (Chromium issue 359977).
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 1)
+        (Chromium issue 359977).
+
+        CodeStubs contain their corresponding Isolate* now. (part 2) (Chromium
+        issue 359977).
+
+        Make DescriptorArray::IsMoreGeneralThan() and DescriptorArray::Merge()
+        compatible again (Chromium issue 365172).
+
+        CodeStubs contain their corresponding Isolate* now. (part 1) (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-24: Version 3.26.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-23: Version 3.26.22
+
+        Disable field type tracking by default (Chromium issue 365172).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-23: Version 3.26.21
+
+        Context-allocate all parameters in generators (issue 3280).
+
+        Simplify v8/Isolate teardown (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-21: Version 3.26.20
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-18: Version 3.26.19
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-17: Version 3.26.18
+
+        Removed Isolate::EnterDefaultIsolate (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-16: Version 3.26.17
+
+        Clear invalid field maps in PropertyAccessInfo (Chromium issue 363956).
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-16: Version 3.26.16
+
+        Removed EnterIsolateIfNeeded and a soon-to-be-useless assertion
+        (Chromium issue 359977).
+
+        Removed GetDefaultIsolate{Debugger,ForLocking,StackGuard} (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-15: Version 3.26.15
+
+        Fix result of LCodeGen::DoWrapReceiver for strict functions and builtins
+        (Chromium issue 362128).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-15: Version 3.26.14
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-14: Version 3.26.13
+
+        Make maps in monomorphic IC stubs weak (issue 2073).
+
+        x64: Make sure that the upper half of a 64bit register contains 0 for
+        int32 values (Chromium issue 360611).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-11: Version 3.26.12
+
+        Do not use ranges after range analysis (Chromium issue 361608).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-10: Version 3.26.11
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-10: Version 3.26.10
+
+        Allow the embedder to pass the virtual memory limit to v8.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-09: Version 3.26.9
+
+        Fix invalid local property lookup for transitions (Chromium issue
+        361025).
+
+        MIPS: Fixed flooring division by -1 (issue 3259).
+
+        Fixed flooring division by -1 on ARM (issue 3259).
+
+        Make `String.prototype.contains` throw when passing a regular expression
+        (issue 3261).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-08: Version 3.26.8
+
+        Yet another regression test for range analysis (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-07: Version 3.26.7
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-04: Version 3.26.6
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-03: Version 3.26.5
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-03: Version 3.26.4
+
+        Make stray 'return' an early error.
+
+        Show references from weak containers as weak in heap snapshots (Chromium
+        issue 356590).
+
+        Make invalid LHSs that are calls late errors (Chromium issue 358346).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-02: Version 3.26.3
+
+        Support typed arrays in IsMoreGeneralElementsKindTransition (Chromium
+        issue 357054).
+
+        Remove debugger_auto_break flag.
+
+        Store i18n meta data in hidden symbols instead of js accessible
+        properties (Chromium issue 354967).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-01: Version 3.26.2
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-01: Version 3.26.1
+
+        Fix Type::Intersect to skip uninhabited bitsets (Chromium issue 357330).
+
+        Fix PrepareKeyedOperand on arm (Chromium issue 358057).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-31: Version 3.26.0
+
+        Deprecate Start/StopCpuProfiling methods (issue 3213).
+
+        Don't crash if we get a timezone change notification on an uninitialized
+        isolate (Chromium issue 357362).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-28: Version 3.25.30
+
+        NativeContext::map_cache reference should be strong in heap snapshots
+        (Chromium issue 357060).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-27: Version 3.25.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-27: Version 3.25.28
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-26: Version 3.25.27
+
+        Promise constructor should not be enumerable (Chromium issue 352597).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-26: Version 3.25.26
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-25: Version 3.25.25
+
+        Roll ICU 239289:258359 and add support for external ICU data tables
+        (issue 3142, Chromium issue 72633).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-25: Version 3.25.24
+
+        Add support for per-isolate private symbols.
+
+        No longer OOM on invalid string length (issue 3060).
+
+        Remove Failure::OutOfMemory propagation and
+        V8::IgnoreOutOfMemoryException (issue 3060).
+
+        Tentative Windows dll build fix: Don't V8_EXPORT ScriptCompiler::Source
+        (issue 3228).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-24: Version 3.25.23
+
+        Rename A64 port to ARM64 port (Chromium issue 354405).
+
+        Fix missing access check in Runtime_SetPrototype (Chromium issue
+        354123).
+
+        Fix polymorphic hydrogen handling of SLOPPY_ARGUMENTS_ELEMENTS (Chromium
+        issue 354391).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.22
+
+        Increase the "local variables in a function" limit (issue 3205).
+
+        Implement ES6 symbol registry and predefined symbols.
+
+        Throw exception on invalid string length instead of OOM (Chromium issue
+        349329).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.21
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.20
+
+        Fix polymorphic keyed loads for SLOPPY_ARGUMENTS_ELEMENTS (Chromium
+        issue 350867).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.19
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.18
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.17
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-18: Version 3.25.16
+
+        Apply numeric casts correctly in typed arrays and related code (Chromium
+        issue 353004).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-18: Version 3.25.15
+
+        Don't generate keyed store ICs for global proxies (Chromium issue
+        352983).
+
+        MIPS: Make invalid LHSs a parse-time (reference) error (Chromium issue
+        351658).
+
+        Make invalid LHSs a parse-time (reference) error (Chromium issue
+        351658).
+
+        Add Promises/A+ Compliance Test Suite (Chromium issue 347095).
+
+        Split Promise API into Promise/Resolver.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-17: Version 3.25.14
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-17: Version 3.25.13
+
+        Move profiler callback interfaces from v8.h to v8-profiler.h.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.12
+
+        PromiseCoerce should deal with an error during accessing "then"
+        (Chromium issue 347095).
+
+        Propagate updated offsets in BoundsCheckBbData (Chromium issue 350863).
+
+        Add regression test for range analysis bug (issue 3204).
+
+        Continued fix for 351257. Reusing the feedback vector is too complex
+        (Chromium issue 351257).
+
+        StopCpuProfiling should return non-const CpuProfile (issue 3213).
+
+        Allow for compiling with xcode 5.1 (which doesn't have gcc anymore).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.11
+
+        MIPS: Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        MIPS: Remove uses of RangeCanInclude() in flooring division by power of
+        2 (issue 3204).
+
+        MIPS: Fix uses of range analysis results in HChange (issue 3204).
+
+        Make translation of modulus operation '--stress-opt'-proof (Chromium
+        issue 352059).
+
+        Remove uses of CanBeNegative() in HMod (issue 3204).
+
+        Remove uses of RangeCanInclude() in flooring division by power of 2
+        (issue 3204).
+
+        Fix uses of range analysis results in HChange (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-14: Version 3.25.10
+
+        This version was not committed due to script failures.
+
+
+2014-03-13: Version 3.25.9
+
+        Reland "Enable Object.observe by default" again (issue 2409).
+
+        Use intrinsics for builtin ArrayBuffer property accesses (Chromium issue
+        351787).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-12: Version 3.25.8
+
+        Fix HIsSmiAndBranch::KnownSuccessorBlock() by deleting it (Chromium
+        issue 351320).
+
+        Fix handling of polymorphic array accesses with constant index (Chromium
+        issue 351319).
+
+        Fix lazy deopt after tagged binary ops (Chromium issue 350434).
+
+        MIPS: Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        Fix issue with getOwnPropertySymbols and hidden properties (Chromium
+        issue 350864).
+
+        Cleanup some of the range uses in ModI/DivI (issue 3204).
+
+        PromiseCoerce should ignore primitive values (Chromium issue 347095).
+
+        Use a per-isolate cache for the date object JS bits (Chromium issue
+        348856).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-11: Version 3.25.7
+
+        Promise.all and Promise.race should reject non-array parameter (Chromium
+        issue 347453).
+
+        Promise.all and Promise race should use "then" rather than "chain"
+        (Chromium issue 347427).
+
+        Merge the "Compute Minus Zero Checks" phase into the range analysis
+        (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-10: Version 3.25.6
+
+        Replace the recursion in PropagateMinusZeroChecks() with a loop and a
+        worklist (issue 3204).
+
+        Reland "Enable Object.observe by default" (issue 2409).
+
+        Enable Object.observe by default (issue 2409).
+
+        AllocationTracker now maintains a map from address range to stack trace
+        that allocated the range. When snapshot is generated the map is used to
+        find construction stack trace for an object using its address (Chromium
+        issue 277984).
+
+        Introduce Runtime_GetAllScopesDetails to get all scopes at once for a
+        frame (Chromium issue 340285).
+
+        Reduce heavy runtime calls from debug mirrors (Chromium issue 340285).
+
+        Check and clear date cache in DateCurrentTime, DateLocalTimezone and
+        getTimezoneOffset (Chromium issue 142141).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-06: Version 3.25.5
+
+        Fix HConstants with Smi-ranged HeapNumber values (Chromium issue
+        349878).
+
+        Fix issues with JSON stringify replacer array (issues 3200, 3201).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-05: Version 3.25.4
+
+        x64: Fix LMathMinMax for constant Smi right-hand operands (Chromium
+        issue 349079).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-04: Version 3.25.3
+
+        Clear optimized code cache in shared function info when code gets
+        deoptimized (Chromium issue 343609).
+
+        Fixed constant folding for Math.clz32 (Chromium issue 347906).
+
+        Fix JSObject::PrintTransitions (Chromium issue 347912).
+
+        Fix handling of constant global variable assignments (Chromium issue
+        347904).
+
+        Removed bogus ASSERT (Chromium issue 347542).
+
+        Mark HCompareMap as having Tagged representation (Chromium issue
+        346636).
+
+        Fix crasher in Object.getOwnPropertySymbols (Chromium issue 346141).
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-25: Version 3.25.2
+
+        Fix the bit massaging code in CompleteParserRecorder::WriteNumber
+        (Chromium issue 346221).
+
+        Revert r19455 "Load target types and handlers before IC computation."
+        (Chromium issue 346149).
+
+        Don't eliminate loads with incompatible types or representations
+        (Chromium issue 346343).
+
+        Fix for a smi stores optimization on x64 with a regression test
+        (Chromium issue 345715).
+
+        Check that after a weak callback, the handle is either dead or strong
+        (Chromium issue 346061).
+
+        negative bounds checking on realm calls (Chromium issue 344285).
+
+        Lazy preparsing vs. lazy parsing fix (Chromium issue 346207).
+
+        Fix optimistic BCE to back off after deopt (issue 3176).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-21: Version 3.25.1
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.25.0
+
+        ES6: Tighten up Object.prototype.__proto__ (issue 3064).
+
+        Fix Hydrogen bounds check elimination (Chromium issue 344186).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-19: Version 3.24.40
+
+        A64: Let the MacroAssembler resolve branches to distant targets (issue
+        3148).
+
+        Fixed and improved code for integral division. Fixed and extended tests
+        (issue 3151).
+
+        MIPS: Fix assignment of function name constant (issue 3138).
+
+        Fix assignment of function name constant (issue 3138).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-14: Version 3.24.39
+
+        Introduce --job-based-sweeping flag and use individual jobs for sweeping
+        if set (issue 3104).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-13: Version 3.24.38
+
+        Merge experimental/a64 to bleeding_edge (issue 3113).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-12: Version 3.24.37
+
+        Fix spec violations in JSON.stringify wrt replacer array (issue 3135).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-11: Version 3.24.36
+
+        Fix inconsistencies wrt whitespaces (issue 3109).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-10: Version 3.24.35
+
+        Fix inconsistencies wrt whitespaces (issue 3109).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-07: Version 3.24.34
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-06: Version 3.24.33
+
+        Allow externalizing strings in old pointer space (Chromium issue
+        268686).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-05: Version 3.24.32
+
+        Add Box object to heap profiler.
+
+        Check the offset argument of TypedArray.set for fitting into Smi
+        (Chromium issue 340125).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-04: Version 3.24.31
+
+        Fix short-circuiting logical and/or in HOptimizedGraphBuilder (Chromium
+        issue 336148).
+
+        Elements field of newly allocated JSArray could be left uninitialized in
+        some cases (fast literal case) (Chromium issue 340124).
+
+        Re-enable escape analysis.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-03: Version 3.24.30
+
+        Performance and stability improvements on all platforms.
+
+
+2014-02-01: Version 3.24.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-31: Version 3.24.28
+
+        Don't crash in Array.join() if the resulting string exceeds the max
+        string length (Chromium issue 336820).
+
+        Implements ES6 String.prototype.normalize method (issue 2943).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-30: Version 3.24.27
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-29: Version 3.24.26
+
+        ES6: Map and Set needs to normalize minus zero (issue 3069).
+
+        Make `String.prototype.{starts,ends}With` throw when passing a regular
+        expression (issue 3070).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-28: Version 3.24.25
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-27: Version 3.24.24
+
+        MIPS: Reduce the stack requirements of GetNoCodeAgeSequence (issue
+        3111).
+
+        Delete v8_shell target now that chrome uses d8 (Chromium issue 331585).
+
+        ARM: Reduce the stack requirements of GetNoCodeAgeSequence (issue 3111).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-24: Version 3.24.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-23: Version 3.24.22
+
+        Fix compilation on x64 architectures (issue 3110).
+
+        Ensure we don't overwrite transitions in SetPropertyIgnoreAttributes
+        (Chromium issue 326155).
+
+        ES6: Implement Object.setPrototypeOf (issue 2675).
+
+        Fixed floor-of-div optimization (Chromium issue 334708).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-22: Version 3.24.21
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-21: Version 3.24.20
+
+        ES6: Implement Object.setPrototypeOf (issue 2675).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-20: Version 3.24.19
+
+        Introduce a setting to control the toolset for which d8 is compiled
+        (issue 1775).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-17: Version 3.24.18
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-16: Version 3.24.17
+
+        Make cells pointing to JSObjects weak in optimized code (issue 2073).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-15: Version 3.24.16
+
+        Annotate mapped memory regions for LeakSanitizer (Chromium issue
+        328552).
+
+        Turn Runtime_MigrateInstance into Runtime_TryMigrateInstance (Chromium
+        issue 315252).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-14: Version 3.24.15
+
+        Introduce an API mirroring the gc extension.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-10: Version 3.24.14
+
+        ES6: Add Object.getOwnPropertySymbols (issue 3049).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-09: Version 3.24.13
+
+        Add Isolate parameter to HandleScope::NumberOfHandles (Chromium issue
+        324225).
+
+        Removed v8::AssertNoGCScope.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-08: Version 3.24.12
+
+        Correctly handle instances without elements in polymorphic keyed
+        load/store (Chromium issue 331416).
+
+        Fix selection of popular pages in store buffer (Chromium issue 331444).
+
+        Prepare removal of ObjectTemplate::New without Isolate parameter
+        (Chromium issue 324225).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-07: Version 3.24.11
+
+        Remove generated makefiles on linux when running gyp_v8
+        (Chromium issue 331475)
+
+        Fix building d8 with readline support due to API changes
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-03: Version 3.24.10
+
+        Reland r18383: More API cleanup (Chromium issue 324225).
+
+        MIPS: Fix loading of global object in LWrapReceiver (Chromium issue
+        318420).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-01-02: Version 3.24.9
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-30: Version 3.24.8
+
+        ARM: fix loading of global object in LWrapReceiver (Chromium issue
+        318420).
+
+        Fix a race between concurrent recompilation and OSR (Chromium issue
+        330046).
+
+        Turn off concurrent sweeping (issue 3071).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-23: Version 3.24.7
+
+        Fix small spec violation in String.prototype.split (issue 3026).
+
+        Correctly resolve forcibly context allocated parameters in debug-
+        evaluate (Chromium issue 325676).
+
+        Introduce Function::GetBoundFunction. 
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-20: Version 3.24.6
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-19: Version 3.24.5
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-18: Version 3.24.4
+
+        Removed all stuff marked as V8_DEPRECATED.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-17: Version 3.24.3
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-17: Version 3.24.2
+
+        Flush instruction cache for deserialized code objects.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-13: Version 3.24.1
+
+        Fix polymorphic inlined calls with migrating prototypes.
+
+        Fixed global object leak caused by overwriting the global receiver (the
+        global proxy) in the global object with the global object itself
+        (Chromium issue 324812).
+
+        Initialize Date parse cache with SMI instead of double to workaround
+        sharing mutable heap numbers in snapshot (Chromium issue 280531).
+
+        Switch armv7 setting to arm_version==7 in v8 gyp files (Chromium issue
+        234135).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-09: Version 3.24.0
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-04: Version 3.23.18
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-03: Version 3.23.17
+
+        Performance and stability improvements on all platforms.
+
+
+2013-12-02: Version 3.23.16
+
+        Array builtins need to be prevented from changing frozen objects, and
+        changing structure on sealed objects (Chromium issue 299979).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-29: Version 3.23.15
+
+        Fix context register allocation in LTransitionElementsKind
+        (Chromium issue 324306).
+
+        Fix bug in inlining Function.apply (Chromium issue 323942).
+
+        Ensure that length is Smi in TypedArrayFromArrayLike constructor
+        (Chromium issue 324028).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-28: Version 3.23.14
+
+        Shorten autogenerated error message (issue 3019).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-27: Version 3.23.13
+
+        Increase precision for base conversion for large integers (issue 3025).
+
+        Flatten cons string for single character substrings (Chromium issue
+        323041).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-26: Version 3.23.12
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-25: Version 3.23.11
+
+        Deprecate old versions of Isolate::SetData and GetData.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-22: Version 3.23.10
+
+        Remove preemption thread and API.
+        (issue 3004)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-21: Version 3.23.9
+
+        API: Change AdjustAmountOfExternalAllocatedMemory calls to use int64_t
+        instead of intptr_t.
+
+        Remove deprecated v8::SetResourceConstraints without Isolate parameter.
+
+        Remove deprecated v8-defaults.h and defaults.cc.
+        (Chromium issue 312241)
+
+        Make it possible to add more than one piece of embedder data to
+        isolates.
+        (Chromium issue 317398)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-20: Version 3.23.8
+
+        Fixed crashes exposed though fuzzing.
+        (Chromium issue 320948)
+
+        Deprecated v8::External::New without Isolate parameter.
+
+        Made number of available threads isolate-dependent and exposed it to
+        ResourceConstraints.
+        (issue 2991)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-19: Version 3.23.7
+
+        Bugfix: dependent code field in AllocationSite was keeping code objects
+        alive even after context death.
+        (Chromium issue 320532)
+
+        Fixed data view accessors to throw execptions on offsets bigger than
+        size_t.
+        (issue 3013)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-18: Version 3.23.6
+
+        Limit size of dehoistable array indices.
+        (Chromium issues 319835, 319860)
+
+        Limit the size for typed arrays to MaxSmi.
+        (Chromium issue 319722)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-15: Version 3.23.5
+
+        Fixed missing type feedback check for Generic*String addition.
+        (Chromium issue 318671)
+
+        Fixed duplicate check in DependentCode::Insert.
+        (Chromium issue 318454)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-14: Version 3.23.4
+
+        Fixed overflow in TypedArray initialization function.
+        (Chromium issue 319120)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-13: Version 3.23.3
+
+        Fixed compilation with GCC 4.8.
+        (issue 2767, 2149)
+
+        Added explicit Isolate parameter to External::New.
+        (Chromium issue 266838)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-12: Version 3.23.2
+
+        Fixed --extra-code flag for snapshot creation.
+        (issue 2994)
+
+        Fixed error message wording when instanceof throws.
+        (Chromium issue 82797, issue 1593)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-08: Version 3.23.1
+
+        Made HCapturedObjects non-deletable for DCE. (issue 2987)
+
+        Use a fixed random seed per default. (issue 1880, 2885)
+
+        Fixed y-umlaut to uppercase. (issue 2984)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-11-06: Version 3.23.0
+
+        Fixed loading message from an Error object.  (Chromium issue 306220)
+
+        Made Object.freeze/seal/preventExtensions observable. (issue 2975, 2941)
+
+        Made snapshots reproducible. (issue 2885)
+
+        Added missing negative dictionary lookup to NonexistentHandlerFrontend.
+        (issue 2980)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-31: Version 3.22.24
+
+        Fixed uint32-to-smi conversion in Lithium.
+        (Chromium issue 309623)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-28: Version 3.22.23
+
+        Renamed deprecated __attribute__((no_address_safety_analysis)) to
+        __attribute__((no_sanitize_address)) (Chromium issue 311283)
+
+        Defined DEBUG for v8_optimized_debug=2
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-25: Version 3.22.22
+
+        Record allocation stack traces. (Chromium issue 277984,v8:2949)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-24: Version 3.22.21
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-24: Version 3.22.20
+
+        Made Array.prototype.pop throw if the last element is not configurable.
+
+        Fixed HObjectAccess for loads from migrating prototypes.
+        (Chromium issue 305309)
+
+        Enabled preaging of code objects when --optimize-for-size.
+        (Chromium issue 280984)
+
+        Exposed v8::Function::GetDisplayName to public API.
+        (Chromium issue 17356)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-23: Version 3.22.19
+
+        Fix materialization of captured objects with field tracking.
+        (Chromium issue 298990)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-22: Version 3.22.18
+
+        Add tool to visualize machine code/lithium.
+
+        Handle misaligned loads and stores in load elimination. Do not track
+        misaligned loads and be conservative about invalidating misaligned
+        stores. (issue 2934)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-21: Version 3.22.17
+
+        Harmony: Implement Math.trunc and Math.sign. (issue 2938)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-21: Version 3.22.16
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-18: Version 3.22.15
+
+        Enabled calling the SetReference* & SetObjectGroupId functions with a
+        Persistent<SubclassOfValue>.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-17: Version 3.22.14
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-16: Version 3.22.13
+
+        Do not look up ArrayBuffer on global object in typed array constructor.
+        (issue 2931)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-15: Version 3.22.12
+
+        Added histograms to track fraction of heap spaces and percentage of
+        generated crankshaft code.
+
+        Moved v8_optimized_debug default value to standalone.gypi.
+
+        Track JS allocations as they arrive with no affection on performance
+        when tracking is switched off (Chromium issue 277984).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-14: Version 3.22.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-11: Version 3.22.10
+
+        Fixed timezone issues with date-time/parse-* tests.
+        (Chromium issue 2919)
+
+        Added column getter to CpuProfileNode (Chromium issue 302537)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-10: Version 3.22.9
+
+        Ensure only whitelisted stubs have sse2 versions in the snapshot.
+        (fix for chromium 304565)
+
+        Implement ArrayBuffer.isView.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-04: Version 3.22.8
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-03: Version 3.22.7
+
+        Debug: Allow stepping into on a given call frame
+        (Chromium issue 296963).
+
+        Always use timeGetTime() for TimeTicks::Now() on Windows
+        (Chromium issue 288924).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-02: Version 3.22.6
+
+        Performance and stability improvements on all platforms.
+
+
+2013-10-01: Version 3.22.5
+
+        Disabled externalization of sliced/cons strings in old pointer space
+        (Chromium issue 276357).
+
+        Turned on handle zapping for release builds
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-30: Version 3.22.4
+
+        Function::Call and Object::CallAsFunction APIs should allow v8::Value as
+        a receiver (issue 2915).
+
+        Removed unnecessary mutex (Chromium issue 291236).
+
+        Removed ArrayBufferView::BaseAddress method.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-27: Version 3.22.3
+
+        Added methods to enable configuration of ResourceConstraints based on
+        limits derived at runtime.
+        (Chromium issue 292928)
+
+        Added -optimize-for-size flag to optimize for memory size (will be used
+        by pre-aging CL), and removed the is_memory_constrained
+        ResourceConstraint.
+        (Chromium issue 292928)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-26: Version 3.22.2
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-25: Version 3.22.1
+
+        Sped up creating typed arrays from array-like objects.
+        (Chromium issue 270507)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-23: Version 3.22.0
+
+        LiveEdit to mark more closure functions for re-instantiation when scope
+        layout changes.
+        (issue 2872)
+
+        Made bounds check elimination iterative instead of recursive.
+        (Chromium issue 289706)
+
+        Turned on i18n support by default.
+
+        Set the proper instance-type on HAllocate in BuildFastLiteral.
+        (Chromium issue 284577)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-18: Version 3.21.17
+
+        Implemented local load/store elimination on basic blocks.
+
+        Added mutex when accessing concurrent recompilation output queue.
+        (Chromium issue 291236)
+
+        Don't lookup the cache for the result of Function::New.
+        (Chromium issue 272579)
+
+        Tweaked HConstant::EmitAtUses() to eliminate useless constant
+        generation.
+        (Chromium issue 2881)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-16: Version 3.21.16
+
+        Every place where AllocationMemento is initialized with an
+        AllocationSite is now checked to be sure a valid Site goes in. This is
+        temporary code to diagnose chromium bug 284577.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-13: Version 3.21.15
+
+        Non-JSObject heap objects are now handled using slow-path IC stub
+        guarded by the map.
+        (Chromium issue 280632)
+
+        i18n Javascript code added to the snapshot.
+        (V8 issue 2745)
+
+        Performance and stability improvements on all platforms.
+
+2013-09-12: Version 3.21.14
+
+        Added access check for observed objects.
+        (V8 issue 2778)
+
+        Cleaned up v8::ArrayBuffer::Allocator interface.
+        (V8 issue 2823)
+
+        Performance and stability improvements on all platforms.
+
+2013-09-11: Version 3.21.13
+
+        Added a ResourceConstraint for the embedder to specify that V8 is
+        running on a memory constrained device.
+        (Chromium issue 280984)
+
+        Removed HandleScope default ctor.
+        (Chromium issue 236173)
+
+        Enabled escape analysis for Hydrogen.
+
+        Correctly stringified mixed encoding indirect strings.
+        (Chromium issue 287476)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-09: Version 3.21.12
+
+        Fixed bitwise negation on x64.
+        (Chromium issue 285355)
+
+        Dropped GetCurrentThreadId() and TerminateExecution(int) from 
+	the external API.
+
+        Fixed polymorphic INTERCEPTOR StoreICs on ARM/MIPS.
+        (Chromium issue 284998)
+
+        Added check if timeout has expired after processing each sample.
+        (issue 2814,v8:2871)
+
+        Removed obsolete global V8::has_been_fooed flags.
+        (issue 2744)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-05: Version 3.21.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-04: Version 3.21.10
+
+        Fixed Eternal::IsEmpty logic (issue 2870).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-03: Version 3.21.9
+
+        Deprecated Persistent functions which were marked to be deprecated.
+
+        Allowed uncacheable identifiers to go generic (issue 2867).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-09-02: Version 3.21.8
+
+        Added scriptId to StackTrace frames (issue 2865).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-30: Version 3.21.7
+
+        Fixed casts of eternal handles.
+
+        Turned on global handle zapping.
+
+        Always visit branches during HGraph building (Chromium issue 280333).
+
+        Profiler changes: removed deprecated API, support higher sampling
+        rate on Windows.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-29: Version 3.21.6
+
+        Fixed inlined 'throw' statements interfering with live range
+        computation. (issue 2843)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-28: Version 3.21.5
+
+        Fixed compilation with recent MinGW64 versions. (issue 2300)
+
+        Added RemovePrototype to FunctionTemplate. (Chromium issue 272440)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-26: Version 3.21.4
+
+        Lowered kInitialMaxFastElementArray constant to 95K (issue 2790).
+
+        Use signals for cpu profiling on Mac OS X (issue 2814).
+
+        Deprecated CpuProfileNode::GetSelfSamplesCount (Chromium issue 267595).
+
+        Added support for higher CPU profiler sampling rate on posix systems
+        (issue 2814).
+
+        Worked around 'inlining failed' build error with older GCC 4.x releases.
+
+        Added source map support to tick processor.
+
+        Stability improvements on all platforms.
+
+
+2013-08-23: Version 3.21.3
+
+        Temporarily disabled optimization for StringWrappers to use native
+        valueOf. (issue 2855)
+
+        Fixed crash on function declarations in eval inside non-trivial local
+        scope. (issue 2594)
+
+        Rewrote SamplingCircularQueue. (issue 2814)
+
+        Fixed hidden properties on object with frozen prototype. (issue 2829)
+
+        Fix deoptimization bug. (Chromium issue 274164)
+
+        Stability improvements on all platforms.
+
+
+2013-08-22: Version 3.21.2
+
+        Stability improvements on all platforms.
+
+
+2013-08-21: Version 3.21.1
+
+        Promoted ArrayBuffer, DataView and typed arrays to non-experimental.
+        (Chromium issue 270527)
+
+        Replaced OS::MemCopy with memcpy in typed array initialization.
+        (Chromium issue 270642)
+
+        Moved i18n break iterator C++ code to runtime (issue 2745)
+
+        Fixed invalid out-of-bounds store in MacroAssembler::Allocate.
+        (Chromium issue 263515)
+
+        Fixed register misuse in Allocate() on ARM. (issue 2851)
+
+        Fixed empty handle dereference in Runtime_InternalNumberFormat.
+        (Chromium issue 275467)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-19: Version 3.21.0
+
+        Fixed GC-related crasher (Chromium issue 274438)
+
+        Reverted making Intl non-enumerable.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-14: Version 3.20.17
+
+        Fixed Math.round/floor that had bogus Smi representation
+        (Chromium issue 272564)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-13: Version 3.20.16
+
+        Fixed bug in HPhi::SimplifyConstantInput (Chromium issue 269679)
+
+        Fixed gcmole bugs in i18n code (issue 2745)
+
+        ia32: Calls to the TranscendentalCacheStub must ensure that esi is
+        set (issue 2827)
+
+        Made sure polymorphic element access creates non-replaying
+        phis. (issue 2815)
+
+        Allowed HPhis to have an invalid merge index. (issue 2815)
+
+        Fixed smi-based math floor. (Chromium issue 270268)
+
+        Deprecated self and total time getters and total sample count
+        getter on CpuProfileNode. (Chromium issue 267595)
+
+        Fixed Object.freeze, Object.observe wrt CountOperation and
+        CompoundAssignment. (issue 2774,2779)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-07: Version 3.20.15
+
+        Exposed eternal handle api.
+
+        Bugfix to solve issues with enabling V8 typed arrays in Blink.
+
+        Fixed Array index dehoisting.  (Chromium issue 264203)
+
+        Updated Array Iterator to use numeric indexes (issue 2818)
+
+        Return start/end profiling time in microseconds instead of milliseconds
+        (issue 2824)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-06: Version 3.20.14
+
+        Added new Harmony methods to Array.prototype object.
+        (issue 2776,v8:2777)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-08-01: Version 3.20.12
+
+        Removed buggy ToNumber truncation (partial fix for issue 2813)
+
+        Calling Map etc without new should throw TypeError (issue 2819)
+
+        Fixed a crash for large code objects on ARM (Chromium issue 2736)
+
+        Fixed stale unhandlified value in JSObject::SetPropertyForResult.
+        (Chromium issue 265894)
+
+        Added new Harmony methods to String.prototype object.
+        (issue 2796,v8:2797,v8:2798,v8:2799)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-30: Version 3.20.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-29: Version 3.20.10
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-26: Version 3.20.9
+
+        Check that ExternalString objects get aligned resources.
+
+        Fixed JSArray-specific length lookup in polymorphic array handling
+        (Chromium issues 263276, 263905).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-24: Version 3.20.8
+
+        Deprecated v8::V8::Pause/ResumeProfiler.
+
+        Fixed Chromium issues 247688, 258519 and 260203.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-22: Version 3.20.7
+
+        Deprecated some debugger methods.
+
+        Fixed wrong bailout id in polymorphic stores (Chromium issue 259787).
+
+        Fixed data race in SamplingCircularQueue (Chromium issue 251218).
+
+        Fixed type feedback in presence of negative lookups
+        (Chromium issue 252797).
+
+        Do not materialize context-allocated values for debug-evaluate
+        (Chromium issue 259300).
+
+        Synchronized Compare-Literal behavior in FullCodegen and Hydrogen
+        (Chromium issue 260345).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-17: Version 3.20.6
+
+        Try to remove invalidated stubs before falling back to checking the
+        constant state (Chromium issue 260585).
+
+        Fixed gyp_v8 to work with use_system_icu=1 (issue 2475).
+
+        Fixed sloppy-mode 'const' under Harmony flag (Chromium issue 173361).
+
+        Use internal array as API function cache  (Chromium issue 260106).
+
+        Fixed possible stack overflow in range analysis
+        (Chromium issue 259452).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-15: Version 3.20.5
+
+        Ensured that the length of frozen arrays is immutable
+        (issue 2711, Chromium issue 259548).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-10: Version 3.20.4
+
+        Fixed garbage-collection issue that causes a crash on ARM
+        (Chromium issue 254570)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-08: Version 3.20.3
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-05: Version 3.20.2
+
+        Remove deprecated heap profiler methods from V8 public API
+
+        Mark i18n functions as native and set proper names
+        (issue 2745)
+
+        Correctly report stack trace when current function is FunctionApply
+        builtin (Chromium issue 252097)
+
+        Enable GDBJIT interface for standalone by default.
+
+        Fix debuggersupport=off build. (issue 2754)
+
+        Introduce -m64 flag for making x64 when the default gcc compiler is for
+        X32
+
+        Performance and stability improvements on all platforms.
+
+
+2013-07-02: Version 3.20.1
+
+        Implemented WeakMap.prototype.clear function. (issue 2753)
+
+        Ensure CheckInitialized is present independent of define.
+        (Chromium issue 255779)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-28: Version 3.20.0
+
+        Migrated several tests from blink to V8 repository.
+
+        Allowed users of the V8 API to distinguish between unset and undefined
+        HiddenValues (issue 2746).
+
+        Deprecated old style callbacks in the V8 API.
+
+        Turned on parallel recompilation.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-18: Version 3.19.18
+
+	Fixed read-only attribute of Function.length in strict mode.
+	(issue 2705)
+
+	Fixed Runtime_SetProperty to properly handle OOM failures
+	(Chromium issue 249873)
+
+	Emit deprecated check for constant function transitions.
+	(Chromium issue 250609)
+	
+	Made MathFloorOfDiv optimization trigger more often
+	(Issue 2205)
+
+	Make more GCs in idle notification handler.
+	(Chromium issue 241815)
+
+	Increased default type info threshold.
+	(Issue 2730)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-14: Version 3.19.16
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-13: Version 3.19.15
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-13: Version 3.19.14
+
+        Fixed crashes when calling new Array(a) with a single argument that
+        could result in creating a holey array with a packed elements kind.
+        (Chromium issue 245480)
+
+        Fixed issues in parallel compilation.
+        (Chromium issue 248076)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-11: Version 3.19.13
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-10: Version 3.19.12
+
+        Fixed arguments array access. (Chromium issue 247303)
+
+        Fixed bug in LookupForWrite. (Chromium issue 242332)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-07: Version 3.19.11
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-06: Version 3.19.10
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-05: Version 3.19.9
+
+        Implemented Load IC support for loading properties from primitive
+        values to avoid perpetual soft deopts.  (Chromium issue 242512)
+
+        Implemented Freeing of PerThreadAssertData when possible to avoid
+        memory leak. (Chromium issue 246567)
+
+        Removed V8_USE_OLD_STYLE_PERSISTENT_HANDLE_VISITORS.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-06-03: Version 3.19.8
+
+        Fixed bug with inlining 'Array' function. (Chromium issue 244461)
+
+        Fixed initialization of literal objects. (Chromium issue 245424)
+
+        Fixed function name inferred inside closures. (Chromium issue 224884)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-31: Version 3.19.7
+
+        Added support for //# sourceURL similar to deprecated //@ sourceURL one.
+        (issue 2702)
+
+        Made sure IfBuilder::Return clears the current block.
+        (Chromium issue 243868)
+
+        Fixed two CPU profiler tests on ARM and MIPS simulators
+        (issue 2628)
+
+        Fixed idle incremental GC for large objects.
+        (Chromium issue 241815)
+
+        Disabled --optimize-constructed-arrays due to crashes
+        (Chromium issue 244461)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-28: Version 3.19.6
+
+        Fixed IfBuilder::Deopt to clear the current block
+        (Chromium issue 243868).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-27: Version 3.19.5
+
+        Reset regexp parser flag after scanning ahead for capture groups.
+        (issue 2690)
+
+        Removed flakiness in test-cpu-profiler/SampleWhenFrameIsNotSetup.
+        (issue 2628)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-24: Version 3.19.4
+
+        Fixed edge case in stack trace formatting. (Chromium issue 237617)
+
+        Fixed embedded new-space pointer in LCmpObjectEqAndBranch. (Chromium
+	issue 240032)
+
+        Made Object.freeze fast (issue 1858, Chromium issue 115960)
+
+        Fixed bogus deopt in BuildEmitDeepCopy for holey arrays. (Chromium issue
+        242924)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-22: Version 3.19.3
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-17: Version 3.19.2
+
+        Fill in one-word-fillers for the unused property fields
+        (Chromium issue 240056).
+
+        Removed use_system_v8 logic from the mainline gyp file
+        (Chromium issue 226860).
+
+        Skip CPU profiler samples where top function's stack frame is not
+        set up properly (issue 2628).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-14: Version 3.19.1
+
+        Fixed missing hole check for loads from Smi arrays when all uses are
+        changes (Chromium issue 233737)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-05-10: Version 3.19.0
+
+        Deprecated Context::New which returns Persistent.
+
+        Added Persistent<T>::Reset which disposes the handle and redirects it to
+        point to another object.
+
+        Deprecated WriteAscii and MayContainNonAscii.
+
+        Exposed AssertNoAllocation to API.
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-30: Version 3.18.5
+
+        Allowed setting debugger breakpoints on CompareNilICs (issue 2660)
+
+        Fixed beyond-heap load on x64 Crankshafted StringCharFromCode
+        (Chromium issue 235311)
+
+        Change 'Parse error' to three more informative messages.
+        (Chromium issue 2636)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-26: Version 3.18.4
+
+        Added a preliminary API for ES6 ArrayBuffers
+
+        Replaced qsort with std::sort. (Chromium issue 2639)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-24: Version 3.18.3
+
+        Exposed the GC under a name that is less collision prone than window.gc.
+        (issue 2641)
+
+        Do not emit double values at their use sites. (Chromium issue 234101)
+
+        Added methods to allow resuming execution after calling
+        TerminateExecution(). (issue 2361)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-22: Version 3.18.2
+
+        OS::MemMove/OS::MemCopy: Don't call through to generated code when size
+        == 0 to avoid prefetching invalid memory (Chromium issue 233500)
+
+        Removed heap snapshot size limit. (Chromium issue 232305)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-18: Version 3.18.1
+
+        Removed SCons related files and deprecated test suite configurations.
+
+        Improved handling of unary plus (issue 2527).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-17: Version 3.18.0
+
+        Enabled pretenuring of fast literals in high promotion mode.
+
+        Removed preparser library; link preparser executable against full V8.
+
+        Fixed set-up of intrinsic's 'constructor' properties.
+        (Chromium issue 229445)
+
+        ES6 symbols: extended V8 API to support symbols (issue 2158).
+
+        Removed ARM support for VFP2.
+
+        Made __proto__ a real JavaScript accessor property.
+        (issue 1949 and issue 2606)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-04-04: Version 3.17.16
+
+        Stack trace API: poison stack frames below the first strict mode frame.
+        (issue 2564)
+
+        Made Isolate::GetHeapStatistics robust against half-initialized
+        isolates (Chromium issue 2591).
+
+        Finished implementation of ES6 symbols aka. private names (issue 2158).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-03-21: Version 3.17.15
+
+        Rolled back API changes to maintain compatibility with older
+        3.17.x versions of V8.
+
+        Disable zapping of global handles in release mode.
+
+        Always mark the entire valid prefix of the descriptor array.
+        (Chromium issue 196331)
+
+        Use internal memcpy for CopyWords and when copying code.
+        (Chromium issue 196330)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-03-20: Version 3.17.14
+
+        Use internal memcpy when initializing code objects.
+        (Chromium issue 196330)
+
+        Disabled weak embedded maps because of crashes.
+        (Chromium issues 172489, 217858)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-19: Version 3.17.13
 
         Turned Flags into a uint32_t typedef (Chromium issue 194749).

@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node_constants.h"
 
 #include "uv.h"
@@ -33,136 +12,19 @@
 #include <sys/stat.h>
 
 #if HAVE_OPENSSL
+# include <openssl/ec.h>
 # include <openssl/ssl.h>
+# ifndef OPENSSL_NO_ENGINE
+#  include <openssl/engine.h>
+# endif  // !OPENSSL_NO_ENGINE
 #endif
 
 namespace node {
 
-using namespace v8;
+using v8::Handle;
+using v8::Object;
 
-void DefineConstants(Handle<Object> target) {
-  // file access modes
-  NODE_DEFINE_CONSTANT(target, O_RDONLY);
-  NODE_DEFINE_CONSTANT(target, O_WRONLY);
-  NODE_DEFINE_CONSTANT(target, O_RDWR);
-
-  NODE_DEFINE_CONSTANT(target, S_IFMT);
-  NODE_DEFINE_CONSTANT(target, S_IFREG);
-  NODE_DEFINE_CONSTANT(target, S_IFDIR);
-  NODE_DEFINE_CONSTANT(target, S_IFCHR);
-#ifdef S_IFBLK
-  NODE_DEFINE_CONSTANT(target, S_IFBLK);
-#endif
-
-#ifdef S_IFIFO
-  NODE_DEFINE_CONSTANT(target, S_IFIFO);
-#endif
-
-#ifdef S_IFLNK
-  NODE_DEFINE_CONSTANT(target, S_IFLNK);
-#endif
-
-#ifdef S_IFSOCK
-  NODE_DEFINE_CONSTANT(target, S_IFSOCK);
-#endif
-
-#ifdef O_CREAT
-  NODE_DEFINE_CONSTANT(target, O_CREAT);
-#endif
-
-#ifdef O_EXCL
-  NODE_DEFINE_CONSTANT(target, O_EXCL);
-#endif
-
-#ifdef O_NOCTTY
-  NODE_DEFINE_CONSTANT(target, O_NOCTTY);
-#endif
-
-#ifdef O_TRUNC
-  NODE_DEFINE_CONSTANT(target, O_TRUNC);
-#endif
-
-#ifdef O_APPEND
-  NODE_DEFINE_CONSTANT(target, O_APPEND);
-#endif
-
-#ifdef O_DIRECTORY
-  NODE_DEFINE_CONSTANT(target, O_DIRECTORY);
-#endif
-
-#ifdef O_EXCL
-  NODE_DEFINE_CONSTANT(target, O_EXCL);
-#endif
-
-#ifdef O_NOFOLLOW
-  NODE_DEFINE_CONSTANT(target, O_NOFOLLOW);
-#endif
-
-#ifdef O_SYNC
-  NODE_DEFINE_CONSTANT(target, O_SYNC);
-#endif
-
-#ifdef O_SYMLINK
-  NODE_DEFINE_CONSTANT(target, O_SYMLINK);
-#endif
-
-#ifdef O_DIRECT
-  NODE_DEFINE_CONSTANT(target, O_DIRECT);
-#endif
-
-#ifdef S_IRWXU
-  NODE_DEFINE_CONSTANT(target, S_IRWXU);
-#endif
-
-
-#ifdef S_IRUSR
-  NODE_DEFINE_CONSTANT(target, S_IRUSR);
-#endif
-
-#ifdef S_IWUSR
-  NODE_DEFINE_CONSTANT(target, S_IWUSR);
-#endif
-
-#ifdef S_IXUSR
-  NODE_DEFINE_CONSTANT(target, S_IXUSR);
-#endif
-
-
-#ifdef S_IRWXG
-  NODE_DEFINE_CONSTANT(target, S_IRWXG);
-#endif
-
-
-#ifdef S_IRGRP
-  NODE_DEFINE_CONSTANT(target, S_IRGRP);
-#endif
-
-#ifdef S_IWGRP
-  NODE_DEFINE_CONSTANT(target, S_IWGRP);
-#endif
-
-#ifdef S_IXGRP
-  NODE_DEFINE_CONSTANT(target, S_IXGRP);
-#endif
-
-
-#ifdef S_IRWXO
-  NODE_DEFINE_CONSTANT(target, S_IRWXO);
-#endif
-
-
-#ifdef S_IROTH
-  NODE_DEFINE_CONSTANT(target, S_IROTH);
-#endif
-
-#ifdef S_IWOTH
-  NODE_DEFINE_CONSTANT(target, S_IWOTH);
-#endif
-
-#ifdef S_IXOTH
-  NODE_DEFINE_CONSTANT(target, S_IXOTH);
-#endif
-
+void DefineErrnoConstants(Handle<Object> target) {
 #ifdef E2BIG
   NODE_DEFINE_CONSTANT(target, E2BIG);
 #endif
@@ -478,7 +340,9 @@ void DefineConstants(Handle<Object> target) {
 #ifdef EXDEV
   NODE_DEFINE_CONSTANT(target, EXDEV);
 #endif
+}
 
+void DefineWindowsErrorConstants(Handle<Object> target) {
 #ifdef WSAEINTR
   NODE_DEFINE_CONSTANT(target, WSAEINTR);
 #endif
@@ -710,7 +574,9 @@ void DefineConstants(Handle<Object> target) {
 #ifdef WSAEREFUSED
   NODE_DEFINE_CONSTANT(target, WSAEREFUSED);
 #endif
+}
 
+void DefineSignalConstants(Handle<Object> target) {
 #ifdef SIGHUP
   NODE_DEFINE_CONSTANT(target, SIGHUP);
 #endif
@@ -853,149 +719,402 @@ void DefineConstants(Handle<Object> target) {
 #ifdef SIGUNUSED
   NODE_DEFINE_CONSTANT(target, SIGUNUSED);
 #endif
+}
 
-// OpenSSL SSL context options
-
+void DefineOpenSSLConstants(Handle<Object> target) {
 #ifdef SSL_OP_ALL
-  NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
 
 #ifdef SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
-  NODE_DEFINE_CONSTANT(target, SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
 #endif
 
 #ifdef SSL_OP_CIPHER_SERVER_PREFERENCE
-  NODE_DEFINE_CONSTANT(target, SSL_OP_CIPHER_SERVER_PREFERENCE);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_CIPHER_SERVER_PREFERENCE);
 #endif
 
 #ifdef SSL_OP_CISCO_ANYCONNECT
-  NODE_DEFINE_CONSTANT(target, SSL_OP_CISCO_ANYCONNECT);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_CISCO_ANYCONNECT);
 #endif
 
 #ifdef SSL_OP_COOKIE_EXCHANGE
-  NODE_DEFINE_CONSTANT(target, SSL_OP_COOKIE_EXCHANGE);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_COOKIE_EXCHANGE);
 #endif
 
 #ifdef SSL_OP_CRYPTOPRO_TLSEXT_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_CRYPTOPRO_TLSEXT_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_CRYPTOPRO_TLSEXT_BUG);
 #endif
 
 #ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
-  NODE_DEFINE_CONSTANT(target, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
 #endif
 
 #ifdef SSL_OP_EPHEMERAL_RSA
-  NODE_DEFINE_CONSTANT(target, SSL_OP_EPHEMERAL_RSA);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_EPHEMERAL_RSA);
 #endif
 
 #ifdef SSL_OP_LEGACY_SERVER_CONNECT
-  NODE_DEFINE_CONSTANT(target, SSL_OP_LEGACY_SERVER_CONNECT);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_LEGACY_SERVER_CONNECT);
 #endif
 
 #ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
-  NODE_DEFINE_CONSTANT(target, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
 #endif
 
 #ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_MICROSOFT_SESS_ID_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_MICROSOFT_SESS_ID_BUG);
 #endif
 
 #ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
-  NODE_DEFINE_CONSTANT(target, SSL_OP_MSIE_SSLV2_RSA_PADDING);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_MSIE_SSLV2_RSA_PADDING);
 #endif
 
 #ifdef SSL_OP_NETSCAPE_CA_DN_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_CA_DN_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_CA_DN_BUG);
 #endif
 
 #ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_CHALLENGE_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_CHALLENGE_BUG);
 #endif
 
 #ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
 #endif
 
 #ifdef SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG);
 #endif
 
 #ifdef SSL_OP_NO_COMPRESSION
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_COMPRESSION);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_COMPRESSION);
 #endif
 
 #ifdef SSL_OP_NO_QUERY_MTU
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_QUERY_MTU);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_QUERY_MTU);
 #endif
 
 #ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION);
 #endif
 
 #ifdef SSL_OP_NO_SSLv2
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SSLv2);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SSLv2);
 #endif
 
 #ifdef SSL_OP_NO_SSLv3
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SSLv3);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SSLv3);
 #endif
 
 #ifdef SSL_OP_NO_TICKET
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TICKET);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TICKET);
 #endif
 
 #ifdef SSL_OP_NO_TLSv1
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1);
 #endif
 
 #ifdef SSL_OP_NO_TLSv1_1
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1_1);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1_1);
 #endif
 
 #ifdef SSL_OP_NO_TLSv1_2
-  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1_2);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1_2);
 #endif
 
 #ifdef SSL_OP_PKCS1_CHECK_1
-  NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_1);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_1);
 #endif
 
 #ifdef SSL_OP_PKCS1_CHECK_2
-  NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_2);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_2);
 #endif
 
 #ifdef SSL_OP_SINGLE_DH_USE
-  NODE_DEFINE_CONSTANT(target, SSL_OP_SINGLE_DH_USE);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_SINGLE_DH_USE);
 #endif
 
 #ifdef SSL_OP_SINGLE_ECDH_USE
-  NODE_DEFINE_CONSTANT(target, SSL_OP_SINGLE_ECDH_USE);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_SINGLE_ECDH_USE);
 #endif
 
 #ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
 #endif
 
 #ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
 #endif
 
 #ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_BLOCK_PADDING_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_BLOCK_PADDING_BUG);
 #endif
 
 #ifdef SSL_OP_TLS_D5_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_D5_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_D5_BUG);
 #endif
 
 #ifdef SSL_OP_TLS_ROLLBACK_BUG
-  NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_ROLLBACK_BUG);
+    NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_ROLLBACK_BUG);
+#endif
+
+# ifndef OPENSSL_NO_ENGINE
+
+# ifdef ENGINE_METHOD_DSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
+# endif
+
+# ifdef ENGINE_METHOD_DH
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DH);
+# endif
+
+# ifdef ENGINE_METHOD_RAND
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RAND);
+# endif
+
+# ifdef ENGINE_METHOD_ECDH
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDH);
+# endif
+
+# ifdef ENGINE_METHOD_ECDSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ECDSA);
+# endif
+
+# ifdef ENGINE_METHOD_CIPHERS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_CIPHERS);
+# endif
+
+# ifdef ENGINE_METHOD_DIGESTS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DIGESTS);
+# endif
+
+# ifdef ENGINE_METHOD_STORE
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_STORE);
+# endif
+
+# ifdef ENGINE_METHOD_PKEY_METHS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_METHS);
+# endif
+
+# ifdef ENGINE_METHOD_PKEY_ASN1_METHS
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_PKEY_ASN1_METHS);
+# endif
+
+# ifdef ENGINE_METHOD_ALL
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_ALL);
+# endif
+
+# ifdef ENGINE_METHOD_NONE
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_NONE);
+# endif
+
+# endif  // !OPENSSL_NO_ENGINE
+
+#ifdef DH_CHECK_P_NOT_SAFE_PRIME
+    NODE_DEFINE_CONSTANT(target, DH_CHECK_P_NOT_SAFE_PRIME);
+#endif
+
+#ifdef DH_CHECK_P_NOT_PRIME
+    NODE_DEFINE_CONSTANT(target, DH_CHECK_P_NOT_PRIME);
+#endif
+
+#ifdef DH_UNABLE_TO_CHECK_GENERATOR
+    NODE_DEFINE_CONSTANT(target, DH_UNABLE_TO_CHECK_GENERATOR);
+#endif
+
+#ifdef DH_NOT_SUITABLE_GENERATOR
+    NODE_DEFINE_CONSTANT(target, DH_NOT_SUITABLE_GENERATOR);
 #endif
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 #define NPN_ENABLED 1
-  NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
+    NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
 #endif
+
+#ifdef RSA_PKCS1_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PADDING);
+#endif
+
+#ifdef RSA_SSLV23_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_SSLV23_PADDING);
+#endif
+
+#ifdef RSA_NO_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_NO_PADDING);
+#endif
+
+#ifdef RSA_PKCS1_OAEP_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_OAEP_PADDING);
+#endif
+
+#ifdef RSA_X931_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_X931_PADDING);
+#endif
+
+#ifdef RSA_PKCS1_PSS_PADDING
+    NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
+#endif
+
+#if HAVE_OPENSSL
+  // NOTE: These are not defines
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
+
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
+
+  NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
+#endif
+}
+
+void DefineSystemConstants(Handle<Object> target) {
+  // file access modes
+  NODE_DEFINE_CONSTANT(target, O_RDONLY);
+  NODE_DEFINE_CONSTANT(target, O_WRONLY);
+  NODE_DEFINE_CONSTANT(target, O_RDWR);
+
+  NODE_DEFINE_CONSTANT(target, S_IFMT);
+  NODE_DEFINE_CONSTANT(target, S_IFREG);
+  NODE_DEFINE_CONSTANT(target, S_IFDIR);
+  NODE_DEFINE_CONSTANT(target, S_IFCHR);
+#ifdef S_IFBLK
+  NODE_DEFINE_CONSTANT(target, S_IFBLK);
+#endif
+
+#ifdef S_IFIFO
+  NODE_DEFINE_CONSTANT(target, S_IFIFO);
+#endif
+
+#ifdef S_IFLNK
+  NODE_DEFINE_CONSTANT(target, S_IFLNK);
+#endif
+
+#ifdef S_IFSOCK
+  NODE_DEFINE_CONSTANT(target, S_IFSOCK);
+#endif
+
+#ifdef O_CREAT
+  NODE_DEFINE_CONSTANT(target, O_CREAT);
+#endif
+
+#ifdef O_EXCL
+  NODE_DEFINE_CONSTANT(target, O_EXCL);
+#endif
+
+#ifdef O_NOCTTY
+  NODE_DEFINE_CONSTANT(target, O_NOCTTY);
+#endif
+
+#ifdef O_TRUNC
+  NODE_DEFINE_CONSTANT(target, O_TRUNC);
+#endif
+
+#ifdef O_APPEND
+  NODE_DEFINE_CONSTANT(target, O_APPEND);
+#endif
+
+#ifdef O_DIRECTORY
+  NODE_DEFINE_CONSTANT(target, O_DIRECTORY);
+#endif
+
+#ifdef O_EXCL
+  NODE_DEFINE_CONSTANT(target, O_EXCL);
+#endif
+
+#ifdef O_NOFOLLOW
+  NODE_DEFINE_CONSTANT(target, O_NOFOLLOW);
+#endif
+
+#ifdef O_SYNC
+  NODE_DEFINE_CONSTANT(target, O_SYNC);
+#endif
+
+#ifdef O_SYMLINK
+  NODE_DEFINE_CONSTANT(target, O_SYMLINK);
+#endif
+
+#ifdef O_DIRECT
+  NODE_DEFINE_CONSTANT(target, O_DIRECT);
+#endif
+
+#ifdef O_NONBLOCK
+  NODE_DEFINE_CONSTANT(target, O_NONBLOCK);
+#endif
+
+#ifdef S_IRWXU
+  NODE_DEFINE_CONSTANT(target, S_IRWXU);
+#endif
+
+#ifdef S_IRUSR
+  NODE_DEFINE_CONSTANT(target, S_IRUSR);
+#endif
+
+#ifdef S_IWUSR
+  NODE_DEFINE_CONSTANT(target, S_IWUSR);
+#endif
+
+#ifdef S_IXUSR
+  NODE_DEFINE_CONSTANT(target, S_IXUSR);
+#endif
+
+#ifdef S_IRWXG
+  NODE_DEFINE_CONSTANT(target, S_IRWXG);
+#endif
+
+#ifdef S_IRGRP
+  NODE_DEFINE_CONSTANT(target, S_IRGRP);
+#endif
+
+#ifdef S_IWGRP
+  NODE_DEFINE_CONSTANT(target, S_IWGRP);
+#endif
+
+#ifdef S_IXGRP
+  NODE_DEFINE_CONSTANT(target, S_IXGRP);
+#endif
+
+#ifdef S_IRWXO
+  NODE_DEFINE_CONSTANT(target, S_IRWXO);
+#endif
+
+#ifdef S_IROTH
+  NODE_DEFINE_CONSTANT(target, S_IROTH);
+#endif
+
+#ifdef S_IWOTH
+  NODE_DEFINE_CONSTANT(target, S_IWOTH);
+#endif
+
+#ifdef S_IXOTH
+  NODE_DEFINE_CONSTANT(target, S_IXOTH);
+#endif
+
+#ifdef F_OK
+  NODE_DEFINE_CONSTANT(target, F_OK);
+#endif
+
+#ifdef R_OK
+  NODE_DEFINE_CONSTANT(target, R_OK);
+#endif
+
+#ifdef W_OK
+  NODE_DEFINE_CONSTANT(target, W_OK);
+#endif
+
+#ifdef X_OK
+  NODE_DEFINE_CONSTANT(target, X_OK);
+#endif
+}
+
+void DefineUVConstants(Handle<Object> target) {
+  NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
+}
+
+void DefineConstants(Handle<Object> target) {
+  DefineErrnoConstants(target);
+  DefineWindowsErrorConstants(target);
+  DefineSignalConstants(target);
+  DefineOpenSSLConstants(target);
+  DefineSystemConstants(target);
+  DefineUVConstants(target);
 }
 
 }  // namespace node

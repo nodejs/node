@@ -15,7 +15,7 @@
  */
 
 #include "ares_setup.h"
-#include <stdlib.h>
+
 #include "ares.h"
 #include "ares_private.h"
 

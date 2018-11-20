@@ -1,0 +1,67 @@
+{
+  "name": "columnify",
+  "version": "1.5.1",
+  "description": "Render data in text columns. supports in-column text-wrap.",
+  "main": "columnify.js",
+  "scripts": {
+    "pretest": "npm prune",
+    "test": "make prepublish && tape test/*.js | tap-spec",
+    "bench": "npm test && node bench",
+    "prepublish": "make prepublish"
+  },
+  "author": {
+    "name": "Tim Oxley"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "babel": "^5.0.10",
+    "chalk": "^1.0.0",
+    "tap-spec": "^3.0.0",
+    "tape": "^4.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/timoxley/columnify.git"
+  },
+  "keywords": [
+    "column",
+    "text",
+    "ansi",
+    "console",
+    "terminal",
+    "wrap",
+    "table"
+  ],
+  "bugs": {
+    "url": "https://github.com/timoxley/columnify/issues"
+  },
+  "homepage": "https://github.com/timoxley/columnify",
+  "dependencies": {
+    "strip-ansi": "^2.0.1",
+    "wcwidth": "^1.0.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "gitHead": "1e5f5ec9478d7dbd1e3d1d74343b552da7ae01ba",
+  "_id": "columnify@1.5.1",
+  "_shasum": "15fdda803a3875f87f9d302b3bc828932d664003",
+  "_from": "columnify@>=1.5.1 <1.6.0",
+  "_npmVersion": "2.7.6",
+  "_nodeVersion": "0.10.36",
+  "_npmUser": {
+    "name": "timoxley",
+    "email": "secoif@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "timoxley",
+      "email": "secoif@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "15fdda803a3875f87f9d302b3bc828932d664003",
+    "tarball": "http://registry.npmjs.org/columnify/-/columnify-1.5.1.tgz"
+  },
+  "_resolved": "https://registry.npmjs.org/columnify/-/columnify-1.5.1.tgz"
+}

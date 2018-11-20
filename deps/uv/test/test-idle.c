@@ -23,10 +23,12 @@
 #include "task.h"
 
 
-static uv_timer_t timer_handle;
 static uv_idle_t idle_handle;
+static uv_check_t check_handle;
+static uv_timer_t timer_handle;
 
 static int idle_cb_called = 0;
+static int check_cb_called = 0;
 static int timer_cb_called = 0;
 static int close_cb_called = 0;
 
@@ -36,24 +38,34 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle) {
   ASSERT(handle == &timer_handle);
-  ASSERT(status == 0);
 
   uv_close((uv_handle_t*) &idle_handle, close_cb);
+  uv_close((uv_handle_t*) &check_handle, close_cb);
   uv_close((uv_handle_t*) &timer_handle, close_cb);
 
   timer_cb_called++;
-  LOGF("timer_cb %d\n", timer_cb_called);
+  fprintf(stderr, "timer_cb %d\n", timer_cb_called);
+  fflush(stderr);
 }
 
 
-static void idle_cb(uv_idle_t* handle, int status) {
+static void idle_cb(uv_idle_t* handle) {
   ASSERT(handle == &idle_handle);
-  ASSERT(status == 0);
 
   idle_cb_called++;
-  LOGF("idle_cb %d\n", idle_cb_called);
+  fprintf(stderr, "idle_cb %d\n", idle_cb_called);
+  fflush(stderr);
+}
+
+
+static void check_cb(uv_check_t* handle) {
+  ASSERT(handle == &check_handle);
+
+  check_cb_called++;
+  fprintf(stderr, "check_cb %d\n", check_cb_called);
+  fflush(stderr);
 }
 
 
@@ -63,6 +75,11 @@ TEST_IMPL(idle_starvation) {
   r = uv_idle_init(uv_default_loop(), &idle_handle);
   ASSERT(r == 0);
   r = uv_idle_start(&idle_handle, idle_cb);
+  ASSERT(r == 0);
+
+  r = uv_check_init(uv_default_loop(), &check_handle);
+  ASSERT(r == 0);
+  r = uv_check_start(&check_handle, check_cb);
   ASSERT(r == 0);
 
   r = uv_timer_init(uv_default_loop(), &timer_handle);
@@ -75,7 +92,7 @@ TEST_IMPL(idle_starvation) {
 
   ASSERT(idle_cb_called > 0);
   ASSERT(timer_cb_called == 1);
-  ASSERT(close_cb_called == 2);
+  ASSERT(close_cb_called == 3);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

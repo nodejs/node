@@ -27,12 +27,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
-#include "diy-fp.h"
-#include "double.h"
+#include "src/base/platform/platform.h"
+#include "src/diy-fp.h"
+#include "src/double.h"
+#include "test/cctest/cctest.h"
 
 
 using namespace v8::internal;
@@ -49,6 +49,7 @@ TEST(Uint64Conversions) {
   uint64_t max_double64 = V8_2PART_UINT64_C(0x7fefffff, ffffffff);
   CHECK_EQ(1.7976931348623157e308, Double(max_double64).value());
 }
+
 
 TEST(AsDiyFp) {
   uint64_t ordered = V8_2PART_UINT64_C(0x01234567, 89ABCDEF);
@@ -104,7 +105,7 @@ TEST(IsDenormal) {
 TEST(IsSpecial) {
   CHECK(Double(V8_INFINITY).IsSpecial());
   CHECK(Double(-V8_INFINITY).IsSpecial());
-  CHECK(Double(OS::nan_value()).IsSpecial());
+  CHECK(Double(std::numeric_limits<double>::quiet_NaN()).IsSpecial());
   uint64_t bits = V8_2PART_UINT64_C(0xFFF12345, 00000000);
   CHECK(Double(bits).IsSpecial());
   // Denormals are not special:
@@ -127,7 +128,7 @@ TEST(IsSpecial) {
 TEST(IsInfinite) {
   CHECK(Double(V8_INFINITY).IsInfinite());
   CHECK(Double(-V8_INFINITY).IsInfinite());
-  CHECK(!Double(OS::nan_value()).IsInfinite());
+  CHECK(!Double(std::numeric_limits<double>::quiet_NaN()).IsInfinite());
   CHECK(!Double(0.0).IsInfinite());
   CHECK(!Double(-0.0).IsInfinite());
   CHECK(!Double(1.0).IsInfinite());

@@ -83,8 +83,9 @@ BENCHMARK_IMPL(getaddrinfo) {
   ASSERT(calls_initiated == TOTAL_CALLS);
   ASSERT(calls_completed == TOTAL_CALLS);
 
-  LOGF("getaddrinfo: %.0f req/s\n",
-       (double) calls_completed / (double) (end_time - start_time) * 1000.0);
+  fprintf(stderr, "getaddrinfo: %.0f req/s\n",
+          (double) calls_completed / (double) (end_time - start_time) * 1000.0);
+  fflush(stderr);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

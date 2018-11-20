@@ -1,34 +1,11 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "mips/lithium-gap-resolver-mips.h"
-#include "mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-gap-resolver-mips.h"
 
 namespace v8 {
 namespace internal {
@@ -42,7 +19,7 @@ LGapResolver::LGapResolver(LCodeGen* owner)
 
 
 void LGapResolver::Resolve(LParallelMove* parallel_move) {
-  ASSERT(moves_.is_empty());
+  DCHECK(moves_.is_empty());
   // Build up a worklist of moves.
   BuildInitialMoveList(parallel_move);
 
@@ -63,7 +40,7 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
   // Perform the moves with constant sources.
   for (int i = 0; i < moves_.length(); ++i) {
     if (!moves_[i].IsEliminated()) {
-      ASSERT(moves_[i].source()->IsConstantOperand());
+      DCHECK(moves_[i].source()->IsConstantOperand());
       EmitMove(i);
     }
   }
@@ -101,13 +78,13 @@ void LGapResolver::PerformMove(int index) {
   // An additional complication is that moves to MemOperands with large
   // offsets (more than 1K or 4K) require us to spill this spilled value to
   // the stack, to free up the register.
-  ASSERT(!moves_[index].IsPending());
-  ASSERT(!moves_[index].IsRedundant());
+  DCHECK(!moves_[index].IsPending());
+  DCHECK(!moves_[index].IsRedundant());
 
   // Clear this move's destination to indicate a pending move.  The actual
   // destination is saved in a stack allocated local.  Multiple moves can
   // be pending because this function is recursive.
-  ASSERT(moves_[index].source() != NULL);  // Or else it will look eliminated.
+  DCHECK(moves_[index].source() != NULL);  // Or else it will look eliminated.
   LOperand* destination = moves_[index].destination();
   moves_[index].set_destination(NULL);
 
@@ -134,7 +111,7 @@ void LGapResolver::PerformMove(int index) {
   // a scratch register to break it.
   LMoveOperands other_move = moves_[root_index_];
   if (other_move.Blocks(destination)) {
-    ASSERT(other_move.IsPending());
+    DCHECK(other_move.IsPending());
     BreakCycle(index);
     return;
   }
@@ -145,12 +122,12 @@ void LGapResolver::PerformMove(int index) {
 
 
 void LGapResolver::Verify() {
-#ifdef ENABLE_SLOW_ASSERTS
+#ifdef ENABLE_SLOW_DCHECKS
   // No operand should be the destination for more than one move.
   for (int i = 0; i < moves_.length(); ++i) {
     LOperand* destination = moves_[i].destination();
     for (int j = i + 1; j < moves_.length(); ++j) {
-      SLOW_ASSERT(!destination->Equals(moves_[j].destination()));
+      SLOW_DCHECK(!destination->Equals(moves_[j].destination()));
     }
   }
 #endif
@@ -162,8 +139,8 @@ void LGapResolver::BreakCycle(int index) {
   // We save in a register the value that should end up in the source of
   // moves_[root_index].  After performing all moves in the tree rooted
   // in that move, we save the value to that source.
-  ASSERT(moves_[index].destination()->Equals(moves_[root_index_].source()));
-  ASSERT(!in_cycle_);
+  DCHECK(moves_[index].destination()->Equals(moves_[root_index_].source()));
+  DCHECK(!in_cycle_);
   in_cycle_ = true;
   LOperand* source = moves_[index].source();
   saved_destination_ = moves_[index].destination();
@@ -172,10 +149,8 @@ void LGapResolver::BreakCycle(int index) {
   } else if (source->IsStackSlot()) {
     __ lw(kLithiumScratchReg, cgen_->ToMemOperand(source));
   } else if (source->IsDoubleRegister()) {
-    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ mov_d(kLithiumScratchDouble, cgen_->ToDoubleRegister(source));
   } else if (source->IsDoubleStackSlot()) {
-    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ ldc1(kLithiumScratchDouble, cgen_->ToMemOperand(source));
   } else {
     UNREACHABLE();
@@ -186,8 +161,8 @@ void LGapResolver::BreakCycle(int index) {
 
 
 void LGapResolver::RestoreValue() {
-  ASSERT(in_cycle_);
-  ASSERT(saved_destination_ != NULL);
+  DCHECK(in_cycle_);
+  DCHECK(saved_destination_ != NULL);
 
   // Spilled value is in kLithiumScratchReg or kLithiumScratchDouble.
   if (saved_destination_->IsRegister()) {
@@ -195,11 +170,9 @@ void LGapResolver::RestoreValue() {
   } else if (saved_destination_->IsStackSlot()) {
     __ sw(kLithiumScratchReg, cgen_->ToMemOperand(saved_destination_));
   } else if (saved_destination_->IsDoubleRegister()) {
-    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ mov_d(cgen_->ToDoubleRegister(saved_destination_),
             kLithiumScratchDouble);
   } else if (saved_destination_->IsDoubleStackSlot()) {
-    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ sdc1(kLithiumScratchDouble,
             cgen_->ToMemOperand(saved_destination_));
   } else {
@@ -223,20 +196,18 @@ void LGapResolver::EmitMove(int index) {
     if (destination->IsRegister()) {
       __ mov(cgen_->ToRegister(destination), source_register);
     } else {
-      ASSERT(destination->IsStackSlot());
+      DCHECK(destination->IsStackSlot());
       __ sw(source_register, cgen_->ToMemOperand(destination));
     }
-
   } else if (source->IsStackSlot()) {
     MemOperand source_operand = cgen_->ToMemOperand(source);
     if (destination->IsRegister()) {
       __ lw(cgen_->ToRegister(destination), source_operand);
     } else {
-      ASSERT(destination->IsStackSlot());
+      DCHECK(destination->IsStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (in_cycle_) {
         if (!destination_operand.OffsetIsInt16Encodable()) {
-          CpuFeatureScope scope(cgen_->masm(), FPU);
           // 'at' is overwritten while saving the value to the destination.
           // Therefore we can't use 'at'.  It is OK if the read from the source
           // destroys 'at', since that happens before the value is read.
@@ -257,42 +228,47 @@ void LGapResolver::EmitMove(int index) {
     LConstantOperand* constant_source = LConstantOperand::cast(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
+      Representation r = cgen_->IsSmi(constant_source)
+          ? Representation::Smi() : Representation::Integer32();
       if (cgen_->IsInteger32(constant_source)) {
-        __ li(dst, Operand(cgen_->ToInteger32(constant_source)));
+        __ li(dst, Operand(cgen_->ToRepresentation(constant_source, r)));
       } else {
-        __ LoadObject(dst, cgen_->ToHandle(constant_source));
+        __ li(dst, cgen_->ToHandle(constant_source));
       }
+    } else if (destination->IsDoubleRegister()) {
+      DoubleRegister result = cgen_->ToDoubleRegister(destination);
+      double v = cgen_->ToDouble(constant_source);
+      __ Move(result, v);
     } else {
-      ASSERT(destination->IsStackSlot());
-      ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
+      DCHECK(destination->IsStackSlot());
+      DCHECK(!in_cycle_);  // Constant moves happen after all cycles are gone.
+      Representation r = cgen_->IsSmi(constant_source)
+          ? Representation::Smi() : Representation::Integer32();
       if (cgen_->IsInteger32(constant_source)) {
         __ li(kLithiumScratchReg,
-              Operand(cgen_->ToInteger32(constant_source)));
+              Operand(cgen_->ToRepresentation(constant_source, r)));
       } else {
-        __ LoadObject(kLithiumScratchReg,
-                      cgen_->ToHandle(constant_source));
+        __ li(kLithiumScratchReg, cgen_->ToHandle(constant_source));
       }
       __ sw(kLithiumScratchReg, cgen_->ToMemOperand(destination));
     }
 
   } else if (source->IsDoubleRegister()) {
-    CpuFeatureScope scope(cgen_->masm(), FPU);
     DoubleRegister source_register = cgen_->ToDoubleRegister(source);
     if (destination->IsDoubleRegister()) {
       __ mov_d(cgen_->ToDoubleRegister(destination), source_register);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       __ sdc1(source_register, destination_operand);
     }
 
   } else if (source->IsDoubleStackSlot()) {
-    CpuFeatureScope scope(cgen_->masm(), FPU);
     MemOperand source_operand = cgen_->ToMemOperand(source);
     if (destination->IsDoubleRegister()) {
       __ ldc1(cgen_->ToDoubleRegister(destination), source_operand);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (in_cycle_) {
         // kLithiumScratchDouble was used to break the cycle,

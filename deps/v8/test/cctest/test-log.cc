@@ -28,20 +28,23 @@
 // Tests of logging functions from log.h
 
 #ifdef __linux__
-#include <math.h>
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
+#include <cmath>
 #endif  // __linux__
 
-#include "v8.h"
-#include "log.h"
-#include "cpu-profiler.h"
-#include "natives.h"
-#include "v8threads.h"
-#include "v8utils.h"
-#include "cctest.h"
-#include "vm-state-inl.h"
+#include "src/v8.h"
+
+#include "src/cpu-profiler.h"
+#include "src/log.h"
+#include "src/log-utils.h"
+#include "src/natives.h"
+#include "src/utils.h"
+#include "src/v8threads.h"
+#include "src/version.h"
+#include "src/vm-state-inl.h"
+#include "test/cctest/cctest.h"
 
 using v8::internal::Address;
 using v8::internal::EmbeddedVector;
@@ -53,57 +56,60 @@ namespace {
 
 class ScopedLoggerInitializer {
  public:
-  explicit ScopedLoggerInitializer(bool prof_lazy)
+  ScopedLoggerInitializer()
       : saved_log_(i::FLAG_log),
-        saved_prof_lazy_(i::FLAG_prof_lazy),
         saved_prof_(i::FLAG_prof),
-        saved_prof_auto_(i::FLAG_prof_auto),
         temp_file_(NULL),
         // Need to run this prior to creating the scope.
-        trick_to_run_init_flags_(init_flags_(prof_lazy)),
-        scope_(v8::Isolate::GetCurrent()),
-        env_(v8::Context::New()) {
+        trick_to_run_init_flags_(init_flags_()),
+        isolate_(v8::Isolate::New()),
+        isolate_scope_(isolate_),
+        scope_(isolate_),
+        env_(v8::Context::New(isolate_)),
+        logger_(reinterpret_cast<i::Isolate*>(isolate_)->logger()) {
     env_->Enter();
   }
 
   ~ScopedLoggerInitializer() {
     env_->Exit();
-    LOGGER->TearDown();
+    logger_->TearDown();
     if (temp_file_ != NULL) fclose(temp_file_);
-    i::FLAG_prof_lazy = saved_prof_lazy_;
     i::FLAG_prof = saved_prof_;
-    i::FLAG_prof_auto = saved_prof_auto_;
     i::FLAG_log = saved_log_;
   }
 
   v8::Handle<v8::Context>& env() { return env_; }
 
+  v8::Isolate* isolate() { return isolate_; }
+
+  Logger* logger() { return logger_; }
+
   FILE* StopLoggingGetTempFile() {
-    temp_file_ = LOGGER->TearDown();
-    CHECK_NE(NULL, temp_file_);
+    temp_file_ = logger_->TearDown();
+    CHECK(temp_file_);
     fflush(temp_file_);
     rewind(temp_file_);
     return temp_file_;
   }
 
  private:
-  static bool init_flags_(bool prof_lazy) {
+  static bool init_flags_() {
     i::FLAG_log = true;
     i::FLAG_prof = true;
-    i::FLAG_prof_lazy = prof_lazy;
-    i::FLAG_prof_auto = false;
     i::FLAG_logfile = i::Log::kLogToTemporaryFile;
-    return prof_lazy;
+    i::FLAG_logfile_per_isolate = false;
+    return false;
   }
 
   const bool saved_log_;
-  const bool saved_prof_lazy_;
   const bool saved_prof_;
-  const bool saved_prof_auto_;
   FILE* temp_file_;
   const bool trick_to_run_init_flags_;
+  v8::Isolate* isolate_;
+  v8::Isolate::Scope isolate_scope_;
   v8::HandleScope scope_;
   v8::Handle<v8::Context> env_;
+  Logger* logger_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
 };
@@ -114,73 +120,10 @@ class ScopedLoggerInitializer {
 static const char* StrNStr(const char* s1, const char* s2, int n) {
   if (s1[n] == '\0') return strstr(s1, s2);
   i::ScopedVector<char> str(n + 1);
-  i::OS::StrNCpy(str, s1, static_cast<size_t>(n));
+  i::StrNCpy(str, s1, static_cast<size_t>(n));
   str[n] = '\0';
   char* found = strstr(str.start(), s2);
   return found != NULL ? s1 + (found - str.start()) : NULL;
-}
-
-
-TEST(ProfLazyMode) {
-  ScopedLoggerInitializer initialize_logger(true);
-
-  if (!i::V8::UseCrankshaft()) return;
-
-  LOGGER->StringEvent("test-start", "");
-  CompileRun("var a = (function(x) { return x + 1; })(10);");
-  LOGGER->StringEvent("test-profiler-start", "");
-  v8::V8::ResumeProfiler();
-  CompileRun(
-      "var b = (function(x) { return x + 2; })(10);\n"
-      "var c = (function(x) { return x + 3; })(10);\n"
-      "var d = (function(x) { return x + 4; })(10);\n"
-      "var e = (function(x) { return x + 5; })(10);");
-  v8::V8::PauseProfiler();
-  LOGGER->StringEvent("test-profiler-stop", "");
-  CompileRun("var f = (function(x) { return x + 6; })(10);");
-  // Check that profiling can be resumed again.
-  LOGGER->StringEvent("test-profiler-start-2", "");
-  v8::V8::ResumeProfiler();
-  CompileRun(
-      "var g = (function(x) { return x + 7; })(10);\n"
-      "var h = (function(x) { return x + 8; })(10);\n"
-      "var i = (function(x) { return x + 9; })(10);\n"
-      "var j = (function(x) { return x + 10; })(10);");
-  v8::V8::PauseProfiler();
-  LOGGER->StringEvent("test-profiler-stop-2", "");
-  LOGGER->StringEvent("test-stop", "");
-
-  bool exists = false;
-  i::Vector<const char> log(
-      i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
-  CHECK(exists);
-
-  const char* test_start_position =
-      StrNStr(log.start(), "test-start,", log.length());
-  CHECK_NE(NULL, test_start_position);
-  const char* test_profiler_start_position =
-      StrNStr(log.start(), "test-profiler-start,", log.length());
-  CHECK_NE(NULL, test_profiler_start_position);
-  CHECK_GT(test_profiler_start_position, test_start_position);
-  const char* test_profiler_stop_position =
-      StrNStr(log.start(), "test-profiler-stop,", log.length());
-  CHECK_NE(NULL, test_profiler_stop_position);
-  CHECK_GT(test_profiler_stop_position, test_profiler_start_position);
-  const char* test_profiler_start_2_position =
-      StrNStr(log.start(), "test-profiler-start-2,", log.length());
-  CHECK_NE(NULL, test_profiler_start_2_position);
-  CHECK_GT(test_profiler_start_2_position, test_profiler_stop_position);
-
-  // Nothing must be logged until profiling is resumed.
-  CHECK_EQ(NULL, StrNStr(test_start_position,
-                         "code-creation,",
-                         static_cast<int>(test_profiler_start_position -
-                                          test_start_position)));
-  // Nothing must be logged while profiling is suspended.
-  CHECK_EQ(NULL, StrNStr(test_profiler_stop_position,
-                         "code-creation,",
-                         static_cast<int>(test_profiler_start_2_position -
-                                          test_profiler_stop_position)));
 }
 
 
@@ -193,7 +136,7 @@ class LoopingThread : public v8::internal::Thread {
  public:
   explicit LoopingThread(v8::internal::Isolate* isolate)
       : v8::internal::Thread(isolate),
-        semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        semaphore_(new v8::internal::Semaphore(0)),
         run_(true) {
   }
 
@@ -235,8 +178,8 @@ class LoopingJsThread : public LoopingThread {
       : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
-    CHECK(i::Isolate::Current() != NULL);
-    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
+    CHECK(CcTest::i_isolate() != NULL);
+    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     SetV8ThreadId();
     while (IsRunning()) {
       v8::HandleScope scope;
@@ -263,12 +206,12 @@ class LoopingNonJsThread : public LoopingThread {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
-    CHECK(i::Isolate::Current() != NULL);
-    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
+    CHECK(CcTest::i_isolate() != NULL);
+    CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     double i = 10;
     SignalRunning();
     while (IsRunning()) {
-      i = sin(i);
+      i = std::sin(i);
       i::OS::Sleep(1);
     }
   }
@@ -279,7 +222,7 @@ class TestSampler : public v8::internal::Sampler {
  public:
   explicit TestSampler(v8::internal::Isolate* isolate)
       : Sampler(isolate, 0, true, true),
-        semaphore_(v8::internal::OS::CreateSemaphore(0)),
+        semaphore_(new v8::internal::Semaphore(0)),
         was_sample_stack_called_(false) {
   }
 
@@ -309,14 +252,14 @@ TEST(ProfMultipleThreads) {
   TestSampler* sampler = NULL;
   {
     v8::Locker locker;
-    sampler = new TestSampler(v8::internal::Isolate::Current());
+    sampler = new TestSampler(CcTest::i_isolate());
     sampler->Start();
     CHECK(sampler->IsActive());
   }
 
-  LoopingJsThread jsThread(v8::internal::Isolate::Current());
+  LoopingJsThread jsThread(CcTest::i_isolate());
   jsThread.Start();
-  LoopingNonJsThread nonJsThread(v8::internal::Isolate::Current());
+  LoopingNonJsThread nonJsThread(CcTest::i_isolate());
   nonJsThread.Start();
 
   CHECK(!sampler->WasSampleStackCalled());
@@ -365,15 +308,17 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 }  // namespace
 
 TEST(Issue23768) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  v8::Handle<v8::Context> env = v8::Context::New();
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
   SimpleExternalString source_ext_str("(function ext() {})();");
-  v8::Local<v8::String> source = v8::String::NewExternal(&source_ext_str);
+  v8::Local<v8::String> source =
+      v8::String::NewExternal(CcTest::isolate(), &source_ext_str);
   // Script needs to have a name in order to trigger InitLineEnds execution.
-  v8::Handle<v8::String> origin = v8::String::New("issue-23768-test");
-  v8::Handle<v8::Script> evil_script = v8::Script::Compile(source, origin);
+  v8::Handle<v8::String> origin =
+      v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test");
+  v8::Handle<v8::Script> evil_script = CompileWithOrigin(source, origin);
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run().IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
@@ -383,116 +328,108 @@ TEST(Issue23768) {
   i_source->set_resource(NULL);
 
   // Must not crash.
-  LOGGER->LogCompiledFunctions();
+  CcTest::i_isolate()->logger()->LogCompiledFunctions();
 }
 
 
-static v8::Handle<v8::Value> ObjMethod1(const v8::Arguments& args) {
-  return v8::Handle<v8::Value>();
+static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
+
 
 TEST(LogCallbacks) {
-  ScopedLoggerInitializer initialize_logger(false);
+  v8::Isolate* isolate;
+  {
+    ScopedLoggerInitializer initialize_logger;
+    isolate = initialize_logger.isolate();
+    Logger* logger = initialize_logger.logger();
 
-  v8::Persistent<v8::FunctionTemplate> obj =
-      v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
-                                                v8::FunctionTemplate::New());
-  obj->SetClassName(v8_str("Obj"));
-  v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
-  v8::Local<v8::Signature> signature = v8::Signature::New(obj);
-  proto->Set(v8_str("method1"),
-             v8::FunctionTemplate::New(ObjMethod1,
-                                       v8::Handle<v8::Value>(),
-                                       signature),
-             static_cast<v8::PropertyAttribute>(v8::DontDelete));
+    v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
+        isolate, v8::FunctionTemplate::New(isolate));
+    obj->SetClassName(v8_str("Obj"));
+    v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
+    v8::Local<v8::Signature> signature = v8::Signature::New(isolate, obj);
+    proto->Set(v8_str("method1"),
+               v8::FunctionTemplate::New(isolate, ObjMethod1,
+                                         v8::Handle<v8::Value>(), signature),
+               static_cast<v8::PropertyAttribute>(v8::DontDelete));
 
-  initialize_logger.env()->Global()->Set(v8_str("Obj"), obj->GetFunction());
-  CompileRun("Obj.prototype.method1.toString();");
+    initialize_logger.env()->Global()->Set(v8_str("Obj"), obj->GetFunction());
+    CompileRun("Obj.prototype.method1.toString();");
 
-  LOGGER->LogCompiledFunctions();
+    logger->LogCompiledFunctions();
 
-  bool exists = false;
-  i::Vector<const char> log(
-      i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
-  CHECK(exists);
+    bool exists = false;
+    i::Vector<const char> log(
+        i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
+    CHECK(exists);
 
-  i::EmbeddedVector<char, 100> ref_data;
-  i::OS::SNPrintF(ref_data,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"method1\"\0",
-                  ObjMethod1);
+    i::EmbeddedVector<char, 100> ref_data;
+    i::SNPrintF(ref_data,
+                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"method1\"",
+                reinterpret_cast<intptr_t>(ObjMethod1));
 
-  CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
-
-  obj.Dispose(v8::Isolate::GetCurrent());
+    CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
+    log.Dispose();
+  }
+  isolate->Dispose();
 }
 
 
-static v8::Handle<v8::Value> Prop1Getter(v8::Local<v8::String> property,
-                                         const v8::AccessorInfo& info) {
-  return v8::Handle<v8::Value>();
+static void Prop1Getter(v8::Local<v8::String> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
 
 static void Prop1Setter(v8::Local<v8::String> property,
-                                         v8::Local<v8::Value> value,
-                                         const v8::AccessorInfo& info) {
+                        v8::Local<v8::Value> value,
+                        const v8::PropertyCallbackInfo<void>& info) {
 }
 
-static v8::Handle<v8::Value> Prop2Getter(v8::Local<v8::String> property,
-                                         const v8::AccessorInfo& info) {
-  return v8::Handle<v8::Value>();
+static void Prop2Getter(v8::Local<v8::String> property,
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {
 }
+
 
 TEST(LogAccessorCallbacks) {
-  ScopedLoggerInitializer initialize_logger(false);
+  v8::Isolate* isolate;
+  {
+    ScopedLoggerInitializer initialize_logger;
+    isolate = initialize_logger.isolate();
+    Logger* logger = initialize_logger.logger();
 
-  v8::Persistent<v8::FunctionTemplate> obj =
-      v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
-                                                v8::FunctionTemplate::New());
-  obj->SetClassName(v8_str("Obj"));
-  v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
-  inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);
-  inst->SetAccessor(v8_str("prop2"), Prop2Getter);
+    v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
+        isolate, v8::FunctionTemplate::New(isolate));
+    obj->SetClassName(v8_str("Obj"));
+    v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
+    inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);
+    inst->SetAccessor(v8_str("prop2"), Prop2Getter);
 
-  LOGGER->LogAccessorCallbacks();
+    logger->LogAccessorCallbacks();
 
-  bool exists = false;
-  i::Vector<const char> log(
-      i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
-  CHECK(exists);
+    bool exists = false;
+    i::Vector<const char> log(
+        i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
+    CHECK(exists);
 
-  EmbeddedVector<char, 100> prop1_getter_record;
-  i::OS::SNPrintF(prop1_getter_record,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop1\"",
-                  Prop1Getter);
-  CHECK_NE(NULL,
-           StrNStr(log.start(), prop1_getter_record.start(), log.length()));
+    EmbeddedVector<char, 100> prop1_getter_record;
+    i::SNPrintF(prop1_getter_record,
+                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop1\"",
+                reinterpret_cast<intptr_t>(Prop1Getter));
+    CHECK(StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
-  EmbeddedVector<char, 100> prop1_setter_record;
-  i::OS::SNPrintF(prop1_setter_record,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"set prop1\"",
-                  Prop1Setter);
-  CHECK_NE(NULL,
-           StrNStr(log.start(), prop1_setter_record.start(), log.length()));
+    EmbeddedVector<char, 100> prop1_setter_record;
+    i::SNPrintF(prop1_setter_record,
+                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"set prop1\"",
+                reinterpret_cast<intptr_t>(Prop1Setter));
+    CHECK(StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
-  EmbeddedVector<char, 100> prop2_getter_record;
-  i::OS::SNPrintF(prop2_getter_record,
-                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop2\"",
-                  Prop2Getter);
-  CHECK_NE(NULL,
-           StrNStr(log.start(), prop2_getter_record.start(), log.length()));
-
-  obj.Dispose(v8::Isolate::GetCurrent());
-}
-
-
-TEST(IsLoggingPreserved) {
-  ScopedLoggerInitializer initialize_logger(false);
-
-  CHECK(LOGGER->is_logging());
-  LOGGER->ResumeProfiler();
-  CHECK(LOGGER->is_logging());
-  LOGGER->PauseProfiler();
-  CHECK(LOGGER->is_logging());
+    EmbeddedVector<char, 100> prop2_getter_record;
+    i::SNPrintF(prop2_getter_record,
+                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop2\"",
+                reinterpret_cast<intptr_t>(Prop2Getter));
+    CHECK(StrNStr(log.start(), prop2_getter_record.start(), log.length()));
+    log.Dispose();
+  }
+  isolate->Dispose();
 }
 
 
@@ -507,59 +444,84 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   // it launches a new cctest instance for every test. To be sure that launching
   // cctest manually also works, please be sure that no tests below
   // are using V8.
-  //
-  // P.S. No, V8 can't be re-initialized after disposal, see include/v8.h.
-  CHECK(!i::V8::IsRunning());
 
   // Start with profiling to capture all code events from the beginning.
-  ScopedLoggerInitializer initialize_logger(false);
+  v8::Isolate* isolate;
+  {
+    ScopedLoggerInitializer initialize_logger;
+    isolate = initialize_logger.isolate();
+    Logger* logger = initialize_logger.logger();
 
-  // Compile and run a function that creates other functions.
-  CompileRun(
-      "(function f(obj) {\n"
-      "  obj.test =\n"
-      "    (function a(j) { return function b() { return j; } })(100);\n"
-      "})(this);");
-  v8::V8::PauseProfiler();
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
-  LOGGER->StringEvent("test-logging-done", "");
+    // Compile and run a function that creates other functions.
+    CompileRun(
+        "(function f(obj) {\n"
+        "  obj.test =\n"
+        "    (function a(j) { return function b() { return j; } })(100);\n"
+        "})(this);");
+    logger->StopProfiler();
+    reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
+        i::Heap::kMakeHeapIterableMask);
+    logger->StringEvent("test-logging-done", "");
 
-  // Iterate heap to find compiled functions, will write to log.
-  LOGGER->LogCompiledFunctions();
-  LOGGER->StringEvent("test-traversal-done", "");
+    // Iterate heap to find compiled functions, will write to log.
+    logger->LogCompiledFunctions();
+    logger->StringEvent("test-traversal-done", "");
 
-  bool exists = false;
-  i::Vector<const char> log(
-      i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
-  CHECK(exists);
-  v8::Handle<v8::String> log_str = v8::String::New(log.start(), log.length());
-  initialize_logger.env()->Global()->Set(v8_str("_log"), log_str);
+    bool exists = false;
+    i::Vector<const char> log(
+        i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
+    CHECK(exists);
+    v8::Handle<v8::String> log_str = v8::String::NewFromUtf8(
+        isolate, log.start(), v8::String::kNormalString, log.length());
+    initialize_logger.env()->Global()->Set(v8_str("_log"), log_str);
 
-  i::Vector<const unsigned char> source = TestSources::GetScriptsSource();
-  v8::Handle<v8::String> source_str = v8::String::New(
-      reinterpret_cast<const char*>(source.start()), source.length());
-  v8::TryCatch try_catch;
-  v8::Handle<v8::Script> script = v8::Script::Compile(source_str, v8_str(""));
-  if (script.IsEmpty()) {
-    v8::String::Utf8Value exception(try_catch.Exception());
-    printf("compile: %s\n", *exception);
-    CHECK(false);
+    i::Vector<const char> source = TestSources::GetScriptsSource();
+    v8::Handle<v8::String> source_str = v8::String::NewFromUtf8(
+        isolate, source.start(), v8::String::kNormalString, source.length());
+    v8::TryCatch try_catch;
+    v8::Handle<v8::Script> script = CompileWithOrigin(source_str, "");
+    if (script.IsEmpty()) {
+      v8::String::Utf8Value exception(try_catch.Exception());
+      printf("compile: %s\n", *exception);
+      CHECK(false);
+    }
+    v8::Handle<v8::Value> result = script->Run();
+    if (result.IsEmpty()) {
+      v8::String::Utf8Value exception(try_catch.Exception());
+      printf("run: %s\n", *exception);
+      CHECK(false);
+    }
+    // The result either be a "true" literal or problem description.
+    if (!result->IsTrue()) {
+      v8::Local<v8::String> s = result->ToString(isolate);
+      i::ScopedVector<char> data(s->Utf8Length() + 1);
+      CHECK(data.start());
+      s->WriteUtf8(data.start());
+      printf("%s\n", data.start());
+      // Make sure that our output is written prior crash due to CHECK failure.
+      fflush(stdout);
+      CHECK(false);
+    }
   }
-  v8::Handle<v8::Value> result = script->Run();
-  if (result.IsEmpty()) {
-    v8::String::Utf8Value exception(try_catch.Exception());
-    printf("run: %s\n", *exception);
-    CHECK(false);
+  isolate->Dispose();
+}
+
+
+TEST(LogVersion) {
+  v8::Isolate* isolate;
+  {
+    ScopedLoggerInitializer initialize_logger;
+    isolate = initialize_logger.isolate();
+    bool exists = false;
+    i::Vector<const char> log(
+        i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
+    CHECK(exists);
+    i::EmbeddedVector<char, 100> ref_data;
+    i::SNPrintF(ref_data, "v8-version,%d,%d,%d,%d,%d", i::Version::GetMajor(),
+                i::Version::GetMinor(), i::Version::GetBuild(),
+                i::Version::GetPatch(), i::Version::IsCandidate());
+    CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
+    log.Dispose();
   }
-  // The result either be a "true" literal or problem description.
-  if (!result->IsTrue()) {
-    v8::Local<v8::String> s = result->ToString();
-    i::ScopedVector<char> data(s->Length() + 1);
-    CHECK_NE(NULL, data.start());
-    s->WriteAscii(data.start());
-    printf("%s\n", data.start());
-    // Make sure that our output is written prior crash due to CHECK failure.
-    fflush(stdout);
-    CHECK(false);
-  }
+  isolate->Dispose();
 }

@@ -39,9 +39,8 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags);
 
 int uv__kqueue_init(uv_loop_t* loop) {
   loop->backend_fd = kqueue();
-
   if (loop->backend_fd == -1)
-    return -1;
+    return -errno;
 
   uv__cloexec(loop->backend_fd, 1);
 
@@ -55,10 +54,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct timespec spec;
   unsigned int nevents;
   unsigned int revents;
-  ngx_queue_t* q;
+  QUEUE* q;
+  uv__io_t* w;
+  sigset_t* pset;
+  sigset_t set;
   uint64_t base;
   uint64_t diff;
-  uv__io_t* w;
   int filter;
   int fflags;
   int count;
@@ -68,18 +69,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int i;
 
   if (loop->nfds == 0) {
-    assert(ngx_queue_empty(&loop->watcher_queue));
+    assert(QUEUE_EMPTY(&loop->watcher_queue));
     return;
   }
 
   nevents = 0;
 
-  while (!ngx_queue_empty(&loop->watcher_queue)) {
-    q = ngx_queue_head(&loop->watcher_queue);
-    ngx_queue_remove(q);
-    ngx_queue_init(q);
+  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
+    q = QUEUE_HEAD(&loop->watcher_queue);
+    QUEUE_REMOVE(q);
+    QUEUE_INIT(q);
 
-    w = ngx_queue_data(q, uv__io_t, watcher_queue);
+    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
@@ -118,6 +119,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  pset = NULL;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    pset = &set;
+    sigemptyset(pset);
+    sigaddset(pset, SIGPROF);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
@@ -128,12 +136,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       spec.tv_nsec = (timeout % 1000) * 1000000;
     }
 
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
     nfds = kevent(loop->backend_fd,
                   events,
                   nevents,
                   events,
                   ARRAY_SIZE(events),
                   timeout == -1 ? NULL : &spec);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
@@ -162,9 +176,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nevents = 0;
 
+    assert(loop->watchers != NULL);
+    loop->watchers[loop->nwatchers] = (void*) events;
+    loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
     for (i = 0; i < nfds; i++) {
       ev = events + i;
       fd = ev->ident;
+      /* Skip invalidated events, see uv__platform_invalidate_fd */
+      if (fd == -1)
+        continue;
       w = loop->watchers[fd];
 
       if (w == NULL) {
@@ -191,7 +211,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       revents = 0;
 
       if (ev->filter == EVFILT_READ) {
-        if (w->events & UV__POLLIN) {
+        if (w->pevents & UV__POLLIN) {
           revents |= UV__POLLIN;
           w->rcount = ev->data;
         } else {
@@ -205,7 +225,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       }
 
       if (ev->filter == EVFILT_WRITE) {
-        if (w->events & UV__POLLOUT) {
+        if (w->pevents & UV__POLLOUT) {
           revents |= UV__POLLOUT;
           w->wcount = ev->data;
         } else {
@@ -227,6 +247,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       w->cb(loop, w, revents);
       nevents++;
     }
+    loop->watchers[loop->nwatchers] = NULL;
+    loop->watchers[loop->nwatchers + 1] = NULL;
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {
@@ -255,10 +277,34 @@ update_timeout:
 }
 
 
+void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
+  struct kevent* events;
+  uintptr_t i;
+  uintptr_t nfds;
+
+  assert(loop->watchers != NULL);
+
+  events = (struct kevent*) loop->watchers[loop->nwatchers];
+  nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
+  if (events == NULL)
+    return;
+
+  /* Invalidate events with same file descriptor */
+  for (i = 0; i < nfds; i++)
+    if ((int) events[i].ident == fd)
+      events[i].ident = -1;
+}
+
+
 static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
   uv_fs_event_t* handle;
   struct kevent ev;
   int events;
+  const char* path;
+#if defined(F_GETPATH)
+  /* MAXPATHLEN == PATH_MAX but the former is what XNU calls it internally. */
+  char pathbuf[MAXPATHLEN];
+#endif
 
   handle = container_of(w, uv_fs_event_t, event_watcher);
 
@@ -267,7 +313,16 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
   else
     events = UV_RENAME;
 
-  handle->cb(handle, NULL, events, 0);
+  path = NULL;
+#if defined(F_GETPATH)
+  /* Also works when the file has been unlinked from the file system. Passing
+   * in the path when the file has been deleted is arguably a little strange
+   * but it's consistent with what the inotify backend does.
+   */
+  if (fcntl(handle->event_watcher.fd, F_GETPATH, pathbuf) == 0)
+    path = uv__basename_r(pathbuf);
+#endif
+  handle->cb(handle, path, events, 0);
 
   if (handle->event_watcher.fd == -1)
     return;
@@ -283,31 +338,37 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
 }
 
 
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb,
-                     int flags) {
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  return 0;
+}
+
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* path,
+                      unsigned int flags) {
 #if defined(__APPLE__)
   struct stat statbuf;
 #endif /* defined(__APPLE__) */
   int fd;
 
-  /* TODO open asynchronously - but how do we report back errors? */
-  if ((fd = open(filename, O_RDONLY)) == -1) {
-    uv__set_sys_error(loop, errno);
-    return -1;
-  }
+  if (uv__is_active(handle))
+    return -EINVAL;
 
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
-  uv__handle_start(handle); /* FIXME shouldn't start automatically */
+  /* TODO open asynchronously - but how do we report back errors? */
+  fd = open(path, O_RDONLY);
+  if (fd == -1)
+    return -errno;
+
+  uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__fs_event, fd);
-  handle->filename = strdup(filename);
+  handle->path = strdup(path);
   handle->cb = cb;
 
 #if defined(__APPLE__)
   /* Nullify field to perform checks later */
-  handle->cf_eventstream = NULL;
+  handle->cf_cb = NULL;
   handle->realpath = NULL;
   handle->realpath_len = 0;
   handle->cf_flags = flags;
@@ -323,25 +384,35 @@ int uv_fs_event_init(uv_loop_t* loop,
 fallback:
 #endif /* defined(__APPLE__) */
 
-  uv__io_start(loop, &handle->event_watcher, UV__POLLIN);
+  uv__io_start(handle->loop, &handle->event_watcher, UV__POLLIN);
+
+  return 0;
+}
+
+
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  if (!uv__is_active(handle))
+    return 0;
+
+  uv__handle_stop(handle);
+
+#if defined(__APPLE__)
+  if (uv__fsevents_close(handle))
+#endif /* defined(__APPLE__) */
+  {
+    uv__io_close(handle->loop, &handle->event_watcher);
+  }
+
+  free(handle->path);
+  handle->path = NULL;
+
+  uv__close(handle->event_watcher.fd);
+  handle->event_watcher.fd = -1;
 
   return 0;
 }
 
 
 void uv__fs_event_close(uv_fs_event_t* handle) {
-#if defined(__APPLE__)
-  if (uv__fsevents_close(handle))
-    uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
-#else
-  uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
-#endif /* defined(__APPLE__) */
-
-  uv__handle_stop(handle);
-
-  free(handle->filename);
-  handle->filename = NULL;
-
-  close(handle->event_watcher.fd);
-  handle->event_watcher.fd = -1;
+  uv_fs_event_stop(handle);
 }

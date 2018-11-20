@@ -1,4 +1,7 @@
-/* $LP: LPlib/source/LPdir_unix.c,v 1.11 2004/09/23 22:07:22 _cvs_levitte Exp $ */
+/*
+ * $LP: LPlib/source/LPdir_unix.c,v 1.11 2004/09/23 22:07:22 _cvs_levitte Exp
+ * $
+ */
 /*
  * Copyright (c) 2004, Richard Levitte <richard@levitte.org>
  * All rights reserved.
@@ -11,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -33,95 +36,91 @@
 #include <dirent.h>
 #include <errno.h>
 #ifndef LPDIR_H
-#include "LPdir.h"
+# include "LPdir.h"
 #endif
 
-/* The POSIXly macro for the maximum number of characters in a file path
-   is NAME_MAX.  However, some operating systems use PATH_MAX instead.
-   Therefore, it seems natural to first check for PATH_MAX and use that,
-   and if it doesn't exist, use NAME_MAX. */
+/*
+ * The POSIXly macro for the maximum number of characters in a file path is
+ * NAME_MAX.  However, some operating systems use PATH_MAX instead.
+ * Therefore, it seems natural to first check for PATH_MAX and use that, and
+ * if it doesn't exist, use NAME_MAX.
+ */
 #if defined(PATH_MAX)
 # define LP_ENTRY_SIZE PATH_MAX
 #elif defined(NAME_MAX)
 # define LP_ENTRY_SIZE NAME_MAX
 #endif
 
-/* Of course, there's the possibility that neither PATH_MAX nor NAME_MAX
-   exist.  It's also possible that NAME_MAX exists but is define to a
-   very small value (HP-UX offers 14), so we need to check if we got a
-   result, and if it meets a minimum standard, and create or change it
-   if not. */
+/*
+ * Of course, there's the possibility that neither PATH_MAX nor NAME_MAX
+ * exist.  It's also possible that NAME_MAX exists but is define to a very
+ * small value (HP-UX offers 14), so we need to check if we got a result, and
+ * if it meets a minimum standard, and create or change it if not.
+ */
 #if !defined(LP_ENTRY_SIZE) || LP_ENTRY_SIZE<255
 # undef LP_ENTRY_SIZE
 # define LP_ENTRY_SIZE 255
 #endif
 
-struct LP_dir_context_st
-{
-  DIR *dir;
-  char entry_name[LP_ENTRY_SIZE+1];
+struct LP_dir_context_st {
+    DIR *dir;
+    char entry_name[LP_ENTRY_SIZE + 1];
 };
 
 const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 {
-  struct dirent *direntry = NULL;
+    struct dirent *direntry = NULL;
 
-  if (ctx == NULL || directory == NULL)
-    {
-      errno = EINVAL;
-      return 0;
+    if (ctx == NULL || directory == NULL) {
+        errno = EINVAL;
+        return 0;
     }
 
-  errno = 0;
-  if (*ctx == NULL)
-    {
-      *ctx = (LP_DIR_CTX *)malloc(sizeof(LP_DIR_CTX));
-      if (*ctx == NULL)
-	{
-	  errno = ENOMEM;
-	  return 0;
-	}
-      memset(*ctx, '\0', sizeof(LP_DIR_CTX));
+    errno = 0;
+    if (*ctx == NULL) {
+        *ctx = (LP_DIR_CTX *)malloc(sizeof(LP_DIR_CTX));
+        if (*ctx == NULL) {
+            errno = ENOMEM;
+            return 0;
+        }
+        memset(*ctx, '\0', sizeof(LP_DIR_CTX));
 
-      (*ctx)->dir = opendir(directory);
-      if ((*ctx)->dir == NULL)
-	{
-	  int save_errno = errno; /* Probably not needed, but I'm paranoid */
-	  free(*ctx);
-	  *ctx = NULL;
-	  errno = save_errno;
-	  return 0;
-	}
+        (*ctx)->dir = opendir(directory);
+        if ((*ctx)->dir == NULL) {
+            int save_errno = errno; /* Probably not needed, but I'm paranoid */
+            free(*ctx);
+            *ctx = NULL;
+            errno = save_errno;
+            return 0;
+        }
     }
 
-  direntry = readdir((*ctx)->dir);
-  if (direntry == NULL)
-    {
-      return 0;
+    direntry = readdir((*ctx)->dir);
+    if (direntry == NULL) {
+        return 0;
     }
 
-  strncpy((*ctx)->entry_name, direntry->d_name, sizeof((*ctx)->entry_name) - 1);
-  (*ctx)->entry_name[sizeof((*ctx)->entry_name) - 1] = '\0';
-  return (*ctx)->entry_name;
+    strncpy((*ctx)->entry_name, direntry->d_name,
+            sizeof((*ctx)->entry_name) - 1);
+    (*ctx)->entry_name[sizeof((*ctx)->entry_name) - 1] = '\0';
+    return (*ctx)->entry_name;
 }
 
 int LP_find_file_end(LP_DIR_CTX **ctx)
 {
-  if (ctx != NULL && *ctx != NULL)
-    {
-      int ret = closedir((*ctx)->dir);
+    if (ctx != NULL && *ctx != NULL) {
+        int ret = closedir((*ctx)->dir);
 
-      free(*ctx);
-      switch (ret)
-	{
-	case 0:
-	  return 1;
-	case -1:
-	  return 0;
-	default:
-	  break;
-	}
+        free(*ctx);
+        switch (ret) {
+        case 0:
+            return 1;
+        case -1:
+            return 0;
+        default:
+            break;
+        }
     }
-  errno = EINVAL;
-  return 0;
+    errno = EINVAL;
+    return 0;
 }

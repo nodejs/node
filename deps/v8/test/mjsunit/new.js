@@ -53,4 +53,3 @@ x = new String('foo');
 assertTrue(x === new Construct(x));
 x = function() { };
 assertTrue(x === new Construct(x));
-

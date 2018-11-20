@@ -9,11 +9,11 @@ uninstall.usage = "npm uninstall <name>[@<version> [<name>[@<version>] ...]"
 uninstall.completion = require("./utils/completion/installed-shallow.js")
 
 var fs = require("graceful-fs")
+  , writeFileAtomic = require("write-file-atomic")
   , log = require("npmlog")
   , readJson = require("read-package-json")
   , path = require("path")
   , npm = require("./npm.js")
-  , semver = require("semver")
   , asyncMap = require("slide").asyncMap
 
 function uninstall (args, cb) {
@@ -28,12 +28,11 @@ function uninstall (args, cb) {
   if (args.length) return uninstall_(args, nm, cb)
 
   // remove this package from the global space, if it's installed there
-  if (npm.config.get("global")) return cb(uninstall.usage)
-  readJson(path.resolve(npm.prefix, "package.json"), function (er, pkg) {
+  readJson(path.resolve(npm.localPrefix, "package.json"), function (er, pkg) {
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er) return cb(uninstall.usage)
     uninstall_( [pkg.name]
-              , npm.dir
+              , npm.globalDir
               , cb )
   })
 
@@ -80,14 +79,15 @@ function saver (args, nm, cb_) {
     // don't use readJson here, because we don't want all the defaults
     // filled in, for mans and other bs.
     fs.readFile(pj, 'utf8', function (er, json) {
+      var pkg
       try {
-        var pkg = JSON.parse(json)
+        pkg = JSON.parse(json)
       } catch (_) {}
       if (!pkg) return cb_(null, data)
 
       var bundle
       if (npm.config.get('save-bundle')) {
-        var bundle = pkg.bundleDependencies || pkg.bundledDependencies
+        bundle = pkg.bundleDependencies || pkg.bundledDependencies
         if (!Array.isArray(bundle)) bundle = undefined
       }
 
@@ -120,7 +120,7 @@ function saver (args, nm, cb_) {
         }
       }
 
-      fs.writeFile(pj, JSON.stringify(pkg, null, 2) + "\n", function (er) {
+      writeFileAtomic(pj, JSON.stringify(pkg, null, 2) + "\n", function (er) {
         return cb_(er, data)
       })
     })

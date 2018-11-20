@@ -30,67 +30,66 @@
 // Test that we throw early syntax errors in harmony mode
 // when using an immutable binding in an assigment or with
 // prefix/postfix decrement/increment operators.
-// TODO(ES6): properly activate extended mode
-"use strict";
 
+"use strict";
 
 // Function local const.
 function constDecl0(use) {
-  return "(function() { const constvar = 1; " + use + "; });";
+  return "(function() { const constvar = 1; " + use + "; })();";
 }
 
 
 function constDecl1(use) {
-  return "(function() { " + use + "; const constvar = 1; });";
+  return "(function() { " + use + "; const constvar = 1; })();";
 }
 
 
 // Function local const, assign from eval.
 function constDecl2(use) {
-  use = "eval('(function() { " + use + " })')";
+  use = "eval('(function() { " + use + " })')()";
   return "(function() { const constvar = 1; " + use + "; })();";
 }
 
 
 function constDecl3(use) {
-  use = "eval('(function() { " + use + " })')";
+  use = "eval('(function() { " + use + " })')()";
   return "(function() { " + use + "; const constvar = 1; })();";
 }
 
 
 // Block local const.
 function constDecl4(use) {
-  return "(function() { { const constvar = 1; " + use + "; } });";
+  return "(function() { { const constvar = 1; " + use + "; } })();";
 }
 
 
 function constDecl5(use) {
-  return "(function() { { " + use + "; const constvar = 1; } });";
+  return "(function() { { " + use + "; const constvar = 1; } })();";
 }
 
 
 // Block local const, assign from eval.
 function constDecl6(use) {
-  use = "eval('(function() {" + use + "})')";
+  use = "eval('(function() {" + use + "})')()";
   return "(function() { { const constvar = 1; " + use + "; } })();";
 }
 
 
 function constDecl7(use) {
-  use = "eval('(function() {" + use + "})')";
+  use = "eval('(function() {" + use + "})')()";
   return "(function() { { " + use + "; const constvar = 1; } })();";
 }
 
 
 // Function expression name.
 function constDecl8(use) {
-  return "(function constvar() { " + use + "; });";
+  return "(function constvar() { " + use + "; })();";
 }
 
 
 // Function expression name, assign from eval.
 function constDecl9(use) {
-  use = "eval('(function(){" + use + "})')";
+  use = "eval('(function(){" + use + "})')()";
   return "(function constvar() { " + use + "; })();";
 }
 
@@ -105,6 +104,7 @@ let decls = [ constDecl0,
               constDecl8,
               constDecl9
               ];
+let declsForTDZ = new Set([constDecl1, constDecl3, constDecl5, constDecl7]);
 let uses = [ 'constvar = 1;',
              'constvar += 1;',
              '++constvar;',
@@ -117,7 +117,13 @@ function Test(d,u) {
     print(d(u));
     eval(d(u));
   } catch (e) {
-    assertInstanceof(e, SyntaxError);
+    if (declsForTDZ.has(d) && u !== uses[0]) {
+      // In these cases, read of a const variable occurs
+      // before a write to it, so TDZ kicks in before const check.
+      assertInstanceof(e, ReferenceError);
+      return;
+    }
+    assertInstanceof(e, TypeError);
     assertTrue(e.toString().indexOf("Assignment to constant variable") >= 0);
     return;
   }

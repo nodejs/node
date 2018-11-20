@@ -80,4 +80,3 @@ for (var i = 0; i < radix16.length; i++) {
   assertEquals(0xaf, parseInt("0xaf", radix));
   assertEquals(0xaf, parseInt("af", radix));
 }
-

@@ -1,6 +1,7 @@
 /* v3prin.c */
-/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project 1999.
+/*
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 1999.
  */
 /* ====================================================================
  * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -56,8 +57,6 @@
  *
  */
 
-
-
 #include <stdio.h>
 #include <openssl/asn1.h>
 #include <openssl/conf.h>
@@ -66,34 +65,35 @@
 
 int main(int argc, char **argv)
 {
-	X509 *cert;
-	FILE *inf;
-	int i, count;
-	X509_EXTENSION *ext;
-	X509V3_add_standard_extensions();
-	ERR_load_crypto_strings();
-	if(!argv[1]) {
-		fprintf(stderr, "Usage v3prin cert.pem\n");
-		exit(1);
-	}
-	if(!(inf = fopen(argv[1], "r"))) {
-		fprintf(stderr, "Can't open %s\n", argv[1]);
-		exit(1);
-	}
-	if(!(cert = PEM_read_X509(inf, NULL, NULL))) {
-		fprintf(stderr, "Can't read certificate %s\n", argv[1]);
-		ERR_print_errors_fp(stderr);
-		exit(1);
-	}
-	fclose(inf);
-	count = X509_get_ext_count(cert);
-	printf("%d extensions\n", count);
-	for(i = 0; i < count; i++) {
-		ext = X509_get_ext(cert, i);
-		printf("%s\n", OBJ_nid2ln(OBJ_obj2nid(ext->object)));
-		if(!X509V3_EXT_print_fp(stdout, ext, 0, 0)) ERR_print_errors_fp(stderr);
-		printf("\n");
-		
-	}
-	return 0;
+    X509 *cert;
+    FILE *inf;
+    int i, count;
+    X509_EXTENSION *ext;
+    X509V3_add_standard_extensions();
+    ERR_load_crypto_strings();
+    if (!argv[1]) {
+        fprintf(stderr, "Usage v3prin cert.pem\n");
+        exit(1);
+    }
+    if (!(inf = fopen(argv[1], "r"))) {
+        fprintf(stderr, "Can't open %s\n", argv[1]);
+        exit(1);
+    }
+    if (!(cert = PEM_read_X509(inf, NULL, NULL))) {
+        fprintf(stderr, "Can't read certificate %s\n", argv[1]);
+        ERR_print_errors_fp(stderr);
+        exit(1);
+    }
+    fclose(inf);
+    count = X509_get_ext_count(cert);
+    printf("%d extensions\n", count);
+    for (i = 0; i < count; i++) {
+        ext = X509_get_ext(cert, i);
+        printf("%s\n", OBJ_nid2ln(OBJ_obj2nid(ext->object)));
+        if (!X509V3_EXT_print_fp(stdout, ext, 0, 0))
+            ERR_print_errors_fp(stderr);
+        printf("\n");
+
+    }
+    return 0;
 }

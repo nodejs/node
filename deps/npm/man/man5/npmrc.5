@@ -1,0 +1,93 @@
+.TH "NPMRC" "5" "May 2015" "" ""
+.SH "NAME"
+\fBnpmrc\fR \- The npm config files
+.SH DESCRIPTION
+.P
+npm gets its config settings from the command line, environment
+variables, and \fBnpmrc\fR files\.
+.P
+The \fBnpm config\fR command can be used to update and edit the contents
+of the user and global npmrc files\.
+.P
+For a list of available configuration options, see npm help 7 config\.
+.SH FILES
+.P
+The four relevant files are:
+.RS 0
+.IP \(bu 2
+per\-project config file (/path/to/my/project/\.npmrc)
+.IP \(bu 2
+per\-user config file (~/\.npmrc)
+.IP \(bu 2
+global config file ($PREFIX/npmrc)
+.IP \(bu 2
+npm builtin config file (/path/to/npm/npmrc)
+
+.RE
+.P
+All npm config files are an ini\-formatted list of \fBkey = value\fR
+parameters\.  Environment variables can be replaced using
+\fB${VARIABLE_NAME}\fR\|\. For example:
+.P
+.RS 2
+.nf
+prefix = ${HOME}/\.npm\-packages
+.fi
+.RE
+.P
+Each of these files is loaded, and config options are resolved in
+priority order\.  For example, a setting in the userconfig file would
+override the setting in the globalconfig file\.
+.P
+Array values are specified by adding "[]" after the key name\. For
+example:
+.P
+.RS 2
+.nf
+key[] = "first value"
+key[] = "second value"
+.fi
+.RE
+.SS Per\-project config file
+.P
+When working locally in a project, a \fB\|\.npmrc\fR file in the root of the
+project (ie, a sibling of \fBnode_modules\fR and \fBpackage\.json\fR) will set
+config values specific to this project\.
+.P
+Note that this only applies to the root of the project that you're
+running npm in\.  It has no effect when your module is published\.  For
+example, you can't publish a module that forces itself to install
+globally, or in a different location\.
+.SS Per\-user config file
+.P
+\fB$HOME/\.npmrc\fR (or the \fBuserconfig\fR param, if set in the environment
+or on the command line)
+.SS Global config file
+.P
+\fB$PREFIX/etc/npmrc\fR (or the \fBglobalconfig\fR param, if set above):
+This file is an ini\-file formatted list of \fBkey = value\fR parameters\.
+Environment variables can be replaced as above\.
+.SS Built\-in config file
+.P
+\fBpath/to/npm/itself/npmrc\fR
+.P
+This is an unchangeable "builtin" configuration file that npm keeps
+consistent across updates\.  Set fields in here using the \fB\|\./configure\fR
+script that comes with npm\.  This is primarily for distribution
+maintainers to override default configs in a standard and consistent
+manner\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
+npm help 5 folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help 7 config
+.IP \(bu 2
+npm help 5 package\.json
+.IP \(bu 2
+npm help npm
+
+.RE
+

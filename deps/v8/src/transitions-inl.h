@@ -1,35 +1,11 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_TRANSITIONS_INL_H_
 #define V8_TRANSITIONS_INL_H_
 
-#include "objects-inl.h"
-#include "transitions.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -52,35 +28,13 @@ namespace internal {
 
 
 TransitionArray* TransitionArray::cast(Object* object) {
-  ASSERT(object->IsTransitionArray());
+  DCHECK(object->IsTransitionArray());
   return reinterpret_cast<TransitionArray*>(object);
 }
 
 
-Map* TransitionArray::elements_transition() {
-  Object* transition_map = get(kElementsTransitionIndex);
-  return Map::cast(transition_map);
-}
-
-
-void TransitionArray::ClearElementsTransition() {
-  WRITE_FIELD(this, kElementsTransitionOffset, Smi::FromInt(0));
-}
-
-
 bool TransitionArray::HasElementsTransition() {
-  return IsFullTransitionArray() &&
-      get(kElementsTransitionIndex) != Smi::FromInt(0);
-}
-
-
-void TransitionArray::set_elements_transition(Map* transition_map,
-                                              WriteBarrierMode mode) {
-  ASSERT(IsFullTransitionArray());
-  Heap* heap = GetHeap();
-  WRITE_FIELD(this, kElementsTransitionOffset, transition_map);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kElementsTransitionOffset, transition_map, mode);
+  return SearchSpecial(GetHeap()->elements_transition_symbol()) != kNotFound;
 }
 
 
@@ -105,22 +59,16 @@ bool TransitionArray::HasPrototypeTransitions() {
 
 
 FixedArray* TransitionArray::GetPrototypeTransitions() {
-  ASSERT(IsFullTransitionArray());
+  DCHECK(IsFullTransitionArray());
   Object* prototype_transitions = get(kPrototypeTransitionsIndex);
   return FixedArray::cast(prototype_transitions);
 }
 
 
-HeapObject* TransitionArray::UncheckedPrototypeTransitions() {
-  ASSERT(HasPrototypeTransitions());
-  return reinterpret_cast<HeapObject*>(get(kPrototypeTransitionsIndex));
-}
-
-
 void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
                                               WriteBarrierMode mode) {
-  ASSERT(IsFullTransitionArray());
-  ASSERT(transitions->IsFixedArray());
+  DCHECK(IsFullTransitionArray());
+  DCHECK(transitions->IsFixedArray());
   Heap* heap = GetHeap();
   WRITE_FIELD(this, kPrototypeTransitionsOffset, transitions);
   CONDITIONAL_WRITE_BARRIER(
@@ -135,11 +83,9 @@ Object** TransitionArray::GetPrototypeTransitionsSlot() {
 
 
 Object** TransitionArray::GetKeySlot(int transition_number) {
-  ASSERT(!IsSimpleTransition());
-  ASSERT(transition_number < number_of_transitions());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToKeyIndex(transition_number)));
+  DCHECK(!IsSimpleTransition());
+  DCHECK(transition_number < number_of_transitions());
+  return RawFieldOfElementAt(ToKeyIndex(transition_number));
 }
 
 
@@ -150,53 +96,121 @@ Name* TransitionArray::GetKey(int transition_number) {
     Name* key = target->instance_descriptors()->GetKey(descriptor);
     return key;
   }
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(transition_number < number_of_transitions());
   return Name::cast(get(ToKeyIndex(transition_number)));
 }
 
 
 void TransitionArray::SetKey(int transition_number, Name* key) {
-  ASSERT(!IsSimpleTransition());
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(!IsSimpleTransition());
+  DCHECK(transition_number < number_of_transitions());
   set(ToKeyIndex(transition_number), key);
 }
 
 
 Map* TransitionArray::GetTarget(int transition_number) {
   if (IsSimpleTransition()) {
-    ASSERT(transition_number == kSimpleTransitionIndex);
+    DCHECK(transition_number == kSimpleTransitionIndex);
     return Map::cast(get(kSimpleTransitionTarget));
   }
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(transition_number < number_of_transitions());
   return Map::cast(get(ToTargetIndex(transition_number)));
 }
 
 
 void TransitionArray::SetTarget(int transition_number, Map* value) {
   if (IsSimpleTransition()) {
-    ASSERT(transition_number == kSimpleTransitionIndex);
+    DCHECK(transition_number == kSimpleTransitionIndex);
     return set(kSimpleTransitionTarget, value);
   }
-  ASSERT(transition_number < number_of_transitions());
+  DCHECK(transition_number < number_of_transitions());
   set(ToTargetIndex(transition_number), value);
 }
 
 
 PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
   Map* map = GetTarget(transition_number);
-  DescriptorArray* descriptors = map->instance_descriptors();
-  int descriptor = map->LastAdded();
-  return descriptors->GetDetails(descriptor);
+  return map->GetLastDescriptorDetails();
 }
 
 
-int TransitionArray::Search(Name* name) {
+Object* TransitionArray::GetTargetValue(int transition_number) {
+  Map* map = GetTarget(transition_number);
+  return map->instance_descriptors()->GetValue(map->LastAdded());
+}
+
+
+int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
   if (IsSimpleTransition()) {
     Name* key = GetKey(kSimpleTransitionIndex);
     if (key->Equals(name)) return kSimpleTransitionIndex;
+    if (out_insertion_index != NULL) {
+      *out_insertion_index = key->Hash() > name->Hash() ? 0 : 1;
+    }
     return kNotFound;
   }
-  return internal::Search<ALL_ENTRIES>(this, name);
+  return internal::Search<ALL_ENTRIES>(this, name, 0, out_insertion_index);
+}
+
+
+#ifdef DEBUG
+bool TransitionArray::IsSpecialTransition(Name* name) {
+  if (!name->IsSymbol()) return false;
+  Heap* heap = name->GetHeap();
+  return name == heap->nonextensible_symbol() ||
+         name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
+         name == heap->elements_transition_symbol() ||
+         name == heap->observed_symbol();
+}
+#endif
+
+
+int TransitionArray::CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,
+                                 PropertyAttributes attributes1, Name* key2,
+                                 uint32_t hash2, PropertyKind kind2,
+                                 PropertyAttributes attributes2) {
+  int cmp = CompareNames(key1, hash1, key2, hash2);
+  if (cmp != 0) return cmp;
+
+  return CompareDetails(kind1, attributes1, kind2, attributes2);
+}
+
+
+int TransitionArray::CompareNames(Name* key1, uint32_t hash1, Name* key2,
+                                  uint32_t hash2) {
+  if (key1 != key2) {
+    // In case of hash collisions key1 is always "less" than key2.
+    return hash1 <= hash2 ? -1 : 1;
+  }
+
+  return 0;
+}
+
+
+int TransitionArray::CompareDetails(PropertyKind kind1,
+                                    PropertyAttributes attributes1,
+                                    PropertyKind kind2,
+                                    PropertyAttributes attributes2) {
+  if (kind1 != kind2) {
+    return static_cast<int>(kind1) < static_cast<int>(kind2) ? -1 : 1;
+  }
+
+  if (attributes1 != attributes2) {
+    return static_cast<int>(attributes1) < static_cast<int>(attributes2) ? -1
+                                                                         : 1;
+  }
+
+  return 0;
+}
+
+
+PropertyDetails TransitionArray::GetTargetDetails(Name* name, Map* target) {
+  DCHECK(!IsSpecialTransition(name));
+  int descriptor = target->LastAdded();
+  DescriptorArray* descriptors = target->instance_descriptors();
+  // Transitions are allowed only for the last added property.
+  DCHECK(descriptors->GetKey(descriptor)->Equals(name));
+  return descriptors->GetDetails(descriptor);
 }
 
 
@@ -207,6 +221,15 @@ void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
       this, ToKeyIndex(transition_number), key);
   FixedArray::NoIncrementalWriteBarrierSet(
       this, ToTargetIndex(transition_number), target);
+}
+
+
+void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
+  if (IsFullTransitionArray()) {
+    DCHECK(number_of_transitions <= number_of_transitions_storage());
+    WRITE_FIELD(this, kTransitionLengthOffset,
+                Smi::FromInt(number_of_transitions));
+  }
 }
 
 

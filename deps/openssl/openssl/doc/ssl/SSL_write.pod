@@ -79,7 +79,7 @@ The following return values can occur:
 The write operation was successful, the return value is the number of
 bytes actually written to the TLS/SSL connection.
 
-=item 0
+=item Z<>0
 
 The write operation was not successful. Probably the underlying connection
 was closed. Call SSL_get_error() with the return value B<ret> to find out,

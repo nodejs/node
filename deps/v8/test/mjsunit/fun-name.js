@@ -31,4 +31,3 @@ function strip(s) {
 
 assertEquals('function(){}', strip((function () { }).toString()));
 assertEquals('functionanonymous(){}', strip(new Function().toString()));
-

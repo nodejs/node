@@ -36,8 +36,7 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if (events & UV__POLLERR) {
     uv__io_stop(loop, w, UV__POLLIN | UV__POLLOUT);
     uv__handle_stop(handle);
-    uv__set_sys_error(handle->loop, EBADF);
-    handle->poll_cb(handle, -1, 0);
+    handle->poll_cb(handle, -EBADF, 0);
     return;
   }
 
@@ -52,6 +51,12 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
 
 int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
+  int err;
+
+  err = uv__nonblock(fd, 1);
+  if (err)
+    return err;
+
   uv__handle_init(loop, (uv_handle_t*) handle, UV_POLL);
   uv__io_init(&handle->io_watcher, uv__poll_io, fd);
   handle->poll_cb = NULL;

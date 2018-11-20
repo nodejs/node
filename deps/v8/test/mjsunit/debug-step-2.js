@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug
+// Flags: --turbo-deoptimization
 
 // This test tests that full code compiled without debug break slots
 // is recompiled with debug break slots when debugging is started.

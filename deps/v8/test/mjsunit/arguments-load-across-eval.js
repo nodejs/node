@@ -82,5 +82,3 @@ function testShadowing(x, h) {
 }
 
 testShadowing(1, function() { return 2; });
-
-

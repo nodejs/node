@@ -254,6 +254,7 @@ $code.=<<___;
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
-$code =~ s/,\*/,/gm if ($SIZE_T==4);
+$code =~ s/,\*/,/gm		if ($SIZE_T==4);
+$code =~ s/\bbv\b/bve/gm	if ($SIZE_T==8);
 print $code;
 close STDOUT;

@@ -1,36 +1,13 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#if defined(V8_TARGET_ARCH_X64)
+#if V8_TARGET_ARCH_X64
 
-#include "codegen.h"
-#include "macro-assembler.h"
+#include "src/codegen.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -40,14 +17,14 @@ namespace internal {
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
   masm->EnterFrame(StackFrame::INTERNAL);
-  ASSERT(!masm->has_frame());
+  DCHECK(!masm->has_frame());
   masm->set_has_frame(true);
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   masm->LeaveFrame(StackFrame::INTERNAL);
-  ASSERT(masm->has_frame());
+  DCHECK(masm->has_frame());
   masm->set_has_frame(false);
 }
 
@@ -55,77 +32,34 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  size_t actual_size;
-  // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
-                                                 &actual_size,
-                                                 true));
-  if (buffer == NULL) {
-    // Fallback to library function if function cannot be created.
-    switch (type) {
-      case TranscendentalCache::SIN: return &sin;
-      case TranscendentalCache::COS: return &cos;
-      case TranscendentalCache::TAN: return &tan;
-      case TranscendentalCache::LOG: return &log;
-      default: UNIMPLEMENTED();
-    }
-  }
-
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-  // xmm0: raw double input.
-  // Move double input into registers.
-  __ push(rbx);
-  __ push(rdi);
-  __ movq(rbx, xmm0);
-  __ push(rbx);
-  __ fld_d(Operand(rsp, 0));
-  TranscendentalCacheStub::GenerateOperation(&masm, type);
-  // The return value is expected to be in xmm0.
-  __ fstp_d(Operand(rsp, 0));
-  __ pop(rbx);
-  __ movq(xmm0, rbx);
-  __ pop(rdi);
-  __ pop(rbx);
-  __ Ret();
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
-
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-}
-
-
 UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &exp;
+  if (!FLAG_fast_math) return &std::exp;
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &exp;
+  byte* buffer =
+      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return &std::exp;
   ExternalReference::InitializeMathExpData();
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // xmm0: raw double input.
   XMMRegister input = xmm0;
   XMMRegister result = xmm1;
-  __ push(rax);
-  __ push(rbx);
+  __ pushq(rax);
+  __ pushq(rbx);
 
   MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
 
-  __ pop(rbx);
-  __ pop(rax);
+  __ popq(rbx);
+  __ popq(rax);
   __ movsd(xmm0, result);
   __ Ret();
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  CpuFeatures::FlushICache(buffer, actual_size);
+  base::OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -133,10 +67,9 @@ UnaryMathFunction CreateExpFunction() {
 UnaryMathFunction CreateSqrtFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
-                                                 &actual_size,
-                                                 true));
-  if (buffer == NULL) return &sqrt;
+  byte* buffer =
+      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return &std::sqrt;
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // xmm0: raw double input.
@@ -146,10 +79,10 @@ UnaryMathFunction CreateSqrtFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  CpuFeatures::FlushICache(buffer, actual_size);
+  base::OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
@@ -159,9 +92,8 @@ typedef double (*ModuloFunction)(double, double);
 // Define custom fmod implementation.
 ModuloFunction CreateModuloFunction() {
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(
+      base::OS::Allocate(Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler masm(NULL, buffer, static_cast<int>(actual_size));
   // Generated code is put into a fixed, unmovable, buffer, and not into
@@ -175,10 +107,10 @@ ModuloFunction CreateModuloFunction() {
 
   // Compute x mod y.
   // Load y and x (use argument backing store as temporary storage).
-  __ movsd(Operand(rsp, kPointerSize * 2), xmm1);
-  __ movsd(Operand(rsp, kPointerSize), xmm0);
-  __ fld_d(Operand(rsp, kPointerSize * 2));
-  __ fld_d(Operand(rsp, kPointerSize));
+  __ movsd(Operand(rsp, kRegisterSize * 2), xmm1);
+  __ movsd(Operand(rsp, kRegisterSize), xmm0);
+  __ fld_d(Operand(rsp, kRegisterSize * 2));
+  __ fld_d(Operand(rsp, kRegisterSize));
 
   // Clear exception flags before operation.
   {
@@ -213,15 +145,15 @@ ModuloFunction CreateModuloFunction() {
   __ j(zero, &valid_result);
   __ fstp(0);  // Drop result in st(0).
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
-  __ movq(rcx, kNaNValue, RelocInfo::NONE64);
-  __ movq(Operand(rsp, kPointerSize), rcx);
-  __ movsd(xmm0, Operand(rsp, kPointerSize));
+  __ movq(rcx, kNaNValue);
+  __ movq(Operand(rsp, kRegisterSize), rcx);
+  __ movsd(xmm0, Operand(rsp, kRegisterSize));
   __ jmp(&return_result);
 
   // If result is valid, return that.
   __ bind(&valid_result);
-  __ fstp_d(Operand(rsp, kPointerSize));
-  __ movsd(xmm0, Operand(rsp, kPointerSize));
+  __ fstp_d(Operand(rsp, kRegisterSize));
+  __ movsd(xmm0, Operand(rsp, kRegisterSize));
 
   // Clean up FPU stack and exceptions and return xmm0
   __ bind(&return_result);
@@ -237,7 +169,7 @@ ModuloFunction CreateModuloFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  OS::ProtectCode(buffer, actual_size);
+  base::OS::ProtectCode(buffer, actual_size);
   // Call the function from C++ through this pointer.
   return FUNCTION_CAST<ModuloFunction>(buffer);
 }
@@ -252,27 +184,29 @@ ModuloFunction CreateModuloFunction() {
 #define __ ACCESS_MASM(masm)
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
-    MacroAssembler* masm, AllocationSiteMode mode,
-    Label* allocation_site_info_found) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rbx    : target map
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* allocation_memento_found) {
+  // Return address is on the stack.
+  Register scratch = rdi;
+  DCHECK(!AreAliased(receiver, key, value, target_map, scratch));
+
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_site_info_found != NULL);
-    __ TestJSArrayForAllocationSiteInfo(rdx, rdi);
-    __ j(equal, allocation_site_info_found);
+    DCHECK(allocation_memento_found != NULL);
+    __ JumpIfJSArrayHasAllocationMemento(
+        receiver, scratch, allocation_memento_found);
   }
 
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
-  __ RecordWriteField(rdx,
+  __ movp(FieldOperand(receiver, HeapObject::kMapOffset), target_map);
+  __ RecordWriteField(receiver,
                       HeapObject::kMapOffset,
-                      rbx,
-                      rdi,
+                      target_map,
+                      scratch,
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
@@ -280,52 +214,64 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rbx    : target map
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
+  // Return address is on the stack.
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
+  DCHECK(value.is(rax));
+  DCHECK(target_map.is(rbx));
+
   // The fail label is not actually used since we do not allocate.
   Label allocated, new_backing_store, only_change_map, done;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(rdx, rdi);
-    __ j(equal, fail);
+    __ JumpIfJSArrayHasAllocationMemento(rdx, rdi, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
-  // Check backing store for COW-ness.  For COW arrays we have to
-  // allocate a new backing store.
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
-  __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
-                 Heap::kFixedCOWArrayMapRootIndex);
-  __ j(equal, &new_backing_store);
+  if (kPointerSize == kDoubleSize) {
+    // Check backing store for COW-ness. For COW arrays we have to
+    // allocate a new backing store.
+    __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
+                   Heap::kFixedCOWArrayMapRootIndex);
+    __ j(equal, &new_backing_store);
+  } else {
+    // For x32 port we have to allocate a new backing store as SMI size is
+    // not equal with double size.
+    DCHECK(kDoubleSize == 2 * kPointerSize);
+    __ jmp(&new_backing_store);
+  }
+
   // Check if the backing store is in new-space. If not, we need to allocate
   // a new one since the old one is in pointer-space.
   // If in new space, we can reuse the old backing store because it is
   // the same size.
   __ JumpIfNotInNewSpace(r8, rdi, &new_backing_store);
 
-  __ movq(r14, r8);  // Destination array equals source array.
+  __ movp(r14, r8);  // Destination array equals source array.
 
   // r8 : source FixedArray
   // r9 : elements array length
   // r14: destination FixedDoubleArray
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
-  __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
+  __ movp(FieldOperand(r14, HeapObject::kMapOffset), rdi);
 
   __ bind(&allocated);
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ movp(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
                       HeapObject::kMapOffset,
                       rbx,
@@ -340,20 +286,20 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
 
   Label loop, entry, convert_hole;
-  __ movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE64);
+  __ movq(r15, bit_cast<int64_t, uint64_t>(kHoleNanInt64));
   // r15: the-hole NaN
   __ jmp(&entry);
 
   // Allocate new backing store.
   __ bind(&new_backing_store);
-  __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
-  __ AllocateInNewSpace(rdi, r14, r11, r15, fail, TAG_OBJECT);
+  __ leap(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
+  __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
-  __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
+  __ movp(FieldOperand(r14, HeapObject::kMapOffset), rdi);
   // Set receiver's backing store.
-  __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r14);
-  __ movq(r11, r14);
+  __ movp(FieldOperand(rdx, JSObject::kElementsOffset), r14);
+  __ movp(r11, r14);
   __ RecordWriteField(rdx,
                       JSObject::kElementsOffset,
                       r11,
@@ -363,12 +309,12 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       OMIT_SMI_CHECK);
   // Set backing store's length.
   __ Integer32ToSmi(r11, r9);
-  __ movq(FieldOperand(r14, FixedDoubleArray::kLengthOffset), r11);
+  __ movp(FieldOperand(r14, FixedDoubleArray::kLengthOffset), r11);
   __ jmp(&allocated);
 
   __ bind(&only_change_map);
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ movp(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
                       HeapObject::kMapOffset,
                       rbx,
@@ -380,13 +326,13 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Conversion loop.
   __ bind(&loop);
-  __ movq(rbx,
-          FieldOperand(r8, r9, times_8, FixedArray::kHeaderSize));
+  __ movp(rbx,
+          FieldOperand(r8, r9, times_pointer_size, FixedArray::kHeaderSize));
   // r9 : current element's index
   // rbx: current element (smi-tagged)
   __ JumpIfNotSmi(rbx, &convert_hole);
   __ SmiToInteger32(rbx, rbx);
-  __ cvtlsi2sd(xmm0, rbx);
+  __ Cvtlsi2sd(xmm0, rbx);
   __ movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
            xmm0);
   __ jmp(&entry);
@@ -394,12 +340,12 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   if (FLAG_debug_code) {
     __ CompareRoot(rbx, Heap::kTheHoleValueRootIndex);
-    __ Assert(equal, "object found in smi-only array");
+    __ Assert(equal, kObjectFoundInSmiOnlyArray);
   }
 
   __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
   __ bind(&entry);
-  __ decq(r9);
+  __ decp(r9);
   __ j(not_sign, &loop);
 
   __ bind(&done);
@@ -407,59 +353,77 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rbx    : target map
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
+  // Return address is on the stack.
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
+  DCHECK(value.is(rax));
+  DCHECK(target_map.is(rbx));
+
   Label loop, entry, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ TestJSArrayForAllocationSiteInfo(rdx, rdi);
-    __ j(equal, fail);
+    __ JumpIfJSArrayHasAllocationMemento(rdx, rdi, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
-  __ push(rax);
+  __ Push(rax);
 
-  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   // r8 : source FixedDoubleArray
   // r9 : number of elements
-  __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
-  __ AllocateInNewSpace(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
+  __ leap(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
+  __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
-  __ movq(FieldOperand(r11, HeapObject::kMapOffset), rdi);
+  __ movp(FieldOperand(r11, HeapObject::kMapOffset), rdi);
   __ Integer32ToSmi(r14, r9);
-  __ movq(FieldOperand(r11, FixedArray::kLengthOffset), r14);
+  __ movp(FieldOperand(r11, FixedArray::kLengthOffset), r14);
 
   // Prepare for conversion loop.
-  __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE64);
+  __ movq(rsi, bit_cast<int64_t, uint64_t>(kHoleNanInt64));
   __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
   // rsi: the-hole NaN
   // rdi: pointer to the-hole
+
+  // Allocating heap numbers in the loop below can fail and cause a jump to
+  // gc_required. We can't leave a partly initialized FixedArray behind,
+  // so pessimistically fill it with holes now.
+  Label initialization_loop, initialization_loop_entry;
+  __ jmp(&initialization_loop_entry, Label::kNear);
+  __ bind(&initialization_loop);
+  __ movp(FieldOperand(r11, r9, times_pointer_size, FixedArray::kHeaderSize),
+          rdi);
+  __ bind(&initialization_loop_entry);
+  __ decp(r9);
+  __ j(not_sign, &initialization_loop);
+
+  __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   __ jmp(&entry);
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ pop(rax);
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ Pop(rax);
+  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ jmp(fail);
 
   // Box doubles into heap numbers.
   __ bind(&loop);
   __ movq(r14, FieldOperand(r8,
                             r9,
-                            times_pointer_size,
+                            times_8,
                             FixedDoubleArray::kHeaderSize));
   // r9 : current element's index
   // r14: current element
@@ -470,12 +434,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ AllocateHeapNumber(rax, r15, &gc_required);
   // rax: new heap number
   __ movq(FieldOperand(rax, HeapNumber::kValueOffset), r14);
-  __ movq(FieldOperand(r11,
+  __ movp(FieldOperand(r11,
                        r9,
                        times_pointer_size,
                        FixedArray::kHeaderSize),
           rax);
-  __ movq(r15, r9);
+  __ movp(r15, r9);
   __ RecordWriteArray(r11,
                       rax,
                       r15,
@@ -486,18 +450,18 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
-  __ movq(FieldOperand(r11,
+  __ movp(FieldOperand(r11,
                        r9,
                        times_pointer_size,
                        FixedArray::kHeaderSize),
           rdi);
 
   __ bind(&entry);
-  __ decq(r9);
+  __ decp(r9);
   __ j(not_sign, &loop);
 
   // Replace receiver's backing store with newly created and filled FixedArray.
-  __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r11);
+  __ movp(FieldOperand(rdx, JSObject::kElementsOffset), r11);
   __ RecordWriteField(rdx,
                       JSObject::kElementsOffset,
                       r11,
@@ -505,12 +469,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ pop(rax);
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ Pop(rax);
+  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
   __ bind(&only_change_map);
   // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ movp(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
                       HeapObject::kMapOffset,
                       rbx,
@@ -527,7 +491,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register result,
                                        Label* call_runtime) {
   // Fetch the instance type of the receiver into result register.
-  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movp(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
 
   // We need special handling for indirect strings.
@@ -543,8 +507,8 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Handle slices.
   Label indirect_string_loaded;
   __ SmiToInteger32(result, FieldOperand(string, SlicedString::kOffsetOffset));
-  __ addq(index, result);
-  __ movq(string, FieldOperand(string, SlicedString::kParentOffset));
+  __ addp(index, result);
+  __ movp(string, FieldOperand(string, SlicedString::kParentOffset));
   __ jmp(&indirect_string_loaded, Label::kNear);
 
   // Handle cons strings.
@@ -556,10 +520,10 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
                  Heap::kempty_stringRootIndex);
   __ j(not_equal, call_runtime);
-  __ movq(string, FieldOperand(string, ConsString::kFirstOffset));
+  __ movp(string, FieldOperand(string, ConsString::kFirstOffset));
 
   __ bind(&indirect_string_loaded);
-  __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
+  __ movp(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
 
   // Distinguish sequential and external strings. Only these two string
@@ -572,37 +536,37 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ j(zero, &seq_string, Label::kNear);
 
   // Handle external strings.
-  Label ascii_external, done;
+  Label one_byte_external, done;
   if (FLAG_debug_code) {
     // Assert that we do not have a cons or slice (indirect strings) here.
     // Sequential strings have already been ruled out.
     __ testb(result, Immediate(kIsIndirectStringMask));
-    __ Assert(zero, "external string expected, but not found");
+    __ Assert(zero, kExternalStringExpectedButNotFound);
   }
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   __ testb(result, Immediate(kShortExternalStringTag));
   __ j(not_zero, call_runtime);
   // Check encoding.
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ testb(result, Immediate(kStringEncodingMask));
-  __ movq(result, FieldOperand(string, ExternalString::kResourceDataOffset));
-  __ j(not_equal, &ascii_external, Label::kNear);
+  __ movp(result, FieldOperand(string, ExternalString::kResourceDataOffset));
+  __ j(not_equal, &one_byte_external, Label::kNear);
   // Two-byte string.
   __ movzxwl(result, Operand(result, index, times_2, 0));
   __ jmp(&done, Label::kNear);
-  __ bind(&ascii_external);
-  // Ascii string.
+  __ bind(&one_byte_external);
+  // One-byte string.
   __ movzxbl(result, Operand(result, index, times_1, 0));
   __ jmp(&done, Label::kNear);
 
-  // Dispatch on the encoding: ASCII or two-byte.
-  Label ascii;
+  // Dispatch on the encoding: one-byte or two-byte.
+  Label one_byte;
   __ bind(&seq_string);
   STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ testb(result, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii, Label::kNear);
+  __ j(not_zero, &one_byte, Label::kNear);
 
   // Two-byte string.
   // Load the two-byte character code into the result register.
@@ -613,54 +577,14 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                   SeqTwoByteString::kHeaderSize));
   __ jmp(&done, Label::kNear);
 
-  // ASCII string.
+  // One-byte string.
   // Load the byte into the result register.
-  __ bind(&ascii);
+  __ bind(&one_byte);
   __ movzxbl(result, FieldOperand(string,
                                   index,
                                   times_1,
                                   SeqOneByteString::kHeaderSize));
   __ bind(&done);
-}
-
-
-void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
-                                         String::Encoding encoding,
-                                         Register string,
-                                         Register index,
-                                         Register value) {
-  if (FLAG_debug_code) {
-    __ Check(masm->CheckSmi(index), "Non-smi index");
-    __ Check(masm->CheckSmi(value), "Non-smi value");
-
-    __ SmiCompare(index, FieldOperand(string, String::kLengthOffset));
-    __ Check(less, "Index is too large");
-
-    __ SmiCompare(index, Smi::FromInt(0));
-    __ Check(greater_equal, "Index is negative");
-
-    __ push(value);
-    __ movq(value, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzxbq(value, FieldOperand(value, Map::kInstanceTypeOffset));
-
-    __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmpq(value, Immediate(encoding == String::ONE_BYTE_ENCODING
-                                 ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, "Unexpected string type");
-    __ pop(value);
-  }
-
-  __ SmiToInteger32(value, value);
-  __ SmiToInteger32(index, index);
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ movb(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
-            value);
-  } else {
-    __ movw(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
-            value);
-  }
 }
 
 
@@ -670,15 +594,16 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
                                    XMMRegister double_scratch,
                                    Register temp1,
                                    Register temp2) {
-  ASSERT(!input.is(result));
-  ASSERT(!input.is(double_scratch));
-  ASSERT(!result.is(double_scratch));
-  ASSERT(!temp1.is(temp2));
-  ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!input.is(result));
+  DCHECK(!input.is(double_scratch));
+  DCHECK(!result.is(double_scratch));
+  DCHECK(!temp1.is(temp2));
+  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!masm->serializer_enabled());  // External references not serializable.
 
   Label done;
 
-  __ movq(kScratchRegister, ExternalReference::math_exp_constants(0));
+  __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ movsd(double_scratch, Operand(kScratchRegister, 0 * kDoubleSize));
   __ xorpd(result, result);
   __ ucomisd(double_scratch, input);
@@ -693,14 +618,14 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ movq(temp2, double_scratch);
   __ subsd(double_scratch, result);
   __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ lea(temp1, Operand(temp2, 0x1ff800));
-  __ and_(temp2, Immediate(0x7ff));
-  __ shr(temp1, Immediate(11));
+  __ leaq(temp1, Operand(temp2, 0x1ff800));
+  __ andq(temp2, Immediate(0x7ff));
+  __ shrq(temp1, Immediate(11));
   __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
-  __ movq(kScratchRegister, ExternalReference::math_exp_log_table());
-  __ shl(temp1, Immediate(52));
-  __ or_(temp1, Operand(kScratchRegister, temp2, times_8, 0));
-  __ movq(kScratchRegister, ExternalReference::math_exp_constants(0));
+  __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
+  __ shlq(temp1, Immediate(52));
+  __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
+  __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ subsd(double_scratch, input);
   __ movsd(input, double_scratch);
   __ subsd(result, double_scratch);
@@ -718,40 +643,37 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 #undef __
 
 
-static const int kNoCodeAgeSequenceLength = 6;
-
-static byte* GetNoCodeAgeSequence(uint32_t* length) {
-  static bool initialized = false;
-  static byte sequence[kNoCodeAgeSequenceLength];
-  *length = kNoCodeAgeSequenceLength;
-  if (!initialized) {
-    // The sequence of instructions that is patched out for aging code is the
-    // following boilerplate stack-building prologue that is found both in
-    // FUNCTION and OPTIMIZED_FUNCTION code:
-    CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->push(rbp);
-    patcher.masm()->movq(rbp, rsp);
-    patcher.masm()->push(rsi);
-    patcher.masm()->push(rdi);
-    initialized = true;
-  }
-  return sequence;
+CodeAgingHelper::CodeAgingHelper() {
+  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  // The sequence of instructions that is patched out for aging code is the
+  // following boilerplate stack-building prologue that is found both in
+  // FUNCTION and OPTIMIZED_FUNCTION code:
+  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  patcher.masm()->pushq(rbp);
+  patcher.masm()->movp(rbp, rsp);
+  patcher.masm()->Push(rsi);
+  patcher.masm()->Push(rdi);
 }
 
 
-bool Code::IsYoungSequence(byte* sequence) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  bool result = (!memcmp(sequence, young_sequence, young_length));
-  ASSERT(result || *sequence == kCallOpcode);
+#ifdef DEBUG
+bool CodeAgingHelper::IsOld(byte* candidate) const {
+  return *candidate == kCallOpcode;
+}
+#endif
+
+
+bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
+  bool result = isolate->code_aging_helper()->IsYoung(sequence);
+  DCHECK(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
 
-void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
                                MarkingParity* parity) {
-  if (IsYoungSequence(sequence)) {
-    *age = kNoAge;
+  if (IsYoungSequence(isolate, sequence)) {
+    *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
     sequence++;  // Skip the kCallOpcode byte
@@ -763,19 +685,41 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
 }
 
 
-void Code::PatchPlatformCodeAge(byte* sequence,
+void Code::PatchPlatformCodeAge(Isolate* isolate,
+                                byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  if (age == kNoAge) {
-    memcpy(sequence, young_sequence, young_length);
-    CPU::FlushICache(sequence, young_length);
+  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
+  if (age == kNoAgeCodeAge) {
+    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
+    CpuFeatures::FlushICache(sequence, young_length);
   } else {
-    Code* stub = GetCodeAgeStub(age, parity);
+    Code* stub = GetCodeAgeStub(isolate, age, parity);
     CodePatcher patcher(sequence, young_length);
     patcher.masm()->call(stub->instruction_start());
-    patcher.masm()->nop();
+    patcher.masm()->Nop(
+        kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
+  }
+}
+
+
+Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
+  DCHECK(index >= 0);
+  int receiver = (receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER) ? 1 : 0;
+  int displacement_to_last_argument = base_reg_.is(rsp) ?
+      kPCOnStackSize : kFPOnStackSize + kPCOnStackSize;
+  displacement_to_last_argument += extra_displacement_to_last_argument_;
+  if (argument_count_reg_.is(no_reg)) {
+    // argument[0] is at base_reg_ + displacement_to_last_argument +
+    // (argument_count_immediate_ + receiver - 1) * kPointerSize.
+    DCHECK(argument_count_immediate_ + receiver > 0);
+    return Operand(base_reg_, displacement_to_last_argument +
+        (argument_count_immediate_ + receiver - 1 - index) * kPointerSize);
+  } else {
+    // argument[0] is at base_reg_ + displacement_to_last_argument +
+    // argument_count_reg_ * times_pointer_size + (receiver - 1) * kPointerSize.
+    return Operand(base_reg_, argument_count_reg_, times_pointer_size,
+        displacement_to_last_argument + (receiver - 1 - index) * kPointerSize);
   }
 }
 

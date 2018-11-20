@@ -24,7 +24,7 @@ The shutdown state of an ssl connection is a bitmask of:
 
 =over 4
 
-=item 0
+=item Z<>0
 
 No shutdown setting, yet.
 

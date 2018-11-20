@@ -1,0 +1,50 @@
+{
+  "name": "are-we-there-yet",
+  "version": "1.0.4",
+  "description": "Keep track of the overall completion of many dispirate processes",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iarna/are-we-there-yet.git"
+  },
+  "author": {
+    "name": "Rebecca Turner",
+    "url": "http://re-becca.org"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/iarna/are-we-there-yet/issues"
+  },
+  "homepage": "https://github.com/iarna/are-we-there-yet",
+  "devDependencies": {
+    "tap": "^0.4.13"
+  },
+  "dependencies": {
+    "delegates": "^0.1.0",
+    "readable-stream": "^1.1.13"
+  },
+  "gitHead": "7ce414849b81ab83935a935275def01914821bde",
+  "_id": "are-we-there-yet@1.0.4",
+  "_shasum": "527fe389f7bcba90806106b99244eaa07e886f85",
+  "_from": "are-we-there-yet@>=1.0.0 <1.1.0",
+  "_npmVersion": "2.0.0",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "dist": {
+    "shasum": "527fe389f7bcba90806106b99244eaa07e886f85",
+    "tarball": "http://registry.npmjs.org/are-we-there-yet/-/are-we-there-yet-1.0.4.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/are-we-there-yet/-/are-we-there-yet-1.0.4.tgz"
+}

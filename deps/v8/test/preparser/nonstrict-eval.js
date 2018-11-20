@@ -48,4 +48,3 @@ eval -= ++eval;
 eval *= eval--;
 function eval(eval) {};
 try {} catch (eval) {}
-

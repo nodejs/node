@@ -21,9 +21,17 @@
 
 #include "linux-syscalls.h"
 #include <unistd.h>
+#include <signal.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <errno.h>
+
+#if defined(__has_feature)
+# if __has_feature(memory_sanitizer)
+#  define MSAN_ACTIVE 1
+#  include <sanitizer/msan_interface.h>
+# endif
+#endif
 
 #if defined(__i386__)
 # ifndef __NR_socketcall
@@ -199,6 +207,36 @@
 # endif
 #endif /* __NR_utimensat */
 
+#ifndef __NR_preadv
+# if defined(__x86_64__)
+#  define __NR_preadv 295
+# elif defined(__i386__)
+#  define __NR_preadv 333
+# elif defined(__arm__)
+#  define __NR_preadv (UV_SYSCALL_BASE + 361)
+# endif
+#endif /* __NR_preadv */
+
+#ifndef __NR_pwritev
+# if defined(__x86_64__)
+#  define __NR_pwritev 296
+# elif defined(__i386__)
+#  define __NR_pwritev 334
+# elif defined(__arm__)
+#  define __NR_pwritev (UV_SYSCALL_BASE + 362)
+# endif
+#endif /* __NR_pwritev */
+
+#ifndef __NR_dup3
+# if defined(__x86_64__)
+#  define __NR_dup3 292
+# elif defined(__i386__)
+#  define __NR_dup3 330
+# elif defined(__arm__)
+#  define __NR_dup3 (UV_SYSCALL_BASE + 358)
+# endif
+#endif /* __NR_pwritev */
+
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
 #if defined(__i386__)
@@ -279,7 +317,13 @@ int uv__epoll_wait(int epfd,
                    int nevents,
                    int timeout) {
 #if defined(__NR_epoll_wait)
-  return syscall(__NR_epoll_wait, epfd, events, nevents, timeout);
+  int result;
+  result = syscall(__NR_epoll_wait, epfd, events, nevents, timeout);
+#if MSAN_ACTIVE
+  if (result > 0)
+    __msan_unpoison(events, sizeof(events[0]) * result);
+#endif
+  return result;
 #else
   return errno = ENOSYS, -1;
 #endif
@@ -290,15 +334,21 @@ int uv__epoll_pwait(int epfd,
                     struct uv__epoll_event* events,
                     int nevents,
                     int timeout,
-                    const sigset_t* sigmask) {
+                    uint64_t sigmask) {
 #if defined(__NR_epoll_pwait)
-  return syscall(__NR_epoll_pwait,
-                 epfd,
-                 events,
-                 nevents,
-                 timeout,
-                 sigmask,
-                 sizeof(*sigmask));
+  int result;
+  result = syscall(__NR_epoll_pwait,
+                   epfd,
+                   events,
+                   nevents,
+                   timeout,
+                   &sigmask,
+                   sizeof(sigmask));
+#if MSAN_ACTIVE
+  if (result > 0)
+    __msan_unpoison(events, sizeof(events[0]) * result);
+#endif
+  return result;
 #else
   return errno = ENOSYS, -1;
 #endif
@@ -343,7 +393,13 @@ int uv__inotify_rm_watch(int fd, int32_t wd) {
 
 int uv__pipe2(int pipefd[2], int flags) {
 #if defined(__NR_pipe2)
-  return syscall(__NR_pipe2, pipefd, flags);
+  int result;
+  result = syscall(__NR_pipe2, pipefd, flags);
+#if MSAN_ACTIVE
+  if (!result)
+    __msan_unpoison(pipefd, sizeof(int[2]));
+#endif
+  return result;
 #else
   return errno = ENOSYS, -1;
 #endif
@@ -382,6 +438,33 @@ int uv__utimesat(int dirfd,
 {
 #if defined(__NR_utimensat)
   return syscall(__NR_utimensat, dirfd, path, times, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, off_t offset) {
+#if defined(__NR_preadv)
+  return syscall(__NR_preadv, fd, iov, iovcnt, offset);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset) {
+#if defined(__NR_pwritev)
+  return syscall(__NR_pwritev, fd, iov, iovcnt, offset);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__dup3(int oldfd, int newfd, int flags) {
+#if defined(__NR_dup3)
+  return syscall(__NR_dup3, oldfd, newfd, flags);
 #else
   return errno = ENOSYS, -1;
 #endif

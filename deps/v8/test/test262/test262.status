@@ -25,68 +25,130 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix test262
-def FAIL_OK = FAIL, OKAY
+[
+[ALWAYS, {
+  ############################### BUGS ###################################
 
-############################### BUGS ###################################
+  '15.5.4.9_CE': [['no_i18n', SKIP]],
 
-# Sequencing of getter side effects on receiver and argument properties
-# is wrong. The receiver callback should be called before any arguments
-# are evaluated.
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
-11.2.3-3_3: FAIL
+  # BUG(v8:3455)
+  '11.2.3_b': [FAIL],
+  '12.2.3_b': [FAIL],
 
-# Strings that are considered canonically equivalent by the Unicode standard
-# return a non-zero value on String.prototype.localeCompare calls.
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=2413
-15.5.4.9_CE: FAIL
+  ############################### ES6 ###################################
+  # ES6 allows block-local functions.
+  'Sbp_A1_T1': [PASS, FAIL_OK],
+  'Sbp_A2_T1': [PASS, FAIL_OK],
+  'Sbp_A2_T2': [PASS, FAIL_OK],
+  'Sbp_A3_T1': [PASS, FAIL_OK],
+  'Sbp_A3_T2': [PASS, FAIL_OK],
+  'Sbp_A4_T1': [PASS, FAIL_OK],
+  'Sbp_A4_T2': [PASS, FAIL_OK],
+  'Sbp_A5_T1': [PASS], # Test is broken (strict reference to unbound variable)
+  'Sbp_A5_T2': [PASS, FAIL_OK],
 
-##################### DELIBERATE INCOMPATIBILITIES #####################
+  # Passes in ES6 since {__arr} syntax is parsed as object literal.
+  'S12.1_A4_T2': [PASS, FAIL_OK],
+  'S12.6.4_A15': [PASS, FAIL_OK],
 
-# This tests precision of Math functions.  The implementation for those
-# trigonometric functions are platform/compiler dependent.  Furthermore, the
-# expectation values by far deviates from the actual result given by an
-# arbitrary-precision calculator, making those tests partly bogus.
-S15.8.2.8_A6: PASS || FAIL_OK   # Math.exp (less precise with --fast-math)
-S15.8.2.16_A7: PASS || FAIL_OK  # Math.sin
-S15.8.2.18_A7: PASS || FAIL_OK  # Math.tan
+  # ES6 allows duplicate properties
+  '11.1.5-4-4-a-1-s': [FAIL],
+  '11.1.5_4-4-b-1': [FAIL],
+  '11.1.5_4-4-b-2': [FAIL],
+  '11.1.5_4-4-c-1': [FAIL],
+  '11.1.5_4-4-c-2': [FAIL],
+  '11.1.5_4-4-d-1': [FAIL],
+  '11.1.5_4-4-d-2': [FAIL],
+  '11.1.5_4-4-d-3': [FAIL],
+  '11.1.5_4-4-d-4': [FAIL],
 
-# Linux for ia32 (and therefore simulators) default to extended 80 bit floating
-# point formats, so these tests checking 64-bit FP precision fail. The other
-# platforms/arch's pass these tests.
-# We follow the other major JS engines by keeping this default.
-S8.5_A2.1: PASS || FAIL_OK
-S8.5_A2.2: PASS || FAIL_OK
+  ######################## NEEDS INVESTIGATION ###########################
 
-############################ INVALID TESTS #############################
+  # These test failures are specific to the intl402 suite and need investigation
+  # to be either marked as bugs with issues filed for them or as deliberate
+  # incompatibilities if the test cases turn out to be broken or ambiguous.
+  '6.2.3': [FAIL],
+  '9.2.1_2': [FAIL],
+  '9.2.6_2': [FAIL],
+  '10.1.1_a': [FAIL],
+  '10.1.1_19_c': [PASS, FAIL, NO_VARIANTS],
+  '10.1.2.1_4': [FAIL],
+  '10.2.3_b': [PASS, FAIL],
+  '10.3_a': [FAIL],
+  '11.1.1_17': [PASS, FAIL],
+  '11.1.1_19': [PASS, FAIL],
+  '11.1.1_20_c': [FAIL],
+  '11.1.1_a': [FAIL],
+  '11.1.2.1_4': [FAIL],
+  '11.3.2_FN_2': [PASS, FAIL],
+  '11.3.2_TRF': [PASS, FAIL],
+  '11.3_a': [FAIL],
+  '12.1.1_a': [FAIL],
+  '12.1.2.1_4': [FAIL],
+  '12.3.2_FDT_7_a_iv': [FAIL],
+  '12.3.3': [FAIL],
+  '12.3_a': [FAIL],
+  '15.5.4.9_3': [PASS, FAIL],
 
-# The reference value calculated by Test262 is incorrect if you run these tests
-# in PST/PDT between first Sunday in March and first Sunday in April. The DST
-# switch was moved in 2007 whereas Test262 bases the reference value on 2000.
-# Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=293
-S15.9.3.1_A5_T1: PASS || FAIL_OK
-S15.9.3.1_A5_T2: PASS || FAIL_OK
-S15.9.3.1_A5_T3: PASS || FAIL_OK
-S15.9.3.1_A5_T4: PASS || FAIL_OK
-S15.9.3.1_A5_T5: PASS || FAIL_OK
-S15.9.3.1_A5_T6: PASS || FAIL_OK
+  ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-############################ SKIPPED TESTS #############################
+  'S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
 
-# These tests take a looong time to run in debug mode.
-S15.1.3.1_A2.5_T1: PASS, SKIP if $mode == debug
-S15.1.3.2_A2.5_T1: PASS, SKIP if $mode == debug
+  # Linux for ia32 (and therefore simulators) default to extended 80 bit
+  # floating point formats, so these tests checking 64-bit FP precision fail.
+  # The other platforms/arch's pass these tests.
+  # We follow the other major JS engines by keeping this default.
+  'S8.5_A2.1': [PASS, FAIL_OK],
+  'S8.5_A2.2': [PASS, FAIL_OK],
 
-[ $arch == arm || $arch == mipsel ]
+  ############################ INVALID TESTS #############################
 
-# TODO(mstarzinger): Causes stack overflow on simulators due to eager
-# compilation of parenthesized function literals. Needs investigation.
-S13.2.1_A1_T1: SKIP
+  # The reference value calculated by Test262 is incorrect if you run these
+  # tests in PST/PDT between first Sunday in March and first Sunday in April.
+  # The DST switch was moved in 2007 whereas Test262 bases the reference value
+  # on 2000. Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=293
+  'S15.9.3.1_A5_T1': [PASS, FAIL_OK],
+  'S15.9.3.1_A5_T2': [PASS, FAIL_OK],
+  'S15.9.3.1_A5_T3': [PASS, FAIL_OK],
+  'S15.9.3.1_A5_T4': [PASS, FAIL_OK],
+  'S15.9.3.1_A5_T5': [PASS, FAIL_OK],
+  'S15.9.3.1_A5_T6': [PASS, FAIL_OK],
 
-# BUG(3251225): Tests that timeout with --nocrankshaft.
-S15.1.3.1_A2.4_T1: SKIP
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.4_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
-S15.1.3.3_A2.3_T1: SKIP
-S15.1.3.4_A2.3_T1: SKIP
+  # ObjectKeys() no longer throws TypeError when passed a primitive value which
+  # is not null or undefined (per ES6).
+  '15.2.3.14-1-1': [FAIL_OK],
+  '15.2.3.14-1-2': [FAIL_OK],
+  '15.2.3.14-1-3': [FAIL_OK],
+
+  # Object.getOwnPropertyNames(O) no longer throws when passed a primitive value.
+  '15.2.3.4-1-4': [FAIL_OK],
+  '15.2.3.4-1-5': [FAIL_OK],
+  '15.2.3.4-1': [FAIL_OK],
+
+  ############################ SKIPPED TESTS #############################
+
+  # These tests take a looong time to run in debug mode.
+  'S15.1.3.1_A2.5_T1': [PASS, ['mode == debug', SKIP]],
+  'S15.1.3.2_A2.5_T1': [PASS, ['mode == debug', SKIP]],
+}],  # ALWAYS
+
+['system == macos', {
+  '11.3.2_TRP': [FAIL],
+  '9.2.5_11_g_ii_2': [FAIL],
+}],  # system == macos
+
+['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64el', {
+
+  # TODO(mstarzinger): Causes stack overflow on simulators due to eager
+  # compilation of parenthesized function literals. Needs investigation.
+  'S13.2.1_A1_T1': [SKIP],
+
+  # BUG(3251225): Tests that timeout with --nocrankshaft.
+  'S15.1.3.1_A2.4_T1': [SKIP],
+  'S15.1.3.1_A2.5_T1': [SKIP],
+  'S15.1.3.2_A2.4_T1': [SKIP],
+  'S15.1.3.2_A2.5_T1': [SKIP],
+  'S15.1.3.3_A2.3_T1': [SKIP],
+  'S15.1.3.4_A2.3_T1': [SKIP],
+}],  # 'arch == arm or arch == mipsel or arch == mips or arch == arm64'
+]

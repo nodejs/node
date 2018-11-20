@@ -1,10 +1,10 @@
 /Debug/
+/build/gyp
 /out/
 /Release/
 
 /cares.Makefile
 /cares.target.mk
-/Makefile
 
 /*.opensdf
 /*.sdf
@@ -13,3 +13,7 @@
 /*.vcxproj
 /*.vcxproj.filters
 /*.vcxproj.user
+
+*.so
+*.[oa]
+.buildstamp

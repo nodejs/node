@@ -26,14 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-# These imports are required for the on-demand conversion from
-# old to new status file format.
-from os.path import exists
-from os.path import getmtime
-
-from . import old_statusfile
-
-
 # These outcomes can occur in a TestCase's outcomes list:
 SKIP = "SKIP"
 FAIL = "FAIL"
@@ -42,6 +34,9 @@ OKAY = "OKAY"
 TIMEOUT = "TIMEOUT"
 CRASH = "CRASH"
 SLOW = "SLOW"
+FLAKY = "FLAKY"
+FAST_VARIANTS = "FAST_VARIANTS"
+NO_VARIANTS = "NO_VARIANTS"
 # These are just for the status files and are mapped below in DEFS:
 FAIL_OK = "FAIL_OK"
 PASS_OR_FAIL = "PASS_OR_FAIL"
@@ -49,8 +44,8 @@ PASS_OR_FAIL = "PASS_OR_FAIL"
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FAIL_OK,
-            PASS_OR_FAIL, ALWAYS]:
+for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FLAKY, FAIL_OK,
+            FAST_VARIANTS, NO_VARIANTS, PASS_OR_FAIL, ALWAYS]:
   KEYWORDS[key] = key
 
 DEFS = {FAIL_OK: [FAIL, OKAY],
@@ -58,16 +53,34 @@ DEFS = {FAIL_OK: [FAIL, OKAY],
 
 # Support arches, modes to be written as keywords instead of strings.
 VARIABLES = {ALWAYS: True}
-for var in ["debug", "release", "android_arm", "android_ia32", "arm", "ia32",
-            "mipsel", "x64"]:
+for var in ["debug", "release", "big", "little",
+            "android_arm", "android_arm64", "android_ia32", "android_x87",
+            "arm", "arm64", "ia32", "mips", "mipsel", "mips64el", "x64", "x87", "nacl_ia32",
+            "nacl_x64", "ppc", "ppc64", "macos", "windows", "linux", "aix"]:
   VARIABLES[var] = var
 
 
 def DoSkip(outcomes):
-  return SKIP in outcomes or SLOW in outcomes
+  return SKIP in outcomes
+
+
+def IsSlow(outcomes):
+  return SLOW in outcomes
+
+
+def OnlyStandardVariant(outcomes):
+  return NO_VARIANTS in outcomes
+
+
+def OnlyFastVariants(outcomes):
+  return FAST_VARIANTS in outcomes
 
 
 def IsFlaky(outcomes):
+  return FLAKY in outcomes
+
+
+def IsPassOrFail(outcomes):
   return ((PASS in outcomes) and (FAIL in outcomes) and
           (not CRASH in outcomes) and (not OKAY in outcomes))
 
@@ -111,18 +124,6 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
 
 
 def ReadStatusFile(path, variables):
-  # As long as the old-format .status files are authoritative, just
-  # create the converted version on demand and cache it to speed up
-  # subsequent runs.
-  if path.endswith(".status"):
-    newpath = path + "2"
-    if not exists(newpath) or getmtime(newpath) < getmtime(path):
-      print "Converting status file."
-      converted = old_statusfile.ConvertNotation(path).GetOutput()
-      with open(newpath, 'w') as f:
-        f.write(converted)
-    path = newpath
-
   with open(path) as f:
     global KEYWORDS
     contents = eval(f.read(), KEYWORDS)

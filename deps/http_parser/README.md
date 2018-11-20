@@ -1,6 +1,8 @@
 HTTP Parser
 ===========
 
+[![Build Status](https://travis-ci.org/joyent/http-parser.png?branch=master)](https://travis-ci.org/joyent/http-parser)
+
 This is a parser for HTTP messages written in C. It parses both requests and
 responses. The parser is designed to be used in performance HTTP
 applications. It does not make any syscalls nor allocations, it does not
@@ -34,43 +36,46 @@ Usage
 One `http_parser` object is used per TCP connection. Initialize the struct
 using `http_parser_init()` and set the callbacks. That might look something
 like this for a request parser:
+```c
+http_parser_settings settings;
+settings.on_url = my_url_callback;
+settings.on_header_field = my_header_field_callback;
+/* ... */
 
-    http_parser_settings settings;
-    settings.on_path = my_path_callback;
-    settings.on_header_field = my_header_field_callback;
-    /* ... */
-
-    http_parser *parser = malloc(sizeof(http_parser));
-    http_parser_init(parser, HTTP_REQUEST);
-    parser->data = my_socket;
+http_parser *parser = malloc(sizeof(http_parser));
+http_parser_init(parser, HTTP_REQUEST);
+parser->data = my_socket;
+```
 
 When data is received on the socket execute the parser and check for errors.
 
-    size_t len = 80*1024, nparsed;
-    char buf[len];
-    ssize_t recved;
+```c
+size_t len = 80*1024, nparsed;
+char buf[len];
+ssize_t recved;
 
-    recved = recv(fd, buf, len, 0);
+recved = recv(fd, buf, len, 0);
 
-    if (recved < 0) {
-      /* Handle error. */
-    }
+if (recved < 0) {
+  /* Handle error. */
+}
 
-    /* Start up / continue the parser.
-     * Note we pass recved==0 to signal that EOF has been recieved.
-     */
-    nparsed = http_parser_execute(parser, &settings, buf, recved);
+/* Start up / continue the parser.
+ * Note we pass recved==0 to signal that EOF has been received.
+ */
+nparsed = http_parser_execute(parser, &settings, buf, recved);
 
-    if (parser->upgrade) {
-      /* handle new protocol */
-    } else if (nparsed != recved) {
-      /* Handle error. Usually just close the connection. */
-    }
+if (parser->upgrade) {
+  /* handle new protocol */
+} else if (nparsed != recved) {
+  /* Handle error. Usually just close the connection. */
+}
+```
 
 HTTP needs to know where the end of the stream is. For example, sometimes
 servers send responses without Content-Length and expect the client to
 consume input (for the body) until EOF. To tell http_parser about EOF, give
-`0` as the forth parameter to `http_parser_execute()`. Callbacks and errors
+`0` as the fourth parameter to `http_parser_execute()`. Callbacks and errors
 can still be encountered during an EOF, so one must still be prepared
 to receive them.
 
@@ -105,7 +110,7 @@ followed by non-HTTP data.
 information the Web Socket protocol.)
 
 To support this, the parser will treat this as a normal HTTP message without a
-body. Issuing both on_headers_complete and on_message_complete callbacks. However
+body, issuing both on_headers_complete and on_message_complete callbacks. However
 http_parser_execute() will stop parsing at the end of the headers and return.
 
 The user is expected to check if `parser->upgrade` has been set to 1 after
@@ -126,7 +131,7 @@ There are two types of callbacks:
 * notification `typedef int (*http_cb) (http_parser*);`
     Callbacks: on_message_begin, on_headers_complete, on_message_complete.
 * data `typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);`
-    Callbacks: (requests only) on_uri,
+    Callbacks: (requests only) on_url,
                (common) on_header_field, on_header_value, on_body;
 
 Callbacks must return 0 on success. Returning a non-zero value indicates
@@ -140,7 +145,7 @@ buffer to avoid copying memory around if this fits your application.
 
 Reading headers may be a tricky task if you read/parse headers partially.
 Basically, you need to remember whether last header callback was field or value
-and apply following logic:
+and apply the following logic:
 
     (on_header_field and on_header_value shortened to on_h_*)
      ------------------------ ------------ --------------------------------------------

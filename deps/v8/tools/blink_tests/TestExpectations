@@ -1,0 +1,27 @@
+# Tests that sometimes fail only on the V8 waterfall:
+[ Linux Release x86 ] fast/text/atsui-multiple-renderers.html [ Pass Failure Slow ]
+[ Linux Release x86 ] fast/text/international/complex-joining-using-gpos.html [ Pass Failure Slow ]
+[ Linux Release x86 ] fast/text/international/danda-space.html [ Pass Failure Slow ]
+[ Linux Release x86 ] fast/text/international/thai-baht-space.html [ Pass Failure Slow ]
+[ Linux Release x86 ] fast/text/international/thai-line-breaks.html [ Pass Failure Slow ]
+[ Linux Release x86 ] inspector/profiler/memory-instrumentation-external-array.html [ Pass Failure Slow ]
+[ Linux Release x86_64 ] fast/text/atsui-multiple-renderers.html [ Pass Failure Slow ]
+[ Linux Release x86_64 ] fast/text/international/complex-joining-using-gpos.html [ Pass Failure Slow ]
+[ Linux Release x86_64 ] fast/text/international/danda-space.html [ Pass Failure Slow ]
+[ Linux Release x86_64 ] fast/text/international/thai-baht-space.html [ Pass Failure Slow ]
+[ Linux Release x86_64 ] fast/text/international/thai-line-breaks.html [ Pass Failure Slow ]
+[ Linux Release x86_64 ] inspector/profiler/memory-instrumentation-external-array.html [ Pass Failure Slow ]
+[ Linux Debug ] fast/text/atsui-multiple-renderers.html [ Pass Failure Slow ]
+[ Linux Debug ] fast/text/international/complex-joining-using-gpos.html [ Pass Failure Slow ]
+[ Linux Debug ] fast/text/international/danda-space.html [ Pass Failure Slow ]
+[ Linux Debug ] fast/text/international/thai-baht-space.html [ Pass Failure Slow ]
+[ Linux Debug ] fast/text/international/thai-line-breaks.html [ Pass Failure Slow ]
+crbug.com/108833 [ Win Debug ] plugins/geturlnotify-during-document-teardown.html [ Crash Failure Timeout ]
+webkit.org/b/48655 [ Win ] plugins/js-from-destroy.html [ Crash Timeout ]
+crbug.com/178745 [ Win Debug ] plugins/open-and-close-window-with-plugin.html [ Crash Failure Timeout ]
+
+# Slow on the trunk builder:
+[ Linux Debug ] fast/js/regress/function-dot-apply.html [ Slow ]
+crbug.com/249894 [ Linux Debug ] fast/js/regress/inline-arguments-access.html  [ Pass Failure Crash Slow ]
+[ Linux Debug ] fast/js/regress/inline-arguments-local-escape.html [ Slow ]
+

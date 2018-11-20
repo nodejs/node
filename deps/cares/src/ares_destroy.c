@@ -16,8 +16,9 @@
  */
 
 #include "ares_setup.h"
+
 #include <assert.h>
-#include <stdlib.h>
+
 #include "ares.h"
 #include "ares_private.h"
 

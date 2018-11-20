@@ -1,14 +1,16 @@
 # REPL
 
+    Stability: 2 - Stable
+
 A Read-Eval-Print-Loop (REPL) is available both as a standalone program and
 easily includable in other programs. The REPL provides a way to interactively
 run JavaScript and see the results.  It can be used for debugging, testing, or
 just trying things out.
 
-By executing `node` without any arguments from the command-line you will be
+By executing `iojs` without any arguments from the command-line you will be
 dropped into the REPL. It has simplistic emacs line-editing.
 
-    mjr:~$ node
+    mjr:~$ iojs
     Type '.help' for options.
     > a = [ 1, 2, 3];
     [ 1, 2, 3 ]
@@ -19,19 +21,32 @@ dropped into the REPL. It has simplistic emacs line-editing.
     2
     3
 
-For advanced line-editors, start node with the environmental variable
+For advanced line-editors, start io.js with the environmental variable
 `NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
 terminal settings which will allow you to use with `rlwrap`.
 
 For example, you could add this to your bashrc file:
 
-    alias node="env NODE_NO_READLINE=1 rlwrap node"
+    alias iojs="env NODE_NO_READLINE=1 rlwrap iojs"
 
+The built-in repl (invoked by running `iojs` or `iojs -i`) may be controlled
+via the following environment variables:
+
+ - `NODE_REPL_HISTORY_FILE` - if given, must be a path to a user-writable,
+   user-readable file. When a valid path is given, persistent history support
+   is enabled: REPL history will persist across `iojs` repl sessions.
+ - `NODE_REPL_HISTORY_SIZE` - defaults to `1000`. In conjunction with
+   `NODE_REPL_HISTORY_FILE`, controls how many lines of history will be
+   persisted. Must be a positive number.
+ - `NODE_REPL_MODE` - may be any of `sloppy`, `strict`, or `magic`. Defaults
+   to `magic`, which will automatically run "strict mode only" statements in
+   strict mode.
 
 ## repl.start(options)
 
-Returns and starts a `REPLServer` instance. Accepts an "options" Object that
-takes the following values:
+Returns and starts a `REPLServer` instance, that inherits from 
+[Readline Interface][]. Accepts an "options" Object that takes 
+the following values:
 
  - `prompt` - the prompt and `stream` for all I/O. Defaults to `> `.
 
@@ -61,13 +76,21 @@ takes the following values:
    returns the formatting (including coloring) to display. Defaults to
    `util.inspect`.
 
+ - `replMode` - controls whether the repl runs all commands in strict mode,
+   default mode, or a hybrid mode ("magic" mode.) Acceptable values are:
+  * `repl.REPL_MODE_SLOPPY` - run commands in sloppy mode.
+  * `repl.REPL_MODE_STRICT` - run commands in strict mode. This is equivalent to
+  prefacing every repl statement with `'use strict'`.
+  * `repl.REPL_MODE_MAGIC` - attempt to run commands in default mode. If they
+  fail to parse, re-try in strict mode.
+
 You can use your own `eval` function if it has following signature:
 
     function eval(cmd, context, filename, callback) {
       callback(null, result);
     }
 
-Multiple REPLs may be started against the same running instance of node.  Each
+Multiple REPLs may be started against the same running instance of io.js.  Each
 will share the same global object but will have unique I/O.
 
 Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
@@ -78,7 +101,7 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
     connections = 0;
 
     repl.start({
-      prompt: "node via stdin> ",
+      prompt: "io.js via stdin> ",
       input: process.stdin,
       output: process.stdout
     });
@@ -86,18 +109,18 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
     net.createServer(function (socket) {
       connections += 1;
       repl.start({
-        prompt: "node via Unix socket> ",
+        prompt: "io.js via Unix socket> ",
         input: socket,
         output: socket
       }).on('exit', function() {
         socket.end();
       })
-    }).listen("/tmp/node-repl-sock");
+    }).listen("/tmp/iojs-repl-sock");
 
     net.createServer(function (socket) {
       connections += 1;
       repl.start({
-        prompt: "node via TCP socket> ",
+        prompt: "io.js via TCP socket> ",
         input: socket,
         output: socket
       }).on('exit', function() {
@@ -111,7 +134,7 @@ for connecting to TCP sockets, and `socat` can be used to connect to both Unix a
 TCP sockets.
 
 By starting a REPL from a Unix socket-based server instead of stdin, you can
-connect to a long-running node process without restarting it.
+connect to a long-running io.js process without restarting it.
 
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
@@ -163,6 +186,9 @@ Example of listening for `reset`:
 Inside the REPL, Control+D will exit.  Multi-line expressions can be input.
 Tab completion is supported for both global and local variables.
 
+Core modules will be loaded on-demand into the environment. For example,
+accessing `fs` will `require()` the `fs` module as `global.fs`.
+
 The special variable `_` (underscore) contains the result of the last expression.
 
     > [ "a", "b", "c" ]
@@ -184,7 +210,7 @@ associated with each `REPLServer`.  For example:
 
 Things in the `context` object appear as local within the REPL:
 
-    mjr:~$ node repl_test.js
+    mjr:~$ iojs repl_test.js
     > m
     'message'
 

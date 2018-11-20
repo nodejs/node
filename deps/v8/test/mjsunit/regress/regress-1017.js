@@ -33,4 +33,3 @@
 // to store the 33rd character. This fails an ASSERT in debug mode.
 
 assertEquals(33, "12345678901234567890123456789012\u2028".length);
-

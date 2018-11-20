@@ -55,7 +55,7 @@ Debug.setListener(listener);
 var q = 42;
 var prefixes = [
   "debugger; ",
-  "if (false) { try { throw 0; } catch(x) { return x; } }; debugger; " ];
+  "if (false) { try { throw 0; } catch(x) { this.x = x; } }; debugger; " ];
 var bodies = [ "1",
                "1 ",
                "1;",

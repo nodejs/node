@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_STRING_SEARCH_H_
 #define V8_STRING_SEARCH_H_
@@ -53,7 +30,7 @@ class StringSearchBase {
   // a potentially less efficient searching, but is a safe approximation.
   // For needles using only characters in the same Unicode 256-code point page,
   // there is no search speed degradation.
-  static const int kAsciiAlphabetSize = 256;
+  static const int kLatin1AlphabetSize = 256;
   static const int kUC16AlphabetSize = Isolate::kUC16AlphabetSize;
 
   // Bad-char shift table stored in the state. It's length is the alphabet size.
@@ -104,10 +81,10 @@ class StringSearch : private StringSearchBase {
 
   static inline int AlphabetSize() {
     if (sizeof(PatternChar) == 1) {
-      // ASCII needle.
-      return kAsciiAlphabetSize;
+      // Latin1 needle.
+      return kLatin1AlphabetSize;
     } else {
-      ASSERT(sizeof(PatternChar) == 2);
+      DCHECK(sizeof(PatternChar) == 2);
       // UC16 needle.
       return kUC16AlphabetSize;
     }
@@ -219,7 +196,7 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     StringSearch<PatternChar, SubjectChar>* search,
     Vector<const SubjectChar> subject,
     int index) {
-  ASSERT_EQ(1, search->pattern_.length());
+  DCHECK_EQ(1, search->pattern_.length());
   PatternChar pattern_first_char = search->pattern_[0];
   int i = index;
   if (sizeof(SubjectChar) == 1 && sizeof(PatternChar) == 1) {
@@ -253,7 +230,7 @@ template <typename PatternChar, typename SubjectChar>
 inline bool CharCompare(const PatternChar* pattern,
                         const SubjectChar* subject,
                         int length) {
-  ASSERT(length > 0);
+  DCHECK(length > 0);
   int pos = 0;
   do {
     if (pattern[pos] != subject[pos]) {
@@ -272,7 +249,7 @@ int StringSearch<PatternChar, SubjectChar>::LinearSearch(
     Vector<const SubjectChar> subject,
     int index) {
   Vector<const PatternChar> pattern = search->pattern_;
-  ASSERT(pattern.length() > 1);
+  DCHECK(pattern.length() > 1);
   int pattern_length = pattern.length();
   PatternChar pattern_first_char = pattern[0];
   int i = index;

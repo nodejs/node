@@ -1,85 +1,68 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+#ifndef SRC_NODE_OBJECT_WRAP_H_
+#define SRC_NODE_OBJECT_WRAP_H_
 
-#ifndef object_wrap_h
-#define object_wrap_h
-
-#include "node.h"
 #include "v8.h"
 #include <assert.h>
-
-// Explicitly instantiate some template classes, so we're sure they will be
-// present in the binary / shared object. There isn't much doubt that they will
-// be, but MSVC tends to complain about these things.
-#ifdef _MSC_VER
-  template class NODE_EXTERN v8::Persistent<v8::Object>;
-  template class NODE_EXTERN v8::Persistent<v8::FunctionTemplate>;
-#endif
 
 
 namespace node {
 
-extern v8::Isolate* node_isolate;
-
-class NODE_EXTERN ObjectWrap {
+class ObjectWrap {
  public:
-  ObjectWrap ( ) {
+  ObjectWrap() {
     refs_ = 0;
   }
 
 
-  virtual ~ObjectWrap ( ) {
-    if (!handle_.IsEmpty()) {
-      assert(handle_.IsNearDeath(node_isolate));
-      handle_.ClearWeak(node_isolate);
-      handle_->SetInternalField(0, v8::Undefined());
-      handle_.Dispose(node_isolate);
-      handle_.Clear();
-    }
+  virtual ~ObjectWrap() {
+    if (persistent().IsEmpty())
+      return;
+    assert(persistent().IsNearDeath());
+    persistent().ClearWeak();
+    persistent().Reset();
   }
 
 
   template <class T>
-  static inline T* Unwrap (v8::Handle<v8::Object> handle) {
+  static inline T* Unwrap(v8::Handle<v8::Object> handle) {
     assert(!handle.IsEmpty());
     assert(handle->InternalFieldCount() > 0);
-    return static_cast<T*>(handle->GetAlignedPointerFromInternalField(0));
+    // Cast to ObjectWrap before casting to T.  A direct cast from void
+    // to T won't work right when T has more than one base class.
+    void* ptr = handle->GetAlignedPointerFromInternalField(0);
+    ObjectWrap* wrap = static_cast<ObjectWrap*>(ptr);
+    return static_cast<T*>(wrap);
   }
 
 
-  v8::Persistent<v8::Object> handle_; // ro
+  inline v8::Local<v8::Object> handle() {
+    return handle(v8::Isolate::GetCurrent());
+  }
+
+
+  inline v8::Local<v8::Object> handle(v8::Isolate* isolate) {
+    return v8::Local<v8::Object>::New(isolate, persistent());
+  }
+
+
+  inline v8::Persistent<v8::Object>& persistent() {
+    return handle_;
+  }
+
 
  protected:
-  inline void Wrap (v8::Handle<v8::Object> handle) {
-    assert(handle_.IsEmpty());
+  inline void Wrap(v8::Handle<v8::Object> handle) {
+    assert(persistent().IsEmpty());
     assert(handle->InternalFieldCount() > 0);
-    handle_ = v8::Persistent<v8::Object>::New(node_isolate, handle);
-    handle_->SetAlignedPointerInInternalField(0, this);
+    handle->SetAlignedPointerInInternalField(0, this);
+    persistent().Reset(v8::Isolate::GetCurrent(), handle);
     MakeWeak();
   }
 
 
-  inline void MakeWeak (void) {
-    handle_.MakeWeak(node_isolate, this, WeakCallback);
-    handle_.MarkIndependent(node_isolate);
+  inline void MakeWeak(void) {
+    persistent().SetWeak(this, WeakCallback);
+    persistent().MarkIndependent();
   }
 
   /* Ref() marks the object as being attached to an event loop.
@@ -87,9 +70,9 @@ class NODE_EXTERN ObjectWrap {
    * all references are lost.
    */
   virtual void Ref() {
-    assert(!handle_.IsEmpty());
+    assert(!persistent().IsEmpty());
+    persistent().ClearWeak();
     refs_++;
-    handle_.ClearWeak(node_isolate);
   }
 
   /* Unref() marks an object as detached from the event loop.  This is its
@@ -102,29 +85,32 @@ class NODE_EXTERN ObjectWrap {
    * DO NOT CALL THIS FROM DESTRUCTOR
    */
   virtual void Unref() {
-    assert(!handle_.IsEmpty());
-    assert(!handle_.IsWeak(node_isolate));
+    assert(!persistent().IsEmpty());
+    assert(!persistent().IsWeak());
     assert(refs_ > 0);
-    if (--refs_ == 0) { MakeWeak(); }
+    if (--refs_ == 0)
+      MakeWeak();
   }
 
-
-  int refs_; // ro
-
+  int refs_;  // ro
 
  private:
-  static void WeakCallback(v8::Isolate* env,
-                           v8::Persistent<v8::Value> value,
-                           void* data) {
-    v8::HandleScope scope;
-
-    ObjectWrap *obj = static_cast<ObjectWrap*>(data);
-    assert(value == obj->handle_);
-    assert(!obj->refs_);
-    assert(value.IsNearDeath(env));
-    delete obj;
+  static void WeakCallback(
+      const v8::WeakCallbackData<v8::Object, ObjectWrap>& data) {
+    v8::Isolate* isolate = data.GetIsolate();
+    v8::HandleScope scope(isolate);
+    ObjectWrap* wrap = data.GetParameter();
+    assert(wrap->refs_ == 0);
+    assert(wrap->handle_.IsNearDeath());
+    assert(
+        data.GetValue() == v8::Local<v8::Object>::New(isolate, wrap->handle_));
+    wrap->handle_.Reset();
+    delete wrap;
   }
+
+  v8::Persistent<v8::Object> handle_;
 };
 
-} // namespace node
-#endif // object_wrap_h
+}  // namespace node
+
+#endif  // SRC_NODE_OBJECT_WRAP_H_

@@ -34,7 +34,7 @@ function test(f) {
   %OptimizeFunctionOnNextCall(f);
   f();
   // Assert that there has been no deopt.
-  assertTrue(%GetOptimizationStatus(f) != 2);
+  assertOptimized(f);
 }
 
 test(function add() {
@@ -128,30 +128,6 @@ test(function mathMax() {
   assertEquals("Infinity", String(1 / Math.max(0.0, -0.0)));
 });
 
-test(function mathSin() {
-  assertEquals(0.0, Math.sin(0.0));
-  assertTrue(0.8 < Math.sin(1) && Math.sin(1) < 0.9);
-  assertEquals("NaN", String(Math.sin(Infinity)));
-  assertEquals("NaN", String(Math.sin(-Infinity)));
-  assertEquals("NaN", String(Math.sin(NaN)));
-});
-
-test(function mathCos() {
-  assertEquals(1.0, Math.cos(0.0));
-  assertTrue(0.5 < Math.cos(1) && Math.cos(1) < 0.6);
-  assertEquals("NaN", String(Math.cos(Infinity)));
-  assertEquals("NaN", String(Math.cos(-Infinity)));
-  assertEquals("NaN", String(Math.cos(NaN)));
-});
-
-test(function mathTan() {
-  assertEquals(0.0, Math.tan(0.0));
-  assertTrue(1.5 < Math.tan(1) && Math.tan(1) < 1.6);
-  assertEquals("NaN", String(Math.tan(Infinity)));
-  assertEquals("NaN", String(Math.tan(-Infinity)));
-  assertEquals("NaN", String(Math.tan(NaN)));
-});
-
 test(function mathExp() {
   assertEquals(1.0, Math.exp(0.0));
   assertTrue(2.7 < Math.exp(1) && Math.exp(1) < 2.8);
@@ -205,6 +181,17 @@ test(function mathRound() {
   assertEquals(Math.pow(2, 52) + 1, Math.round(Math.pow(2, 52) + 1));
 });
 
+test(function mathFround() {
+  assertTrue(isNaN(Math.fround(NaN)));
+  assertEquals("Infinity", String(1/Math.fround(0)));
+  assertEquals("-Infinity", String(1/Math.fround(-0)));
+  assertEquals("Infinity", String(Math.fround(Infinity)));
+  assertEquals("-Infinity", String(Math.fround(-Infinity)));
+  assertEquals("Infinity", String(Math.fround(1E200)));
+  assertEquals("-Infinity", String(Math.fround(-1E200)));
+  assertEquals(3.1415927410125732, Math.fround(Math.PI));
+});
+
 test(function mathFloor() {
   assertEquals(1, Math.floor(1.5));
   assertEquals(-2, Math.floor(-1.5));
@@ -255,4 +242,13 @@ test(function stringCharAt() {
   assertEquals("", "abc".charAt(4));
   assertEquals("b", "abc".charAt(1.1));
   assertEquals("", "abc".charAt(4.1));
+});
+
+
+test(function int32Mod() {
+  assertEquals(-0, -2147483648 % (-1));
+});
+
+test(function int32Div() {
+  assertEquals(2147483648, -2147483648 / (-1));
 });

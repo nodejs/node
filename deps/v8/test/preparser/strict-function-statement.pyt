@@ -29,71 +29,81 @@
 
 # A template that performs the same strict-mode test in different
 # scopes (global scope, function scope, and nested function scope).
-def StrictTest(name, source):
-  Test(name, '"use strict";\n' + source, "strict_function")
+def StrictTest(name, source, legacy):
+  if legacy:
+    extra_flags = [
+      "--noharmony-scoping",
+      "--noharmony-classes",
+      "--noharmony-object-literals"]
+  else:
+    extra_flags = []
+  Test(name, '"use strict";\n' + source, "strict_function",
+       extra_flags)
   Test(name + '-infunc',
        'function foo() {\n "use strict";\n' + source +'\n}\n',
-       "strict_function")
+       "strict_function", 
+       extra_flags)
   Test(name + '-infunc2',
        'function foo() {\n "use strict";\n  function bar() {\n' +
        source +'\n }\n}\n',
-       "strict_function")
+       "strict_function",
+       extra_flags)
 
 # Not testing with-scope, since with is not allowed in strict mode at all.
 
 StrictTest("block", """
   { function foo() { } }
-""")
+""", True)
 
 StrictTest("try-w-catch", """
   try { function foo() { } } catch (e) { }
-""")
+""", True)
 
 StrictTest("try-w-finally", """
   try { function foo() { } } finally { }
-""")
+""", True)
 
 StrictTest("catch", """
   try { } catch (e) { function foo() { } }
-""")
+""", True)
 
 StrictTest("finally", """
   try { } finally { function foo() { } }
-""")
+""", True)
 
 StrictTest("for", """
   for (;;) { function foo() { } }
-""")
+""", True)
 
 StrictTest("while", """
   while (true) { function foo() { } }
-""")
+""", True)
 
 StrictTest("do", """
   do { function foo() { } } while (true);
-""")
+""", True)
 
 StrictTest("then", """
   if (true) { function foo() { } }
-""")
+""", True)
 
 
 StrictTest("then-w-else", """
   if (true) { function foo() { } } else { }
-""")
+""", True)
 
 
 StrictTest("else", """
   if (true) { } else { function foo() { } }
-""")
+""", True)
 
 StrictTest("switch-case", """
   switch (true) { case true: function foo() { } }
-""")
+""", False)
 
 StrictTest("labeled", """
   label: function foo() { }
-""")
+""", False)
 
 
 

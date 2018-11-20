@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 
 #if defined(__alpha__)
@@ -43,7 +44,7 @@
 #if defined(__alpha__)
 # define UV__O_NONBLOCK       0x4
 #elif defined(__hppa__)
-# define UV__O_NONBLOCK       0x10004
+# define UV__O_NONBLOCK       O_NONBLOCK
 #elif defined(__mips__)
 # define UV__O_NONBLOCK       0x80
 #elif defined(__sparc__)
@@ -59,7 +60,11 @@
 #define UV__IN_NONBLOCK       UV__O_NONBLOCK
 
 #define UV__SOCK_CLOEXEC      UV__O_CLOEXEC
-#define UV__SOCK_NONBLOCK     UV__O_NONBLOCK
+#if defined(SOCK_NONBLOCK)
+# define UV__SOCK_NONBLOCK    SOCK_NONBLOCK
+#else
+# define UV__SOCK_NONBLOCK    UV__O_NONBLOCK
+#endif
 
 /* epoll flags */
 #define UV__EPOLL_CLOEXEC     UV__O_CLOEXEC
@@ -126,7 +131,7 @@ int uv__epoll_pwait(int epfd,
                     struct uv__epoll_event* events,
                     int nevents,
                     int timeout,
-                    const sigset_t* sigmask);
+                    uint64_t sigmask);
 int uv__eventfd2(unsigned int count, int flags);
 int uv__inotify_init(void);
 int uv__inotify_init1(int flags);
@@ -146,5 +151,8 @@ int uv__utimesat(int dirfd,
                  const char* path,
                  const struct timespec times[2],
                  int flags);
+ssize_t uv__preadv(int fd, const struct iovec *iov, int iovcnt, off_t offset);
+ssize_t uv__pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset);
+int uv__dup3(int oldfd, int newfd, int flags);
 
 #endif /* UV_LINUX_SYSCALL_H_ */

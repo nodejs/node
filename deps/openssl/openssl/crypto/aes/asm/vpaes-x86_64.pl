@@ -27,9 +27,10 @@
 #
 #		aes-x86_64.pl		vpaes-x86_64.pl
 #
-# Core 2(**)	30.5/43.7/14.3		21.8/25.7(***)
-# Nehalem	30.5/42.2/14.6		 9.8/11.8
-# Atom		63.9/79.0/32.1		64.0/84.8(***)
+# Core 2(**)	29.6/41.1/14.3		21.9/25.2(***)
+# Nehalem	29.6/40.3/14.6		10.0/11.8
+# Atom		57.3/74.2/32.1		60.9/77.2(***)
+# Silvermont	52.7/64.0/19.5		48.8/60.8(***)
 #
 # (*)	"Hyper-threading" in the context refers rather to cache shared
 #	among multiple cores, than to specifically Intel HTT. As vast
@@ -40,7 +41,7 @@
 # (**)	"Core 2" refers to initial 65nm design, a.k.a. Conroe.
 #
 # (***)	Less impressive improvement on Core 2 and Atom is due to slow
-#	pshufb,	yet it's respectable +40%/78% improvement on Core 2
+#	pshufb,	yet it's respectable +36%/62% improvement on Core 2
 #	(as implied, over "hyper-threading-safe" code path).
 #
 #						<appro@openssl.org>
@@ -95,8 +96,8 @@ _vpaes_encrypt_core:
 	movdqa	.Lk_ipt+16(%rip), %xmm0	# ipthi
 	pshufb	%xmm1,	%xmm0
 	pxor	%xmm5,	%xmm2
-	pxor	%xmm2,	%xmm0
 	add	\$16,	%r9
+	pxor	%xmm2,	%xmm0
 	lea	.Lk_mc_backward(%rip),%r10
 	jmp	.Lenc_entry
 
@@ -104,19 +105,19 @@ _vpaes_encrypt_core:
 .Lenc_loop:
 	# middle of middle round
 	movdqa  %xmm13,	%xmm4	# 4 : sb1u
-	pshufb  %xmm2,	%xmm4	# 4 = sb1u
-	pxor	%xmm5,	%xmm4	# 4 = sb1u + k
 	movdqa  %xmm12,	%xmm0	# 0 : sb1t
+	pshufb  %xmm2,	%xmm4	# 4 = sb1u
 	pshufb  %xmm3,	%xmm0	# 0 = sb1t
-	pxor	%xmm4,	%xmm0	# 0 = A
+	pxor	%xmm5,	%xmm4	# 4 = sb1u + k
 	movdqa  %xmm15,	%xmm5	# 4 : sb2u
-	pshufb	%xmm2,	%xmm5	# 4 = sb2u
+	pxor	%xmm4,	%xmm0	# 0 = A
 	movdqa	-0x40(%r11,%r10), %xmm1		# .Lk_mc_forward[]
+	pshufb	%xmm2,	%xmm5	# 4 = sb2u
+	movdqa	(%r11,%r10), %xmm4		# .Lk_mc_backward[]
 	movdqa	%xmm14, %xmm2	# 2 : sb2t
 	pshufb	%xmm3,  %xmm2	# 2 = sb2t
-	pxor	%xmm5,	%xmm2	# 2 = 2A
-	movdqa	(%r11,%r10), %xmm4		# .Lk_mc_backward[]
 	movdqa	%xmm0,  %xmm3	# 3 = A
+	pxor	%xmm5,	%xmm2	# 2 = 2A
 	pshufb  %xmm1,  %xmm0	# 0 = B
 	add	\$16,	%r9	# next key
 	pxor	%xmm2,  %xmm0	# 0 = 2A+B
@@ -125,30 +126,30 @@ _vpaes_encrypt_core:
 	pxor	%xmm0,	%xmm3	# 3 = 2A+B+D
 	pshufb  %xmm1,	%xmm0	# 0 = 2B+C
 	and	\$0x30,	%r11	# ... mod 4
-	pxor	%xmm3,	%xmm0	# 0 = 2A+3B+C+D
 	sub	\$1,%rax	# nr--
+	pxor	%xmm3,	%xmm0	# 0 = 2A+3B+C+D
 
 .Lenc_entry:
 	# top of round
 	movdqa  %xmm9, 	%xmm1	# 1 : i
+	movdqa	%xmm11, %xmm5	# 2 : a/k
 	pandn	%xmm0, 	%xmm1	# 1 = i<<4
 	psrld	\$4,   	%xmm1   # 1 = i
 	pand	%xmm9, 	%xmm0   # 0 = k
-	movdqa	%xmm11, %xmm5	# 2 : a/k
 	pshufb  %xmm0,  %xmm5	# 2 = a/k
-	pxor	%xmm1,	%xmm0	# 0 = j
 	movdqa	%xmm10,	%xmm3  	# 3 : 1/i
+	pxor	%xmm1,	%xmm0	# 0 = j
 	pshufb  %xmm1, 	%xmm3  	# 3 = 1/i
-	pxor	%xmm5, 	%xmm3  	# 3 = iak = 1/i + a/k
 	movdqa	%xmm10,	%xmm4  	# 4 : 1/j
+	pxor	%xmm5, 	%xmm3  	# 3 = iak = 1/i + a/k
 	pshufb	%xmm0, 	%xmm4  	# 4 = 1/j
-	pxor	%xmm5, 	%xmm4  	# 4 = jak = 1/j + a/k
 	movdqa	%xmm10,	%xmm2  	# 2 : 1/iak
+	pxor	%xmm5, 	%xmm4  	# 4 = jak = 1/j + a/k
 	pshufb  %xmm3,	%xmm2  	# 2 = 1/iak
-	pxor	%xmm0, 	%xmm2  	# 2 = io
 	movdqa	%xmm10, %xmm3   # 3 : 1/jak
-	movdqu	(%r9),	%xmm5
+	pxor	%xmm0, 	%xmm2  	# 2 = io
 	pshufb  %xmm4,  %xmm3   # 3 = 1/jak
+	movdqu	(%r9),	%xmm5
 	pxor	%xmm1,  %xmm3   # 3 = jo
 	jnz	.Lenc_loop
 
@@ -201,62 +202,61 @@ _vpaes_decrypt_core:
 ##  Inverse mix columns
 ##
 	movdqa  -0x20(%r10),%xmm4	# 4 : sb9u
+	movdqa  -0x10(%r10),%xmm1	# 0 : sb9t
 	pshufb	%xmm2,	%xmm4		# 4 = sb9u
-	pxor	%xmm0,	%xmm4
-	movdqa  -0x10(%r10),%xmm0	# 0 : sb9t
-	pshufb	%xmm3,	%xmm0		# 0 = sb9t
-	pxor	%xmm4,	%xmm0		# 0 = ch
-	add	\$16, %r9		# next round key
-
-	pshufb	%xmm5,	%xmm0		# MC ch
+	pshufb	%xmm3,	%xmm1		# 0 = sb9t
+	pxor	%xmm4,	%xmm0
 	movdqa  0x00(%r10),%xmm4	# 4 : sbdu
-	pshufb	%xmm2,	%xmm4		# 4 = sbdu
-	pxor	%xmm0,	%xmm4		# 4 = ch
-	movdqa  0x10(%r10),%xmm0	# 0 : sbdt
-	pshufb	%xmm3,	%xmm0		# 0 = sbdt
-	pxor	%xmm4,	%xmm0		# 0 = ch
-	sub	\$1,%rax		# nr--
-	
-	pshufb	%xmm5,	%xmm0		# MC ch
-	movdqa  0x20(%r10),%xmm4	# 4 : sbbu
-	pshufb	%xmm2,	%xmm4		# 4 = sbbu
-	pxor	%xmm0,	%xmm4		# 4 = ch
-	movdqa  0x30(%r10),%xmm0	# 0 : sbbt
-	pshufb	%xmm3,	%xmm0		# 0 = sbbt
-	pxor	%xmm4,	%xmm0		# 0 = ch
-	
-	pshufb	%xmm5,	%xmm0		# MC ch
-	movdqa  0x40(%r10),%xmm4	# 4 : sbeu
-	pshufb	%xmm2,	%xmm4		# 4 = sbeu
-	pxor	%xmm0,	%xmm4		# 4 = ch
-	movdqa  0x50(%r10),%xmm0	# 0 : sbet
-	pshufb	%xmm3,	%xmm0		# 0 = sbet
-	pxor	%xmm4,	%xmm0		# 0 = ch
+	pxor	%xmm1,	%xmm0		# 0 = ch
+	movdqa  0x10(%r10),%xmm1	# 0 : sbdt
 
+	pshufb	%xmm2,	%xmm4		# 4 = sbdu
+	pshufb	%xmm5,	%xmm0		# MC ch
+	pshufb	%xmm3,	%xmm1		# 0 = sbdt
+	pxor	%xmm4,	%xmm0		# 4 = ch
+	movdqa  0x20(%r10),%xmm4	# 4 : sbbu
+	pxor	%xmm1,	%xmm0		# 0 = ch
+	movdqa  0x30(%r10),%xmm1	# 0 : sbbt
+
+	pshufb	%xmm2,	%xmm4		# 4 = sbbu
+	pshufb	%xmm5,	%xmm0		# MC ch
+	pshufb	%xmm3,	%xmm1		# 0 = sbbt
+	pxor	%xmm4,	%xmm0		# 4 = ch
+	movdqa  0x40(%r10),%xmm4	# 4 : sbeu
+	pxor	%xmm1,	%xmm0		# 0 = ch
+	movdqa  0x50(%r10),%xmm1	# 0 : sbet
+
+	pshufb	%xmm2,	%xmm4		# 4 = sbeu
+	pshufb	%xmm5,	%xmm0		# MC ch
+	pshufb	%xmm3,	%xmm1		# 0 = sbet
+	pxor	%xmm4,	%xmm0		# 4 = ch
+	add	\$16, %r9		# next round key
 	palignr	\$12,	%xmm5,	%xmm5
-	
+	pxor	%xmm1,	%xmm0		# 0 = ch
+	sub	\$1,%rax		# nr--
+
 .Ldec_entry:
 	# top of round
 	movdqa  %xmm9, 	%xmm1	# 1 : i
 	pandn	%xmm0, 	%xmm1	# 1 = i<<4
+	movdqa	%xmm11, %xmm2	# 2 : a/k
 	psrld	\$4,    %xmm1	# 1 = i
 	pand	%xmm9, 	%xmm0	# 0 = k
-	movdqa	%xmm11, %xmm2	# 2 : a/k
 	pshufb  %xmm0,  %xmm2	# 2 = a/k
-	pxor	%xmm1,	%xmm0	# 0 = j
 	movdqa	%xmm10,	%xmm3	# 3 : 1/i
+	pxor	%xmm1,	%xmm0	# 0 = j
 	pshufb  %xmm1, 	%xmm3	# 3 = 1/i
-	pxor	%xmm2, 	%xmm3	# 3 = iak = 1/i + a/k
 	movdqa	%xmm10,	%xmm4	# 4 : 1/j
+	pxor	%xmm2, 	%xmm3	# 3 = iak = 1/i + a/k
 	pshufb	%xmm0, 	%xmm4	# 4 = 1/j
 	pxor	%xmm2, 	%xmm4	# 4 = jak = 1/j + a/k
 	movdqa	%xmm10,	%xmm2	# 2 : 1/iak
 	pshufb  %xmm3,	%xmm2	# 2 = 1/iak
-	pxor	%xmm0, 	%xmm2	# 2 = io
 	movdqa	%xmm10, %xmm3	# 3 : 1/jak
+	pxor	%xmm0, 	%xmm2	# 2 = io
 	pshufb  %xmm4,  %xmm3	# 3 = 1/jak
-	pxor	%xmm1,  %xmm3	# 3 = jo
 	movdqu	(%r9),	%xmm0
+	pxor	%xmm1,  %xmm3	# 3 = jo
 	jnz	.Ldec_loop
 
 	# middle of last round
@@ -464,12 +464,12 @@ _vpaes_schedule_core:
 .type	_vpaes_schedule_192_smear,\@abi-omnipotent
 .align	16
 _vpaes_schedule_192_smear:
-	pshufd	\$0x80,	%xmm6,	%xmm0	# d c 0 0 -> c 0 0 0
-	pxor	%xmm0,	%xmm6		# -> c+d c 0 0
+	pshufd	\$0x80,	%xmm6,	%xmm1	# d c 0 0 -> c 0 0 0
 	pshufd	\$0xFE,	%xmm7,	%xmm0	# b a _ _ -> b b b a
+	pxor	%xmm1,	%xmm6		# -> c+d c 0 0
+	pxor	%xmm1,	%xmm1
 	pxor	%xmm0,	%xmm6		# -> b+c+d b+c b a
 	movdqa	%xmm6,	%xmm0
-	pxor	%xmm1,	%xmm1
 	movhlps	%xmm1,	%xmm6		# clobber low side with zeros
 	ret
 .size	_vpaes_schedule_192_smear,.-_vpaes_schedule_192_smear
@@ -1060,7 +1060,7 @@ _vpaes_consts:
 .Lk_dsbo:	# decryption sbox final output
 	.quad	0x1387EA537EF94000, 0xC7AA6DB9D4943E2D
 	.quad	0x12D7560F93441D00, 0xCA4B8159D8C58E9C
-.asciz	"Vector Permutaion AES for x86_64/SSSE3, Mike Hamburg (Stanford University)"
+.asciz	"Vector Permutation AES for x86_64/SSSE3, Mike Hamburg (Stanford University)"
 .align	64
 .size	_vpaes_consts,.-_vpaes_consts
 ___

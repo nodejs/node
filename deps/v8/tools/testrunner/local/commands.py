@@ -91,22 +91,19 @@ def RunProcess(verbose, timeout, args, **rest):
   # loop and keep track of whether or not it times out.
   exit_code = None
   sleep_time = INITIAL_SLEEP_TIME
-  try:
-    while exit_code is None:
-      if (not end_time is None) and (time.time() >= end_time):
-        # Kill the process and wait for it to exit.
-        KillProcessWithID(process.pid)
-        exit_code = process.wait()
-        timed_out = True
-      else:
-        exit_code = process.poll()
-        time.sleep(sleep_time)
-        sleep_time = sleep_time * SLEEP_TIME_FACTOR
-        if sleep_time > MAX_SLEEP_TIME:
-          sleep_time = MAX_SLEEP_TIME
-    return (exit_code, timed_out)
-  except KeyboardInterrupt:
-    raise
+  while exit_code is None:
+    if (not end_time is None) and (time.time() >= end_time):
+      # Kill the process and wait for it to exit.
+      KillProcessWithID(process.pid)
+      exit_code = process.wait()
+      timed_out = True
+    else:
+      exit_code = process.poll()
+      time.sleep(sleep_time)
+      sleep_time = sleep_time * SLEEP_TIME_FACTOR
+      if sleep_time > MAX_SLEEP_TIME:
+        sleep_time = MAX_SLEEP_TIME
+  return (exit_code, timed_out)
 
 
 def PrintError(string):
@@ -131,10 +128,10 @@ def CheckedUnlink(name):
 
 
 def Execute(args, verbose=False, timeout=None):
-  args = [ c for c in args if c != "" ]
-  (fd_out, outname) = tempfile.mkstemp()
-  (fd_err, errname) = tempfile.mkstemp()
   try:
+    args = [ c for c in args if c != "" ]
+    (fd_out, outname) = tempfile.mkstemp()
+    (fd_err, errname) = tempfile.mkstemp()
     (exit_code, timed_out) = RunProcess(
       verbose,
       timeout,
@@ -142,12 +139,13 @@ def Execute(args, verbose=False, timeout=None):
       stdout=fd_out,
       stderr=fd_err
     )
-  except:
-    raise
-  os.close(fd_out)
-  os.close(fd_err)
-  out = file(outname).read()
-  errors = file(errname).read()
-  CheckedUnlink(outname)
-  CheckedUnlink(errname)
+  finally:
+    # TODO(machenbach): A keyboard interrupt before the assignment to
+    # fd_out|err can lead to reference errors here.
+    os.close(fd_out)
+    os.close(fd_err)
+    out = file(outname).read()
+    errors = file(errname).read()
+    CheckedUnlink(outname)
+    CheckedUnlink(errname)
   return output.Output(exit_code, timed_out, out, errors)

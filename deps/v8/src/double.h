@@ -1,41 +1,18 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_DOUBLE_H_
 #define V8_DOUBLE_H_
 
-#include "diy-fp.h"
+#include "src/diy-fp.h"
 
 namespace v8 {
 namespace internal {
 
 // We assume that doubles and uint64_t have the same endianness.
-inline uint64_t double_to_uint64(double d) { return BitCast<uint64_t>(d); }
-inline double uint64_to_double(uint64_t d64) { return BitCast<double>(d64); }
+inline uint64_t double_to_uint64(double d) { return bit_cast<uint64_t>(d); }
+inline double uint64_to_double(uint64_t d64) { return bit_cast<double>(d64); }
 
 // Helper functions for doubles.
 class Double {
@@ -57,14 +34,14 @@ class Double {
   // The value encoded by this Double must be greater or equal to +0.0.
   // It must not be special (infinity, or NaN).
   DiyFp AsDiyFp() const {
-    ASSERT(Sign() > 0);
-    ASSERT(!IsSpecial());
+    DCHECK(Sign() > 0);
+    DCHECK(!IsSpecial());
     return DiyFp(Significand(), Exponent());
   }
 
   // The value encoded by this Double must be strictly greater than 0.
   DiyFp AsNormalizedDiyFp() const {
-    ASSERT(value() > 0.0);
+    DCHECK(value() > 0.0);
     uint64_t f = Significand();
     int e = Exponent();
 
@@ -144,7 +121,7 @@ class Double {
   // Precondition: the value encoded by this Double must be greater or equal
   // than +0.0.
   DiyFp UpperBoundary() const {
-    ASSERT(Sign() > 0);
+    DCHECK(Sign() > 0);
     return DiyFp(Significand() * 2 + 1, Exponent() - 1);
   }
 
@@ -153,7 +130,7 @@ class Double {
   // exponent as m_plus.
   // Precondition: the value encoded by this Double must be greater than 0.
   void NormalizedBoundaries(DiyFp* out_m_minus, DiyFp* out_m_plus) const {
-    ASSERT(value() > 0.0);
+    DCHECK(value() > 0.0);
     DiyFp v = this->AsDiyFp();
     bool significand_is_zero = (v.f() == kHiddenBit);
     DiyFp m_plus = DiyFp::Normalize(DiyFp((v.f() << 1) + 1, v.e() - 1));

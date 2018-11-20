@@ -125,14 +125,18 @@ the default method is used.
      /* sign. For backward compatibility, this is used only
       * if (flags & RSA_FLAG_SIGN_VER)
       */
-	int (*rsa_sign)(int type, unsigned char *m, unsigned int m_len,
-           unsigned char *sigret, unsigned int *siglen, RSA *rsa);
-
+	int (*rsa_sign)(int type,
+		const unsigned char *m, unsigned int m_length,
+		unsigned char *sigret, unsigned int *siglen, const RSA *rsa);
      /* verify. For backward compatibility, this is used only
       * if (flags & RSA_FLAG_SIGN_VER)
       */
-	int (*rsa_verify)(int type, unsigned char *m, unsigned int m_len,
-           unsigned char *sigbuf, unsigned int siglen, RSA *rsa);
+	int (*rsa_verify)(int dtype,
+		const unsigned char *m, unsigned int m_length,
+		const unsigned char *sigbuf, unsigned int siglen,
+								const RSA *rsa);
+     /* keygen. If NULL builtin RSA key generation will be used */
+	int (*rsa_keygen)(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
 
  } RSA_METHOD;
 

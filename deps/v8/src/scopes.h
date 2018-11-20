@@ -1,35 +1,12 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SCOPES_H_
 #define V8_SCOPES_H_
 
-#include "ast.h"
-#include "zone.h"
+#include "src/ast.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -44,15 +21,12 @@ class VariableMap: public ZoneHashMap {
 
   virtual ~VariableMap();
 
-  Variable* Declare(Scope* scope,
-                    Handle<String> name,
-                    VariableMode mode,
-                    bool is_valid_lhs,
-                    Variable::Kind kind,
+  Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
+                    bool is_valid_lhs, Variable::Kind kind,
                     InitializationFlag initialization_flag,
-                    Interface* interface = Interface::NewValue());
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
-  Variable* Lookup(Handle<String> name);
+  Variable* Lookup(const AstRawString* name);
 
   Zone* zone() const { return zone_; }
 
@@ -74,7 +48,7 @@ class DynamicScopePart : public ZoneObject {
 
   VariableMap* GetMap(VariableMode mode) {
     int index = mode - DYNAMIC;
-    ASSERT(index >= 0 && index < 3);
+    DCHECK(index >= 0 && index < 3);
     return maps_[index];
   }
 
@@ -97,20 +71,23 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  Scope(Scope* outer_scope, ScopeType type, Zone* zone);
+  Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
+        AstValueFactory* value_factory);
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(CompilationInfo* info);
 
-  static Scope* DeserializeScopeChain(Context* context, Scope* global_scope,
-                                      Zone* zone);
+  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
+                                      Context* context, Scope* script_scope);
 
   // The scope name is only used for printing/debugging.
-  void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
+  void SetScopeName(const AstRawString* scope_name) {
+    scope_name_ = scope_name;
+  }
 
-  void Initialize();
+  void Initialize(bool subclass_constructor = false);
 
   // Checks if the block scope is redundant, i.e. it does not contain any
   // block scoped declarations. In that case it is removed from the scope
@@ -123,57 +100,54 @@ class Scope: public ZoneObject {
   // Declarations
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
-  Variable* LocalLookup(Handle<String> name);
+  Variable* LookupLocal(const AstRawString* name);
 
   // This lookup corresponds to a lookup in the "intermediate" scope sitting
   // between this scope and the outer scope. (ECMA-262, 3rd., requires that
   // the name of named function literal is kept in an intermediate scope
   // in between this scope and the next outer scope.)
-  Variable* LookupFunctionVar(Handle<String> name,
-                              AstNodeFactory<AstNullVisitor>* factory);
+  Variable* LookupFunctionVar(const AstRawString* name,
+                              AstNodeFactory* factory);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
-  Variable* Lookup(Handle<String> name);
+  Variable* Lookup(const AstRawString* name);
 
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
   void DeclareFunctionVar(VariableDeclaration* declaration) {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     function_ = declaration;
   }
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  void DeclareParameter(Handle<String> name, VariableMode mode);
+  Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
+                             bool is_rest = false);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  Variable* DeclareLocal(Handle<String> name,
-                         VariableMode mode,
+  Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
                          InitializationFlag init_flag,
-                         Interface* interface = Interface::NewValue());
+                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Declare an implicit global variable in this scope which must be a
-  // global scope.  The variable was introduced (possibly from an inner
+  // script scope.  The variable was introduced (possibly from an inner
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
-  Variable* DeclareDynamicGlobal(Handle<String> name);
+  Variable* DeclareDynamicGlobal(const AstRawString* name);
 
   // Create a new unresolved variable.
-  template<class Visitor>
-  VariableProxy* NewUnresolved(AstNodeFactory<Visitor>* factory,
-                               Handle<String> name,
-                               Interface* interface = Interface::NewValue(),
+  VariableProxy* NewUnresolved(AstNodeFactory* factory,
+                               const AstRawString* name,
                                int position = RelocInfo::kNoPosition) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
-    ASSERT(!already_resolved());
-    VariableProxy* proxy =
-        factory->NewVariableProxy(name, false, interface, position);
+    DCHECK(!already_resolved());
+    VariableProxy* proxy = factory->NewVariableProxy(name, false, position);
     unresolved_.Add(proxy, zone_);
     return proxy;
   }
@@ -190,13 +164,13 @@ class Scope: public ZoneObject {
   // for printing and cannot be used to find the variable.  In particular,
   // the only way to get hold of the temporary is by keeping the Variable*
   // around.
-  Variable* NewInternal(Handle<String> name);
+  Variable* NewInternal(const AstRawString* name);
 
   // Creates a new temporary variable in this scope.  The name is only used
   // for printing and cannot be used to find the variable.  In particular,
   // the only way to get hold of the temporary is by keeping the Variable*
   // around.  The name should not clash with a legitimate variable names.
-  Variable* NewTemporary(Handle<String> name);
+  Variable* NewTemporary(const AstRawString* name);
 
   // Adds the specific declaration node to the list of declarations in
   // this scope. The declarations are processed as part of entering
@@ -231,12 +205,24 @@ class Scope: public ZoneObject {
   void RecordWithStatement() { scope_contains_with_ = true; }
 
   // Inform the scope that the corresponding code contains an eval call.
-  void RecordEvalCall() { if (!is_global_scope()) scope_calls_eval_ = true; }
+  void RecordEvalCall() { if (!is_script_scope()) scope_calls_eval_ = true; }
 
-  // Set the strict mode flag (unless disabled by a global flag).
+  // Inform the scope that the corresponding code uses "arguments".
+  void RecordArgumentsUsage() { scope_uses_arguments_ = true; }
+
+  // Inform the scope that the corresponding code uses "super".
+  void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
+
+  // Inform the scope that the corresponding code uses "this".
+  void RecordThisUsage() { scope_uses_this_ = true; }
+
+  // Set the language mode flag (unless disabled by a global flag).
   void SetLanguageMode(LanguageMode language_mode) {
     language_mode_ = language_mode;
   }
+
+  // Set the ASM module flag.
+  void SetAsmModule() { asm_module_ = true; }
 
   // Position in the source where this scope begins and ends.
   //
@@ -269,72 +255,126 @@ class Scope: public ZoneObject {
     end_position_ = statement_pos;
   }
 
+  // In some cases we want to force context allocation for a whole scope.
+  void ForceContextAllocation() {
+    DCHECK(!already_resolved());
+    force_context_allocation_ = true;
+  }
+  bool has_forced_context_allocation() const {
+    return force_context_allocation_;
+  }
+
   // ---------------------------------------------------------------------------
   // Predicates.
 
   // Specific scope types.
-  bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
-  bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
-  bool is_module_scope() const { return type_ == MODULE_SCOPE; }
-  bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
-  bool is_catch_scope() const { return type_ == CATCH_SCOPE; }
-  bool is_block_scope() const { return type_ == BLOCK_SCOPE; }
-  bool is_with_scope() const { return type_ == WITH_SCOPE; }
+  bool is_eval_scope() const { return scope_type_ == EVAL_SCOPE; }
+  bool is_function_scope() const {
+    return scope_type_ == FUNCTION_SCOPE || scope_type_ == ARROW_SCOPE;
+  }
+  bool is_module_scope() const { return scope_type_ == MODULE_SCOPE; }
+  bool is_script_scope() const { return scope_type_ == SCRIPT_SCOPE; }
+  bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
+  bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
+  bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
+  bool is_arrow_scope() const { return scope_type_ == ARROW_SCOPE; }
   bool is_declaration_scope() const {
     return is_eval_scope() || is_function_scope() ||
-        is_module_scope() || is_global_scope();
+        is_module_scope() || is_script_scope();
   }
-  bool is_classic_mode() const {
-    return language_mode() == CLASSIC_MODE;
-  }
-  bool is_extended_mode() const {
-    return language_mode() == EXTENDED_MODE;
-  }
-  bool is_strict_or_extended_eval_scope() const {
-    return is_eval_scope() && !is_classic_mode();
+  bool is_strict_eval_scope() const {
+    return is_eval_scope() && is_strict(language_mode_);
   }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
-  bool calls_non_strict_eval() {
-    return scope_calls_eval_ && is_classic_mode();
+  bool calls_sloppy_eval() {
+    return scope_calls_eval_ && is_sloppy(language_mode_);
   }
-  bool outer_scope_calls_non_strict_eval() const {
-    return outer_scope_calls_non_strict_eval_;
+  bool outer_scope_calls_sloppy_eval() const {
+    return outer_scope_calls_sloppy_eval_;
   }
+  bool asm_module() const { return asm_module_; }
+  bool asm_function() const { return asm_function_; }
 
   // Is this scope inside a with statement.
   bool inside_with() const { return scope_inside_with_; }
   // Does this scope contain a with statement.
   bool contains_with() const { return scope_contains_with_; }
 
+  // Does this scope access "arguments".
+  bool uses_arguments() const { return scope_uses_arguments_; }
+  // Does any inner scope access "arguments".
+  bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
+  // Does this scope access "super" property (super.foo).
+  bool uses_super_property() const { return scope_uses_super_property_; }
+  // Does any inner scope access "super" property.
+  bool inner_uses_super_property() const {
+    return inner_scope_uses_super_property_;
+  }
+  // Does this scope access "this".
+  bool uses_this() const { return scope_uses_this_; }
+  // Does any inner scope access "this".
+  bool inner_uses_this() const { return inner_scope_uses_this_; }
+
   // ---------------------------------------------------------------------------
   // Accessors.
 
   // The type of this scope.
-  ScopeType type() const { return type_; }
+  ScopeType scope_type() const { return scope_type_; }
 
   // The language mode of this scope.
   LanguageMode language_mode() const { return language_mode_; }
 
-  // The variable corresponding the 'this' value.
+  // The variable corresponding to the 'this' value.
   Variable* receiver() { return receiver_; }
+
+  // The variable corresponding to the 'new.target' value.
+  Variable* new_target_var() { return new_target_; }
 
   // The variable holding the function literal for named function
   // literals, or NULL.  Only valid for function scopes.
   VariableDeclaration* function() const {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     return function_;
   }
 
   // Parameters. The left-most parameter has index 0.
   // Only valid for function scopes.
   Variable* parameter(int index) const {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     return params_[index];
   }
 
+  // Returns the default function arity --- does not include rest parameters.
+  int default_function_length() const {
+    int count = params_.length();
+    if (rest_index_ >= 0) {
+      DCHECK(count > 0);
+      DCHECK(is_function_scope());
+      --count;
+    }
+    return count;
+  }
+
   int num_parameters() const { return params_.length(); }
+
+  // A function can have at most one rest parameter. Returns Variable* or NULL.
+  Variable* rest_parameter(int* index) const {
+    *index = rest_index_;
+    if (rest_index_ < 0) return NULL;
+    return rest_parameter_;
+  }
+
+  bool has_rest_parameter() const {
+    return rest_index_ >= 0;
+  }
+
+  bool is_simple_parameter_list() const {
+    DCHECK(is_function_scope());
+    if (rest_index_ >= 0) return false;
+    return true;
+  }
 
   // The local variable 'arguments' if we need to allocate it; NULL otherwise.
   Variable* arguments() const { return arguments_; }
@@ -348,8 +388,8 @@ class Scope: public ZoneObject {
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const { return outer_scope_; }
 
-  // The interface as inferred so far; only for module scopes.
-  Interface* interface() const { return interface_; }
+  // The ModuleDescriptor for this scope; only for module scopes.
+  ModuleDescriptor* module() const { return module_descriptor_; }
 
   // ---------------------------------------------------------------------------
   // Variable allocation.
@@ -370,7 +410,7 @@ class Scope: public ZoneObject {
   int StackLocalCount() const;
   int ContextLocalCount() const;
 
-  // For global scopes, the number of module literals (including nested ones).
+  // For script scopes, the number of module literals (including nested ones).
   int num_modules() const { return num_modules_; }
 
   // For module scopes, the host scope's internal variable binding this module.
@@ -394,31 +434,40 @@ class Scope: public ZoneObject {
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
 
-  // Find the innermost global scope.
-  Scope* GlobalScope();
+  // Find the script scope.
+  // Used in modules implemenetation to find hosting scope.
+  // TODO(rossberg): is this needed?
+  Scope* ScriptScope();
 
   // Find the first function, global, or eval scope.  This is the scope
   // where var declarations will be hoisted to in the implementation.
   Scope* DeclarationScope();
 
-  Handle<ScopeInfo> GetScopeInfo();
+  Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 
   // Get the chain of nested scopes within this scope for the source statement
   // position. The scopes will be added to the list from the outermost scope to
   // the innermost scope. Only nested block, catch or with scopes are tracked
   // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(List<Handle<ScopeInfo> >* chain,
+  void GetNestedScopeChain(Isolate* isolate, List<Handle<ScopeInfo> >* chain,
                            int statement_position);
 
   // ---------------------------------------------------------------------------
   // Strict mode support.
-  bool IsDeclared(Handle<String> name) {
+  bool IsDeclared(const AstRawString* name) {
     // During formal parameter list parsing the scope only contains
     // two variables inserted at initialization: "this" and "arguments".
     // "this" is an invalid parameter name and "arguments" is invalid parameter
     // name in strict mode. Therefore looking up with the map which includes
     // "this" and "arguments" in addition to all formal parameters is safe.
     return variables_.Lookup(name) != NULL;
+  }
+
+  bool IsDeclaredParameter(const AstRawString* name) {
+    // If IsSimpleParameterList is false, duplicate parameters are not allowed,
+    // however `arguments` may be allowed if function is not strict code. Thus,
+    // the assumptions explained above do not hold.
+    return params_.Contains(variables_.Lookup(name));
   }
 
   // ---------------------------------------------------------------------------
@@ -433,21 +482,19 @@ class Scope: public ZoneObject {
  protected:
   friend class ParserFactory;
 
-  Isolate* const isolate_;
-
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
 
   // The scope type.
-  ScopeType type_;
+  ScopeType scope_type_;
 
   // Debugging support.
-  Handle<String> scope_name_;
+  const AstRawString* scope_name_;
 
   // The variables declared in this scope:
   //
-  // All user-declared variables (incl. parameters).  For global scopes
+  // All user-declared variables (incl. parameters).  For script scopes
   // variables may be implicitly 'declared' by being used (possibly in
   // an inner scope) with no intervening with statements or eval calls.
   VariableMap variables_;
@@ -467,10 +514,12 @@ class Scope: public ZoneObject {
   Variable* receiver_;
   // Function variable, if any; function scopes only.
   VariableDeclaration* function_;
+  // new.target variable, function scopes only.
+  Variable* new_target_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
-  // Interface; module scopes only.
-  Interface* interface_;
+  // Module descriptor; module scopes only.
+  ModuleDescriptor* module_descriptor_;
 
   // Illegal redeclaration.
   Expression* illegal_redecl_;
@@ -484,6 +533,16 @@ class Scope: public ZoneObject {
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;
+  // This scope uses "arguments".
+  bool scope_uses_arguments_;
+  // This scope uses "super" property ('super.foo').
+  bool scope_uses_super_property_;
+  // This scope uses "this".
+  bool scope_uses_this_;
+  // This scope contains an "use asm" annotation.
+  bool asm_module_;
+  // This scope's outer context is an asm module.
+  bool asm_function_;
   // The language mode of this scope.
   LanguageMode language_mode_;
   // Source positions.
@@ -491,9 +550,13 @@ class Scope: public ZoneObject {
   int end_position_;
 
   // Computed via PropagateScopeInfo.
-  bool outer_scope_calls_non_strict_eval_;
+  bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
+  bool inner_scope_uses_arguments_;
+  bool inner_scope_uses_super_property_;
+  bool inner_scope_uses_this_;
   bool force_eager_compilation_;
+  bool force_context_allocation_;
 
   // True if it doesn't need scope resolution (e.g., if the scope was
   // constructed based on a serialized scope info or a catch context).
@@ -512,13 +575,17 @@ class Scope: public ZoneObject {
   // For module scopes, the host scope's internal variable binding this module.
   Variable* module_var_;
 
+  // Rest parameter
+  Variable* rest_parameter_;
+  int rest_index_;
+
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;
   bool already_resolved() { return already_resolved_; }
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
-  Variable* NonLocal(Handle<String> name, VariableMode mode);
+  Variable* NonLocal(const AstRawString* name, VariableMode mode);
 
   // Variable resolution.
   // Possible results of a recursive variable lookup telling if and how a
@@ -528,13 +595,13 @@ class Scope: public ZoneObject {
     // The variable reference could be statically resolved to a variable binding
     // which is returned. There is no 'with' statement between the reference and
     // the binding and no scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a non-strict 'eval' call.
+    // binding scope (exclusive) makes a sloppy 'eval' call.
     BOUND,
 
     // The variable reference could be statically resolved to a variable binding
     // which is returned. There is no 'with' statement between the reference and
     // the binding, but some scope between the reference scope (inclusive) and
-    // binding scope (exclusive) makes a non-strict 'eval' call, that might
+    // binding scope (exclusive) makes a sloppy 'eval' call, that might
     // possibly introduce variable bindings shadowing the found one. Thus the
     // found variable binding is just a guess.
     BOUND_EVAL_SHADOWED,
@@ -542,14 +609,14 @@ class Scope: public ZoneObject {
     // The variable reference could not be statically resolved to any binding
     // and thus should be considered referencing a global variable. NULL is
     // returned. The variable reference is not inside any 'with' statement and
-    // no scope between the reference scope (inclusive) and global scope
-    // (exclusive) makes a non-strict 'eval' call.
+    // no scope between the reference scope (inclusive) and script scope
+    // (exclusive) makes a sloppy 'eval' call.
     UNBOUND,
 
     // The variable reference could not be statically resolved to any binding
     // NULL is returned. The variable reference is not inside any 'with'
     // statement, but some scope between the reference scope (inclusive) and
-    // global scope (exclusive) makes a non-strict 'eval' call, that might
+    // script scope (exclusive) makes a sloppy 'eval' call, that might
     // possibly introduce a variable binding. Thus the reference should be
     // considered referencing a global variable unless it is shadowed by an
     // 'eval' introduced binding.
@@ -569,33 +636,31 @@ class Scope: public ZoneObject {
   // Lookup a variable reference given by name recursively starting with this
   // scope. If the code is executed because of a call to 'eval', the context
   // parameter should be set to the calling context of 'eval'.
-  Variable* LookupRecursive(Handle<String> name,
-                            BindingKind* binding_kind,
-                            AstNodeFactory<AstNullVisitor>* factory);
+  Variable* LookupRecursive(VariableProxy* proxy, BindingKind* binding_kind,
+                            AstNodeFactory* factory);
   MUST_USE_RESULT
-  bool ResolveVariable(CompilationInfo* info,
-                       VariableProxy* proxy,
-                       AstNodeFactory<AstNullVisitor>* factory);
+  bool ResolveVariable(CompilationInfo* info, VariableProxy* proxy,
+                       AstNodeFactory* factory);
   MUST_USE_RESULT
   bool ResolveVariablesRecursively(CompilationInfo* info,
-                                   AstNodeFactory<AstNullVisitor>* factory);
+                                   AstNodeFactory* factory);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_non_strict_eval);
+  void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
   bool HasTrivialContext() const;
 
   // Predicates.
   bool MustAllocate(Variable* var);
   bool MustAllocateInContext(Variable* var);
-  bool HasArgumentsParameter();
+  bool HasArgumentsParameter(Isolate* isolate);
 
   // Variable allocation.
   void AllocateStackSlot(Variable* var);
   void AllocateHeapSlot(Variable* var);
-  void AllocateParameterLocals();
-  void AllocateNonParameterLocal(Variable* var);
-  void AllocateNonParameterLocals();
-  void AllocateVariablesRecursively();
+  void AllocateParameterLocals(Isolate* isolate);
+  void AllocateNonParameterLocal(Isolate* isolate, Variable* var);
+  void AllocateNonParameterLocals(Isolate* isolate);
+  void AllocateVariablesRecursively(Isolate* isolate);
   void AllocateModulesRecursively(Scope* host_scope);
 
   // Resolve and fill in the allocation information for all variables
@@ -607,16 +672,16 @@ class Scope: public ZoneObject {
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
   MUST_USE_RESULT
-  bool AllocateVariables(CompilationInfo* info,
-                         AstNodeFactory<AstNullVisitor>* factory);
+  bool AllocateVariables(CompilationInfo* info, AstNodeFactory* factory);
 
  private:
   // Construct a scope based on the scope info.
-  Scope(Scope* inner_scope, ScopeType type, Handle<ScopeInfo> scope_info,
-        Zone* zone);
+  Scope(Zone* zone, Scope* inner_scope, ScopeType type,
+        Handle<ScopeInfo> scope_info, AstValueFactory* value_factory);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Scope* inner_scope, Handle<String> catch_variable_name, Zone* zone);
+  Scope(Zone* zone, Scope* inner_scope, const AstRawString* catch_variable_name,
+        AstValueFactory* value_factory);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
@@ -629,6 +694,7 @@ class Scope: public ZoneObject {
                    Scope* outer_scope,
                    Handle<ScopeInfo> scope_info);
 
+  AstValueFactory* ast_value_factory_;
   Zone* zone_;
 };
 

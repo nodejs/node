@@ -34,7 +34,7 @@
 
 struct watcher_list {
   RB_ENTRY(watcher_list) entry;
-  ngx_queue_t watchers;
+  QUEUE watchers;
   char* path;
   int wd;
 };
@@ -43,13 +43,6 @@ struct watcher_root {
   struct watcher_list* rbh_root;
 };
 #define CAST(p) ((struct watcher_root*)(p))
-
-
-/* Don't look aghast, this is exactly how glibc's basename() works. */
-static char* basename_r(const char* path) {
-  char* s = strrchr(path, '/');
-  return s ? (s + 1) : (char*)path;
-}
 
 
 static int compare_watchers(const struct watcher_list* a,
@@ -69,20 +62,27 @@ static void uv__inotify_read(uv_loop_t* loop,
 
 
 static int new_inotify_fd(void) {
+  int err;
   int fd;
 
   fd = uv__inotify_init1(UV__IN_NONBLOCK | UV__IN_CLOEXEC);
   if (fd != -1)
     return fd;
+
   if (errno != ENOSYS)
-    return -1;
+    return -errno;
 
-  if ((fd = uv__inotify_init()) == -1)
-    return -1;
+  fd = uv__inotify_init();
+  if (fd == -1)
+    return -errno;
 
-  if (uv__cloexec(fd, 1) || uv__nonblock(fd, 1)) {
-    SAVE_ERRNO(close(fd));
-    return -1;
+  err = uv__cloexec(fd, 1);
+  if (err == 0)
+    err = uv__nonblock(fd, 1);
+
+  if (err) {
+    uv__close(fd);
+    return err;
   }
 
   return fd;
@@ -90,15 +90,16 @@ static int new_inotify_fd(void) {
 
 
 static int init_inotify(uv_loop_t* loop) {
+  int err;
+
   if (loop->inotify_fd != -1)
     return 0;
 
-  loop->inotify_fd = new_inotify_fd();
-  if (loop->inotify_fd == -1) {
-    uv__set_sys_error(loop, errno);
-    return -1;
-  }
+  err = new_inotify_fd();
+  if (err < 0)
+    return err;
 
+  loop->inotify_fd = err;
   uv__io_init(&loop->inotify_read_watcher, uv__inotify_read, loop->inotify_fd);
   uv__io_start(loop, &loop->inotify_read_watcher, UV__POLLIN);
 
@@ -119,11 +120,11 @@ static void uv__inotify_read(uv_loop_t* loop,
   const struct uv__inotify_event* e;
   struct watcher_list* w;
   uv_fs_event_t* h;
-  ngx_queue_t* q;
+  QUEUE* q;
   const char* path;
   ssize_t size;
   const char *p;
-  /* needs to be large enough for sizeof(inotify_event) + strlen(filename) */
+  /* needs to be large enough for sizeof(inotify_event) + strlen(path) */
   char buf[4096];
 
   while (1) {
@@ -156,10 +157,10 @@ static void uv__inotify_read(uv_loop_t* loop,
        * for modifications. Repurpose the filename for API compatibility.
        * I'm not convinced this is a good thing, maybe it should go.
        */
-      path = e->len ? (const char*) (e + 1) : basename_r(w->path);
+      path = e->len ? (const char*) (e + 1) : uv__basename_r(w->path);
 
-      ngx_queue_foreach(q, &w->watchers) {
-        h = ngx_queue_data(q, uv_fs_event_t, watchers);
+      QUEUE_FOREACH(q, &w->watchers) {
+        h = QUEUE_DATA(q, uv_fs_event_t, watchers);
         h->cb(h, path, events, 0);
       }
     }
@@ -167,16 +168,27 @@ static void uv__inotify_read(uv_loop_t* loop,
 }
 
 
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* path,
-                     uv_fs_event_cb cb,
-                     int flags) {
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  return 0;
+}
+
+
+int uv_fs_event_start(uv_fs_event_t* handle,
+                      uv_fs_event_cb cb,
+                      const char* path,
+                      unsigned int flags) {
   struct watcher_list* w;
   int events;
+  int err;
   int wd;
 
-  if (init_inotify(loop)) return -1;
+  if (uv__is_active(handle))
+    return -EINVAL;
+
+  err = init_inotify(handle->loop);
+  if (err)
+    return err;
 
   events = UV__IN_ATTRIB
          | UV__IN_CREATE
@@ -187,28 +199,27 @@ int uv_fs_event_init(uv_loop_t* loop,
          | UV__IN_MOVED_FROM
          | UV__IN_MOVED_TO;
 
-  wd = uv__inotify_add_watch(loop->inotify_fd, path, events);
+  wd = uv__inotify_add_watch(handle->loop->inotify_fd, path, events);
   if (wd == -1)
-    return uv__set_sys_error(loop, errno);
+    return -errno;
 
-  w = find_watcher(loop, wd);
+  w = find_watcher(handle->loop, wd);
   if (w)
     goto no_insert;
 
   w = malloc(sizeof(*w) + strlen(path) + 1);
   if (w == NULL)
-    return uv__set_sys_error(loop, ENOMEM);
+    return -ENOMEM;
 
   w->wd = wd;
   w->path = strcpy((char*)(w + 1), path);
-  ngx_queue_init(&w->watchers);
-  RB_INSERT(watcher_root, CAST(&loop->inotify_watchers), w);
+  QUEUE_INIT(&w->watchers);
+  RB_INSERT(watcher_root, CAST(&handle->loop->inotify_watchers), w);
 
 no_insert:
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
-  uv__handle_start(handle); /* FIXME shouldn't start automatically */
-  ngx_queue_insert_tail(&w->watchers, &handle->watchers);
-  handle->filename = w->path;
+  uv__handle_start(handle);
+  QUEUE_INSERT_TAIL(&w->watchers, &handle->watchers);
+  handle->path = w->path;
   handle->cb = cb;
   handle->wd = wd;
 
@@ -216,21 +227,31 @@ no_insert:
 }
 
 
-void uv__fs_event_close(uv_fs_event_t* handle) {
+int uv_fs_event_stop(uv_fs_event_t* handle) {
   struct watcher_list* w;
+
+  if (!uv__is_active(handle))
+    return 0;
 
   w = find_watcher(handle->loop, handle->wd);
   assert(w != NULL);
 
   handle->wd = -1;
-  handle->filename = NULL;
+  handle->path = NULL;
   uv__handle_stop(handle);
-  ngx_queue_remove(&handle->watchers);
+  QUEUE_REMOVE(&handle->watchers);
 
-  if (ngx_queue_empty(&w->watchers)) {
+  if (QUEUE_EMPTY(&w->watchers)) {
     /* No watchers left for this path. Clean up. */
     RB_REMOVE(watcher_root, CAST(&handle->loop->inotify_watchers), w);
     uv__inotify_rm_watch(handle->loop->inotify_fd, w->wd);
     free(w);
   }
+
+  return 0;
+}
+
+
+void uv__fs_event_close(uv_fs_event_t* handle) {
+  uv_fs_event_stop(handle);
 }

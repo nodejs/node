@@ -1,41 +1,21 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_FULL_CODEGEN_H_
 #define V8_FULL_CODEGEN_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "ast.h"
-#include "code-stubs.h"
-#include "codegen.h"
-#include "compiler.h"
-#include "data-flow.h"
+#include "src/allocation.h"
+#include "src/assert-scope.h"
+#include "src/ast.h"
+#include "src/bit-vector.h"
+#include "src/code-stubs.h"
+#include "src/codegen.h"
+#include "src/compiler.h"
+#include "src/globals.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -49,8 +29,9 @@ class JumpPatchSite;
 // debugger to piggybag on.
 class BreakableStatementChecker: public AstVisitor {
  public:
-  BreakableStatementChecker() : is_breakable_(false) {
-    InitializeAstVisitor();
+  BreakableStatementChecker(Isolate* isolate, Zone* zone)
+      : is_breakable_(false) {
+    InitializeAstVisitor(isolate, zone);
   }
 
   void Check(Statement* stmt);
@@ -60,7 +41,7 @@ class BreakableStatementChecker: public AstVisitor {
 
  private:
   // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -92,12 +73,9 @@ class FullCodeGenerator: public AstVisitor {
         bailout_entries_(info->HasDeoptimizationSupport()
                          ? info->function()->ast_node_count() : 0,
                          info->zone()),
-        stack_checks_(2, info->zone()),  // There's always at least one.
-        type_feedback_cells_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count() : 0,
-                             info->zone()),
-        ic_total_count_(0),
-        zone_(info->zone()) {
+        back_edges_(2, info->zone()),
+        ic_total_count_(0) {
+    DCHECK(!info->IsStub());
     Initialize();
   }
 
@@ -119,22 +97,29 @@ class FullCodeGenerator: public AstVisitor {
     return NULL;
   }
 
-  Zone* zone() const { return zone_; }
-
   static const int kMaxBackEdgeWeight = 127;
 
-#if V8_TARGET_ARCH_IA32
-  static const int kBackEdgeDistanceUnit = 100;
+  // Platform-specific code size multiplier.
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+  static const int kCodeSizeMultiplier = 105;
 #elif V8_TARGET_ARCH_X64
-  static const int kBackEdgeDistanceUnit = 162;
+  static const int kCodeSizeMultiplier = 170;
 #elif V8_TARGET_ARCH_ARM
-  static const int kBackEdgeDistanceUnit = 142;
+  static const int kCodeSizeMultiplier = 149;
+#elif V8_TARGET_ARCH_ARM64
+// TODO(all): Copied ARM value. Check this is sensible for ARM64.
+  static const int kCodeSizeMultiplier = 149;
+#elif V8_TARGET_ARCH_PPC64
+  static const int kCodeSizeMultiplier = 200;
+#elif V8_TARGET_ARCH_PPC
+  static const int kCodeSizeMultiplier = 200;
 #elif V8_TARGET_ARCH_MIPS
-  static const int kBackEdgeDistanceUnit = 142;
+  static const int kCodeSizeMultiplier = 149;
+#elif V8_TARGET_ARCH_MIPS64
+  static const int kCodeSizeMultiplier = 149;
 #else
 #error Unsupported target architecture.
 #endif
-
 
  private:
   class Breakable;
@@ -151,7 +136,7 @@ class FullCodeGenerator: public AstVisitor {
     }
     virtual ~NestedStatement() {
       // Unlink from codegen's nesting stack.
-      ASSERT_EQ(this, codegen_->nesting_stack_);
+      DCHECK_EQ(this, codegen_->nesting_stack_);
       codegen_->nesting_stack_ = previous_;
     }
 
@@ -234,7 +219,7 @@ class FullCodeGenerator: public AstVisitor {
         ++(*context_length);
       }
       return previous_;
-    };
+    }
   };
 
   // The try block of a try/catch statement.
@@ -330,19 +315,29 @@ class FullCodeGenerator: public AstVisitor {
 
   // Helper function to split control flow and avoid a branch to the
   // fall-through label if it is set up.
-#ifdef V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS
   void Split(Condition cc,
              Register lhs,
              const Operand&  rhs,
              Label* if_true,
              Label* if_false,
              Label* fall_through);
-#else  // All non-mips arch.
+#elif V8_TARGET_ARCH_MIPS64
+  void Split(Condition cc,
+             Register lhs,
+             const Operand&  rhs,
+             Label* if_true,
+             Label* if_false,
+             Label* fall_through);
+#elif V8_TARGET_ARCH_PPC
+  void Split(Condition cc, Label* if_true, Label* if_false, Label* fall_through,
+             CRegister cr = cr7);
+#else  // All other arch.
   void Split(Condition cc,
              Label* if_true,
              Label* if_false,
              Label* fall_through);
-#endif  // V8_TARGET_ARCH_MIPS
+#endif
 
   // Load the value of a known (PARAMETER, LOCAL, or CONTEXT) variable into
   // a register.  Emits a context chain walk if if necessary (so does
@@ -399,7 +394,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitInDuplicateContext(Expression* expr);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) OVERRIDE;
   void DeclareModules(Handle<FixedArray> descriptions);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
@@ -408,6 +403,11 @@ class FullCodeGenerator: public AstVisitor {
   // Because of recursive linking and the presence of module alias declarations,
   // this has to be a separate pass _before_ populating or executing any module.
   void AllocateModules(ZoneList<Declaration*>* declarations);
+
+  // Generate code to create an iterator result object.  The "value" property is
+  // set to a value popped from the stack, and "done" is set according to the
+  // argument.  The result object is left in the result register.
+  void EmitCreateIteratorResult(bool done);
 
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
@@ -429,10 +429,23 @@ class FullCodeGenerator: public AstVisitor {
   void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(BailoutId id, State state);
 
-  // Cache cell support.  This associates AST ids with global property cells
-  // that will be cleared during GC and collected by the type-feedback oracle.
-  void RecordTypeFeedbackCell(TypeFeedbackId id,
-                              Handle<JSGlobalPropertyCell> cell);
+  // Feedback slot support. The feedback vector will be cleared during gc and
+  // collected by the type-feedback oracle.
+  Handle<TypeFeedbackVector> FeedbackVector() const {
+    return info_->feedback_vector();
+  }
+  void EnsureSlotContainsAllocationSite(FeedbackVectorSlot slot);
+  void EnsureSlotContainsAllocationSite(FeedbackVectorICSlot slot);
+
+  // Returns a smi for the index into the FixedArray that backs the feedback
+  // vector
+  Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
+    return Smi::FromInt(FeedbackVector()->GetIndex(slot));
+  }
+
+  Smi* SmiFromSlot(FeedbackVectorICSlot slot) const {
+    return Smi::FromInt(FeedbackVector()->GetIndex(slot));
+  }
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -459,20 +472,28 @@ class FullCodeGenerator: public AstVisitor {
                                Label* back_edge_target);
   // Record the OSR AST id corresponding to a back edge in the code.
   void RecordBackEdge(BailoutId osr_ast_id);
-  // Emit a table of stack check ids and pcs into the code stream.  Return
-  // the offset of the start of the table.
-  unsigned EmitStackCheckTable();
+  // Emit a table of back edge ids, pcs and loop depths into the code stream.
+  // Return the offset of the start of the table.
+  unsigned EmitBackEdgeTable();
 
   void EmitProfilingCounterDecrement(int delta);
   void EmitProfilingCounterReset();
+
+  // Emit code to pop values from the stack associated with nested statements
+  // like try/catch, try/finally, etc, running the finallies and unwinding the
+  // handlers as needed.
+  void EmitUnwindBeforeReturn();
 
   // Platform-specific return sequence
   void EmitReturnSequence();
 
   // Platform-specific code sequences for calls
-  void EmitCallWithStub(Call* expr, CallFunctionFlags flags);
-  void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
-  void EmitKeyedCallWithIC(Call* expr, Expression* key);
+  void EmitCall(Call* expr, CallICState::CallType = CallICState::FUNCTION);
+  void EmitSuperConstructorCall(Call* expr);
+  void EmitCallWithLoadIC(Call* expr);
+  void EmitSuperCallWithLoadIC(Call* expr);
+  void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
+  void EmitKeyedSuperCallWithLoadIC(Call* expr);
 
   // Platform-specific code for inline runtime calls.
   InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);
@@ -482,15 +503,19 @@ class FullCodeGenerator: public AstVisitor {
 #define EMIT_INLINE_RUNTIME_CALL(name, x, y) \
   void Emit##name(CallRuntime* expr);
   INLINE_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
-  INLINE_RUNTIME_FUNCTION_LIST(EMIT_INLINE_RUNTIME_CALL)
 #undef EMIT_INLINE_RUNTIME_CALL
 
+  // Platform-specific code for resuming generators.
+  void EmitGeneratorResume(Expression *generator,
+                           Expression *value,
+                           JSGeneratorObject::ResumeMode resume_mode);
+
   // Platform-specific code for loading variables.
-  void EmitLoadGlobalCheckExtensions(Variable* var,
+  void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
                                      TypeofState typeof_state,
                                      Label* slow);
   MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
-  void EmitDynamicLookupFastCase(Variable* var,
+  void EmitDynamicLookupFastCase(VariableProxy* proxy,
                                  TypeofState typeof_state,
                                  Label* slow,
                                  Label* done);
@@ -507,25 +532,56 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific support for compiling assignments.
 
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot.
+  enum LhsKind {
+    VARIABLE,
+    NAMED_PROPERTY,
+    KEYED_PROPERTY,
+    NAMED_SUPER_PROPERTY,
+    KEYED_SUPER_PROPERTY
+  };
+
+  static LhsKind GetAssignType(Property* property) {
+    if (property == NULL) return VARIABLE;
+    bool super_access = property->IsSuperAccess();
+    return (property->key()->IsPropertyName())
+               ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
+               : (super_access ? KEYED_SUPER_PROPERTY : KEYED_PROPERTY);
+  }
+
   // Load a value from a named property.
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
+
+  // Load a value from super.named property.
+  // Expect receiver ('this' value) and home_object on the stack.
+  void EmitNamedSuperPropertyLoad(Property* expr);
+
+  // Load a value from super[keyed] property.
+  // Expect receiver ('this' value), home_object and key on the stack.
+  void EmitKeyedSuperPropertyLoad(Property* expr);
 
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
 
+  // Adds the properties to the class (function) object and to its prototype.
+  // Expects the class (function) in the accumulator. The class (function) is
+  // in the accumulator after installing all the properties.
+  void EmitClassDefineProperties(ClassLiteral* lit);
+
+  // Pushes the property key as a Name on the stack.
+  void EmitPropertyKey(ObjectLiteralProperty* property, BailoutId bailout_id);
+
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
-  void EmitBinaryOp(BinaryOperation* expr,
-                    Token::Value op,
-                    OverwriteMode mode);
+  void EmitBinaryOp(BinaryOperation* expr, Token::Value op);
 
   // Helper functions for generating inlined smi code for certain
   // binary operations.
   void EmitInlineSmiBinaryOp(BinaryOperation* expr,
                              Token::Value op,
-                             OverwriteMode mode,
                              Expression* left,
                              Expression* right);
 
@@ -533,29 +589,70 @@ class FullCodeGenerator: public AstVisitor {
   // is expected in the accumulator.
   void EmitAssignment(Expression* expr);
 
+  // Shall an error be thrown if assignment with 'op' operation is perfomed
+  // on this variable in given language mode?
+  static bool IsSignallingAssignmentToConst(Variable* var, Token::Value op,
+                                            LanguageMode language_mode) {
+    if (var->mode() == CONST) return op != Token::INIT_CONST;
+
+    if (var->mode() == CONST_LEGACY) {
+      return is_strict(language_mode) && op != Token::INIT_CONST_LEGACY;
+    }
+
+    return false;
+  }
+
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var,
                               Token::Value op);
 
+  // Helper functions to EmitVariableAssignment
+  void EmitStoreToStackLocalOrContextSlot(Variable* var,
+                                          MemOperand location);
+
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
   void EmitNamedPropertyAssignment(Assignment* expr);
+
+  // Complete a super named property assignment. The right-hand-side value
+  // is expected in accumulator.
+  void EmitNamedSuperPropertyStore(Property* prop);
+
+  // Complete a super named property assignment. The right-hand-side value
+  // is expected in accumulator.
+  void EmitKeyedSuperPropertyStore(Property* prop);
 
   // Complete a keyed property assignment.  The receiver and key are
   // expected on top of the stack and the right-hand-side value in the
   // accumulator.
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
+  void EmitLoadHomeObject(SuperReference* expr);
+
+  static bool NeedsHomeObject(Expression* expr) {
+    return FunctionLiteral::NeedsHomeObject(expr);
+  }
+
+  // Adds the [[HomeObject]] to |initializer| if it is a FunctionLiteral.
+  // The value of the initializer is expected to be at the top of the stack.
+  // |offset| is the offset in the stack where the home object can be found.
+  void EmitSetHomeObjectIfNeeded(Expression* initializer, int offset);
+
+  void EmitLoadSuperConstructor();
+  bool ValidateSuperCall(Call* expr);
+
   void CallIC(Handle<Code> code,
-              RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
               TypeFeedbackId id = TypeFeedbackId::None());
+
+  void CallLoadIC(ContextualMode mode,
+                  TypeFeedbackId id = TypeFeedbackId::None());
+  void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
-  void SetExpressionPosition(Expression* expr, int pos);
-  void SetStatementPosition(int pos);
+  void SetExpressionPosition(Expression* expr);
   void SetSourcePosition(int pos);
 
   // Non-local control flow support.
@@ -566,7 +663,7 @@ class FullCodeGenerator: public AstVisitor {
   int loop_depth() { return loop_depth_; }
   void increment_loop_depth() { loop_depth_++; }
   void decrement_loop_depth() {
-    ASSERT(loop_depth_ > 0);
+    DCHECK(loop_depth_ > 0);
     loop_depth_--;
   }
 
@@ -579,8 +676,8 @@ class FullCodeGenerator: public AstVisitor {
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
-  bool is_classic_mode() { return language_mode() == CLASSIC_MODE; }
   LanguageMode language_mode() { return function()->language_mode(); }
+  bool is_simple_parameter_list() { return info_->is_simple_parameter_list(); }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return scope_; }
 
@@ -600,11 +697,9 @@ class FullCodeGenerator: public AstVisitor {
   void PushFunctionArgumentForContextAllocation();
 
   // AST node visit functions.
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node) OVERRIDE;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-
-  void EmitUnaryOperation(UnaryOperation* expr, const char* comment);
 
   void VisitComma(BinaryOperation* expr);
   void VisitLogicalExpression(BinaryOperation* expr);
@@ -615,7 +710,6 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
-  void PopulateTypeFeedbackCells(Handle<Code> code);
 
   Handle<FixedArray> handler_table() { return handler_table_; }
 
@@ -624,11 +718,11 @@ class FullCodeGenerator: public AstVisitor {
     unsigned pc_and_state;
   };
 
-  struct TypeFeedbackCellEntry {
-    TypeFeedbackId ast_id;
-    Handle<JSGlobalPropertyCell> cell;
+  struct BackEdgeEntry {
+    BailoutId id;
+    unsigned pc;
+    uint32_t loop_depth;
   };
-
 
   class ExpressionContext BASE_EMBEDDED {
    public:
@@ -754,7 +848,7 @@ class FullCodeGenerator: public AstVisitor {
           fall_through_(fall_through) { }
 
     static const TestContext* cast(const ExpressionContext* context) {
-      ASSERT(context->IsTest());
+      DCHECK(context->IsTest());
       return reinterpret_cast<const TestContext*>(context);
     }
 
@@ -806,6 +900,22 @@ class FullCodeGenerator: public AstVisitor {
     virtual bool IsEffect() const { return true; }
   };
 
+  class EnterBlockScopeIfNeeded {
+   public:
+    EnterBlockScopeIfNeeded(FullCodeGenerator* codegen, Scope* scope,
+                            BailoutId entry_id, BailoutId declarations_id,
+                            BailoutId exit_id);
+    ~EnterBlockScopeIfNeeded();
+
+   private:
+    MacroAssembler* masm() const { return codegen_->masm(); }
+
+    FullCodeGenerator* codegen_;
+    Scope* scope_;
+    Scope* saved_scope_;
+    BailoutId exit_id_;
+  };
+
   MacroAssembler* masm_;
   CompilationInfo* info_;
   Scope* scope_;
@@ -817,16 +927,11 @@ class FullCodeGenerator: public AstVisitor {
   int module_index_;
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
-  GrowableBitVector prepared_bailout_ids_;
-  // TODO(svenpanne) Rename this to something like back_edges_ and rename
-  // related functions accordingly.
-  ZoneList<BailoutEntry> stack_checks_;
-  ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
+  ZoneList<BackEdgeEntry> back_edges_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
-  Handle<JSGlobalPropertyCell> profiling_counter_;
+  Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
-  Zone* zone_;
 
   friend class NestedStatement;
 
@@ -854,6 +959,89 @@ class AccessorTable: public TemplateHashMap<Literal,
 
  private:
   Zone* zone_;
+};
+
+
+class BackEdgeTable {
+ public:
+  BackEdgeTable(Code* code, DisallowHeapAllocation* required) {
+    DCHECK(code->kind() == Code::FUNCTION);
+    instruction_start_ = code->instruction_start();
+    Address table_address = instruction_start_ + code->back_edge_table_offset();
+    length_ = Memory::uint32_at(table_address);
+    start_ = table_address + kTableLengthSize;
+  }
+
+  uint32_t length() { return length_; }
+
+  BailoutId ast_id(uint32_t index) {
+    return BailoutId(static_cast<int>(
+        Memory::uint32_at(entry_at(index) + kAstIdOffset)));
+  }
+
+  uint32_t loop_depth(uint32_t index) {
+    return Memory::uint32_at(entry_at(index) + kLoopDepthOffset);
+  }
+
+  uint32_t pc_offset(uint32_t index) {
+    return Memory::uint32_at(entry_at(index) + kPcOffsetOffset);
+  }
+
+  Address pc(uint32_t index) {
+    return instruction_start_ + pc_offset(index);
+  }
+
+  enum BackEdgeState {
+    INTERRUPT,
+    ON_STACK_REPLACEMENT,
+    OSR_AFTER_STACK_CHECK
+  };
+
+  // Increase allowed loop nesting level by one and patch those matching loops.
+  static void Patch(Isolate* isolate, Code* unoptimized_code);
+
+  // Patch the back edge to the target state, provided the correct callee.
+  static void PatchAt(Code* unoptimized_code,
+                      Address pc,
+                      BackEdgeState target_state,
+                      Code* replacement_code);
+
+  // Change all patched back edges back to normal interrupts.
+  static void Revert(Isolate* isolate,
+                     Code* unoptimized_code);
+
+  // Change a back edge patched for on-stack replacement to perform a
+  // stack check first.
+  static void AddStackCheck(Handle<Code> code, uint32_t pc_offset);
+
+  // Revert the patch by AddStackCheck.
+  static void RemoveStackCheck(Handle<Code> code, uint32_t pc_offset);
+
+  // Return the current patch state of the back edge.
+  static BackEdgeState GetBackEdgeState(Isolate* isolate,
+                                        Code* unoptimized_code,
+                                        Address pc_after);
+
+#ifdef DEBUG
+  // Verify that all back edges of a certain loop depth are patched.
+  static bool Verify(Isolate* isolate, Code* unoptimized_code);
+#endif  // DEBUG
+
+ private:
+  Address entry_at(uint32_t index) {
+    DCHECK(index < length_);
+    return start_ + index * kEntrySize;
+  }
+
+  static const int kTableLengthSize = kIntSize;
+  static const int kAstIdOffset = 0 * kIntSize;
+  static const int kPcOffsetOffset = 1 * kIntSize;
+  static const int kLoopDepthOffset = 2 * kIntSize;
+  static const int kEntrySize = 3 * kIntSize;
+
+  Address start_;
+  Address instruction_start_;
+  uint32_t length_;
 };
 
 

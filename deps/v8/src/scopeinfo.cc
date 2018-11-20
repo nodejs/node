@@ -1,44 +1,20 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "scopeinfo.h"
-#include "scopes.h"
-
-#include "allocation-inl.h"
+#include "src/scopeinfo.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
 
 
-Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
+Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
+                                    Scope* scope) {
   // Collect stack and context locals.
   ZoneList<Variable*> stack_locals(scope->StackLocalCount(), zone);
   ZoneList<Variable*> context_locals(scope->ContextLocalCount(), zone);
@@ -46,8 +22,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
   const int stack_local_count = stack_locals.length();
   const int context_local_count = context_locals.length();
   // Make sure we allocate the correct amount.
-  ASSERT(scope->StackLocalCount() == stack_local_count);
-  ASSERT(scope->ContextLocalCount() == context_local_count);
+  DCHECK(scope->StackLocalCount() == stack_local_count);
+  DCHECK(scope->ContextLocalCount() == context_local_count);
+
+  bool simple_parameter_list =
+      scope->is_function_scope() ? scope->is_simple_parameter_list() : true;
 
   // Determine use and location of the function variable if it is present.
   FunctionVariableInfo function_name_info;
@@ -59,7 +38,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
     } else if (var->IsContextSlot()) {
       function_name_info = CONTEXT;
     } else {
-      ASSERT(var->IsStackLocal());
+      DCHECK(var->IsStackLocal());
       function_name_info = STACK;
     }
     function_variable_mode = var->mode();
@@ -74,14 +53,18 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
       + parameter_count + stack_local_count + 2 * context_local_count
       + (has_function_name ? 2 : 0);
 
-  Handle<ScopeInfo> scope_info = FACTORY->NewScopeInfo(length);
+  Factory* factory = isolate->factory();
+  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
-  int flags = TypeField::encode(scope->type()) |
-      CallsEvalField::encode(scope->calls_eval()) |
-      LanguageModeField::encode(scope->language_mode()) |
-      FunctionVariableField::encode(function_name_info) |
-      FunctionVariableMode::encode(function_variable_mode);
+  int flags = ScopeTypeField::encode(scope->scope_type()) |
+              CallsEvalField::encode(scope->calls_eval()) |
+              LanguageModeField::encode(scope->language_mode()) |
+              FunctionVariableField::encode(function_name_info) |
+              FunctionVariableMode::encode(function_variable_mode) |
+              AsmModuleField::encode(scope->asm_module()) |
+              AsmFunctionField::encode(scope->asm_function()) |
+              IsSimpleParameterListField::encode(simple_parameter_list);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
@@ -89,7 +72,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
 
   int index = kVariablePartIndex;
   // Add parameters.
-  ASSERT(index == scope_info->ParameterEntriesIndex());
+  DCHECK(index == scope_info->ParameterEntriesIndex());
   for (int i = 0; i < parameter_count; ++i) {
     scope_info->set(index++, *scope->parameter(i)->name());
   }
@@ -97,9 +80,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
   // Add stack locals' names. We are assuming that the stack locals'
   // slots are allocated in increasing order, so we can simply add
   // them to the ScopeInfo object.
-  ASSERT(index == scope_info->StackLocalEntriesIndex());
+  DCHECK(index == scope_info->StackLocalEntriesIndex());
   for (int i = 0; i < stack_local_count; ++i) {
-    ASSERT(stack_locals[i]->index() == i);
+    DCHECK(stack_locals[i]->index() == i);
     scope_info->set(index++, *stack_locals[i]->name());
   }
 
@@ -112,37 +95,39 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
   context_locals.Sort(&Variable::CompareIndex);
 
   // Add context locals' names.
-  ASSERT(index == scope_info->ContextLocalNameEntriesIndex());
+  DCHECK(index == scope_info->ContextLocalNameEntriesIndex());
   for (int i = 0; i < context_local_count; ++i) {
     scope_info->set(index++, *context_locals[i]->name());
   }
 
   // Add context locals' info.
-  ASSERT(index == scope_info->ContextLocalInfoEntriesIndex());
+  DCHECK(index == scope_info->ContextLocalInfoEntriesIndex());
   for (int i = 0; i < context_local_count; ++i) {
     Variable* var = context_locals[i];
-    uint32_t value = ContextLocalMode::encode(var->mode()) |
-        ContextLocalInitFlag::encode(var->initialization_flag());
+    uint32_t value =
+        ContextLocalMode::encode(var->mode()) |
+        ContextLocalInitFlag::encode(var->initialization_flag()) |
+        ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
     scope_info->set(index++, Smi::FromInt(value));
   }
 
   // If present, add the function variable name and its index.
-  ASSERT(index == scope_info->FunctionNameEntryIndex());
+  DCHECK(index == scope_info->FunctionNameEntryIndex());
   if (has_function_name) {
     int var_index = scope->function()->proxy()->var()->index();
     scope_info->set(index++, *scope->function()->proxy()->name());
     scope_info->set(index++, Smi::FromInt(var_index));
-    ASSERT(function_name_info != STACK ||
+    DCHECK(function_name_info != STACK ||
            (var_index == scope_info->StackLocalCount() &&
             var_index == scope_info->StackSlotCount() - 1));
-    ASSERT(function_name_info != CONTEXT ||
+    DCHECK(function_name_info != CONTEXT ||
            var_index == scope_info->ContextLength() - 1);
   }
 
-  ASSERT(index == scope_info->length());
-  ASSERT(scope->num_parameters() == scope_info->ParameterCount());
-  ASSERT(scope->num_stack_slots() == scope_info->StackSlotCount());
-  ASSERT(scope->num_heap_slots() == scope_info->ContextLength() ||
+  DCHECK(index == scope_info->length());
+  DCHECK(scope->num_parameters() == scope_info->ParameterCount());
+  DCHECK(scope->num_stack_slots() == scope_info->StackSlotCount());
+  DCHECK(scope->num_heap_slots() == scope_info->ContextLength() ||
          (scope->num_heap_slots() == kVariablePartIndex &&
           scope_info->ContextLength() == 0));
   return scope_info;
@@ -154,9 +139,9 @@ ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
 }
 
 
-ScopeType ScopeInfo::Type() {
-  ASSERT(length() > 0);
-  return TypeField::decode(Flags());
+ScopeType ScopeInfo::scope_type() {
+  DCHECK(length() > 0);
+  return ScopeTypeField::decode(Flags());
 }
 
 
@@ -166,7 +151,7 @@ bool ScopeInfo::CallsEval() {
 
 
 LanguageMode ScopeInfo::language_mode() {
-  return length() > 0 ? LanguageModeField::decode(Flags()) : CLASSIC_MODE;
+  return length() > 0 ? LanguageModeField::decode(Flags()) : SLOPPY;
 }
 
 
@@ -190,11 +175,11 @@ int ScopeInfo::ContextLength() {
     int context_locals = ContextLocalCount();
     bool function_name_context_slot =
         FunctionVariableField::decode(Flags()) == CONTEXT;
-    bool has_context = context_locals > 0 ||
-        function_name_context_slot ||
-        Type() == WITH_SCOPE ||
-        (Type() == FUNCTION_SCOPE && CallsEval()) ||
-        Type() == MODULE_SCOPE;
+    bool has_context = context_locals > 0 || function_name_context_slot ||
+                       scope_type() == WITH_SCOPE ||
+                       (scope_type() == ARROW_SCOPE && CallsEval()) ||
+                       (scope_type() == FUNCTION_SCOPE && CallsEval()) ||
+                       scope_type() == MODULE_SCOPE;
     if (has_context) {
       return Context::MIN_CONTEXT_SLOTS + context_locals +
           (function_name_context_slot ? 1 : 0);
@@ -228,21 +213,21 @@ bool ScopeInfo::HasContext() {
 
 
 String* ScopeInfo::FunctionName() {
-  ASSERT(HasFunctionName());
+  DCHECK(HasFunctionName());
   return String::cast(get(FunctionNameEntryIndex()));
 }
 
 
 String* ScopeInfo::ParameterName(int var) {
-  ASSERT(0 <= var && var < ParameterCount());
+  DCHECK(0 <= var && var < ParameterCount());
   int info_index = ParameterEntriesIndex() + var;
   return String::cast(get(info_index));
 }
 
 
 String* ScopeInfo::LocalName(int var) {
-  ASSERT(0 <= var && var < LocalCount());
-  ASSERT(StackLocalEntriesIndex() + StackLocalCount() ==
+  DCHECK(0 <= var && var < LocalCount());
+  DCHECK(StackLocalEntriesIndex() + StackLocalCount() ==
          ContextLocalNameEntriesIndex());
   int info_index = StackLocalEntriesIndex() + var;
   return String::cast(get(info_index));
@@ -250,21 +235,21 @@ String* ScopeInfo::LocalName(int var) {
 
 
 String* ScopeInfo::StackLocalName(int var) {
-  ASSERT(0 <= var && var < StackLocalCount());
+  DCHECK(0 <= var && var < StackLocalCount());
   int info_index = StackLocalEntriesIndex() + var;
   return String::cast(get(info_index));
 }
 
 
 String* ScopeInfo::ContextLocalName(int var) {
-  ASSERT(0 <= var && var < ContextLocalCount());
+  DCHECK(0 <= var && var < ContextLocalCount());
   int info_index = ContextLocalNameEntriesIndex() + var;
   return String::cast(get(info_index));
 }
 
 
 VariableMode ScopeInfo::ContextLocalMode(int var) {
-  ASSERT(0 <= var && var < ContextLocalCount());
+  DCHECK(0 <= var && var < ContextLocalCount());
   int info_index = ContextLocalInfoEntriesIndex() + var;
   int value = Smi::cast(get(info_index))->value();
   return ContextLocalMode::decode(value);
@@ -272,15 +257,34 @@ VariableMode ScopeInfo::ContextLocalMode(int var) {
 
 
 InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
-  ASSERT(0 <= var && var < ContextLocalCount());
+  DCHECK(0 <= var && var < ContextLocalCount());
   int info_index = ContextLocalInfoEntriesIndex() + var;
   int value = Smi::cast(get(info_index))->value();
   return ContextLocalInitFlag::decode(value);
 }
 
 
+MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
+  DCHECK(0 <= var && var < ContextLocalCount());
+  int info_index = ContextLocalInfoEntriesIndex() + var;
+  int value = Smi::cast(get(info_index))->value();
+  return ContextLocalMaybeAssignedFlag::decode(value);
+}
+
+
+bool ScopeInfo::LocalIsSynthetic(int var) {
+  DCHECK(0 <= var && var < LocalCount());
+  // There's currently no flag stored on the ScopeInfo to indicate that a
+  // variable is a compiler-introduced temporary. However, to avoid conflict
+  // with user declarations, the current temporaries like .generator_object and
+  // .result start with a dot, so we can use that as a flag. It's a hack!
+  Handle<String> name(LocalName(var));
+  return name->length() > 0 && name->Get(0) == '.';
+}
+
+
 int ScopeInfo::StackSlotIndex(String* name) {
-  ASSERT(name->IsInternalizedString());
+  DCHECK(name->IsInternalizedString());
   if (length() > 0) {
     int start = StackLocalEntriesIndex();
     int end = StackLocalEntriesIndex() + StackLocalCount();
@@ -294,42 +298,49 @@ int ScopeInfo::StackSlotIndex(String* name) {
 }
 
 
-int ScopeInfo::ContextSlotIndex(String* name,
-                                VariableMode* mode,
-                                InitializationFlag* init_flag) {
-  ASSERT(name->IsInternalizedString());
-  ASSERT(mode != NULL);
-  ASSERT(init_flag != NULL);
-  if (length() > 0) {
-    ContextSlotCache* context_slot_cache = GetIsolate()->context_slot_cache();
-    int result = context_slot_cache->Lookup(this, name, mode, init_flag);
+int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
+                                Handle<String> name, VariableMode* mode,
+                                InitializationFlag* init_flag,
+                                MaybeAssignedFlag* maybe_assigned_flag) {
+  DCHECK(name->IsInternalizedString());
+  DCHECK(mode != NULL);
+  DCHECK(init_flag != NULL);
+  if (scope_info->length() > 0) {
+    ContextSlotCache* context_slot_cache =
+        scope_info->GetIsolate()->context_slot_cache();
+    int result = context_slot_cache->Lookup(*scope_info, *name, mode, init_flag,
+                                            maybe_assigned_flag);
     if (result != ContextSlotCache::kNotFound) {
-      ASSERT(result < ContextLength());
+      DCHECK(result < scope_info->ContextLength());
       return result;
     }
 
-    int start = ContextLocalNameEntriesIndex();
-    int end = ContextLocalNameEntriesIndex() + ContextLocalCount();
+    int start = scope_info->ContextLocalNameEntriesIndex();
+    int end = scope_info->ContextLocalNameEntriesIndex() +
+        scope_info->ContextLocalCount();
     for (int i = start; i < end; ++i) {
-      if (name == get(i)) {
+      if (*name == scope_info->get(i)) {
         int var = i - start;
-        *mode = ContextLocalMode(var);
-        *init_flag = ContextLocalInitFlag(var);
+        *mode = scope_info->ContextLocalMode(var);
+        *init_flag = scope_info->ContextLocalInitFlag(var);
+        *maybe_assigned_flag = scope_info->ContextLocalMaybeAssignedFlag(var);
         result = Context::MIN_CONTEXT_SLOTS + var;
-        context_slot_cache->Update(this, name, *mode, *init_flag, result);
-        ASSERT(result < ContextLength());
+        context_slot_cache->Update(scope_info, name, *mode, *init_flag,
+                                   *maybe_assigned_flag, result);
+        DCHECK(result < scope_info->ContextLength());
         return result;
       }
     }
-    // Cache as not found. Mode and init flag don't matter.
-    context_slot_cache->Update(this, name, INTERNAL, kNeedsInitialization, -1);
+    // Cache as not found. Mode, init flag and maybe assigned flag don't matter.
+    context_slot_cache->Update(scope_info, name, INTERNAL, kNeedsInitialization,
+                               kNotAssigned, -1);
   }
   return -1;
 }
 
 
 int ScopeInfo::ParameterIndex(String* name) {
-  ASSERT(name->IsInternalizedString());
+  DCHECK(name->IsInternalizedString());
   if (length() > 0) {
     // We must read parameters from the end since for
     // multiply declared parameters the value of the
@@ -349,8 +360,8 @@ int ScopeInfo::ParameterIndex(String* name) {
 
 
 int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
-  ASSERT(name->IsInternalizedString());
-  ASSERT(mode != NULL);
+  DCHECK(name->IsInternalizedString());
+  DCHECK(mode != NULL);
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
         FunctionName() == name) {
@@ -362,25 +373,26 @@ int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
 }
 
 
-bool ScopeInfo::CopyContextLocalsToScopeObject(
-    Isolate* isolate,
-    Handle<Context> context,
-    Handle<JSObject> scope_object) {
-  int local_count = ContextLocalCount();
+bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
+                                               Handle<Context> context,
+                                               Handle<JSObject> scope_object) {
+  Isolate* isolate = scope_info->GetIsolate();
+  int local_count = scope_info->ContextLocalCount();
   if (local_count == 0) return true;
   // Fill all context locals to the context extension.
-  int start = ContextLocalNameEntriesIndex();
-  int end = start + local_count;
-  for (int i = start; i < end; ++i) {
-    int context_index = Context::MIN_CONTEXT_SLOTS + i - start;
-    RETURN_IF_EMPTY_HANDLE_VALUE(
-        isolate,
-        SetProperty(isolate,
-                    scope_object,
-                    Handle<String>(String::cast(get(i))),
-                    Handle<Object>(context->get(context_index), isolate),
-                    ::NONE,
-                    kNonStrictMode),
+  int first_context_var = scope_info->StackLocalCount();
+  int start = scope_info->ContextLocalNameEntriesIndex();
+  for (int i = 0; i < local_count; ++i) {
+    if (scope_info->LocalIsSynthetic(first_context_var + i)) continue;
+    int context_index = Context::MIN_CONTEXT_SLOTS + i;
+    Handle<Object> value = Handle<Object>(context->get(context_index), isolate);
+    // Do not reflect variables under TDZ in scope object.
+    if (value->IsTheHole()) continue;
+    RETURN_ON_EXCEPTION_VALUE(
+        isolate, Runtime::DefineObjectProperty(
+                     scope_object,
+                     Handle<String>(String::cast(scope_info->get(i + start))),
+                     value, ::NONE),
         false);
   }
   return true;
@@ -388,7 +400,7 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(
 
 
 int ScopeInfo::ParameterEntriesIndex() {
-  ASSERT(length() > 0);
+  DCHECK(length() > 0);
   return kVariablePartIndex;
 }
 
@@ -421,38 +433,41 @@ int ContextSlotCache::Hash(Object* data, String* name) {
 }
 
 
-int ContextSlotCache::Lookup(Object* data,
-                             String* name,
-                             VariableMode* mode,
-                             InitializationFlag* init_flag) {
+int ContextSlotCache::Lookup(Object* data, String* name, VariableMode* mode,
+                             InitializationFlag* init_flag,
+                             MaybeAssignedFlag* maybe_assigned_flag) {
   int index = Hash(data, name);
   Key& key = keys_[index];
   if ((key.data == data) && key.name->Equals(name)) {
     Value result(values_[index]);
     if (mode != NULL) *mode = result.mode();
     if (init_flag != NULL) *init_flag = result.initialization_flag();
+    if (maybe_assigned_flag != NULL)
+      *maybe_assigned_flag = result.maybe_assigned_flag();
     return result.index() + kNotFound;
   }
   return kNotFound;
 }
 
 
-void ContextSlotCache::Update(Object* data,
-                              String* name,
-                              VariableMode mode,
-                              InitializationFlag init_flag,
+void ContextSlotCache::Update(Handle<Object> data, Handle<String> name,
+                              VariableMode mode, InitializationFlag init_flag,
+                              MaybeAssignedFlag maybe_assigned_flag,
                               int slot_index) {
-  String* internalized_name;
-  ASSERT(slot_index > kNotFound);
-  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
-    int index = Hash(data, internalized_name);
+  DisallowHeapAllocation no_gc;
+  Handle<String> internalized_name;
+  DCHECK(slot_index > kNotFound);
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
+    int index = Hash(*data, *internalized_name);
     Key& key = keys_[index];
-    key.data = data;
-    key.name = internalized_name;
+    key.data = *data;
+    key.name = *internalized_name;
     // Please note value only takes a uint as index.
-    values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
+    values_[index] = Value(mode, init_flag, maybe_assigned_flag,
+                           slot_index - kNotFound).raw();
 #ifdef DEBUG
-    ValidateEntry(data, name, mode, init_flag, slot_index);
+    ValidateEntry(data, name, mode, init_flag, maybe_assigned_flag, slot_index);
 #endif
   }
 }
@@ -465,21 +480,24 @@ void ContextSlotCache::Clear() {
 
 #ifdef DEBUG
 
-void ContextSlotCache::ValidateEntry(Object* data,
-                                     String* name,
+void ContextSlotCache::ValidateEntry(Handle<Object> data, Handle<String> name,
                                      VariableMode mode,
                                      InitializationFlag init_flag,
+                                     MaybeAssignedFlag maybe_assigned_flag,
                                      int slot_index) {
-  String* internalized_name;
-  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
-    int index = Hash(data, name);
+  DisallowHeapAllocation no_gc;
+  Handle<String> internalized_name;
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
+    int index = Hash(*data, *name);
     Key& key = keys_[index];
-    ASSERT(key.data == data);
-    ASSERT(key.name->Equals(name));
+    DCHECK(key.data == *data);
+    DCHECK(key.name->Equals(*name));
     Value result(values_[index]);
-    ASSERT(result.mode() == mode);
-    ASSERT(result.initialization_flag() == init_flag);
-    ASSERT(result.index() + kNotFound == slot_index);
+    DCHECK(result.mode() == mode);
+    DCHECK(result.initialization_flag() == init_flag);
+    DCHECK(result.maybe_assigned_flag() == maybe_assigned_flag);
+    DCHECK(result.index() + kNotFound == slot_index);
   }
 }
 
@@ -534,27 +552,21 @@ void ScopeInfo::Print() {
 //---------------------------------------------------------------------------
 // ModuleInfo.
 
-Handle<ModuleInfo> ModuleInfo::Create(
-    Isolate* isolate, Interface* interface, Scope* scope) {
-  Handle<ModuleInfo> info = Allocate(isolate, interface->Length());
-  info->set_host_index(interface->Index());
+Handle<ModuleInfo> ModuleInfo::Create(Isolate* isolate,
+                                      ModuleDescriptor* descriptor,
+                                      Scope* scope) {
+  Handle<ModuleInfo> info = Allocate(isolate, descriptor->Length());
+  info->set_host_index(descriptor->Index());
   int i = 0;
-  for (Interface::Iterator it = interface->iterator();
-       !it.done(); it.Advance(), ++i) {
-    Variable* var = scope->LocalLookup(it.name());
-    info->set_name(i, *it.name());
+  for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
+       it.Advance(), ++i) {
+    Variable* var = scope->LookupLocal(it.name());
+    info->set_name(i, *(it.name()->string()));
     info->set_mode(i, var->mode());
-    ASSERT((var->mode() == MODULE) == (it.interface()->IsModule()));
-    if (var->mode() == MODULE) {
-      ASSERT(it.interface()->IsFrozen());
-      ASSERT(it.interface()->Index() >= 0);
-      info->set_index(i, it.interface()->Index());
-    } else {
-      ASSERT(var->index() >= 0);
-      info->set_index(i, var->index());
-    }
+    DCHECK(var->index() >= 0);
+    info->set_index(i, var->index());
   }
-  ASSERT(i == info->length());
+  DCHECK(i == info->length());
   return info;
 }
 

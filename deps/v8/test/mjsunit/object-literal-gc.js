@@ -63,4 +63,3 @@ var sizes = [0, 1, 2, 100, 200, 400, 1000];
 for (var i = 0; i < sizes.length; i++) {
   testLiteral(sizes[i]);
 }
-

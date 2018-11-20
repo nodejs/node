@@ -1,0 +1,64 @@
+{
+  "name": "node-uuid",
+  "description": "Rigorous implementation of RFC4122 (v1 and v4) UUIDs.",
+  "url": "http://github.com/broofa/node-uuid",
+  "keywords": [
+    "uuid",
+    "guid",
+    "rfc4122"
+  ],
+  "author": {
+    "name": "Robert Kieffer",
+    "email": "robert@broofa.com"
+  },
+  "contributors": [
+    {
+      "name": "Christoph Tavan",
+      "email": "dev@tavan.de"
+    }
+  ],
+  "bin": {
+    "uuid": "./bin/uuid"
+  },
+  "scripts": {
+    "test": "node test/test.js"
+  },
+  "lib": ".",
+  "main": "./uuid.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/broofa/node-uuid.git"
+  },
+  "version": "1.4.3",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://raw.github.com/broofa/node-uuid/master/LICENSE.md"
+    }
+  ],
+  "gitHead": "886463c660a095dfebfa69603921a8d156fdb12c",
+  "bugs": {
+    "url": "https://github.com/broofa/node-uuid/issues"
+  },
+  "homepage": "https://github.com/broofa/node-uuid",
+  "_id": "node-uuid@1.4.3",
+  "_shasum": "319bb7a56e7cb63f00b5c0cd7851cd4b4ddf1df9",
+  "_from": "node-uuid@>=1.4.0 <1.5.0",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "broofa",
+    "email": "robert@broofa.com"
+  },
+  "maintainers": [
+    {
+      "name": "broofa",
+      "email": "robert@broofa.com"
+    }
+  ],
+  "dist": {
+    "shasum": "319bb7a56e7cb63f00b5c0cd7851cd4b4ddf1df9",
+    "tarball": "http://registry.npmjs.org/node-uuid/-/node-uuid-1.4.3.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/node-uuid/-/node-uuid-1.4.3.tgz"
+}

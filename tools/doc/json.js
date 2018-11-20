@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 module.exports = doJSON;
 
 // Take the lexed input, and return a JSON-encoded object
@@ -287,13 +266,13 @@ function processList(section) {
 }
 
 
-// textRaw = "someobject.someMethod(a, [b=100], [c])"
+// textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
   var params = text.match(paramExpr);
   if (!params) return;
   params = params[1];
-  // the ] is irrelevant. [ indicates optionalness.
-  params = params.replace(/\]/g, '');
+  // the [ is irrelevant. ] indicates optionalness.
+  params = params.replace(/\[/g, '');
   params = params.split(/,/)
   params.forEach(function(p, i, _) {
     p = p.trim();
@@ -302,9 +281,10 @@ function parseSignature(text, sig) {
     var optional = false;
     var def;
     // [foo] -> optional
-    if (p.charAt(0) === '[') {
+    if (p.charAt(p.length - 1) === ']') {
       optional = true;
-      p = p.substr(1);
+      p = p.substr(0, p.length - 1);
+      p = p.trim();
     }
     var eq = p.indexOf('=');
     if (eq !== -1) {

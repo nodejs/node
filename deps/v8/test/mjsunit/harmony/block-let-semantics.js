@@ -27,7 +27,6 @@
 
 // Flags: --harmony-scoping
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 // Test temporal dead zone semantics of let bound variables in

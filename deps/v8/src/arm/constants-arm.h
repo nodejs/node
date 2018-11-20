@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ARM_CONSTANTS_ARM_H_
 #define V8_ARM_CONSTANTS_ARM_H_
@@ -31,53 +8,6 @@
 // ARM EABI is required.
 #if defined(__arm__) && !defined(__ARM_EABI__)
 #error ARM EABI support is required.
-#endif
-
-// This means that interwork-compatible jump instructions are generated.  We
-// want to generate them on the simulator too so it makes snapshots that can
-// be used on real hardware.
-#if defined(__THUMB_INTERWORK__) || !defined(__arm__)
-# define USE_THUMB_INTERWORK 1
-#endif
-
-#if defined(__ARM_ARCH_7A__) || \
-    defined(__ARM_ARCH_7R__) || \
-    defined(__ARM_ARCH_7__)
-# define CAN_USE_ARMV7_INSTRUCTIONS 1
-#endif
-
-#if defined(__ARM_ARCH_6__) ||   \
-    defined(__ARM_ARCH_6J__) ||  \
-    defined(__ARM_ARCH_6K__) ||  \
-    defined(__ARM_ARCH_6Z__) ||  \
-    defined(__ARM_ARCH_6ZK__) || \
-    defined(__ARM_ARCH_6T2__) || \
-    defined(CAN_USE_ARMV7_INSTRUCTIONS)
-# define CAN_USE_ARMV6_INSTRUCTIONS 1
-#endif
-
-#if defined(__ARM_ARCH_5T__)             || \
-    defined(__ARM_ARCH_5TE__)            || \
-    defined(__ARM_ARCH_5TEJ__)           || \
-    defined(CAN_USE_ARMV6_INSTRUCTIONS)
-# define CAN_USE_ARMV5_INSTRUCTIONS 1
-# define CAN_USE_THUMB_INSTRUCTIONS 1
-#endif
-
-// Simulator should support ARM5 instructions and unaligned access by default.
-#if !defined(__arm__)
-# define CAN_USE_ARMV5_INSTRUCTIONS 1
-# define CAN_USE_THUMB_INSTRUCTIONS 1
-
-# ifndef CAN_USE_UNALIGNED_ACCESSES
-#  define CAN_USE_UNALIGNED_ACCESSES 1
-# endif
-
-#endif
-
-// Using blx may yield better code, so use it when required or when available
-#if defined(USE_THUMB_INTERWORK) || defined(CAN_USE_ARMV5_INSTRUCTIONS)
-#define USE_BLX 1
 #endif
 
 namespace v8 {
@@ -89,13 +19,16 @@ const int kConstantPoolMarkerMask = 0xfff000f0;
 const int kConstantPoolMarker = 0xe7f000f0;
 const int kConstantPoolLengthMaxMask = 0xffff;
 inline int EncodeConstantPoolLength(int length) {
-  ASSERT((length & kConstantPoolLengthMaxMask) == length);
+  DCHECK((length & kConstantPoolLengthMaxMask) == length);
   return ((length & 0xfff0) << 4) | (length & 0xf);
 }
 inline int DecodeConstantPoolLength(int instr) {
-  ASSERT((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  DCHECK((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
   return ((instr >> 4) & 0xfff0) | (instr & 0xf);
 }
+
+// Used in code age prologue - ldr(pc, MemOperand(pc, -4))
+const int kCodeAgeJumpInstruction = 0xe51ff004;
 
 // Number of registers in normal ARM mode.
 const int kNumRegisters = 16;
@@ -151,13 +84,13 @@ enum Condition {
 
 
 inline Condition NegateCondition(Condition cond) {
-  ASSERT(cond != al);
+  DCHECK(cond != al);
   return static_cast<Condition>(cond ^ ne);
 }
 
 
-// Corresponds to transposing the operands of a comparison.
-inline Condition ReverseCondition(Condition cond) {
+// Commute a condition such that {a cond b == b cond' a}.
+inline Condition CommuteCondition(Condition cond) {
   switch (cond) {
     case lo:
       return hi;
@@ -177,7 +110,7 @@ inline Condition ReverseCondition(Condition cond) {
       return ge;
     default:
       return cond;
-  };
+  }
 }
 
 
@@ -228,26 +161,27 @@ enum MiscInstructionsBits74 {
 
 // Instruction encoding bits and masks.
 enum {
-  H   = 1 << 5,   // Halfword (or byte).
-  S6  = 1 << 6,   // Signed (or unsigned).
-  L   = 1 << 20,  // Load (or store).
-  S   = 1 << 20,  // Set condition code (or leave unchanged).
-  W   = 1 << 21,  // Writeback base register (or leave unchanged).
-  A   = 1 << 21,  // Accumulate in multiply instruction (or not).
-  B   = 1 << 22,  // Unsigned byte (or word).
-  N   = 1 << 22,  // Long (or short).
-  U   = 1 << 23,  // Positive (or negative) offset/index.
-  P   = 1 << 24,  // Offset/pre-indexed addressing (or post-indexed addressing).
-  I   = 1 << 25,  // Immediate shifter operand (or not).
-
-  B4  = 1 << 4,
-  B5  = 1 << 5,
-  B6  = 1 << 6,
-  B7  = 1 << 7,
-  B8  = 1 << 8,
-  B9  = 1 << 9,
+  H = 1 << 5,   // Halfword (or byte).
+  S6 = 1 << 6,  // Signed (or unsigned).
+  L = 1 << 20,  // Load (or store).
+  S = 1 << 20,  // Set condition code (or leave unchanged).
+  W = 1 << 21,  // Writeback base register (or leave unchanged).
+  A = 1 << 21,  // Accumulate in multiply instruction (or not).
+  B = 1 << 22,  // Unsigned byte (or word).
+  N = 1 << 22,  // Long (or short).
+  U = 1 << 23,  // Positive (or negative) offset/index.
+  P = 1 << 24,  // Offset/pre-indexed addressing (or post-indexed addressing).
+  I = 1 << 25,  // Immediate shifter operand (or not).
+  B0 = 1 << 0,
+  B4 = 1 << 4,
+  B5 = 1 << 5,
+  B6 = 1 << 6,
+  B7 = 1 << 7,
+  B8 = 1 << 8,
+  B9 = 1 << 9,
   B12 = 1 << 12,
   B16 = 1 << 16,
+  B17 = 1 << 17,
   B18 = 1 << 18,
   B19 = 1 << 19,
   B20 = 1 << 20,
@@ -261,14 +195,16 @@ enum {
   B28 = 1 << 28,
 
   // Instruction bit masks.
-  kCondMask   = 15 << 28,
-  kALUMask    = 0x6f << 21,
-  kRdMask     = 15 << 12,  // In str instruction.
+  kCondMask = 15 << 28,
+  kALUMask = 0x6f << 21,
+  kRdMask = 15 << 12,  // In str instruction.
   kCoprocessorMask = 15 << 8,
   kOpCodeMask = 15 << 21,  // In data-processing instructions.
-  kImm24Mask  = (1 << 24) - 1,
-  kOff12Mask  = (1 << 12) - 1,
-  kOff8Mask  = (1 << 8) - 1
+  kImm24Mask = (1 << 24) - 1,
+  kImm16Mask = (1 << 16) - 1,
+  kImm8Mask = (1 << 8) - 1,
+  kOff12Mask = (1 << 12) - 1,
+  kOff8Mask = (1 << 8) - 1
 };
 
 
@@ -362,6 +298,32 @@ enum LFlag {
 };
 
 
+// NEON data type
+enum NeonDataType {
+  NeonS8 = 0x1,   // U = 0, imm3 = 0b001
+  NeonS16 = 0x2,  // U = 0, imm3 = 0b010
+  NeonS32 = 0x4,  // U = 0, imm3 = 0b100
+  NeonU8 = 1 << 24 | 0x1,   // U = 1, imm3 = 0b001
+  NeonU16 = 1 << 24 | 0x2,  // U = 1, imm3 = 0b010
+  NeonU32 = 1 << 24 | 0x4,   // U = 1, imm3 = 0b100
+  NeonDataTypeSizeMask = 0x7,
+  NeonDataTypeUMask = 1 << 24
+};
+
+enum NeonListType {
+  nlt_1 = 0x7,
+  nlt_2 = 0xA,
+  nlt_3 = 0x6,
+  nlt_4 = 0x2
+};
+
+enum NeonSize {
+  Neon8 = 0x0,
+  Neon16 = 0x1,
+  Neon32 = 0x2,
+  Neon64 = 0x3
+};
+
 // -----------------------------------------------------------------------------
 // Supervisor Call (svc) specific support.
 
@@ -371,9 +333,9 @@ enum LFlag {
 // standard SoftwareInterrupCode. Bit 23 is reserved for the stop feature.
 enum SoftwareInterruptCodes {
   // transition to C code
-  kCallRtRedirected= 0x10,
+  kCallRtRedirected = 0x10,
   // break point
-  kBreakpoint= 0x20,
+  kBreakpoint = 0x20,
   // stop
   kStopCode = 1 << 23
 };
@@ -403,6 +365,7 @@ const uint32_t kVFPOverflowExceptionBit = 1 << 2;
 const uint32_t kVFPUnderflowExceptionBit = 1 << 3;
 const uint32_t kVFPInexactExceptionBit = 1 << 4;
 const uint32_t kVFPFlushToZeroMask = 1 << 24;
+const uint32_t kVFPDefaultNaNModeControlBit = 1 << 25;
 
 const uint32_t kVFPNConditionFlagBit = 1 << 31;
 const uint32_t kVFPZConditionFlagBit = 1 << 30;
@@ -441,64 +404,6 @@ enum Hint { no_hint };
 
 // Hints are not used on the arm.  Negating is trivial.
 inline Hint NegateHint(Hint ignored) { return no_hint; }
-
-
-// -----------------------------------------------------------------------------
-// Specific instructions, constants, and masks.
-// These constants are declared in assembler-arm.cc, as they use named registers
-// and other constants.
-
-
-// add(sp, sp, 4) instruction (aka Pop())
-extern const Instr kPopInstruction;
-
-// str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
-// register r is not encoded.
-extern const Instr kPushRegPattern;
-
-// ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
-// register r is not encoded.
-extern const Instr kPopRegPattern;
-
-// mov lr, pc
-extern const Instr kMovLrPc;
-// ldr rd, [pc, #offset]
-extern const Instr kLdrPCMask;
-extern const Instr kLdrPCPattern;
-// vldr dd, [pc, #offset]
-extern const Instr kVldrDPCMask;
-extern const Instr kVldrDPCPattern;
-// blxcc rm
-extern const Instr kBlxRegMask;
-
-extern const Instr kBlxRegPattern;
-
-extern const Instr kMovMvnMask;
-extern const Instr kMovMvnPattern;
-extern const Instr kMovMvnFlip;
-extern const Instr kMovLeaveCCMask;
-extern const Instr kMovLeaveCCPattern;
-extern const Instr kMovwMask;
-extern const Instr kMovwPattern;
-extern const Instr kMovwLeaveCCFlip;
-extern const Instr kCmpCmnMask;
-extern const Instr kCmpCmnPattern;
-extern const Instr kCmpCmnFlip;
-extern const Instr kAddSubFlip;
-extern const Instr kAndBicFlip;
-
-// A mask for the Rd register for push, pop, ldr, str instructions.
-extern const Instr kLdrRegFpOffsetPattern;
-
-extern const Instr kStrRegFpOffsetPattern;
-
-extern const Instr kLdrRegFpNegOffsetPattern;
-
-extern const Instr kStrRegFpNegOffsetPattern;
-
-extern const Instr kLdrStrInstrTypeMask;
-extern const Instr kLdrStrInstrArgumentMask;
-extern const Instr kLdrStrOffsetMask;
 
 
 // -----------------------------------------------------------------------------
@@ -603,6 +508,7 @@ class Instruction {
   DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionField);
 
   inline int TypeValue() const { return Bits(27, 25); }
+  inline int SpecialValue() const { return Bits(27, 23); }
 
   inline int RnValue() const { return Bits(19, 16); }
   DECLARE_STATIC_ACCESSOR(RnValue);
@@ -659,10 +565,13 @@ class Instruction {
   inline int ShiftAmountValue() const { return Bits(11, 7); }
     // with immediate
   inline int RotateValue() const { return Bits(11, 8); }
+  DECLARE_STATIC_ACCESSOR(RotateValue);
   inline int Immed8Value() const { return Bits(7, 0); }
+  DECLARE_STATIC_ACCESSOR(Immed8Value);
   inline int Immed4Value() const { return Bits(19, 16); }
   inline int ImmedMovwMovtValue() const {
       return Immed4Value() << 12 | Offset12Value(); }
+  DECLARE_STATIC_ACCESSOR(ImmedMovwMovtValue);
 
   // Fields used in Load/Store instructions
   inline int PUValue() const { return Bits(24, 23); }

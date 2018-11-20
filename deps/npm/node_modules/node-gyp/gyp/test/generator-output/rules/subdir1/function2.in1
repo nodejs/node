@@ -1,6 +1,0 @@
-#include <stdio.h>
-
-void function2(void)
-{
-  printf("Hello from function2.in1\n");
-}

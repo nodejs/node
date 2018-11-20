@@ -29,7 +29,6 @@
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 // Get the Debug object exposed from the debug context global object.
@@ -74,7 +73,7 @@ function BeginTest(name) {
 // Check result of a test.
 function EndTest() {
   assertTrue(listener_called, "listerner not called for " + test_name);
-  assertNull(exception, test_name);
+  assertNull(exception, test_name, exception);
   end_test_count++;
 }
 
@@ -109,6 +108,7 @@ function CheckScopeChain(scopes, exec_state) {
     assertEquals(i, response.body.scopes[i].index);
     assertEquals(scopes[i], response.body.scopes[i].type);
     if (scopes[i] == debug.ScopeType.Local ||
+        scopes[i] == debug.ScopeType.Script ||
         scopes[i] == debug.ScopeType.Closure) {
       assertTrue(response.body.scopes[i].object.ref < 0);
     } else {
@@ -147,16 +147,8 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('arguments').isUndefined()) {
     scope_size--;
   }
-  // Also ignore synthetic variable from catch block.
-  if (!scope.scopeObject().property('.catch-var').isUndefined()) {
-    scope_size--;
-  }
   // Skip property with empty name.
   if (!scope.scopeObject().property('').isUndefined()) {
-    scope_size--;
-  }
-  // Also ignore synthetic variable from block scopes.
-  if (!scope.scopeObject().property('.block').isUndefined()) {
     scope_size--;
   }
 
@@ -206,6 +198,7 @@ function local_block_1() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
 };
@@ -224,6 +217,7 @@ function local_2(a) {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 0, exec_state);
 };
@@ -241,6 +235,7 @@ function local_3(a) {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,x:3}, 0, exec_state);
 };
@@ -259,6 +254,7 @@ function local_4(a, b) {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4}, 0, exec_state);
 };
@@ -279,6 +275,7 @@ function local_5(a) {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:5}, 0, exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
@@ -301,6 +298,7 @@ function local_6(a) {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:6,y:7}, 0, exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
@@ -324,6 +322,7 @@ function local_7(a) {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:8}, 0, exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
@@ -353,6 +352,7 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Block,
                    debug.ScopeType.Closure,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
   CheckScopeContent({a:1,x:2,y:3}, 2, exec_state);
@@ -373,10 +373,12 @@ function for_loop_1() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:'y'}, 0, exec_state);
-  // The function scope contains a temporary iteration variable.
-  CheckScopeContent({'.for.x':'y'}, 1, exec_state);
+  // The function scope contains a temporary iteration variable, but it is
+  // hidden to the debugger.
+  CheckScopeContent({}, 1, exec_state);
 };
 for_loop_1();
 EndTest();
@@ -397,11 +399,13 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3}, 0, exec_state);
   CheckScopeContent({x:'y'}, 1, exec_state);
-  // The function scope contains a temporary iteration variable.
-  CheckScopeContent({'.for.x':'y'}, 2, exec_state);
+  // The function scope contains a temporary iteration variable, hidden to the
+  // debugger.
+  CheckScopeContent({}, 2, exec_state);
 };
 for_loop_2();
 EndTest();
@@ -418,10 +422,13 @@ function for_loop_3() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
+  CheckScopeContent({x:3}, 1, exec_state);
+  CheckScopeContent({}, 2, exec_state);
 };
 for_loop_3();
 EndTest();
@@ -440,11 +447,14 @@ function for_loop_4() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:5}, 0, exec_state);
   CheckScopeContent({x:3}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
+  CheckScopeContent({x:3}, 2, exec_state);
+  CheckScopeContent({}, 3, exec_state);
 };
 for_loop_4();
 EndTest();
@@ -461,10 +471,34 @@ function for_loop_5() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
+                   debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3,y:5}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
+  CheckScopeContent({x:3,y:5}, 1, exec_state);
+  CheckScopeContent({}, 2, exec_state);
 };
 for_loop_5();
+EndTest();
+
+
+// Uninitialized variables
+BeginTest("Uninitialized 1");
+
+function uninitialized_1() {
+  {
+    debugger;
+    let x = 1;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Script,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({}, 0, exec_state);
+};
+uninitialized_1();
 EndTest();

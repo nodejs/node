@@ -18,6 +18,13 @@
  * IN THE SOFTWARE.
  */
 
+/* Expose glibc-specific EAI_* error codes. Needs to be defined before we
+ * include any headers.
+ */
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE
+#endif
+
 #include "uv.h"
 #include "internal.h"
 
@@ -26,34 +33,84 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* EAI_* constants. */
+#include <netdb.h>
+
+
+int uv__getaddrinfo_translate_error(int sys_err) {
+  switch (sys_err) {
+  case 0: return 0;
+#if defined(EAI_ADDRFAMILY)
+  case EAI_ADDRFAMILY: return UV_EAI_ADDRFAMILY;
+#endif
+#if defined(EAI_AGAIN)
+  case EAI_AGAIN: return UV_EAI_AGAIN;
+#endif
+#if defined(EAI_BADFLAGS)
+  case EAI_BADFLAGS: return UV_EAI_BADFLAGS;
+#endif
+#if defined(EAI_BADHINTS)
+  case EAI_BADHINTS: return UV_EAI_BADHINTS;
+#endif
+#if defined(EAI_CANCELED)
+  case EAI_CANCELED: return UV_EAI_CANCELED;
+#endif
+#if defined(EAI_FAIL)
+  case EAI_FAIL: return UV_EAI_FAIL;
+#endif
+#if defined(EAI_FAMILY)
+  case EAI_FAMILY: return UV_EAI_FAMILY;
+#endif
+#if defined(EAI_MEMORY)
+  case EAI_MEMORY: return UV_EAI_MEMORY;
+#endif
+#if defined(EAI_NODATA)
+  case EAI_NODATA: return UV_EAI_NODATA;
+#endif
+#if defined(EAI_NONAME)
+# if !defined(EAI_NODATA) || EAI_NODATA != EAI_NONAME
+  case EAI_NONAME: return UV_EAI_NONAME;
+# endif
+#endif
+#if defined(EAI_OVERFLOW)
+  case EAI_OVERFLOW: return UV_EAI_OVERFLOW;
+#endif
+#if defined(EAI_PROTOCOL)
+  case EAI_PROTOCOL: return UV_EAI_PROTOCOL;
+#endif
+#if defined(EAI_SERVICE)
+  case EAI_SERVICE: return UV_EAI_SERVICE;
+#endif
+#if defined(EAI_SOCKTYPE)
+  case EAI_SOCKTYPE: return UV_EAI_SOCKTYPE;
+#endif
+#if defined(EAI_SYSTEM)
+  case EAI_SYSTEM: return -errno;
+#endif
+  }
+  assert(!"unknown EAI_* error code");
+  abort();
+  return 0;  /* Pacify compiler. */
+}
+
 
 static void uv__getaddrinfo_work(struct uv__work* w) {
-  uv_getaddrinfo_t* req = container_of(w, uv_getaddrinfo_t, work_req);
+  uv_getaddrinfo_t* req;
+  int err;
 
-  req->retcode = getaddrinfo(req->hostname,
-                             req->service,
-                             req->hints,
-                             &req->res);
+  req = container_of(w, uv_getaddrinfo_t, work_req);
+  err = getaddrinfo(req->hostname, req->service, req->hints, &req->addrinfo);
+  req->retcode = uv__getaddrinfo_translate_error(err);
 }
 
 
 static void uv__getaddrinfo_done(struct uv__work* w, int status) {
-  uv_getaddrinfo_t* req = container_of(w, uv_getaddrinfo_t, work_req);
-  struct addrinfo *res = req->res;
-#if defined(__sun)
-  size_t hostlen;
+  uv_getaddrinfo_t* req;
 
-  if (req->hostname)
-    hostlen = strlen(req->hostname);
-  else
-    hostlen = 0;
-#endif
-
-  req->res = NULL;
-
+  req = container_of(w, uv_getaddrinfo_t, work_req);
   uv__req_unregister(req->loop, req);
 
-  /* see initialization in uv_getaddrinfo() */
+  /* See initialization in uv_getaddrinfo(). */
   if (req->hints)
     free(req->hints);
   else if (req->service)
@@ -67,30 +124,13 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   req->service = NULL;
   req->hostname = NULL;
 
-  if (req->retcode == 0) {
-    /* OK */
-#if defined(EAI_NODATA) /* FreeBSD deprecated EAI_NODATA */
-  } else if (req->retcode == EAI_NONAME || req->retcode == EAI_NODATA) {
-#else
-  } else if (req->retcode == EAI_NONAME) {
-#endif
-    uv__set_sys_error(req->loop, ENOENT); /* FIXME compatibility hack */
-#if defined(__sun)
-  } else if (req->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN) {
-    uv__set_sys_error(req->loop, ENOENT);
-#endif
-  } else {
-    req->loop->last_err.code = UV_EADDRINFO;
-    req->loop->last_err.sys_errno_ = req->retcode;
-  }
-
-  if (status == -UV_ECANCELED) {
+  if (status == -ECANCELED) {
     assert(req->retcode == 0);
-    req->retcode = UV_ECANCELED;
-    uv__set_artificial_error(req->loop, UV_ECANCELED);
+    req->retcode = UV_EAI_CANCELED;
   }
 
-  req->cb(req, req->retcode, res);
+  if (req->cb)
+    req->cb(req, req->retcode, req->addrinfo);
 }
 
 
@@ -106,8 +146,8 @@ int uv_getaddrinfo(uv_loop_t* loop,
   size_t len;
   char* buf;
 
-  if (req == NULL || cb == NULL || (hostname == NULL && service == NULL))
-    return uv__set_artificial_error(loop, UV_EINVAL);
+  if (req == NULL || (hostname == NULL && service == NULL))
+    return -EINVAL;
 
   hostname_len = hostname ? strlen(hostname) + 1 : 0;
   service_len = service ? strlen(service) + 1 : 0;
@@ -115,12 +155,12 @@ int uv_getaddrinfo(uv_loop_t* loop,
   buf = malloc(hostname_len + service_len + hints_len);
 
   if (buf == NULL)
-    return uv__set_artificial_error(loop, UV_ENOMEM);
+    return -ENOMEM;
 
   uv__req_init(loop, req, UV_GETADDRINFO);
   req->loop = loop;
   req->cb = cb;
-  req->res = NULL;
+  req->addrinfo = NULL;
   req->hints = NULL;
   req->service = NULL;
   req->hostname = NULL;
@@ -139,17 +179,20 @@ int uv_getaddrinfo(uv_loop_t* loop,
     len += service_len;
   }
 
-  if (hostname) {
+  if (hostname)
     req->hostname = memcpy(buf + len, hostname, hostname_len);
-    len += hostname_len;
+
+  if (cb) {
+    uv__work_submit(loop,
+                    &req->work_req,
+                    uv__getaddrinfo_work,
+                    uv__getaddrinfo_done);
+    return 0;
+  } else {
+    uv__getaddrinfo_work(&req->work_req);
+    uv__getaddrinfo_done(&req->work_req, 0);
+    return req->retcode;
   }
-
-  uv__work_submit(loop,
-                  &req->work_req,
-                  uv__getaddrinfo_work,
-                  uv__getaddrinfo_done);
-
-  return 0;
 }
 
 

@@ -27,11 +27,13 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include <vector>
 
-#include "cctest.h"
-#include "platform.h"
-#include "utils-inl.h"
+#include "src/v8.h"
+
+#include "src/base/platform/platform.h"
+#include "src/utils-inl.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -70,7 +72,48 @@ TEST(Utils1) {
 
   CHECK_EQ(INT_MAX, FastD2IChecked(1.0e100));
   CHECK_EQ(INT_MIN, FastD2IChecked(-1.0e100));
-  CHECK_EQ(INT_MIN, FastD2IChecked(OS::nan_value()));
+  CHECK_EQ(INT_MIN, FastD2IChecked(std::numeric_limits<double>::quiet_NaN()));
+}
+
+
+TEST(BitSetComputer) {
+  typedef BitSetComputer<bool, 1, kSmiValueSize, uint32_t> BoolComputer;
+  CHECK_EQ(0, BoolComputer::word_count(0));
+  CHECK_EQ(1, BoolComputer::word_count(8));
+  CHECK_EQ(2, BoolComputer::word_count(50));
+  CHECK_EQ(0, BoolComputer::index(0, 8));
+  CHECK_EQ(100, BoolComputer::index(100, 8));
+  CHECK_EQ(1, BoolComputer::index(0, 40));
+  uint32_t data = 0;
+  data = BoolComputer::encode(data, 1, true);
+  data = BoolComputer::encode(data, 4, true);
+  CHECK_EQ(true, BoolComputer::decode(data, 1));
+  CHECK_EQ(true, BoolComputer::decode(data, 4));
+  CHECK_EQ(false, BoolComputer::decode(data, 0));
+  CHECK_EQ(false, BoolComputer::decode(data, 2));
+  CHECK_EQ(false, BoolComputer::decode(data, 3));
+
+  // Lets store 2 bits per item with 3000 items and verify the values are
+  // correct.
+  typedef BitSetComputer<unsigned char, 2, 8, unsigned char> TwoBits;
+  const int words = 750;
+  CHECK_EQ(words, TwoBits::word_count(3000));
+  const int offset = 10;
+  Vector<unsigned char> buffer = Vector<unsigned char>::New(offset + words);
+  memset(buffer.start(), 0, sizeof(unsigned char) * buffer.length());
+  for (int i = 0; i < words; i++) {
+    const int index = TwoBits::index(offset, i);
+    unsigned char data = buffer[index];
+    data = TwoBits::encode(data, i, i % 4);
+    buffer[index] = data;
+  }
+
+  for (int i = 0; i < words; i++) {
+    const int index = TwoBits::index(offset, i);
+    unsigned char data = buffer[index];
+    CHECK_EQ(i % 4, TwoBits::decode(data, i));
+  }
+  buffer.Dispose();
 }
 
 
@@ -83,7 +126,7 @@ TEST(SNPrintF) {
     static const char kMarker = static_cast<char>(42);
     Vector<char> buffer = Vector<char>::New(i + 1);
     buffer[i] = kMarker;
-    int n = OS::SNPrintF(Vector<char>(buffer.start(), i), "%s", s);
+    int n = SNPrintF(Vector<char>(buffer.start(), i), "%s", s);
     CHECK(n <= i);
     CHECK(n == length || n == -1);
     CHECK_EQ(0, strncmp(buffer.start(), s, i - 1));
@@ -98,57 +141,52 @@ TEST(SNPrintF) {
 }
 
 
-void TestMemCopy(Vector<byte> src,
-                 Vector<byte> dst,
-                 int source_alignment,
-                 int destination_alignment,
-                 int length_alignment) {
-  memset(dst.start(), 0xFF, dst.length());
-  byte* to = dst.start() + 32 + destination_alignment;
-  byte* from = src.start() + source_alignment;
-  int length = OS::kMinComplexMemCopy + length_alignment;
-  OS::MemCopy(to, from, static_cast<size_t>(length));
-  printf("[%d,%d,%d]\n",
-         source_alignment, destination_alignment, length_alignment);
-  for (int i = 0; i < length; i++) {
-    CHECK_EQ(from[i], to[i]);
+static const int kAreaSize = 512;
+
+
+void TestMemMove(byte* area1,
+                 byte* area2,
+                 int src_offset,
+                 int dest_offset,
+                 int length) {
+  for (int i = 0; i < kAreaSize; i++) {
+    area1[i] = i & 0xFF;
+    area2[i] = i & 0xFF;
   }
-  CHECK_EQ(0xFF, to[-1]);
-  CHECK_EQ(0xFF, to[length]);
+  MemMove(area1 + dest_offset, area1 + src_offset, length);
+  memmove(area2 + dest_offset, area2 + src_offset, length);
+  if (memcmp(area1, area2, kAreaSize) != 0) {
+    printf("MemMove(): src_offset: %d, dest_offset: %d, length: %d\n",
+           src_offset, dest_offset, length);
+    for (int i = 0; i < kAreaSize; i++) {
+      if (area1[i] == area2[i]) continue;
+      printf("diff at offset %d (%p): is %d, should be %d\n", i,
+             reinterpret_cast<void*>(area1 + i), area1[i], area2[i]);
+    }
+    CHECK(false);
+  }
 }
 
 
-
-TEST(MemCopy) {
+TEST(MemMove) {
   v8::V8::Initialize();
-  OS::SetUp();
-  const int N = OS::kMinComplexMemCopy + 128;
-  Vector<byte> buffer1 = Vector<byte>::New(N);
-  Vector<byte> buffer2 = Vector<byte>::New(N);
+  byte* area1 = new byte[kAreaSize];
+  byte* area2 = new byte[kAreaSize];
 
-  for (int i = 0; i < N; i++) {
-    buffer1[i] = static_cast<byte>(i & 0x7F);
-  }
+  static const int kMinOffset = 32;
+  static const int kMaxOffset = 64;
+  static const int kMaxLength = 128;
+  STATIC_ASSERT(kMaxOffset + kMaxLength < kAreaSize);
 
-  // Same alignment.
-  for (int i = 0; i < 32; i++) {
-    TestMemCopy(buffer1, buffer2, i, i, i * 2);
-  }
-
-  // Different alignment.
-  for (int i = 0; i < 32; i++) {
-    for (int j = 1; j < 32; j++) {
-      TestMemCopy(buffer1, buffer2, i, (i + j) & 0x1F , 0);
+  for (int src_offset = kMinOffset; src_offset <= kMaxOffset; src_offset++) {
+    for (int dst_offset = kMinOffset; dst_offset <= kMaxOffset; dst_offset++) {
+      for (int length = 0; length <= kMaxLength; length++) {
+        TestMemMove(area1, area2, src_offset, dst_offset, length);
+      }
     }
   }
-
-  // Different lengths
-  for (int i = 0; i < 32; i++) {
-    TestMemCopy(buffer1, buffer2, 3, 7, i);
-  }
-
-  buffer2.Dispose();
-  buffer1.Dispose();
+  delete[] area1;
+  delete[] area2;
 }
 
 
@@ -222,4 +260,38 @@ TEST(SequenceCollectorRegression) {
   i::Vector<char> seq = collector.EndSequence();
   CHECK_EQ(0, strncmp("0123456789012345678901234567890123",
                       seq.start(), seq.length()));
+}
+
+
+TEST(CPlusPlus11Features) {
+  struct S {
+    bool x;
+    struct T {
+      double y;
+      int z[3];
+    } t;
+  };
+  S s{true, {3.1415, {1, 2, 3}}};
+  CHECK_EQ(2, s.t.z[1]);
+
+// TODO(svenpanne) Remove the old-skool code when we ship the new C++ headers.
+#if 0
+  std::vector<int> vec{11, 22, 33, 44};
+#else
+  std::vector<int> vec;
+  vec.push_back(11);
+  vec.push_back(22);
+  vec.push_back(33);
+  vec.push_back(44);
+#endif
+  vec.push_back(55);
+  vec.push_back(66);
+  for (auto& i : vec) {
+    ++i;
+  }
+  int j = 12;
+  for (auto i : vec) {
+    CHECK_EQ(j, i);
+    j += 11;
+  }
 }

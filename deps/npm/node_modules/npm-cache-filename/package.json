@@ -1,0 +1,33 @@
+{
+  "name": "npm-cache-filename",
+  "version": "1.0.1",
+  "description": "Given a cache folder and url, return the appropriate cache folder.",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "^0.4.10"
+  },
+  "scripts": {
+    "test": "tap test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/npm-cache-filename"
+  },
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/npm-cache-filename/issues"
+  },
+  "homepage": "https://github.com/npm/npm-cache-filename",
+  "readme": "# npm-cache-filename\n\nGiven a cache folder and url, return the appropriate cache folder.\n\n## USAGE\n\n```javascript\nvar cf = require('npm-cache-filename');\nconsole.log(cf('/tmp/cache', 'https://registry.npmjs.org:1234/foo/bar'));\n// outputs: /tmp/cache/registry.npmjs.org_1234/foo/bar\n```\n\nAs a bonus, you can also bind it to a specific root path:\n\n```javascript\nvar cf = require('npm-cache-filename');\nvar getFile = cf('/tmp/cache');\n\nconsole.log(getFile('https://registry.npmjs.org:1234/foo/bar'));\n// outputs: /tmp/cache/registry.npmjs.org_1234/foo/bar\n```\n",
+  "readmeFilename": "README.md",
+  "_id": "npm-cache-filename@1.0.1",
+  "_shasum": "9b640f0c1a5ba1145659685372a9ff71f70c4323",
+  "_from": "npm-cache-filename@latest",
+  "_resolved": "https://registry.npmjs.org/npm-cache-filename/-/npm-cache-filename-1.0.1.tgz"
+}

@@ -1,6 +1,6 @@
 
-/* Copyright 1998, 2009 by the Massachusetts Institute of Technology.
- * Copyright (C) 2007-2011 by Daniel Stenberg
+/* Copyright 1998 by the Massachusetts Institute of Technology.
+ * Copyright (C) 2007-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -29,55 +29,8 @@
 #  define WIN32
 #endif
 
-/*************************** libuv patch ***************/
-
-/*
- * We want to avoid autoconf altogether since there are a finite number of
- * operating systems and simply build c-ares. Therefore we do not want the
- * configurations provided by ares_build.h since we are always statically
- * linking c-ares into libuv. Having a system dependent ares_build.h forces
- * all users of ares.h to include the correct ares_build.h.  We do not care
- * about the linking checks provided by ares_rules.h. This would complicate
- * the libuv build process.
- */
-
-
-#if defined(WIN32)
-/* Configure process defines this to 1 when it finds out that system  */
-/* header file ws2tcpip.h must be included by the external interface. */
-/* #undef CARES_PULL_WS2TCPIP_H */
-# include <winsock2.h>
-# include <ws2tcpip.h>
-# include <windows.h>
-
-#else /* Not Windows */
-
-# include <sys/time.h>
-# include <sys/types.h>
-# include <sys/socket.h>
-#endif
-
-#if 0
-/* The size of `long', as computed by sizeof. */
-#define CARES_SIZEOF_LONG 4
-#endif
-
-/* Integral data type used for ares_socklen_t. */
-#define CARES_TYPEOF_ARES_SOCKLEN_T socklen_t
-
-#if 0
-/* The size of `ares_socklen_t', as computed by sizeof. */
-#define CARES_SIZEOF_ARES_SOCKLEN_T 4
-#endif
-
 /* Data type definition of ares_socklen_t. */
-typedef int ares_socklen_t;
-
-#if 0 /* libuv disabled */
-#include "ares_rules.h"    /* c-ares rules enforcement */
-#endif
-
-/*********************** end libuv patch ***************/
+typedef unsigned ares_socklen_t;
 
 #include <sys/types.h>
 
@@ -123,22 +76,18 @@ extern "C" {
 ** c-ares external API function linkage decorations.
 */
 
-#if !defined(CARES_STATICLIB) && \
-   (defined(WIN32) || defined(_WIN32) || defined(__SYMBIAN32__))
-   /* __declspec function decoration for Win32 and Symbian DLL's */
+#ifdef CARES_STATICLIB
+#  define CARES_EXTERN
+#elif defined(WIN32) || defined(_WIN32) || defined(__SYMBIAN32__)
 #  if defined(CARES_BUILDING_LIBRARY)
 #    define CARES_EXTERN  __declspec(dllexport)
 #  else
 #    define CARES_EXTERN  __declspec(dllimport)
 #  endif
+#elif defined(CARES_BUILDING_LIBRARY) && defined(CARES_SYMBOL_HIDING)
+#  define CARES_EXTERN CARES_SYMBOL_SCOPE_EXTERN
 #else
-   /* visibility function decoration for other cases */
-#  if !defined(CARES_SYMBOL_HIDING) || \
-     defined(WIN32) || defined(_WIN32) || defined(__SYMBIAN32__)
-#    define CARES_EXTERN
-#  else
-#    define CARES_EXTERN CARES_SYMBOL_SCOPE_EXTERN
-#  endif
+#  define CARES_EXTERN
 #endif
 
 
@@ -191,6 +140,7 @@ extern "C" {
 #define ARES_FLAG_NOSEARCH      (1 << 5)
 #define ARES_FLAG_NOALIASES     (1 << 6)
 #define ARES_FLAG_NOCHECKRESP   (1 << 7)
+#define ARES_FLAG_EDNS          (1 << 8)
 
 /* Option mask values */
 #define ARES_OPT_FLAGS          (1 << 0)
@@ -208,6 +158,7 @@ extern "C" {
 #define ARES_OPT_SOCK_RCVBUF    (1 << 12)
 #define ARES_OPT_TIMEOUTMS      (1 << 13)
 #define ARES_OPT_ROTATE         (1 << 14)
+#define ARES_OPT_EDNSPSZ        (1 << 15)
 
 /* Nameinfo flag values */
 #define ARES_NI_NOFQDN                  (1 << 0)
@@ -313,6 +264,7 @@ struct ares_options {
   void *sock_state_cb_data;
   struct apattern *sortlist;
   int nsort;
+  int ednspsz;
 };
 
 struct hostent;
@@ -451,6 +403,15 @@ CARES_EXTERN void ares_process_fd(ares_channel channel,
                                   ares_socket_t read_fd,
                                   ares_socket_t write_fd);
 
+CARES_EXTERN int ares_create_query(const char *name,
+                                   int dnsclass,
+                                   int type,
+                                   unsigned short id,
+                                   int rd,
+                                   unsigned char **buf,
+                                   int *buflen,
+                                   int max_udp_size);
+
 CARES_EXTERN int ares_mkquery(const char *name,
                               int dnsclass,
                               int type,
@@ -512,6 +473,8 @@ struct ares_txt_reply {
   struct ares_txt_reply  *next;
   unsigned char          *txt;
   size_t                  length;  /* length excludes null termination */
+  unsigned char           record_start;  /* 1 - if start of new record
+                                          * 0 - if a chunk in the same record */
 };
 
 struct ares_naptr_reply {
@@ -589,8 +552,6 @@ CARES_EXTERN void ares_free_string(void *str);
 
 CARES_EXTERN void ares_free_hostent(struct hostent *host);
 
-CARES_EXTERN void ares_free_soa(struct ares_soa_reply *soa);
-
 CARES_EXTERN void ares_free_data(void *dataptr);
 
 CARES_EXTERN const char *ares_strerror(int code);
@@ -614,6 +575,12 @@ CARES_EXTERN int ares_set_servers_csv(ares_channel channel,
 
 CARES_EXTERN int ares_get_servers(ares_channel channel,
                                   struct ares_addr_node **servers);
+
+CARES_EXTERN const char *ares_inet_ntop(int af, const void *src, char *dst,
+                                        ares_socklen_t size);
+
+CARES_EXTERN int ares_inet_pton(int af, const char *src, void *dst);
+
 
 #ifdef  __cplusplus
 }

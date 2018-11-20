@@ -1,6 +1,6 @@
 # URL
 
-    Stability: 3 - Stable
+    Stability: 2 - Stable
 
 This module has utilities for URL resolution and parsing.
 Call `require('url')` to use it.
@@ -18,6 +18,10 @@ string will not be in the parsed object. Examples are shown for the URL
 * `protocol`: The request protocol, lowercased.
 
     Example: `'http:'`
+
+* `slashes`: The protocol requires slashes after the colon.
+
+    Example: true or false
 
 * `host`: The full lowercased host portion of the URL, including port
   information.
@@ -61,13 +65,14 @@ string will not be in the parsed object. Examples are shown for the URL
 
 The following methods are provided by the URL module:
 
-## url.parse(urlStr, [parseQueryString], [slashesDenoteHost])
+## url.parse(urlStr[, parseQueryString][, slashesDenoteHost])
 
 Take a URL string, and return an object.
 
-Pass `true` as the second argument to also parse
-the query string using the `querystring` module.
-Defaults to `false`.
+Pass `true` as the second argument to also parse the query string using the
+`querystring` module. If `true` then the `query` property will always be
+assigned an object, and the `search` property will always be a (possibly
+empty) string.  Defaults to `false`.
 
 Pass `true` as the third argument to treat `//foo/bar` as
 `{ host: 'foo', pathname: '/bar' }` rather than
@@ -77,21 +82,26 @@ Pass `true` as the third argument to treat `//foo/bar` as
 
 Take a parsed URL object, and return a formatted URL string.
 
+Here's how the formatting process works:
+
 * `href` will be ignored.
-* `protocol`is treated the same with or without the trailing `:` (colon).
+* `protocol` is treated the same with or without the trailing `:` (colon).
   * The protocols `http`, `https`, `ftp`, `gopher`, `file` will be
     postfixed with `://` (colon-slash-slash).
   * All other protocols `mailto`, `xmpp`, `aim`, `sftp`, `foo`, etc will
-    be postfixed with `:` (colon)
+    be postfixed with `:` (colon).
+* `slashes` set to `true` if the protocol requires `://` (colon-slash-slash)
+  * Only needs to be set for protocols not previously listed as requiring
+    slashes, such as `mongodb://localhost:8000/`.
 * `auth` will be used if present.
 * `hostname` will only be used if `host` is absent.
 * `port` will only be used if `host` is absent.
-* `host` will be used in place of `hostname` and `port`
-* `pathname` is treated the same with or without the leading `/` (slash)
-* `search` will be used in place of `query`
+* `host` will be used in place of `hostname` and `port`.
+* `pathname` is treated the same with or without the leading `/` (slash).
 * `query` (object; see `querystring`) will only be used if `search` is absent.
-* `search` is treated the same with or without the leading `?` (question mark)
-* `hash` is treated the same with or without the leading `#` (pound sign, anchor)
+* `search` will be used in place of `query`.
+  * It is treated the same with or without the leading `?` (question mark).
+* `hash` is treated the same with or without the leading `#` (pound sign, anchor).
 
 ## url.resolve(from, to)
 

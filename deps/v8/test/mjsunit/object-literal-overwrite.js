@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Check that constants and computed properties are overwriting each other
 // correctly, i.e., the last initializer for any name is stored in the object.
 
@@ -49,7 +51,7 @@ var foo3 = {
 
 var foo4 = {
   bar: function(b){},
-  bar: 7,
+  bar: 4,
   bar: function(){return 7},
 };
 
@@ -68,6 +70,14 @@ var foo7 = {
   15: 7
 }
 
+function foo8(i) {
+  var obj = {
+    x: {a: i},
+    x: 7
+  };
+  return obj.x;
+};
+
 assertEquals(7, foo1.bar);
 assertEquals(7, foo2.bar);
 assertEquals(7, foo3.bar);
@@ -75,6 +85,12 @@ assertEquals(7, foo4.bar());
 assertEquals(7, foo5[13]);
 assertEquals(7, foo6[14.31]);
 assertEquals(7, foo7[15]);
+
+assertEquals(7, foo8(1));
+assertEquals(7, foo8(1));
+%OptimizeFunctionOnNextCall(foo8);
+assertEquals(7, foo8(1));
+
 
 // Test for the classic code generator.
 

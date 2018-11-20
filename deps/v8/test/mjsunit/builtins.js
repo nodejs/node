@@ -38,6 +38,14 @@ function isFunction(obj) {
   return typeof obj == "function";
 }
 
+function isV8Native(name) {
+  return name == "GeneratorFunctionPrototype" ||
+      name == "SetIterator" ||
+      name == "MapIterator" ||
+      name == "ArrayIterator" ||
+      name == "StringIterator";
+}
+
 function checkConstructor(func, name) {
   // A constructor is a function with a prototype and properties on the
   // prototype object besides "constructor";
@@ -54,10 +62,13 @@ function checkConstructor(func, name) {
   assertFalse(proto_desc.writable, name);
   assertFalse(proto_desc.configurable, name);
   var prototype = proto_desc.value;
-  assertEquals(null, Object.getPrototypeOf(prototype), name);
+  assertEquals(isV8Native(name) ? Object.prototype : null,
+               Object.getPrototypeOf(prototype),
+               name);
   for (var i = 0; i < propNames.length; i++) {
     var propName = propNames[i];
     if (propName == "constructor") continue;
+    if (isV8Native(name)) continue;
     var testName = name + "-" + propName;
     var propDesc = Object.getOwnPropertyDescriptor(prototype, propName);
     assertTrue(propDesc.hasOwnProperty("value"), testName);

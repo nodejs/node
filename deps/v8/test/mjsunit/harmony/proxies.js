@@ -25,7 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-proxies
+// We change the stack size for the ARM64 simulator because at one point this
+// test enters an infinite recursion which goes through the runtime and we
+// overflow the system stack before the simulator stack.
+
+// Flags: --harmony-proxies --sim-stack-size=500 --turbo-deoptimization
 
 
 // Helper.
@@ -1803,7 +1807,7 @@ TestKeysThrow({
   },
 })
 
-TestKeysThrow([], {
+TestKeysThrow({
   get getOwnPropertyNames() {
     return function() { return [1, 2] }
   },

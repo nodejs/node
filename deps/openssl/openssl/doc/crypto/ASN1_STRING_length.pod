@@ -3,7 +3,7 @@
 =head1 NAME
 
 ASN1_STRING_dup, ASN1_STRING_cmp, ASN1_STRING_set, ASN1_STRING_length,
-ASN1_STRING_length_set, ASN1_STRING_type, ASN1_STRING_data -
+ASN1_STRING_length_set, ASN1_STRING_type, ASN1_STRING_data, ASN1_STRING_to_UTF8 -
 ASN1_STRING utility functions
 
 =head1 SYNOPSIS

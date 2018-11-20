@@ -45,4 +45,3 @@ function h() {
 assertEquals(1, f());
 assertEquals(undefined, g());
 assertEquals(undefined, h());
-

@@ -75,8 +75,8 @@ $!
 $ sdirs := , -
    'archd', -
    objects, -
-   md2, md4, md5, sha, mdc2, hmac, ripemd, whrlpool, -
-   des, aes, rc2, rc4, rc5, idea, bf, cast, camellia, seed, -
+   md4, md5, sha, mdc2, hmac, ripemd, whrlpool, -
+   des, aes, rc2, rc4, idea, bf, cast, camellia, seed, -
    bn, ec, rsa, dsa, ecdsa, dh, ecdh, dso, engine, -
    buffer, bio, stack, lhash, rand, err, -
    evp, asn1, pem, x509, x509v3, conf, txt_db, pkcs7, pkcs12, comp, ocsp, -

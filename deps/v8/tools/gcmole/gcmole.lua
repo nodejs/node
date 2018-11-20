@@ -34,6 +34,9 @@ local FLAGS = {
    -- Do not build gcsuspects file and reuse previously generated one.
    reuse_gcsuspects = false;
 
+   -- Don't use parallel python runner.
+   sequential = false;
+
    -- Print commands to console before executing them.
    verbose = false;
 
@@ -66,7 +69,7 @@ for i = 1, #arg do
    end
 end
 
-local ARCHS = ARGS[1] and { ARGS[1] } or { 'ia32', 'arm', 'x64' }
+local ARCHS = ARGS[1] and { ARGS[1] } or { 'ia32', 'arm', 'x64', 'arm64' }
 
 local io = require "io"
 local os = require "os"
@@ -80,68 +83,129 @@ end
 -- Clang invocation
 
 local CLANG_BIN = os.getenv "CLANG_BIN"
+local CLANG_PLUGINS = os.getenv "CLANG_PLUGINS"
 
 if not CLANG_BIN or CLANG_BIN == "" then
    error "CLANG_BIN not set"
 end
 
-local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
+if not CLANG_PLUGINS or CLANG_PLUGINS == "" then
+   CLANG_PLUGINS = DIR
+end
+
+local function MakeClangCommandLine(
+      plugin, plugin_args, triple, arch_define, arch_options)
    if plugin_args then
      for i = 1, #plugin_args do
-        plugin_args[i] = "-plugin-arg-" .. plugin .. " " .. plugin_args[i]
+        plugin_args[i] = "-Xclang -plugin-arg-" .. plugin
+           .. " -Xclang " .. plugin_args[i]
      end
      plugin_args = " " .. table.concat(plugin_args, " ")
    end
-   return CLANG_BIN .. "/clang -cc1 -load " .. DIR .. "/libgcmole.so"
-      .. " -plugin "  .. plugin
+   return CLANG_BIN .. "/clang++ -std=c++11 -c "
+      .. " -Xclang -load -Xclang " .. CLANG_PLUGINS .. "/libgcmole.so"
+      .. " -Xclang -plugin -Xclang "  .. plugin
       .. (plugin_args or "")
-      .. " -triple " .. triple
+      .. " -Xclang -triple -Xclang " .. triple
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
-      .. " -Isrc"
+      .. " -DV8_I18N_SUPPORT"
+      .. " -I./"
+      .. " -Ithird_party/icu/source/common"
+      .. " -Ithird_party/icu/source/i18n"
+      .. " " .. arch_options
+end
+
+local function IterTable(t)
+  return coroutine.wrap(function ()
+    for i, v in ipairs(t) do
+      coroutine.yield(v)
+    end
+  end)
+end
+
+local function SplitResults(lines, func)
+   -- Splits the output of parallel.py and calls func on each result.
+   -- Bails out in case of an error in one of the executions.
+   local current = {}
+   local filename = ""
+   for line in lines do
+      local new_file = line:match "^______________ (.*)$"
+      local code = line:match "^______________ finish (%d+) ______________$"
+      if code then
+         if tonumber(code) > 0 then
+            log(table.concat(current, "\n"))
+            log("Failed to examine " .. filename)
+            return false
+         end
+         log("-- %s", filename)
+         func(filename, IterTable(current))
+      elseif new_file then
+         filename = new_file
+         current = {}
+      else
+         table.insert(current, line)
+      end
+   end
+   return true
 end
 
 function InvokeClangPluginForEachFile(filenames, cfg, func)
    local cmd_line = MakeClangCommandLine(cfg.plugin,
                                          cfg.plugin_args,
                                          cfg.triple,
-                                         cfg.arch_define)
-   for _, filename in ipairs(filenames) do
-      log("-- %s", filename)
-      local action = cmd_line .. " src/" .. filename .. " 2>&1"
+                                         cfg.arch_define,
+                                         cfg.arch_options)
+   if FLAGS.sequential then
+      log("** Sequential execution.")
+      for _, filename in ipairs(filenames) do
+         log("-- %s", filename)
+         local action = cmd_line .. " " .. filename .. " 2>&1"
+         if FLAGS.verbose then print('popen ', action) end
+         local pipe = io.popen(action)
+         func(filename, pipe:lines())
+         local success = pipe:close()
+         if not success then error("Failed to run: " .. action) end
+      end
+   else
+      log("** Parallel execution.")
+      local action = "python tools/gcmole/parallel.py \""
+         .. cmd_line .. "\" " .. table.concat(filenames, " ")
       if FLAGS.verbose then print('popen ', action) end
       local pipe = io.popen(action)
-      func(filename, pipe:lines())
-      pipe:close()
+      local success = SplitResults(pipe:lines(), func)
+      local closed = pipe:close()
+      if not (success and closed) then error("Failed to run: " .. action) end
    end
 end
 
 -------------------------------------------------------------------------------
--- SConscript parsing
+-- GYP file parsing
 
-local function ParseSConscript()
-   local f = assert(io.open("src/SConscript"), "failed to open SConscript")
-   local sconscript = f:read('*a')
-   f:close()
-
-   local SOURCES = sconscript:match "SOURCES = {(.-)}";
-
-   local sources = {}
-
-   for condition, list in
-      SOURCES:gmatch "'([^']-)': Split%(\"\"\"(.-)\"\"\"%)" do
-      local files = {}
-      for file in list:gmatch "[^%s]+" do table.insert(files, file) end
-      sources[condition] = files
+local function ParseGYPFile()
+   local gyp = ""
+   local gyp_files = { "tools/gyp/v8.gyp", "test/cctest/cctest.gyp" }
+   for i = 1, #gyp_files do
+      local f = assert(io.open(gyp_files[i]), "failed to open GYP file")
+      local t = f:read('*a')
+      gyp = gyp .. t
+      f:close()
    end
 
-   for condition, list in SOURCES:gmatch "'([^']-)': %[(.-)%]" do
-      local files = {}
-      for file in list:gmatch "'([^']-)'" do table.insert(files, file) end
-      sources[condition] = files
+   local result = {}
+
+   for condition, sources in
+      gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
+      if result[condition] == nil then result[condition] = {} end
+      for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
+         table.insert(result[condition], "src/" .. file)
+      end
+      for file in sources:gmatch "'(test-[^']-%.cc)'" do
+         table.insert(result[condition], "test/cctest/" .. file)
+      end
    end
 
-   return sources
+   return result
 end
 
 local function EvaluateCondition(cond, props)
@@ -165,7 +229,7 @@ local function BuildFileList(sources, props)
    return list
 end
 
-local sources = ParseSConscript()
+local sources = ParseGYPFile()
 
 local function FilesForArch(arch)
    return BuildFileList(sources, { os = 'linux',
@@ -189,11 +253,17 @@ end
 
 local ARCHITECTURES = {
    ia32 = config { triple = "i586-unknown-linux",
-                   arch_define = "V8_TARGET_ARCH_IA32" },
+                   arch_define = "V8_TARGET_ARCH_IA32",
+                   arch_options = "-m32" },
    arm = config { triple = "i586-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_ARM" },
+                  arch_define = "V8_TARGET_ARCH_ARM",
+                  arch_options = "-m32" },
    x64 = config { triple = "x86_64-unknown-linux",
-                  arch_define = "V8_TARGET_ARCH_X64" }
+                  arch_define = "V8_TARGET_ARCH_X64",
+                  arch_options = "" },
+   arm64 = config { triple = "x86_64-unknown-linux",
+                    arch_define = "V8_TARGET_ARCH_ARM64",
+                    arch_options = "" },
 }
 
 -------------------------------------------------------------------------------

@@ -30,9 +30,11 @@ signature context B<ctx>. This function can be called several times on the
 same B<ctx> to include additional data.
 
 EVP_SignFinal() signs the data in B<ctx> using the private key B<pkey> and
-places the signature in B<sig>. The number of bytes of data written (i.e. the
-length of the signature) will be written to the integer at B<s>, at most
-EVP_PKEY_size(pkey) bytes will be written. 
+places the signature in B<sig>. B<sig> must be at least EVP_PKEY_size(pkey)
+bytes in size. B<s> is an OUT paramter, and not used as an IN parameter.
+The number of bytes of data written (i.e. the length of the signature)
+will be written to the integer at B<s>, at most EVP_PKEY_size(pkey) bytes
+will be written.
 
 EVP_SignInit() initializes a signing context B<ctx> to use the default
 implementation of digest B<type>.

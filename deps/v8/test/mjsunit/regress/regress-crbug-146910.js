@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,9 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertEquals(String.fromCharCode(97, 220, 256), 'a' + '\u00DC' + '\u0100');
-assertEquals(String.fromCharCode(97, 220, 256), 'a\u00DC\u0100');
+var x = [];
+assertSame(0, x.length);
+assertSame(undefined, x[0]);
 
-assertEquals(['a', 'b', '\xdc'], ['b', '\xdc', 'a'].sort());
-assertEquals(['\xfc\xdc', '\xfc'], new RegExp('(\xdc)\\1', 'i').exec('\xfc\xdc'));
+Object.defineProperty(x, '0', { value: 7, configurable: false });
+assertSame(1, x.length);
+assertSame(7, x[0]);
 
+x.length = 0;
+assertSame(1, x.length);
+assertSame(7, x[0]);
