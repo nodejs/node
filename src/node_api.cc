@@ -3326,7 +3326,7 @@ napi_status napi_adjust_external_memory(napi_env env,
   CHECK_ENV(env);
   CHECK_ARG(env, adjusted_value);
 
-  *adjusted_value = env->isolate->AdjustAmountOfExternalAllocatedMemory(
+  *adjusted_value = env->isolate->AdjustAmountOfExternalAllocatedMemoryCustom(
       change_in_bytes);
 
   return napi_clear_last_error(env);

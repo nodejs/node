@@ -66,7 +66,7 @@ class ExternString: public ResourceType {
  public:
   ~ExternString() override {
     free(const_cast<TypeName*>(data_));
-    isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
+    isolate()->AdjustAmountOfExternalAllocatedMemoryCustom(-byte_length());
   }
 
   const TypeName* data() const override {
@@ -122,7 +122,7 @@ class ExternString: public ResourceType {
                                                                    data,
                                                                    length);
     MaybeLocal<Value> str = NewExternal(isolate, h_str);
-    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+    isolate->AdjustAmountOfExternalAllocatedMemoryCustom(h_str->byte_length());
 
     if (str.IsEmpty()) {
       delete h_str;

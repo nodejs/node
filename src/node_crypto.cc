@@ -2789,7 +2789,7 @@ void SSLWrap<Base>::DestroySSL() {
     return;
 
   SSL_free(ssl_);
-  env_->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+  env_->isolate()->AdjustAmountOfExternalAllocatedMemoryCustom(-kExternalSize);
   ssl_ = nullptr;
 }
 

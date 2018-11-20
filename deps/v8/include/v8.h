@@ -7208,6 +7208,12 @@ class V8_EXPORT Isolate {
       AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
 
   /**
+   * This is a Node.js 8.x specific version of the function that uses
+   * CheckMemoryPressure.
+   */
+  int64_t AdjustAmountOfExternalAllocatedMemoryCustom(int64_t change_in_bytes);
+
+  /**
    * Returns the number of phantom handles without callbacks that were reset
    * by the garbage collector since the last call to this function.
    */

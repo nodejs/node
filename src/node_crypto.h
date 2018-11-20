@@ -168,7 +168,7 @@ class SecureContext : public BaseObject {
         cert_(nullptr),
         issuer_(nullptr) {
     MakeWeak<SecureContext>(this);
-    env->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
+    env->isolate()->AdjustAmountOfExternalAllocatedMemoryCustom(kExternalSize);
   }
 
   void FreeCTXMem() {
@@ -176,7 +176,8 @@ class SecureContext : public BaseObject {
       return;
     }
 
-    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+    env()->isolate()->AdjustAmountOfExternalAllocatedMemoryCustom(
+        -kExternalSize);
     SSL_CTX_free(ctx_);
     if (cert_ != nullptr)
       X509_free(cert_);
@@ -208,7 +209,7 @@ class SSLWrap {
         cert_cb_arg_(nullptr),
         cert_cb_running_(false) {
     ssl_ = SSL_new(sc->ctx_);
-    env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
+    env_->isolate()->AdjustAmountOfExternalAllocatedMemoryCustom(kExternalSize);
     CHECK_NE(ssl_, nullptr);
   }
 
