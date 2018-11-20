@@ -109,12 +109,14 @@ class ZCtx : public AsyncWrap {
     if (mode_ == DEFLATE || mode_ == GZIP || mode_ == DEFLATERAW) {
       (void)deflateEnd(&strm_);
       int64_t change_in_bytes = -static_cast<int64_t>(kDeflateContextSize);
-      env()->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+      env()->isolate()->AdjustAmountOfExternalAllocatedMemoryCustom(
+          change_in_bytes);
     } else if (mode_ == INFLATE || mode_ == GUNZIP || mode_ == INFLATERAW ||
                mode_ == UNZIP) {
       (void)inflateEnd(&strm_);
       int64_t change_in_bytes = -static_cast<int64_t>(kInflateContextSize);
-      env()->isolate()->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+      env()->isolate()->AdjustAmountOfExternalAllocatedMemoryCustom(
+          change_in_bytes);
     }
     mode_ = NONE;
 
@@ -536,7 +538,7 @@ class ZCtx : public AsyncWrap {
                                  ctx->memLevel_,
                                  ctx->strategy_);
         ctx->env()->isolate()
-            ->AdjustAmountOfExternalAllocatedMemory(kDeflateContextSize);
+            ->AdjustAmountOfExternalAllocatedMemoryCustom(kDeflateContextSize);
         break;
       case INFLATE:
       case GUNZIP:
@@ -544,7 +546,7 @@ class ZCtx : public AsyncWrap {
       case UNZIP:
         ctx->err_ = inflateInit2(&ctx->strm_, ctx->windowBits_);
         ctx->env()->isolate()
-            ->AdjustAmountOfExternalAllocatedMemory(kInflateContextSize);
+            ->AdjustAmountOfExternalAllocatedMemoryCustom(kInflateContextSize);
         break;
       default:
         UNREACHABLE();

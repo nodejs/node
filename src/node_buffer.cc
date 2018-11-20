@@ -143,7 +143,7 @@ CallbackInfo::CallbackInfo(Isolate* isolate,
   persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   persistent_.SetWrapperClassId(BUFFER_ID);
   persistent_.MarkIndependent();
-  isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
+  isolate->AdjustAmountOfExternalAllocatedMemoryCustom(sizeof(*this));
 }
 
 
@@ -163,7 +163,7 @@ void CallbackInfo::WeakCallback(
 void CallbackInfo::WeakCallback(Isolate* isolate) {
   callback_(data_, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
-  isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+  isolate->AdjustAmountOfExternalAllocatedMemoryCustom(change_in_bytes);
 }
 
 
