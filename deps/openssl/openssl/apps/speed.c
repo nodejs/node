@@ -2541,7 +2541,7 @@ int speed_main(int argc, char **argv)
 
             if (rsa_count <= 1) {
                 /* if longer than 10s, don't do any more */
-                for (testnum++; testnum < EC_NUM; testnum++)
+                for (testnum++; testnum < ECDSA_NUM; testnum++)
                     ecdsa_doit[testnum] = 0;
             }
         }

@@ -267,7 +267,7 @@ depend:
 
 # Install helper targets #############################################
 
-install_sw: all install_dev install_engines install_runtime
+install_sw: install_dev install_engines install_runtime
 
 uninstall_sw: uninstall_runtime uninstall_engines uninstall_dev
 
@@ -287,7 +287,7 @@ install_ssldirs:
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(MISC_SCRIPTS) \
                                         "$(OPENSSLDIR)\misc"
 
-install_dev:
+install_dev: install_runtime_libs
 	@if "$(INSTALLTOP)"=="" ( $(ECHO) "INSTALLTOP should not be empty" & exit 1 )
 	@$(ECHO) "*** Installing development files"
 	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(INSTALLTOP)\include\openssl"
@@ -309,7 +309,7 @@ install_dev:
 
 uninstall_dev:
 
-install_engines:
+install_engines: install_runtime_libs build_engines
 	@if "$(INSTALLTOP)"=="" ( $(ECHO) "INSTALLTOP should not be empty" & exit 1 )
 	@$(ECHO) "*** Installing engines"
 	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(ENGINESDIR)"
@@ -320,15 +320,22 @@ install_engines:
 
 uninstall_engines:
 
-install_runtime:
+install_runtime: install_programs
+
+install_runtime_libs: build_libs
 	@if "$(INSTALLTOP)"=="" ( $(ECHO) "INSTALLTOP should not be empty" & exit 1 )
-	@$(ECHO) "*** Installing runtime files"
+	@$(ECHO) "*** Installing runtime libraries"
 	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(INSTALLTOP)\bin"
 	@if not "$(SHLIBS)"=="" \
 	 "$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_SHLIBS) "$(INSTALLTOP)\bin"
 	@if not "$(SHLIBS)"=="" \
 	 "$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_SHLIBPDBS) \
                                         "$(INSTALLTOP)\bin"
+
+install_programs: install_runtime_libs build_programs
+	@if "$(INSTALLTOP)"=="" ( $(ECHO) "INSTALLTOP should not be empty" & exit 1 )
+	@$(ECHO) "*** Installing runtime programs"
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(INSTALLTOP)\bin"
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_PROGRAMS) \
                                         "$(INSTALLTOP)\bin"
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_PROGRAMPDBS) \
@@ -454,22 +461,20 @@ $obj$objext: $deps
 	\$(AS) \$(ASFLAGS) \$(ASOUTFLAG)\$\@ $srcs
 EOF
      }
-     return <<"EOF"	if (!$disabled{makedepend});
-$obj$depext: $deps
-	\$(CC) \$(CFLAGS) $ecflags$inc /Zs /showIncludes $srcs 2>&1 | \\
+     my $recipe = <<"EOF";
+$obj$objext: $deps
+	\$(CC) $incs \$(CFLAGS) $ecflags -c \$(COUTFLAG)\$\@ $srcs
+EOF
+     $recipe .= <<"EOF"	unless $disabled{makedepend};
+	\$(CC) $incs \$(CFLAGS) $ecflags /Zs /showIncludes $srcs 2>&1 | \\
 	    "\$(PERL)" -n << > $obj$depext
 chomp;
 s/^Note: including file: *//;
 \$\$collect{\$\$_} = 1;
 END { print '$obj$objext: ',join(" ", sort keys \%collect),"\\n" }
 <<
-$obj$objext: $obj$depext
-	\$(CC) $incs \$(CFLAGS) $ecflags -c \$(COUTFLAG)\$\@ $srcs
 EOF
-    return <<"EOF"	if ($disabled{makedepend});
-$obj$objext: $deps
-	\$(CC) $incs \$(CFLAGS) $ecflags -c \$(COUTFLAG)\$\@ $srcs
-EOF
+     return $recipe;
  }
 
  # On Unix, we build shlibs from static libs, so we're ignoring the

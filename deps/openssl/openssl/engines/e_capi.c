@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -917,6 +917,7 @@ int capi_rsa_priv_dec(int flen, const unsigned char *from,
     unsigned char *tmpbuf;
     CAPI_KEY *capi_key;
     CAPI_CTX *ctx;
+    DWORD flags = 0;
     DWORD dlen;
 
     if (flen <= 0)
@@ -932,12 +933,23 @@ int capi_rsa_priv_dec(int flen, const unsigned char *from,
         return -1;
     }
 
-    if (padding != RSA_PKCS1_PADDING) {
-        char errstr[10];
-        BIO_snprintf(errstr, 10, "%d", padding);
-        CAPIerr(CAPI_F_CAPI_RSA_PRIV_DEC, CAPI_R_UNSUPPORTED_PADDING);
-        ERR_add_error_data(2, "padding=", errstr);
-        return -1;
+    switch (padding) {
+    case RSA_PKCS1_PADDING:
+        /* Nothing to do */
+        break;
+#ifdef CRYPT_DECRYPT_RSA_NO_PADDING_CHECK
+    case RSA_NO_PADDING:
+        flags = CRYPT_DECRYPT_RSA_NO_PADDING_CHECK;
+        break;
+#endif
+    default:
+        {
+            char errstr[10];
+            BIO_snprintf(errstr, 10, "%d", padding);
+            CAPIerr(CAPI_F_CAPI_RSA_PRIV_DEC, CAPI_R_UNSUPPORTED_PADDING);
+            ERR_add_error_data(2, "padding=", errstr);
+            return -1;
+        }
     }
 
     /* Create temp reverse order version of input */
@@ -950,14 +962,16 @@ int capi_rsa_priv_dec(int flen, const unsigned char *from,
 
     /* Finally decrypt it */
     dlen = flen;
-    if (!CryptDecrypt(capi_key->key, 0, TRUE, 0, tmpbuf, &dlen)) {
+    if (!CryptDecrypt(capi_key->key, 0, TRUE, flags, tmpbuf, &dlen)) {
         CAPIerr(CAPI_F_CAPI_RSA_PRIV_DEC, CAPI_R_DECRYPT_ERROR);
         capi_addlasterror();
+        OPENSSL_cleanse(tmpbuf, dlen);
         OPENSSL_free(tmpbuf);
         return -1;
     } else {
         memcpy(to, tmpbuf, (flen = (int)dlen));
     }
+    OPENSSL_cleanse(tmpbuf, flen);
     OPENSSL_free(tmpbuf);
 
     return flen;

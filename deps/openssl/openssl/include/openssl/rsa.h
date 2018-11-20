@@ -407,9 +407,9 @@ int RSA_meth_set_priv_dec(RSA_METHOD *rsa,
                                            unsigned char *to, RSA *rsa,
                                            int padding));
 int (*RSA_meth_get_mod_exp(const RSA_METHOD *meth))
-    (BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx);
+    (BIGNUM *r0, const BIGNUM *i, RSA *rsa, BN_CTX *ctx);
 int RSA_meth_set_mod_exp(RSA_METHOD *rsa,
-                         int (*mod_exp) (BIGNUM *r0, const BIGNUM *I, RSA *rsa,
+                         int (*mod_exp) (BIGNUM *r0, const BIGNUM *i, RSA *rsa,
                                          BN_CTX *ctx));
 int (*RSA_meth_get_bn_mod_exp(const RSA_METHOD *meth))
     (BIGNUM *r, const BIGNUM *a, const BIGNUM *p,

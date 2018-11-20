@@ -41,7 +41,10 @@ static int stopped = 0;
  * key value and pull NULL past initialization in the first thread that
  * intends to use libcrypto.
  */
-static CRYPTO_THREAD_LOCAL destructor_key = (CRYPTO_THREAD_LOCAL)-1;
+static union {
+    long sane;
+    CRYPTO_THREAD_LOCAL value;
+} destructor_key = { -1 };
 
 static void ossl_init_thread_stop(struct thread_local_inits_st *locals);
 
@@ -53,17 +56,17 @@ static void ossl_init_thread_destructor(void *local)
 static struct thread_local_inits_st *ossl_init_get_thread_local(int alloc)
 {
     struct thread_local_inits_st *local =
-        CRYPTO_THREAD_get_local(&destructor_key);
+        CRYPTO_THREAD_get_local(&destructor_key.value);
 
     if (alloc) {
         if (local == NULL
             && (local = OPENSSL_zalloc(sizeof(*local))) != NULL
-            && !CRYPTO_THREAD_set_local(&destructor_key, local)) {
+            && !CRYPTO_THREAD_set_local(&destructor_key.value, local)) {
             OPENSSL_free(local);
             return NULL;
         }
     } else {
-        CRYPTO_THREAD_set_local(&destructor_key, NULL);
+        CRYPTO_THREAD_set_local(&destructor_key.value, NULL);
     }
 
     return local;
@@ -97,7 +100,7 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_base)
 #endif
     OPENSSL_cpuid_setup();
 
-    destructor_key = key;
+    destructor_key.value = key;
     base_inited = 1;
     return 1;
 
@@ -396,7 +399,7 @@ static void ossl_init_thread_stop(struct thread_local_inits_st *locals)
 
 void OPENSSL_thread_stop(void)
 {
-    if (destructor_key != (CRYPTO_THREAD_LOCAL)-1)
+    if (destructor_key.sane != -1)
         ossl_init_thread_stop(ossl_init_get_thread_local(0));
 }
 
@@ -493,8 +496,8 @@ void OPENSSL_cleanup(void)
         err_free_strings_int();
     }
 
-    key = destructor_key;
-    destructor_key = (CRYPTO_THREAD_LOCAL)-1;
+    key = destructor_key.value;
+    destructor_key.sane = -1;
     CRYPTO_THREAD_cleanup_local(&key);
 
 #ifdef OPENSSL_INIT_DEBUG
