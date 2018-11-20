@@ -35,14 +35,14 @@ const options = {
   ca: [ fixtures.readKey('ca2-cert.pem') ]
 };
 
-const server = tls.createServer(options, function(cleartext) {
+const server = tls.createServer(options, (cleartext) => {
   cleartext.end('World');
 });
 server.listen(0, common.mustCall(function() {
   const socket = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
-  }, common.mustCall(function() {
+  }, common.mustCall(() => {
     const peerCert = socket.getPeerCertificate();
 
     console.error(util.inspect(peerCert));
