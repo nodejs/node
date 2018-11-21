@@ -470,8 +470,7 @@ added: REPLACEME
 
 * {boolean}
 
-A boolean that is `true` by default, but turns `false` after the 
-[`stream.end()`][stream-end] method has been called.
+Is `true` if it is safe to call [`writable.write()`][].
 
 ##### writable.writableHighWaterMark
 <!-- YAML
@@ -1030,8 +1029,7 @@ added: REPLACEME
 
 * {boolean}
 
-A boolean that is `true` by default, but turns `false` immediately before
-the `'end'` event is emitted.
+Is `true` if it is safe to call [`readable.read()`][].
 
 ##### readable.readableHighWaterMark
 <!-- YAML
