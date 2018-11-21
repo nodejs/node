@@ -416,7 +416,7 @@ class NodeInstance extends EventEmitter {
   async connectInspectorSession() {
     console.log('[test]', 'Connecting to a child Node process');
     const upgradeRequest = await this.sendUpgradeRequest();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       upgradeRequest
         .on('upgrade',
             (message, socket) => resolve(new InspectorSession(socket, this)))
@@ -427,7 +427,7 @@ class NodeInstance extends EventEmitter {
   async expectConnectionDeclined() {
     console.log('[test]', 'Checking upgrade is not possible');
     const upgradeRequest = await this.sendUpgradeRequest();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       upgradeRequest
           .on('upgrade', common.mustNotCall('Upgrade was received'))
           .on('response', (response) =>
