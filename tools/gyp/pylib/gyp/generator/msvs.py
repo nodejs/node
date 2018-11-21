@@ -2156,6 +2156,7 @@ def _MapFileToMsBuildSourceType(source, rule_dependencies,
       A pair of (group this file should be part of, the label of element)
   """
   _, ext = os.path.splitext(source)
+  ext = ext.lower()
   if ext in extension_to_rule_name:
     group = 'rule'
     element = extension_to_rule_name[ext]
@@ -2168,7 +2169,7 @@ def _MapFileToMsBuildSourceType(source, rule_dependencies,
   elif ext == '.rc':
     group = 'resource'
     element = 'ResourceCompile'
-  elif ext == '.asm':
+  elif ext in ['.s', '.asm']:
     group = 'masm'
     element = 'MASM'
   elif ext == '.idl':
