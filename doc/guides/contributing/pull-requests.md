@@ -347,7 +347,8 @@ unhelpful is likely safe to ignore.
 ### Step 10: Landing
 
 In order to land, a Pull Request needs to be reviewed and [approved][] by
-at least one Node.js Collaborator and pass a
+at least two Node.js Collaborators (one Collaborator approval is enough if the
+pull request has been open for more than 7 days) and pass a
 [CI (Continuous Integration) test run][]. After that, as long as there are no
 objections from other contributors, the Pull Request can be merged. If you find
 your Pull Request waiting longer than you expect, see the
