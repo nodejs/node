@@ -14,6 +14,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -91,7 +92,7 @@ void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           categories.c_str(),
-                          v8::NewStringType::kNormal,
+                          NewStringType::kNormal,
                           categories.size()).ToLocalChecked());
   }
 }

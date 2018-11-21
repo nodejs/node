@@ -171,6 +171,10 @@ struct sockaddr;
 
 namespace node {
 
+namespace native_module {
+class NativeModuleLoader;
+}
+
 extern Mutex process_mutex;
 extern Mutex environ_mutex;
 
@@ -179,6 +183,7 @@ extern bool v8_initialized;
 
 extern Mutex per_process_opts_mutex;
 extern std::shared_ptr<PerProcessOptions> per_process_opts;
+extern native_module::NativeModuleLoader per_process_loader;
 
 // Forward declaration
 class Environment;

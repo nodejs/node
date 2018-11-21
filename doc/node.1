@@ -184,12 +184,12 @@ Specify an alternative default TLS cipher list.
 Requires Node.js to be built with crypto support. (Default)
 .
 .It Fl -tls-v1.0
-Enable TLSv1.0. This should only be used for compatibility with old TLS
-clients or servers.
+Enable TLSv1.0 and greater in default secureProtocol. Use for compatibility
+with old TLS clients or servers.
 .
 .It Fl -tls-v1.1
-Enable TLSv1.1. This should only be used for compatibility with old TLS
-clients or servers.
+Enable TLSv1.1 and greater in default secureProtocol. Use for compatibility
+with old TLS clients or servers.
 .
 .It Fl -trace-deprecation
 Print stack traces for deprecations.
@@ -283,6 +283,9 @@ Print node's version.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
+.It Ev NODE_DEBUG_NATIVE Ar modules...
+Comma-separated list of C++ core modules that should print debug information.
+.
 .It Ev NODE_DISABLE_COLORS
 When set to
 .Ar 1 ,
@@ -331,6 +334,11 @@ When set to
 .Ar 1 ,
 emit pending deprecation warnings.
 .
+.It Ev NODE_PRESERVE_SYMLINKS
+When set to
+.Ar 1 ,
+the module loader preserves symbolic links when resolving and caching modules.
+.
 .It Ev NODE_REDIRECT_WARNINGS Ar file
 Write process warnings to the given
 .Ar file
@@ -346,6 +354,15 @@ The default path is
 .Sy ~/.node_repl_history ,
 which is overridden by this variable.
 Setting the value to an empty string ("" or " ") will disable persistent REPL history.
+.
+.It Ev NODE_TLS_REJECT_UNAUTHORIZED
+When set to
+.Ar 0 ,
+TLS certificate validation is disabled.
+.
+.It Ev NODE_V8_COVERAGE Ar dir
+When set, Node.js writes JavaScript code coverage information to
+.Ar dir .
 .
 .It Ev OPENSSL_CONF Ar file
 Load an OpenSSL configuration file on startup.
@@ -365,8 +382,12 @@ is enabled, this overrides and sets OpenSSL's directory containing trusted certi
 If
 .Fl -use-openssl-ca
 is enabled, this overrides and sets OpenSSL's file containing trusted certificates.
-.El
 .
+.It Ev UV_THREADPOOL_SIZE Ar size
+Sets the number of threads used in libuv's threadpool to
+.Ar size .
+.
+.El
 .\"=====================================================================
 .Sh BUGS
 Bugs are tracked in GitHub Issues:

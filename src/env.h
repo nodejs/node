@@ -29,13 +29,13 @@
 #include "inspector_agent.h"
 #endif
 #include "handle_wrap.h"
+#include "node.h"
+#include "node_http2_state.h"
+#include "node_options.h"
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
-#include "node.h"
-#include "node_options.h"
-#include "node_http2_state.h"
 
 #include <list>
 #include <stdint.h>
@@ -124,7 +124,9 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
   V(args_string, "args")                                                       \
+  V(asn1curve_string, "asn1Curve")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
+  V(bits_string, "bits")                                                       \
   V(buffer_string, "buffer")                                                   \
   V(bytes_parsed_string, "bytesParsed")                                        \
   V(bytes_read_string, "bytesRead")                                            \
@@ -207,9 +209,9 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(modulus_string, "modulus")                                                 \
   V(name_string, "name")                                                       \
   V(netmask_string, "netmask")                                                 \
+  V(nistcurve_string, "nistCurve")                                             \
   V(nsname_string, "nsname")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
-  V(onaltsvc_string, "onaltsvc")                                               \
   V(oncertcb_string, "oncertcb")                                               \
   V(onchange_string, "onchange")                                               \
   V(onclienthello_string, "onclienthello")                                     \
@@ -218,26 +220,16 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(ondone_string, "ondone")                                                   \
   V(onerror_string, "onerror")                                                 \
   V(onexit_string, "onexit")                                                   \
-  V(onframeerror_string, "onframeerror")                                       \
-  V(ongetpadding_string, "ongetpadding")                                       \
-  V(ongoawaydata_string, "ongoawaydata")                                       \
   V(onhandshakedone_string, "onhandshakedone")                                 \
   V(onhandshakestart_string, "onhandshakestart")                               \
-  V(onheaders_string, "onheaders")                                             \
   V(onmessage_string, "onmessage")                                             \
   V(onnewsession_string, "onnewsession")                                       \
   V(onocspresponse_string, "onocspresponse")                                   \
-  V(onorigin_string, "onorigin")                                               \
-  V(onping_string, "onping")                                                   \
-  V(onpriority_string, "onpriority")                                           \
   V(onread_string, "onread")                                                   \
   V(onreadstart_string, "onreadstart")                                         \
   V(onreadstop_string, "onreadstop")                                           \
-  V(onsettings_string, "onsettings")                                           \
   V(onshutdown_string, "onshutdown")                                           \
   V(onsignal_string, "onsignal")                                               \
-  V(onstreamclose_string, "onstreamclose")                                     \
-  V(ontrailers_string, "ontrailers")                                           \
   V(onunpipe_string, "onunpipe")                                               \
   V(onwrite_string, "onwrite")                                                 \
   V(openssl_error_stack, "opensslErrorStack")                                  \
@@ -340,6 +332,18 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(host_import_module_dynamically_callback, v8::Function)                     \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
   V(http2ping_constructor_template, v8::ObjectTemplate)                        \
+  V(http2session_on_altsvc_function, v8::Function)                             \
+  V(http2session_on_error_function, v8::Function)                              \
+  V(http2session_on_frame_error_function, v8::Function)                        \
+  V(http2session_on_goaway_data_function, v8::Function)                        \
+  V(http2session_on_headers_function, v8::Function)                            \
+  V(http2session_on_origin_function, v8::Function)                             \
+  V(http2session_on_ping_function, v8::Function)                               \
+  V(http2session_on_priority_function, v8::Function)                           \
+  V(http2session_on_select_padding_function, v8::Function)                     \
+  V(http2session_on_settings_function, v8::Function)                           \
+  V(http2session_on_stream_close_function, v8::Function)                       \
+  V(http2session_on_stream_trailers_function, v8::Function)                    \
   V(http2settings_constructor_template, v8::ObjectTemplate)                    \
   V(http2stream_constructor_template, v8::ObjectTemplate)                      \
   V(immediate_callback_function, v8::Function)                                 \
@@ -347,12 +351,6 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port, v8::Object)                                                  \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
-  V(native_modules_code_cache, v8::Object)                                     \
-  V(native_modules_code_cache_hash, v8::Object)                                \
-  V(native_modules_source, v8::Object)                                         \
-  V(native_modules_source_hash, v8::Object)                                    \
-  V(native_modules_with_cache, v8::Set)                                        \
-  V(native_modules_without_cache, v8::Set)                                     \
   V(performance_entry_callback, v8::Function)                                  \
   V(performance_entry_template, v8::Function)                                  \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
@@ -683,6 +681,9 @@ class Environment {
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
+
+  std::set<std::string> native_modules_with_cache;
+  std::set<std::string> native_modules_without_cache;
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;

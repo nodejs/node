@@ -280,7 +280,9 @@ class WPTRunner {
     sandbox.self = sandbox;
     // TODO(joyeecheung): we are not a window - work with the upstream to
     // add a new scope for us.
-    sandbox.document = {};  // Pretend we are Window
+
+    const { Worker } = require('worker_threads');
+    sandbox.DedicatedWorker = Worker;  // Pretend we are a Worker
     return context;
   }
 

@@ -29,7 +29,7 @@ client.on('listening', function() {
   onsend();
 });
 
-client.on('message', function(buf, info) {
+client.on('message', (buf, info) => {
   received++;
   if (received === limit) {
     client.close();

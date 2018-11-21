@@ -175,11 +175,11 @@ const {
     ':statuS': 204,
   };
 
-  common.expectsError({
+  common.expectsError(() => mapToHeaders(headers), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     type: TypeError,
     message: 'Header field ":status" must only have a single value'
-  })(mapToHeaders(headers));
+  });
 }
 
 // The following are not allowed to have multiple values
@@ -224,10 +224,10 @@ const {
   HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS
 ].forEach((name) => {
   const msg = `Header field "${name}" must only have a single value`;
-  common.expectsError({
+  common.expectsError(() => mapToHeaders({ [name]: [1, 2, 3] }), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     message: msg
-  })(mapToHeaders({ [name]: [1, 2, 3] }));
+  });
 });
 
 [
@@ -281,30 +281,32 @@ const {
   'Proxy-Connection',
   'Keep-Alive'
 ].forEach((name) => {
-  common.expectsError({
+  common.expectsError(() => mapToHeaders({ [name]: 'abc' }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     name: 'TypeError [ERR_HTTP2_INVALID_CONNECTION_HEADERS]',
     message: 'HTTP/1 Connection specific headers are forbidden: ' +
              `"${name.toLowerCase()}"`
-  })(mapToHeaders({ [name]: 'abc' }));
+  });
 });
 
-common.expectsError({
+common.expectsError(() => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }), {
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
   name: 'TypeError [ERR_HTTP2_INVALID_CONNECTION_HEADERS]',
   message: 'HTTP/1 Connection specific headers are forbidden: ' +
            `"${HTTP2_HEADER_TE}"`
-})(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }));
+});
 
-common.expectsError({
-  code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-  name: 'TypeError [ERR_HTTP2_INVALID_CONNECTION_HEADERS]',
-  message: 'HTTP/1 Connection specific headers are forbidden: ' +
-           `"${HTTP2_HEADER_TE}"`
-})(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }));
+common.expectsError(
+  () => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }), {
+    code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
+    name: 'TypeError [ERR_HTTP2_INVALID_CONNECTION_HEADERS]',
+    message: 'HTTP/1 Connection specific headers are forbidden: ' +
+             `"${HTTP2_HEADER_TE}"`
+  });
 
-assert(!(mapToHeaders({ te: 'trailers' }) instanceof Error));
-assert(!(mapToHeaders({ te: ['trailers'] }) instanceof Error));
+// These should not throw
+mapToHeaders({ te: 'trailers' });
+mapToHeaders({ te: ['trailers'] });
 
 
 {

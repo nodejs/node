@@ -26,7 +26,7 @@ const customTypesMap = {
 
   'this': `${jsDocPrefix}Reference/Operators/this`,
 
-  'AsyncIterator': 'https://github.com/tc39/proposal-async-iteration',
+  'AsyncIterator': 'https://tc39.github.io/ecma262/#sec-asynciterator-interface',
 
   'bigint': 'https://github.com/tc39/proposal-bigint',
 

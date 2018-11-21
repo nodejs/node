@@ -27,7 +27,7 @@ const fixtures = require('../common/fixtures');
 
 function errExec(script, callback) {
   const cmd = `"${process.argv[0]}" "${fixtures.path(script)}"`;
-  return exec(cmd, function(err, stdout, stderr) {
+  return exec(cmd, (err, stdout, stderr) => {
     // There was some error
     assert.ok(err);
 
@@ -43,39 +43,39 @@ const syntaxErrorMessage = /\bSyntaxError\b/;
 
 
 // Simple throw error
-errExec('throws_error.js', common.mustCall(function(err, stdout, stderr) {
+errExec('throws_error.js', common.mustCall((err, stdout, stderr) => {
   assert.ok(/blah/.test(stderr));
 }));
 
 
 // Trying to JSON.parse(undefined)
-errExec('throws_error2.js', common.mustCall(function(err, stdout, stderr) {
+errExec('throws_error2.js', common.mustCall((err, stdout, stderr) => {
   assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 
 // Trying to JSON.parse(undefined) in nextTick
-errExec('throws_error3.js', common.mustCall(function(err, stdout, stderr) {
+errExec('throws_error3.js', common.mustCall((err, stdout, stderr) => {
   assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 
 // throw ILLEGAL error
-errExec('throws_error4.js', common.mustCall(function(err, stdout, stderr) {
+errExec('throws_error4.js', common.mustCall((err, stdout, stderr) => {
   assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 // Specific long exception line doesn't result in stack overflow
-errExec('throws_error5.js', common.mustCall(function(err, stdout, stderr) {
+errExec('throws_error5.js', common.mustCall((err, stdout, stderr) => {
   assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 // Long exception line with length > errorBuffer doesn't result in assertion
-errExec('throws_error6.js', common.mustCall(function(err, stdout, stderr) {
+errExec('throws_error6.js', common.mustCall((err, stdout, stderr) => {
   assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 // Object that throws in toString() doesn't print garbage
-errExec('throws_error7.js', common.mustCall(function(err, stdout, stderr) {
+errExec('throws_error7.js', common.mustCall((err, stdout, stderr) => {
   assert.ok(/<toString\(\) threw exception/.test(stderr));
 }));

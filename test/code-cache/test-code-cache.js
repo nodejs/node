@@ -19,8 +19,7 @@ const {
   internalBinding
 } = require('internal/test/binding');
 const {
-  compiledWithoutCache,
-  compiledWithCache
+  getCacheUsage
 } = internalBinding('native_module');
 
 for (const key of cachableBuiltins) {
@@ -29,6 +28,12 @@ for (const key of cachableBuiltins) {
   }
   require(key);
 }
+
+// The computation has to be delayed until we have done loading modules
+const {
+  compiledWithoutCache,
+  compiledWithCache
+} = getCacheUsage();
 
 const loadedModules = process.moduleLoadList
   .filter((m) => m.startsWith('NativeModule'))
@@ -39,7 +44,11 @@ const loadedModules = process.moduleLoadList
 if (process.config.variables.node_code_cache_path === undefined) {
   console.log('The binary is not configured with code cache');
   assert.deepStrictEqual(compiledWithCache, new Set());
-  assert.deepStrictEqual(compiledWithoutCache, new Set(loadedModules));
+
+  for (const key of loadedModules) {
+    assert(compiledWithoutCache.has(key),
+           `"${key}" should've been compiled without code cache`);
+  }
 } else {
   console.log('The binary is configured with code cache');
   assert.strictEqual(
