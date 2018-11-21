@@ -23,7 +23,7 @@
 // Testing mutual send of handles: from master to worker, and from worker to
 // master.
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
@@ -44,7 +44,7 @@ if (cluster.isMaster) {
     worker.send({ message: 'listen', port: server.address().port });
   });
 } else {
-  process.on('message', common.mustCall((msg, handle) => {
+  process.on('message', (msg, handle) => {
     if (msg.message && msg.message === 'listen') {
       assert(msg.port);
       const client1 = net.connect({
@@ -69,5 +69,5 @@ if (cluster.isMaster) {
     } else {
       process.send('reply', handle);
     }
-  }));
+  });
 }
