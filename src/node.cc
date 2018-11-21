@@ -1525,8 +1525,10 @@ void SetupProcessObject(Environment* env,
                FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
                process_env).FromJust();
 
-  READONLY_PROPERTY(process, "pid",
-                    Integer::New(env->isolate(), uv_os_getpid()));
+  CHECK(process->SetAccessor(env->context(),
+                             FIXED_ONE_BYTE_STRING(env->isolate(), "pid"),
+                             GetProcessId).FromJust());
+
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
   CHECK(process->SetAccessor(env->context(),

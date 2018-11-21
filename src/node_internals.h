@@ -832,7 +832,8 @@ void DebugPortSetter(v8::Local<v8::Name> property,
 
 void GetParentProcessId(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
-
+void GetProcessId(v8::Local<v8::Name> property,
+                  const v8::PropertyCallbackInfo<v8::Value>& info);
 void ProcessTitleGetter(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info);
 void ProcessTitleSetter(v8::Local<v8::Name> property,

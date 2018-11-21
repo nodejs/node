@@ -587,6 +587,11 @@ void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
+void GetProcessId(v8::Local<v8::Name> property,
+                  const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(uv_os_getpid());
+}
+
 void ProcessTitleGetter(Local<Name> property,
                         const PropertyCallbackInfo<Value>& info) {
   char buffer[512];
@@ -790,7 +795,7 @@ void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 
 void GetParentProcessId(Local<Name> property,
                         const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(Integer::New(info.GetIsolate(), uv_os_getppid()));
+  info.GetReturnValue().Set(uv_os_getppid());
 }
 
 void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
