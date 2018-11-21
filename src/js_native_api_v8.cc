@@ -1,5 +1,6 @@
 #include <limits.h>  // INT_MAX
 #include <cmath>
+#include <algorithm>
 #define NAPI_EXPERIMENTAL
 #include "js_native_api_v8.h"
 #include "js_native_api.h"
