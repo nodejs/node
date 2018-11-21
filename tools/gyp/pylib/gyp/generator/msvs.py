@@ -2171,6 +2171,9 @@ def _MapFileToMsBuildSourceType(source, rule_dependencies,
   elif ext == '.asm':
     group = 'masm'
     element = 'MASM'
+  elif ext == '.S':
+    group = 'masm'
+    element = 'MASM'
   elif ext == '.idl':
     group = 'midl'
     element = 'Midl'
