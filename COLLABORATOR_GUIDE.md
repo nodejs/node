@@ -69,12 +69,15 @@ issues and pull requests can always be re-opened if necessary.
 
 ### Author ready pull requests
 
-A pull request that is still awaiting the minimum review time is considered
-_author ready_ as soon as the CI has been started, it has at least two approvals
-(one Collaborator approval is enough if the pull request has been open for more
-than 7 days), and it has no outstanding review comments. Please always make sure
-to add the `author ready` label to the PR in that case and remove it again as
-soon as that condition is not met anymore.
+A pull request is _author ready_ when:
+
+* There is a CI run in progress or completed.
+* There are at least two Collaborator approvals, or at least one approval if the
+  pull request is older than 7 days.
+* There are no outstanding review comments.
+
+Please always add the `author ready` label to the PR in that case. Please always
+remove it again as soon as the conditions are not met anymore.
 
 ### Handling own pull requests
 
