@@ -25,6 +25,15 @@ function finished(client, callback) {
 }
 
 function fillHeaders(headers, currentSize, valid = false) {
+  // llhttp counts actual header name/value sizes, excluding the whitespace and
+  // stripped chars.
+  if (process.versions.hasOwnProperty('llhttp')) {
+    // OK, Content-Length, 0, X-CRASH, aaa...
+    headers += 'a'.repeat(MAX - currentSize);
+  } else {
+    headers += 'a'.repeat(MAX - headers.length - 3);
+  }
+
   // Generate valid headers
   if (valid) {
     // TODO(mcollina): understand why -9 is needed instead of -1

@@ -30,7 +30,7 @@
 #include "v8.h"
 
 #include <stdlib.h>  // free()
-#include <string.h>  // strdup()
+#include <string.h>  // strdup(), strchr()
 
 #include "http_parser_adaptor.h"
 
@@ -367,7 +367,7 @@ class Parser : public AsyncWrap, public StreamListener {
     if (r.IsEmpty()) {
       got_exception_ = true;
 #ifdef NODE_EXPERIMENTAL_HTTP
-      llhttp_set_error_reason(&parser_, "JS Exception");
+      llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
 #endif  /* NODE_EXPERIMENTAL_HTTP */
       return HPE_USER;
     }
@@ -395,7 +395,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     if (r.IsEmpty()) {
       got_exception_ = true;
-      return HPE_USER;
+      return -1;
     }
 
     return 0;
@@ -712,13 +712,23 @@ class Parser : public AsyncWrap, public StreamListener {
                env()->bytes_parsed_string(),
                nread_obj).FromJust();
 #ifdef NODE_EXPERIMENTAL_HTTP
-      obj->Set(env()->context(),
-               env()->code_string(),
-               OneByteString(env()->isolate(),
-                             llhttp_errno_name(err))).FromJust();
-      obj->Set(env()->context(),
-               env()->reason_string(),
-               OneByteString(env()->isolate(), parser_.reason)).FromJust();
+      const char* errno_reason = llhttp_get_error_reason(&parser_);
+
+      Local<String> code;
+      Local<String> reason;
+      if (err == HPE_USER) {
+        const char* colon = strchr(errno_reason, ':');
+        CHECK_NE(colon, nullptr);
+        code = OneByteString(env()->isolate(), errno_reason,
+                             colon - errno_reason);
+        reason = OneByteString(env()->isolate(), colon + 1);
+      } else {
+        code = OneByteString(env()->isolate(), llhttp_errno_name(err));
+        reason = OneByteString(env()->isolate(), errno_reason);
+      }
+
+      obj->Set(env()->context(), env()->code_string(), code).FromJust();
+      obj->Set(env()->context(), env()->reason_string(), reason).FromJust();
 #else  /* !NODE_EXPERIMENTAL_HTTP */
       obj->Set(env()->context(),
                env()->code_string(),
@@ -790,7 +800,7 @@ class Parser : public AsyncWrap, public StreamListener {
 #ifdef NODE_EXPERIMENTAL_HTTP
     header_nread_ += len;
     if (header_nread_ >= kMaxHeaderSize) {
-      llhttp_set_error_reason(&parser_, "Headers overflow");
+      llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
       return HPE_USER;
     }
 #endif  /* NODE_EXPERIMENTAL_HTTP */
