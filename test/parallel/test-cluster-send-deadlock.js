@@ -30,11 +30,11 @@ const net = require('net');
 
 if (cluster.isMaster) {
   const worker = cluster.fork();
-  worker.on('exit', common.mustCall((code, signal) => {
+  worker.on('exit', (code, signal) => {
     assert.strictEqual(code, 0, `Worker exited with an error code: ${code}`);
     assert(!signal, `Worker exited by a signal: ${signal}`);
     server.close();
-  }));
+  });
 
   const server = net.createServer((socket) => {
     worker.send('handle', socket);
