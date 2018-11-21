@@ -21,7 +21,7 @@ bool IsRename(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kFinishRegion:
     case IrOpcode::kTypeGuard:
-      return true;
+      return !node->IsDead();
     default:
       return false;
   }
