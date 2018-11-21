@@ -53,10 +53,10 @@ child.stdout.on('data', (chunk) => {
   response += chunk;
 });
 
-process.on('exit', common.mustCall(() => {
+process.on('exit', () => {
   assert.ok(response.includes('HELLO=WORLD'));
   assert.ok(response.includes('FOO=BAR'));
   assert.ok(!response.includes('UNDEFINED=undefined'));
   assert.ok(response.includes('NULL=null'));
   assert.ok(response.includes(`EMPTY=${os.EOL}`));
-}));
+});
