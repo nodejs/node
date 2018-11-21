@@ -1002,33 +1002,10 @@ JsonProfile.prototype.addSourcePositions = function(
   };
 };
 
-function unescapeString(s) {
-  s = s.split("\\");
-  for (var i = 1; i < s.length; i++) {
-    if (s[i] === "") {
-      // Double backslash.
-      s[i] = "\\";
-    } else if (i > 0 && s[i].startsWith("x")) {
-      // Escaped Ascii character.
-      s[i] = String.fromCharCode(parseInt(s[i].substring(1, 3), 16)) +
-          s[i].substring(3);
-    } else if (i > 0 && s[i].startsWith("u")) {
-      // Escaped unicode character.
-      s[i] = String.fromCharCode(parseInt(s[i].substring(1, 5), 16)) +
-          s[i].substring(5);
-    } else {
-      if (i > 0 && s[i - 1] !== "\\") {
-        printErr("Malformed source string");
-      }
-    }
-  }
-  return s.join("");
-}
-
 JsonProfile.prototype.addScriptSource = function(script, url, source) {
   this.scripts_[script] = {
-    name : unescapeString(url),
-    source : unescapeString(source)
+    name : url,
+    source : source
   };
 };
 
