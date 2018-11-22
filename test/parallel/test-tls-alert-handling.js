@@ -7,6 +7,7 @@ if (!common.hasCrypto)
 if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI');
 
+const assert = require('assert');
 const net = require('net');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
@@ -29,7 +30,11 @@ const opts = {
 const max_iter = 20;
 let iter = 0;
 
-const errorHandler = common.mustCall(() => {
+const errorHandler = common.mustCall((err) => {
+  assert.strictEqual(err.code, 'ERR_SSL_WRONG_VERSION_NUMBER');
+  assert.strictEqual(err.library, 'SSL routines');
+  assert.strictEqual(err.function, 'ssl3_get_record');
+  assert.strictEqual(err.reason, 'wrong version number');
   errorReceived = true;
   if (canCloseServer())
     server.close();
@@ -76,5 +81,10 @@ function sendBADTLSRecord() {
     socket.write(BAD_RECORD);
     socket.end();
   }));
-  client.on('error', common.mustCall());
+  client.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION');
+    assert.strictEqual(err.library, 'SSL routines');
+    assert.strictEqual(err.function, 'ssl3_read_bytes');
+    assert.strictEqual(err.reason, 'tlsv1 alert protocol version');
+  }));
 }
