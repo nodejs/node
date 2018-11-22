@@ -8,11 +8,20 @@ padlock_capability:
 	cpuid
 	xorl	%eax,%eax
 	cmpl	$0x746e6543,%ebx
-	jne	.Lnoluck
+	jne	.Lzhaoxin
 	cmpl	$0x48727561,%edx
 	jne	.Lnoluck
 	cmpl	$0x736c7561,%ecx
 	jne	.Lnoluck
+	jmp	.LzhaoxinEnd
+.Lzhaoxin:
+	cmpl	$0x68532020,%ebx
+	jne	.Lnoluck
+	cmpl	$0x68676e61,%edx
+	jne	.Lnoluck
+	cmpl	$0x20206961,%ecx
+	jne	.Lnoluck
+.LzhaoxinEnd:
 	movl	$0xC0000000,%eax
 	cpuid
 	movl	%eax,%edx

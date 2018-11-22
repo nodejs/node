@@ -3,7 +3,9 @@
 .type	_mul_1x1,@function
 .align	16
 _mul_1x1:
+.cfi_startproc	
 	subq	$128+8,%rsp
+.cfi_adjust_cfa_offset	128+8
 	movq	$-1,%r9
 	leaq	(%rax,%rax,1),%rsi
 	shrq	$3,%r9
@@ -193,16 +195,20 @@ _mul_1x1:
 	xorq	%rdi,%rdx
 
 	addq	$128+8,%rsp
+.cfi_adjust_cfa_offset	-128-8
 	.byte	0xf3,0xc3
 .Lend_mul_1x1:
+.cfi_endproc	
 .size	_mul_1x1,.-_mul_1x1
 
 .globl	bn_GF2m_mul_2x2
 .type	bn_GF2m_mul_2x2,@function
 .align	16
 bn_GF2m_mul_2x2:
-	movq	OPENSSL_ia32cap_P(%rip),%rax
-	btq	$33,%rax
+.cfi_startproc	
+	movq	%rsp,%rax
+	movq	OPENSSL_ia32cap_P(%rip),%r10
+	btq	$33,%r10
 	jnc	.Lvanilla_mul_2x2
 
 .byte	102,72,15,110,198
@@ -230,11 +236,17 @@ bn_GF2m_mul_2x2:
 .align	16
 .Lvanilla_mul_2x2:
 	leaq	-136(%rsp),%rsp
+.cfi_adjust_cfa_offset	8*17
 	movq	%r14,80(%rsp)
+.cfi_rel_offset	%r14,8*10
 	movq	%r13,88(%rsp)
+.cfi_rel_offset	%r13,8*11
 	movq	%r12,96(%rsp)
+.cfi_rel_offset	%r12,8*12
 	movq	%rbp,104(%rsp)
+.cfi_rel_offset	%rbp,8*13
 	movq	%rbx,112(%rsp)
+.cfi_rel_offset	%rbx,8*14
 .Lbody_mul_2x2:
 	movq	%rdi,32(%rsp)
 	movq	%rsi,40(%rsp)
@@ -279,13 +291,21 @@ bn_GF2m_mul_2x2:
 	movq	%rax,8(%rbp)
 
 	movq	80(%rsp),%r14
+.cfi_restore	%r14
 	movq	88(%rsp),%r13
+.cfi_restore	%r13
 	movq	96(%rsp),%r12
+.cfi_restore	%r12
 	movq	104(%rsp),%rbp
+.cfi_restore	%rbp
 	movq	112(%rsp),%rbx
+.cfi_restore	%rbx
 	leaq	136(%rsp),%rsp
+.cfi_adjust_cfa_offset	-8*17
+.Lepilogue_mul_2x2:
 	.byte	0xf3,0xc3
 .Lend_mul_2x2:
+.cfi_endproc	
 .size	bn_GF2m_mul_2x2,.-bn_GF2m_mul_2x2
 .byte	71,70,40,50,94,109,41,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	16

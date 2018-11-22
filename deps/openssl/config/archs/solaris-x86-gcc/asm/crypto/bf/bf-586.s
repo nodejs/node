@@ -1,4 +1,3 @@
-.file	"bf-586.s"
 .text
 .globl	BF_encrypt
 .type	BF_encrypt,@function
