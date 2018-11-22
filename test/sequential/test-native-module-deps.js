@@ -21,8 +21,8 @@ for (const key of cachableBuiltins) {
 
 function run(key) {
   const child = fork(__filename,
-    [ '--expose-internals', key ],
-    { silent: true }
+                     [ '--expose-internals', key ],
+                     { silent: true }
   );
 
   let stdout = '';
@@ -33,10 +33,10 @@ function run(key) {
     if (code === 0) {
       return;
     }
-    console.log(`Failed to require ${key}`)
-    console.log('----- stderr ----')
+    console.log(`Failed to require ${key}`);
+    console.log('----- stderr ----');
     console.log(stderr);
-    console.log('----- stdout ----')
+    console.log('----- stdout ----');
     console.log(stdout);
     assert.strictEqual(code, 0);
   });
