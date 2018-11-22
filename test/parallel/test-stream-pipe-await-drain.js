@@ -17,7 +17,7 @@ const buffer = Buffer.allocUnsafe(560000);
 
 reader._read = () => {};
 
-writer1._write = common.mustCall((chunk, encoding, cb) => {
+writer1._write = common.mustCall(function(chunk, encoding, cb) {
   this.emit('chunk-received');
   cb();
 }, 1);
