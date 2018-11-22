@@ -47,6 +47,17 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs =
     DoubleRegister::ListOf<f0, f2, f4, f6, f8, f10, f12, f14, f16, f18, f20,
                            f22, f24, f26>();
 
+#elif V8_TARGET_ARCH_ARM
+
+// r7: cp, r10: root, r11: fp, r12: ip, r13: sp, r14: lr, r15: pc.
+constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    Register::ListOf<r0, r1, r2, r3, r4, r5, r6, r8, r9>();
+
+// d13: zero, d14-d15: scratch
+constexpr RegList kLiftoffAssemblerFpCacheRegs =
+    LowDwVfpRegister::ListOf<d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11,
+                             d12>();
+
 #elif V8_TARGET_ARCH_ARM64
 
 // x16: ip0, x17: ip1, x26: root, x27: cp, x29: fp, x30: lr, x31: xzr.

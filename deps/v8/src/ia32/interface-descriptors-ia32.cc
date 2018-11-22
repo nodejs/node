@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/interface-descriptors.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

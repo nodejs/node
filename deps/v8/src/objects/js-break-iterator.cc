@@ -15,14 +15,6 @@
 namespace v8 {
 namespace internal {
 
-JSV8BreakIterator::Type JSV8BreakIterator::getType(const char* str) {
-  if (strcmp(str, "character") == 0) return Type::CHARACTER;
-  if (strcmp(str, "word") == 0) return Type::WORD;
-  if (strcmp(str, "sentence") == 0) return Type::SENTENCE;
-  if (strcmp(str, "line") == 0) return Type::LINE;
-  UNREACHABLE();
-}
-
 MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
     Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
     Handle<Object> locales, Handle<Object> options_obj) {
@@ -56,17 +48,12 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
                           requested_locales, matcher, {});
 
   // Extract type from options
-  std::unique_ptr<char[]> type_str = nullptr;
-  std::vector<const char*> type_values = {"character", "word", "sentence",
-                                          "line"};
-  Maybe<bool> maybe_found_type = Intl::GetStringOption(
-      isolate, options, "type", type_values, "Intl.v8BreakIterator", &type_str);
-  Type type_enum = Type::WORD;
-  MAYBE_RETURN(maybe_found_type, MaybeHandle<JSV8BreakIterator>());
-  if (maybe_found_type.FromJust()) {
-    DCHECK_NOT_NULL(type_str.get());
-    type_enum = getType(type_str.get());
-  }
+  Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
+      isolate, options, "type", "Intl.v8BreakIterator",
+      {"word", "character", "sentence", "line"},
+      {Type::WORD, Type::CHARACTER, Type::SENTENCE, Type::LINE}, Type::WORD);
+  MAYBE_RETURN(maybe_type, MaybeHandle<JSV8BreakIterator>());
+  Type type_enum = maybe_type.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());

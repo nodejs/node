@@ -8,6 +8,7 @@
 #include "src/objects/js-regexp.h"
 
 #include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/smi.h"
 #include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -26,7 +27,7 @@ ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 JSRegExp::Type JSRegExp::TypeTag() {
   Object* data = this->data();
   if (data->IsUndefined()) return JSRegExp::NOT_COMPILED;
-  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
+  Smi smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi->value());
 }
 
@@ -44,7 +45,7 @@ int JSRegExp::CaptureCount() {
 JSRegExp::Flags JSRegExp::GetFlags() {
   DCHECK(this->data()->IsFixedArray());
   Object* data = this->data();
-  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kFlagsIndex));
+  Smi smi = Smi::cast(FixedArray::cast(data)->get(kFlagsIndex));
   return Flags(smi->value());
 }
 

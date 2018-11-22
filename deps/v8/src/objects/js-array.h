@@ -27,7 +27,7 @@ class JSArray : public JSObject {
 
   // Overload the length setter to skip write barrier when the length
   // is set to a smi. This matches the set function on FixedArray.
-  inline void set_length(Smi* length);
+  inline void set_length(Smi length);
 
   static bool HasReadOnlyLength(Handle<JSArray> array);
   static bool WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index);

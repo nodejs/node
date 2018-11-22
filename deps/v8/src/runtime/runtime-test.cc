@@ -13,9 +13,12 @@
 #include "src/base/platform/mutex.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/smi.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
@@ -240,8 +243,13 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
   ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
   if (args.length() == 2) {
-    CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("concurrent")) &&
+    // Ignore invalid inputs produced by fuzzers.
+    CONVERT_ARG_HANDLE_CHECKED(Object, type, 1);
+    if (!type->IsString()) {
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+    if (Handle<String>::cast(type)->IsOneByteEqualTo(
+            STATIC_CHAR_VECTOR("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -299,7 +307,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // Make the profiler arm all back edges in unoptimized code.
   if (it.frame()->type() == StackFrame::INTERPRETED) {
     isolate->runtime_profiler()->AttemptOnStackReplacement(
-        it.frame(), AbstractCode::kMaxLoopNestingMarker);
+        InterpretedFrame::cast(it.frame()),
+        AbstractCode::kMaxLoopNestingMarker);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -539,24 +548,14 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  // Hack: The argument is passed as Object* but here it's really a
-  // MaybeObject.
-  MaybeObject maybe_object(reinterpret_cast<Address>(args[0]));
+  MaybeObject maybe_object(*args.address_of_arg_at(0));
 
   StdoutStream os;
   if (maybe_object->IsCleared()) {
     os << "[weak cleared]";
   } else {
-    Object* object;
-    HeapObject* heap_object;
-    bool weak = false;
-    if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
-      weak = true;
-      object = heap_object;
-    } else {
-      // Strong reference or SMI.
-      object = maybe_object->cast<Object>();
-    }
+    Object* object = maybe_object.GetHeapObjectOrSmi();
+    bool weak = maybe_object.IsWeak();
 
 #ifdef DEBUG
     if (object->IsString() && isolate->context() != nullptr) {
@@ -930,20 +929,6 @@ RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
   return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(
-      isolate->IsTypedArraySpeciesLookupChainIntact());
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(
-      isolate->IsPromiseSpeciesLookupChainIntact());
-}
-
 RUNTIME_FUNCTION(Runtime_MapIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
@@ -1064,7 +1049,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   CONVERT_ARG_CHECKED(Smi, info_addr, 0);
 
   wasm::MemoryTracingInfo* info =
-      reinterpret_cast<wasm::MemoryTracingInfo*>(info_addr);
+      reinterpret_cast<wasm::MemoryTracingInfo*>(info_addr.ptr());
 
   // Find the caller wasm frame.
   StackTraceFrameIterator it(isolate);

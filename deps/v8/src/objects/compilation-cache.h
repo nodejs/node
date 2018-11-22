@@ -24,7 +24,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->Hash();
   }
 
-  static inline uint32_t RegExpHash(String* string, Smi* flags);
+  static inline uint32_t RegExpHash(String* string, Smi flags);
 
   static inline uint32_t StringSharedHash(String* source,
                                           SharedFunctionInfo* shared,
@@ -69,12 +69,14 @@ class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape>,
       public NeverReadOnlySpaceObject {
  public:
-  MaybeHandle<SharedFunctionInfo> LookupScript(Handle<String> src,
-                                               Handle<Context> native_context,
-                                               LanguageMode language_mode);
-  InfoCellPair LookupEval(Handle<String> src, Handle<SharedFunctionInfo> shared,
-                          Handle<Context> native_context,
-                          LanguageMode language_mode, int position);
+  static MaybeHandle<SharedFunctionInfo> LookupScript(
+      Handle<CompilationCacheTable> table, Handle<String> src,
+      Handle<Context> native_context, LanguageMode language_mode);
+  static InfoCellPair LookupEval(Handle<CompilationCacheTable> table,
+                                 Handle<String> src,
+                                 Handle<SharedFunctionInfo> shared,
+                                 Handle<Context> native_context,
+                                 LanguageMode language_mode, int position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,

@@ -61,7 +61,7 @@ class PropertyArray : public HeapObjectPtr {
 
   static const int kNoHashSentinel = 0;
 
-  OBJECT_CONSTRUCTORS(PropertyArray);
+  OBJECT_CONSTRUCTORS(PropertyArray, HeapObjectPtr);
 };
 
 }  // namespace internal

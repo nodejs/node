@@ -13,8 +13,6 @@ from subprocess import Popen, PIPE
 
 def preprocess(input):
   input = re.sub(r'(if\s+)constexpr(\s*\()', r'\1/*COxp*/\2', input)
-  input = re.sub(r'(\)\s*\:\s*\S+\s+)labels\s+',
-      r'\1,\n/*_LABELS_HOLD_*/ ', input)
   input = re.sub(r'(\s+)operator\s*(\'[^\']+\')', r'\1/*_OPE \2*/', input)
 
   # Mangle typeswitches to look like switch statements with the extra type
@@ -37,9 +35,9 @@ def preprocess(input):
     if old == input:
       break;
 
-  input = re.sub(r'\sgenerates\s+\'([^\']+)\'\s*',
+  input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
       r' _GeNeRaTeS00_/*\1@*/', input)
-  input = re.sub(r'\sconstexpr\s+\'([^\']+)\'\s*',
+  input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*',
       r' _CoNsExP_/*\1@*/', input)
   input = re.sub(r'\notherwise',
       r'\n otherwise', input)
@@ -50,7 +48,7 @@ def preprocess(input):
 def postprocess(output):
   output = re.sub(r'\/\*COxp\*\/', r'constexpr', output)
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
-  output = re.sub(r',([\n ]*)\/\*_LABELS_HOLD_\*\/', r'\1labels', output)
+  output = re.sub(r'(\n\s*)labels( [A-Z])', r'\1    labels\2', output)
   output = re.sub(r'\/\*_OPE \'([^\']+)\'\*\/', r"operator '\1'", output)
   output = re.sub(r'\/\*_TYPE\*\/(\s*)switch', r'typeswitch', output)
   output = re.sub(r'case (\w+)\:\s*\/\*_TSXDEFERRED_\*\/',
@@ -83,35 +81,58 @@ def postprocess(output):
 
   return output
 
-if len(sys.argv) < 2 or len(sys.argv) > 3:
-  print "invalid number of arguments"
-  sys.exit(-1)
+def process(filename, only_lint, use_stdout):
+  with open(filename, 'r') as content_file:
+    content = content_file.read()
 
-use_stdout = True
-lint = False
-if len(sys.argv) == 3:
+  original_input = content
+
+  p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+  output, err = p.communicate(preprocess(content))
+  output = postprocess(output)
+  rc = p.returncode
+  if (rc <> 0):
+    print "error code " + str(rc) + " running clang-format. Exiting..."
+    sys.exit(rc);
+
+  if only_lint:
+    if (output != original_input):
+      print >>sys.stderr, filename + ' requires formatting'
+  elif use_stdout:
+    print output
+  else:
+    output_file = open(filename, 'w')
+    output_file.write(output);
+    output_file.close()
+
+def print_usage():
+  print 'format-torque -i file1[, file2[, ...]]'
+  print '    format and overwrite input files'
+  print 'format-torque -l file1[, file2[, ...]]'
+  print '    merely indicate which files need formatting'
+
+def Main():
+  if len(sys.argv) < 3:
+    print "error: at least 2 arguments required"
+    print_usage();
+    sys.exit(-1)
+
+  use_stdout = True
+  lint = False
+
   if sys.argv[1] == '-i':
     use_stdout = False
-  if sys.argv[1] == '-l':
+  elif sys.argv[1] == '-l':
     lint = True
+  else:
+    print "error: -i or -l must be specified as the first argument"
+    print_usage();
+    sys.exit(-1);
 
-filename = sys.argv[len(sys.argv) - 1]
+  for filename in sys.argv[2:]:
+    process(filename, lint, use_stdout)
 
-with open(filename, 'r') as content_file:
-  content = content_file.read()
-original_input = content
-p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-output, err = p.communicate(preprocess(content))
-output = postprocess(output)
-rc = p.returncode
-if (rc <> 0):
-  sys.exit(rc);
-if lint:
-  if (output != original_input):
-    print >>sys.stderr, filename + ' requires formatting'
-elif use_stdout:
-  print output
-else:
-  output_file = open(filename, 'w')
-  output_file.write(output);
-  output_file.close()
+  return 0
+
+if __name__ == '__main__':
+  sys.exit(Main());

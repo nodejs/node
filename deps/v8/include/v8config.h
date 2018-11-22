@@ -236,6 +236,10 @@
 
 # define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
 
+# if __cplusplus >= 201402L
+#  define V8_CAN_HAVE_DCHECK_IN_CONSTEXPR 1
+# endif
+
 #elif defined(__GNUC__)
 
 # define V8_CC_GNU 1

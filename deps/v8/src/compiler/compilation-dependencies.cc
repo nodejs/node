@@ -17,6 +17,7 @@ CompilationDependencies::CompilationDependencies(Isolate* isolate, Zone* zone)
 class CompilationDependencies::Dependency : public ZoneObject {
  public:
   virtual bool IsValid() const = 0;
+  virtual void PrepareInstall() {}
   virtual void Install(const MaybeObjectHandle& code) = 0;
 };
 
@@ -68,10 +69,16 @@ class PrototypePropertyDependency final
            function->prototype() == *prototype_.object();
   }
 
-  void Install(const MaybeObjectHandle& code) override {
+  void PrepareInstall() override {
     SLOW_DCHECK(IsValid());
     Handle<JSFunction> function = function_.object();
     if (!function->has_initial_map()) JSFunction::EnsureHasInitialMap(function);
+  }
+
+  void Install(const MaybeObjectHandle& code) override {
+    SLOW_DCHECK(IsValid());
+    Handle<JSFunction> function = function_.object();
+    DCHECK(function->has_initial_map());
     Handle<Map> initial_map(function->initial_map(), function_.isolate());
     DependentCode::InstallDependency(function_.isolate(), code, initial_map,
                                      DependentCode::kInitialMapChangedGroup);
@@ -196,6 +203,15 @@ class GlobalPropertyDependency final
 
   bool IsValid() const override {
     Handle<PropertyCell> cell = cell_.object();
+    // The dependency is never valid if the cell is 'invalidated'. This is
+    // marked by setting the value to the hole.
+    if (cell->value() == *(cell_.isolate()->factory()->the_hole_value())) {
+      DCHECK(cell->property_details().cell_type() ==
+                 PropertyCellType::kInvalidated ||
+             cell->property_details().cell_type() ==
+                 PropertyCellType::kUninitialized);
+      return false;
+    }
     return type_ == cell->property_details().cell_type() &&
            read_only_ == cell->property_details().IsReadOnly();
   }
@@ -282,10 +298,16 @@ class InitialMapInstanceSizePredictionDependency final
     return instance_size == instance_size_;
   }
 
-  void Install(const MaybeObjectHandle& code) override {
-    DCHECK(IsValid());
-    // Finish the slack tracking.
+  void PrepareInstall() override {
+    SLOW_DCHECK(IsValid());
     function_.object()->CompleteInobjectSlackTrackingIfActive();
+  }
+
+  void Install(const MaybeObjectHandle& code) override {
+    SLOW_DCHECK(IsValid());
+    DCHECK(!function_.object()
+                ->initial_map()
+                ->IsInobjectSlackTrackingInProgress());
   }
 
  private:
@@ -373,22 +395,29 @@ bool CompilationDependencies::AreValid() const {
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {
-  // Check validity of all dependencies first, such that we can avoid installing
-  // anything when there's already an invalid dependency.
-  if (!AreValid()) {
-    dependencies_.clear();
-    return false;
+  for (auto dep : dependencies_) {
+    if (!dep->IsValid()) {
+      dependencies_.clear();
+      return false;
+    }
+    dep->PrepareInstall();
   }
 
+  DisallowCodeDependencyChange no_dependency_change;
   for (auto dep : dependencies_) {
     // Check each dependency's validity again right before installing it,
-    // because a GC can trigger invalidation for some dependency kinds.
+    // because the first iteration above might have invalidated some
+    // dependencies. For example, PrototypePropertyDependency::PrepareInstall
+    // can call EnsureHasInitialMap, which can invalidate a StableMapDependency
+    // on the prototype object's map.
     if (!dep->IsValid()) {
       dependencies_.clear();
       return false;
     }
     dep->Install(MaybeObjectHandle::Weak(code));
   }
+  SLOW_DCHECK(AreValid());
+
   dependencies_.clear();
   return true;
 }

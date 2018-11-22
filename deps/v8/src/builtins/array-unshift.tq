@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   extern builtin ArrayUnshift(Context, JSFunction, Object, int32);
 
   macro TryFastArrayUnshift(
-      context: Context, receiver: Object, arguments: constexpr Arguments):
-      never
+      context: Context, receiver: Object, arguments: constexpr Arguments): never
       labels Slow {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
     EnsureWriteableFastElements(array);

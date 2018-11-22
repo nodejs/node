@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --invoke-weak-callbacks --omit-quit --wasm-async-compilation --expose-wasm --allow-natives-syntax
+// Flags: --invoke-weak-callbacks --omit-quit --expose-wasm --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");

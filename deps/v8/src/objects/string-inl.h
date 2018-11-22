@@ -11,6 +11,7 @@
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/smi-inl.h"
 #include "src/string-hasher-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -49,7 +50,7 @@ StringShape::StringShape(const String* str)
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
-StringShape::StringShape(Map* map) : type_(map->instance_type()) {
+StringShape::StringShape(Map map) : type_(map->instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }

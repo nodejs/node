@@ -14,14 +14,13 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/compiler.h"
-#include "src/compiler/code-generator.h"
+#include "src/compiler/backend/code-generator.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/instruction-selector.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -32,6 +31,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
 #include "src/compiler/zone-stats.h"
+#include "src/counters.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
@@ -81,22 +81,33 @@ MachineType assert_size(int expected_size, MachineType type) {
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
   wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
-#define LOAD_INSTANCE_FIELD(name, type)                                      \
-  SetEffect(graph()->NewNode(                                                \
-      mcgraph()->machine()->Load(                                            \
-          assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type)),               \
-      instance_node_.get(),                                                  \
-      mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(name)), Effect(), \
-      Control()))
+#define LOAD_RAW(base_pointer, byte_offset, type)                             \
+  SetEffect(graph()->NewNode(mcgraph()->machine()->Load(type), base_pointer,  \
+                             mcgraph()->Int32Constant(byte_offset), Effect(), \
+                             Control()))
 
-#define LOAD_TAGGED_POINTER(base_pointer, byte_offset)                        \
-  SetEffect(graph()->NewNode(                                                 \
-      mcgraph()->machine()->Load(MachineType::TaggedPointer()), base_pointer, \
-      mcgraph()->Int32Constant(byte_offset), Effect(), Control()))
+#define LOAD_INSTANCE_FIELD(name, type)                             \
+  LOAD_RAW(instance_node_.get(), WASM_INSTANCE_OBJECT_OFFSET(name), \
+           assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type))
 
-#define LOAD_FIXED_ARRAY_SLOT(array_node, index) \
-  LOAD_TAGGED_POINTER(                           \
-      array_node, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index))
+#define LOAD_TAGGED_POINTER(base_pointer, byte_offset) \
+  LOAD_RAW(base_pointer, byte_offset, MachineType::TaggedPointer())
+
+#define LOAD_TAGGED_ANY(base_pointer, byte_offset) \
+  LOAD_RAW(base_pointer, byte_offset, MachineType::AnyTagged())
+
+#define LOAD_FIXED_ARRAY_SLOT(array_node, index, type) \
+  LOAD_RAW(array_node,                                 \
+           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index), type)
+
+#define LOAD_FIXED_ARRAY_SLOT_SMI(array_node, index) \
+  LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::TaggedSigned())
+
+#define LOAD_FIXED_ARRAY_SLOT_PTR(array_node, index) \
+  LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::TaggedPointer())
+
+#define LOAD_FIXED_ARRAY_SLOT_ANY(array_node, index) \
+  LOAD_FIXED_ARRAY_SLOT(array_node, index, MachineType::AnyTagged())
 
 // This can be used to store tagged Smi values only.
 #define STORE_FIXED_ARRAY_SLOT_SMI(array_node, index, value)           \
@@ -2179,11 +2190,11 @@ Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* values_array,
                                                        uint32_t* index) {
   MachineOperatorBuilder* machine = mcgraph()->machine();
   Node* upper =
-      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT(values_array, *index));
+      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT_SMI(values_array, *index));
   (*index)++;
   upper = graph()->NewNode(machine->Word32Shl(), upper, Int32Constant(16));
   Node* lower =
-      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT(values_array, *index));
+      BuildChangeSmiToInt32(LOAD_FIXED_ARRAY_SLOT_SMI(values_array, *index));
   (*index)++;
   Node* value = graph()->NewNode(machine->Word32Or(), upper, lower);
   return value;
@@ -2223,7 +2234,7 @@ Node* WasmGraphBuilder::ExceptionTagEqual(Node* caught_tag,
 Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
   Node* exceptions_table =
       LOAD_INSTANCE_FIELD(ExceptionsTable, MachineType::TaggedPointer());
-  Node* tag = LOAD_FIXED_ARRAY_SLOT(exceptions_table, exception_index);
+  Node* tag = LOAD_FIXED_ARRAY_SLOT_PTR(exceptions_table, exception_index);
   return tag;
 }
 
@@ -2259,7 +2270,7 @@ Node** WasmGraphBuilder::GetExceptionValues(
         break;
       }
       case wasm::kWasmAnyRef:
-        value = LOAD_FIXED_ARRAY_SLOT(values_array, index);
+        value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;
       default:
@@ -2659,7 +2670,8 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
   // Load the imported function refs array from the instance.
   Node* imported_function_refs =
       LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
-  Node* ref_node = LOAD_FIXED_ARRAY_SLOT(imported_function_refs, func_index);
+  Node* ref_node =
+      LOAD_FIXED_ARRAY_SLOT_PTR(imported_function_refs, func_index);
 
   // Load the target from the imported_targets array at a known offset.
   Node* imported_targets =
@@ -4053,6 +4065,55 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   }
     ATOMIC_STORE_LIST(BUILD_ATOMIC_STORE_OP)
 #undef BUILD_ATOMIC_STORE_OP
+    case wasm::kExprAtomicWake: {
+      Node* index = CheckBoundsAndAlignment(
+          wasm::ValueTypes::MemSize(MachineType::Uint32()), inputs[0], offset,
+          position);
+      // Now that we've bounds-checked, compute the effective address.
+      Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
+                                       Uint32Constant(offset), index);
+      WasmAtomicWakeDescriptor interface_descriptor;
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), interface_descriptor,
+          interface_descriptor.GetStackParameterCount(),
+          CallDescriptor::kNoFlags, Operator::kNoProperties,
+          StubCallMode::kCallWasmRuntimeStub);
+      Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+          wasm::WasmCode::kWasmAtomicWake, RelocInfo::WASM_STUB_CALL);
+      node = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
+                              call_target, address, inputs[1], Effect(),
+                              Control());
+      break;
+    }
+
+    case wasm::kExprI32AtomicWait: {
+      Node* index = CheckBoundsAndAlignment(
+          wasm::ValueTypes::MemSize(MachineType::Uint32()), inputs[0], offset,
+          position);
+      // Now that we've bounds-checked, compute the effective address.
+      Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),
+                                       Uint32Constant(offset), index);
+      Node* timeout;
+      if (mcgraph()->machine()->Is32()) {
+        timeout = BuildF64SConvertI64(inputs[2]);
+      } else {
+        timeout = graph()->NewNode(mcgraph()->machine()->RoundInt64ToFloat64(),
+                                   inputs[2]);
+      }
+      WasmI32AtomicWaitDescriptor interface_descriptor;
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), interface_descriptor,
+          interface_descriptor.GetStackParameterCount(),
+          CallDescriptor::kNoFlags, Operator::kNoProperties,
+          StubCallMode::kCallWasmRuntimeStub);
+      Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+          wasm::WasmCode::kWasmI32AtomicWait, RelocInfo::WASM_STUB_CALL);
+      node = graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
+                              call_target, address, inputs[1], timeout,
+                              Effect(), Control());
+      break;
+    }
+
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }
@@ -4118,11 +4179,10 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
-  WasmWrapperGraphBuilder(Zone* zone, wasm::CompilationEnv* env,
-                          JSGraph* jsgraph, wasm::FunctionSig* sig,
+  WasmWrapperGraphBuilder(Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode)
-      : WasmGraphBuilder(env, zone, jsgraph, sig, spt),
+      : WasmGraphBuilder(nullptr, zone, jsgraph, sig, spt),
         isolate_(jsgraph->isolate()),
         jsgraph_(jsgraph),
         stub_mode_(stub_mode) {}
@@ -4615,7 +4675,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = callable_node;  // target callable.
         // Receiver.
         if (sloppy_receiver) {
-          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT(
+          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT_PTR(
               native_context, Context::GLOBAL_PROXY_INDEX);
           args[pos++] = global_proxy;
         } else {
@@ -4678,7 +4738,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         // Receiver.
         if (sloppy_receiver) {
-          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT(
+          Node* global_proxy = LOAD_FIXED_ARRAY_SLOT_PTR(
               native_context, Context::GLOBAL_PROXY_INDEX);
           args[pos++] = global_proxy;
         } else {
@@ -4935,9 +4995,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  wasm::CompilationEnv env(nullptr, wasm::kNoTrapHandler,
-                           wasm::kRuntimeExceptionSupport);
-  WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -4955,7 +5013,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
       isolate, incoming, &graph, Code::JS_TO_WASM_FUNCTION, debug_name,
       WasmAssemblerOptions());
   Handle<Code> code;
@@ -5018,10 +5076,11 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
   return WasmImportCallKind::kUseCallBuiltin;
 }
 
-MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
-                                               WasmImportCallKind kind,
-                                               wasm::FunctionSig* sig,
-                                               bool source_positions) {
+wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
+                                             wasm::NativeModule* native_module,
+                                             WasmImportCallKind kind,
+                                             wasm::FunctionSig* sig,
+                                             bool source_positions) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -5045,11 +5104,7 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
   SourcePositionTable* source_position_table =
       source_positions ? new (&zone) SourcePositionTable(&graph) : nullptr;
 
-  wasm::CompilationEnv env(nullptr, wasm::kNoTrapHandler,
-                           wasm::kRuntimeExceptionSupport);
-
-  WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig,
-                                  source_position_table,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, source_position_table,
                                   StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -5064,32 +5119,19 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate* isolate,
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
-      isolate, incoming, &graph, Code::WASM_TO_JS_FUNCTION, func_name,
-      AssemblerOptions::Default(isolate), source_position_table);
-  Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
-    return maybe_code;
-  }
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    code->Disassemble(func_name, os);
-  }
-#endif
+  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+      isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
+      wasm::WasmCode::kWasmToJsWrapper, func_name,
+      AssemblerOptions::Default(isolate), native_module, source_position_table);
+  CHECK_NOT_NULL(wasm_code);
 
-  if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code, "%s",
-                              func_name);
-  }
-
-  return code;
+  return wasm_code;
 }
 
-MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
-                                              uint32_t func_index,
-                                              wasm::FunctionSig* sig) {
+wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
+                                            wasm::NativeModule* native_module,
+                                            uint32_t func_index,
+                                            wasm::FunctionSig* sig) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -5105,7 +5147,7 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -5121,27 +5163,13 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
   func_name.Truncate(
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
-      isolate, incoming, &graph, Code::WASM_INTERPRETER_ENTRY,
-      func_name.start(), AssemblerOptions::Default(isolate));
-  Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
-    return maybe_code;
-  }
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    code->Disassemble(func_name.start(), os);
-  }
-#endif
+  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+      isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
+      wasm::WasmCode::kInterpreterEntry, func_name.start(),
+      AssemblerOptions::Default(isolate), native_module);
+  CHECK_NOT_NULL(wasm_code);
 
-  if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
-                              "%.*s", func_name.length(), func_name.start());
-  }
-
-  return maybe_code;
+  return wasm_code;
 }
 
 MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
@@ -5157,7 +5185,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, nullptr, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -5173,7 +5201,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   char debug_name[kMaxNameLen] = "c-wasm-entry:";
   AppendSignature(debug_name, kMaxNameLen, sig);
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
       isolate, incoming, &graph, Code::C_WASM_ENTRY, debug_name,
       AssemblerOptions::Default(isolate));
   Handle<Code> code;
@@ -5199,21 +5227,21 @@ TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
 TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
 
 bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
-    wasm::CompilationEnv* env, wasm::WasmFeatures* detected, double* decode_ms,
-    MachineGraph* mcgraph, NodeOriginTable* node_origins,
-    SourcePositionTable* source_positions) {
+    wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
+    wasm::WasmFeatures* detected, double* decode_ms, MachineGraph* mcgraph,
+    NodeOriginTable* node_origins, SourcePositionTable* source_positions) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
   }
 
   // Create a TF graph during decoding.
-  WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph,
-                           wasm_unit_->func_body_.sig, source_positions);
+  WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
+                           source_positions);
   wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
       wasm_unit_->wasm_engine_->allocator(),
       wasm_unit_->native_module_->enabled_features(), env->module, &builder,
-      detected, wasm_unit_->func_body_, node_origins);
+      detected, func_body, node_origins);
   if (graph_construction_result.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "
@@ -5228,16 +5256,15 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (builder.has_simd() &&
       (!CpuFeatures::SupportsWasmSimd128() || env->lower_simd)) {
-    SimdScalarLowering(
-        mcgraph,
-        CreateMachineSignature(mcgraph->zone(), wasm_unit_->func_body_.sig))
+    SimdScalarLowering(mcgraph,
+                       CreateMachineSignature(mcgraph->zone(), func_body.sig))
         .LowerGraph();
   }
 
   if (wasm_unit_->func_index_ >= FLAG_trace_wasm_ast_start &&
       wasm_unit_->func_index_ < FLAG_trace_wasm_ast_end) {
-    PrintRawWasmCode(wasm_unit_->wasm_engine_->allocator(),
-                     wasm_unit_->func_body_, env->module, wasm::kPrintLocals);
+    PrintRawWasmCode(wasm_unit_->wasm_engine_->allocator(), func_body,
+                     env->module, wasm::kPrintLocals);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
@@ -5261,8 +5288,8 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
 }  // namespace
 
 void TurbofanWasmCompilationUnit::ExecuteCompilation(
-    wasm::CompilationEnv* env, Counters* counters,
-    wasm::WasmFeatures* detected) {
+    wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
+    Counters* counters, wasm::WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteTurbofanCompilation");
   double decode_ms = 0;
@@ -5293,7 +5320,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
                                       : nullptr;
   SourcePositionTable* source_positions =
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
-  if (!BuildGraphForWasmFunction(env, detected, &decode_ms, mcgraph,
+  if (!BuildGraphForWasmFunction(env, func_body, detected, &decode_ms, mcgraph,
                                  node_origins, source_positions)) {
     // Compilation failed.
     return;
@@ -5310,27 +5337,24 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
   }
 
   // Run the compiler pipeline to generate machine code.
-  auto call_descriptor =
-      GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
+  auto call_descriptor = GetWasmCallDescriptor(&zone, func_body.sig);
   if (mcgraph->machine()->Is32()) {
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
-  std::unique_ptr<OptimizedCompilationJob> job(Pipeline::NewWasmCompilationJob(
-      &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
-      source_positions, node_origins, wasm_unit_->func_body_,
-      wasm_unit_->native_module_, wasm_unit_->func_index_));
-  if (job->ExecuteJob() == CompilationJob::SUCCEEDED) {
-    wasm_unit_->SetResult(info.wasm_code(), counters);
+  if (wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmFunction(
+          &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
+          source_positions, node_origins, func_body, wasm_unit_->native_module_,
+          wasm_unit_->func_index_)) {
+    wasm_unit_->SetResult(wasm_code, counters);
   }
   if (FLAG_trace_wasm_decode_time) {
     double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
     PrintF(
         "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
         "%0.3f ms pipeline\n",
-        static_cast<unsigned>(wasm_unit_->func_body_.end -
-                              wasm_unit_->func_body_.start),
-        decode_ms, node_count, pipeline_ms);
+        static_cast<unsigned>(func_body.end - func_body.start), decode_ms,
+        node_count, pipeline_ms);
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
   counters->wasm_compile_function_peak_memory_bytes()->AddSample(
@@ -5539,9 +5563,14 @@ AssemblerOptions WasmAssemblerOptions() {
 #undef FATAL_UNSUPPORTED_OPCODE
 #undef WASM_INSTANCE_OBJECT_SIZE
 #undef WASM_INSTANCE_OBJECT_OFFSET
+#undef LOAD_RAW
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_TAGGED_POINTER
+#undef LOAD_TAGGED_ANY
 #undef LOAD_FIXED_ARRAY_SLOT
+#undef LOAD_FIXED_ARRAY_SLOT_SMI
+#undef LOAD_FIXED_ARRAY_SLOT_PTR
+#undef LOAD_FIXED_ARRAY_SLOT_ANY
 #undef STORE_FIXED_ARRAY_SLOT_SMI
 #undef STORE_FIXED_ARRAY_SLOT_ANY
 

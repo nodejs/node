@@ -158,6 +158,7 @@ TEST(JumpTablePatchingStress) {
   byte* buffer = AllocateAssemblerBuffer(
       &allocated,
       JumpTableAssembler::SizeForNumberOfSlots(kJumpTableSlotCount));
+  MakeAssemblerBufferWritableAndExecutable(buffer, allocated);
 
   // Iterate through jump-table slots to hammer at different alignments within
   // the jump-table, thereby increasing stress for variable-length ISAs.

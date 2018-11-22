@@ -131,7 +131,6 @@ class Variable final : public ZoneObject {
     return kind() != SLOPPY_FUNCTION_NAME_VARIABLE || is_strict(language_mode);
   }
 
-  bool is_function() const { return kind() == FUNCTION_VARIABLE; }
   bool is_this() const { return kind() == THIS_VARIABLE; }
   bool is_sloppy_function_name() const {
     return kind() == SLOPPY_FUNCTION_NAME_VARIABLE;

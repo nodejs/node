@@ -2256,22 +2256,22 @@ IS_UNOP_MATCHER(TaggedPoisonOnSpeculation)
 // Special-case Bitcast operators which are disabled when ENABLE_VERIFY_CSA is
 // not enabled.
 Matcher<Node*> IsBitcastTaggedToWord(const Matcher<Node*>& input_matcher) {
-#ifdef ENABLE_VERIFY_CSA
-  return MakeMatcher(
-      new IsUnopMatcher(IrOpcode::kBitcastTaggedToWord, input_matcher));
-#else
-  return input_matcher;
-#endif
+  if (FLAG_verify_csa || FLAG_optimize_csa) {
+    return MakeMatcher(
+        new IsUnopMatcher(IrOpcode::kBitcastTaggedToWord, input_matcher));
+  } else {
+    return input_matcher;
+  }
 }
 
 Matcher<Node*> IsBitcastWordToTaggedSigned(
     const Matcher<Node*>& input_matcher) {
-#ifdef ENABLE_VERIFY_CSA
-  return MakeMatcher(
-      new IsUnopMatcher(IrOpcode::kBitcastWordToTaggedSigned, input_matcher));
-#else
-  return input_matcher;
-#endif
+  if (FLAG_verify_csa || FLAG_optimize_csa) {
+    return MakeMatcher(
+        new IsUnopMatcher(IrOpcode::kBitcastWordToTaggedSigned, input_matcher));
+  } else {
+    return input_matcher;
+  }
 }
 
 #undef LOAD_MATCHER

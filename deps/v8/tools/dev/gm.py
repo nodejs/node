@@ -10,10 +10,10 @@ Uses Goma by default if it is detected (at output directory setup time).
 Expects to be run from the root of a V8 checkout.
 
 Usage:
-    gm.py [<arch>].[<mode>].[<target>] [testname...]
+    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...]
 
 All arguments are optional. Most combinations should work, e.g.:
-    gm.py ia32.debug x64.release d8
+    gm.py ia32.debug x64.release x64.release-my-custom-opts d8
     gm.py android_arm.release.check
     gm.py x64 mjsunit/foo cctest/test-bar/*
 """
@@ -236,7 +236,9 @@ class Config(object):
     return ""
 
   def GetGnArgs(self):
-    template = ARGS_TEMPLATES[self.mode]
+    # Use only substring before first '-' as the actual mode
+    mode = re.match("([^-]+)", self.mode).group(1)
+    template = ARGS_TEMPLATES[mode]
     arch_specific = (self.GetTargetCpu() + self.GetV8TargetCpu() +
                      self.GetTargetOS())
     return template % arch_specific
@@ -364,6 +366,8 @@ class ArgumentParser(object):
         targets.append(word)
       elif word in ACTIONS:
         actions.append(word)
+      elif any(map(lambda x: word.startswith(x + "-"), MODES)):
+        modes.append(word)
       else:
         print("Didn't understand: %s" % word)
         sys.exit(1)

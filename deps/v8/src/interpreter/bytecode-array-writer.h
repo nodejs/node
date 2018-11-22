@@ -45,6 +45,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
                                         int parameter_count,
                                         Handle<ByteArray> handler_table);
 
+  bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }
+
  private:
   // Maximum sized packed bytecode is comprised of a prefix bytecode,
   // plus the actual bytecode, plus the maximum number of operands times

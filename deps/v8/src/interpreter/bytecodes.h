@@ -255,8 +255,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kFlag8)                                    \
   V(CreateArrayFromIterable, AccumulatorUse::kReadWrite)                       \
   V(CreateEmptyArrayLiteral, AccumulatorUse::kWrite, OperandType::kIdx)        \
-  V(CreateObjectLiteral, AccumulatorUse::kNone, OperandType::kIdx,             \
-    OperandType::kIdx, OperandType::kFlag8, OperandType::kRegOut)              \
+  V(CreateObjectLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
+    OperandType::kIdx, OperandType::kFlag8)                                    \
   V(CreateEmptyObjectLiteral, AccumulatorUse::kWrite)                          \
   V(CloneObject, AccumulatorUse::kWrite, OperandType::kReg,                    \
     OperandType::kFlag8, OperandType::kIdx)                                    \

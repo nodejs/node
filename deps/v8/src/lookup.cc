@@ -5,6 +5,7 @@
 #include "src/lookup.h"
 
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/field-type.h"
@@ -148,7 +149,7 @@ void LookupIterator::Start() {
   holder_ = initial_holder_;
 
   JSReceiver* holder = *holder_;
-  Map* map = holder->map();
+  Map map = holder->map();
 
   state_ = LookupInHolder<is_element>(map, holder);
   if (IsFound()) return;
@@ -166,7 +167,7 @@ void LookupIterator::Next() {
   has_property_ = false;
 
   JSReceiver* holder = *holder_;
-  Map* map = holder->map();
+  Map map = holder->map();
 
   if (map->IsSpecialReceiverMap()) {
     state_ = IsElement() ? LookupInSpecialHolder<true>(map, holder)
@@ -179,7 +180,7 @@ void LookupIterator::Next() {
 }
 
 template <bool is_element>
-void LookupIterator::NextInternal(Map* map, JSReceiver* holder) {
+void LookupIterator::NextInternal(Map map, JSReceiver* holder) {
   do {
     JSReceiver* maybe_holder = NextHolder(map);
     if (maybe_holder == nullptr) {
@@ -278,9 +279,11 @@ void LookupIterator::InternalUpdateProtector() {
   ReadOnlyRoots roots(heap());
   if (*name_ == roots.constructor_string()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact() &&
-        !isolate_->IsPromiseSpeciesLookupChainIntact())
+        !isolate_->IsPromiseSpeciesLookupChainIntact() &&
+        !isolate_->IsRegExpSpeciesLookupChainIntact() &&
+        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
       return;
+    }
     // Setting the constructor property could change an instance's @@species
     if (holder_->IsJSArray()) {
       if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
@@ -292,6 +295,10 @@ void LookupIterator::InternalUpdateProtector() {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
       isolate_->InvalidatePromiseSpeciesProtector();
       return;
+    } else if (holder_->IsJSRegExp()) {
+      if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
+      isolate_->InvalidateRegExpSpeciesProtector();
+      return;
     } else if (holder_->IsJSTypedArray()) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();
@@ -299,9 +306,8 @@ void LookupIterator::InternalUpdateProtector() {
     }
     if (holder_->map()->is_prototype_map()) {
       DisallowHeapAllocation no_gc;
-      // Setting the constructor of Array.prototype, Promise.prototype or
-      // %TypedArray%.prototype of any realm also needs to invalidate the
-      // @@species protector.
+      // Setting the constructor of any prototype with the @@species protector
+      // (of any realm) also needs to invalidate the protector.
       // For typed arrays, we check a prototype of this holder since TypedArrays
       // have different prototypes for each type, and their parent prototype is
       // pointing the same TYPED_ARRAY_PROTOTYPE.
@@ -315,6 +321,10 @@ void LookupIterator::InternalUpdateProtector() {
                                           Context::PROMISE_PROTOTYPE_INDEX)) {
         if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
         isolate_->InvalidatePromiseSpeciesProtector();
+      } else if (isolate_->IsInAnyContext(*holder_,
+                                          Context::REGEXP_PROTOTYPE_INDEX)) {
+        if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
+        isolate_->InvalidateRegExpSpeciesProtector();
       } else if (isolate_->IsInAnyContext(
                      holder_->map()->prototype(),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
@@ -347,9 +357,11 @@ void LookupIterator::InternalUpdateProtector() {
     }
   } else if (*name_ == roots.species_symbol()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact() &&
-        !isolate_->IsPromiseSpeciesLookupChainIntact())
+        !isolate_->IsPromiseSpeciesLookupChainIntact() &&
+        !isolate_->IsRegExpSpeciesLookupChainIntact() &&
+        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
       return;
+    }
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector
     if (isolate_->IsInAnyContext(*holder_, Context::ARRAY_FUNCTION_INDEX)) {
@@ -361,6 +373,10 @@ void LookupIterator::InternalUpdateProtector() {
                                         Context::PROMISE_FUNCTION_INDEX)) {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
       isolate_->InvalidatePromiseSpeciesProtector();
+    } else if (isolate_->IsInAnyContext(*holder_,
+                                        Context::REGEXP_FUNCTION_INDEX)) {
+      if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
+      isolate_->InvalidateRegExpSpeciesProtector();
     } else if (IsTypedArrayFunctionInAnyContext(isolate_, *holder_)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();
@@ -497,7 +513,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
 
-  // Property details can never change for private fields.
+  // Property details can never change for private properties.
   if (holder->IsJSProxy()) {
     DCHECK(name()->IsPrivate());
     return;
@@ -700,7 +716,7 @@ void LookupIterator::Delete() {
     ElementsAccessor* accessor = object->GetElementsAccessor();
     accessor->Delete(object, number_);
   } else {
-    DCHECK(!name()->IsPrivateField());
+    DCHECK(!name()->IsPrivateName());
     bool is_prototype_map = holder->map()->is_prototype_map();
     RuntimeCallTimerScope stats_scope(
         isolate_, is_prototype_map
@@ -955,7 +971,7 @@ Handle<Map> LookupIterator::GetFieldOwnerMap() const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement());
-  Map* holder_map = holder_->map();
+  Map holder_map = holder_->map();
   return handle(holder_map->FindFieldOwner(isolate(), descriptor_number()),
                 isolate_);
 }
@@ -1050,7 +1066,7 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
   return interceptor_state_ == InterceptorState::kProcessNonMasking;
 }
 
-JSReceiver* LookupIterator::NextHolder(Map* map) {
+JSReceiver* LookupIterator::NextHolder(Map map) {
   DisallowHeapAllocation no_gc;
   if (map->prototype() == ReadOnlyRoots(heap()).null_value()) return nullptr;
   if (!check_prototype_chain() && !map->has_hidden_prototype()) return nullptr;
@@ -1064,15 +1080,13 @@ LookupIterator::State LookupIterator::NotFound(JSReceiver* const holder) const {
   Handle<String> name_string = Handle<String>::cast(name_);
   if (name_string->length() == 0) return NOT_FOUND;
 
-  return IsSpecialIndex(isolate_->unicode_cache(), *name_string)
-             ? INTEGER_INDEXED_EXOTIC
-             : NOT_FOUND;
+  return IsSpecialIndex(*name_string) ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
 }
 
 namespace {
 
 template <bool is_element>
-bool HasInterceptor(Map* map) {
+bool HasInterceptor(Map map) {
   return is_element ? map->has_indexed_interceptor()
                     : map->has_named_interceptor();
 }
@@ -1081,7 +1095,7 @@ bool HasInterceptor(Map* map) {
 
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInSpecialHolder(
-    Map* const map, JSReceiver* const holder) {
+    Map const map, JSReceiver* const holder) {
   STATIC_ASSERT(INTERCEPTOR == BEFORE_PROPERTY);
   switch (state_) {
     case NOT_FOUND:
@@ -1130,7 +1144,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
 
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInRegularHolder(
-    Map* const map, JSReceiver* const holder) {
+    Map const map, JSReceiver* const holder) {
   DisallowHeapAllocation no_gc;
   if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
     return NOT_FOUND;

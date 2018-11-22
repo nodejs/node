@@ -202,8 +202,9 @@ class InjectedScript final {
   v8::Local<v8::Object> commandLineAPI();
   void unbindObject(int id);
 
-  void bindRemoteObjectIfNeeded(v8::Local<v8::Value>, const String16& groupName,
-                                protocol::Runtime::RemoteObject* remoteObject);
+  static Response bindRemoteObjectIfNeeded(
+      int sessionId, v8::Local<v8::Context> context, v8::Local<v8::Value>,
+      const String16& groupName, protocol::Runtime::RemoteObject* remoteObject);
 
   class ProtocolPromiseHandler;
   void discardEvaluateCallbacks();

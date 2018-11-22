@@ -18,6 +18,8 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure)
     : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
+  DCHECK(shared->is_compiled());
+  bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
@@ -77,8 +79,10 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       MarkAsSourcePositionsEnabled();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
       break;
-    default:
+    case Code::WASM_FUNCTION:
       SetFlag(kSwitchJumpTableEnabled);
+      break;
+    default:
       break;
   }
 }
@@ -104,6 +108,9 @@ void OptimizedCompilationInfo::set_deferred_handles(
 void OptimizedCompilationInfo::ReopenHandlesInNewHandleScope(Isolate* isolate) {
   if (!shared_info_.is_null()) {
     shared_info_ = Handle<SharedFunctionInfo>(*shared_info_, isolate);
+  }
+  if (!bytecode_array_.is_null()) {
+    bytecode_array_ = Handle<BytecodeArray>(*bytecode_array_, isolate);
   }
   if (!closure_.is_null()) {
     closure_ = Handle<JSFunction>(*closure_, isolate);
@@ -167,9 +174,11 @@ JSGlobalObject* OptimizedCompilationInfo::global_object() const {
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(
-    Handle<SharedFunctionInfo> inlined_function, SourcePosition pos) {
+    Handle<SharedFunctionInfo> inlined_function,
+    Handle<BytecodeArray> inlined_bytecode, SourcePosition pos) {
   int id = static_cast<int>(inlined_functions_.size());
-  inlined_functions_.push_back(InlinedFunctionHolder(inlined_function, pos));
+  inlined_functions_.push_back(
+      InlinedFunctionHolder(inlined_function, inlined_bytecode, pos));
   return id;
 }
 

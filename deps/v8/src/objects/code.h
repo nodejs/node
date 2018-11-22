@@ -8,6 +8,7 @@
 #include "src/handler-table.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -25,8 +26,9 @@ class Register;
 }
 
 // Code describes objects with on-the-fly generated machine code.
-class Code : public HeapObject, public NeverReadOnlySpaceObject {
+class Code : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
   typedef uint32_t Flags;
@@ -74,7 +76,9 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
-  void InvalidateEmbeddedObjects(Heap* heap);
+
+  // This function should be called only from GC.
+  void ClearEmbeddedObjects(Heap* heap);
 
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
@@ -162,9 +166,15 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   inline void set_handler_table_offset(int offset);
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
-  // the code is going to be deoptimized because of dead embedded maps.
+  // the code is going to be deoptimized.
   inline bool marked_for_deoptimization() const;
   inline void set_marked_for_deoptimization(bool flag);
+
+  // [embedded_objects_cleared]: For kind OPTIMIZED_FUNCTION tells whether
+  // the embedded objects in the code marked for deoptimization were cleared.
+  // Note that embedded_objects_cleared() implies marked_for_deoptimization().
+  inline bool embedded_objects_cleared() const;
+  inline void set_embedded_objects_cleared(bool flag);
 
   // [deopt_already_counted]: For kind OPTIMIZED_FUNCTION tells whether
   // the code was already deoptimized.
@@ -212,7 +222,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
                                bool is_off_heap_trampoline);
 
   // Convert a target address into a code object.
-  static inline Code* GetCodeFromTargetAddress(Address address);
+  static inline Code GetCodeFromTargetAddress(Address address);
 
   // Convert an entry address into an object.
   static inline Object* GetObjectFromEntryAddress(Address location_of_address);
@@ -327,7 +337,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // the layout of the code object into account.
   inline int ExecutableSize() const;
 
-  DECL_CAST(Code)
+  DECL_CAST2(Code)
 
   // Dispatched behavior.
   inline int CodeSize() const;
@@ -352,26 +362,14 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
 
   inline bool CanContainWeakObjects();
 
-  inline bool IsWeakObject(Object* object);
+  inline bool IsWeakObject(HeapObject* object);
 
-  static inline bool IsWeakObjectInOptimizedCode(Object* object);
+  static inline bool IsWeakObjectInOptimizedCode(HeapObject* object);
 
   // Return true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo* sfi);
 
-  class OptimizedCodeIterator {
-   public:
-    explicit OptimizedCodeIterator(Isolate* isolate);
-    Code* Next();
-
-   private:
-    Context* next_context_;
-    Code* current_code_;
-    Isolate* isolate_;
-
-    DISALLOW_HEAP_ALLOCATION(no_gc);
-    DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
-  };
+  class OptimizedCodeIterator;
 
   static const int kConstantPoolSize =
       FLAG_enable_embedded_constant_pool ? kIntSize : 0;
@@ -426,6 +424,7 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
 #define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
   V(MarkedForDeoptimizationField, bool, 1, _)     \
+  V(EmbeddedObjectsClearedField, bool, 1, _)      \
   V(DeoptAlreadyCountedField, bool, 1, _)         \
   V(CanHaveWeakObjectsField, bool, 1, _)          \
   V(IsConstructStubField, bool, 1, _)             \
@@ -449,7 +448,21 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
+  OBJECT_CONSTRUCTORS(Code, HeapObjectPtr);
+};
+
+class Code::OptimizedCodeIterator {
+ public:
+  explicit OptimizedCodeIterator(Isolate* isolate);
+  Code Next();
+
+ private:
+  Context* next_context_;
+  Code current_code_;
+  Isolate* isolate_;
+
+  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
 };
 
 // CodeDataContainer is a container for all mutable fields associated with its
@@ -552,7 +565,7 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
   inline int ExecutableSize();
 
   DECL_CAST(AbstractCode)
-  inline Code* GetCode();
+  inline Code GetCode();
   inline BytecodeArray* GetBytecodeArray();
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
@@ -826,24 +839,24 @@ class DeoptimizationData : public FixedArray {
 
 // Simple element accessors.
 #define DECL_ELEMENT_ACCESSORS(name, type) \
-  inline type* name();                     \
-  inline void Set##name(type* value);
+  inline type name();                      \
+  inline void Set##name(type value);
 
-  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+  DECL_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray*)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-  DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+  DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray*)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
-  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object*)
+  DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>*)
 
 #undef DECL_ELEMENT_ACCESSORS
 
 // Accessors for elements of the ith deoptimization entry.
 #define DECL_ENTRY_ACCESSORS(name, type) \
-  inline type* name(int i);              \
-  inline void Set##name(int i, type* value);
+  inline type name(int i);               \
+  inline void Set##name(int i, type value);
 
   DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
   DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)

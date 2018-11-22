@@ -483,6 +483,17 @@
           ]
         },
         {
+          "name": "StringLocaleCompare",
+          "main": "run.js",
+          "resources": [ "string-localeCompare.js" ],
+          "test_flags": [ "string-localeCompare" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringLocaleCompare"}
+          ]
+        },
+        {
           "name": "StringMatchAll",
           "main": "run.js",
           "resources": [ "string-matchall.js" ],
@@ -887,15 +898,18 @@
         {"name": "SmallMixedArrayOf"},
         {"name": "SmiFrom"},
         {"name": "SmallSmiFrom"},
-        {"name": "SmiNoMapFrom"},
+        {"name": "SmiCowNoMapFrom"},
+        {"name": "SmiNonCowNoMapFrom"},
         {"name": "SmiNoIteratorFrom"},
         {"name": "TransplantedFrom"},
         {"name": "DoubleFrom"},
         {"name": "DoubleNoMapFrom"},
         {"name": "StringFrom"},
-        {"name": "StringNoMapFrom"},
+        {"name": "StringCowNoMapFrom"},
+        {"name": "StringNonCowNoMapFrom"},
         {"name": "MixedFrom"},
-        {"name": "MixedNoMapFrom"},
+        {"name": "MixedCowNoMapFrom"},
+        {"name": "MixedNonCowNoMapFrom"},
         {"name": "Array.slice(500)"},
         {"name": "Array.slice(500,999)"},
         {"name": "Array.slice(-500)"},
@@ -1203,6 +1217,18 @@
       ]
     },
     {
+      "name": "Dates",
+      "path": ["Dates"],
+      "main": "run.js",
+      "resources": ["toLocaleString.js"],
+      "results_regexp": "^%s\\-Dates\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "toLocaleDateString"},
+        {"name": "toLocaleString"},
+        {"name": "toLocaleTimeString"}
+      ]
+    },
+    {
       "name": "ExpressionDepth",
       "path": ["ExpressionDepth"],
       "main": "run.js",
@@ -1268,12 +1294,16 @@
       "path": ["Numbers"],
       "main": "run.js",
       "flags": ["--allow-natives-syntax"],
-      "resources": [ "toNumber.js"],
+      "resources": [
+	      "toNumber.js",
+	      "toLocaleString.js"
+      ],
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
       "tests": [
         {"name": "Constructor"},
         {"name": "UnaryPlus"},
-        {"name": "ParseFloat"}
+        {"name": "ParseFloat"},
+        {"name": "toLocaleString"}
       ]
     },
     {

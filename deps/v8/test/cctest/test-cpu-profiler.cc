@@ -40,6 +40,7 @@
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
+#include "src/source-position-table.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
@@ -2546,6 +2547,113 @@ TEST(MultipleProfilers) {
   profiler2->StartProfiling("2");
   profiler1->StopProfiling("1");
   profiler2->StopProfiling("2");
+}
+
+void ProfileSomeCode(v8::Isolate* isolate) {
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope scope(isolate);
+  LocalContext context(isolate);
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
+
+  v8::Local<v8::String> profile_name = v8_str("1");
+  profiler->StartProfiling(profile_name);
+  const char* source = R"(
+      function foo() {
+        var x = 0;
+        for (var i = 0; i < 1e3; i++) {
+          for (var j = 0; j < 1e3; j++) {
+            x = i * j;
+          }
+        }
+        return x;
+      }
+      foo();
+    )";
+
+  CompileRun(source);
+  profiler->StopProfiling(profile_name);
+  profiler->Dispose();
+}
+
+class IsolateThread : public v8::base::Thread {
+ public:
+  IsolateThread() : Thread(Options("IsolateThread")) {}
+
+  void Run() override {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    ProfileSomeCode(isolate);
+    isolate->Dispose();
+  }
+};
+
+// Checking for crashes and TSAN issues with multiple isolates profiling.
+TEST(MultipleIsolates) {
+  IsolateThread thread1;
+  IsolateThread thread2;
+
+  thread1.Start();
+  thread2.Start();
+
+  thread1.Join();
+  thread2.Join();
+}
+
+int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source) {
+  i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*CompileRun(source)));
+  if (function->IsInterpreted()) return -1;
+  i::Handle<i::Code> code(function->code(), isolate);
+  i::SourcePositionTableIterator iterator(
+      ByteArray::cast(code->source_position_table()));
+  int count = 0;
+  while (!iterator.done()) {
+    count++;
+    iterator.Advance();
+  }
+  return count;
+}
+
+UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
+  i::FLAG_detailed_line_info = false;
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  const char* source =
+      "function fib(i) {"
+      "  if (i <= 1) return 1; "
+      "  return fib(i - 1) +"
+      "         fib(i - 2);"
+      "}"
+      "fib(5);"
+      "%OptimizeFunctionOnNextCall(fib);"
+      "fib(5);"
+      "fib";
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+    CHECK(!i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int non_detailed_positions = GetSourcePositionEntryCount(i_isolate, source);
+
+    v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+    CHECK(i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int detailed_positions = GetSourcePositionEntryCount(i_isolate, source);
+
+    CHECK((non_detailed_positions == -1 && detailed_positions == -1) ||
+          non_detailed_positions < detailed_positions);
+  }
+
+  isolate->Dispose();
 }
 
 }  // namespace test_cpu_profiler

@@ -43,7 +43,6 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
-#include "src/register-configuration.h"
 #include "src/reglist.h"
 #include "src/reloc-info.h"
 
@@ -527,10 +526,20 @@ class RegisterBase {
   int reg_code_;
 };
 
-template <typename SubType, int kAfterLastRegister>
-inline std::ostream& operator<<(std::ostream& os,
-                                RegisterBase<SubType, kAfterLastRegister> reg) {
-  return reg.is_valid() ? os << "r" << reg.code() : os << "<invalid reg>";
+// Helper macros to define a {RegisterName} method based on a macro list
+// containing all names.
+#define DEFINE_REGISTER_NAMES_NAME(name) #name,
+#define DEFINE_REGISTER_NAMES(RegType, LIST)                                   \
+  inline const char* RegisterName(RegType reg) {                               \
+    static constexpr const char* Names[] = {LIST(DEFINE_REGISTER_NAMES_NAME)}; \
+    STATIC_ASSERT(arraysize(Names) == RegType::kNumRegisters);                 \
+    return reg.is_valid() ? Names[reg.code()] : "invalid";                     \
+  }
+
+template <typename RegType,
+          typename = decltype(RegisterName(std::declval<RegType>()))>
+inline std::ostream& operator<<(std::ostream& os, RegType reg) {
+  return os << RegisterName(reg);
 }
 
 }  // namespace internal

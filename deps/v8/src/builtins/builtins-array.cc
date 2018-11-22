@@ -16,6 +16,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/smi.h"
 #include "src/prototype.h"
 
 namespace v8 {
@@ -70,7 +71,7 @@ void MatchArrayElementsKindToArguments(Isolate* isolate, Handle<JSArray> array,
     DisallowHeapAllocation no_gc;
     int last_arg_index = std::min(first_arg_index + num_arguments, args_length);
     for (int i = first_arg_index; i < last_arg_index; i++) {
-      Object* arg = (*args)[i];
+      ObjectPtr arg = (*args)[i];
       if (arg->IsHeapObject()) {
         if (arg->IsHeapNumber()) {
           target_kind = PACKED_DOUBLE_ELEMENTS;
@@ -409,7 +410,7 @@ V8_WARN_UNUSED_RESULT Object* GenericArrayPop(Isolate* isolate,
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetProperty(
                      isolate, receiver, isolate->factory()->length_string(),
-                     Handle<Smi>(Smi::kZero, isolate), LanguageMode::kStrict));
+                     Handle<Smi>(Smi::zero(), isolate), LanguageMode::kStrict));
 
     // b. Return undefined.
     return ReadOnlyRoots(isolate).undefined_value();
@@ -1193,7 +1194,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   uint32_t estimate_result_length = 0;
   uint32_t estimate_nof = 0;
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < argument_count, i++, {
-    Handle<Object> obj((*args)[i], isolate);
+    Handle<Object> obj = args->at(i);
     uint32_t length_estimate;
     uint32_t element_estimate;
     if (obj->IsJSArray()) {
@@ -1242,7 +1243,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       Handle<FixedDoubleArray> double_storage =
           Handle<FixedDoubleArray>::cast(storage);
       for (int i = 0; i < argument_count; i++) {
-        Handle<Object> obj((*args)[i], isolate);
+        Handle<Object> obj = args->at(i);
         if (obj->IsSmi()) {
           double_storage->set(j, Smi::ToInt(*obj));
           j++;
@@ -1332,7 +1333,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
 
   for (int i = 0; i < argument_count; i++) {
-    Handle<Object> obj((*args)[i], isolate);
+    Handle<Object> obj = args->at(i);
     Maybe<bool> spreadable = IsConcatSpreadable(isolate, obj);
     MAYBE_RETURN(spreadable, ReadOnlyRoots(isolate).exception());
     if (spreadable.FromJust()) {
@@ -1360,7 +1361,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
 
 bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
   DisallowHeapAllocation no_gc;
-  Map* map = obj->map();
+  Map map = obj->map();
   // If there is only the 'length' property we are fine.
   if (map->prototype() ==
           isolate->native_context()->initial_array_prototype() &&
@@ -1390,7 +1391,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
     // Iterate through all the arguments performing checks
     // and calculating total length.
     for (int i = 0; i < n_arguments; i++) {
-      Object* arg = (*args)[i];
+      ObjectPtr arg = (*args)[i];
       if (!arg->IsJSArray()) return MaybeHandle<JSArray>();
       if (!HasOnlySimpleReceiverElements(isolate, JSObject::cast(arg))) {
         return MaybeHandle<JSArray>();
@@ -1430,7 +1431,7 @@ BUILTIN(ArrayConcat) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, receiver,
       Object::ToObject(isolate, args.receiver(), "Array.prototype.concat"));
-  args[0] = *receiver;
+  args.set_at(0, *receiver);
 
   Handle<JSArray> result_array;
 

@@ -4,7 +4,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/compiler/pipeline.h"
-#include "test/unittests/compiler/instruction-sequence-unittest.h"
+#include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
 namespace v8 {
 namespace internal {
@@ -187,7 +187,7 @@ TEST_F(RegisterAllocatorTest, SimpleDiamondPhi) {
 }
 
 TEST_F(RegisterAllocatorTest, DiamondManyPhis) {
-  const int kPhis = kDefaultNRegs * 2;
+  constexpr int kPhis = Register::kNumRegisters * 2;
 
   StartBlock();
   EndBlock(Branch(Reg(DefineConstant()), 1, 2));
@@ -218,7 +218,7 @@ TEST_F(RegisterAllocatorTest, DiamondManyPhis) {
 }
 
 TEST_F(RegisterAllocatorTest, DoubleDiamondManyRedundantPhis) {
-  const int kPhis = kDefaultNRegs * 2;
+  constexpr int kPhis = Register::kNumRegisters * 2;
 
   // First diamond.
   StartBlock();
@@ -326,16 +326,16 @@ TEST_F(RegisterAllocatorTest, SpillPhi) {
 
 TEST_F(RegisterAllocatorTest, MoveLotsOfConstants) {
   StartBlock();
-  VReg constants[kDefaultNRegs];
+  VReg constants[Register::kNumRegisters];
   for (size_t i = 0; i < arraysize(constants); ++i) {
     constants[i] = DefineConstant();
   }
-  TestOperand call_ops[kDefaultNRegs * 2];
-  for (int i = 0; i < kDefaultNRegs; ++i) {
+  TestOperand call_ops[Register::kNumRegisters * 2];
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
     call_ops[i] = Reg(constants[i], i);
   }
-  for (int i = 0; i < kDefaultNRegs; ++i) {
-    call_ops[i + kDefaultNRegs] = Slot(constants[i], i);
+  for (int i = 0; i < Register::kNumRegisters; ++i) {
+    call_ops[i + Register::kNumRegisters] = Slot(constants[i], i);
   }
   EmitCall(Slot(-1), arraysize(call_ops), call_ops);
   EndBlock(Last());
@@ -488,7 +488,7 @@ TEST_F(RegisterAllocatorTest, RegressionSplitBeforeAndMove) {
   StartBlock();
 
   // Fill registers.
-  VReg values[kDefaultNRegs];
+  VReg values[Register::kNumRegisters];
   for (size_t i = 0; i < arraysize(values); ++i) {
     if (i == 0 || i == 1) continue;  // Leave a hole for c_1 to take.
     values[i] = Define(Reg(static_cast<int>(i)));
@@ -522,7 +522,7 @@ TEST_F(RegisterAllocatorTest, RegressionSpillTwice) {
 TEST_F(RegisterAllocatorTest, RegressionLoadConstantBeforeSpill) {
   StartBlock();
   // Fill registers.
-  VReg values[kDefaultNRegs];
+  VReg values[Register::kNumRegisters];
   for (size_t i = arraysize(values); i > 0; --i) {
     values[i - 1] = Define(Reg(static_cast<int>(i - 1)));
   }
@@ -711,8 +711,6 @@ class SlotConstraintTest : public RegisterAllocatorTest,
 
 }  // namespace
 
-#if GTEST_HAS_COMBINE
-
 TEST_P(SlotConstraintTest, SlotConstraint) {
   StartBlock();
   VReg p_0;
@@ -761,8 +759,6 @@ INSTANTIATE_TEST_CASE_P(
     RegisterAllocatorTest, SlotConstraintTest,
     ::testing::Combine(::testing::ValuesIn(kParameterTypes),
                        ::testing::Range(0, SlotConstraintTest::kMaxVariant)));
-
-#endif  // GTEST_HAS_COMBINE
 
 }  // namespace compiler
 }  // namespace internal

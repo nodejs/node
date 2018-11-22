@@ -27,17 +27,17 @@ BIT_FIELD_ACCESSORS(Symbol, flags, is_public, Symbol::IsPublicBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
                     Symbol::IsInterestingSymbolBit)
 
-bool Symbol::is_private_field() const {
-  bool value = Symbol::IsPrivateFieldBit::decode(flags());
+bool Symbol::is_private_name() const {
+  bool value = Symbol::IsPrivateNameBit::decode(flags());
   DCHECK_IMPLIES(value, is_private());
   return value;
 }
 
-void Symbol::set_is_private_field() {
+void Symbol::set_is_private_name() {
   // TODO(gsathya): Re-order the bits to have these next to each other
   // and just do the bit shifts once.
   set_flags(Symbol::IsPrivateBit::update(flags(), true));
-  set_flags(Symbol::IsPrivateFieldBit::update(flags(), true));
+  set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
 }
 
 bool Name::IsUniqueName() const {
@@ -98,11 +98,11 @@ bool Name::IsPrivate() {
   return this->IsSymbol() && Symbol::cast(this)->is_private();
 }
 
-bool Name::IsPrivateField() {
-  bool is_private_field =
-      this->IsSymbol() && Symbol::cast(this)->is_private_field();
-  DCHECK_IMPLIES(is_private_field, IsPrivate());
-  return is_private_field;
+bool Name::IsPrivateName() {
+  bool is_private_name =
+      this->IsSymbol() && Symbol::cast(this)->is_private_name();
+  DCHECK_IMPLIES(is_private_name, IsPrivate());
+  return is_private_name;
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {

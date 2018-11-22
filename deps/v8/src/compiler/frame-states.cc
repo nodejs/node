@@ -168,7 +168,7 @@ Node* CreateStubBuiltinContinuationFrameState(
 }
 
 Node* CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* jsgraph, Handle<SharedFunctionInfo> shared, Builtins::Name name,
+    JSGraph* jsgraph, const SharedFunctionInfoRef& shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode) {
@@ -202,7 +202,8 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
           ? FrameStateType::kJavaScriptBuiltinContinuationWithCatch
           : FrameStateType::kJavaScriptBuiltinContinuation,
       name, target, context, &actual_parameters[0],
-      static_cast<int>(actual_parameters.size()), outer_frame_state, shared);
+      static_cast<int>(actual_parameters.size()), outer_frame_state,
+      shared.object());
 }
 
 }  // namespace compiler

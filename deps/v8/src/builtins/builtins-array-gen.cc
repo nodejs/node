@@ -18,10 +18,11 @@ namespace v8 {
 namespace internal {
 
 using Node = compiler::Node;
+using IteratorRecord = IteratorBuiltinsFromDSLAssembler::IteratorRecord;
 
 ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     compiler::CodeAssemblerState* state)
-    : BaseBuiltinsFromDSLAssembler(state),
+    : CodeStubAssembler(state),
       k_(this, MachineRepresentation::kTagged),
       a_(this, MachineRepresentation::kTagged),
       to_(this, MachineRepresentation::kTagged, SmiConstant(0)),
@@ -208,7 +209,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     const char* method_name = "%TypedArray%.prototype.map";
 
     TypedArrayBuiltinsAssembler typedarray_asm(state());
-    TNode<JSTypedArray> a = typedarray_asm.SpeciesCreateByLength(
+    TNode<JSTypedArray> a = typedarray_asm.TypedArraySpeciesCreateByLength(
         context(), original_array, length, method_name);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
@@ -297,10 +298,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
       const ElementsKind kFromKind = HOLEY_SMI_ELEMENTS;
       const ElementsKind kToKind = HOLEY_DOUBLE_ELEMENTS;
-      const bool kIsJSArray = true;
 
       Label transition_in_runtime(this, Label::kDeferred);
-      TransitionElementsKind(a(), double_map, kFromKind, kToKind, kIsJSArray,
+      TransitionElementsKind(a(), double_map, kFromKind, kToKind,
                              &transition_in_runtime);
       Goto(&array_double);
 
@@ -360,7 +360,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       num_value = ToNumber_Inline(context(), mapped_value);
     }
     // The only way how this can bailout is because of a detached buffer.
-    EmitElementStore(a(), k, num_value, false, source_elements_kind_,
+    EmitElementStore(a(), k, num_value, source_elements_kind_,
                      KeyedAccessStoreMode::STANDARD_STORE, &detached,
                      context());
     Goto(&done);
@@ -897,8 +897,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIf(WordEqual(value, protector_invalid), &runtime);
 
     GotoIfNot(TaggedIsPositiveSmi(len), &runtime);
-    GotoIf(SmiAbove(CAST(len), SmiConstant(JSArray::kMaxFastArrayLength)),
-           &runtime);
+    GotoIfNot(
+        IsValidFastJSArrayCapacity(len, CodeStubAssembler::SMI_PARAMETERS),
+        &runtime);
 
     // We need to be conservative and start with holey because the builtins
     // that create output arrays aren't guaranteed to be called for every
@@ -1906,46 +1907,6 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
     BIND(&done);
     return array.value();
   }
-
-  void GenerateSetLength(TNode<Context> context, TNode<Object> array,
-                         TNode<Number> length) {
-    Label fast(this), runtime(this), done(this);
-    // There's no need to set the length, if
-    // 1) the array is a fast JS array and
-    // 2) the new length is equal to the old length.
-    // as the set is not observable. Otherwise fall back to the run-time.
-
-    // 1) Check that the array has fast elements.
-    // TODO(delphick): Consider changing this since it does an an unnecessary
-    // check for SMIs.
-    // TODO(delphick): Also we could hoist this to after the array construction
-    // and copy the args into array in the same way as the Array constructor.
-    BranchIfFastJSArray(array, context, &fast, &runtime);
-
-    BIND(&fast);
-    {
-      TNode<JSArray> fast_array = CAST(array);
-
-      TNode<Smi> length_smi = CAST(length);
-      TNode<Smi> old_length = LoadFastJSArrayLength(fast_array);
-      CSA_ASSERT(this, TaggedIsPositiveSmi(old_length));
-
-      // 2) If the created array's length matches the required length, then
-      //    there's nothing else to do. Otherwise use the runtime to set the
-      //    property as that will insert holes into excess elements or shrink
-      //    the backing store as appropriate.
-      Branch(SmiNotEqual(length_smi, old_length), &runtime, &done);
-    }
-
-    BIND(&runtime);
-    {
-      SetPropertyStrict(context, array,
-                        CodeStubAssembler::LengthStringConstant(), length);
-      Goto(&done);
-    }
-
-    BIND(&done);
-  }
 };
 
 // ES #sec-array.from
@@ -2048,8 +2009,8 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     BIND(&loop);
     {
       // Loop while iterator is not done.
-      TNode<Object> next = CAST(iterator_assembler.IteratorStep(
-          context, iterator_record, &loop_done, fast_iterator_result_map));
+      TNode<Object> next = iterator_assembler.IteratorStep(
+          context, iterator_record, &loop_done, fast_iterator_result_map);
       TVARIABLE(Object, value,
                 CAST(iterator_assembler.IteratorValue(
                     context, next, fast_iterator_result_map)));
@@ -2104,7 +2065,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
       // Close the iterator, rethrowing either the passed exception or
       // exceptions thrown during the close.
       iterator_assembler.IteratorCloseOnException(context, iterator_record,
-                                                  &var_exception);
+                                                  var_exception.value());
     }
   }
 
@@ -2158,7 +2119,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
   BIND(&finished);
 
   // Finally set the length on the output and return it.
-  GenerateSetLength(context, array.value(), length.value());
+  SetPropertyLength(context, array.value(), length.value());
   args.PopAndReturn(array.value());
 }
 
@@ -3498,6 +3459,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Label if_hole(this, Label::kDeferred);
     TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
     TNode<FixedArrayBase> elements = LoadElements(CAST(array));
+    GotoIfForceSlowPath(&if_generic);
     var_value.Bind(LoadFixedArrayBaseElementAsTagged(
         elements, Signed(ChangeUint32ToWord(index32)), elements_kind,
         &if_generic, &if_hole));
@@ -3506,6 +3468,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&if_hole);
     {
       GotoIf(IsNoElementsProtectorCellInvalid(), &if_generic);
+      GotoIfNot(IsPrototypeInitialArrayPrototype(context, array_map),
+                &if_generic);
       var_value.Bind(UndefinedConstant());
       Goto(&allocate_entry_if_needed);
     }

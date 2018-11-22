@@ -32,8 +32,8 @@ class RelocInfo;
   } while (false)
 
 // Combined write barriers.
-void WriteBarrierForCode(Code* host, RelocInfo* rinfo, Object* value);
-void WriteBarrierForCode(Code* host);
+void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object* value);
+void WriteBarrierForCode(Code host);
 
 // Generational write barrier.
 void GenerationalBarrier(HeapObject* object, ObjectSlot slot, Object* value);
@@ -44,9 +44,11 @@ void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
 // version above.
 // TODO(3770): This should probably take a HeapObjectPtr eventually.
 void GenerationalBarrier(HeapObjectPtr* object, ObjectSlot slot, Object* value);
+void GenerationalBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
+                         MaybeObject value);
 void GenerationalBarrierForElements(Heap* heap, FixedArray* array, int offset,
                                     int length);
-void GenerationalBarrierForCode(Code* host, RelocInfo* rinfo,
+void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
                                 HeapObject* object);
 
 // Marking write barrier.
@@ -58,8 +60,10 @@ void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
 // version above.
 // TODO(3770): This should probably take a HeapObjectPtr eventually.
 void MarkingBarrier(HeapObjectPtr* object, ObjectSlot slot, Object* value);
+void MarkingBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
+                    MaybeObject value);
 void MarkingBarrierForElements(Heap* heap, HeapObject* object);
-void MarkingBarrierForCode(Code* host, RelocInfo* rinfo, HeapObject* object);
+void MarkingBarrierForCode(Code host, RelocInfo* rinfo, HeapObject* object);
 
 }  // namespace internal
 }  // namespace v8

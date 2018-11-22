@@ -154,6 +154,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
       native_module()->module()->LookupFunctionName(wire_bytes, index());
   WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
   if (!name_vec.is_empty()) {
+    HandleScope scope(isolate);
     MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
         Vector<const char>::cast(name_vec));
     Handle<String> name;
@@ -169,7 +170,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
                             {cname.get(), static_cast<size_t>(name_length)}));
   } else {
     EmbeddedVector<char, 32> generated_name;
-    SNPrintF(generated_name, "wasm-function[%d]", index());
+    int length = SNPrintF(generated_name, "wasm-function[%d]", index());
+    generated_name.Truncate(length);
     PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
                                      generated_name));
   }
@@ -224,7 +226,6 @@ void WasmCode::Validate() const {
         CHECK(contains(target));
         break;
       }
-      case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
       case RelocInfo::COMMENT:
       case RelocInfo::CONST_POOL:
@@ -430,16 +431,6 @@ WasmCode* NativeModule::AddOwnedCode(
   return code;
 }
 
-WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code,
-                                            uint32_t func_index) {
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterEntry);
-  ret->index_ = func_index;
-  base::MutexGuard lock(&allocation_mutex_);
-  InstallCode(ret);
-  SetInterpreterRedirection(func_index);
-  return ret;
-}
-
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kFunction);
   return ret;
@@ -541,7 +532,8 @@ WasmCode* NativeModule::AddCode(
     uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
     size_t safepoint_table_offset, size_t handler_table_offset,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
-    OwnedVector<const byte> source_pos_table, WasmCode::Tier tier) {
+    OwnedVector<const byte> source_pos_table, WasmCode::Kind kind,
+    WasmCode::Tier tier) {
   OwnedVector<byte> reloc_info = OwnedVector<byte>::New(desc.reloc_size);
   memcpy(reloc_info.start(), desc.buffer + desc.buffer_size - desc.reloc_size,
          desc.reloc_size);
@@ -550,7 +542,7 @@ WasmCode* NativeModule::AddCode(
                    stack_slots, safepoint_table_offset, handler_table_offset,
                    desc.instr_size - desc.constant_pool_size,
                    std::move(protected_instructions), std::move(reloc_info),
-                   std::move(source_pos_table), WasmCode::kFunction, tier);
+                   std::move(source_pos_table), kind, tier);
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = ret->instructions().start() - desc.buffer;
@@ -619,6 +611,14 @@ void NativeModule::PublishCode(WasmCode* code) {
     code->RegisterTrapHandlerData();
   }
   InstallCode(code);
+}
+
+void NativeModule::PublishInterpreterEntry(WasmCode* code,
+                                           uint32_t func_index) {
+  code->index_ = func_index;
+  base::MutexGuard lock(&allocation_mutex_);
+  InstallCode(code);
+  SetInterpreterRedirection(func_index);
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
@@ -746,6 +746,30 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
   return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
 }
 
+namespace {
+class NativeModuleWireBytesStorage final : public WireBytesStorage {
+ public:
+  explicit NativeModuleWireBytesStorage(NativeModule* native_module)
+      : native_module_(native_module) {}
+
+  Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
+    return native_module_->wire_bytes().SubVector(ref.offset(),
+                                                  ref.end_offset());
+  }
+
+ private:
+  NativeModule* const native_module_;
+};
+}  // namespace
+
+void NativeModule::SetWireBytes(OwnedVector<const byte> wire_bytes) {
+  wire_bytes_ = std::move(wire_bytes);
+  if (!wire_bytes.is_empty()) {
+    compilation_state_->SetWireBytesStorage(
+        std::make_shared<NativeModuleWireBytesStorage>(this));
+  }
+}
+
 WasmCode* NativeModule::Lookup(Address pc) const {
   base::MutexGuard lock(&allocation_mutex_);
   if (owned_code_.empty()) return nullptr;
@@ -811,6 +835,8 @@ WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
+  // TODO(v8:8462) Remove eager commit once perf supports remapping.
+  if (FLAG_perf_prof) return true;
   DCHECK(IsAligned(start, AllocatePageSize()));
   DCHECK(IsAligned(size, AllocatePageSize()));
   // Reserve the size. Use CAS loop to avoid underflow on
@@ -874,6 +900,12 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
              reinterpret_cast<void*>(mem.address()),
              reinterpret_cast<void*>(mem.end()), mem.size());
+
+  // TODO(v8:8462) Remove eager commit once perf supports remapping.
+  if (FLAG_perf_prof) {
+    SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
+                   PageAllocator::kReadWriteExecute);
+  }
   return mem;
 }
 
@@ -907,25 +939,37 @@ void WasmCodeManager::InstallSamplingGCCallback(Isolate* isolate) {
 }
 
 // static
-size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
+size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
   constexpr size_t kCodeSizeMultiplier = 4;
-  constexpr size_t kImportSize = 32 * kPointerSize;
+  constexpr size_t kCodeOverhead = 32;     // for prologue, stack check, ...
+  constexpr size_t kStaticCodeSize = 512;  // runtime stubs, ...
+  constexpr size_t kImportSize = 64 * kPointerSize;
+
+  size_t estimate = kStaticCodeSize;
+  for (auto& function : module->functions) {
+    estimate += kCodeOverhead + kCodeSizeMultiplier * function.code.length();
+  }
+  estimate +=
+      JumpTableAssembler::SizeForNumberOfSlots(module->num_declared_functions);
+  estimate += kImportSize * module->num_imported_functions;
+
+  return estimate;
+}
+
+// static
+size_t WasmCodeManager::EstimateNativeModuleNonCodeSize(
+    const WasmModule* module) {
+  size_t wasm_module_estimate = EstimateStoredSize(module);
 
   uint32_t num_wasm_functions = module->num_declared_functions;
 
-  size_t estimate =
-      AllocatePageSize() /* TODO(titzer): 1 page spot bonus */ +
-      sizeof(NativeModule) +
-      (sizeof(WasmCode*) * num_wasm_functions /* code table size */) +
-      (sizeof(WasmCode) * num_wasm_functions /* code object size */) +
-      (kImportSize * module->num_imported_functions /* import size */) +
-      (JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
+  // TODO(wasm): Include wire bytes size.
+  size_t native_module_estimate =
+      sizeof(NativeModule) +                     /* NativeModule struct */
+      (sizeof(WasmCode*) * num_wasm_functions) + /* code table size */
+      (sizeof(WasmCode) * num_wasm_functions);   /* code object size */
 
-  for (auto& function : module->functions) {
-    estimate += kCodeSizeMultiplier * function.code.length();
-  }
-
-  return estimate;
+  return wasm_module_estimate + native_module_estimate;
 }
 
 bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {
@@ -974,7 +1018,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   std::unique_ptr<NativeModule> ret(new NativeModule(
       isolate, enabled, can_request_more, std::move(code_space),
       isolate->wasm_engine()->code_manager(), std::move(module)));
-  TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
+  TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
              size);
   AssignRangesAndAddModule(start, end, ret.get());
   return ret;
@@ -1033,7 +1077,7 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   base::MutexGuard lock(&native_modules_mutex_);
   DCHECK_EQ(1, native_modules_.count(native_module));
   native_modules_.erase(native_module);
-  TRACE_HEAP("Freeing NativeModule %p\n", this);
+  TRACE_HEAP("Freeing NativeModule %p\n", native_module);
   for (auto& code_space : native_module->owned_code_space_) {
     DCHECK(code_space.IsReserved());
     TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n",

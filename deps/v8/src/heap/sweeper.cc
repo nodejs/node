@@ -211,7 +211,7 @@ void Sweeper::AbortAndWaitForTasks() {
 
   for (int i = 0; i < num_tasks_; i++) {
     if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
-        CancelableTaskManager::kTaskAborted) {
+        TryAbortResult::kTaskAborted) {
       pending_sweeper_tasks_semaphore_.Wait();
     } else {
       // Aborted case.
@@ -315,7 +315,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             static_cast<uint32_t>(free_end - p->address())));
       }
     }
-    Map* map = object->synchronized_map();
+    Map map = object->synchronized_map();
     int size = object->SizeFromMap(map);
     live_bytes += size;
     if (rebuild_skip_list) {
@@ -361,11 +361,11 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   if (!free_ranges.empty()) {
     TypedSlotSet* old_to_new = p->typed_slot_set<OLD_TO_NEW>();
     if (old_to_new != nullptr) {
-      old_to_new->RemoveInvaldSlots(free_ranges);
+      old_to_new->ClearInvalidSlots(free_ranges);
     }
     TypedSlotSet* old_to_old = p->typed_slot_set<OLD_TO_OLD>();
     if (old_to_old != nullptr) {
-      old_to_old->RemoveInvaldSlots(free_ranges);
+      old_to_old->ClearInvalidSlots(free_ranges);
     }
   }
 
@@ -524,7 +524,7 @@ void Sweeper::EnsureIterabilityCompleted() {
 
   if (FLAG_concurrent_sweeping && iterability_task_started_) {
     if (heap_->isolate()->cancelable_task_manager()->TryAbort(
-            iterability_task_id_) != CancelableTaskManager::kTaskAborted) {
+            iterability_task_id_) != TryAbortResult::kTaskAborted) {
       iterability_task_semaphore_.Wait();
     }
     iterability_task_started_ = false;

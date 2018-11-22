@@ -31,6 +31,14 @@
 namespace v8 {
 namespace internal {
 
+// These checks are here to ensure that the lower 32 bits of any real heap
+// object can't overlap with the lower 32 bits of cleared weak reference value
+// and therefore it's enough to compare only the lower 32 bits of a MaybeObject
+// in order to figure out if it's a cleared weak reference or not.
+STATIC_ASSERT(kClearedWeakHeapObjectLower32 > 0);
+STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
+STATIC_ASSERT(kClearedWeakHeapObjectLower32 < LargePage::kHeaderSize);
+
 // ----------------------------------------------------------------------------
 // HeapObjectIterator
 
@@ -283,7 +291,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
 void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
   for (int i = 0; i < pending_unmapping_tasks_; i++) {
     if (heap_->isolate()->cancelable_task_manager()->TryAbort(task_ids_[i]) !=
-        CancelableTaskManager::kTaskAborted) {
+        TryAbortResult::kTaskAborted) {
       pending_unmapping_tasks_semaphore_.Wait();
     }
   }
@@ -538,7 +546,8 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::SetReadAndExecutable() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
+  DCHECK(owner()->identity() == CODE_SPACE ||
+         owner()->identity() == CODE_LO_SPACE);
   // Decrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);
@@ -563,7 +572,8 @@ void MemoryChunk::SetReadAndExecutable() {
 
 void MemoryChunk::SetReadAndWritable() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
+  DCHECK(owner()->identity() == CODE_SPACE ||
+         owner()->identity() == CODE_LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);
@@ -1107,16 +1117,17 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
   }
 }
 
-template void MemoryAllocator::Free<MemoryAllocator::kFull>(MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kFull>(MemoryChunk* chunk);
 
-template void MemoryAllocator::Free<MemoryAllocator::kAlreadyPooled>(
-    MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kAlreadyPooled>(MemoryChunk* chunk);
 
-template void MemoryAllocator::Free<MemoryAllocator::kPreFreeAndQueue>(
-    MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kPreFreeAndQueue>(MemoryChunk* chunk);
 
-template void MemoryAllocator::Free<MemoryAllocator::kPooledAndQueue>(
-    MemoryChunk* chunk);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void MemoryAllocator::Free<
+    MemoryAllocator::kPooledAndQueue>(MemoryChunk* chunk);
 
 template <MemoryAllocator::AllocationMode alloc_mode, typename SpaceType>
 Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
@@ -1136,15 +1147,15 @@ Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
   return owner->InitializePage(chunk, executable);
 }
 
-template Page*
-MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
-    size_t size, PagedSpace* owner, Executability executable);
-template Page*
-MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
-    size_t size, SemiSpace* owner, Executability executable);
-template Page*
-MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
-    size_t size, SemiSpace* owner, Executability executable);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
+        size_t size, PagedSpace* owner, Executability executable);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
+        size_t size, SemiSpace* owner, Executability executable);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Page* MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
+        size_t size, SemiSpace* owner, Executability executable);
 
 LargePage* MemoryAllocator::AllocateLargePage(size_t size,
                                               LargeObjectSpace* owner,
@@ -1936,7 +1947,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space.
-      Map* map = object->map();
+      Map map = object->map();
       CHECK(map->IsMap());
       CHECK(heap()->map_space()->Contains(map) ||
             heap()->read_only_space()->Contains(map));
@@ -2234,8 +2245,10 @@ void NewSpace::UpdateLinearAllocationArea() {
   Address new_top = to_space_.page_low();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
-  original_top_ = top();
-  original_limit_ = limit();
+  // The order of the following two stores is important.
+  // See the corresponding loads in ConcurrentMarking::Run.
+  original_limit_.store(limit(), std::memory_order_relaxed);
+  original_top_.store(top(), std::memory_order_release);
   StartNextInlineAllocationStep();
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
@@ -2431,7 +2444,7 @@ void NewSpace::Verify(Isolate* isolate) {
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space or read-only space.
-      Map* map = object->map();
+      Map map = object->map();
       CHECK(map->IsMap());
       CHECK(heap()->map_space()->Contains(map) ||
             heap()->read_only_space()->Contains(map));
@@ -2861,9 +2874,9 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
 void FreeListCategory::RepairFreeList(Heap* heap) {
   FreeSpace* n = top();
   while (n != nullptr) {
-    Map** map_location = reinterpret_cast<Map**>(n->address());
+    ObjectSlot map_location(n->address());
     if (*map_location == nullptr) {
-      *map_location = ReadOnlyRoots(heap).free_space_map();
+      map_location.store(ReadOnlyRoots(heap).free_space_map());
     } else {
       DCHECK(*map_location == ReadOnlyRoots(heap).free_space_map());
     }
@@ -3390,6 +3403,10 @@ void LargeObjectSpace::TearDown() {
   }
 }
 
+AllocationResult LargeObjectSpace::AllocateRaw(int object_size) {
+  return AllocateRaw(object_size, NOT_EXECUTABLE);
+}
+
 AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                                Executability executable) {
   // Check if we want to force a GC before growing the old space further.
@@ -3449,11 +3466,6 @@ Object* LargeObjectSpace::FindObject(Address a) {
     return page->GetObject();
   }
   return Smi::kZero;  // Signaling not found.
-}
-
-LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
-  base::MutexGuard guard(&chunk_map_mutex_);
-  return FindPage(a);
 }
 
 LargePage* LargeObjectSpace::FindPage(Address a) {
@@ -3620,7 +3632,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
 
     // The first word should be a map, and we expect all map pointers to be
     // in map space or read-only space.
-    Map* map = object->map();
+    Map map = object->map();
     CHECK(map->IsMap());
     CHECK(heap()->map_space()->Contains(map) ||
           heap()->read_only_space()->Contains(map));
@@ -3737,5 +3749,13 @@ void NewLargeObjectSpace::Flip() {
     chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
   }
 }
+
+CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
+    : LargeObjectSpace(heap, CODE_LO_SPACE) {}
+
+AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
+  return LargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
+}
+
 }  // namespace internal
 }  // namespace v8

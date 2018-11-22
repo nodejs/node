@@ -13,6 +13,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/counters.h"
 #include "src/interface-descriptors.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -70,6 +71,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Node* const feedback_cell_map = LoadMap(feedback_cell);
     Label no_closures(this), one_closure(this), cell_done(this);
 
+    GotoIf(IsNoFeedbackCellMap(feedback_cell_map), &cell_done);
     GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
     GotoIf(IsOneClosureCellMap(feedback_cell_map), &one_closure);
     CSA_ASSERT(this, IsManyClosuresCellMap(feedback_cell_map),
@@ -524,27 +526,30 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   {
     // Copy over in-object properties.
     Label continue_with_write_barrier(this), done_init(this);
-    VARIABLE(offset, MachineType::PointerRepresentation(),
-             IntPtrConstant(JSObject::kHeaderSize));
+    TVARIABLE(IntPtrT, offset, IntPtrConstant(JSObject::kHeaderSize));
     // Mutable heap numbers only occur on 32-bit platforms.
-    bool may_use_mutable_heap_numbers =
-        FLAG_track_double_fields && !FLAG_unbox_double_fields;
+    bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
     {
       Comment("Copy in-object properties fast");
       Label continue_fast(this, &offset);
       Branch(WordEqual(offset.value(), instance_size), &done_init,
              &continue_fast);
       BIND(&continue_fast);
-      Node* field = LoadObjectField(boilerplate, offset.value());
       if (may_use_mutable_heap_numbers) {
+        TNode<Object> field = LoadObjectField(boilerplate, offset.value());
         Label store_field(this);
         GotoIf(TaggedIsSmi(field), &store_field);
-        GotoIf(IsMutableHeapNumber(field), &continue_with_write_barrier);
+        GotoIf(IsMutableHeapNumber(CAST(field)), &continue_with_write_barrier);
         Goto(&store_field);
         BIND(&store_field);
+        StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
+      } else {
+        // Copy fields as raw data.
+        TNode<IntPtrT> field =
+            LoadObjectField<IntPtrT>(boilerplate, offset.value());
+        StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
       }
-      StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
-      offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
+      offset = IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize));
       Branch(WordNotEqual(offset.value(), instance_size), &continue_fast,
              &done_init);
     }

@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "src/arguments-inl.h"
+#include "src/counters.h"
 #include "src/frames-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"

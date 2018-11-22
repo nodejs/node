@@ -32,7 +32,6 @@ class FunctionLiteral;
 class RuntimeCallStats;
 class Logger;
 class SourceRangeMap;
-class UnicodeCache;
 class Utf16CharacterStream;
 class Zone;
 
@@ -90,9 +89,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_wrapped_as_function)
   FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
   FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
-  FLAG_ACCESSOR(kRequiresInstanceFieldsInitializer,
-                requires_instance_fields_initializer,
-                set_requires_instance_fields_initializer);
+  FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
+                requires_instance_members_initializer,
+                set_requires_instance_members_initializer);
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -141,11 +140,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void set_literal(FunctionLiteral* literal) { literal_ = literal; }
 
   DeclarationScope* scope() const;
-
-  UnicodeCache* unicode_cache() const { return unicode_cache_; }
-  void set_unicode_cache(UnicodeCache* unicode_cache) {
-    unicode_cache_ = unicode_cache;
-  }
 
   uintptr_t stack_limit() const { return stack_limit_; }
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
@@ -283,7 +277,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
     kAllowEvalCache = 1 << 15,
     kIsDeclaration = 1 << 16,
-    kRequiresInstanceFieldsInitializer = 1 << 17,
+    kRequiresInstanceMembersInitializer = 1 << 17,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -291,7 +285,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   unsigned flags_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
-  UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint64_t hash_seed_;
   FunctionKind function_kind_;

@@ -264,6 +264,11 @@ class TestModuleBuilder {
 
   void InitializeTable() { mod.tables.emplace_back(); }
 
+  byte AddPassiveElementSegment() {
+    mod.table_inits.emplace_back();
+    return static_cast<byte>(mod.table_inits.size() - 1);
+  }
+
   WasmModule* module() { return &mod; }
 
  private:
@@ -2726,6 +2731,96 @@ TEST_F(FunctionBodyDecoderTest, Regression709741) {
       str << "Expected verification to fail";
     }
   }
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryInit) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  // TODO(binji): validate segment index.
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryDrop) {
+  EXPECT_FAILURE(v_v, WASM_MEMORY_DROP(0));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_DROP(0));
+  // TODO(binji): validate segment index.
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryFill) {
+  TestModuleBuilder builder;
+  builder.InitializeMemory();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, BulkMemoryOpsWithoutMemory) {
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_FAILURE(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, TableInit) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, TableDrop) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(0));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_TABLE_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(1));
+}
+
+TEST_F(FunctionBodyDecoderTest, TableCopy) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  module = builder.module();
+
+  EXPECT_FAILURE(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+}
+
+TEST_F(FunctionBodyDecoderTest, BulkTableOpsWithoutTable) {
+  TestModuleBuilder builder;
+  builder.InitializeTable();
+  builder.AddPassiveElementSegment();
+
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
 
 class BranchTableIteratorTest : public TestWithZone {

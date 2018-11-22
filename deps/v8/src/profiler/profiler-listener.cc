@@ -5,10 +5,10 @@
 #include "src/profiler/profiler-listener.h"
 
 #include "src/deoptimizer.h"
-#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -140,7 +140,7 @@ void ProfilerListener::CodeDisableOptEvent(AbstractCode* code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Code* code, DeoptimizeKind kind,
+void ProfilerListener::CodeDeoptEvent(Code code, DeoptimizeKind kind,
                                       Address pc, int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
@@ -200,7 +200,7 @@ Name* ProfilerListener::InferScriptName(Name* name, SharedFunctionInfo* info) {
 void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
                                           AbstractCode* abstract_code) {
   if (!abstract_code->IsCode()) return;
-  Code* code = abstract_code->GetCode();
+  Code code = abstract_code->GetCode();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
   DeoptimizationData* deopt_input_data =
       DeoptimizationData::cast(code->deoptimization_data());
@@ -226,6 +226,8 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
       it.Next();  // Skip ast_id
       int shared_info_id = it.Next();
       it.Next();  // Skip height
+      it.Next();  // Skip return value offset
+      it.Next();  // Skip return value count
       SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
       if (!depth++) continue;  // Skip the current function itself.
@@ -250,7 +252,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
   }
 }
 
-void ProfilerListener::AttachDeoptInlinedFrames(Code* code,
+void ProfilerListener::AttachDeoptInlinedFrames(Code code,
                                                 CodeDeoptEventRecord* rec) {
   int deopt_id = rec->deopt_id;
   SourcePosition last_position = SourcePosition::Unknown();

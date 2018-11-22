@@ -108,6 +108,8 @@ class GlobalHandles {
   // Tells whether global handle is weak.
   static bool IsWeak(Address* location);
 
+  int InvokeFirstPassWeakCallbacks();
+
   // Process pending weak handles.
   // Returns the number of freed nodes.
   int PostGarbageCollectionProcessing(
@@ -193,7 +195,7 @@ class GlobalHandles {
   void InvokeSecondPassPhantomCallbacksFromTask();
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
-  int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
+  void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
   void UpdateListOfNewSpaceNodes();
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
@@ -257,12 +259,6 @@ class GlobalHandles::PendingPhantomCallback {
 
 class EternalHandles {
  public:
-  enum SingletonHandle {
-    DATE_CACHE_VERSION,
-
-    NUMBER_OF_SINGLETON_HANDLES
-  };
-
   EternalHandles();
   ~EternalHandles();
 
@@ -274,25 +270,6 @@ class EternalHandles {
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {
     return Handle<Object>(GetLocation(index));
-  }
-
-  // Grab the handle for an existing SingletonHandle.
-  inline Handle<Object> GetSingleton(SingletonHandle singleton) {
-    DCHECK(Exists(singleton));
-    return Get(singleton_handles_[singleton]);
-  }
-
-  // Checks whether a SingletonHandle has been assigned.
-  inline bool Exists(SingletonHandle singleton) {
-    return singleton_handles_[singleton] != kInvalidIndex;
-  }
-
-  // Assign a SingletonHandle to an empty slot and returns the handle.
-  Handle<Object> CreateSingleton(Isolate* isolate,
-                                 Object* object,
-                                 SingletonHandle singleton) {
-    Create(isolate, object, &singleton_handles_[singleton]);
-    return Get(singleton_handles_[singleton]);
   }
 
   // Iterates over all handles.
@@ -318,7 +295,6 @@ class EternalHandles {
   int size_;
   std::vector<Address*> blocks_;
   std::vector<int> new_space_indices_;
-  int singleton_handles_[NUMBER_OF_SINGLETON_HANDLES];
 
   DISALLOW_COPY_AND_ASSIGN(EternalHandles);
 };

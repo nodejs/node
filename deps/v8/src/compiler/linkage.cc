@@ -11,6 +11,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
+#include "src/macro-assembler.h"
 #include "src/optimized-compilation-info.h"
 
 namespace v8 {

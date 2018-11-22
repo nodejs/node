@@ -44,6 +44,7 @@
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
 #include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -218,8 +219,8 @@ class Immediate {
       : Immediate(ext.address(), RelocInfo::EXTERNAL_REFERENCE) {}
   inline explicit Immediate(Handle<HeapObject> handle)
       : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
-  inline explicit Immediate(Smi* value)
-      : Immediate(reinterpret_cast<intptr_t>(value)) {}
+  inline explicit Immediate(Smi value)
+      : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);
@@ -505,7 +506,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target);
+      Address instruction_payload, Code code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -1893,6 +1894,10 @@ class EnsureSpace {
   int space_before_;
 #endif
 };
+
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
 
 }  // namespace internal
 }  // namespace v8

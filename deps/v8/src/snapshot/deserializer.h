@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "src/objects/js-array.h"
-#include "src/snapshot/default-deserializer-allocator.h"
+#include "src/snapshot/deserializer-allocator.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -72,7 +72,7 @@ class Deserializer : public SerializerDeserializer {
   const std::vector<AllocationSite*>& new_allocation_sites() const {
     return new_allocation_sites_;
   }
-  const std::vector<Code*>& new_code_objects() const {
+  const std::vector<Code>& new_code_objects() const {
     return new_code_objects_;
   }
   const std::vector<AccessorInfo*>& accessor_infos() const {
@@ -88,7 +88,7 @@ class Deserializer : public SerializerDeserializer {
     return new_scripts_;
   }
 
-  DefaultDeserializerAllocator* allocator() { return &allocator_; }
+  DeserializerAllocator* allocator() { return &allocator_; }
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
 
@@ -141,14 +141,14 @@ class Deserializer : public SerializerDeserializer {
   ExternalReferenceTable* external_reference_table_;
 
   std::vector<AllocationSite*> new_allocation_sites_;
-  std::vector<Code*> new_code_objects_;
+  std::vector<Code> new_code_objects_;
   std::vector<AccessorInfo*> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;
   std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;
   std::vector<byte*> off_heap_backing_stores_;
 
-  DefaultDeserializerAllocator allocator_;
+  DeserializerAllocator allocator_;
   const bool deserializing_user_code_;
 
   // TODO(6593): generalize rehashing, and remove this flag.
@@ -160,7 +160,7 @@ class Deserializer : public SerializerDeserializer {
 #endif  // DEBUG
 
   // For source(), isolate(), and allocator().
-  friend class DefaultDeserializerAllocator;
+  friend class DeserializerAllocator;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };

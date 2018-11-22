@@ -27,6 +27,14 @@ enum class Usage {
   SEARCH,
 };
 
+enum class Sensitivity {
+  kBase,
+  kAccent,
+  kCase,
+  kVariant,
+  kUndefined,
+};
+
 // TODO(gsathya): Consider internalizing the value strings.
 void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
                                   Handle<String> key, const char* value) {
@@ -208,17 +216,31 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
 
 namespace {
 
-void SetCaseFirstOption(icu::Collator* icu_collator, const char* value) {
-  CHECK_NOT_NULL(icu_collator);
-  CHECK_NOT_NULL(value);
-  UErrorCode status = U_ZERO_ERROR;
-  if (strcmp(value, "upper") == 0) {
-    icu_collator->setAttribute(UCOL_CASE_FIRST, UCOL_UPPER_FIRST, status);
-  } else if (strcmp(value, "lower") == 0) {
-    icu_collator->setAttribute(UCOL_CASE_FIRST, UCOL_LOWER_FIRST, status);
-  } else {
-    icu_collator->setAttribute(UCOL_CASE_FIRST, UCOL_OFF, status);
+Intl::CaseFirst ToCaseFirst(const char* str) {
+  if (strcmp(str, "upper") == 0) return Intl::CaseFirst::kUpper;
+  if (strcmp(str, "lower") == 0) return Intl::CaseFirst::kLower;
+  if (strcmp(str, "false") == 0) return Intl::CaseFirst::kFalse;
+  return Intl::CaseFirst::kUndefined;
+}
+
+UColAttributeValue ToUColAttributeValue(Intl::CaseFirst case_first) {
+  switch (case_first) {
+    case Intl::CaseFirst::kUpper:
+      return UCOL_UPPER_FIRST;
+    case Intl::CaseFirst::kLower:
+      return UCOL_LOWER_FIRST;
+    case Intl::CaseFirst::kFalse:
+    case Intl::CaseFirst::kUndefined:
+      return UCOL_OFF;
   }
+}
+
+void SetCaseFirstOption(icu::Collator* icu_collator,
+                        Intl::CaseFirst case_first) {
+  CHECK_NOT_NULL(icu_collator);
+  UErrorCode status = U_ZERO_ERROR;
+  icu_collator->setAttribute(UCOL_CASE_FIRST, ToUColAttributeValue(case_first),
+                             status);
   CHECK(U_SUCCESS(status));
 }
 
@@ -253,19 +275,11 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
 
   // 4. Let usage be ? GetOption(options, "usage", "string", « "sort",
   // "search" », "sort").
-  std::vector<const char*> values = {"sort", "search"};
-  std::unique_ptr<char[]> usage_str = nullptr;
-  Usage usage = Usage::SORT;
-  Maybe<bool> found_usage = Intl::GetStringOption(
-      isolate, options, "usage", values, "Intl.Collator", &usage_str);
-  MAYBE_RETURN(found_usage, MaybeHandle<JSCollator>());
-
-  if (found_usage.FromJust()) {
-    DCHECK_NOT_NULL(usage_str.get());
-    if (strcmp(usage_str.get(), "search") == 0) {
-      usage = Usage::SEARCH;
-    }
-  }
+  Maybe<Usage> maybe_usage = Intl::GetStringOption<Usage>(
+      isolate, options, "usage", "Intl.Collator", {"sort", "search"},
+      {Usage::SORT, Usage::SEARCH}, Usage::SORT);
+  MAYBE_RETURN(maybe_usage, MaybeHandle<JSCollator>());
+  Usage usage = maybe_usage.FromJust();
 
   // 9. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
@@ -292,12 +306,10 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
 
   // 14. Let caseFirst be ? GetOption(options, "caseFirst", "string",
   //     « "upper", "lower", "false" », undefined).
-  // 15. Set opt.[[kf]] to caseFirst.
-  values = {"upper", "lower", "false"};
-  std::unique_ptr<char[]> case_first_str = nullptr;
-  Maybe<bool> found_case_first = Intl::GetStringOption(
-      isolate, options, "caseFirst", values, "Intl.Collator", &case_first_str);
-  MAYBE_RETURN(found_case_first, MaybeHandle<JSCollator>());
+  Maybe<Intl::CaseFirst> maybe_case_first =
+      Intl::GetCaseFirst(isolate, options, "Intl.Collator");
+  MAYBE_RETURN(maybe_case_first, MaybeHandle<JSCollator>());
+  Intl::CaseFirst case_first = maybe_case_first.FromJust();
 
   // The relevant unicode extensions accepted by Collator as specified here:
   // https://tc39.github.io/ecma402/#sec-intl-collator-internal-slots
@@ -420,14 +432,13 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   // If the caseFirst value is passed in through the options object,
   // then we use it. Otherwise, we check if the caseFirst value is
   // passed in through the unicode extensions.
-  if (found_case_first.FromJust()) {
-    const char* case_first_cstr = case_first_str.get();
-    SetCaseFirstOption(icu_collator.get(), case_first_cstr);
+  if (case_first != Intl::CaseFirst::kUndefined) {
+    SetCaseFirstOption(icu_collator.get(), case_first);
   } else {
     auto kf_extension_it = extensions.find("kf");
     if (kf_extension_it != extensions.end()) {
       const std::string& value = kf_extension_it->second;
-      SetCaseFirstOption(icu_collator.get(), value.c_str());
+      SetCaseFirstOption(icu_collator.get(), ToCaseFirst(value.c_str()));
     }
   }
 
@@ -440,40 +451,42 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
 
   // 24. Let sensitivity be ? GetOption(options, "sensitivity",
   // "string", « "base", "accent", "case", "variant" », undefined).
-  values = {"base", "accent", "case", "variant"};
-  std::unique_ptr<char[]> sensitivity_str = nullptr;
-  Maybe<bool> found_sensitivity =
-      Intl::GetStringOption(isolate, options, "sensitivity", values,
-                            "Intl.Collator", &sensitivity_str);
-  MAYBE_RETURN(found_sensitivity, MaybeHandle<JSCollator>());
+  Maybe<Sensitivity> maybe_sensitivity = Intl::GetStringOption<Sensitivity>(
+      isolate, options, "sensitivity", "Intl.Collator",
+      {"base", "accent", "case", "variant"},
+      {Sensitivity::kBase, Sensitivity::kAccent, Sensitivity::kCase,
+       Sensitivity::kVariant},
+      Sensitivity::kUndefined);
+  MAYBE_RETURN(maybe_sensitivity, MaybeHandle<JSCollator>());
+  Sensitivity sensitivity = maybe_sensitivity.FromJust();
 
   // 25. If sensitivity is undefined, then
-  if (!found_sensitivity.FromJust()) {
+  if (sensitivity == Sensitivity::kUndefined) {
     // 25. a. If usage is "sort", then
     if (usage == Usage::SORT) {
       // 25. a. i. Let sensitivity be "variant".
-      // 26. Set collator.[[Sensitivity]] to sensitivity.
-      icu_collator->setStrength(icu::Collator::TERTIARY);
+      sensitivity = Sensitivity::kVariant;
     }
-  } else {
-    DCHECK(found_sensitivity.FromJust());
-    const char* sensitivity_cstr = sensitivity_str.get();
-    DCHECK_NOT_NULL(sensitivity_cstr);
-
-    // 26. Set collator.[[Sensitivity]] to sensitivity.
-    if (strcmp(sensitivity_cstr, "base") == 0) {
+  }
+  // 26. Set collator.[[Sensitivity]] to sensitivity.
+  switch (sensitivity) {
+    case Sensitivity::kBase:
       icu_collator->setStrength(icu::Collator::PRIMARY);
-    } else if (strcmp(sensitivity_cstr, "accent") == 0) {
+      break;
+    case Sensitivity::kAccent:
       icu_collator->setStrength(icu::Collator::SECONDARY);
-    } else if (strcmp(sensitivity_cstr, "case") == 0) {
+      break;
+    case Sensitivity::kCase:
       icu_collator->setStrength(icu::Collator::PRIMARY);
       status = U_ZERO_ERROR;
       icu_collator->setAttribute(UCOL_CASE_LEVEL, UCOL_ON, status);
       CHECK(U_SUCCESS(status));
-    } else {
-      DCHECK_EQ(0, strcmp(sensitivity_cstr, "variant"));
+      break;
+    case Sensitivity::kVariant:
       icu_collator->setStrength(icu::Collator::TERTIARY);
-    }
+      break;
+    case Sensitivity::kUndefined:
+      break;
   }
 
   // 27.Let ignorePunctuation be ? GetOption(options,

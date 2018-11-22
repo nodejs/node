@@ -483,7 +483,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) CHECK(OS::Free(memory_, size_));
+  if (memory_) CHECK(OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize())));
   fclose(file_);
 }
 

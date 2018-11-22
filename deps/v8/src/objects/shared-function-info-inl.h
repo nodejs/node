@@ -12,6 +12,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/templates.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -75,8 +76,8 @@ ACCESSORS(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
 
 CAST_ACCESSOR(InterpreterData)
 ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
-ACCESSORS(InterpreterData, interpreter_trampoline, Code,
-          kInterpreterTrampolineOffset)
+ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
+           kInterpreterTrampolineOffset)
 
 CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -163,8 +164,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, native,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
-                    requires_instance_fields_initializer,
-                    SharedFunctionInfo::RequiresInstanceFieldsInitializer)
+                    requires_instance_members_initializer,
+                    SharedFunctionInfo::RequiresInstanceMembersInitializer)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, name_should_print_as_anonymous,
                     SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
@@ -435,7 +436,7 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
   set_function_data(bytecode);
 }
 
-Code* SharedFunctionInfo::InterpreterTrampoline() const {
+Code SharedFunctionInfo::InterpreterTrampoline() const {
   DCHECK(HasInterpreterData());
   return interpreter_data()->interpreter_trampoline();
 }
@@ -456,15 +457,15 @@ void SharedFunctionInfo::set_interpreter_data(
 }
 
 bool SharedFunctionInfo::HasAsmWasmData() const {
-  return function_data()->IsFixedArray();
+  return function_data()->IsAsmWasmData();
 }
 
-FixedArray* SharedFunctionInfo::asm_wasm_data() const {
+AsmWasmData* SharedFunctionInfo::asm_wasm_data() const {
   DCHECK(HasAsmWasmData());
-  return FixedArray::cast(function_data());
+  return AsmWasmData::cast(function_data());
 }
 
-void SharedFunctionInfo::set_asm_wasm_data(FixedArray* data) {
+void SharedFunctionInfo::set_asm_wasm_data(AsmWasmData* data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
          HasUncompiledData() || HasAsmWasmData());
   set_function_data(data);

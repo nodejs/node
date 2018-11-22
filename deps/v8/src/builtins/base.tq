@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 type Arguments constexpr 'CodeStubArguments*';
-type void generates 'void';
-type never generates 'void';
+type void;
+type never;
 
 type Tagged generates 'TNode<Object>';
 type Smi extends Tagged generates 'TNode<Smi>';
@@ -20,7 +20,8 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type string constexpr 'const char*';
 
-type int31 extends int32 generates 'TNode<Int32T>' constexpr 'int31_t';
+type int31 extends int32
+    generates 'TNode<Int32T>' constexpr 'int31_t';
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
 type Code extends AbstractCode generates 'TNode<Code>';
@@ -34,7 +35,6 @@ type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
-type Boolean extends Oddball generates 'TNode<Oddball>';
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 type JSObject extends JSReceiver generates 'TNode<JSObject>';
 type JSArgumentsObjectWithLength extends JSObject
@@ -65,6 +65,8 @@ type NumberDictionary extends HeapObject
 type NativeContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
 const ARRAY_JOIN_STACK_INDEX: constexpr NativeContextSlot
     generates 'Context::ARRAY_JOIN_STACK_INDEX';
+const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
+    generates 'Context::OBJECT_FUNCTION_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -84,14 +86,17 @@ type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
 type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags
-    generates 'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
-type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
+    generates 'TNode<Smi>'
+    constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
+type ParameterMode
+    generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
 type MessageTemplate constexpr 'MessageTemplate';
-type ToIntegerTruncationMode constexpr 'ToIntegerTruncationMode';
+type ToIntegerTruncationMode
+constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
 
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
@@ -129,7 +134,8 @@ const BIGUINT64_ELEMENTS:
 const BIGINT64_ELEMENTS:
     constexpr ElementsKind generates 'BIGINT64_ELEMENTS';
 
-const kNone: constexpr AllocationFlags generates 'kNone';
+const kNone:
+    constexpr AllocationFlags generates 'CodeStubAssembler::kNone';
 const kDoubleAlignment:
     constexpr AllocationFlags generates 'kDoubleAlignment';
 const kPretenured: constexpr AllocationFlags generates 'kPretenured';
@@ -149,11 +155,11 @@ type FixedBigUint64Array extends FixedTypedArray;
 type FixedBigInt64Array extends FixedTypedArray;
 
 const kFixedDoubleArrays: constexpr ExtractFixedArrayFlags
-    generates 'ExtractFixedArrayFlag::kFixedDoubleArrays';
+    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedDoubleArrays';
 const kAllFixedArrays: constexpr ExtractFixedArrayFlags
-    generates 'ExtractFixedArrayFlag::kAllFixedArrays';
+    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays';
 const kFixedArrays: constexpr ExtractFixedArrayFlags
-    generates 'ExtractFixedArrayFlag::kFixedArrays';
+    generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays';
 
 const kFixedCOWArrayMapRootIndex:
     constexpr RootIndex generates 'RootIndex::kFixedCOWArrayMap';
@@ -168,9 +174,13 @@ const kCalledNonCallable: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledOnNullOrUndefined';
-const kInvalidStringLength: constexpr MessageTemplate
-    generates 'MessageTemplate::kInvalidStringLength';
+const kIteratorValueNotAnObject: constexpr MessageTemplate
+    generates 'MessageTemplate::kIteratorValueNotAnObject';
+const kNotIterable: constexpr MessageTemplate
+    generates 'MessageTemplate::kNotIterable';
 
+const kMaxArrayIndex:
+    constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kStringMaxLength: constexpr int31 generates 'String::kMaxLength';
 const kFixedArrayMaxLength:
@@ -189,7 +199,8 @@ const kSloppyArgumentsParameterMapStart: constexpr int31
     generates 'SloppyArgumentsElements::kParameterMapStart';
 
 const kTruncateMinusZero: constexpr ToIntegerTruncationMode
-    generates 'ToIntegerTruncationMode::kTruncateMinusZero';
+    generates 'CodeStubAssembler::ToIntegerTruncationMode::kTruncateMinusZero'
+    ;
 
 const kNotTypedArray: constexpr MessageTemplate
     generates 'MessageTemplate::kNotTypedArray';
@@ -204,21 +215,30 @@ const kInvalidDataViewAccessorOffset: constexpr MessageTemplate
 const kStrictReadOnlyProperty: constexpr MessageTemplate
     generates 'MessageTemplate::kStrictReadOnlyProperty';
 
-extern macro TheHoleConstant(): Oddball;
-extern macro NullConstant(): Oddball;
-extern macro UndefinedConstant(): Oddball;
-extern macro TrueConstant(): Boolean;
-extern macro FalseConstant(): Boolean;
+type Hole extends Oddball generates 'TNode<Oddball>';
+type Null extends Oddball generates 'TNode<Oddball>';
+type Undefined extends Oddball generates 'TNode<Oddball>';
+type True extends Oddball generates 'TNode<Oddball>';
+type False extends Oddball generates 'TNode<Oddball>';
+type Boolean = True | False;
+
+type NumberOrUndefined = Number | Undefined;
+
+extern macro TheHoleConstant(): Hole;
+extern macro NullConstant(): Null;
+extern macro UndefinedConstant(): Undefined;
+extern macro TrueConstant(): True;
+extern macro FalseConstant(): False;
 extern macro Int32TrueConstant(): bool;
 extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): String;
 extern macro LengthStringConstant(): String;
 
-const Hole: Oddball = TheHoleConstant();
-const Null: Oddball = NullConstant();
-const Undefined: Oddball = UndefinedConstant();
-const True: Boolean = TrueConstant();
-const False: Boolean = FalseConstant();
+const Hole: Hole = TheHoleConstant();
+const Null: Null = NullConstant();
+const Undefined: Undefined = UndefinedConstant();
+const True: True = TrueConstant();
+const False: False = FalseConstant();
 const kEmptyString: String = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
 
@@ -228,9 +248,10 @@ const false: constexpr bool generates 'false';
 const kStrict: constexpr LanguageMode generates 'LanguageMode::kStrict';
 const kSloppy: constexpr LanguageMode generates 'LanguageMode::kSloppy';
 
-const SMI_PARAMETERS: constexpr ParameterMode generates 'SMI_PARAMETERS';
-const INTPTR_PARAMETERS:
-    constexpr ParameterMode generates 'INTPTR_PARAMETERS';
+const SMI_PARAMETERS: constexpr ParameterMode
+    generates 'CodeStubAssembler::SMI_PARAMETERS';
+const INTPTR_PARAMETERS: constexpr ParameterMode
+    generates 'CodeStubAssembler::INTPTR_PARAMETERS';
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
@@ -253,6 +274,8 @@ extern macro ToString_Inline(Context, Object): String;
 extern transitioning macro GetProperty(implicit context: Context)(
     Object, Object): Object;
 extern transitioning builtin SetProperty(implicit context: Context)(
+    Object, Object, Object);
+extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
     Object, Object, Object);
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     Object, Object, LanguageMode);
@@ -303,6 +326,7 @@ extern builtin StringLessThan(Context, String, String): Boolean;
 extern macro StrictEqual(Object, Object): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 extern runtime ReThrow(Context, Object): never;
+extern runtime ThrowInvalidStringLength(Context): never;
 
 extern operator '<' macro Int32LessThan(int32, int32): bool;
 extern operator '>' macro Int32GreaterThan(int32, int32): bool;
@@ -365,8 +389,8 @@ extern operator '<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never
 
 extern operator '>' macro BranchIfNumberGreaterThan(Number, Number): never
     labels Taken, NotTaken;
-extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(Number, Number):
-    never
+extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(
+    Number, Number): never
     labels Taken, NotTaken;
 
 extern operator '==' macro WordEqual(Object, Object): bool;
@@ -395,6 +419,8 @@ extern operator '&' macro WordAnd(uintptr, uintptr): uintptr;
 extern operator '|' macro WordOr(uintptr, uintptr): uintptr;
 
 extern operator '+' macro Int32Add(int32, int32): int32;
+extern operator '+' macro ConstexprUint32Add(
+    constexpr uint32, constexpr int32): constexpr uint32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
 extern operator '%' macro Int32Mod(int32, int32): int32;
@@ -566,6 +592,7 @@ extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
 
 extern macro NumberConstant(constexpr float64): Number;
 extern macro NumberConstant(constexpr int32): Number;
+extern macro NumberConstant(constexpr uint32): Number;
 extern macro IntPtrConstant(constexpr int31): intptr;
 extern macro IntPtrConstant(constexpr int32): intptr;
 extern macro Int32Constant(constexpr int31): int31;
@@ -602,6 +629,10 @@ FromConstexpr<Number>(i: constexpr int31): Number {
 }
 FromConstexpr<float64>(i: constexpr int31): float64 {
   return Float64Constant(i);
+}
+macro FromConstexpr<A: type>(o: constexpr uint32): A;
+FromConstexpr<Number>(i: constexpr uint32): Number {
+  return NumberConstant(i);
 }
 macro FromConstexpr<A: type>(o: constexpr int32): A;
 FromConstexpr<intptr>(i: constexpr int32): intptr {
@@ -748,6 +779,9 @@ macro UnsafeCast<A: type>(n: Number): A;
 UnsafeCast<HeapNumber>(n: Number): HeapNumber {
   return UnsafeCastNumberToHeapNumber(n);
 }
+UnsafeCast<Smi>(o: Number): Smi {
+  return UnsafeCastObjectToSmi(o);
+}
 macro UnsafeCast<A: type>(o: Object): A;
 UnsafeCast<Object>(o: Object): Object {
   return o;
@@ -804,6 +838,7 @@ UnsafeCast<String>(o: Object): String {
 // RawCasts should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate
 // type check().
+extern macro RawCastObjectToJSFunction(Object): JSFunction;
 extern macro RawCastObjectToJSArgumentsObjectWithLength(Object):
     JSArgumentsObjectWithLength;
 extern macro RawCastObjectToFastJSArray(Object): FastJSArray;
@@ -821,7 +856,6 @@ macro BranchIfJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
   goto True;
 }
 
-macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A;
 UnsafeCast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
     JSArgumentsObjectWithLength {
   assert(BranchIfJSArgumentsObjectWithLength(o));
@@ -877,6 +911,38 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
   }
 }
 
+UnsafeCast<JSFunction>(implicit context: Context)(o: Object): JSFunction {
+  assert(IsJSFunction(Cast<HeapObject>(o) otherwise unreachable));
+  return RawCastObjectToJSFunction(o);
+}
+
+Cast<JSFunction>(implicit context: Context)(o: Object): JSFunction
+    labels CastError {
+  if (IsJSFunction(Cast<HeapObject>(o) otherwise CastError)) {
+    return UnsafeCast<JSFunction>(o);
+  } else {
+    goto CastError;
+  }
+}
+
+Cast<Map>(o: Object): Map
+    labels CastError {
+  if (IsMap(Cast<HeapObject>(o) otherwise CastError)) {
+    return UnsafeCast<Map>(o);
+  } else {
+    goto CastError;
+  }
+}
+
+Cast<JSReceiver>(o: Object): JSReceiver
+    labels CastError {
+  if (IsJSReceiver(Cast<HeapObject>(o) otherwise CastError)) {
+    return UnsafeCast<JSReceiver>(o);
+  } else {
+    goto CastError;
+  }
+}
+
 const kCOWMap: Map = UnsafeCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
 const kEmptyFixedArray: FixedArrayBase =
     UnsafeCast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
@@ -887,8 +953,7 @@ extern macro BranchIfFastJSArrayForCopy(Object, Context): never
     labels Taken, NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never
     labels Taken, NotTaken;
-macro BranchIfNotFastJSArrayForCopy(implicit context: Context)(o: Object):
-    never
+macro BranchIfNotFastJSArrayForCopy(implicit context: Context)(o: Object): never
     labels Taken, NotTaken {
   BranchIfFastJSArrayForCopy(o, context) otherwise NotTaken, Taken;
 }
@@ -899,10 +964,11 @@ extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 
-extern operator '.buffer' macro LoadTypedArrayBuffer(JSTypedArray):
-    JSArrayBuffer;
+extern operator '.buffer' macro
+TypedArrayBuiltinsAssembler::LoadTypedArrayBuffer(JSTypedArray): JSArrayBuffer;
 
-extern operator '.data_ptr' macro LoadDataPtr(JSTypedArray): RawPtr;
+extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
+    JSTypedArray): RawPtr;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
@@ -945,6 +1011,9 @@ extern macro StoreFixedArrayElementSmi(
 
 extern operator '.instance_type' macro LoadMapInstanceType(Map): int32;
 
+extern operator '.prototype_or_initial_map' macro
+LoadJSFunctionPrototypeOrInitialMap(JSFunction): Object;
+
 extern macro LoadFixedDoubleArrayElement(FixedDoubleArray, Smi): float64;
 extern macro Float64SilenceNaN(float64): float64;
 
@@ -962,7 +1031,7 @@ extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): Object
     labels NotData, IfHole;
 extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, Object)
-labels NotData, IfHole, ReadOnly;
+    labels NotData, IfHole, ReadOnly;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsDoubleElementsKind(ElementsKind): bool;
@@ -1009,6 +1078,8 @@ extern macro CopyFixedArrayElements(
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 
+extern macro AllocateJSObjectFromMap(Map): HeapObject;
+
 extern operator '[]=' macro StoreFixedDoubleArrayElementSmi(
     FixedDoubleArray, Smi, float64): void;
 
@@ -1017,6 +1088,11 @@ extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, intptr): float64
     labels IfHole;
 extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
+
+macro GetObjectFunction(implicit context: Context)(): JSFunction {
+  return UnsafeCast<JSFunction>(
+      LoadNativeContext(context)[OBJECT_FUNCTION_INDEX]);
+}
 
 extern transitioning macro Call(Context, Callable, Object): Object;
 extern transitioning macro Call(Context, Callable, Object, Object): Object;
@@ -1103,12 +1179,13 @@ LoadElementNoHole<FixedDoubleArray>(a: JSArray, index: Smi): Object
   }
 }
 
-extern macro TransitionElementsKind(JSObject, Map, ElementsKind, ElementsKind):
-    void
-    labels Bailout;
+extern macro TransitionElementsKind(
+    JSObject, Map, ElementsKind, ElementsKind): void labels Bailout;
 
 extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
+extern macro IsMap(HeapObject): bool;
+extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
@@ -1190,3 +1267,8 @@ extern macro TryIntPtrAdd(intptr, intptr): intptr
 
 extern builtin ObjectToString(Context, Object): Object;
 extern builtin StringRepeat(Context, String, Number): String;
+
+struct KeyValuePair {
+  key: Object;
+  value: Object;
+}

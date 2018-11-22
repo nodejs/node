@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug-interface.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -179,18 +180,17 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
   // Create a new {NativeModule} first.
-  size_t native_memory_estimate =
-      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-          shared_module.get());
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(shared_module.get());
   auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
-      isolate, enabled, native_memory_estimate,
+      isolate, enabled, code_size_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module));
-  native_module->set_wire_bytes(std::move(wire_bytes));
+  native_module->SetWireBytes(std::move(wire_bytes));
   native_module->SetRuntimeStubs(isolate);
 
   // Delegate to the shared {WasmModuleObject::New} allocator.
   Handle<WasmModuleObject> module_object =
-      New(isolate, std::move(native_module), script);
+      New(isolate, std::move(native_module), script, code_size_estimate);
   if (!asm_js_offset_table.is_null()) {
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
@@ -200,19 +200,27 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 // static
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<Script> script) {
-  int export_wrapper_size =
-      static_cast<int>(native_module->module()->num_exported_functions);
+    Handle<Script> script, size_t code_size_estimate) {
+  const WasmModule* module = native_module->module();
+  int export_wrapper_size = static_cast<int>(module->num_exported_functions);
   Handle<FixedArray> export_wrappers =
       isolate->factory()->NewFixedArray(export_wrapper_size, TENURED);
+  return New(isolate, std::move(native_module), script, export_wrappers,
+             code_size_estimate);
+}
+
+// static
+Handle<WasmModuleObject> WasmModuleObject::New(
+    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+    Handle<Script> script, Handle<FixedArray> export_wrappers,
+    size_t code_size_estimate) {
+  const WasmModule* module = native_module->module();
 
   // Use the given shared {NativeModule}, but increase its reference count by
   // allocating a new {Managed<T>} that the {WasmModuleObject} references.
-  size_t native_memory_estimate =
-      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-          native_module->module());
   size_t memory_estimate =
-      EstimateWasmModuleSize(native_module->module()) + native_memory_estimate;
+      code_size_estimate +
+      wasm::WasmCodeManager::EstimateNativeModuleNonCodeSize(module);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));
@@ -1044,6 +1052,7 @@ void WasmMemoryObject::RemoveInstance(Handle<WasmMemoryObject> memory,
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
   if (!old_buffer->is_growable()) return -1;
   size_t old_size = old_buffer->byte_length();
@@ -1425,6 +1434,26 @@ Address WasmExportedFunction::GetWasmCallTarget() {
 
 wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance()->module()->functions[function_index()].sig;
+}
+
+Handle<AsmWasmData> AsmWasmData::New(
+    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+    Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,
+    Handle<HeapNumber> uses_bitset) {
+  const WasmModule* module = native_module->module();
+  size_t memory_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module) +
+      wasm::WasmCodeManager::EstimateNativeModuleNonCodeSize(module);
+  Handle<Managed<wasm::NativeModule>> managed_native_module =
+      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
+                                                 std::move(native_module));
+  Handle<AsmWasmData> result = Handle<AsmWasmData>::cast(
+      isolate->factory()->NewStruct(ASM_WASM_DATA_TYPE, TENURED));
+  result->set_managed_native_module(*managed_native_module);
+  result->set_export_wrappers(*export_wrappers);
+  result->set_asm_js_offset_table(*asm_js_offset_table);
+  result->set_uses_bitset(*uses_bitset);
+  return result;
 }
 
 #undef TRACE

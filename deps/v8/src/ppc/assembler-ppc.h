@@ -48,6 +48,7 @@
 #include "src/double.h"
 #include "src/external-reference.h"
 #include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/ppc/constants-ppc.h"
 
 #if V8_HOST_ARCH_PPC && \
@@ -378,8 +379,8 @@ class Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value) : rmode_(RelocInfo::NONE) {
-    value_.immediate = reinterpret_cast<intptr_t>(value);
+  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NONE) {
+    value_.immediate = static_cast<intptr_t>(value.ptr());
   }
   // rm
   V8_INLINE explicit Operand(Register rm);
@@ -577,7 +578,7 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target);
+      Address instruction_payload, Code code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -1440,10 +1441,13 @@ class Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   ConstantPoolEntry::Access ConstantPoolAddEntry(RelocInfo::Mode rmode,
                                                  intptr_t value) {
-    bool sharing_ok = RelocInfo::IsNone(rmode) ||
-                      (!options().record_reloc_info_for_serialization &&
-                       RelocInfo::IsShareableRelocMode(rmode) &&
-                       !is_constant_pool_entry_sharing_blocked());
+    bool sharing_ok =
+        RelocInfo::IsNone(rmode) ||
+        (!options().record_reloc_info_for_serialization &&
+         RelocInfo::IsShareableRelocMode(rmode) &&
+         !is_constant_pool_entry_sharing_blocked() &&
+         // TODO(johnyan): make the following rmode shareable
+         !RelocInfo::IsWasmCall(rmode) && !RelocInfo::IsWasmStubCall(rmode));
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }
   ConstantPoolEntry::Access ConstantPoolAddEntry(Double value) {
@@ -1635,6 +1639,11 @@ class PatchingAssembler : public Assembler {
                     int instructions);
   ~PatchingAssembler();
 };
+
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS);
+DEFINE_REGISTER_NAMES(DoubleRegister, DOUBLE_REGISTERS);
+
 
 }  // namespace internal
 }  // namespace v8

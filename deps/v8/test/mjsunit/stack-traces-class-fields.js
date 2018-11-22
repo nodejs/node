@@ -75,14 +75,14 @@ function testClassInstantiation() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_fields_initializer>
+//     at X.<instance_members_initializer>
 //     at new X
 //     at testClassInstantiation
 //     at testTrace
 testTrace(
   "during class instantiation",
   testClassInstantiation,
-  ["thrower", "X.<instance_fields_initializer>", "new X"],
+  ["thrower", "X.<instance_members_initializer>", "new X"],
   ["anonymous"]
 );
 
@@ -98,14 +98,14 @@ function testClassInstantiationWithSuper() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_fields_initializer>
+//     at X.<instance_members_initializer>
 //     at new X
 //     at testClassInstantiation
 //     at testTrace
 testTrace(
   "during class instantiation with super",
   testClassInstantiationWithSuper,
-  ["thrower", "X.<instance_fields_initializer>", "new X"],
+  ["thrower", "X.<instance_members_initializer>", "new X"],
   ["Base", "anonymous"]
 );
 
@@ -124,14 +124,14 @@ function testClassInstantiationWithSuper2() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_fields_initializer>
+//     at X.<instance_members_initializer>
 //     at new X
 //     at testClassInstantiation
 //     at testTrace
 testTrace(
   "during class instantiation with super2",
   testClassInstantiationWithSuper2,
-  ["thrower", "X.<instance_fields_initializer>", "new X"],
+  ["thrower", "X.<instance_members_initializer>", "new X"],
   ["Base", "anonymous"]
 );
 
@@ -151,7 +151,7 @@ function testClassInstantiationWithSuper3() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_fields_initializer>
+//     at X.<instance_members_initializer>
 //     at new Base
 //     at new X
 //     at testClassInstantiationWithSuper3
@@ -159,7 +159,7 @@ function testClassInstantiationWithSuper3() {
 testTrace(
   "during class instantiation with super3",
   testClassInstantiationWithSuper3,
-  ["thrower", "X.<instance_fields_initializer>", "new Base", "new X"],
+  ["thrower", "X.<instance_members_initializer>", "new Base", "new X"],
   ["anonymous"]
 );
 

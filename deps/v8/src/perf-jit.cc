@@ -31,8 +31,8 @@
 
 #include "src/assembler.h"
 #include "src/eh-frame.h"
-#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -210,7 +210,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
 
   // We only support non-interpreted functions.
   if (!abstract_code->IsCode()) return;
-  Code* code = abstract_code->GetCode();
+  Code code = abstract_code->GetCode();
   DCHECK(code->raw_instruction_start() == code->address() + Code::kHeaderSize);
 
   // Debug info has to be emitted first.
@@ -322,7 +322,7 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 
 }  // namespace
 
-void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
+void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo* shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
   for (SourcePositionTableIterator iterator(code->SourcePositionTable());
@@ -385,7 +385,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   LogWriteBytes(padding_bytes, padding);
 }
 
-void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
+void PerfJitLogger::LogWriteUnwindingInfo(Code code) {
   PerfJitCodeUnwindingInfo unwinding_info_header;
   unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
   unwinding_info_header.time_stamp_ = GetTimestamp();

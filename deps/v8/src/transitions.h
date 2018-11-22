@@ -38,7 +38,7 @@ namespace internal {
 // cleared when the map they refer to is not otherwise reachable.
 class TransitionsAccessor {
  public:
-  TransitionsAccessor(Isolate* isolate, Map* map, DisallowHeapAllocation* no_gc)
+  TransitionsAccessor(Isolate* isolate, Map map, DisallowHeapAllocation* no_gc)
       : isolate_(isolate), map_(map) {
     Initialize();
     USE(no_gc);
@@ -54,10 +54,10 @@ class TransitionsAccessor {
   // This TransitionsAccessor instance is unusable after this operation.
   void Insert(Handle<Name> name, Handle<Map> target, SimpleTransitionFlag flag);
 
-  Map* SearchTransition(Name* name, PropertyKind kind,
-                        PropertyAttributes attributes);
+  Map SearchTransition(Name* name, PropertyKind kind,
+                       PropertyAttributes attributes);
 
-  Map* SearchSpecial(Symbol* name);
+  Map SearchSpecial(Symbol* name);
   // Returns true for non-property transitions like elements kind, or
   // or frozen/sealed transitions.
   static bool IsSpecialTransition(ReadOnlyRoots roots, Name* name);
@@ -80,14 +80,14 @@ class TransitionsAccessor {
   static const int kMaxNumberOfTransitions = 1024 + 512;
   bool CanHaveMoreTransitions();
   inline Name* GetKey(int transition_number);
-  inline Map* GetTarget(int transition_number);
-  static inline PropertyDetails GetTargetDetails(Name* name, Map* target);
+  inline Map GetTarget(int transition_number);
+  static inline PropertyDetails GetTargetDetails(Name* name, Map target);
 
-  static bool IsMatchingMap(Map* target, Name* name, PropertyKind kind,
+  static bool IsMatchingMap(Map target, Name* name, PropertyKind kind,
                             PropertyAttributes attributes);
 
   // ===== ITERATION =====
-  typedef void (*TraverseCallback)(Map* map, void* data);
+  typedef void (*TraverseCallback)(Map map, void* data);
 
   // Traverse the transition tree in postorder.
   void TraverseTransitionTree(TraverseCallback callback, void* data) {
@@ -107,9 +107,17 @@ class TransitionsAccessor {
   void PutPrototypeTransition(Handle<Object> prototype, Handle<Map> target_map);
   Handle<Map> GetPrototypeTransition(Handle<Object> prototype);
 
+  // During the first-time Map::Update and Map::TryUpdate, the migration target
+  // map could be cached in the raw_transitions slot of the old map that is
+  // deprecated from the map transition tree. The next time old map is updated,
+  // we will check this cache slot as a shortcut to get the migration target
+  // map.
+  void SetMigrationTarget(Map migration_target);
+  Map GetMigrationTarget();
+
 #if DEBUG || OBJECT_PRINT
   void PrintTransitions(std::ostream& os);
-  static void PrintOneTransition(std::ostream& os, Name* key, Map* target);
+  static void PrintOneTransition(std::ostream& os, Name* key, Map target);
   void PrintTransitionTree();
   void PrintTransitionTree(std::ostream& os, int level,
                            DisallowHeapAllocation* no_gc);
@@ -126,6 +134,7 @@ class TransitionsAccessor {
   enum Encoding {
     kPrototypeInfo,
     kUninitialized,
+    kMigrationTarget,
     kWeakRef,
     kFullTransitionArray,
   };
@@ -145,11 +154,11 @@ class TransitionsAccessor {
   friend class MarkCompactCollector;  // For HasSimpleTransitionTo.
   friend class TransitionArray;
 
-  static inline PropertyDetails GetSimpleTargetDetails(Map* transition);
+  static inline PropertyDetails GetSimpleTargetDetails(Map transition);
 
-  static inline Name* GetSimpleTransitionKey(Map* transition);
+  static inline Name* GetSimpleTransitionKey(Map transition);
 
-  static inline Map* GetTargetFromRaw(MaybeObject raw);
+  static inline Map GetTargetFromRaw(MaybeObject raw);
 
   void MarkNeedsReload() {
 #if DEBUG
@@ -159,12 +168,12 @@ class TransitionsAccessor {
 
   void Initialize();
 
-  inline Map* GetSimpleTransition();
-  bool HasSimpleTransitionTo(Map* map);
+  inline Map GetSimpleTransition();
+  bool HasSimpleTransitionTo(Map map);
 
   void ReplaceTransitions(MaybeObject new_transitions);
 
-  inline Map* GetTargetMapFromWeakRef();
+  inline Map GetTargetMapFromWeakRef();
 
   void EnsureHasFullTransitionArray();
   void SetPrototypeTransitions(Handle<WeakFixedArray> proto_transitions);
@@ -177,7 +186,7 @@ class TransitionsAccessor {
 
   Isolate* isolate_;
   Handle<Map> map_handle_;
-  Map* map_;
+  Map map_;
   MaybeObject raw_transitions_;
   Encoding encoding_;
 #if DEBUG
@@ -211,12 +220,12 @@ class TransitionArray : public WeakFixedArray {
   inline Name* GetKey(int transition_number);
   inline HeapObjectSlot GetKeySlot(int transition_number);
 
-  inline Map* GetTarget(int transition_number);
+  inline Map GetTarget(int transition_number);
   inline void SetRawTarget(int transition_number, MaybeObject target);
   inline MaybeObject GetRawTarget(int transition_number);
   inline HeapObjectSlot GetTargetSlot(int transition_number);
   inline bool GetTargetIfExists(int transition_number, Isolate* isolate,
-                                Map** target);
+                                Map* target);
 
   // Required for templatized Search interface.
   static constexpr int kNotFound = -1;

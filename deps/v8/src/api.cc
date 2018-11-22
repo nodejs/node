@@ -51,6 +51,9 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -60,6 +63,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
@@ -88,7 +92,6 @@
 #include "src/string-hasher.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/unicode-cache-inl.h"
 #include "src/unicode-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -101,7 +104,7 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
-#ifdef V8_OS_POSIX
+#if V8_OS_LINUX || V8_OS_MACOSX
 #include <signal.h>
 #include "src/trap-handler/handler-inside-posix.h"
 #endif
@@ -400,6 +403,8 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
   heap_stats.map_space_capacity = &map_space_capacity;
   size_t lo_space_size;
   heap_stats.lo_space_size = &lo_space_size;
+  size_t code_lo_space_size;
+  heap_stats.code_lo_space_size = &code_lo_space_size;
   size_t global_handle_count;
   heap_stats.global_handle_count = &global_handle_count;
   size_t weak_global_handle_count;
@@ -940,7 +945,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   set_max_semi_space_size_in_kb(
       i::Heap::ComputeMaxSemiSpaceSize(physical_memory));
   set_max_old_space_size(i::Heap::ComputeMaxOldGenerationSize(physical_memory));
-  set_max_zone_pool_size(i::AccountingAllocator::kMaxPoolSize);
 
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
     // Reserve no more than 1/8 of the memory for the code range, but at most
@@ -956,12 +960,10 @@ void SetResourceConstraints(i::Isolate* isolate,
   size_t semi_space_size = constraints.max_semi_space_size_in_kb();
   size_t old_space_size = constraints.max_old_space_size();
   size_t code_range_size = constraints.code_range_size();
-  size_t max_pool_size = constraints.max_zone_pool_size();
   if (semi_space_size != 0 || old_space_size != 0 || code_range_size != 0) {
     isolate->heap()->ConfigureHeap(semi_space_size, old_space_size,
                                    code_range_size);
   }
-  isolate->allocator()->ConfigureSegmentPool(max_pool_size);
 
   if (constraints.stack_limit() != nullptr) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints.stack_limit());
@@ -1185,23 +1187,11 @@ Context::BackupIncumbentScope::~BackupIncumbentScope() {
   isolate->set_top_backup_incumbent_scope(prev_);
 }
 
-static void* DecodeSmiToAligned(i::Object* value, const char* location) {
-  Utils::ApiCheck(value->IsSmi(), location, "Not a Smi");
-  return reinterpret_cast<void*>(value);
-}
+STATIC_ASSERT(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
 
-
-static i::Smi* EncodeAlignedAsSmi(void* value, const char* location) {
-  i::Smi* smi = reinterpret_cast<i::Smi*>(value);
-  Utils::ApiCheck(smi->IsSmi(), location, "Pointer is not aligned");
-  return smi;
-}
-
-
-static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
-                                                int index,
-                                                bool can_grow,
-                                                const char* location) {
+static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
+                                                       int index, bool can_grow,
+                                                       const char* location) {
   i::Handle<i::Context> env = Utils::OpenHandle(context);
   i::Isolate* isolate = env->GetIsolate();
   bool ok =
@@ -1209,15 +1199,16 @@ static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
                       location,
                       "Not a native context") &&
       Utils::ApiCheck(index >= 0, location, "Negative index");
-  if (!ok) return i::Handle<i::FixedArray>();
-  i::Handle<i::FixedArray> data(env->embedder_data(), isolate);
+  if (!ok) return i::Handle<i::EmbedderDataArray>();
+  // TODO(ishell): remove cast once embedder_data slot has a proper type.
+  i::Handle<i::EmbedderDataArray> data(
+      i::EmbedderDataArray::cast(env->embedder_data()), isolate);
   if (index < data->length()) return data;
-  if (!Utils::ApiCheck(can_grow, location, "Index too large")) {
-    return i::Handle<i::FixedArray>();
+  if (!Utils::ApiCheck(can_grow && index < i::EmbedderDataArray::kMaxLength,
+                       location, "Index too large")) {
+    return i::Handle<i::EmbedderDataArray>();
   }
-  int new_size = index + 1;
-  int grow_by = new_size - data->length();
-  data = isolate->factory()->CopyFixedArrayAndGrow(data, grow_by);
+  data = i::EmbedderDataArray::EnsureCapacity(isolate, data, index);
   env->set_embedder_data(*data);
   return data;
 }
@@ -1225,26 +1216,30 @@ static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
 uint32_t Context::GetNumberOfEmbedderDataFields() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   CHECK(context->IsNativeContext());
-  return static_cast<uint32_t>(context->embedder_data()->length());
+  // TODO(ishell): remove cast once embedder_data slot has a proper type.
+  return static_cast<uint32_t>(
+      i::EmbedderDataArray::cast(context->embedder_data())->length());
 }
 
 v8::Local<v8::Value> Context::SlowGetEmbedderData(int index) {
   const char* location = "v8::Context::GetEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, false, location);
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return Local<Value>();
-  i::Handle<i::Object> result(
-      data->get(index),
-      reinterpret_cast<i::Isolate*>(Utils::OpenHandle(this)->GetIsolate()));
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Handle<i::Object> result(i::EmbedderDataSlot(*data, index).load_tagged(),
+                              isolate);
   return Utils::ToLocal(result);
 }
 
 
 void Context::SetEmbedderData(int index, v8::Local<Value> value) {
   const char* location = "v8::Context::SetEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, true, location);
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, true, location);
   if (data.is_null()) return;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
-  data->set(index, *val);
+  i::EmbedderDataSlot::store_tagged(*data, index, *val);
   DCHECK_EQ(*Utils::OpenHandle(*value),
             *Utils::OpenHandle(*GetEmbedderData(index)));
 }
@@ -1252,16 +1247,22 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
 
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, false, location);
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
-  return DecodeSmiToAligned(data->get(index), location);
+  void* result;
+  Utils::ApiCheck(i::EmbedderDataSlot(*data, index).ToAlignedPointer(&result),
+                  location, "Pointer is not aligned");
+  return result;
 }
 
 
 void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
-  i::Handle<i::FixedArray> data = EmbedderDataFor(this, index, true, location);
-  data->set(index, EncodeAlignedAsSmi(value, location));
+  i::Handle<i::EmbedderDataArray> data =
+      EmbedderDataFor(this, index, true, location);
+  bool ok = i::EmbedderDataSlot(*data, index).store_aligned_pointer(value);
+  Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
 }
 
@@ -2326,18 +2327,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   ENTER_V8_NO_SCRIPT(isolate, v8_isolate->GetCurrentContext(), ScriptCompiler,
                      CompileUnbound, MaybeLocal<UnboundScript>(),
                      InternalEscapableScope);
-  // ProduceParserCache, ProduceCodeCache, ProduceFullCodeCache and
-  // ConsumeParserCache are not supported. They are present only for
-  // backward compatability. All these options behave as kNoCompileOptions.
-  if (options == kConsumeParserCache) {
-    // We do not support parser caches anymore. Just set cached_data to
-    // rejected to signal an error.
-    options = kNoCompileOptions;
-    source->cached_data->rejected = true;
-  } else if (options == kProduceParserCache || options == kProduceCodeCache ||
-             options == kProduceFullCodeCache) {
-    options = kNoCompileOptions;
-  }
 
   i::ScriptData* script_data = nullptr;
   if (options == kConsumeCodeCache) {
@@ -2427,9 +2416,9 @@ class IsIdentifierHelper {
     for (int i = 0; i < length; ++i) {
       if (first_char_) {
         first_char_ = false;
-        is_identifier_ = unicode_cache_.IsIdentifierStart(chars[0]);
+        is_identifier_ = i::IsIdentifierStart(chars[0]);
       } else {
-        is_identifier_ &= unicode_cache_.IsIdentifierPart(chars[i]);
+        is_identifier_ &= i::IsIdentifierPart(chars[i]);
       }
     }
   }
@@ -2437,9 +2426,9 @@ class IsIdentifierHelper {
     for (int i = 0; i < length; ++i) {
       if (first_char_) {
         first_char_ = false;
-        is_identifier_ = unicode_cache_.IsIdentifierStart(chars[0]);
+        is_identifier_ = i::IsIdentifierStart(chars[0]);
       } else {
-        is_identifier_ &= unicode_cache_.IsIdentifierPart(chars[i]);
+        is_identifier_ &= i::IsIdentifierPart(chars[i]);
       }
     }
   }
@@ -2447,7 +2436,6 @@ class IsIdentifierHelper {
  private:
   bool is_identifier_;
   bool first_char_;
-  i::UnicodeCache unicode_cache_;
   DISALLOW_COPY_AND_ASSIGN(IsIdentifierHelper);
 };
 
@@ -5805,9 +5793,8 @@ Local<Value> v8::Object::SlowGetInternalField(int index) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::GetInternalField()";
   if (!InternalFieldOK(obj, index, location)) return Local<Value>();
-  i::Handle<i::Object> value(
-      i::Handle<i::JSObject>::cast(obj)->GetEmbedderField(index),
-      obj->GetIsolate());
+  i::Handle<i::Object> value(i::JSObject::cast(*obj)->GetEmbedderField(index),
+                             obj->GetIsolate());
   return Utils::ToLocal(value);
 }
 
@@ -5823,16 +5810,20 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::GetAlignedPointerFromInternalField()";
   if (!InternalFieldOK(obj, index, location)) return nullptr;
-  return DecodeSmiToAligned(
-      i::Handle<i::JSObject>::cast(obj)->GetEmbedderField(index), location);
+  void* result;
+  Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
+                      .ToAlignedPointer(&result),
+                  location, "Unaligned pointer");
+  return result;
 }
 
 void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::SetAlignedPointerInInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;
-  i::Handle<i::JSObject>::cast(obj)->SetEmbedderField(
-      index, EncodeAlignedAsSmi(value, location));
+  Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
+                      .store_aligned_pointer(value),
+                  location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
 }
 
@@ -5841,8 +5832,8 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
   const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
   i::DisallowHeapAllocation no_gc;
-  i::JSObject* object = i::JSObject::cast(*obj);
-  int nof_embedder_fields = object->GetEmbedderFieldCount();
+  i::JSObject* js_obj = i::JSObject::cast(*obj);
+  int nof_embedder_fields = js_obj->GetEmbedderFieldCount();
   for (int i = 0; i < argc; i++) {
     int index = indices[i];
     if (!Utils::ApiCheck(index < nof_embedder_fields, location,
@@ -5850,7 +5841,9 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
       return;
     }
     void* value = values[i];
-    object->SetEmbedderField(index, EncodeAlignedAsSmi(value, location));
+    Utils::ApiCheck(
+        i::EmbedderDataSlot(js_obj, index).store_aligned_pointer(value),
+        location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
 }
@@ -5886,12 +5879,12 @@ bool v8::V8::Initialize() {
   return true;
 }
 
-#if V8_OS_POSIX
+#if V8_OS_LINUX || V8_OS_MACOSX
 bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
                                    void* context) {
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+#if V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
-#else  // V8_OS_LINUX && V8_TARGET_ARCH_X64 && !V8_OS_ANDROID
+#else
   return false;
 #endif
 }
@@ -6705,6 +6698,64 @@ Local<v8::Object> v8::Object::New(Isolate* isolate) {
   return Utils::ToLocal(obj);
 }
 
+Local<v8::Object> v8::Object::New(Isolate* isolate,
+                                  Local<Value> prototype_or_null,
+                                  Local<Name>* names, Local<Value>* values,
+                                  size_t length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::Object> proto = Utils::OpenHandle(*prototype_or_null);
+  if (!Utils::ApiCheck(proto->IsNull() || proto->IsJSReceiver(),
+                       "v8::Object::New", "prototype must be null or object")) {
+    return Local<v8::Object>();
+  }
+  LOG_API(i_isolate, Object, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+
+  // We assume that this API is mostly used to create objects with named
+  // properties, and so we default to creating a properties backing store
+  // large enough to hold all of them, while we start with no elements
+  // (see http://bit.ly/v8-fast-object-create-cpp for the motivation).
+  i::Handle<i::NameDictionary> properties =
+      i::NameDictionary::New(i_isolate, static_cast<int>(length));
+  i::Handle<i::FixedArrayBase> elements =
+      i_isolate->factory()->empty_fixed_array();
+  for (size_t i = 0; i < length; ++i) {
+    i::Handle<i::Name> name = Utils::OpenHandle(*names[i]);
+    i::Handle<i::Object> value = Utils::OpenHandle(*values[i]);
+
+    // See if the {name} is a valid array index, in which case we need to
+    // add the {name}/{value} pair to the {elements}, otherwise they end
+    // up in the {properties} backing store.
+    uint32_t index;
+    if (name->AsArrayIndex(&index)) {
+      // If this is the first element, allocate a proper
+      // dictionary elements backing store for {elements}.
+      if (!elements->IsNumberDictionary()) {
+        elements =
+            i::NumberDictionary::New(i_isolate, static_cast<int>(length));
+      }
+      elements = i::NumberDictionary::Set(
+          i_isolate, i::Handle<i::NumberDictionary>::cast(elements), index,
+          value);
+    } else {
+      // Internalize the {name} first.
+      name = i_isolate->factory()->InternalizeName(name);
+      int const entry = properties->FindEntry(i_isolate, name);
+      if (entry == i::NameDictionary::kNotFound) {
+        // Add the {name}/{value} pair as a new entry.
+        properties = i::NameDictionary::Add(i_isolate, properties, name, value,
+                                            i::PropertyDetails::Empty());
+      } else {
+        // Overwrite the {entry} with the {value}.
+        properties->ValueAtPut(entry, *value);
+      }
+    }
+  }
+  i::Handle<i::JSObject> obj =
+      i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
+          proto, properties, elements);
+  return Utils::ToLocal(obj);
+}
 
 Local<v8::Value> v8::NumberObject::New(Isolate* isolate, double value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -6844,17 +6895,14 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
   LOG_API(i_isolate, Date, DateTimeConfigurationChangeNotification);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i_isolate->date_cache()->ResetDateCache();
-  if (!i_isolate->eternal_handles()->Exists(
-          i::EternalHandles::DATE_CACHE_VERSION)) {
-    return;
-  }
-  i::Handle<i::FixedArray> date_cache_version =
-      i::Handle<i::FixedArray>::cast(i_isolate->eternal_handles()->GetSingleton(
-          i::EternalHandles::DATE_CACHE_VERSION));
-  DCHECK_EQ(1, date_cache_version->length());
-  CHECK(date_cache_version->get(0)->IsSmi());
-  date_cache_version->set(
-      0, i::Smi::FromInt(i::Smi::ToInt(date_cache_version->get(0)) + 1));
+#ifdef V8_INTL_SUPPORT
+  i_isolate->clear_cached_icu_object(
+      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat);
+  i_isolate->clear_cached_icu_object(
+      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForTime);
+  i_isolate->clear_cached_icu_object(
+      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForDate);
+#endif  // V8_INTL_SUPPORT
 }
 
 
@@ -6908,6 +6956,23 @@ Local<v8::Array> v8::Array::New(Isolate* isolate, int length) {
   return Utils::ToLocal(obj);
 }
 
+Local<v8::Array> v8::Array::New(Isolate* isolate, Local<Value>* elements,
+                                size_t length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Factory* factory = i_isolate->factory();
+  LOG_API(i_isolate, Array, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  int len = static_cast<int>(length);
+
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(len);
+  for (int i = 0; i < len; i++) {
+    i::Handle<i::Object> element = Utils::OpenHandle(*elements[i]);
+    result->set(i, *element);
+  }
+
+  return Utils::ToLocal(
+      factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, len));
+}
 
 uint32_t v8::Array::Length() const {
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
@@ -7013,30 +7078,30 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(table_obj),
                                      isolate);
-  if (offset >= table->NumberOfElements()) return factory->NewJSArray(0);
-  int length = (table->NumberOfElements() - offset) *
-               (kind == MapAsArrayKind::kEntries ? 2 : 1);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  const bool collect_keys =
+      kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kKeys;
+  const bool collect_values =
+      kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kValues;
+  int capacity = table->UsedCapacity();
+  int max_length =
+      (capacity - offset) * ((collect_keys && collect_values) ? 2 : 1);
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    int capacity = table->UsedCapacity();
     i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
-    for (int i = 0; i < capacity; ++i) {
+    for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
-      if (offset-- > 0) continue;
-      if (kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kKeys) {
-        result->set(result_index++, key);
-      }
-      if (kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kValues) {
-        result->set(result_index++, table->ValueAt(i));
-      }
+      if (collect_keys) result->set(result_index++, key);
+      if (collect_values) result->set(result_index++, table->ValueAt(i));
     }
   }
-  DCHECK_EQ(result_index, result->length());
-  DCHECK_EQ(result_index, length);
-  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, length);
+  DCHECK_GE(max_length, result_index);
+  if (result_index == 0) return factory->NewJSArray(0);
+  result->Shrink(isolate, result_index);
+  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
+                                         result_index);
 }
 
 }  // namespace
@@ -7121,24 +7186,26 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj),
                                      isolate);
-  int length = table->NumberOfElements() - offset;
-  if (length <= 0) return factory->NewJSArray(0);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  // Elements skipped by |offset| may already be deleted.
+  int capacity = table->UsedCapacity();
+  int max_length = capacity - offset;
+  if (max_length == 0) return factory->NewJSArray(0);
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    int capacity = table->UsedCapacity();
     i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
-    for (int i = 0; i < capacity; ++i) {
+    for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
-      if (offset-- > 0) continue;
       result->set(result_index++, key);
     }
   }
-  DCHECK_EQ(result_index, result->length());
-  DCHECK_EQ(result_index, length);
-  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, length);
+  DCHECK_GE(max_length, result_index);
+  if (result_index == 0) return factory->NewJSArray(0);
+  result->Shrink(isolate, result_index);
+  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
+                                         result_index);
 }
 }  // namespace
 
@@ -7262,6 +7329,11 @@ Promise::PromiseState Promise::State() {
   LOG_API(isolate, Promise, Status);
   i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
   return static_cast<PromiseState>(js_promise->status());
+}
+
+void Promise::MarkAsHandled() {
+  i::Handle<i::JSPromise> js_promise = Utils::OpenHandle(this);
+  js_promise->set_has_handler(true);
 }
 
 Local<Value> Proxy::GetTarget() {
@@ -8003,14 +8075,10 @@ v8::Local<v8::Context> Isolate::GetEnteredContext() {
 
 v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Handle<i::Object> last;
-  if (isolate->handle_scope_implementer()
-          ->MicrotaskContextIsLastEnteredContext()) {
-    last = isolate->handle_scope_implementer()->MicrotaskContext();
-  } else {
-    last = isolate->handle_scope_implementer()->LastEnteredContext();
-  }
+  i::Handle<i::Object> last =
+      isolate->handle_scope_implementer()->LastEnteredOrMicrotaskContext();
   if (last.is_null()) return Local<Context>();
+  DCHECK(last->IsNativeContext());
   return Utils::ToLocal(i::Handle<i::Context>::cast(last));
 }
 
@@ -8391,8 +8459,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
       isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
   heap_statistics->external_memory_ = isolate->heap()->external_memory();
   heap_statistics->peak_malloced_memory_ =
-      isolate->allocator()->GetMaxMemoryUsage() +
-      isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();
+      isolate->allocator()->GetPeakMemoryUsage() +
+      isolate->wasm_engine()->allocator()->GetPeakMemoryUsage();
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
   heap_statistics->number_of_detached_contexts_ =
       heap->NumberOfDetachedContexts();
@@ -8681,7 +8749,6 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
           ? isolate->thread_manager()->IsLockedByCurrentThread()
           : i::ThreadId::Current().Equals(isolate->thread_id());
   isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
-  isolate->allocator()->MemoryPressureNotification(level);
 }
 
 void Isolate::EnableMemorySavingsMode() {
@@ -9133,7 +9200,7 @@ std::vector<int> debug::Script::LineEnds() const {
                                      isolate);
   std::vector<int> result(line_ends->length());
   for (int i = 0; i < line_ends->length(); ++i) {
-    i::Smi* line_end = i::Smi::cast(line_ends->get(i));
+    i::Smi line_end = i::Smi::cast(line_ends->get(i));
     result[i] = line_end->value();
   }
   return result;
@@ -9578,9 +9645,9 @@ debug::ConsoleCallArguments::ConsoleCallArguments(
 debug::ConsoleCallArguments::ConsoleCallArguments(
     internal::BuiltinArguments& args)
     : v8::FunctionCallbackInfo<v8::Value>(
-          // Drop the first argument (receiver, i.e. the "console" object).
           nullptr,
-          reinterpret_cast<i::Address*>(&args[args.length() > 1 ? 1 : 0]),
+          // Drop the first argument (receiver, i.e. the "console" object).
+          args.address_of_arg_at(args.length() > 1 ? 1 : 0),
           args.length() - 1) {}
 
 int debug::GetStackFrameId(v8::Local<v8::StackFrame> frame) {
@@ -10069,6 +10136,11 @@ void CpuProfiler::SetIdle(bool is_idle) {
   isolate->SetIdle(is_idle);
 }
 
+void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)
+      ->set_detailed_source_positions_for_profiling(true);
+}
+
 uintptr_t CodeEvent::GetCodeStartAddress() {
   return reinterpret_cast<i::CodeEvent*>(this)->code_start_address;
 }
@@ -10549,6 +10621,7 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
   DetachableVector<Context*>* context_lists[2] = {&saved_contexts_,
                                                   &entered_contexts_};
   for (unsigned i = 0; i < arraysize(context_lists); i++) {
+    context_lists[i]->shrink_to_fit();
     if (context_lists[i]->empty()) continue;
     ObjectSlot start(reinterpret_cast<Address>(&context_lists[i]->front()));
     v->VisitRootPointers(Root::kHandleScope, nullptr, start,

@@ -10,12 +10,13 @@
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
 
 class HeapObject;
-class Smi;
+class Isolate;
 class StringStream;
 
 // A MaybeObject is either a SMI, a strong reference to a HeapObject, a weak
@@ -36,9 +37,12 @@ class MaybeObject {
   const MaybeObject* operator->() const { return this; }
 
   bool IsSmi() const { return HAS_SMI_TAG(ptr_); }
-  inline bool ToSmi(Smi** value);
+  inline bool ToSmi(Smi* value);
+  inline Smi ToSmi() const;
 
-  bool IsCleared() const { return ptr_ == kClearedWeakHeapObject; }
+  bool IsCleared() const {
+    return static_cast<uint32_t>(ptr_) == kClearedWeakHeapObjectLower32;
+  }
 
   inline bool IsStrongOrWeak() const;
   inline bool IsStrong() const;
@@ -77,13 +81,22 @@ class MaybeObject {
   inline Object* GetHeapObjectOrSmi() const;
 
   inline bool IsObject() const;
-  template <typename T>
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<Object, T>::value>::type>
   T* cast() const {
     DCHECK(!HasWeakHeapObjectTag(ptr_));
     return T::cast(reinterpret_cast<Object*>(ptr_));
   }
+  // Replacement for the above, temporarily separate for incremental transition.
+  // TODO(3770): Get rid of the duplication.
+  template <typename T, typename = typename std::enable_if<
+                            std::is_base_of<ObjectPtr, T>::value>::type>
+  T cast() const {
+    DCHECK(!HasWeakHeapObjectTag(ptr_));
+    return T::cast(ObjectPtr(ptr_));
+  }
 
-  static MaybeObject FromSmi(Smi* smi) {
+  static MaybeObject FromSmi(Smi smi) {
     DCHECK(HAS_SMI_TAG(smi->ptr()));
     return MaybeObject(smi->ptr());
   }
@@ -91,6 +104,11 @@ class MaybeObject {
   static MaybeObject FromObject(Object* object) {
     DCHECK(!HasWeakHeapObjectTag(object));
     return MaybeObject(object->ptr());
+  }
+
+  static MaybeObject FromObject(ObjectPtr object) {
+    DCHECK(!HasWeakHeapObjectTag(object.ptr()));
+    return MaybeObject(object.ptr());
   }
 
   static inline MaybeObject MakeWeak(MaybeObject object);
@@ -138,11 +156,9 @@ class HeapObjectReference : public MaybeObject {
     return HeapObjectReference(object->ptr() | kWeakHeapObjectMask);
   }
 
-  static HeapObjectReference ClearedValue() {
-    return HeapObjectReference(kClearedWeakHeapObject);
-  }
+  V8_INLINE static HeapObjectReference ClearedValue(Isolate* isolate);
 
-  static inline void Update(HeapObjectSlot slot, HeapObject* value);
+  V8_INLINE static void Update(HeapObjectSlot slot, HeapObject* value);
 };
 
 }  // namespace internal

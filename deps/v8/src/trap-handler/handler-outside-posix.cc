@@ -48,7 +48,7 @@ bool RegisterDefaultTrapHandler() {
   // {sigaction} installs a new custom segfault handler. On success, it returns
   // 0. If we get a nonzero value, we report an error to the caller by returning
   // false.
-  if (sigaction(SIGSEGV, &action, &g_old_handler) != 0) {
+  if (sigaction(kOobSignal, &action, &g_old_handler) != 0) {
     return false;
   }
 
@@ -61,7 +61,7 @@ bool RegisterDefaultTrapHandler() {
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
     defined(UNDEFINED_SANITIZER)
   struct sigaction installed_handler;
-  CHECK_EQ(sigaction(SIGSEGV, NULL, &installed_handler), 0);
+  CHECK_EQ(sigaction(kOobSignal, NULL, &installed_handler), 0);
   // If the installed handler does not point to HandleSignal, then
   // allow_user_segv_handler is 0.
   if (installed_handler.sa_sigaction != HandleSignal) {
@@ -78,7 +78,7 @@ bool RegisterDefaultTrapHandler() {
 
 void RemoveTrapHandler() {
   if (g_is_default_signal_handler_registered) {
-    if (sigaction(SIGSEGV, &g_old_handler, nullptr) == 0) {
+    if (sigaction(kOobSignal, &g_old_handler, nullptr) == 0) {
       g_is_default_signal_handler_registered = false;
     }
   }

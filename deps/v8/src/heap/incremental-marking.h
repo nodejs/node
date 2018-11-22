@@ -181,7 +181,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   inline void RestartIfNotMarking();
 
-  static int RecordWriteFromCode(HeapObject* obj, MaybeObjectSlot slot,
+  // {slot_address} is a raw Address instead of a MaybeObjectSlot because
+  // this is called from generated code via ExternalReference.
+  static int RecordWriteFromCode(HeapObject* obj, Address slot_address,
                                  Isolate* isolate);
 
   // Record a slot for compaction.  Returns false for objects that are
@@ -197,7 +199,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void RevisitObject(HeapObject* obj);
 
   void RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot, Object* value);
-  void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, HeapObject* value);
+  void RecordWriteIntoCode(Code host, RelocInfo* rinfo, HeapObject* value);
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
@@ -209,8 +211,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void MarkBlackAndPush(HeapObject* obj);
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
-
-  void ActivateGeneratedStub(Code* stub);
 
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
@@ -258,7 +258,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinishBlackAllocation();
 
   void MarkRoots();
-  bool ShouldRetainMap(Map* map, int age);
+  bool ShouldRetainMap(Map map, int age);
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.
   void RetainMaps();
@@ -279,7 +279,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   V8_INLINE bool IsFixedArrayWithProgressBar(HeapObject* object);
 
   // Visits the object and returns its size.
-  V8_INLINE int VisitObject(Map* map, HeapObject* obj);
+  V8_INLINE int VisitObject(Map map, HeapObject* obj);
 
   void IncrementIdleMarkingDelayCounter();
 

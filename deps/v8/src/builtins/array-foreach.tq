@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   transitioning macro ArrayForEachTorqueContinuation(
       context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
       thisArg: Object, initialK: Number): Object {
@@ -74,8 +74,7 @@ module array {
 
   transitioning macro VisitAllElements<FixedArrayType: type>(
       context: Context, a: JSArray, len: Smi, callbackfn: Callable,
-      thisArg: Object): void
-      labels Bailout(Smi) {
+      thisArg: Object): void labels Bailout(Smi) {
     let k: Smi = 0;
     const map: Map = a.map;
 
@@ -136,8 +135,8 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
-  transitioning javascript builtin ArrayForEach(
-      context: Context, receiver: Object, ...arguments): Object {
+  transitioning javascript builtin
+  ArrayForEach(context: Context, receiver: Object, ...arguments): Object {
     try {
       if (IsNullOrUndefined(receiver)) {
         goto NullOrUndefinedError;

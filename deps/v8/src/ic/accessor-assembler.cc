@@ -14,6 +14,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/module.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -1062,10 +1063,10 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
     GotoIf(TaggedIsSmi(value), bailout);
     TNode<MaybeObject> field_type = LoadFieldTypeByKeyIndex(
         descriptors, UncheckedCast<IntPtrT>(name_index));
-    intptr_t kNoneType = reinterpret_cast<intptr_t>(FieldType::None());
-    intptr_t kAnyType = reinterpret_cast<intptr_t>(FieldType::Any());
-    DCHECK_NE(kNoneType, kClearedWeakHeapObject);
-    DCHECK_NE(kAnyType, kClearedWeakHeapObject);
+    const Address kNoneType = FieldType::None().ptr();
+    const Address kAnyType = FieldType::Any().ptr();
+    DCHECK_NE(static_cast<uint32_t>(kNoneType), kClearedWeakHeapObjectLower32);
+    DCHECK_NE(static_cast<uint32_t>(kAnyType), kClearedWeakHeapObjectLower32);
     // FieldType::None can't hold any value.
     GotoIf(WordEqual(BitcastMaybeObjectToWord(field_type),
                      IntPtrConstant(kNoneType)),
@@ -1683,7 +1684,8 @@ Node* AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     // |new_properties| is guaranteed to be in new space, so we can skip
     // the write barrier.
     CopyPropertyArrayValues(var_properties.value(), new_properties,
-                            var_length.value(), SKIP_WRITE_BARRIER, mode);
+                            var_length.value(), SKIP_WRITE_BARRIER, mode,
+                            DestroySource::kYes);
 
     // TODO(gsathya): Clean up the type conversions by creating smarter
     // helpers that do the correct op based on the mode.
@@ -2335,7 +2337,7 @@ void AccessorAssembler::TryProbeStubCacheTable(
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
   TNode<MaybeObject> handler = ReinterpretCast<MaybeObject>(
-      Load(MachineType::TaggedPointer(), key_base,
+      Load(MachineType::AnyTagged(), key_base,
            IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize))));
 
   // We found the handler.
@@ -3516,7 +3518,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
     Label did_set_proto_if_needed(this);
     TNode<BoolT> is_null_proto = SmiNotEqual(
         SmiAnd(flags, SmiConstant(ObjectLiteral::kHasNullPrototype)),
-        SmiConstant(Smi::kZero));
+        SmiConstant(Smi::zero()));
     GotoIfNot(is_null_proto, &did_set_proto_if_needed);
 
     CallRuntime(Runtime::kInternalSetPrototype, context, result,
@@ -3564,7 +3566,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
 
 void AccessorAssembler::GenerateCloneObjectIC() {
   typedef CloneObjectWithVectorDescriptor Descriptor;
-  Node* source = Parameter(Descriptor::kSource);
+  TNode<HeapObject> source = CAST(Parameter(Descriptor::kSource));
   Node* flags = Parameter(Descriptor::kFlags);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = Parameter(Descriptor::kVector);
@@ -3574,8 +3576,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   Label miss(this, Label::kDeferred), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred);
 
-  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(source));
-  Node* source_map = LoadMap(UncheckedCast<HeapObject>(source));
+  TNode<Map> source_map = LoadMap(UncheckedCast<HeapObject>(source));
   GotoIf(IsDeprecatedMap(source_map), &miss);
   TNode<MaybeObject> feedback = TryMonomorphicCase(
       slot, vector, source_map, &if_handler, &var_handler, &try_polymorphic);
@@ -3596,7 +3597,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
     // The IC fast case should only be taken if the result map a compatible
     // elements kind with the source object.
-    TNode<FixedArrayBase> source_elements = LoadElements(source);
+    TNode<FixedArrayBase> source_elements = LoadElements(CAST(source));
 
     auto flags = ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW;
     var_elements = CAST(CloneFixedArray(source_elements, flags));
@@ -3619,7 +3620,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
       auto mode = INTPTR_PARAMETERS;
       var_properties = CAST(AllocatePropertyArray(length, mode));
       CopyPropertyArrayValues(source_properties, var_properties.value(), length,
-                              SKIP_WRITE_BARRIER, mode);
+                              SKIP_WRITE_BARRIER, mode, DestroySource::kNo);
     }
 
     Goto(&allocate_object);
@@ -3631,21 +3632,43 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // Lastly, clone any in-object properties.
     // Determine the inobject property capacity of both objects, and copy the
     // smaller number into the resulting object.
-    Node* source_start = LoadMapInobjectPropertiesStartInWords(source_map);
-    Node* source_size = LoadMapInstanceSizeInWords(source_map);
-    Node* result_start = LoadMapInobjectPropertiesStartInWords(result_map);
-    Node* field_offset_difference =
+    TNode<IntPtrT> source_start =
+        LoadMapInobjectPropertiesStartInWords(source_map);
+    TNode<IntPtrT> source_size = LoadMapInstanceSizeInWords(source_map);
+    TNode<IntPtrT> result_start =
+        LoadMapInobjectPropertiesStartInWords(result_map);
+    TNode<IntPtrT> field_offset_difference =
         TimesPointerSize(IntPtrSub(result_start, source_start));
-    BuildFastLoop(source_start, source_size,
-                  [=](Node* field_index) {
-                    Node* field_offset = TimesPointerSize(field_index);
-                    Node* field = LoadObjectField(source, field_offset);
-                    Node* result_offset =
-                        IntPtrAdd(field_offset, field_offset_difference);
-                    StoreObjectFieldNoWriteBarrier(object, result_offset,
-                                                   field);
-                  },
-                  1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+
+    // If MutableHeapNumbers may be present in-object, allocations may occur
+    // within this loop, thus the write barrier is required.
+    //
+    // TODO(caitp): skip the write barrier until the first MutableHeapNumber
+    // field is found
+    const bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
+
+    BuildFastLoop(
+        source_start, source_size,
+        [=](Node* field_index) {
+          TNode<IntPtrT> field_offset =
+              TimesPointerSize(UncheckedCast<IntPtrT>(field_index));
+
+          if (may_use_mutable_heap_numbers) {
+            TNode<Object> field = LoadObjectField(source, field_offset);
+            field = CloneIfMutablePrimitive(field);
+            TNode<IntPtrT> result_offset =
+                IntPtrAdd(field_offset, field_offset_difference);
+            StoreObjectField(object, result_offset, field);
+          } else {
+            // Copy fields as raw data.
+            TNode<IntPtrT> field =
+                LoadObjectField<IntPtrT>(source, field_offset);
+            TNode<IntPtrT> result_offset =
+                IntPtrAdd(field_offset, field_offset_difference);
+            StoreObjectFieldNoWriteBarrier(object, result_offset, field);
+          }
+        },
+        1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
     Return(object);
   }
 

@@ -74,7 +74,8 @@ class Binary extends Array {
     // Emit section length.
     this.emit_u32v(section.length);
     // Copy the temporary buffer.
-    this.push(...section);
+    // Avoid spread because {section} can be huge.
+    for (let b of section) this.push(b);
   }
 }
 
@@ -209,7 +210,10 @@ class WasmModuleBuilder {
     name = this.stringToBytes(name);
     var length = new Binary();
     length.emit_u32v(name.length + bytes.length);
-    this.explicit.push([0, ...length, ...name, ...bytes]);
+    var section = [0, ...length, ...name];
+    // Avoid spread because {bytes} can be huge.
+    for (var b of bytes) section.push(b);
+    this.explicit.push(section);
   }
 
   addType(type) {
@@ -295,7 +299,13 @@ class WasmModuleBuilder {
   }
 
   addDataSegment(addr, data, is_global = false) {
-    this.data_segments.push({addr: addr, data: data, is_global: is_global});
+    this.data_segments.push(
+        {addr: addr, data: data, is_global: is_global, is_active: true});
+    return this.data_segments.length - 1;
+  }
+
+  addPassiveDataSegment(data) {
+    this.data_segments.push({data: data, is_active: false});
     return this.data_segments.length - 1;
   }
 
@@ -305,7 +315,7 @@ class WasmModuleBuilder {
 
   addElementSegment(base, is_global, array, is_import = false) {
     this.element_segments.push({base: base, is_global: is_global,
-                                    array: array});
+                                    array: array, is_active: true});
     if (!is_global) {
       var length = base + array.length;
       if (length > this.table_length_min && !is_import) {
@@ -315,6 +325,11 @@ class WasmModuleBuilder {
          this.table_length_max = length;
       }
     }
+    return this;
+  }
+
+  addPassiveElementSegment(array, is_import = false) {
+    this.element_segments.push({array: array, is_active: false});
     return this;
   }
 
@@ -550,14 +565,18 @@ class WasmModuleBuilder {
         section.emit_u32v(inits.length);
 
         for (let init of inits) {
-          section.emit_u8(0); // table index
-          if (init.is_global) {
-            section.emit_u8(kExprGetGlobal);
+          if (init.is_active) {
+            section.emit_u8(0);  // table index / flags
+            if (init.is_global) {
+              section.emit_u8(kExprGetGlobal);
+            } else {
+              section.emit_u8(kExprI32Const);
+            }
+            section.emit_u32v(init.base);
+            section.emit_u8(kExprEnd);
           } else {
-            section.emit_u8(kExprI32Const);
+            section.emit_u8(kPassive);  // flags
           }
-          section.emit_u32v(init.base);
-          section.emit_u8(kExprEnd);
           section.emit_u32v(init.array.length);
           for (let index of init.array) {
             section.emit_u32v(index);
@@ -619,17 +638,21 @@ class WasmModuleBuilder {
       binary.emit_section(kDataSectionCode, section => {
         section.emit_u32v(wasm.data_segments.length);
         for (let seg of wasm.data_segments) {
-          section.emit_u8(0);  // linear memory index 0
-          if (seg.is_global) {
-            // initializer is a global variable
-            section.emit_u8(kExprGetGlobal);
-            section.emit_u32v(seg.addr);
+          if (seg.is_active) {
+            section.emit_u8(0);  // linear memory index 0 / flags
+            if (seg.is_global) {
+              // initializer is a global variable
+              section.emit_u8(kExprGetGlobal);
+              section.emit_u32v(seg.addr);
+            } else {
+              // initializer is a constant
+              section.emit_u8(kExprI32Const);
+              section.emit_u32v(seg.addr);
+            }
+            section.emit_u8(kExprEnd);
           } else {
-            // initializer is a constant
-            section.emit_u8(kExprI32Const);
-            section.emit_u32v(seg.addr);
+            section.emit_u8(kPassive);  // flags
           }
-          section.emit_u8(kExprEnd);
           section.emit_u32v(seg.data.length);
           section.emit_bytes(seg.data);
         }

@@ -685,7 +685,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 339
+bytecode array length: 337
 bytecodes: [
                 B(Mov), R(closure), R(9),
                 B(Mov), R(this), R(10),
@@ -693,8 +693,8 @@ bytecodes: [
                 B(Star), R(0),
   /*   16 E> */ B(StackCheck),
                 B(Mov), R(context), R(9),
-  /*   31 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(10),
-                B(Mov), R(10), R(1),
+  /*   31 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(Star), R(1),
                 B(LdaZero),
                 B(Star), R(5),
                 B(Mov), R(context), R(12),
@@ -848,9 +848,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 307, 309],
-  [30, 153, 161],
-  [33, 116, 118],
-  [222, 232, 234],
+  [16, 305, 307],
+  [28, 151, 159],
+  [31, 114, 116],
+  [220, 230, 232],
 ]
 

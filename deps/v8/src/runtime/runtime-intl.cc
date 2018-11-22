@@ -12,6 +12,7 @@
 #include "src/api-inl.h"
 #include "src/api-natives.h"
 #include "src/arguments-inl.h"
+#include "src/counters.h"
 #include "src/date.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
@@ -27,30 +28,6 @@
 #include "src/objects/managed.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils.h"
-
-#include "unicode/brkiter.h"
-#include "unicode/calendar.h"
-#include "unicode/coll.h"
-#include "unicode/curramt.h"
-#include "unicode/datefmt.h"
-#include "unicode/dcfmtsym.h"
-#include "unicode/decimfmt.h"
-#include "unicode/dtfmtsym.h"
-#include "unicode/dtptngen.h"
-#include "unicode/locid.h"
-#include "unicode/numfmt.h"
-#include "unicode/numsys.h"
-#include "unicode/plurrule.h"
-#include "unicode/smpdtfmt.h"
-#include "unicode/timezone.h"
-#include "unicode/uchar.h"
-#include "unicode/ucol.h"
-#include "unicode/ucurr.h"
-#include "unicode/uloc.h"
-#include "unicode/unistr.h"
-#include "unicode/unum.h"
-#include "unicode/uversion.h"
-
 
 namespace v8 {
 namespace internal {
@@ -111,24 +88,6 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   s = String::Flatten(isolate, s);
   RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, s));
-}
-
-RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  if (isolate->serializer_enabled())
-    return ReadOnlyRoots(isolate).undefined_value();
-  if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
-    Handle<FixedArray> date_cache_version =
-        isolate->factory()->NewFixedArray(1, TENURED);
-    date_cache_version->set(0, Smi::kZero);
-    isolate->eternal_handles()->CreateSingleton(
-        isolate, *date_cache_version, EternalHandles::DATE_CACHE_VERSION);
-  }
-  Handle<FixedArray> date_cache_version =
-      Handle<FixedArray>::cast(isolate->eternal_handles()->GetSingleton(
-          EternalHandles::DATE_CACHE_VERSION));
-  return date_cache_version->get(0);
 }
 
 }  // namespace internal

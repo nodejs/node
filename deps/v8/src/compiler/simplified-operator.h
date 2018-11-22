@@ -726,6 +726,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsConstructor();
   const Operator* ObjectIsDetectableCallable();
   const Operator* ObjectIsMinusZero();
+  const Operator* NumberIsMinusZero();
   const Operator* ObjectIsNaN();
   const Operator* NumberIsNaN();
   const Operator* ObjectIsNonCallable();

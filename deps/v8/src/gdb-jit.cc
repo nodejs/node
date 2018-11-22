@@ -953,7 +953,7 @@ class CodeDescription {
   };
 #endif
 
-  CodeDescription(const char* name, Code* code, SharedFunctionInfo* shared,
+  CodeDescription(const char* name, Code code, SharedFunctionInfo* shared,
                   LineInfo* lineinfo)
       : name_(name), code_(code), shared_info_(shared), lineinfo_(lineinfo) {}
 
@@ -1027,7 +1027,7 @@ class CodeDescription {
 
  private:
   const char* name_;
-  Code* code_;
+  Code code_;
   SharedFunctionInfo* shared_info_;
   LineInfo* lineinfo_;
 #if V8_TARGET_ARCH_X64
@@ -2082,8 +2082,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
   RegisterCodeEntry(entry);
 }
 
-
-static void AddCode(const char* name, Code* code, SharedFunctionInfo* shared,
+static void AddCode(const char* name, Code code, SharedFunctionInfo* shared,
                     LineInfo* lineinfo) {
   DisallowHeapAllocation no_gc;
 
@@ -2129,7 +2128,7 @@ void EventHandler(const v8::JitCodeEvent* event) {
     case v8::JitCodeEvent::CODE_ADDED: {
       Address addr = reinterpret_cast<Address>(event->code_start);
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
-      Code* code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
+      Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
       EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.start(), buffer.length());

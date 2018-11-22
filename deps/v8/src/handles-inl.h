@@ -31,7 +31,7 @@ Handle<T> Handle<T>::New(T object, Isolate* isolate) {
 template <typename T>
 template <typename S>
 const Handle<T> Handle<T>::cast(Handle<S> that) {
-  T::cast(*reinterpret_cast<T**>(that.location()));
+  T::cast(*reinterpret_cast<Object**>(that.location()));
   return Handle<T>(that.location_);
 }
 
@@ -107,12 +107,15 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
                           reinterpret_cast<Address>(current->next)));
 }
 
-
 template <typename T>
 Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
 
-  T* value = *handle_value;
+  typedef
+      typename std::conditional<std::is_base_of<Object, T>::value, T*, T>::type
+          ValueType;
+
+  ValueType value = *handle_value;
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.

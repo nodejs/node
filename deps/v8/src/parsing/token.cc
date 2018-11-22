@@ -25,9 +25,14 @@ constexpr uint8_t length(const char* str) {
 const uint8_t Token::string_length_[NUM_TOKENS] = {TOKEN_LIST(T, T, T)};
 #undef T
 
-#define T(name, string, precedence) precedence,
-const int8_t Token::precedence_[NUM_TOKENS] = {TOKEN_LIST(T, T, T)};
-#undef T
+#define T1(name, string, precedence) \
+  ((Token::name == Token::IN) ? 0 : precedence),
+#define T2(name, string, precedence) precedence,
+// precedence_[0] for accept_IN == false, precedence_[1] for accept_IN = true.
+const int8_t Token::precedence_[2][NUM_TOKENS] = {{TOKEN_LIST(T1, T1, T1)},
+                                                  {TOKEN_LIST(T2, T2, T2)}};
+#undef T2
+#undef T1
 
 #define KT(a, b, c) 'T',
 #define KK(a, b, c) 'K',

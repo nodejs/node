@@ -199,14 +199,10 @@ bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
 
 class ImplementationVisitor : public FileVisitor {
  public:
-  explicit ImplementationVisitor(GlobalContext& global_context)
-      : FileVisitor(global_context) {}
-
-  void Visit(Ast* ast) { Visit(ast->default_module()); }
+  void GenerateBuiltinDefinitions(std::string& file_name);
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
-  void Visit(Declaration* decl);
 
   VisitResult Visit(StructExpression* decl);
 
@@ -229,33 +225,12 @@ class ImplementationVisitor : public FileVisitor {
     return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
   }
 
-  void Visit(ModuleDeclaration* decl);
-  void Visit(DefaultModuleDeclaration* decl) {
-    Visit(implicit_cast<ModuleDeclaration*>(decl));
-  }
-  void Visit(ExplicitModuleDeclaration* decl) {
-    Visit(implicit_cast<ModuleDeclaration*>(decl));
-  }
-  void Visit(TypeDeclaration* decl) {}
-  void Visit(TypeAliasDeclaration* decl) {}
-  void Visit(ExternConstDeclaration* decl) {}
-  void Visit(StructDeclaration* decl);
-  void Visit(StandardDeclaration* decl);
-  void Visit(GenericDeclaration* decl) {}
-  void Visit(SpecializationDeclaration* decl);
-
-  void Visit(TorqueMacroDeclaration* decl, const Signature& signature,
-             Statement* body);
-  void Visit(TorqueBuiltinDeclaration* decl, const Signature& signature,
-             Statement* body);
-  void Visit(ExternalMacroDeclaration* decl, const Signature& signature,
-             Statement* body) {}
-  void Visit(ExternalBuiltinDeclaration* decl, const Signature& signature,
-             Statement* body) {}
-  void Visit(ExternalRuntimeDeclaration* decl, const Signature& signature,
-             Statement* body) {}
-  void Visit(CallableNode* decl, const Signature& signature, Statement* body);
-  void Visit(ConstDeclaration* decl);
+  void VisitAllDeclarables();
+  void Visit(Declarable* delarable);
+  void Visit(TypeAlias* decl);
+  void Visit(Macro* macro);
+  void Visit(Builtin* builtin);
+  void Visit(NamespaceConstant* decl);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   const Type* Visit(TailCallStatement* stmt);
@@ -289,15 +264,16 @@ class ImplementationVisitor : public FileVisitor {
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
 
-  void BeginModuleFile(Module* module);
-  void EndModuleFile(Module* module);
+  void BeginNamespaceFile(Namespace* nspace);
+  void EndNamespaceFile(Namespace* nspace);
 
-  void GenerateImplementation(const std::string& dir, Module* module);
+  void GenerateImplementation(const std::string& dir, Namespace* nspace);
 
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager,
                               BindingsManager<LocalValue>);
   DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager,
                               BindingsManager<LocalLabel>);
+  DECLARE_CONTEXTUAL_VARIABLE(CurrentCallable, Callable*);
 
   // A BindingsManagersScope has to be active for local bindings to be created.
   // Shadowing an existing BindingsManagersScope by creating a new one hides all
@@ -308,9 +284,8 @@ class ImplementationVisitor : public FileVisitor {
   };
 
  private:
-  std::string GetBaseAssemblerName(Module* module);
-
-  std::string GetDSLAssemblerName(Module* module);
+  base::Optional<Block*> GetCatchBlock();
+  void GenerateCatchBlock(base::Optional<Block*> catch_block);
 
   // {StackScope} records the stack height at creation time and reconstructs it
   // when being destructed by emitting a {DeleteRangeInstruction}, except for
@@ -393,7 +368,7 @@ class ImplementationVisitor : public FileVisitor {
   base::Optional<Binding<LocalLabel>*> TryLookupLabel(const std::string& name);
   Binding<LocalLabel>* LookupLabel(const std::string& name);
   Block* LookupSimpleLabel(const std::string& name);
-  Callable* LookupCall(const std::string& name, const Arguments& arguments,
+  Callable* LookupCall(const QualifiedName& name, const Arguments& arguments,
                        const TypeVector& specialization_types);
 
   const Type* GetCommonType(const Type* left, const Type* right);
@@ -403,10 +378,16 @@ class ImplementationVisitor : public FileVisitor {
   void GenerateAssignToLocation(const LocationReference& reference,
                                 const VisitResult& assignment_value);
 
-  VisitResult GenerateCall(const std::string& callable_name,
+  VisitResult GenerateCall(const QualifiedName& callable_name,
                            Arguments parameters,
                            const TypeVector& specialization_types = {},
                            bool tail_call = false);
+  VisitResult GenerateCall(std::string callable_name, Arguments parameters,
+                           const TypeVector& specialization_types = {},
+                           bool tail_call = false) {
+    return GenerateCall(QualifiedName(std::move(callable_name)),
+                        std::move(parameters), specialization_types, tail_call);
+  }
   VisitResult GeneratePointerCall(Expression* callee,
                                   const Arguments& parameters, bool tail_call);
 
@@ -428,13 +409,6 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult GenerateImplicitConvert(const Type* destination_type,
                                       VisitResult source);
 
-  void Specialize(const SpecializationKey& key, CallableNode* callable,
-                  const CallableNodeSignature* signature,
-                  Statement* body) override {
-    Declarations::GenericScopeActivator scope(declarations(), key);
-    Visit(callable, MakeSignature(signature), body);
-  }
-
   StackRange GenerateLabelGoto(LocalLabel* label,
                                base::Optional<StackRange> arguments = {});
 
@@ -449,9 +423,9 @@ class ImplementationVisitor : public FileVisitor {
                                          size_t i);
   std::string ExternalParameterName(const std::string& name);
 
-  std::ostream& source_out() { return module_->source_stream(); }
+  std::ostream& source_out() { return CurrentNamespace()->source_stream(); }
 
-  std::ostream& header_out() { return module_->header_stream(); }
+  std::ostream& header_out() { return CurrentNamespace()->header_stream(); }
 
   CfgAssembler& assembler() { return *assembler_; }
 

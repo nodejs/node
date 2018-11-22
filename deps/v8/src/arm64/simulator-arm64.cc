@@ -3295,8 +3295,7 @@ void Simulator::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int64_t value = *cur;
           Heap* current_heap = isolate_->heap();
-          if (((value & 1) == 0) ||
-              current_heap->ContainsSlow(obj->address())) {
+          if (((value & 1) == 0) || current_heap->Contains(obj)) {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
               DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

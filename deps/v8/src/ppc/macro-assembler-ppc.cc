@@ -13,16 +13,22 @@
 #include "src/callable.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
-#include "src/instruction-stream.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
 
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
 #include "src/ppc/macro-assembler-ppc.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -304,7 +310,7 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   push(r0);
 }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   mov(r0, Operand(smi));
   push(r0);
 }
@@ -1284,7 +1290,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   Move(r7, debug_hook_active);
   LoadByte(r7, MemOperand(r7), r0);
   extsb(r7, r7);
-  CmpSmiLiteral(r7, Smi::kZero, r0);
+  CmpSmiLiteral(r7, Smi::zero(), r0);
   beq(&skip_hook);
 
   {
@@ -1421,7 +1427,7 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
-  Push(Smi::kZero);  // Padding.
+  Push(Smi::zero());  // Padding.
 
   // Link the current handler as the next handler.
   // Preserve r3-r7.
@@ -1567,13 +1573,17 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
 
 void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  } else {
+    // Block constant pool for the call instruction sequence.
+    ConstantPoolUnavailableScope constant_pool_unavailable(this);
 
-  // Block constant pool for the call instruction sequence.
-  ConstantPoolUnavailableScope constant_pool_unavailable(this);
-
-  mov(ip, Operand::EmbeddedCode(stub));
-  mtctr(ip);
-  bctrl();
+    mov(ip, Operand::EmbeddedCode(stub));
+    mtctr(ip);
+    bctrl();
+  }
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
@@ -1724,7 +1734,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  cmpi(in, Operand(kClearedWeakHeapObject));
+  cmpi(in, Operand(kClearedWeakHeapObjectLower32));
   beq(target_if_cleared);
 
   mov(r0, Operand(~kWeakHeapObjectMask));
@@ -2080,7 +2090,7 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
   mov(dst, Operand(value));
 }
 
-void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
+void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
   mov(dst, Operand(smi));
 }
 
@@ -2447,8 +2457,7 @@ void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
   }
 }
 
-
-void MacroAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch,
+void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
                                    CRegister cr) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2458,8 +2467,7 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch,
 #endif
 }
 
-
-void MacroAssembler::CmplSmiLiteral(Register src1, Smi* smi, Register scratch,
+void MacroAssembler::CmplSmiLiteral(Register src1, Smi smi, Register scratch,
                                     CRegister cr) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2469,8 +2477,7 @@ void MacroAssembler::CmplSmiLiteral(Register src1, Smi* smi, Register scratch,
 #endif
 }
 
-
-void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
+void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2480,8 +2487,7 @@ void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
 #endif
 }
 
-
-void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
+void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);
@@ -2491,8 +2497,7 @@ void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
 #endif
 }
 
-
-void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi,
+void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch, RCBit rc) {
 #if V8_TARGET_ARCH_PPC64
   LoadSmiLiteral(scratch, smi);

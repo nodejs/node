@@ -605,18 +605,17 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
 Node* RepresentationChanger::GetFloat64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type output_type,
     Node* use_node, UseInfo use_info) {
-  // Eagerly fold representation changes for constants.
-  if ((use_info.type_check() == TypeCheckKind::kNone)) {
-    // TODO(jarin) Handle checked constant conversions.
-    switch (node->opcode()) {
-      case IrOpcode::kNumberConstant:
-        return jsgraph()->Float64Constant(OpParameter<double>(node->op()));
-      case IrOpcode::kInt32Constant:
-      case IrOpcode::kFloat64Constant:
-      case IrOpcode::kFloat32Constant:
-        UNREACHABLE();
-        break;
-      default:
+  NumberMatcher m(node);
+  if (m.HasValue()) {
+    switch (use_info.type_check()) {
+      case TypeCheckKind::kNone:
+      case TypeCheckKind::kNumber:
+      case TypeCheckKind::kNumberOrOddball:
+        return jsgraph()->Float64Constant(m.Value());
+      case TypeCheckKind::kHeapObject:
+      case TypeCheckKind::kSigned32:
+      case TypeCheckKind::kSigned64:
+      case TypeCheckKind::kSignedSmall:
         break;
     }
   }
@@ -810,19 +809,17 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
                        MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
-    if (use_info.truncation().IdentifiesZeroAndMinusZero()) {
-      if (output_type.Is(Type::Signed32OrMinusZero()) ||
-          output_type.Is(Type::Unsigned32OrMinusZero())) {
-        return node;
-      }
-    }
     // Only the checked case should get here, the non-checked case is
     // handled in GetRepresentationFor.
     if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
         use_info.type_check() == TypeCheckKind::kSigned32) {
-      if (output_type.Is(Type::Signed32())) {
+      bool indentify_zeros = use_info.truncation().IdentifiesZeroAndMinusZero();
+      if (output_type.Is(Type::Signed32()) ||
+          (indentify_zeros && output_type.Is(Type::Signed32OrMinusZero()))) {
         return node;
-      } else if (output_type.Is(Type::Unsigned32())) {
+      } else if (output_type.Is(Type::Unsigned32()) ||
+                 (indentify_zeros &&
+                  output_type.Is(Type::Unsigned32OrMinusZero()))) {
         op = simplified()->CheckedUint32ToInt32(use_info.feedback());
       } else {
         return TypeError(node, output_rep, output_type,

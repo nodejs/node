@@ -47,6 +47,10 @@ class JSWeakFactory : public JSObject {
   // list. (Assumes there is one.)
   inline JSWeakCell* PopClearedCell(Isolate* isolate);
 
+  // Constructs an iterator for the WeakCells in the cleared_cells list and
+  // calls the user's cleanup function.
+  static void Cleanup(Handle<JSWeakFactory> weak_factory, Isolate* isolate);
+
   static const int kNativeContextOffset = JSObject::kHeaderSize;
   static const int kCleanupOffset = kNativeContextOffset + kPointerSize;
   static const int kActiveCellsOffset = kCleanupOffset + kPointerSize;
@@ -99,6 +103,13 @@ class JSWeakCell : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCell);
+};
+
+class JSWeakRef : public JSWeakCell {
+ public:
+  DECL_CAST(JSWeakRef)
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakRef);
 };
 
 class WeakFactoryCleanupJobTask : public Microtask {

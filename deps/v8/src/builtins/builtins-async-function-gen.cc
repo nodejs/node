@@ -87,7 +87,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
                      JSAsyncFunctionObject::kSize + FixedArray::kHeaderSize),
       Signed(WordShl(parameters_and_register_length,
                      IntPtrConstant(kPointerSizeLog2))));
-  TNode<Object> base = AllocateInNewSpace(size);
+  TNode<HeapObject> base = AllocateInNewSpace(size);
 
   // Initialize the register file.
   TNode<FixedArray> parameters_and_registers = UncheckedCast<FixedArray>(

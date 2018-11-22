@@ -17,6 +17,8 @@
 #include "src/objects/bigint.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -152,10 +154,14 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       ObjectBoilerplateDescription::cast(this)
           ->ObjectBoilerplateDescriptionVerify(isolate);
       break;
+    case EMBEDDER_DATA_ARRAY_TYPE:
+      EmbedderDataArray::cast(this)->EmbedderDataArrayVerify(isolate);
+      break;
     // FixedArray types
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
+    case ORDERED_NAME_DICTIONARY_TYPE:
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
@@ -313,6 +319,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
           isolate);
       break;
     case JS_WEAK_CELL_TYPE:
+    case JS_WEAK_REF_TYPE:
       JSWeakCell::cast(this)->JSWeakCellVerify(isolate);
       break;
     case JS_WEAK_FACTORY_TYPE:
@@ -377,6 +384,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case SMALL_ORDERED_HASH_MAP_TYPE:
       SmallOrderedHashMap::cast(this)->SmallOrderedHashTableVerify(isolate);
       break;
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
+      SmallOrderedNameDictionary::cast(this)->SmallOrderedHashTableVerify(
+          isolate);
+      break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(this)->CodeDataContainerVerify(isolate);
       break;
@@ -434,6 +445,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   }
 }
 
+void HeapObjectPtr::HeapObjectVerify(Isolate* isolate) {
+  reinterpret_cast<HeapObject*>(ptr())->HeapObjectVerify(isolate);
+}
+
 void HeapObject::VerifyHeapPointer(Isolate* isolate, Object* p) {
   CHECK(p->IsHeapObject());
   HeapObject* ho = HeapObject::cast(p);
@@ -445,7 +460,7 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK(HasHashCode());
   CHECK_GT(Hash(), 0);
   CHECK(name()->IsUndefined(isolate) || name()->IsString());
-  CHECK_IMPLIES(IsPrivateField(), IsPrivate());
+  CHECK_IMPLIES(IsPrivateName(), IsPrivate());
 }
 
 void ByteArray::ByteArrayVerify(Isolate* isolate) { CHECK(IsByteArray()); }
@@ -493,8 +508,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify(Isolate* isolate) {
 bool JSObject::ElementsAreSafeToExamine() const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  return reinterpret_cast<Map*>(elements()) !=
-         GetReadOnlyRoots().one_pointer_filler_map();
+  return elements() != GetReadOnlyRoots().one_pointer_filler_map();
 }
 
 namespace {
@@ -573,7 +587,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         if (value->IsUninitialized(isolate)) continue;
         if (r.IsSmi()) DCHECK(value->IsSmi());
         if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
-        FieldType* field_type = descriptors->GetFieldType(i);
+        FieldType field_type = descriptors->GetFieldType(i);
         bool type_is_none = field_type->IsNone();
         bool type_is_any = field_type->IsAny();
         if (r.IsNone()) {
@@ -612,23 +626,23 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
 void Map::MapVerify(Isolate* isolate) {
   Heap* heap = isolate->heap();
-  CHECK(!Heap::InNewSpace(this));
+  CHECK(!Heap::InNewSpace(*this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kPointerSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
   CHECK(GetBackPointer()->IsUndefined(heap->isolate()) ||
         !Map::cast(GetBackPointer())->is_stable());
-  VerifyHeapPointer(isolate, prototype());
-  VerifyHeapPointer(isolate, instance_descriptors());
+  HeapObject::VerifyHeapPointer(isolate, prototype());
+  HeapObject::VerifyHeapPointer(isolate, instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;
   SLOW_DCHECK(
-      TransitionsAccessor(isolate, this, &no_gc).IsSortedNoDuplicates());
-  SLOW_DCHECK(TransitionsAccessor(isolate, this, &no_gc)
+      TransitionsAccessor(isolate, *this, &no_gc).IsSortedNoDuplicates());
+  SLOW_DCHECK(TransitionsAccessor(isolate, *this, &no_gc)
                   .IsConsistentWithBackPointers());
   SLOW_DCHECK(!FLAG_unbox_double_fields ||
-              layout_descriptor()->IsConsistentWithMap(this));
+              layout_descriptor()->IsConsistentWithMap(*this));
   if (!may_have_interesting_symbols()) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
@@ -659,11 +673,20 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(),
            instance_descriptors());
   CHECK_EQ(0, UnusedPropertyFields());
-  CHECK_EQ(Map::GetVisitorId(this), visitor_id());
+  CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
 }
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
   VerifySmiField(kAliasedContextSlot);
+}
+
+void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
+  EmbedderDataSlot start(*this, 0);
+  EmbedderDataSlot end(*this, length());
+  for (EmbedderDataSlot slot = start; slot < end; ++slot) {
+    Object* e = slot.load_tagged();
+    Object::VerifyPointer(isolate, e);
+  }
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
@@ -1151,11 +1174,11 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
 
 void Code::CodeVerify(Isolate* isolate) {
   CHECK_LE(constant_pool_offset(), InstructionSize());
-  CHECK(IsAligned(InstructionStart(), kCodeAlignment));
+  CHECK(IsAligned(raw_instruction_start(), kCodeAlignment));
   relocation_info()->ObjectVerify(isolate);
   Address last_gc_pc = kNullAddress;
 
-  for (RelocIterator it(this); !it.done(); it.next()) {
+  for (RelocIterator it(*this); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
@@ -1482,6 +1505,8 @@ template void SmallOrderedHashTable<
     SmallOrderedHashMap>::SmallOrderedHashTableVerify(Isolate* isolate);
 template void SmallOrderedHashTable<
     SmallOrderedHashSet>::SmallOrderedHashTableVerify(Isolate* isolate);
+template void SmallOrderedHashTable<
+    SmallOrderedNameDictionary>::SmallOrderedHashTableVerify(Isolate* isolate);
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
@@ -1666,7 +1691,7 @@ void PrototypeUsers::Verify(WeakArrayList* array) {
   while (empty_slot != kNoEmptySlotsMarker) {
     CHECK_GT(empty_slot, 0);
     CHECK_LT(empty_slot, array->length());
-    empty_slot = Smi::ToInt(array->Get(empty_slot)->cast<Smi>());
+    empty_slot = array->Get(empty_slot).ToSmi().value();
     ++empty_slots_count;
   }
 
@@ -1721,6 +1746,15 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionVerify(
   CHECK(IsArrayBoilerplateDescription());
   CHECK(constant_elements()->IsFixedArrayBase());
   VerifyObjectField(isolate, kConstantElementsOffset);
+}
+
+void AsmWasmData::AsmWasmDataVerify(Isolate* isolate) {
+  CHECK(IsAsmWasmData());
+  VerifyObjectField(isolate, kManagedNativeModuleOffset);
+  VerifyObjectField(isolate, kExportWrappersOffset);
+  VerifyObjectField(isolate, kAsmJsOffsetTableOffset);
+  CHECK(uses_bitset()->IsHeapNumber());
+  VerifyObjectField(isolate, kUsesBitsetOffset);
 }
 
 void WasmDebugInfo::WasmDebugInfoVerify(Isolate* isolate) {
@@ -2190,7 +2224,7 @@ bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key->GetReadOnlyRoots(),
                                                   key)) {
-      Map* target = GetTarget(i);
+      Map target = GetTarget(i);
       PropertyDetails details =
           TransitionsAccessor::GetTargetDetails(key, target);
       kind = details.kind();
@@ -2220,15 +2254,14 @@ bool TransitionsAccessor::IsSortedNoDuplicates() {
   return transitions()->IsSortedNoDuplicates();
 }
 
-
-static bool CheckOneBackPointer(Map* current_map, Object* target) {
+static bool CheckOneBackPointer(Map current_map, Object* target) {
   return !target->IsMap() || Map::cast(target)->GetBackPointer() == current_map;
 }
 
 bool TransitionsAccessor::IsConsistentWithBackPointers() {
   int num_transitions = NumberOfTransitions();
   for (int i = 0; i < num_transitions; i++) {
-    Map* target = GetTarget(i);
+    Map target = GetTarget(i);
     if (!CheckOneBackPointer(map_, target)) return false;
   }
   return true;
@@ -2247,7 +2280,7 @@ bool CanLeak(Object* obj, Isolate* isolate) {
   }
   if (obj->IsContext()) return true;
   if (obj->IsMap()) {
-    Map* map = Map::cast(obj);
+    Map map = Map::cast(obj);
     for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
          root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
       if (map == isolate->root(root_index)) return false;
@@ -2260,7 +2293,7 @@ bool CanLeak(Object* obj, Isolate* isolate) {
 void Code::VerifyEmbeddedObjects(Isolate* isolate, VerifyMode mode) {
   if (kind() == OPTIMIZED_FUNCTION) return;
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+  for (RelocIterator it(*this, mask); !it.done(); it.next()) {
     Object* target = it.rinfo()->target_object();
     DCHECK(!CanLeak(target, isolate));
   }

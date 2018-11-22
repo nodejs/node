@@ -18,18 +18,29 @@
 
 // Since this changes visibility, it should always be last in a class
 // definition.
-#define OBJECT_CONSTRUCTORS(Type)                 \
+#define OBJECT_CONSTRUCTORS(Type, Super)          \
  public:                                          \
-  Type();                                         \
+  constexpr Type() : Super() {}                   \
   Type* operator->() { return this; }             \
   const Type* operator->() const { return this; } \
                                                   \
  protected:                                       \
-  explicit Type(Address ptr);
+  explicit inline Type(Address ptr);
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
-  inline Type::Type() : Super() {}            \
   inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
+
+#define NEVER_READ_ONLY_SPACE   \
+  inline Heap* GetHeap() const; \
+  inline Isolate* GetIsolate() const;
+
+#define NEVER_READ_ONLY_SPACE_IMPL(Type)                   \
+  Heap* Type::GetHeap() const {                            \
+    return NeverReadOnlySpaceObjectPtr::GetHeap(*this);    \
+  }                                                        \
+  Isolate* Type::GetIsolate() const {                      \
+    return NeverReadOnlySpaceObjectPtr::GetIsolate(*this); \
+  }
 
 #define DECL_PRIMITIVE_ACCESSORS(name, type) \
   inline type name() const;                  \
@@ -68,10 +79,14 @@
 
 // TODO(3770): Replacement for the above, temporarily separate for
 // incremental transition.
-#define DECL_CAST2(Type)                                  \
-  V8_INLINE static Type cast(Object* object);             \
-  V8_INLINE static const Type cast(const Object* object); \
-  V8_INLINE static Type cast(ObjectPtr object);
+#define DECL_CAST2(Type)                                      \
+  V8_INLINE static Type cast(Object* object);                 \
+  V8_INLINE static const Type cast(const Object* object);     \
+  V8_INLINE static Type cast(ObjectPtr object);               \
+  V8_INLINE static Type unchecked_cast(const Object* object); \
+  V8_INLINE static Type unchecked_cast(ObjectPtr object) {    \
+    return bit_cast<Type>(object);                            \
+  }
 
 #define CAST_ACCESSOR(type)                       \
   type* type::cast(Object* object) {              \
@@ -88,7 +103,10 @@
 #define CAST_ACCESSOR2(Type)                                                  \
   Type Type::cast(Object* object) { return Type(object->ptr()); }             \
   const Type Type::cast(const Object* object) { return Type(object->ptr()); } \
-  Type Type::cast(ObjectPtr object) { return Type(object.ptr()); }
+  Type Type::cast(ObjectPtr object) { return Type(object.ptr()); }            \
+  Type Type::unchecked_cast(const Object* object) {                           \
+    return bit_cast<Type>(ObjectPtr(object->ptr()));                          \
+  }
 
 #define INT_ACCESSORS(holder, name, offset)                         \
   int holder::name() const { return READ_INT_FIELD(this, offset); } \
@@ -98,6 +116,14 @@
   int32_t holder::name() const { return READ_INT32_FIELD(this, offset); } \
   void holder::set_##name(int32_t value) {                                \
     WRITE_INT32_FIELD(this, offset, value);                               \
+  }
+
+#define RELAXED_INT32_ACCESSORS(holder, name, offset) \
+  int32_t holder::name() const {                      \
+    return RELAXED_READ_INT32_FIELD(this, offset);    \
+  }                                                   \
+  void holder::set_##name(int32_t value) {            \
+    RELAXED_WRITE_INT32_FIELD(this, offset, value);   \
   }
 
 #define UINT16_ACCESSORS(holder, name, offset)                              \
@@ -133,6 +159,16 @@
 
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
+
+// Replacement for the above, temporarily separate to allow incremental
+// transition.
+// TODO(3770): Get rid of the duplication when the migration is complete.
+#define ACCESSORS2(holder, name, type, offset)                               \
+  type holder::name() const { return type::cast(READ_FIELD(this, offset)); } \
+  void holder::set_##name(type value, WriteBarrierMode mode) {               \
+    WRITE_FIELD(this, offset, value);                                        \
+    CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);                    \
+  }
 
 #define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,   \
                                         get_condition, set_condition) \
@@ -272,7 +308,7 @@
 #define RELEASE_WRITE_FIELD(p, offset, value)                     \
   base::Release_Store(                                            \
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
-      reinterpret_cast<base::AtomicWord>(value));
+      static_cast<base::AtomicWord>((value)->ptr()));
 
 #define RELAXED_WRITE_FIELD(p, offset, value)                     \
   base::Relaxed_Store(                                            \
@@ -326,12 +362,21 @@
 #define WRITE_INT_FIELD(p, offset, value) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
 
+#define ACQUIRE_READ_INTPTR_FIELD(p, offset) \
+  static_cast<intptr_t>(base::Acquire_Load(  \
+      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
+
 #define RELAXED_READ_INTPTR_FIELD(p, offset) \
   static_cast<intptr_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR(p, offset))))
 
 #define READ_INTPTR_FIELD(p, offset) \
   (*reinterpret_cast<const intptr_t*>(FIELD_ADDR(p, offset)))
+
+#define RELEASE_WRITE_INTPTR_FIELD(p, offset, value)              \
+  base::Release_Store(                                            \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::AtomicWord>(value));
 
 #define RELAXED_WRITE_INTPTR_FIELD(p, offset, value)              \
   base::Relaxed_Store(                                            \
@@ -388,8 +433,17 @@
 #define READ_INT32_FIELD(p, offset) \
   (*reinterpret_cast<const int32_t*>(FIELD_ADDR(p, offset)))
 
+#define RELAXED_READ_INT32_FIELD(p, offset) \
+  static_cast<int32_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
+
 #define WRITE_INT32_FIELD(p, offset, value) \
   (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define RELAXED_WRITE_INT32_FIELD(p, offset, value)             \
+  base::Relaxed_Store(                                          \
+      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic32>(value));
 
 #define READ_FLOAT_FIELD(p, offset) \
   (*reinterpret_cast<const float*>(FIELD_ADDR(p, offset)))
@@ -435,10 +489,16 @@
     set(k##name##Index, value);                                                \
   }
 
+// Replacement for the above, temporarily separate for incremental transition.
+// TODO(3770): Eliminate the duplication.
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS2(name, type)                           \
+  type DeoptimizationData::name() { return type::cast(get(k##name##Index)); } \
+  void DeoptimizationData::Set##name(type value) { set(k##name##Index, value); }
+
 #define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
-  type* DeoptimizationData::name(int i) {                       \
+  type DeoptimizationData::name(int i) {                        \
     return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
   }                                                             \
-  void DeoptimizationData::Set##name(int i, type* value) {      \
+  void DeoptimizationData::Set##name(int i, type value) {       \
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }

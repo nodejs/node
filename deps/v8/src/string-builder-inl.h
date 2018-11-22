@@ -44,7 +44,7 @@ class FixedArrayBuilder {
   void EnsureCapacity(Isolate* isolate, int elements);
 
   void Add(Object* value);
-  void Add(Smi* value);
+  void Add(Smi value);
 
   Handle<FixedArray> array() { return array_; }
 

@@ -6,6 +6,7 @@
 #define V8_VISITORS_H_
 
 #include "src/globals.h"
+#include "src/objects/code.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
@@ -120,25 +121,25 @@ class ObjectVisitor {
   // a rich interface for iterating over Code objects ...
 
   // Visits a code target in the instruction stream.
-  virtual void VisitCodeTarget(Code* host, RelocInfo* rinfo);
+  virtual void VisitCodeTarget(Code host, RelocInfo* rinfo);
 
   // Visits a runtime entry in the instruction stream.
-  virtual void VisitRuntimeEntry(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitRuntimeEntry(Code host, RelocInfo* rinfo) {}
 
   // Visit pointer embedded into a code object.
-  virtual void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo);
+  virtual void VisitEmbeddedPointer(Code host, RelocInfo* rinfo);
 
   // Visits an external reference embedded into a code object.
-  virtual void VisitExternalReference(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitExternalReference(Code host, RelocInfo* rinfo) {}
 
   // Visits an external reference.
   virtual void VisitExternalReference(Foreign* host, Address* p) {}
 
   // Visits an (encoded) internal reference.
-  virtual void VisitInternalReference(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitInternalReference(Code host, RelocInfo* rinfo) {}
 
   // Visits an off-heap target in the instruction stream.
-  virtual void VisitOffHeapTarget(Code* host, RelocInfo* rinfo) {}
+  virtual void VisitOffHeapTarget(Code host, RelocInfo* rinfo) {}
 
   // Visits the relocation info using the given iterator.
   virtual void VisitRelocInfo(RelocIterator* it);

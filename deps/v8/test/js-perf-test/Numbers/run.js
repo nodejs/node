@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 load('../base.js');
 load('toNumber.js');
+load('toLocaleString.js');
 
 function PrintResult(name, result) {
   console.log(name);

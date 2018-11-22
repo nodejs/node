@@ -142,10 +142,6 @@ bool Expression::ToBooleanIsFalse() const {
 }
 
 bool Expression::IsValidReferenceExpression() const {
-  // We don't want expressions wrapped inside RewritableExpression to be
-  // considered as valid reference expressions, as they will be rewritten
-  // to something (most probably involving a do expression).
-  if (IsRewritableExpression()) return false;
   return IsProperty() ||
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
 }
@@ -744,7 +740,7 @@ static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
 
 // Check for the pattern: x + 1.
 static bool MatchSmiLiteralOperation(Expression* left, Expression* right,
-                                     Expression** expr, Smi** literal) {
+                                     Expression** expr, Smi* literal) {
   if (right->IsSmiLiteral()) {
     *expr = left;
     *literal = right->AsLiteral()->AsSmiLiteral();
@@ -754,7 +750,7 @@ static bool MatchSmiLiteralOperation(Expression* left, Expression* right,
 }
 
 bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
-                                            Smi** literal) {
+                                            Smi* literal) {
   return MatchSmiLiteralOperation(left_, right_, subexpr, literal) ||
          (IsCommutativeOperationWithSmiLiteral(op()) &&
           MatchSmiLiteralOperation(right_, left_, subexpr, literal));

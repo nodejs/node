@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   macro LoadWithHoleCheck<Elements: type>(
       elements: FixedArrayBase, index: Smi): Object
       labels IfHole;
@@ -25,10 +25,18 @@ module array {
   }
 
   macro FastArrayLastIndexOf<Elements: type>(
-      context: Context, array: JSArray, length: Smi, from: Smi,
-      searchElement: Object): Smi {
+      context: Context, array: JSArray, from: Smi, searchElement: Object): Smi {
     const elements: FixedArrayBase = array.elements;
     let k: Smi = from;
+
+    // Bug(898785): Due to side-effects in the evaluation of `fromIndex`
+    // the {from} can be out-of-bounds here, so we need to clamp {k} to
+    // the {elements} length. We might be reading holes / hole NaNs still
+    // due to that, but those will be ignored below.
+    if (k >= elements.length) {
+      k = elements.length - 1;
+    }
+
     while (k >= 0) {
       try {
         const element: Object = LoadWithHoleCheck<Elements>(elements, k)
@@ -83,11 +91,11 @@ module array {
     const kind: ElementsKind = array.map.elements_kind;
     if (IsFastSmiOrTaggedElementsKind(kind)) {
       return FastArrayLastIndexOf<FixedArray>(
-          context, array, length, fromSmi, searchElement);
+          context, array, fromSmi, searchElement);
     }
     assert(IsDoubleElementsKind(kind));
     return FastArrayLastIndexOf<FixedDoubleArray>(
-        context, array, length, fromSmi, searchElement);
+        context, array, fromSmi, searchElement);
   }
 
   transitioning macro GenericArrayLastIndexOf(

@@ -617,9 +617,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
       instance->module_object()->native_module();
   const wasm::WasmModule* module = instance->module();
 
-  // We may modify js wrappers, as well as wasm functions. Hence the 2
-  // modification scopes.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+  // We may modify the wasm jump table.
   wasm::NativeModuleModificationScope native_module_modification_scope(
       native_module);
 
@@ -628,10 +626,9 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     DCHECK_GT(module->functions.size(), func_index);
     if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
-    MaybeHandle<Code> new_code = compiler::CompileWasmInterpreterEntry(
-        isolate, func_index, module->functions[func_index].sig);
-    const wasm::WasmCode* wasm_new_code = native_module->AddInterpreterEntry(
-        new_code.ToHandleChecked(), func_index);
+    wasm::WasmCode* wasm_new_code = compiler::CompileWasmInterpreterEntry(
+        isolate, native_module, func_index, module->functions[func_index].sig);
+    native_module->PublishInterpreterEntry(wasm_new_code, func_index);
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
         wasm_new_code->instruction_start(), TENURED);
     interpreted_functions->set(func_index, *foreign_holder);

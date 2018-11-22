@@ -96,7 +96,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
                                  smi_arguments_count);
   Node* arguments = nullptr;
   if (!empty) {
-    arguments = InnerAllocate(result, elements_offset);
+    arguments = InnerAllocate(CAST(result), elements_offset);
     StoreObjectFieldNoWriteBarrier(arguments, FixedArray::kLengthOffset,
                                    smi_arguments_count);
     Node* fixed_array_map = LoadRoot(RootIndex::kFixedArrayMap);

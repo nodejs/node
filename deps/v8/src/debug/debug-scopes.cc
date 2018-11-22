@@ -97,7 +97,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   // Class fields initializer functions don't have any scope
   // information. We short circuit the parsing of the class literal
   // and return an empty context here.
-  if (IsClassFieldsInitializerFunction(shared_info->kind())) {
+  if (IsClassMembersInitializerFunction(shared_info->kind())) {
     current_scope_ = closure_scope_ = nullptr;
     context_ = Handle<Context>();
     function_ = Handle<JSFunction>();

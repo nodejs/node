@@ -16,6 +16,7 @@
 #include "src/isolate.h"
 #include "src/label.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/smi.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 
@@ -64,7 +65,7 @@ namespace internal {
   V(TryCatchStatement)            \
   V(TryFinallyStatement)          \
   V(DebuggerStatement)            \
-  V(InitializeClassFieldsStatement)
+  V(InitializeClassMembersStatement)
 
 #define LITERAL_NODE_LIST(V) \
   V(RegExpLiteral)           \
@@ -108,6 +109,8 @@ namespace internal {
   V(Yield)                      \
   V(YieldStar)
 
+#define FAILURE_NODE_LIST(V) V(FailureExpression)
+
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
   STATEMENT_NODE_LIST(V)                        \
@@ -127,12 +130,16 @@ class Statement;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
+FAILURE_NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
 class AstNode: public ZoneObject {
  public:
 #define DECLARE_TYPE_ENUM(type) k##type,
-  enum NodeType : uint8_t { AST_NODE_LIST(DECLARE_TYPE_ENUM) };
+  enum NodeType : uint8_t {
+    AST_NODE_LIST(DECLARE_TYPE_ENUM) /* , */
+    FAILURE_NODE_LIST(DECLARE_TYPE_ENUM)
+  };
 #undef DECLARE_TYPE_ENUM
 
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
@@ -151,6 +158,7 @@ class AstNode: public ZoneObject {
   V8_INLINE type* As##type();        \
   V8_INLINE const type* As##type() const;
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+  FAILURE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
   BreakableStatement* AsBreakableStatement();
@@ -242,10 +250,21 @@ class Expression : public AstNode {
 
   bool IsCompileTimeValue();
 
+  bool IsValidPattern() {
+    STATIC_ASSERT(kObjectLiteral + 1 == kArrayLiteral);
+    return IsInRange(node_type(), kObjectLiteral, kArrayLiteral);
+  }
+
  protected:
   Expression(int pos, NodeType type) : AstNode(pos, type) {}
 
   static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
+};
+
+class FailureExpression : public Expression {
+ private:
+  friend class AstNodeFactory;
+  FailureExpression() : Expression(kNoSourcePosition, kFailureExpression) {}
 };
 
 // V8's notion of BreakableStatement does not correspond to the notion of
@@ -316,6 +335,12 @@ class Block : public BreakableStatement {
   Scope* scope() const { return scope_; }
   void set_scope(Scope* scope) { scope_ = scope; }
 
+  void InitializeStatements(const ScopedPtrList<Statement>& statements,
+                            Zone* zone) {
+    DCHECK_EQ(0, statements_.length());
+    statements.CopyTo(&statements_, zone);
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -336,6 +361,9 @@ class Block : public BreakableStatement {
     bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value) |
                   IsLabeledField::encode(labels != nullptr);
   }
+
+  Block(ZonePtrList<const AstRawString>* labels, bool ignore_completion_value)
+      : Block(nullptr, labels, 0, ignore_completion_value) {}
 };
 
 class LabeledBlock final : public Block {
@@ -350,6 +378,10 @@ class LabeledBlock final : public Block {
     DCHECK_NOT_NULL(labels);
     DCHECK_GT(labels->length(), 0);
   }
+
+  LabeledBlock(ZonePtrList<const AstRawString>* labels,
+               bool ignore_completion_value)
+      : LabeledBlock(nullptr, labels, 0, ignore_completion_value) {}
 
   ZonePtrList<const AstRawString>* labels_;
 };
@@ -444,16 +476,26 @@ inline NestedVariableDeclaration* VariableDeclaration::AsNested() {
 class FunctionDeclaration final : public Declaration {
  public:
   FunctionLiteral* fun() const { return fun_; }
+  bool declares_sloppy_block_function() const {
+    return DeclaresSloppyBlockFunction::decode(bit_field_);
+  }
 
  private:
   friend class AstNodeFactory;
 
-  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, int pos)
+  class DeclaresSloppyBlockFunction
+      : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
+
+  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun,
+                      bool declares_sloppy_block_function, int pos)
       : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {
-    DCHECK_NOT_NULL(fun);
+    bit_field_ = DeclaresSloppyBlockFunction::update(
+        bit_field_, declares_sloppy_block_function);
   }
 
   FunctionLiteral* fun_;
+
+  static const uint8_t kNextBitFieldIndex = DeclaresSloppyBlockFunction::kNext;
 };
 
 
@@ -1046,7 +1088,7 @@ class Literal final : public Expression {
     return string_;
   }
 
-  Smi* AsSmiLiteral() const {
+  Smi AsSmiLiteral() const {
     DCHECK_EQ(kSmi, type());
     return Smi::FromInt(smi_);
   }
@@ -1574,9 +1616,9 @@ class VariableProxy final : public Expression {
         HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
   }
 
-  bool is_private_field() const { return IsPrivateField::decode(bit_field_); }
-  void set_is_private_field() {
-    bit_field_ = IsPrivateField::update(bit_field_, true);
+  bool is_private_name() const { return IsPrivateName::decode(bit_field_); }
+  void set_is_private_name() {
+    bit_field_ = IsPrivateName::update(bit_field_, true);
   }
 
   // Bind this proxy to the variable var.
@@ -1607,7 +1649,7 @@ class VariableProxy final : public Expression {
                   IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
                   HoleCheckModeField::encode(HoleCheckMode::kElided) |
-                  IsPrivateField::encode(false);
+                  IsPrivateName::encode(false);
   }
 
   explicit VariableProxy(const VariableProxy* copy_from);
@@ -1619,7 +1661,7 @@ class VariableProxy final : public Expression {
   class IsNewTargetField : public BitField<bool, IsResolvedField::kNext, 1> {};
   class HoleCheckModeField
       : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
-  class IsPrivateField : public BitField<bool, HoleCheckModeField::kNext, 1> {};
+  class IsPrivateName : public BitField<bool, HoleCheckModeField::kNext, 1> {};
 
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
@@ -1867,7 +1909,7 @@ class BinaryOperation final : public Expression {
 
   // Returns true if one side is a Smi literal, returning the other side's
   // sub-expression in |subexpr| and the literal Smi in |literal|.
-  bool IsSmiLiteralOperation(Expression** subexpr, Smi** literal);
+  bool IsSmiLiteralOperation(Expression** subexpr, Smi* literal);
 
  private:
   friend class AstNodeFactory;
@@ -2267,7 +2309,7 @@ class FunctionLiteral final : public Expression {
   const AstConsString* raw_name() const { return raw_name_; }
   void set_raw_name(const AstConsString* name) { raw_name_ = name; }
   DeclarationScope* scope() const { return scope_; }
-  ZonePtrList<Statement>* body() { return body_; }
+  ZonePtrList<Statement>* body() { return &body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
@@ -2292,7 +2334,7 @@ class FunctionLiteral final : public Expression {
 
   int expected_property_count() {
     // Not valid for lazy functions.
-    DCHECK_NOT_NULL(body_);
+    DCHECK(ShouldEagerCompile());
     return expected_property_count_;
   }
   int parameter_count() { return parameter_count_; }
@@ -2332,7 +2374,7 @@ class FunctionLiteral final : public Expression {
 
   bool has_duplicate_parameters() const {
     // Not valid for lazy functions.
-    DCHECK_NOT_NULL(body_);
+    DCHECK(ShouldEagerCompile());
     return HasDuplicateParameters::decode(bit_field_);
   }
 
@@ -2377,11 +2419,11 @@ class FunctionLiteral final : public Expression {
     function_literal_id_ = function_literal_id;
   }
 
-  void set_requires_instance_fields_initializer(bool value) {
-    bit_field_ = RequiresInstanceFieldsInitializer::update(bit_field_, value);
+  void set_requires_instance_members_initializer(bool value) {
+    bit_field_ = RequiresInstanceMembersInitializer::update(bit_field_, value);
   }
-  bool requires_instance_fields_initializer() const {
-    return RequiresInstanceFieldsInitializer::decode(bit_field_);
+  bool requires_instance_members_initializer() const {
+    return RequiresInstanceMembersInitializer::decode(bit_field_);
   }
 
   ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
@@ -2393,7 +2435,7 @@ class FunctionLiteral final : public Expression {
 
   FunctionLiteral(
       Zone* zone, const AstRawString* name, AstValueFactory* ast_value_factory,
-      DeclarationScope* scope, ZonePtrList<Statement>* body,
+      DeclarationScope* scope, const ScopedPtrList<Statement>& body,
       int expected_property_count, int parameter_count, int function_length,
       FunctionType function_type, ParameterFlag has_duplicate_parameters,
       EagerCompileHint eager_compile_hint, int position, bool has_braces,
@@ -2408,7 +2450,7 @@ class FunctionLiteral final : public Expression {
         function_literal_id_(function_literal_id),
         raw_name_(name ? ast_value_factory->NewConsString(name) : nullptr),
         scope_(scope),
-        body_(body),
+        body_(0, nullptr),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         produced_preparsed_scope_data_(produced_preparsed_scope_data) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
@@ -2416,10 +2458,10 @@ class FunctionLiteral final : public Expression {
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
                   DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
-                  RequiresInstanceFieldsInitializer::encode(false) |
+                  RequiresInstanceMembersInitializer::encode(false) |
                   HasBracesField::encode(has_braces) | IIFEBit::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
-    DCHECK_EQ(body == nullptr, expected_property_count < 0);
+    body.CopyTo(&body_, zone);
   }
 
   class FunctionTypeBits
@@ -2428,10 +2470,10 @@ class FunctionLiteral final : public Expression {
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class DontOptimizeReasonField
       : public BitField<BailoutReason, HasDuplicateParameters::kNext, 8> {};
-  class RequiresInstanceFieldsInitializer
+  class RequiresInstanceMembersInitializer
       : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
   class HasBracesField
-      : public BitField<bool, RequiresInstanceFieldsInitializer::kNext, 1> {};
+      : public BitField<bool, RequiresInstanceMembersInitializer::kNext, 1> {};
   class IIFEBit : public BitField<bool, HasBracesField::kNext, 1> {};
 
   int expected_property_count_;
@@ -2443,7 +2485,7 @@ class FunctionLiteral final : public Expression {
 
   const AstConsString* raw_name_;
   DeclarationScope* scope_;
-  ZonePtrList<Statement>* body_;
+  ZonePtrList<Statement> body_;
   const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
@@ -2473,12 +2515,12 @@ class ClassLiteralProperty final : public LiteralProperty {
     return private_or_computed_name_var_;
   }
 
-  void set_private_field_name_var(Variable* var) {
+  void set_private_name_var(Variable* var) {
     DCHECK_EQ(FIELD, kind());
     DCHECK(is_private());
     private_or_computed_name_var_ = var;
   }
-  Variable* private_field_name_var() const {
+  Variable* private_name_var() const {
     DCHECK_EQ(FIELD, kind());
     DCHECK(is_private());
     return private_or_computed_name_var_;
@@ -2496,7 +2538,7 @@ class ClassLiteralProperty final : public LiteralProperty {
   Variable* private_or_computed_name_var_;
 };
 
-class InitializeClassFieldsStatement final : public Statement {
+class InitializeClassMembersStatement final : public Statement {
  public:
   typedef ClassLiteralProperty Property;
 
@@ -2505,8 +2547,8 @@ class InitializeClassFieldsStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  InitializeClassFieldsStatement(ZonePtrList<Property>* fields, int pos)
-      : Statement(pos, kInitializeClassFieldsStatement), fields_(fields) {}
+  InitializeClassMembersStatement(ZonePtrList<Property>* fields, int pos)
+      : Statement(pos, kInitializeClassMembersStatement), fields_(fields) {}
 
   ZonePtrList<Property>* fields_;
 };
@@ -2540,8 +2582,8 @@ class ClassLiteral final : public Expression {
     return static_fields_initializer_;
   }
 
-  FunctionLiteral* instance_fields_initializer_function() const {
-    return instance_fields_initializer_function_;
+  FunctionLiteral* instance_members_initializer_function() const {
+    return instance_members_initializer_function_;
   }
 
  private:
@@ -2550,7 +2592,7 @@ class ClassLiteral final : public Expression {
   ClassLiteral(Scope* scope, Variable* class_variable, Expression* extends,
                FunctionLiteral* constructor, ZonePtrList<Property>* properties,
                FunctionLiteral* static_fields_initializer,
-               FunctionLiteral* instance_fields_initializer_function,
+               FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
                bool has_name_static_property, bool has_static_computed_names,
                bool is_anonymous)
@@ -2562,8 +2604,8 @@ class ClassLiteral final : public Expression {
         constructor_(constructor),
         properties_(properties),
         static_fields_initializer_(static_fields_initializer),
-        instance_fields_initializer_function_(
-            instance_fields_initializer_function) {
+        instance_members_initializer_function_(
+            instance_members_initializer_function) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
                   HasStaticComputedNames::encode(has_static_computed_names) |
                   IsAnonymousExpression::encode(is_anonymous);
@@ -2576,7 +2618,7 @@ class ClassLiteral final : public Expression {
   FunctionLiteral* constructor_;
   ZonePtrList<Property>* properties_;
   FunctionLiteral* static_fields_initializer_;
-  FunctionLiteral* instance_fields_initializer_function_;
+  FunctionLiteral* instance_members_initializer_function_;
   class HasNameStaticProperty
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class HasStaticComputedNames
@@ -2813,9 +2855,14 @@ class AstVisitor {
   case AstNode::k##NodeType:                                            \
     return this->impl()->Visit##NodeType(static_cast<NodeType*>(node));
 
-#define GENERATE_AST_VISITOR_SWITCH()  \
-  switch (node->node_type()) {         \
-    AST_NODE_LIST(GENERATE_VISIT_CASE) \
+#define GENERATE_FAILURE_CASE(NodeType) \
+  case AstNode::k##NodeType:            \
+    UNREACHABLE();
+
+#define GENERATE_AST_VISITOR_SWITCH()        \
+  switch (node->node_type()) {               \
+    AST_NODE_LIST(GENERATE_VISIT_CASE)       \
+    FAILURE_NODE_LIST(GENERATE_FAILURE_CASE) \
   }
 
 #define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
@@ -2870,7 +2917,8 @@ class AstNodeFactory final {
   AstNodeFactory(AstValueFactory* ast_value_factory, Zone* zone)
       : zone_(zone),
         ast_value_factory_(ast_value_factory),
-        empty_statement_(new (zone) class EmptyStatement()) {}
+        empty_statement_(new (zone) class EmptyStatement()),
+        failure_expression_(new (zone) class FailureExpression()) {}
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
@@ -2885,17 +2933,29 @@ class AstNodeFactory final {
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
-                                              FunctionLiteral* fun, int pos) {
-    return new (zone_) FunctionDeclaration(proxy, fun, pos);
+                                              FunctionLiteral* fun,
+                                              bool is_sloppy_block_function,
+                                              int pos) {
+    return new (zone_)
+        FunctionDeclaration(proxy, fun, is_sloppy_block_function, pos);
   }
 
-  Block* NewBlock(int capacity, bool ignore_completion_value,
-                  ZonePtrList<const AstRawString>* labels = nullptr) {
+  Block* NewBlock(int capacity, bool ignore_completion_value) {
+    return new (zone_) Block(zone_, nullptr, capacity, ignore_completion_value);
+  }
+
+  Block* NewBlock(bool ignore_completion_value,
+                  ZonePtrList<const AstRawString>* labels) {
     return labels != nullptr
-               ? new (zone_) LabeledBlock(zone_, labels, capacity,
-                                          ignore_completion_value)
-               : new (zone_)
-                     Block(zone_, labels, capacity, ignore_completion_value);
+               ? new (zone_) LabeledBlock(labels, ignore_completion_value)
+               : new (zone_) Block(labels, ignore_completion_value);
+  }
+
+  Block* NewBlock(bool ignore_completion_value,
+                  const ScopedPtrList<Statement>& statements) {
+    Block* result = NewBlock(ignore_completion_value, nullptr);
+    result->InitializeStatements(statements, zone_);
+    return result;
   }
 
 #define STATEMENT_WITH_LABELS(NodeType)                                \
@@ -3015,6 +3075,10 @@ class AstNodeFactory final {
     return empty_statement_;
   }
 
+  class FailureExpression* FailureExpression() {
+    return failure_expression_;
+  }
+
   SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement() {
     return new (zone_) SloppyBlockFunctionStatement(EmptyStatement());
   }
@@ -3025,6 +3089,7 @@ class AstNodeFactory final {
   }
 
   Literal* NewStringLiteral(const AstRawString* string, int pos) {
+    DCHECK_NOT_NULL(string);
     return new (zone_) Literal(string, pos);
   }
 
@@ -3260,7 +3325,7 @@ class AstNodeFactory final {
 
   FunctionLiteral* NewFunctionLiteral(
       const AstRawString* name, DeclarationScope* scope,
-      ZonePtrList<Statement>* body, int expected_property_count,
+      const ScopedPtrList<Statement>& body, int expected_property_count,
       int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
@@ -3277,10 +3342,9 @@ class AstNodeFactory final {
   // Creates a FunctionLiteral representing a top-level script, the
   // result of an eval (top-level or otherwise), or the result of calling
   // the Function constructor.
-  FunctionLiteral* NewScriptOrEvalFunctionLiteral(DeclarationScope* scope,
-                                                  ZonePtrList<Statement>* body,
-                                                  int expected_property_count,
-                                                  int parameter_count) {
+  FunctionLiteral* NewScriptOrEvalFunctionLiteral(
+      DeclarationScope* scope, const ScopedPtrList<Statement>& body,
+      int expected_property_count, int parameter_count) {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, expected_property_count, parameter_count, parameter_count,
@@ -3302,12 +3366,12 @@ class AstNodeFactory final {
       FunctionLiteral* constructor,
       ZonePtrList<ClassLiteral::Property>* properties,
       FunctionLiteral* static_fields_initializer,
-      FunctionLiteral* instance_fields_initializer_function, int start_position,
-      int end_position, bool has_name_static_property,
+      FunctionLiteral* instance_members_initializer_function,
+      int start_position, int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous) {
     return new (zone_) ClassLiteral(
         scope, variable, extends, constructor, properties,
-        static_fields_initializer, instance_fields_initializer_function,
+        static_fields_initializer, instance_members_initializer_function,
         start_position, end_position, has_name_static_property,
         has_static_computed_names, is_anonymous);
   }
@@ -3372,9 +3436,9 @@ class AstNodeFactory final {
     return new (zone_) ImportCallExpression(args, pos);
   }
 
-  InitializeClassFieldsStatement* NewInitializeClassFieldsStatement(
+  InitializeClassMembersStatement* NewInitializeClassMembersStatement(
       ZonePtrList<ClassLiteral::Property>* args, int pos) {
-    return new (zone_) InitializeClassFieldsStatement(args, pos);
+    return new (zone_) InitializeClassMembersStatement(args, pos);
   }
 
   Zone* zone() const { return zone_; }
@@ -3387,6 +3451,7 @@ class AstNodeFactory final {
   Zone* zone_;
   AstValueFactory* ast_value_factory_;
   class EmptyStatement* empty_statement_;
+  class FailureExpression* failure_expression_;
 };
 
 
@@ -3428,6 +3493,7 @@ class AstNodeFactory final {
                                     : nullptr;                               \
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+FAILURE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
 }  // namespace internal

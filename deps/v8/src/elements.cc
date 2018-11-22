@@ -17,6 +17,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots.h"
 #include "src/utils.h"
 
@@ -292,8 +293,7 @@ static void CopyDoubleToDoubleElements(FixedArrayBase* from_base,
   to_address += kDoubleSize * to_start;
   from_address += kDoubleSize * from_start;
   int words_per_double = (kDoubleSize / kPointerSize);
-  CopyWords(reinterpret_cast<Address*>(to_address),
-            reinterpret_cast<Address*>(from_address),
+  CopyWords(to_address, from_address,
             static_cast<size_t>(words_per_double * copy_size));
 }
 
@@ -444,7 +444,7 @@ static void TraceTopFrame(Isolate* isolate) {
   }
   StackFrame* raw_frame = it.frame();
   if (raw_frame->is_internal()) {
-    Code* current_code_object =
+    Code current_code_object =
         isolate->heap()->GcSafeFindCodeForInnerPointer(raw_frame->pc());
     if (current_code_object->builtin_index() ==
         Builtins::kFunctionPrototypeApply) {
@@ -459,16 +459,13 @@ static void TraceTopFrame(Isolate* isolate) {
 static void SortIndices(
     Isolate* isolate, Handle<FixedArray> indices, uint32_t sort_size,
     WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER) {
-  // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
+  // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
-  base::AtomicElement<Object*>* start =
-      reinterpret_cast<base::AtomicElement<Object*>*>(
-          indices->GetFirstElementAddress().address());
+  AtomicSlot start(indices->GetFirstElementAddress());
   std::sort(start, start + sort_size,
-            [isolate](const base::AtomicElement<Object*>& elementA,
-                      const base::AtomicElement<Object*>& elementB) {
-              const Object* a = elementA.value();
-              const Object* b = elementB.value();
+            [isolate](Address elementA, Address elementB) {
+              const Object* a = reinterpret_cast<Object*>(elementA);
+              const Object* b = reinterpret_cast<Object*>(elementB);
               if (a->IsSmi() || !a->IsUndefined(isolate)) {
                 if (!b->IsSmi() && b->IsUndefined(isolate)) {
                   return true;
@@ -2146,7 +2143,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Isolate* isolate = holder->GetIsolate();
     Heap* heap = isolate->heap();
     FixedArrayBase* elements = holder->elements();
-    Map* map = elements->map();
+    Map map = elements->map();
     if (IsSmiOrObjectElementsKind(KindTraits::Kind)) {
       DCHECK_NE(map, ReadOnlyRoots(heap).fixed_double_array_map());
     } else if (IsDoubleElementsKind(KindTraits::Kind)) {
@@ -3479,7 +3476,8 @@ class TypedElementsAccessor
       }
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
-      if (length + offset <= source_ta->length_value()) {
+      if (!source_ta->WasNeutered() &&
+          length + offset <= source_ta->length_value()) {
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }

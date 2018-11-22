@@ -32,19 +32,22 @@ class SCTableReference {
 class StubCache {
  public:
   struct Entry {
+    // The values here have plain Address types because they are read
+    // directly from generated code. As a nice side effect, this keeps
+    // #includes lightweight.
+    // TODO(3770): That statement will be true for {key} as well.
     Name* key;
     // {value} is a tagged heap object reference (weak or strong), equivalent
-    // to a MaybeObject's payload. It has a plain Address type because it is
-    // read directly from generated code. As a nice side effect, this keeps
-    // #includes lightweight.
+    // to a MaybeObject's payload.
     Address value;
-    Map* map;
+    // {map} is a tagged Map pointer, or nullptr.
+    Address map;
   };
 
   void Initialize();
   // Access cache for entry hash(name, map).
-  void Set(Name* name, Map* map, MaybeObject handler);
-  MaybeObject Get(Name* name, Map* map);
+  void Set(Name* name, Map map, MaybeObject handler);
+  MaybeObject Get(Name* name, Map map);
   // Clear the lookup table (@ mark compact collection).
   void Clear();
 
@@ -90,13 +93,8 @@ class StubCache {
   // Some magic number used in the secondary hash computation.
   static const int kSecondaryMagic = 0xb16ca6e5;
 
-  static int PrimaryOffsetForTesting(Name* name, Map* map) {
-    return PrimaryOffset(name, map);
-  }
-
-  static int SecondaryOffsetForTesting(Name* name, int seed) {
-    return SecondaryOffset(name, seed);
-  }
+  static int PrimaryOffsetForTesting(Name* name, Map map);
+  static int SecondaryOffsetForTesting(Name* name, int seed);
 
   // The constructor is made public only for the purposes of testing.
   explicit StubCache(Isolate* isolate);
@@ -112,7 +110,7 @@ class StubCache {
   // Hash algorithm for the primary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int PrimaryOffset(Name* name, Map* map);
+  static int PrimaryOffset(Name* name, Map map);
 
   // Hash algorithm for the secondary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that

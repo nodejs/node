@@ -15,10 +15,10 @@
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/ic/ic.h"
-#include "src/instruction-stream.h"
 #include "src/isolate-data.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -132,12 +132,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     RootIndex root_index =
         static_cast<RootIndex>(offset_in_roots_table / kPointerSize);
 
-    HeapStringAllocator allocator;
-    StringStream accumulator(&allocator);
-    isolate_->root(root_index)->ShortPrint(&accumulator);
-    std::unique_ptr<char[]> obj_name = accumulator.ToCString();
-
-    SNPrintF(v8_buffer_, "root (%s)", obj_name.get());
+    SNPrintF(v8_buffer_, "root (%s)", RootsTable::name(root_index));
     return v8_buffer_.start();
 
   } else if (static_cast<unsigned>(offset - kExtRefsTableStart) <
@@ -236,7 +231,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; external reference (%s)", reference_name);
   } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out->AddFormatted("    ;; code:");
-    Code* code = isolate->heap()->GcSafeFindCodeForInnerPointer(
+    Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(
         relocinfo->target_address());
     Code::Kind kind = code->kind();
     if (kind == Code::STUB) {
@@ -369,7 +364,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], nullptr, constant_pool);
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], Code(), constant_pool);
 
       bool first_reloc_info = (i == 0);
       PrintRelocInfo(&out, isolate, ref_encoder, os, code, &relocinfo,
@@ -381,7 +376,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // the constant pool.
     if (pcs.empty() && !code.is_null()) {
       RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
-                            0, nullptr);
+                            0, Code());
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();

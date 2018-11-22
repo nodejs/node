@@ -112,6 +112,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
                                  Node* const maybe_string,
                                  Handle<Symbol> symbol,
+                                 DescriptorIndexAndName symbol_index,
                                  const NodeFunction0& regexp_call,
                                  const NodeFunction1& generic_call);
 };

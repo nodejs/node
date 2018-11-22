@@ -31,7 +31,7 @@ export class DisassemblyView extends TextView {
     let ADDRESS_STYLE = {
       css: 'tag',
       linkHandler: function (text, fragment) {
-        const matches = text.match(/0x[0-9a-f]{8,16}\s*(?<offset>[0-9a-f]+)/);
+        const matches = text.match(/0?x?[0-9a-fA-F]{8,16}\s*(?<offset>[0-9a-f]+)/);
         const offset = Number.parseInt(matches.groups["offset"], 16);
         if (!Number.isNaN(offset)) {
           const [nodes, blockId] = sourceResolver.nodesForPCOffset(offset)
@@ -99,7 +99,7 @@ export class DisassemblyView extends TextView {
     view.SOURCE_POSITION_HEADER_REGEX = /^\s*--[^<]*<.*(not inlined|inlined\((\d+)\)):(\d+)>\s*--/;
     let patterns = [
       [
-        [/^0x[0-9a-f]{8,16}\s*[0-9a-f]+\ /, ADDRESS_STYLE, 1],
+        [/^0?x?[0-9a-fA-F]{8,16}\s*[0-9a-f]+\ /, ADDRESS_STYLE, 1],
         [view.SOURCE_POSITION_HEADER_REGEX, SOURCE_POSITION_HEADER_STYLE, -1],
         [/^\s+-- B\d+ start.*/, BLOCK_HEADER_STYLE, -1],
         [/^.*/, UNCLASSIFIED_STYLE, -1]

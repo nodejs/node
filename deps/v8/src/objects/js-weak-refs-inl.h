@@ -9,6 +9,7 @@
 
 #include "src/api-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -30,6 +31,8 @@ ACCESSORS(JSWeakCell, holdings, Object, kHoldingsOffset)
 ACCESSORS(JSWeakCell, next, Object, kNextOffset)
 ACCESSORS(JSWeakCell, prev, Object, kPrevOffset)
 CAST_ACCESSOR(JSWeakCell)
+
+CAST_ACCESSOR(JSWeakRef)
 
 ACCESSORS(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
 CAST_ACCESSOR(JSWeakFactoryCleanupIterator)

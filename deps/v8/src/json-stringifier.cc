@@ -10,6 +10,7 @@
 #include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/smi.h"
 #include "src/string-builder-inl.h"
 #include "src/utils.h"
 
@@ -65,7 +66,7 @@ class JsonStringifier {
   V8_INLINE void SerializeDeferredKey(bool deferred_comma,
                                       Handle<Object> deferred_key);
 
-  Result SerializeSmi(Smi* object);
+  Result SerializeSmi(Smi object);
 
   Result SerializeDouble(double number);
   V8_INLINE Result SerializeHeapNumber(Handle<HeapNumber> object) {
@@ -494,7 +495,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSValue(
   return SUCCESS;
 }
 
-JsonStringifier::Result JsonStringifier::SerializeSmi(Smi* object) {
+JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);
@@ -637,14 +638,11 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
 
   if (property_list_.is_null() &&
       !object->map()->IsCustomElementsReceiverMap() &&
-      object->HasFastProperties() &&
-      Handle<JSObject>::cast(object)->elements()->length() == 0) {
-    DCHECK(object->IsJSObject());
+      object->HasFastProperties() && object->elements()->length() == 0) {
     DCHECK(!object->IsJSGlobalProxy());
-    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
-    DCHECK(!js_obj->HasIndexedInterceptor());
-    DCHECK(!js_obj->HasNamedInterceptor());
-    Handle<Map> map(js_obj->map(), isolate_);
+    DCHECK(!object->HasIndexedInterceptor());
+    DCHECK(!object->HasNamedInterceptor());
+    Handle<Map> map(object->map(), isolate_);
     builder_.AppendCharacter('{');
     Indent();
     bool comma = false;
@@ -656,15 +654,15 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       PropertyDetails details = map->instance_descriptors()->GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
-      if (details.location() == kField && *map == js_obj->map()) {
+      if (details.location() == kField && *map == object->map()) {
         DCHECK_EQ(kData, details.kind());
         FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-        property = JSObject::FastPropertyAt(js_obj, details.representation(),
+        property = JSObject::FastPropertyAt(object, details.representation(),
                                             field_index);
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, property,
-            Object::GetPropertyOrElement(isolate_, js_obj, key), EXCEPTION);
+            Object::GetPropertyOrElement(isolate_, object, key), EXCEPTION);
       }
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;

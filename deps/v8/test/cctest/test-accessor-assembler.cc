@@ -8,6 +8,7 @@
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -58,7 +59,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   };
 
   Handle<Map> maps[] = {
-      Handle<Map>(nullptr, isolate),
+      Handle<Map>(Map(), isolate),
       factory->cell_map(),
       Map::Create(isolate, 0),
       factory->meta_map(),
@@ -88,7 +89,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       }
       Handle<Object> result = ft.Call(name, map).ToHandleChecked();
 
-      Smi* expected = Smi::FromInt(expected_result & Smi::kMaxValue);
+      Smi expected = Smi::FromInt(expected_result & Smi::kMaxValue);
       CHECK_EQ(expected, Smi::cast(*result));
     }
   }

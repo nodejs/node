@@ -91,6 +91,7 @@
       'V8 Linux gcc 4.8': 'release_x86_gcc',
       'V8 Linux64 gcc 4.8 - debug': 'debug_x64_gcc',
       # FYI.
+      'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
       'V8 Linux - noembed': 'release_x86_noembed',
       'V8 Linux - noembed - debug': 'debug_x86_noembed',
       'V8 Fuchsia': 'release_x64_fuchsia',
@@ -120,8 +121,6 @@
       'V8 Clusterfuzz Linux64 - release builder':
           'release_x64_correctness_fuzzer',
       'V8 Clusterfuzz Linux64 - debug builder': 'debug_x64',
-      'V8 Clusterfuzz Linux64 - nosnap release builder': 'release_x64_no_snap',
-      'V8 Clusterfuzz Linux64 - nosnap debug builder': 'debug_x64_no_snap',
       'V8 Clusterfuzz Linux64 ASAN no inline - release builder':
           'release_x64_asan_symbolized_edge_verify_heap',
       'V8 Clusterfuzz Linux64 ASAN - debug builder': 'debug_x64_asan_edge',
@@ -209,6 +208,7 @@
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
+      'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
@@ -436,8 +436,9 @@
       'release_trybot', 'x64', 'jumbo_limited'],
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
-    'release_x64_no_snap': [
-      'release_bot', 'x64', 'v8_snapshot_none'],
+    'release_x64_pointer_compression': [
+      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
+      'v8_enable_pointer_compression'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_trybot': [
@@ -480,8 +481,6 @@
       'debug_bot', 'x64', 'jumbo_limited'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
-    'debug_x64_no_snap': [
-      'debug_bot', 'x64', 'v8_snapshot_none'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
 
@@ -788,6 +787,10 @@
 
     'v8_enable_slow_dchecks': {
       'gn_args': 'v8_enable_slow_dchecks=true',
+    },
+
+    'v8_enable_pointer_compression': {
+      'gn_args': 'v8_enable_pointer_compression=true',
     },
 
     'v8_enable_test_features': {

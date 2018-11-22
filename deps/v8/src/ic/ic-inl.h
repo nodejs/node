@@ -9,6 +9,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/debug/debug.h"
+#include "src/frames-inl.h"
 #include "src/handles-inl.h"
 #include "src/prototype.h"
 
@@ -62,7 +63,7 @@ bool IC::AddressIsDeoptimizedCode() const {
 
 // static
 bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
-  Code* host =
+  Code host =
       isolate->inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
   return (host->kind() == Code::OPTIMIZED_FUNCTION &&
           host->marked_for_deoptimization());
@@ -71,7 +72,7 @@ bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
 bool IC::vector_needs_update() {
   return (!vector_set_ &&
           (state() != MEGAMORPHIC ||
-           Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
+           nexus()->GetFeedbackExtra().ToSmi().value() != ELEMENT));
 }
 
 }  // namespace internal

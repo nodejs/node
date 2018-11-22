@@ -11,6 +11,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/heap/factory.h"
@@ -35,11 +36,6 @@ namespace internal {
 const char* const AsmJs::kSingleFunctionName = "__single_function__";
 
 namespace {
-enum WasmDataEntries {
-  kWasmDataCompiledModule,
-  kWasmDataUsesBitSet,
-  kWasmDataEntryCount,
-};
 
 Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
                                 Handle<Name> name) {
@@ -281,23 +277,19 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
   Handle<HeapNumber> uses_bitset =
       isolate->factory()->NewHeapNumberFromBits(stdlib_uses_.ToIntegral());
 
+  // The result is a compiled module and serialized standard library uses.
   wasm::ErrorThrower thrower(isolate, "AsmJs::Compile");
-  Handle<WasmModuleObject> compiled =
+  Handle<AsmWasmData> result =
       isolate->wasm_engine()
           ->SyncCompileTranslatedAsmJs(
               isolate, &thrower,
               wasm::ModuleWireBytes(module_->begin(), module_->end()),
-              parse_info()->script(),
-              Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()))
+              Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()),
+              uses_bitset)
           .ToHandleChecked();
   DCHECK(!thrower.error());
   compile_time_ = compile_timer.Elapsed().InMillisecondsF();
 
-  // The result is a compiled module and serialized standard library uses.
-  Handle<FixedArray> result =
-      isolate->factory()->NewFixedArray(kWasmDataEntryCount);
-  result->set(kWasmDataCompiledModule, *compiled);
-  result->set(kWasmDataUsesBitSet, *uses_bitset);
   compilation_info()->SetAsmWasmData(result);
 
   RecordHistograms(isolate);
@@ -353,17 +345,20 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
 
 MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
                                               Handle<SharedFunctionInfo> shared,
-                                              Handle<FixedArray> wasm_data,
+                                              Handle<AsmWasmData> wasm_data,
                                               Handle<JSReceiver> stdlib,
                                               Handle<JSReceiver> foreign,
                                               Handle<JSArrayBuffer> memory) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
-  Handle<HeapNumber> uses_bitset(
-      HeapNumber::cast(wasm_data->get(kWasmDataUsesBitSet)), isolate);
-  Handle<WasmModuleObject> module(
-      WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)), isolate);
+  Handle<HeapNumber> uses_bitset(wasm_data->uses_bitset(), isolate);
   Handle<Script> script(Script::cast(shared->script()), isolate);
+
+  // Allocate the WasmModuleObject.
+  Handle<WasmModuleObject> module =
+      isolate->wasm_engine()->FinalizeTranslatedAsmJs(isolate, wasm_data,
+                                                      script);
+
   // TODO(mstarzinger): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
   int position = shared->StartPosition();

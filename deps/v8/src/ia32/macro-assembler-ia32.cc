@@ -11,16 +11,22 @@
 #include "src/callable.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
-#include "src/instruction-stream.h"
+#include "src/ia32/assembler-ia32-inl.h"
+#include "src/macro-assembler.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 
-#include "src/ia32/assembler-ia32-inl.h"
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
 #include "src/ia32/macro-assembler-ia32.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -46,19 +52,6 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
 void TurboAssembler::InitializeRootRegister() {
   ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
   Move(kRootRegister, Immediate(isolate_root));
-}
-
-void TurboAssembler::VerifyRootRegister() {
-  if (!FLAG_ia32_verify_root_register) return;
-
-  DCHECK(FLAG_embedded_builtins);
-
-  Label root_register_ok;
-  cmp(Operand(kRootRegister, IsolateData::magic_number_offset()),
-      Immediate(IsolateData::kRootRegisterSentinel));
-  j(equal, &root_register_ok);
-  int3();
-  bind(&root_register_ok);
 }
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
@@ -975,7 +968,12 @@ void MacroAssembler::CallStub(CodeStub* stub) {
 
 void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  call(stub);
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  } else {
+    call(stub);
+  }
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
@@ -1710,7 +1708,7 @@ void TurboAssembler::Popcnt(Register dst, Operand src) {
 }
 
 void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
-  cmp(in_out, Immediate(kClearedWeakHeapObject));
+  cmp(in_out, Immediate(kClearedWeakHeapObjectLower32));
   j(equal, target_if_cleared);
 
   and_(in_out, Immediate(~kWeakHeapObjectMask));

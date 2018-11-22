@@ -16,6 +16,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
 #include "src/objects/compilation-cache-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/slots.h"
@@ -84,9 +85,10 @@ class FieldStatsCollector : public ObjectVisitor {
     unsigned embedded_fields_count_ : kDescriptorIndexBitCount;
     unsigned unboxed_double_fields_count_ : kDescriptorIndexBitCount;
   };
-  std::unordered_map<Map*, JSObjectFieldStats> field_stats_cache_;
+  std::unordered_map<Map, JSObjectFieldStats, ObjectPtr::Hasher>
+      field_stats_cache_;
 
-  JSObjectFieldStats GetInobjectFieldStats(Map* map);
+  JSObjectFieldStats GetInobjectFieldStats(Map map);
 
   size_t* const tagged_fields_count_;
   size_t* const embedder_fields_count_;
@@ -95,7 +97,7 @@ class FieldStatsCollector : public ObjectVisitor {
 };
 
 FieldStatsCollector::JSObjectFieldStats
-FieldStatsCollector::GetInobjectFieldStats(Map* map) {
+FieldStatsCollector::GetInobjectFieldStats(Map map) {
   auto iter = field_stats_cache_.find(map);
   if (iter != field_stats_cache_.end()) {
     return iter->second;
@@ -374,7 +376,7 @@ class ObjectStatsCollectorImpl {
   // Details.
   void RecordVirtualAllocationSiteDetails(AllocationSite* site);
   void RecordVirtualBytecodeArrayDetails(BytecodeArray* bytecode);
-  void RecordVirtualCodeDetails(Code* code);
+  void RecordVirtualCodeDetails(Code code);
   void RecordVirtualContext(Context* context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector* vector);
   void RecordVirtualFixedArrayDetails(FixedArray* array);
@@ -382,7 +384,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualJSGlobalObjectDetails(JSGlobalObject* object);
   void RecordVirtualJSCollectionDetails(JSObject* object);
   void RecordVirtualJSObjectDetails(JSObject* object);
-  void RecordVirtualMapDetails(Map* map);
+  void RecordVirtualMapDetails(Map map);
   void RecordVirtualScriptDetails(Script* script);
   void RecordVirtualExternalStringDetails(ExternalString* script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
@@ -649,7 +651,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFixedArrayDetails(
 
 void ObjectStatsCollectorImpl::CollectStatistics(
     HeapObject* obj, Phase phase, CollectFieldStats collect_field_stats) {
-  Map* map = obj->map();
+  Map map = obj->map();
   switch (phase) {
     case kPhase1:
       if (obj->IsFeedbackVector()) {
@@ -764,7 +766,7 @@ bool ObjectStatsCollectorImpl::SameLiveness(HeapObject* obj1,
          marking_state_->Color(obj1) == marking_state_->Color(obj2);
 }
 
-void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
+void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   // TODO(mlippautz): map->dependent_code(): DEPENDENT_CODE_TYPE.
 
   DescriptorArray* array = map->instance_descriptors();
@@ -915,7 +917,7 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(
 
 }  // namespace
 
-void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
+void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
   RecordSimpleVirtualObjectStats(nullptr, code,
                                  CodeKindToVirtualInstanceType(code->kind()));
   RecordSimpleVirtualObjectStats(code, code->deoptimization_data(),

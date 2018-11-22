@@ -14,6 +14,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
@@ -268,7 +269,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.
     if (buffer->backing_store() != nullptr) {
-      Smi* store_index = reinterpret_cast<Smi*>(buffer->backing_store());
+      Smi store_index(reinterpret_cast<Address>(buffer->backing_store()));
       void* backing_store = off_heap_backing_stores_[store_index->value()];
 
       buffer->set_backing_store(backing_store);
@@ -278,7 +279,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(obj);
     // Only fixup for the off-heap case.
     if (fta->base_pointer() == nullptr) {
-      Smi* store_index = reinterpret_cast<Smi*>(fta->external_pointer());
+      Smi store_index(reinterpret_cast<Address>(fta->external_pointer()));
       void* backing_store = off_heap_backing_stores_[store_index->value()];
       fta->set_external_pointer(backing_store);
     }
@@ -368,9 +369,9 @@ void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
   UnalignedCopy(write_back, write_back_obj);
 #ifdef DEBUG
   if (obj->IsCode()) {
-    DCHECK(space_number == CODE_SPACE || space_number == LO_SPACE);
+    DCHECK(space_number == CODE_SPACE || space_number == CODE_LO_SPACE);
   } else {
-    DCHECK(space_number != CODE_SPACE);
+    DCHECK(space_number != CODE_SPACE && space_number != CODE_LO_SPACE);
   }
 #endif  // DEBUG
 }
@@ -521,8 +522,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         // from code entry.
         int pc_offset = source_.GetInt();
         int target_offset = source_.GetInt();
-        Code* code =
-            Code::cast(HeapObject::FromAddress(current_object_address));
+        Code code = Code::cast(HeapObject::FromAddress(current_object_address));
         DCHECK(0 <= pc_offset && pc_offset <= code->raw_instruction_size());
         DCHECK(0 <= target_offset &&
                target_offset <= code->raw_instruction_size());
@@ -648,6 +648,11 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         current.Advance();
         break;
       }
+
+      case kClearedWeakReference:
+        UnalignedCopy(current, HeapObjectReference::ClearedValue(isolate_));
+        current.Advance();
+        break;
 
       case kWeakPrefix:
         DCHECK(!allocator()->next_reference_is_weak());
@@ -855,9 +860,9 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
     }
   }
   if (emit_write_barrier && write_barrier_needed) {
-    SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
-    GenerationalBarrier(HeapObject::FromAddress(current_object_address),
-                        current.Slot(), current.Read());
+    HeapObject* object = HeapObject::FromAddress(current_object_address);
+    SLOW_DCHECK(isolate->heap()->Contains(object));
+    GenerationalBarrier(object, current.Slot(), current.Read());
   }
   if (!current_was_incremented) {
     current.Advance();

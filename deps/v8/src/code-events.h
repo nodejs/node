@@ -9,6 +9,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/globals.h"
+#include "src/objects/code.h"
 #include "src/vector.h"
 
 namespace v8 {
@@ -88,7 +89,7 @@ class CodeEventListener {
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(AbstractCode* code,
                                    SharedFunctionInfo* shared) = 0;
-  virtual void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
+  virtual void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                               int fp_to_sp_delta) = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
@@ -164,7 +165,7 @@ class CodeEventDispatcher {
   void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared) {
     CODE_EVENT_DISPATCH(CodeDisableOptEvent(code, shared));
   }
-  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
+  void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) {
     CODE_EVENT_DISPATCH(CodeDeoptEvent(code, kind, pc, fp_to_sp_delta));
   }

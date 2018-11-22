@@ -20,6 +20,8 @@ namespace internal {
 class BytecodeArray;
 class FixedDoubleArray;
 class InternalizedString;
+class JSBoundFunction;
+class JSDataView;
 class JSGlobalProxy;
 class JSRegExp;
 class JSTypedArray;
@@ -43,6 +45,8 @@ enum class OddballType : uint8_t {
 #define HEAP_BROKER_OBJECT_LIST(V) \
   /* Subtypes of JSObject */       \
   V(JSArray)                       \
+  V(JSBoundFunction)               \
+  V(JSDataView)                    \
   V(JSFunction)                    \
   V(JSGlobalProxy)                 \
   V(JSRegExp)                      \
@@ -108,6 +112,8 @@ class ObjectRef {
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
+
+  bool IsNullOrUndefined() const;
 
   bool BooleanValue() const;
   double OddballToNumber() const;
@@ -192,6 +198,28 @@ class JSObjectRef : public HeapObjectRef {
 
   void SerializeObjectCreateMap();
   base::Optional<MapRef> GetObjectCreateMap() const;
+};
+
+class JSDataViewRef : public JSObjectRef {
+ public:
+  using JSObjectRef::JSObjectRef;
+  Handle<JSDataView> object() const;
+
+  size_t byte_length() const;
+  size_t byte_offset() const;
+};
+
+class JSBoundFunctionRef : public JSObjectRef {
+ public:
+  using JSObjectRef::JSObjectRef;
+  Handle<JSBoundFunction> object() const;
+
+  void Serialize();
+
+  // The following are available only after calling Serialize().
+  ObjectRef bound_target_function() const;
+  ObjectRef bound_this() const;
+  FixedArrayRef bound_arguments() const;
 };
 
 class JSFunctionRef : public JSObjectRef {
@@ -400,6 +428,7 @@ class MapRef : public HeapObjectRef {
   bool IsPrimitiveMap() const;
   bool is_undetectable() const;
   bool is_callable() const;
+  bool has_hidden_prototype() const;
 
 #define DEF_TESTER(Type, ...) bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)

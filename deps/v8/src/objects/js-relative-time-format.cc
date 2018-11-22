@@ -16,11 +16,11 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #include "unicode/datefmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
-#include "unicode/uvernum.h"  // for U_ICU_VERSION_MAJOR_NUM
 
 namespace v8 {
 namespace internal {
@@ -107,34 +107,23 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
 
   // 12. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  std::unique_ptr<char[]> style_str = nullptr;
-  std::vector<const char*> style_values = {"long", "short", "narrow"};
-  Maybe<bool> maybe_found_style =
-      Intl::GetStringOption(isolate, options, "style", style_values,
-                            "Intl.RelativeTimeFormat", &style_str);
-  Style style_enum = Style::LONG;
-  MAYBE_RETURN(maybe_found_style, MaybeHandle<JSRelativeTimeFormat>());
-  if (maybe_found_style.FromJust()) {
-    DCHECK_NOT_NULL(style_str.get());
-    style_enum = getStyle(style_str.get());
-  }
+  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+      isolate, options, "style", "Intl.RelativeTimeFormat",
+      {"long", "short", "narrow"}, {Style::LONG, Style::SHORT, Style::NARROW},
+      Style::LONG);
+  MAYBE_RETURN(maybe_style, MaybeHandle<JSRelativeTimeFormat>());
+  Style style_enum = maybe_style.FromJust();
 
   // 13. Set relativeTimeFormat.[[Style]] to s.
   relative_time_format_holder->set_style(style_enum);
 
   // 14. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
-  std::unique_ptr<char[]> numeric_str = nullptr;
-  std::vector<const char*> numeric_values = {"always", "auto"};
-  Maybe<bool> maybe_found_numeric =
-      Intl::GetStringOption(isolate, options, "numeric", numeric_values,
-                            "Intl.RelativeTimeFormat", &numeric_str);
-  Numeric numeric_enum = Numeric::ALWAYS;
-  MAYBE_RETURN(maybe_found_numeric, MaybeHandle<JSRelativeTimeFormat>());
-  if (maybe_found_numeric.FromJust()) {
-    DCHECK_NOT_NULL(numeric_str.get());
-    numeric_enum = getNumeric(numeric_str.get());
-  }
+  Maybe<Numeric> maybe_numeric = Intl::GetStringOption<Numeric>(
+      isolate, options, "numeric", "Intl.RelativeTimeFormat",
+      {"always", "auto"}, {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
+  MAYBE_RETURN(maybe_numeric, MaybeHandle<JSRelativeTimeFormat>());
+  Numeric numeric_enum = maybe_numeric.FromJust();
 
   // 15. Set relativeTimeFormat.[[Numeric]] to numeric.
   relative_time_format_holder->set_numeric(numeric_enum);
@@ -244,7 +233,8 @@ Handle<String> UnitAsString(Isolate* isolate, URelativeDateTimeUnit unit_enum) {
 
 MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
     Isolate* isolate, const icu::UnicodeString& formatted,
-    const icu::UnicodeString& integer_part, URelativeDateTimeUnit unit_enum) {
+    const icu::UnicodeString& integer_part, URelativeDateTimeUnit unit_enum,
+    double number, const icu::NumberFormat& nf) {
   Factory* factory = isolate->factory();
   Handle<JSArray> array = factory->NewJSArray(0);
   int32_t found = formatted.indexOf(integer_part);
@@ -275,18 +265,12 @@ MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
                        substring);
     }
 
-    // array.push({
-    //     'type': 'integer',
-    //     'value': formatted.substring(found, found + integer_part.length),
-    //     'unit': unit})
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
-                               Intl::ToString(isolate, formatted, found,
-                                              found + integer_part.length()),
-                               JSArray);
     Handle<String> unit = UnitAsString(isolate, unit_enum);
-    Intl::AddElement(isolate, array, index++,
-                     factory->integer_string(),  // field_type_string
-                     substring, factory->unit_string(), unit);
+
+    Maybe<int> maybe_format_to_parts =
+        JSNumberFormat::FormatToParts(isolate, array, index, nf, number, unit);
+    MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
+    index = maybe_format_to_parts.FromJust();
 
     // array.push({
     //     'type': 'literal',
@@ -383,38 +367,33 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted;
 
-#if USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
-  if (unit_enum != UDAT_REL_UNIT_QUARTER) {  // ICU did not implement
-                                             // UDAT_REL_UNIT_QUARTER < 63
-#endif  // USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
-    if (format_holder->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS) {
-      formatter->formatNumeric(number, unit_enum, formatted, status);
-    } else {
-      DCHECK_EQ(JSRelativeTimeFormat::Numeric::AUTO, format_holder->numeric());
-      formatter->format(number, unit_enum, formatted, status);
-    }
-#if USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
+  if (format_holder->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS) {
+    formatter->formatNumeric(number, unit_enum, formatted, status);
+  } else {
+    DCHECK_EQ(JSRelativeTimeFormat::Numeric::AUTO, format_holder->numeric());
+    formatter->format(number, unit_enum, formatted, status);
   }
-#endif  // USE_CHROMIUM_ICU != 1 && U_ICU_VERSION_MAJOR_NUM < 63
 
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
   }
 
   if (to_parts) {
-    icu::UnicodeString integer;
+    icu::UnicodeString number_str;
     icu::FieldPosition pos;
-    formatter->getNumberFormat().format(std::abs(number), integer, pos, status);
+    double abs_number = std::abs(number);
+    formatter->getNumberFormat().format(abs_number, number_str, pos, status);
     if (U_FAILURE(status)) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError),
                       Object);
     }
 
     Handle<JSArray> elements;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, elements,
-        GenerateRelativeTimeFormatParts(isolate, formatted, integer, unit_enum),
-        Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, elements,
+                               GenerateRelativeTimeFormatParts(
+                                   isolate, formatted, number_str, unit_enum,
+                                   abs_number, formatter->getNumberFormat()),
+                               Object);
     return elements;
   }
 

@@ -1511,12 +1511,13 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
 
   const char *expected_string_template =
     (offset >= 0) ?
-    "e59f0%03x       ldr r0, [pc, #+%d] (addr %p)" :
-    "e51f0%03x       ldr r0, [pc, #%d] (addr %p)";
+    "e59f0%03x       ldr r0, [pc, #+%d] (addr 0x%08" PRIxPTR ")" :
+    "e51f0%03x       ldr r0, [pc, #%d] (addr 0x%08" PRIxPTR ")";
   char expected_string[80];
   snprintf(expected_string, sizeof(expected_string), expected_string_template,
-           abs(offset), offset,
-           progcounter + Instruction::kPcLoadDelta + offset);
+    abs(offset), offset,
+    reinterpret_cast<uintptr_t>(
+      progcounter + Instruction::kPcLoadDelta + offset));
   if (!DisassembleAndCompare(progcounter, kRawString, expected_string)) {
     *failure = true;
   }

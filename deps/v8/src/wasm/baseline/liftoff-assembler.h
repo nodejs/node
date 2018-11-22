@@ -332,8 +332,11 @@ class LiftoffAssembler : public TurboAssembler {
     LiftoffRegister dst;
     LiftoffRegister src;
     ValueType type;
+    template <typename Dst, typename Src>
+    ParallelRegisterMoveTuple(Dst dst, Src src, ValueType type)
+        : dst(dst), src(src), type(type) {}
   };
-  void ParallelRegisterMove(std::initializer_list<ParallelRegisterMoveTuple>);
+  void ParallelRegisterMove(Vector<ParallelRegisterMoveTuple>);
 
   // Validate that the register use counts reflect the state of the cache.
   bool ValidateCacheState() const;

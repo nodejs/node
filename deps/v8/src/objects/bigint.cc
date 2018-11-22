@@ -21,6 +21,7 @@
 
 #include "src/double.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -182,14 +183,14 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
 // Internal field setters. Non-mutable BigInts don't have these.
 #include "src/objects/object-macros.h"
   inline void set_sign(bool new_sign) {
-    intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
     bitfield = SignBits::update(static_cast<uint32_t>(bitfield), new_sign);
-    WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    RELAXED_WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
   }
-  inline void set_length(int new_length) {
-    intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+  inline void synchronized_set_length(int new_length) {
+    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
     bitfield = LengthBits::update(static_cast<uint32_t>(bitfield), new_length);
-    WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    RELEASE_WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
   }
   inline void initialize_bitfield(bool sign, int length) {
     intptr_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
@@ -339,8 +340,13 @@ Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
     int size_delta = to_trim * kDigitSize;
     Address new_end = result->address() + BigInt::SizeFor(new_length);
     Heap* heap = result->GetHeap();
-    heap->CreateFillerObjectAt(new_end, size_delta, ClearRecordedSlots::kNo);
-    result->set_length(new_length);
+    if (!heap->IsLargeObject(*result)) {
+      // We do not create a filler for objects in large object space.
+      // TODO(hpayer): We should shrink the large object page if the size
+      // of the object changed significantly.
+      heap->CreateFillerObjectAt(new_end, size_delta, ClearRecordedSlots::kNo);
+    }
+    result->synchronized_set_length(new_length);
 
     // Canonicalize -0n.
     if (new_length == 0) {
@@ -980,7 +986,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
 }
 
 Handle<Object> BigInt::ToNumber(Isolate* isolate, Handle<BigInt> x) {
-  if (x->is_zero()) return Handle<Smi>(Smi::kZero, isolate);
+  if (x->is_zero()) return Handle<Smi>(Smi::zero(), isolate);
   if (x->length() == 1 && x->digit(0) < Smi::kMaxValue) {
     int value = static_cast<int>(x->digit(0));
     if (x->sign()) value = -value;
@@ -2154,6 +2160,8 @@ Handle<BigInt> BigInt::AsIntN(Isolate* isolate, uint64_t n, Handle<BigInt> x) {
                                                            false);
       }
     }
+    // Truncation is no-op if x == -2^(n-1).
+    if (x_length == needed_length && top_digit == compare_digit) return x;
     return MutableBigInt::TruncateToNBits(isolate, N, x);
   }
   return MutableBigInt::TruncateAndSubFromPowerOfTwo(isolate, N, x, false);

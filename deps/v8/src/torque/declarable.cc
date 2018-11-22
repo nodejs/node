@@ -11,12 +11,22 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-std::ostream& operator<<(std::ostream& os, const Callable& m) {
-  if (m.generic()) {
-    os << "callable " << (*m.generic())->name() << "(";
-  } else {
-    os << "callable " << m.name() << "(";
+DEFINE_CONTEXTUAL_VARIABLE(CurrentScope);
+
+std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {
+  bool first = true;
+  for (const std::string& qualifier : name.namespace_qualification) {
+    if (!first) {
+      os << "::";
+    }
+    os << qualifier;
+    first = false;
   }
+  return os << name.name;
+}
+
+std::ostream& operator<<(std::ostream& os, const Callable& m) {
+  os << "callable " << m.ReadableName() << "(";
   if (m.signature().implicit_count != 0) {
     os << "implicit ";
     TypeVector implicit_parameter_types(
@@ -37,14 +47,14 @@ std::ostream& operator<<(std::ostream& os, const Callable& m) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Builtin& b) {
-  os << "builtin " << *b.signature().return_type << " " << b.name()
+  os << "builtin " << *b.signature().return_type << " " << b.ReadableName()
      << b.signature().parameter_types;
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
-  os << "runtime function " << *b.signature().return_type << " " << b.name()
-     << b.signature().parameter_types;
+  os << "runtime function " << *b.signature().return_type << " "
+     << b.ReadableName() << b.signature().parameter_types;
   return os;
 }
 
@@ -54,6 +64,39 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
   os << ">";
 
   return os;
+}
+
+base::Optional<const Type*> Generic::InferTypeArgument(
+    size_t i, const TypeVector& arguments) {
+  const std::string type_name = declaration()->generic_parameters[i];
+  const std::vector<TypeExpression*>& parameters =
+      declaration()->callable->signature->parameters.types;
+  for (size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
+    BasicTypeExpression* basic =
+        BasicTypeExpression::DynamicCast(parameters[i]);
+    if (basic && basic->namespace_qualification.empty() &&
+        !basic->is_constexpr && basic->name == type_name) {
+      return arguments[i];
+    }
+  }
+  return base::nullopt;
+}
+
+base::Optional<TypeVector> Generic::InferSpecializationTypes(
+    const TypeVector& explicit_specialization_types,
+    const TypeVector& arguments) {
+  TypeVector result = explicit_specialization_types;
+  size_t type_parameter_count = declaration()->generic_parameters.size();
+  if (explicit_specialization_types.size() > type_parameter_count) {
+    return base::nullopt;
+  }
+  for (size_t i = explicit_specialization_types.size();
+       i < type_parameter_count; ++i) {
+    base::Optional<const Type*> inferred = InferTypeArgument(i, arguments);
+    if (!inferred) return base::nullopt;
+    result.push_back(*inferred);
+  }
+  return result;
 }
 
 }  // namespace torque

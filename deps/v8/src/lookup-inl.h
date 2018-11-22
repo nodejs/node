@@ -163,7 +163,7 @@ template <class T>
 Handle<T> LookupIterator::GetStoreTarget() const {
   DCHECK(receiver_->IsJSReceiver());
   if (receiver_->IsJSGlobalProxy()) {
-    Map* map = JSGlobalProxy::cast(*receiver_)->map();
+    Map map = JSGlobalProxy::cast(*receiver_)->map();
     if (map->has_hidden_prototype()) {
       return handle(JSGlobalObject::cast(map->prototype()), isolate_);
     }

@@ -535,8 +535,7 @@ void MipsDebugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) ||
-              current_heap->ContainsSlow(obj->address())) {
+          if (((value & 1) == 0) || current_heap->Contains(obj)) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", value / 2);
@@ -4240,21 +4239,6 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       SetResult(rd_reg(), alu_out);
       break;
     }
-    case LL_R6: {
-      // LLWP/SCWP sequence cannot be simulated properly
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      set_register(rd_reg(), ReadW(rs() + 4, instr_.instr()));
-      set_register(rt(), ReadW(rs(), instr_.instr()));
-      break;
-    }
-    case SC_R6: {
-      // LLWP/SCWP sequence cannot be simulated properly
-      DCHECK(IsMipsArchVariant(kMips32r6));
-      WriteW(rs() + 4, rd_reg(), instr_.instr());
-      WriteW(rs(), rt(), instr_.instr());
-      set_register(rt(), 1);
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -6833,8 +6817,12 @@ void Simulator::DecodeTypeImmediate() {
           DCHECK(IsMipsArchVariant(kMips32r6));
           int32_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
+          int32_t bit6 = instr_.Bit(6);
           WriteW(base + offset9, rt, instr_.instr());
-          set_register(rt_reg, 1);
+          // Only SC (and not SCX) instruction modifies rt_reg
+          if (bit6 == 0) {
+            set_register(rt_reg, 1);
+          }
           break;
         }
         default:

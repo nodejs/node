@@ -33,6 +33,6 @@ assertThrows((function() {
     x = new Array();
     x[0] = s;
     x[1000] = s;
-    x[1000000] = s;
+    x[10000] = s;
     s = x.join("::");
   }}), RangeError);

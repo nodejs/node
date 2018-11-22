@@ -54,7 +54,7 @@ class MockPlatform final : public TestPlatform {
   class MockTaskRunner final : public TaskRunner {
    public:
     void PostTask(std::unique_ptr<v8::Task> task) override {
-      tasks_.push_back(std::move(task));
+      tasks_.push(std::move(task));
     }
 
     void PostDelayedTask(std::unique_ptr<Task> task,
@@ -70,15 +70,15 @@ class MockPlatform final : public TestPlatform {
 
     void ExecuteTasks() {
       while (!tasks_.empty()) {
-        std::unique_ptr<Task> task = std::move(tasks_.back());
-        tasks_.pop_back();
+        std::unique_ptr<Task> task = std::move(tasks_.front());
+        tasks_.pop();
         task->Run();
       }
     }
 
    private:
     // We do not execute tasks concurrently, so we only need one list of tasks.
-    std::vector<std::unique_ptr<v8::Task>> tasks_;
+    std::queue<std::unique_ptr<v8::Task>> tasks_;
   };
 
   std::shared_ptr<MockTaskRunner> task_runner_;

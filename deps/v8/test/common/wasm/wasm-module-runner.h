@@ -61,13 +61,48 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);
 
+class WasmInterpretationResult {
+ public:
+  static WasmInterpretationResult Stopped() { return {kStopped, 0, false}; }
+  static WasmInterpretationResult Trapped(bool possible_nondeterminism) {
+    return {kTrapped, 0, possible_nondeterminism};
+  }
+  static WasmInterpretationResult Finished(int32_t result,
+                                           bool possible_nondeterminism) {
+    return {kFinished, result, possible_nondeterminism};
+  }
+
+  bool stopped() const { return status_ == kStopped; }
+  bool trapped() const { return status_ == kTrapped; }
+  bool finished() const { return status_ == kFinished; }
+
+  int32_t result() const {
+    DCHECK_EQ(status_, kFinished);
+    return result_;
+  }
+
+  bool possible_nondeterminism() const { return possible_nondeterminism_; }
+
+ private:
+  enum Status { kFinished, kTrapped, kStopped };
+
+  const Status status_;
+  const int32_t result_;
+  const bool possible_nondeterminism_;
+
+  WasmInterpretationResult(Status status, int32_t result,
+                           bool possible_nondeterminism)
+      : status_(status),
+        result_(result),
+        possible_nondeterminism_(possible_nondeterminism) {}
+};
+
 // Interprets the given module, starting at the function specified by
 // {function_index}. The return type of the function has to be int32. The module
 // should not have any imports or exports
-int32_t InterpretWasmModule(Isolate* isolate,
-                            Handle<WasmInstanceObject> instance,
-                            ErrorThrower* thrower, int32_t function_index,
-                            WasmValue* args, bool* possible_nondeterminism);
+WasmInterpretationResult InterpretWasmModule(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    int32_t function_index, WasmValue* args);
 
 // Runs the module instance with arguments.
 int32_t RunWasmModuleForTesting(Isolate* isolate,

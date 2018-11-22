@@ -80,10 +80,7 @@ class PreParsedScopeDataBuilder : public ZoneObject {
     DataGatheringScope(DeclarationScope* function_scope, PreParser* preparser);
     ~DataGatheringScope();
 
-    void MarkFunctionAsSkippable(int end_position, int num_inner_functions);
-
    private:
-    DeclarationScope* function_scope_;
     PreParser* preparser_;
     PreParsedScopeDataBuilder* builder_;
 
@@ -123,17 +120,16 @@ class PreParsedScopeDataBuilder : public ZoneObject {
 
   static bool ScopeNeedsData(Scope* scope);
   static bool ScopeIsSkippableFunctionScope(Scope* scope);
+  void AddSkippableFunction(int start_position, int end_position,
+                            int num_parameters, int num_inner_functions,
+                            LanguageMode language_mode,
+                            bool uses_super_property);
 
  private:
   friend class BuilderProducedPreParsedScopeData;
 
   virtual MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
   virtual ZonePreParsedScopeData* Serialize(Zone* zone);
-
-  void AddSkippableFunction(int start_position, int end_position,
-                            int num_parameters, int num_inner_functions,
-                            LanguageMode language_mode,
-                            bool uses_super_property);
 
   void SaveDataForScope(Scope* scope);
   void SaveDataForVariable(Variable* var);

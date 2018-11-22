@@ -397,6 +397,7 @@ class HandleScopeImplementer {
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
   inline Handle<Context> LastEnteredContext();
+  inline Handle<Context> LastEnteredOrMicrotaskContext();
 
   inline void EnterMicrotaskContext(Handle<Context> context);
   inline void LeaveMicrotaskContext();

@@ -27,17 +27,14 @@ class WasmImportWrapperCache {
     WasmCode*& cached = entry_map_[key];
     if (cached == nullptr) {
       // TODO(wasm): no need to hold the lock while compiling an import wrapper.
-      // TODO(wasm): no need to compile the code onto the heap and copy back.
       HandleScope scope(isolate);
       bool source_positions = native_module_->module()->origin == kAsmJsOrigin;
-      Handle<Code> code = compiler::CompileWasmImportCallWrapper(
-                              isolate, kind, sig, source_positions)
-                              .ToHandleChecked();
+      cached = compiler::CompileWasmImportCallWrapper(
+          isolate, native_module_, kind, sig, source_positions);
       auto counters = isolate->counters();
-      counters->wasm_generated_code_size()->Increment(code->body_size());
-      counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
-      cached =
-          native_module_->AddAnonymousCode(code, WasmCode::kWasmToJsWrapper);
+      counters->wasm_generated_code_size()->Increment(
+          cached->instructions().length());
+      counters->wasm_reloc_size()->Increment(cached->reloc_info().length());
     }
     return cached;
   }

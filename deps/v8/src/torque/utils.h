@@ -42,7 +42,7 @@ void NamingConventionError(const std::string& type, const std::string& name,
 bool IsLowerCamelCase(const std::string& s);
 bool IsUpperCamelCase(const std::string& s);
 bool IsSnakeCase(const std::string& s);
-bool IsValidModuleConstName(const std::string& s);
+bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
 [[noreturn]] void ReportErrorString(const std::string& error);

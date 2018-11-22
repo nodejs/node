@@ -674,6 +674,11 @@ TNode<FeedbackVector> InterpreterAssembler::LoadFeedbackVector() {
   return CodeStubAssembler::LoadFeedbackVector(function);
 }
 
+Node* InterpreterAssembler::LoadFeedbackVectorUnchecked() {
+  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  return CodeStubAssembler::LoadFeedbackVectorUnchecked(function);
+}
+
 void InterpreterAssembler::CallPrologue() {
   if (!Bytecodes::MakesCallAlongCriticalPath(bytecode_)) {
     // Bytecodes that make a call along the critical path save the bytecode
@@ -818,13 +823,22 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
 }
 
 void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
-                                               Node* feedback_vector,
+                                               Node* maybe_feedback_vector,
                                                Node* slot_id) {
+  Label feedback_done(this);
+  // If feedback_vector is not valid, then nothing to do.
+  GotoIf(IsUndefined(maybe_feedback_vector), &feedback_done);
+
+  CSA_SLOW_ASSERT(this, IsFeedbackVector(maybe_feedback_vector));
+
   // Increment the call count.
-  IncrementCallCount(feedback_vector, slot_id);
+  IncrementCallCount(maybe_feedback_vector, slot_id);
 
   // Collect the callable {target} feedback.
-  CollectCallableFeedback(target, context, feedback_vector, slot_id);
+  CollectCallableFeedback(target, context, maybe_feedback_vector, slot_id);
+  Goto(&feedback_done);
+
+  BIND(&feedback_done);
 }
 
 void InterpreterAssembler::CallJSAndDispatch(
@@ -898,10 +912,10 @@ template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
 
 void InterpreterAssembler::CallJSWithSpreadAndDispatch(
     Node* function, Node* context, const RegListNodePair& args, Node* slot_id,
-    Node* feedback_vector) {
+    Node* maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
-  CollectCallFeedback(function, context, feedback_vector, slot_id);
+  CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
   Comment("call using CallWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), ConvertReceiverMode::kAny,
@@ -1771,8 +1785,9 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
 
   // Record the type feedback collected for {object}.
   Node* slot_index = BytecodeOperandIdx(0);
-  Node* feedback_vector = LoadFeedbackVector();
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
+  Node* maybe_feedback_vector = LoadFeedbackVectorUnchecked();
+
+  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index);
 
   SetAccumulator(var_result.value());
   Dispatch();

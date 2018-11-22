@@ -170,6 +170,8 @@ class TranslatedFrame {
   BailoutId node_id() const { return node_id_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   int height() const { return height_; }
+  int return_value_offset() const { return return_value_offset_; }
+  int return_value_count() const { return return_value_count_; }
 
   SharedFunctionInfo* raw_shared_info() const {
     CHECK_NOT_NULL(raw_shared_info_);
@@ -185,8 +187,8 @@ class TranslatedFrame {
     }
 
     iterator operator++(int) {
+      iterator original(position_, input_index_);
       ++input_index_;
-      iterator original(position_);
       AdvanceIterator(&position_);
       return original;
     }
@@ -207,8 +209,9 @@ class TranslatedFrame {
    private:
     friend TranslatedFrame;
 
-    explicit iterator(std::deque<TranslatedValue>::iterator position)
-        : position_(position), input_index_(0) {}
+    explicit iterator(std::deque<TranslatedValue>::iterator position,
+                      int input_index = 0)
+        : position_(position), input_index_(input_index) {}
 
     std::deque<TranslatedValue>::iterator position_;
     int input_index_;
@@ -229,7 +232,8 @@ class TranslatedFrame {
   // Constructor static methods.
   static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
                                           SharedFunctionInfo* shared_info,
-                                          int height);
+                                          int height, int return_value_offset,
+                                          int return_value_count);
   static TranslatedFrame AccessorFrame(Kind kind,
                                        SharedFunctionInfo* shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
@@ -250,11 +254,14 @@ class TranslatedFrame {
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
   TranslatedFrame(Kind kind, SharedFunctionInfo* shared_info = nullptr,
-                  int height = 0)
+                  int height = 0, int return_value_offset = 0,
+                  int return_value_count = 0)
       : kind_(kind),
         node_id_(BailoutId::None()),
         raw_shared_info_(shared_info),
-        height_(height) {}
+        height_(height),
+        return_value_offset_(return_value_offset),
+        return_value_count_(return_value_count) {}
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
   TranslatedValue* ValueAt(int index) { return &(values_[index]); }
@@ -265,6 +272,8 @@ class TranslatedFrame {
   SharedFunctionInfo* raw_shared_info_;
   Handle<SharedFunctionInfo> shared_info_;
   int height_;
+  int return_value_offset_;
+  int return_value_count_;
 
   typedef std::deque<TranslatedValue> ValuesContainer;
 
@@ -412,7 +421,7 @@ class Deoptimizer : public Malloced {
     static const int kNoDeoptId = -1;
   };
 
-  static DeoptInfo GetDeoptInfo(Code* code, Address from);
+  static DeoptInfo GetDeoptInfo(Code code, Address from);
 
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
@@ -464,7 +473,7 @@ class Deoptimizer : public Malloced {
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
-  static void DeoptimizeFunction(JSFunction* function, Code* code = nullptr);
+  static void DeoptimizeFunction(JSFunction* function, Code code = Code());
 
   // Deoptimize all code in the given isolate.
   static void DeoptimizeAll(Isolate* isolate);
@@ -544,7 +553,7 @@ class Deoptimizer : public Malloced {
 
   Deoptimizer(Isolate* isolate, JSFunction* function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
-  Code* FindOptimizedCode();
+  Code FindOptimizedCode();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
@@ -581,7 +590,7 @@ class Deoptimizer : public Malloced {
   static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
-  static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
+  static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
 
   static void GenerateDeoptimizationEntries(MacroAssembler* masm, int count,
                                             DeoptimizeKind kind);
@@ -599,11 +608,11 @@ class Deoptimizer : public Malloced {
   // Searches the list of known deoptimizing code for a Code object
   // containing the given address (which is supposedly faster than
   // searching all code objects).
-  Code* FindDeoptimizingCode(Address addr);
+  Code FindDeoptimizingCode(Address addr);
 
   Isolate* isolate_;
   JSFunction* function_;
-  Code* compiled_code_;
+  Code compiled_code_;
   unsigned bailout_id_;
   DeoptimizeKind deopt_kind_;
   Address from_;
@@ -858,9 +867,9 @@ class DeoptimizerData {
   Heap* heap_;
   static const int kLastDeoptimizeKind =
       static_cast<int>(DeoptimizeKind::kLastDeoptimizeKind);
-  Code* deopt_entry_code_[kLastDeoptimizeKind + 1];
-  Code* deopt_entry_code(DeoptimizeKind kind);
-  void set_deopt_entry_code(DeoptimizeKind kind, Code* code);
+  Code deopt_entry_code_[kLastDeoptimizeKind + 1];
+  Code deopt_entry_code(DeoptimizeKind kind);
+  void set_deopt_entry_code(DeoptimizeKind kind, Code code);
 
   Deoptimizer* current_;
 
@@ -950,7 +959,8 @@ class Translation {
 
   // Commands.
   void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
-                             unsigned height);
+                             unsigned height, int return_value_offset,
+                             int return_value_count);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
                                unsigned height);

@@ -50,6 +50,13 @@ enum MemoryFlags : uint8_t {
   kSharedAndMaximum = 3
 };
 
+// Flags for data and element segments.
+enum SegmentFlags : uint8_t {
+  kActiveNoIndex = 0,    // Active segment with a memory/table index of zero.
+  kPassive = 1,          // Passive segment.
+  kActiveWithIndex = 2,  // Active segment with a given memory/table index.
+};
+
 // Binary encoding of sections identifiers.
 enum SectionCode : int8_t {
   kUnknownSectionCode = 0,     // code for unknown sections

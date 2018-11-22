@@ -1057,8 +1057,8 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Node* const context, Node* const object, Node* const maybe_string,
-    Handle<Symbol> symbol, const NodeFunction0& regexp_call,
-    const NodeFunction1& generic_call) {
+    Handle<Symbol> symbol, DescriptorIndexAndName symbol_index,
+    const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
   Label out(this);
 
   // Smis definitely don't have an attached symbol.
@@ -1075,8 +1075,8 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     GotoIfNot(IsString(maybe_string), &slow_lookup);
 
     RegExpBuiltinsAssembler regexp_asm(state());
-    regexp_asm.BranchIfFastRegExp(context, object, LoadMap(object), &stub_call,
-                                  &slow_lookup);
+    regexp_asm.BranchIfFastRegExp(context, object, LoadMap(object),
+                                  symbol_index, &stub_call, &slow_lookup);
 
     BIND(&stub_call);
     // TODO(jgruber): Add a no-JS scope once it exists.
@@ -1290,6 +1290,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   MaybeCallFunctionAtSymbol(
       context, search, receiver, isolate()->factory()->replace_symbol(),
+      DescriptorIndexAndName{JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
+                             RootIndex::kreplace_symbol},
       [=]() {
         Return(CallBuiltin(Builtins::kRegExpReplace, context, search, receiver,
                            replace));
@@ -1440,18 +1442,25 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
 
     Builtins::Name builtin;
     Handle<Symbol> symbol;
+    DescriptorIndexAndName property_to_check;
     if (variant == kMatch) {
       builtin = Builtins::kRegExpMatchFast;
       symbol = isolate()->factory()->match_symbol();
+      property_to_check =
+          DescriptorIndexAndName{JSRegExp::kSymbolMatchFunctionDescriptorIndex,
+                                 RootIndex::kmatch_symbol};
     } else {
       builtin = Builtins::kRegExpSearchFast;
       symbol = isolate()->factory()->search_symbol();
+      property_to_check =
+          DescriptorIndexAndName{JSRegExp::kSymbolSearchFunctionDescriptorIndex,
+                                 RootIndex::ksearch_symbol};
     }
 
     RequireObjectCoercible(context, receiver, method_name);
 
     MaybeCallFunctionAtSymbol(
-        context, maybe_regexp, receiver, symbol,
+        context, maybe_regexp, receiver, symbol, property_to_check,
         [=] { Return(CallBuiltin(builtin, context, maybe_regexp, receiver)); },
         [=](Node* fn) {
           Callable call_callable = CodeFactory::Call(isolate());
@@ -1472,8 +1481,8 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
           context, initial_map, maybe_regexp, EmptyStringConstant());
 
       Label fast_path(this), slow_path(this);
-      regexp_asm.BranchIfFastRegExp(context, regexp, initial_map, &fast_path,
-                                    &slow_path);
+      regexp_asm.BranchIfFastRegExp(context, regexp, initial_map,
+                                    property_to_check, &fast_path, &slow_path);
 
       BIND(&fast_path);
       Return(CallBuiltin(builtin, context, regexp, receiver_string));
@@ -1511,12 +1520,10 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   RequireObjectCoercible(context, receiver, method_name);
 
   // 2. If regexp is neither undefined nor null, then
-  Label return_match_all_iterator(this),
-      tostring_and_return_match_all_iterator(this, Label::kDeferred);
-  TVARIABLE(BoolT, var_is_fast_regexp);
+  Label tostring_and_create_regexp_string_iterator(this, Label::kDeferred);
   TVARIABLE(String, var_receiver_string);
   GotoIf(IsNullOrUndefined(maybe_regexp),
-         &tostring_and_return_match_all_iterator);
+         &tostring_and_create_regexp_string_iterator);
   {
     // a. Let matcher be ? GetMethod(regexp, @@matchAll).
     // b. If matcher is not undefined, then
@@ -1526,31 +1533,42 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
       // maybe_regexp is a fast regexp and receiver is a string.
       var_receiver_string = CAST(receiver);
       CSA_ASSERT(this, IsString(var_receiver_string.value()));
-      var_is_fast_regexp = Int32TrueConstant();
-      Goto(&return_match_all_iterator);
+
+      RegExpMatchAllAssembler regexp_asm(state());
+      regexp_asm.Generate(context, native_context, maybe_regexp,
+                          var_receiver_string.value());
     };
     auto if_generic_call = [=](Node* fn) {
       Callable call_callable = CodeFactory::Call(isolate());
       Return(CallJS(call_callable, context, fn, maybe_regexp, receiver));
     };
-    MaybeCallFunctionAtSymbol(context, maybe_regexp, receiver,
-                              isolate()->factory()->match_all_symbol(),
-                              if_regexp_call, if_generic_call);
-    Goto(&tostring_and_return_match_all_iterator);
+    MaybeCallFunctionAtSymbol(
+        context, maybe_regexp, receiver,
+        isolate()->factory()->match_all_symbol(),
+        DescriptorIndexAndName{JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+                               RootIndex::kmatch_all_symbol},
+        if_regexp_call, if_generic_call);
+    Goto(&tostring_and_create_regexp_string_iterator);
   }
-  BIND(&tostring_and_return_match_all_iterator);
+  BIND(&tostring_and_create_regexp_string_iterator);
   {
+    RegExpMatchAllAssembler regexp_asm(state());
+
+    // 3. Let S be ? ToString(O).
     var_receiver_string = ToString_Inline(context, receiver);
-    var_is_fast_regexp = Int32FalseConstant();
-    Goto(&return_match_all_iterator);
-  }
-  BIND(&return_match_all_iterator);
-  {
-    // 3. Return ? MatchAllIterator(regexp, O).
-    RegExpBuiltinsAssembler regexp_asm(state());
-    TNode<Object> iterator = regexp_asm.MatchAllIterator(
-        context, native_context, maybe_regexp, var_receiver_string.value(),
-        var_is_fast_regexp.value(), method_name);
+
+    // 4. Let matcher be ? RegExpCreate(R, "g").
+    TNode<Object> regexp = regexp_asm.RegExpCreate(
+        context, native_context, maybe_regexp, StringConstant("g"));
+
+    // 5. Let global be true.
+    // 6. Let fullUnicode be false.
+    // 7. Return ! CreateRegExpStringIterator(matcher, S, global, fullUnicode).
+    TNode<Int32T> global = Int32Constant(1);
+    TNode<Int32T> full_unicode = Int32Constant(0);
+    TNode<Object> iterator = regexp_asm.CreateRegExpStringIterator(
+        native_context, regexp, var_receiver_string.value(), global,
+        full_unicode);
     Return(iterator);
   }
 }
@@ -1846,6 +1864,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   MaybeCallFunctionAtSymbol(
       context, separator, receiver, isolate()->factory()->split_symbol(),
+      DescriptorIndexAndName{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                             RootIndex::ksplit_symbol},
       [&]() {
         args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context,
                                       separator, receiver, limit));
@@ -2475,14 +2495,6 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
   GotoIf(TaggedIsSmi(object), if_false);
   GotoIfNot(IsString(CAST(object)), if_false);
 
-  // Bailout if the new array doesn't fit in new space.
-  const TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(object));
-  // Since we don't have allocation site, base size does not include
-  // AllocationMemento::kSize.
-  GotoIfFixedArraySizeDoesntFitInNewSpace(
-      length, if_false, JSArray::kSize + FixedArray::kHeaderSize,
-      INTPTR_PARAMETERS);
-
   // Check that the String iterator hasn't been modified in a way that would
   // affect iteration.
   Node* protector_cell = LoadRoot(RootIndex::kStringIteratorProtector);
@@ -2500,9 +2512,9 @@ TNode<JSArray> StringBuiltinsAssembler::StringToList(TNode<Context> context,
 
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  // Allocate the array to new space, assuming that the new array will fit in.
   TNode<JSArray> array =
-      AllocateJSArray(kind, array_map, length, SmiTag(length));
+      AllocateJSArray(kind, array_map, length, SmiTag(length), nullptr,
+                      INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
   TNode<FixedArrayBase> elements = LoadElements(array);
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;

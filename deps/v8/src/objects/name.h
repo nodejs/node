@@ -45,9 +45,9 @@ class Name : public HeapObject {
   // If the name is private, it can only name own properties.
   inline bool IsPrivate();
 
-  // If the name is a private field, it should behave like a private
+  // If the name is a private name, it should behave like a private
   // symbol but also throw on property access miss.
-  inline bool IsPrivateField();
+  inline bool IsPrivateName();
 
   inline bool IsUniqueName() const;
 
@@ -161,13 +161,13 @@ class Symbol : public Name {
   // Symbol.keyFor on such a symbol simply needs to return the attached name.
   DECL_BOOLEAN_ACCESSORS(is_public)
 
-  // [is_private_field]: Whether this is a private field.  Private fields
+  // [is_private_name]: Whether this is a private name.  Private names
   // are the same as private symbols except they throw on missing
   // property access.
   //
   // This also sets the is_private bit.
-  inline bool is_private_field() const;
-  inline void set_is_private_field();
+  inline bool is_private_name() const;
+  inline void set_is_private_name();
 
   DECL_CAST(Symbol)
 
@@ -186,7 +186,7 @@ class Symbol : public Name {
   V(IsWellKnownSymbolBit, bool, 1, _)   \
   V(IsPublicBit, bool, 1, _)            \
   V(IsInterestingSymbolBit, bool, 1, _) \
-  V(IsPrivateFieldBit, bool, 1, _)
+  V(IsPrivateNameBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS

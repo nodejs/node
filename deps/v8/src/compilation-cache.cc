@@ -137,8 +137,8 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     const int generation = 0;
     DCHECK_EQ(generations(), 1);
     Handle<CompilationCacheTable> table = GetTable(generation);
-    MaybeHandle<SharedFunctionInfo> probe =
-        table->LookupScript(source, native_context, language_mode);
+    MaybeHandle<SharedFunctionInfo> probe = CompilationCacheTable::LookupScript(
+        table, source, native_context, language_mode);
     Handle<SharedFunctionInfo> function_info;
     if (probe.ToHandle(&function_info)) {
       // Break when we've found a suitable shared function info that
@@ -192,8 +192,8 @@ InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
   const int generation = 0;
   DCHECK_EQ(generations(), 1);
   Handle<CompilationCacheTable> table = GetTable(generation);
-  result = table->LookupEval(source, outer_info, native_context, language_mode,
-                             position);
+  result = CompilationCacheTable::LookupEval(
+      table, source, outer_info, native_context, language_mode, position);
   if (result.has_shared()) {
     isolate()->counters()->compilation_cache_hits()->Increment();
   } else {

@@ -163,9 +163,7 @@ PreParsedScopeDataBuilder::PreParsedScopeDataBuilder(
 
 PreParsedScopeDataBuilder::DataGatheringScope::DataGatheringScope(
     DeclarationScope* function_scope, PreParser* preparser)
-    : function_scope_(function_scope),
-      preparser_(preparser),
-      builder_(nullptr) {
+    : preparser_(preparser), builder_(nullptr) {
   PreParsedScopeDataBuilder* parent = preparser->preparsed_scope_data_builder();
   Zone* main_zone = preparser->main_zone();
   builder_ = new (main_zone) PreParsedScopeDataBuilder(main_zone, parent);
@@ -174,19 +172,7 @@ PreParsedScopeDataBuilder::DataGatheringScope::DataGatheringScope(
 }
 
 PreParsedScopeDataBuilder::DataGatheringScope::~DataGatheringScope() {
-  if (builder_) {
-    preparser_->set_preparsed_scope_data_builder(builder_->parent_);
-  }
-}
-
-void PreParsedScopeDataBuilder::DataGatheringScope::MarkFunctionAsSkippable(
-    int end_position, int num_inner_functions) {
-  DCHECK_NOT_NULL(builder_);
-  DCHECK_NOT_NULL(builder_->parent_);
-  builder_->parent_->AddSkippableFunction(
-      function_scope_->start_position(), end_position,
-      function_scope_->num_parameters(), num_inner_functions,
-      function_scope_->language_mode(), function_scope_->NeedsHomeObject());
+  preparser_->set_preparsed_scope_data_builder(builder_->parent_);
 }
 
 void PreParsedScopeDataBuilder::AddSkippableFunction(int start_position,

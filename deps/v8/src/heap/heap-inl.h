@@ -15,7 +15,6 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
-#include "src/counters-inl.h"
 #include "src/feedback-vector.h"
 
 // TODO(mstarzinger): There is one more include to remove in order to no longer
@@ -131,6 +130,8 @@ void Heap::SetMessageListeners(TemplateList* value) {
 PagedSpace* Heap::paged_space(int idx) {
   DCHECK_NE(idx, LO_SPACE);
   DCHECK_NE(idx, NEW_SPACE);
+  DCHECK_NE(idx, CODE_LO_SPACE);
+  DCHECK_NE(idx, NEW_LO_SPACE);
   return static_cast<PagedSpace*>(space_[idx]);
 }
 
@@ -173,8 +174,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   }
 #endif
 #ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
+  IncrementObjectCounters();
 #endif
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
@@ -201,7 +201,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   // Here we only allocate in the old generation.
   if (OLD_SPACE == space) {
     if (large_object) {
-      allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+      allocation = lo_space_->AllocateRaw(size_in_bytes);
     } else {
       allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
     }
@@ -209,11 +209,16 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     if (size_in_bytes <= code_space()->AreaSize()) {
       allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
-      allocation = lo_space_->AllocateRaw(size_in_bytes, EXECUTABLE);
+      allocation = code_lo_space_->AllocateRaw(size_in_bytes);
     }
   } else if (LO_SPACE == space) {
     DCHECK(large_object);
-    allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+    allocation = lo_space_->AllocateRaw(size_in_bytes);
+  } else if (NEW_LO_SPACE == space) {
+    DCHECK(FLAG_young_generation_large_objects);
+    allocation = new_lo_space_->AllocateRaw(size_in_bytes);
+  } else if (CODE_LO_SPACE == space) {
+    allocation = code_lo_space_->AllocateRaw(size_in_bytes);
   } else if (MAP_SPACE == space) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   } else if (RO_SPACE == space) {
@@ -461,14 +466,6 @@ bool Heap::InReadOnlySpace(Object* object) {
   return read_only_space_->Contains(object);
 }
 
-bool Heap::InNewSpaceSlow(Address address) {
-  return new_space_->ContainsSlow(address);
-}
-
-bool Heap::InOldSpaceSlow(Address address) {
-  return old_space_->ContainsSlow(address);
-}
-
 // static
 Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
@@ -503,12 +500,11 @@ bool Heap::ShouldBePromoted(Address old_address) {
 }
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
-  CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
-            static_cast<size_t>(byte_size / kPointerSize));
+  CopyWords(dst, src, static_cast<size_t>(byte_size / kPointerSize));
 }
 
 template <Heap::FindMementoMode mode>
-AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
+AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
   Address object_address = object->address();
   Address memento_address = object_address + object->SizeFromMap(map);
   Address last_memento_word_address = memento_address + kPointerSize;
@@ -517,7 +513,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
     return nullptr;
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  Map* candidate_map = candidate->map();
+  Map candidate_map = candidate->map();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
@@ -568,7 +564,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
   UNREACHABLE();
 }
 
-void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
+void Heap::UpdateAllocationSite(Map map, HeapObject* object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
   DCHECK(
@@ -659,6 +655,13 @@ void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
   // trigger garbage collections.
 }
 
+bool Heap::IsWithinLargeObject(Address address) {
+  if (new_lo_space()->FindPage(address) || lo_space()->FindPage(address) ||
+      code_lo_space()->FindPage(address))
+    return true;
+  return false;
+}
+
 void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                               size_t amount) {
   base::CheckedDecrement(&backing_store_bytes_, amount);
@@ -678,12 +681,11 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndWritable();
-    LargePage* page = heap_->lo_space()->first_page();
+    LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndWritable();
-      }
+      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndWritable();
       page = page->next_page();
     }
   }
@@ -693,12 +695,11 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndExecutable();
-    LargePage* page = heap_->lo_space()->first_page();
+    LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndExecutable();
-      }
+      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndExecutable();
       page = page->next_page();
     }
   }
@@ -729,8 +730,7 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
-           (chunk_->owner()->identity() == LO_SPACE &&
-            chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
+           (chunk_->owner()->identity() == CODE_LO_SPACE));
     chunk_->SetReadAndWritable();
   }
 }

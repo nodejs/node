@@ -147,7 +147,7 @@ void FixedArrayBuilder::Add(Object* value) {
   has_non_smi_elements_ = true;
 }
 
-void FixedArrayBuilder::Add(Smi* value) {
+void FixedArrayBuilder::Add(Smi value) {
   DCHECK(value->IsSmi());
   DCHECK(length_ < capacity());
   array_->set(length_, value);

@@ -137,6 +137,12 @@ Handle<Context> HandleScopeImplementer::LastEnteredContext() {
   return Handle<Context>(entered_contexts_.back(), isolate_);
 }
 
+Handle<Context> HandleScopeImplementer::LastEnteredOrMicrotaskContext() {
+  if (MicrotaskContextIsLastEnteredContext()) return MicrotaskContext();
+  if (entered_contexts_.empty()) return Handle<Context>::null();
+  return Handle<Context>(entered_contexts_.back(), isolate_);
+}
+
 }  // namespace internal
 }  // namespace v8
 

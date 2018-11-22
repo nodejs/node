@@ -10,6 +10,7 @@
 #include "src/base/ieee754.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
@@ -777,7 +778,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
 
   {
     // Finish setting up Object function's initial map.
-    Map* initial_map = object_fun->initial_map();
+    Map initial_map = object_fun->initial_map();
     initial_map->set_elements_kind(HOLEY_ELEMENTS);
   }
 
@@ -2531,6 +2532,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       // Setup %RegExpPrototype%.
       Handle<JSObject> prototype(
           JSObject::cast(regexp_fun->instance_prototype()), isolate());
+      native_context()->set_regexp_prototype(*prototype);
 
       {
         Handle<JSFunction> fun = SimpleInstallFunction(
@@ -2572,18 +2574,26 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(isolate_, prototype, factory->match_symbol(),
                             "[Symbol.match]", Builtins::kRegExpPrototypeMatch,
                             1, true);
+      DCHECK_EQ(JSRegExp::kSymbolMatchFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       SimpleInstallFunction(isolate_, prototype, factory->replace_symbol(),
                             "[Symbol.replace]",
                             Builtins::kRegExpPrototypeReplace, 2, false);
+      DCHECK_EQ(JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       SimpleInstallFunction(isolate_, prototype, factory->search_symbol(),
                             "[Symbol.search]", Builtins::kRegExpPrototypeSearch,
                             1, true);
+      DCHECK_EQ(JSRegExp::kSymbolSearchFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       SimpleInstallFunction(isolate_, prototype, factory->split_symbol(),
                             "[Symbol.split]", Builtins::kRegExpPrototypeSplit,
                             2, false);
+      DCHECK_EQ(JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
 
       Handle<Map> prototype_map(prototype->map(), isolate());
       Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
@@ -2754,7 +2764,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   // Initialize the embedder data slot.
-  native_context()->set_embedder_data(*factory->empty_fixed_array());
+  // TODO(ishell): microtask queue pointer will be moved from native context
+  // to the embedder data array so we don't need an empty embedder data array.
+  Handle<EmbedderDataArray> embedder_data = factory->NewEmbedderDataArray(0);
+  native_context()->set_embedder_data(*embedder_data);
 
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
@@ -3004,6 +3017,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, intl, "Collator", JS_INTL_COLLATOR_TYPE, JSCollator::kSize,
           0, factory->the_hole_value(), Builtins::kCollatorConstructor);
       collator_constructor->shared()->DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(isolate_, collator_constructor,
+                                       Context::INTL_COLLATOR_FUNCTION_INDEX);
 
       SimpleInstallFunction(isolate(), collator_constructor,
                             "supportedLocalesOf",
@@ -4383,10 +4398,10 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 #define EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(id) \
   void Genesis::InitializeGlobal_##id() {}
 
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_namespace_exports)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_public_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_fields)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_methods)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_static_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
@@ -4503,6 +4518,8 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     Handle<Map> regexp_prototype_map(regexp_prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(regexp_prototype_map, true, isolate());
     native_context()->set_regexp_prototype_map(*regexp_prototype_map);
+    DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+              regexp_prototype->map()->LastAdded());
   }
 
   {  // --- R e g E x p S t r i n g  I t e r a t o r ---
@@ -4575,9 +4592,14 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::AddProperty(isolate(), global, weak_factory_name,
                           weak_factory_fun, DONT_ENUM);
 
-    Handle<String> make_cell_name = factory->makeCell_string();
-    SimpleInstallFunction(isolate(), weak_factory_prototype, make_cell_name,
+    SimpleInstallFunction(isolate(), weak_factory_prototype, "makeCell",
                           Builtins::kWeakFactoryMakeCell, 2, false);
+
+    SimpleInstallFunction(isolate(), weak_factory_prototype, "makeRef",
+                          Builtins::kWeakFactoryMakeRef, 2, false);
+
+    SimpleInstallFunction(isolate(), weak_factory_prototype, "cleanupSome",
+                          Builtins::kWeakFactoryCleanupSome, 0, false);
   }
   {
     // Create %WeakCellPrototype%
@@ -4595,11 +4617,28 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     SimpleInstallGetter(isolate(), weak_cell_prototype,
-                        factory->holdings_string(),
+                        factory->InternalizeUtf8String("holdings"),
                         Builtins::kWeakCellHoldingsGetter, false);
-    Handle<String> clear_name = factory->clear_string();
-    SimpleInstallFunction(isolate(), weak_cell_prototype, clear_name,
+    SimpleInstallFunction(isolate(), weak_cell_prototype, "clear",
                           Builtins::kWeakCellClear, 0, false);
+
+    // Create %WeakRefPrototype%
+    Handle<Map> weak_ref_map =
+        factory->NewMap(JS_WEAK_REF_TYPE, JSWeakRef::kSize);
+    native_context()->set_js_weak_ref_map(*weak_ref_map);
+
+    Handle<JSObject> weak_ref_prototype =
+        factory->NewJSObject(isolate()->object_function(), TENURED);
+    Map::SetPrototype(isolate(), weak_ref_map, weak_ref_prototype);
+    JSObject::ForceSetPrototype(weak_ref_prototype, weak_cell_prototype);
+
+    JSObject::AddProperty(
+        isolate(), weak_ref_prototype, factory->to_string_tag_symbol(),
+        factory->WeakRef_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    SimpleInstallFunction(isolate(), weak_ref_prototype, "deref",
+                          Builtins::kWeakRefDeref, 0, false);
   }
 
   {

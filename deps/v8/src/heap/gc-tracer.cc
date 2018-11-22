@@ -7,7 +7,7 @@
 #include <cstdarg>
 
 #include "src/base/atomic-utils.h"
-#include "src/counters.h"
+#include "src/counters-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 
@@ -656,6 +656,7 @@ void GCTracer::PrintNVP() const {
           "gc=%s "
           "reduce_memory=%d "
           "heap.prologue=%.2f "
+          "heap.embedder_tracing_epilogue=%.2f "
           "heap.epilogue=%.2f "
           "heap.epilogue.reduce_new_space=%.2f "
           "heap.external.prologue=%.1f "
@@ -684,7 +685,6 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers.slots.map_space=%.1f "
           "evacuate.update_pointers.weak=%.1f "
           "finish=%.1f "
-          "finish.wrapper_epilogue=%.1f "
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
           "mark.roots=%.1f "
@@ -696,8 +696,8 @@ void GCTracer::PrintNVP() const {
           "mark.weak_closure.weak_handles=%.1f "
           "mark.weak_closure.weak_roots=%.1f "
           "mark.weak_closure.harmony=%.1f "
-          "mark.wrapper_prologue=%.1f "
-          "mark.wrapper_tracing=%.1f "
+          "mark.embedder_prologue=%.1f "
+          "mark.embedder_tracing=%.1f "
           "prologue=%.1f "
           "sweep=%.1f "
           "sweep.code=%.1f "
@@ -709,8 +709,8 @@ void GCTracer::PrintNVP() const {
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.sweeping=%.1f "
-          "incremental.wrapper_prologue=%.1f "
-          "incremental.wrapper_tracing=%.1f "
+          "incremental.embedder_prologue=%.1f "
+          "incremental.embedder_tracing=%.1f "
           "incremental_wrapper_tracing_longest_step=%.1f "
           "incremental_finalize_longest_step=%.1f "
           "incremental_finalize_steps_count=%d "
@@ -752,6 +752,7 @@ void GCTracer::PrintNVP() const {
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
           current_.reduce_memory, current_.scopes[Scope::HEAP_PROLOGUE],
+          current_.scopes[Scope::HEAP_EMBEDDER_TRACING_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
@@ -779,9 +780,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
-          current_.scopes[Scope::MC_FINISH],
-          current_.scopes[Scope::MC_FINISH_WRAPPER_EPILOGUE],
-          current_.scopes[Scope::MC_MARK],
+          current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
           current_.scopes[Scope::MC_MARK_ROOTS],
           current_.scopes[Scope::MC_MARK_MAIN],
@@ -792,8 +791,8 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_HARMONY],
-          current_.scopes[Scope::MC_MARK_WRAPPER_PROLOGUE],
-          current_.scopes[Scope::MC_MARK_WRAPPER_TRACING],
+          current_.scopes[Scope::MC_MARK_EMBEDDER_PROLOGUE],
+          current_.scopes[Scope::MC_MARK_EMBEDDER_TRACING],
           current_.scopes[Scope::MC_PROLOGUE], current_.scopes[Scope::MC_SWEEP],
           current_.scopes[Scope::MC_SWEEP_CODE],
           current_.scopes[Scope::MC_SWEEP_MAP],
@@ -804,10 +803,11 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
-          current_.scopes[Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE],
-          current_.scopes[Scope::MC_INCREMENTAL_WRAPPER_TRACING],
+          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE],
+          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING],
           current_
-              .incremental_marking_scopes[Scope::MC_INCREMENTAL_WRAPPER_TRACING]
+              .incremental_marking_scopes
+                  [Scope::MC_INCREMENTAL_EMBEDDER_TRACING]
               .longest_step,
           current_
               .incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE_BODY]

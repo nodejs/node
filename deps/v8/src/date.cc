@@ -9,7 +9,6 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
-#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +25,7 @@ static const char kDaysInMonths[] =
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 DateCache::DateCache()
-    : stamp_(nullptr),
+    : stamp_(kNullAddress),
       tz_cache_(
 #ifdef V8_INTL_SUPPORT
           Intl::CreateTimeZoneCache()
@@ -38,9 +37,8 @@ DateCache::DateCache()
 }
 
 void DateCache::ResetDateCache() {
-  static const int kMaxStamp = Smi::kMaxValue;
-  if (stamp_->value() >= kMaxStamp) {
-    stamp_ = Smi::kZero;
+  if (stamp_->value() >= Smi::kMaxValue) {
+    stamp_ = Smi::zero();
   } else {
     stamp_ = Smi::FromInt(stamp_->value() + 1);
   }

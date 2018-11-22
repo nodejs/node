@@ -137,8 +137,13 @@ class Handle final : public HandleBase {
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
+  // TODO(3770): Remove special cases after the migration.
   template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+                            std::is_convertible<S*, T*>::value ||
+                            std::is_same<T, Object>::value ||
+                            (std::is_same<T, HeapObject>::value &&
+                             (std::is_same<S, Code>::value ||
+                              std::is_same<S, Map>::value))>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   // The NeverReadOnlySpaceObject special-case is needed for the
@@ -167,7 +172,9 @@ class Handle final : public HandleBase {
   template <typename T1 = T, typename = typename std::enable_if<
                                  std::is_base_of<ObjectPtr, T1>::value>::type>
   V8_INLINE T operator*() const {
-    return T::cast(ObjectPtr(HandleBase::operator*()));
+    // unchecked_cast because we rather trust Handle<T> to contain a T than
+    // include all the respective -inl.h headers for SLOW_DCHECKs.
+    return T::unchecked_cast(ObjectPtr(HandleBase::operator*()));
   }
 
   // Returns the address to where the raw pointer is stored.
@@ -184,14 +191,14 @@ class Handle final : public HandleBase {
   bool equals(Handle<T> other) const { return address() == other.address(); }
 
   // Provide function object for location equality comparison.
-  struct equal_to : public std::binary_function<Handle<T>, Handle<T>, bool> {
+  struct equal_to {
     V8_INLINE bool operator()(Handle<T> lhs, Handle<T> rhs) const {
       return lhs.equals(rhs);
     }
   };
 
   // Provide function object for location hashing.
-  struct hash : public std::unary_function<Handle<T>, size_t> {
+  struct hash {
     V8_INLINE size_t operator()(Handle<T> const& handle) const {
       return base::hash<Address>()(handle.address());
     }

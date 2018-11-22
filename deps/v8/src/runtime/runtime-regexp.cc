@@ -6,6 +6,7 @@
 
 #include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
@@ -782,7 +783,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   // needed.
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
-  if (!heap->lo_space()->Contains(*answer)) {
+  if (!heap->IsLargeObject(*answer)) {
     heap->CreateFillerObjectAt(end_of_string, delta, ClearRecordedSlots::kNo);
   }
   return *answer;
@@ -1572,8 +1573,6 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  DCHECK(args[1]->IsString());
-
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, recv, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, limit_obj, 2);
@@ -1736,15 +1735,19 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
   string = String::Flatten(isolate, string);
 
-  // Fast-path for unmodified JSRegExps.
+  const bool functional_replace = replace_obj->IsCallable();
+
+  // Fast-path for unmodified JSRegExps (and non-functional replace).
   if (RegExpUtils::IsUnmodifiedRegExp(isolate, recv)) {
+    // We should never get here with functional replace because unmodified
+    // regexp and functional replace should be fully handled in CSA code.
+    CHECK(!functional_replace);
     RETURN_RESULT_OR_FAILURE(
         isolate, RegExpReplace(isolate, Handle<JSRegExp>::cast(recv), string,
                                replace_obj));
   }
 
   const uint32_t length = string->length();
-  const bool functional_replace = replace_obj->IsCallable();
 
   Handle<String> replace;
   if (!functional_replace) {

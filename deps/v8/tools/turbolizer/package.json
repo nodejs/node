@@ -4,7 +4,7 @@
   "description": "Visualization tool for V8 TurboFan IR graphs",
   "scripts": {
     "build": "rollup -c",
-    "watch": "tsc --watch",
+    "watch": "rollup -c -w",
     "deploy": "./deploy.sh",
     "format": "tsfmt -r",
     "test": "ts-mocha -p tsconfig.test.json test/**/*-test.ts",

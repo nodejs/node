@@ -6,22 +6,29 @@
 
 #if V8_TARGET_ARCH_MIPS64
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
-#include "src/instruction-stream.h"
-#include "src/mips64/assembler-mips64-inl.h"
-#include "src/mips64/macro-assembler-mips64.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
+
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
+#include "src/mips64/macro-assembler-mips64.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -4412,7 +4419,7 @@ void MacroAssembler::Swap(Register reg1,
 
 void TurboAssembler::Call(Label* target) { BranchAndLink(target); }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   li(scratch, Operand(smi));
@@ -4442,7 +4449,7 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
-  Push(Smi::kZero);  // Padding.
+  Push(Smi::zero());  // Padding.
 
   // Link the current handler as the next handler.
   li(a6,
@@ -4821,13 +4828,17 @@ void TurboAssembler::CallStubDelayed(CodeStub* stub, Condition cond,
                                      Register r1, const Operand& r2,
                                      BranchDelaySlot bd) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
+  } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
 
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch, Operand::EmbeddedCode(stub));
-  Call(scratch);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, Operand::EmbeddedCode(stub));
+    Call(scratch);
+  }
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub,
@@ -4990,7 +5001,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  Branch(target_if_cleared, eq, in, Operand(kClearedWeakHeapObject));
+  Branch(target_if_cleared, eq, in, Operand(kClearedWeakHeapObjectLower32));
 
   And(out, in, Operand(~kWeakHeapObjectMask));
 }

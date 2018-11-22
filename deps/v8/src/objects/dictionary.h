@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

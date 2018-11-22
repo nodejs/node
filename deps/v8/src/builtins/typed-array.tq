@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module typed_array {
+namespace typed_array {
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
-  extern macro ValidateTypedArray(
+  extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, Object, constexpr string): JSTypedArray;
 
   extern macro LoadFixedTypedArrayElementAsTagged(
@@ -89,7 +89,7 @@ module typed_array {
   transitioning macro TypedArrayInsertionSort(
       context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn)
-  labels Detached {
+      labels Detached {
     let from: Smi = fromArg;
     let to: Smi = toArg;
 
@@ -115,7 +115,7 @@ module typed_array {
   transitioning macro TypedArrayQuickSortImpl(
       context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn)
-  labels Detached {
+      labels Detached {
     let from: Smi = fromArg;
     let to: Smi = toArg;
 

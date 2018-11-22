@@ -96,6 +96,7 @@ namespace internal {
   V(ACCESSOR_PAIR_TYPE)                                            \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                                  \
   V(ALLOCATION_MEMENTO_TYPE)                                       \
+  V(ASM_WASM_DATA_TYPE)                                            \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                                  \
   V(DEBUG_INFO_TYPE)                                               \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                   \
@@ -125,12 +126,14 @@ namespace internal {
   V(MICROTASK_QUEUE_TYPE)                                          \
                                                                    \
   V(ALLOCATION_SITE_TYPE)                                          \
+  V(EMBEDDER_DATA_ARRAY_TYPE)                                      \
                                                                    \
   V(FIXED_ARRAY_TYPE)                                              \
   V(OBJECT_BOILERPLATE_DESCRIPTION_TYPE)                           \
   V(HASH_TABLE_TYPE)                                               \
   V(ORDERED_HASH_MAP_TYPE)                                         \
   V(ORDERED_HASH_SET_TYPE)                                         \
+  V(ORDERED_NAME_DICTIONARY_TYPE)                                  \
   V(NAME_DICTIONARY_TYPE)                                          \
   V(GLOBAL_DICTIONARY_TYPE)                                        \
   V(NUMBER_DICTIONARY_TYPE)                                        \
@@ -167,6 +170,7 @@ namespace internal {
   V(SHARED_FUNCTION_INFO_TYPE)                                     \
   V(SMALL_ORDERED_HASH_MAP_TYPE)                                   \
   V(SMALL_ORDERED_HASH_SET_TYPE)                                   \
+  V(SMALL_ORDERED_NAME_DICTIONARY_TYPE)                            \
   V(STORE_HANDLER_TYPE)                                            \
   V(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)                 \
   V(UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                    \
@@ -205,6 +209,7 @@ namespace internal {
   V(JS_SET_VALUE_ITERATOR_TYPE)                                    \
   V(JS_STRING_ITERATOR_TYPE)                                       \
   V(JS_WEAK_CELL_TYPE)                                             \
+  V(JS_WEAK_REF_TYPE)                                              \
   V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE)                         \
   V(JS_WEAK_FACTORY_TYPE)                                          \
   V(JS_WEAK_MAP_TYPE)                                              \
@@ -313,6 +318,7 @@ namespace internal {
   V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                   \
     aliased_arguments_entry)                                                  \
   V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)        \
+  V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                        \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \
     async_generator_request)                                                  \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \
@@ -355,9 +361,9 @@ namespace internal {
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_MAPS_LIST entry
 #define STRUCT_MAPS_LIST_ADAPTER(V, NAME, Name, name) \
-  V(Map*, name##_map, Name##Map)
+  V(Map, name##_map, Name##Map)
 
-// Produces (Map*, struct_name_map, StructNameMap) entries
+// Produces (Map, struct_name_map, StructNameMap) entries
 #define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
 //
@@ -371,7 +377,7 @@ namespace internal {
 
 // Adapts one ALLOCATION_SITE_LIST entry to the ALLOCATION_SITE_MAPS_LIST entry
 #define ALLOCATION_SITE_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
-  V(Map*, name_size##_map, Name##Size##Map)
+  V(Map, name_size##_map, Name##Size##Map)
 
 // Produces (Map, allocation_site_name_map, AllocationSiteNameMap) entries
 #define ALLOCATION_SITE_MAPS_LIST(V) \
@@ -392,7 +398,7 @@ namespace internal {
 
 // Adapts one DATA_HANDLER_LIST entry to the DATA_HANDLER_MAPS_LIST entry.
 #define DATA_HANDLER_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
-  V(Map*, name_size##_map, Name##Size##Map)
+  V(Map, name_size##_map, Name##Size##Map)
 
 // Produces (Map, handler_name_map, HandlerNameMap) entries
 #define DATA_HANDLER_MAPS_LIST(V) \

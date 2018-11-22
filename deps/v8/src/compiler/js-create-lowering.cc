@@ -1091,10 +1091,10 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset),
           jsgraph()->ZeroConstant());
   STATIC_ASSERT(JSPromise::kSize == 5 * kPointerSize);
-  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; ++i) {
-    a.Store(
-        AccessBuilder::ForJSObjectOffset(JSPromise::kSize + i * kPointerSize),
-        jsgraph()->ZeroConstant());
+  for (int offset = JSPromise::kSize;
+       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
+    a.Store(AccessBuilder::ForJSObjectOffset(offset),
+            jsgraph()->ZeroConstant());
   }
   a.FinishAndChange(node);
   return Changed(node);

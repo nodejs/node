@@ -13,19 +13,104 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace liftoff {
+
+//  half
+//  slot        Frame
+//  -----+--------------------+---------------------------
+//  n+3  |   parameter n      |
+//  ...  |       ...          |
+//   4   |   parameter 1      | or parameter 2
+//   3   |   parameter 0      | or parameter 1
+//   2   |  (result address)  | or parameter 0
+//  -----+--------------------+---------------------------
+//   1   | return addr (lr)   |
+//   0   | previous frame (fp)|
+//  -----+--------------------+  <-- frame ptr (fp)
+//  -1   | 0xa: WASM_COMPILED |
+//  -2   |     instance       |
+//  -----+--------------------+---------------------------
+//  -3   |    slot 0 (high)   |   ^
+//  -4   |    slot 0 (low)    |   |
+//  -5   |    slot 1 (high)   | Frame slots
+//  -6   |    slot 1 (low)    |   |
+//       |                    |   v
+//  -----+--------------------+  <-- stack ptr (sp)
+//
+static_assert(2 * kPointerSize == LiftoffAssembler::kStackSlotSize,
+              "Slot size should be twice the size of the 32 bit pointer.");
+constexpr int32_t kInstanceOffset = 2 * kPointerSize;
+constexpr int32_t kFirstStackSlotOffset = kInstanceOffset + 2 * kPointerSize;
+constexpr int32_t kConstantStackSpace = kPointerSize;
+// kPatchInstructionsRequired sets a maximum limit of how many instructions that
+// PatchPrepareStackFrame will use in order to increase the stack appropriately.
+// Three instructions are required to sub a large constant, movw + movt + sub.
+constexpr int32_t kPatchInstructionsRequired = 3;
+
+inline MemOperand GetStackSlot(uint32_t index) {
+  int32_t offset =
+      kFirstStackSlotOffset + index * LiftoffAssembler::kStackSlotSize;
+  return MemOperand(fp, -offset);
+}
+
+inline MemOperand GetHalfStackSlot(uint32_t half_index) {
+  int32_t offset = kFirstStackSlotOffset +
+                   half_index * (LiftoffAssembler::kStackSlotSize / 2);
+  return MemOperand(fp, -offset);
+}
+
+inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
+  if (half == kLowWord) {
+    return GetHalfStackSlot(2 * index);
+  } else {
+    return GetHalfStackSlot(2 * index - 1);
+  }
+}
+
+inline MemOperand GetInstanceOperand() {
+  return MemOperand(fp, -kInstanceOffset);
+}
+}  // namespace liftoff
+
 int LiftoffAssembler::PrepareStackFrame() {
-  BAILOUT("PrepareStackFrame");
-  return 0;
+  if (!CpuFeatures::IsSupported(ARMv7)) {
+    BAILOUT("Armv6 not supported");
+    return 0;
+  }
+  uint32_t offset = static_cast<uint32_t>(pc_offset());
+  // PatchPrepareStackFrame will patch this in order to increase the stack
+  // appropriately. Additional nops are required as the bytes operand might
+  // require extra moves to encode.
+  for (int i = 0; i < liftoff::kPatchInstructionsRequired; i++) {
+    nop();
+  }
+  DCHECK_EQ(offset + liftoff::kPatchInstructionsRequired * kInstrSize,
+            pc_offset());
+  return offset;
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               uint32_t stack_slots) {
-  BAILOUT("PatchPrepareStackFrame");
+  // Allocate space for instance plus what is needed for the frame slots.
+  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
+#ifdef USE_SIMULATOR
+  // When using the simulator, deal with Liftoff which allocates the stack
+  // before checking it.
+  // TODO(arm): Remove this when the stack check mechanism will be updated.
+  if (bytes > KB / 2) {
+    BAILOUT("Stack limited to 512 bytes to avoid a bug in StackCheck");
+    return;
+  }
+#endif
+  PatchingAssembler patching_assembler(AssemblerOptions{}, buffer_ + offset,
+                                       liftoff::kPatchInstructionsRequired);
+  patching_assembler.sub(sp, sp, Operand(bytes));
+  patching_assembler.PadWithNops();
 }
 
 void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
 
-void LiftoffAssembler::AbortCompilation() { FinishCode(); }
+void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
@@ -34,11 +119,14 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 
 void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
                                         int size) {
-  BAILOUT("LoadFromInstance");
+  DCHECK_LE(offset, kMaxInt);
+  DCHECK_EQ(4, size);
+  ldr(dst, liftoff::GetInstanceOperand());
+  ldr(dst, MemOperand(dst, offset));
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
-  BAILOUT("SpillInstance");
+  str(instance, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
@@ -71,7 +159,9 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
-  BAILOUT("Move Register");
+  DCHECK_NE(dst, src);
+  DCHECK_EQ(type, kWasmI32);
+  TurboAssembler::Move(dst, src);
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
@@ -282,9 +372,9 @@ void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
   BAILOUT("emit_i64_signextend_i32");
 }
 
-void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
+void LiftoffAssembler::emit_jump(Label* label) { b(label); }
 
-void LiftoffAssembler::emit_jump(Register target) { BAILOUT("emit_jump"); }
+void LiftoffAssembler::emit_jump(Register target) { bx(target); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       ValueType type, Register lhs,
@@ -324,7 +414,9 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  BAILOUT("StackCheck");
+  ldr(limit_address, MemOperand(limit_address));
+  cmp(sp, limit_address);
+  b(ool_code, ls);
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
@@ -336,15 +428,54 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
-  BAILOUT("PushRegisters");
+  RegList core_regs = regs.GetGpList();
+  if (core_regs != 0) {
+    stm(db_w, sp, core_regs);
+  }
+  LiftoffRegList fp_regs = regs & kFpCacheRegList;
+  while (!fp_regs.is_empty()) {
+    LiftoffRegister reg = fp_regs.GetFirstRegSet();
+    DoubleRegister first = reg.fp();
+    DoubleRegister last = first;
+    fp_regs.clear(reg);
+    while (!fp_regs.is_empty()) {
+      LiftoffRegister reg = fp_regs.GetFirstRegSet();
+      int code = reg.fp().code();
+      // vstm can not push more than 16 registers. We have to make sure the
+      // condition is met.
+      if ((code != last.code() + 1) || ((code - first.code() + 1) > 16)) break;
+      last = reg.fp();
+      fp_regs.clear(reg);
+    }
+    vstm(db_w, sp, first, last);
+  }
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  BAILOUT("PopRegisters");
+  LiftoffRegList fp_regs = regs & kFpCacheRegList;
+  while (!fp_regs.is_empty()) {
+    LiftoffRegister reg = fp_regs.GetLastRegSet();
+    DoubleRegister last = reg.fp();
+    DoubleRegister first = last;
+    fp_regs.clear(reg);
+    while (!fp_regs.is_empty()) {
+      LiftoffRegister reg = fp_regs.GetLastRegSet();
+      int code = reg.fp().code();
+      if ((code != first.code() - 1) || ((last.code() - code + 1) > 16)) break;
+      first = reg.fp();
+      fp_regs.clear(reg);
+    }
+    vldm(ia_w, sp, first, last);
+  }
+  RegList core_regs = regs.GetGpList();
+  if (core_regs != 0) {
+    ldm(ia_w, sp, core_regs);
+  }
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  BAILOUT("DropStackSlotsAndRet");
+  Drop(num_stack_slots);
+  Ret();
 }
 
 void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
@@ -366,7 +497,9 @@ void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  BAILOUT("CallRuntimeStub");
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
@@ -378,7 +511,68 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 }
 
 void LiftoffStackSlots::Construct() {
-  asm_->BAILOUT("LiftoffStackSlots::Construct");
+  for (auto& slot : slots_) {
+    const LiftoffAssembler::VarState& src = slot.src_;
+    switch (src.loc()) {
+      case LiftoffAssembler::VarState::kStack: {
+        switch (src.type()) {
+          // i32 and i64 can be treated as similar cases, i64 being previously
+          // split into two i32 registers
+          case kWasmI32:
+          case kWasmI64: {
+            UseScratchRegisterScope temps(asm_);
+            Register scratch = temps.Acquire();
+            asm_->ldr(scratch,
+                      liftoff::GetHalfStackSlot(slot.src_index_, slot.half_));
+            asm_->Push(scratch);
+          } break;
+          case kWasmF32:
+            asm_->BAILOUT("Construct F32 from kStack");
+            break;
+          case kWasmF64: {
+            UseScratchRegisterScope temps(asm_);
+            DwVfpRegister scratch = temps.AcquireD();
+            asm_->vldr(scratch, liftoff::GetStackSlot(slot.src_index_));
+            asm_->vpush(scratch);
+          } break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      }
+      case LiftoffAssembler::VarState::kRegister:
+        switch (src.type()) {
+          case kWasmI64: {
+            LiftoffRegister reg =
+                slot.half_ == kLowWord ? src.reg().low() : src.reg().high();
+            asm_->push(reg.gp());
+          } break;
+          case kWasmI32:
+            asm_->push(src.reg().gp());
+            break;
+          case kWasmF32:
+            asm_->BAILOUT("Construct F32 from kRegister");
+            break;
+          case kWasmF64:
+            asm_->vpush(src.reg().fp());
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case LiftoffAssembler::VarState::KIntConst: {
+        DCHECK(src.type() == kWasmI32 || src.type() == kWasmI64);
+        UseScratchRegisterScope temps(asm_);
+        Register scratch = temps.Acquire();
+        // The high word is the sign extension of the low word.
+        asm_->mov(scratch,
+                  Operand(slot.half_ == kLowWord ? src.i32_const()
+                                                 : src.i32_const() >> 31));
+        asm_->push(scratch);
+        break;
+      }
+    }
+  }
 }
 
 }  // namespace wasm

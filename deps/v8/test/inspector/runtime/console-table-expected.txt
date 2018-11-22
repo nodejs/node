@@ -325,3 +325,61 @@ console.table
     subtype : array
     type : object
 }
+last value property:
+{
+    name : 1
+    type : string
+    value : b
+}
+last property:
+{
+    name : 998
+    subtype : array
+    type : object
+    value : Array(2)
+    valuePreview : {
+        description : Array(2)
+        overflow : false
+        properties : <ValuePreviewPropertiesArray(2)>
+        subtype : array
+        type : object
+    }
+}
+preview:
+{
+    description : Array(999)
+    overflow : false
+    properties : <PropertiesArray(999)>
+    subtype : array
+    type : object
+}
+
+last value property:
+{
+    name : 1
+    type : string
+    value : b
+}
+last property:
+{
+    name : 999
+    subtype : array
+    type : object
+    value : Array(2)
+    valuePreview : {
+        description : Array(2)
+        overflow : false
+        properties : <ValuePreviewPropertiesArray(2)>
+        subtype : array
+        type : object
+    }
+}
+preview:
+{
+    description : Array(1001)
+    overflow : true
+    properties : <PropertiesArray(1000)>
+    subtype : array
+    type : object
+}
+

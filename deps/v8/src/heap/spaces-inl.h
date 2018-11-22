@@ -154,15 +154,11 @@ bool NewSpace::ToSpaceContainsSlow(Address a) {
   return to_space_.ContainsSlow(a);
 }
 
-bool NewSpace::FromSpaceContainsSlow(Address a) {
-  return from_space_.ContainsSlow(a);
-}
-
 bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
 bool PagedSpace::Contains(Address addr) {
-  if (heap()->lo_space()->FindPage(addr)) return false;
+  if (heap()->IsWithinLargeObject(addr)) return false;
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 
@@ -259,15 +255,16 @@ void Page::ClearEvacuationCandidate() {
   InitializeFreeListCategories();
 }
 
-MemoryChunkIterator::MemoryChunkIterator(Heap* heap)
+OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
     : heap_(heap),
       state_(kOldSpaceState),
       old_iterator_(heap->old_space()->begin()),
       code_iterator_(heap->code_space()->begin()),
       map_iterator_(heap->map_space()->begin()),
-      lo_iterator_(heap->lo_space()->begin()) {}
+      lo_iterator_(heap->lo_space()->begin()),
+      code_lo_iterator_(heap->code_lo_space()->begin()) {}
 
-MemoryChunk* MemoryChunkIterator::next() {
+MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
     case kOldSpaceState: {
       if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
@@ -287,6 +284,12 @@ MemoryChunk* MemoryChunkIterator::next() {
     }
     case kLargeObjectState: {
       if (lo_iterator_ != heap_->lo_space()->end()) return *(lo_iterator_++);
+      state_ = kCodeLargeObjectState;
+      V8_FALLTHROUGH;
+    }
+    case kCodeLargeObjectState: {
+      if (code_lo_iterator_ != heap_->code_lo_space()->end())
+        return *(code_lo_iterator_++);
       state_ = kFinishedState;
       V8_FALLTHROUGH;
     }

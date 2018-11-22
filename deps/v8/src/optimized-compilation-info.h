@@ -8,8 +8,6 @@
 #include <memory>
 
 #include "src/bailout-reason.h"
-#include "src/code-reference.h"
-#include "src/feedback-vector.h"
 #include "src/frames.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -21,15 +19,11 @@
 namespace v8 {
 namespace internal {
 
-class CoverageInfo;
-class DeclarationScope;
 class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class JavaScriptFrame;
 class JSGlobalObject;
-class ParseInfo;
-class SourceRangeMap;
 class Zone;
 
 // OptimizedCompilationInfo encapsulates the information needed to compile
@@ -74,12 +68,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool is_osr() const { return !osr_offset_.IsNone(); }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   bool has_shared_info() const { return !shared_info().is_null(); }
+  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
+  bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<JSFunction> closure() const { return closure_; }
-  Handle<Code> code() const { return code_.as_js_code(); }
-
-  wasm::WasmCode* wasm_code() const {
-    return const_cast<wasm::WasmCode*>(code_.as_wasm_code());
-  }
+  Handle<Code> code() const { return code_; }
   Code::Kind code_kind() const { return code_kind_; }
   uint32_t stub_key() const { return stub_key_; }
   void set_stub_key(uint32_t stub_key) { stub_key_ = stub_key; }
@@ -182,10 +174,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Code getters and setters.
 
-  template <typename T>
-  void SetCode(T code) {
-    code_ = CodeReference(code);
-  }
+  void SetCode(Handle<Code> code) { code_ = code; }
 
   bool has_context() const;
   Context* context() const;
@@ -238,12 +227,14 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   struct InlinedFunctionHolder {
     Handle<SharedFunctionInfo> shared_info;
+    Handle<BytecodeArray> bytecode_array;
 
     InliningPosition position;
 
     InlinedFunctionHolder(Handle<SharedFunctionInfo> inlined_shared_info,
+                          Handle<BytecodeArray> inlined_bytecode,
                           SourcePosition pos)
-        : shared_info(inlined_shared_info) {
+        : shared_info(inlined_shared_info), bytecode_array(inlined_bytecode) {
       position.position = pos;
       // initialized when generating the deoptimization literals
       position.inlined_function_id = DeoptimizationData::kNotInlinedIndex;
@@ -259,6 +250,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Returns the inlining id for source position tracking.
   int AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function,
+                         Handle<BytecodeArray> inlined_bytecode,
                          SourcePosition pos);
 
   std::unique_ptr<char[]> GetDebugName() const;
@@ -291,12 +283,16 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   uint32_t stub_key_ = 0;
   int32_t builtin_index_ = -1;
 
+  // We retain a reference the bytecode array specifically to ensure it doesn't
+  // get flushed while we are optimizing the code.
+  Handle<BytecodeArray> bytecode_array_;
+
   Handle<SharedFunctionInfo> shared_info_;
 
   Handle<JSFunction> closure_;
 
   // The compiled code.
-  CodeReference code_;
+  Handle<Code> code_;
 
   // Entry point when compiling for OSR, {BailoutId::None} otherwise.
   BailoutId osr_offset_ = BailoutId::None();

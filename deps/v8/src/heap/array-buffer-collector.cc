@@ -8,6 +8,7 @@
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/task-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -48,7 +49,7 @@ void ArrayBufferCollector::FreeAllocations() {
   if (!heap_->IsTearingDown() && !heap_->ShouldReduceMemory() &&
       FLAG_concurrent_array_buffer_freeing) {
     V8::GetCurrentPlatform()->CallOnWorkerThread(
-        MakeCancelableLambdaTask(heap_->isolate(), [this] {
+        MakeCancelableTask(heap_->isolate(), [this] {
           TRACE_BACKGROUND_GC(
               heap_->tracer(),
               GCTracer::BackgroundScope::BACKGROUND_ARRAY_BUFFER_FREE);

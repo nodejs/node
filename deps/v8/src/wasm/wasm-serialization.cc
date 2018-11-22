@@ -383,14 +383,14 @@ WasmSerializer::WasmSerializer(Isolate* isolate, NativeModule* native_module)
       code_table_(native_module->SnapshotCodeTable()) {}
 
 size_t WasmSerializer::GetSerializedNativeModuleSize() const {
-  Vector<WasmCode* const> code_table(code_table_.data(), code_table_.size());
-  NativeModuleSerializer serializer(isolate_, native_module_, code_table);
+  NativeModuleSerializer serializer(isolate_, native_module_,
+                                    VectorOf(code_table_));
   return kVersionSize + serializer.Measure();
 }
 
 bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
-  Vector<WasmCode* const> code_table(code_table_.data(), code_table_.size());
-  NativeModuleSerializer serializer(isolate_, native_module_, code_table);
+  NativeModuleSerializer serializer(isolate_, native_module_,
+                                    VectorOf(code_table_));
   size_t measured_size = kVersionSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
@@ -573,11 +573,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
 
-  // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
-  // requires unlocking the code space here. This should eventually be moved
-  // into the allocator.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  CompileJsToWasmWrappers(isolate, module_object);
+  CompileJsToWasmWrappers(isolate, native_module,
+                          handle(module_object->export_wrappers(), isolate));
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);

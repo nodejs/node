@@ -23,8 +23,8 @@ enum class CopyAndForwardResult {
 };
 
 using ObjectAndSize = std::pair<HeapObject*, int>;
-using SurvivingNewLargeObjectsMap = std::unordered_map<HeapObject*, Map*>;
-using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject*, Map*>;
+using SurvivingNewLargeObjectsMap = std::unordered_map<HeapObject*, Map>;
+using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject*, Map>;
 
 class ScavengerCollector {
  public:
@@ -55,7 +55,7 @@ class Scavenger {
  public:
   struct PromotionListEntry {
     HeapObject* heap_object;
-    Map* map;
+    Map map;
     int size;
   };
 
@@ -67,7 +67,7 @@ class Scavenger {
           : promotion_list_(promotion_list), task_id_(task_id) {}
 
       inline void PushRegularObject(HeapObject* object, int size);
-      inline void PushLargeObject(HeapObject* object, Map* map, int size);
+      inline void PushLargeObject(HeapObject* object, Map map, int size);
       inline bool IsEmpty();
       inline size_t LocalPushSegmentSize();
       inline bool Pop(struct PromotionListEntry* entry);
@@ -84,7 +84,7 @@ class Scavenger {
           large_object_promotion_list_(num_tasks) {}
 
     inline void PushRegularObject(int task_id, HeapObject* object, int size);
-    inline void PushLargeObject(int task_id, HeapObject* object, Map* map,
+    inline void PushLargeObject(int task_id, HeapObject* object, Map map,
                                 int size);
     inline bool IsEmpty();
     inline size_t LocalPushSegmentSize(int task_id);
@@ -150,43 +150,43 @@ class Scavenger {
                                            HeapObject* object);
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
-  V8_INLINE bool MigrateObject(Map* map, HeapObject* source, HeapObject* target,
+  V8_INLINE bool MigrateObject(Map map, HeapObject* source, HeapObject* target,
                                int size);
 
   V8_INLINE SlotCallbackResult
   RememberedSetEntryNeeded(CopyAndForwardResult result);
 
-  V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(Map* map,
+  V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(Map map,
                                                      HeapObjectSlot slot,
                                                      HeapObject* object,
                                                      int object_size);
 
-  V8_INLINE CopyAndForwardResult PromoteObject(Map* map, HeapObjectSlot slot,
+  V8_INLINE CopyAndForwardResult PromoteObject(Map map, HeapObjectSlot slot,
                                                HeapObject* object,
                                                int object_size);
 
-  V8_INLINE SlotCallbackResult EvacuateObject(HeapObjectSlot slot, Map* map,
+  V8_INLINE SlotCallbackResult EvacuateObject(HeapObjectSlot slot, Map map,
                                               HeapObject* source);
 
-  V8_INLINE bool HandleLargeObject(Map* map, HeapObject* object,
+  V8_INLINE bool HandleLargeObject(Map map, HeapObject* object,
                                    int object_size);
 
   // Different cases for object evacuation.
-  V8_INLINE SlotCallbackResult EvacuateObjectDefault(Map* map,
+  V8_INLINE SlotCallbackResult EvacuateObjectDefault(Map map,
                                                      HeapObjectSlot slot,
                                                      HeapObject* object,
                                                      int object_size);
 
-  inline SlotCallbackResult EvacuateThinString(Map* map, HeapObjectSlot slot,
+  inline SlotCallbackResult EvacuateThinString(Map map, HeapObjectSlot slot,
                                                ThinString* object,
                                                int object_size);
 
-  inline SlotCallbackResult EvacuateShortcutCandidate(Map* map,
+  inline SlotCallbackResult EvacuateShortcutCandidate(Map map,
                                                       HeapObjectSlot slot,
                                                       ConsString* object,
                                                       int object_size);
 
-  void IterateAndScavengePromotedObject(HeapObject* target, Map* map, int size);
+  void IterateAndScavengePromotedObject(HeapObject* target, Map map, int size);
 
   static inline bool ContainsOnlyData(VisitorId visitor_id);
 

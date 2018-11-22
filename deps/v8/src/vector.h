@@ -136,7 +136,9 @@ class Vector {
   }
 
   // Implicit conversion from Vector<T> to Vector<const T>.
-  inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
+  inline operator Vector<const T>() const {
+    return Vector<const T>::cast(*this);
+  }
 
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(nullptr, 0); }
@@ -147,7 +149,7 @@ class Vector {
                      input.length() * sizeof(S) / sizeof(T));
   }
 
-  bool operator==(const Vector<T>& other) const {
+  bool operator==(const Vector<const T> other) const {
     if (length_ != other.length_) return false;
     if (start_ == other.start_) return true;
     for (size_t i = 0; i < length_; ++i) {
@@ -284,6 +286,15 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
 template <typename T, int N>
 inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
   return Vector<T>(arr);
+}
+
+// Construct a Vector from anything providing a {data()} and {size()} accessor.
+template <typename Container,
+          typename T = typename std::remove_reference<
+              decltype(*(std::declval<Container>()).data())>::type,
+          typename = decltype((std::declval<Container>()).size())>
+inline constexpr Vector<T> VectorOf(Container&& c) {
+  return Vector<T>(c.data(), c.size());
 }
 
 }  // namespace internal

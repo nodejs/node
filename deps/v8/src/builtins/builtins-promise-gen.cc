@@ -12,11 +12,13 @@
 #include "src/code-stub-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
 
 using compiler::Node;
+using IteratorRecord = IteratorBuiltinsAssembler::IteratorRecord;
 
 Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const native_context = LoadNativeContext(context);
@@ -37,12 +39,12 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
 void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
   STATIC_ASSERT(v8::Promise::kPending == 0);
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kReactionsOrResultOffset,
-                                 SmiConstant(Smi::kZero));
+                                 SmiConstant(Smi::zero()));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
-                                 SmiConstant(Smi::kZero));
-  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
-    int offset = JSPromise::kSize + i * kPointerSize;
-    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::kZero));
+                                 SmiConstant(Smi::zero()));
+  for (int offset = JSPromise::kSize;
+       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
+    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::zero()));
   }
 }
 
@@ -74,8 +76,8 @@ Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
   STATIC_ASSERT(JSPromise::kStatusShift == 0);
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kFlagsOffset,
                                  SmiConstant(status));
-  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
-    int offset = JSPromise::kSize + i * kPointerSize;
+  for (int offset = JSPromise::kSize;
+       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(instance, offset, SmiConstant(0));
   }
 
@@ -469,7 +471,7 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
   {
     VARIABLE(var_current, MachineRepresentation::kTagged, reactions);
     VARIABLE(var_reversed, MachineRepresentation::kTagged,
-             SmiConstant(Smi::kZero));
+             SmiConstant(Smi::zero()));
 
     Label loop(this, {&var_current, &var_reversed}), done_loop(this);
     Goto(&loop);

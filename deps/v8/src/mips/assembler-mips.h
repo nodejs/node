@@ -44,6 +44,7 @@
 #include "src/external-reference.h"
 #include "src/label.h"
 #include "src/mips/constants-mips.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -403,9 +404,8 @@ class Operand {
   }
   V8_INLINE explicit Operand(const char* s);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value)
-      : rm_(no_reg), rmode_(RelocInfo::NONE) {
-    value_.immediate = reinterpret_cast<intptr_t>(value);
+  V8_INLINE explicit Operand(Smi value) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+    value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
@@ -599,7 +599,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target);
+      Address instruction_payload, Code code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -890,8 +890,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void ll(Register rd, const MemOperand& rs);
   void sc(Register rd, const MemOperand& rs);
-  void llwp(Register rd, Register rt, Register base);
-  void scwp(Register rd, Register rt, Register base);
+  void llx(Register rd, const MemOperand& rs);
+  void scx(Register rd, const MemOperand& rs);
 
   // ---------PC-Relative-instructions-----------
 
@@ -2256,6 +2256,11 @@ class UseScratchRegisterScope {
   RegList* available_;
   RegList old_available_;
 };
+
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(FPURegister, DOUBLE_REGISTERS)
+DEFINE_REGISTER_NAMES(MSARegister, SIMD128_REGISTERS)
 
 }  // namespace internal
 }  // namespace v8

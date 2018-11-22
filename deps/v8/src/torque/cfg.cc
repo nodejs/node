@@ -18,14 +18,22 @@ void Block::SetInputTypes(const Stack<const Type*>& input_types) {
     return;
   }
 
+  DCHECK_EQ(input_types.Size(), input_types_->Size());
   Stack<const Type*> merged_types;
+  bool widened = false;
   auto c2_iterator = input_types.begin();
   for (const Type* c1 : *input_types_) {
     const Type* merged_type = TypeOracle::GetUnionType(c1, *c2_iterator++);
+    if (!merged_type->IsSubtypeOf(c1)) {
+      widened = true;
+    }
     merged_types.Push(merged_type);
   }
   if (merged_types.Size() == input_types_->Size()) {
-    input_types_ = merged_types;
+    if (widened) {
+      input_types_ = merged_types;
+      Retype();
+    }
     return;
   }
 
@@ -139,9 +147,18 @@ void CfgAssembler::Print(std::string s) {
   Emit(PrintConstantStringInstruction{std::move(s)});
 }
 
-void CfgAssembler::Unreachable() { Emit(DebugBreakInstruction{true}); }
+void CfgAssembler::AssertionFailure(std::string message) {
+  Emit(AbortInstruction{AbortInstruction::Kind::kAssertionFailure,
+                        std::move(message)});
+}
 
-void CfgAssembler::DebugBreak() { Emit(DebugBreakInstruction{false}); }
+void CfgAssembler::Unreachable() {
+  Emit(AbortInstruction{AbortInstruction::Kind::kUnreachable});
+}
+
+void CfgAssembler::DebugBreak() {
+  Emit(AbortInstruction{AbortInstruction::Kind::kDebugBreak});
+}
 
 }  // namespace torque
 }  // namespace internal

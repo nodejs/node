@@ -140,6 +140,10 @@ InspectorTest.ContextGroup = class {
     return new InspectorTest.Session(this);
   }
 
+  reset() {
+    utils.resetContextGroup(this.id);
+  }
+
   setupInjectedScriptEnvironment(session) {
     let scriptSource = '';
     let getters = ["length","internalConstructorName","subtype","getProperty",

@@ -27,6 +27,7 @@ SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsOffset)
 ACCESSORS(DebugInfo, script, Object, kScriptOffset)
 ACCESSORS(DebugInfo, original_bytecode_array, Object,
           kOriginalBytecodeArrayOffset)
+ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayOffset)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateOffset)
 ACCESSORS(DebugInfo, coverage_info, Object, kCoverageInfoOffset)
 
@@ -46,7 +47,9 @@ SMI_ACCESSORS(BreakPoint, id, kIdOffset)
 ACCESSORS(BreakPoint, condition, String, kConditionOffset)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  return original_bytecode_array()->IsBytecodeArray();
+  DCHECK_EQ(debug_bytecode_array()->IsBytecodeArray(),
+            original_bytecode_array()->IsBytecodeArray());
+  return debug_bytecode_array()->IsBytecodeArray();
 }
 
 BytecodeArray* DebugInfo::OriginalBytecodeArray() {
@@ -56,7 +59,8 @@ BytecodeArray* DebugInfo::OriginalBytecodeArray() {
 
 BytecodeArray* DebugInfo::DebugBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
-  return shared()->GetDebugBytecodeArray();
+  DCHECK_EQ(shared()->GetDebugBytecodeArray(), debug_bytecode_array());
+  return BytecodeArray::cast(debug_bytecode_array());
 }
 
 }  // namespace internal

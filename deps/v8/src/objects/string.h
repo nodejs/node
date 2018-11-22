@@ -7,6 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/objects/name.h"
+#include "src/objects/smi.h"
 #include "src/unicode-decoder.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -34,7 +35,7 @@ enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };
 class StringShape {
  public:
   inline explicit StringShape(const String* s);
-  inline explicit StringShape(Map* s);
+  inline explicit StringShape(Map s);
   inline explicit StringShape(InstanceType t);
   inline bool IsSequential();
   inline bool IsExternal();

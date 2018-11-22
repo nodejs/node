@@ -6,6 +6,7 @@
 #define V8_ISOLATE_H_
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <queue>
 #include <unordered_map>
@@ -38,11 +39,8 @@
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
-// 'icu' does not work. Use U_ICU_NAMESPACE.
 namespace U_ICU_NAMESPACE {
-
-class RegexMatcher;
-
+class UObject;
 }  // namespace U_ICU_NAMESPACE
 #endif  // V8_INTL_SUPPORT
 
@@ -337,6 +335,11 @@ class WasmEngine;
   inline void set_##name(type v) { name##_ = v; }  \
   inline type name() const { return name##_; }
 
+// Controls for manual embedded blob lifecycle management, used by tests and
+// mksnapshot.
+V8_EXPORT_PRIVATE void DisableEmbeddedBlobRefcounting();
+V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
+
 class ThreadLocalTop {
  public:
   // Does early low-level initialization that does not depend on the
@@ -490,7 +493,8 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
   V(bool, next_v8_call_is_safe_for_termination, false)                        \
-  V(bool, only_terminate_in_safe_scope, false)
+  V(bool, only_terminate_in_safe_scope, false)                                \
+  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
@@ -572,6 +576,9 @@ class Isolate final : private HiddenFactory {
   // Sets default isolate into "has_been_disposed" state rather then destroying,
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
+
+  // Returns allocation mode of this isolate.
+  V8_INLINE IsolateAllocationMode isolate_allocation_mode();
 
   // Page allocator that must be used for allocating V8 heap pages.
   v8::PageAllocator* page_allocator();
@@ -947,7 +954,7 @@ class Isolate final : private HiddenFactory {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name) \
   inline Handle<type> name();                            \
-  inline bool is_##name(type* value);
+  inline bool is_##name(type##ArgType value);
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
@@ -1007,7 +1014,7 @@ class Isolate final : private HiddenFactory {
     return isolate_data()->external_reference_table();
   }
 
-  V8_INLINE Object** builtins_table() { return isolate_data_.builtins(); }
+  V8_INLINE Address* builtins_table() { return isolate_data_.builtins(); }
 
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
@@ -1019,10 +1026,6 @@ class Isolate final : private HiddenFactory {
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
-  }
-
-  ContextSlotCache* context_slot_cache() {
-    return context_slot_cache_;
   }
 
   DescriptorLookupCache* descriptor_lookup_cache() {
@@ -1187,19 +1190,6 @@ class Isolate final : private HiddenFactory {
   }
 
 #ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  icu::RegexMatcher* language_singleton_regexp_matcher() {
-    return language_singleton_regexp_matcher_;
-  }
-
-  icu::RegexMatcher* language_tag_regexp_matcher() {
-    return language_tag_regexp_matcher_;
-  }
-
-  icu::RegexMatcher* language_variant_regexp_matcher() {
-    return language_variant_regexp_matcher_;
-  }
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 
   const std::string& default_locale() { return default_locale_; }
 
@@ -1208,19 +1198,16 @@ class Isolate final : private HiddenFactory {
     default_locale_ = locale;
   }
 
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  void set_language_tag_regexp_matchers(
-      icu::RegexMatcher* language_singleton_regexp_matcher,
-      icu::RegexMatcher* language_tag_regexp_matcher,
-      icu::RegexMatcher* language_variant_regexp_matcher) {
-    DCHECK_NULL(language_singleton_regexp_matcher_);
-    DCHECK_NULL(language_tag_regexp_matcher_);
-    DCHECK_NULL(language_variant_regexp_matcher_);
-    language_singleton_regexp_matcher_ = language_singleton_regexp_matcher;
-    language_tag_regexp_matcher_ = language_tag_regexp_matcher;
-    language_variant_regexp_matcher_ = language_variant_regexp_matcher;
-  }
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
+  // enum to access the icu object cache.
+  enum class ICUObjectCacheType{
+      kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
+      kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
+
+  icu::UObject* get_cached_icu_object(ICUObjectCacheType cache_type);
+  void set_icu_object_in_cache(ICUObjectCacheType cache_type,
+                               std::shared_ptr<icu::UObject> obj);
+  void clear_cached_icu_object(ICUObjectCacheType cache_type);
+
 #endif  // V8_INTL_SUPPORT
 
   static const int kProtectorValid = 1;
@@ -1238,6 +1225,7 @@ class Isolate final : private HiddenFactory {
 
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
+  inline bool IsRegExpSpeciesLookupChainIntact();
   inline bool IsPromiseSpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
@@ -1316,6 +1304,7 @@ class Isolate final : private HiddenFactory {
   void InvalidateArrayConstructorProtector();
   void InvalidateArraySpeciesProtector();
   void InvalidateTypedArraySpeciesProtector();
+  void InvalidateRegExpSpeciesProtector();
   void InvalidatePromiseSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
@@ -1384,7 +1373,7 @@ class Isolate final : private HiddenFactory {
   int GenerateIdentityHash(uint32_t mask);
 
   // Given an address occupied by a live code object, return that object.
-  Code* FindCodeObject(Address a);
+  Code FindCodeObject(Address a);
 
   int NextOptimizationId() {
     int id = next_optimization_id_++;
@@ -1476,19 +1465,11 @@ class Isolate final : private HiddenFactory {
 
   // Off-heap builtins cannot embed constants within the code object itself,
   // and thus need to load them from the root list.
+  // TODO(jgruber): Rename to IsGeneratingEmbeddedBuiltins().
   bool ShouldLoadConstantsFromRootList() const {
-    if (FLAG_embedded_builtins) {
-      return (serializer_enabled() &&
-              builtins_constants_table_builder() != nullptr);
-    } else {
-      return false;
-    }
+    return FLAG_embedded_builtins &&
+           builtins_constants_table_builder() != nullptr;
   }
-
-  // Called only prior to serialization.
-  // This function copies off-heap-safe builtins off the heap, creates off-heap
-  // trampolines, and sets up this isolate's embedded blob.
-  void PrepareEmbeddedBlobForSerialization();
 
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
     return builtins_constants_table_builder_;
@@ -1729,7 +1710,6 @@ class Isolate final : private HiddenFactory {
   int stack_trace_for_uncaught_exceptions_frame_limit_ = 0;
   StackTrace::StackTraceOptions stack_trace_for_uncaught_exceptions_options_ =
       StackTrace::kOverview;
-  ContextSlotCache* context_slot_cache_ = nullptr;
   DescriptorLookupCache* descriptor_lookup_cache_ = nullptr;
   HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_ = nullptr;
@@ -1763,12 +1743,17 @@ class Isolate final : private HiddenFactory {
   double load_start_time_ms_ = 0;
 
 #ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  icu::RegexMatcher* language_singleton_regexp_matcher_ = nullptr;
-  icu::RegexMatcher* language_tag_regexp_matcher_ = nullptr;
-  icu::RegexMatcher* language_variant_regexp_matcher_ = nullptr;
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   std::string default_locale_;
+
+  struct ICUObjectCacheTypeHash {
+    std::size_t operator()(ICUObjectCacheType a) const {
+      return static_cast<std::size_t>(a);
+    }
+  };
+  std::unordered_map<ICUObjectCacheType, std::shared_ptr<icu::UObject>,
+                     ICUObjectCacheTypeHash>
+      icu_object_cache_;
+
 #endif  // V8_INTL_SUPPORT
 
   // Whether the isolate has been created for snapshotting.
@@ -1832,7 +1817,7 @@ class Isolate final : private HiddenFactory {
   // This class is huge and has a number of fields controlled by
   // preprocessor defines. Make sure the offsets of these fields agree
   // between compilation units.
-#define ISOLATE_FIELD_OFFSET(type, name, ignored)                              \
+#define ISOLATE_FIELD_OFFSET(type, name, ignored) \
   static const intptr_t name##_debug_offset_;
   ISOLATE_INIT_LIST(ISOLATE_FIELD_OFFSET)
   ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
@@ -1872,7 +1857,12 @@ class Isolate final : private HiddenFactory {
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
 
+  void InitializeDefaultEmbeddedBlob();
+  void CreateAndSetEmbeddedBlob();
+  void TearDownEmbeddedBlob();
+
   void SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size);
+  void ClearEmbeddedBlob();
 
   const uint8_t* embedded_blob_ = nullptr;
   uint32_t embedded_blob_size_ = 0;

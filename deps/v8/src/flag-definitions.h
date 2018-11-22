@@ -189,21 +189,22 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_public_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_static_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
+DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
+
 // Update bootstrapper.cc whenever adding a new feature flag.
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS_BASE(V)                                 \
-  V(harmony_do_expressions, "harmony do-expressions")              \
-  V(harmony_class_fields, "harmony fields in class literals")      \
-  V(harmony_await_optimization, "harmony await taking 1 tick")     \
-  V(harmony_regexp_sequence, "RegExp Unicode sequence properties") \
+#define HARMONY_INPROGRESS_BASE(V)                                        \
+  V(harmony_class_fields, "harmony fields in class literals")             \
+  V(harmony_await_optimization, "harmony await taking 1 tick")            \
+  V(harmony_private_methods, "harmony private methods in class literals") \
+  V(harmony_regexp_sequence, "RegExp Unicode sequence properties")        \
   V(harmony_weak_refs, "harmony weak references")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                    \
-  HARMONY_INPROGRESS_BASE(V)                     \
-  V(harmony_locale, "Intl.Locale")               \
-  V(harmony_intl_list_format, "Intl.ListFormat")
+#define HARMONY_INPROGRESS(V) \
+  HARMONY_INPROGRESS_BASE(V)  \
+  V(harmony_locale, "Intl.Locale")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
@@ -215,8 +216,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_string_matchall, "harmony String.prototype.matchAll")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V) \
-  HARMONY_STAGED_BASE(V)  \
+#define HARMONY_STAGED(V)                        \
+  HARMONY_STAGED_BASE(V)                         \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -238,8 +239,9 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_static_fields, "harmony static fields in class literals")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) \
-  HARMONY_SHIPPING_BASE(V)  \
+#define HARMONY_SHIPPING(V)                      \
+  HARMONY_SHIPPING_BASE(V)                       \
+  V(harmony_intl_list_format, "Intl.ListFormat") \
   V(harmony_intl_relative_time_format, "Intl.RelativeTimeFormat")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
@@ -389,7 +391,6 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_IMPLICATION(future, concurrent_inlining)
-DEFINE_BOOL(strict_heap_broker, true, "fail on incomplete serialization")
 DEFINE_BOOL(trace_heap_broker, false, "trace the heap broker")
 
 // Flags for stress-testing the compiler.
@@ -440,6 +441,9 @@ DEFINE_BOOL(trace_verify_csa, false, "trace code stubs verification")
 DEFINE_STRING(csa_trap_on_node, nullptr,
               "trigger break point when a node with given id is created in "
               "given stub. The format is: StubName,NodeId")
+DEFINE_BOOL_READONLY(optimize_csa, true,
+                     "run the optimizing Turbofan backend in the CSA pipeline")
+DEFINE_NEG_IMPLICATION(optimize_csa, turbo_rewrite_far_jumps)
 DEFINE_BOOL_READONLY(fixed_array_bounds_checks, DEBUG_BOOL,
                      "enable FixedArray bounds checks")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
@@ -493,6 +497,7 @@ DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
 DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
 DEFINE_BOOL(turbo_loop_peeling, true, "Turbofan loop peeling")
 DEFINE_BOOL(turbo_loop_variable, true, "Turbofan loop variable optimization")
+DEFINE_BOOL(turbo_loop_rotation, true, "Turbofan loop rotation")
 DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
 DEFINE_BOOL(turbo_escape, true, "enable escape analysis")
 DEFINE_BOOL(turbo_allocation_folding, true, "Turbofan allocation folding")
@@ -975,6 +980,8 @@ DEFINE_VALUE_IMPLICATION(trace_ic, ic_stats, 1)
 DEFINE_BOOL_READONLY(track_constant_fields, false,
                      "enable constant field tracking")
 DEFINE_BOOL_READONLY(modify_map_inplace, false, "enable in-place map updates")
+DEFINE_BOOL_READONLY(fast_map_update, false,
+                     "enable fast map update by caching the migration target")
 
 // macro-assembler-ia32.cc
 DEFINE_BOOL(native_code_counters, false,
@@ -1063,16 +1070,20 @@ DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
 #endif
 DEFINE_BOOL_READONLY(embedded_builtins, V8_EMBEDDED_BUILTINS_BOOL,
                      "Embed builtin code into the binary.")
-// TODO(jgruber,v8:6666): Remove once ia32 has full embedded builtin support.
-DEFINE_BOOL_READONLY(
-    ia32_verify_root_register, false,
-    "Check that the value of the root register was not clobbered.")
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 DEFINE_BOOL(serialization_statistics, false,
             "Collect statistics on serialized objects.")
 DEFINE_UINT(serialization_chunk_size, 4096,
             "Custom size for serialization chunks")
+
+// JIT-less V8. Design doc: goo.gl/kRnhVe
+#ifdef V8_JITLESS_MODE
+DEFINE_BOOL(jitless, false, "Disable runtime allocation of executable memory.")
+#else
+DEFINE_BOOL_READONLY(jitless, false,
+                     "Disable runtime allocation of executable memory.")
+#endif
 
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
@@ -1294,6 +1305,9 @@ DEFINE_IMPLICATION(perf_basic_prof_only_functions, perf_basic_prof)
 DEFINE_BOOL(perf_prof, false,
             "Enable perf linux profiler (experimental annotate support).")
 DEFINE_NEG_IMPLICATION(perf_prof, compact_code_space)
+// TODO(v8:8462) Remove implication once perf supports remapping.
+DEFINE_NEG_IMPLICATION(perf_prof, write_protect_code_memory)
+DEFINE_NEG_IMPLICATION(perf_prof, wasm_write_protect_code_memory)
 DEFINE_BOOL(perf_prof_unwinding_info, false,
             "Enable unwinding info for perf linux profiler (experimental).")
 DEFINE_IMPLICATION(perf_prof, perf_prof_unwinding_info)

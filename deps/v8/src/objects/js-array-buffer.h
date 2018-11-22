@@ -124,7 +124,7 @@ class JSArrayBuffer : public JSObject {
   static const int kSize = kBitFieldSlot + kPointerSize;
 
   static const int kSizeWithEmbedderFields =
-      kSize + v8::ArrayBuffer::kEmbedderFieldCount * kPointerSize;
+      kSize + v8::ArrayBuffer::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
   // Iterates all fields in the object including internal ones except
   // kBackingStoreOffset and kBitFieldSlot.
@@ -196,7 +196,7 @@ class JSTypedArray : public JSArrayBufferView {
   static const int kLengthOffset = JSArrayBufferView::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
   static const int kSizeWithEmbedderFields =
-      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
+      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
@@ -218,7 +218,7 @@ class JSDataView : public JSArrayBufferView {
 
   static const int kSize = JSArrayBufferView::kHeaderSize;
   static const int kSizeWithEmbedderFields =
-      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
+      kSize + v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);

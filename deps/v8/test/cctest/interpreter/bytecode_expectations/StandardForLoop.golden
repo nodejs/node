@@ -220,12 +220,11 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 68
+bytecode array length: 64
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(4),
-                B(Mov), R(4), R(3),
-                B(Ldar), R(3),
+                B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(Star), R(3),
                 B(JumpIfUndefined), U8(6),
                 B(Ldar), R(3),
                 B(JumpIfNotNull), U8(16),

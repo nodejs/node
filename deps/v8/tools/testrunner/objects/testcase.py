@@ -135,7 +135,8 @@ class TestCase(object):
 
   @property
   def do_skip(self):
-    return statusfile.SKIP in self._statusfile_outcomes
+    return (statusfile.SKIP in self._statusfile_outcomes and
+            not self.suite.test_config.run_skipped)
 
   @property
   def is_slow(self):

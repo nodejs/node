@@ -205,8 +205,8 @@ void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
   }
 }
 
-void CallPrinter::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* node) {
+void CallPrinter::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* node) {
   for (int i = 0; i < node->fields()->length(); i++) {
     Find(node->fields()->at(i)->value());
   }
@@ -778,7 +778,7 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
     if (program->raw_inferred_name()) {
       PrintLiteralIndented("INFERRED NAME", program->raw_inferred_name(), true);
     }
-    if (program->requires_instance_fields_initializer()) {
+    if (program->requires_instance_members_initializer()) {
       Print(" REQUIRES INSTANCE FIELDS INITIALIZER\n");
     }
     PrintParameters(program->scope());
@@ -1036,16 +1036,16 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
     PrintIndentedVisit("STATIC FIELDS INITIALIZER",
                        node->static_fields_initializer());
   }
-  if (node->instance_fields_initializer_function() != nullptr) {
-    PrintIndentedVisit("INSTANCE FIELDS INITIALIZER",
-                       node->instance_fields_initializer_function());
+  if (node->instance_members_initializer_function() != nullptr) {
+    PrintIndentedVisit("INSTANCE ELEMENTS INITIALIZER",
+                       node->instance_members_initializer_function());
   }
   PrintClassProperties(node->properties());
 }
 
-void AstPrinter::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* node) {
-  IndentedScope indent(this, "INITIALIZE CLASS FIELDS", node->position());
+void AstPrinter::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* node) {
+  IndentedScope indent(this, "INITIALIZE CLASS ELEMENTS", node->position());
   PrintClassProperties(node->fields());
 }
 
@@ -1070,7 +1070,7 @@ void AstPrinter::PrintClassProperties(
     }
     EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY%s%s - %s", property->is_static() ? " - STATIC" : "",
-             property->is_private() ? "- PRIVATE" : "- PUBLIC", prop_kind);
+             property->is_private() ? " - PRIVATE" : " - PUBLIC", prop_kind);
     IndentedScope prop(this, buf.start());
     PrintIndentedVisit("KEY", properties->at(i)->key());
     PrintIndentedVisit("VALUE", properties->at(i)->value());

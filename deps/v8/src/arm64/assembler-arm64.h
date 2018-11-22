@@ -1011,7 +1011,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(Address location,
-                                                           Code* code,
+                                                           Code code,
                                                            Address target);
 
   // Get the size of the special target encoded at 'location'.
@@ -3644,6 +3644,9 @@ class EnsureSpace {
     assembler->CheckBufferSpace();
   }
 };
+
+// Define a {RegisterName} method for {CPURegister}.
+DEFINE_REGISTER_NAMES(CPURegister, GENERAL_REGISTERS);
 
 }  // namespace internal
 }  // namespace v8

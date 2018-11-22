@@ -912,7 +912,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
-              TABLE_INDEX(0), WASM_INIT_EXPR_I32V_1(0),
+              TABLE_INDEX0, WASM_INIT_EXPR_I32V_1(0),
               1,     // elements count
               0x9A)  // invalid I32V as function index
   };
@@ -931,7 +931,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
-              TABLE_INDEX(0), WASM_INIT_EXPR_I32V_1(0),
+              TABLE_INDEX0, WASM_INIT_EXPR_I32V_1(0),
               1,  // elements count
               FUNC_INDEX(0))};
 
@@ -957,7 +957,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       // table elements ----------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(1),  // entry count
-              TABLE_INDEX(0), WASM_INIT_EXPR_I32V_1(0),
+              TABLE_INDEX0, WASM_INIT_EXPR_I32V_1(0),
               ADD_COUNT(FUNC_INDEX(0), FUNC_INDEX(1), FUNC_INDEX(2),
                         FUNC_INDEX(3), FUNC_INDEX(0), FUNC_INDEX(1),
                         FUNC_INDEX(2), FUNC_INDEX(3))),
@@ -975,6 +975,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
   // Test that if we have multiple tables, in the element section we can target
   // and initialize all tables.
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -987,7 +988,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
-              TABLE_INDEX(0),            // element for table 0
+              TABLE_INDEX0,              // element for table 0
               WASM_INIT_EXPR_I32V_1(0),  // index
               1,                         // elements count
               FUNC_INDEX(0),             // function
@@ -1005,6 +1006,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
   // Test that if we have multiple tables, both imported and module-defined, in
   // the element section we can target and initialize all tables.
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -1031,7 +1033,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
       // elements ------------------------------------------------------------
       SECTION(Element,
               4,                          // entry count
-              TABLE_INDEX(0),             // element for table 0
+              TABLE_INDEX0,               // element for table 0
               WASM_INIT_EXPR_I32V_1(0),   // index
               1,                          // elements count
               FUNC_INDEX(0),              // function
@@ -1058,6 +1060,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
   // Test that the order in which tables are targeted in the element secion
   // can be arbitrary.
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -1070,7 +1073,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(3),            // entry count
-              TABLE_INDEX(0),            // element for table 1
+              TABLE_INDEX0,              // element for table 1
               WASM_INIT_EXPR_I32V_1(0),  // index
               1,                         // elements count
               FUNC_INDEX(0),             // function
@@ -1079,7 +1082,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
               2,                         // elements count
               FUNC_INDEX(0),             // entry 0
               FUNC_INDEX(0),             // entry 1
-              TABLE_INDEX(0),            // element for table 1
+              TABLE_INDEX0,              // element for table 1
               WASM_INIT_EXPR_I32V_1(3),  // index
               1,                         // elements count
               FUNC_INDEX(0)),            // function
@@ -1092,6 +1095,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
   // Test that the order in which tables are targeted in the element secion can
   // be arbitrary. In this test, tables can be both imported and module-defined.
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -1127,7 +1131,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
               2,                          // elements count
               FUNC_INDEX(0),              // entry 0
               FUNC_INDEX(0),              // entry 1
-              TABLE_INDEX(0),             // element for table 2
+              TABLE_INDEX0,               // element for table 2
               WASM_INIT_EXPR_I32V_1(2),   // index
               1,                          // elements count
               FUNC_INDEX(0),              // function
@@ -1145,6 +1149,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
   // Test that tables of type 'AnyRef' cannot be initialized by the element
   // section.
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -1157,7 +1162,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(2),            // entry count
-              TABLE_INDEX(0),            // element for table 0
+              TABLE_INDEX0,              // element for table 0
               WASM_INIT_EXPR_I32V_1(0),  // index
               1,                         // elements count
               FUNC_INDEX(0),             // function
@@ -1175,6 +1180,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
   // Test that imported tables of type AnyRef cannot be initialized in the
   // elements section.
   WASM_FEATURE_SCOPE(anyref);
+  WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
       // sig#0 ---------------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
@@ -1201,7 +1207,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
       // elements ------------------------------------------------------------
       SECTION(Element,
               ENTRY_COUNT(4),             // entry count
-              TABLE_INDEX(0),             // element for table 0
+              TABLE_INDEX0,               // element for table 0
               WASM_INIT_EXPR_I32V_1(10),  // index
               1,                          // elements count
               FUNC_INDEX(0),              // function
@@ -2199,6 +2205,37 @@ TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(3u, result.value()->name.length());
+}
+
+TEST_F(WasmModuleVerifyTest, PassiveDataSegment) {
+  static const byte data[] = {
+      // memory declaration ----------------------------------------------------
+      SECTION(Memory, ENTRY_COUNT(1), 0, 1),
+      // data segments  --------------------------------------------------------
+      SECTION(Data, ENTRY_COUNT(1), PASSIVE, ADD_COUNT('h', 'i')),
+  };
+  EXPECT_FAILURE(data);
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(data);
+  EXPECT_OFF_END_FAILURE(data, arraysize(data) - 5);
+}
+
+TEST_F(WasmModuleVerifyTest, PassiveElementSegment) {
+  static const byte data[] = {
+      // sig#0 -----------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs -----------------------------------------------------------------
+      ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
+      // table declaration -----------------------------------------------------
+      SECTION(Table, ENTRY_COUNT(1), kLocalAnyFunc, 0, 1),
+      // element segments  -----------------------------------------------------
+      SECTION(Element, ENTRY_COUNT(1), PASSIVE,
+              ADD_COUNT(FUNC_INDEX(0), FUNC_INDEX(0))),
+  };
+  EXPECT_FAILURE(data);
+  WASM_FEATURE_SCOPE(bulk_memory);
+  EXPECT_VERIFIES(data);
+  EXPECT_OFF_END_FAILURE(data, arraysize(data) - 5);
 }
 
 #undef WASM_FEATURE_SCOPE

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/constant-pool.h"
-#include "src/assembler-arch-inl.h"
+#include "src/assembler-inl.h"
 
 namespace v8 {
 namespace internal {

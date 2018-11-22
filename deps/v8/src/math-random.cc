@@ -9,6 +9,7 @@
 #include "src/contexts-inl.h"
 #include "src/isolate.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -25,12 +26,12 @@ void MathRandom::InitializeContext(Isolate* isolate,
 }
 
 void MathRandom::ResetContext(Context* native_context) {
-  native_context->set_math_random_index(Smi::kZero);
+  native_context->set_math_random_index(Smi::zero());
   State state = {0, 0};
   PodArray<State>::cast(native_context->math_random_state())->set(0, state);
 }
 
-Smi* MathRandom::RefillCache(Isolate* isolate, Context* native_context) {
+Address MathRandom::RefillCache(Isolate* isolate, Context* native_context) {
   DisallowHeapAllocation no_gc;
   PodArray<State>* pod =
       PodArray<State>::cast(native_context->math_random_state());
@@ -61,9 +62,9 @@ Smi* MathRandom::RefillCache(Isolate* isolate, Context* native_context) {
   }
   pod->set(0, state);
 
-  Smi* new_index = Smi::FromInt(kCacheSize);
+  Smi new_index = Smi::FromInt(kCacheSize);
   native_context->set_math_random_index(new_index);
-  return new_index;
+  return new_index.ptr();
 }
 
 }  // namespace internal

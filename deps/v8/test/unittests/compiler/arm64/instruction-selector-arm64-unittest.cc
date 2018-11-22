@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/objects-inl.h"
-#include "test/unittests/compiler/instruction-selector-unittest.h"
+#include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
 namespace v8 {
 namespace internal {

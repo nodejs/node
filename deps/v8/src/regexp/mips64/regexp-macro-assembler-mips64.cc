@@ -25,7 +25,7 @@ namespace internal {
  * This assembler uses the following register assignment convention
  * - t3 : Temporarily stores the index of capture start after a matching pass
  *        for a global regexp.
- * - a5 : Pointer to current code object (Code*) including heap object tag.
+ * - a5 : Pointer to current Code object including heap object tag.
  * - a6 : Current position in input, as negative offset from end of string.
  *        Please notice that this is the byte offset, not the character offset!
  * - a7 : Currently loaded character. Must be loaded using
@@ -193,7 +193,7 @@ void RegExpMacroAssemblerMIPS::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerMIPS::Backtrack() {
   CheckPreemption();
-  // Pop Code* offset from backtrack stack, add Code* and jump to location.
+  // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(a0);
   __ Daddu(a0, a0, code_pointer());
   __ Jump(a0);
@@ -1135,7 +1135,7 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   __ Sd(scratch, MemOperand(sp));
 
   __ mov(a2, frame_pointer());
-  // Code* of self.
+  // Code of self.
   __ li(a1, Operand(masm_->CodeObject()), CONSTANT_SIZE);
 
   // We need to make room for the return address on the stack.
@@ -1190,10 +1190,10 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
   return reinterpret_cast<T*>(re_frame + frame_offset);
 }
 
-
 int64_t RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
-                                                       Code* re_code,
+                                                       Address raw_code,
                                                        Address re_frame) {
+  Code re_code = Code::cast(ObjectPtr(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndex)),

@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/task-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -231,7 +232,7 @@ void CompilerDispatcher::ScheduleIdleTaskFromAnyThread(
   if (idle_task_scheduled_) return;
 
   idle_task_scheduled_ = true;
-  taskrunner_->PostIdleTask(MakeCancelableIdleLambdaTask(
+  taskrunner_->PostIdleTask(MakeCancelableIdleTask(
       task_manager_.get(),
       [this](double deadline_in_seconds) { DoIdleWork(deadline_in_seconds); }));
 }
@@ -247,8 +248,8 @@ void CompilerDispatcher::ScheduleMoreWorkerTasksIfNeeded() {
     }
     ++num_worker_tasks_;
   }
-  platform_->CallOnWorkerThread(MakeCancelableLambdaTask(
-      task_manager_.get(), [this] { DoBackgroundWork(); }));
+  platform_->CallOnWorkerThread(
+      MakeCancelableTask(task_manager_.get(), [this] { DoBackgroundWork(); }));
 }
 
 void CompilerDispatcher::DoBackgroundWork() {

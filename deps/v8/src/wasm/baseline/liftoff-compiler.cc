@@ -11,6 +11,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
+#include "src/objects/smi.h"
 #include "src/tracing/trace-event.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -103,8 +104,15 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
                            : call_desc;
 }
 
-constexpr ValueType kTypesArr_ilfd[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64};
-constexpr Vector<const ValueType> kTypes_ilfd = ArrayVector(kTypesArr_ilfd);
+// TODO(arm): Add support for F32 registers. Fix arm32 FP registers alias.
+#if V8_TARGET_ARCH_ARM
+constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF64};
+#else
+constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
+                                            kWasmF64};
+#endif
+constexpr Vector<const ValueType> kSupportedTypes =
+    ArrayVector(kSupportedTypesArr);
 
 class LiftoffCompiler {
  public:
@@ -233,33 +241,6 @@ class LiftoffCompiler {
     }
   }
 
-  void CollectReservedRegsForParameters(uint32_t input_idx_start,
-                                        uint32_t num_params,
-                                        LiftoffRegList& param_regs) {
-    uint32_t input_idx = input_idx_start;
-    for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
-      ValueType type = __ local_type(param_idx);
-      const int num_lowered_params = 1 + needs_reg_pair(type);
-      RegClass rc = num_lowered_params == 1 ? reg_class_for(type) : kGpReg;
-
-      for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
-        compiler::LinkageLocation param_loc =
-            descriptor_->GetInputLocation(input_idx + pair_idx);
-        if (param_loc.IsRegister()) {
-          DCHECK(!param_loc.IsAnyRegister());
-          int reg_code = param_loc.AsRegister();
-          RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
-                                            : kLiftoffAssemblerFpCacheRegs;
-          if (cache_regs & (1ULL << reg_code)) {
-            LiftoffRegister in_reg = LiftoffRegister::from_code(rc, reg_code);
-            param_regs.set(in_reg);
-          }
-        }
-      }
-      input_idx += num_lowered_params;
-    }
-  }
-
   // Returns the number of inputs processed (1 or 2).
   uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
     const int num_lowered_params = 1 + needs_reg_pair(type);
@@ -319,7 +300,8 @@ class LiftoffCompiler {
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
+      if (!CheckSupportedType(decoder, kSupportedTypes, __ local_type(i),
+                              "param"))
         return;
     }
 
@@ -1187,7 +1169,7 @@ class LiftoffCompiler {
   void GetGlobal(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
+    if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))
       return;
     LiftoffRegList pinned;
     uint32_t offset = 0;
@@ -1202,7 +1184,7 @@ class LiftoffCompiler {
   void SetGlobal(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
-    if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
+    if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))
       return;
     LiftoffRegList pinned;
     uint32_t offset = 0;
@@ -1473,8 +1455,9 @@ class LiftoffCompiler {
       stack_slots.Construct();
     }
 
-    // Set context to zero (Smi::kZero) for the runtime call.
-    __ TurboAssembler::Move(kContextRegister, Smi::kZero);
+    // Set context to "no context" for the runtime call.
+    __ TurboAssembler::Move(kContextRegister,
+                            Smi::FromInt(Context::kNoContext));
     Register centry = kJavaScriptCallCodeStartRegister;
     LOAD_INSTANCE_FIELD(centry, CEntryStub, kPointerSize);
     __ CallRuntimeWithCEntry(runtime_function, centry);
@@ -1508,7 +1491,8 @@ class LiftoffCompiler {
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "load")) return;
+    if (!CheckSupportedType(decoder, kSupportedTypes, value_type, "load"))
+      return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister()).gp();
     if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned)) {
@@ -1540,7 +1524,8 @@ class LiftoffCompiler {
                 const MemoryAccessImmediate<validate>& imm,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "store")) return;
+    if (!CheckSupportedType(decoder, kSupportedTypes, value_type, "store"))
+      return;
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     Register index = pinned.set(__ PopToRegister(pinned)).gp();
@@ -1613,7 +1598,7 @@ class LiftoffCompiler {
     if (imm.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilfd, imm.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
                             "return"))
       return;
 
@@ -1678,7 +1663,7 @@ class LiftoffCompiler {
       return unsupported(decoder, "multi-return");
     }
     if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilfd, imm.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
                             "return")) {
       return;
     }
@@ -1832,6 +1817,37 @@ class LiftoffCompiler {
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
     unsupported(decoder, "atomicop");
   }
+  void MemoryInit(FullDecoder* decoder,
+                  const MemoryInitImmediate<validate>& imm,
+                  Vector<Value> args) {
+    unsupported(decoder, "memory.init");
+  }
+  void MemoryDrop(FullDecoder* decoder,
+                  const MemoryDropImmediate<validate>& imm) {
+    unsupported(decoder, "memory.drop");
+  }
+  void MemoryCopy(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    unsupported(decoder, "memory.copy");
+  }
+  void MemoryFill(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    unsupported(decoder, "memory.fill");
+  }
+  void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
+                 Vector<Value> args) {
+    unsupported(decoder, "table.init");
+  }
+  void TableDrop(FullDecoder* decoder,
+                 const TableDropImmediate<validate>& imm) {
+    unsupported(decoder, "table.drop");
+  }
+  void TableCopy(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Vector<Value> args) {
+    unsupported(decoder, "table.copy");
+  }
 
  private:
   LiftoffAssembler asm_;
@@ -1873,6 +1889,7 @@ class LiftoffCompiler {
 }  // namespace
 
 bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
+                                                const FunctionBody& func_body,
                                                 Counters* counters,
                                                 WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
@@ -1884,13 +1901,12 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
 
   Zone zone(wasm_unit_->wasm_engine_->allocator(), "LiftoffCompilationZone");
   const WasmModule* module = env ? env->module : nullptr;
-  auto call_descriptor =
-      compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
+  auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters->liftoff_compile_time());
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, module, wasm_unit_->native_module_->enabled_features(), detected,
-      wasm_unit_->func_body_, call_descriptor, env, &zone);
+      func_body, call_descriptor, env, &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
@@ -1908,9 +1924,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
     PrintF(
         "wasm-compilation liftoff phase 1 ok: %u bytes, %0.3f ms decode and "
         "compile\n",
-        static_cast<unsigned>(wasm_unit_->func_body_.end -
-                              wasm_unit_->func_body_.start),
-        compile_ms);
+        static_cast<unsigned>(func_body.end - func_body.start), compile_ms);
   }
 
   CodeDesc desc;
@@ -1924,7 +1938,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
   WasmCode* code = wasm_unit_->native_module_->AddCode(
       wasm_unit_->func_index_, desc, frame_slot_count, safepoint_table_offset,
       0, std::move(protected_instructions), std::move(source_positions),
-      WasmCode::kLiftoff);
+      WasmCode::kFunction, WasmCode::kLiftoff);
   wasm_unit_->SetResult(code, counters);
 
   return true;

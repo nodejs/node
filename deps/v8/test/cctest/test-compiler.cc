@@ -31,6 +31,7 @@
 #include "src/v8.h"
 
 #include "src/api-inl.h"
+#include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/disasm.h"
 #include "src/heap/factory.h"
@@ -840,6 +841,74 @@ TEST(DeepEagerCompilation) {
     v8::Local<v8::Value> result = script->Run(env.local()).ToLocalChecked();
     CHECK_EQ(32, result->Int32Value(env.local()).FromJust());
   }
+}
+
+TEST(DeepEagerCompilationPeakMemory) {
+  i::FLAG_always_opt = false;
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::String> source = v8_str(
+      "function f() {"
+      "  function g1() {"
+      "    function h1() {"
+      "      function i1() {}"
+      "      function i2() {}"
+      "    }"
+      "    function h2() {"
+      "      function i1() {}"
+      "      function i2() {}"
+      "    }"
+      "  }"
+      "  function g2() {"
+      "    function h1() {"
+      "      function i1() {}"
+      "      function i2() {}"
+      "    }"
+      "    function h2() {"
+      "      function i1() {}"
+      "      function i2() {}"
+      "    }"
+      "  }"
+      "}");
+  v8::ScriptCompiler::Source script_source(source);
+  CcTest::i_isolate()->compilation_cache()->Disable();
+
+  v8::HeapStatistics heap_statistics;
+  CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+  size_t peak_mem_1 = heap_statistics.peak_malloced_memory();
+  printf("peak memory after init:          %8zu\n", peak_mem_1);
+
+  v8::ScriptCompiler::Compile(env.local(), &script_source,
+                              v8::ScriptCompiler::kNoCompileOptions)
+      .ToLocalChecked();
+
+  CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+  size_t peak_mem_2 = heap_statistics.peak_malloced_memory();
+  printf("peak memory after lazy compile:  %8zu\n", peak_mem_2);
+
+  v8::ScriptCompiler::Compile(env.local(), &script_source,
+                              v8::ScriptCompiler::kNoCompileOptions)
+      .ToLocalChecked();
+
+  CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+  size_t peak_mem_3 = heap_statistics.peak_malloced_memory();
+  printf("peak memory after lazy compile:  %8zu\n", peak_mem_3);
+
+  v8::ScriptCompiler::Compile(env.local(), &script_source,
+                              v8::ScriptCompiler::kEagerCompile)
+      .ToLocalChecked();
+
+  CcTest::isolate()->GetHeapStatistics(&heap_statistics);
+  size_t peak_mem_4 = heap_statistics.peak_malloced_memory();
+  printf("peak memory after eager compile: %8zu\n", peak_mem_4);
+
+  CHECK_LE(peak_mem_1, peak_mem_2);
+  CHECK_EQ(peak_mem_2, peak_mem_3);
+  CHECK_LE(peak_mem_3, peak_mem_4);
+  // Check that eager compilation does not cause significantly higher (+100%)
+  // peak memory than lazy compilation.
+  CHECK_LE(peak_mem_4 - peak_mem_3, peak_mem_3);
 }
 
 }  // namespace internal

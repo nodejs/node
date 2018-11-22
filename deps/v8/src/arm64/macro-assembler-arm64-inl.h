@@ -1172,7 +1172,7 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   Push(padreg, tmp);
 }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
   Mov(tmp, Operand(smi));

@@ -230,8 +230,7 @@ bool LayoutDescriptorHelper::IsTagged(
   return tagged;
 }
 
-
-LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
+LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map map,
                                          DescriptorArray* descriptors,
                                          int num_descriptors) {
   DisallowHeapAllocation no_allocation;
@@ -261,8 +260,7 @@ LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
   return layout_descriptor;
 }
 
-
-bool LayoutDescriptor::IsConsistentWithMap(Map* map, bool check_tail) {
+bool LayoutDescriptor::IsConsistentWithMap(Map map, bool check_tail) {
   if (FLAG_unbox_double_fields) {
     DescriptorArray* descriptors = map->instance_descriptors();
     int nof_descriptors = map->NumberOfOwnDescriptors();

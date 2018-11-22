@@ -51,13 +51,14 @@ class TurbofanWasmCompilationUnit {
   ~TurbofanWasmCompilationUnit();
 
   bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
+                                 const wasm::FunctionBody& func_body,
                                  wasm::WasmFeatures* detected,
                                  double* decode_ms, MachineGraph* mcgraph,
                                  NodeOriginTable* node_origins,
                                  SourcePositionTable* source_positions);
 
-  void ExecuteCompilation(wasm::CompilationEnv*, Counters*,
-                          wasm::WasmFeatures* detected);
+  void ExecuteCompilation(wasm::CompilationEnv*, const wasm::FunctionBody&,
+                          Counters*, wasm::WasmFeatures* detected);
 
  private:
   wasm::WasmCompilationUnit* const wasm_unit_;
@@ -83,9 +84,10 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
                                          wasm::FunctionSig* sig);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
-MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate*, WasmImportCallKind,
-                                               wasm::FunctionSig*,
-                                               bool source_positions);
+wasm::WasmCode* CompileWasmImportCallWrapper(Isolate*, wasm::NativeModule*,
+                                             WasmImportCallKind,
+                                             wasm::FunctionSig*,
+                                             bool source_positions);
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
@@ -95,8 +97,9 @@ V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(Isolate*,
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
-MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
-                                              wasm::FunctionSig*);
+wasm::WasmCode* CompileWasmInterpreterEntry(Isolate*, wasm::NativeModule*,
+                                            uint32_t func_index,
+                                            wasm::FunctionSig*);
 
 enum CWasmEntryParameters {
   kCodeEntry,

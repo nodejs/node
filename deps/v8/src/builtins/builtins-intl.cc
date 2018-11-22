@@ -12,6 +12,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/counters.h"
 #include "src/date.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
@@ -27,6 +28,7 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
+#include "src/objects/smi.h"
 #include "src/property-descriptor.h"
 
 #include "unicode/brkiter.h"
@@ -406,13 +408,17 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
   // Spec treats -0 as 0.
   if (number_obj->IsMinusZero()) {
-    number_obj = Handle<Smi>(Smi::kZero, isolate);
+    number_obj = Handle<Smi>(Smi::zero(), isolate);
   }
 
   double number = number_obj->Number();
+  icu::NumberFormat* icu_number_format =
+      number_format->icu_number_format()->raw();
+  CHECK_NOT_NULL(icu_number_format);
+
   // Return FormatNumber(nf, x).
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSNumberFormat::FormatNumber(isolate, number_format, number));
+  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::FormatNumber(
+                                        isolate, *icu_number_format, number));
 }
 
 BUILTIN(DateTimeFormatConstructor) {
@@ -884,7 +890,7 @@ BUILTIN(CollatorInternalCompare) {
   // 1. Let collator be F.[[Collator]].
   // 2. Assert: Type(collator) is Object and collator has an
   // [[InitializedCollator]] internal slot.
-  Handle<JSCollator> collator_holder = Handle<JSCollator>(
+  Handle<JSCollator> collator = Handle<JSCollator>(
       JSCollator::cast(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
@@ -904,7 +910,9 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  CHECK_NOT_NULL(icu_collator);
+  return *Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
 }
 
 // ecma402 #sec-segment-iterator-prototype-breakType

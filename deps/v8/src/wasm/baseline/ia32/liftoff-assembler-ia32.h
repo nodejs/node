@@ -777,9 +777,10 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
   liftoff::SpillRegisters(this, dst_hi, dst_lo, lhs_hi, rhs_lo);
 
   // Move lhs and rhs into the respective registers.
-  ParallelRegisterMove(
-      {{LiftoffRegister::ForPair(lhs_lo, lhs_hi), lhs, kWasmI64},
-       {LiftoffRegister::ForPair(rhs_lo, rhs_hi), rhs, kWasmI64}});
+  ParallelRegisterMoveTuple reg_moves[]{
+      {LiftoffRegister::ForPair(lhs_lo, lhs_hi), lhs, kWasmI64},
+      {LiftoffRegister::ForPair(rhs_lo, rhs_hi), rhs, kWasmI64}};
+  ParallelRegisterMove(ArrayVector(reg_moves));
 
   // First mul: lhs_hi' = lhs_hi * rhs_lo.
   imul(lhs_hi, rhs_lo);
@@ -842,27 +843,30 @@ inline void Emit64BitShiftOperation(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister src,
     Register amount, void (TurboAssembler::*emit_shift)(Register, Register),
     LiftoffRegList pinned) {
+  // Temporary registers cannot overlap with {dst}.
   pinned.set(dst);
-  pinned.set(src);
-  pinned.set(amount);
+
+  std::vector<LiftoffAssembler::ParallelRegisterMoveTuple> reg_moves;
+
   // If {dst} contains {ecx}, replace it by an unused register, which is then
   // moved to {ecx} in the end.
   Register ecx_replace = no_reg;
   if (PairContains(dst, ecx)) {
-    ecx_replace = pinned.set(assm->GetUnusedRegister(kGpReg, pinned)).gp();
+    ecx_replace = assm->GetUnusedRegister(kGpReg, pinned).gp();
     dst = ReplaceInPair(dst, ecx, ecx_replace);
     // If {amount} needs to be moved to {ecx}, but {ecx} is in use (and not part
     // of {dst}, hence overwritten anyway), move {ecx} to a tmp register and
     // restore it at the end.
   } else if (amount != ecx &&
-             assm->cache_state()->is_used(LiftoffRegister(ecx))) {
+             (assm->cache_state()->is_used(LiftoffRegister(ecx)) ||
+              pinned.has(LiftoffRegister(ecx)))) {
     ecx_replace = assm->GetUnusedRegister(kGpReg, pinned).gp();
-    assm->mov(ecx_replace, ecx);
+    reg_moves.emplace_back(ecx_replace, ecx, kWasmI32);
   }
 
-  assm->ParallelRegisterMove(
-      {{dst, src, kWasmI64},
-       {LiftoffRegister{ecx}, LiftoffRegister{amount}, kWasmI32}});
+  reg_moves.emplace_back(dst, src, kWasmI64);
+  reg_moves.emplace_back(ecx, amount, kWasmI32);
+  assm->ParallelRegisterMove({reg_moves.data(), reg_moves.size()});
 
   // Do the actual shift.
   (assm->*emit_shift)(dst.high_gp(), dst.low_gp());

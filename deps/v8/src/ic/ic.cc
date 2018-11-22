@@ -10,6 +10,7 @@
 #include "src/arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/conversions.h"
 #include "src/execution.h"
 #include "src/field-type.h"
@@ -93,7 +94,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
                  State new_state) {
   if (V8_LIKELY(!FLAG_ic_stats)) return;
 
-  Map* map = nullptr;
+  Map map;
   if (!receiver_map().is_null()) {
     map = *receiver_map();
   }
@@ -144,8 +145,8 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   ic_info.state += TransitionMarkFromState(new_state);
   ic_info.state += modifier;
   ic_info.state += ")";
-  ic_info.map = reinterpret_cast<void*>(map);
-  if (map != nullptr) {
+  ic_info.map = reinterpret_cast<void*>(map.ptr());
+  if (!map.is_null()) {
     ic_info.is_dictionary_map = map->is_dictionary_map();
     ic_info.number_of_own_descriptors = map->NumberOfOwnDescriptors();
     ic_info.instance_type = std::to_string(map->instance_type());
@@ -257,8 +258,8 @@ bool IC::ShouldRecomputeHandler(Handle<String> name) {
   // would transition to.
   if (maybe_handler_.is_null()) {
     if (!receiver_map()->IsJSObjectMap()) return false;
-    Map* first_map = FirstTargetMap();
-    if (first_map == nullptr) return false;
+    Map first_map = FirstTargetMap();
+    if (first_map.is_null()) return false;
     Handle<Map> old_map(first_map, isolate());
     if (old_map->is_deprecated()) return true;
     return IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
@@ -447,7 +448,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   LookupForRead(isolate(), &it);
 
   if (name->IsPrivate()) {
-    if (name->IsPrivateField() && !it.IsFound()) {
+    if (name->IsPrivateName() && !it.IsFound()) {
       return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
                        name);
     }
@@ -501,8 +502,9 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
       }
 
       if (FLAG_use_ic) {
-        if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
-                                             lookup_result.slot_index)) {
+        if (nexus()->ConfigureLexicalVarMode(
+                lookup_result.context_index, lookup_result.slot_index,
+                lookup_result.mode == VariableMode::kConst)) {
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_LoadScriptContextField);
         } else {
           // Given combination of indices can't be encoded, so use slow stub.
@@ -616,15 +618,14 @@ void IC::CopyICToMegamorphicCache(Handle<Name> name) {
   }
 }
 
-
-bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
-  if (source_map == nullptr) return true;
-  if (target_map == nullptr) return false;
+bool IC::IsTransitionOfMonomorphicTarget(Map source_map, Map target_map) {
+  if (source_map.is_null()) return true;
+  if (target_map.is_null()) return false;
   if (source_map->is_abandoned_prototype_map()) return false;
   ElementsKind target_elements_kind = target_map->elements_kind();
   bool more_general_transition = IsMoreGeneralElementsKindTransition(
       source_map->elements_kind(), target_elements_kind);
-  Map* transitioned_map = nullptr;
+  Map transitioned_map;
   if (more_general_transition) {
     MapHandles map_list;
     map_list.push_back(handle(target_map, isolate_));
@@ -1073,8 +1074,9 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
       !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(
           isolate()) &&
       !receiver_map->GetIndexedInterceptor()->non_masking()) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
-    return LoadIndexedInterceptorStub(isolate()).GetCode();
+    return BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
   }
   InstanceType instance_type = receiver_map->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
@@ -1091,8 +1093,9 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
 
   ElementsKind elements_kind = receiver_map->elements_kind();
   if (IsSloppyArgumentsElementsKind(elements_kind)) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
-    return KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
+    return BUILTIN_CODE(isolate(), KeyedLoadIC_SloppyArguments);
   }
   bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
@@ -1128,9 +1131,9 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // among receiver_maps as unstable because the optimizing compilers may
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
-      Map* tmap = receiver_map->FindElementsKindTransitionedMap(isolate(),
-                                                                *receiver_maps);
-      if (tmap != nullptr) {
+      Map tmap = receiver_map->FindElementsKindTransitionedMap(isolate(),
+                                                               *receiver_maps);
+      if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
     }
@@ -1359,8 +1362,9 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     }
 
     if (FLAG_use_ic) {
-      if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
-                                           lookup_result.slot_index)) {
+      if (nexus()->ConfigureLexicalVarMode(
+              lookup_result.context_index, lookup_result.slot_index,
+              lookup_result.mode == VariableMode::kConst)) {
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_StoreScriptContextField);
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
@@ -1411,7 +1415,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   bool use_ic = FLAG_use_ic;
 
   if (name->IsPrivate()) {
-    if (name->IsPrivateField() && !it.IsFound()) {
+    if (name->IsPrivateName() && !it.IsFound()) {
       return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
                        name);
     }
@@ -1500,9 +1504,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       USE(holder);
 
       DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined(isolate()));
+      // TODO(jgruber): Update counter name.
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorStub);
-      StoreInterceptorStub stub(isolate());
-      return MaybeObjectHandle(stub.GetCode());
+      return MaybeObjectHandle(BUILTIN_CODE(isolate(), StoreInterceptorIC));
     }
 
     case LookupIterator::ACCESSOR: {
@@ -1840,25 +1844,27 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
 
   // TODO(ishell): move to StoreHandler::StoreElement().
   ElementsKind elements_kind = receiver_map->elements_kind();
-  bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
   if (receiver_map->has_sloppy_arguments_elements()) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
-    stub = KeyedStoreSloppyArgumentsStub(isolate(), store_mode).GetCode();
+    stub =
+        CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
-    stub =
-        StoreFastElementStub(isolate(), is_jsarray, elements_kind, store_mode)
-            .GetCode();
+    stub = StoreFastElementStub(isolate(), elements_kind, store_mode).GetCode();
     if (receiver_map->has_fixed_typed_array_elements()) return stub;
   } else if (IsStoreInArrayLiteralICKind(kind())) {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
-    stub = StoreInArrayLiteralSlowStub(isolate(), store_mode).GetCode();
+    stub =
+        CodeFactory::StoreInArrayLiteralIC_Slow(isolate(), store_mode).code();
   } else {
+    // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
-    stub = StoreSlowElementStub(isolate(), store_mode).GetCode();
+    stub = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
   }
 
   if (IsStoreInArrayLiteralICKind(kind())) return stub;
@@ -1903,9 +1909,9 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
 
     } else {
       {
-        Map* tmap = receiver_map->FindElementsKindTransitionedMap(
+        Map tmap = receiver_map->FindElementsKindTransitionedMap(
             isolate(), *receiver_maps);
-        if (tmap != nullptr) {
+        if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());
           }
@@ -2466,7 +2472,7 @@ static bool CanFastCloneObject(Handle<Map> map) {
     PropertyDetails details = descriptors->GetDetails(i);
     Name* key = descriptors->GetKey(i);
     if (details.kind() != kData || !details.IsEnumerable() ||
-        key->IsPrivateField()) {
+        key->IsPrivateName()) {
       return false;
     }
   }
@@ -2575,15 +2581,6 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   nexus.ConfigureCloneObject(source_map, result_map);
 
   return *result_map;
-}
-
-RUNTIME_FUNCTION(Runtime_CloneObjectIC_Slow) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<HeapObject> source = args.at<HeapObject>(0);
-  int flags = args.smi_at(1);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           CloneObjectSlowPath(isolate, source, flags));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {

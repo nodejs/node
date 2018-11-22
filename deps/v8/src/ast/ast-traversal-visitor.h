@@ -484,8 +484,8 @@ void AstTraversalVisitor<Subclass>::VisitClassLiteral(ClassLiteral* expr) {
   if (expr->static_fields_initializer() != nullptr) {
     RECURSE_EXPRESSION(Visit(expr->static_fields_initializer()));
   }
-  if (expr->instance_fields_initializer_function() != nullptr) {
-    RECURSE_EXPRESSION(Visit(expr->instance_fields_initializer_function()));
+  if (expr->instance_members_initializer_function() != nullptr) {
+    RECURSE_EXPRESSION(Visit(expr->instance_members_initializer_function()));
   }
   ZonePtrList<ClassLiteral::Property>* props = expr->properties();
   for (int i = 0; i < props->length(); ++i) {
@@ -498,8 +498,8 @@ void AstTraversalVisitor<Subclass>::VisitClassLiteral(ClassLiteral* expr) {
 }
 
 template <class Subclass>
-void AstTraversalVisitor<Subclass>::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* stmt) {
+void AstTraversalVisitor<Subclass>::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* stmt) {
   PROCESS_NODE(stmt);
   ZonePtrList<ClassLiteral::Property>* props = stmt->fields();
   for (int i = 0; i < props->length(); ++i) {

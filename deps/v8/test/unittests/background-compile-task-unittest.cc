@@ -13,6 +13,7 @@
 #include "src/compiler.h"
 #include "src/flags.h"
 #include "src/isolate-inl.h"
+#include "src/objects/smi.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparsed-scope-data.h"
@@ -63,9 +64,11 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
             outer_parse_info->zone(), script_scope, FUNCTION_SCOPE);
     function_scope->set_start_position(shared->StartPosition());
     function_scope->set_end_position(shared->EndPosition());
+    std::vector<void*> buffer;
+    ScopedPtrList<Statement> statements(&buffer);
     const FunctionLiteral* function_literal =
         ast_node_factory.NewFunctionLiteral(
-            function_name, function_scope, nullptr, -1, -1, -1,
+            function_name, function_scope, statements, -1, -1, -1,
             FunctionLiteral::kNoDuplicateParameters,
             FunctionLiteral::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
@@ -132,7 +135,7 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
       task.get(), shared, isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
 
-  Smi* value = Smi::cast(*RunJS("f(100);"));
+  Smi value = Smi::cast(*RunJS("f(100);"));
   ASSERT_TRUE(value == Smi::FromInt(160));
 }
 

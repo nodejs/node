@@ -4181,7 +4181,7 @@ TEST(BuiltinsExceptionPrediction) {
   i::Builtins* builtins = iisolate->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
-    i::Code* builtin = builtins->builtin(i);
+    i::Code builtin = builtins->builtin(i);
     if (builtin->kind() != i::Code::BUILTIN) continue;
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);

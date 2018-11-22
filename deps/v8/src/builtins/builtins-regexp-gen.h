@@ -5,6 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 #define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
+#include "src/base/optional.h"
 #include "src/code-stub-assembler.h"
 #include "src/message-template.h"
 
@@ -16,9 +17,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void BranchIfFastRegExp(Node* const context, Node* const object,
-                          Node* const map, Label* const if_isunmodified,
-                          Label* const if_ismodified);
+  void BranchIfFastRegExp(
+      Node* const context, Node* const object, Node* const map,
+      base::Optional<DescriptorIndexAndName> additional_property_to_check,
+      Label* const if_isunmodified, Label* const if_ismodified);
 
   // Create and initialize a RegExp object.
   TNode<Object> RegExpCreate(TNode<Context> context,
@@ -27,12 +29,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Object> RegExpCreate(TNode<Context> context, TNode<Map> initial_map,
                              TNode<Object> regexp_string, TNode<String> flags);
-
-  TNode<Object> MatchAllIterator(TNode<Context> context,
-                                 TNode<Context> native_context,
-                                 TNode<Object> regexp, TNode<String> string,
-                                 TNode<BoolT> is_fast_regexp,
-                                 char const* method_name);
 
  protected:
   TNode<Smi> SmiZero();
@@ -144,6 +140,20 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* ReplaceSimpleStringFastPath(Node* context, Node* regexp,
                                     TNode<String> string,
                                     TNode<String> replace_string);
+};
+
+class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {
+ public:
+  explicit RegExpMatchAllAssembler(compiler::CodeAssemblerState* state)
+      : RegExpBuiltinsAssembler(state) {}
+
+  TNode<Object> CreateRegExpStringIterator(TNode<Context> native_context,
+                                           TNode<Object> regexp,
+                                           TNode<String> string,
+                                           TNode<Int32T> global,
+                                           TNode<Int32T> full_unicode);
+  void Generate(TNode<Context> context, TNode<Context> native_context,
+                TNode<Object> receiver, TNode<Object> maybe_string);
 };
 
 }  // namespace internal

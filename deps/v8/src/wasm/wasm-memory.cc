@@ -4,6 +4,7 @@
 
 #include <limits>
 
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"

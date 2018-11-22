@@ -11,19 +11,24 @@
 #include "src/callable.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/instruction-stream.h"
+#include "src/macro-assembler-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
 
-#include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/arm64/macro-assembler-arm64.h"  // Cannot be the first include
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
+#include "src/arm64/macro-assembler-arm64.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -1571,7 +1576,7 @@ void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
   }
 }
 
-void TurboAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
+void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
 
 void TurboAssembler::Swap(Register lhs, Register rhs) {
   DCHECK(lhs.IsSameSizeAndType(rhs));
@@ -1709,14 +1714,19 @@ void TurboAssembler::AssertPositiveOrZero(Register value) {
 
 void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  BlockPoolsScope scope(this);
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  } else {
+    BlockPoolsScope scope(this);
 #ifdef DEBUG
-  Label start;
-  Bind(&start);
+    Label start;
+    Bind(&start);
 #endif
-  Operand operand = Operand::EmbeddedCode(stub);
-  near_call(operand.heap_object_request());
-  DCHECK_EQ(kNearCallSize, SizeOfCodeGeneratedSince(&start));
+    Operand operand = Operand::EmbeddedCode(stub);
+    near_call(operand.heap_object_request());
+    DCHECK_EQ(kNearCallSize, SizeOfCodeGeneratedSince(&start));
+  }
 }
 
 void MacroAssembler::CallStub(CodeStub* stub) {
@@ -2575,7 +2585,8 @@ void MacroAssembler::LoadGlobalProxy(Register dst) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  CompareAndBranch(in, Operand(kClearedWeakHeapObject), eq, target_if_cleared);
+  CompareAndBranch(in.W(), Operand(kClearedWeakHeapObjectLower32), eq,
+                   target_if_cleared);
 
   and_(out, in, Operand(~kWeakHeapObjectMask));
 }

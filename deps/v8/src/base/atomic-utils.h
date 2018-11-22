@@ -28,29 +28,6 @@ class AtomicValue {
     return cast_helper<T>::to_return_type(base::Acquire_Load(&value_));
   }
 
-  V8_INLINE bool TrySetValue(T old_value, T new_value) {
-    return base::Release_CompareAndSwap(
-               &value_, cast_helper<T>::to_storage_type(old_value),
-               cast_helper<T>::to_storage_type(new_value)) ==
-           cast_helper<T>::to_storage_type(old_value);
-  }
-
-  V8_INLINE void SetBits(T bits, T mask) {
-    DCHECK_EQ(bits & ~mask, static_cast<T>(0));
-    T old_value;
-    T new_value;
-    do {
-      old_value = Value();
-      new_value = (old_value & ~mask) | bits;
-    } while (!TrySetValue(old_value, new_value));
-  }
-
-  V8_INLINE void SetBit(int bit) {
-    SetBits(static_cast<T>(1) << bit, static_cast<T>(1) << bit);
-  }
-
-  V8_INLINE void ClearBit(int bit) { SetBits(0, 1 << bit); }
-
   V8_INLINE void SetValue(T new_value) {
     base::Release_Store(&value_, cast_helper<T>::to_storage_type(new_value));
   }
@@ -339,42 +316,6 @@ class AsAtomicPointer {
   static const base::AtomicWord* to_storage_addr(const T* value) {
     return reinterpret_cast<const base::AtomicWord*>(value);
   }
-};
-
-// This class is intended to be used as a wrapper for elements of an array
-// that is passed in to STL functions such as std::sort. It ensures that
-// elements accesses are atomic.
-// Usage example:
-//   Object** given_array;
-//   AtomicElement<Object*>* wrapped =
-//       reinterpret_cast<AtomicElement<Object*>(given_array);
-//   std::sort(wrapped, wrapped + given_length, cmp);
-// where the cmp function uses the value() accessor to compare the elements.
-template <typename T>
-class AtomicElement {
- public:
-  AtomicElement(const AtomicElement<T>& other) {
-    AsAtomicPointer::Relaxed_Store(
-        &value_, AsAtomicPointer::Relaxed_Load(&other.value_));
-  }
-
-  void operator=(const AtomicElement<T>& other) {
-    AsAtomicPointer::Relaxed_Store(
-        &value_, AsAtomicPointer::Relaxed_Load(&other.value_));
-  }
-
-  T value() const { return AsAtomicPointer::Relaxed_Load(&value_); }
-
-  bool operator<(const AtomicElement<T>& other) const {
-    return value() < other.value();
-  }
-
-  bool operator==(const AtomicElement<T>& other) const {
-    return value() == other.value();
-  }
-
- private:
-  T value_;
 };
 
 template <typename T,

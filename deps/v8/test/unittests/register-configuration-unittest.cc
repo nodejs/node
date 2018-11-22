@@ -26,10 +26,10 @@ TEST_F(RegisterConfigurationUnitTest, BasicProperties) {
   int general_codes[kNumAllocatableGeneralRegs] = {1, 2};
   int double_codes[kNumAllocatableDoubleRegs] = {2, 3};
 
-  RegisterConfiguration test(
-      kNumGeneralRegs, kNumDoubleRegs, kNumAllocatableGeneralRegs,
-      kNumAllocatableDoubleRegs, general_codes, double_codes,
-      RegisterConfiguration::OVERLAP, nullptr, nullptr, nullptr, nullptr);
+  RegisterConfiguration test(kNumGeneralRegs, kNumDoubleRegs,
+                             kNumAllocatableGeneralRegs,
+                             kNumAllocatableDoubleRegs, general_codes,
+                             double_codes, RegisterConfiguration::OVERLAP);
 
   EXPECT_EQ(test.num_general_registers(), kNumGeneralRegs);
   EXPECT_EQ(test.num_double_registers(), kNumDoubleRegs);
@@ -62,10 +62,10 @@ TEST_F(RegisterConfigurationUnitTest, CombineAliasing) {
   int general_codes[] = {1, 2};
   int double_codes[] = {2, 3, 16};  // reg 16 should not alias registers 32, 33.
 
-  RegisterConfiguration test(
-      kNumGeneralRegs, kNumDoubleRegs, kNumAllocatableGeneralRegs,
-      kNumAllocatableDoubleRegs, general_codes, double_codes,
-      RegisterConfiguration::COMBINE, nullptr, nullptr, nullptr, nullptr);
+  RegisterConfiguration test(kNumGeneralRegs, kNumDoubleRegs,
+                             kNumAllocatableGeneralRegs,
+                             kNumAllocatableDoubleRegs, general_codes,
+                             double_codes, RegisterConfiguration::COMBINE);
 
   // There are 3 allocatable double regs, but only 2 can alias float regs.
   EXPECT_EQ(test.num_allocatable_float_registers(), 4);

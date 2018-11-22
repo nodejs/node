@@ -15,6 +15,7 @@
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/export-template.h"
 #include "src/base/iterator.h"
 #include "src/base/list.h"
 #include "src/base/platform/mutex.h"
@@ -1200,11 +1201,11 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
       return chunk;
     }
 
-    void FreeQueuedChunks();
+    V8_EXPORT_PRIVATE void FreeQueuedChunks();
     void CancelAndWaitForPendingTasks();
     void PrepareForMarkCompact();
     void EnsureUnmappingCompleted();
-    void TearDown();
+    V8_EXPORT_PRIVATE void TearDown();
     size_t NumberOfCommittedChunks();
     int NumberOfChunks();
     size_t CommittedBufferedMemory();
@@ -1290,12 +1291,14 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // should be tried first.
   template <MemoryAllocator::AllocationMode alloc_mode = kRegular,
             typename SpaceType>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   Page* AllocatePage(size_t size, SpaceType* owner, Executability executable);
 
   LargePage* AllocateLargePage(size_t size, LargeObjectSpace* owner,
                                Executability executable);
 
   template <MemoryAllocator::FreeMode mode = kFull>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   void Free(MemoryChunk* chunk);
 
   // Returns allocated spaces in bytes.
@@ -2683,13 +2686,17 @@ class NewSpace : public SpaceWithLinearArea {
   }
 
   void ResetOriginalTop() {
-    DCHECK_GE(top(), original_top());
-    DCHECK_LE(top(), original_limit());
-    original_top_ = top();
+    DCHECK_GE(top(), original_top_);
+    DCHECK_LE(top(), original_limit_);
+    original_top_.store(top(), std::memory_order_release);
   }
 
-  Address original_top() { return original_top_; }
-  Address original_limit() { return original_limit_; }
+  Address original_top_acquire() {
+    return original_top_.load(std::memory_order_acquire);
+  }
+  Address original_limit_relaxed() {
+    return original_limit_.load(std::memory_order_relaxed);
+  }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
@@ -2723,7 +2730,6 @@ class NewSpace : public SpaceWithLinearArea {
   void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
 
   inline bool ToSpaceContainsSlow(Address a);
-  inline bool FromSpaceContainsSlow(Address a);
   inline bool ToSpaceContains(Object* o);
   inline bool FromSpaceContains(Object* o);
 
@@ -2959,8 +2965,8 @@ class LargeObjectSpace : public Space {
   // Releases internal resources, frees objects in this space.
   void TearDown();
 
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
-                                                     Executability executable);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRaw(int object_size);
 
   // Available bytes for objects in this space.
   size_t Available() override;
@@ -2976,9 +2982,6 @@ class LargeObjectSpace : public Space {
   // Finds an object for a given address, returns a Smi if it is not found.
   // The function iterates through all objects in this space, may be slow.
   Object* FindObject(Address a);
-
-  // Takes the chunk_map_mutex_ and calls FindPage after that.
-  LargePage* FindPageThreadSafe(Address a);
 
   // Finds a large object page containing the given address, returns nullptr
   // if such a page doesn't exist.
@@ -3032,6 +3035,8 @@ class LargeObjectSpace : public Space {
 
  protected:
   LargePage* AllocateLargePage(int object_size, Executability executable);
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
+                                                     Executability executable);
 
  private:
   size_t size_;          // allocated bytes
@@ -3060,6 +3065,14 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   void Flip();
 };
 
+class CodeLargeObjectSpace : public LargeObjectSpace {
+ public:
+  explicit CodeLargeObjectSpace(Heap* heap);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRaw(int object_size);
+};
+
 class LargeObjectIterator : public ObjectIterator {
  public:
   explicit LargeObjectIterator(LargeObjectSpace* space);
@@ -3072,9 +3085,9 @@ class LargeObjectIterator : public ObjectIterator {
 
 // Iterates over the chunks (pages and large object pages) that can contain
 // pointers to new space or to evacuation candidates.
-class MemoryChunkIterator {
+class OldGenerationMemoryChunkIterator {
  public:
-  inline explicit MemoryChunkIterator(Heap* heap);
+  inline explicit OldGenerationMemoryChunkIterator(Heap* heap);
 
   // Return nullptr when the iterator is done.
   inline MemoryChunk* next();
@@ -3085,6 +3098,7 @@ class MemoryChunkIterator {
     kMapState,
     kCodeState,
     kLargeObjectState,
+    kCodeLargeObjectState,
     kFinishedState
   };
   Heap* heap_;
@@ -3093,6 +3107,7 @@ class MemoryChunkIterator {
   PageIterator code_iterator_;
   PageIterator map_iterator_;
   LargePageIterator lo_iterator_;
+  LargePageIterator code_lo_iterator_;
 };
 
 }  // namespace internal

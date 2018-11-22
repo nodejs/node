@@ -58,3 +58,13 @@ assertEquals(c(314), 315);
 (function() {
   class foo {};
 });  // Don't call IIFE so that it is compiled during idle time
+
+// http://crbug.com/900535
+(function() {
+  "use asm";
+  function bar(i, j) {
+    i = i|0;
+    j = j|0;
+  }
+  return {bar: bar};
+});  // Don't call IIFE so that it is compiled during idle time

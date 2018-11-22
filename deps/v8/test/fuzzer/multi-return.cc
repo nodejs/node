@@ -5,8 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"

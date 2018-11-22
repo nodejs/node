@@ -30,9 +30,9 @@ class Handle;
 // Container object for data collected during simple stack trace captures.
 class FrameArray : public FixedArray {
  public:
-#define DECL_FRAME_ARRAY_ACCESSORS(name, type) \
-  inline type* name(int frame_ix) const;       \
-  inline void Set##name(int frame_ix, type* value);
+#define DECL_FRAME_ARRAY_ACCESSORS(name, type)   \
+  inline type##ArgType name(int frame_ix) const; \
+  inline void Set##name(int frame_ix, type##ArgType value);
   FRAME_ARRAY_FIELD_LIST(DECL_FRAME_ARRAY_ACCESSORS)
 #undef DECL_FRAME_ARRAY_ACCESSORS
 

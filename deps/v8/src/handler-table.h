@@ -46,7 +46,7 @@ class V8_EXPORT_PRIVATE HandlerTable {
   };
 
   // Constructors for the various encodings.
-  explicit HandlerTable(Code* code);
+  explicit HandlerTable(Code code);
   explicit HandlerTable(ByteArray* byte_array);
   explicit HandlerTable(BytecodeArray* bytecode_array);
   explicit HandlerTable(Address instruction_start, size_t handler_table_offset);

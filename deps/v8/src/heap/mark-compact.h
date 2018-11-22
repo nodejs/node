@@ -169,9 +169,9 @@ class LiveObjectRange {
     inline void AdvanceToNextValidObject();
 
     MemoryChunk* const chunk_;
-    Map* const one_word_filler_map_;
-    Map* const two_word_filler_map_;
-    Map* const free_space_map_;
+    Map const one_word_filler_map_;
+    Map const two_word_filler_map_;
+    Map const free_space_map_;
     MarkBitCellIterator it_;
     Address cell_base_;
     MarkBit::CellType current_cell_;
@@ -441,7 +441,7 @@ struct WeakObjects {
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
   Worklist<std::pair<HeapObject*, HeapObjectSlot>, 64> weak_references;
-  Worklist<std::pair<HeapObject*, Code*>, 64> weak_objects_in_code;
+  Worklist<std::pair<HeapObject*, Code>, 64> weak_objects_in_code;
 
   Worklist<JSWeakCell*, 64> js_weak_cells;
 };
@@ -624,7 +624,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   static bool IsOnEvacuationCandidate(MaybeObject obj);
 
-  void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, Object* target);
   V8_INLINE static void RecordSlot(HeapObject* object, ObjectSlot slot,
                                    HeapObject* target);
   V8_INLINE static void RecordSlot(HeapObject* object, HeapObjectSlot slot,
@@ -669,7 +669,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
   }
 
-  void AddWeakObjectInCode(HeapObject* object, Code* code) {
+  void AddWeakObjectInCode(HeapObject* object, Code code) {
     weak_objects_.weak_objects_in_code.Push(kMainThread,
                                             std::make_pair(object, code));
   }
@@ -709,13 +709,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void VerifyMarkbitsAreDirty(PagedSpace* space);
   void VerifyMarkbitsAreClean(PagedSpace* space);
   void VerifyMarkbitsAreClean(NewSpace* space);
+  void VerifyMarkbitsAreClean(LargeObjectSpace* space);
 #endif
 
  private:
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
-
-  bool WillBeDeoptimized(Code* code);
 
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
@@ -800,15 +799,15 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Checks if the given weak cell is a simple transition from the parent map
   // of the given dead target. If so it clears the transition and trims
   // the descriptor array of the parent if needed.
-  void ClearPotentialSimpleMapTransition(Map* dead_target);
-  void ClearPotentialSimpleMapTransition(Map* map, Map* dead_target);
+  void ClearPotentialSimpleMapTransition(Map dead_target);
+  void ClearPotentialSimpleMapTransition(Map map, Map dead_target);
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
   void ClearFullMapTransitions();
-  bool CompactTransitionArray(Map* map, TransitionArray* transitions,
+  bool CompactTransitionArray(Map map, TransitionArray* transitions,
                               DescriptorArray* descriptors);
-  void TrimDescriptorArray(Map* map, DescriptorArray* descriptors);
-  void TrimEnumCache(Map* map, DescriptorArray* descriptors);
+  void TrimDescriptorArray(Map map, DescriptorArray* descriptors);
+  void TrimEnumCache(Map map, DescriptorArray* descriptors);
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
@@ -922,16 +921,16 @@ class MarkingVisitor final
 
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
-  V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
-  V8_INLINE int VisitEphemeronHashTable(Map* map, EphemeronHashTable* object);
-  V8_INLINE int VisitFixedArray(Map* map, FixedArray* object);
-  V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
-  V8_INLINE int VisitJSArrayBuffer(Map* map, JSArrayBuffer* object);
-  V8_INLINE int VisitJSDataView(Map* map, JSDataView* object);
-  V8_INLINE int VisitJSTypedArray(Map* map, JSTypedArray* object);
-  V8_INLINE int VisitMap(Map* map, Map* object);
-  V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
-  V8_INLINE int VisitJSWeakCell(Map* map, JSWeakCell* object);
+  V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray* object);
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable* object);
+  V8_INLINE int VisitFixedArray(Map map, FixedArray* object);
+  V8_INLINE int VisitJSApiObject(Map map, JSObject* object);
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer* object);
+  V8_INLINE int VisitJSDataView(Map map, JSDataView* object);
+  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray* object);
+  V8_INLINE int VisitMap(Map map, Map object);
+  V8_INLINE int VisitTransitionArray(Map map, TransitionArray* object);
+  V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell* object);
 
   // ObjectVisitor implementation.
   V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot p) final;
@@ -940,8 +939,8 @@ class MarkingVisitor final
                                ObjectSlot end) final;
   V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final;
-  V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
 
   // Weak list pointers should be ignored during marking. The lists are
   // reconstructed after GC.
@@ -953,12 +952,12 @@ class MarkingVisitor final
   // is true.
   static const int kProgressBarScanningChunk = 32 * 1024;
 
-  V8_INLINE int VisitFixedArrayIncremental(Map* map, FixedArray* object);
+  V8_INLINE int VisitFixedArrayIncremental(Map map, FixedArray* object);
 
   template <typename T>
-  V8_INLINE int VisitEmbedderTracingSubclass(Map* map, T* object);
+  V8_INLINE int VisitEmbedderTracingSubclass(Map map, T* object);
 
-  V8_INLINE void MarkMapContents(Map* map);
+  V8_INLINE void MarkMapContents(Map map);
 
   // Marks the object black without pushing it on the marking work list. Returns
   // true if the object needed marking and false otherwise.

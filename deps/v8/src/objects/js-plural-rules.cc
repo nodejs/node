@@ -15,7 +15,6 @@
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/plurrule.h"
-#include "unicode/strenum.h"
 
 namespace v8 {
 namespace internal {
@@ -130,20 +129,11 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
 
   // 7. Let t be ? GetOption(options, "type", "string", « "cardinal",
   // "ordinal" », "cardinal").
-  std::vector<const char*> values = {"cardinal", "ordinal"};
-  std::unique_ptr<char[]> type_str = nullptr;
-  JSPluralRules::Type type = JSPluralRules::Type::CARDINAL;
-  Maybe<bool> found = Intl::GetStringOption(isolate, options, "type", values,
-                                            "Intl.PluralRules", &type_str);
-  MAYBE_RETURN(found, MaybeHandle<JSPluralRules>());
-  if (found.FromJust()) {
-    DCHECK_NOT_NULL(type_str.get());
-    if (strcmp("ordinal", type_str.get()) == 0) {
-      type = JSPluralRules::Type::ORDINAL;
-    } else {
-      DCHECK_EQ(0, strcmp("cardinal", type_str.get()));
-    }
-  }
+  Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
+      isolate, options, "type", "Intl.PluralRules", {"cardinal", "ordinal"},
+      {Type::CARDINAL, Type::ORDINAL}, Type::CARDINAL);
+  MAYBE_RETURN(maybe_type, MaybeHandle<JSPluralRules>());
+  Type type = maybe_type.FromJust();
 
   // 8. Set pluralRules.[[Type]] to t.
   plural_rules->set_type(type);

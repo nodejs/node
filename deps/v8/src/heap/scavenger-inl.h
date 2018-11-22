@@ -22,7 +22,7 @@ void Scavenger::PromotionList::View::PushRegularObject(HeapObject* object,
 }
 
 void Scavenger::PromotionList::View::PushLargeObject(HeapObject* object,
-                                                     Map* map, int size) {
+                                                     Map map, int size) {
   promotion_list_->PushLargeObject(task_id_, object, map, size);
 }
 
@@ -52,7 +52,7 @@ void Scavenger::PromotionList::PushRegularObject(int task_id,
 }
 
 void Scavenger::PromotionList::PushLargeObject(int task_id, HeapObject* object,
-                                               Map* map, int size) {
+                                               Map map, int size) {
   large_object_promotion_list_.Push(task_id, {object, map, size});
 }
 
@@ -122,14 +122,14 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
 #endif
 }
 
-bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
+bool Scavenger::MigrateObject(Map map, HeapObject* source, HeapObject* target,
                               int size) {
   // Copy the content of source to target.
   target->set_map_word(MapWord::FromMap(map));
   heap()->CopyBlock(target->address() + kPointerSize,
                     source->address() + kPointerSize, size - kPointerSize);
 
-  Object* old = source->map_slot().Release_CompareAndSwap(
+  ObjectPtr old = source->map_slot().Release_CompareAndSwap(
       map, MapWord::FromForwardingAddress(target).ToMap());
   if (old != map) {
     // Other task migrated the object.
@@ -147,7 +147,7 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
   return true;
 }
 
-CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map* map,
+CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
                                                     HeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
@@ -179,7 +179,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map* map,
   return CopyAndForwardResult::FAILURE;
 }
 
-CopyAndForwardResult Scavenger::PromoteObject(Map* map, HeapObjectSlot slot,
+CopyAndForwardResult Scavenger::PromoteObject(Map map, HeapObjectSlot slot,
                                               HeapObject* object,
                                               int object_size) {
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
@@ -217,7 +217,7 @@ SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
                                                                   : REMOVE_SLOT;
 }
 
-bool Scavenger::HandleLargeObject(Map* map, HeapObject* object,
+bool Scavenger::HandleLargeObject(Map map, HeapObject* object,
                                   int object_size) {
   if (V8_UNLIKELY(FLAG_young_generation_large_objects &&
                   object_size > kMaxNewSpaceHeapObjectSize)) {
@@ -236,7 +236,7 @@ bool Scavenger::HandleLargeObject(Map* map, HeapObject* object,
   return false;
 }
 
-SlotCallbackResult Scavenger::EvacuateObjectDefault(Map* map,
+SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
                                                     HeapObjectSlot slot,
                                                     HeapObject* object,
                                                     int object_size) {
@@ -276,7 +276,7 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map* map,
   UNREACHABLE();
 }
 
-SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObjectSlot slot,
+SlotCallbackResult Scavenger::EvacuateThinString(Map map, HeapObjectSlot slot,
                                                  ThinString* object,
                                                  int object_size) {
   if (!is_incremental_marking_) {
@@ -294,7 +294,7 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObjectSlot slot,
   return EvacuateObjectDefault(map, slot, object, object_size);
 }
 
-SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
+SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
                                                         HeapObjectSlot slot,
                                                         ConsString* object,
                                                         int object_size) {
@@ -306,8 +306,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
     slot.StoreHeapObject(first);
 
     if (!Heap::InNewSpace(first)) {
-      base::AsAtomicPointer::Release_Store(
-          reinterpret_cast<Map**>(object->address()),
+      object->map_slot().Release_Store(
           MapWord::FromForwardingAddress(first).ToMap());
       return REMOVE_SLOT;
     }
@@ -317,16 +316,14 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
       HeapObject* target = first_word.ToForwardingAddress();
 
       slot.StoreHeapObject(target);
-      base::AsAtomicPointer::Release_Store(
-          reinterpret_cast<Map**>(object->address()),
+      object->map_slot().Release_Store(
           MapWord::FromForwardingAddress(target).ToMap());
       return Heap::InToSpace(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
-    Map* map = first_word.ToMap();
+    Map map = first_word.ToMap();
     SlotCallbackResult result =
         EvacuateObjectDefault(map, slot, first, first->SizeFromMap(map));
-    base::AsAtomicPointer::Release_Store(
-        reinterpret_cast<Map**>(object->address()),
+    object->map_slot().Release_Store(
         MapWord::FromForwardingAddress(slot.ToHeapObject()).ToMap());
     return result;
   }
@@ -334,7 +331,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
   return EvacuateObjectDefault(map, slot, object, object_size);
 }
 
-SlotCallbackResult Scavenger::EvacuateObject(HeapObjectSlot slot, Map* map,
+SlotCallbackResult Scavenger::EvacuateObject(HeapObjectSlot slot, Map map,
                                              HeapObject* source) {
   SLOW_DCHECK(Heap::InFromSpace(source));
   SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
@@ -379,7 +376,7 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectSlot p,
     return Heap::InToSpace(dest) ? KEEP_SLOT : REMOVE_SLOT;
   }
 
-  Map* map = first_word.ToMap();
+  Map map = first_word.ToMap();
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   DCHECK_NE(ReadOnlyRoots(heap()).allocation_memento_map(), map);
   // Call the slow part of scavenge object.

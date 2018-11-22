@@ -99,3 +99,25 @@
   // Megamorphic
   assertEquals({ boop: 1 }, f({ boop: 1 }));
 })();
+
+// There are 2 paths in CloneObjectIC's handler which need to handle double
+// fields specially --- in object properties, and copying the property array.
+function testMutableInlineProperties() {
+  function inobject() { "use strict"; this.x = 1.1; }
+  const src = new inobject();
+  const x0 = src.x;
+  const clone = { ...src, x: x0 + 1 };
+  assertEquals(x0, src.x);
+  assertEquals({ x: 2.1 }, clone);
+}
+testMutableInlineProperties()
+
+function testMutableOutOfLineProperties() {
+  const src = { a: 1, b: 2, c: 3 };
+  src.x = 2.3;
+  const x0 = src.x;
+  const clone = { ...src, x: x0 + 1 };
+  assertEquals(x0, src.x);
+  assertEquals({ a: 1, b: 2, c: 3, x: 3.3 }, clone);
+}
+testMutableOutOfLineProperties();

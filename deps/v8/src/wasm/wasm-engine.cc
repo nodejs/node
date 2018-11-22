@@ -38,20 +38,50 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
   return result.ok();
 }
 
-MaybeHandle<WasmModuleObject> WasmEngine::SyncCompileTranslatedAsmJs(
+MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    Handle<Script> asm_js_script,
-    Vector<const byte> asm_js_offset_table_bytes) {
+    Vector<const byte> asm_js_offset_table_bytes,
+    Handle<HeapNumber> uses_bitset) {
   ModuleResult result =
       DecodeWasmModule(kAsmjsWasmFeatures, bytes.start(), bytes.end(), false,
                        kAsmJsOrigin, isolate->counters(), allocator());
   CHECK(!result.failed());
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
-  // in {CompileToModuleObject}.
-  return CompileToModuleObject(isolate, kAsmjsWasmFeatures, thrower,
-                               std::move(result).value(), bytes, asm_js_script,
-                               asm_js_offset_table_bytes);
+  // in {CompileToNativeModule}.
+  Handle<FixedArray> export_wrappers;
+  std::unique_ptr<NativeModule> native_module =
+      CompileToNativeModule(isolate, kAsmjsWasmFeatures, thrower,
+                            std::move(result).value(), bytes, &export_wrappers);
+  if (!native_module) return {};
+
+  // Create heap objects for asm.js offset table to be stored in the module
+  // object.
+  Handle<ByteArray> asm_js_offset_table =
+      isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
+  asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
+                               asm_js_offset_table_bytes.length());
+
+  return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
+                          asm_js_offset_table, uses_bitset);
+}
+
+Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
+    Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
+    Handle<Script> script) {
+  std::shared_ptr<NativeModule> native_module =
+      asm_wasm_data->managed_native_module()->get();
+  Handle<FixedArray> export_wrappers =
+      handle(asm_wasm_data->export_wrappers(), isolate);
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+          native_module->module());
+
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(native_module), script,
+                            export_wrappers, code_size_estimate);
+  module_object->set_asm_js_offset_table(asm_wasm_data->asm_js_offset_table());
+  return module_object;
 }
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
@@ -67,9 +97,34 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
-  return CompileToModuleObject(isolate, enabled, thrower,
-                               std::move(result).value(), bytes,
-                               Handle<Script>(), Vector<const byte>());
+  Handle<FixedArray> export_wrappers;
+  std::unique_ptr<NativeModule> native_module =
+      CompileToNativeModule(isolate, enabled, thrower,
+                            std::move(result).value(), bytes, &export_wrappers);
+  if (!native_module) return {};
+
+  Handle<Script> script =
+      CreateWasmScript(isolate, bytes, native_module->module()->source_map_url);
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+          native_module->module());
+
+  // Create the module object.
+  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // only have one WasmModuleObject. Otherwise, we might only set
+  // breakpoints on a (potentially empty) subset of the instances.
+
+  // Create the compiled module object and populate with compiled functions
+  // and information needed at instantiation time. This object needs to be
+  // serializable. Instantiation may occur off a deserialized version of this
+  // object.
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, std::move(native_module), script,
+                            export_wrappers, code_size_estimate);
+
+  // Finish the Wasm script now and make it public to the debugger.
+  isolate->debug()->OnAfterCompile(script);
+  return module_object;
 }
 
 MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
@@ -191,14 +246,11 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   const WasmModule* module = shared_module->module();
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);
-  Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, std::move(shared_module), script);
-
-  // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}.
-  // This requires unlocking the code space here. This should eventually be
-  // moved into the allocator.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  CompileJsToWasmWrappers(isolate, module_object);
+  size_t code_size = shared_module->committed_code_space();
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate, std::move(shared_module), script, code_size);
+  CompileJsToWasmWrappers(isolate, module_object->native_module(),
+                          handle(module_object->export_wrappers(), isolate));
   return module_object;
 }
 

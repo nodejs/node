@@ -1022,3 +1022,29 @@ assertThrows(function LargeSourceArray() {
 
   a.set(v0);
 });
+
+function TestMapCustomSpeciesConstructor(constructor) {
+  const sample = new constructor([40, 42, 42]);
+  let result, ctorThis;
+
+  sample.constructor = {};
+  sample.constructor[Symbol.species] = function(count) {
+    result = arguments;
+    ctorThis = this;
+    return new constructor(count);
+  };
+
+  sample.map(function(v) { return v; });
+
+  assertSame(result.length, 1, "called with 1 argument");
+  assertSame(result[0], 3, "[0] is the new captured length");
+
+  assertTrue(
+    ctorThis instanceof sample.constructor[Symbol.species],
+    "`this` value in the @@species fn is an instance of the function itself"
+  );
+};
+
+for(i = 0; i < typedArrayConstructors.length; i++) {
+  TestPropertyTypeChecks(typedArrayConstructors[i]);
+}

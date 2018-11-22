@@ -52,12 +52,11 @@ class ValueMirror {
       v8::Local<v8::Context> context, const String16& name,
       std::unique_ptr<protocol::Runtime::PropertyPreview>*) {}
   virtual void buildObjectPreview(
-      v8::Local<v8::Context> context, bool generatePreviewForProperties,
+      v8::Local<v8::Context> context, bool generatePreviewForTable,
       int* nameLimit, int* indexLimit,
       std::unique_ptr<protocol::Runtime::ObjectPreview>*) {}
   virtual void buildEntryPreview(
-      v8::Local<v8::Context> context, bool generatePreviewForProperties,
-      int* nameLimit, int* indexLimit,
+      v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
       std::unique_ptr<protocol::Runtime::ObjectPreview>*) {}
   virtual v8::Local<v8::Value> v8Value() = 0;
 

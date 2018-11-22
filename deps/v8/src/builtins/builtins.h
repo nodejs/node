@@ -83,9 +83,9 @@ class Builtins {
   Handle<Code> JSConstructStubGeneric();
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
-  void set_builtin(int index, HeapObject* builtin);
+  void set_builtin(int index, Code builtin);
 
-  Code* builtin(int index);
+  Code builtin(int index);
   V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
 
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
@@ -106,14 +106,14 @@ class Builtins {
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is Code::BUILTIN.
-  static bool IsBuiltin(const Code* code);
+  static bool IsBuiltin(const Code code);
 
   // As above, but safe to access off the main thread since the check is done
   // by handle location. Similar to Heap::IsRootHandle.
   bool IsBuiltinHandle(Handle<HeapObject> maybe_code, int* index) const;
 
   // True, iff the given code object is a builtin with off-heap embedded code.
-  static bool IsIsolateIndependentBuiltin(const Code* code);
+  static bool IsIsolateIndependentBuiltin(const Code code);
 
   static constexpr int kFirstWideBytecodeHandler =
       kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
@@ -123,9 +123,9 @@ class Builtins {
                     kNumberOfWideBytecodeHandlers ==
                 builtin_count);
 
-  // Helper methods used for testing isolate-independent builtins.
-  // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
-  static bool IsIsolateIndependent(int index);
+  // True, iff the given builtin contains no isolate-specific code and can be
+  // embedded into the binary.
+  static bool IsIsolateIndependent(int index) { return true; }
 
   // Wasm runtime stubs are treated specially by wasm. To guarantee reachability
   // through near jumps, their code is completely copied into a fresh off-heap
@@ -207,6 +207,9 @@ class Builtins {
 
   DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
+
+Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+    size_t function_pointer_type_id);
 
 }  // namespace internal
 }  // namespace v8

@@ -467,8 +467,7 @@ void MipsDebugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int64_t value = *cur;
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) ||
-              current_heap->ContainsSlow(obj->address())) {
+          if (((value & 1) == 0) || current_heap->Contains(obj)) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", static_cast<int>(value >> 32));
@@ -7041,13 +7040,13 @@ void Simulator::DecodeTypeImmediate() {
     case LLD: {
       // LL/SC sequence cannot be simulated properly
       DCHECK_EQ(kArchVariant, kMips64r2);
-      set_register(rt_reg, ReadD(rs + se_imm16, instr_.instr()));
+      set_register(rt_reg, Read2W(rs + se_imm16, instr_.instr()));
       break;
     }
     case SCD: {
       // LL/SC sequence cannot be simulated properly
       DCHECK_EQ(kArchVariant, kMips64r2);
-      WriteD(rs + se_imm16, rt, instr_.instr());
+      Write2W(rs + se_imm16, rt, instr_.instr());
       set_register(rt_reg, 1);
       break;
     }
@@ -7149,7 +7148,7 @@ void Simulator::DecodeTypeImmediate() {
           DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
-          set_register(rt_reg, ReadD(base + offset9, instr_.instr()));
+          set_register(rt_reg, Read2W(base + offset9, instr_.instr()));
           break;
         }
         case SC_R6: {
@@ -7166,7 +7165,7 @@ void Simulator::DecodeTypeImmediate() {
           DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
-          WriteD(base + offset9, rt, instr_.instr());
+          Write2W(base + offset9, rt, instr_.instr());
           set_register(rt_reg, 1);
           break;
         }

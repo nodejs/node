@@ -32,6 +32,15 @@ class TimedScope {
   double* result_;
 };
 
+template <typename Char>
+bool TryAddIndexChar(uint32_t* index, Char c) {
+  if (!IsDecimalDigit(c)) return false;
+  int d = c - '0';
+  if (*index > 429496729U - ((d + 3) >> 3)) return false;
+  *index = (*index) * 10 + d;
+  return true;
+}
+
 template <typename Stream>
 bool StringToArrayIndex(Stream* stream, uint32_t* index) {
   uint16_t ch = stream->GetNext();
@@ -48,12 +57,7 @@ bool StringToArrayIndex(Stream* stream, uint32_t* index) {
   int d = ch - '0';
   uint32_t result = d;
   while (stream->HasMore()) {
-    ch = stream->GetNext();
-    if (!IsDecimalDigit(ch)) return false;
-    d = ch - '0';
-    // Check that the new result is below the 32 bit limit.
-    if (result > 429496729U - ((d + 3) >> 3)) return false;
-    result = (result * 10) + d;
+    if (!TryAddIndexChar(&result, stream->GetNext())) return false;
   }
 
   *index = result;

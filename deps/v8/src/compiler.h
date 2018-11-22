@@ -13,7 +13,6 @@
 #include "src/code-events.h"
 #include "src/contexts.h"
 #include "src/isolate.h"
-#include "src/unicode-cache.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -352,9 +351,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // compilation starts.
   std::unique_ptr<ParseInfo> info_;
   std::unique_ptr<Parser> parser_;
-  // TODO(rmcilroy): Consider having thread-local unicode-caches rather than
-  // creating a new one each time.
-  UnicodeCache unicode_cache_;
 
   // Data needed for finalizing compilation after background compilation.
   std::unique_ptr<UnoptimizedCompilationJob> outer_function_job_;

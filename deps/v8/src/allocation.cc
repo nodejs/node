@@ -74,6 +74,13 @@ v8::PageAllocator* GetPlatformPageAllocator() {
   return page_allocator.Get();
 }
 
+v8::PageAllocator* SetPlatformPageAllocatorForTesting(
+    v8::PageAllocator* new_page_allocator) {
+  v8::PageAllocator* old_page_allocator = GetPlatformPageAllocator();
+  *page_allocator.Pointer() = new_page_allocator;
+  return old_page_allocator;
+}
+
 void* Malloced::New(size_t size) {
   void* result = AllocWithRetry(size);
   if (result == nullptr) {
@@ -158,7 +165,7 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* address,
                     PageAllocator::Permission access) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_EQ(address, AlignedAddress(address, alignment));
-  DCHECK_EQ(0UL, size & (page_allocator->AllocatePageSize() - 1));
+  DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
     result = page_allocator->AllocatePages(address, size, alignment, access);
@@ -172,7 +179,7 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* address,
 bool FreePages(v8::PageAllocator* page_allocator, void* address,
                const size_t size) {
   DCHECK_NOT_NULL(page_allocator);
-  DCHECK_EQ(0UL, size & (page_allocator->AllocatePageSize() - 1));
+  DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
   return page_allocator->FreePages(address, size);
 }
 
@@ -180,6 +187,7 @@ bool ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
                   size_t new_size) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_LT(new_size, size);
+  DCHECK(IsAligned(new_size, page_allocator->CommitPageSize()));
   return page_allocator->ReleasePages(address, size, new_size);
 }
 
@@ -212,12 +220,14 @@ VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
                              void* hint, size_t alignment)
     : page_allocator_(page_allocator) {
   DCHECK_NOT_NULL(page_allocator);
+  DCHECK(IsAligned(size, page_allocator_->CommitPageSize()));
   size_t page_size = page_allocator_->AllocatePageSize();
   alignment = RoundUp(alignment, page_size);
-  size = RoundUp(size, page_size);
-  Address address = reinterpret_cast<Address>(AllocatePages(
-      page_allocator_, hint, size, alignment, PageAllocator::kNoAccess));
+  Address address = reinterpret_cast<Address>(
+      AllocatePages(page_allocator_, hint, RoundUp(size, page_size), alignment,
+                    PageAllocator::kNoAccess));
   if (address != kNullAddress) {
+    DCHECK(IsAligned(address, alignment));
     region_ = base::AddressRegion(address, size);
   }
 }

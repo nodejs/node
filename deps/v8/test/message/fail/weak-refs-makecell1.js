@@ -4,5 +4,5 @@
 
 // Flags: --harmony-weak-refs
 
-let wf = new WeakFactory();
+let wf = new WeakFactory(() => {});
 wf.makeCell(1);

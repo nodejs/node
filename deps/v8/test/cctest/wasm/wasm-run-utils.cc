@@ -183,7 +183,7 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   OwnedVector<uint8_t> new_bytes = OwnedVector<uint8_t>::New(new_size);
   memcpy(new_bytes.start(), old_bytes.start(), old_size);
   memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
-  native_module_->set_wire_bytes(std::move(new_bytes));
+  native_module_->SetWireBytes(std::move(new_bytes));
   return bytes_offset;
 }
 
@@ -419,11 +419,12 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.start(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
-  WasmCompilationUnit unit(isolate()->wasm_engine(), native_module, func_body,
+  WasmCompilationUnit unit(isolate()->wasm_engine(), native_module,
                            function_->func_index, tier);
   WasmFeatures unused_detected_features;
-  unit.ExecuteCompilation(&env, isolate()->counters(),
-                          &unused_detected_features);
+  unit.ExecuteCompilation(
+      &env, native_module->compilation_state()->GetWireBytesStorage(),
+      isolate()->counters(), &unused_detected_features);
   CHECK(!unit.failed());
   if (WasmCode::ShouldBeLogged(isolate())) unit.result()->LogCode(isolate());
 }

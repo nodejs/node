@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   // Naming convention from elements.cc. We have a similar intent but implement
   // fastpaths using generics instead of using a class hierarchy for elements
   // kinds specific implementations.
@@ -40,6 +40,46 @@ module array {
     }
   }
 
+  macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
+    const e: Object = a[i];
+    return e == Hole ? Undefined : e;
+  }
+
+  macro LoadElementOrUndefined(a: FixedArray, i: intptr): Object {
+    const e: Object = a[i];
+    return e == Hole ? Undefined : e;
+  }
+
+  macro LoadElementOrUndefined(a: FixedArray, i: constexpr int31): Object {
+    return LoadElementOrUndefined(a, Convert<intptr>(i));
+  }
+
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
+    try {
+      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
+      return AllocateHeapNumberWithValue(f);
+    }
+    label IfHole {
+      return Undefined;
+    }
+  }
+
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: intptr):
+      NumberOrUndefined {
+    try {
+      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
+      return AllocateHeapNumberWithValue(f);
+    }
+    label IfHole {
+      return Undefined;
+    }
+  }
+
+  macro LoadElementOrUndefined(a: FixedDoubleArray, i: constexpr int31):
+      NumberOrUndefined {
+    return LoadElementOrUndefined(a, Convert<intptr>(i));
+  }
+
   macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
     StoreFixedDoubleArrayHoleSmi(elements, k);
   }
@@ -66,4 +106,6 @@ module array {
       StoreArrayHole(newElements, to);
     }
   }
+
+  extern macro SetPropertyLength(implicit context: Context)(Object, Number);
 }

@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/char-predicates.h"
-#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -49,12 +48,7 @@ class DateParser : public AllStatic {
   template <typename Char>
   class InputReader {
    public:
-    InputReader(UnicodeCache* unicode_cache, Vector<Char> s)
-        : index_(0),
-          buffer_(s),
-          unicode_cache_(unicode_cache) {
-      Next();
-    }
+    explicit InputReader(Vector<Char> s) : index_(0), buffer_(s) { Next(); }
 
     int position() { return index_; }
 
@@ -116,7 +110,6 @@ class DateParser : public AllStatic {
     int index_;
     Vector<Char> buffer_;
     uint32_t ch_;
-    UnicodeCache* unicode_cache_;
   };
 
   enum KeywordType {

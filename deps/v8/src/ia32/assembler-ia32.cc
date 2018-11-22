@@ -198,7 +198,6 @@ void Displacement::init(Label* L, Type type) {
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-    RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
     RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
     RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
@@ -218,18 +217,6 @@ bool RelocInfo::IsInConstantPool() {
 int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
   DCHECK(IsRuntimeEntry(rmode_));
   return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
-}
-
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::js_to_wasm_address() const {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {
@@ -1542,7 +1529,7 @@ void Assembler::bind_to(Label* L, int pos) {
       long_at_put(fixup_pos, reinterpret_cast<int>(buffer_ + pos));
       internal_reference_positions_.push_back(fixup_pos);
     } else if (disp.type() == Displacement::CODE_RELATIVE) {
-      // Relative to Code* heap object pointer.
+      // Relative to Code heap object pointer.
       long_at_put(fixup_pos, pos + Code::kHeaderSize - kHeapObjectTag);
     } else {
       if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
@@ -3252,8 +3239,7 @@ void Assembler::GrowBuffer() {
   }
 
   // Relocate pc-relative references.
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
-                  RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET);
   DCHECK_EQ(mode_mask, RelocInfo::kApplyMask & mode_mask);
   for (RelocIterator it(desc, mode_mask); !it.done(); it.next()) {
     it.rinfo()->apply(pc_delta);
@@ -3376,7 +3362,7 @@ void Assembler::dd(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
   reloc_info_writer.Write(&rinfo);
 }
 

@@ -12,6 +12,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/smi.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 
@@ -55,7 +56,7 @@ Serializer::~Serializer() {
 }
 
 #ifdef OBJECT_PRINT
-void Serializer::CountInstanceType(Map* map, int size, AllocationSpace space) {
+void Serializer::CountInstanceType(Map map, int size, AllocationSpace space) {
   int instance_type = map->instance_type();
   instance_type_count_[space][instance_type]++;
   instance_type_size_[space][instance_type] += size;
@@ -229,9 +230,11 @@ void Serializer::PutRoot(RootIndex root, HeapObject* object,
   }
 }
 
-void Serializer::PutSmi(Smi* smi) {
+void Serializer::PutSmi(Smi smi) {
   sink_.Put(kOnePointerRawData, "Smi");
-  byte* bytes = reinterpret_cast<byte*>(&smi);
+  Address raw_value = smi.ptr();
+  byte bytes[kPointerSize];
+  memcpy(bytes, &raw_value, kPointerSize);
   for (int i = 0; i < kPointerSize; i++) sink_.Put(bytes[i], "Byte");
 }
 
@@ -300,7 +303,7 @@ void Serializer::InitializeCodeAddressMap() {
   code_address_map_ = new CodeAddressMap(isolate_);
 }
 
-Code* Serializer::CopyCode(Code* code) {
+Code Serializer::CopyCode(Code code) {
   code_buffer_.clear();  // Clear buffer without deleting backing store.
   int size = code->CodeSize();
   code_buffer_.insert(code_buffer_.end(),
@@ -311,7 +314,7 @@ Code* Serializer::CopyCode(Code* code) {
 }
 
 void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
-                                                     int size, Map* map) {
+                                                     int size, Map map) {
   if (serializer_->code_address_map_) {
     const char* code_name =
         serializer_->code_address_map_->Lookup(object_->address());
@@ -324,11 +327,7 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
     sink_->Put(kNewObject + reference_representation_ + space,
                "NewLargeObject");
     sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
-    if (object_->IsCode()) {
-      sink_->Put(EXECUTABLE, "executable large object");
-    } else {
-      sink_->Put(NOT_EXECUTABLE, "not executable large object");
-    }
+    CHECK(!object_->IsCode());
     back_reference = serializer_->allocator()->AllocateLargeObject(size);
   } else if (space == MAP_SPACE) {
     DCHECK_EQ(Map::kSize, size);
@@ -470,7 +469,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   DCHECK(object_->map() != roots.native_source_string_map());
   ExternalString* string = ExternalString::cast(object_);
   int length = string->length();
-  Map* map;
+  Map map;
   int content_size;
   int allocation_size;
   const byte* resource;
@@ -590,10 +589,13 @@ void Serializer::ObjectSerializer::Serialize() {
 
 void Serializer::ObjectSerializer::SerializeObject() {
   int size = object_->Size();
-  Map* map = object_->map();
+  Map map = object_->map();
   AllocationSpace space =
       MemoryChunk::FromAddress(object_->address())->owner()->identity();
-  DCHECK(space != NEW_LO_SPACE);
+  // Young generation large objects are tenured.
+  if (space == NEW_LO_SPACE) {
+    space = LO_SPACE;
+  }
   SerializePrologue(space, size, map);
 
   // Serialize the rest of the object.
@@ -621,7 +623,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   }
 
   int size = object_->Size();
-  Map* map = object_->map();
+  Map map = object_->map();
   SerializerReference back_reference =
       serializer_->reference_map()->LookupReference(object_);
   DCHECK(back_reference.is_back_reference());
@@ -638,7 +640,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   SerializeContent(map, size);
 }
 
-void Serializer::ObjectSerializer::SerializeContent(Map* map, int size) {
+void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
   UnlinkWeakNextScope unlink_weak_next(serializer_->isolate()->heap(), object_);
   if (object_->IsCode()) {
     // For code objects, output raw bytes first.
@@ -666,11 +668,18 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
                                                  MaybeObjectSlot end) {
   MaybeObjectSlot current = start;
   while (current < end) {
-    while (current < end && ((*current)->IsSmi() || (*current)->IsCleared())) {
+    while (current < end && (*current)->IsSmi()) {
       ++current;
     }
     if (current < end) {
       OutputRawData(current.address());
+    }
+    // TODO(ishell): Revisit this change once we stick to 32-bit compressed
+    // tagged values.
+    while (current < end && (*current)->IsCleared()) {
+      sink_->Put(kClearedWeakReference, "ClearedWeakReference");
+      bytes_processed_so_far_ += kPointerSize;
+      ++current;
     }
     HeapObject* current_contents;
     HeapObjectReferenceType reference_type;
@@ -712,7 +721,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
   }
 }
 
-void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code* host,
+void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -737,7 +746,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
   bytes_processed_so_far_ += kPointerSize;
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
+void Serializer::ObjectSerializer::VisitExternalReference(Code host,
                                                           RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
   Address target = rinfo->target_external_reference();
@@ -756,7 +765,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
+void Serializer::ObjectSerializer::VisitInternalReference(Code host,
                                                           RelocInfo* rinfo) {
   // We do not use skip from last patched pc to find the pc to patch, since
   // target_address_address may not return addresses in ascending order when
@@ -779,7 +788,7 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
   sink_->PutInt(target_offset, "internal ref value");
 }
 
-void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
+void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
                                                      RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
@@ -792,7 +801,7 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-void Serializer::ObjectSerializer::VisitOffHeapTarget(Code* host,
+void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
   DCHECK(FLAG_embedded_builtins);
   {
@@ -800,8 +809,8 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code* host,
     CHECK(Builtins::IsIsolateIndependentBuiltin(host));
     Address addr = rinfo->target_off_heap_target();
     CHECK_NE(kNullAddress, addr);
-    CHECK_NOT_NULL(
-        InstructionStream::TryLookupCode(serializer_->isolate(), addr));
+    CHECK(!InstructionStream::TryLookupCode(serializer_->isolate(), addr)
+               .is_null());
   }
 
   int skip = SkipTo(rinfo->target_address_address());
@@ -849,10 +858,10 @@ void Serializer::ObjectSerializer::VisitRelocInfo(RelocIterator* it) {
   }
 }
 
-void Serializer::ObjectSerializer::VisitCodeTarget(Code* host,
+void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
                                                    RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
-  Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  Code object = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
@@ -917,7 +926,7 @@ int Serializer::ObjectSerializer::SkipTo(Address to) {
 
 void Serializer::ObjectSerializer::OutputCode(int size) {
   DCHECK_EQ(kPointerSize, bytes_processed_so_far_);
-  Code* code = Code::cast(object_);
+  Code code = Code::cast(object_);
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.
   code = serializer_->CopyCode(code);

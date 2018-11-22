@@ -187,7 +187,7 @@ Running test: testScopesPaused
             lineNumber : 12
             scriptId : <scriptId>
         }
-        functionName : <instance_fields_initializer>
+        functionName : <instance_members_initializer>
         location : {
             columnNumber : 8
             lineNumber : 12
@@ -368,7 +368,7 @@ Running test: testScopesPaused
             lineNumber : 12
             scriptId : <scriptId>
         }
-        functionName : <instance_fields_initializer>
+        functionName : <instance_members_initializer>
         location : {
             columnNumber : 14
             lineNumber : 13
@@ -549,7 +549,7 @@ Running test: testScopesPaused
             lineNumber : 12
             scriptId : <scriptId>
         }
-        functionName : <instance_fields_initializer>
+        functionName : <instance_members_initializer>
         location : {
             columnNumber : 8
             lineNumber : 14
@@ -802,7 +802,7 @@ Running test: testScopesPaused
             lineNumber : 12
             scriptId : <scriptId>
         }
-        functionName : <instance_fields_initializer>
+        functionName : <instance_members_initializer>
         location : {
             columnNumber : 8
             lineNumber : 14

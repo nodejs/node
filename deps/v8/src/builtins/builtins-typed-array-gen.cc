@@ -202,8 +202,9 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
                                    MachineType::PointerRepresentation());
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
                                    SmiConstant(0));
-    for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
-      int offset = JSArrayBuffer::kSize + i * kPointerSize;
+    for (int offset = JSArrayBuffer::kSize;
+         offset < JSArrayBuffer::kSizeWithEmbedderFields;
+         offset += kTaggedSize) {
       StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
     }
 
@@ -885,59 +886,77 @@ TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
       LoadContextElement(LoadNativeContext(context), context_slot.value()));
 }
 
-TNode<JSReceiver> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
-    TNode<Context> context, TNode<JSTypedArray> exemplar) {
-  TVARIABLE(JSReceiver, var_constructor);
-  Label slow(this), done(this);
+template <class... TArgs>
+TNode<JSTypedArray> TypedArrayBuiltinsAssembler::TypedArraySpeciesCreate(
+    const char* method_name, TNode<Context> context,
+    TNode<JSTypedArray> exemplar, TArgs... args) {
+  TVARIABLE(JSTypedArray, var_new_typed_array);
+  Label slow(this, Label::kDeferred), done(this);
 
   // Let defaultConstructor be the intrinsic object listed in column one of
   // Table 52 for exemplar.[[TypedArrayName]].
   TNode<JSFunction> default_constructor =
       GetDefaultConstructor(context, exemplar);
 
-  var_constructor = default_constructor;
-  Node* map = LoadMap(exemplar);
+  TNode<Map> map = LoadMap(exemplar);
   GotoIfNot(IsPrototypeTypedArrayPrototype(context, map), &slow);
-  Branch(IsTypedArraySpeciesProtectorCellInvalid(), &slow, &done);
-
+  GotoIf(IsTypedArraySpeciesProtectorCellInvalid(), &slow);
+  {
+    const size_t argc = sizeof...(args);
+    static_assert(argc >= 1 && argc <= 3,
+                  "TypedArraySpeciesCreate called with unexpected arguments");
+    TNode<Object> arg_list[argc] = {args...};
+    TNode<Object> arg0 = argc < 1 ? UndefinedConstant() : arg_list[0];
+    TNode<Object> arg1 = argc < 2 ? UndefinedConstant() : arg_list[1];
+    TNode<Object> arg2 = argc < 3 ? UndefinedConstant() : arg_list[2];
+    var_new_typed_array = UncheckedCast<JSTypedArray>(
+        CallBuiltin(Builtins::kCreateTypedArray, context, default_constructor,
+                    default_constructor, arg0, arg1, arg2));
+#ifdef DEBUG
+    // It is assumed that the CreateTypedArray builtin does not produce a
+    // typed array that fails ValidateTypedArray.
+    TNode<JSArrayBuffer> buffer =
+        LoadJSArrayBufferViewBuffer(var_new_typed_array.value());
+    CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(buffer)));
+#endif  // DEBUG
+    Goto(&done);
+  }
   BIND(&slow);
-  var_constructor = SpeciesConstructor(context, exemplar, default_constructor);
-  Goto(&done);
+  {
+    // Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
+    TNode<JSReceiver> constructor =
+        SpeciesConstructor(context, exemplar, default_constructor);
+
+    // Let newTypedArray be ? Construct(constructor, argumentList).
+    TNode<JSReceiver> new_object = Construct(context, constructor, args...);
+
+    // Perform ? ValidateTypedArray(newTypedArray).
+    var_new_typed_array = ValidateTypedArray(context, new_object, method_name);
+    Goto(&done);
+  }
 
   BIND(&done);
-  return var_constructor.value();
+  return var_new_typed_array.value();
 }
 
-TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByArrayBuffer(
-    TNode<Context> context, TNode<JSTypedArray> exemplar,
-    TNode<JSArrayBuffer> buffer, TNode<Number> byte_offset, TNode<Smi> len,
-    const char* method_name) {
-  // Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  TNode<JSReceiver> constructor =
-      TypedArraySpeciesConstructor(context, exemplar);
-
-  // Let newTypedArray be ? Construct(constructor, argumentList).
-  TNode<JSReceiver> new_object =
-      Construct(context, constructor, buffer, byte_offset, len);
-
-  // Perform ? ValidateTypedArray(newTypedArray).
-  return ValidateTypedArray(context, new_object, method_name);
-}
-
-TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByLength(
+TNode<JSTypedArray>
+TypedArrayBuiltinsAssembler::TypedArraySpeciesCreateByLength(
     TNode<Context> context, TNode<JSTypedArray> exemplar, TNode<Smi> len,
     const char* method_name) {
   CSA_ASSERT(this, TaggedIsPositiveSmi(len));
 
-  // Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  TNode<JSReceiver> constructor =
-      TypedArraySpeciesConstructor(context, exemplar);
-  return CreateByLength(context, constructor, len, method_name);
+  TNode<JSTypedArray> new_typed_array =
+      TypedArraySpeciesCreate(method_name, context, exemplar, len);
+
+  ThrowIfLengthLessThan(context, new_typed_array, len);
+  return new_typed_array;
 }
 
-TNode<JSTypedArray> TypedArrayBuiltinsAssembler::CreateByLength(
+TNode<JSTypedArray> TypedArrayBuiltinsAssembler::TypedArrayCreateByLength(
     TNode<Context> context, TNode<Object> constructor, TNode<Smi> len,
     const char* method_name) {
+  CSA_ASSERT(this, TaggedIsPositiveSmi(len));
+
   // Let newTypedArray be ? Construct(constructor, argumentList).
   TNode<Object> new_object = CAST(ConstructJS(CodeFactory::Construct(isolate()),
                                               context, constructor, len));
@@ -946,15 +965,20 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::CreateByLength(
   TNode<JSTypedArray> new_typed_array =
       ValidateTypedArray(context, new_object, method_name);
 
-  // If newTypedArray.[[ArrayLength]] < argumentList[0], throw a TypeError
-  // exception.
+  ThrowIfLengthLessThan(context, new_typed_array, len);
+  return new_typed_array;
+}
+
+void TypedArrayBuiltinsAssembler::ThrowIfLengthLessThan(
+    TNode<Context> context, TNode<JSTypedArray> typed_array,
+    TNode<Smi> min_length) {
+  // If typed_array.[[ArrayLength]] < min_length, throw a TypeError exception.
   Label if_length_is_not_short(this);
-  TNode<Smi> new_length = LoadJSTypedArrayLength(new_typed_array);
-  GotoIfNot(SmiLessThan(new_length, len), &if_length_is_not_short);
+  TNode<Smi> new_length = LoadJSTypedArrayLength(typed_array);
+  GotoIfNot(SmiLessThan(new_length, min_length), &if_length_is_not_short);
   ThrowTypeError(context, MessageTemplate::kTypedArrayTooShort);
 
   BIND(&if_length_is_not_short);
-  return new_typed_array;
 }
 
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::GetBuffer(
@@ -1313,7 +1337,7 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   // Create a result array by invoking TypedArraySpeciesCreate.
   TNode<Smi> count = SmiMax(SmiSub(end_index, start_index), SmiConstant(0));
   TNode<JSTypedArray> result_array =
-      SpeciesCreateByLength(context, source, count, method_name);
+      TypedArraySpeciesCreateByLength(context, source, count, method_name);
 
   // If count is zero, return early.
   GotoIf(SmiGreaterThan(count, SmiConstant(0)), &if_count_is_not_zero);
@@ -1456,8 +1480,8 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
 
   // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
   // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
-  args.PopAndReturn(SpeciesCreateByArrayBuffer(
-      context, source, buffer, begin_byte_offset, new_length, method_name));
+  args.PopAndReturn(TypedArraySpeciesCreate(
+      method_name, context, source, buffer, begin_byte_offset, new_length));
 }
 
 // ES #sec-get-%typedarray%.prototype-@@tostringtag
@@ -1567,8 +1591,8 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   GotoIfNot(IsConstructor(CAST(receiver)), &if_not_constructor);
 
   // 5. Let newObj be ? TypedArrayCreate(C, len).
-  TNode<JSTypedArray> new_typed_array =
-      CreateByLength(context, receiver, SmiTag(length), "%TypedArray%.of");
+  TNode<JSTypedArray> new_typed_array = TypedArrayCreateByLength(
+      context, receiver, SmiTag(length), "%TypedArray%.of");
 
   TNode<Word32T> elements_kind = LoadElementsKind(new_typed_array);
 
@@ -1780,8 +1804,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   BIND(&create_typed_array);
   {
     // 7c/11. Let targetObj be ? TypedArrayCreate(C, «len»).
-    target_obj = CreateByLength(context, receiver, final_length.value(),
-                                "%TypedArray%.from");
+    target_obj = TypedArrayCreateByLength(
+        context, receiver, final_length.value(), "%TypedArray%.from");
 
     Branch(mapping.value(), &slow_path, &fast_path);
   }
@@ -1940,7 +1964,7 @@ TF_BUILTIN(TypedArrayPrototypeFilter, TypedArrayBuiltinsAssembler) {
 
   // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
   TNode<JSTypedArray> result_array =
-      SpeciesCreateByLength(context, source, captured, method_name);
+      TypedArraySpeciesCreateByLength(context, source, captured, method_name);
 
   // 11. Let n be 0.
   // 12. For each element e of kept, do

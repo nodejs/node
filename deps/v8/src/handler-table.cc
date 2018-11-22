@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-HandlerTable::HandlerTable(Code* code)
+HandlerTable::HandlerTable(Code code)
     : HandlerTable(code->InstructionStart(), code->handler_table_offset()) {}
 
 HandlerTable::HandlerTable(BytecodeArray* bytecode_array)

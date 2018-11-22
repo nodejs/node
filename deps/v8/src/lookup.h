@@ -209,22 +209,22 @@ class V8_EXPORT_PRIVATE LookupIterator final {
 
   Handle<Map> GetReceiverMap() const;
 
-  V8_WARN_UNUSED_RESULT inline JSReceiver* NextHolder(Map* map);
+  V8_WARN_UNUSED_RESULT inline JSReceiver* NextHolder(Map map);
 
   template <bool is_element>
   V8_EXPORT_PRIVATE void Start();
   template <bool is_element>
-  void NextInternal(Map* map, JSReceiver* holder);
+  void NextInternal(Map map, JSReceiver* holder);
   template <bool is_element>
-  inline State LookupInHolder(Map* map, JSReceiver* holder) {
+  inline State LookupInHolder(Map map, JSReceiver* holder) {
     return map->IsSpecialReceiverMap()
                ? LookupInSpecialHolder<is_element>(map, holder)
                : LookupInRegularHolder<is_element>(map, holder);
   }
   template <bool is_element>
-  State LookupInRegularHolder(Map* map, JSReceiver* holder);
+  State LookupInRegularHolder(Map map, JSReceiver* holder);
   template <bool is_element>
-  State LookupInSpecialHolder(Map* map, JSReceiver* holder);
+  State LookupInSpecialHolder(Map map, JSReceiver* holder);
   template <bool is_element>
   void RestartLookupForNonMaskingInterceptors() {
     RestartInternal<is_element>(InterceptorState::kProcessNonMasking);

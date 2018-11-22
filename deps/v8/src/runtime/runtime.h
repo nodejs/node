@@ -47,7 +47,6 @@ namespace internal {
   F(GrowArrayElements, 2, 1)              \
   F(HasComplexElements, 1, 1)             \
   I(IsArray, 1, 1)                        \
-  F(MoveArrayContents, 2, 1)              \
   F(NewArray, -1 /* >= 3 */, 1)           \
   F(NormalizeElements, 1, 1)              \
   F(PrepareElementsForSort, 2, 1)         \
@@ -200,7 +199,6 @@ namespace internal {
 #ifdef V8_INTL_SUPPORT
 #define FOR_EACH_INTRINSIC_INTL(F, I) \
   F(CanonicalizeLanguageTag, 1, 1)    \
-  F(DateCacheVersion, 0, 1)           \
   F(FormatList, 2, 1)                 \
   F(FormatListToParts, 2, 1)          \
   F(GetDefaultICULocale, 0, 1)        \
@@ -225,7 +223,6 @@ namespace internal {
   F(IncrementUseCounter, 1, 1)                     \
   F(InstallToContext, 1, 1)                        \
   F(Interrupt, 0, 1)                               \
-  F(IS_VAR, 1, 1)                                  \
   F(NewReferenceError, 2, 1)                       \
   F(NewSyntaxError, 2, 1)                          \
   F(NewTypeError, 2, 1)                            \
@@ -355,7 +352,6 @@ namespace internal {
   F(AwaitPromisesInitOld, 5, 1)          \
   F(PromiseMarkAsHandled, 1, 1)          \
   F(PromiseRejectEventFromStack, 2, 1)   \
-  F(PromiseResult, 1, 1)                 \
   F(PromiseRevokeReject, 1, 1)           \
   F(PromiseStatus, 1, 1)                 \
   F(RejectPromise, 3, 1)                 \
@@ -434,7 +430,7 @@ namespace internal {
   F(StringTrim, 2, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F, I)    \
-  F(CreatePrivateFieldSymbol, 0, 1)        \
+  F(CreatePrivateNameSymbol, 0, 1)         \
   F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)
@@ -509,8 +505,6 @@ namespace internal {
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
   F(ArraySpeciesProtector, 0, 1)              \
-  F(TypedArraySpeciesProtector, 0, 1)         \
-  F(PromiseSpeciesProtector, 0, 1)            \
   F(MapIteratorProtector, 0, 1)               \
   F(SetIteratorProtector, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
@@ -537,6 +531,8 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_WASM(F, I) \
   F(ThrowWasmError, 1, 1)             \
   F(ThrowWasmStackOverflow, 0, 1)     \
+  F(WasmI32AtomicWait, 4, 1)          \
+  F(WasmAtomicWake, 3, 1)             \
   F(WasmExceptionGetValues, 1, 1)     \
   F(WasmExceptionGetTag, 1, 1)        \
   F(WasmMemoryGrow, 2, 1)             \
@@ -570,8 +566,7 @@ namespace internal {
   F(StoreIC_Miss, 5, 1)                      \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
-  F(CloneObjectIC_Miss, 4, 1)                \
-  F(CloneObjectIC_Slow, 2, 1)
+  F(CloneObjectIC_Miss, 4, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I) \
   FOR_EACH_INTRINSIC_ARRAY(F, I)                    \
@@ -624,7 +619,7 @@ namespace internal {
 #define FOR_EACH_INLINE_INTRINSIC(I) FOR_EACH_INTRINSIC_IMPL(NOTHING, I)
 
 #define F(name, nargs, ressize)                                 \
-  Object* Runtime_##name(int args_length, Object** args_object, \
+  Object* Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 #undef F
@@ -777,8 +772,6 @@ enum class OptimizationStatus {
   kTopmostFrameIsTurboFanned = 1 << 11,
   kLiteMode = 1 << 12,
 };
-
-Smi* SmiLexicographicCompare(Smi* x_value, Smi* y_value);
 
 }  // namespace internal
 }  // namespace v8

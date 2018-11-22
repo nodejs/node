@@ -4,6 +4,7 @@
 
 #include "src/arguments-inl.h"
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
@@ -40,7 +41,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
   if (is_found_out) *is_found_out = it.IsFound();
 
   if (!it.IsFound() && key->IsSymbol() &&
-      Symbol::cast(*key)->is_private_field()) {
+      Symbol::cast(*key)->is_private_name()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kInvalidPrivateFieldAccess, key, object),
@@ -59,7 +60,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // the properties, we can undo the last map transition, with a few
   // prerequisites:
   // (1) The receiver must be a regular object and the key a unique name.
-  Map* map = receiver->map();
+  Map map = receiver->map();
   if (map->IsSpecialReceiverMap()) return false;
   if (!raw_key->IsUniqueName()) return false;
   Handle<Name> key = Handle<Name>::cast(raw_key);
@@ -252,7 +253,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
       if (maybe.FromJust()) return ReadOnlyRoots(isolate).true_value();
     }
 
-    Map* map = js_obj->map();
+    Map map = js_obj->map();
     if (!map->has_hidden_prototype() &&
         (key_is_array_index ? !map->has_indexed_interceptor()
                             : !map->has_named_interceptor())) {
@@ -358,7 +359,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   if (!success) return MaybeHandle<Object>();
 
   if (!it.IsFound() && key->IsSymbol() &&
-      Symbol::cast(*key)->is_private_field()) {
+      Symbol::cast(*key)->is_private_name()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kInvalidPrivateFieldAccess, key, object),
@@ -1215,7 +1216,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateField) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, o, 0);
   CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  DCHECK(key->is_private_field());
+  DCHECK(key->is_private_name());
 
   LookupIterator it =
       LookupIterator::PropertyOrElement(isolate, o, key, LookupIterator::OWN);

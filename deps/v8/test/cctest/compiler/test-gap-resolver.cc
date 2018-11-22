@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/gap-resolver.h"
+#include "src/compiler/backend/gap-resolver.h"
 
 #include "src/base/utils/random-number-generator.h"
 #include "test/cctest/cctest.h"
@@ -171,8 +171,7 @@ class InterpreterState {
       InstructionOperand source = FromKey(it->second);
       InstructionOperand destination = FromKey(it->first);
       MoveOperands mo(source, destination);
-      PrintableMoveOperands pmo = {GetRegConfig(), &mo};
-      os << pmo;
+      os << PrintableMoveOperands{&mo};
     }
     return os;
   }

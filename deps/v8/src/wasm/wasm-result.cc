@@ -126,9 +126,9 @@ Handle<Object> ErrorThrower::Reify() {
       constructor = isolate_->wasm_runtime_error_function();
       break;
   }
-  Vector<const char> msg_vec(error_msg_.data(), error_msg_.size());
-  Handle<String> message =
-      isolate_->factory()->NewStringFromUtf8(msg_vec).ToHandleChecked();
+  Handle<String> message = isolate_->factory()
+                               ->NewStringFromUtf8(VectorOf(error_msg_))
+                               .ToHandleChecked();
   Reset();
   return isolate_->factory()->NewError(constructor, message);
 }

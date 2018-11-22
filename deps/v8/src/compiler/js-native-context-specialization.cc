@@ -232,6 +232,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   // extracted from the top-most frame in {frame_state}.
   Handle<SharedFunctionInfo> shared =
       FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked();
+  DCHECK(shared->is_compiled());
   int register_count = shared->internal_formal_parameter_count() +
                        shared->GetBytecodeArray()->register_count();
   Node* value = effect =
@@ -401,7 +402,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   }
   Handle<Map> receiver_map(receiver->map(), isolate());
 
-  // Compute property access info for @@hasInstance on {receiver}.
+  // Compute property access info for @@hasInstance on the constructor.
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(
       broker(), dependencies(), native_context().object(), graph()->zone());
@@ -410,47 +411,41 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
           &access_info)) {
     return NoChange();
   }
+  DCHECK_EQ(access_info.receiver_maps().size(), 1);
+  DCHECK_EQ(access_info.receiver_maps()[0].address(), receiver_map.address());
 
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
   if (access_info.IsNotFound()) {
     // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
-    // takes over, but that requires the {receiver} to be callable.
-    if (receiver->IsCallable()) {
-      // Determine actual holder and perform prototype chain checks.
-      Handle<JSObject> holder;
-      if (access_info.holder().ToHandle(&holder)) {
-        dependencies()->DependOnStablePrototypeChains(
-            broker(), access_info.receiver_maps(),
-            JSObjectRef(broker(), holder));
-      }
+    // takes over, but that requires the constructor to be callable.
+    if (!receiver_map->is_callable()) return NoChange();
 
-      // Check that {constructor} is actually {receiver}.
-      constructor = access_builder.BuildCheckValue(constructor, &effect,
-                                                   control, receiver);
-
-      // Monomorphic property access.
-      access_builder.BuildCheckMaps(constructor, &effect, control,
-                                    access_info.receiver_maps());
-
-      // Lower to OrdinaryHasInstance(C, O).
-      NodeProperties::ReplaceValueInput(node, constructor, 0);
-      NodeProperties::ReplaceValueInput(node, object, 1);
-      NodeProperties::ReplaceEffectInput(node, effect);
-      NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
-      Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
-      return reduction.Changed() ? reduction : Changed(node);
-    }
-  } else if (access_info.IsDataConstant() ||
-             access_info.IsDataConstantField()) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       dependencies()->DependOnStablePrototypeChains(
           broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
-    } else {
-      holder = receiver;
     }
+
+    // Monomorphic property access.
+    access_builder.BuildCheckMaps(constructor, &effect, control,
+                                  access_info.receiver_maps());
+
+    // Lower to OrdinaryHasInstance(C, O).
+    NodeProperties::ReplaceValueInput(node, constructor, 0);
+    NodeProperties::ReplaceValueInput(node, object, 1);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
+    Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
+    return reduction.Changed() ? reduction : Changed(node);
+  }
+
+  if (access_info.IsDataConstant() || access_info.IsDataConstantField()) {
+    // Determine actual holder.
+    Handle<JSObject> holder;
+    bool found_on_proto = access_info.holder().ToHandle(&holder);
+    if (!found_on_proto) holder = receiver;
 
     Handle<Object> constant;
     if (access_info.IsDataConstant()) {
@@ -459,12 +454,30 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     } else {
       DCHECK(FLAG_track_constant_fields);
       DCHECK(access_info.IsDataConstantField());
-      // The value must be callable therefore tagged.
-      DCHECK(CanBeTaggedPointer(access_info.field_representation()));
       FieldIndex field_index = access_info.field_index();
       constant = JSObject::FastPropertyAt(holder, Representation::Tagged(),
                                           field_index);
+      if (!constant->IsCallable()) {
+        return NoChange();
+      }
+
+      // Install dependency on constness. Unfortunately, access_info does not
+      // track descriptor index, so we have to search for it.
+      Handle<Map> holder_map(holder->map(), isolate());
+      Handle<DescriptorArray> descriptors(holder_map->instance_descriptors(),
+                                          isolate());
+      int descriptor_index =
+          descriptors->Search(*(factory()->has_instance_symbol()), *holder_map);
+      CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
+      dependencies()->DependOnFieldType(MapRef(broker(), holder_map),
+                                        descriptor_index);
     }
+
+    if (found_on_proto) {
+      dependencies()->DependOnStablePrototypeChains(
+          broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+    }
+
     DCHECK(constant->IsCallable());
 
     // Check that {constructor} is actually {receiver}.
@@ -647,6 +660,10 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  if (!isolate()->IsPromiseHookProtectorIntact()) {
+    return NoChange();
+  }
+
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue() ||
@@ -665,6 +682,10 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   for (Handle<Map> const value_map : value_maps) {
     if (value_map->IsJSPromiseMap()) return NoChange();
   }
+
+  // Install a code dependency on the promise hook protector cell.
+  dependencies()->DependOnProtector(
+      PropertyCellRef(broker(), factory()->promise_hook_protector()));
 
   // Create a %Promise% instance and resolve it with {value}.
   Node* promise = effect =
@@ -773,9 +794,6 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
     AccessMode access_mode, Node* index) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
   // Lookup on the global object. We only deal with own data properties
   // of the global object here (represented as PropertyCell).
   LookupIterator it(isolate(), global_object(), name, LookupIterator::OWN);
@@ -783,9 +801,25 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
-  PropertyDetails property_details = property_cell->property_details();
+  return ReduceGlobalAccess(node, receiver, value, name, access_mode, index,
+                            property_cell);
+}
+
+Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
+    Node* node, Node* receiver, Node* value, Handle<Name> name,
+    AccessMode access_mode, Node* index, Handle<PropertyCell> property_cell) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
   Handle<Object> property_cell_value(property_cell->value(), isolate());
+  if (property_cell_value.is_identical_to(factory()->the_hole_value())) {
+    // The property cell is no longer valid.
+    return NoChange();
+  }
+
+  PropertyDetails property_details = property_cell->property_details();
   PropertyCellType property_cell_type = property_details.cell_type();
+  DCHECK_EQ(kData, property_details.kind());
 
   // We have additional constraints for stores.
   if (access_mode == AccessMode::kStore) {
@@ -840,6 +874,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       if (property_details.cell_type() == PropertyCellType::kConstant ||
           property_details.cell_type() == PropertyCellType::kUndefined) {
         value = jsgraph()->Constant(property_cell_value);
+        CHECK(
+            !property_cell_value.is_identical_to(factory()->the_hole_value()));
       } else {
         // Load from constant type cell can benefit from type feedback.
         MaybeHandle<Map> map;
@@ -960,58 +996,100 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
-  NameRef name(broker(), LoadGlobalParametersOf(node->op()).name());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  // Try to lookup the name on the script context table first (lexical scoping).
-  base::Optional<ScriptContextTableRef::LookupResult> result =
-      native_context().script_context_table().lookup(name);
-  if (result) {
-    ObjectRef contents = result->context.get(result->index);
-    if (contents.IsHeapObject() &&
-        contents.AsHeapObject().map().oddball_type() == OddballType::kHole) {
-      return NoChange();
+  LoadGlobalParameters const& p = LoadGlobalParametersOf(node->op());
+  if (!p.feedback().IsValid()) return NoChange();
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+
+  DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
+         nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
+  if (nexus.GetFeedback()->IsCleared()) return NoChange();
+  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
+
+  if (feedback->IsSmi()) {
+    // The wanted name belongs to a script-scope variable and the feedback tells
+    // us where to find its value.
+
+    int number = feedback->Number();
+    int const script_context_index =
+        FeedbackNexus::ContextIndexBits::decode(number);
+    int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
+    bool const immutable = FeedbackNexus::ImmutabilityBit::decode(number);
+    Handle<Context> context = ScriptContextTable::GetContext(
+        isolate(), native_context().script_context_table().object(),
+        script_context_index);
+
+    {
+      ObjectRef contents(broker(),
+                         handle(context->get(context_slot_index), isolate()));
+      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
     }
-    Node* context = jsgraph()->Constant(result->context);
+
+    Node* context_constant = jsgraph()->Constant(context);
     Node* value = effect = graph()->NewNode(
-        javascript()->LoadContext(0, result->index, result->immutable), context,
-        effect);
+        javascript()->LoadContext(0, context_slot_index, immutable),
+        context_constant, effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
 
-  // Lookup the {name} on the global object instead.
-  return ReduceGlobalAccess(node, nullptr, nullptr, name.object(),
-                            AccessMode::kLoad);
+  CHECK(feedback->IsPropertyCell());
+  // The wanted name belongs (or did belong) to a property on the global object
+  // and the feedback is the cell holding its value.
+  return ReduceGlobalAccess(node, nullptr, nullptr, p.name(), AccessMode::kLoad,
+                            nullptr, Handle<PropertyCell>::cast(feedback));
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
-  NameRef name(broker(), StoreGlobalParametersOf(node->op()).name());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Try to lookup the name on the script context table first (lexical scoping).
-  base::Optional<ScriptContextTableRef::LookupResult> result =
-      native_context().script_context_table().lookup(name);
-  if (result) {
-    ObjectRef contents = result->context.get(result->index);
-    if ((contents.IsHeapObject() &&
-         contents.AsHeapObject().map().oddball_type() == OddballType::kHole) ||
-        result->immutable) {
-      return NoChange();
+  StoreGlobalParameters const& p = StoreGlobalParametersOf(node->op());
+  if (!p.feedback().IsValid()) return NoChange();
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+
+  DCHECK(nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
+         nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
+  if (nexus.GetFeedback()->IsCleared()) return NoChange();
+  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
+
+  if (feedback->IsSmi()) {
+    // The wanted name belongs to a script-scope variable and the feedback tells
+    // us where to find its value.
+
+    int const script_context_index =
+        FeedbackNexus::ContextIndexBits::decode(feedback->Number());
+    int const context_slot_index =
+        FeedbackNexus::SlotIndexBits::decode(feedback->Number());
+    bool const immutable =
+        FeedbackNexus::ImmutabilityBit::decode(feedback->Number());
+    Handle<Context> context = ScriptContextTable::GetContext(
+        isolate(), native_context().script_context_table().object(),
+        script_context_index);
+
+    if (immutable) return NoChange();
+
+    {
+      ObjectRef contents(broker(),
+                         handle(context->get(context_slot_index), isolate()));
+      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
     }
-    Node* context = jsgraph()->Constant(result->context);
-    effect = graph()->NewNode(javascript()->StoreContext(0, result->index),
-                              value, context, effect, control);
+
+    Node* context_constant = jsgraph()->Constant(context);
+    effect = graph()->NewNode(javascript()->StoreContext(0, context_slot_index),
+                              value, context_constant, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
 
-  // Lookup the {name} on the global object instead.
-  return ReduceGlobalAccess(node, nullptr, value, name.object(),
-                            AccessMode::kStore);
+  CHECK(feedback->IsPropertyCell());
+  // The wanted name belongs (or did belong) to a property on the global object
+  // and the feedback is the cell holding its value.
+  return ReduceGlobalAccess(node, nullptr, value, p.name(), AccessMode::kStore,
+                            nullptr, Handle<PropertyCell>::cast(feedback));
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
@@ -2308,8 +2386,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
 
   DCHECK_EQ(MONOMORPHIC, nexus.ic_state());
 
-  Map* map = nexus.FindFirstMap();
-  if (map == nullptr) {
+  Map map = nexus.FindFirstMap();
+  if (map.is_null()) {
     // Maps are weakly held in the type feedback vector, we may not have one.
     return NoChange();
   }

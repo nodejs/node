@@ -13,16 +13,23 @@
 #include "src/callable.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
-#include "src/instruction-stream.h"
+#include "src/macro-assembler.h"
+#include "src/objects/smi.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
 
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
 #include "src/s390/macro-assembler-s390.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -293,7 +300,7 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   push(r0);
 }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   mov(r0, Operand(smi));
   push(r0);
 }
@@ -1495,7 +1502,7 @@ void MacroAssembler::PushStackHandler() {
   lay(sp, MemOperand(sp, -StackHandlerConstants::kSize));
 
   // Store padding.
-  mov(r0, Operand(Smi::kZero));
+  lghi(r0, Operand::Zero());
   StoreP(r0, MemOperand(sp));  // Padding.
 
   // Copy the old handler into the next handler slot.
@@ -1545,7 +1552,12 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
 
 void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  call(stub);
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  } else {
+    call(stub);
+  }
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
@@ -1670,7 +1682,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  CmpP(in, Operand(kClearedWeakHeapObject));
+  Cmp32(in, Operand(kClearedWeakHeapObjectLower32));
   beq(target_if_cleared);
 
   AndP(out, in, Operand(~kWeakHeapObjectMask));
@@ -3495,8 +3507,8 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
   Load(dst, Operand(value));
 }
 
-void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
-  intptr_t value = reinterpret_cast<intptr_t>(smi);
+void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
+  intptr_t value = static_cast<intptr_t>(smi.ptr());
 #if V8_TARGET_ARCH_S390X
   DCHECK_EQ(value & 0xFFFFFFFF, 0);
   // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
@@ -3537,10 +3549,10 @@ void TurboAssembler::LoadFloat32Literal(DoubleRegister result, float value,
   LoadDoubleLiteral(result, int_val, scratch);
 }
 
-void TurboAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {
+void TurboAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
 #if V8_TARGET_ARCH_S390X
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    cih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+    cih(src1, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
     cgr(src1, scratch);
@@ -3548,62 +3560,6 @@ void TurboAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {
 #else
   // CFI takes 32-bit immediate.
   cfi(src1, Operand(smi));
-#endif
-}
-
-void TurboAssembler::CmpLogicalSmiLiteral(Register src1, Smi* smi,
-                                          Register scratch) {
-#if V8_TARGET_ARCH_S390X
-  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    clih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
-  } else {
-    LoadSmiLiteral(scratch, smi);
-    clgr(src1, scratch);
-  }
-#else
-  // CLFI takes 32-bit immediate
-  clfi(src1, Operand(smi));
-#endif
-}
-
-void TurboAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
-                                   Register scratch) {
-#if V8_TARGET_ARCH_S390X
-  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    if (dst != src) LoadRR(dst, src);
-    aih(dst, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
-  } else {
-    LoadSmiLiteral(scratch, smi);
-    AddP(dst, src, scratch);
-  }
-#else
-  AddP(dst, src, Operand(reinterpret_cast<intptr_t>(smi)));
-#endif
-}
-
-void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
-                                   Register scratch) {
-#if V8_TARGET_ARCH_S390X
-  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    if (dst != src) LoadRR(dst, src);
-    aih(dst, Operand((-reinterpret_cast<intptr_t>(smi)) >> 32));
-  } else {
-    LoadSmiLiteral(scratch, smi);
-    SubP(dst, src, scratch);
-  }
-#else
-  AddP(dst, src, Operand(-(reinterpret_cast<intptr_t>(smi))));
-#endif
-}
-
-void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi) {
-  if (dst != src) LoadRR(dst, src);
-#if V8_TARGET_ARCH_S390X
-  DCHECK_EQ(reinterpret_cast<intptr_t>(smi) & 0xFFFFFFFF, 0);
-  int value = static_cast<int>(reinterpret_cast<intptr_t>(smi) >> 32);
-  nihf(dst, Operand(value));
-#else
-  nilf(dst, Operand(reinterpret_cast<int>(smi)));
 #endif
 }
 

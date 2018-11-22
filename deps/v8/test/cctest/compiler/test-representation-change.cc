@@ -204,6 +204,15 @@ TEST(ToFloat64_constant) {
         UseInfo(MachineRepresentation::kFloat64, Truncation::None()));
     r.CheckFloat64Constant(c, i);
   }
+
+  {
+    Node* n = r.jsgraph()->Constant(0);
+    Node* use = r.Return(n);
+    Node* c = r.changer()->GetRepresentationFor(
+        n, MachineRepresentation::kWord64, Type::Range(0, 0, r.zone()), use,
+        UseInfo(MachineRepresentation::kFloat64, Truncation::None()));
+    r.CheckFloat64Constant(c, 0);
+  }
 }
 
 
@@ -615,6 +624,11 @@ TEST(SignednessInWord32) {
                   IrOpcode::kTruncateFloat64ToWord32,
                   MachineRepresentation::kFloat32, Type::Number(),
                   MachineRepresentation::kWord32);
+
+  CheckChange(
+      IrOpcode::kCheckedUint32ToInt32, MachineRepresentation::kWord32,
+      Type::Unsigned32(),
+      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
 }
 
 static void TestMinusZeroCheck(IrOpcode::Value expected, Type from_type) {

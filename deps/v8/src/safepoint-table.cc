@@ -50,7 +50,7 @@ SafepointTable::SafepointTable(Address instruction_start,
                 Safepoint::kNoDeoptimizationIndex);
 }
 
-SafepointTable::SafepointTable(Code* code)
+SafepointTable::SafepointTable(Code code)
     : SafepointTable(code->InstructionStart(), code->safepoint_table_offset(),
                      code->stack_slots(), true) {}
 

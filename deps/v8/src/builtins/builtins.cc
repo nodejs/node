@@ -8,11 +8,11 @@
 #include "src/assembler-inl.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/callable.h"
-#include "src/instruction-stream.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/fixed-array.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -20,7 +20,7 @@ namespace internal {
 
 // Forward declarations for C++ builtins.
 #define FORWARD_DECLARE(Name) \
-  Object* Builtin_##Name(int argc, Object** args, Isolate* isolate);
+  Object* Builtin_##Name(int argc, Address* args, Isolate* isolate);
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
@@ -87,8 +87,8 @@ void Builtins::TearDown() { initialized_ = false; }
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
   if (FLAG_embedded_builtins) {
-    Code* maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
-    if (maybe_builtin != nullptr) return name(maybe_builtin->builtin_index());
+    Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
+    if (!maybe_builtin.is_null()) return name(maybe_builtin->builtin_index());
   }
 
   // May be called during initialization (disassembler).
@@ -134,16 +134,16 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   UNREACHABLE();
 }
 
-void Builtins::set_builtin(int index, HeapObject* builtin) {
+void Builtins::set_builtin(int index, Code builtin) {
   isolate_->heap()->set_builtin(index, builtin);
 }
 
-Code* Builtins::builtin(int index) { return isolate_->heap()->builtin(index); }
+Code Builtins::builtin(int index) { return isolate_->heap()->builtin(index); }
 
 Handle<Code> Builtins::builtin_handle(int index) {
   DCHECK(IsBuiltinId(index));
   return Handle<Code>(
-      reinterpret_cast<Code**>(isolate_->heap()->builtin_address(index)));
+      reinterpret_cast<Address*>(isolate_->heap()->builtin_address(index)));
 }
 
 // static
@@ -192,7 +192,7 @@ Address Builtins::CppEntryOf(int index) {
 }
 
 // static
-bool Builtins::IsBuiltin(const Code* code) {
+bool Builtins::IsBuiltin(const Code code) {
   return Builtins::IsBuiltinId(code->builtin_index());
 }
 
@@ -210,7 +210,7 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 }
 
 // static
-bool Builtins::IsIsolateIndependentBuiltin(const Code* code) {
+bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
   if (FLAG_embedded_builtins) {
     const int builtin_index = code->builtin_index();
     return Builtins::IsBuiltinId(builtin_index) &&
@@ -218,30 +218,6 @@ bool Builtins::IsIsolateIndependentBuiltin(const Code* code) {
   } else {
     return false;
   }
-}
-
-// static
-bool Builtins::IsIsolateIndependent(int index) {
-  DCHECK(IsBuiltinId(index));
-  switch (index) {
-    // TODO(jgruber): There's currently two blockers for moving
-    // InterpreterEntryTrampoline into the binary:
-    // 1. InterpreterEnterBytecode calculates a pointer into the middle of
-    //    InterpreterEntryTrampoline (see interpreter_entry_return_pc_offset).
-    //    When the builtin is embedded, the pointer would need to be calculated
-    //    at an offset from the embedded instruction stream (instead of the
-    //    trampoline code object).
-    // 2. We create distinct copies of the trampoline to make it possible to
-    //    attribute ticks in the interpreter to individual JS functions.
-    //    See https://crrev.com/c/959081 and InstallBytecodeArray. When the
-    //    trampoline is embedded, we need to ensure that CopyCode creates a copy
-    //    of the builtin itself (and not just the trampoline).
-    case kInterpreterEntryTrampoline:
-      return false;
-    default:
-      return true;
-  }
-  UNREACHABLE();
 }
 
 // static
@@ -296,7 +272,6 @@ class OffHeapTrampolineGenerator {
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                     Address off_heap_entry) {
-  DCHECK(isolate->serializer_enabled());
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
@@ -361,15 +336,26 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {
   if (FLAG_allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  Handle<Context> responsible_context =
-      impl->MicrotaskContextIsLastEnteredContext() ? impl->MicrotaskContext()
-                                                   : impl->LastEnteredContext();
+  Handle<Context> responsible_context = impl->LastEnteredOrMicrotaskContext();
   // TODO(jochen): Remove this.
   if (responsible_context.is_null()) {
     return true;
   }
   if (*responsible_context == target->context()) return true;
   return isolate->MayAccess(responsible_context, target_global_proxy);
+}
+
+Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+    size_t function_pointer_type_id) {
+  switch (function_pointer_type_id) {
+#define FUNCTION_POINTER_ID_CASE(id, name) \
+  case id:                                 \
+    return Builtins::k##name;
+    TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(FUNCTION_POINTER_ID_CASE)
+#undef FUNCTION_POINTER_ID_CASE
+    default:
+      UNREACHABLE();
+  }
 }
 
 }  // namespace internal

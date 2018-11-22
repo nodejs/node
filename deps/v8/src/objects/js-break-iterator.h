@@ -88,8 +88,6 @@ class JSV8BreakIterator : public JSObject {
 #undef BREAK_ITERATOR_FIELDS
 
  private:
-  static Type getType(const char* str);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSV8BreakIterator)
 };
 

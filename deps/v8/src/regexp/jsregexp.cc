@@ -397,8 +397,7 @@ ByteArray* RegExpImpl::IrregexpByteCode(FixedArray* re, bool is_one_byte) {
   return ByteArray::cast(re->get(JSRegExp::code_index(is_one_byte)));
 }
 
-
-Code* RegExpImpl::IrregexpNativeCode(FixedArray* re, bool is_one_byte) {
+Code RegExpImpl::IrregexpNativeCode(FixedArray* re, bool is_one_byte) {
   return Code::cast(re->get(JSRegExp::code_index(is_one_byte)));
 }
 

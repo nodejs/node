@@ -207,18 +207,6 @@ int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
   return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::js_to_wasm_address() const {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
   return static_cast<uint32_t>(
@@ -992,7 +980,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
   if ((instr & ~kImm16Mask) == 0) {
     DCHECK(target_pos == kEndOfChain || target_pos >= 0);
     // Emitted label constant, not part of a branch.
-    // Make label relative to Code* of generated Code object.
+    // Make label relative to Code pointer of generated Code object.
     instr_at_put(pos, target_pos + (Code::kHeaderSize - kHeapObjectTag));
     return;
   }
@@ -2370,14 +2358,16 @@ void Assembler::sc(Register rd, const MemOperand& rs) {
   }
 }
 
-void Assembler::llwp(Register rd, Register rt, Register base) {
+void Assembler::llx(Register rd, const MemOperand& rs) {
   DCHECK(IsMipsArchVariant(kMips32r6));
-  GenInstrRegister(SPECIAL3, base, rt, rd, 1, LL_R6);
+  DCHECK(is_int9(rs.offset_));
+  GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 1, LL_R6);
 }
 
-void Assembler::scwp(Register rd, Register rt, Register base) {
+void Assembler::scx(Register rd, const MemOperand& rs) {
   DCHECK(IsMipsArchVariant(kMips32r6));
-  GenInstrRegister(SPECIAL3, base, rt, rd, 1, SC_R6);
+  DCHECK(is_int9(rs.offset_));
+  GenInstrImmediate(SPECIAL3, rs.rm(), rd, rs.offset_, 1, SC_R6);
 }
 
 void Assembler::lui(Register rd, int32_t j) {
@@ -3965,7 +3955,7 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }
@@ -4104,6 +4094,8 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
     instr1 |= lui_offset;
     instr2 |= jic_offset;
 
+    instr_at_put(pc, instr1);
+    instr_at_put(pc + kInstrSize, instr2);
   } else {
     Instr instr3 = instr_at(pc + 2 * kInstrSize);
     // If we are using relative calls/jumps for builtins.

@@ -66,7 +66,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         ApiNatives::InstantiateObject(isolate, instance_template,
                                       Handle<JSReceiver>::cast(new_target)),
         Object);
-    args[0] = *js_receiver;
+    args.set_at(0, *js_receiver);
     DCHECK_EQ(*js_receiver, *args.receiver());
 
     raw_holder = *js_receiver;
@@ -102,9 +102,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
     Object* data_obj = call_data->data();
 
-
     FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
-                                     *new_target, &args[0] - 1,
+                                     *new_target, args.address_of_arg_at(1),
                                      args.length() - 1);
     Handle<Object> result = custom.Call(call_data);
 
@@ -146,13 +145,13 @@ namespace {
 
 class RelocatableArguments : public BuiltinArguments, public Relocatable {
  public:
-  RelocatableArguments(Isolate* isolate, int length, Object** arguments)
+  RelocatableArguments(Isolate* isolate, int length, Address* arguments)
       : BuiltinArguments(length, arguments), Relocatable(isolate) {}
 
   inline void IterateInstance(RootVisitor* v) override {
     if (length() == 0) return;
-    v->VisitRootPointers(Root::kRelocatable, nullptr, lowest_address(),
-                         highest_address() + 1);
+    v->VisitRootPointers(Root::kRelocatable, nullptr, first_slot(),
+                         last_slot() + 1);
   }
 
  private:
@@ -208,25 +207,25 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   // Construct BuiltinArguments object:
   // new target, function, arguments reversed, receiver.
   const int kBufferSize = 32;
-  Object* small_argv[kBufferSize];
-  Object** argv;
+  Address small_argv[kBufferSize];
+  Address* argv;
   const int frame_argc = argc + BuiltinArguments::kNumExtraArgsWithReceiver;
   if (frame_argc <= kBufferSize) {
     argv = small_argv;
   } else {
-    argv = new Object*[frame_argc];
+    argv = new Address[frame_argc];
   }
   int cursor = frame_argc - 1;
-  argv[cursor--] = *receiver;
+  argv[cursor--] = receiver->ptr();
   for (int i = 0; i < argc; ++i) {
-    argv[cursor--] = *args[i];
+    argv[cursor--] = args[i]->ptr();
   }
   DCHECK_EQ(cursor, BuiltinArguments::kPaddingOffset);
   argv[BuiltinArguments::kPaddingOffset] =
-      ReadOnlyRoots(isolate).the_hole_value();
-  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc);
-  argv[BuiltinArguments::kTargetOffset] = *function;
-  argv[BuiltinArguments::kNewTargetOffset] = *new_target;
+      ReadOnlyRoots(isolate).the_hole_value()->ptr();
+  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc)->ptr();
+  argv[BuiltinArguments::kTargetOffset] = function->ptr();
+  argv[BuiltinArguments::kNewTargetOffset] = new_target->ptr();
   MaybeHandle<Object> result;
   {
     RelocatableArguments arguments(isolate, frame_argc, &argv[frame_argc - 1]);
@@ -281,7 +280,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));
     FunctionCallbackArguments custom(isolate, call_data->data(), constructor,
-                                     obj, new_target, &args[0] - 1,
+                                     obj, new_target, args.address_of_arg_at(1),
                                      args.length() - 1);
     Handle<Object> result_handle = custom.Call(call_data);
     if (result_handle.is_null()) {

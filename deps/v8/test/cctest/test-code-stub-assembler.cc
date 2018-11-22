@@ -20,6 +20,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/smi.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -345,7 +346,7 @@ TEST(ComputeIntegerHash) {
     Handle<Object> result = ft.Call(key).ToHandleChecked();
 
     uint32_t hash = ComputeSeededHash(k, isolate->heap()->HashSeed());
-    Smi* expected = Smi::FromInt(hash & Smi::kMaxValue);
+    Smi expected = Smi::FromInt(hash & Smi::kMaxValue);
     CHECK_EQ(expected, Smi::cast(*result));
   }
 }
@@ -1965,8 +1966,8 @@ TNode<Smi> NonConstantSmi(CodeStubAssembler* m, int value) {
   m->BIND(&dummy_done);
 
   // Ensure that the above hackery actually created a non-constant SMI.
-  Smi* smi_constant;
-  CHECK(!m->ToSmiConstant(var.value(), smi_constant));
+  Smi smi_constant;
+  CHECK(!m->ToSmiConstant(var.value(), &smi_constant));
 
   return m->UncheckedCast<Smi>(var.value());
 }
@@ -2891,7 +2892,7 @@ TEST(GotoIfNotWhiteSpaceOrLineTerminator) {
 
   for (uc16 c = 0; c < 0xFFFF; c++) {
     Handle<Object> expected_value =
-        WhiteSpaceOrLineTerminator::Is(c) ? true_value : false_value;
+        IsWhiteSpaceOrLineTerminator(c) ? true_value : false_value;
     ft.CheckCall(expected_value, handle(Smi::FromInt(c), isolate));
   }
 }

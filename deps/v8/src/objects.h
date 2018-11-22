@@ -140,6 +140,7 @@
 //     - SharedFunctionInfo
 //     - Struct
 //       - AccessorInfo
+//       - AsmWasmData
 //       - PromiseReaction
 //       - PromiseCapability
 //       - AccessorPair
@@ -392,6 +393,7 @@ enum InstanceType : uint16_t {
   ACCESSOR_PAIR_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   ALLOCATION_MEMENTO_TYPE,
+  ASM_WASM_DATA_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
   DEBUG_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
@@ -421,12 +423,14 @@ enum InstanceType : uint16_t {
   MICROTASK_QUEUE_TYPE,
 
   ALLOCATION_SITE_TYPE,
+  EMBEDDER_DATA_ARRAY_TYPE,
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   HASH_TABLE_TYPE,        // FIRST_HASH_TABLE_TYPE
   ORDERED_HASH_MAP_TYPE,  // FIRST_DICTIONARY_TYPE
   ORDERED_HASH_SET_TYPE,
+  ORDERED_NAME_DICTIONARY_TYPE,
   NAME_DICTIONARY_TYPE,
   GLOBAL_DICTIONARY_TYPE,
   NUMBER_DICTIONARY_TYPE,
@@ -463,6 +467,7 @@ enum InstanceType : uint16_t {
   SHARED_FUNCTION_INFO_TYPE,
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
+  SMALL_ORDERED_NAME_DICTIONARY_TYPE,
   STORE_HANDLER_TYPE,
   UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE,
   UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE,
@@ -509,7 +514,8 @@ enum InstanceType : uint16_t {
   JS_SET_KEY_VALUE_ITERATOR_TYPE,
   JS_SET_VALUE_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
-  JS_WEAK_CELL_TYPE,
+  JS_WEAK_CELL_TYPE,  // FIRST_JS_WEAK_CELL_TYPE
+  JS_WEAK_REF_TYPE,   // LAST_JS_WEAK_CELL_TYPE
   JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE,
   JS_WEAK_FACTORY_TYPE,
   JS_WEAK_MAP_TYPE,
@@ -597,6 +603,9 @@ enum InstanceType : uint16_t {
 
   FIRST_MAP_ITERATOR_TYPE = JS_MAP_KEY_ITERATOR_TYPE,
   LAST_MAP_ITERATOR_TYPE = JS_MAP_VALUE_ITERATOR_TYPE,
+
+  FIRST_JS_WEAK_CELL_TYPE = JS_WEAK_CELL_TYPE,
+  LAST_JS_WEAK_CELL_TYPE = JS_WEAK_REF_TYPE,
 };
 
 STATIC_ASSERT((FIRST_NONSTRING_TYPE & kIsNotStringMask) != kStringTag);
@@ -635,9 +644,13 @@ class DependentCode;
 class ElementsAccessor;
 class EnumCache;
 class FixedArrayBase;
-class PropertyArray;
+class FixedDoubleArray;
 class FunctionLiteral;
 class FunctionTemplateInfo;
+class JSAsyncGeneratorObject;
+class JSGlobalProxy;
+class JSPromise;
+class JSProxy;
 class KeyAccumulator;
 class LayoutDescriptor;
 class LookupIterator;
@@ -650,12 +663,16 @@ class ObjectHashTable;
 class ObjectTemplateInfo;
 class ObjectVisitor;
 class PreParsedScopeData;
+class PropertyArray;
 class PropertyCell;
 class PropertyDescriptor;
+class RegExpMatchInfo;
 class RootVisitor;
 class SafepointEntry;
+class ScriptContextTable;
 class SharedFunctionInfo;
 class StringStream;
+class Symbol;
 class FeedbackCell;
 class FeedbackMetadata;
 class FeedbackVector;
@@ -663,6 +680,8 @@ class UncompiledData;
 class TemplateInfo;
 class TransitionArray;
 class TemplateList;
+class WasmInstanceObject;
+class WasmMemoryObject;
 template <typename T>
 class ZoneForwardList;
 
@@ -709,6 +728,7 @@ class ZoneForwardList;
   V(DeoptimizationData)                        \
   V(DependentCode)                             \
   V(DescriptorArray)                           \
+  V(EmbedderDataArray)                         \
   V(EphemeronHashTable)                        \
   V(EnumCache)                                 \
   V(ExternalOneByteString)                     \
@@ -778,6 +798,7 @@ class ZoneForwardList;
   V(JSTypedArray)                              \
   V(JSValue)                                   \
   V(JSWeakCell)                                \
+  V(JSWeakRef)                                 \
   V(JSWeakCollection)                          \
   V(JSWeakFactory)                             \
   V(JSWeakFactoryCleanupIterator)              \
@@ -800,6 +821,7 @@ class ZoneForwardList;
   V(Oddball)                                   \
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
+  V(OrderedNameDictionary)                     \
   V(PreParsedScopeData)                        \
   V(PromiseReactionJobTask)                    \
   V(PropertyArray)                             \
@@ -818,6 +840,7 @@ class ZoneForwardList;
   V(SloppyArgumentsElements)                   \
   V(SmallOrderedHashMap)                       \
   V(SmallOrderedHashSet)                       \
+  V(SmallOrderedNameDictionary)                \
   V(SourcePositionTableWithFrameCache)         \
   V(StoreHandler)                              \
   V(String)                                    \
@@ -898,6 +921,7 @@ class ZoneForwardList;
   V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                         \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                                      \
   V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                              \
+  V(EmbedderDataArray, EMBEDDER_DATA_ARRAY_TYPE)                         \
   V(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)                       \
   V(FeedbackCell, FEEDBACK_CELL_TYPE)                                    \
   V(FeedbackMetadata, FEEDBACK_METADATA_TYPE)                            \
@@ -935,10 +959,10 @@ class ZoneForwardList;
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                           \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                   \
   V(JSValue, JS_VALUE_TYPE)                                              \
-  V(JSWeakCell, JS_WEAK_CELL_TYPE)                                       \
   V(JSWeakFactory, JS_WEAK_FACTORY_TYPE)                                 \
   V(JSWeakFactoryCleanupIterator, JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE) \
   V(JSWeakMap, JS_WEAK_MAP_TYPE)                                         \
+  V(JSWeakRef, JS_WEAK_REF_TYPE)                                         \
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                         \
   V(LoadHandler, LOAD_HANDLER_TYPE)                                      \
   V(Map, MAP_TYPE)                                                       \
@@ -949,6 +973,7 @@ class ZoneForwardList;
   V(Oddball, ODDBALL_TYPE)                                               \
   V(OrderedHashMap, ORDERED_HASH_MAP_TYPE)                               \
   V(OrderedHashSet, ORDERED_HASH_SET_TYPE)                               \
+  V(OrderedNameDictionary, ORDERED_NAME_DICTIONARY_TYPE)                 \
   V(PreParsedScopeData, PRE_PARSED_SCOPE_DATA_TYPE)                      \
   V(PropertyArray, PROPERTY_ARRAY_TYPE)                                  \
   V(PropertyCell, PROPERTY_CELL_TYPE)                                    \
@@ -959,6 +984,7 @@ class ZoneForwardList;
   V(SimpleNumberDictionary, SIMPLE_NUMBER_DICTIONARY_TYPE)               \
   V(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)                    \
   V(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)                    \
+  V(SmallOrderedNameDictionary, SMALL_ORDERED_NAME_DICTIONARY_TYPE)      \
   V(SourcePositionTableWithFrameCache, TUPLE2_TYPE)                      \
   V(StoreHandler, STORE_HANDLER_TYPE)                                    \
   V(StringTable, STRING_TABLE_TYPE)                                      \
@@ -1006,6 +1032,7 @@ class ZoneForwardList;
   V(HashTable, FIRST_HASH_TABLE_TYPE, LAST_HASH_TABLE_TYPE)         \
   V(JSMapIterator, FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE) \
   V(JSSetIterator, FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE) \
+  V(JSWeakCell, FIRST_JS_WEAK_CELL_TYPE, LAST_JS_WEAK_CELL_TYPE)    \
   V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)           \
   V(Name, FIRST_TYPE, LAST_NAME_TYPE)                               \
   V(String, FIRST_TYPE, FIRST_NONSTRING_TYPE - 1)                   \
@@ -1043,6 +1070,33 @@ STRUCT_LIST(STRUCT_IS_TYPE_FUNCTION_DECL)
 
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
+
+// TODO(3770): Get rid of this indirection when the migration is complete.
+typedef AbstractCode* AbstractCodeArgType;
+typedef ByteArray* ByteArrayArgType;
+typedef FixedArray* FixedArrayArgType;
+typedef FixedDoubleArray* FixedDoubleArrayArgType;
+typedef Foreign* ForeignArgType;
+typedef HeapObject* HeapObjectArgType;
+typedef JSArray* JSArrayArgType;
+typedef JSAsyncGeneratorObject* JSAsyncGeneratorObjectArgType;
+typedef JSFunction* JSFunctionArgType;
+typedef JSGlobalProxy* JSGlobalProxyArgType;
+typedef JSObject* JSObjectArgType;
+typedef JSPromise* JSPromiseArgType;
+typedef JSProxy* JSProxyArgType;
+typedef Map MapArgType;
+typedef Object* ObjectArgType;
+typedef RegExpMatchInfo* RegExpMatchInfoArgType;
+typedef ScriptContextTable* ScriptContextTableArgType;
+typedef SharedFunctionInfo* SharedFunctionInfoArgType;
+typedef SimpleNumberDictionary* SimpleNumberDictionaryArgType;
+typedef Smi SmiArgType;
+typedef String* StringArgType;
+typedef Symbol* SymbolArgType;
+typedef TemplateList* TemplateListArgType;
+typedef WasmInstanceObject* WasmInstanceObjectArgType;
+typedef WasmMemoryObject* WasmMemoryObjectArgType;
 
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
@@ -1346,8 +1400,7 @@ class Object {
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
-  Smi* GetOrCreateHash(Isolate* isolate);
-  static Smi* GetOrCreateHash(Isolate* isolate, Object* key);
+  Smi GetOrCreateHash(Isolate* isolate);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
@@ -1420,7 +1473,7 @@ class Object {
   friend class StringStream;
 
   // Return the map of the root of object's prototype chain.
-  Map* GetPrototypeChainRootMap(Isolate* isolate) const;
+  Map GetPrototypeChainRootMap(Isolate* isolate) const;
 
   // Returns a non-SMI for JSReceivers, but returns the hash code for
   // simple objects.  This avoids a double lookup in the cases where
@@ -1477,74 +1530,6 @@ struct Brief {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
 
-// Smi represents integer Numbers that can be stored in 31 bits.
-// Smis are immediate which means they are NOT allocated in the heap.
-// The this pointer has the following format: [31 bit signed int] 0
-// For long smis it has the following format:
-//     [32 bit signed int] [31 bits zero padding] 0
-// Smi stands for small integer.
-class Smi: public Object {
- public:
-  // Returns the integer value.
-  inline int value() const {
-    return Internals::SmiValue(reinterpret_cast<Address>(this));
-  }
-  inline Smi* ToUint32Smi() {
-    if (value() <= 0) return Smi::kZero;
-    return Smi::FromInt(static_cast<uint32_t>(value()));
-  }
-
-  // Convert a Smi object to an int.
-  static inline int ToInt(const Object* object);
-
-  // Convert a value to a Smi object.
-  static inline Smi* FromInt(int value) {
-    DCHECK(Smi::IsValid(value));
-    return reinterpret_cast<Smi*>(Internals::IntToSmi(value));
-  }
-
-  static inline Smi* FromIntptr(intptr_t value) {
-    DCHECK(Smi::IsValid(value));
-    int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-    return reinterpret_cast<Smi*>((value << smi_shift_bits) | kSmiTag);
-  }
-
-  template <typename E,
-            typename = typename std::enable_if<std::is_enum<E>::value>::type>
-  static inline Smi* FromEnum(E value) {
-    STATIC_ASSERT(sizeof(E) <= sizeof(int));
-    return FromInt(static_cast<int>(value));
-  }
-
-  // Returns whether value can be represented in a Smi.
-  static inline bool IsValid(intptr_t value) {
-    bool result = Internals::IsValidSmi(value);
-    DCHECK_EQ(result, value >= kMinValue && value <= kMaxValue);
-    return result;
-  }
-
-  // Compare two Smis x, y as if they were converted to strings and then
-  // compared lexicographically. Returns:
-  // -1 if x < y.
-  //  0 if x == y.
-  //  1 if x > y.
-  static Smi* LexicographicCompare(Isolate* isolate, Smi* x, Smi* y);
-
-  DECL_CAST(Smi)
-
-  // Dispatched behavior.
-  V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
-  DECL_VERIFIER(Smi)
-
-  static constexpr Smi* const kZero = nullptr;
-  static const int kMinValue = kSmiMinValue;
-  static const int kMaxValue = kSmiMaxValue;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
-};
-
-
 // Heap objects typically have a map pointer in their first word.  However,
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes
 // encoded in the first word.  The class MapWord is an abstraction of the
@@ -1554,10 +1539,10 @@ class MapWord {
   // Normal state: the map word contains a map pointer.
 
   // Create a map word from a map pointer.
-  static inline MapWord FromMap(const Map* map);
+  static inline MapWord FromMap(const Map map);
 
   // View this map word as a map pointer.
-  inline Map* ToMap() const;
+  inline Map ToMap() const;
 
   // Scavenge collection: the map word of live objects in the from space
   // contains a forwarding address (a heap object pointer in the to space).
@@ -1585,9 +1570,9 @@ class MapWord {
   // HeapObject calls the private constructor and directly reads the value.
   friend class HeapObject;
 
-  explicit MapWord(uintptr_t value) : value_(value) {}
+  explicit MapWord(Address value) : value_(value) {}
 
-  uintptr_t value_;
+  Address value_;
 };
 
 
@@ -1597,28 +1582,28 @@ class HeapObject: public Object {
  public:
   // [map]: Contains a map which contains the object's reflective
   // information.
-  inline Map* map() const;
-  inline void set_map(Map* value);
+  inline Map map() const;
+  inline void set_map(Map value);
 
   inline ObjectSlot map_slot();
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
-  inline void set_map_no_write_barrier(Map* value);
+  inline void set_map_no_write_barrier(Map value);
 
   // Get the map using acquire load.
-  inline Map* synchronized_map() const;
+  inline Map synchronized_map() const;
   inline MapWord synchronized_map_word() const;
 
   // Set the map using release store
-  inline void synchronized_set_map(Map* value);
+  inline void synchronized_set_map(Map value);
   inline void synchronized_set_map_word(MapWord map_word);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
   inline void set_map_after_allocation(
-      Map* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
@@ -1681,18 +1666,18 @@ class HeapObject: public Object {
   // If it's not performance critical iteration use the non-templatized
   // version.
   void IterateBody(ObjectVisitor* v);
-  void IterateBody(Map* map, int object_size, ObjectVisitor* v);
+  void IterateBody(Map map, int object_size, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateBodyFast(ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateBodyFast(Map* map, int object_size, ObjectVisitor* v);
+  inline void IterateBodyFast(Map map, int object_size, ObjectVisitor* v);
 
   // Returns true if the object contains a tagged value at given offset.
   // It is used for invalid slots filtering. If the offset points outside
   // of the object or to the map word, the result is UNDEFINED (!!!).
-  bool IsValidSlot(Map* map, int offset);
+  bool IsValidSlot(Map map, int offset);
 
   // Returns the heap object's size in bytes
   inline int Size() const;
@@ -1700,7 +1685,7 @@ class HeapObject: public Object {
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
-  inline int SizeFromMap(Map* map) const;
+  inline int SizeFromMap(Map map) const;
 
   // Returns the field at offset in obj, as a read/write Object* reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
@@ -1738,7 +1723,7 @@ class HeapObject: public Object {
   static void VerifyHeapPointer(Isolate* isolate, Object* p);
 #endif
 
-  static inline AllocationAlignment RequiredAlignment(Map* map);
+  static inline AllocationAlignment RequiredAlignment(Map map);
 
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into

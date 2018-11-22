@@ -4,7 +4,7 @@
 
 #include <limits>
 
-#include "test/unittests/compiler/instruction-selector-unittest.h"
+#include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
 #include "src/objects-inl.h"
 

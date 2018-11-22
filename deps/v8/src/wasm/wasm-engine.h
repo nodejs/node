@@ -16,6 +16,7 @@
 namespace v8 {
 namespace internal {
 
+class AsmWasmData;
 class CodeTracer;
 class CompilationStatistics;
 class WasmInstanceObject;
@@ -56,10 +57,13 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
-  MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
+  MaybeHandle<AsmWasmData> SyncCompileTranslatedAsmJs(
       Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-      Handle<Script> asm_js_script,
-      Vector<const byte> asm_js_offset_table_bytes);
+      Vector<const byte> asm_js_offset_table_bytes,
+      Handle<HeapNumber> uses_bitset);
+  Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
+      Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
+      Handle<Script> script);
 
   // Synchronously compiles the given bytes that represent an encoded WASM
   // module.

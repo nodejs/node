@@ -35,9 +35,8 @@ namespace test_unboxed_doubles {
 // Helper functions.
 //
 
-
 static void InitializeVerifiedMapDescriptors(
-    Map* map, DescriptorArray* descriptors,
+    Map map, DescriptorArray* descriptors,
     LayoutDescriptor* layout_descriptor) {
   map->InitializeDescriptors(descriptors, layout_descriptor);
   CHECK(layout_descriptor->IsConsistentWithMap(map, true));
@@ -788,7 +787,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   std::vector<Handle<Map>> maps(descriptors_length);
   {
     CHECK(last_map->is_stable());
-    Map* map = *last_map;
+    Map map = *last_map;
     for (int i = 0; i < descriptors_length; i++) {
       maps[descriptors_length - 1 - i] = handle(map, isolate);
       Object* maybe_map = map->GetBackPointer();

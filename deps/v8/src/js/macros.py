@@ -33,53 +33,21 @@ define READ_ONLY   = 1;
 define DONT_ENUM   = 2;
 define DONT_DELETE = 4;
 
-# 2^32 - 1
-define kMaxUint32 = 4294967295;
-
 # Type query macros.
-#
-# Note: We have special support for typeof(foo) === 'bar' in the compiler.
-#       It will *not* generate a runtime typeof call for the most important
-#       values of 'bar'.
 macro IS_ARRAY(arg)             = (%_IsArray(arg));
 macro IS_NULL(arg)              = (arg === null);
 macro IS_NULL_OR_UNDEFINED(arg) = (arg == null);
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
-macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
 macro IS_UNDEFINED(arg)         = (arg === (void 0));
-
-# Macro for ES queries of the type: "Type(O) is Object."
-macro IS_RECEIVER(arg) = (%_IsJSReceiver(arg));
-
-# Macro for ES queries of the type: "IsCallable(O)"
 macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 
-# Macro for ES RequireObjectCoercible
-# https://tc39.github.io/ecma262/#sec-requireobjectcoercible
-# Throws a TypeError of the form "[functionName] called on null or undefined".
-macro REQUIRE_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw %make_type_error(kCalledOnNullOrUndefined, functionName);
-
-# Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
-macro TO_BOOLEAN(arg) = (!!(arg));
+# Inline macros.
 macro TO_LENGTH(arg) = (%_ToLength(arg));
 macro TO_STRING(arg) = (%_ToString(arg));
-macro TO_OBJECT(arg) = (%_ToObject(arg));
-macro HAS_OWN_PROPERTY(obj, key) = (%_Call(ObjectHasOwnProperty, obj, key));
 
-macro DEFINE_METHODS_LEN(obj, class_def, len) = %DefineMethodsInternal(obj, class class_def, len);
 macro DEFINE_METHOD_LEN(obj, method_def, len) = %DefineMethodsInternal(obj, class { method_def }, len);
-macro DEFINE_METHODS(obj, class_def) = DEFINE_METHODS_LEN(obj, class_def, -1);
 macro DEFINE_METHOD(obj, method_def) = DEFINE_METHOD_LEN(obj, method_def, -1);
 
 # Constants.  The compiler constant folds them.
-define INFINITY = (1/0);
 define UNDEFINED = (void 0);
-
-# This should be kept consistent with Intl::Type.
-define NUMBER_FORMAT_TYPE = 0;
-define COLLATOR_TYPE = 1;
-define DATE_TIME_FORMAT_TYPE = 2;
-define PLURAL_RULES_TYPE = 3;
-define BREAK_ITERATOR_TYPE = 4;
-define LOCALE_TYPE = 5;

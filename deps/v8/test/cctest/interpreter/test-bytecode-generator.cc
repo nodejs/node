@@ -2504,26 +2504,6 @@ TEST(LetVariableContextSlot) {
                      LoadGolden("LetVariableContextSlot.golden")));
 }
 
-TEST(DoExpression) {
-  bool old_flag = FLAG_harmony_do_expressions;
-  FLAG_harmony_do_expressions = true;
-
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
-      "var a = do { }; return a;\n",
-
-      "var a = do { var x = 100; }; return a;\n",
-
-      "while(true) { var a = 10; a = do { ++a; break; }; a = 20; }\n",
-  };
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("DoExpression.golden")));
-
-  FLAG_harmony_do_expressions = old_flag;
-}
-
 TEST(WithStatement) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());

@@ -11,9 +11,12 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
+
+typedef IteratorBuiltinsFromDSLAssembler::IteratorRecord IteratorRecord;
 
 using compiler::Node;
 
@@ -74,7 +77,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   }
 }
 
-Node* IteratorBuiltinsAssembler::IteratorStep(
+TNode<Object> IteratorBuiltinsAssembler::IteratorStep(
     Node* context, const IteratorRecord& iterator, Label* if_done,
     Node* fast_iterator_result_map, Label* if_exception, Variable* exception) {
   DCHECK_NOT_NULL(if_done);
@@ -124,7 +127,7 @@ Node* IteratorBuiltinsAssembler::IteratorStep(
   }
 
   BIND(&return_result);
-  return result;
+  return UncheckedCast<Object>(result);
 }
 
 Node* IteratorBuiltinsAssembler::IteratorValue(Node* context, Node* result,
@@ -164,8 +167,7 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   // Perform ES #sec-iteratorclose when an exception occurs. This simpler
   // algorithm does not include redundant steps which are never reachable from
   // the spec IteratorClose algorithm.
-  DCHECK_NOT_NULL(if_exception);
-  DCHECK_NOT_NULL(exception);
+  DCHECK((if_exception != nullptr && exception != nullptr));
   CSA_ASSERT(this, IsNotTheHole(exception->value()));
   CSA_ASSERT(this, IsJSReceiver(iterator.object));
 
@@ -190,12 +192,13 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
 }
 
 void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    Node* context, const IteratorRecord& iterator, Variable* exception) {
+    Node* context, const IteratorRecord& iterator, TNode<Object> exception) {
   Label rethrow(this, Label::kDeferred);
-  IteratorCloseOnException(context, iterator, &rethrow, exception);
+  TVARIABLE(Object, exception_variable, exception);
+  IteratorCloseOnException(context, iterator, &rethrow, &exception_variable);
 
   BIND(&rethrow);
-  CallRuntime(Runtime::kReThrow, context, exception->value());
+  CallRuntime(Runtime::kReThrow, context, exception_variable.value());
   Unreachable();
 }
 
@@ -216,7 +219,7 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
   BIND(&loop_start);
   {
     //  a. Set next to ? IteratorStep(iteratorRecord).
-    TNode<Object> next = CAST(IteratorStep(context, iterator_record, &done));
+    TNode<Object> next = IteratorStep(context, iterator_record, &done);
     //  b. If next is not false, then
     //   i. Let nextValue be ? IteratorValue(next).
     TNode<Object> next_value = CAST(IteratorValue(context, next));
@@ -277,12 +280,17 @@ void IteratorBuiltinsAssembler::FastIterableToList(
 
   BIND(&check_string);
   {
-    Label string_fast_call(this);
+    Label string_maybe_fast_call(this);
     StringBuiltinsAssembler string_assembler(state());
     string_assembler.BranchIfStringPrimitiveWithNoCustomIteration(
-        iterable, context, &string_fast_call, &check_map);
+        iterable, context, &string_maybe_fast_call, &check_map);
 
-    BIND(&string_fast_call);
+    BIND(&string_maybe_fast_call);
+    TNode<IntPtrT> const length = LoadStringLengthAsWord(CAST(iterable));
+    // Use string length as conservative approximation of number of codepoints.
+    GotoIf(
+        IntPtrGreaterThan(length, IntPtrConstant(JSArray::kMaxFastArrayLength)),
+        slow);
     *var_result = CallBuiltin(Builtins::kStringToList, context, iterable);
     Goto(&done);
   }

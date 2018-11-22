@@ -10,6 +10,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects.h"
+#include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -42,7 +43,7 @@ class V8_EXPORT_PRIVATE JumpTableTargetOffsets final {
     void UpdateAndAdvanceToValid();
 
     const BytecodeArrayAccessor* accessor_;
-    Smi* current_;
+    Smi current_;
     int index_;
     int table_offset_;
     int table_end_;

@@ -66,11 +66,6 @@ class IsolateData final {
     return builtins_table_offset() + id * kPointerSize;
   }
 
-  // Root-register-relative offset of the magic number value.
-  static constexpr int magic_number_offset() {
-    return kMagicNumberOffset - kIsolateRootBias;
-  }
-
   // Root-register-relative offset of the virtual call target register value.
   static constexpr int virtual_call_target_register_offset() {
     return kVirtualCallTargetRegisterOffset - kIsolateRootBias;
@@ -92,11 +87,7 @@ class IsolateData final {
     return &external_reference_table_;
   }
 
-  Object** builtins() { return &builtins_[0]; }
-
-  // For root register verification.
-  // TODO(v8:6666): Remove once the root register is fully supported on ia32.
-  static constexpr intptr_t kRootRegisterSentinel = 0xcafeca11;
+  Address* builtins() { return builtins_; }
 
  private:
 // Static layout definition.
@@ -108,7 +99,6 @@ class IsolateData final {
   V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)           \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::SizeInBytes()) \
   V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)          \
-  V(kMagicNumberOffset, kIntptrSize)                                      \
   V(kVirtualCallTargetRegisterOffset, kPointerSize)                       \
   /* This padding aligns IsolateData size by 8 bytes. */                  \
   V(kPaddingOffset,                                                       \
@@ -140,11 +130,8 @@ class IsolateData final {
 
   ExternalReferenceTable external_reference_table_;
 
-  Object* builtins_[Builtins::builtin_count] = {};
-
-  // For root register verification.
-  // TODO(v8:6666): Remove once the root register is fully supported on ia32.
-  const intptr_t magic_number_ = kRootRegisterSentinel;
+  // The entries in this array are tagged pointers to Code objects.
+  Address builtins_[Builtins::builtin_count] = {};
 
   // For isolate-independent calls on ia32.
   // TODO(v8:6666): Remove once wasm supports pc-relative jumps to builtins on
@@ -182,7 +169,6 @@ void IsolateData::AssertPredictableLayout() {
   STATIC_ASSERT(offsetof(IsolateData, external_reference_table_) ==
                 kExternalReferenceTableOffset);
   STATIC_ASSERT(offsetof(IsolateData, builtins_) == kBuiltinsTableOffset);
-  STATIC_ASSERT(offsetof(IsolateData, magic_number_) == kMagicNumberOffset);
   STATIC_ASSERT(offsetof(IsolateData, virtual_call_target_register_) ==
                 kVirtualCallTargetRegisterOffset);
   STATIC_ASSERT(offsetof(IsolateData, external_memory_) ==

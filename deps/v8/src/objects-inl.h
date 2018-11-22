@@ -32,12 +32,14 @@
 #include "src/maybe-handles-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/smi-inl.h"
 #include "src/objects/template-objects.h"
 #include "src/objects/templates.h"
 #include "src/property-details.h"
@@ -53,12 +55,9 @@
 namespace v8 {
 namespace internal {
 
-PropertyDetails::PropertyDetails(Smi* smi) {
-  value_ = smi->value();
-}
+PropertyDetails::PropertyDetails(Smi smi) { value_ = smi->value(); }
 
-
-Smi* PropertyDetails::AsSmi() const {
+Smi PropertyDetails::AsSmi() const {
   // Ensure the upper 2 bits have the same value by sign extending it. This is
   // necessary to be able to use the 31st bit of the property details.
   int value = value_ << 1;
@@ -403,7 +402,8 @@ bool HeapObject::IsMapCache() const { return IsHashTable(); }
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
 
 bool Object::IsSmallOrderedHashTable() const {
-  return IsSmallOrderedHashSet() || IsSmallOrderedHashMap();
+  return IsSmallOrderedHashSet() || IsSmallOrderedHashMap() ||
+         IsSmallOrderedNameDictionary();
 }
 
 bool Object::IsPrimitive() const {
@@ -452,9 +452,8 @@ STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 
 double Object::Number() const {
   DCHECK(IsNumber());
-  return IsSmi()
-             ? static_cast<double>(reinterpret_cast<const Smi*>(this)->value())
-             : reinterpret_cast<const HeapNumber*>(this)->value();
+  return IsSmi() ? static_cast<double>(Smi(this->ptr())->value())
+                 : reinterpret_cast<const HeapNumber*>(this)->value();
 }
 
 bool Object::IsNaN() const {
@@ -486,6 +485,7 @@ CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(MutableHeapNumber)
+CAST_ACCESSOR(OrderedNameDictionary)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(NumberDictionary)
@@ -501,7 +501,7 @@ CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
-CAST_ACCESSOR(Smi)
+CAST_ACCESSOR(SmallOrderedNameDictionary)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
@@ -741,25 +741,20 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject* obj,
   return MaybeObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
 
-int Smi::ToInt(const Object* object) { return Smi::cast(object)->value(); }
+MapWord MapWord::FromMap(const Map map) { return MapWord(map.ptr()); }
 
-MapWord MapWord::FromMap(const Map* map) {
-  return MapWord(reinterpret_cast<uintptr_t>(map));
-}
-
-Map* MapWord::ToMap() const { return reinterpret_cast<Map*>(value_); }
+Map MapWord::ToMap() const { return Map::unchecked_cast(ObjectPtr(value_)); }
 
 bool MapWord::IsForwardingAddress() const { return HAS_SMI_TAG(value_); }
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
-  Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
-  return MapWord(static_cast<uintptr_t>(raw));
+  return MapWord(object->ptr() - kHeapObjectTag);
 }
 
 
 HeapObject* MapWord::ToForwardingAddress() {
   DCHECK(IsForwardingAddress());
-  return HeapObject::FromAddress(static_cast<Address>(value_));
+  return HeapObject::FromAddress(value_);
 }
 
 
@@ -797,37 +792,34 @@ Isolate* NeverReadOnlySpaceObject::GetIsolate() const {
   return GetHeap()->isolate();
 }
 
-Map* HeapObject::map() const {
-  return map_word().ToMap();
-}
+Map HeapObject::map() const { return map_word().ToMap(); }
 
-void HeapObject::set_map(Map* value) {
-  if (value != nullptr) {
+void HeapObject::set_map(Map value) {
+  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
     Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
-  if (value != nullptr) {
+  if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(this, ObjectSlot(kNullAddress), value);
   }
 }
 
-Map* HeapObject::synchronized_map() const {
+Map HeapObject::synchronized_map() const {
   return synchronized_map_word().ToMap();
 }
 
-
-void HeapObject::synchronized_set_map(Map* value) {
-  if (value != nullptr) {
+void HeapObject::synchronized_set_map(Map value) {
+  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
     Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
 #endif
   }
   synchronized_set_map_word(MapWord::FromMap(value));
-  if (value != nullptr) {
+  if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(this, ObjectSlot(kNullAddress), value);
@@ -836,8 +828,8 @@ void HeapObject::synchronized_set_map(Map* value) {
 
 
 // Unsafe accessor omitting write barrier.
-void HeapObject::set_map_no_write_barrier(Map* value) {
-  if (value != nullptr) {
+void HeapObject::set_map_no_write_barrier(Map value) {
+  if (!value.is_null()) {
 #ifdef VERIFY_HEAP
     Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
 #endif
@@ -845,10 +837,10 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
 }
 
-void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
+void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   set_map_word(MapWord::FromMap(value));
   if (mode != SKIP_WRITE_BARRIER) {
-    DCHECK_NOT_NULL(value);
+    DCHECK(!value.is_null());
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
     MarkingBarrier(this, ObjectSlot(kNullAddress), value);
@@ -873,7 +865,7 @@ void HeapObject::set_map_word(MapWord map_word) {
 
 MapWord HeapObject::synchronized_map_word() const {
   return MapWord(
-      reinterpret_cast<uintptr_t>(ACQUIRE_READ_FIELD(this, kMapOffset)));
+      reinterpret_cast<Address>(ACQUIRE_READ_FIELD(this, kMapOffset)));
 }
 
 
@@ -1055,7 +1047,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
   return UPDATE_WRITE_BARRIER;
 }
 
-AllocationAlignment HeapObject::RequiredAlignment(Map* map) {
+AllocationAlignment HeapObject::RequiredAlignment(Map map) {
 #ifdef V8_HOST_ARCH_32_BIT
   int instance_type = map->instance_type();
   if (instance_type == FIXED_FLOAT64_ARRAY_TYPE ||
@@ -1085,6 +1077,7 @@ bool HeapObject::NeedsRehashing() const {
     case HASH_TABLE_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       return true;
     default:
       return false;
@@ -1099,7 +1092,7 @@ ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
 ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
 int DescriptorArray::number_of_descriptors() const {
-  return Smi::ToInt(get(kDescriptorLengthIndex)->cast<Smi>());
+  return Smi::ToInt(get(kDescriptorLengthIndex).ToSmi());
 }
 
 int DescriptorArray::number_of_descriptors_storage() const {
@@ -1237,14 +1230,14 @@ int DescriptorArray::Search(Name* name, int valid_descriptors) {
                                          nullptr);
 }
 
-int DescriptorArray::Search(Name* name, Map* map) {
+int DescriptorArray::Search(Name* name, Map map) {
   DCHECK(name->IsUniqueName());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
   return Search(name, number_of_own_descriptors);
 }
 
-int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
+int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map map) {
   DCHECK(name->IsUniqueName());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
@@ -1326,7 +1319,7 @@ MaybeObject DescriptorArray::GetValue(int descriptor_number) {
 PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   MaybeObject details = get(ToDetailsIndex(descriptor_number));
-  return PropertyDetails(details->cast<Smi>());
+  return PropertyDetails(details->ToSmi());
 }
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
@@ -1334,7 +1327,7 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
   return GetDetails(descriptor_number).field_index();
 }
 
-FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
+FieldType DescriptorArray::GetFieldType(int descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
   MaybeObject wrapped_type = GetValue(descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
@@ -1444,11 +1437,11 @@ void NumberDictionary::set_requires_slow_elements() {
 }
 
 DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrBytecodeOffset, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrPcOffset, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS2(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
@@ -1492,13 +1485,12 @@ FreeSpace* FreeSpace::cast(HeapObject* o) {
   return reinterpret_cast<FreeSpace*>(o);
 }
 
-int HeapObject::SizeFromMap(Map* map) const {
+int HeapObject::SizeFromMap(Map map) const {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (instance_type >= FIRST_FIXED_ARRAY_TYPE &&
-      instance_type <= LAST_FIXED_ARRAY_TYPE) {
+  if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
     return FixedArray::SizeFor(
         reinterpret_cast<const FixedArray*>(this)->synchronized_length());
   }
@@ -1536,8 +1528,8 @@ int HeapObject::SizeFromMap(Map* map) const {
         reinterpret_cast<const FeedbackMetadata*>(this)
             ->synchronized_slot_count());
   }
-  if (instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
-      instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE) {
+  if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
+                LAST_WEAK_FIXED_ARRAY_TYPE)) {
     return WeakFixedArray::SizeFor(
         reinterpret_cast<const WeakFixedArray*>(this)->synchronized_length());
   }
@@ -1545,8 +1537,8 @@ int HeapObject::SizeFromMap(Map* map) const {
     return WeakArrayList::SizeForCapacity(
         reinterpret_cast<const WeakArrayList*>(this)->synchronized_capacity());
   }
-  if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
-      instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
+  if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
+                LAST_FIXED_TYPED_ARRAY_TYPE)) {
     return reinterpret_cast<const FixedTypedArrayBase*>(this)->TypedArraySize(
         instance_type);
   }
@@ -1554,13 +1546,17 @@ int HeapObject::SizeFromMap(Map* map) const {
     return SmallOrderedHashSet::SizeFor(
         reinterpret_cast<const SmallOrderedHashSet*>(this)->Capacity());
   }
-  if (instance_type == PROPERTY_ARRAY_TYPE) {
-    return PropertyArray::SizeFor(
-        PropertyArray::cast(this)->synchronized_length());
-  }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
     return SmallOrderedHashMap::SizeFor(
         reinterpret_cast<const SmallOrderedHashMap*>(this)->Capacity());
+  }
+  if (instance_type == SMALL_ORDERED_NAME_DICTIONARY_TYPE) {
+    return SmallOrderedNameDictionary::SizeFor(
+        reinterpret_cast<const SmallOrderedNameDictionary*>(this)->Capacity());
+  }
+  if (instance_type == PROPERTY_ARRAY_TYPE) {
+    return PropertyArray::SizeFor(
+        PropertyArray::cast(this)->synchronized_length());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
@@ -1573,8 +1569,12 @@ int HeapObject::SizeFromMap(Map* map) const {
     return PreParsedScopeData::SizeFor(
         reinterpret_cast<const PreParsedScopeData*>(this)->length());
   }
-  DCHECK(instance_type == CODE_TYPE);
-  return reinterpret_cast<const Code*>(this)->CodeSize();
+  if (instance_type == CODE_TYPE) {
+    return Code::unchecked_cast(this)->CodeSize();
+  }
+  DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
+  return EmbedderDataArray::SizeFor(
+      EmbedderDataArray::unchecked_cast(this)->length());
 }
 
 
@@ -1611,6 +1611,7 @@ void Foreign::set_foreign_address(Address value) {
 template <class Derived>
 void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object* value) {
+  DCHECK_NE(kNotFound, entry);
   Address entry_offset = GetDataEntryOffset(entry, relative_index);
   RELAXED_WRITE_FIELD(this, entry_offset, value);
   WRITE_BARRIER(this, static_cast<int>(entry_offset), value);

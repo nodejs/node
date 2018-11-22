@@ -56,7 +56,7 @@ bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
                                                        Handle<JSObject> object,
                                                        int* out) {
   Context* context = *isolate->native_context();
-  Map* map = object->map();
+  Map map = object->map();
   if (map != context->sloppy_arguments_map() &&
       map != context->strict_arguments_map() &&
       map != context->fast_aliased_arguments_map()) {

@@ -60,7 +60,7 @@ class CodeSerializer : public Serializer {
   CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
+  virtual void SerializeCodeObject(Code code_object, HowToCode how_to_code,
                                    WhereToPoint where_to_point) {
     UNREACHABLE();
   }
@@ -73,7 +73,7 @@ class CodeSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
+  void SerializeCodeStub(Code code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
 
   bool SerializeReadOnlyObject(HeapObject* obj, HowToCode how_to_code,
@@ -102,16 +102,15 @@ class SerializedCodeData : public SerializedData {
 
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and (internally provided) external reference count
-  // [1] extra (API-provided) external reference count
-  // [2] version hash
-  // [3] source hash
-  // [4] cpu features
-  // [5] flag hash
+  // [1] version hash
+  // [2] source hash
+  // [3] cpu features
+  // [4] flag hash
+  // [5] number of reservation size entries
   // [6] number of code stub keys
-  // [7] number of reservation size entries
-  // [8] payload length
-  // [9] payload checksum part A
-  // [10] payload checksum part B
+  // [7] payload length
+  // [8] payload checksum part A
+  // [9] payload checksum part B
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload

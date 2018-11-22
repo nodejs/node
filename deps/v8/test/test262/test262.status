@@ -73,11 +73,6 @@
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8378
-  'intl402/DateTimeFormat/prototype/resolvedOptions/order': [FAIL],
-  'intl402/ListFormat/prototype/resolvedOptions/order': [FAIL],
-  'intl402/NumberFormat/prototype/resolvedOptions/order': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
@@ -333,6 +328,62 @@
   'language/literals/regexp/invalid-optional-negative-lookbehind': [FAIL],
   'language/literals/regexp/invalid-range-lookbehind': [FAIL],
   'language/literals/regexp/invalid-range-negative-lookbehind': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-2': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-2-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-3': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-3-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-4': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-4-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-5': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-dangling-groupname-without-group-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-duplicate-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-2': [FAIL],
+  'language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-2-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-empty-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-empty-groupspecifier-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-identity-escape-in-capture-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-2': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-2-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-3': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-3-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-4': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-5': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-6': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-2-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-3-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier-4': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier-4-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-2': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-2-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-3': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-4': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-4-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-5': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-5-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-6': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-7': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-8': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-8-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-9-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-numeric-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-numeric-groupspecifier-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier-u': [FAIL],
+  'language/literals/regexp/named-groups/invalid-u-escape-in-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-u-escape-in-groupspecifier-2': [FAIL],
+  'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier': [FAIL],
+  'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier-u': [FAIL],
   'language/literals/regexp/u-dec-esc': [FAIL],
   'language/literals/regexp/u-invalid-class-escape': [FAIL],
   'language/literals/regexp/u-invalid-extended-pattern-char': [FAIL],
@@ -612,8 +663,11 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8099
   'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7871
-  'intl402/ListFormat/prototype/formatToParts/en-us-disjunction': [FAIL],
+  # await tests that require flags
+  'language/expressions/await/async-generator-interleaved': ['--harmony-await-optimization'],
+  'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
+  'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
+  'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -623,31 +677,15 @@
   # Some of these are related to v8:4361 in being visible side effects from Intl.
   'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
 
-  # TODO(jshin): Started failing after ICU 63.1 update.
-  'intl402/Segmenter/prototype/segment/segment-line-following-modes': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6890#c12
-  'built-ins/RegExp/prototype/Symbol.matchAll/isregexp-called-once': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.matchAll/species-constructor': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-global-throws': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-unicode-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8258
   'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
   'intl402/Locale/constructor-options-throwing-getters': [FAIL],
   'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8387
-  'language/expressions/await/async-generator-interleaved': [FAIL],
-  'language/expressions/await/await-monkey-patched-promise': [FAIL],
-  'language/expressions/await/for-await-of-interleaved': [FAIL],
-  'language/expressions/await/async-await-interleaved': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 

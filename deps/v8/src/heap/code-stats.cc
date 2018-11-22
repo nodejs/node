@@ -207,7 +207,7 @@ void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
     return;
   }
 
-  Code* code = Code::cast(obj);
+  Code code = Code::cast(obj);
   RelocIterator it(code);
   int delta = 0;
   Address prev_pc = code->raw_instruction_start();

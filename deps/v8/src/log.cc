@@ -16,7 +16,6 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
-#include "src/instruction-stream.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/libsampler/sampler.h"
@@ -26,6 +25,7 @@
 #include "src/perf-jit.h"
 #include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -1040,7 +1040,7 @@ void Logger::SharedLibraryEvent(const std::string& library_path,
   msg.WriteToLogFile();
 }
 
-void Logger::CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
+void Logger::CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                             int fp_to_sp_delta) {
   if (!log_->IsEnabled()) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
@@ -1653,7 +1653,7 @@ void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
-void Logger::ICEvent(const char* type, bool keyed, Map* map, Object* key,
+void Logger::ICEvent(const char* type, bool keyed, Map map, Object* key,
                      char old_state, char new_state, const char* modifier,
                      const char* slow_stub_reason) {
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
@@ -1664,7 +1664,7 @@ void Logger::ICEvent(const char* type, bool keyed, Map* map, Object* key,
   Address pc = isolate_->GetAbstractPC(&line, &column);
   msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << line << kNext
       << column << kNext << old_state << kNext << new_state << kNext
-      << reinterpret_cast<void*>(map) << kNext;
+      << reinterpret_cast<void*>(map.ptr()) << kNext;
   if (key->IsSmi()) {
     msg << Smi::ToInt(key);
   } else if (key->IsNumber()) {
@@ -1679,11 +1679,11 @@ void Logger::ICEvent(const char* type, bool keyed, Map* map, Object* key,
   msg.WriteToLogFile();
 }
 
-void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
+void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
                       HeapObject* name_or_sfi) {
   DisallowHeapAllocation no_gc;
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
-  if (to) MapDetails(to);
+  if (!to.is_null()) MapDetails(to);
   int line = -1;
   int column = -1;
   Address pc = 0;
@@ -1693,9 +1693,10 @@ void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
   }
   Log::MessageBuilder msg(log_);
   msg << "map" << kNext << type << kNext << timer_.Elapsed().InMicroseconds()
-      << kNext << reinterpret_cast<void*>(from) << kNext
-      << reinterpret_cast<void*>(to) << kNext << reinterpret_cast<void*>(pc)
-      << kNext << line << kNext << column << kNext << reason << kNext;
+      << kNext << reinterpret_cast<void*>(from.ptr()) << kNext
+      << reinterpret_cast<void*>(to.ptr()) << kNext
+      << reinterpret_cast<void*>(pc) << kNext << line << kNext << column
+      << kNext << reason << kNext;
 
   if (name_or_sfi) {
     if (name_or_sfi->IsName()) {
@@ -1711,16 +1712,16 @@ void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
   msg.WriteToLogFile();
 }
 
-void Logger::MapCreate(Map* map) {
+void Logger::MapCreate(Map map) {
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-create" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << reinterpret_cast<void*>(map);
+      << reinterpret_cast<void*>(map.ptr());
   msg.WriteToLogFile();
 }
 
-void Logger::MapDetails(Map* map) {
+void Logger::MapDetails(Map map) {
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
   // Disable logging Map details during bootstrapping since we use LogMaps() to
   // log all creating
@@ -1728,7 +1729,7 @@ void Logger::MapDetails(Map* map) {
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << reinterpret_cast<void*>(map) << kNext;
+      << reinterpret_cast<void*>(map.ptr()) << kNext;
   if (FLAG_trace_maps_details) {
     std::ostringstream buffer;
     map->PrintMapDetails(buffer);

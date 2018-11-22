@@ -37,12 +37,9 @@ namespace internal {
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
 
-enum class SegmentSize { kLarge, kDefault };
-
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name,
-       SegmentSize segment_size = SegmentSize::kDefault);
+  Zone(AccountingAllocator* allocator, const char* name);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -102,7 +99,7 @@ class V8_EXPORT_PRIVATE Zone final {
   static const size_t kMinimumSegmentSize = 8 * KB;
 
   // Never allocate segments larger than this size in bytes.
-  static const size_t kMaximumSegmentSize = 1 * MB;
+  static const size_t kMaximumSegmentSize = 32 * KB;
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
@@ -136,7 +133,6 @@ class V8_EXPORT_PRIVATE Zone final {
   Segment* segment_head_;
   const char* name_;
   bool sealed_;
-  SegmentSize segment_size_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects
@@ -327,9 +323,12 @@ class ScopedPtrList final {
   explicit ScopedPtrList(std::vector<void*>* buffer)
       : buffer_(*buffer), start_(buffer->size()), end_(buffer->size()) {}
 
-  ~ScopedPtrList() {
+  ~ScopedPtrList() { Rewind(); }
+
+  void Rewind() {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.resize(start_);
+    end_ = start_;
   }
 
   int length() const { return static_cast<int>(end_ - start_); }

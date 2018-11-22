@@ -73,7 +73,7 @@ class JSPromise : public JSObject {
   static const int kFlagsOffset = kReactionsOrResultOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
   static const int kSizeWithEmbedderFields =
-      kSize + v8::Promise::kEmbedderFieldCount * kPointerSize;
+      kSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
   // Flags layout.
   // The first two bits store the v8::Promise::PromiseState.

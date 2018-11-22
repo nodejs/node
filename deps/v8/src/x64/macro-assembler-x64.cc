@@ -17,14 +17,20 @@
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
-#include "src/instruction-stream.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/register-configuration.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/string-constants.h"
 #include "src/x64/assembler-x64.h"
 
-#include "src/x64/macro-assembler-x64.h"  // Cannot be the first include.
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
+#include "src/x64/macro-assembler-x64.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -223,6 +229,82 @@ void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
   cmpp(with, kScratchRegister);
 }
 
+void TurboAssembler::DecompressTaggedSigned(Register destination,
+                                            Operand field_operand,
+                                            Register scratch_for_debug) {
+  RecordComment("[ DecompressTaggedSigned");
+  if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
+    Register expected_value = scratch_for_debug;
+    movq(expected_value, field_operand);
+    movsxlq(destination, expected_value);
+    Label check_passed;
+    cmpq(destination, expected_value);
+    j(equal, &check_passed);
+    RecordComment("DecompressTaggedSigned failed");
+    int3();
+    bind(&check_passed);
+  } else {
+    movsxlq(destination, field_operand);
+  }
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(Register destination,
+                                             Operand field_operand,
+                                             Register scratch_for_debug) {
+  RecordComment("[ DecompressTaggedPointer");
+  if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
+    Register expected_value = scratch_for_debug;
+    movq(expected_value, field_operand);
+    movsxlq(destination, expected_value);
+    addq(destination, kRootRegister);
+    Label check_passed;
+    cmpq(destination, expected_value);
+    j(equal, &check_passed);
+    RecordComment("DecompressTaggedPointer failed");
+    int3();
+    bind(&check_passed);
+  } else {
+    movsxlq(destination, field_operand);
+    addq(destination, kRootRegister);
+  }
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressAnyTagged(Register destination,
+                                         Operand field_operand,
+                                         Register scratch,
+                                         Register scratch_for_debug) {
+  RecordComment("[ DecompressAnyTagged");
+  Register expected_value = scratch_for_debug;
+  if (DEBUG_BOOL && expected_value.is_valid()) {
+    movq(expected_value, field_operand);
+    movsxlq(destination, expected_value);
+  } else {
+    movsxlq(destination, field_operand);
+  }
+  // Branchlessly compute |masked_root|:
+  // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
+  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
+  Register masked_root = scratch;
+  movl(masked_root, destination);
+  andl(masked_root, Immediate(kSmiTagMask));
+  negq(masked_root);
+  andq(masked_root, kRootRegister);
+  // Now this add operation will either leave the value unchanged if it is a smi
+  // or add the isolate root if it is a heap object.
+  addq(destination, masked_root);
+  if (DEBUG_BOOL && expected_value.is_valid()) {
+    Label check_passed;
+    cmpq(destination, expected_value);
+    j(equal, &check_passed);
+    RecordComment("Decompression failed: Tagged");
+    int3();
+    bind(&check_passed);
+  }
+  RecordComment("]");
+}
+
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register dst,
                                       SaveFPRegsMode save_fp,
@@ -337,8 +419,8 @@ void TurboAssembler::CallRecordWriteStub(
     xchgq(slot_parameter, object_parameter);
   }
 
-  Smi* smi_rsa = Smi::FromEnum(remembered_set_action);
-  Smi* smi_fm = Smi::FromEnum(fp_mode);
+  Smi smi_rsa = Smi::FromEnum(remembered_set_action);
+  Smi smi_fm = Smi::FromEnum(fp_mode);
   Move(remembered_set_parameter, smi_rsa);
   if (smi_rsa != smi_fm) {
     Move(fp_mode_parameter, smi_fm);
@@ -483,7 +565,12 @@ void TurboAssembler::Abort(AbortReason reason) {
 
 void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
-  call(stub);
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
+  } else {
+    call(stub);
+  }
 }
 
 void MacroAssembler::CallStub(CodeStub* stub) {
@@ -1026,7 +1113,7 @@ void TurboAssembler::Set(Operand dst, intptr_t x) {
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
 
-Register TurboAssembler::GetSmiConstant(Smi* source) {
+Register TurboAssembler::GetSmiConstant(Smi source) {
   STATIC_ASSERT(kSmiTag == 0);
   int value = source->value();
   if (value == 0) {
@@ -1037,13 +1124,13 @@ Register TurboAssembler::GetSmiConstant(Smi* source) {
   return kScratchRegister;
 }
 
-void TurboAssembler::Move(Register dst, Smi* source) {
+void TurboAssembler::Move(Register dst, Smi source) {
   STATIC_ASSERT(kSmiTag == 0);
   int value = source->value();
   if (value == 0) {
     xorl(dst, dst);
   } else {
-    Move(dst, reinterpret_cast<Address>(source), RelocInfo::NONE);
+    Move(dst, source.ptr(), RelocInfo::NONE);
   }
 }
 
@@ -1093,14 +1180,12 @@ void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
   cmpp(smi1, smi2);
 }
 
-
-void MacroAssembler::SmiCompare(Register dst, Smi* src) {
+void MacroAssembler::SmiCompare(Register dst, Smi src) {
   AssertSmi(dst);
   Cmp(dst, src);
 }
 
-
-void MacroAssembler::Cmp(Register dst, Smi* src) {
+void MacroAssembler::Cmp(Register dst, Smi src) {
   DCHECK_NE(dst, kScratchRegister);
   if (src->value() == 0) {
     testp(dst, dst);
@@ -1122,7 +1207,7 @@ void MacroAssembler::SmiCompare(Operand dst, Register src) {
   cmpp(dst, src);
 }
 
-void MacroAssembler::SmiCompare(Operand dst, Smi* src) {
+void MacroAssembler::SmiCompare(Operand dst, Smi src) {
   AssertSmi(dst);
   if (SmiValuesAre32Bits()) {
     cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
@@ -1132,7 +1217,7 @@ void MacroAssembler::SmiCompare(Operand dst, Smi* src) {
   }
 }
 
-void MacroAssembler::Cmp(Operand dst, Smi* src) {
+void MacroAssembler::Cmp(Operand dst, Smi src) {
   // The Operand cannot use the smi register.
   Register smi_reg = GetSmiConstant(src);
   DCHECK(!dst.AddressUsesRegister(smi_reg));
@@ -1171,7 +1256,7 @@ void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
-void MacroAssembler::SmiAddConstant(Operand dst, Smi* constant) {
+void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
   if (constant->value() != 0) {
     if (SmiValuesAre32Bits()) {
       addl(Operand(dst, kSmiShift / kBitsPerByte),
@@ -1228,8 +1313,8 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
   }
 }
 
-void TurboAssembler::Push(Smi* source) {
-  intptr_t smi = reinterpret_cast<intptr_t>(source);
+void TurboAssembler::Push(Smi source) {
+  intptr_t smi = static_cast<intptr_t>(source.ptr());
   if (is_int32(smi)) {
     Push(Immediate(static_cast<int32_t>(smi)));
     return;
@@ -1668,7 +1753,6 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
 }
 
 void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
-  DCHECK(imm8 == 0 || imm8 == 1);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pinsrd(dst, src, imm8);
@@ -2065,7 +2149,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
 }
 
 void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
-  cmpp(in_out, Immediate(kClearedWeakHeapObject));
+  cmpl(in_out, Immediate(kClearedWeakHeapObjectLower32));
   j(equal, target_if_cleared);
 
   andp(in_out, Immediate(~static_cast<int32_t>(kWeakHeapObjectMask)));

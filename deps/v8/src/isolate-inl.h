@@ -12,6 +12,10 @@
 namespace v8 {
 namespace internal {
 
+IsolateAllocationMode Isolate::isolate_allocation_mode() {
+  return isolate_allocator_->mode();
+}
+
 bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
   i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(obj);
   if (chunk->owner()->identity() == i::RO_SPACE) {
@@ -124,7 +128,7 @@ Isolate::ExceptionScope::~ExceptionScope() {
   Handle<type> Isolate::name() {                             \
     return Handle<type>(raw_native_context()->name(), this); \
   }                                                          \
-  bool Isolate::is_##name(type* value) {                     \
+  bool Isolate::is_##name(type##ArgType value) {             \
     return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
@@ -155,6 +159,12 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 
 bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
   PropertyCell* species_cell = heap()->typed_array_species_protector();
+  return species_cell->value()->IsSmi() &&
+         Smi::ToInt(species_cell->value()) == kProtectorValid;
+}
+
+bool Isolate::IsRegExpSpeciesLookupChainIntact() {
+  PropertyCell* species_cell = heap()->regexp_species_protector();
   return species_cell->value()->IsSmi() &&
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }

@@ -537,7 +537,8 @@ bool NodeProperties::HasInstanceTypeWitness(JSHeapBroker* broker,
     case NodeProperties::kReliableReceiverMaps:
       DCHECK_NE(0, receiver_maps.size());
       for (size_t i = 0; i < receiver_maps.size(); ++i) {
-        if (receiver_maps[i]->instance_type() != instance_type) return false;
+        MapRef map(broker, receiver_maps[i]);
+        if (map.instance_type() != instance_type) return false;
       }
       return true;
 

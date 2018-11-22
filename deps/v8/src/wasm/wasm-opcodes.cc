@@ -110,12 +110,6 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
-    // TODO(kschimpf): Simplify after filling in other saturating operations.
-    CASE_CONVERT_SAT_OP(Convert, I32, F32, "f32", "trunc")
-    CASE_CONVERT_SAT_OP(Convert, I32, F64, "f64", "trunc")
-    CASE_CONVERT_SAT_OP(Convert, I64, F32, "f32", "trunc")
-    CASE_CONVERT_SAT_OP(Convert, I64, F64, "f64", "trunc")
-
     CASE_CONVERT_OP(Convert, I64, I32, "i32", "extend")
     CASE_CONVERT_OP(Convert, F32, I32, "i32", "convert")
     CASE_CONVERT_OP(Convert, F32, I64, "i64", "convert")
@@ -198,6 +192,19 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32_OP(AsmjsSConvertF64, "asmjs_convert_s/f64")
     CASE_I32_OP(AsmjsUConvertF64, "asmjs_convert_u/f64")
 
+    // Numeric Opcodes.
+    CASE_CONVERT_SAT_OP(Convert, I32, F32, "f32", "trunc")
+    CASE_CONVERT_SAT_OP(Convert, I32, F64, "f64", "trunc")
+    CASE_CONVERT_SAT_OP(Convert, I64, F32, "f32", "trunc")
+    CASE_CONVERT_SAT_OP(Convert, I64, F64, "f64", "trunc")
+    CASE_OP(MemoryInit, "memory.init")
+    CASE_OP(MemoryDrop, "memory.drop")
+    CASE_OP(MemoryCopy, "memory.copy")
+    CASE_OP(MemoryFill, "memory.fill")
+    CASE_OP(TableInit, "table.init")
+    CASE_OP(TableDrop, "table.drop")
+    CASE_OP(TableCopy, "table.copy")
+
     // SIMD opcodes.
     CASE_SIMD_OP(Splat, "splat")
     CASE_SIMD_OP(Neg, "neg")
@@ -256,6 +263,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
+    CASE_OP(AtomicWake, "atomic_wake")
+    CASE_I32_OP(AtomicWait, "atomic_wait")
     CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic_load")
     CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic_store")
     CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic_add")

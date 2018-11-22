@@ -8,6 +8,7 @@
 #include "src/base/template-utils.h"
 #include "src/cancelable-task.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/optimized-compilation-info.h"
@@ -112,7 +113,7 @@ OptimizedCompilationJob* OptimizingCompileDispatcher::NextInput(
   input_queue_shift_ = InputQueueIndex(1);
   input_queue_length_--;
   if (check_if_flushing) {
-    if (static_cast<ModeFlag>(base::Acquire_Load(&mode_)) == FLUSH) {
+    if (mode_ == FLUSH) {
       AllowHandleDereference allow_handle_dereference;
       DisposeCompilationJob(job, true);
       return nullptr;
@@ -167,12 +168,12 @@ void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
     }
     return;
   }
-  base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
+  mode_ = FLUSH;
   if (FLAG_block_concurrent_recompilation) Unblock();
   {
     base::MutexGuard lock_guard(&ref_count_mutex_);
     while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
-    base::Release_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
+    mode_ = COMPILE;
   }
   FlushOutputQueue(true);
   if (FLAG_trace_concurrent_recompilation) {
@@ -181,12 +182,12 @@ void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
 }
 
 void OptimizingCompileDispatcher::Stop() {
-  base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
+  mode_ = FLUSH;
   if (FLAG_block_concurrent_recompilation) Unblock();
   {
     base::MutexGuard lock_guard(&ref_count_mutex_);
     while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
-    base::Release_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
+    mode_ = COMPILE;
   }
 
   if (recompilation_delay_ != 0) {

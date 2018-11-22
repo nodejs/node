@@ -88,8 +88,6 @@ enum ContextLookupFlags {
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                 \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)         \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function) \
-  V(CACHED_OR_NEW_SERVICE_LOCALE_FUNCTION_INDEX, JSFunction,              \
-    cached_or_new_service)                                                \
   V(SET_ADD_INDEX, JSFunction, set_add)                                   \
   V(SET_DELETE_INDEX, JSFunction, set_delete)                             \
   V(SET_HAS_INDEX, JSFunction, set_has)                                   \
@@ -107,7 +105,10 @@ enum ContextLookupFlags {
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \
-  V(EMBEDDER_DATA_INDEX, FixedArray, embedder_data)                            \
+  /* TODO(ishell): Actually we store exactly EmbedderDataArray here but */     \
+  /* it's already UBSan-fiendly and doesn't require a star... So declare */    \
+  /* it as a HeapObject for now. */                                            \
+  V(EMBEDDER_DATA_INDEX, HeapObject, embedder_data)                            \
   /* Below is alpha-sorted */                                                  \
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
@@ -202,13 +203,14 @@ enum ContextLookupFlags {
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun)                        \
   V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun)                          \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
-  V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
+  V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
   V(INTL_DATE_TIME_FORMAT_FUNCTION_INDEX, JSFunction,                          \
     intl_date_time_format_function)                                            \
   V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
     intl_number_format_function)                                               \
   V(INTL_LOCALE_FUNCTION_INDEX, JSFunction, intl_locale_function)              \
   V(INTL_SEGMENT_ITERATOR_MAP_INDEX, Map, intl_segment_iterator_map)           \
+  V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
     js_array_packed_smi_elements_map)                                          \
   V(JS_ARRAY_HOLEY_SMI_ELEMENTS_MAP_INDEX, Map,                                \
@@ -228,6 +230,7 @@ enum ContextLookupFlags {
   V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_MAP_INDEX, Map,                           \
     js_weak_factory_cleanup_iterator_map)                                      \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
+  V(JS_WEAK_REF_MAP_INDEX, Map, js_weak_ref_map)                               \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_KEY_ITERATOR_MAP_INDEX, Map, map_key_iterator_map)                     \
@@ -275,6 +278,7 @@ enum ContextLookupFlags {
   V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
     initial_regexp_string_iterator_prototype_map)                              \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
+  V(REGEXP_PROTOTYPE_INDEX, JSObject, regexp_prototype)                        \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
   V(SERIALIZED_OBJECTS, FixedArray, serialized_objects)                        \
@@ -410,11 +414,10 @@ class ScriptContextTable : public FixedArray {
 //
 // [ extension      ]  Additional data.
 //
+//                     For native contexts, it contains the global object.
 //                     For module contexts, it contains the module object.
-//
-//                     For block contexts, it may contain an "extension object"
-//                     (see below).
-//
+//                     For await contexts, it contains the generator object.
+//                     For block contexts, it may contain an "extension object".
 //                     For with contexts, it contains an "extension object".
 //
 //                     An "extension object" is used to dynamically extend a
@@ -448,11 +451,6 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
     // These slots are in all contexts.
     SCOPE_INFO_INDEX,
     PREVIOUS_INDEX,
-    // The extension slot is used for either the global object (in native
-    // contexts), eval extension object (function contexts), subject of with
-    // (with contexts), or the variable name (catch contexts), the serialized
-    // scope info (block contexts), the module instance (module contexts), or
-    // the generator object (await contexts).
     EXTENSION_INDEX,
     NATIVE_CONTEXT_INDEX,
 
@@ -549,7 +547,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
 
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.
-  void AddOptimizedCode(Code* code);
+  void AddOptimizedCode(Code code);
   void SetOptimizedCodeListHead(Object* head);
   Object* OptimizedCodeListHead();
   void SetDeoptimizedCodeListHead(Object* head);
@@ -562,9 +560,9 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   static int IntrinsicIndexForName(const unsigned char* name, int length);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  inline void set_##name(type* value);                    \
-  inline bool is_##name(type* value) const;               \
-  inline type* name() const;
+  inline void set_##name(type##ArgType value);            \
+  inline bool is_##name(type##ArgType value) const;       \
+  inline type##ArgType name() const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
@@ -610,7 +608,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
     return elements_kind + FIRST_JS_ARRAY_MAP_SLOT;
   }
 
-  inline Map* GetInitialJSArrayMap(ElementsKind kind) const;
+  inline Map GetInitialJSArrayMap(ElementsKind kind) const;
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;
   static const int kNotFound = -1;

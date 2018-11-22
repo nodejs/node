@@ -86,6 +86,28 @@ void AtomicsWaitWakeHandle::Wake() {
   isolate_->futex_wait_list_node()->NotifyWake();
 }
 
+enum WaitReturnValue : int { kOk = 0, kNotEqual = 1, kTimedOut = 2 };
+
+Object* FutexEmulation::WaitJs(Isolate* isolate,
+                               Handle<JSArrayBuffer> array_buffer, size_t addr,
+                               int32_t value, double rel_timeout_ms) {
+  Object* res = Wait(isolate, array_buffer, addr, value, rel_timeout_ms);
+  if (res->IsSmi()) {
+    int val = Smi::ToInt(res);
+    switch (val) {
+      case WaitReturnValue::kOk:
+        return ReadOnlyRoots(isolate).ok();
+      case WaitReturnValue::kNotEqual:
+        return ReadOnlyRoots(isolate).not_equal();
+      case WaitReturnValue::kTimedOut:
+        return ReadOnlyRoots(isolate).timed_out();
+      default:
+        UNREACHABLE();
+    }
+  }
+  return res;
+}
+
 Object* FutexEmulation::Wait(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
                              int32_t value, double rel_timeout_ms) {
@@ -139,7 +161,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     ResetWaitingOnScopeExit reset_waiting(node);
 
     if (*p != value) {
-      result = ReadOnlyRoots(isolate).not_equal();
+      result = Smi::FromInt(WaitReturnValue::kNotEqual);
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
     }
@@ -197,7 +219,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
       }
 
       if (!node->waiting_) {
-        result = ReadOnlyRoots(isolate).ok();
+        result = Smi::FromInt(WaitReturnValue::kOk);
         break;
       }
 
@@ -205,7 +227,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
       if (use_timeout) {
         current_time = base::TimeTicks::Now();
         if (current_time >= timeout_time) {
-          result = ReadOnlyRoots(isolate).timed_out();
+          result = Smi::FromInt(WaitReturnValue::kTimedOut);
           callback_result = AtomicsWaitEvent::kTimedOut;
           break;
         }

@@ -94,6 +94,7 @@ export class SourceResolver {
   blockIdToInstructionRange: Array<[number, number]>;
   instructionToPCOffset: Array<number>;
   pcOffsetToInstructions: Map<number, Array<number>>;
+  pcOffsets: Array<number>;
 
 
   constructor() {
@@ -123,6 +124,7 @@ export class SourceResolver {
     this.instructionToPCOffset = [];
     // Maps PC offsets to instructions.
     this.pcOffsetToInstructions = new Map();
+    this.pcOffsets = [];
   }
 
   setSources(sources, mainBackup) {
@@ -349,7 +351,7 @@ export class SourceResolver {
       }
       this.pcOffsetToInstructions.get(offset).push(instruction);
     }
-    console.log(this.pcOffsetToInstructions);
+    this.pcOffsets = Array.from(this.pcOffsetToInstructions.keys()).sort((a, b) => b - a);
   }
 
   hasPCOffsets() {
@@ -358,9 +360,8 @@ export class SourceResolver {
 
 
   nodesForPCOffset(offset): [Array<String>, Array<String>] {
-    const keys = Array.from(this.pcOffsetToInstructions.keys()).sort((a, b) => b - a);
-    if (keys.length === 0) return [[],[]];
-    for (const key of keys) {
+    if (this.pcOffsets.length === 0) return [[],[]];
+    for (const key of this.pcOffsets) {
       if (key <= offset) {
         const instrs = this.pcOffsetToInstructions.get(key);
         const nodes = [];

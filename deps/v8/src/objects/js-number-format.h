@@ -46,8 +46,20 @@ class JSNumberFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
 
+  // A utility function used by the above JSNumberFormat::FormatToParts()
+  // and JSRelativeTimeFormat::FormatToParts().
+  // Format the number by using the icu::NumberFormat to get the field
+  // information. It add an object into the result array, starting from the
+  // start_index and return the total number of elements in the result array.
+  // For each object added as element, it set the substring of the field as
+  // "value", the field type as "type". If the unit is not null, it also set
+  // unit as "unit" to each added object.
+  V8_WARN_UNUSED_RESULT static Maybe<int> FormatToParts(
+      Isolate* isolate, Handle<JSArray> result, int start_index,
+      const icu::NumberFormat& fmt, double number, Handle<String> unit);
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumber(
-      Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
+      Isolate* isolate, const icu::NumberFormat& number_format, double number);
 
   static std::set<std::string> GetAvailableLocales();
 

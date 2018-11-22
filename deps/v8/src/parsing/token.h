@@ -20,12 +20,6 @@ namespace internal {
 //
 //   T: Non-keyword tokens
 //   K: Keyword tokens
-//   C: Contextual keyword token
-//
-// Contextual keyword tokens are tokens that are scanned as Token::IDENTIFIER,
-// but that in some contexts are treated as keywords. This mostly happens
-// when ECMAScript introduces new keywords, but for backwards compatibility
-// allows them to still be used as indentifiers in most contexts.
 
 // IGNORE_TOKEN is a convenience macro that can be supplied as
 // an argument (at any position) for a TOKEN_LIST call. It does
@@ -76,7 +70,6 @@ namespace internal {
   T(CONDITIONAL, "?", 3)                                           \
   T(INC, "++", 0)                                                  \
   T(DEC, "--", 0)                                                  \
-  T(ARROW, "=>", 0)                                                \
   /* BEGIN AutoSemicolon */                                        \
   T(SEMICOLON, ";", 0)                                             \
   T(RBRACE, "}", 0)                                                \
@@ -84,12 +77,16 @@ namespace internal {
   T(EOS, "EOS", 0)                                                 \
   /* END AutoSemicolon */                                          \
                                                                    \
-  /* Assignment operators. */                                      \
+  /* BEGIN ArrowOrAssignmentOp */                                  \
+  T(ARROW, "=>", 0)                                                \
+  /* BEGIN AssignmentOp */                                         \
   /* IsAssignmentOp() relies on this block of enum values being */ \
   /* contiguous and sorted in the same order! */                   \
   T(INIT, "=init", 2) /* AST-use only. */                          \
   T(ASSIGN, "=", 2)                                                \
   BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_ASSIGN_TOKEN)               \
+  /* END AssignmentOp */                                           \
+  /* END ArrowOrAssignmentOp */                                    \
                                                                    \
   /* Binary operators sorted by precedence. */                     \
   /* IsBinaryOp() relies on this block of enum values */           \
@@ -190,25 +187,7 @@ namespace internal {
   /* Scanner-internal use only. */                                 \
   T(WHITESPACE, nullptr, 0)                                        \
   T(UNINITIALIZED, nullptr, 0)                                     \
-  T(REGEXP_LITERAL, nullptr, 0)                                    \
-                                                                   \
-  /* Contextual keyword tokens */                                  \
-  C(GET, "get", 0)                                                 \
-  C(SET, "set", 0)                                                 \
-  C(OF, "of", 0)                                                   \
-  C(TARGET, "target", 0)                                           \
-  C(META, "meta", 0)                                               \
-  C(AS, "as", 0)                                                   \
-  C(FROM, "from", 0)                                               \
-  C(NAME, "name", 0)                                               \
-  C(PROTO_UNDERSCORED, "__proto__", 0)                             \
-  C(CONSTRUCTOR, "constructor", 0)                                 \
-  C(PRIVATE_CONSTRUCTOR, "#constructor", 0)                        \
-  C(PROTOTYPE, "prototype", 0)                                     \
-  C(EVAL, "eval", 0)                                               \
-  C(ARGUMENTS, "arguments", 0)                                     \
-  C(UNDEFINED, "undefined", 0)                                     \
-  C(ANONYMOUS, "anonymous", 0)
+  T(REGEXP_LITERAL, nullptr, 0)
 
 class Token {
  public:
@@ -228,9 +207,6 @@ class Token {
 
   // Predicates
   static bool IsKeyword(Value token) { return token_type[token] == 'K'; }
-  static bool IsContextualKeyword(Value token) {
-    return IsInRange(token, GET, ANONYMOUS);
-  }
 
   static bool IsIdentifier(Value token, LanguageMode language_mode,
                            bool is_generator, bool disallow_await) {
@@ -269,10 +245,13 @@ class Token {
     return IsInRange(token, TEMPLATE_SPAN, LPAREN);
   }
 
+  static bool IsArrowOrAssignmentOp(Value token) {
+    return IsInRange(token, ARROW, ASSIGN_EXP);
+  }
+
   static bool IsAssignmentOp(Value token) {
     return IsInRange(token, INIT, ASSIGN_EXP);
   }
-  static bool IsGetOrSet(Value op) { return IsInRange(op, GET, SET); }
 
   static bool IsBinaryOp(Value op) { return IsInRange(op, COMMA, EXP); }
 
@@ -318,16 +297,16 @@ class Token {
 
   // Returns the precedence > 0 for binary and compare
   // operators; returns 0 otherwise.
-  static int Precedence(Value token) {
+  static int Precedence(Value token, bool accept_IN) {
     DCHECK_GT(NUM_TOKENS, token);  // token is unsigned
-    return precedence_[token];
+    return precedence_[accept_IN][token];
   }
 
  private:
   static const char* const name_[NUM_TOKENS];
   static const char* const string_[NUM_TOKENS];
   static const uint8_t string_length_[NUM_TOKENS];
-  static const int8_t precedence_[NUM_TOKENS];
+  static const int8_t precedence_[2][NUM_TOKENS];
   static const char token_type[NUM_TOKENS];
 };
 

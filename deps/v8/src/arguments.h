@@ -31,16 +31,13 @@ namespace internal {
 
 class Arguments {
  public:
-  Arguments(int length, Object** arguments)
+  Arguments(int length, Address* arguments)
       : length_(length), arguments_(arguments) {
     DCHECK_GE(length_, 0);
   }
 
-  Object*& operator[] (int index) {
-    DCHECK_GE(index, 0);
-    DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
-    return *(reinterpret_cast<Object**>(reinterpret_cast<intptr_t>(arguments_) -
-                                        index * kPointerSize));
+  ObjectPtr operator[](int index) {
+    return ObjectPtr(*address_of_arg_at(index));
   }
 
   template <class S = Object>
@@ -50,26 +47,36 @@ class Arguments {
 
   inline double number_at(int index);
 
+  inline void set_at(int index, Object* value) {
+    *address_of_arg_at(index) = value->ptr();
+  }
+
+  inline ObjectSlot slot_at(int index) {
+    return ObjectSlot(address_of_arg_at(index));
+  }
+
+  inline Address* address_of_arg_at(int index) {
+    DCHECK_GE(index, 0);
+    DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    return reinterpret_cast<Address*>(reinterpret_cast<Address>(arguments_) -
+                                      index * kPointerSize);
+  }
+
   // Get the total number of arguments including the receiver.
   int length() const { return static_cast<int>(length_); }
 
-  Object** arguments() { return arguments_; }
-
-  ObjectSlot lowest_address() {
-    return ObjectSlot(&this->operator[](length() - 1));
-  }
-
-  ObjectSlot highest_address() { return ObjectSlot(&this->operator[](0)); }
+  // Arguments on the stack are in reverse order (compared to an array).
+  ObjectSlot first_slot() { return slot_at(length() - 1); }
+  ObjectSlot last_slot() { return slot_at(0); }
 
  private:
   intptr_t length_;
-  Object** arguments_;
+  Address* arguments_;
 };
 
 template <>
 inline Handle<Object> Arguments::at(int index) {
-  Object** value = &((*this)[index]);
-  return Handle<Object>(value);
+  return Handle<Object>(address_of_arg_at(index));
 }
 
 double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
@@ -85,7 +92,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                             \
   static V8_INLINE Type __RT_impl_##Name(Arguments args, Isolate* isolate);   \
                                                                               \
-  V8_NOINLINE static Type Stats_##Name(int args_length, Object** args_object, \
+  V8_NOINLINE static Type Stats_##Name(int args_length, Address* args_object, \
                                        Isolate* isolate) {                    \
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::k##Name);      \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
@@ -94,7 +101,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
     return __RT_impl_##Name(args, isolate);                                   \
   }                                                                           \
                                                                               \
-  Type Name(int args_length, Object** args_object, Isolate* isolate) {        \
+  Type Name(int args_length, Address* args_object, Isolate* isolate) {        \
     DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
     CLOBBER_DOUBLE_REGISTERS();                                               \
     if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \

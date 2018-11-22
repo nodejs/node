@@ -40,6 +40,13 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StoreOwnIC(Isolate* isolate);
   static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
 
+  static Callable KeyedStoreIC_SloppyArguments(Isolate* isolate,
+                                               KeyedAccessStoreMode mode);
+  static Callable KeyedStoreIC_Slow(Isolate* isolate,
+                                    KeyedAccessStoreMode mode);
+  static Callable StoreInArrayLiteralIC_Slow(Isolate* isolate,
+                                             KeyedAccessStoreMode mode);
+
   static Callable ResumeGenerator(Isolate* isolate);
 
   static Callable FrameDropperTrampoline(Isolate* isolate);

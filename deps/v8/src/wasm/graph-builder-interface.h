@@ -26,7 +26,7 @@ struct WasmFeatures;
 DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           const WasmFeatures& enabled, const WasmModule* module,
                           compiler::WasmGraphBuilder* builder,
-                          WasmFeatures* detected, FunctionBody& body,
+                          WasmFeatures* detected, const FunctionBody& body,
                           compiler::NodeOriginTable* node_origins);
 
 }  // namespace wasm

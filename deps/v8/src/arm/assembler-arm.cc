@@ -344,18 +344,6 @@ int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
   return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
-void RelocInfo::set_js_to_wasm_address(Address address,
-                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Assembler::set_target_address_at(pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
-Address RelocInfo::js_to_wasm_address() const {
-  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
   return static_cast<uint32_t>(
@@ -556,16 +544,13 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
                      int buffer_size)
     : AssemblerBase(options, buffer, buffer_size),
       pending_32_bit_constants_(),
-      pending_64_bit_constants_(),
       scratch_register_list_(ip.bit()) {
   pending_32_bit_constants_.reserve(kMinNumPendingConstants);
-  pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_32_use_ = -1;
-  first_const_pool_64_use_ = -1;
   last_bound_pos_ = 0;
   if (CpuFeatures::IsSupported(VFP32DREGS)) {
     // Register objects tend to be abstracted and survive between scopes, so
@@ -591,7 +576,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   int constant_pool_offset = 0;
   CheckConstPool(true, false);
   DCHECK(pending_32_bit_constants_.empty());
-  DCHECK(pending_64_bit_constants_.empty());
 
   AllocateAndInstallRequestedHeapObjects(isolate);
 
@@ -5092,7 +5076,6 @@ void Assembler::db(uint8_t data) {
   // db is used to write raw data. The constant pool should be emitted or
   // blocked before using db.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
-  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint8_t*>(pc_) = data;
   pc_ += sizeof(uint8_t);
@@ -5103,7 +5086,6 @@ void Assembler::dd(uint32_t data) {
   // dd is used to write raw data. The constant pool should be emitted or
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
-  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
@@ -5114,7 +5096,6 @@ void Assembler::dq(uint64_t value) {
   // dq is used to write raw data. The constant pool should be emitted or
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
-  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
@@ -5123,7 +5104,7 @@ void Assembler::dq(uint64_t value) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -5176,11 +5157,7 @@ void Assembler::BlockConstPoolFor(int instructions) {
 #ifdef DEBUG
     int start = pc_limit + kInstrSize + 2 * kPointerSize;
     DCHECK(pending_32_bit_constants_.empty() ||
-           (start - first_const_pool_32_use_ +
-                pending_64_bit_constants_.size() * kDoubleSize <
-            kMaxDistToIntPool));
-    DCHECK(pending_64_bit_constants_.empty() ||
-           (start - first_const_pool_64_use_ < kMaxDistToFPPool));
+           (start < first_const_pool_32_use_ + kMaxDistToIntPool));
 #endif
     no_const_pool_before_ = pc_limit;
   }
@@ -5202,7 +5179,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   }
 
   // There is nothing to do if there are no pending constant pool entries.
-  if (pending_32_bit_constants_.empty() && pending_64_bit_constants_.empty()) {
+  if (pending_32_bit_constants_.empty()) {
     // Calculate the offset of the next check.
     next_buffer_check_ = pc_offset() + kCheckPoolInterval;
     return;
@@ -5215,19 +5192,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   int size_up_to_marker = jump_instr + kInstrSize;
   int estimated_size_after_marker =
       pending_32_bit_constants_.size() * kPointerSize;
-  bool has_int_values = !pending_32_bit_constants_.empty();
-  bool has_fp_values = !pending_64_bit_constants_.empty();
-  bool require_64_bit_align = false;
-  if (has_fp_values) {
-    require_64_bit_align =
-        !IsAligned(reinterpret_cast<intptr_t>(pc_ + size_up_to_marker),
-                   kDoubleAlignment);
-    if (require_64_bit_align) {
-      estimated_size_after_marker += kInstrSize;
-    }
-    estimated_size_after_marker +=
-        pending_64_bit_constants_.size() * kDoubleSize;
-  }
   int estimated_size = size_up_to_marker + estimated_size_after_marker;
 
   // We emit a constant pool when:
@@ -5239,35 +5203,18 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   //  * the instruction doesn't require a jump after itself to jump over the
   //    constant pool, and we're getting close to running out of range.
   if (!force_emit) {
-    DCHECK(has_fp_values || has_int_values);
+    DCHECK(!pending_32_bit_constants_.empty());
     bool need_emit = false;
-    if (has_fp_values) {
-      // The 64-bit constants are always emitted before the 32-bit constants, so
-      // we can ignore the effect of the 32-bit constants on estimated_size.
-      int dist64 = pc_offset() + estimated_size -
-                   pending_32_bit_constants_.size() * kPointerSize -
-                   first_const_pool_64_use_;
-      if ((dist64 >= kMaxDistToFPPool - kCheckPoolInterval) ||
-          (!require_jump && (dist64 >= kMaxDistToFPPool / 2))) {
-        need_emit = true;
-      }
-    }
-    if (has_int_values) {
-      int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
-      if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
-          (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
-        need_emit = true;
-      }
+    int dist32 = pc_offset() + estimated_size - first_const_pool_32_use_;
+    if ((dist32 >= kMaxDistToIntPool - kCheckPoolInterval) ||
+        (!require_jump && (dist32 >= kMaxDistToIntPool / 2))) {
+      need_emit = true;
     }
     if (!need_emit) return;
   }
 
   // Deduplicate constants.
   int size_after_marker = estimated_size_after_marker;
-  for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
-    ConstantPoolEntry& entry = pending_64_bit_constants_[i];
-    if (entry.is_merged()) size_after_marker -= kDoubleSize;
-  }
 
   for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_32_bit_constants_[i];
@@ -5298,40 +5245,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // The data size helps disassembly know what to print.
     emit(kConstantPoolMarker |
          EncodeConstantPoolLength(size_after_marker / kPointerSize));
-
-    if (require_64_bit_align) {
-      emit(kConstantPoolMarker);
-    }
-
-    // Emit 64-bit constant pool entries first: their range is smaller than
-    // 32-bit entries.
-    for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
-      ConstantPoolEntry& entry = pending_64_bit_constants_[i];
-
-      Instr instr = instr_at(entry.position());
-      // Instruction to patch must be 'vldr rd, [pc, #offset]' with offset == 0.
-      DCHECK((IsVldrDPcImmediateOffset(instr) &&
-              GetVldrDRegisterImmediateOffset(instr) == 0));
-
-      int delta = pc_offset() - entry.position() - Instruction::kPcLoadDelta;
-      DCHECK(is_uint10(delta));
-
-      if (entry.is_merged()) {
-        ConstantPoolEntry& merged =
-            pending_64_bit_constants_[entry.merged_index()];
-        DCHECK(entry.value64() == merged.value64());
-        Instr merged_instr = instr_at(merged.position());
-        DCHECK(IsVldrDPcImmediateOffset(merged_instr));
-        delta = GetVldrDRegisterImmediateOffset(merged_instr);
-        delta += merged.position() - entry.position();
-      }
-      instr_at_put(entry.position(),
-                   SetVldrDRegisterImmediateOffset(instr, delta));
-      if (!entry.is_merged()) {
-        DCHECK(IsAligned(reinterpret_cast<intptr_t>(pc_), kDoubleAlignment));
-        dq(entry.value64());
-      }
-    }
 
     // Emit 32-bit constant pool entries.
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
@@ -5369,10 +5282,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
 
     pending_32_bit_constants_.clear();
-    pending_64_bit_constants_.clear();
 
     first_const_pool_32_use_ = -1;
-    first_const_pool_64_use_ = -1;
 
     RecordComment("]");
 
@@ -5397,7 +5308,6 @@ PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
 PatchingAssembler::~PatchingAssembler() {
   // Check that we don't have any pending constant pools.
   DCHECK(pending_32_bit_constants_.empty());
-  DCHECK(pending_64_bit_constants_.empty());
 
   // Check that the code was patched as expected.
   DCHECK_EQ(pc_, buffer_ + buffer_size_ - kGap);
@@ -5405,6 +5315,13 @@ PatchingAssembler::~PatchingAssembler() {
 }
 
 void PatchingAssembler::Emit(Address addr) { emit(static_cast<Instr>(addr)); }
+
+void PatchingAssembler::PadWithNops() {
+  DCHECK_LE(pc_, buffer_ + buffer_size_ - kGap);
+  while (pc_ < buffer_ + buffer_size_ - kGap) {
+    nop();
+  }
+}
 
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
     : assembler_(assembler),

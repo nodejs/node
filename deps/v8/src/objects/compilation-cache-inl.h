@@ -10,6 +10,7 @@
 #include "src/objects/name-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/smi.h"
 #include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,7 +21,7 @@ namespace internal {
 
 CAST_ACCESSOR(CompilationCacheTable)
 
-uint32_t CompilationCacheShape::RegExpHash(String* string, Smi* flags) {
+uint32_t CompilationCacheShape::RegExpHash(String* string, Smi flags) {
   return string->Hash() + flags->value();
 }
 

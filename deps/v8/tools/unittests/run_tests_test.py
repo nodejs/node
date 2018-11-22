@@ -404,6 +404,22 @@ class SystemTest(unittest.TestCase):
         self.assertIn('0 tests ran', result.stdout, result)
       self.assertEqual(2, result.returncode, result)
 
+  def testRunSkips(self):
+    """Inverse the above. Test parameter to keep running skipped tests."""
+    with temp_base() as basedir:
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          '--progress=verbose',
+          '--variants=nooptimization',
+          '--run-skipped',
+          'sweet/strawberries',
+      )
+      self.assertIn('Running 1 base tests', result.stdout, result)
+      self.assertIn('1 tests failed', result.stdout, result)
+      self.assertIn('1 tests ran', result.stdout, result)
+      self.assertEqual(1, result.returncode, result)
+
   def testDefaultProc(self):
     self.testDefault(infra_staging=True)
 

@@ -32,6 +32,9 @@ void SnapshotByteSink::PutRaw(const byte* data, int number_of_bytes,
   data_.insert(data_.end(), data, data + number_of_bytes);
 }
 
+void SnapshotByteSink::Append(const SnapshotByteSink& other) {
+  data_.insert(data_.end(), other.data_.begin(), other.data_.end());
+}
 
 int SnapshotByteSource::GetBlob(const byte** data) {
   int size = GetInt();

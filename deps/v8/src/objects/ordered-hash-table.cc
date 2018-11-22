@@ -83,10 +83,38 @@ template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
                                                   Derived* table, Object* key) {
   DCHECK((entrysize == 1 && table->IsOrderedHashSet()) ||
-         (entrysize == 2 && table->IsOrderedHashMap()));
+         (entrysize == 2 && table->IsOrderedHashMap()) ||
+         (entrysize == 3 && table->IsOrderedNameDictionary()));
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
   return entry != kNotFound;
+}
+
+template <class Derived, int entrysize>
+int OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
+                                                    Object* key) {
+  int entry;
+  // This special cases for Smi, so that we avoid the HandleScope
+  // creation below.
+  if (key->IsSmi()) {
+    uint32_t hash = ComputeUnseededHash(Smi::ToInt(key));
+    entry = HashToEntry(hash & Smi::kMaxValue);
+  } else {
+    HandleScope scope(isolate);
+    Object* hash = key->GetHash();
+    // If the object does not have an identity hash, it was never used as a key
+    if (hash->IsUndefined(isolate)) return kNotFound;
+    entry = HashToEntry(Smi::ToInt(hash));
+  }
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key->SameValueZero(key)) break;
+    entry = NextChainEntry(entry);
+  }
+
+  return entry;
 }
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
@@ -265,6 +293,75 @@ Handle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
+Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
+    Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
+    Handle<Object> value, PropertyDetails details) {
+  int hash = key->Hash();
+
+#ifdef DEBUG
+  // Walk the chain of the bucket and try finding the key.
+  {
+    DisallowHeapAllocation no_gc;
+    int entry = table->HashToEntry(hash);
+    Object* raw_key = *key;
+    while (entry != kNotFound) {
+      Object* candidate_key = table->KeyAt(entry);
+
+      // Key should not exist already!
+      CHECK(!candidate_key->SameValueZero(raw_key));
+
+      entry = table->NextChainEntry(entry);
+    }
+  }
+#endif
+
+  table = OrderedNameDictionary::EnsureGrowable(isolate, table);
+  // Read the existing bucket values.
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToEntry(hash);
+  int nof = table->NumberOfElements();
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+  int new_index = table->EntryToIndex(new_entry);
+  table->set(new_index, *key);
+  table->set(new_index + kValueOffset, *value);
+
+  // TODO(gsathya): Optimize how PropertyDetails are stored in this
+  // dictionary to save memory (by reusing padding?) and performance
+  // (by not doing the Smi conversion).
+  table->set(new_index + kPropertyDetailsOffset, details.AsSmi());
+
+  table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
+  // and point the bucket to the new entry.
+  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->SetNumberOfElements(nof + 1);
+  return table;
+}
+
+template <>
+int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
+                                                          Object* key) {
+  DisallowHeapAllocation no_gc;
+
+  DCHECK(key->IsUniqueName());
+  Name* raw_key = Name::cast(key);
+
+  int entry = HashToEntry(raw_key->Hash());
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    DCHECK(candidate_key->IsTheHole() ||
+           Name::cast(candidate_key)->IsUniqueName());
+    if (candidate_key == raw_key) return entry;
+
+    // TODO(gsathya): This is loading the bucket count from the hash
+    // table for every iteration. This should be peeled out of the
+    // loop.
+    entry = NextChainEntry(entry);
+  }
+
+  return kNotFound;
+}
+
 template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
@@ -285,6 +382,9 @@ template bool OrderedHashTable<OrderedHashSet, 1>::HasKey(Isolate* isolate,
 template bool OrderedHashTable<OrderedHashSet, 1>::Delete(Isolate* isolate,
                                                           OrderedHashSet* table,
                                                           Object* key);
+
+template int OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate,
+                                                            Object* key);
 
 template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
@@ -307,6 +407,21 @@ template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
                                                           OrderedHashMap* table,
                                                           Object* key);
 
+template int OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
+                                                            Object* key);
+
+template Handle<OrderedNameDictionary>
+OrderedHashTable<OrderedNameDictionary, 3>::Allocate(Isolate* isolate,
+                                                     int capacity,
+                                                     PretenureFlag pretenure);
+
+template bool OrderedHashTable<OrderedNameDictionary, 3>::HasKey(
+    Isolate* isolate, OrderedNameDictionary* table, Object* key);
+
+template Handle<OrderedNameDictionary>
+OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
+    Isolate* isolate, Handle<OrderedNameDictionary> table);
+
 template <>
 Handle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Allocate(Isolate* isolate,
@@ -321,6 +436,13 @@ SmallOrderedHashTable<SmallOrderedHashMap>::Allocate(Isolate* isolate,
                                                      int capacity,
                                                      PretenureFlag pretenure) {
   return isolate->factory()->NewSmallOrderedHashMap(capacity, pretenure);
+}
+
+template <>
+Handle<SmallOrderedNameDictionary>
+SmallOrderedHashTable<SmallOrderedNameDictionary>::Allocate(
+    Isolate* isolate, int capacity, PretenureFlag pretenure) {
+  return isolate->factory()->NewSmallOrderedNameDictionary(capacity, pretenure);
 }
 
 template <class Derived>
@@ -433,6 +555,47 @@ MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
   return table;
 }
 
+MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
+    Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+    Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+  DCHECK(!table->HasKey(isolate, key));
+
+  if (table->UsedCapacity() >= table->Capacity()) {
+    MaybeHandle<SmallOrderedNameDictionary> new_table =
+        SmallOrderedNameDictionary::Grow(isolate, table);
+    if (!new_table.ToHandle(&table)) {
+      return MaybeHandle<SmallOrderedNameDictionary>();
+    }
+  }
+
+  int hash = key->GetOrCreateHash(isolate)->value();
+  int nof = table->NumberOfElements();
+
+  // Read the existing bucket values.
+  int bucket = table->HashToBucket(hash);
+  int previous_entry = table->HashToFirstEntry(hash);
+
+  // Insert a new entry at the end,
+  int new_entry = nof + table->NumberOfDeletedElements();
+
+  table->SetDataEntry(new_entry, SmallOrderedNameDictionary::kValueIndex,
+                      *value);
+  table->SetDataEntry(new_entry, SmallOrderedNameDictionary::kKeyIndex, *key);
+
+  // TODO(gsathya): PropertyDetails should be stored as part of the
+  // data table to save more memory.
+  table->SetDataEntry(new_entry,
+                      SmallOrderedNameDictionary::kPropertyDetailsIndex,
+                      details.AsSmi());
+  table->SetFirstEntry(bucket, new_entry);
+  table->SetNextEntry(new_entry, previous_entry);
+
+  // and update book keeping.
+  table->SetNumberOfElements(nof + 1);
+
+  return table;
+}
+
 template <class Derived>
 bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
                                             Handle<Object> key) {
@@ -526,6 +689,42 @@ MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
   return Rehash(isolate, table, new_capacity);
 }
 
+template <class Derived>
+int SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate, Object* key) {
+  DisallowHeapAllocation no_gc;
+  Object* hash = key->GetHash();
+
+  if (hash->IsUndefined(isolate)) return kNotFound;
+  int entry = HashToFirstEntry(Smi::ToInt(hash));
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key->SameValueZero(key)) return entry;
+    entry = GetNextEntry(entry);
+  }
+  return kNotFound;
+}
+
+template <>
+int SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
+    Isolate* isolate, Object* key) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(key->IsUniqueName());
+  Name* raw_key = Name::cast(key);
+
+  int entry = HashToFirstEntry(raw_key->Hash());
+
+  // Walk the chain in the bucket to find the key.
+  while (entry != kNotFound) {
+    Object* candidate_key = KeyAt(entry);
+    if (candidate_key == key) return entry;
+    entry = GetNextEntry(entry);
+  }
+
+  return kNotFound;
+}
+
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
     Isolate* isolate, Handle<Object> key);
 template Handle<SmallOrderedHashSet>
@@ -552,6 +751,11 @@ template bool SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
     Isolate* isolate, SmallOrderedHashMap* table, Object* key);
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
     Isolate* isolate, SmallOrderedHashSet* table, Object* key);
+
+template void SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(
+    Isolate* isolate, int capacity);
+template bool SmallOrderedHashTable<SmallOrderedNameDictionary>::HasKey(
+    Isolate* isolate, Handle<Object> key);
 
 template <class SmallTable, class LargeTable>
 Handle<HeapObject> OrderedHashTableHandler<SmallTable, LargeTable>::Allocate(

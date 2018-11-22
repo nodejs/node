@@ -9,6 +9,7 @@
 #include "src/ast/ast.h"
 #include "src/base/template-utils.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
@@ -22,7 +23,6 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       flags_(0),
       extension_(nullptr),
       script_scope_(nullptr),
-      unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),
       function_kind_(FunctionKind::kNormalFunction),
@@ -44,7 +44,6 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
     : ParseInfo(zone_allocator) {
   set_hash_seed(isolate->heap()->HashSeed());
   set_stack_limit(isolate->stack_guard()->real_climit());
-  set_unicode_cache(isolate->unicode_cache());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_logger(isolate->logger());
   set_ast_string_constants(isolate->ast_string_constants());
@@ -67,8 +66,8 @@ void ParseInfo::SetFunctionInfo(T function) {
   set_language_mode(function->language_mode());
   set_function_kind(function->kind());
   set_declaration(function->is_declaration());
-  set_requires_instance_fields_initializer(
-      function->requires_instance_fields_initializer());
+  set_requires_instance_members_initializer(
+      function->requires_instance_members_initializer());
   set_toplevel(function->is_toplevel());
   set_wrapped_as_function(function->is_wrapped());
 }

@@ -91,7 +91,7 @@ TEST_F(HeapWithPointerCompressionTest, HeapLayout) {
   base::AddressRegion heap_reservation(isolate_root - size_t{2} * GB,
                                        size_t{4} * GB);
 
-  MemoryChunkIterator iter(i_isolate()->heap());
+  OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
   for (;;) {
     MemoryChunk* chunk = iter.next();
     if (chunk == nullptr) break;

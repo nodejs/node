@@ -247,10 +247,15 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_consoleStorageMap.erase(contextGroupId);
   m_muteExceptionsMap.erase(contextGroupId);
+  std::vector<int> contextIdsToClear;
+  forEachContext(contextGroupId,
+                 [&contextIdsToClear](InspectedContext* context) {
+                   contextIdsToClear.push_back(context->contextId());
+                 });
+  m_debugger->wasmTranslation()->Clear(m_isolate, contextIdsToClear);
   forEachSession(contextGroupId,
                  [](V8InspectorSessionImpl* session) { session->reset(); });
   m_contexts.erase(contextGroupId);
-  m_debugger->wasmTranslation()->Clear();
 }
 
 void V8InspectorImpl::idleStarted() { m_isolate->SetIdle(true); }

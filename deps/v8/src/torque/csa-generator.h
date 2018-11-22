@@ -32,7 +32,15 @@ class CSAGenerator {
   size_t fresh_id_ = 0;
   base::Optional<Builtin::Kind> linkage_;
 
+  std::string PreCallableExceptionPreparation(
+      base::Optional<Block*> catch_block);
+  void PostCallableExceptionPreparation(const std::string& catch_name,
+                                        const Type* return_type,
+                                        base::Optional<Block*> catch_block,
+                                        Stack<std::string>* stack);
+
   std::string FreshNodeName() { return "tmp" + std::to_string(fresh_id_++); }
+  std::string FreshCatchName() { return "catch" + std::to_string(fresh_id_++); }
   std::string BlockName(const Block* block) {
     return "block" + std::to_string(block->id());
   }

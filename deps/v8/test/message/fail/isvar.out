@@ -1,4 +1,0 @@
-*%(basename)s:31: SyntaxError: builtin %%IS_VAR: not a variable
-%%IS_VAR(x+x);
-           ^
-SyntaxError: builtin %%IS_VAR: not a variable

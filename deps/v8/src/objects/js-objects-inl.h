@@ -11,9 +11,11 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/keys.h"
 #include "src/lookup-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi-inl.h"
 #include "src/prototype.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -95,7 +97,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   HeapObject* empty_slow_element_dictionary =
       roots.empty_slow_element_dictionary();
   while (prototype != null) {
-    Map* map = prototype->map();
+    Map map = prototype->map();
     if (map->IsCustomElementsReceiverMap()) return false;
     HeapObject* elements = JSObject::cast(prototype)->elements();
     if (elements != empty_fixed_array &&
@@ -232,7 +234,7 @@ InterceptorInfo* JSObject::GetNamedInterceptor() {
 
 int JSObject::GetHeaderSize() const { return GetHeaderSize(map()); }
 
-int JSObject::GetHeaderSize(const Map* map) {
+int JSObject::GetHeaderSize(const Map map) {
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
@@ -243,11 +245,15 @@ int JSObject::GetHeaderSize(const Map* map) {
 }
 
 // static
-int JSObject::GetEmbedderFieldCount(const Map* map) {
+int JSObject::GetEmbedderFieldCount(const Map map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
-  return ((instance_size - GetHeaderSize(map)) >> kPointerSizeLog2) -
-         map->GetInObjectProperties();
+  // Internal objects do follow immediately after the header, whereas in-object
+  // properties are at the end of the object. Therefore there is no need
+  // to adjust the index here.
+  return (((instance_size - GetHeaderSize(map)) >> kPointerSizeLog2) -
+          map->GetInObjectProperties()) /
+         kEmbedderDataSlotSizeInTaggedSlots;
 }
 
 int JSObject::GetEmbedderFieldCount() const {
@@ -256,34 +262,22 @@ int JSObject::GetEmbedderFieldCount() const {
 
 int JSObject::GetEmbedderFieldOffset(int index) {
   DCHECK(index < GetEmbedderFieldCount() && index >= 0);
-  return GetHeaderSize() + (kPointerSize * index);
+  // Internal objects do follow immediately after the header, whereas in-object
+  // properties are at the end of the object. Therefore there is no need
+  // to adjust the index here.
+  return GetHeaderSize() + (kEmbedderDataSlotSize * index);
 }
 
 Object* JSObject::GetEmbedderField(int index) {
-  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
-  // Internal objects do follow immediately after the header, whereas in-object
-  // properties are at the end of the object. Therefore there is no need
-  // to adjust the index here.
-  return READ_FIELD(this, GetHeaderSize() + (kPointerSize * index));
+  return EmbedderDataSlot(this, index).load_tagged();
 }
 
 void JSObject::SetEmbedderField(int index, Object* value) {
-  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
-  // Internal objects do follow immediately after the header, whereas in-object
-  // properties are at the end of the object. Therefore there is no need
-  // to adjust the index here.
-  int offset = GetHeaderSize() + (kPointerSize * index);
-  WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(this, offset, value);
+  EmbedderDataSlot::store_tagged(this, index, value);
 }
 
-void JSObject::SetEmbedderField(int index, Smi* value) {
-  DCHECK(index < GetEmbedderFieldCount() && index >= 0);
-  // Internal objects do follow immediately after the header, whereas in-object
-  // properties are at the end of the object. Therefore there is no need
-  // to adjust the index here.
-  int offset = GetHeaderSize() + (kPointerSize * index);
-  WRITE_FIELD(this, offset, value);
+void JSObject::SetEmbedderField(int index, Smi value) {
+  EmbedderDataSlot(this, index).store_smi(value);
 }
 
 bool JSObject::IsUnboxedDoubleField(FieldIndex index) {
@@ -394,7 +388,7 @@ Object* JSObject::InObjectPropertyAtPut(int index, Object* value,
   return value;
 }
 
-void JSObject::InitializeBody(Map* map, int start_offset,
+void JSObject::InitializeBody(Map map, int start_offset,
                               Object* pre_allocated_value,
                               Object* filler_value) {
   DCHECK(!filler_value->IsHeapObject() || !Heap::InNewSpace(filler_value));
@@ -508,15 +502,15 @@ AbstractCode* JSFunction::abstract_code() {
   }
 }
 
-Code* JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
+Code JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
 
-void JSFunction::set_code(Code* value) {
+void JSFunction::set_code(Code value) {
   DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
   MarkingBarrier(this, HeapObject::RawField(this, kCodeOffset), value);
 }
 
-void JSFunction::set_code_no_write_barrier(Code* value) {
+void JSFunction::set_code_no_write_barrier(Code value) {
   DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
 }
@@ -570,7 +564,7 @@ bool JSFunction::has_prototype_slot() const {
   return map()->has_prototype_slot();
 }
 
-Map* JSFunction::initial_map() { return Map::cast(prototype_or_initial_map()); }
+Map JSFunction::initial_map() { return Map::cast(prototype_or_initial_map()); }
 
 bool JSFunction::has_initial_map() {
   DCHECK(has_prototype_slot());
@@ -657,7 +651,7 @@ ElementsKind JSObject::GetElementsKind() const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
-    Map* map = fixed_array->map();
+    Map map = fixed_array->map();
     if (IsSmiOrObjectElementsKind(kind)) {
       DCHECK(map == GetReadOnlyRoots().fixed_array_map() ||
              map == GetReadOnlyRoots().fixed_cow_array_map());
@@ -889,7 +883,7 @@ bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject* global) const {
 
 inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   DCHECK_GE(embedder_field_count, 0);
-  return kSize + embedder_field_count * kPointerSize;
+  return kSize + embedder_field_count * kEmbedderDataSlotSize;
 }
 
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)

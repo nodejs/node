@@ -61,7 +61,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
 void ObjectDeserializer::
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects() {
   DCHECK(deserializing_user_code());
-  for (Code* code : new_code_objects()) {
+  for (Code code : new_code_objects()) {
     // Record all references to embedded objects in the new code object.
     WriteBarrierForCode(code);
     Assembler::FlushICache(code->raw_instruction_start(),

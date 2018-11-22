@@ -108,7 +108,7 @@ class LoadHandler final : public DataHandler {
                         kSmiValueSize - LookupOnReceiverBits::kNext> {};
 
   // Decodes kind from Smi-handler.
-  static inline Kind GetHandlerKind(Smi* smi_handler);
+  static inline Kind GetHandlerKind(Smi smi_handler);
 
   // Creates a Smi-handler for loading a property from a slow object.
   static inline Handle<Smi> LoadNormal(Isolate* isolate);

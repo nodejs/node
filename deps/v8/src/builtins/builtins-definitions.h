@@ -214,6 +214,21 @@ namespace internal {
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_Uninitialized, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralIC_Slow, StoreWithVector)                             \
+  TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
+  TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \
+  TFH(StoreInterceptorIC, StoreWithVector)                                     \
+  TFH(KeyedStoreIC_SloppyArguments_Standard, StoreWithVector)                  \
+  TFH(KeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW, StoreWithVector) \
+  TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB, StoreWithVector)     \
+  TFH(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW, StoreWithVector)     \
+  TFH(StoreInArrayLiteralIC_Slow_Standard, StoreWithVector)                    \
+  TFH(StoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)   \
+  TFH(StoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)       \
+  TFH(StoreInArrayLiteralIC_Slow_NoTransitionHandleCOW, StoreWithVector)       \
+  TFH(KeyedStoreIC_Slow_Standard, StoreWithVector)                             \
+  TFH(KeyedStoreIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)            \
+  TFH(KeyedStoreIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)                \
+  TFH(KeyedStoreIC_Slow_NoTransitionHandleCOW, StoreWithVector)                \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
@@ -1216,6 +1231,8 @@ namespace internal {
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
   TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
+  TFC(WasmAtomicWake, WasmAtomicWake, 1)                                       \
+  TFC(WasmI32AtomicWait, WasmI32AtomicWait, 1)                                 \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
   TFC(WasmMemoryGrow, WasmMemoryGrow, 1)                                       \
   TFC(WasmRecordWrite, RecordWrite, 1)                                         \
@@ -1334,8 +1351,11 @@ namespace internal {
   CPP(WeakCellClear)                                                           \
   CPP(WeakCellHoldingsGetter)                                                  \
   CPP(WeakFactoryCleanupIteratorNext)                                          \
+  CPP(WeakFactoryCleanupSome)                                                  \
   CPP(WeakFactoryConstructor)                                                  \
-  CPP(WeakFactoryMakeCell)
+  CPP(WeakFactoryMakeCell)                                                     \
+  CPP(WeakFactoryMakeRef)                                                      \
+  CPP(WeakRefDeref)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
@@ -1511,6 +1531,8 @@ namespace internal {
 #define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
   FOREACH_WASM_TRAPREASON(VTRAP)         \
   V(WasmAllocateHeapNumber)              \
+  V(WasmAtomicWake)                      \
+  V(WasmI32AtomicWait)                   \
   V(WasmCallJavaScript)                  \
   V(WasmMemoryGrow)                      \
   V(WasmRecordWrite)                     \

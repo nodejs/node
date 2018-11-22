@@ -29,6 +29,7 @@ CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
+CAST_ACCESSOR(AsmWasmData)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset) \
   bool holder::has_##name() {                          \
@@ -187,7 +188,7 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
                    kExceptionsTableOffset)
 ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
 ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
-ACCESSORS(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
+ACCESSORS2(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
 
 inline bool WasmInstanceObject::has_indirect_function_table() {
   return indirect_function_table_sig_ids() != nullptr;
@@ -213,7 +214,7 @@ ACCESSORS(WasmExceptionObject, serialized_signature, PodArray<wasm::ValueType>,
 ACCESSORS(WasmExceptionObject, exception_tag, HeapObject, kExceptionTagOffset)
 
 // WasmExportedFunctionData
-ACCESSORS(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
+ACCESSORS2(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
           kInstanceOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
@@ -239,6 +240,13 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
+
+// AsmWasmData
+ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
+          kManagedNativeModuleOffset)
+ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
+ACCESSORS(AsmWasmData, asm_js_offset_table, ByteArray, kAsmJsOffsetTableOffset)
+ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
 
 #include "src/objects/object-macros-undef.h"
 

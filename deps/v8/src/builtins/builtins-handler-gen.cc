@@ -12,6 +12,17 @@
 namespace v8 {
 namespace internal {
 
+class HandlerBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit HandlerBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  void Generate_KeyedStoreIC_SloppyArguments();
+  void Generate_KeyedStoreIC_Slow();
+  void Generate_StoreInArrayLiteralIC_Slow();
+};
+
 TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
   Node* string = Parameter(Descriptor::kReceiver);
   Return(LoadStringLengthAsSmi(string));
@@ -41,7 +52,8 @@ void Builtins::Generate_StoreIC_Uninitialized(
   StoreICUninitializedGenerator::Generate(state);
 }
 
-TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
+void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_Slow() {
+  typedef StoreWithVectorDescriptor Descriptor;
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -55,13 +67,58 @@ TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
                   receiver, name);
 }
 
-TF_BUILTIN(StoreInArrayLiteralIC_Slow, CodeStubAssembler) {
+TF_BUILTIN(KeyedStoreIC_Slow, HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_Slow();
+}
+
+TF_BUILTIN(KeyedStoreIC_Slow_Standard, HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_Slow();
+}
+
+TF_BUILTIN(KeyedStoreIC_Slow_GrowNoTransitionHandleCOW,
+           HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_Slow();
+}
+
+TF_BUILTIN(KeyedStoreIC_Slow_NoTransitionIgnoreOOB, HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_Slow();
+}
+
+TF_BUILTIN(KeyedStoreIC_Slow_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_Slow();
+}
+
+void HandlerBuiltinsAssembler::Generate_StoreInArrayLiteralIC_Slow() {
+  typedef StoreWithVectorDescriptor Descriptor;
   Node* array = Parameter(Descriptor::kReceiver);
   Node* index = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);
   TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, context, value, array,
                   index);
+}
+
+TF_BUILTIN(StoreInArrayLiteralIC_Slow, HandlerBuiltinsAssembler) {
+  Generate_StoreInArrayLiteralIC_Slow();
+}
+
+TF_BUILTIN(StoreInArrayLiteralIC_Slow_Standard, HandlerBuiltinsAssembler) {
+  Generate_StoreInArrayLiteralIC_Slow();
+}
+
+TF_BUILTIN(StoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW,
+           HandlerBuiltinsAssembler) {
+  Generate_StoreInArrayLiteralIC_Slow();
+}
+
+TF_BUILTIN(StoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB,
+           HandlerBuiltinsAssembler) {
+  Generate_StoreInArrayLiteralIC_Slow();
+}
+
+TF_BUILTIN(StoreInArrayLiteralIC_Slow_NoTransitionHandleCOW,
+           HandlerBuiltinsAssembler) {
+  Generate_StoreInArrayLiteralIC_Slow();
 }
 
 TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
@@ -107,6 +164,92 @@ TF_BUILTIN(StoreGlobalIC_Slow, CodeStubAssembler) {
   // an IC miss that would otherwise cause a transition to the generic stub.
   TailCallRuntime(Runtime::kStoreGlobalIC_Slow, context, value, slot, vector,
                   receiver, name);
+}
+
+TF_BUILTIN(KeyedLoadIC_SloppyArguments, CodeStubAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* key = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label miss(this);
+
+  Node* result = LoadKeyedSloppyArguments(receiver, key, &miss);
+  Return(result);
+
+  BIND(&miss);
+  {
+    Comment("Miss");
+    TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key, slot,
+                    vector);
+  }
+}
+
+void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_SloppyArguments() {
+  typedef StoreWithVectorDescriptor Descriptor;
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* key = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label miss(this);
+
+  StoreKeyedSloppyArguments(receiver, key, value, &miss);
+  Return(value);
+
+  BIND(&miss);
+  TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
+                  receiver, key);
+}
+
+TF_BUILTIN(KeyedStoreIC_SloppyArguments_Standard, HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_SloppyArguments();
+}
+
+TF_BUILTIN(KeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW,
+           HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_SloppyArguments();
+}
+
+TF_BUILTIN(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB,
+           HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_SloppyArguments();
+}
+
+TF_BUILTIN(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW,
+           HandlerBuiltinsAssembler) {
+  Generate_KeyedStoreIC_SloppyArguments();
+}
+
+TF_BUILTIN(StoreInterceptorIC, CodeStubAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+  TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context, value, slot,
+                  vector, receiver, name);
+}
+
+TF_BUILTIN(LoadIndexedInterceptorIC, CodeStubAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* key = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label if_keyispositivesmi(this), if_keyisinvalid(this);
+  Branch(TaggedIsPositiveSmi(key), &if_keyispositivesmi, &if_keyisinvalid);
+  BIND(&if_keyispositivesmi);
+  TailCallRuntime(Runtime::kLoadElementWithInterceptor, context, receiver, key);
+
+  BIND(&if_keyisinvalid);
+  TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, key, slot,
+                  vector);
 }
 
 }  // namespace internal

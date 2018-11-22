@@ -341,16 +341,17 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 class ExternalOwningOneByteStringResource
     : public String::ExternalOneByteStringResource {
  public:
-  ExternalOwningOneByteStringResource() : length_(0) {}
-  ExternalOwningOneByteStringResource(std::unique_ptr<const char[]> data,
-                                      size_t length)
-      : data_(std::move(data)), length_(length) {}
-  const char* data() const override { return data_.get(); }
-  size_t length() const override { return length_; }
+  ExternalOwningOneByteStringResource() {}
+  ExternalOwningOneByteStringResource(
+      std::unique_ptr<base::OS::MemoryMappedFile> file)
+      : file_(std::move(file)) {}
+  const char* data() const override {
+    return static_cast<char*>(file_->memory());
+  }
+  size_t length() const override { return file_->size(); }
 
  private:
-  std::unique_ptr<const char[]> data_;
-  size_t length_;
+  std::unique_ptr<base::OS::MemoryMappedFile> file_;
 };
 
 CounterMap* Shell::counter_map_;
@@ -478,8 +479,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(name);
 
-    DCHECK(options.compile_options != ScriptCompiler::kProduceParserCache);
-    DCHECK(options.compile_options != ScriptCompiler::kConsumeParserCache);
     if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
       ScriptCompiler::CachedData* cached_code =
           LookupCodeCache(isolate, source);
@@ -928,7 +927,7 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_switch_ = 0;
   data_->realms_ = new Global<Context>[1];
   data_->realms_[0].Reset(data_->isolate_,
-                          data_->isolate_->GetEnteredContext());
+                          data_->isolate_->GetEnteredOrMicrotaskContext());
 }
 
 
@@ -995,7 +994,7 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  int index = data->RealmFind(isolate->GetEnteredContext());
+  int index = data->RealmFind(isolate->GetEnteredOrMicrotaskContext());
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }
@@ -1078,7 +1077,7 @@ void Shell::RealmCreateAllowCrossRealmAccess(
   Local<Context> context;
   if (CreateRealm(args, -1, v8::MaybeLocal<Value>()).ToLocal(&context)) {
     context->SetSecurityToken(
-        args.GetIsolate()->GetEnteredContext()->GetSecurityToken());
+        args.GetIsolate()->GetEnteredOrMicrotaskContext()->GetSecurityToken());
   }
 }
 
@@ -2233,19 +2232,20 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 // Reads a file into a v8 string.
 Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
-  int size = 0;
-  char* chars = ReadChars(name, &size);
-  if (chars == nullptr) return Local<String>();
+  std::unique_ptr<base::OS::MemoryMappedFile> file(
+      base::OS::MemoryMappedFile::open(name));
+  if (!file) return Local<String>();
+
+  int size = static_cast<int>(file->size());
+  char* chars = static_cast<char*>(file->memory());
   Local<String> result;
   if (i::FLAG_use_external_strings && i::String::IsAscii(chars, size)) {
     String::ExternalOneByteStringResource* resource =
-        new ExternalOwningOneByteStringResource(
-            std::unique_ptr<const char[]>(chars), size);
+        new ExternalOwningOneByteStringResource(std::move(file));
     result = String::NewExternalOneByte(isolate, resource).ToLocalChecked();
   } else {
     result = String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
                  .ToLocalChecked();
-    delete[] chars;
   }
   return result;
 }
@@ -3496,6 +3496,8 @@ int Shell::Main(int argc, char* argv[]) {
       DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
              options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
       options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
+      options.code_cache_options =
+          ShellOptions::CodeCacheOptions::kNoProduceCache;
 
       printf("============ Run: Consume code cache ============\n");
       // Second run to consume the cache in current isolate

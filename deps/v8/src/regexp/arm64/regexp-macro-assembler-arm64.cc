@@ -23,7 +23,7 @@ namespace internal {
  * This assembler uses the following register assignment convention:
  * - w19     : Used to temporarely store a value before a call to C code.
  *             See CheckNotBackReferenceIgnoreCase.
- * - x20     : Pointer to the current code object (Code*),
+ * - x20     : Pointer to the current Code object,
  *             it includes the heap object tag.
  * - w21     : Current position in input, as negative offset from
  *             the end of the string. Please notice that this is
@@ -1326,10 +1326,10 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
   return reinterpret_cast<T*>(re_frame + frame_offset);
 }
 
-
 int RegExpMacroAssemblerARM64::CheckStackGuardState(
-    Address* return_address, Code* re_code, Address re_frame, int start_index,
-    const byte** input_start, const byte** input_end) {
+    Address* return_address, Address raw_code, Address re_frame,
+    int start_index, const byte** input_start, const byte** input_end) {
+  Code re_code = Code::cast(ObjectPtr(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate), start_index,
       frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
@@ -1373,7 +1373,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
   __ Mov(w3, start_offset());
   // RegExp code frame pointer.
   __ Mov(x2, frame_pointer());
-  // Code* of self.
+  // Code of self.
   __ Mov(x1, Operand(masm_->CodeObject()));
 
   // We need to pass a pointer to the return address as first argument.

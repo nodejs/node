@@ -32,7 +32,7 @@ class PrototypeInfo : public Struct {
   // [object_create_map]: A field caching the map for Object.create(prototype).
   static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
                                         Handle<Map> map);
-  inline Map* ObjectCreateMap();
+  inline Map ObjectCreateMap();
   inline bool HasObjectCreateMap();
 
   // [registry_slot]: Slot in prototype's user registry where this user
@@ -101,7 +101,7 @@ class PrototypeUsers : public WeakArrayList {
   static const int kNoEmptySlotsMarker = 0;
 
  private:
-  static inline Smi* empty_slot_index(WeakArrayList* array);
+  static inline Smi empty_slot_index(WeakArrayList* array);
   static inline void set_empty_slot_index(WeakArrayList* array, int index);
 
   static void IsSlotEmpty(WeakArrayList* array, int index);

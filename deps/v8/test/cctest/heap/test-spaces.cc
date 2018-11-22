@@ -307,7 +307,7 @@ TEST(LargeObjectSpace) {
 
   int lo_size = Page::kPageSize;
 
-  Object* obj = lo->AllocateRaw(lo_size, NOT_EXECUTABLE).ToObjectChecked();
+  Object* obj = lo->AllocateRaw(lo_size).ToObjectChecked();
   CHECK(obj->IsHeapObject());
 
   HeapObject* ho = HeapObject::cast(obj);
@@ -319,14 +319,15 @@ TEST(LargeObjectSpace) {
   CHECK(lo->Contains(ho));
 
   while (true) {
-    { AllocationResult allocation = lo->AllocateRaw(lo_size, NOT_EXECUTABLE);
+    {
+      AllocationResult allocation = lo->AllocateRaw(lo_size);
       if (allocation.IsRetry()) break;
     }
   }
 
   CHECK(!lo->IsEmpty());
 
-  CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE).IsRetry());
+  CHECK(lo->AllocateRaw(lo_size).IsRetry());
 }
 
 #ifndef DEBUG
@@ -414,7 +415,7 @@ static HeapObject* AllocateUnaligned(PagedSpace* space, int size) {
 }
 
 static HeapObject* AllocateUnaligned(LargeObjectSpace* space, int size) {
-  AllocationResult allocation = space->AllocateRaw(size, EXECUTABLE);
+  AllocationResult allocation = space->AllocateRaw(size);
   CHECK(!allocation.IsRetry());
   HeapObject* filler = nullptr;
   CHECK(allocation.To(&filler));

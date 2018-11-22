@@ -60,6 +60,9 @@ class V8_BASE_EXPORT RegionAllocator final {
   // otherwise 0.
   size_t CheckRegion(Address address);
 
+  // Returns true if there are no pages allocated in given region.
+  bool IsFree(Address address, size_t size);
+
   Address begin() const { return whole_region_.begin(); }
   Address end() const { return whole_region_.end(); }
   size_t size() const { return whole_region_.size(); }

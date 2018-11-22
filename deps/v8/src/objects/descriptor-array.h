@@ -79,7 +79,7 @@ class DescriptorArray : public WeakFixedArray {
   inline MaybeObjectSlot GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
-  inline FieldType* GetFieldType(int descriptor_number);
+  inline FieldType GetFieldType(int descriptor_number);
 
   inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
@@ -117,11 +117,11 @@ class DescriptorArray : public WeakFixedArray {
 
   // Search the instance descriptors for given name.
   V8_INLINE int Search(Name* name, int number_of_own_descriptors);
-  V8_INLINE int Search(Name* name, Map* map);
+  V8_INLINE int Search(Name* name, Map map);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  V8_INLINE int SearchWithCache(Isolate* isolate, Name* name, Map* map);
+  V8_INLINE int SearchWithCache(Isolate* isolate, Name* name, Map map);
 
   bool IsEqualUpTo(DescriptorArray* desc, int nof_descriptors);
 

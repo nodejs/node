@@ -24,7 +24,6 @@ static bool MustRecordSlots(Heap* heap) {
 template <class T>
 struct WeakListVisitor;
 
-
 template <class T>
 Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
   Object* undefined = ReadOnlyRoots(heap).undefined_value();
@@ -75,12 +74,63 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
   return head;
 }
 
+// TODO(3770): Replacement for the above, temporarily separate to allow
+// incremental transition. Assumes that T derives from ObjectPtr.
+template <class T>
+Object* VisitWeakList2(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
+  Object* undefined = ReadOnlyRoots(heap).undefined_value();
+  Object* head = undefined;
+  T tail;
+  bool record_slots = MustRecordSlots(heap);
+
+  while (list != undefined) {
+    // Check whether to keep the candidate in the list.
+    T candidate = T::cast(list);
+
+    Object* retained = retainer->RetainAs(list);
+
+    // Move to the next element before the WeakNext is cleared.
+    list = WeakListVisitor<T>::WeakNext(candidate);
+
+    if (retained != nullptr) {
+      if (head == undefined) {
+        // First element in the list.
+        head = retained;
+      } else {
+        // Subsequent elements in the list.
+        DCHECK(tail);
+        WeakListVisitor<T>::SetWeakNext(tail, retained);
+        if (record_slots) {
+          HeapObject* slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
+          int slot_offset = WeakListVisitor<T>::WeakNextOffset();
+          ObjectSlot slot = HeapObject::RawField(slot_holder, slot_offset);
+          MarkCompactCollector::RecordSlot(slot_holder, slot,
+                                           HeapObject::cast(retained));
+        }
+      }
+      // Retained object is new tail.
+      DCHECK(!retained->IsUndefined(heap->isolate()));
+      candidate = T::cast(retained);
+      tail = candidate;
+
+      // tail is a live object, visit it.
+      WeakListVisitor<T>::VisitLiveObject(heap, tail, retainer);
+
+    } else {
+      WeakListVisitor<T>::VisitPhantomObject(heap, candidate);
+    }
+  }
+
+  // Terminate the list if there is one or more elements.
+  if (!tail.is_null()) WeakListVisitor<T>::SetWeakNext(tail, undefined);
+  return head;
+}
 
 template <class T>
 static void ClearWeakList(Heap* heap, Object* list) {
   Object* undefined = ReadOnlyRoots(heap).undefined_value();
   while (list != undefined) {
-    T* candidate = reinterpret_cast<T*>(list);
+    T candidate = T::cast(list);
     list = WeakListVisitor<T>::WeakNext(candidate);
     WeakListVisitor<T>::SetWeakNext(candidate, undefined);
   }
@@ -88,24 +138,24 @@ static void ClearWeakList(Heap* heap, Object* list) {
 
 template <>
 struct WeakListVisitor<Code> {
-  static void SetWeakNext(Code* code, Object* next) {
+  static void SetWeakNext(Code code, Object* next) {
     code->code_data_container()->set_next_code_link(next,
                                                     UPDATE_WEAK_WRITE_BARRIER);
   }
 
-  static Object* WeakNext(Code* code) {
+  static Object* WeakNext(Code code) {
     return code->code_data_container()->next_code_link();
   }
 
-  static HeapObject* WeakNextHolder(Code* code) {
+  static HeapObject* WeakNextHolder(Code code) {
     return code->code_data_container();
   }
 
   static int WeakNextOffset() { return CodeDataContainer::kNextCodeLinkOffset; }
 
-  static void VisitLiveObject(Heap*, Code*, WeakObjectRetainer*) {}
+  static void VisitLiveObject(Heap*, Code, WeakObjectRetainer*) {}
 
-  static void VisitPhantomObject(Heap* heap, Code* code) {
+  static void VisitPhantomObject(Heap* heap, Code code) {
     // Even though the code is dying, its code_data_container can still be
     // alive. Clear the next_code_link slot to avoid a dangling pointer.
     SetWeakNext(code, ReadOnlyRoots(heap).undefined_value());
@@ -150,7 +200,7 @@ struct WeakListVisitor<Context> {
   static void DoWeakList(Heap* heap, Context* context,
                          WeakObjectRetainer* retainer, int index) {
     // Visit the weak list, removing dead intermediate elements.
-    Object* list_head = VisitWeakList<T>(heap, context->get(index), retainer);
+    Object* list_head = VisitWeakList2<T>(heap, context->get(index), retainer);
 
     // Update the list head.
     context->set(index, list_head, UPDATE_WRITE_BARRIER);

@@ -570,7 +570,8 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
       FunctionTemplateInfo::cast(data->constructor()), isolate);
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
-      JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
+      JSObject::kHeaderSize +
+          data->embedder_field_count() * kEmbedderDataSlotSize,
       TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
@@ -679,8 +680,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   // JS_FUNCTION_TYPE requires information about the prototype slot.
   DCHECK_NE(JS_FUNCTION_TYPE, type);
-  int instance_size =
-      JSObject::GetHeaderSize(type) + kPointerSize * embedder_field_count;
+  int instance_size = JSObject::GetHeaderSize(type) +
+                      kEmbedderDataSlotSize * embedder_field_count;
 
   Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
                                                TERMINAL_FAST_ELEMENTS_KIND);

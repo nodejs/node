@@ -65,6 +65,14 @@ struct CompilationEnv {
         lower_simd(lower_simd) {}
 };
 
+// The wire bytes are either owned by the StreamingDecoder, or (after streaming)
+// by the NativeModule. This class abstracts over the storage location.
+class WireBytesStorage {
+ public:
+  virtual ~WireBytesStorage() = default;
+  virtual Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
+};
+
 // The implementation of {CompilationState} lives in module-compiler.cc.
 // This is the PIMPL interface to that private class.
 class CompilationState {
@@ -74,6 +82,10 @@ class CompilationState {
   void CancelAndWait();
 
   void SetError(uint32_t func_index, const ResultBase& error_result);
+
+  void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
+
+  std::shared_ptr<WireBytesStorage> GetWireBytesStorage();
 
  private:
   friend class NativeModule;

@@ -11,6 +11,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -114,22 +115,22 @@ void FeedbackVector::increment_deopt_count() {
   }
 }
 
-Code* FeedbackVector::optimized_code() const {
+Code FeedbackVector::optimized_code() const {
   MaybeObject slot = optimized_code_weak_or_smi();
   DCHECK(slot->IsSmi() || slot->IsWeakOrCleared());
   HeapObject* heap_object;
-  return slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : nullptr;
+  return slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : Code();
 }
 
 OptimizationMarker FeedbackVector::optimization_marker() const {
   MaybeObject slot = optimized_code_weak_or_smi();
-  Smi* value;
+  Smi value;
   if (!slot->ToSmi(&value)) return OptimizationMarker::kNone;
   return static_cast<OptimizationMarker>(value->value());
 }
 
 bool FeedbackVector::has_optimized_code() const {
-  return optimized_code() != nullptr;
+  return !optimized_code().is_null();
 }
 
 bool FeedbackVector::has_optimization_marker() const {
@@ -291,7 +292,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackSlotKind::kBinaryOp: {
-        int const feedback = Smi::ToInt(obj->cast<Smi>());
+        int const feedback = obj.ToSmi().value();
         BinaryOperationHint hint = BinaryOperationHintFromFeedback(feedback);
         if (hint == BinaryOperationHint::kAny) {
           gen++;
@@ -303,7 +304,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackSlotKind::kCompareOp: {
-        int const feedback = Smi::ToInt(obj->cast<Smi>());
+        int const feedback = obj.ToSmi().value();
         CompareOperationHint hint = CompareOperationHintFromFeedback(feedback);
         if (hint == CompareOperationHint::kAny) {
           gen++;
@@ -315,7 +316,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackSlotKind::kForIn: {
-        int const feedback = Smi::ToInt(obj->cast<Smi>());
+        int const feedback = obj.ToSmi().value();
         ForInHint hint = ForInHintFromFeedback(feedback);
         if (hint == ForInHint::kAny) {
           gen++;

@@ -9,6 +9,7 @@
 #include "src/objects.h"
 #include "src/objects/builtin-function-id.h"
 #include "src/objects/script.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,6 +17,7 @@
 namespace v8 {
 namespace internal {
 
+class AsmWasmData;
 class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
@@ -155,7 +157,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
 class InterpreterData : public Struct {
  public:
   DECL_ACCESSORS(bytecode_array, BytecodeArray)
-  DECL_ACCESSORS(interpreter_trampoline, Code)
+  DECL_ACCESSORS2(interpreter_trampoline, Code)
 
   static const int kBytecodeArrayOffset = Struct::kHeaderSize;
   static const int kInterpreterTrampolineOffset =
@@ -174,14 +176,14 @@ class InterpreterData : public Struct {
 // shared by multiple instances of the function.
 class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
+  static constexpr ObjectPtr const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
   inline String* Name() const;
   inline void SetName(String* name);
 
   // Get the code object which represents the execution of this function.
-  Code* GetCode() const;
+  Code GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -280,7 +282,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   //  - a InterpreterData with the BytecodeArray and a copy of the
   //    interpreter trampoline [HasInterpreterData()]
-  //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
+  //  - an AsmWasmData with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasBuiltinId()]
   //  - a UncompiledDataWithoutPreParsedScope for lazy compilation
   //    [HasUncompiledDataWithoutPreParsedScope()]
@@ -295,15 +297,15 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline bool HasBytecodeArray() const;
   inline BytecodeArray* GetBytecodeArray() const;
   inline void set_bytecode_array(BytecodeArray* bytecode);
-  inline Code* InterpreterTrampoline() const;
+  inline Code InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
   inline InterpreterData* interpreter_data() const;
   inline void set_interpreter_data(InterpreterData* interpreter_data);
   inline BytecodeArray* GetDebugBytecodeArray() const;
   inline void SetDebugBytecodeArray(BytecodeArray* bytecode);
   inline bool HasAsmWasmData() const;
-  inline FixedArray* asm_wasm_data() const;
-  inline void set_asm_wasm_data(FixedArray* data);
+  inline AsmWasmData* asm_wasm_data() const;
+  inline void set_asm_wasm_data(AsmWasmData* data);
 
   // A brief note to clear up possible confusion:
   // builtin_id corresponds to the auto-generated
@@ -474,7 +476,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // initializer. This flag is set when creating the
   // SharedFunctionInfo as a reminder to emit the initializer call
   // when generating code later.
-  DECL_BOOLEAN_ACCESSORS(requires_instance_fields_initializer)
+  DECL_BOOLEAN_ACCESSORS(requires_instance_members_initializer)
 
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
@@ -633,7 +635,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   V(IsAsmWasmBrokenBit, bool, 1, _)                      \
   V(FunctionMapIndexBits, int, 5, _)                     \
   V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
-  V(RequiresInstanceFieldsInitializer, bool, 1, _)       \
+  V(RequiresInstanceMembersInitializer, bool, 1, _)      \
   V(ConstructAsBuiltinBit, bool, 1, _)                   \
   V(IsAnonymousExpressionBit, bool, 1, _)                \
   V(NameShouldPrintAsAnonymousBit, bool, 1, _)           \

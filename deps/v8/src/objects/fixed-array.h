@@ -8,6 +8,7 @@
 #include "src/maybe-handles.h"
 #include "src/objects.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -101,6 +102,43 @@ class FixedArrayBase : public HeapObject {
   static const int kHeaderSize = kLengthOffset + kPointerSize;
 };
 
+// TODO(3770): Replacement for the above.
+class FixedArrayBasePtr : public HeapObjectPtr {
+ public:
+  // [length]: length of the array.
+  inline int length() const;
+  inline void set_length(int value);
+
+  // Get and set the length using acquire loads and release stores.
+  inline int synchronized_length() const;
+  inline void synchronized_set_length(int value);
+
+  inline Object* unchecked_synchronized_length() const;
+
+  // TODO(3770): Temporary.
+  operator FixedArrayBase*() const {
+    return reinterpret_cast<FixedArrayBase*>(ptr());
+  }
+
+  DECL_CAST2(FixedArrayBasePtr)
+
+// Maximal allowed size, in bytes, of a single FixedArrayBase.
+// Prevents overflowing size computations, as well as extreme memory
+// consumption.
+#ifdef V8_HOST_ARCH_32_BIT
+  static const int kMaxSize = 512 * MB;
+#else
+  static const int kMaxSize = 1024 * MB;
+#endif  // V8_HOST_ARCH_32_BIT
+
+  // Layout description.
+  // Length is smi tagged when it is stored.
+  static const int kLengthOffset = FixedArrayBase::kLengthOffset;
+  static const int kHeaderSize = FixedArrayBase::kHeaderSize;
+
+  OBJECT_CONSTRUCTORS(FixedArrayBasePtr, HeapObjectPtr)
+};
+
 // FixedArray describes fixed-sized arrays with element type Object*.
 class FixedArray : public FixedArrayBase {
  public:
@@ -125,7 +163,7 @@ class FixedArray : public FixedArrayBase {
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-  inline void set(int index, Smi* value);
+  inline void set(int index, Smi value);
   // Setter with explicit barrier mode.
   inline void set(int index, Object* value, WriteBarrierMode mode);
 
@@ -186,10 +224,6 @@ class FixedArray : public FixedArrayBase {
   // Dispatched behavior.
   DECL_PRINTER(FixedArray)
   DECL_VERIFIER(FixedArray)
-#ifdef DEBUG
-  // Checks if two FixedArrays have identical contents.
-  bool IsEqualTo(FixedArray* other);
-#endif
 
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
 
@@ -207,6 +241,105 @@ class FixedArray : public FixedArrayBase {
   inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
+};
+
+// TODO(3770): Replacement for the above.
+class FixedArrayPtr : public FixedArrayBasePtr {
+ public:
+  // TODO(3770): Temporary.
+  operator FixedArray*() const { return reinterpret_cast<FixedArray*>(ptr()); }
+
+  // Setter and getter for elements.
+  inline Object* get(int index) const;
+  static inline Handle<Object> get(FixedArrayPtr array, int index,
+                                   Isolate* isolate);
+  template <class T>
+  MaybeHandle<T> GetValue(Isolate* isolate, int index) const;
+
+  template <class T>
+  Handle<T> GetValueChecked(Isolate* isolate, int index) const;
+
+  // Return a grown copy if the index is bigger than the array's length.
+  static Handle<FixedArrayPtr> SetAndGrow(
+      Isolate* isolate, Handle<FixedArrayPtr> array, int index,
+      Handle<Object> value, PretenureFlag pretenure = NOT_TENURED);
+
+  // Setter that uses write barrier.
+  inline void set(int index, Object* value);
+  inline bool is_the_hole(Isolate* isolate, int index);
+
+  // Setter that doesn't need write barrier.
+  inline void set(int index, Smi value);
+  // Setter with explicit barrier mode.
+  inline void set(int index, Object* value, WriteBarrierMode mode);
+
+  // Setters for frequently used oddballs located in old space.
+  inline void set_undefined(int index);
+  inline void set_undefined(Isolate* isolate, int index);
+  inline void set_null(int index);
+  inline void set_null(Isolate* isolate, int index);
+  inline void set_the_hole(int index);
+  inline void set_the_hole(Isolate* isolate, int index);
+
+  inline ObjectSlot GetFirstElementAddress();
+  inline bool ContainsOnlySmisOrHoles();
+  // Returns true iff the elements are Numbers and sorted ascending.
+  bool ContainsSortedNumbers();
+
+  // Gives access to raw memory which stores the array's data.
+  inline ObjectSlot data_start();
+
+  inline void MoveElements(Heap* heap, int dst_index, int src_index, int len,
+                           WriteBarrierMode mode);
+
+  inline void FillWithHoles(int from, int to);
+
+  // Shrink the array and insert filler objects. {new_length} must be > 0.
+  void Shrink(Isolate* isolate, int new_length);
+  // If {new_length} is 0, return the canonical empty FixedArray. Otherwise
+  // like above.
+  static Handle<FixedArrayPtr> ShrinkOrEmpty(Isolate* isolate,
+                                             Handle<FixedArrayPtr> array,
+                                             int new_length);
+
+  // Copy a sub array from the receiver to dest.
+  void CopyTo(int pos, FixedArrayPtr dest, int dest_pos, int len) const;
+
+  // Garbage collection support.
+  static constexpr int SizeFor(int length) {
+    return kHeaderSize + length * kPointerSize;
+  }
+
+  // Code Generation support.
+  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
+
+  // Garbage collection support.
+  inline ObjectSlot RawFieldOfElementAt(int index);
+
+  DECL_CAST2(FixedArrayPtr)
+  // Maximally allowed length of a FixedArray.
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "FixedArray maxLength not a Smi");
+
+  // Maximally allowed length for regular (non large object space) object.
+  STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
+  static const int kMaxRegularLength =
+      (kMaxRegularHeapObjectSize - kHeaderSize) / kPointerSize;
+
+  // Dispatched behavior.
+  DECL_PRINTER(FixedArrayPtr)
+  DECL_VERIFIER(FixedArrayPtr)
+
+  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+
+ protected:
+  // Set operation on FixedArray without using write barriers. Can
+  // only be used for storing old space objects or smis.
+  static inline void NoWriteBarrierSet(FixedArrayPtr array, int index,
+                                       Object* value);
+
+  OBJECT_CONSTRUCTORS(FixedArrayPtr, FixedArrayBasePtr)
 };
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
@@ -323,7 +456,7 @@ class WeakFixedArray : public HeapObject {
 // capacity() returns the allocated size. The number of elements is stored at
 // kLengthOffset and is updated with every insertion. The array grows
 // dynamically with O(1) amortized insertion.
-class WeakArrayList : public HeapObject {
+class WeakArrayList : public HeapObject, public NeverReadOnlySpaceObject {
  public:
   DECL_CAST(WeakArrayList)
   DECL_VERIFIER(WeakArrayList)

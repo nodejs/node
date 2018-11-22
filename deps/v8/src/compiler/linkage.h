@@ -15,6 +15,7 @@
 #include "src/reglist.h"
 #include "src/runtime/runtime.h"
 #include "src/signature.h"
+#include "src/turbo-assembler.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

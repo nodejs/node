@@ -6,7 +6,6 @@
 
 #include "src/objects/scope-info.h"
 
-#include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/bootstrapper.h"
@@ -712,26 +711,6 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
 
   if (scope_info->length() == 0) return -1;
 
-  // Get the Isolate via the heap.
-  //
-  // Ideally we'd pass Isolate* through to this function, however this is mostly
-  // called from the parser, which is otherwise isolate independent. We can't
-  // assume that all scope infos are never RO space (like we can with JSReceiver
-  // or Context), but we can assume that *non-empty* scope infos are.
-  //
-  // So, we take the least-ugly approach of manually getting the isolate to be
-  // able to remove GetIsolate from ScopeInfo in the general case, while
-  // allowing it in this one particular case.
-  Isolate* isolate = Heap::FromWritableHeapObject(*scope_info)->isolate();
-
-  ContextSlotCache* context_slot_cache = isolate->context_slot_cache();
-  int result = context_slot_cache->Lookup(*scope_info, *name, mode, init_flag,
-                                          maybe_assigned_flag);
-  if (result != ContextSlotCache::kNotFound) {
-    DCHECK_LT(result, scope_info->ContextLength());
-    return result;
-  }
-
   int start = scope_info->ContextLocalNamesIndex();
   int end = start + scope_info->ContextLocalCount();
   for (int i = start; i < end; ++i) {
@@ -740,17 +719,12 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
       *mode = scope_info->ContextLocalMode(var);
       *init_flag = scope_info->ContextLocalInitFlag(var);
       *maybe_assigned_flag = scope_info->ContextLocalMaybeAssignedFlag(var);
-      result = Context::MIN_CONTEXT_SLOTS + var;
+      int result = Context::MIN_CONTEXT_SLOTS + var;
 
-      context_slot_cache->Update(scope_info, name, *mode, *init_flag,
-                                 *maybe_assigned_flag, result);
       DCHECK_LT(result, scope_info->ContextLength());
       return result;
     }
   }
-  // Cache as not found. Mode, init flag and maybe assigned flag don't matter.
-  context_slot_cache->Update(scope_info, name, VariableMode::kTemporary,
-                             kNeedsInitialization, kNotAssigned, -1);
 
   return -1;
 }

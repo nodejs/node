@@ -28,7 +28,7 @@ void StubCache::Initialize() {
 // Hash algorithm for the primary table.  This algorithm is replicated in
 // assembler for every architecture.  Returns an index into the table that
 // is scaled by 1 << kCacheIndexShift.
-int StubCache::PrimaryOffset(Name* name, Map* map) {
+int StubCache::PrimaryOffset(Name* name, Map map) {
   STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
   // Compute the hash of the name (use entire hash field).
   DCHECK(name->HasHashCode());
@@ -36,8 +36,7 @@ int StubCache::PrimaryOffset(Name* name, Map* map) {
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
-  uint32_t map_low32bits =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
+  uint32_t map_low32bits = static_cast<uint32_t>(map.ptr());
   // Base the offset on a simple combination of name and map.
   uint32_t key = map_low32bits + field;
   return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
@@ -54,10 +53,18 @@ int StubCache::SecondaryOffset(Name* name, int seed) {
   return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
 }
 
+int StubCache::PrimaryOffsetForTesting(Name* name, Map map) {
+  return PrimaryOffset(name, map);
+}
+
+int StubCache::SecondaryOffsetForTesting(Name* name, int seed) {
+  return SecondaryOffset(name, seed);
+}
+
 #ifdef DEBUG
 namespace {
 
-bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
+bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map map,
                            MaybeObject handler) {
   // Validate that the name and handler do not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
@@ -72,7 +79,7 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
 }  // namespace
 #endif
 
-void StubCache::Set(Name* name, Map* map, MaybeObject handler) {
+void StubCache::Set(Name* name, Map map, MaybeObject handler) {
   DCHECK(CommonStubCacheChecks(this, name, map, handler));
 
   // Compute the primary entry.
@@ -83,8 +90,9 @@ void StubCache::Set(Name* name, Map* map, MaybeObject handler) {
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
   if (old_handler != MaybeObject::FromObject(
-                         isolate_->builtins()->builtin(Builtins::kIllegal))) {
-    Map* old_map = primary->map;
+                         isolate_->builtins()->builtin(Builtins::kIllegal)) &&
+      primary->map != kNullAddress) {
+    Map old_map = Map::cast(ObjectPtr(primary->map));
     int seed = PrimaryOffset(primary->key, old_map);
     int secondary_offset = SecondaryOffset(primary->key, seed);
     Entry* secondary = entry(secondary_, secondary_offset);
@@ -94,20 +102,20 @@ void StubCache::Set(Name* name, Map* map, MaybeObject handler) {
   // Update primary cache.
   primary->key = name;
   primary->value = handler.ptr();
-  primary->map = map;
+  primary->map = map.ptr();
   isolate()->counters()->megamorphic_stub_cache_updates()->Increment();
 }
 
-MaybeObject StubCache::Get(Name* name, Map* map) {
+MaybeObject StubCache::Get(Name* name, Map map) {
   DCHECK(CommonStubCacheChecks(this, name, map, MaybeObject()));
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
-  if (primary->key == name && primary->map == map) {
+  if (primary->key == name && primary->map == map.ptr()) {
     return MaybeObject(primary->value);
   }
   int secondary_offset = SecondaryOffset(name, primary_offset);
   Entry* secondary = entry(secondary_, secondary_offset);
-  if (secondary->key == name && secondary->map == map) {
+  if (secondary->key == name && secondary->map == map.ptr()) {
     return MaybeObject(secondary->value);
   }
   return MaybeObject();
@@ -120,12 +128,12 @@ void StubCache::Clear() {
   Name* empty_string = ReadOnlyRoots(isolate()).empty_string();
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = empty_string;
-    primary_[i].map = nullptr;
+    primary_[i].map = kNullAddress;
     primary_[i].value = empty.ptr();
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = empty_string;
-    secondary_[j].map = nullptr;
+    secondary_[j].map = kNullAddress;
     secondary_[j].value = empty.ptr();
   }
 }

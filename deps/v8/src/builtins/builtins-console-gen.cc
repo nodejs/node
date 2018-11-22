@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/frame-constants.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

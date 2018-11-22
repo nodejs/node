@@ -68,7 +68,7 @@ namespace heap {
 static const int kPretenureCreationCount =
     AllocationSite::kPretenureMinimumCreated + 1;
 
-static void CheckMap(Map* map, int type, int instance_size) {
+static void CheckMap(Map map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
 #ifdef DEBUG
   CHECK(CcTest::heap()->Contains(map));
@@ -2780,7 +2780,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   CHECK(Heap::InNewSpace(o->elements()));
 }
 
-static int CountMapTransitions(i::Isolate* isolate, Map* map) {
+static int CountMapTransitions(i::Isolate* isolate, Map map) {
   DisallowHeapAllocation no_gc;
   return TransitionsAccessor(isolate, map, &no_gc).NumberOfTransitions();
 }
@@ -3649,7 +3649,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
                 DependentCode::kAllocationSiteTenuringChangedGroup);
       CHECK_EQ(1, dependency->count());
       CHECK(dependency->object_at(0)->IsWeak());
-      Code* function_bar =
+      Code function_bar =
           Code::cast(dependency->object_at(0)->GetHeapObjectAssumeWeak());
       CHECK_EQ(bar_handle->code(), function_bar);
       dependency = dependency->next_link();
@@ -3860,6 +3860,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
   }
 
   CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
 }
 
 
@@ -3902,6 +3903,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
   }
 
   CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
 }
 
 TEST(NewSpaceObjectsInOptimizedCode) {
@@ -3962,6 +3964,52 @@ TEST(NewSpaceObjectsInOptimizedCode) {
   }
 
   CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
+}
+
+TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
+  if (FLAG_always_opt || !FLAG_opt) return;
+  FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_optimizer()) return;
+  HandleScope outer_scope(heap->isolate());
+  Handle<Code> code;
+  {
+    LocalContext context;
+    HandleScope scope(heap->isolate());
+
+    CompileRun(
+        "function bar() {"
+        "  return foo(1);"
+        "};"
+        "function foo(x) { with (x) { return 1 + x; } };"
+        "%NeverOptimizeFunction(foo);"
+        "bar();"
+        "bar();"
+        "bar();"
+        "%OptimizeFunctionOnNextCall(bar);"
+        "bar();"
+        "%DeoptimizeFunction(bar);");
+
+    Handle<JSFunction> bar = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CcTest::global()
+                                           ->Get(context.local(), v8_str("bar"))
+                                           .ToLocalChecked())));
+    code = scope.CloseAndEscape(Handle<Code>(bar->code(), isolate));
+  }
+
+  CHECK(code->marked_for_deoptimization());
+
+  // Now make sure that a gc should get rid of the function
+  for (int i = 0; i < 4; i++) {
+    CcTest::CollectAllGarbage();
+  }
+
+  CHECK(code->marked_for_deoptimization());
+  CHECK(code->embedded_objects_cleared());
 }
 
 static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
@@ -3981,8 +4029,7 @@ static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
   return fun;
 }
 
-
-static int GetCodeChainLength(Code* code) {
+static int GetCodeChainLength(Code code) {
   int result = 0;
   while (code->next_code_link()->IsCode()) {
     result++;
@@ -5686,6 +5733,7 @@ TEST(YoungGenerationLargeObjectAllocation) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
+  if (!isolate->serializer_enabled()) return;
 
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
@@ -5880,8 +5928,8 @@ HEAP_TEST(Regress5831) {
     Handle<Code> code = GenerateDummyImmovableCode(isolate);
     array = FixedArray::SetAndGrow(isolate, array, i, code);
     CHECK(heap->code_space()->Contains(code->address()) ||
-          heap->lo_space()->Contains(*code));
-    if (heap->lo_space()->Contains(*code)) {
+          heap->code_lo_space()->Contains(*code));
+    if (heap->code_lo_space()->Contains(*code)) {
       overflowed_into_lospace = true;
       break;
     }

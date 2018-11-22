@@ -16,6 +16,7 @@
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
@@ -1171,12 +1172,14 @@ void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
 
   bool found_something = false;
   Code::OptimizedCodeIterator iterator(isolate_);
-  while (Code* code = iterator.Next()) {
+  do {
+    Code code = iterator.Next();
+    if (code.is_null()) break;
     if (code->Inlines(*shared)) {
       code->set_marked_for_deoptimization(true);
       found_something = true;
     }
-  }
+  } while (true);
 
   if (found_something) {
     // Only go through with the deoptimization if something was found.
@@ -1202,6 +1205,7 @@ void Debug::PrepareFunctionForDebugExecution(
         handle(shared->GetBytecodeArray(), isolate_);
     Handle<BytecodeArray> debug_bytecode_array =
         isolate_->factory()->CopyBytecodeArray(original_bytecode_array);
+    debug_info->set_debug_bytecode_array(*debug_bytecode_array);
     shared->SetDebugBytecodeArray(*debug_bytecode_array);
     maybe_original_bytecode_array = original_bytecode_array;
   }

@@ -10,6 +10,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
@@ -310,10 +311,6 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawTwoByteString(length));
   return *result;
-}
-
-RUNTIME_FUNCTION(Runtime_IS_VAR) {
-  UNREACHABLE();  // implemented as macro in the parser
 }
 
 namespace {

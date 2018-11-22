@@ -142,6 +142,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
+  static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
+  STATIC_ASSERT(kAnonymousFuncIndex > kV8MaxWasmFunctions);
+
  private:
   friend class NativeModule;
 
@@ -179,9 +182,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Register protected instruction information with the trap handler. Sets
   // trap_handler_index.
   void RegisterTrapHandlerData();
-
-  static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
-  STATIC_ASSERT(kAnonymousFuncIndex > kV8MaxWasmFunctions);
 
   Vector<byte> instructions_;
   OwnedVector<const byte> reloc_info_;
@@ -221,7 +221,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                     OwnedVector<trap_handler::ProtectedInstructionData>
                         protected_instructions,
                     OwnedVector<const byte> source_position_table,
-                    WasmCode::Tier tier);
+                    WasmCode::Kind kind, WasmCode::Tier tier);
 
   WasmCode* AddDeserializedCode(
       uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
@@ -231,12 +231,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
           protected_instructions,
       OwnedVector<const byte> reloc_info,
       OwnedVector<const byte> source_position_table, WasmCode::Tier tier);
-
-  // Add an interpreter entry. We currently compile these using a different
-  // pipeline and we can't get a CodeDesc here. When adding interpreter
-  // wrappers, we do not insert them in the code_table, however, we let them
-  // self-identify as the {index} function.
-  WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
 
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
@@ -256,6 +250,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // and patching the jump table). Callers have to take care not to race with
   // threads executing the old code.
   void PublishCode(WasmCode* code);
+
+  // Switch a function to an interpreter entry wrapper. When adding interpreter
+  // wrappers, we do not insert them in the code_table, however, we let them
+  // self-identify as the {index} function.
+  void PublishInterpreterEntry(WasmCode* code, uint32_t index);
 
   // Creates a snapshot of the current state of the code table. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
@@ -329,10 +328,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
   Vector<const byte> wire_bytes() const { return wire_bytes_.as_vector(); }
-  void set_wire_bytes(OwnedVector<const byte> wire_bytes) {
-    wire_bytes_ = std::move(wire_bytes);
-  }
   const WasmModule* module() const { return module_.get(); }
+  size_t committed_code_space() const { return committed_code_space_.load(); }
+
+  void SetWireBytes(OwnedVector<const byte> wire_bytes);
 
   WasmCode* Lookup(Address) const;
 
@@ -348,7 +347,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCode;
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
-  friend class WasmImportWrapperCache;
 
   NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
                bool can_request_more, VirtualMemory code_space,
@@ -362,7 +360,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Primitive for adding code to the native module. All code added to a native
   // module is owned by that module. Various callers get to decide on how the
-  // code is obtained (CodeDesc vs, as a point in time, Code*), the kind,
+  // code is obtained (CodeDesc vs, as a point in time, Code), the kind,
   // whether it has an index or is anonymous, etc.
   WasmCode* AddOwnedCode(uint32_t index, Vector<const byte> instructions,
                          uint32_t stack_slots, size_t safepoint_table_offset,
@@ -493,7 +491,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // using sampling based on regular intervals independent of the GC.
   static void InstallSamplingGCCallback(Isolate* isolate);
 
-  static size_t EstimateNativeModuleSize(const WasmModule* module);
+  static size_t EstimateNativeModuleCodeSize(const WasmModule* module);
+  static size_t EstimateNativeModuleNonCodeSize(const WasmModule* module);
 
  private:
   friend class NativeModule;

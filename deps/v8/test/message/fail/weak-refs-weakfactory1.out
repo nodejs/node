@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: WeakFactory: cleanup must be callable
+let wf = new WeakFactory();
+         ^
+TypeError: WeakFactory: cleanup must be callable
+    at new WeakFactory (<anonymous>)
+    at *%(basename)s:7:10

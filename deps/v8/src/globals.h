@@ -130,18 +130,18 @@ constexpr int kFloatSize = sizeof(float);
 constexpr int kDoubleSize = sizeof(double);
 constexpr int kIntptrSize = sizeof(intptr_t);
 constexpr int kUIntptrSize = sizeof(uintptr_t);
-constexpr int kPointerSize = sizeof(void*);
-constexpr int kPointerHexDigits = kPointerSize == 4 ? 8 : 12;
+constexpr int kSystemPointerSize = sizeof(void*);
+constexpr int kSystemPointerHexDigits = kSystemPointerSize == 4 ? 8 : 12;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-constexpr int kRegisterSize = kPointerSize + kPointerSize;
+constexpr int kRegisterSize = kSystemPointerSize + kSystemPointerSize;
 #else
-constexpr int kRegisterSize = kPointerSize;
+constexpr int kRegisterSize = kSystemPointerSize;
 #endif
 constexpr int kPCOnStackSize = kRegisterSize;
 constexpr int kFPOnStackSize = kRegisterSize;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-constexpr int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
+constexpr int kElidedFrameSlots = kPCOnStackSize / kSystemPointerSize;
 #else
 constexpr int kElidedFrameSlots = 0;
 #endif
@@ -155,7 +155,7 @@ constexpr size_t kMaxWasmCodeMemory = 1024 * MB;
 #endif
 
 #if V8_HOST_ARCH_64_BIT
-constexpr int kPointerSizeLog2 = 3;
+constexpr int kSystemPointerSizeLog2 = 3;
 constexpr intptr_t kIntptrSignBit =
     static_cast<intptr_t>(uintptr_t{0x8000000000000000});
 constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
@@ -178,7 +178,7 @@ constexpr size_t kMinimumCodeRangeSize = 3 * MB;
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 #else
-constexpr int kPointerSizeLog2 = 2;
+constexpr int kSystemPointerSizeLog2 = 2;
 constexpr intptr_t kIntptrSignBit = 0x80000000;
 constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
@@ -201,6 +201,27 @@ constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
+STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
+
+constexpr int kTaggedSize = kSystemPointerSize;
+constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
+STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
+
+// TODO(ishell): use kTaggedSize or kSystemPointerSize instead.
+constexpr int kPointerSize = kSystemPointerSize;
+constexpr int kPointerSizeLog2 = kSystemPointerSizeLog2;
+STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
+
+constexpr int kEmbedderDataSlotSize =
+#ifdef V8_COMPRESS_POINTERS
+    kTaggedSize +
+#endif
+    kTaggedSize;
+
+constexpr int kEmbedderDataSlotSizeInTaggedSlots =
+    kEmbedderDataSlotSize / kTaggedSize;
+STATIC_ASSERT(kEmbedderDataSlotSize >= kSystemPointerSize);
+
 constexpr int kExternalAllocationSoftLimit =
     internal::Internals::kExternalAllocationSoftLimit;
 
@@ -217,11 +238,9 @@ constexpr int kMaxRegularHeapObjectSize = 507136;
 // new large object space.
 constexpr int kMaxNewSpaceHeapObjectSize = 32 * KB;
 
-STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
-
 constexpr int kBitsPerByte = 8;
 constexpr int kBitsPerByteLog2 = 3;
-constexpr int kBitsPerPointer = kPointerSize * kBitsPerByte;
+constexpr int kBitsPerSystemPointer = kSystemPointerSize * kBitsPerByte;
 constexpr int kBitsPerInt = kIntSize * kBitsPerByte;
 
 // IEEE 754 single precision floating point number bit layout.
@@ -374,15 +393,15 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
 
 enum class IsolateAllocationMode {
   // Allocate Isolate in C++ heap using default new/delete operators.
-  kAllocateInCppHeap,
+  kInCppHeap,
 
   // Allocate Isolate in a committed region inside V8 heap reservation.
-  kAllocateInV8Heap,
+  kInV8Heap,
 
 #ifdef V8_COMPRESS_POINTERS
-  kDefault = kAllocateInV8Heap,
+  kDefault = kInV8Heap,
 #else
-  kDefault = kAllocateInCppHeap,
+  kDefault = kInCppHeap,
 #endif
 };
 
@@ -422,12 +441,13 @@ static_assert(SmiValuesAre31Bits() == kIsSmiValueInLower32Bits,
 constexpr intptr_t kSmiSignMask = static_cast<intptr_t>(
     uintptr_t{1} << (kSmiValueSize + kSmiShiftSize + kSmiTagSize - 1));
 
-constexpr int kObjectAlignmentBits = kPointerSizeLog2;
+// Desired alignment for tagged pointers.
+constexpr int kObjectAlignmentBits = kTaggedSizeLog2;
 constexpr intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 constexpr intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
-// Desired alignment for pointers.
-constexpr intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
+// Desired alignment for system pointers.
+constexpr intptr_t kPointerAlignment = (1 << kSystemPointerSizeLog2);
 constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
 // Desired alignment for double values.
@@ -441,7 +461,20 @@ constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
 const Address kWeakHeapObjectMask = 1 << 1;
-const Address kClearedWeakHeapObject = 3;
+
+// The lower 32 bits of the cleared weak reference value is always equal to
+// the |kClearedWeakHeapObjectLower32| constant but on 64-bit architectures
+// the value of the upper 32 bits part may be
+// 1) zero when pointer compression is disabled,
+// 2) upper 32 bits of the isolate root value when pointer compression is
+//    enabled.
+// This is necessary to make pointer decompression computation also suitable
+// for cleared weak reference.
+// Note, that real heap objects can't have lower 32 bits equal to 3 because
+// this offset belongs to page header. So, in either case it's enough to
+// compare only the lower 32 bits of a MaybeObject value in order to figure
+// out if it's a cleared reference or not.
+const uint32_t kClearedWeakHeapObjectLower32 = 3;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.
@@ -566,14 +599,15 @@ enum AllocationSpace {
   CODE_SPACE,  // Old generation code object space, marked executable.
   MAP_SPACE,   // Old generation map object space, non-movable.
   LO_SPACE,    // Old generation large object space.
-  NEW_LO_SPACE,  // Young generation large object space.
+  CODE_LO_SPACE,  // Old generation large code object space.
+  NEW_LO_SPACE,   // Young generation large object space.
 
   FIRST_SPACE = RO_SPACE,
   LAST_SPACE = NEW_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = MAP_SPACE
 };
-constexpr int kSpaceTagSize = 3;
+constexpr int kSpaceTagSize = 4;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
@@ -686,18 +720,6 @@ struct CodeDesc {
   int unwinding_info_size;
   Assembler* origin;
 };
-
-
-// Callback function used for checking constraints when copying/relocating
-// objects. Returns true if an object can be copied/relocated from its
-// old_addr to a new_addr.
-typedef bool (*ConstraintCallback)(Address new_addr, Address old_addr);
-
-
-// Callback function on inline caches, used for iterating over inline caches
-// in compiled code.
-typedef void (*InlineCacheCallback)(Code* code, Address ic);
-
 
 // State for inline cache call sites. Aliased as IC::State.
 enum InlineCacheState {
@@ -1030,7 +1052,6 @@ inline const char* VariableMode2String(VariableMode mode) {
 
 enum VariableKind : uint8_t {
   NORMAL_VARIABLE,
-  FUNCTION_VARIABLE,
   THIS_VARIABLE,
   SLOPPY_FUNCTION_NAME_VARIABLE
 };
@@ -1122,7 +1143,7 @@ enum FunctionKind : uint8_t {
   kSetterFunction,
   kAsyncFunction,
   kModule,
-  kClassFieldsInitializerFunction,
+  kClassMembersInitializerFunction,
 
   kDefaultBaseConstructor,
   kDefaultDerivedConstructor,
@@ -1171,7 +1192,7 @@ inline bool IsConciseMethod(FunctionKind kind) {
          kind == FunctionKind::kConciseGeneratorMethod ||
          kind == FunctionKind::kAsyncConciseMethod ||
          kind == FunctionKind::kAsyncConciseGeneratorMethod ||
-         kind == FunctionKind::kClassFieldsInitializerFunction;
+         kind == FunctionKind::kClassMembersInitializerFunction;
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
@@ -1207,8 +1228,8 @@ inline bool IsClassConstructor(FunctionKind kind) {
   return IsBaseConstructor(kind) || IsDerivedConstructor(kind);
 }
 
-inline bool IsClassFieldsInitializerFunction(FunctionKind kind) {
-  return kind == FunctionKind::kClassFieldsInitializerFunction;
+inline bool IsClassMembersInitializerFunction(FunctionKind kind) {
+  return kind == FunctionKind::kClassMembersInitializerFunction;
 }
 
 inline bool IsConstructable(FunctionKind kind) {
@@ -1242,8 +1263,8 @@ inline std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
       return os << "AsyncFunction";
     case FunctionKind::kModule:
       return os << "Module";
-    case FunctionKind::kClassFieldsInitializerFunction:
-      return os << "ClassFieldsInitializerFunction";
+    case FunctionKind::kClassMembersInitializerFunction:
+      return os << "ClassMembersInitializerFunction";
     case FunctionKind::kDefaultBaseConstructor:
       return os << "DefaultBaseConstructor";
     case FunctionKind::kDefaultDerivedConstructor:
@@ -1288,7 +1309,7 @@ inline std::ostream& operator<<(std::ostream& os,
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing
   // zeros.
-  return static_cast<uint32_t>(address >> kPointerSizeLog2);
+  return static_cast<uint32_t>(address >> kTaggedSizeLog2);
 }
 
 // Type feedback is encoded in such a way that, we can combine the feedback

@@ -8,11 +8,12 @@
 #include "src/layout-descriptor.h"
 #include "src/objects-inl.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
 
-LayoutDescriptor* LayoutDescriptor::FromSmi(Smi* smi) {
+LayoutDescriptor* LayoutDescriptor::FromSmi(Smi smi) {
   return LayoutDescriptor::cast(smi);
 }
 
@@ -20,7 +21,7 @@ LayoutDescriptor* LayoutDescriptor::FromSmi(Smi* smi) {
 Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
   if (length <= kBitsInSmiLayout) {
     // The whole bit vector fits into a smi.
-    return handle(LayoutDescriptor::FromSmi(Smi::kZero), isolate);
+    return handle(LayoutDescriptor::FromSmi(Smi::zero()), isolate);
   }
   int backing_store_length = GetSlowModeBackingStoreLength(length);
   Handle<LayoutDescriptor> result = Handle<LayoutDescriptor>::cast(
@@ -42,7 +43,7 @@ bool LayoutDescriptor::InobjectUnboxedField(int inobject_properties,
 
 
 LayoutDescriptor* LayoutDescriptor::FastPointerLayout() {
-  return LayoutDescriptor::FromSmi(Smi::kZero);
+  return LayoutDescriptor::FromSmi(Smi::zero());
 }
 
 
@@ -150,8 +151,7 @@ int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {
   return RoundUp(length, kBitsPerByte * kPointerSize) / kBitsPerByte;
 }
 
-
-int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
+int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray* descriptors,
                                         int num_descriptors) {
   int inobject_properties = map->GetInObjectProperties();
   if (inobject_properties == 0) return 0;
@@ -182,9 +182,8 @@ int LayoutDescriptor::CalculateCapacity(Map* map, DescriptorArray* descriptors,
   return layout_descriptor_length;
 }
 
-
 LayoutDescriptor* LayoutDescriptor::Initialize(
-    LayoutDescriptor* layout_descriptor, Map* map, DescriptorArray* descriptors,
+    LayoutDescriptor* layout_descriptor, Map map, DescriptorArray* descriptors,
     int num_descriptors) {
   DisallowHeapAllocation no_allocation;
   int inobject_properties = map->GetInObjectProperties();
@@ -219,7 +218,7 @@ void LayoutDescriptor::set_layout_word(int index, uint32_t value) {
 
 // LayoutDescriptorHelper is a helper class for querying whether inobject
 // property at offset is Double or not.
-LayoutDescriptorHelper::LayoutDescriptorHelper(Map* map)
+LayoutDescriptorHelper::LayoutDescriptorHelper(Map map)
     : all_fields_tagged_(true),
       header_size_(0),
       layout_descriptor_(LayoutDescriptor::FastPointerLayout()) {

@@ -7,8 +7,10 @@
 #include "src/arguments-inl.h"
 #include "src/base/platform/time.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/futex-emulation.h"
 #include "src/globals.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 
 // Implement Futex API for SharedArrayBuffers as defined in the

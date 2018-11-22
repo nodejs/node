@@ -134,8 +134,7 @@ struct ParserTypes<Parser> {
   typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
   typedef ParserFormalParameters FormalParameters;
   typedef v8::internal::Statement* Statement;
-  typedef ZonePtrList<v8::internal::Statement>* StatementList;
-  typedef ScopedPtrList<v8::internal::Statement> ScopedStatementList;
+  typedef ScopedPtrList<v8::internal::Statement> StatementList;
   typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
   typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
   typedef v8::internal::Block* Block;
@@ -243,8 +242,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // We manually construct the AST and scopes for a top-level function and the
   // function wrapper.
   void ParseWrapped(Isolate* isolate, ParseInfo* info,
-                    ZonePtrList<Statement>* body, DeclarationScope* scope,
-                    Zone* zone, bool* ok);
+                    ScopedPtrList<Statement>* body, DeclarationScope* scope,
+                    Zone* zone);
 
   ZonePtrList<const AstRawString>* PrepareWrappedArguments(Isolate* isolate,
                                                            ParseInfo* info,
@@ -258,19 +257,19 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           parsing_module_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
-      SET_ALLOW(harmony_do_expressions);
       SET_ALLOW(harmony_public_fields);
       SET_ALLOW(harmony_static_fields);
       SET_ALLOW(harmony_dynamic_import);
       SET_ALLOW(harmony_import_meta);
       SET_ALLOW(harmony_private_fields);
+      SET_ALLOW(harmony_private_methods);
       SET_ALLOW(eval_cache);
 #undef SET_ALLOW
     }
     return reusable_preparser_;
   }
 
-  void ParseModuleItemList(ZonePtrList<Statement>* body);
+  void ParseModuleItemList(ScopedPtrList<Statement>* body);
   Statement* ParseModuleItem();
   const AstRawString* ParseModuleSpecifier();
   void ParseImportDeclaration();
@@ -315,9 +314,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void GetUnexpectedTokenMessage(Token::Value token, MessageTemplate* message,
                                  Scanner::Location* location, const char** arg);
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
-                                            ZonePtrList<Statement>* body);
-  void ParseAndRewriteAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
-                                                 ZonePtrList<Statement>* body);
+                                            ScopedPtrList<Statement>* body);
+  void ParseAndRewriteAsyncGeneratorFunctionBody(
+      int pos, FunctionKind kind, ScopedPtrList<Statement>* body);
   void DeclareFunctionNameVar(const AstRawString* function_name,
                               FunctionLiteral::FunctionType function_type,
                               DeclarationScope* function_scope);
@@ -330,29 +329,30 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
       ZonePtrList<ClassLiteral::Property>* fields);
-  V8_INLINE Statement* DeclareClass(const AstRawString* variable_name,
-                                    Expression* value,
-                                    ZonePtrList<const AstRawString>* names,
-                                    int class_token_pos, int end_pos);
-  V8_INLINE void DeclareClassVariable(const AstRawString* name,
-                                      ClassInfo* class_info,
-                                      int class_token_pos);
-  V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
-                                      ClassLiteralProperty* property,
-                                      const AstRawString* property_name,
-                                      ClassLiteralProperty::Kind kind,
-                                      bool is_static, bool is_constructor,
-                                      bool is_computed_name, bool is_private,
-                                      ClassInfo* class_info);
-  V8_INLINE Expression* RewriteClassLiteral(Scope* block_scope,
-                                            const AstRawString* name,
-                                            ClassInfo* class_info, int pos,
-                                            int end_pos);
-  V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos);
 
-  V8_INLINE Block* IgnoreCompletion(Statement* statement);
+  bool IdentifierEquals(const AstRawString* identifier,
+                        const AstRawString* other) {
+    return identifier == other;
+  }
 
-  V8_INLINE Scope* NewHiddenCatchScope();
+  Statement* DeclareClass(const AstRawString* variable_name, Expression* value,
+                          ZonePtrList<const AstRawString>* names,
+                          int class_token_pos, int end_pos);
+  void DeclareClassVariable(const AstRawString* name, ClassInfo* class_info,
+                            int class_token_pos);
+  void DeclareClassProperty(const AstRawString* class_name,
+                            ClassLiteralProperty* property,
+                            const AstRawString* property_name,
+                            ClassLiteralProperty::Kind kind, bool is_static,
+                            bool is_constructor, bool is_computed_name,
+                            bool is_private, ClassInfo* class_info);
+  Expression* RewriteClassLiteral(Scope* block_scope, const AstRawString* name,
+                                  ClassInfo* class_info, int pos, int end_pos);
+  Statement* DeclareNative(const AstRawString* name, int pos);
+
+  Block* IgnoreCompletion(Statement* statement);
+
+  Scope* NewHiddenCatchScope();
 
   // PatternRewriter and associated methods defined in pattern-rewriter.cc.
   friend class PatternRewriter;
@@ -390,9 +390,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Statement* DesugarLexicalBindingsInForStatement(
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
-      Statement* body, Scope* inner_scope, const ForInfo& for_info, bool* ok);
-
-  Expression* RewriteDoExpression(Block* body, int pos);
+      Statement* body, Scope* inner_scope, const ForInfo& for_info);
 
   FunctionLiteral* ParseFunctionLiteral(
       const AstRawString* name, Scanner::Location function_name_location,
@@ -470,9 +468,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       const ParserFormalParameters& parameters);
   Block* BuildRejectPromiseOnException(Block* block);
 
-  ZonePtrList<Statement>* ParseFunction(
-      const AstRawString* function_name, int pos, FunctionKind kind,
-      FunctionLiteral::FunctionType function_type,
+  void ParseFunction(
+      ScopedPtrList<Statement>* body, const AstRawString* function_name,
+      int pos, FunctionKind kind, FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
       int* expected_property_count, int* suspend_count,
@@ -537,11 +535,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void SetAsmModule();
 
   // Rewrite all DestructuringAssignments in the current FunctionState.
-  V8_INLINE void RewriteDestructuringAssignments();
+  void RewriteDestructuringAssignments();
 
   Expression* RewriteSpreads(ArrayLiteral* lit);
 
-  V8_INLINE void QueueDestructuringAssignmentForRewriting(
+  void QueueDestructuringAssignmentForRewriting(
       RewritableExpression* assignment);
 
   friend class InitializerRewriter;
@@ -571,9 +569,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                        IteratorType type);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
-  V8_INLINE void RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
-                                          Block* block,
-                                          Expression* return_value);
+  void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,
+                                Expression* return_value);
 
   void AddArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                         Expression* params, int end_pos);
@@ -609,8 +606,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // inside a variable proxy).  We exclude the case of 'this', which
   // has been converted to a variable proxy.
   V8_INLINE static bool IsIdentifier(Expression* expression) {
-    // TODO(verwaest): Rely on FailureExpression instead.
-    if (expression == nullptr) return false;
     VariableProxy* operand = expression->AsVariableProxy();
     return operand != nullptr && !operand->is_this() &&
            !operand->is_new_target();
@@ -818,6 +813,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return nullptr;
   }
   V8_INLINE static std::nullptr_t NullStatement() { return nullptr; }
+  Expression* FailureExpression() { return factory()->FailureExpression(); }
 
   template <typename T>
   V8_INLINE static bool IsNull(T subject) {
@@ -857,12 +853,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewTargetExpression(int pos);
   Expression* ImportMetaExpression(int pos);
 
-  Literal* ExpressionFromLiteral(Token::Value token, int pos);
+  Expression* ExpressionFromLiteral(Token::Value token, int pos);
 
   V8_INLINE VariableProxy* ExpressionFromIdentifier(
       const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
-    if (has_error()) return nullptr;
     if (infer == InferName::kYes) {
       fni_.PushVariableName(name);
     }
@@ -884,9 +879,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return new (zone()) ZonePtrList<Statement>(size, zone());
   }
 
-  V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,
-                                       const ScopedPtrList<Expression>& args,
-                                       int pos);
+  Expression* NewV8Intrinsic(const AstRawString* name,
+                             const ScopedPtrList<Expression>& args, int pos);
 
   V8_INLINE Statement* NewThrowStatement(Expression* exception, int pos) {
     return factory()->NewExpressionStatement(

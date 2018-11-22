@@ -16,7 +16,6 @@ namespace internal {
 class BigInt;
 template <typename T>
 class Handle;
-class UnicodeCache;
 
 // The limit for the the fractionDigits/precision for toFixed, toPrecision
 // and toExponential.
@@ -90,19 +89,12 @@ enum ConversionFlags {
 
 
 // Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(UnicodeCache* unicode_cache,
-                      Vector<const uint8_t> str,
-                      int flags,
+double StringToDouble(Vector<const uint8_t> str, int flags,
                       double empty_string_val = 0);
-double StringToDouble(UnicodeCache* unicode_cache,
-                      Vector<const uc16> str,
-                      int flags,
+double StringToDouble(Vector<const uc16> str, int flags,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
-double StringToDouble(UnicodeCache* unicode_cache,
-                      const char* str,
-                      int flags,
-                      double empty_string_val = 0);
+double StringToDouble(const char* str, int flags, double empty_string_val = 0);
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix);
 
@@ -170,8 +162,7 @@ inline uint32_t NumberToUint32(Object* number);
 inline int64_t NumberToInt64(Object* number);
 inline uint64_t PositiveNumberToUint64(Object* number);
 
-double StringToDouble(Isolate* isolate, UnicodeCache* unicode_cache,
-                      Handle<String> string, int flags,
+double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val = 0.0);
 
 inline bool TryNumberToSize(Object* number, size_t* result);
@@ -180,7 +171,7 @@ inline bool TryNumberToSize(Object* number, size_t* result);
 inline size_t NumberToSize(Object* number);
 
 // returns DoubleToString(StringToDouble(string)) == string
-bool IsSpecialIndex(UnicodeCache* unicode_cache, String* string);
+bool IsSpecialIndex(String* string);
 
 }  // namespace internal
 }  // namespace v8

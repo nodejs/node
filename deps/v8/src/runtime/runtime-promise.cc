@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -104,13 +105,6 @@ RUNTIME_FUNCTION(Runtime_PromiseStatus) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
 
   return Smi::FromInt(promise->status());
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseResult) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  return promise->result();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {

@@ -15,6 +15,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -96,8 +97,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ PopStackHandler(edi);
 
   __ bind(&exit);
-
-  __ VerifyRootRegister();
 
   // Check if the current stack frame is marked as the outermost JS frame.
   __ pop(edi);
@@ -458,7 +457,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ PushRoot(RootIndex::kUndefinedValue);
   __ Push(Immediate(ExternalReference::isolate_address(isolate())));
   __ push(holder);
-  __ push(Immediate(Smi::kZero));  // should_throw_on_error -> false
+  __ push(Immediate(Smi::zero()));  // should_throw_on_error -> false
   __ push(FieldOperand(callback, AccessorInfo::kNameOffset));
   __ push(scratch);  // Restore return address.
 

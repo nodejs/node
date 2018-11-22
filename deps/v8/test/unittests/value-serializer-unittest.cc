@@ -1870,6 +1870,22 @@ TEST_F(ValueSerializerTest, DecodeDataView) {
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
 }
 
+TEST_F(ValueSerializerTest, DecodeArrayWithLengthProperty1) {
+  ASSERT_DEATH_IF_SUPPORTED(
+      DecodeTest({0xff, 0x0d, 0x41, 0x03, 0x49, 0x02, 0x49, 0x04,
+                  0x49, 0x06, 0x22, 0x06, 0x6c, 0x65, 0x6e, 0x67,
+                  0x74, 0x68, 0x49, 0x02, 0x24, 0x01, 0x03}),
+      ".*LookupIterator::NOT_FOUND == it.state\\(\\).*");
+}
+
+TEST_F(ValueSerializerTest, DecodeArrayWithLengthProperty2) {
+  ASSERT_DEATH_IF_SUPPORTED(
+      DecodeTest({0xff, 0x0d, 0x41, 0x03, 0x49, 0x02, 0x49, 0x04,
+                  0x49, 0x06, 0x22, 0x06, 0x6c, 0x65, 0x6e, 0x67,
+                  0x74, 0x68, 0x6f, 0x7b, 0x00, 0x24, 0x01, 0x03}),
+      ".*LookupIterator::NOT_FOUND == it.state\\(\\).*");
+}
+
 TEST_F(ValueSerializerTest, DecodeInvalidDataView) {
   // Byte offset out of range.
   InvalidDecodeTest(

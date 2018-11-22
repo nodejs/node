@@ -30,7 +30,7 @@ _protocol_generated = [
 
 action("protocol_compatibility") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
-  script = "$_inspector_protocol/CheckProtocolCompatibility.py"
+  script = "$_inspector_protocol/check_protocol_compatibility.py"
   inputs = [
     "js_protocol.pdl",
   ]

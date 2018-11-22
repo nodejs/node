@@ -77,6 +77,11 @@ let kWasmAnyFunctionTypeForm = 0x70;
 
 let kHasMaximumFlag = 1;
 
+// Segment flags
+let kActiveNoIndex = 0;
+let kPassive = 1;
+let kActiveWithIndex = 2;
+
 // Function declaration flags
 let kDeclFunctionName   = 0x01;
 let kDeclFunctionImport = 0x02;
@@ -349,6 +354,8 @@ let kExprF64ReinterpretI64 = 0xbf;
 // Prefix opcodes
 let kAtomicPrefix = 0xfe;
 
+let kExprAtomicWake = 0x00;
+let kExprI32AtomicWait = 0x01;
 let kExprI32AtomicLoad = 0x10;
 let kExprI32AtomicLoad8U = 0x12;
 let kExprI32AtomicLoad16U = 0x13;

@@ -195,8 +195,10 @@ class AstBigInt {
 
 // For generating constants.
 #define AST_STRING_CONSTANTS(F)                 \
+  F(anonymous, "anonymous")                     \
   F(anonymous_function, "(anonymous function)") \
   F(arguments, "arguments")                     \
+  F(as, "as")                                   \
   F(async, "async")                             \
   F(await, "await")                             \
   F(bigint, "bigint")                           \
@@ -214,29 +216,34 @@ class AstBigInt {
   F(dot_catch, ".catch")                        \
   F(empty, "")                                  \
   F(eval, "eval")                               \
+  F(from, "from")                               \
   F(function, "function")                       \
+  F(get, "get")                                 \
   F(get_space, "get ")                          \
   F(length, "length")                           \
   F(let, "let")                                 \
+  F(meta, "meta")                               \
   F(name, "name")                               \
   F(native, "native")                           \
   F(new_target, ".new.target")                  \
   F(next, "next")                               \
   F(number, "number")                           \
   F(object, "object")                           \
+  F(of, "of")                                   \
+  F(private_constructor, "#constructor")        \
   F(proto, "__proto__")                         \
   F(prototype, "prototype")                     \
   F(return, "return")                           \
+  F(set, "set")                                 \
   F(set_space, "set ")                          \
   F(star_default_star, "*default*")             \
   F(string, "string")                           \
   F(symbol, "symbol")                           \
+  F(target, "target")                           \
   F(this, "this")                               \
   F(this_function, ".this_function")            \
   F(throw, "throw")                             \
   F(undefined, "undefined")                     \
-  F(use_asm, "use asm")                         \
-  F(use_strict, "use strict")                   \
   F(value, "value")
 
 class AstStringConstants final {
@@ -356,7 +363,8 @@ class AstValueFactory {
   const AstConsString* empty_cons_string_;
 
   // Caches one character lowercase strings (for minified code).
-  AstRawString* one_character_strings_[26];
+  static const int kMaxOneCharStringValue = 128;
+  AstRawString* one_character_strings_[kMaxOneCharStringValue];
 
   Zone* zone_;
 

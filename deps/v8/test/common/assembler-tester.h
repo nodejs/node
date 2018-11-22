@@ -16,9 +16,8 @@ static inline uint8_t* AllocateAssemblerBuffer(
     void* address = nullptr) {
   size_t page_size = v8::internal::AllocatePageSize();
   size_t alloc_size = RoundUp(requested, page_size);
-  void* result = v8::internal::AllocatePages(
-      GetPlatformPageAllocator(), address, alloc_size, page_size,
-      v8::PageAllocator::kReadWriteExecute);
+  void* result = AllocatePages(GetPlatformPageAllocator(), address, alloc_size,
+                               page_size, v8::PageAllocator::kReadWrite);
   CHECK(result);
   *allocated = alloc_size;
   return static_cast<uint8_t*>(result);
@@ -33,17 +32,23 @@ static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
   // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
   Assembler::FlushICache(buffer, allocated);
 
-  bool result =
-      v8::internal::SetPermissions(GetPlatformPageAllocator(), buffer,
-                                   allocated, v8::PageAllocator::kReadExecute);
+  bool result = SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
+                               v8::PageAllocator::kReadExecute);
   CHECK(result);
 }
 
 static inline void MakeAssemblerBufferWritable(uint8_t* buffer,
                                                size_t allocated) {
-  bool result =
-      v8::internal::SetPermissions(GetPlatformPageAllocator(), buffer,
-                                   allocated, v8::PageAllocator::kReadWrite);
+  bool result = SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
+                               v8::PageAllocator::kReadWrite);
+  CHECK(result);
+}
+
+// TODO(wasm): Only needed for the "test-jump-table-assembler.cc" tests.
+static inline void MakeAssemblerBufferWritableAndExecutable(uint8_t* buffer,
+                                                            size_t allocated) {
+  bool result = SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
+                               v8::PageAllocator::kReadWriteExecute);
   CHECK(result);
 }
 

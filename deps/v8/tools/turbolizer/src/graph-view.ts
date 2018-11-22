@@ -271,6 +271,11 @@ export class GraphView extends View implements PhaseView {
     }
   }
 
+  show(data, rememberedSelection): void {
+    this.container.appendChild(this.divNode);
+    this.initializeContent(data, rememberedSelection);
+  }
+
   deleteContent() {
     if (this.visibleNodes) {
       this.nodes = [];
@@ -342,7 +347,6 @@ export class GraphView extends View implements PhaseView {
     g.updateGraphVisibility();
     g.layoutGraph();
     g.updateGraphVisibility();
-    g.viewWholeGraph();
   }
 
   connectVisibleSelectedNodes() {

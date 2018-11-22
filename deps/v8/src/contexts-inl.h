@@ -126,15 +126,15 @@ bool Context::HasSameSecurityTokenAs(Context* that) const {
 }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  void Context::set_##name(type* value) {                 \
+  void Context::set_##name(type##ArgType value) {         \
     DCHECK(IsNativeContext());                            \
     set(index, value);                                    \
   }                                                       \
-  bool Context::is_##name(type* value) const {            \
+  bool Context::is_##name(type##ArgType value) const {    \
     DCHECK(IsNativeContext());                            \
     return type::cast(get(index)) == value;               \
   }                                                       \
-  type* Context::name() const {                           \
+  type##ArgType Context::name() const {                   \
     DCHECK(IsNativeContext());                            \
     return type::cast(get(index));                        \
   }
@@ -209,9 +209,9 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 #undef CHECK_FOLLOWS2
 #undef CHECK_FOLLOWS4
 
-Map* Context::GetInitialJSArrayMap(ElementsKind kind) const {
+Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(IsNativeContext());
-  if (!IsFastElementsKind(kind)) return nullptr;
+  if (!IsFastElementsKind(kind)) return Map();
   DisallowHeapAllocation no_gc;
   Object* const initial_js_array_map = get(Context::ArrayMapIndex(kind));
   DCHECK(!initial_js_array_map->IsUndefined());

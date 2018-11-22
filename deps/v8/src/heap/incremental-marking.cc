@@ -46,7 +46,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
     HeapObject* object = HeapObject::FromAddress(addr);
     if (incremental_marking_.marking_state()->IsWhite(object) &&
         !(Heap::InNewSpace(object) || heap->new_lo_space()->Contains(object))) {
-      if (heap->lo_space()->Contains(object)) {
+      if (heap->IsLargeObject(object)) {
         incremental_marking_.marking_state()->WhiteToBlack(object);
       } else {
         Page::FromAddress(addr)->CreateBlackArea(addr, addr + size);
@@ -106,16 +106,17 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot,
 }
 
 int IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
-                                            MaybeObjectSlot slot,
+                                            Address slot_address,
                                             Isolate* isolate) {
   DCHECK(obj->IsHeapObject());
+  MaybeObjectSlot slot(slot_address);
   isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(obj, slot,
                                                                *slot);
   // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
   return 0;
 }
 
-void IncrementalMarking::RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
+void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
                                              HeapObject* value) {
   DCHECK(IsMarking());
   if (BaseRecordWrite(host, value)) {
@@ -263,6 +264,10 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   for (LargePage* p : *heap_->lo_space()) {
     p->SetOldGenerationPageFlags(false);
   }
+
+  for (LargePage* p : *heap_->code_lo_space()) {
+    p->SetOldGenerationPageFlags(false);
+  }
 }
 
 
@@ -287,6 +292,10 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->new_space());
 
   for (LargePage* p : *heap_->lo_space()) {
+    p->SetOldGenerationPageFlags(true);
+  }
+
+  for (LargePage* p : *heap_->code_lo_space()) {
     p->SetOldGenerationPageFlags(true);
   }
 }
@@ -385,7 +394,7 @@ void IncrementalMarking::StartMarking() {
 
   {
     TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
+             GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
     heap_->local_embedder_heap_tracer()->TracePrologue();
   }
 
@@ -467,7 +476,7 @@ void IncrementalMarking::MarkRoots() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 }
 
-bool IncrementalMarking::ShouldRetainMap(Map* map, int age) {
+bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
   if (age == 0) {
     // The map has aged. Do not retain this map.
     return false;
@@ -501,9 +510,9 @@ void IncrementalMarking::RetainMaps() {
     if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
       continue;
     }
-    int age = Smi::ToInt(retained_maps->Get(i + 1)->cast<Smi>());
+    int age = retained_maps->Get(i + 1).ToSmi().value();
     int new_age;
-    Map* map = Map::cast(map_heap_object);
+    Map map = Map::cast(map_heap_object);
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
         marking_state()->IsWhite(map)) {
       if (ShouldRetainMap(map, age)) {
@@ -566,7 +575,7 @@ void IncrementalMarking::FinalizeIncrementally() {
 void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   if (!IsMarking()) return;
 
-  Map* filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
+  Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
 #ifdef ENABLE_MINOR_MC
   MinorMarkCompactCollector::MarkingState* minor_marking_state =
@@ -671,8 +680,8 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return false;
       });
   weak_objects_->weak_objects_in_code.Update(
-      [](std::pair<HeapObject*, Code*> slot_in,
-         std::pair<HeapObject*, Code*>* slot_out) -> bool {
+      [](std::pair<HeapObject*, Code> slot_in,
+         std::pair<HeapObject*, Code>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
         HeapObject* forwarded = ForwardingAddress(heap_obj);
 
@@ -728,7 +737,7 @@ bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
   return chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR);
 }
 
-int IncrementalMarking::VisitObject(Map* map, HeapObject* obj) {
+int IncrementalMarking::VisitObject(Map map, HeapObject* obj) {
   DCHECK(marking_state()->IsGrey(obj) || marking_state()->IsBlack(obj));
   if (!marking_state()->GreyToBlack(obj)) {
     // The object can already be black in these cases:
@@ -761,7 +770,7 @@ void IncrementalMarking::RevisitObject(HeapObject* obj) {
   if (page->owner()->identity() == LO_SPACE) {
     page->ResetProgressBar();
   }
-  Map* map = obj->map();
+  Map map = obj->map();
   WhiteToGreyAndPush(map);
   IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
                                            marking_state());
@@ -801,7 +810,7 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
 void IncrementalMarking::EmbedderStep(double duration_ms) {
   constexpr int kObjectsToProcessBeforeInterrupt = 100;
 
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
 
   const double deadline =
       heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;

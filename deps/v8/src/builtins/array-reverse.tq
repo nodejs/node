@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   macro LoadElement<ElementsAccessor: type, T: type>(
       elements: FixedArrayBase, index: Smi): T;
 
-  LoadElement<FastPackedSmiElements, Smi>(
-      elements: FixedArrayBase, index: Smi): Smi {
+  LoadElement<FastPackedSmiElements, Smi>(elements: FixedArrayBase, index: Smi):
+      Smi {
     const elems: FixedArray = UnsafeCast<FixedArray>(elements);
     return UnsafeCast<Smi>(elems[index]);
   }
@@ -63,15 +63,15 @@ module array {
     while (lower < upper) {
       const lowerValue: T = LoadElement<Accessor, T>(elements, lower);
       const upperValue: T = LoadElement<Accessor, T>(elements, upper);
-      StoreElement<Accessor, T>(elements, lower, upperValue);
-      StoreElement<Accessor, T>(elements, upper, lowerValue);
+      StoreElement<Accessor>(elements, lower, upperValue);
+      StoreElement<Accessor>(elements, upper, lowerValue);
       ++lower;
       --upper;
     }
   }
 
-  transitioning macro GenericArrayReverse(
-      context: Context, receiver: Object): Object {
+  transitioning macro GenericArrayReverse(context: Context, receiver: Object):
+      Object {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -143,7 +143,7 @@ module array {
   }
 
   macro TryFastPackedArrayReverse(implicit context: Context)(receiver: Object)
-  labels Slow {
+      labels Slow {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
     const kind: ElementsKind = array.map.elements_kind;

@@ -47,7 +47,7 @@ class ProfilerListener : public CodeEventListener {
   void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override;
-  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
+  void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
   void GetterCallbackEvent(Name* name, Address entry_point) override;
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
@@ -77,7 +77,7 @@ class ProfilerListener : public CodeEventListener {
 
  private:
   void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
-  void AttachDeoptInlinedFrames(Code* code, CodeDeoptEventRecord* rec);
+  void AttachDeoptInlinedFrames(Code code, CodeDeoptEventRecord* rec);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
     observer_->CodeEventHandler(evt_rec);

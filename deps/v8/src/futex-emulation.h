@@ -118,6 +118,11 @@ class FutexEmulation : public AllStatic {
   // |rel_timeout_ms| can be Infinity.
   // If woken, return "ok", otherwise return "timed-out". The initial check and
   // the decision to wait happen atomically.
+  static Object* WaitJs(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
+                        size_t addr, int32_t value, double rel_timeout_ms);
+
+  // Same as WaitJs above except it returns 0 (ok), 1 (not equal) and 2 (timed
+  // out) as expected by Wasm.
   static Object* Wait(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
                       size_t addr, int32_t value, double rel_timeout_ms);
 

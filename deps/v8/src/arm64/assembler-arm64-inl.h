@@ -9,6 +9,7 @@
 #include "src/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -212,13 +213,12 @@ struct ImmediateInitializer {
   }
 };
 
-
-template<>
-struct ImmediateInitializer<Smi*> {
+template <>
+struct ImmediateInitializer<Smi> {
   static const bool kIsIntType = false;
-  static inline RelocInfo::Mode rmode_for(Smi* t) { return RelocInfo::NONE; }
-  static inline int64_t immediate_for(Smi* t) {;
-    return reinterpret_cast<int64_t>(t);
+  static inline RelocInfo::Mode rmode_for(Smi t) { return RelocInfo::NONE; }
+  static inline int64_t immediate_for(Smi t) {
+    return static_cast<int64_t>(t.ptr());
   }
 };
 
@@ -590,7 +590,7 @@ int Assembler::deserialization_special_target_size(Address location) {
 }
 
 void Assembler::deserialization_set_special_target_at(Address location,
-                                                      Code* code,
+                                                      Code code,
                                                       Address target) {
   Instruction* instr = reinterpret_cast<Instruction*>(location);
   if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {

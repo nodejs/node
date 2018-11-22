@@ -14,6 +14,8 @@
 #include "src/mips/constants-mips.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/smi.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -1067,12 +1069,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
   Label builtin_trampoline, trampoline_loaded;
-  Smi* interpreter_entry_return_pc_offset(
+  Smi interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::zero());
 
-  // If the SFI function_data is an InterpreterData, get the trampoline stored
-  // in it, otherwise get the trampoline from the builtins list.
+  // If the SFI function_data is an InterpreterData, the function will have a
+  // custom copy of the interpreter entry trampoline for profiling. If so,
+  // get the custom trampoline, otherwise grab the entry address of the global
+  // trampoline.
   __ lw(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ lw(t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
   __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kFunctionDataOffset));
@@ -1082,14 +1086,17 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
             Operand(INTERPRETER_DATA_TYPE));
 
   __ lw(t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
+  __ Addu(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Branch(&trampoline_loaded);
 
   __ bind(&builtin_trampoline);
-  __ li(t0, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
+  __ li(t0, ExternalReference::
+                address_of_interpreter_entry_trampoline_instruction_start(
+                    masm->isolate()));
+  __ lw(t0, MemOperand(t0));
 
   __ bind(&trampoline_loaded);
-  __ Addu(ra, t0, Operand(interpreter_entry_return_pc_offset->value() +
-                          Code::kHeaderSize - kHeapObjectTag));
+  __ Addu(ra, t0, Operand(interpreter_entry_return_pc_offset->value()));
 
   // Initialize the dispatch table register.
   __ li(kInterpreterDispatchTableRegister,
@@ -1302,7 +1309,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   }
 
   // If the code object is null, just return to the caller.
-  __ Ret(eq, v0, Operand(Smi::kZero));
+  __ Ret(eq, v0, Operand(Smi::zero()));
 
   // Drop the handler frame that is be sitting on top of the actual
   // JavaScript frame. This is the case then OSR is triggered from bytecode.
@@ -1542,7 +1549,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ sll(a0, a0, kSmiTagSize);
   __ li(t0, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ MultiPush(a0.bit() | a1.bit() | t0.bit() | fp.bit() | ra.bit());
-  __ Push(Smi::kZero);  // Padding.
+  __ Push(Smi::zero());  // Padding.
   __ Addu(fp, sp,
           Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp));
 }
@@ -2267,7 +2274,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
                               WasmInstanceObject::kCEntryStubOffset));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
-    __ Move(kContextRegister, Smi::kZero);
+    __ Move(kContextRegister, Smi::zero());
     __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, a2);
 
     // Restore registers.

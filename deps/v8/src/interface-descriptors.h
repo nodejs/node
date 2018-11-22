@@ -7,10 +7,10 @@
 
 #include <memory>
 
-#include "src/assembler.h"
+#include "src/assembler-arch.h"
 #include "src/globals.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
+#include "src/machine-type.h"
 
 namespace v8 {
 namespace internal {
@@ -76,6 +76,8 @@ namespace internal {
   V(RunMicrotasks)                    \
   V(WasmMemoryGrow)                   \
   V(WasmThrow)                        \
+  V(WasmAtomicWake)                   \
+  V(WasmI32AtomicWait)                \
   V(CloneObjectWithVector)            \
   BUILTIN_LIST_TFS(V)
 
@@ -1102,6 +1104,25 @@ class WasmThrowDescriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
                                     MachineType::AnyTagged())  // kException
   DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmAtomicWakeDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kCount)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
+                                    MachineType::Uint32(),  // kAddress
+                                    MachineType::Uint32())  // kCount
+  DECLARE_DESCRIPTOR(WasmAtomicWakeDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmI32AtomicWaitDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValue, kTimeout)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),   // result 1
+                                    MachineType::Uint32(),   // kAddress
+                                    MachineType::Int32(),    // kExpectedValue
+                                    MachineType::Float64())  // kTimeout
+  DECLARE_DESCRIPTOR(WasmI32AtomicWaitDescriptor, CallInterfaceDescriptor)
 };
 
 class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {

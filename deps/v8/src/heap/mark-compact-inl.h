@@ -50,7 +50,7 @@ MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitBytecodeArray(Map* map,
+                   MarkingState>::VisitBytecodeArray(Map map,
                                                      BytecodeArray* array) {
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, array);
   BytecodeArray::BodyDescriptor::IterateBody(map, array, size, this);
@@ -61,8 +61,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitFixedArray(Map* map,
-                                                  FixedArray* object) {
+                   MarkingState>::VisitFixedArray(Map map, FixedArray* object) {
   return (fixed_array_mode == FixedArrayVisitationMode::kRegular)
              ? Parent::VisitFixedArray(map, object)
              : VisitFixedArrayIncremental(map, object);
@@ -73,8 +72,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
 template <typename T>
 V8_INLINE int
 MarkingVisitor<fixed_array_mode, retaining_path_mode,
-               MarkingState>::VisitEmbedderTracingSubclass(Map* map,
-                                                           T* object) {
+               MarkingState>::VisitEmbedderTracingSubclass(Map map, T* object) {
   if (heap_->local_embedder_heap_tracer()->InUse()) {
     heap_->TracePossibleWrapper(object);
   }
@@ -86,14 +84,14 @@ MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSApiObject(Map* map, JSObject* object) {
+                   MarkingState>::VisitJSApiObject(Map map, JSObject* object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSArrayBuffer(Map* map,
+                   MarkingState>::VisitJSArrayBuffer(Map map,
                                                      JSArrayBuffer* object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
@@ -101,15 +99,14 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSDataView(Map* map,
-                                                  JSDataView* object) {
+                   MarkingState>::VisitJSDataView(Map map, JSDataView* object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSTypedArray(Map* map,
+                   MarkingState>::VisitJSTypedArray(Map map,
                                                     JSTypedArray* object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
@@ -117,7 +114,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
-    VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
+    VisitEphemeronHashTable(Map map, EphemeronHashTable* table) {
   collector_->AddEphemeronHashTable(table);
 
   for (int i = 0; i < table->Capacity(); i++) {
@@ -154,7 +151,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitMap(Map* map, Map* object) {
+                   MarkingState>::VisitMap(Map map, Map object) {
   // When map collection is enabled we have to mark through map's transitions
   // and back pointers in a special way to make these links weak.
   int size = Map::BodyDescriptor::SizeOf(map, object);
@@ -169,7 +166,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitTransitionArray(Map* map,
+                   MarkingState>::VisitTransitionArray(Map map,
                                                        TransitionArray* array) {
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
@@ -180,7 +177,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSWeakCell(Map* map,
+                   MarkingState>::VisitJSWeakCell(Map map,
                                                   JSWeakCell* weak_cell) {
   if (weak_cell->target()->IsHeapObject()) {
     HeapObject* target = HeapObject::cast(weak_cell->target());
@@ -260,7 +257,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitEmbeddedPointer(Code* host,
+                    MarkingState>::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   HeapObject* object = HeapObject::cast(rinfo->target_object());
@@ -275,10 +272,10 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitCodeTarget(Code* host,
+                    MarkingState>::VisitCodeTarget(Code host,
                                                    RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-  Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   collector_->RecordRelocSlot(host, rinfo, target);
   MarkObject(host, target);
 }
@@ -315,7 +312,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
-    VisitFixedArrayIncremental(Map* map, FixedArray* object) {
+    VisitFixedArrayIncremental(Map map, FixedArray* object) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
   int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
   if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
@@ -361,7 +358,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::MarkMapContents(Map* map) {
+                    MarkingState>::MarkMapContents(Map map) {
   // Since descriptor arrays are potentially shared, ensure that only the
   // descriptors that belong to this map are marked. The first time a non-empty
   // descriptor array is marked, its header is also visited. The slot holding
@@ -508,14 +505,13 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         second_bit_index = 1u << (trailing_zeros + 1);
       }
 
-      Map* map = nullptr;
+      Map map;
       if (current_cell_ & second_bit_index) {
         // We found a black object. If the black object is within a black area,
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject* black_object = HeapObject::FromAddress(addr);
-        map =
-            base::AsAtomicPointer::Acquire_Load(reinterpret_cast<Map**>(addr));
+        map = Map::cast(ObjectSlot(addr).Acquire_Load());
         size = black_object->SizeFromMap(map);
         Address end = addr + size - kPointerSize;
         // One word filler objects do not borrow the second mark bit. We have
@@ -542,8 +538,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
           object = black_object;
         }
       } else if ((mode == kGreyObjects || mode == kAllLiveObjects)) {
-        map =
-            base::AsAtomicPointer::Acquire_Load(reinterpret_cast<Map**>(addr));
+        map = Map::cast(ObjectSlot(addr).Acquire_Load());
         object = HeapObject::FromAddress(addr);
         size = object->SizeFromMap(map);
       }

@@ -4,10 +4,15 @@
 (() => {
 
   createSuite('MixedFrom', 1000, MixedFrom, MixedFromSetup);
-  createSuite('MixedNoMapFrom', 1000, MixedNoMapFrom, MixedNoMapFromSetup);
+  createSuite(
+      'MixedCowNoMapFrom', 1000, MixedCowNoMapFrom, MixedCowNoMapFromSetup);
+  createSuite('MixedNonCowNoMapFrom', 1000, MixedNonCowNoMapFrom,
+              MixedNonCowNoMapFromSetup);
   createSuite('SmiFrom', 1000, SmiFrom, SmiFromSetup);
   createSuite('SmallSmiFrom', 1000, SmallSmiFrom, SmallSmiFromSetup);
-  createSuite('SmiNoMapFrom', 1000, SmiNoMapFrom, SmiNoMapFromSetup);
+  createSuite('SmiCowNoMapFrom', 1000, SmiCowNoMapFrom, SmiCowNoMapFromSetup);
+  createSuite(
+      'SmiNonCowNoMapFrom', 1000, SmiNonCowNoMapFrom, SmiNonCowNoMapFromSetup);
   createSuite(
       'SmiNoIteratorFrom', 1000, SmiNoIteratorFrom, SmiNoIteratorFromSetup);
   createSuite(
@@ -15,7 +20,10 @@
   createSuite('DoubleFrom', 1000, DoubleFrom, DoubleFromSetup);
   createSuite('DoubleNoMapFrom', 1000, DoubleNoMapFrom, DoubleNoMapFromSetup);
   createSuite('StringFrom', 1000, StringFrom, StringFromSetup);
-  createSuite('StringNoMapFrom', 1000, StringNoMapFrom, StringNoMapFromSetup);
+  createSuite(
+      'StringCowNoMapFrom', 1000, StringCowNoMapFrom, StringCowNoMapFromSetup);
+  createSuite('StringNonCowNoMapFrom', 1000, StringNonCowNoMapFrom,
+              StringNonCowNoMapFromSetup);
 
   function ArrayLike() {}
   ArrayLike.from = Array.from;
@@ -24,7 +32,9 @@
   var result;
   var func
 
-  var smi_array = [
+  // This creates a COW array of smis. COWness does not affect the performance
+  // of Array.from calls with a callback function.
+  var smi_array_Cow = [
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
@@ -32,6 +42,11 @@
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
   ];
 
+  // This creates a non-COW array.
+  var smi_array = Array.from(smi_array_Cow);
+  smi_array[0] = 1;
+
+  // This creates an array of doubles. There is no COW array for doubles.
   var double_array = [
     1.5,  2.5,  3.5,  4.5,  5.5,  6.5,  7.5,  8.5,  9.5,  10.5,  //
     11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5, 18.5, 19.5, 20.5,
@@ -45,7 +60,8 @@
     11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5, 18.5, 19.5, 20.5,
   ];
 
-  var string_array = [
+  // This creates a COW array of objects.
+  var string_array_Cow = [
     'a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c', 'a', 'a', 'b', 'c', 'a', 'b',
     'c', 'a', 'b', 'c', 'a', 'a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c', 'a',
     'a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c', 'a', 'a', 'b', 'c', 'a', 'b',
@@ -55,7 +71,12 @@
     'a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c', 'a',
   ];
 
-  var mixed_array = [
+  // This creates a non-COW array.
+  var string_array = Array.from(string_array_Cow);
+  string_array[0] = 'a';
+
+  // This creates a COW array of objects.
+  var mixed_array_Cow = [
     1,    2,    3,    4,    5,    6,    7,    8,    9,    10,
     11,   12,   13,   14,   15,   16,   17,   18,   19,   20,  //
     1,    2,    3,    4,    5,    6,    7,    8,    9,    10,
@@ -68,13 +89,21 @@
     'a',  'b',  'c',  'a',  'b',  'c',  'a',  'b',  'c',  'a',
   ];
 
+  // This creates a non-COW array.
+  var mixed_array = Array.from(mixed_array_Cow);
+  mixed_array[0] = 1;
+
   // Although these functions have the same code, they are separated for
   // clean IC feedback.
   function SmallSmiFrom() {
     result = Array.from(arg, func);
   }
 
-  function SmiNoMapFrom() {
+  function SmiCowNoMapFrom() {
+    result = Array.from(arg);
+  }
+
+  function SmiNonCowNoMapFrom() {
     result = Array.from(arg);
   }
 
@@ -102,7 +131,11 @@
     result = Array.from(arg, func);
   }
 
-  function StringNoMapFrom() {
+  function StringCowNoMapFrom() {
+    result = Array.from(arg);
+  }
+
+  function StringNonCowNoMapFrom() {
     result = Array.from(arg);
   }
 
@@ -110,7 +143,11 @@
     result = Array.from(arg, func);
   }
 
-  function MixedNoMapFrom() {
+  function MixedCowNoMapFrom() {
+    result = Array.from(arg);
+  }
+
+  function MixedNonCowNoMapFrom() {
     result = Array.from(arg);
   }
 
@@ -119,26 +156,31 @@
     arg = [1, 2, 3];
   }
 
-  function SmiNoMapFromSetup() {
+  function SmiCowNoMapFromSetup() {
+    func = undefined;
+    arg = smi_array_Cow;
+  }
+
+  function SmiNonCowNoMapFromSetup() {
     func = undefined;
     arg = smi_array;
   }
 
   function SmiFromSetup() {
     func = (v, i) => v + i;
-    arg = smi_array;
+    arg = smi_array_Cow;
   }
 
   function SmiNoIteratorFromSetup() {
     func = (v, i) => v + i;
-    array = smi_array;
+    array = smi_array_Cow;
     arg = {length: array.length};
     Object.assign(arg, array);
   }
 
   function TransplantedFromSetup() {
     func = (v, i) => v + i;
-    arg = smi_array;
+    arg = smi_array_Cow;
   }
 
   function DoubleFromSetup() {
@@ -153,20 +195,30 @@
 
   function StringFromSetup() {
     func = (v, i) => v + i;
-    arg = string_array;
+    arg = string_array_Cow;
   }
 
-  function StringNoMapFromSetup() {
+  function StringCowNoMapFromSetup() {
+    func = undefined;
+    arg = string_array_Cow;
+  }
+
+  function StringNonCowNoMapFromSetup() {
     func = undefined;
     arg = string_array;
   }
 
   function MixedFromSetup() {
     func = (v, i) => v + i;
-    arg = mixed_array;
+    arg = mixed_array_Cow;
   }
 
-  function MixedNoMapFromSetup() {
+  function MixedCowNoMapFromSetup() {
+    func = undefined;
+    arg = mixed_array_Cow;
+  }
+
+  function MixedNonCowNoMapFromSetup() {
     func = undefined;
     arg = mixed_array;
   }

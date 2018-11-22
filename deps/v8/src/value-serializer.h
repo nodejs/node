@@ -115,7 +115,7 @@ class ValueSerializer {
 
   // Writing V8 objects of various kinds.
   void WriteOddball(Oddball* oddball);
-  void WriteSmi(Smi* smi);
+  void WriteSmi(Smi smi);
   void WriteHeapNumber(HeapNumber* number);
   void WriteMutableHeapNumber(MutableHeapNumber* number);
   void WriteBigInt(BigInt* bigint);

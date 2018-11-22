@@ -21,8 +21,8 @@ namespace compiler {
 class CFGBuilder;
 class ControlEquivalence;
 class Graph;
+class SchedulableNodesQueue;
 class SpecialRPONumberer;
-
 
 // Computes a schedule from a graph, placing nodes into basic blocks and
 // ordering the basic blocks in the special RPO order.
@@ -71,13 +71,13 @@ class V8_EXPORT_PRIVATE Scheduler {
   Schedule* schedule_;
   Flags flags_;
   ZoneVector<NodeVector*>
-      scheduled_nodes_;                  // Per-block list of nodes in reverse.
-  NodeVector schedule_root_nodes_;       // Fixed root nodes seed the worklist.
-  ZoneQueue<Node*> schedule_queue_;      // Worklist of schedulable nodes.
-  ZoneVector<SchedulerData> node_data_;  // Per-node data for all nodes.
-  CFGBuilder* control_flow_builder_;     // Builds basic blocks for controls.
-  SpecialRPONumberer* special_rpo_;      // Special RPO numbering of blocks.
-  ControlEquivalence* equivalence_;      // Control dependence equivalence.
+      scheduled_nodes_;             // Per-block list of nodes in reverse.
+  NodeVector schedule_root_nodes_;  // Fixed root nodes seed the worklist.
+  SchedulableNodesQueue* schedule_queue_;  // Worklist of schedulable nodes.
+  ZoneVector<SchedulerData> node_data_;    // Per-node data for all nodes.
+  CFGBuilder* control_flow_builder_;       // Builds basic blocks for controls.
+  SpecialRPONumberer* special_rpo_;        // Special RPO numbering of blocks.
+  ControlEquivalence* equivalence_;        // Control dependence equivalence.
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
             size_t node_count_hint_);

@@ -352,6 +352,7 @@ namespace internal {
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
   T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
   T(ConstructorIsAsync, "Class constructor may not be an async method")        \
+  T(ConstructorIsPrivate, "Class constructor may not be a private method")     \
   T(DerivedConstructorReturnedNonObject,                                       \
     "Derived constructors may only return object or undefined")                \
   T(DuplicateConstructor, "A class may only have one constructor")             \
@@ -411,7 +412,6 @@ namespace internal {
     "More than one default clause in switch statement")                        \
   T(NewlineAfterThrow, "Illegal newline after throw")                          \
   T(NoCatchOrFinally, "Missing catch or finally after try")                    \
-  T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
   T(FlattenPastSafeLength,                                                     \
     "Flattening % elements on an array-like of length % "                      \
@@ -460,7 +460,7 @@ namespace internal {
   T(TooManyArguments,                                                          \
     "Too many arguments in function call (only 65535 allowed)")                \
   T(TooManyParameters,                                                         \
-    "Too many parameters in function definition (only 65535 allowed)")         \
+    "Too many parameters in function definition (only 65534 allowed)")         \
   T(TooManySpreads,                                                            \
     "Literal containing too many nested spreads (up to 65534 allowed)")        \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
@@ -534,10 +534,15 @@ namespace internal {
   T(TraceEventPhaseError, "Trace event phase must be a number.")               \
   T(TraceEventIDError, "Trace event id must be a number.")                     \
   /* Weak refs */                                                              \
-  T(MakeCellTargetMustBeObject,                                                \
-    "WeakFactory.makeCell: target must be an object")                          \
-  T(MakeCellTargetAndHoldingsMustNotBeSame,                                    \
-    "WeakFactory.makeCell: target and holdings must not be same")
+  T(WeakRefsCleanupMustBeCallable, "WeakFactory: cleanup must be callable")    \
+  T(WeakRefsMakeCellTargetMustBeObject,                                        \
+    "WeakFactory.prototype.makeCell: target must be an object")                \
+  T(WeakRefsMakeCellTargetAndHoldingsMustNotBeSame,                            \
+    "WeakFactory.prototype.makeCell: target and holdings must not be same")    \
+  T(WeakRefsMakeRefTargetMustBeObject,                                         \
+    "WeakFactory.prototype.makeRef: target must be an object")                 \
+  T(WeakRefsMakeRefTargetAndHoldingsMustNotBeSame,                             \
+    "WeakFactory.prototype.makeRef: target and holdings must not be same")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

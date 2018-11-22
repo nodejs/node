@@ -284,6 +284,10 @@ class V8Map {
     return this.edge === void 0 ? "new" : this.edge.type;
   }
 
+  isBootstrapped() {
+    return this.edge === void 0;
+  }
+
   getParents() {
     let parents = [];
     let current = this.parent();
@@ -363,31 +367,35 @@ class Edge {
   }
 
   isTransition() {
-    return this.type == "Transition"
+    return this.type === "Transition"
   }
 
   isFastToSlow() {
-    return this.type == "Normalize"
+    return this.type === "Normalize"
   }
 
   isSlowToFast() {
-    return this.type == "SlowToFast"
+    return this.type === "SlowToFast"
   }
 
   isInitial() {
-    return this.type == "InitialMap"
+    return this.type === "InitialMap"
+  }
+
+  isBootstrapped() {
+    return this.type === "new"
   }
 
   isReplaceDescriptors() {
-    return this.type == "ReplaceDescriptors"
+    return this.type === "ReplaceDescriptors"
   }
 
   isCopyAsPrototype() {
-    return this.reason == "CopyAsPrototype"
+    return this.reason === "CopyAsPrototype"
   }
 
   isOptimizeAsPrototype() {
-    return this.reason == "OptimizeAsPrototype"
+    return this.reason === "OptimizeAsPrototype"
   }
 
   symbol() {

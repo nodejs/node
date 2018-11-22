@@ -5,7 +5,6 @@
 #include "src/compiler/frame.h"
 
 #include "src/compiler/linkage.h"
-#include "src/compiler/register-allocator.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

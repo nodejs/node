@@ -234,7 +234,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
   static int CheckStackGuardState(Isolate* isolate, int start_index,
                                   bool is_direct_call, Address* return_address,
-                                  Code* re_code, String** subject,
+                                  Code re_code, String** subject,
                                   const byte** input_start,
                                   const byte** input_end);
 
@@ -247,14 +247,9 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
     return reinterpret_cast<Address>(&word_character_map[0]);
   }
 
-  static Result Execute(Code* code,
-                        String* input,
-                        int start_offset,
-                        const byte* input_start,
-                        const byte* input_end,
-                        int* output,
-                        int output_size,
-                        Isolate* isolate);
+  static Result Execute(Code code, String* input, int start_offset,
+                        const byte* input_start, const byte* input_end,
+                        int* output, int output_size, Isolate* isolate);
 };
 
 #endif  // V8_INTERPRETED_REGEXP

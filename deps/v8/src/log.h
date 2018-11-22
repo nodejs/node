@@ -225,19 +225,18 @@ class Logger : public CodeEventListener {
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
-  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
+  void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
 
-  void ICEvent(const char* type, bool keyed, Map* map, Object* key,
+  void ICEvent(const char* type, bool keyed, Map map, Object* key,
                char old_state, char new_state, const char* modifier,
                const char* slow_stub_reason);
 
-  void MapEvent(const char* type, Map* from, Map* to,
+  void MapEvent(const char* type, Map from, Map to,
                 const char* reason = nullptr,
                 HeapObject* name_or_sfi = nullptr);
-  void MapCreate(Map* map);
-  void MapDetails(Map* map);
-
+  void MapCreate(Map map);
+  void MapDetails(Map map);
 
   void SharedLibraryEvent(const std::string& library_path, uintptr_t start,
                           uintptr_t end, intptr_t aslr_slide);
@@ -423,7 +422,7 @@ class CodeEventLogger : public CodeEventListener {
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
+  void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
 
  protected:
@@ -478,7 +477,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
+  void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
 
   void StartListening(CodeEventHandler* code_event_handler);

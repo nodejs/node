@@ -414,7 +414,7 @@ class WasmGraphBuildingInterface {
     for (int i = 0; i < count; ++i) {
       args[i] = value_args[i].node;
     }
-    BUILD(Throw, imm.index, imm.exception, vec2vec(args));
+    BUILD(Throw, imm.index, imm.exception, VectorOf(args));
     builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
@@ -495,6 +495,38 @@ class WasmGraphBuildingInterface {
     TFNode* node = BUILD(AtomicOp, opcode, inputs, imm.alignment, imm.offset,
                          decoder->position());
     if (result) result->node = node;
+  }
+
+  void MemoryInit(FullDecoder* decoder,
+                  const MemoryInitImmediate<validate>& imm,
+                  Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void MemoryDrop(FullDecoder* decoder,
+                  const MemoryDropImmediate<validate>& imm) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void MemoryCopy(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void MemoryFill(FullDecoder* decoder,
+                  const MemoryIndexImmediate<validate>& imm,
+                  Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
+                 Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void TableDrop(FullDecoder* decoder,
+                 const TableDropImmediate<validate>& imm) {
+    BUILD(Unreachable, decoder->position());
+  }
+  void TableCopy(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Vector<Value> args) {
+    BUILD(Unreachable, decoder->position());
   }
 
  private:
@@ -821,7 +853,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           const WasmFeatures& enabled,
                           const wasm::WasmModule* module,
                           compiler::WasmGraphBuilder* builder,
-                          WasmFeatures* detected, FunctionBody& body,
+                          WasmFeatures* detected, const FunctionBody& body,
                           compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kValidate, WasmGraphBuildingInterface> decoder(

@@ -30,6 +30,7 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
     // array.
     shared()->SetDebugBytecodeArray(OriginalBytecodeArray());
     set_original_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
+    set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 

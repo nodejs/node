@@ -176,6 +176,19 @@
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
+['arch == ia32', {
+  # Requires call to non-isolate-independent code target, unsupported by
+  # MacroAssembler::Call() on ia32.
+  'test-api/SetFunctionEntryHook': [SKIP],
+}],  # 'no_snap == False'
+
+##############################################################################
+['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'test-cpu-profiler/MultipleIsolates': [SKIP],
+}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 # TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
 ['arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
   'test-multiple-return/*': [SKIP],
@@ -349,7 +362,7 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
-['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+['arch == mips or arch == mips64', {
   # TODO(mips-team): Implement I64Atomic operations on MIPS
   'test-run-wasm-atomics64/*': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
@@ -379,6 +392,12 @@
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],
 }],  # 'system == android'
+
+##############################################################################
+['system != android and arch in [arm, arm64] and not simulator_run', {
+  # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
+  'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug or dcheck_always_on) and optimize_for_size', SKIP]],
+}],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################
 ['system == aix and arch == ppc64', {

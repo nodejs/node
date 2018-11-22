@@ -35,8 +35,8 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   // Must be on the main thread.
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
 
-  // Must be serializing.
-  DCHECK(isolate_->serializer_enabled());
+  // Must be generating embedded builtin code.
+  DCHECK(isolate_->ShouldLoadConstantsFromRootList());
 #endif
 
   uint32_t* maybe_key = map_.Find(object);
@@ -62,7 +62,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
 
-  DCHECK(isolate_->serializer_enabled());
+  DCHECK(isolate_->ShouldLoadConstantsFromRootList());
 
   DCHECK(self_reference->IsOddball());
   DCHECK(Oddball::cast(*self_reference)->kind() ==
@@ -86,7 +86,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
 
   DCHECK_EQ(ReadOnlyRoots(isolate_).empty_fixed_array(),
             isolate_->heap()->builtins_constants_table());
-  DCHECK(isolate_->serializer_enabled());
+  DCHECK(isolate_->ShouldLoadConstantsFromRootList());
 
   // An empty map means there's nothing to do.
   if (map_.size() == 0) return;

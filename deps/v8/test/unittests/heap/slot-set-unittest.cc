@@ -188,7 +188,7 @@ TEST(TypedSlotSet, Iterate) {
   EXPECT_EQ(added / 2, iterated);
 }
 
-TEST(TypedSlotSet, RemoveInvalidSlots) {
+TEST(TypedSlotSet, ClearInvalidSlots) {
   TypedSlotSet set(0);
   const int kHostDelta = 100;
   uint32_t entries = 10;
@@ -203,7 +203,7 @@ TEST(TypedSlotSet, RemoveInvalidSlots) {
         std::pair<uint32_t, uint32_t>(i * kHostDelta, i * kHostDelta + 1));
   }
 
-  set.RemoveInvaldSlots(invalid_ranges);
+  set.ClearInvalidSlots(invalid_ranges);
   for (std::map<uint32_t, uint32_t>::iterator it = invalid_ranges.begin();
        it != invalid_ranges.end(); ++it) {
     uint32_t start = it->first;
@@ -215,6 +215,36 @@ TEST(TypedSlotSet, RemoveInvalidSlots) {
         },
         TypedSlotSet::KEEP_EMPTY_CHUNKS);
   }
+}
+
+TEST(TypedSlotSet, Merge) {
+  TypedSlotSet set0(0), set1(0);
+  static const uint32_t kEntries = 10000;
+  for (uint32_t i = 0; i < kEntries; i++) {
+    set0.Insert(EMBEDDED_OBJECT_SLOT, 2 * i, 2 * i);
+    set1.Insert(EMBEDDED_OBJECT_SLOT, 2 * i + 1, 2 * i + 1);
+  }
+  uint32_t count = 0;
+  set0.Merge(&set1);
+  set0.Iterate(
+      [&count](SlotType slot_type, Address host_addr, Address slot_addr) {
+        CHECK_EQ(host_addr, slot_addr);
+        if (count < kEntries) {
+          CHECK_EQ(host_addr % 2, 0);
+        } else {
+          CHECK_EQ(host_addr % 2, 1);
+        }
+        ++count;
+        return KEEP_SLOT;
+      },
+      TypedSlotSet::KEEP_EMPTY_CHUNKS);
+  CHECK_EQ(2 * kEntries, count);
+  set1.Iterate(
+      [](SlotType slot_type, Address host_addr, Address slot_addr) {
+        CHECK(false);  // Unreachable.
+        return KEEP_SLOT;
+      },
+      TypedSlotSet::KEEP_EMPTY_CHUNKS);
 }
 
 }  // namespace internal

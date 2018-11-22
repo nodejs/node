@@ -18,14 +18,26 @@
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
-#include "unicode/strenum.h"
-#include "unicode/ucurr.h"
 #include "unicode/uloc.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
+
+UNumberFormatStyle ToNumberFormatStyle(
+    JSNumberFormat::CurrencyDisplay currency_display) {
+  switch (currency_display) {
+    case JSNumberFormat::CurrencyDisplay::SYMBOL:
+      return UNUM_CURRENCY;
+    case JSNumberFormat::CurrencyDisplay::CODE:
+      return UNUM_CURRENCY_ISO;
+    case JSNumberFormat::CurrencyDisplay::NAME:
+      return UNUM_CURRENCY_PLURAL;
+    case JSNumberFormat::CurrencyDisplay::COUNT:
+      UNREACHABLE();
+  }
+}
 
 // ecma-402/#sec-currencydigits
 // The currency is expected to an all upper case string value.
@@ -60,14 +72,13 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
 }  // anonymous namespace
 
 // static
+// ecma402 #sec-intl.numberformat.prototype.resolvedoptions
 Handle<JSObject> JSNumberFormat::ResolvedOptions(
     Isolate* isolate, Handle<JSNumberFormat> number_format_holder) {
   Factory* factory = isolate->factory();
+
+  // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->style_string(),
-            number_format_holder->StyleAsString(), kDontThrow)
-            .FromJust());
 
   icu::NumberFormat* number_format =
       number_format_holder->icu_number_format()->raw();
@@ -78,14 +89,30 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
 
   Handle<String> locale =
       Handle<String>(number_format_holder->locale(), isolate);
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->locale_string(), locale, kDontThrow)
-            .FromJust());
+
   UErrorCode error = U_ZERO_ERROR;
   icu::Locale icu_locale = number_format->getLocale(ULOC_VALID_LOCALE, error);
   DCHECK(U_SUCCESS(error));
 
   std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
+
+  // 5. For each row of Table 4, except the header row, in table order, do
+  // Table 4: Resolved Options of NumberFormat Instances
+  //  Internal Slot                    Property
+  //    [[Locale]]                      "locale"
+  //    [[NumberingSystem]]             "numberingSystem"
+  //    [[Style]]                       "style"
+  //    [[Currency]]                    "currency"
+  //    [[CurrencyDisplay]]             "currencyDisplay"
+  //    [[MinimumIntegerDigits]]        "minimumIntegerDigits"
+  //    [[MinimumFractionDigits]]       "minimumFractionDigits"
+  //    [[MaximumFractionDigits]]       "maximumFractionDigits"
+  //    [[MinimumSignificantDigits]]    "minimumSignificantDigits"
+  //    [[MaximumSignificantDigits]]    "maximumSignificantDigits"
+  //    [[UseGrouping]]                 "useGrouping"
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->locale_string(), locale, kDontThrow)
+            .FromJust());
   if (!numbering_system.empty()) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->numberingSystem_string(),
@@ -93,12 +120,11 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               kDontThrow)
               .FromJust());
   }
-
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->style_string(),
+            number_format_holder->StyleAsString(), kDontThrow)
+            .FromJust());
   if (number_format_holder->style() == Style::CURRENCY) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->currencyDisplay_string(),
-              number_format_holder->CurrencyDisplayAsString(), kDontThrow)
-              .FromJust());
     icu::UnicodeString currency(number_format->getCurrency());
     DCHECK(!currency.isEmpty());
     CHECK(JSReceiver::CreateDataProperty(
@@ -110,8 +136,12 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
                   .ToHandleChecked(),
               kDontThrow)
               .FromJust());
-  }
 
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->currencyDisplay_string(),
+              number_format_holder->CurrencyDisplayAsString(), kDontThrow)
+              .FromJust());
+  }
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->minimumIntegerDigits_string(),
             factory->NewNumberFromInt(number_format->getMinimumIntegerDigits()),
@@ -148,7 +178,6 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             factory->ToBoolean((number_format->isGroupingUsed() == TRUE)),
             kDontThrow)
             .FromJust());
-
   return options;
 }
 
@@ -260,21 +289,11 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // 12. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency" », "decimal").
   const char* service = "Intl.NumberFormat";
-  std::unique_ptr<char[]> style_cstr;
-  const std::vector<const char*> style_values = {"decimal", "percent",
-                                                 "currency"};
-  Maybe<bool> found_style = Intl::GetStringOption(
-      isolate, options, "style", style_values, service, &style_cstr);
-  MAYBE_RETURN(found_style, MaybeHandle<JSNumberFormat>());
-  Style style = Style::DECIMAL;
-  if (found_style.FromJust()) {
-    DCHECK_NOT_NULL(style_cstr.get());
-    if (strcmp(style_cstr.get(), "percent") == 0) {
-      style = Style::PERCENT;
-    } else if (strcmp(style_cstr.get(), "currency") == 0) {
-      style = Style::CURRENCY;
-    }
-  }
+  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+      isolate, options, "style", service, {"decimal", "percent", "currency"},
+      {Style::DECIMAL, Style::PERCENT, Style::CURRENCY}, Style::DECIMAL);
+  MAYBE_RETURN(maybe_style, MaybeHandle<JSNumberFormat>());
+  Style style = maybe_style.FromJust();
 
   // 13. Set numberFormat.[[Style]] to style.
   number_format->set_style(style);
@@ -323,26 +342,16 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
 
   // 18. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
   // "string", « "code",  "symbol", "name" », "symbol").
-  std::unique_ptr<char[]> currency_display_cstr;
-  const std::vector<const char*> currency_display_values = {"code", "name",
-                                                            "symbol"};
-  Maybe<bool> found_currency_display = Intl::GetStringOption(
-      isolate, options, "currencyDisplay", currency_display_values, service,
-      &currency_display_cstr);
-  MAYBE_RETURN(found_currency_display, MaybeHandle<JSNumberFormat>());
-  CurrencyDisplay currency_display = CurrencyDisplay::SYMBOL;
-  UNumberFormatStyle format_style = UNUM_CURRENCY;
-
-  if (found_currency_display.FromJust()) {
-    DCHECK_NOT_NULL(currency_display_cstr.get());
-    if (strcmp(currency_display_cstr.get(), "code") == 0) {
-      currency_display = CurrencyDisplay::CODE;
-      format_style = UNUM_CURRENCY_ISO;
-    } else if (strcmp(currency_display_cstr.get(), "name") == 0) {
-      currency_display = CurrencyDisplay::NAME;
-      format_style = UNUM_CURRENCY_PLURAL;
-    }
-  }
+  Maybe<CurrencyDisplay> maybe_currencyDisplay =
+      Intl::GetStringOption<CurrencyDisplay>(
+          isolate, options, "currencyDisplay", service,
+          {"code", "symbol", "name"},
+          {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
+           CurrencyDisplay::NAME},
+          CurrencyDisplay::SYMBOL);
+  MAYBE_RETURN(maybe_currencyDisplay, MaybeHandle<JSNumberFormat>());
+  CurrencyDisplay currency_display = maybe_currencyDisplay.FromJust();
+  UNumberFormatStyle format_style = ToNumberFormatStyle(currency_display);
 
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberFormat> icu_number_format;
@@ -474,14 +483,9 @@ Handle<String> JSNumberFormat::CurrencyDisplayAsString() const {
 }
 
 MaybeHandle<String> JSNumberFormat::FormatNumber(
-    Isolate* isolate, Handle<JSNumberFormat> number_format_holder,
-    double number) {
-  icu::NumberFormat* number_format =
-      number_format_holder->icu_number_format()->raw();
-  CHECK_NOT_NULL(number_format);
-
+    Isolate* isolate, const icu::NumberFormat& number_format, double number) {
   icu::UnicodeString result;
-  number_format->format(number, result);
+  number_format.format(number, result);
 
   return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
       reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
@@ -639,23 +643,23 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
   return out_parts;
 }
 
-MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
-    Isolate* isolate, Handle<JSNumberFormat> number_format, double number) {
-  Factory* factory = isolate->factory();
-  icu::NumberFormat* fmt = number_format->icu_number_format()->raw();
-  CHECK_NOT_NULL(fmt);
-
+Maybe<int> JSNumberFormat::FormatToParts(Isolate* isolate,
+                                         Handle<JSArray> result,
+                                         int start_index,
+                                         const icu::NumberFormat& fmt,
+                                         double number, Handle<String> unit) {
   icu::UnicodeString formatted;
   icu::FieldPositionIterator fp_iter;
   UErrorCode status = U_ZERO_ERROR;
-  fmt->format(number, formatted, &fp_iter, status);
+  fmt.format(number, formatted, &fp_iter, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewTypeError(MessageTemplate::kIcuError), Nothing<int>());
   }
 
-  Handle<JSArray> result = factory->NewJSArray(0);
   int32_t length = formatted.length();
-  if (length == 0) return result;
+  int index = start_index;
+  if (length == 0) return Just(index);
 
   std::vector<NumberFormatSpan> regions;
   // Add a "literal" backdrop for the entire string. This will be used if no
@@ -674,7 +678,6 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
 
   std::vector<NumberFormatSpan> parts = FlattenRegionsToParts(&regions);
 
-  int index = 0;
   for (auto it = parts.begin(); it < parts.end(); it++) {
     NumberFormatSpan part = *it;
     Handle<String> field_type_string =
@@ -682,14 +685,33 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
             ? isolate->factory()->literal_string()
             : IcuNumberFieldIdToNumberType(part.field_id, number, isolate);
     Handle<String> substring;
-    ASSIGN_RETURN_ON_EXCEPTION(
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, substring,
         Intl::ToString(isolate, formatted, part.begin_pos, part.end_pos),
-        JSArray);
-    Intl::AddElement(isolate, result, index, field_type_string, substring);
+        Nothing<int>());
+    if (unit.is_null()) {
+      Intl::AddElement(isolate, result, index, field_type_string, substring);
+    } else {
+      Intl::AddElement(isolate, result, index, field_type_string, substring,
+                       isolate->factory()->unit_string(), unit);
+    }
     ++index;
   }
   JSObject::ValidateElements(*result);
+  return Just(index);
+}
+
+MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
+    Isolate* isolate, Handle<JSNumberFormat> number_format, double number) {
+  Factory* factory = isolate->factory();
+  icu::NumberFormat* fmt = number_format->icu_number_format()->raw();
+  CHECK_NOT_NULL(fmt);
+
+  Handle<JSArray> result = factory->NewJSArray(0);
+
+  Maybe<int> maybe_format_to_parts = JSNumberFormat::FormatToParts(
+      isolate, result, 0, *fmt, number, Handle<String>());
+  MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
 
   return result;
 }

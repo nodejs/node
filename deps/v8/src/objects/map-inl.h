@@ -26,7 +26,8 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(Map)
+OBJECT_CONSTRUCTORS_IMPL(Map, HeapObjectPtr)
+CAST_ACCESSOR2(Map)
 
 ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 // A freshly allocated layout descriptor can be set on an existing map.
@@ -89,7 +90,7 @@ InterceptorInfo* Map::GetIndexedInterceptor() {
 
 bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
                                       Representation representation,
-                                      FieldType* field_type) {
+                                      FieldType field_type) {
   if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
       (constness == PropertyConstness::kConst)) {
     // VariableMode::kConst -> PropertyConstness::kMutable field generalization
@@ -144,10 +145,19 @@ bool Map::IsUnboxedDoubleField(FieldIndex index) const {
 bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
-  int minimum = store_origin == StoreOrigin::kNamed ? 128 : 12;
-  int limit = Max(minimum, GetInObjectProperties());
-  int external = NumberOfFields() - GetInObjectProperties();
-  return external > limit;
+  if (store_origin == StoreOrigin::kNamed) {
+    int limit = Max(kMaxFastProperties, GetInObjectProperties());
+    FieldCounts counts = GetFieldCounts();
+    // Only count mutable fields so that objects with large numbers of
+    // constant functions do not go to dictionary mode. That would be bad
+    // because such objects have often been used as modules.
+    int external = counts.mutable_count() - GetInObjectProperties();
+    return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
+  } else {
+    int limit = Max(kFastPropertiesSoftLimit, GetInObjectProperties());
+    int external = NumberOfFields() - GetInObjectProperties();
+    return external > limit;
+  }
 }
 
 PropertyDetails Map::GetLastDescriptorDetails() const {
@@ -189,7 +199,7 @@ FixedArrayBase* Map::GetInitialElements() const {
   } else if (has_fast_sloppy_arguments_elements()) {
     result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
   } else if (has_fixed_typed_array_elements()) {
-    result = GetReadOnlyRoots().EmptyFixedTypedArrayForMap(this);
+    result = GetReadOnlyRoots().EmptyFixedTypedArrayForMap(*this);
   } else if (has_dictionary_elements()) {
     result = GetReadOnlyRoots().empty_slow_element_dictionary();
   } else {
@@ -358,13 +368,13 @@ void Map::SetOutOfObjectUnusedPropertyFields(int value) {
   DCHECK_EQ(value, UnusedPropertyFields());
 }
 
-void Map::CopyUnusedPropertyFields(Map* map) {
+void Map::CopyUnusedPropertyFields(Map map) {
   set_used_or_unused_instance_size_in_words(
       map->used_or_unused_instance_size_in_words());
   DCHECK_EQ(UnusedPropertyFields(), map->UnusedPropertyFields());
 }
 
-void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map* map) {
+void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map map) {
   int value = map->used_or_unused_instance_size_in_words();
   if (value >= JSValue::kFieldsAdded) {
     // Unused in-object fields. Adjust the offset from the object’s start
@@ -529,12 +539,12 @@ INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
 bool Map::IsBooleanMap() const {
-  return this == GetReadOnlyRoots().boolean_map();
+  return *this == GetReadOnlyRoots().boolean_map();
 }
 
 bool Map::IsNullOrUndefinedMap() const {
-  return this == GetReadOnlyRoots().null_map() ||
-         this == GetReadOnlyRoots().undefined_map();
+  return *this == GetReadOnlyRoots().null_map() ||
+         *this == GetReadOnlyRoots().undefined_map();
 }
 
 bool Map::IsPrimitiveMap() const {
@@ -576,12 +586,12 @@ void Map::UpdateDescriptors(DescriptorArray* descriptors,
 #ifdef VERIFY_HEAP
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
-      CHECK(layout_descriptor()->IsConsistentWithMap(this));
-      CHECK_EQ(Map::GetVisitorId(this), visitor_id());
+      CHECK(layout_descriptor()->IsConsistentWithMap(*this));
+      CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
-    DCHECK(visitor_id() == Map::GetVisitorId(this));
+    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
+    DCHECK(visitor_id() == Map::GetVisitorId(*this));
 #endif
   }
 }
@@ -597,12 +607,12 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors,
 #ifdef VERIFY_HEAP
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
-      CHECK(layout_descriptor()->IsConsistentWithMap(this));
+      CHECK(layout_descriptor()->IsConsistentWithMap(*this));
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(this));
+    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
 #endif
-    set_visitor_id(Map::GetVisitorId(this));
+    set_visitor_id(Map::GetVisitorId(*this));
   }
 }
 
@@ -654,12 +664,12 @@ Object* Map::GetBackPointer() const {
   return GetReadOnlyRoots().undefined_value();
 }
 
-Map* Map::ElementsTransitionMap() {
+Map Map::ElementsTransitionMap() {
   DisallowHeapAllocation no_gc;
   // TODO(delphick): While it's safe to pass nullptr for Isolate* here as
   // SearchSpecial doesn't need it, this is really ugly. Perhaps factor out a
   // base class for methods not requiring an Isolate?
-  return TransitionsAccessor(nullptr, this, &no_gc)
+  return TransitionsAccessor(nullptr, *this, &no_gc)
       .SearchSpecial(GetReadOnlyRoots().elements_transition_symbol());
 }
 

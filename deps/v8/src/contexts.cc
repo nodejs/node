@@ -404,8 +404,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
   return Handle<Object>::null();
 }
 
-
-void Context::AddOptimizedCode(Code* code) {
+void Context::AddOptimizedCode(Code code) {
   DCHECK(IsNativeContext());
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(code->next_code_link()->IsUndefined());

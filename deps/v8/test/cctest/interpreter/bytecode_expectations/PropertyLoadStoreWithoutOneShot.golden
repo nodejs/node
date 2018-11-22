@@ -21,11 +21,10 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 74
+bytecode array length: 71
 bytecodes: [
   /*    0 E> */ B(StackCheck),
-  /*    7 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
-                B(Ldar), R(1),
+  /*    7 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
   /*    9 E> */ B(StaGlobal), U8(1), U8(1),
   /*   66 S> */ B(LdaGlobal), U8(1), U8(4),
                 B(Star), R(1),
@@ -77,11 +76,10 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 70
+bytecode array length: 67
 bytecodes: [
   /*    0 E> */ B(StackCheck),
-  /*    7 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
-                B(Ldar), R(1),
+  /*    7 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
   /*    9 E> */ B(StaGlobal), U8(1), U8(1),
   /*   65 S> */ B(LdaGlobal), U8(1), U8(3),
                 B(Star), R(1),

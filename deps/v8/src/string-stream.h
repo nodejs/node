@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/handles.h"
+#include "src/objects/heap-object.h"
 #include "src/vector.h"
 
 namespace v8 {
@@ -72,6 +73,9 @@ class StringStream final {
     }
     FmtElm(Object* value) : FmtElm(OBJ) {  // NOLINT
       data_.u_obj_ = value;
+    }
+    FmtElm(ObjectPtr value) : FmtElm(OBJ) {  // NOLINT
+      data_.u_obj_ = reinterpret_cast<Object*>(value.ptr());
     }
     FmtElm(Handle<Object> value) : FmtElm(HANDLE) {  // NOLINT
       data_.u_handle_ = value.location();
@@ -147,7 +151,7 @@ class StringStream final {
   void PrintPrototype(JSFunction* fun, Object* receiver);
   void PrintSecurityTokenIfChanged(JSFunction* function);
   // NOTE: Returns the code in the output parameter.
-  void PrintFunction(JSFunction* function, Object* receiver, Code** code);
+  void PrintFunction(JSFunction* function, Object* receiver, Code* code);
 
   // Reset the stream.
   void Reset() {

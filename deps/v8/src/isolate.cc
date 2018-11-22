@@ -8,13 +8,13 @@
 
 #include <atomic>
 #include <fstream>  // NOLINT(readability/streams)
+#include <memory>
 #include <sstream>
 #include <unordered_map>
 
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
-#include "src/ast/context-slot-cache.h"
 #include "src/ast/scopes.h"
 #include "src/base/adapters.h"
 #include "src/base/hashmap.h"
@@ -36,7 +36,6 @@
 #include "src/elements.h"
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
-#include "src/instruction-stream.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/libsampler/sampler.h"
@@ -49,13 +48,16 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
+#include "src/ptr-compr.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/setup-isolate.h"
 #include "src/simulator.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/trap-handler/trap-handler.h"
@@ -69,8 +71,15 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 #ifdef V8_INTL_SUPPORT
-#include "unicode/regex.h"
+#include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
+
+#if defined(V8_USE_ADDRESS_SANITIZER)
+#include <sanitizer/asan_interface.h>
+#endif
+
+extern "C" const uint8_t* v8_Default_embedded_blob_;
+extern "C" uint32_t v8_Default_embedded_blob_size_;
 
 namespace v8 {
 namespace internal {
@@ -87,12 +96,15 @@ namespace internal {
 #define TRACE_ISOLATE(tag)
 #endif
 
-extern const uint8_t* DefaultEmbeddedBlob();
-extern uint32_t DefaultEmbeddedBlobSize();
+const uint8_t* DefaultEmbeddedBlob() { return v8_Default_embedded_blob_; }
+uint32_t DefaultEmbeddedBlobSize() { return v8_Default_embedded_blob_size_; }
 
 #ifdef V8_MULTI_SNAPSHOTS
-extern const uint8_t* TrustedEmbeddedBlob();
-extern uint32_t TrustedEmbeddedBlobSize();
+extern "C" const uint8_t* v8_Trusted_embedded_blob_;
+extern "C" uint32_t v8_Trusted_embedded_blob_size_;
+
+const uint8_t* TrustedEmbeddedBlob() { return v8_Trusted_embedded_blob_; }
+uint32_t TrustedEmbeddedBlobSize() { return v8_Trusted_embedded_blob_size_; }
 #endif
 
 namespace {
@@ -106,22 +118,101 @@ namespace {
 
 std::atomic<const uint8_t*> current_embedded_blob_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_size_(0);
+
+// The various workflows around embedded snapshots are fairly complex. We need
+// to support plain old snapshot builds, nosnap builds, and the requirements of
+// subtly different serialization tests. There's two related knobs to twiddle:
+//
+// - The default embedded blob may be overridden by setting the sticky embedded
+// blob. This is set automatically whenever we create a new embedded blob.
+//
+// - Lifecycle management can be either manual or set to refcounting.
+//
+// A few situations to demonstrate their use:
+//
+// - A plain old snapshot build neither overrides the default blob nor
+// refcounts.
+//
+// - mksnapshot sets the sticky blob and manually frees the embedded
+// blob once done.
+//
+// - Most serializer tests do the same.
+//
+// - Nosnapshot builds set the sticky blob and enable refcounting.
+
+// This mutex protects access to the following variables:
+// - sticky_embedded_blob_
+// - sticky_embedded_blob_size_
+// - enable_embedded_blob_refcounting_
+// - current_embedded_blob_refs_
+base::LazyMutex current_embedded_blob_refcount_mutex_ = LAZY_MUTEX_INITIALIZER;
+
+const uint8_t* sticky_embedded_blob_ = nullptr;
+uint32_t sticky_embedded_blob_size_ = 0;
+
+bool enable_embedded_blob_refcounting_ = true;
+int current_embedded_blob_refs_ = 0;
+
+const uint8_t* StickyEmbeddedBlob() { return sticky_embedded_blob_; }
+uint32_t StickyEmbeddedBlobSize() { return sticky_embedded_blob_size_; }
+
+void SetStickyEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
+  sticky_embedded_blob_ = blob;
+  sticky_embedded_blob_size_ = blob_size;
+}
+
 }  // namespace
 
+void DisableEmbeddedBlobRefcounting() {
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+  enable_embedded_blob_refcounting_ = false;
+}
+
+void FreeCurrentEmbeddedBlob() {
+  CHECK(!enable_embedded_blob_refcounting_);
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+
+  if (StickyEmbeddedBlob() == nullptr) return;
+
+  CHECK_EQ(StickyEmbeddedBlob(), Isolate::CurrentEmbeddedBlob());
+
+  InstructionStream::FreeOffHeapInstructionStream(
+      const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlob()),
+      Isolate::CurrentEmbeddedBlobSize());
+
+  current_embedded_blob_.store(nullptr, std::memory_order_relaxed);
+  current_embedded_blob_size_.store(0, std::memory_order_relaxed);
+  sticky_embedded_blob_ = nullptr;
+  sticky_embedded_blob_size_ = 0;
+}
+
 void Isolate::SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
+  CHECK_NOT_NULL(blob);
+
   embedded_blob_ = blob;
   embedded_blob_size_ = blob_size;
   current_embedded_blob_.store(blob, std::memory_order_relaxed);
   current_embedded_blob_size_.store(blob_size, std::memory_order_relaxed);
 
 #ifdef DEBUG
-  if (blob != nullptr) {
-    // Verify that the contents of the embedded blob are unchanged from
-    // serialization-time, just to ensure the compiler isn't messing with us.
-    EmbeddedData d = EmbeddedData::FromBlob();
-    CHECK_EQ(d.Hash(), d.CreateHash());
-  }
+  // Verify that the contents of the embedded blob are unchanged from
+  // serialization-time, just to ensure the compiler isn't messing with us.
+  EmbeddedData d = EmbeddedData::FromBlob();
+  CHECK_EQ(d.Hash(), d.CreateHash());
 #endif  // DEBUG
+}
+
+void Isolate::ClearEmbeddedBlob() {
+  CHECK(enable_embedded_blob_refcounting_);
+  CHECK_EQ(embedded_blob_, CurrentEmbeddedBlob());
+  CHECK_EQ(embedded_blob_, StickyEmbeddedBlob());
+
+  embedded_blob_ = nullptr;
+  embedded_blob_size_ = 0;
+  current_embedded_blob_.store(nullptr, std::memory_order_relaxed);
+  current_embedded_blob_size_.store(0, std::memory_order_relaxed);
+  sticky_embedded_blob_ = nullptr;
+  sticky_embedded_blob_size_ = 0;
 }
 
 const uint8_t* Isolate::embedded_blob() const { return embedded_blob_; }
@@ -216,6 +307,7 @@ void Isolate::InitializeOncePerProcess() {
   base::Relaxed_Store(&isolate_key_created_, 1);
 #endif
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
+  init_memcopy_functions();
 }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
@@ -1474,7 +1566,7 @@ Object* Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next()->address();
 
         // Gather information from the handler.
-        Code* code = frame->LookupCode();
+        Code code = frame->LookupCode();
         HandlerTable table(code);
         return FoundHandler(nullptr, code->InstructionStart(),
                             table.LookupReturn(0), code->constant_pool(),
@@ -1525,7 +1617,7 @@ Object* Isolate::UnwindAndFindHandler() {
                             stack_slots * kPointerSize;
 
         // Gather information from the frame.
-        Code* code = frame->LookupCode();
+        Code code = frame->LookupCode();
 
         // TODO(bmeurer): Turbofanned BUILTIN frames appear as OPTIMIZED,
         // but do not have a code kind of OPTIMIZED_FUNCTION.
@@ -1546,7 +1638,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // Some stubs are able to handle exceptions.
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
-        Code* code = stub_frame->LookupCode();
+        Code code = stub_frame->LookupCode();
         if (!code->IsCode() || code->kind() != Code::BUILTIN ||
             !code->handler_table_offset() || !code->is_turbofanned()) {
           break;
@@ -1593,7 +1685,7 @@ Object* Isolate::UnwindAndFindHandler() {
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
 
-        Code* code =
+        Code code =
             builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
         return FoundHandler(context, code->InstructionStart(), 0,
                             code->constant_pool(), return_sp, frame->fp());
@@ -1627,7 +1719,7 @@ Object* Isolate::UnwindAndFindHandler() {
 
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
-        Code* code = js_frame->LookupCode();
+        Code code = js_frame->LookupCode();
         return FoundHandler(nullptr, code->InstructionStart(), 0,
                             code->constant_pool(), return_sp, frame->fp());
       } break;
@@ -2329,7 +2421,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     if (frame->is_java_script()) {
       catch_prediction = PredictException(JavaScriptFrame::cast(frame));
     } else if (frame->type() == StackFrame::STUB) {
-      Code* code = frame->LookupCode();
+      Code code = frame->LookupCode();
       if (!code->IsCode() || code->kind() != Code::BUILTIN ||
           !code->handler_table_offset() || !code->is_turbofanned()) {
         continue;
@@ -2409,14 +2501,23 @@ Handle<Context> Isolate::GetIncumbentContext() {
   // if it's newer than the last Context::BackupIncumbentScope entry.
   //
   // NOTE: This code assumes that the stack grows downward.
-  // This code doesn't work with ASAN because ASAN seems allocating stack
-  // separated for native C++ code and compiled JS code, and the following
-  // comparison doesn't make sense in ASAN.
-  // TODO(yukishiino): Make the implementation of BackupIncumbentScope more
-  // robust.
-  if (!it.done() && (!top_backup_incumbent_scope() ||
-                     it.frame()->sp() < reinterpret_cast<Address>(
-                                            top_backup_incumbent_scope()))) {
+#if defined(V8_USE_ADDRESS_SANITIZER)
+  // |it.frame()->sp()| points to an address in the real stack frame, but
+  // |top_backup_incumbent_scope()| points to an address in a fake stack frame.
+  // In order to compare them, convert the latter into the address in the real
+  // stack frame.
+  void* maybe_fake_top = const_cast<void*>(
+      reinterpret_cast<const void*>(top_backup_incumbent_scope()));
+  void* maybe_real_top = __asan_addr_is_in_fake_stack(
+      __asan_get_current_fake_stack(), maybe_fake_top, nullptr, nullptr);
+  Address top_backup_incumbent = reinterpret_cast<Address>(
+      maybe_real_top ? maybe_real_top : maybe_fake_top);
+#else
+  Address top_backup_incumbent =
+      reinterpret_cast<Address>(top_backup_incumbent_scope());
+#endif
+  if (!it.done() &&
+      (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
     Context* context = Context::cast(it.frame()->context());
     return Handle<Context>(context->native_context(), this);
   }
@@ -2427,12 +2528,12 @@ Handle<Context> Isolate::GetIncumbentContext() {
         *top_backup_incumbent_scope()->backup_incumbent_context_);
   }
 
-  // Last candidate: the entered context.
+  // Last candidate: the entered context or microtask context.
   // Given that there is no other author function is running, there must be
   // no cross-context function running, then the incumbent realm must match
   // the entry realm.
   v8::Local<v8::Context> entered_context =
-      reinterpret_cast<v8::Isolate*>(this)->GetEnteredContext();
+      reinterpret_cast<v8::Isolate*>(this)->GetEnteredOrMicrotaskContext();
   return Utils::OpenHandle(*entered_context);
 }
 
@@ -2539,26 +2640,20 @@ void Isolate::ThreadDataTable::RemoveAllThreads() {
 
 class VerboseAccountingAllocator : public AccountingAllocator {
  public:
-  VerboseAccountingAllocator(Heap* heap, size_t allocation_sample_bytes,
-                             size_t pool_sample_bytes)
+  VerboseAccountingAllocator(Heap* heap, size_t allocation_sample_bytes)
       : heap_(heap),
         last_memory_usage_(0),
-        last_pool_size_(0),
         nesting_deepth_(0),
-        allocation_sample_bytes_(allocation_sample_bytes),
-        pool_sample_bytes_(pool_sample_bytes) {}
+        allocation_sample_bytes_(allocation_sample_bytes) {}
 
   v8::internal::Segment* GetSegment(size_t size) override {
     v8::internal::Segment* memory = AccountingAllocator::GetSegment(size);
     if (memory) {
       size_t malloced_current = GetCurrentMemoryUsage();
-      size_t pooled_current = GetCurrentPoolSize();
 
-      if (last_memory_usage_ + allocation_sample_bytes_ < malloced_current ||
-          last_pool_size_ + pool_sample_bytes_ < pooled_current) {
-        PrintMemoryJSON(malloced_current, pooled_current);
+      if (last_memory_usage_ + allocation_sample_bytes_ < malloced_current) {
+        PrintMemoryJSON(malloced_current);
         last_memory_usage_ = malloced_current;
-        last_pool_size_ = pooled_current;
       }
     }
     return memory;
@@ -2567,13 +2662,10 @@ class VerboseAccountingAllocator : public AccountingAllocator {
   void ReturnSegment(v8::internal::Segment* memory) override {
     AccountingAllocator::ReturnSegment(memory);
     size_t malloced_current = GetCurrentMemoryUsage();
-    size_t pooled_current = GetCurrentPoolSize();
 
-    if (malloced_current + allocation_sample_bytes_ < last_memory_usage_ ||
-        pooled_current + pool_sample_bytes_ < last_pool_size_) {
-      PrintMemoryJSON(malloced_current, pooled_current);
+    if (malloced_current + allocation_sample_bytes_ < last_memory_usage_) {
+      PrintMemoryJSON(malloced_current);
       last_memory_usage_ = malloced_current;
-      last_pool_size_ = pooled_current;
     }
   }
 
@@ -2605,7 +2697,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         zone->allocation_size(), nesting_deepth_.load());
   }
 
-  void PrintMemoryJSON(size_t malloced, size_t pooled) {
+  void PrintMemoryJSON(size_t malloced) {
     // Note: Neither isolate, nor heap is locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
     double time = heap_->isolate()->time_millis_since_init();
@@ -2614,17 +2706,14 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"type\": \"zone\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
-        "\"allocated\": %" PRIuS
-        ","
-        "\"pooled\": %" PRIuS "}\n",
-        reinterpret_cast<void*>(heap_->isolate()), time, malloced, pooled);
+        "\"allocated\": %" PRIuS "}\n",
+        reinterpret_cast<void*>(heap_->isolate()), time, malloced);
   }
 
   Heap* heap_;
   std::atomic<size_t> last_memory_usage_;
-  std::atomic<size_t> last_pool_size_;
   std::atomic<size_t> nesting_deepth_;
-  size_t allocation_sample_bytes_, pool_sample_bytes_;
+  size_t allocation_sample_bytes_;
 };
 
 #ifdef DEBUG
@@ -2640,8 +2729,11 @@ Isolate* Isolate::New(IsolateAllocationMode mode) {
   // Construct Isolate object in the allocated memory.
   void* isolate_ptr = isolate_allocator->isolate_memory();
   Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));
-  DCHECK_IMPLIES(mode == IsolateAllocationMode::kAllocateInV8Heap,
-                 IsAligned(isolate->isolate_root(), size_t{4} * GB));
+#ifdef V8_TARGET_ARCH_64_BIT
+  DCHECK_IMPLIES(
+      mode == IsolateAllocationMode::kInV8Heap,
+      IsAligned(isolate->isolate_root(), kPtrComprIsolateRootAlignment));
+#endif
 
 #ifdef DEBUG
   non_disposed_isolates_++;
@@ -2689,9 +2781,9 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
     : isolate_allocator_(std::move(isolate_allocator)),
       id_(base::Relaxed_AtomicIncrement(&isolate_counter_, 1)),
       stack_guard_(this),
-      allocator_(FLAG_trace_zone_stats ? new VerboseAccountingAllocator(
-                                             &heap_, 256 * KB, 128 * KB)
-                                       : new AccountingAllocator()),
+      allocator_(FLAG_trace_zone_stats
+                     ? new VerboseAccountingAllocator(&heap_, 256 * KB)
+                     : new AccountingAllocator()),
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
@@ -2718,19 +2810,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
 
-  init_memcopy_functions();
-
-  if (FLAG_embedded_builtins) {
-#ifdef V8_MULTI_SNAPSHOTS
-  if (FLAG_untrusted_code_mitigations) {
-    SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
-  } else {
-    SetEmbeddedBlob(TrustedEmbeddedBlob(), TrustedEmbeddedBlobSize());
-  }
-#else
-  SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
-#endif
-  }
+  InitializeDefaultEmbeddedBlob();
 }
 
 void Isolate::CheckIsolateLayout() {
@@ -2833,14 +2913,7 @@ void Isolate::Deinit() {
     wasm_engine_.reset();
   }
 
-  if (FLAG_embedded_builtins) {
-    if (DefaultEmbeddedBlob() == nullptr && embedded_blob() != nullptr) {
-      // We own the embedded blob. Free it.
-      uint8_t* data = const_cast<uint8_t*>(embedded_blob_);
-      InstructionStream::FreeOffHeapInstructionStream(data,
-                                                      embedded_blob_size_);
-    }
-  }
+  TearDownEmbeddedBlob();
 
   delete interpreter_;
   interpreter_ = nullptr;
@@ -2888,26 +2961,11 @@ Isolate::~Isolate() {
   delete date_cache_;
   date_cache_ = nullptr;
 
-#ifdef V8_INTL_SUPPORT
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  delete language_singleton_regexp_matcher_;
-  language_singleton_regexp_matcher_ = nullptr;
-
-  delete language_tag_regexp_matcher_;
-  language_tag_regexp_matcher_ = nullptr;
-
-  delete language_variant_regexp_matcher_;
-  language_variant_regexp_matcher_ = nullptr;
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-#endif  // V8_INTL_SUPPORT
-
   delete regexp_stack_;
   regexp_stack_ = nullptr;
 
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = nullptr;
-  delete context_slot_cache_;
-  context_slot_cache_ = nullptr;
 
   delete load_stub_cache_;
   load_stub_cache_ = nullptr;
@@ -3019,13 +3077,12 @@ void PrintBuiltinSizes(Isolate* isolate) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
     const char* name = builtins->name(i);
     const char* kind = Builtins::KindNameOf(i);
-    Code* code = builtins->builtin(i);
+    Code code = builtins->builtin(i);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, name, code->InstructionSize());
   }
 }
 
 void CreateOffHeapTrampolines(Isolate* isolate) {
-  DCHECK(isolate->serializer_enabled());
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
@@ -3034,7 +3091,6 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
   EmbeddedData d = EmbeddedData::FromBlob();
 
-  CodeSpaceMemoryModificationScope code_allocation(isolate->heap());
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
 
@@ -3058,21 +3114,73 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 }
 }  // namespace
 
-void Isolate::PrepareEmbeddedBlobForSerialization() {
-  // When preparing the embedded blob, ensure it doesn't exist yet.
-  DCHECK_NULL(embedded_blob());
-  DCHECK_NULL(DefaultEmbeddedBlob());
-  DCHECK(serializer_enabled());
+void Isolate::InitializeDefaultEmbeddedBlob() {
+  const uint8_t* blob = DefaultEmbeddedBlob();
+  uint32_t size = DefaultEmbeddedBlobSize();
 
-  // The isolate takes ownership of this pointer into an executable mmap'd
-  // area. We muck around with const-casts because the standard use-case in
-  // shipping builds is for embedded_blob_ to point into a read-only
-  // .text-embedded section.
-  uint8_t* data;
-  uint32_t size;
-  InstructionStream::CreateOffHeapInstructionStream(this, &data, &size);
-  SetEmbeddedBlob(const_cast<const uint8_t*>(data), size);
+#ifdef V8_MULTI_SNAPSHOTS
+  if (!FLAG_untrusted_code_mitigations) {
+    blob = TrustedEmbeddedBlob();
+    size = TrustedEmbeddedBlobSize();
+  }
+#endif
+
+  if (StickyEmbeddedBlob() != nullptr) {
+    base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+    // Check again now that we hold the lock.
+    if (StickyEmbeddedBlob() != nullptr) {
+      blob = StickyEmbeddedBlob();
+      size = StickyEmbeddedBlobSize();
+      current_embedded_blob_refs_++;
+    }
+  }
+
+  if (blob == nullptr) {
+    CHECK_EQ(0, size);
+  } else {
+    SetEmbeddedBlob(blob, size);
+  }
+}
+
+void Isolate::CreateAndSetEmbeddedBlob() {
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+
+  // If a sticky blob has been set, we reuse it.
+  if (StickyEmbeddedBlob() != nullptr) {
+    CHECK_EQ(embedded_blob(), StickyEmbeddedBlob());
+    CHECK_EQ(CurrentEmbeddedBlob(), StickyEmbeddedBlob());
+  } else {
+    // Create and set a new embedded blob.
+    uint8_t* data;
+    uint32_t size;
+    InstructionStream::CreateOffHeapInstructionStream(this, &data, &size);
+
+    CHECK_EQ(0, current_embedded_blob_refs_);
+    const uint8_t* const_data = const_cast<const uint8_t*>(data);
+    SetEmbeddedBlob(const_data, size);
+    current_embedded_blob_refs_++;
+
+    SetStickyEmbeddedBlob(const_data, size);
+  }
+
   CreateOffHeapTrampolines(this);
+}
+
+void Isolate::TearDownEmbeddedBlob() {
+  // Nothing to do in case the blob is embedded into the binary or unset.
+  if (StickyEmbeddedBlob() == nullptr) return;
+
+  CHECK_EQ(embedded_blob(), StickyEmbeddedBlob());
+  CHECK_EQ(CurrentEmbeddedBlob(), StickyEmbeddedBlob());
+
+  base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
+  current_embedded_blob_refs_--;
+  if (current_embedded_blob_refs_ == 0 && enable_embedded_blob_refcounting_) {
+    // We own the embedded blob and are the last holder. Free it.
+    InstructionStream::FreeOffHeapInstructionStream(
+        const_cast<uint8_t*>(embedded_blob()), embedded_blob_size());
+    ClearEmbeddedBlob();
+  }
 }
 
 bool Isolate::Init(StartupDeserializer* des) {
@@ -3109,7 +3217,6 @@ bool Isolate::Init(StartupDeserializer* des) {
 #undef ASSIGN_ELEMENT
 
   compilation_cache_ = new CompilationCache(this);
-  context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
@@ -3177,19 +3284,27 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
 
-  if (FLAG_embedded_builtins) {
-    if (create_heap_objects && serializer_enabled()) {
-      builtins_constants_table_builder_ =
-          new BuiltinsConstantsTableBuilder(this);
-    }
+  if (FLAG_embedded_builtins && create_heap_objects) {
+    builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
   }
   setup_delegate_->SetupBuiltins(this);
-  if (FLAG_embedded_builtins) {
-    if (create_heap_objects && serializer_enabled()) {
-      builtins_constants_table_builder_->Finalize();
-      delete builtins_constants_table_builder_;
-      builtins_constants_table_builder_ = nullptr;
-    }
+  if (create_heap_objects) {
+    // Create a copy of the the interpreter entry trampoline and store it
+    // on the root list. It is used as a template for further copies that
+    // may later be created to help profile interpreted code.
+    // TODO(jgruber): Merge this with the block below once
+    //                FLAG_embedded_builtins is always true.
+    HandleScope handle_scope(this);
+    Handle<Code> code =
+        factory()->CopyCode(BUILTIN_CODE(this, InterpreterEntryTrampoline));
+    heap_.SetInterpreterEntryTrampolineForProfiling(*code);
+  }
+  if (FLAG_embedded_builtins && create_heap_objects) {
+    builtins_constants_table_builder_->Finalize();
+    delete builtins_constants_table_builder_;
+    builtins_constants_table_builder_ = nullptr;
+
+    CreateAndSetEmbeddedBlob();
   }
 
   if (create_heap_objects) heap_.CreateFixedStubs();
@@ -3216,7 +3331,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     if (!create_heap_objects) des->DeserializeInto(this);
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
-    interpreter_->InitializeDispatchTable();
+    interpreter_->Initialize();
     heap_.NotifyDeserializationComplete();
   }
   delete setup_delegate_;
@@ -3411,7 +3526,8 @@ bool Isolate::use_optimizer() {
 }
 
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {
-  return NeedsSourcePositionsForProfiling() || FLAG_detailed_line_info;
+  return NeedsSourcePositionsForProfiling() ||
+         detailed_source_positions_for_profiling();
 }
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {
@@ -3493,7 +3609,7 @@ bool Isolate::IsNoElementsProtectorIntact(Context* context) {
 #ifdef DEBUG
   Context* native_context = context->native_context();
 
-  Map* root_array_map =
+  Map root_array_map =
       native_context->GetInitialJSArrayMap(GetInitialFastElementsKind());
   JSObject* initial_array_proto = JSObject::cast(
       native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
@@ -3502,8 +3618,7 @@ bool Isolate::IsNoElementsProtectorIntact(Context* context) {
   JSObject* initial_string_proto = JSObject::cast(
       native_context->get(Context::INITIAL_STRING_PROTOTYPE_INDEX));
 
-  if (root_array_map == nullptr ||
-      initial_array_proto == initial_object_proto) {
+  if (root_array_map.is_null() || initial_array_proto == initial_object_proto) {
     // We are in the bootstrapping process, and the entire check sequence
     // shouldn't be performed.
     return cell_reports_intact;
@@ -3575,9 +3690,9 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   bool is_is_concat_spreadable_set =
       Smi::ToInt(is_concat_spreadable_cell->value()) == kProtectorInvalid;
 #ifdef DEBUG
-  Map* root_array_map =
+  Map root_array_map =
       raw_native_context()->GetInitialJSArrayMap(GetInitialFastElementsKind());
-  if (root_array_map == nullptr) {
+  if (root_array_map.is_null()) {
     // Ignore the value of is_concat_spreadable during bootstrap.
     return !is_is_concat_spreadable_set;
   }
@@ -3679,6 +3794,15 @@ void Isolate::InvalidateTypedArraySpeciesProtector() {
       this, factory()->typed_array_species_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsTypedArraySpeciesLookupChainIntact());
+}
+
+void Isolate::InvalidateRegExpSpeciesProtector() {
+  DCHECK(factory()->regexp_species_protector()->value()->IsSmi());
+  DCHECK(IsRegExpSpeciesLookupChainIntact());
+  PropertyCell::SetValueWithInvalidation(
+      this, factory()->regexp_species_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsRegExpSpeciesLookupChainIntact());
 }
 
 void Isolate::InvalidatePromiseSpeciesProtector() {
@@ -3814,7 +3938,7 @@ int Isolate::GenerateIdentityHash(uint32_t mask) {
   return hash != 0 ? hash : 1;
 }
 
-Code* Isolate::FindCodeObject(Address a) {
+Code Isolate::FindCodeObject(Address a) {
   return heap()->GcSafeFindCodeForInnerPointer(a);
 }
 
@@ -3914,7 +4038,15 @@ void Isolate::FireCallCompletedCallback() {
       handle_scope_implementer()->microtasks_policy() ==
           v8::MicrotasksPolicy::kAuto;
 
-  if (run_microtasks) RunMicrotasks();
+  if (run_microtasks) {
+    RunMicrotasks();
+  } else {
+    // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
+    // set is still open (whether to clear it after every microtask or once
+    // during a microtask checkpoint). See also
+    // https://github.com/tc39/proposal-weakrefs/issues/39 .
+    heap()->ClearKeepDuringJobSet();
+  }
 
   if (call_completed_callbacks_.empty()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
@@ -4189,6 +4321,12 @@ void Isolate::RunMicrotasks() {
     CHECK_EQ(0, microtask_queue->queue()->length());
     is_running_microtasks_ = false;
   }
+  // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
+  // set is still open (whether to clear it after every microtask or once
+  // during a microtask checkpoint). See also
+  // https://github.com/tc39/proposal-weakrefs/issues/39 .
+  heap()->ClearKeepDuringJobSet();
+
   FireMicrotasksCompletedCallback();
 }
 
@@ -4248,7 +4386,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
+    int mark_sweeps = detached_contexts->Get(i).ToSmi().value();
     MaybeObject context = detached_contexts->Get(i + 1);
     DCHECK(context->IsWeakOrCleared());
     if (!context->IsCleared()) {
@@ -4260,7 +4398,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
   detached_contexts->set_length(new_length);
   while (new_length < length) {
-    detached_contexts->Set(new_length, MaybeObject::FromSmi(Smi::kZero));
+    detached_contexts->Set(new_length, MaybeObject::FromSmi(Smi::zero()));
     ++new_length;
   }
 
@@ -4268,7 +4406,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
+      int mark_sweeps = detached_contexts->Get(i).ToSmi().value();
       MaybeObject context = detached_contexts->Get(i + 1);
       DCHECK(context->IsWeakOrCleared());
       if (mark_sweeps > 3) {
@@ -4329,6 +4467,21 @@ void Isolate::SetIdle(bool is_idle) {
     set_current_vm_state(EXTERNAL);
   }
 }
+
+#ifdef V8_INTL_SUPPORT
+icu::UObject* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type) {
+  return icu_object_cache_[cache_type].get();
+}
+
+void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
+                                      std::shared_ptr<icu::UObject> obj) {
+  icu_object_cache_[cache_type] = obj;
+}
+
+void Isolate::clear_cached_icu_object(ICUObjectCacheType cache_type) {
+  icu_object_cache_.erase(cache_type);
+}
+#endif  // V8_INTL_SUPPORT
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();

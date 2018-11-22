@@ -17,13 +17,13 @@ namespace internal {
 // Arguments object passed to C++ builtins.
 class BuiltinArguments : public Arguments {
  public:
-  BuiltinArguments(int length, Object** arguments)
+  BuiltinArguments(int length, Address* arguments)
       : Arguments(length, arguments) {
     // Check we have at least the receiver.
     DCHECK_LE(1, this->length());
   }
 
-  Object*& operator[](int index) {
+  ObjectPtr operator[](int index) {
     DCHECK_LT(index, length());
     return Arguments::operator[](index);
   }
@@ -71,7 +71,7 @@ class BuiltinArguments : public Arguments {
       BuiltinArguments args, Isolate* isolate);                               \
                                                                               \
   V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                       \
-      int args_length, Object** args_object, Isolate* isolate) {              \
+      int args_length, Address* args_object, Isolate* isolate) {              \
     BuiltinArguments args(args_length, args_object);                          \
     RuntimeCallTimerScope timer(isolate,                                      \
                                 RuntimeCallCounterId::kBuiltin_##name);       \
@@ -81,7 +81,7 @@ class BuiltinArguments : public Arguments {
   }                                                                           \
                                                                               \
   V8_WARN_UNUSED_RESULT Object* Builtin_##name(                               \
-      int args_length, Object** args_object, Isolate* isolate) {              \
+      int args_length, Address* args_object, Isolate* isolate) {              \
     DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
     if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);    \

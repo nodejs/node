@@ -4,7 +4,7 @@
 
 #include "src/reloc-info.h"
 
-#include "src/assembler-arch-inl.h"
+#include "src/assembler-inl.h"
 #include "src/code-reference.h"
 #include "src/code-stubs.h"
 #include "src/deoptimize-reason.h"
@@ -280,18 +280,18 @@ void RelocIterator::next() {
   done_ = true;
 }
 
-RelocIterator::RelocIterator(Code* code, int mode_mask)
+RelocIterator::RelocIterator(Code code, int mode_mask)
     : RelocIterator(code, code->raw_instruction_start(), code->constant_pool(),
                     code->relocation_end(), code->relocation_start(),
                     mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
-    : RelocIterator(nullptr, code_reference.instruction_start(),
+    : RelocIterator(Code(), code_reference.instruction_start(),
                     code_reference.constant_pool(),
                     code_reference.relocation_end(),
                     code_reference.relocation_start(), mode_mask) {}
 
-RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code* code,
+RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code code,
                              int mode_mask)
     : RelocIterator(
           code, embedded_data->InstructionStartOfBuiltin(code->builtin_index()),
@@ -300,7 +300,7 @@ RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code* code,
           code->relocation_start(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
-    : RelocIterator(nullptr, reinterpret_cast<Address>(desc.buffer), 0,
+    : RelocIterator(Code(), reinterpret_cast<Address>(desc.buffer), 0,
                     desc.buffer + desc.buffer_size,
                     desc.buffer + desc.buffer_size - desc.reloc_size,
                     mode_mask) {}
@@ -308,11 +308,11 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
 RelocIterator::RelocIterator(Vector<byte> instructions,
                              Vector<const byte> reloc_info, Address const_pool,
                              int mode_mask)
-    : RelocIterator(nullptr, reinterpret_cast<Address>(instructions.start()),
+    : RelocIterator(Code(), reinterpret_cast<Address>(instructions.start()),
                     const_pool, reloc_info.start() + reloc_info.size(),
                     reloc_info.start(), mode_mask) {}
 
-RelocIterator::RelocIterator(Code* host, Address pc, Address constant_pool,
+RelocIterator::RelocIterator(Code host, Address pc, Address constant_pool,
                              const byte* pos, const byte* end, int mode_mask)
     : pos_(pos), end_(end), mode_mask_(mode_mask) {
   // Relocation info is read backwards.
@@ -370,9 +370,9 @@ void RelocInfo::set_target_address(Address target,
          IsWasmCall(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
       IsCodeTargetMode(rmode_)) {
-    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    Code target_code = Code::GetCodeFromTargetAddress(target);
     MarkingBarrierForCode(host(), this, target_code);
   }
 }
@@ -382,7 +382,7 @@ bool RelocInfo::RequiresRelocationAfterCodegen(const CodeDesc& desc) {
   return !it.done();
 }
 
-bool RelocInfo::RequiresRelocation(Code* code) {
+bool RelocInfo::RequiresRelocation(Code code) {
   RelocIterator it(code, RelocInfo::kApplyMask);
   return !it.done();
 }
@@ -426,8 +426,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal wasm call";
     case WASM_STUB_CALL:
       return "wasm stub call";
-    case JS_TO_WASM_CALL:
-      return "js to wasm call";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -457,7 +455,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
        << ")";
   } else if (IsCodeTargetMode(rmode_)) {
     const Address code_target = target_address();
-    Code* code = Code::GetCodeFromTargetAddress(code_target);
+    Code code = Code::GetCodeFromTargetAddress(code_target);
     DCHECK(code->IsCode());
     os << " (" << Code::Kind2String(code->kind());
     if (Builtins::IsBuiltin(code)) {
@@ -494,7 +492,7 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address addr = target_address();
       CHECK_NE(addr, kNullAddress);
       // Check that we can find the right code object.
-      Code* code = Code::GetCodeFromTargetAddress(addr);
+      Code code = Code::GetCodeFromTargetAddress(addr);
       Object* found = isolate->FindCodeObject(addr);
       CHECK(found->IsCode());
       CHECK(code->address() == HeapObject::cast(found)->address());
@@ -504,7 +502,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case INTERNAL_REFERENCE_ENCODED: {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
-      Code* code = Code::cast(isolate->FindCodeObject(pc));
+      Code code = Code::cast(isolate->FindCodeObject(pc));
       CHECK(target >= code->InstructionStart());
       CHECK(target <= code->InstructionEnd());
       break;
@@ -526,7 +524,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case VENEER_POOL:
     case WASM_CALL:
     case WASM_STUB_CALL:
-    case JS_TO_WASM_CALL:
     case NONE:
       break;
     case NUMBER_OF_MODES:

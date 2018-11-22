@@ -21,11 +21,10 @@ class RegisterConfiguration;
 class JumpOptimizationInfo;
 
 namespace wasm {
-enum ModuleOrigin : uint8_t;
 struct FunctionBody;
 class NativeModule;
+class WasmCode;
 class WasmEngine;
-struct WasmModule;
 }  // namespace wasm
 
 namespace compiler {
@@ -45,8 +44,8 @@ class Pipeline : public AllStatic {
                                                     Handle<JSFunction> function,
                                                     bool has_script);
 
-  // Returns a new compilation job for the WebAssembly compilation info.
-  static OptimizedCompilationJob* NewWasmCompilationJob(
+  // Run the pipeline for the WebAssembly compilation info.
+  static wasm::WasmCode* GenerateCodeForWasmFunction(
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
@@ -54,7 +53,15 @@ class Pipeline : public AllStatic {
       int function_index);
 
   // Run the pipeline on a machine graph and generate code.
-  static MaybeHandle<Code> GenerateCodeForWasmStub(
+  static wasm::WasmCode* GenerateCodeForWasmNativeStub(
+      wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
+      MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
+      const char* debug_name, const AssemblerOptions& assembler_options,
+      wasm::NativeModule* native_module,
+      SourcePositionTable* source_positions = nullptr);
+
+  // Run the pipeline on a machine graph and generate code.
+  static MaybeHandle<Code> GenerateCodeForWasmHeapStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       Code::Kind kind, const char* debug_name,
       const AssemblerOptions& assembler_options,

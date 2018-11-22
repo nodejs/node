@@ -32,16 +32,10 @@
 }],  # variant != default
 
 ##############################################################################
-['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
+['(arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
-  'runtime/console-messages-limits': [SKIP],
-}],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
-
-##############################################################################
-['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
-  # Slow tests: https://crbug.com/v8/7783
-  'runtime/console-messages-limits': [SKIP],
-}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+  'runtime/console-messages-limits': [PASS, NO_VARIANTS, ['mode == debug or dcheck_always_on', SKIP]],
+}],  # (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['variant == no_wasm_traps', {

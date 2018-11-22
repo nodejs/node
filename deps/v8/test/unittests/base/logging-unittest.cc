@@ -6,6 +6,7 @@
 
 #include "src/base/logging.h"
 #include "src/objects.h"
+#include "src/objects/smi.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -64,7 +65,7 @@ TEST(LoggingTest, CompareSignedMismatch) {
 
 TEST(LoggingTest, CompareAgainstStaticConstPointer) {
   // These used to produce link errors before http://crrev.com/2524093002.
-  CHECK_FAIL(EQ, v8::internal::Smi::kZero, v8::internal::Smi::FromInt(17));
+  CHECK_FAIL(EQ, v8::internal::Smi::zero(), v8::internal::Smi::FromInt(17));
   CHECK_SUCCEED(GT, 0, v8::internal::Smi::kMinValue);
 }
 

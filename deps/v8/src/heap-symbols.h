@@ -37,9 +37,9 @@
   V(_, kana_string, "kana")                                         \
   V(_, letter_string, "letter")                                     \
   V(_, lineBreakStyle_string, "lineBreakStyle")                     \
+  V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
   V(_, locale_string, "locale")                                     \
-  V(_, localeWithExtension_string, "localeWithExtension")           \
   V(_, loose_string, "loose")                                       \
   V(_, lower_string, "lower")                                       \
   V(_, maximumFractionDigits_string, "maximumFractionDigits")       \
@@ -97,6 +97,7 @@
   V(_, array_to_string, "[object Array]")                             \
   V(_, ArrayBuffer_string, "ArrayBuffer")                             \
   V(_, ArrayIterator_string, "Array Iterator")                        \
+  V(_, as_string, "as")                                               \
   V(_, assign_string, "assign")                                       \
   V(_, async_string, "async")                                         \
   V(_, auto_string, "auto")                                           \
@@ -116,10 +117,7 @@
   V(_, call_string, "call")                                           \
   V(_, callee_string, "callee")                                       \
   V(_, caller_string, "caller")                                       \
-  V(_, cell_value_string, "%cell_value")                              \
-  V(_, char_at_string, "CharAt")                                      \
   V(_, character_string, "character")                                 \
-  V(_, clear_string, "clear")                                         \
   V(_, closure_string, "(closure)")                                   \
   V(_, code_string, "code")                                           \
   V(_, column_string, "column")                                       \
@@ -134,7 +132,6 @@
   V(_, default_string, "default")                                     \
   V(_, defineProperty_string, "defineProperty")                       \
   V(_, deleteProperty_string, "deleteProperty")                       \
-  V(_, did_handle_string, "didHandle")                                \
   V(_, disjunction_string, "disjunction")                             \
   V(_, display_name_string, "displayName")                            \
   V(_, done_string, "done")                                           \
@@ -147,7 +144,6 @@
   V(_, dot_string, ".")                                               \
   V(_, dot_switch_tag_string, ".switch_tag")                          \
   V(_, dotAll_string, "dotAll")                                       \
-  V(_, enqueue_string, "enqueue")                                     \
   V(_, entries_string, "entries")                                     \
   V(_, enumerable_string, "enumerable")                               \
   V(_, element_string, "element")                                     \
@@ -160,6 +156,7 @@
   V(_, flags_string, "flags")                                         \
   V(_, Float32Array_string, "Float32Array")                           \
   V(_, Float64Array_string, "Float64Array")                           \
+  V(_, from_string, "from")                                           \
   V(_, Function_string, "Function")                                   \
   V(_, function_native_code_string, "function () { [native code] }")  \
   V(_, function_string, "function")                                   \
@@ -174,7 +171,6 @@
   V(_, globalThis_string, "globalThis")                               \
   V(_, groups_string, "groups")                                       \
   V(_, has_string, "has")                                             \
-  V(_, holdings_string, "holdings")                                   \
   V(_, ignoreCase_string, "ignoreCase")                               \
   V(_, illegal_access_string, "illegal access")                       \
   V(_, illegal_argument_string, "illegal argument")                   \
@@ -187,8 +183,6 @@
   V(_, Int8Array_string, "Int8Array")                                 \
   V(_, isExtensible_string, "isExtensible")                           \
   V(_, isView_string, "isView")                                       \
-  V(_, KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
-  V(_, KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
   V(_, keys_string, "keys")                                           \
   V(_, lastIndex_string, "lastIndex")                                 \
   V(_, length_string, "length")                                       \
@@ -196,12 +190,11 @@
   V(_, line_string, "line")                                           \
   V(_, LinkError_string, "LinkError")                                 \
   V(_, long_string, "long")                                           \
-  V(_, makeCell_string, "makeCell")                                   \
   V(_, Map_string, "Map")                                             \
   V(_, MapIterator_string, "Map Iterator")                            \
   V(_, message_string, "message")                                     \
+  V(_, meta_string, "meta")                                           \
   V(_, minus_Infinity_string, "-Infinity")                            \
-  V(_, minus_zero_string, "-0")                                       \
   V(_, Module_string, "Module")                                       \
   V(_, multiline_string, "multiline")                                 \
   V(_, name_string, "name")                                           \
@@ -223,15 +216,16 @@
   V(_, Object_string, "Object")                                       \
   V(_, object_string, "object")                                       \
   V(_, object_to_string, "[object Object]")                           \
+  V(_, of_string, "of")                                               \
   V(_, ok, "ok")                                                      \
   V(_, one_string, "1")                                               \
   V(_, ownKeys_string, "ownKeys")                                     \
   V(_, percent_string, "percent")                                     \
   V(_, position_string, "position")                                   \
   V(_, preventExtensions_string, "preventExtensions")                 \
+  V(_, private_constructor_string, "#constructor")                    \
   V(_, Promise_string, "Promise")                                     \
   V(_, promise_string, "promise")                                     \
-  V(_, PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
   V(_, proto_string, "__proto__")                                     \
   V(_, prototype_string, "prototype")                                 \
   V(_, proxy_string, "proxy")                                         \
@@ -239,13 +233,11 @@
   V(_, query_colon_string, "(?:)")                                    \
   V(_, RangeError_string, "RangeError")                               \
   V(_, raw_string, "raw")                                             \
-  V(_, ReconfigureToDataProperty_string, "ReconfigureToDataProperty") \
   V(_, ReferenceError_string, "ReferenceError")                       \
   V(_, ReflectGet_string, "Reflect.get")                              \
   V(_, ReflectHas_string, "Reflect.has")                              \
   V(_, RegExp_string, "RegExp")                                       \
   V(_, regexp_to_string, "[object RegExp]")                           \
-  V(_, reject_string, "reject")                                       \
   V(_, resolve_string, "resolve")                                     \
   V(_, return_string, "return")                                       \
   V(_, revoke_string, "revoke")                                       \
@@ -273,6 +265,7 @@
   V(_, Symbol_string, "Symbol")                                       \
   V(_, symbol_string, "symbol")                                       \
   V(_, SyntaxError_string, "SyntaxError")                             \
+  V(_, target_string, "target")                                       \
   V(_, then_string, "then")                                           \
   V(_, this_function_string, ".this_function")                        \
   V(_, this_string, "this")                                           \
@@ -290,17 +283,15 @@
   V(_, undefined_to_string, "[object Undefined]")                     \
   V(_, unicode_string, "unicode")                                     \
   V(_, URIError_string, "URIError")                                   \
-  V(_, use_asm_string, "use asm")                                     \
-  V(_, use_strict_string, "use strict")                               \
   V(_, value_string, "value")                                         \
   V(_, valueOf_string, "valueOf")                                     \
   V(_, values_string, "values")                                       \
   V(_, WeakCell_string, "WeakCell")                                   \
   V(_, WeakFactory_string, "WeakFactory")                             \
   V(_, WeakMap_string, "WeakMap")                                     \
+  V(_, WeakRef_string, "WeakRef")                                     \
   V(_, WeakSet_string, "WeakSet")                                     \
   V(_, week_string, "week")                                           \
-  V(_, will_handle_string, "willHandle")                              \
   V(_, word_string, "word")                                           \
   V(_, writable_string, "writable")                                   \
   V(_, zero_string, "0")
@@ -326,11 +317,9 @@
   V(_, nonextensible_symbol)                \
   V(_, not_mapped_symbol)                   \
   V(_, premonomorphic_symbol)               \
-  V(_, promise_async_stack_id_symbol)       \
   V(_, promise_debug_marker_symbol)         \
   V(_, promise_forwarding_handler_symbol)   \
   V(_, promise_handled_by_symbol)           \
-  V(_, promise_async_id_symbol)             \
   V(_, sealed_symbol)                       \
   V(_, stack_trace_symbol)                  \
   V(_, strict_function_transition_symbol)   \
@@ -365,8 +354,8 @@
   F(MC_INCREMENTAL)                                                \
   F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)                                       \
-  F(MC_INCREMENTAL_WRAPPER_PROLOGUE)                               \
-  F(MC_INCREMENTAL_WRAPPER_TRACING)                                \
+  F(MC_INCREMENTAL_EMBEDDER_PROLOGUE)                              \
+  F(MC_INCREMENTAL_EMBEDDER_TRACING)                               \
   F(MC_INCREMENTAL_FINALIZE)                                       \
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
@@ -383,6 +372,7 @@
 
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
+  F(HEAP_EMBEDDER_TRACING_EPILOGUE)                  \
   F(HEAP_EPILOGUE)                                   \
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
@@ -409,7 +399,9 @@
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
-  F(MC_FINISH_WRAPPER_EPILOGUE)                      \
+  F(MC_MARK_EMBEDDER_PROLOGUE)                       \
+  F(MC_MARK_EMBEDDER_TRACING)                        \
+  F(MC_MARK_EMBEDDER_TRACING_CLOSURE)                \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
   F(MC_MARK_MAIN)                                    \
   F(MC_MARK_ROOTS)                                   \
@@ -420,9 +412,6 @@
   F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
   F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
   F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
-  F(MC_MARK_WRAPPERS)                                \
-  F(MC_MARK_WRAPPER_PROLOGUE)                        \
-  F(MC_MARK_WRAPPER_TRACING)                         \
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \

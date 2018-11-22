@@ -182,7 +182,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
   inline void clear_invocation_count();
   inline void increment_deopt_count();
 
-  inline Code* optimized_code() const;
+  inline Code optimized_code() const;
   inline OptimizationMarker optimization_marker() const;
   inline bool has_optimized_code() const;
   inline bool has_optimization_marker() const;
@@ -289,7 +289,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 #undef FEEDBACK_VECTOR_FIELDS
 
   static const int kHeaderSize =
-      RoundUp<kPointerAlignment>(int{kUnalignedHeaderSize});
+      RoundUp<kObjectAlignment>(int{kUnalignedHeaderSize});
   static const int kFeedbackSlotsOffset = kHeaderSize;
 
   class BodyDescriptor;
@@ -599,12 +599,7 @@ class FeedbackNexus final {
   void Print(std::ostream& os);  // NOLINT
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
-  Map* FindFirstMap() const {
-    MapHandles maps;
-    ExtractMaps(&maps);
-    if (maps.size() > 0) return *maps.at(0);
-    return nullptr;
-  }
+  Map FindFirstMap() const;
 
   InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;
@@ -671,8 +666,8 @@ class FeedbackNexus final {
   // For Global Load and Store ICs.
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
   // Returns false if given combination of indices is not allowed.
-  bool ConfigureLexicalVarMode(int script_context_index,
-                               int context_slot_index);
+  bool ConfigureLexicalVarMode(int script_context_index, int context_slot_index,
+                               bool immutable);
   void ConfigureHandlerMode(const MaybeObjectHandle& handler);
 
   // For CloneObject ICs
@@ -682,7 +677,8 @@ class FeedbackNexus final {
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \
   V(ContextIndexBits, unsigned, 12, _) \
-  V(SlotIndexBits, unsigned, 19, _)
+  V(SlotIndexBits, unsigned, 18, _)    \
+  V(ImmutabilityBit, bool, 1, _)
 
   DEFINE_BIT_FIELDS(LEXICAL_MODE_BIT_FIELDS)
 #undef LEXICAL_MODE_BIT_FIELDS

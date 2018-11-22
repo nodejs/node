@@ -44,6 +44,9 @@ class JSInliningHeuristic final : public AdvancedReducer {
     // In the case of polymorphic inlining, this tells if each of the
     // functions could be inlined.
     bool can_inline_function[kMaxCallPolymorphism];
+    // Strong references to bytecode to ensure it is not flushed from SFI
+    // while choosing inlining candidates.
+    Handle<BytecodeArray> bytecode[kMaxCallPolymorphism];
     // TODO(2206): For now polymorphic inlining is treated orthogonally to
     // inlining based on SharedFunctionInfo. This should be unified and the
     // above array should be switched to SharedFunctionInfo instead. Currently

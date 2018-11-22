@@ -110,6 +110,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsConstructor(Node* node);
   Node* LowerObjectIsDetectableCallable(Node* node);
   Node* LowerObjectIsMinusZero(Node* node);
+  Node* LowerNumberIsMinusZero(Node* node);
   Node* LowerObjectIsNaN(Node* node);
   Node* LowerNumberIsNaN(Node* node);
   Node* LowerObjectIsNonCallable(Node* node);

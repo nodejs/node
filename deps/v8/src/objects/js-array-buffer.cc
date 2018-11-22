@@ -4,6 +4,8 @@
 
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-buffer-inl.h"
+
+#include "src/counters.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {

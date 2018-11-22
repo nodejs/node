@@ -337,8 +337,8 @@ void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
   replacement_ = node;
 }
 
-void Processor::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* node) {
+void Processor::VisitInitializeClassMembersStatement(
+    InitializeClassMembersStatement* node) {
   replacement_ = node;
 }
 
@@ -404,37 +404,6 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
   return true;
 }
-
-bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
-                       DoExpression* expr, AstValueFactory* factory) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-
-  Block* block = expr->block();
-  DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
-  DCHECK(block->scope() == nullptr ||
-         block->scope()->GetClosureScope() == closure_scope);
-  ZonePtrList<Statement>* body = block->statements();
-  VariableProxy* result = expr->result();
-  Variable* result_var = result->var();
-
-  if (!body->is_empty()) {
-    Processor processor(parser, closure_scope, result_var, factory);
-    processor.Process(body);
-    if (processor.HasStackOverflow()) return false;
-
-    if (!processor.result_assigned()) {
-      AstNodeFactory* node_factory = processor.factory();
-      Expression* undef = node_factory->NewUndefinedLiteral(kNoSourcePosition);
-      Statement* completion = node_factory->NewExpressionStatement(
-          processor.SetResult(undef), expr->position());
-      body->Add(completion, factory->zone());
-    }
-  }
-  return true;
-}
-
 
 }  // namespace internal
 }  // namespace v8

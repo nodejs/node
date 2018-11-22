@@ -82,18 +82,15 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
 
   // 7. Let lineBreakStyle be ? GetOption(options, "lineBreakStyle", "string", «
   // "strict", "normal", "loose" », "normal").
-  std::unique_ptr<char[]> line_break_style_str = nullptr;
-  const std::vector<const char*> line_break_style_values = {"strict", "normal",
-                                                            "loose"};
-  Maybe<bool> maybe_found_line_break_style = Intl::GetStringOption(
-      isolate, options, "lineBreakStyle", line_break_style_values,
-      "Intl.Segmenter", &line_break_style_str);
-  LineBreakStyle line_break_style_enum = LineBreakStyle::NORMAL;
-  MAYBE_RETURN(maybe_found_line_break_style, MaybeHandle<JSSegmenter>());
-  if (maybe_found_line_break_style.FromJust()) {
-    DCHECK_NOT_NULL(line_break_style_str.get());
-    line_break_style_enum = GetLineBreakStyle(line_break_style_str.get());
-  }
+  Maybe<LineBreakStyle> maybe_line_break_style =
+      Intl::GetStringOption<LineBreakStyle>(
+          isolate, options, "lineBreakStyle", "Intl.Segmenter",
+          {"strict", "normal", "loose"},
+          {LineBreakStyle::STRICT, LineBreakStyle::NORMAL,
+           LineBreakStyle::LOOSE},
+          LineBreakStyle::NORMAL);
+  MAYBE_RETURN(maybe_line_break_style, MaybeHandle<JSSegmenter>());
+  LineBreakStyle line_break_style_enum = maybe_line_break_style.FromJust();
 
   // 10. Set segmenter.[[Locale]] to the value of r.[[Locale]].
   Handle<String> locale_str =
@@ -102,19 +99,14 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
 
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
   // "grapheme", "word", "sentence", "line" », "grapheme").
-
-  std::unique_ptr<char[]> granularity_str = nullptr;
-  const std::vector<const char*> granularity_values = {"grapheme", "word",
-                                                       "sentence", "line"};
-  Maybe<bool> maybe_found_granularity =
-      Intl::GetStringOption(isolate, options, "granularity", granularity_values,
-                            "Intl.Segmenter", &granularity_str);
-  Granularity granularity_enum = Granularity::GRAPHEME;
-  MAYBE_RETURN(maybe_found_granularity, MaybeHandle<JSSegmenter>());
-  if (maybe_found_granularity.FromJust()) {
-    DCHECK_NOT_NULL(granularity_str.get());
-    granularity_enum = GetGranularity(granularity_str.get());
-  }
+  Maybe<Granularity> maybe_granularity = Intl::GetStringOption<Granularity>(
+      isolate, options, "granularity", "Intl.Segmenter",
+      {"grapheme", "word", "sentence", "line"},
+      {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE,
+       Granularity::LINE},
+      Granularity::GRAPHEME);
+  MAYBE_RETURN(maybe_granularity, MaybeHandle<JSSegmenter>());
+  Granularity granularity_enum = maybe_granularity.FromJust();
 
   // 14. Set segmenter.[[SegmenterGranularity]] to granularity.
   segmenter_holder->set_granularity(granularity_enum);

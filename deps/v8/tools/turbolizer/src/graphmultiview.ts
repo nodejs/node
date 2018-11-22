@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {GraphView} from "../src/graph-view"
-import {ScheduleView} from "../src/schedule-view"
-import {SequenceView} from "../src/sequence-view"
-import {SourceResolver} from "../src/source-resolver"
-import {SelectionBroker} from "../src/selection-broker"
-import {View, PhaseView} from "../src/view"
+import { GraphView } from "../src/graph-view"
+import { ScheduleView } from "../src/schedule-view"
+import { SequenceView } from "../src/sequence-view"
+import { SourceResolver } from "../src/source-resolver"
+import { SelectionBroker } from "../src/selection-broker"
+import { View, PhaseView } from "../src/view"
+
+const multiviewID = "multiview";
 
 export class GraphMultiView extends View {
   sourceResolver: SourceResolver;
@@ -20,7 +22,8 @@ export class GraphMultiView extends View {
 
   createViewElement() {
     const pane = document.createElement('div');
-    pane.setAttribute('id', "multiview");
+    pane.setAttribute('id', multiviewID);
+    pane.className = "viewpane";
     return pane;
   }
 
@@ -35,10 +38,10 @@ export class GraphMultiView extends View {
       view.currentPhaseView.searchInputAction(searchInput, e)
     });
     searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
-    this.graph = new GraphView(id, selectionBroker,
+    this.graph = new GraphView(this.divNode, selectionBroker,
       (phaseName) => view.displayPhaseByName(phaseName));
-    this.schedule = new ScheduleView(id, selectionBroker);
-    this.sequence = new SequenceView(id, selectionBroker);
+    this.schedule = new ScheduleView(this.divNode, selectionBroker);
+    this.sequence = new SequenceView(this.divNode, selectionBroker);
     this.selectMenu = (<HTMLSelectElement>document.getElementById('display-selector'));
   }
 
@@ -81,7 +84,7 @@ export class GraphMultiView extends View {
   displayPhaseView(view, data) {
     const rememberedSelection = this.hideCurrentPhase();
     view.show(data, rememberedSelection);
-    document.getElementById("middle").classList.toggle("scrollable", view.isScrollable());
+    this.divNode.classList.toggle("scrollable", view.isScrollable());
     this.currentPhaseView = view;
   }
 

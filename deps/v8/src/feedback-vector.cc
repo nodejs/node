@@ -9,6 +9,7 @@
 #include "src/objects.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/object-macros.h"
 
 namespace v8 {
@@ -237,7 +238,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
-        vector->set(index, HeapObjectReference::ClearedValue(),
+        vector->set(index, HeapObjectReference::ClearedValue(isolate),
                     SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kForIn:
@@ -336,7 +337,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  Code* code = Code::cast(slot->GetHeapObject());
+  Code code = Code::cast(slot->GetHeapObject());
   if (code->marked_for_deoptimization()) {
     if (FLAG_trace_deopt) {
       PrintF("[evicting optimizing code marked for deoptimization (%s) for ",
@@ -414,7 +415,8 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
-      SetFeedback(HeapObjectReference::ClearedValue(), SKIP_WRITE_BARRIER);
+      SetFeedback(HeapObjectReference::ClearedValue(isolate),
+                  SKIP_WRITE_BARRIER);
       SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
                        SKIP_WRITE_BARRIER);
       break;
@@ -514,7 +516,7 @@ bool FeedbackNexus::ConfigureMegamorphic() {
       MaybeObject::FromObject(*FeedbackVector::MegamorphicSentinel(isolate));
   if (GetFeedback() != sentinel) {
     SetFeedback(sentinel, SKIP_WRITE_BARRIER);
-    SetFeedbackExtra(HeapObjectReference::ClearedValue());
+    SetFeedbackExtra(HeapObjectReference::ClearedValue(isolate));
     return true;
   }
 
@@ -532,12 +534,19 @@ bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
     changed = true;
   }
 
-  Smi* extra = Smi::FromInt(static_cast<int>(property_type));
+  Smi extra = Smi::FromInt(static_cast<int>(property_type));
   if (changed || GetFeedbackExtra() != MaybeObject::FromSmi(extra)) {
     SetFeedbackExtra(extra, SKIP_WRITE_BARRIER);
     changed = true;
   }
   return changed;
+}
+
+Map FeedbackNexus::FindFirstMap() const {
+  MapHandles maps;
+  ExtractMaps(&maps);
+  if (maps.size() > 0) return *maps.at(0);
+  return Map();
 }
 
 InlineCacheState FeedbackNexus::StateFromFeedback() const {
@@ -716,16 +725,23 @@ void FeedbackNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
 }
 
 bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
-                                            int context_slot_index) {
+                                            int context_slot_index,
+                                            bool immutable) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK_LE(0, script_context_index);
   DCHECK_LE(0, context_slot_index);
   if (!ContextIndexBits::is_valid(script_context_index) ||
-      !SlotIndexBits::is_valid(context_slot_index)) {
+      !SlotIndexBits::is_valid(context_slot_index) ||
+      !ImmutabilityBit::is_valid(immutable)) {
     return false;
   }
   int config = ContextIndexBits::encode(script_context_index) |
-               SlotIndexBits::encode(context_slot_index);
+               SlotIndexBits::encode(context_slot_index) |
+               ImmutabilityBit::encode(immutable);
+
+  // Force {config} to be in Smi range by propagating the most significant Smi
+  // bit. This does not change any of the bitfield's bits.
+  config = (config << (32 - kSmiValueSize)) >> (32 - kSmiValueSize);
 
   SetFeedback(Smi::FromInt(config));
   Isolate* isolate = GetIsolate();
@@ -737,7 +753,7 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
 void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
-  SetFeedback(HeapObjectReference::ClearedValue());
+  SetFeedback(HeapObjectReference::ClearedValue(GetIsolate()));
   SetFeedbackExtra(*handler);
 }
 
@@ -769,7 +785,7 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
         array->Set(1, GetFeedbackExtra());
         array->Set(2, HeapObjectReference::Weak(*source_map));
         array->Set(3, MaybeObject::FromObject(*result_map));
-        SetFeedbackExtra(HeapObjectReference::ClearedValue());
+        SetFeedbackExtra(HeapObjectReference::ClearedValue(isolate));
       }
       break;
     case POLYMORPHIC: {
@@ -792,7 +808,7 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
           MaybeObject sentinel = MaybeObject::FromObject(
               *FeedbackVector::MegamorphicSentinel(isolate));
           SetFeedback(sentinel, SKIP_WRITE_BARRIER);
-          SetFeedbackExtra(HeapObjectReference::ClearedValue());
+          SetFeedbackExtra(HeapObjectReference::ClearedValue(isolate));
           break;
         }
 
@@ -926,21 +942,21 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->Get(i)->IsWeakOrCleared());
       if (array->Get(i)->GetHeapObjectIfWeak(&heap_object)) {
-        Map* map = Map::cast(heap_object);
+        Map map = Map::cast(heap_object);
         maps->push_back(handle(map, isolate));
         found++;
       }
     }
     return found;
   } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    Map* map = Map::cast(heap_object);
+    Map map = Map::cast(heap_object);
     maps->push_back(handle(map, isolate));
     return 1;
   } else if (feedback->GetHeapObjectIfStrong(&heap_object) &&
              heap_object ==
                  heap_object->GetReadOnlyRoots().premonomorphic_symbol()) {
     if (GetFeedbackExtra()->GetHeapObjectIfWeak(&heap_object)) {
-      Map* map = Map::cast(heap_object);
+      Map map = Map::cast(heap_object);
       maps->push_back(handle(map, isolate));
       return 1;
     }
@@ -973,7 +989,7 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->Get(i)->IsWeakOrCleared());
       if (array->Get(i)->GetHeapObjectIfWeak(&heap_object)) {
-        Map* array_map = Map::cast(heap_object);
+        Map array_map = Map::cast(heap_object);
         if (array_map == *map && !array->Get(i + increment - 1)->IsCleared()) {
           MaybeObject handler = array->Get(i + increment - 1);
           DCHECK(IC::IsHandler(handler));
@@ -982,7 +998,7 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
       }
     }
   } else if (feedback->GetHeapObjectIfWeak(&heap_object)) {
-    Map* cell_map = Map::cast(heap_object);
+    Map cell_map = Map::cast(heap_object);
     if (cell_map == *map && !GetFeedbackExtra()->IsCleared()) {
       MaybeObject handler = GetFeedbackExtra();
       DCHECK(IC::IsHandler(handler));
@@ -1066,6 +1082,56 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   return STANDARD_LOAD;
 }
 
+namespace {
+
+bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  switch (builtin_index) {
+    case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
+    case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
+    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_Standard:
+    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
+  DCHECK(BuiltinHasKeyedAccessStoreMode(builtin_index));
+  switch (builtin_index) {
+    case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
+    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
+    case Builtins::kKeyedStoreIC_Slow_Standard:
+      return STANDARD_STORE;
+    case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
+      return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
+      return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
+    case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+      return STORE_NO_TRANSITION_HANDLE_COW;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
 KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
@@ -1092,19 +1158,25 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     } else {
       // Element store without prototype chain check.
       handler = Handle<Code>::cast(maybe_code_handler.object());
-      if (handler->is_builtin()) continue;
     }
-    CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
-    uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
-    CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
-          major_key == CodeStub::StoreFastElement ||
-          major_key == CodeStub::StoreSlowElement ||
-          major_key == CodeStub::StoreInArrayLiteralSlow ||
-          major_key == CodeStub::ElementsTransitionAndStore ||
-          major_key == CodeStub::NoCache);
-    if (major_key != CodeStub::NoCache) {
-      mode = CommonStoreModeBits::decode(minor_key);
+
+    if (handler->is_builtin()) {
+      const int builtin_index = handler->builtin_index();
+      if (!BuiltinHasKeyedAccessStoreMode(builtin_index)) continue;
+
+      mode = KeyedAccessStoreModeForBuiltin(builtin_index);
       break;
+    } else {
+      CodeStub::Major major_key =
+          CodeStub::MajorKeyFromKey(handler->stub_key());
+      uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
+      CHECK(major_key == CodeStub::StoreFastElement ||
+            major_key == CodeStub::ElementsTransitionAndStore ||
+            major_key == CodeStub::NoCache);
+      if (major_key != CodeStub::NoCache) {
+        mode = CommonStoreModeBits::decode(minor_key);
+        break;
+      }
     }
   }
 
@@ -1125,19 +1197,19 @@ IcCheckType FeedbackNexus::GetKeyType() const {
 
 BinaryOperationHint FeedbackNexus::GetBinaryOperationFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kBinaryOp);
-  int feedback = Smi::ToInt(GetFeedback()->cast<Smi>());
+  int feedback = GetFeedback().ToSmi().value();
   return BinaryOperationHintFromFeedback(feedback);
 }
 
 CompareOperationHint FeedbackNexus::GetCompareOperationFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kCompareOp);
-  int feedback = Smi::ToInt(GetFeedback()->cast<Smi>());
+  int feedback = GetFeedback().ToSmi().value();
   return CompareOperationHintFromFeedback(feedback);
 }
 
 ForInHint FeedbackNexus::GetForInFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kForIn);
-  int feedback = Smi::ToInt(GetFeedback()->cast<Smi>());
+  int feedback = GetFeedback().ToSmi().value();
   return ForInHintFromFeedback(feedback);
 }
 

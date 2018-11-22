@@ -475,7 +475,7 @@ function createTests() {
     });
     result.push(function (jsonObject){
         var deepObject = {};
-        for (var i = 0; i < 1000; i++)
+        for (var i = 0; i < 915; i++)
             deepObject = {next:deepObject};
         return jsonObject.stringify(deepObject);
     });
@@ -488,7 +488,7 @@ function createTests() {
     result.push(function (jsonObject){
         var depth = 0;
         function toDeepVirtualJSONObject() {
-            if (++depth >= 1000)
+            if (++depth >= 915)
                 return {};
             var r = {};
             r.toJSON = toDeepVirtualJSONObject;

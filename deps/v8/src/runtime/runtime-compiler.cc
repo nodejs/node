@@ -123,7 +123,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   }
   if (function->shared()->HasAsmWasmData()) {
     Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-    Handle<FixedArray> data(shared->asm_wasm_data(), isolate);
+    Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) {

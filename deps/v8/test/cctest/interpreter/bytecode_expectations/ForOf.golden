@@ -417,11 +417,11 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 265
+bytecode array length: 263
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(8),
-                B(Mov), R(8), R(0),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(Star), R(0),
                 B(LdaZero),
                 B(Star), R(4),
                 B(Mov), R(context), R(10),
@@ -545,8 +545,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [15, 134, 142],
-  [18, 101, 103],
-  [203, 213, 215],
+  [13, 132, 140],
+  [16, 99, 101],
+  [201, 211, 213],
 ]
 

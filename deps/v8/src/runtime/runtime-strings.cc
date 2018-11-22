@@ -8,6 +8,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime-utils.h"
@@ -585,7 +586,7 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements->set(i, value, mode);
   }
   if (i < length) {
-    static_assert(Smi::kZero == nullptr,
+    static_assert(Smi::kZero.ptr() == kNullAddress,
                   "Can use memset since Smi::kZero is 0");
     memset(elements->RawFieldOfElementAt(i).ToVoidPtr(), 0,
            kPointerSize * (length - i));

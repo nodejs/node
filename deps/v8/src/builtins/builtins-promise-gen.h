@@ -8,6 +8,8 @@
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/objects/promise.h"
+#include "torque-generated/builtins-base-from-dsl-gen.h"
+#include "torque-generated/builtins-iterator-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -180,9 +182,10 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
-  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
-                          const IteratorRecord& record, Label* if_exception,
-                          Variable* var_exception);
+  Node* PerformPromiseAll(
+      Node* context, Node* constructor, Node* capability,
+      const IteratorBuiltinsFromDSLAssembler::IteratorRecord& record,
+      Label* if_exception, Variable* var_exception);
 
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,
                                   const NodeGenerator& object);

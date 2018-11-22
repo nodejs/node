@@ -37,15 +37,16 @@ class WasmCompilationUnit final {
   // typically means to hold a std::shared_ptr<Counters>).
   // If used exclusively from a foreground thread, Isolate::counters() may be
   // used by callers to pass Counters.
-  WasmCompilationUnit(WasmEngine*, NativeModule*, FunctionBody, int index,
+  WasmCompilationUnit(WasmEngine*, NativeModule*, int index,
                       ExecutionTier = GetDefaultExecutionTier());
 
   ~WasmCompilationUnit();
 
-  void ExecuteCompilation(CompilationEnv*, Counters*, WasmFeatures* detected);
+  void ExecuteCompilation(CompilationEnv*, std::shared_ptr<WireBytesStorage>,
+                          Counters*, WasmFeatures* detected);
 
   NativeModule* native_module() const { return native_module_; }
-  ExecutionTier mode() const { return mode_; }
+  ExecutionTier tier() const { return tier_; }
   bool failed() const { return result_ == nullptr; }  // TODO(clemensh): Remove.
   WasmCode* result() const { return result_; }
 
@@ -58,19 +59,18 @@ class WasmCompilationUnit final {
   friend class LiftoffCompilationUnit;
   friend class compiler::TurbofanWasmCompilationUnit;
 
-  WasmEngine* wasm_engine_;
-  FunctionBody func_body_;
-  int func_index_;
-  NativeModule* native_module_;
-  ExecutionTier mode_;
+  WasmEngine* const wasm_engine_;
+  const int func_index_;
+  NativeModule* const native_module_;
+  ExecutionTier tier_;
   WasmCode* result_ = nullptr;
 
-  // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
+  // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
-  // TurbofanWasmCompilationUnit, set if {mode_ == kTurbofan}.
+  // TurbofanWasmCompilationUnit, set if {tier_ == kTurbofan}.
   std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
 
-  void SwitchMode(ExecutionTier new_mode);
+  void SwitchTier(ExecutionTier new_tier);
 
   // Called from {ExecuteCompilation} to set the result of compilation.
   void SetResult(WasmCode*, Counters*);

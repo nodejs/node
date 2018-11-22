@@ -34,6 +34,7 @@ class CallableTask;
 class CallbackTask;
 class CallHandlerInfo;
 class Expression;
+class EmbedderDataArray;
 class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
@@ -153,6 +154,10 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FeedbackVector> NewFeedbackVector(
       Handle<SharedFunctionInfo> shared, PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates a clean embedder data array with given capacity.
+  Handle<EmbedderDataArray> NewEmbedderDataArray(
+      int length, PretenureFlag pretenure = NOT_TENURED);
+
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
   Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
@@ -177,11 +182,15 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
+  Handle<OrderedNameDictionary> NewOrderedNameDictionary();
 
   Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
       int capacity = SmallOrderedHashSet::kMinCapacity,
       PretenureFlag pretenure = NOT_TENURED);
   Handle<SmallOrderedHashMap> NewSmallOrderedHashMap(
+      int capacity = SmallOrderedHashMap::kMinCapacity,
+      PretenureFlag pretenure = NOT_TENURED);
+  Handle<SmallOrderedNameDictionary> NewSmallOrderedNameDictionary(
       int capacity = SmallOrderedHashMap::kMinCapacity,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -361,7 +370,7 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(PretenureFlag pretenure = TENURED);
   Handle<Symbol> NewPrivateSymbol(PretenureFlag pretenure = TENURED);
-  Handle<Symbol> NewPrivateFieldSymbol();
+  Handle<Symbol> NewPrivateNameSymbol();
 
   // Create a global (but otherwise uninitialized) context.
   Handle<NativeContext> NewNativeContext();
@@ -472,6 +481,7 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FeedbackCell> NewNoClosuresCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
+  Handle<FeedbackCell> NewNoFeedbackCell();
 
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
@@ -485,8 +495,8 @@ class V8_EXPORT_PRIVATE Factory {
                      int inobject_properties = 0);
   // Initializes the fields of a newly created Map. Exposed for tests and
   // heap setup; other code should just call NewMap which takes care of it.
-  Map* InitializeMap(Map* map, InstanceType type, int instance_size,
-                     ElementsKind elements_kind, int inobject_properties);
+  Map InitializeMap(Map map, InstanceType type, int instance_size,
+                    ElementsKind elements_kind, int inobject_properties);
 
   // Allocate a block of memory in the given space (filled with a filler).
   // Used as a fall-back for generated code when the space is full.
@@ -505,6 +515,8 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
+  Handle<FixedArrayPtr> CopyFixedArrayWithMap(Handle<FixedArrayPtr> array,
+                                              Handle<Map> map);
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
       Handle<FixedArray> array, int grow_by,
@@ -596,6 +608,15 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<Map> map,
       int number_of_slow_properties = NameDictionary::kInitialCapacity,
       PretenureFlag pretenure = NOT_TENURED);
+  // Allocates and initializes a new JavaScript object with the given
+  // {prototype} and {properties}. The newly created object will be
+  // in dictionary properties mode. The {elements} can either be the
+  // empty fixed array, in which case the resulting object will have
+  // fast elements, or a NumberDictionary, in which case the resulting
+  // object will have dictionary elements.
+  Handle<JSObject> NewSlowJSObjectWithPropertiesAndElements(
+      Handle<Object> prototype, Handle<NameDictionary> properties,
+      Handle<FixedArrayBase> elements, PretenureFlag pretenure = NOT_TENURED);
 
   // JS arrays are pretenured when allocated by the parser.
 
@@ -819,7 +840,7 @@ class V8_EXPORT_PRIVATE Factory {
 #undef DECLARE_ERROR
 
   Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
-  Handle<String> NumberToString(Smi* number, bool check_cache = true);
+  Handle<String> NumberToString(Smi number, bool check_cache = true);
 
   inline Handle<String> Uint32ToString(uint32_t value, bool check_cache = true);
 
@@ -927,7 +948,7 @@ class V8_EXPORT_PRIVATE Factory {
   }
 
   HeapObject* AllocateRawWithImmortalMap(
-      int size, PretenureFlag pretenure, Map* map,
+      int size, PretenureFlag pretenure, Map map,
       AllocationAlignment alignment = kWordAligned);
   HeapObject* AllocateRawWithAllocationSite(
       Handle<Map> map, PretenureFlag pretenure,
@@ -940,6 +961,10 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FixedArray> NewFixedArrayWithFiller(RootIndex map_root_index,
                                              int length, Object* filler,
                                              PretenureFlag pretenure);
+
+  template <typename T>
+  Handle<T> AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
+                                          PretenureFlag pretenure);
 
   // Creates a heap object based on the map. The fields of the heap object are
   // not initialized, it's the responsibility of the caller to do that.

@@ -26,6 +26,13 @@
 #include "src/trap-handler/handler-inside-posix.h"
 
 #include <signal.h>
+
+#ifdef V8_OS_LINUX
+#include <ucontext.h>
+#elif V8_OS_MACOSX
+#include <sys/ucontext.h>
+#endif
+
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -37,6 +44,9 @@ namespace internal {
 namespace trap_handler {
 
 bool IsKernelGeneratedSignal(siginfo_t* info) {
+  // On macOS, only `info->si_code > 0` is relevant, because macOS leaves
+  // si_code at its default of 0 for signals that don’t originate in hardware.
+  // The other conditions are only relevant for Linux.
   return info->si_code > 0 && info->si_code != SI_USER &&
          info->si_code != SI_QUEUE && info->si_code != SI_TIMER &&
          info->si_code != SI_ASYNCIO && info->si_code != SI_MESGQ;
@@ -63,7 +73,8 @@ class SigUnmaskStack {
 
 bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
   // Bail out early in case we got called for the wrong kind of signal.
-  if (signum != SIGSEGV) {
+
+  if (signum != kOobSignal) {
     return false;
   }
 
@@ -94,11 +105,18 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
     SigUnmaskStack unmask(sigs);
 
     ucontext_t* uc = reinterpret_cast<ucontext_t*>(context);
-    uintptr_t fault_addr = uc->uc_mcontext.gregs[REG_RIP];
+#if V8_OS_LINUX
+    auto* context_rip = &uc->uc_mcontext.gregs[REG_RIP];
+#elif V8_OS_MACOSX
+    auto* context_rip = &uc->uc_mcontext->__ss.__rip;
+#else
+#error Unsupported platform
+#endif
+    uintptr_t fault_addr = *context_rip;
     uintptr_t landing_pad = 0;
     if (TryFindLandingPad(fault_addr, &landing_pad)) {
       // Tell the caller to return to the landing pad.
-      uc->uc_mcontext.gregs[REG_RIP] = landing_pad;
+      *context_rip = landing_pad;
       // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
       g_thread_in_wasm_code = true;
       return true;

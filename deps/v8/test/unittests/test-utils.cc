@@ -22,7 +22,7 @@ IsolateWrapper::IsolateWrapper(bool enforce_pointer_compression)
   create_params.array_buffer_allocator = array_buffer_allocator_;
   if (enforce_pointer_compression) {
     isolate_ = reinterpret_cast<v8::Isolate*>(
-        i::Isolate::New(i::IsolateAllocationMode::kAllocateInV8Heap));
+        i::Isolate::New(i::IsolateAllocationMode::kInV8Heap));
     v8::Isolate::Initialize(isolate_, create_params);
   } else {
     isolate_ = v8::Isolate::New(create_params);

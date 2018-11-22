@@ -66,17 +66,17 @@ ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-Map* ReadOnlyRoots::MapForFixedTypedArray(ExternalArrayType array_type) {
+Map ReadOnlyRoots::MapForFixedTypedArray(ExternalArrayType array_type) {
   RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(array_type);
   return Map::cast(roots_table_[root_index]);
 }
 
-Map* ReadOnlyRoots::MapForFixedTypedArray(ElementsKind elements_kind) {
+Map ReadOnlyRoots::MapForFixedTypedArray(ElementsKind elements_kind) {
   RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(elements_kind);
   return Map::cast(roots_table_[root_index]);
 }
 
-FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
+FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map map) {
   RootIndex root_index =
       RootsTable::RootIndexForEmptyFixedTypedArray(map->elements_kind());
   return FixedTypedArrayBase::cast(roots_table_[root_index]);

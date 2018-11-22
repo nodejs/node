@@ -753,23 +753,34 @@ class ModuleDecoderImpl : public Decoder {
     }
     for (uint32_t i = 0; ok() && i < element_count; ++i) {
       const byte* pos = pc();
-      uint32_t table_index = consume_u32v("table index");
-      if (!enabled_features_.anyref && table_index != 0) {
-        errorf(pos, "illegal table index %u != 0", table_index);
+
+      bool is_active;
+      uint32_t table_index;
+      WasmInitExpr offset;
+      consume_segment_header("table index", &is_active, &table_index, &offset);
+      if (failed()) return;
+
+      if (is_active) {
+        if (table_index >= module_->tables.size()) {
+          errorf(pos, "out of bounds table index %u", table_index);
+          break;
+        }
+        if (module_->tables[table_index].type != kWasmAnyFunc) {
+          errorf(pos,
+                 "Invalid element segment. Table %u is not of type AnyFunc",
+                 table_index);
+          break;
+        }
       }
-      if (table_index >= module_->tables.size()) {
-        errorf(pos, "out of bounds table index %u", table_index);
-        break;
-      }
-      if (module_->tables[table_index].type != kWasmAnyFunc) {
-        errorf(pos, "Invalid element segment. Table %u is not of type AnyFunc",
-               table_index);
-        break;
-      }
-      WasmInitExpr offset = consume_init_expr(module_.get(), kWasmI32);
+
       uint32_t num_elem =
           consume_count("number of elements", kV8MaxWasmTableEntries);
-      module_->table_inits.emplace_back(table_index, offset);
+      if (is_active) {
+        module_->table_inits.emplace_back(table_index, offset);
+      } else {
+        module_->table_inits.emplace_back();
+      }
+
       WasmTableInit* init = &module_->table_inits.back();
       for (uint32_t j = 0; j < num_elem; j++) {
         WasmFunction* func = nullptr;
@@ -829,18 +840,41 @@ class ModuleDecoderImpl : public Decoder {
         consume_count("data segments count", kV8MaxWasmDataSegments);
     module_->data_segments.reserve(data_segments_count);
     for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
+      const byte* pos = pc();
       if (!module_->has_memory) {
         error("cannot load data without memory");
         break;
       }
       TRACE("DecodeDataSegment[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      module_->data_segments.push_back({
-          WasmInitExpr(),  // dest_addr
-          {0, 0}           // source
-      });
+
+      bool is_active;
+      uint32_t memory_index;
+      WasmInitExpr dest_addr;
+      consume_segment_header("memory index", &is_active, &memory_index,
+                             &dest_addr);
+      if (failed()) break;
+
+      if (is_active && memory_index != 0) {
+        errorf(pos, "illegal memory index %u != 0", memory_index);
+        break;
+      }
+
+      uint32_t source_length = consume_u32v("source size");
+      uint32_t source_offset = pc_offset();
+
+      if (is_active) {
+        module_->data_segments.emplace_back(dest_addr);
+      } else {
+        module_->data_segments.emplace_back();
+      }
+
       WasmDataSegment* segment = &module_->data_segments.back();
-      DecodeDataSegmentInModule(module_.get(), segment);
+
+      consume_bytes(source_length, "segment data");
+      if (failed()) break;
+
+      segment->source = {source_offset, source_length};
     }
   }
 
@@ -1069,17 +1103,6 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Decodes a single data segment entry inside a module starting at {pc_}.
-  void DecodeDataSegmentInModule(WasmModule* module, WasmDataSegment* segment) {
-    expect_u8("linear memory index", 0);
-    segment->dest_addr = consume_init_expr(module, kWasmI32);
-    uint32_t source_length = consume_u32v("source size");
-    uint32_t source_offset = pc_offset();
-
-    consume_bytes(source_length, "segment data");
-    if (failed()) return;
-
-    segment->source = {source_offset, source_length};
-  }
 
   // Calculate individual global offsets and total size of globals table.
   void CalculateGlobalOffsets(WasmModule* module) {
@@ -1464,6 +1487,55 @@ class ModuleDecoderImpl : public Decoder {
       return 0;
     }
     return attribute;
+  }
+
+  void consume_segment_header(const char* name, bool* is_active,
+                              uint32_t* index, WasmInitExpr* offset) {
+    const byte* pos = pc();
+    // In the MVP, this is a table or memory index field that must be 0, but
+    // we've repurposed it as a flags field in the bulk memory proposal.
+    uint32_t flags;
+    if (enabled_features_.bulk_memory) {
+      flags = consume_u32v("flags");
+      if (failed()) return;
+    } else {
+      flags = consume_u32v(name);
+      if (failed()) return;
+
+      if (flags != 0) {
+        errorf(pos, "illegal %s %u != 0", name, flags);
+        return;
+      }
+    }
+
+    bool read_index;
+    bool read_offset;
+    if (flags == SegmentFlags::kActiveNoIndex) {
+      *is_active = true;
+      read_index = false;
+      read_offset = true;
+    } else if (flags == SegmentFlags::kPassive) {
+      *is_active = false;
+      read_index = false;
+      read_offset = false;
+    } else if (flags == SegmentFlags::kActiveWithIndex) {
+      *is_active = true;
+      read_index = true;
+      read_offset = true;
+    } else {
+      errorf(pos, "illegal flag value %u. Must be 0, 1, or 2", flags);
+      return;
+    }
+
+    if (read_index) {
+      *index = consume_u32v(name);
+    } else {
+      *index = 0;
+    }
+
+    if (read_offset) {
+      *offset = consume_init_expr(module_.get(), kWasmI32);
+    }
   }
 };
 

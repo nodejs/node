@@ -930,7 +930,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
 #ifdef DEBUG
     if (state == DebugInfo::kHasNoSideEffect) {
       // TODO(yangguo): Check builtin-to-builtin calls too.
-      Code* code = isolate->builtins()->builtin(builtin_index);
+      Code code = isolate->builtins()->builtin(builtin_index);
       int mode = RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
       bool failed = false;
       for (RelocIterator it(code, mode); !it.done(); it.next()) {

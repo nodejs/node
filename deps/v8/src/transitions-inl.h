@@ -11,6 +11,7 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -26,7 +27,7 @@ TransitionArray* TransitionsAccessor::transitions() {
 CAST_ACCESSOR(TransitionArray)
 
 bool TransitionArray::HasPrototypeTransitions() {
-  return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::kZero);
+  return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::zero());
 }
 
 WeakFixedArray* TransitionArray::GetPrototypeTransitions() {
@@ -52,7 +53,7 @@ int TransitionArray::NumberOfPrototypeTransitions(
   if (proto_transitions->length() == 0) return 0;
   MaybeObject raw =
       proto_transitions->Get(kProtoTransitionNumberOfEntriesOffset);
-  return Smi::ToInt(raw->cast<Smi>());
+  return raw.ToSmi().value();
 }
 
 Name* TransitionArray::GetKey(int transition_number) {
@@ -65,10 +66,11 @@ Name* TransitionsAccessor::GetKey(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       UNREACHABLE();
       return nullptr;
     case kWeakRef: {
-      Map* map = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
+      Map map = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
       return GetSimpleTransitionKey(map);
     }
     case kFullTransitionArray:
@@ -89,7 +91,7 @@ HeapObjectSlot TransitionArray::GetTargetSlot(int transition_number) {
 }
 
 // static
-PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
+PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map target) {
   DCHECK(!IsSpecialTransition(name->GetReadOnlyRoots(), name));
   int descriptor = target->LastAdded();
   DescriptorArray* descriptors = target->instance_descriptors();
@@ -99,18 +101,18 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
 }
 
 // static
-PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map* transition) {
+PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
   return transition->GetLastDescriptorDetails();
 }
 
 // static
-Name* TransitionsAccessor::GetSimpleTransitionKey(Map* transition) {
+Name* TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
   int descriptor = transition->LastAdded();
   return transition->instance_descriptors()->GetKey(descriptor);
 }
 
 // static
-Map* TransitionsAccessor::GetTargetFromRaw(MaybeObject raw) {
+Map TransitionsAccessor::GetTargetFromRaw(MaybeObject raw) {
   return Map::cast(raw->GetHeapObjectAssumeWeak());
 }
 
@@ -119,17 +121,18 @@ MaybeObject TransitionArray::GetRawTarget(int transition_number) {
   return Get(ToTargetIndex(transition_number));
 }
 
-Map* TransitionArray::GetTarget(int transition_number) {
+Map TransitionArray::GetTarget(int transition_number) {
   MaybeObject raw = GetRawTarget(transition_number);
   return TransitionsAccessor::GetTargetFromRaw(raw);
 }
 
-Map* TransitionsAccessor::GetTarget(int transition_number) {
+Map TransitionsAccessor::GetTarget(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       UNREACHABLE();
-      return nullptr;
+      return Map();
     case kWeakRef:
       return Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
     case kFullTransitionArray:
@@ -146,7 +149,7 @@ void TransitionArray::SetRawTarget(int transition_number, MaybeObject value) {
 }
 
 bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
-                                        Map** target) {
+                                        Map* target) {
   MaybeObject raw = GetRawTarget(transition_number);
   HeapObject* heap_object;
   if (raw->GetHeapObjectIfStrong(&heap_object) &&
@@ -174,7 +177,7 @@ int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
 
 int TransitionArray::number_of_transitions() const {
   if (length() < kFirstIndex) return 0;
-  return Smi::ToInt(Get(kTransitionLengthIndex)->cast<Smi>());
+  return Get(kTransitionLengthIndex).ToSmi().value();
 }
 
 int TransitionArray::CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,

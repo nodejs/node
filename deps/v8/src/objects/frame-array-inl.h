@@ -17,13 +17,13 @@ namespace internal {
 CAST_ACCESSOR(FrameArray)
 
 #define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \
-  type* FrameArray::name(int frame_ix) const {                                \
+  type##ArgType FrameArray::name(int frame_ix) const {                        \
     Object* obj =                                                             \
         get(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset);    \
     return type::cast(obj);                                                   \
   }                                                                           \
                                                                               \
-  void FrameArray::Set##name(int frame_ix, type* value) {                     \
+  void FrameArray::Set##name(int frame_ix, type##ArgType value) {             \
     set(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset, value); \
   }
 FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)

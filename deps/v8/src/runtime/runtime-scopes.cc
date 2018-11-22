@@ -8,11 +8,14 @@
 #include "src/arguments-inl.h"
 #include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -151,16 +154,23 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     Handle<Object> value;
     if (is_function) {
-      DCHECK(possibly_feedback_cell_slot->IsSmi());
+      // If feedback vector was not allocated for this function, then we don't
+      // have any information about number of closures. Use NoFeedbackCell to
+      // indicate that.
+      Handle<FeedbackCell> feedback_cell =
+          isolate->factory()->no_feedback_cell();
+      if (!feedback_vector.is_null()) {
+        DCHECK(possibly_feedback_cell_slot->IsSmi());
+        FeedbackSlot feedback_cells_slot(
+            Smi::ToInt(*possibly_feedback_cell_slot));
+        feedback_cell = Handle<FeedbackCell>(
+            FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)
+                                   ->GetHeapObjectAssumeStrong()),
+            isolate);
+      }
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
-      FeedbackSlot feedback_cells_slot(
-          Smi::ToInt(*possibly_feedback_cell_slot));
-      Handle<FeedbackCell> feedback_cell(
-          FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)
-                                 ->GetHeapObjectAssumeStrong()),
-          isolate);
       Handle<JSFunction> function =
           isolate->factory()->NewFunctionFromSharedFunctionInfo(
               shared, context, feedback_cell, TENURED);
@@ -199,7 +209,11 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 2);
 
-  Handle<FeedbackVector> feedback_vector(closure->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>();
+  if (closure->has_feedback_vector()) {
+    feedback_vector =
+        Handle<FeedbackVector>(closure->feedback_vector(), isolate);
+  }
   return DeclareGlobals(isolate, declarations, flags, feedback_vector);
 }
 
@@ -444,7 +458,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         int parameter = scope_info->ContextLocalParameterNumber(i);
         if (parameter >= mapped_count) continue;
         arguments->set_the_hole(parameter);
-        Smi* slot = Smi::FromInt(Context::MIN_CONTEXT_SLOTS + i);
+        Smi slot = Smi::FromInt(Context::MIN_CONTEXT_SLOTS + i);
         parameter_map->set(parameter + 2, slot);
       }
     } else {
@@ -472,11 +486,13 @@ class HandleArguments {
 
 class ParameterArguments {
  public:
-  explicit ParameterArguments(Object** parameters) : parameters_(parameters) {}
-  Object*& operator[](int index) { return *(parameters_ - index - 1); }
+  explicit ParameterArguments(Address parameters) : parameters_(parameters) {}
+  Object* operator[](int index) {
+    return *ObjectSlot(parameters_ - (index + 1) * kPointerSize);
+  }
 
  private:
-  Object** parameters_;
+  Address parameters_;
 };
 
 }  // namespace
@@ -571,8 +587,8 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
     fp = adaptor_frame->fp();
   }
 
-  Object** parameters = reinterpret_cast<Object**>(
-      fp + argc * kPointerSize + StandardFrameConstants::kCallerSPOffset);
+  Address parameters =
+      fp + argc * kPointerSize + StandardFrameConstants::kCallerSPOffset;
   ParameterArguments argument_getter(parameters);
   return *NewSloppyArguments(isolate, callee, argument_getter, argc);
 }
@@ -580,7 +596,10 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
 RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Object** frame = reinterpret_cast<Object**>(args[0]);
+  // Note that args[0] is the address of an array of object pointers (a.k.a.
+  // an ObjectSlot), which looks like a Smi because it's aligned.
+  DCHECK(args[0].IsSmi());
+  ObjectSlot frame(args[0]->ptr());
   CONVERT_SMI_ARG_CHECKED(length, 1);
   CONVERT_SMI_ARG_CHECKED(mapped_count, 2);
   Handle<FixedArray> result =
@@ -593,7 +612,7 @@ RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
     result->set_the_hole(isolate, index);
   }
   for (int index = number_of_holes; index < length; ++index) {
-    result->set(index, frame[offset - index], mode);
+    result->set(index, *(frame + (offset - index)), mode);
   }
   return *result;
 }

@@ -58,7 +58,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(Node* node,
-                                  Handle<SharedFunctionInfo> shared);
+                                  const SharedFunctionInfoRef& shared);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
@@ -76,20 +76,20 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReflectGet(Node* node);
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceReflectHas(Node* node);
-  Reduction ReduceArrayForEach(Node* node, Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArrayForEach(Node* node, const SharedFunctionInfoRef& shared);
   enum class ArrayReduceDirection { kLeft, kRight };
   Reduction ReduceArrayReduce(Node* node, ArrayReduceDirection direction,
-                              Handle<SharedFunctionInfo> shared);
-  Reduction ReduceArrayMap(Node* node, Handle<SharedFunctionInfo> shared);
-  Reduction ReduceArrayFilter(Node* node, Handle<SharedFunctionInfo> shared);
+                              const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayMap(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayFilter(Node* node, const SharedFunctionInfoRef& shared);
   enum class ArrayFindVariant { kFind, kFindIndex };
   Reduction ReduceArrayFind(Node* node, ArrayFindVariant variant,
-                            Handle<SharedFunctionInfo> shared);
-  Reduction ReduceArrayEvery(Node* node, Handle<SharedFunctionInfo> shared);
+                            const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayEvery(Node* node, const SharedFunctionInfoRef& shared);
   enum class SearchVariant { kIncludes, kIndexOf };
   Reduction ReduceArrayIndexOfIncludes(SearchVariant search_variant,
                                        Node* node);
-  Reduction ReduceArraySome(Node* node, Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArraySome(Node* node, const SharedFunctionInfoRef& shared);
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
@@ -108,7 +108,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
   Reduction ReduceJSCall(Node* node);
-  Reduction ReduceJSCall(Node* node, Handle<SharedFunctionInfo> shared);
+  Reduction ReduceJSCall(Node* node, const SharedFunctionInfoRef& shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceRegExpPrototypeTest(Node* node);
@@ -130,8 +130,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringFromCodePoint(Node* node);
   Reduction ReduceStringPrototypeIterator(Node* node);
   Reduction ReduceStringIteratorPrototypeNext(Node* node);
-  Reduction ReduceStringPrototypeConcat(Node* node,
-                                        Handle<SharedFunctionInfo> shared);
+  Reduction ReduceStringPrototypeConcat(Node* node);
 
   Reduction ReducePromiseConstructor(Node* node);
   Reduction ReducePromiseInternalConstructor(Node* node);
@@ -143,7 +142,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReducePromiseResolveTrampoline(Node* node);
 
   Reduction ReduceTypedArrayConstructor(Node* node,
-                                        Handle<SharedFunctionInfo> shared);
+                                        const SharedFunctionInfoRef& shared);
   Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
@@ -226,7 +225,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count, BailoutId bailout_id,
                                    FrameStateType frame_state_type,
-                                   Handle<SharedFunctionInfo> shared,
+                                   const SharedFunctionInfoRef& shared,
                                    Node* context = nullptr);
 
   Graph* graph() const;

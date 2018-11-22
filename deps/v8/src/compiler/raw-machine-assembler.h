@@ -60,6 +60,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
   Schedule* Export();
+  // Finalizes the schedule and transforms it into a graph that's suitable for
+  // it to be used for Turbofan optimization and re-scheduling. Note that this
+  // RawMachineAssembler becomes invalid after export.
+  Graph* ExportForOptimization();
 
   // ===========================================================================
   // The following utility methods create new nodes with specific operators and
@@ -621,28 +625,25 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Conversions.
   Node* BitcastTaggedToWord(Node* a) {
-#ifdef ENABLE_VERIFY_CSA
-    return AddNode(machine()->BitcastTaggedToWord(), a);
-#else
+    if (FLAG_verify_csa || FLAG_optimize_csa) {
+      return AddNode(machine()->BitcastTaggedToWord(), a);
+    }
     return a;
-#endif
   }
   Node* BitcastMaybeObjectToWord(Node* a) {
-#ifdef ENABLE_VERIFY_CSA
-    return AddNode(machine()->BitcastMaybeObjectToWord(), a);
-#else
+    if (FLAG_verify_csa || FLAG_optimize_csa) {
+      return AddNode(machine()->BitcastMaybeObjectToWord(), a);
+    }
     return a;
-#endif
   }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }
   Node* BitcastWordToTaggedSigned(Node* a) {
-#ifdef ENABLE_VERIFY_CSA
-    return AddNode(machine()->BitcastWordToTaggedSigned(), a);
-#else
+    if (FLAG_verify_csa || FLAG_optimize_csa) {
+      return AddNode(machine()->BitcastWordToTaggedSigned(), a);
+    }
     return a;
-#endif
   }
   Node* TruncateFloat64ToWord32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToWord32(), a);
@@ -938,8 +939,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);
   void SetInitialDebugInformation(AssemblerDebugInfo info);
   void PrintCurrentBlock(std::ostream& os);
-  bool InsideBlock();
 #endif  // DEBUG
+  bool InsideBlock();
 
   // Add success / exception successor blocks and ends the current block ending
   // in a potentially throwing call node.
@@ -981,6 +982,18 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   BasicBlock* Use(RawMachineLabel* label);
   BasicBlock* EnsureBlock(RawMachineLabel* label);
   BasicBlock* CurrentBlock();
+
+  // A post-processing pass to add effect and control edges so that the graph
+  // can be optimized and re-scheduled.
+  // TODO(tebbi): Move this to a separate class.
+  void MakeReschedulable();
+  Node* CreateNodeFromPredecessors(const std::vector<BasicBlock*>& predecessors,
+                                   const std::vector<Node*>& sidetable,
+                                   const Operator* op,
+                                   const std::vector<Node*>& additional_inputs);
+  void MakePhiBinary(Node* phi, int split_point, Node* left_control,
+                     Node* right_control);
+  void MarkControlDeferred(Node* control_input);
 
   Schedule* schedule() { return schedule_; }
   size_t parameter_count() const { return call_descriptor_->ParameterCount(); }

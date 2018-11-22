@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/objects.h"
+#include "src/objects/embedder-data-slot.h"
 #include "src/objects/property-array.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -228,8 +229,8 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  static Smi* CreateIdentityHash(Isolate* isolate, JSReceiver* key);
-  Smi* GetOrCreateIdentityHash(Isolate* isolate);
+  static Smi CreateIdentityHash(Isolate* isolate, JSReceiver* key);
+  Smi GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -440,7 +441,7 @@ class JSObject : public JSReceiver {
                                               Handle<Map> new_map,
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static Map* InvalidatePrototypeChains(Map* map);
+  static Map InvalidatePrototypeChains(Map map);
   static void InvalidatePrototypeValidityCell(JSGlobalObject* global);
 
   // Updates prototype chain tracking information when an object changes its
@@ -544,15 +545,15 @@ class JSObject : public JSReceiver {
   // JSFunction objects.
   static int GetHeaderSize(InstanceType instance_type,
                            bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(const Map* map);
+  static inline int GetHeaderSize(const Map map);
   inline int GetHeaderSize() const;
 
-  static inline int GetEmbedderFieldCount(const Map* map);
+  static inline int GetEmbedderFieldCount(const Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object* value);
-  inline void SetEmbedderField(int index, Smi* value);
+  inline void SetEmbedderField(int index, Smi value);
 
   // Returns true when the object is potentially a wrapper that gets special
   // garbage collection treatment.
@@ -635,7 +636,7 @@ class JSObject : public JSReceiver {
   // pre_allocated_value and the rest with filler_value.
   // Note: this call does not update write barrier, the caller is responsible
   // to ensure that |filler_value| can be collected without WB here.
-  inline void InitializeBody(Map* map, int start_offset,
+  inline void InitializeBody(Map map, int start_offset,
                              Object* pre_allocated_value, Object* filler_value);
 
   // Check whether this object references another object
@@ -669,7 +670,7 @@ class JSObject : public JSReceiver {
                                       ElementsKind to_kind,
                                       Handle<FixedArrayBase> to_elements);
 
-  void PrintInstanceMigration(FILE* file, Map* original_map, Map* new_map);
+  void PrintInstanceMigration(FILE* file, Map original_map, Map new_map);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
@@ -744,8 +745,9 @@ class JSObject : public JSReceiver {
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
   // TODO(cbruni): Revisit calculation of the max supported embedder fields.
   static const int kMaxEmbedderFields =
-      ((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
-      kPointerSizeLog2;
+      (((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
+       kPointerSizeLog2) /
+      kEmbedderDataSlotSizeInTaggedSlots;
   STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
   class BodyDescriptor;
@@ -921,9 +923,9 @@ class JSFunction : public JSObject {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
-  inline Code* code();
-  inline void set_code(Code* code);
-  inline void set_code_no_write_barrier(Code* code);
+  inline Code code();
+  inline void set_code(Code code);
+  inline void set_code_no_write_barrier(Code code);
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -997,7 +999,7 @@ class JSFunction : public JSObject {
   inline bool has_prototype_slot() const;
 
   // The initial map for an object created by this constructor.
-  inline Map* initial_map();
+  inline Map initial_map();
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<Object> prototype);
   inline bool has_initial_map();
@@ -1221,7 +1223,8 @@ class JSDate : public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static Object* GetField(Object* date, Smi* index);
+  // {smi_index} is a raw Address because this is called via ExternalReference.
+  static Object* GetField(Object* date, Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 

@@ -19,14 +19,19 @@
 #include "src/double.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
-#include "src/instruction-stream.h"
+#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
 
+// Satisfy cpplint check, but don't include platform-specific header. It is
+// included recursively via macro-assembler.h.
+#if 0
 #include "src/arm/macro-assembler-arm.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -323,14 +328,14 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
   push(scratch);
 }
 
-void TurboAssembler::Push(Smi* smi) {
+void TurboAssembler::Push(Smi smi) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   mov(scratch, Operand(smi));
   push(scratch);
 }
 
-void TurboAssembler::Move(Register dst, Smi* smi) { mov(dst, Operand(smi)); }
+void TurboAssembler::Move(Register dst, Smi smi) { mov(dst, Operand(smi)); }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
   if (FLAG_embedded_builtins) {
@@ -1619,7 +1624,7 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
-  Push(Smi::kZero);  // Padding.
+  Push(Smi::zero());  // Padding.
   // Link the current handler as the next handler.
   mov(r6, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
                                             isolate())));
@@ -1678,30 +1683,35 @@ void MacroAssembler::CallStub(CodeStub* stub,
 
 void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-
-  // Block constant pool for the call instruction sequence.
-  BlockConstPoolScope block_const_pool(this);
+  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
+    stub->set_isolate(isolate());
+    Call(stub->GetCode(), RelocInfo::CODE_TARGET, al, CAN_INLINE_TARGET_ADDRESS,
+         false);
+  } else {
+    // Block constant pool for the call instruction sequence.
+    BlockConstPoolScope block_const_pool(this);
 
 #ifdef DEBUG
-  Label start;
-  bind(&start);
+    Label start;
+    bind(&start);
 #endif
 
-  // Call sequence on V7 or later may be :
-  //  movw  ip, #... @ call address low 16
-  //  movt  ip, #... @ call address high 16
-  //  blx   ip
-  //                      @ return address
-  // Or for pre-V7 or values that may be back-patched
-  // to avoid ICache flushes:
-  //  ldr   ip, [pc, #...] @ call address
-  //  blx   ip
-  //                      @ return address
+    // Call sequence on V7 or later may be :
+    //  movw  ip, #... @ call address low 16
+    //  movt  ip, #... @ call address high 16
+    //  blx   ip
+    //                      @ return address
+    // Or for pre-V7 or values that may be back-patched
+    // to avoid ICache flushes:
+    //  ldr   ip, [pc, #...] @ call address
+    //  blx   ip
+    //                      @ return address
 
-  mov(ip, Operand::EmbeddedCode(stub));
-  blx(ip, al);
+    mov(ip, Operand::EmbeddedCode(stub));
+    blx(ip, al);
 
-  DCHECK_EQ(kCallStubSize, SizeOfCodeGeneratedSince(&start));
+    DCHECK_EQ(kCallStubSize, SizeOfCodeGeneratedSince(&start));
+  }
 }
 
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
@@ -1840,7 +1850,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  cmp(in, Operand(kClearedWeakHeapObject));
+  cmp(in, Operand(kClearedWeakHeapObjectLower32));
   b(eq, target_if_cleared);
 
   and_(out, in, Operand(~kWeakHeapObjectMask));

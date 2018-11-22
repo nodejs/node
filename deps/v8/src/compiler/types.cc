@@ -245,6 +245,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_FACTORY_TYPE:
     case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
+    case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_EXCEPTION_TYPE:
@@ -272,10 +273,12 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case SHARED_FUNCTION_INFO_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
+    case EMBEDDER_DATA_ARRAY_TYPE:
     case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
+    case ORDERED_NAME_DICTIONARY_TYPE:
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
@@ -331,6 +334,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 #undef FIXED_TYPED_ARRAY_CASE
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
+    case ASM_WASM_DATA_TYPE:
     case CALL_HANDLER_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
@@ -342,6 +346,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case STACK_FRAME_INFO_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:

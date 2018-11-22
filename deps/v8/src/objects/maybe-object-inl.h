@@ -13,12 +13,17 @@
 namespace v8 {
 namespace internal {
 
-bool MaybeObject::ToSmi(Smi** value) {
+bool MaybeObject::ToSmi(Smi* value) {
   if (HAS_SMI_TAG(ptr_)) {
-    *value = Smi::cast(reinterpret_cast<Object*>(ptr_));
+    *value = Smi::cast(ObjectPtr(ptr_));
     return true;
   }
   return false;
+}
+
+Smi MaybeObject::ToSmi() const {
+  DCHECK(HAS_SMI_TAG(ptr_));
+  return Smi::cast(ObjectPtr(ptr_));
 }
 
 bool MaybeObject::IsStrongOrWeak() const {
@@ -102,6 +107,23 @@ bool MaybeObject::IsObject() const { return IsSmi() || IsStrong(); }
 MaybeObject MaybeObject::MakeWeak(MaybeObject object) {
   DCHECK(object.IsStrongOrWeak());
   return MaybeObject(object.ptr_ | kWeakHeapObjectMask);
+}
+
+// static
+HeapObjectReference HeapObjectReference::ClearedValue(Isolate* isolate) {
+  // Construct cleared weak ref value.
+  Address raw_value = kClearedWeakHeapObjectLower32;
+#ifdef V8_COMPRESS_POINTERS
+  // This is necessary to make pointer decompression computation also
+  // suitable for cleared weak references.
+  Address isolate_root = isolate->isolate_root();
+  raw_value |= isolate_root;
+  DCHECK_EQ(raw_value & (~static_cast<Address>(kClearedWeakHeapObjectLower32)),
+            isolate_root);
+#endif
+  // The rest of the code will check only the lower 32-bits.
+  DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(raw_value));
+  return HeapObjectReference(raw_value);
 }
 
 void HeapObjectReference::Update(HeapObjectSlot slot, HeapObject* value) {

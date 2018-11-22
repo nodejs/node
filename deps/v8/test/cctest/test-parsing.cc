@@ -49,7 +49,6 @@
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
-#include "src/unicode-cache.h"
 #include "src/utils.h"
 
 #include "test/cctest/cctest.h"
@@ -70,14 +69,6 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 }
 
 }  // namespace
-
-TEST(IsContextualKeyword) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value token = static_cast<Token::Value>(i);
-    CHECK_EQ(Token::TypeForTesting(token) == 'C',
-             Token::IsContextualKeyword(token));
-  }
-}
 
 bool TokenIsAutoSemicolon(Token::Value token) {
   switch (token) {
@@ -227,6 +218,7 @@ TEST(IsLiteralToken) {
     CHECK_EQ(TokenIsLiteral(token), Token::IsLiteral(token));
   }
 }
+
 bool TokenIsAssignmentOp(Token::Value token) {
   switch (token) {
     case Token::INIT:
@@ -244,6 +236,18 @@ TEST(AssignmentOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsAssignmentOp(token), Token::IsAssignmentOp(token));
+  }
+}
+
+bool TokenIsArrowOrAssignmentOp(Token::Value token) {
+  return token == Token::ARROW || TokenIsAssignmentOp(token);
+}
+
+TEST(ArrowOrAssignmentOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsArrowOrAssignmentOp(token),
+             Token::IsArrowOrAssignmentOp(token));
   }
 }
 
@@ -461,7 +465,6 @@ TEST(ScanKeywords) {
           {nullptr, i::Token::IDENTIFIER}};
 
   KeywordToken key_token;
-  i::UnicodeCache unicode_cache;
   char buffer[32];
   for (int i = 0; (key_token = keywords[i]).keyword != nullptr; i++) {
     const char* keyword = key_token.keyword;
@@ -469,7 +472,7 @@ TEST(ScanKeywords) {
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
       scanner.Initialize();
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -477,7 +480,7 @@ TEST(ScanKeywords) {
     // Removing characters will make keyword matching fail.
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
       scanner.Initialize();
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -488,7 +491,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
       scanner.Initialize();
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -498,7 +501,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
       auto stream = i::ScannerStream::ForTesting(buffer, length);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
+      i::Scanner scanner(stream.get(), false);
       scanner.Initialize();
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -565,7 +568,7 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; tests[i]; i++) {
     const char* source = tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache(), stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(&zone,
@@ -584,7 +587,7 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; fail_tests[i]; i++) {
     const char* source = fail_tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache(), stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(&zone,
@@ -605,12 +608,10 @@ TEST(ScanHTMLEndComments) {
 
 TEST(ScanHtmlComments) {
   const char* src = "a <!-- b --> c";
-  i::UnicodeCache unicode_cache;
-
   // Disallow HTML comments.
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache, stream.get(), true);
+    i::Scanner scanner(stream.get(), true);
     scanner.Initialize();
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::ILLEGAL, scanner.Next());
@@ -619,7 +620,7 @@ TEST(ScanHtmlComments) {
   // Skip HTML comments:
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache, stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -658,7 +659,7 @@ TEST(StandAlonePreParser) {
   uintptr_t stack_limit = i_isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(i_isolate->unicode_cache(), stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
 
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
@@ -691,7 +692,7 @@ TEST(StandAlonePreParserNoNatives) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(isolate->unicode_cache(), stream.get(), false);
+    i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
 
     // Preparser defaults to disallowing natives syntax.
@@ -727,7 +728,7 @@ TEST(RegressChromium62639) {
   // failed in debug mode, and sometimes crashed in release mode.
 
   auto stream = i::ScannerStream::ForTesting(program);
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), stream.get(), false);
+  i::Scanner scanner(stream.get(), false);
   scanner.Initialize();
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
@@ -761,7 +762,7 @@ TEST(PreParseOverflow) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
 
   auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
-  i::Scanner scanner(isolate->unicode_cache(), stream.get(), false);
+  i::Scanner scanner(stream.get(), false);
   scanner.Initialize();
 
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -780,7 +781,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), stream, false);
+  i::Scanner scanner(stream, false);
   scanner.Initialize();
 
   int i = 0;
@@ -858,7 +859,7 @@ TEST(StreamScanner) {
 void TestScanRegExp(const char* re_source, const char* expected) {
   auto stream = i::ScannerStream::ForTesting(re_source);
   i::HandleScope scope(CcTest::i_isolate());
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), stream.get(), false);
+  i::Scanner scanner(stream.get(), false);
   scanner.Initialize();
 
   i::Token::Value start = scanner.peek();
@@ -1058,8 +1059,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.
-        CHECK(
-            scope->Lookup(info.ast_value_factory()->this_string())->is_used());
+        CHECK(scope->LookupForTesting(info.ast_value_factory()->this_string())
+                  ->is_used());
       }
       if (is_sloppy(scope->language_mode())) {
         CHECK_EQ((source_data[i].expected & EVAL) != 0,
@@ -1445,7 +1446,6 @@ TEST(DiscardFunctionBody) {
     i::parsing::ParseProgram(&info, isolate);
     function = info.literal();
     CHECK_NOT_NULL(function);
-    CHECK_NOT_NULL(function->body());
     CHECK_EQ(1, function->body()->length());
     i::FunctionLiteral* inner =
         function->body()->first()->AsExpressionStatement()->expression()->
@@ -1461,7 +1461,7 @@ TEST(DiscardFunctionBody) {
       // TODO(conradw): This path won't be hit until the other test cases can be
       // uncommented.
       UNREACHABLE();
-      CHECK_NOT_NULL(inner->body());
+      CHECK(inner->ShouldEagerCompile());
       CHECK_GE(2, inner->body()->length());
       i::Expression* exp = inner->body()->at(1)->AsExpressionStatement()->
                            expression()->AsBinaryOperation()->right();
@@ -1475,7 +1475,7 @@ TEST(DiscardFunctionBody) {
               AsFunctionLiteral();
       }
     }
-    CHECK_NULL(fun->body());
+    CHECK(!fun->ShouldEagerCompile());
   }
 }
 
@@ -1495,10 +1495,10 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyPublicFields,
   kAllowHarmonyPrivateFields,
+  kAllowHarmonyPrivateMethods,
   kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
-  kAllowHarmonyDoExpressions,
   kAllowHarmonyNumericSeparator
 };
 
@@ -1512,10 +1512,10 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
   i::FLAG_harmony_private_fields = flags.Contains(kAllowHarmonyPrivateFields);
+  i::FLAG_harmony_private_methods = flags.Contains(kAllowHarmonyPrivateMethods);
   i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
-  i::FLAG_harmony_do_expressions = flags.Contains(kAllowHarmonyDoExpressions);
   i::FLAG_harmony_numeric_separator =
       flags.Contains(kAllowHarmonyNumericSeparator);
 }
@@ -1526,14 +1526,14 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyPublicFields));
   parser->set_allow_harmony_private_fields(
       flags.Contains(kAllowHarmonyPrivateFields));
+  parser->set_allow_harmony_private_methods(
+      flags.Contains(kAllowHarmonyPrivateMethods));
   parser->set_allow_harmony_static_fields(
       flags.Contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
       flags.Contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
       flags.Contains(kAllowHarmonyImportMeta));
-  parser->set_allow_harmony_do_expressions(
-      flags.Contains(kAllowHarmonyDoExpressions));
   parser->set_allow_harmony_numeric_separator(
       flags.Contains(kAllowHarmonyNumericSeparator));
 }
@@ -1553,7 +1553,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   if (test_preparser) {
     std::unique_ptr<i::Utf16CharacterStream> stream(
         i::ScannerStream::For(isolate, source));
-    i::Scanner scanner(isolate->unicode_cache(), stream.get(), is_module);
+    i::Scanner scanner(stream.get(), is_module);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->ast_string_constants(),
@@ -1839,6 +1839,7 @@ void RunParserSyncTest(
                                context_data[i][0],
                                statement_data[j],
                                context_data[i][1]);
+      PrintF("%s\n", program.start());
       CHECK_EQ(length, kProgramSize);
       TestParserSync(program.start(), flags, flags_len, result,
                      always_true_flags, always_true_len, always_false_flags,
@@ -2678,29 +2679,6 @@ TEST(OptionalCatchBinding) {
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
-TEST(OptionalCatchBindingInDoExpression) {
-  // This is an edge case no otherwise hit: a catch scope in a parameter
-  // expression which needs its own scope.
-  // clang-format off
-  const char* context_data[][2] = {
-    {"((x = (eval(''), do {", "}))=>{})()"},
-    { nullptr, nullptr }
-  };
-
-  const char* statement_data[] = {
-    "try { } catch { }",
-    "try { } catch { } finally { }",
-    "try { let e; } catch { let e; }",
-    "try { let e; } catch { let e; } finally { let e; }",
-    nullptr
-  };
-  // clang-format on
-
-  static const ParserFlag do_and_catch_flags[] = {kAllowHarmonyDoExpressions};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
-                    do_and_catch_flags, arraysize(do_and_catch_flags));
-}
-
 TEST(ErrorsRegexpLiteral) {
   const char* context_data[][2] = {{"var r = ", ""}, {nullptr, nullptr}};
 
@@ -3230,7 +3208,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   CHECK_NOT_NULL(name);
 
   // Get result from h's function context (that is f's context)
-  i::Variable* var = s->Lookup(name);
+  i::Variable* var = s->LookupForTesting(name);
 
   CHECK_NOT_NULL(var);
   // Maybe assigned should survive deserialization
@@ -3278,7 +3256,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   CHECK(s != script_scope);
 
   // Get result from f's function context (that is g's outer context)
-  i::Variable* var_x = s->Lookup(name_x);
+  i::Variable* var_x = s->LookupForTesting(name_x);
   CHECK_NOT_NULL(var_x);
   CHECK_EQ(var_x->maybe_assigned(), i::kMaybeAssigned);
 }
@@ -3450,7 +3428,7 @@ TEST(InnerAssignment) {
         DCHECK(scope->is_function_scope());
         const i::AstRawString* var_name =
             info->ast_value_factory()->GetOneByteString("x");
-        i::Variable* var = scope->Lookup(var_name);
+        i::Variable* var = scope->LookupForTesting(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
         CHECK_NOT_NULL(var);
         CHECK(var->is_used() || !expected);
@@ -3547,7 +3525,7 @@ TEST(MaybeAssignedParameters) {
       CHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
           info->ast_value_factory()->GetOneByteString("arg");
-      i::Variable* var = scope->Lookup(var_name);
+      i::Variable* var = scope->LookupForTesting(var_name);
       CHECK(var->is_used() || !assigned);
       bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
       CHECK_EQ(is_maybe_assigned, assigned);
@@ -3591,7 +3569,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
     scope = i::ScopeTestHelper::FindScope(scope, input.location);
     const i::AstRawString* var_name =
         info->ast_value_factory()->GetOneByteString(variable);
-    var = scope->Lookup(var_name);
+    var = scope->LookupForTesting(var_name);
   }
 
   CHECK_NOT_NULL(var);
@@ -5183,6 +5161,254 @@ TEST(ClassFieldsNoErrors) {
                     static_flags, arraysize(static_flags));
 }
 
+TEST(PrivateMethodsNoErrors) {
+  // clang-format off
+  // Tests proposed class methods syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "#a() { }",
+    "get #a() { }",
+    "set #a(foo) { }",
+    "*#a() { }",
+    "async #a() { }",
+    "async *#a() { }",
+
+    "#a() { } #b() {}",
+    "get #a() { } set #a(foo) {}",
+    "get #a() { } get #b() {} set #a(foo) {}",
+    "get #a() { } get #b() {} set #a(foo) {} set #b(foo) {}",
+    "set #a(foo) { } set #b(foo) {}",
+    "get #a() { } get #b() {}",
+
+    "#a() { } static a() {}",
+    "#a() { } a() {}",
+    "#a() { } a() {} static a() {}",
+    "get #a() { } get a() {} static get a() {}",
+    "set #a(foo) { } set a(foo) {} static set a(foo) {}",
+
+    "#a() { } get #b() {}",
+    "#a() { } async #b() {}",
+    "#a() { } async *#b() {}",
+
+    // With arguments
+    "#a(...args) { }",
+    "#a(a = 1) { }",
+    "get #a() { }",
+    "set #a(a = (...args) => {}) { }",
+
+    // Misc edge cases
+    "#get() {}",
+    "#set() {}",
+    "#yield() {}",
+    "#await() {}",
+    "#async() {}",
+    "#static() {}",
+    "#arguments() {}",
+    "get #yield() {}",
+    "get #await() {}",
+    "get #async() {}",
+    "get #get() {}",
+    "get #static() {}",
+    "get #arguments() {}",
+    "set #yield(test) {}",
+    "set #async(test) {}",
+    "set #await(test) {}",
+    "set #set(test) {}",
+    "set #static(test) {}",
+    "set #arguments(test) {}",
+    "async #yield() {}",
+    "async #async() {}",
+    "async #await() {}",
+    "async #get() {}",
+    "async #set() {}",
+    "async #static() {}",
+    "async #arguments() {}",
+    "*#async() {}",
+    "*#await() {}",
+    "*#yield() {}",
+    "*#get() {}",
+    "*#set() {}",
+    "*#static() {}",
+    "*#arguments() {}",
+    "async *#yield() {}",
+    "async *#async() {}",
+    "async *#await() {}",
+    "async *#get() {}",
+    "async *#set() {}",
+    "async *#static() {}",
+    "async *#arguments() {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
+                                               kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+TEST(PrivateMethodsAndFieldsNoErrors) {
+  // clang-format off
+  // Tests proposed class methods syntax in combination with fields
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "#b;#a() { }",
+    "#b;get #a() { }",
+    "#b;set #a(foo) { }",
+    "#b;*#a() { }",
+    "#b;async #a() { }",
+    "#b;async *#a() { }",
+    "#b = 1;#a() { }",
+    "#b = 1;get #a() { }",
+    "#b = 1;set #a(foo) { }",
+    "#b = 1;*#a() { }",
+    "#b = 1;async #a() { }",
+    "#b = 1;async *#a() { }",
+
+    // With public fields
+    "a;#a() { }",
+    "a;get #a() { }",
+    "a;set #a(foo) { }",
+    "a;*#a() { }",
+    "a;async #a() { }",
+    "a;async *#a() { }",
+    "a = 1;#a() { }",
+    "a = 1;get #a() { }",
+    "a = 1;set #a(foo) { }",
+    "a = 1;*#a() { }",
+    "a = 1;async #a() { }",
+    "a = 1;async *#a() { }",
+
+    // ASI
+    "#a = 0\n #b(){}",
+    "#a\n *#b(){}",
+    "#a = 0\n get #b(){}",
+    "#a\n *#b(){}",
+
+    "b = 0\n #b(){}",
+    "b\n *#b(){}",
+    "b = 0\n get #b(){}",
+    "b\n *#b(){}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods_and_fields[] = {
+      kAllowHarmonyPrivateFields, kAllowHarmonyPublicFields,
+      kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods_and_fields,
+                    arraysize(private_methods_and_fields));
+}
+
+TEST(PrivateMethodsErrors) {
+  // clang-format off
+  // Tests proposed class methods syntax in combination with fields
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "#a() : 0",
+    "#a() =",
+    "#a() => {}",
+    "#a => {}",
+    "*#a() = 0",
+    "*#a() => 0",
+    "*#a() => {}",
+    "get #a()[]",
+    "yield #a()[]",
+    "yield #a => {}",
+    "async #a() = 0",
+    "async #a => {}",
+    "#a(arguments) {}",
+    "set #a(arguments) {}",
+
+    "#['a']() { }",
+    "get #['a']() { }",
+    "set #['a'](foo) { }",
+    "*#['a']() { }",
+    "async #['a']() { }",
+    "async *#['a]() { }",
+
+    // TODO(joyee): check duplicate accessors
+
+    "#a\n#",
+    "#a() c",
+    "#a() #",
+    "#a(arg) c",
+    "#a(arg) #",
+    "#a(arg) #c",
+    "#a#",
+    "#a#b",
+    "#a#b(){}",
+    "#[test](){}",
+
+    "async *#constructor() {}",
+    "*#constructor() {}",
+    "async #constructor() {}",
+    "set #constructor(test) {}",
+    "#constructor() {}",
+    "get #constructor() {}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
+                                               kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that private members do not parse outside class bodies
+TEST(PrivateMembersInNonClassNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"", ""},
+                                   {"({", "})"},
+                                   {"'use strict'; ({", "});"},
+                                   {"function() {", "}"},
+                                   {"() => {", "}"},
+                                   {"class C { test() {", "} }"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "#a = 1",
+    "#a = () => {}",
+    "#a",
+    "#a() { }",
+    "get #a() { }",
+    "set #a(foo) { }",
+    "*#a() { }",
+    "async #a() { }",
+    "async *#a() { }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
+                                               kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
 TEST(PrivateClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
@@ -5470,16 +5696,18 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static #'a';",
 
     "static # a = 0",
+    "static #get a() { }",
+    "static #set a() { }",
+    "static #*a() { }",
+    "static async #*a() { }",
+
+    // TODO(joyee): support static private methods
     "static #a() { }",
     "static get #a() { }",
-    "static #get a() { }",
     "static set #a() { }",
-    "static #set a() { }",
     "static *#a() { }",
-    "static #*a() { }",
     "static async #a() { }",
     "static async *#a() { }",
-    "static async #*a() { }",
 
     // ASI
     "static #a = 0\n",
@@ -10051,7 +10279,7 @@ TEST(NoPessimisticContextAllocation) {
       DCHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
           info.ast_value_factory()->GetOneByteString("my_var");
-      i::Variable* var = scope->Lookup(var_name);
+      i::Variable* var = scope->LookupForTesting(var_name);
       CHECK_EQ(inners[i].ctxt_allocate,
                i::ScopeTestHelper::MustAllocateInContext(var));
     }

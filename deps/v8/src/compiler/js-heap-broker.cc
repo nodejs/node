@@ -271,6 +271,38 @@ void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
   }
 }
 
+class JSDataViewData : public JSObjectData {
+ public:
+  JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
+                 Handle<JSDataView> object);
+
+  size_t byte_length() const { return byte_length_; }
+  size_t byte_offset() const { return byte_offset_; }
+
+ private:
+  size_t const byte_length_;
+  size_t const byte_offset_;
+};
+
+class JSBoundFunctionData : public JSObjectData {
+ public:
+  JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
+                      Handle<JSBoundFunction> object);
+
+  void Serialize(JSHeapBroker* broker);
+
+  ObjectData* bound_target_function() const { return bound_target_function_; }
+  ObjectData* bound_this() const { return bound_this_; }
+  FixedArrayData* bound_arguments() const { return bound_arguments_; }
+
+ private:
+  bool serialized_ = false;
+
+  ObjectData* bound_target_function_ = nullptr;
+  ObjectData* bound_this_ = nullptr;
+  FixedArrayData* bound_arguments_ = nullptr;
+};
+
 class JSFunctionData : public JSObjectData {
  public:
   JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -451,8 +483,7 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
       is_seq_string_(object->IsSeqString()) {
   int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   if (length_ <= kMaxLengthForDoubleConversion) {
-    to_number_ = StringToDouble(
-        broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
+    to_number_ = StringToDouble(broker->isolate(), object, flags);
   }
 }
 
@@ -872,11 +903,6 @@ class FixedArrayBaseData : public HeapObjectData {
   int const length_;
 };
 
-JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
-                           Handle<JSObject> object)
-    : HeapObjectData(broker, storage, object),
-      inobject_fields_(broker->zone()) {}
-
 class FixedArrayData : public FixedArrayBaseData {
  public:
   FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
@@ -891,6 +917,46 @@ class FixedArrayData : public FixedArrayBaseData {
   bool serialized_contents_ = false;
   ZoneVector<ObjectData*> contents_;
 };
+
+JSDataViewData::JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
+                               Handle<JSDataView> object)
+    : JSObjectData(broker, storage, object),
+      byte_length_(object->byte_length()),
+      byte_offset_(object->byte_offset()) {}
+
+JSBoundFunctionData::JSBoundFunctionData(JSHeapBroker* broker,
+                                         ObjectData** storage,
+                                         Handle<JSBoundFunction> object)
+    : JSObjectData(broker, storage, object) {}
+
+void JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;
+  serialized_ = true;
+
+  TraceScope tracer(broker, this, "JSBoundFunctionData::Serialize");
+  Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object());
+
+  DCHECK_NULL(bound_target_function_);
+  DCHECK_NULL(bound_this_);
+  DCHECK_NULL(bound_arguments_);
+
+  bound_target_function_ =
+      broker->GetOrCreateData(function->bound_target_function());
+  bound_this_ = broker->GetOrCreateData(function->bound_this());
+  bound_arguments_ =
+      broker->GetOrCreateData(function->bound_arguments())->AsFixedArray();
+
+  bound_arguments_->SerializeContents(broker);
+}
+
+JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
+                           Handle<JSObject> object)
+    : HeapObjectData(broker, storage, object),
+      inobject_fields_(broker->zone()) {}
+
+FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
+                               Handle<FixedArray> object)
+    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
 
 void FixedArrayData::SerializeContents(JSHeapBroker* broker) {
   if (serialized_contents_) return;
@@ -908,10 +974,6 @@ void FixedArrayData::SerializeContents(JSHeapBroker* broker) {
   }
   broker->Trace("Copied %zu elements.\n", contents_.size());
 }
-
-FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
-                               Handle<FixedArray> object)
-    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
 
 class FixedDoubleArrayData : public FixedArrayBaseData {
  public:
@@ -1450,10 +1512,7 @@ void JSHeapBroker::Retire() {
   mode_ = kRetired;
 }
 
-bool JSHeapBroker::SerializingAllowed() const {
-  return mode() == kSerializing ||
-         (!FLAG_strict_heap_broker && mode() == kSerialized);
-}
+bool JSHeapBroker::SerializingAllowed() const { return mode() == kSerializing; }
 
 void JSHeapBroker::SetNativeContextRef() {
   native_context_ = NativeContextRef(this, isolate()->native_context());
@@ -1976,9 +2035,7 @@ base::Optional<double> StringRef::ToNumber() {
     AllowHandleAllocation allow_handle_allocation;
     AllowHeapAllocation allow_heap_allocation;
     int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-    return StringToDouble(broker()->isolate(),
-                          broker()->isolate()->unicode_cache(), object(),
-                          flags);
+    return StringToDouble(broker()->isolate(), object(), flags);
   }
   return data()->AsString()->to_number();
 }
@@ -2060,6 +2117,13 @@ BIMODAL_ACCESSOR(HeapObject, Map, map)
 
 BIMODAL_ACCESSOR(JSArray, Object, length)
 
+BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_target_function)
+BIMODAL_ACCESSOR(JSBoundFunction, Object, bound_this)
+BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
+
+BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
+BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
+
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
@@ -2079,6 +2143,8 @@ BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                    Map::NumberOfOwnDescriptorsBits)
+BIMODAL_ACCESSOR_B(Map, bit_field3, has_hidden_prototype,
+                   Map::HasHiddenPrototypeBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot, Map::HasPrototypeSlotBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_access_check_needed,
                    Map::IsAccessCheckNeededBit)
@@ -2218,6 +2284,12 @@ base::Optional<JSFunctionRef> NativeContextRef::GetConstructorFunction(
   }
 }
 
+bool ObjectRef::IsNullOrUndefined() const {
+  if (IsSmi()) return false;
+  OddballType type = AsHeapObject().map().oddball_type();
+  return type == OddballType::kNull || type == OddballType::kUndefined;
+}
+
 bool ObjectRef::BooleanValue() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
@@ -2275,8 +2347,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
     : broker_(broker) {
   switch (broker->mode()) {
     case JSHeapBroker::kSerialized:
-      data_ = FLAG_strict_heap_broker ? broker->GetData(object)
-                                      : broker->GetOrCreateData(object);
+      data_ = broker->GetData(object);
       break;
     case JSHeapBroker::kSerializing:
       data_ = broker->GetOrCreateData(object);
@@ -2301,7 +2372,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
 }
 
 namespace {
-OddballType GetOddballType(Isolate* isolate, Map* map) {
+OddballType GetOddballType(Isolate* isolate, Map map) {
   if (map->instance_type() != ODDBALL_TYPE) {
     return OddballType::kNone;
   }
@@ -2331,7 +2402,7 @@ OddballType GetOddballType(Isolate* isolate, Map* map) {
 HeapObjectType HeapObjectRef::GetHeapObjectType() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference handle_dereference;
-    Map* map = Handle<HeapObject>::cast(object())->map();
+    Map map = Handle<HeapObject>::cast(object())->map();
     HeapObjectType::Flags flags(0);
     if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
     if (map->is_callable()) flags |= HeapObjectType::kCallable;
@@ -2532,6 +2603,12 @@ void JSTypedArrayRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSTypedArray()->Serialize(broker());
+}
+
+void JSBoundFunctionRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsJSBoundFunction()->Serialize(broker());
 }
 
 #undef BIMODAL_ACCESSOR

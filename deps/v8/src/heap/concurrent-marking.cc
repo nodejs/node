@@ -186,19 +186,19 @@ class ConcurrentMarkingVisitor final
   // JS object =================================================================
   // ===========================================================================
 
-  int VisitJSObject(Map* map, JSObject* object) {
+  int VisitJSObject(Map map, JSObject* object) {
     return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitJSObjectFast(Map* map, JSObject* object) {
+  int VisitJSObjectFast(Map map, JSObject* object) {
     return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitWasmInstanceObject(Map* map, WasmInstanceObject* object) {
+  int VisitWasmInstanceObject(Map map, WasmInstanceObject* object) {
     return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitJSWeakCell(Map* map, JSWeakCell* weak_cell) {
+  int VisitJSWeakCell(Map map, JSWeakCell* weak_cell) {
     int size = VisitJSObjectSubclass(map, weak_cell);
     if (size == 0) {
       return 0;
@@ -224,19 +224,19 @@ class ConcurrentMarkingVisitor final
   // Some JS objects can carry back links to embedders that contain information
   // relevant to the garbage collectors.
 
-  int VisitJSApiObject(Map* map, JSObject* object) {
+  int VisitJSApiObject(Map map, JSObject* object) {
     return VisitEmbedderTracingSubclass(map, object);
   }
 
-  int VisitJSArrayBuffer(Map* map, JSArrayBuffer* object) {
+  int VisitJSArrayBuffer(Map map, JSArrayBuffer* object) {
     return VisitEmbedderTracingSubclass(map, object);
   }
 
-  int VisitJSDataView(Map* map, JSDataView* object) {
+  int VisitJSDataView(Map map, JSDataView* object) {
     return VisitEmbedderTracingSubclass(map, object);
   }
 
-  int VisitJSTypedArray(Map* map, JSTypedArray* object) {
+  int VisitJSTypedArray(Map map, JSTypedArray* object) {
     return VisitEmbedderTracingSubclass(map, object);
   }
 
@@ -244,17 +244,17 @@ class ConcurrentMarkingVisitor final
   // Strings with pointers =====================================================
   // ===========================================================================
 
-  int VisitConsString(Map* map, ConsString* object) {
+  int VisitConsString(Map map, ConsString* object) {
     int size = ConsString::BodyDescriptor::SizeOf(map, object);
     return VisitWithSnapshot(map, object, size, size);
   }
 
-  int VisitSlicedString(Map* map, SlicedString* object) {
+  int VisitSlicedString(Map map, SlicedString* object) {
     int size = SlicedString::BodyDescriptor::SizeOf(map, object);
     return VisitWithSnapshot(map, object, size, size);
   }
 
-  int VisitThinString(Map* map, ThinString* object) {
+  int VisitThinString(Map map, ThinString* object) {
     int size = ThinString::BodyDescriptor::SizeOf(map, object);
     return VisitWithSnapshot(map, object, size, size);
   }
@@ -263,14 +263,14 @@ class ConcurrentMarkingVisitor final
   // Strings without pointers ==================================================
   // ===========================================================================
 
-  int VisitSeqOneByteString(Map* map, SeqOneByteString* object) {
+  int VisitSeqOneByteString(Map map, SeqOneByteString* object) {
     int size = SeqOneByteString::SizeFor(object->synchronized_length());
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object, object->map_slot());
     return size;
   }
 
-  int VisitSeqTwoByteString(Map* map, SeqTwoByteString* object) {
+  int VisitSeqTwoByteString(Map map, SeqTwoByteString* object) {
     int size = SeqTwoByteString::SizeFor(object->synchronized_length());
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object, object->map_slot());
@@ -281,11 +281,11 @@ class ConcurrentMarkingVisitor final
   // Fixed array object ========================================================
   // ===========================================================================
 
-  int VisitFixedArray(Map* map, FixedArray* object) {
+  int VisitFixedArray(Map map, FixedArray* object) {
     return VisitLeftTrimmableArray(map, object);
   }
 
-  int VisitFixedDoubleArray(Map* map, FixedDoubleArray* object) {
+  int VisitFixedDoubleArray(Map map, FixedDoubleArray* object) {
     return VisitLeftTrimmableArray(map, object);
   }
 
@@ -293,7 +293,7 @@ class ConcurrentMarkingVisitor final
   // Code object ===============================================================
   // ===========================================================================
 
-  int VisitCode(Map* map, Code* object) {
+  int VisitCode(Map map, Code object) {
     bailout_.Push(object);
     return 0;
   }
@@ -302,7 +302,7 @@ class ConcurrentMarkingVisitor final
   // Side-effectful visitation.
   // ===========================================================================
 
-  int VisitBytecodeArray(Map* map, BytecodeArray* object) {
+  int VisitBytecodeArray(Map map, BytecodeArray* object) {
     if (!ShouldVisit(object)) return 0;
     int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
@@ -311,7 +311,7 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitMap(Map* meta_map, Map* map) {
+  int VisitMap(Map meta_map, Map map) {
     if (marking_state_.IsGrey(map)) {
       // Maps have ad-hoc weakness for descriptor arrays. They also clear the
       // code-cache. Conservatively visit strong fields skipping the
@@ -328,7 +328,7 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitTransitionArray(Map* map, TransitionArray* array) {
+  int VisitTransitionArray(Map map, TransitionArray* array) {
     if (!ShouldVisit(array)) return 0;
     VisitMapPointer(array, array->map_slot());
     int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
@@ -337,11 +337,11 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
+  int VisitJSWeakCollection(Map map, JSWeakCollection* object) {
     return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
+  int VisitEphemeronHashTable(Map map, EphemeronHashTable* table) {
     if (!ShouldVisit(table)) return 0;
     weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
 
@@ -440,7 +440,7 @@ class ConcurrentMarkingVisitor final
   };
 
   template <typename T>
-  int VisitJSObjectSubclass(Map* map, T* object) {
+  int VisitJSObjectSubclass(Map map, T* object) {
     int size = T::BodyDescriptor::SizeOf(map, object);
     int used_size = map->UsedInstanceSize();
     DCHECK_LE(used_size, size);
@@ -449,7 +449,7 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  int VisitEmbedderTracingSubclass(Map* map, T* object) {
+  int VisitEmbedderTracingSubclass(Map map, T* object) {
     DCHECK(object->IsApiWrapper());
     int size = VisitJSObjectSubclass(map, object);
     if (size && embedder_tracing_enabled_) {
@@ -461,7 +461,7 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  int VisitLeftTrimmableArray(Map* map, T* object) {
+  int VisitLeftTrimmableArray(Map map, T* object) {
     // The synchronized_length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
     Object* length = object->unchecked_synchronized_length();
@@ -476,7 +476,7 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  int VisitWithSnapshot(Map* map, T* object, int used_size, int size) {
+  int VisitWithSnapshot(Map map, T* object, int used_size, int size) {
     const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
     if (!ShouldVisit(object)) return 0;
     VisitPointersInSnapshot(object, snapshot);
@@ -484,7 +484,7 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
-  const SlotSnapshot& MakeSlotSnapshot(Map* map, T* object, int size) {
+  const SlotSnapshot& MakeSlotSnapshot(Map map, T* object, int size) {
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object, ObjectSlot(object->map_slot().address()));
     T::BodyDescriptor::IterateBody(map, object, size, &visitor);
@@ -615,13 +615,14 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
           break;
         }
         objects_processed++;
-        Address new_space_top = heap_->new_space()->original_top();
-        Address new_space_limit = heap_->new_space()->original_limit();
+        // The order of the two loads is important.
+        Address new_space_top = heap_->new_space()->original_top_acquire();
+        Address new_space_limit = heap_->new_space()->original_limit_relaxed();
         Address addr = object->address();
         if (new_space_top <= addr && addr < new_space_limit) {
           on_hold_->Push(task_id, object);
         } else {
-          Map* map = object->synchronized_map();
+          Map map = object->synchronized_map();
           current_marked_bytes += visitor.Visit(map, object);
         }
       }
@@ -743,7 +744,7 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
     for (int i = 1; i <= task_count_; i++) {
       if (is_pending_[i]) {
         if (task_manager->TryAbort(cancelable_id_[i]) ==
-            CancelableTaskManager::kTaskAborted) {
+            TryAbortResult::kTaskAborted) {
           is_pending_[i] = false;
           --pending_task_count_;
         } else if (stop_request == StopRequest::PREEMPT_TASKS) {

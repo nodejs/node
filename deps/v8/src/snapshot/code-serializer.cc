@@ -133,7 +133,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   FlushSkip(skip);
 
   if (obj->IsCode()) {
-    Code* code_object = Code::cast(obj);
+    Code code_object = Code::cast(obj);
     switch (code_object->kind()) {
       case Code::OPTIMIZED_FUNCTION:  // No optimized code compiled yet.
       case Code::REGEXP:              // No regexp literals initialized yet.
@@ -241,7 +241,7 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
   serializer.Serialize();
 }
 
-void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
+void CodeSerializer::SerializeCodeStub(Code code_stub, HowToCode how_to_code,
                                        WhereToPoint where_to_point) {
   // We only arrive here if we have not encountered this code stub before.
   DCHECK(!reference_map()->LookupReference(code_stub).is_valid());

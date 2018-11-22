@@ -6,12 +6,15 @@
 
 #include "src/base/adapters.h"
 #include "src/code-factory.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/smi.h"
+#include "src/register-configuration.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -137,6 +140,30 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   __ ret(0);
 }
 
+void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                 Register scratch, Label* stack_overflow,
+                                 bool include_receiver = false) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  ExternalReference real_stack_limit =
+      ExternalReference::address_of_real_stack_limit(masm->isolate());
+  // Compute the space that is left as a negative number in scratch. If
+  // we already overflowed, this will be a positive number.
+  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
+  __ sub(scratch, esp);
+  // Add the size of the arguments.
+  static_assert(kPointerSize == 4,
+                "The next instruction assumes kPointerSize == 4");
+  __ lea(scratch, Operand(scratch, num_args, times_4, 0));
+  if (include_receiver) {
+    __ add(scratch, Immediate(kPointerSize));
+  }
+  // See if we overflowed, i.e. scratch is positive.
+  __ cmp(scratch, Immediate(0));
+  __ j(greater, stack_overflow);  // Signed comparison.
+}
+
 }  // namespace
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
@@ -225,6 +252,21 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Set up pointer to last argument.
     __ lea(edi, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
+
+    // Check if we have enough stack space to push all arguments.
+    // Argument count in eax. Clobbers ecx.
+    Label enough_stack_space, stack_overflow;
+    Generate_StackOverflowCheck(masm, eax, ecx, &stack_overflow);
+    __ jmp(&enough_stack_space);
+
+    __ bind(&stack_overflow);
+    // Restore context from the frame.
+    __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+
+    __ bind(&enough_stack_space);
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
@@ -322,29 +364,6 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                        Register scratch, Label* stack_overflow,
-                                        bool include_receiver = false) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
-  // Compute the space that is left as a negative number in scratch. If
-  // we already overflowed, this will be a positive number.
-  __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
-  __ sub(scratch, esp);
-  // Add the size of the arguments.
-  static_assert(kPointerSize == 4,
-                "The next instruction assumes kPointerSize == 4");
-  __ lea(scratch, Operand(scratch, num_args, times_4, 0));
-  if (include_receiver) {
-    __ add(scratch, Immediate(kPointerSize));
-  }
-  // See if we overflowed, i.e. scratch is positive.
-  __ cmp(scratch, Immediate(0));
-  __ j(greater, stack_overflow);  // Signed comparison.
-}
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
@@ -628,17 +647,15 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   //  -- eax : argument count (preserved for callee if needed, and caller)
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
+  //  -- ecx : feedback vector (also used as scratch, value is not preserved)
   // -----------------------------------
   DCHECK(!AreAliased(eax, edx, edi, scratch));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
   Register closure = edi;
-  // Load the feedback vector from the closure.
+  // Scratch contains feedback_vector.
   Register feedback_vector = scratch;
-  __ mov(feedback_vector,
-         FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
 
   // Load the optimized code from the feedback vector and re-use the register.
   Register optimized_code_entry = scratch;
@@ -658,6 +675,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
            Immediate(Smi::FromEnum(OptimizationMarker::kNone)));
     __ j(equal, &fallthrough);
 
+    // TODO(v8:8394): The logging of first execution will break if
+    // feedback vectors are not allocated. We need to find a different way of
+    // logging these events if required.
     TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
                                   OptimizationMarker::kLogFirstExecution,
                                   Runtime::kFunctionFirstExecution);
@@ -800,16 +820,23 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  __ VerifyRootRegister();
-
   Register closure = edi;
+
+  Register feedback_vector = ecx;
+  Label push_stack_frame;
+  // Load feedback vector and check if it is valid. If valid, check for
+  // optimized code and update invocation count. Otherwise, setup the stack
+  // frame.
+  __ mov(feedback_vector,
+         FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+  __ JumpIfRoot(feedback_vector, RootIndex::kUndefinedValue, &push_stack_frame);
 
   // Read off the optimized code slot in the closure's feedback vector, and if
   // there is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, ecx);
 
   // Load the feedback vector and increment the invocation count.
-  Register feedback_vector = ecx;
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
@@ -818,6 +845,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set
   // up the frame (that is done below).
+  __ bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
@@ -911,7 +939,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(
       kJavaScriptCallCodeStartRegister,
       Operand(kInterpreterDispatchTableRegister, ecx, times_pointer_size, 0));
-  __ VerifyRootRegister();
   __ call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
@@ -935,7 +962,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&do_return);
   // The return value is in eax.
   LeaveInterpreterFrame(masm, edx, ecx);
-  __ VerifyRootRegister();
   __ ret(0);
 }
 
@@ -1165,14 +1191,16 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
   Label builtin_trampoline, trampoline_loaded;
-  Smi* interpreter_entry_return_pc_offset(
+  Smi interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
   DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
 
   static constexpr Register scratch = ecx;
 
-  // If the SFI function_data is an InterpreterData, get the trampoline stored
-  // in it, otherwise get the trampoline from the builtins list.
+  // If the SFI function_data is an InterpreterData, the function will have a
+  // custom copy of the interpreter entry trampoline for profiling. If so,
+  // get the custom trampoline, otherwise grab the entry address of the global
+  // trampoline.
   __ mov(scratch, Operand(ebp, StandardFrameConstants::kFunctionOffset));
   __ mov(scratch, FieldOperand(scratch, JSFunction::kSharedFunctionInfoOffset));
   __ mov(scratch,
@@ -1183,15 +1211,20 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ mov(scratch,
          FieldOperand(scratch, InterpreterData::kInterpreterTrampolineOffset));
+  __ add(scratch, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
-  __ Move(scratch, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
+  __ mov(scratch,
+         __ ExternalReferenceAsOperand(
+             ExternalReference::
+                 address_of_interpreter_entry_trampoline_instruction_start(
+                     masm->isolate()),
+             scratch));
 
   __ bind(&trampoline_loaded);
   __ Pop(eax);
-  __ add(scratch, Immediate(interpreter_entry_return_pc_offset->value() +
-                            Code::kHeaderSize - kHeapObjectTag));
+  __ add(scratch, Immediate(interpreter_entry_return_pc_offset->value()));
   __ push(scratch);
 
   // Initialize the dispatch table register.
@@ -2452,7 +2485,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
                              WasmInstanceObject::kCEntryStubOffset));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
-    __ Move(kContextRegister, Smi::kZero);
+    __ Move(kContextRegister, Smi::zero());
     {
       // At this point, ebx has been spilled to the stack but is not yet
       // overwritten with another value. We can still use it as kRootRegister.

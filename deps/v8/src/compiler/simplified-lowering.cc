@@ -2294,9 +2294,13 @@ class RepresentationSelector {
                      UseInfo::TruncatingFloat64(truncation.identify_zeros()),
                      MachineRepresentation::kFloat64);
           if (lower()) {
-            if (truncation.IdentifiesZeroAndMinusZero() ||
-                (lhs_type.Is(Type::PlainNumber()) &&
-                 rhs_type.Is(Type::PlainNumber()))) {
+            // If the right hand side is not NaN, and the left hand side
+            // is not NaN (or -0 if the difference between the zeros is
+            // observed), we can do a simple floating point comparison here.
+            if (lhs_type.Is(truncation.IdentifiesZeroAndMinusZero()
+                                ? Type::OrderedNumber()
+                                : Type::PlainNumber()) &&
+                rhs_type.Is(Type::OrderedNumber())) {
               lowering->DoMax(node, lowering->machine()->Float64LessThan(),
                               MachineRepresentation::kFloat64);
             } else {
@@ -2348,10 +2352,15 @@ class RepresentationSelector {
                      UseInfo::TruncatingFloat64(truncation.identify_zeros()),
                      MachineRepresentation::kFloat64);
           if (lower()) {
-            if (truncation.IdentifiesZeroAndMinusZero() ||
-                (lhs_type.Is(Type::PlainNumber()) &&
-                 rhs_type.Is(Type::PlainNumber()))) {
-              lowering->DoMin(node, lowering->machine()->Float64LessThan(),
+            // If the left hand side is not NaN, and the right hand side
+            // is not NaN (or -0 if the difference between the zeros is
+            // observed), we can do a simple floating point comparison here.
+            if (lhs_type.Is(Type::OrderedNumber()) &&
+                rhs_type.Is(truncation.IdentifiesZeroAndMinusZero()
+                                ? Type::OrderedNumber()
+                                : Type::PlainNumber())) {
+              lowering->DoMin(node,
+                              lowering->machine()->Float64LessThanOrEqual(),
                               MachineRepresentation::kFloat64);
             } else {
               NodeProperties::ChangeOp(node, Float64Op(node));
@@ -3050,17 +3059,7 @@ class RepresentationSelector {
           VisitUnop(node, UseInfo::TruncatingFloat64(),
                     MachineRepresentation::kBit);
           if (lower()) {
-            // ObjectIsMinusZero(x:kRepFloat64)
-            //   => Float64Equal(Float64Div(1.0,x),-Infinity)
-            Node* const input = node->InputAt(0);
-            node->ReplaceInput(
-                0, jsgraph_->graph()->NewNode(
-                       lowering->machine()->Float64Div(),
-                       lowering->jsgraph()->Float64Constant(1.0), input));
-            node->AppendInput(jsgraph_->zone(),
-                              jsgraph_->Float64Constant(
-                                  -std::numeric_limits<double>::infinity()));
-            NodeProperties::ChangeOp(node, lowering->machine()->Float64Equal());
+            NodeProperties::ChangeOp(node, simplified()->NumberIsMinusZero());
           }
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);

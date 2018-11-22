@@ -8,6 +8,7 @@
 #include "src/objects/microtask-queue.h"
 
 #include "src/objects-inl.h"
+#include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

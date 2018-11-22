@@ -5,6 +5,7 @@
 #include "src/isolate-allocator.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/isolate.h"
+#include "src/ptr-compr.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -12,7 +13,7 @@ namespace internal {
 
 IsolateAllocator::IsolateAllocator(IsolateAllocationMode mode) {
 #if V8_TARGET_ARCH_64_BIT
-  if (mode == IsolateAllocationMode::kAllocateInV8Heap) {
+  if (mode == IsolateAllocationMode::kInV8Heap) {
     Address heap_base = InitReservation();
     CommitPagesForIsolate(heap_base);
     return;
@@ -20,7 +21,7 @@ IsolateAllocator::IsolateAllocator(IsolateAllocationMode mode) {
 #endif  // V8_TARGET_ARCH_64_BIT
 
   // Allocate Isolate in C++ heap.
-  CHECK_EQ(mode, IsolateAllocationMode::kAllocateInCppHeap);
+  CHECK_EQ(mode, IsolateAllocationMode::kInCppHeap);
   page_allocator_ = GetPlatformPageAllocator();
   isolate_memory_ = ::operator new(sizeof(Isolate));
   DCHECK(!reservation_.IsReserved());
@@ -43,15 +44,15 @@ Address IsolateAllocator::InitReservation() {
   // Reserve a 4Gb region so that the middle is 4Gb aligned.
   // The VirtualMemory API does not support such an constraint so we have to
   // implement it manually here.
-  size_t reservation_size = size_t{4} * GB;
-  size_t base_alignment = size_t{4} * GB;
+  size_t reservation_size = kPtrComprHeapReservationSize;
+  size_t base_alignment = kPtrComprIsolateRootAlignment;
 
   const int kMaxAttempts = 3;
   for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
     Address hint = RoundDown(reinterpret_cast<Address>(
                                  platform_page_allocator->GetRandomMmapAddr()),
                              base_alignment) +
-                   base_alignment / 2;
+                   kPtrComprIsolateRootBias;
 
     // Within this reservation there will be a sub-region with proper alignment.
     VirtualMemory padded_reservation(platform_page_allocator,
@@ -62,9 +63,9 @@ Address IsolateAllocator::InitReservation() {
     // Find such a sub-region inside the reservation that it's middle is
     // |base_alignment|-aligned.
     Address address =
-        RoundUp(padded_reservation.address() + reservation_size / 2,
+        RoundUp(padded_reservation.address() + kPtrComprIsolateRootBias,
                 base_alignment) -
-        reservation_size / 2;
+        kPtrComprIsolateRootBias;
     CHECK(padded_reservation.InVM(address, reservation_size));
 
     // Now free the padded reservation and immediately try to reserve an exact
@@ -81,8 +82,9 @@ Address IsolateAllocator::InitReservation() {
     // The reservation could still be somewhere else but we can accept it
     // if the reservation has the required alignment.
     Address aligned_address =
-        RoundUp(reservation.address() + reservation_size / 2, base_alignment) -
-        reservation_size / 2;
+        RoundUp(reservation.address() + kPtrComprIsolateRootBias,
+                base_alignment) -
+        kPtrComprIsolateRootBias;
 
     if (reservation.address() == aligned_address) {
       reservation_ = std::move(reservation);
@@ -96,7 +98,7 @@ Address IsolateAllocator::InitReservation() {
 
   CHECK_EQ(reservation_.size(), reservation_size);
 
-  Address heap_base = reservation_.address() + reservation_size / 2;
+  Address heap_base = reservation_.address() + kPtrComprIsolateRootBias;
   CHECK(IsAligned(heap_base, base_alignment));
 
   return heap_base;

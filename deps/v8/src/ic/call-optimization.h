@@ -16,9 +16,9 @@ class CallOptimization {
  public:
   CallOptimization(Isolate* isolate, Handle<Object> function);
 
-  Context* GetAccessorContext(Map* holder_map) const;
+  Context* GetAccessorContext(Map holder_map) const;
   bool IsCrossContextLazyAccessorPair(Context* native_context,
-                                      Map* holder_map) const;
+                                      Map holder_map) const;
 
   bool is_constant_call() const { return !constant_function_.is_null(); }
 

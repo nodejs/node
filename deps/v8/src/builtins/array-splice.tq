@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   // Given {elements}, we want to create a non-zero length array of type
   // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
   // but the special case of wanting to have a FixedDoubleArray when given a
@@ -54,8 +54,7 @@ module array {
   macro FastSplice<FixedArrayType: type, ElementType: type>(
       args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
-      actualDeleteCount: Smi): void
-      labels Bailout {
+      actualDeleteCount: Smi): void labels Bailout {
     // Make sure elements are writable.
     EnsureWriteableFastElements(a);
 
@@ -349,8 +348,8 @@ module array {
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
-  transitioning javascript builtin ArraySplice(
-      context: Context, receiver: Object, ...arguments): Object {
+  transitioning javascript builtin
+  ArraySplice(context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);
 

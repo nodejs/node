@@ -37,10 +37,10 @@ class NativeModule;
 class WasmCode;
 struct WasmModule;
 
-MaybeHandle<WasmModuleObject> CompileToModuleObject(
+std::unique_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
+    Handle<FixedArray>* export_wrappers_out);
 
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
@@ -48,8 +48,8 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     MaybeHandle<JSArrayBuffer> memory);
 
 V8_EXPORT_PRIVATE
-void CompileJsToWasmWrappers(Isolate* isolate,
-                             Handle<WasmModuleObject> module_object);
+void CompileJsToWasmWrappers(Isolate* isolate, NativeModule* native_module,
+                             Handle<FixedArray> export_wrappers);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes,
@@ -86,6 +86,7 @@ class AsyncCompileJob {
  private:
   class CompileTask;
   class CompileStep;
+  class CompilationStateCallback;
 
   // States of the AsyncCompileJob.
   class DecodeModule;            // Step 1  (async)
@@ -94,6 +95,15 @@ class AsyncCompileJob {
   class CompileFailed;           // Step 4b (sync)
   class CompileWrappers;         // Step 5  (sync)
   class FinishModule;            // Step 6  (sync)
+
+  friend class AsyncStreamingProcessor;
+
+  // Decrements the number of outstanding finishers. The last caller of this
+  // function should finish the asynchronous compilation, see the comment on
+  // {outstanding_finishers_}.
+  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
+    return outstanding_finishers_.fetch_sub(1) == 1;
+  }
 
   void PrepareRuntimeObjects(std::shared_ptr<const WasmModule>);
 
@@ -127,9 +137,7 @@ class AsyncCompileJob {
   template <typename Step, typename... Args>
   void NextStep(Args&&... args);
 
-  friend class AsyncStreamingProcessor;
-
-  Isolate* isolate_;
+  Isolate* const isolate_;
   const WasmFeatures enabled_features_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
@@ -138,7 +146,7 @@ class AsyncCompileJob {
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
   Handle<Context> native_context_;
-  std::shared_ptr<CompilationResultResolver> resolver_;
+  const std::shared_ptr<CompilationResultResolver> resolver_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
@@ -154,13 +162,6 @@ class AsyncCompileJob {
   // compilation can be finished.
   std::atomic<int32_t> outstanding_finishers_{1};
 
-  // Decrements the number of outstanding finishers. The last caller of this
-  // function should finish the asynchronous compilation, see the comment on
-  // {outstanding_finishers_}.
-  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
-    return outstanding_finishers_.fetch_sub(1) == 1;
-  }
-
   // A reference to a pending foreground task, or {nullptr} if none is pending.
   CompileTask* pending_foreground_task_ = nullptr;
 
@@ -170,6 +171,7 @@ class AsyncCompileJob {
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
 };
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

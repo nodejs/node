@@ -27,14 +27,11 @@ class CustomArguments : public CustomArgumentsBase {
  public:
   static const int kReturnValueOffset = T::kReturnValueIndex;
 
-  ~CustomArguments() override {
-    this->begin()[kReturnValueOffset] =
-        reinterpret_cast<Object*>(kHandleZapValue);
-  }
+  ~CustomArguments() override;
 
   inline void IterateInstance(RootVisitor* v) override {
-    v->VisitRootPointers(Root::kRelocatable, nullptr, ObjectSlot(values_),
-                         ObjectSlot(values_ + T::kArgsLength));
+    v->VisitRootPointers(Root::kRelocatable, nullptr, slot_at(0),
+                         slot_at(T::kArgsLength));
   }
 
  protected:
@@ -45,11 +42,16 @@ class CustomArguments : public CustomArgumentsBase {
   Handle<V> GetReturnValue(Isolate* isolate);
 
   inline Isolate* isolate() {
-    return reinterpret_cast<Isolate*>(this->begin()[T::kIsolateIndex]);
+    return reinterpret_cast<Isolate*>(*slot_at(T::kIsolateIndex));
   }
 
-  inline Object** begin() { return values_; }
-  Object* values_[T::kArgsLength];
+  inline ObjectSlot slot_at(int index) {
+    // This allows index == T::kArgsLength so "one past the end" slots
+    // can be retrieved for iterating purposes.
+    DCHECK(index >= 0 && index <= T::kArgsLength);
+    return ObjectSlot(values_ + index);
+  }
+  Address values_[T::kArgsLength];
 };
 
 // Note: Calling args.Call() sets the return value on args. For multiple
@@ -161,7 +163,7 @@ class FunctionCallbackArguments
                             internal::HeapObject* callee,
                             internal::Object* holder,
                             internal::HeapObject* new_target,
-                            internal::Object** argv, int argc);
+                            internal::Address* argv, int argc);
 
   /*
    * The following Call function wraps the calling of all callbacks to handle
@@ -176,7 +178,7 @@ class FunctionCallbackArguments
  private:
   inline JSObject* holder();
 
-  internal::Object** argv_;
+  internal::Address* argv_;
   int argc_;
 };
 

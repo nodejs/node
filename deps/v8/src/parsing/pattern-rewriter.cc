@@ -74,6 +74,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   }
 
   Expression* Rewrite(Assignment* assign) {
+    if (parser_->has_error()) return parser_->FailureExpression();
     DCHECK_EQ(Token::ASSIGN, assign->op());
 
     int pos = assign->position();
@@ -134,6 +135,7 @@ void Parser::DeclareAndInitializeVariables(
     Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
+  if (has_error()) return;
   PatternRewriter::DeclareAndInitializeVariables(
       this, block, declaration_descriptor, declaration, names);
 }
@@ -751,7 +753,7 @@ NOT_A_PATTERN(WithStatement)
 NOT_A_PATTERN(Yield)
 NOT_A_PATTERN(YieldStar)
 NOT_A_PATTERN(Await)
-NOT_A_PATTERN(InitializeClassFieldsStatement)
+NOT_A_PATTERN(InitializeClassMembersStatement)
 
 #undef NOT_A_PATTERN
 }  // namespace internal

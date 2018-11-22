@@ -2760,7 +2760,8 @@ TEST(InternalFieldsSubclassing) {
               .FromJust());
     // Create various levels of subclasses to stress instance size calculation.
     const int kMaxNofProperties =
-        i::JSObject::kMaxInObjectProperties - nof_embedder_fields;
+        i::JSObject::kMaxInObjectProperties -
+        nof_embedder_fields * i::kEmbedderDataSlotSizeInTaggedSlots;
     // Select only a few values to speed up the test.
     int sizes[] = {0,
                    1,
@@ -2869,7 +2870,7 @@ THREADED_TEST(GlobalObjectHasRealIndexedProperty) {
 
 static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
                                                void* value) {
-  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  CHECK(HAS_SMI_TAG(reinterpret_cast<i::Address>(value)));
   obj->SetAlignedPointerInInternalField(0, value);
   CcTest::CollectAllGarbage();
   CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0));
@@ -5225,6 +5226,22 @@ THREADED_TEST(Array) {
   CHECK_EQ(27u, array->Length());
   array = v8::Array::New(context->GetIsolate(), -27);
   CHECK_EQ(0u, array->Length());
+
+  std::vector<Local<Value>> vector = {v8_num(1), v8_num(2), v8_num(3)};
+  array = v8::Array::New(context->GetIsolate(), vector.data(), vector.size());
+  CHECK_EQ(vector.size(), array->Length());
+  CHECK_EQ(1, arr->Get(context.local(), 0)
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+  CHECK_EQ(2, arr->Get(context.local(), 1)
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+  CHECK_EQ(3, arr->Get(context.local(), 2)
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
 }
 
 
@@ -14566,6 +14583,8 @@ class SetFunctionEntryHookTest {
   SymbolLocationMap symbol_locations_;
   InvocationMap invocations_;
 
+  i::Isolate* isolate_ = nullptr;
+
   static SetFunctionEntryHookTest* instance_;
 };
 SetFunctionEntryHookTest* SetFunctionEntryHookTest::instance_ = nullptr;
@@ -14652,9 +14671,9 @@ void SetFunctionEntryHookTest::OnJitEvent(const v8::JitCodeEvent* event) {
 void SetFunctionEntryHookTest::OnEntryHook(
     uintptr_t function, uintptr_t return_addr_location) {
   // Get the function's code object.
-  i::Code* function_code =
-      i::Code::GetCodeFromTargetAddress(static_cast<i::Address>(function));
-  CHECK_NOT_NULL(function_code);
+  i::Code function_code = isolate_->heap()->GcSafeFindCodeForInnerPointer(
+      static_cast<i::Address>(function));
+  CHECK(!function_code.is_null());
 
   // Then try and look up the caller's code object.
   i::Address caller = *reinterpret_cast<i::Address*>(return_addr_location);
@@ -14779,7 +14798,9 @@ void SetFunctionEntryHookTest::RunTest() {
   create_params.entry_hook = EntryHook;
   create_params.code_event_handler = JitEvent;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::Isolate* isolate = v8::Isolate::Allocate();
+  isolate_ = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Initialize(isolate, create_params);
 
   {
     v8::Isolate::Scope scope(isolate);
@@ -14822,7 +14843,9 @@ void SetFunctionEntryHookTest::RunTest() {
   // Make sure a second isolate is unaffected by the previous entry hook.
   create_params = v8::Isolate::CreateParams();
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  isolate = v8::Isolate::New(create_params);
+  isolate = v8::Isolate::Allocate();
+  isolate_ = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Initialize(isolate, create_params);
   {
     v8::Isolate::Scope scope(isolate);
 
@@ -14836,8 +14859,7 @@ void SetFunctionEntryHookTest::RunTest() {
   isolate->Dispose();
 }
 
-
-TEST(SetFunctionEntryHook) {
+UNINITIALIZED_TEST(SetFunctionEntryHook) {
   // FunctionEntryHook does not work well with experimental natives.
   // Experimental natives are compiled during snapshot deserialization.
   // This test breaks because InstallGetter (function from snapshot that
@@ -18491,6 +18513,34 @@ TEST(PromiseRejectIsSharedCrossOrigin) {
   CHECK(promise_reject_is_shared_cross_origin);
 }
 
+TEST(PromiseRejectMarkAsHandled) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
+
+  ResetPromiseStates();
+
+  // Create promise p0.
+  CompileRun(
+      "var reject;            \n"
+      "var p0 = new Promise(  \n"
+      "  function(res, rej) { \n"
+      "    reject = rej;      \n"
+      "  }                    \n"
+      ");                     \n");
+  CHECK(!GetPromise("p0")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  GetPromise("p0")->MarkAsHandled();
+
+  // Reject p0. promise_reject_counter shouldn't be incremented because
+  // it's marked as handled.
+  CompileRun("reject('ppp');");
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+}
 void PromiseRejectCallbackConstructError(
     v8::PromiseRejectMessage reject_message) {
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
@@ -19309,7 +19359,8 @@ TEST(GetHeapSpaceStatistics) {
     v8::HeapSpaceStatistics space_statistics;
     isolate->GetHeapSpaceStatistics(&space_statistics, i);
     CHECK_NOT_NULL(space_statistics.space_name());
-    if (strcmp(space_statistics.space_name(), "new_large_object_space") == 0) {
+    if (strcmp(space_statistics.space_name(), "new_large_object_space") == 0 ||
+        strcmp(space_statistics.space_name(), "code_large_object_space") == 0) {
       continue;
     }
     CHECK_GT(space_statistics.space_size(), 0u);
@@ -24476,6 +24527,143 @@ THREADED_TEST(FunctionNew) {
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result2).FromJust());
 }
 
+namespace {
+
+void Verify(v8::Isolate* isolate, Local<v8::Object> obj) {
+#if VERIFY_HEAP
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::JSReceiver> i_obj = v8::Utils::OpenHandle(*obj);
+  i_obj->ObjectVerify(i_isolate);
+#endif
+}
+
+}  // namespace
+
+THREADED_TEST(ObjectNew) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  {
+    // Verify that Object::New(null) produces an object with a null
+    // [[Prototype]].
+    Local<v8::Object> obj =
+        v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
+    CHECK(obj->GetPrototype()->IsNull());
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(0, keys->Length());
+  }
+  {
+    // Verify that Object::New(proto) produces an object with
+    // proto as it's [[Prototype]].
+    Local<v8::Object> proto = v8::Object::New(isolate);
+    Local<v8::Object> obj =
+        v8::Object::New(isolate, proto, nullptr, nullptr, 0);
+    Verify(isolate, obj);
+    CHECK(obj->GetPrototype()->SameValue(proto));
+  }
+  {
+    // Verify that the properties are installed correctly.
+    Local<v8::Name> names[3] = {v8_str("a"), v8_str("b"), v8_str("c")};
+    Local<v8::Value> values[3] = {v8_num(1), v8_num(2), v8_num(3)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(names[i]->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(
+          obj->Get(env.local(), names[i]).ToLocalChecked()));
+    }
+  }
+  {
+    // Same as above, but with non-null prototype.
+    Local<v8::Object> proto = v8::Object::New(isolate);
+    Local<v8::Name> names[3] = {v8_str("x"), v8_str("y"), v8_str("z")};
+    Local<v8::Value> values[3] = {v8_num(1), v8_num(2), v8_num(3)};
+    Local<v8::Object> obj =
+        v8::Object::New(isolate, proto, names, values, arraysize(values));
+    CHECK(obj->GetPrototype()->SameValue(proto));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(names[i]->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(
+          obj->Get(env.local(), names[i]).ToLocalChecked()));
+    }
+  }
+  {
+    // This has to work with duplicate names too.
+    Local<v8::Name> names[3] = {v8_str("a"), v8_str("a"), v8_str("a")};
+    Local<v8::Value> values[3] = {v8_num(1), v8_num(2), v8_num(3)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(1, keys->Length());
+    CHECK(v8_str("a")->SameValue(keys->Get(env.local(), 0).ToLocalChecked()));
+    CHECK(v8_num(3)->SameValue(
+        obj->Get(env.local(), v8_str("a")).ToLocalChecked()));
+  }
+  {
+    // This has to work with array indices too.
+    Local<v8::Name> names[2] = {v8_str("0"), v8_str("1")};
+    Local<v8::Value> values[2] = {v8_num(0), v8_num(1)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(v8::Number::New(isolate, i)
+                ->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(obj->Get(env.local(), i).ToLocalChecked()));
+    }
+  }
+  {
+    // This has to work with mixed array indices / property names too.
+    Local<v8::Name> names[2] = {v8_str("0"), v8_str("x")};
+    Local<v8::Value> values[2] = {v8_num(42), v8_num(24)};
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(values));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    // 0 -> 42
+    CHECK(v8_num(0)->SameValue(keys->Get(env.local(), 0).ToLocalChecked()));
+    CHECK(
+        values[0]->SameValue(obj->Get(env.local(), names[0]).ToLocalChecked()));
+    // "x" -> 24
+    CHECK(v8_str("x")->SameValue(keys->Get(env.local(), 1).ToLocalChecked()));
+    CHECK(
+        values[1]->SameValue(obj->Get(env.local(), names[1]).ToLocalChecked()));
+  }
+  {
+    // Verify that this also works for a couple thousand properties.
+    size_t const kLength = 10 * 1024;
+    Local<v8::Name> names[kLength];
+    Local<v8::Value> values[kLength];
+    for (size_t i = 0; i < arraysize(names); ++i) {
+      std::ostringstream ost;
+      ost << "a" << i;
+      names[i] = v8_str(ost.str().c_str());
+      values[i] = v8_num(static_cast<double>(i));
+    }
+    Local<v8::Object> obj = v8::Object::New(isolate, v8::Null(isolate), names,
+                                            values, arraysize(names));
+    Verify(isolate, obj);
+    Local<Array> keys = obj->GetOwnPropertyNames(env.local()).ToLocalChecked();
+    CHECK_EQ(arraysize(names), keys->Length());
+    for (uint32_t i = 0; i < arraysize(names); ++i) {
+      CHECK(names[i]->SameValue(keys->Get(env.local(), i).ToLocalChecked()));
+      CHECK(values[i]->SameValue(
+          obj->Get(env.local(), names[i]).ToLocalChecked()));
+    }
+  }
+}
+
 TEST(EscapableHandleScope) {
   HandleScope outer_scope(CcTest::isolate());
   LocalContext context;
@@ -28915,7 +29103,7 @@ TEST(TestGetEmbeddedCodeRange) {
   if (i::FLAG_embedded_builtins) {
     for (int id = 0; id < i::Builtins::builtin_count; id++) {
       if (!i::Builtins::IsIsolateIndependent(id)) continue;
-      i::Code* builtin = i_isolate->builtins()->builtin(id);
+      i::Code builtin = i_isolate->builtins()->builtin(id);
       i::Address start = builtin->InstructionStart();
       i::Address end = start + builtin->InstructionSize();
 
@@ -28927,5 +29115,250 @@ TEST(TestGetEmbeddedCodeRange) {
   } else {
     CHECK_EQ(nullptr, builtins_range.start);
     CHECK_EQ(0, builtins_range.length_in_bytes);
+  }
+}
+
+TEST(MicrotaskContextShouldBeNativeContext) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  auto callback = [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::HandleScope scope(isolate);
+    i::Handle<i::Context> context =
+        v8::Utils::OpenHandle(*isolate->GetEnteredOrMicrotaskContext());
+
+    CHECK(context->IsNativeContext());
+    info.GetReturnValue().SetUndefined();
+  };
+
+  Local<v8::FunctionTemplate> desc = v8::FunctionTemplate::New(isolate);
+  desc->InstanceTemplate()->SetCallAsFunctionHandler(callback);
+  Local<v8::Object> obj = desc->GetFunction(env.local())
+                              .ToLocalChecked()
+                              ->NewInstance(env.local())
+                              .ToLocalChecked();
+
+  CHECK(env->Global()->Set(env.local(), v8_str("callback"), obj).FromJust());
+  CompileRun(
+      "with({}){(async ()=>{"
+      "  await 42;"
+      "})().then(callback);}");
+
+  isolate->RunMicrotasks();
+}
+
+TEST(PreviewSetIteratorEntriesWithDeleted) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::Local<v8::Context> context = env.local();
+
+  {
+    // Create set, delete entry, create iterator, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); set.delete(1); set.keys()")
+            ->ToObject(context)
+            .ToLocalChecked();
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create set, create iterator, delete entry, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); set.keys()")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create set, create iterator, delete entry, iterate, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); var it = set.keys(); it")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(1, entries->Length());
+    CHECK_EQ(3, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create set, create iterator, delete entry, iterate until empty, preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); var it = set.keys(); it")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1); it.next(); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(0, entries->Length());
+  }
+  {
+    // Create set, create iterator, delete entry, iterate, trigger rehash,
+    // preview.
+    v8::Local<v8::Object> iterator =
+        CompileRun("var set = new Set([1,2,3]); var it = set.keys(); it")
+            ->ToObject(context)
+            .ToLocalChecked();
+    CompileRun("set.delete(1); it.next();");
+    CompileRun("for (var i = 4; i < 20; i++) set.add(i);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(17, entries->Length());
+    for (uint32_t i = 0; i < 17; i++) {
+      CHECK_EQ(i + 3, entries->Get(context, i)
+                          .ToLocalChecked()
+                          ->Int32Value(context)
+                          .FromJust());
+    }
+  }
+}
+
+TEST(PreviewMapIteratorEntriesWithDeleted) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::Local<v8::Context> context = env.local();
+
+  {
+    // Create map, delete entry, create iterator, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "map.delete(key);"
+                                         "map.values()")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create map, create iterator, delete entry, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "map.values()")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(2, entries->Length());
+    CHECK_EQ(2, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+    CHECK_EQ(3, entries->Get(context, 1)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create map, create iterator, delete entry, iterate, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "var it = map.values(); it")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(1, entries->Length());
+    CHECK_EQ(3, entries->Get(context, 0)
+                    .ToLocalChecked()
+                    ->Int32Value(context)
+                    .FromJust());
+  }
+  {
+    // Create map, create iterator, delete entry, iterate until empty, preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "var it = map.values(); it")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key); it.next(); it.next();");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(0, entries->Length());
+  }
+  {
+    // Create map, create iterator, delete entry, iterate, trigger rehash,
+    // preview.
+    v8::Local<v8::Object> iterator = CompileRun(
+                                         "var map = new Map();"
+                                         "var key = {}; map.set(key, 1);"
+                                         "map.set({}, 2); map.set({}, 3);"
+                                         "var it = map.values(); it")
+                                         ->ToObject(context)
+                                         .ToLocalChecked();
+    CompileRun("map.delete(key); it.next();");
+    CompileRun("for (var i = 4; i < 20; i++) map.set({}, i);");
+    bool is_key;
+    v8::Local<v8::Array> entries =
+        iterator->PreviewEntries(&is_key).ToLocalChecked();
+    CHECK(!is_key);
+    CHECK_EQ(17, entries->Length());
+    for (uint32_t i = 0; i < 17; i++) {
+      CHECK_EQ(i + 3, entries->Get(context, i)
+                          .ToLocalChecked()
+                          ->Int32Value(context)
+                          .FromJust());
+    }
   }
 }

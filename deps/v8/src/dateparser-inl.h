@@ -8,16 +8,14 @@
 #include "src/char-predicates-inl.h"
 #include "src/dateparser.h"
 #include "src/isolate.h"
-#include "src/unicode-cache-inl.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename Char>
 bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray* out) {
-  UnicodeCache* unicode_cache = isolate->unicode_cache();
   DCHECK(out->length() >= OUTPUT_SIZE);
-  InputReader<Char> in(unicode_cache, str);
+  InputReader<Char> in(str);
   DateStringTokenizer<Char> scanner(&in);
   TimeZoneComposer tz;
   TimeComposer time;
@@ -220,7 +218,7 @@ DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
 
 template <typename Char>
 bool DateParser::InputReader<Char>::SkipWhiteSpace() {
-  if (unicode_cache_->IsWhiteSpaceOrLineTerminator(ch_)) {
+  if (IsWhiteSpaceOrLineTerminator(ch_)) {
     Next();
     return true;
   }

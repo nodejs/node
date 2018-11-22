@@ -39,6 +39,11 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
 
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
 
+  IsolateAllocationMode mode() {
+    return reservation_.IsReserved() ? IsolateAllocationMode::kInV8Heap
+                                     : IsolateAllocationMode::kInCppHeap;
+  }
+
  private:
   Address InitReservation();
   void CommitPagesForIsolate(Address heap_base);

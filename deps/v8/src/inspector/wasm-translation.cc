@@ -175,6 +175,12 @@ class WasmTranslation::TranslatorImpl {
     return builder.toString();
   }
 
+  int GetContextId(v8::Isolate* isolate) {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
+    return script->ContextId().FromMaybe(0);
+  }
+
  private:
   String16 GetFakeScriptUrl(v8::Isolate* isolate, int func_index) {
     v8::Local<v8::debug::WasmScript> script = script_.Get(isolate);
@@ -265,6 +271,32 @@ void WasmTranslation::AddScript(v8::Local<v8::debug::WasmScript> script,
 void WasmTranslation::Clear() {
   wasm_translators_.clear();
   fake_scripts_.clear();
+}
+
+void WasmTranslation::Clear(v8::Isolate* isolate,
+                            const std::vector<int>& contextIdsToClear) {
+  for (auto iter = fake_scripts_.begin(); iter != fake_scripts_.end();) {
+    auto contextId = iter->second->GetContextId(isolate);
+    auto it = std::find(std::begin(contextIdsToClear),
+                        std::end(contextIdsToClear), contextId);
+    if (it != std::end(contextIdsToClear)) {
+      iter = fake_scripts_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+
+  for (auto iter = wasm_translators_.begin();
+       iter != wasm_translators_.end();) {
+    auto contextId = iter->second->GetContextId(isolate);
+    auto it = std::find(std::begin(contextIdsToClear),
+                        std::end(contextIdsToClear), contextId);
+    if (it != std::end(contextIdsToClear)) {
+      iter = wasm_translators_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
 }
 
 const String16& WasmTranslation::GetSource(const String16& script_id,

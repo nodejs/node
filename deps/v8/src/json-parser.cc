@@ -14,7 +14,6 @@
 #include "src/property-descriptor.h"
 #include "src/string-hasher.h"
 #include "src/transitions.h"
-#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -35,8 +34,7 @@ class VectorSegment {
   ~VectorSegment() { container_.resize(begin_); }
 
   Vector<const value_type> GetVector() const {
-    return Vector<const value_type>(container_.data() + begin_,
-                                    container_.size() - begin_);
+    return VectorOf(container_) + begin_;
   }
 
   template <typename T>
@@ -670,7 +668,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   double number;
   if (seq_one_byte) {
     Vector<const uint8_t> chars(seq_source_->GetChars() + beg_pos, length);
-    number = StringToDouble(isolate()->unicode_cache(), chars,
+    number = StringToDouble(chars,
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             std::numeric_limits<double>::quiet_NaN());
   } else {
@@ -678,7 +676,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
     String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);
     Vector<const uint8_t> result =
         Vector<const uint8_t>(buffer.start(), length);
-    number = StringToDouble(isolate()->unicode_cache(), result,
+    number = StringToDouble(result,
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             0.0);
     buffer.Dispose();

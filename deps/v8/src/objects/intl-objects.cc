@@ -32,14 +32,17 @@
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
-#include "unicode/regex.h"
-#include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
-#include "unicode/ucol.h"
-#include "unicode/ures.h"
 #include "unicode/ustring.h"
-#include "unicode/uvernum.h"
-#include "unicode/uversion.h"
+#include "unicode/uvernum.h"  // U_ICU_VERSION_MAJOR_NUM
+
+#define XSTR(s) STR(s)
+#define STR(s) #s
+static_assert(
+    V8_MINIMUM_ICU_VERSION <= U_ICU_VERSION_MAJOR_NUM,
+    "v8 is required to build with ICU " XSTR(V8_MINIMUM_ICU_VERSION) " and up");
+#undef STR
+#undef XSTR
 
 namespace v8 {
 namespace internal {
@@ -170,6 +173,16 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
   }
 }
 
+template <typename T>
+MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
+                   Handle<Object> locales, Handle<Object> options) {
+  Handle<JSObject> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(constructor, constructor, Handle<AllocationSite>::null()),
+      T);
+  return T::Initialize(isolate, Handle<T>::cast(result), locales, options);
+}
 }  // namespace
 
 const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
@@ -389,21 +402,6 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   return value;
 }
 
-MaybeHandle<JSObject> Intl::CachedOrNewService(
-    Isolate* isolate, Handle<String> service, Handle<Object> locales,
-    Handle<Object> options, Handle<Object> internal_options) {
-  Handle<Object> result;
-  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
-                                 isolate);
-  Handle<Object> args[] = {service, locales, options, internal_options};
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, isolate->cached_or_new_service(),
-                      undefined_value, arraysize(args), args),
-      JSArray);
-  return Handle<JSObject>::cast(result);
-}
-
 icu::Locale Intl::CreateICULocale(const std::string& bcp47_locale) {
   DisallowHeapAllocation no_gc;
 
@@ -588,124 +586,6 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   return receiver;
 }
 
-namespace {
-
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-// Define general regexp macros.
-// Note "(?:" means the regexp group a non-capture group.
-#define REGEX_ALPHA "[a-z]"
-#define REGEX_DIGIT "[0-9]"
-#define REGEX_ALPHANUM "(?:" REGEX_ALPHA "|" REGEX_DIGIT ")"
-
-void BuildLanguageTagRegexps(Isolate* isolate) {
-// Define the language tag regexp macros.
-// For info on BCP 47 see https://tools.ietf.org/html/bcp47 .
-// Because language tags are case insensitive per BCP 47 2.1.1 and regexp's
-// defined below will always be used after lowercasing the input, uppercase
-// ranges in BCP 47 2.1 are dropped and grandfathered tags are all lowercased.
-// clang-format off
-#define BCP47_REGULAR                                          \
-  "(?:art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|" \
-  "zh-min|zh-min-nan|zh-xiang)"
-#define BCP47_IRREGULAR                                  \
-  "(?:en-gb-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|" \
-  "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"  \
-  "i-tsu|sgn-be-fr|sgn-be-nl|sgn-ch-de)"
-#define BCP47_GRANDFATHERED "(?:" BCP47_IRREGULAR "|" BCP47_REGULAR ")"
-#define BCP47_PRIVATE_USE "(?:x(?:-" REGEX_ALPHANUM "{1,8})+)"
-
-#define BCP47_SINGLETON "(?:" REGEX_DIGIT "|" "[a-wy-z])"
-
-#define BCP47_EXTENSION "(?:" BCP47_SINGLETON "(?:-" REGEX_ALPHANUM "{2,8})+)"
-#define BCP47_VARIANT  \
-  "(?:" REGEX_ALPHANUM "{5,8}" "|" "(?:" REGEX_DIGIT REGEX_ALPHANUM "{3}))"
-
-#define BCP47_REGION "(?:" REGEX_ALPHA "{2}" "|" REGEX_DIGIT "{3})"
-#define BCP47_SCRIPT "(?:" REGEX_ALPHA "{4})"
-#define BCP47_EXT_LANG "(?:" REGEX_ALPHA "{3}(?:-" REGEX_ALPHA "{3}){0,2})"
-#define BCP47_LANGUAGE "(?:" REGEX_ALPHA "{2,3}(?:-" BCP47_EXT_LANG ")?" \
-  "|" REGEX_ALPHA "{4}" "|" REGEX_ALPHA "{5,8})"
-#define BCP47_LANG_TAG         \
-  BCP47_LANGUAGE               \
-  "(?:-" BCP47_SCRIPT ")?"     \
-  "(?:-" BCP47_REGION ")?"     \
-  "(?:-" BCP47_VARIANT ")*"    \
-  "(?:-" BCP47_EXTENSION ")*"  \
-  "(?:-" BCP47_PRIVATE_USE ")?"
-  // clang-format on
-
-  constexpr char kLanguageTagSingletonRegexp[] = "^" BCP47_SINGLETON "$";
-  constexpr char kLanguageTagVariantRegexp[] = "^" BCP47_VARIANT "$";
-  constexpr char kLanguageTagRegexp[] =
-      "^(?:" BCP47_LANG_TAG "|" BCP47_PRIVATE_USE "|" BCP47_GRANDFATHERED ")$";
-
-  UErrorCode status = U_ZERO_ERROR;
-  icu::RegexMatcher* language_singleton_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString(kLanguageTagSingletonRegexp, -1, US_INV), 0, status);
-  icu::RegexMatcher* language_tag_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString(kLanguageTagRegexp, -1, US_INV), 0, status);
-  icu::RegexMatcher* language_variant_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString(kLanguageTagVariantRegexp, -1, US_INV), 0, status);
-  CHECK(U_SUCCESS(status));
-
-  isolate->set_language_tag_regexp_matchers(language_singleton_regexp_matcher,
-                                            language_tag_regexp_matcher,
-                                            language_variant_regexp_matcher);
-// Undefine the language tag regexp macros.
-#undef BCP47_EXTENSION
-#undef BCP47_EXT_LANG
-#undef BCP47_GRANDFATHERED
-#undef BCP47_IRREGULAR
-#undef BCP47_LANG_TAG
-#undef BCP47_LANGUAGE
-#undef BCP47_PRIVATE_USE
-#undef BCP47_REGION
-#undef BCP47_REGULAR
-#undef BCP47_SCRIPT
-#undef BCP47_SINGLETON
-#undef BCP47_VARIANT
-}
-
-// Undefine the general regexp macros.
-#undef REGEX_ALPHA
-#undef REGEX_DIGIT
-#undef REGEX_ALPHANUM
-
-icu::RegexMatcher* GetLanguageSingletonRegexMatcher(Isolate* isolate) {
-  icu::RegexMatcher* language_singleton_regexp_matcher =
-      isolate->language_singleton_regexp_matcher();
-  if (language_singleton_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexps(isolate);
-    language_singleton_regexp_matcher =
-        isolate->language_singleton_regexp_matcher();
-  }
-  return language_singleton_regexp_matcher;
-}
-
-icu::RegexMatcher* GetLanguageTagRegexMatcher(Isolate* isolate) {
-  icu::RegexMatcher* language_tag_regexp_matcher =
-      isolate->language_tag_regexp_matcher();
-  if (language_tag_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexps(isolate);
-    language_tag_regexp_matcher = isolate->language_tag_regexp_matcher();
-  }
-  return language_tag_regexp_matcher;
-}
-
-icu::RegexMatcher* GetLanguageVariantRegexMatcher(Isolate* isolate) {
-  icu::RegexMatcher* language_variant_regexp_matcher =
-      isolate->language_variant_regexp_matcher();
-  if (language_variant_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexps(isolate);
-    language_variant_regexp_matcher =
-        isolate->language_variant_regexp_matcher();
-  }
-  return language_variant_regexp_matcher;
-}
-#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-
-}  // anonymous namespace
-
 Maybe<bool> Intl::GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
                                   const char* property,
                                   std::vector<const char*> values,
@@ -791,111 +671,6 @@ char AsciiToLower(char c) {
   return c | (1 << 5);
 }
 
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-/**
- * Check the structural Validity of the language tag per ECMA 402 6.2.2:
- *   - Well-formed per RFC 5646 2.1
- *   - There are no duplicate variant subtags
- *   - There are no duplicate singleton (extension) subtags
- *
- * One extra-check is done (from RFC 5646 2.2.9): the tag is compared
- * against the list of grandfathered tags. However, subtags for
- * primary/extended language, script, region, variant are not checked
- * against the IANA language subtag registry.
- *
- * ICU 62 or earlier is too permissible and lets invalid tags, like
- * hant-cmn-cn, through.
- *
- * Returns false if the language tag is invalid.
- */
-bool IsStructurallyValidLanguageTag(Isolate* isolate,
-                                    const std::string& locale_in) {
-  if (!String::IsAscii(locale_in.c_str(),
-                       static_cast<int>(locale_in.length()))) {
-    return false;
-  }
-  std::string locale(locale_in);
-  icu::RegexMatcher* language_tag_regexp_matcher =
-      GetLanguageTagRegexMatcher(isolate);
-
-  // Check if it's well-formed, including grandfathered tags.
-  icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
-  // Note: icu::RegexMatcher::reset does not make a copy of the input string
-  // so cannot use a temp value; ie: cannot create it as a call parameter.
-  language_tag_regexp_matcher->reset(locale_uni);
-  UErrorCode status = U_ZERO_ERROR;
-  bool is_valid_lang_tag = language_tag_regexp_matcher->matches(status);
-  if (!is_valid_lang_tag || V8_UNLIKELY(U_FAILURE(status))) {
-    return false;
-  }
-
-  // Just return if it's a x- form. It's all private.
-  if (locale.find("x-") == 0) {
-    return true;
-  }
-
-  // Check if there are any duplicate variants or singletons (extensions).
-
-  // Remove private use section.
-  locale = locale.substr(0, locale.find("-x-"));
-
-  // Skip language since it can match variant regex, so we start from 1.
-  // We are matching i-klingon here, but that's ok, since i-klingon-klingon
-  // is not valid and would fail LANGUAGE_TAG_RE test.
-  size_t pos = 0;
-  std::vector<std::string> parts;
-  while ((pos = locale.find('-')) != std::string::npos) {
-    std::string token = locale.substr(0, pos);
-    parts.push_back(token);
-    locale = locale.substr(pos + 1);
-  }
-  if (locale.length() != 0) {
-    parts.push_back(locale);
-  }
-
-  icu::RegexMatcher* language_variant_regexp_matcher =
-      GetLanguageVariantRegexMatcher(isolate);
-
-  icu::RegexMatcher* language_singleton_regexp_matcher =
-      GetLanguageSingletonRegexMatcher(isolate);
-
-  std::vector<std::string> variants;
-  std::vector<std::string> extensions;
-  for (auto it = parts.begin() + 1; it != parts.end(); it++) {
-    icu::UnicodeString part(it->data(), -1, US_INV);
-    language_variant_regexp_matcher->reset(part);
-    bool is_language_variant = language_variant_regexp_matcher->matches(status);
-    if (V8_UNLIKELY(U_FAILURE(status))) {
-      return false;
-    }
-    if (is_language_variant && extensions.size() == 0) {
-      if (std::find(variants.begin(), variants.end(), *it) == variants.end()) {
-        variants.push_back(*it);
-      } else {
-        return false;
-      }
-    }
-
-    language_singleton_regexp_matcher->reset(part);
-    bool is_language_singleton =
-        language_singleton_regexp_matcher->matches(status);
-    if (V8_UNLIKELY(U_FAILURE(status))) {
-      return false;
-    }
-    if (is_language_singleton) {
-      if (std::find(extensions.begin(), extensions.end(), *it) ==
-          extensions.end()) {
-        extensions.push_back(*it);
-      } else {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-#endif  // USE_CHROMIUM_ICU == 0 || U_ICU_VERSION_MAJOR_NUM < 63
-
 bool IsLowerAscii(char c) { return c >= 'a' && c < 'z'; }
 
 bool IsTwoLetterLanguage(const std::string& locale) {
@@ -968,15 +743,6 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   // the input before any more check.
   std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
 
-#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
-  if (!IsStructurallyValidLanguageTag(isolate, locale)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
-        Nothing<std::string>());
-  }
-#endif
-
   // ICU maps a few grandfathered tags to what looks like a regular language
   // tag even though IANA language tag registry does not have a preferred
   // entry map for them. Return them as they're with lowercasing.
@@ -1001,9 +767,7 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   uloc_forLanguageTag(locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
                       &parsed_length, &error);
   if (U_FAILURE(error) ||
-#if USE_CHROMIUM_ICU == 1 || U_ICU_VERSION_MAJOR_NUM >= 63
       static_cast<size_t>(parsed_length) < locale.length() ||
-#endif
       error == U_STRING_NOT_TERMINATED_WARNING) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -1155,26 +919,48 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
                                               Handle<String> string2,
                                               Handle<Object> locales,
                                               Handle<Object> options) {
-  Factory* factory = isolate->factory();
-  Handle<JSObject> collator;
+  // We only cache the instance when both locales and options are undefined,
+  // as that is the only case when the specified side-effects of examining
+  // those arguments are unobservable.
+  bool can_cache =
+      locales->IsUndefined(isolate) && options->IsUndefined(isolate);
+  if (can_cache) {
+    // Both locales and options are undefined, check the cache.
+    icu::Collator* cached_icu_collator =
+        static_cast<icu::Collator*>(isolate->get_cached_icu_object(
+            Isolate::ICUObjectCacheType::kDefaultCollator));
+    // We may use the cached icu::Collator for a fast path.
+    if (cached_icu_collator != nullptr) {
+      return Intl::CompareStrings(isolate, *cached_icu_collator, string1,
+                                  string2);
+    }
+  }
+
+  Handle<JSFunction> constructor = Handle<JSFunction>(
+      JSFunction::cast(
+          isolate->context()->native_context()->intl_collator_function()),
+      isolate);
+
+  Handle<JSCollator> collator;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, collator,
-      CachedOrNewService(isolate, factory->NewStringFromStaticChars("collator"),
-                         locales, options, factory->undefined_value()),
-      Object);
-  CHECK(collator->IsJSCollator());
-  return Intl::CompareStrings(isolate, Handle<JSCollator>::cast(collator),
+      New<JSCollator>(isolate, constructor, locales, options), Object);
+  if (can_cache) {
+    isolate->set_icu_object_in_cache(
+        Isolate::ICUObjectCacheType::kDefaultCollator,
+        std::static_pointer_cast<icu::UObject>(
+            collator->icu_collator()->get()));
+  }
+  return Intl::CompareStrings(isolate, *(collator->icu_collator()->raw()),
                               string1, string2);
 }
 
 // ecma402/#sec-collator-comparestrings
 Handle<Object> Intl::CompareStrings(Isolate* isolate,
-                                    Handle<JSCollator> collator,
+                                    const icu::Collator& icu_collator,
                                     Handle<String> string1,
                                     Handle<String> string2) {
   Factory* factory = isolate->factory();
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
-  CHECK_NOT_NULL(icu_collator);
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
@@ -1183,7 +969,7 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString string_val1 = Intl::ToICUUnicodeString(isolate, string1);
   icu::UnicodeString string_val2 = Intl::ToICUUnicodeString(isolate, string2);
-  result = icu_collator->compare(string_val1, string_val2, status);
+  result = icu_collator.compare(string_val1, string_val2, status);
   DCHECK(U_SUCCESS(status));
 
   return factory->NewNumberFromInt(result);
@@ -1194,19 +980,6 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                Handle<Object> num,
                                                Handle<Object> locales,
                                                Handle<Object> options) {
-  Factory* factory = isolate->factory();
-  Handle<JSObject> number_format_holder;
-  // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, number_format_holder,
-      CachedOrNewService(isolate,
-                         factory->NewStringFromStaticChars("numberformat"),
-                         locales, options, factory->undefined_value()),
-      String);
-  DCHECK(number_format_holder->IsJSNumberFormat());
-  Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>(
-      JSNumberFormat::cast(*number_format_holder), isolate);
-
   Handle<Object> number_obj;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, number_obj,
                              Object::ToNumber(isolate, num), String);
@@ -1214,8 +987,42 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   // Spec treats -0 and +0 as 0.
   double number = number_obj->Number() + 0;
 
+  // We only cache the instance when both locales and options are undefined,
+  // as that is the only case when the specified side-effects of examining
+  // those arguments are unobservable.
+  bool can_cache =
+      locales->IsUndefined(isolate) && options->IsUndefined(isolate);
+  if (can_cache) {
+    icu::NumberFormat* cached_number_format =
+        static_cast<icu::NumberFormat*>(isolate->get_cached_icu_object(
+            Isolate::ICUObjectCacheType::kDefaultNumberFormat));
+    // We may use the cached icu::NumberFormat for a fast path.
+    if (cached_number_format != nullptr) {
+      return JSNumberFormat::FormatNumber(isolate, *cached_number_format,
+                                          number);
+    }
+  }
+
+  Handle<JSFunction> constructor = Handle<JSFunction>(
+      JSFunction::cast(
+          isolate->context()->native_context()->intl_number_format_function()),
+      isolate);
+  Handle<JSNumberFormat> number_format;
+  // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, number_format,
+      New<JSNumberFormat>(isolate, constructor, locales, options), String);
+
+  if (can_cache) {
+    isolate->set_icu_object_in_cache(
+        Isolate::ICUObjectCacheType::kDefaultNumberFormat,
+        std::static_pointer_cast<icu::UObject>(
+            number_format->icu_number_format()->get()));
+  }
+
   // Return FormatNumber(numberFormat, x).
-  return JSNumberFormat::FormatNumber(isolate, number_format, number);
+  return JSNumberFormat::FormatNumber(
+      isolate, *(number_format->icu_number_format()->raw()), number);
 }
 
 namespace {
@@ -1462,8 +1269,8 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
 
   const std::string end = locale.substr(unicode_extension_end);
   parsed_locale.no_extensions_locale = beginning + end;
-  parsed_locale.extension =
-      locale.substr(unicode_extension_start, unicode_extension_end);
+  parsed_locale.extension = locale.substr(
+      unicode_extension_start, unicode_extension_end - unicode_extension_start);
   return parsed_locale;
 }
 
@@ -1647,13 +1454,13 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(
 
 namespace {
 
-std::map<std::string, std::string> LookupUnicodeExtensions(
-    const icu::Locale& icu_locale, const std::set<std::string>& relevant_keys) {
+std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
+    icu::Locale* icu_locale, const std::set<std::string>& relevant_keys) {
   std::map<std::string, std::string> extensions;
 
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::StringEnumeration> keywords(
-      icu_locale.createKeywords(status));
+      icu_locale->createKeywords(status));
   if (U_FAILURE(status)) return extensions;
 
   if (!keywords) return extensions;
@@ -1671,7 +1478,7 @@ std::map<std::string, std::string> LookupUnicodeExtensions(
       continue;
     }
 
-    icu_locale.getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY, status);
+    icu_locale->getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY, status);
 
     // Ignore failures in ICU and skip to the next keyword.
     //
@@ -1683,11 +1490,14 @@ std::map<std::string, std::string> LookupUnicodeExtensions(
 
     const char* bcp47_key = uloc_toUnicodeLocaleKey(keyword);
 
-    // Ignore keywords that we don't recognize - spec allows that.
     if (bcp47_key && (relevant_keys.find(bcp47_key) != relevant_keys.end())) {
       const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
       extensions.insert(
           std::pair<std::string, std::string>(bcp47_key, bcp47_value));
+    } else {
+      status = U_ZERO_ERROR;
+      icu_locale->setKeywordValue(keyword, nullptr, status);
+      CHECK(U_SUCCESS(status));
     }
   }
 
@@ -1768,11 +1578,17 @@ Intl::ResolvedLocale Intl::ResolveLocale(
 
   icu::Locale icu_locale = CreateICULocale(locale);
   std::map<std::string, std::string> extensions =
-      LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
+      LookupAndValidateUnicodeExtensions(&icu_locale, relevant_extension_keys);
+
+  char canonicalized_locale[ULOC_FULLNAME_CAPACITY];
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_toLanguageTag(icu_locale.getName(), canonicalized_locale,
+                     ULOC_FULLNAME_CAPACITY, true, &status);
+  CHECK(U_SUCCESS(status));
 
   // TODO(gsathya): Remove privateuse subtags from extensions.
 
-  return Intl::ResolvedLocale{locale, icu_locale, extensions};
+  return Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions};
 }
 
 Managed<icu::UnicodeString>* Intl::SetTextToBreakIterator(
@@ -1954,22 +1770,33 @@ base::TimezoneCache* Intl::CreateTimeZoneCache() {
                                 : base::OS::CreateTimezoneCache();
 }
 
+Maybe<Intl::CaseFirst> Intl::GetCaseFirst(Isolate* isolate,
+                                          Handle<JSReceiver> options,
+                                          const char* method) {
+  return Intl::GetStringOption<Intl::CaseFirst>(
+      isolate, options, "caseFirst", method, {"upper", "lower", "false"},
+      {Intl::CaseFirst::kUpper, Intl::CaseFirst::kLower,
+       Intl::CaseFirst::kFalse},
+      Intl::CaseFirst::kUndefined);
+}
+
+Maybe<Intl::HourCycle> Intl::GetHourCycle(Isolate* isolate,
+                                          Handle<JSReceiver> options,
+                                          const char* method) {
+  return Intl::GetStringOption<Intl::HourCycle>(
+      isolate, options, "hourCycle", method, {"h11", "h12", "h23", "h24"},
+      {Intl::HourCycle::kH11, Intl::HourCycle::kH12, Intl::HourCycle::kH23,
+       Intl::HourCycle::kH24},
+      Intl::HourCycle::kUndefined);
+}
+
 Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
                                                   Handle<JSReceiver> options,
                                                   const char* method) {
-  const std::vector<const char*> values = {"lookup", "best fit"};
-  std::unique_ptr<char[]> matcher_str = nullptr;
-  Maybe<bool> found_matcher = Intl::GetStringOption(
-      isolate, options, "localeMatcher", values, method, &matcher_str);
-  MAYBE_RETURN(found_matcher, Nothing<Intl::MatcherOption>());
-  if (found_matcher.FromJust()) {
-    DCHECK_NOT_NULL(matcher_str.get());
-    if (strcmp(matcher_str.get(), "lookup") == 0) {
-      return Just(Intl::MatcherOption::kLookup);
-    }
-  }
-  return Just(Intl::MatcherOption::kBestFit);
+  return Intl::GetStringOption<Intl::MatcherOption>(
+      isolate, options, "localeMatcher", method, {"best fit", "lookup"},
+      {Intl::MatcherOption::kLookup, Intl::MatcherOption::kBestFit},
+      Intl::MatcherOption::kLookup);
 }
-
 }  // namespace internal
 }  // namespace v8

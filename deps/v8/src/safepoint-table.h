@@ -89,7 +89,7 @@ class SafepointEntry {
 
 class SafepointTable {
  public:
-  explicit SafepointTable(Code* code);
+  explicit SafepointTable(Code code);
   explicit SafepointTable(Address instruction_start,
                           size_t safepoint_table_offset, uint32_t stack_slots,
                           bool has_deopt = false);

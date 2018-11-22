@@ -176,7 +176,7 @@ class WasmCodeManagerTest : public TestWithContext,
     desc.buffer = exec_buff.get();
     desc.instr_size = static_cast<int>(size);
     return native_module->AddCode(index, desc, 0, 0, 0, {}, OwnedVector<byte>(),
-                                  WasmCode::kOther);
+                                  WasmCode::kFunction, WasmCode::kOther);
   }
 
   size_t page() const { return AllocatePageSize(); }

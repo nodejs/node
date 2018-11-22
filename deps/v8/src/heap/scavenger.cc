@@ -289,7 +289,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
   for (SurvivingNewLargeObjectMapEntry update_info :
        surviving_new_large_objects_) {
     HeapObject* object = update_info.first;
-    Map* map = update_info.second;
+    Map map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
     object->set_map_word(MapWord::FromMap(map));
@@ -338,7 +338,7 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()) {}
 
-void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, Map* map,
+void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, Map map,
                                                  int size) {
   // We are not collecting slots on new space objects during mutation thus we
   // have to scan for pointers to evacuation candidates when we promote
