@@ -54,7 +54,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Name;
-using v8::Number;
 using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Uint32;
@@ -259,7 +258,7 @@ void Uptime(const FunctionCallbackInfo<Value>& args) {
   uv_update_time(env->event_loop());
   uptime = uv_now(env->event_loop()) - prog_start_time;
 
-  args.GetReturnValue().Set(Number::New(env->isolate(), uptime / 1000));
+  args.GetReturnValue().Set(uptime / 1000);
 }
 
 
@@ -790,7 +789,7 @@ void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 
 void GetParentProcessId(Local<Name> property,
                         const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(Integer::New(info.GetIsolate(), uv_os_getppid()));
+  info.GetReturnValue().Set(uv_os_getppid());
 }
 
 void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
