@@ -7,7 +7,7 @@ const cp = require('child_process');
 if (process.argv[2] === 'child') {
   setInterval(() => {}, 1000);
 } else {
-  const internalCp = require('internal/child_process');
+  const internalCp = require('internal/child_process/base');
   const oldSpawnSync = internalCp.spawnSync;
   const { SIGKILL } = process.binding('constants').os.signals;
 

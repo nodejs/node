@@ -12,7 +12,7 @@ if (process.argv[2] === 'child') {
 // Monkey patch spawn() to create a child process normally, but destroy the
 // stdout and stderr streams. This replicates the conditions where the streams
 // cannot be properly created.
-const ChildProcess = require('internal/child_process').ChildProcess;
+const ChildProcess = require('internal/child_process/base').ChildProcess;
 const original = ChildProcess.prototype.spawn;
 
 ChildProcess.prototype.spawn = function() {

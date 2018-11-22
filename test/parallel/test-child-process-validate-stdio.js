@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const _validateStdio = require('internal/child_process')._validateStdio;
+const _validateStdio = require('internal/child_process/base')._validateStdio;
 
 const expectedError =
   common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError }, 2);

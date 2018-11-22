@@ -8,7 +8,7 @@ if (process.argv[2] === 'child') {
   // Since maxBuffer is 0, this should trigger an error.
   console.log('foo');
 } else {
-  const internalCp = require('internal/child_process');
+  const internalCp = require('internal/child_process/base');
 
   // Monkey patch ChildProcess#kill() to kill the process and then throw.
   const kill = internalCp.ChildProcess.prototype.kill;

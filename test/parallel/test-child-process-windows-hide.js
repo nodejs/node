@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const internalCp = require('internal/child_process');
+const internalCp = require('internal/child_process/base');
 const cmd = process.execPath;
 const args = ['-p', '42'];
 const options = { windowsHide: true };

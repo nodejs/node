@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
-const internalCp = require('internal/child_process');
+const internalCp = require('internal/child_process/base');
 
 if (!common.isMainThread)
   common.skip('stdio is not associated with file descriptors in Workers');

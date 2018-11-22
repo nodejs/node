@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const internalCp = require('internal/child_process');
+const internalCp = require('internal/child_process/base');
 const oldSpawnSync = internalCp.spawnSync;
 
 // Verify that a shell is, in fact, executed

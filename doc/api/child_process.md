@@ -1404,6 +1404,109 @@ const subprocess = spawn(process.argv[0], ['child_program.js'], {
 subprocess.unref();
 ```
 
+## Child Promise Promises API
+
+> Stability: 1 - Experimental
+
+The `child_promises.promises` API provides an alternative set of asynchronous
+child_process methods that return `Promise` objects rather than using callbacks.
+The API is accessible via `require('child\_process').promises`.
+
+### child_processPromises.exec(command[, options])
+<!-- YAML
+added: CHANGEME
+-->
+
+* `command` {string} The command to run, with space-separated arguments.
+* `options` {Object}
+  * `cwd` {string} Current working directory of the child process.
+    **Default:** `null`.
+  * `env` {Object} Environment key-value pairs. **Default:** `null`.
+  * `encoding` {string} **Default:** `'utf8'`
+  * `shell` {string} Shell to execute the command with. See
+    [Shell Requirements][] and [Default Windows Shell][]. **Default:**
+    `'/bin/sh'` on UNIX, `process.env.ComSpec` on Windows.
+  * `timeout` {number} **Default:** `0`
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200 * 1024`.
+  * `killSignal` {string|integer} **Default:** `'SIGTERM'`
+  * `uid` {number} Sets the user identity of the process (see setuid(2)).
+  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `windowsHide` {boolean} Hide the subprocess console window that would
+    normally be created on Windows systems. **Default:** `false`.
+* Returns: {Promise}
+
+Spawns a shell then executes the `command` within that shell, buffering any
+generated output. On completion the `Promise` is resolved with an object
+containing `stdout` and `stderr`. On error, the `Promise` is rejected with
+an [`Error`][] object, that has `stdout` and `stderr` appended to it.
+
+```js
+const util = require('util');
+const exec = require('child_process').promises;
+
+async function lsExample() {
+  const { stdout, stderr } = await exec('ls');
+  console.log('stdout:', stdout);
+  console.log('stderr:', stderr);
+}
+lsExample();
+```
+
+Please consult [`child_process.exec()`][] for more information.
+
+### child_processPromises.execFile(file[, args][, options])
+<!-- YAML
+added: CHANGEME
+-->
+
+* `file` {string} The name or path of the executable file to run.
+* `args` {string[]} List of string arguments.
+* `options` {Object}
+  * `cwd` {string} Current working directory of the child process.
+  * `env` {Object} Environment key-value pairs.
+  * `encoding` {string} **Default:** `'utf8'`
+  * `timeout` {number} **Default:** `0`
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. If exceeded, the child process is terminated. See caveat at
+    [`maxBuffer` and Unicode][]. **Default:** `200 * 1024`.
+  * `killSignal` {string|integer} **Default:** `'SIGTERM'`
+  * `uid` {number} Sets the user identity of the process (see setuid(2)).
+  * `gid` {number} Sets the group identity of the process (see setgid(2)).
+  * `windowsHide` {boolean} Hide the subprocess console window that would
+    normally be created on Windows systems. **Default:** `false`.
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. **Default:** `false`.
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
+    `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
+    shell can be specified as a string. See [Shell Requirements][] and
+    [Default Windows Shell][]. **Default:** `false` (no shell).
+* Returns: {Promise}
+
+The `child_processPromises.execFile()` function is similar to
+`child_processPromises.exec()` except that it does not spawn a shell by
+default. Rather, the specified executable `file` is spawned directly as a new
+process making it slightly more efficient than `child_processPromises.exec()`.
+
+The same options as `child_processPromises.exec()` are supported. Since a
+shell is not spawned, behaviors such as I/O redirection and file globbing are
+not supported.
+
+```js
+const execFile = require('child_process').promises;
+async function getVersion() {
+  const { stdout } = await execFile('node', ['--version']);
+  console.log(stdout);
+}
+getVersion();
+```
+
+**If the `shell` option is enabled, do not pass unsanitized user input to this
+function. Any input containing shell metacharacters may be used to trigger
+arbitrary command execution.**
+
+
 ## `maxBuffer` and Unicode
 
 The `maxBuffer` option specifies the largest number of bytes allowed on `stdout`
