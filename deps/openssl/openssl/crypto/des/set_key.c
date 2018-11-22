@@ -18,10 +18,9 @@
 #include <openssl/crypto.h>
 #include "des_locl.h"
 
+/* defaults to false */
 OPENSSL_IMPLEMENT_GLOBAL(int, DES_check_key, 0)
-                                                    /*
-                                                     * defaults to false
-                                                     */
+
 static const unsigned char odd_parity[256] = {
     1, 1, 2, 2, 4, 4, 7, 7, 8, 8, 11, 11, 13, 13, 14, 14,
     16, 16, 19, 19, 21, 21, 22, 22, 25, 25, 26, 26, 28, 28, 31, 31,
@@ -65,9 +64,9 @@ int DES_check_key_parity(const_DES_cblock *key)
 
     for (i = 0; i < DES_KEY_SZ; i++) {
         if ((*key)[i] != odd_parity[(*key)[i]])
-            return (0);
+            return 0;
     }
-    return (1);
+    return 1;
 }
 
 /*-
@@ -77,8 +76,6 @@ int DES_check_key_parity(const_DES_cblock *key)
  * %T Security for Computer Networks
  * %I John Wiley & Sons
  * %D 1984
- * Many thanks to smb@ulysses.att.com (Steven Bellovin) for the reference
- * (and actual cblock values).
  */
 #define NUM_WEAK_KEY    16
 static const DES_cblock weak_keys[NUM_WEAK_KEY] = {
@@ -107,15 +104,9 @@ int DES_is_weak_key(const_DES_cblock *key)
     int i;
 
     for (i = 0; i < NUM_WEAK_KEY; i++)
-        /*
-         * Added == 0 to comparison, I obviously don't run this section very
-         * often :-(, thanks to engineering@MorningStar.Com for the fix eay
-         * 93/06/29 Another problem, I was comparing only the first 4 bytes,
-         * 97/03/18
-         */
         if (memcmp(weak_keys[i], key, sizeof(DES_cblock)) == 0)
-            return (1);
-    return (0);
+            return 1;
+    return 0;
 }
 
 /*-
@@ -302,9 +293,9 @@ int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
 int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
 {
     if (!DES_check_key_parity(key))
-        return (-1);
+        return -1;
     if (DES_is_weak_key(key))
-        return (-2);
+        return -2;
     DES_set_key_unchecked(key, schedule);
     return 0;
 }
@@ -329,8 +320,8 @@ void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
     c2l(in, d);
 
     /*
-     * do PC1 in 47 simple operations :-) Thanks to John Fletcher
-     * (john_fletcher@lccmail.ocf.llnl.gov) for the inspiration. :-)
+     * do PC1 in 47 simple operations. Thanks to John Fletcher
+     * for the inspiration.
      */
     PERM_OP(d, c, t, 4, 0x0f0f0f0fL);
     HPERM_OP(c, t, -2, 0xcccc0000L);
@@ -377,13 +368,5 @@ void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
 
 int DES_key_sched(const_DES_cblock *key, DES_key_schedule *schedule)
 {
-    return (DES_set_key(key, schedule));
+    return DES_set_key(key, schedule);
 }
-
-/*-
-#undef des_fixup_key_parity
-void des_fixup_key_parity(des_cblock *key)
-        {
-        des_set_odd_parity(key);
-        }
-*/

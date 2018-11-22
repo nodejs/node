@@ -8,7 +8,7 @@
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. Rights for redistribution and usage in source and binary
 # forms are granted according to the OpenSSL license.
 # ====================================================================
@@ -66,14 +66,22 @@ $code=<<___;
 .type	$func,\@function,3
 .align	16
 $func:
+.cfi_startproc
+	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
-	mov	%rsp,%r11
 	sub	\$128+40,%rsp
 	and	\$-64,%rsp
 
@@ -81,7 +89,8 @@ $func:
 	mov	%rdi,0(%r10)		# save parameter block
 	mov	%rsi,8(%r10)
 	mov	%rdx,16(%r10)
-	mov	%r11,32(%r10)		# saved stack pointer
+	mov	%rax,32(%r10)		# saved stack pointer
+.cfi_cfa_expression	%rsp+`128+32`,deref,+8
 .Lprologue:
 
 	mov	%r10,%rbx
@@ -205,15 +214,24 @@ $code.=<<___;
 	jmp	.Louterloop
 .Lalldone:
 	mov	32(%rbx),%rsi		# restore saved pointer
-	mov	(%rsi),%r15
-	mov	8(%rsi),%r14
-	mov	16(%rsi),%r13
-	mov	24(%rsi),%r12
-	mov	32(%rsi),%rbp
-	mov	40(%rsi),%rbx
-	lea	48(%rsi),%rsp
+.cfi_def_cfa	%rsi,8
+	mov	-48(%rsi),%r15
+.cfi_restore	%r15
+	mov	-40(%rsi),%r14
+.cfi_restore	%r14
+	mov	-32(%rsi),%r13
+.cfi_restore	%r13
+	mov	-24(%rsi),%r12
+.cfi_restore	%r12
+	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
+	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
+	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lepilogue:
 	ret
+.cfi_endproc
 .size	$func,.-$func
 
 .align	64
@@ -526,7 +544,6 @@ se_handler:
 	jae	.Lin_prologue
 
 	mov	128+32(%rax),%rax	# pull saved stack pointer
-	lea	48(%rax),%rax
 
 	mov	-8(%rax),%rbx
 	mov	-16(%rax),%rbp

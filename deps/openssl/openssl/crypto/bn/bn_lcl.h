@@ -23,10 +23,6 @@
 
 # include "internal/bn_int.h"
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 /*
  * These preprocessor symbols control various aspects of the bignum headers
  * and library code. They're not defined by any "normal" configuration, as
@@ -156,11 +152,6 @@ extern "C" {
  */
 #  define BN_FLG_FIXED_TOP 0x10000
 #  ifdef BN_DEBUG_RAND
-/* To avoid "make update" cvs wars due to BN_DEBUG, use some tricks */
-#   ifndef RAND_bytes
-int RAND_bytes(unsigned char *buf, int num);
-#    define BN_DEBUG_TRIX
-#   endif
 #   define bn_pollute(a) \
         do { \
             const BIGNUM *_bnum1 = (a); \
@@ -176,9 +167,6 @@ int RAND_bytes(unsigned char *buf, int num);
                        sizeof(*_not_const) * (_bnum1->dmax - _bnum1->top)); \
             } \
         } while(0)
-#   ifdef BN_DEBUG_TRIX
-#    undef RAND_bytes
-#   endif
 #  else
 #   define bn_pollute(a)
 #  endif
@@ -187,9 +175,9 @@ int RAND_bytes(unsigned char *buf, int num);
                 const BIGNUM *_bnum2 = (a); \
                 if (_bnum2 != NULL) { \
                         int _top = _bnum2->top; \
-                        OPENSSL_assert((_top == 0 && !_bnum2->neg) || \
-                               (_top && ((_bnum2->flags & BN_FLG_FIXED_TOP) \
-                                         || _bnum2->d[_top - 1] != 0))); \
+                        (void)ossl_assert((_top == 0 && !_bnum2->neg) || \
+                                  (_top && ((_bnum2->flags & BN_FLG_FIXED_TOP) \
+                                            || _bnum2->d[_top - 1] != 0))); \
                         bn_pollute(_bnum2); \
                 } \
         } while(0)
@@ -200,8 +188,8 @@ int RAND_bytes(unsigned char *buf, int num);
 #  define bn_wcheck_size(bn, words) \
         do { \
                 const BIGNUM *_bnum2 = (bn); \
-                OPENSSL_assert((words) <= (_bnum2)->dmax && \
-                        (words) >= (_bnum2)->top); \
+                assert((words) <= (_bnum2)->dmax && \
+                       (words) >= (_bnum2)->top); \
                 /* avoid unused variable warning with NDEBUG */ \
                 (void)(_bnum2); \
         } while(0)
@@ -370,59 +358,58 @@ struct bn_gencb_st {
 # if !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM) && !defined(PEDANTIC)
 /*
  * BN_UMULT_HIGH section.
- *
- * No, I'm not trying to overwhelm you when stating that the
- * product of N-bit numbers is 2*N bits wide:-) No, I don't expect
- * you to be impressed when I say that if the compiler doesn't
- * support 2*N integer type, then you have to replace every N*N
- * multiplication with 4 (N/2)*(N/2) accompanied by some shifts
- * and additions which unavoidably results in severe performance
- * penalties. Of course provided that the hardware is capable of
- * producing 2*N result... That's when you normally start
- * considering assembler implementation. However! It should be
- * pointed out that some CPUs (most notably Alpha, PowerPC and
- * upcoming IA-64 family:-) provide *separate* instruction
- * calculating the upper half of the product placing the result
- * into a general purpose register. Now *if* the compiler supports
- * inline assembler, then it's not impossible to implement the
- * "bignum" routines (and have the compiler optimize 'em)
- * exhibiting "native" performance in C. That's what BN_UMULT_HIGH
- * macro is about:-)
- *
- *                                      <appro@fy.chalmers.se>
+ * If the compiler doesn't support 2*N integer type, then you have to
+ * replace every N*N multiplication with 4 (N/2)*(N/2) accompanied by some
+ * shifts and additions which unavoidably results in severe performance
+ * penalties. Of course provided that the hardware is capable of producing
+ * 2*N result... That's when you normally start considering assembler
+ * implementation. However! It should be pointed out that some CPUs (e.g.,
+ * PowerPC, Alpha, and IA-64) provide *separate* instruction calculating
+ * the upper half of the product placing the result into a general
+ * purpose register. Now *if* the compiler supports inline assembler,
+ * then it's not impossible to implement the "bignum" routines (and have
+ * the compiler optimize 'em) exhibiting "native" performance in C. That's
+ * what BN_UMULT_HIGH macro is about:-) Note that more recent compilers do
+ * support 2*64 integer type, which is also used here.
  */
-#  if defined(__alpha) && (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
+#  if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16 && \
+      (defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG))
+#   define BN_UMULT_HIGH(a,b)          (((__uint128_t)(a)*(b))>>64)
+#   define BN_UMULT_LOHI(low,high,a,b) ({       \
+        __uint128_t ret=(__uint128_t)(a)*(b);   \
+        (high)=ret>>64; (low)=ret;      })
+#  elif defined(__alpha) && (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
 #   if defined(__DECC)
 #    include <c_asm.h>
 #    define BN_UMULT_HIGH(a,b)   (BN_ULONG)asm("umulh %a0,%a1,%v0",(a),(b))
 #   elif defined(__GNUC__) && __GNUC__>=2
-#    define BN_UMULT_HIGH(a,b)   ({      \
+#    define BN_UMULT_HIGH(a,b)   ({     \
         register BN_ULONG ret;          \
         asm ("umulh     %1,%2,%0"       \
              : "=r"(ret)                \
              : "r"(a), "r"(b));         \
-        ret;                    })
+        ret;                      })
 #   endif                       /* compiler */
-#  elif defined(_ARCH_PPC) && defined(__64BIT__) && defined(SIXTY_FOUR_BIT_LONG)
+#  elif defined(_ARCH_PPC64) && defined(SIXTY_FOUR_BIT_LONG)
 #   if defined(__GNUC__) && __GNUC__>=2
-#    define BN_UMULT_HIGH(a,b)   ({      \
+#    define BN_UMULT_HIGH(a,b)   ({     \
         register BN_ULONG ret;          \
         asm ("mulhdu    %0,%1,%2"       \
              : "=r"(ret)                \
              : "r"(a), "r"(b));         \
-        ret;                    })
+        ret;                      })
 #   endif                       /* compiler */
 #  elif (defined(__x86_64) || defined(__x86_64__)) && \
        (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
 #   if defined(__GNUC__) && __GNUC__>=2
-#    define BN_UMULT_HIGH(a,b)   ({      \
+#    define BN_UMULT_HIGH(a,b)   ({     \
         register BN_ULONG ret,discard;  \
         asm ("mulq      %3"             \
              : "=a"(discard),"=d"(ret)  \
              : "a"(a), "g"(b)           \
              : "cc");                   \
-        ret;                    })
-#    define BN_UMULT_LOHI(low,high,a,b)  \
+        ret;                      })
+#    define BN_UMULT_LOHI(low,high,a,b) \
         asm ("mulq      %3"             \
                 : "=a"(low),"=d"(high)  \
                 : "a"(a),"g"(b)         \
@@ -439,42 +426,28 @@ unsigned __int64 _umul128(unsigned __int64 a, unsigned __int64 b,
 #   endif
 #  elif defined(__mips) && (defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG))
 #   if defined(__GNUC__) && __GNUC__>=2
-#    if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16
-      /* "h" constraint is not an option on R6 and was removed in 4.4 */
-#     define BN_UMULT_HIGH(a,b)          (((__uint128_t)(a)*(b))>>64)
-#     define BN_UMULT_LOHI(low,high,a,b) ({     \
-        __uint128_t ret=(__uint128_t)(a)*(b);   \
-        (high)=ret>>64; (low)=ret;       })
-#    else
-#     define BN_UMULT_HIGH(a,b) ({      \
+#    define BN_UMULT_HIGH(a,b) ({       \
         register BN_ULONG ret;          \
         asm ("dmultu    %1,%2"          \
              : "=h"(ret)                \
              : "r"(a), "r"(b) : "l");   \
         ret;                    })
-#     define BN_UMULT_LOHI(low,high,a,b)\
+#    define BN_UMULT_LOHI(low,high,a,b) \
         asm ("dmultu    %2,%3"          \
              : "=l"(low),"=h"(high)     \
              : "r"(a), "r"(b));
-#    endif
 #   endif
 #  elif defined(__aarch64__) && defined(SIXTY_FOUR_BIT_LONG)
 #   if defined(__GNUC__) && __GNUC__>=2
-#    define BN_UMULT_HIGH(a,b)   ({      \
+#    define BN_UMULT_HIGH(a,b)   ({     \
         register BN_ULONG ret;          \
         asm ("umulh     %0,%1,%2"       \
              : "=r"(ret)                \
              : "r"(a), "r"(b));         \
-        ret;                    })
+        ret;                      })
 #   endif
 #  endif                        /* cpu */
 # endif                         /* OPENSSL_NO_ASM */
-
-/*************************************************************
- * Using the long long type
- */
-# define Lw(t)    (((BN_ULONG)(t))&BN_MASK2)
-# define Hw(t)    (((BN_ULONG)((t)>>BN_BITS2))&BN_MASK2)
 
 # ifdef BN_DEBUG_RAND
 #  define bn_clear_top2max(a) \
@@ -489,6 +462,12 @@ unsigned __int64 _umul128(unsigned __int64 a, unsigned __int64 b,
 # endif
 
 # ifdef BN_LLONG
+/*******************************************************************
+ * Using the long long type, has to be twice as wide as BN_ULONG...
+ */
+#  define Lw(t)    (((BN_ULONG)(t))&BN_MASK2)
+#  define Hw(t)    (((BN_ULONG)((t)>>BN_BITS2))&BN_MASK2)
+
 #  define mul_add(r,a,w,c) { \
         BN_ULLONG t; \
         t=(BN_ULLONG)w * (a) + (r) + (c); \
@@ -666,10 +645,6 @@ void bn_sqr_recursive(BN_ULONG *r, const BN_ULONG *a, int n2, BN_ULONG *t);
 void bn_mul_low_normal(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n);
 void bn_mul_low_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n2,
                           BN_ULONG *t);
-void bn_mul_high(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, BN_ULONG *l, int n2,
-                 BN_ULONG *t);
-BN_ULONG bn_add_part_words(BN_ULONG *r, const BN_ULONG *a, const BN_ULONG *b,
-                           int cl, int dl);
 BN_ULONG bn_sub_part_words(BN_ULONG *r, const BN_ULONG *a, const BN_ULONG *b,
                            int cl, int dl);
 int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
@@ -681,8 +656,6 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
 
 int bn_probable_prime_dh(BIGNUM *rnd, int bits,
                          const BIGNUM *add, const BIGNUM *rem, BN_CTX *ctx);
-int bn_probable_prime_dh_retry(BIGNUM *rnd, int bits, BN_CTX *ctx);
-int bn_probable_prime_dh_coprime(BIGNUM *rnd, int bits, BN_CTX *ctx);
 
 static ossl_inline BIGNUM *bn_expand(BIGNUM *a, int bits)
 {
@@ -694,9 +667,5 @@ static ossl_inline BIGNUM *bn_expand(BIGNUM *a, int bits)
 
     return bn_expand2((a),(bits+BN_BITS2-1)/BN_BITS2);
 }
-
-#ifdef  __cplusplus
-}
-#endif
 
 #endif

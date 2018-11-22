@@ -15,7 +15,8 @@
 # These tests exercise the case insensitive handling of object names.
 # They are contrived
 
-# Some name is case insensitive tests
+Title = Case insensitive AES tests
+
 Cipher = Aes-128-eCb
 Key = 2B7E151628AED2A6ABF7158809CF4F3C
 Plaintext = 6BC1BEE22E409F96E93D7E117393172A
@@ -41,6 +42,12 @@ AAD =
 Tag = ab6e47d42cec13bdf53a67b21257bddf
 Plaintext = 00000000000000000000000000000000
 Ciphertext = 0388dace60b6a392f328c2b971b2fe78
+
+Title = Case insensitive digest tests
+
+Digest = Sha3-256
+Input = ""
+Output = A7FFC6F8BF1ED76651C14756A061D662F580FF4DE43B49FA82D80A4B80F8434A
 
 Digest = shA512
 Input = "abc"

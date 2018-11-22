@@ -41,10 +41,9 @@ end products.  There are variants for them with '_NO_INST' as suffix
 (PROGRAM_NO_INST etc) to specify end products that shouldn't get
 installed.
 
-The variables SOURCE, DEPEND, INCLUDE and ORDINALS are indexed by a
-produced file, and their values are the source used to produce that
-particular produced file, extra dependencies, include directories
-needed, and ordinal files (explained further below.
+The variables SOURCE, DEPEND and INCLUDE are indexed by a produced
+file, and their values are the source used to produce that particular
+produced file, extra dependencies, and include directories needed.
 
 All their values in all the build.info throughout the source tree are
 collected together and form a set of programs, libraries, engines and
@@ -57,18 +56,15 @@ dependencies.
 
     # build.info
     LIBS=libcrypto libssl
-    ORDINALS[libcrypto]=crypto
-    ORDINALS[libssl]=ssl
     INCLUDE[libcrypto]=include
     INCLUDE[libssl]=include
     DEPEND[libssl]=libcrypto
 
 This is the top directory build.info file, and it tells us that two
-libraries are to be built, there are some ordinals to be used to
-declare what symbols in those libraries are seen as public, the
-include directory 'include/' shall be used throughout when building
-anything that will end up in each library, and that the library
-'libssl' depend on the library 'libcrypto' to function properly.
+libraries are to be built, the include directory 'include/' shall be
+used throughout when building anything that will end up in each
+library, and that the library 'libssl' depend on the library
+'libcrypto' to function properly.
 
     # apps/build.info
     PROGRAMS=openssl
@@ -133,7 +129,7 @@ library 'libssl' is built from the source file 'ssl/tls.c'.
 
     ENGINES_NO_INST=ossltest
     SOURCE[ossltest]=e_ossltest.c
-    DEPEND[ossltest]=../libcrypto
+    DEPEND[ossltest]=../libcrypto.a
     INCLUDE[ossltest]=../include
 
 This is the build.info file in 'engines/', telling us that two engines
@@ -142,18 +138,17 @@ dasync's source is 'engines/e_dasync.c' and ossltest's source is
 'engines/e_ossltest.c' and that the include directory 'include/' may
 be used when building anything that will be part of these engines.
 Also, both engines depend on the library 'libcrypto' to function
-properly.  Finally, only dasync is being installed, as ossltest is
-only for internal testing.
+properly.  ossltest is explicitly linked with the static variant of
+the library 'libcrypto'.  Finally, only dasync is being installed, as
+ossltest is only for internal testing.
 
 When Configure digests these build.info files, the accumulated
 information comes down to this:
 
     LIBS=libcrypto libssl
-    ORDINALS[libcrypto]=crypto
     SOURCE[libcrypto]=crypto/aes.c crypto/evp.c crypto/cversion.c
     DEPEND[crypto/cversion.o]=crypto/buildinf.h
     INCLUDE[libcrypto]=include
-    ORDINALS[libssl]=ssl
     SOURCE[libssl]=ssl/tls.c
     INCLUDE[libssl]=include
     DEPEND[libssl]=libcrypto
@@ -170,7 +165,7 @@ information comes down to this:
 
     ENGINES_NO_INST=engines/ossltest
     SOURCE[engines/ossltest]=engines/e_ossltest.c
-    DEPEND[engines/ossltest]=libcrypto
+    DEPEND[engines/ossltest]=libcrypto.a
     INCLUDE[engines/ossltest]=include
     
     GENERATE[crypto/buildinf.h]=util/mkbuildinf.pl "$(CC) $(CFLAGS)" "$(PLATFORM)"
@@ -186,9 +181,9 @@ PROGRAMS may be used to declare programs only.
 
 ENGINES may be used to declare engines only.
 
-The indexes for SOURCE and ORDINALS must only be end product files,
-such as libraries, programs or engines.  The values of SOURCE
-variables must only be source files (possibly generated)
+The indexes for SOURCE must only be end product files, such as
+libraries, programs or engines.  The values of SOURCE variables must
+only be source files (possibly generated).
 
 INCLUDE and DEPEND shows a relationship between different files
 (usually produced files) or between files and directories, such as a
@@ -235,12 +230,6 @@ indexes:
   libraries => a list of libraries.  These are directly inferred from
                the LIBS variable in build.info files.
 
-  ordinals  => a hash table containing 'file' => [ 'word', 'ordfile' ]
-               pairs.  'file' and 'word' are directly inferred from
-               the ORDINALS variables in build.info files, while the
-               file 'ofile' comes from internal knowledge in
-               Configure.
-
   programs  => a list of programs.  These are directly inferred from
                the PROGRAMS variable in build.info files.
 
@@ -281,9 +270,13 @@ section above would be digested into a %unified_info table:
                     [
                         "crypto/buildinf.h",
                     ],
-                "engines/ossltest" =>
+                "engines/dasync" =>
                     [
                         "libcrypto",
+                    ],
+                "engines/ossltest" =>
+                    [
+                        "libcrypto.a",
                     ],
                 "libssl" =>
                     [
@@ -354,19 +347,6 @@ section above would be digested into a %unified_info table:
                 "libcrypto",
                 "libssl",
             ],
-        "ordinals" =>
-            {
-                "libcrypto" =>
-                    [
-                        "crypto",
-                        "util/libcrypto.num",
-                    ],
-                "libssl" =>
-                    [
-                        "ssl",
-                        "util/libssl.num",
-                    ],
-            },
         "programs" =>
             [
                 "apps/openssl",
@@ -395,6 +375,14 @@ section above would be digested into a %unified_info table:
                 "crypto/evp.o" =>
                     [
                         "crypto/evp.c",
+                    ],
+                "engines/e_dasync.o" =>
+                    [
+                        "engines/e_dasync.c",
+                    ],
+                "engines/dasync" =>
+                    [
+                        "engines/e_dasync.o",
                     ],
                 "engines/e_ossltest.o" =>
                     [
@@ -517,8 +505,7 @@ etc.
                         libobj2shlib(shlib => "PATH/TO/shlibfile",
                                      lib => "PATH/TO/libfile",
                                      objs => [ "PATH/TO/objectfile", ... ],
-                                     deps => [ "PATH/TO/otherlibfile", ... ],
-                                     ordinals => [ "word", "/PATH/TO/ordfile" ]);
+                                     deps => [ "PATH/TO/otherlibfile", ... ]);
 
                   'lib' has the intended library file name *without*
                   extension, libobj2shlib is expected to add that.
@@ -527,11 +514,7 @@ etc.
                   libraries (also *without* extension) this library
                   needs to be linked with.  'objs' has the list of
                   object files (also *without* extension) to build
-                  this library.  'ordinals' MAY be present, and when
-                  it is, its value is an array where the word is
-                  "crypto" or "ssl" and the file is one of the ordinal
-                  files util/libcrypto.num or util/libssl.num in the
-                  source directory.
+                  this library.
 
                   This function has a choice; it can use the
                   corresponding static library as input to make the
@@ -604,8 +587,7 @@ following calls:
     libobj2shlib(shlib => "libcrypto",
                  lib => "libcrypto",
                  objs => [ "crypto/aes", "crypto/evp", "crypto/cversion" ],
-                 deps => [  ]
-                 ordinals => [ "crypto", "util/libcrypto.num" ]);
+                 deps => [  ]);
 
     obj2lib(lib => "libcrypto"
             objs => [ "crypto/aes", "crypto/evp", "crypto/cversion" ]);

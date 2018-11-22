@@ -74,14 +74,17 @@ static void *v2i_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD *method,
     char *extval;
     ASN1_OBJECT *objtmp;
     CONF_VALUE *val;
+    const int num = sk_CONF_VALUE_num(nval);
     int i;
 
-    if ((extku = sk_ASN1_OBJECT_new_null()) == NULL) {
+    extku = sk_ASN1_OBJECT_new_reserve(NULL, num);
+    if (extku == NULL) {
         X509V3err(X509V3_F_V2I_EXTENDED_KEY_USAGE, ERR_R_MALLOC_FAILURE);
+        sk_ASN1_OBJECT_free(extku);
         return NULL;
     }
 
-    for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
+    for (i = 0; i < num; i++) {
         val = sk_CONF_VALUE_value(nval, i);
         if (val->value)
             extval = val->value;
@@ -94,7 +97,7 @@ static void *v2i_EXTENDED_KEY_USAGE(const X509V3_EXT_METHOD *method,
             X509V3_conf_err(val);
             return NULL;
         }
-        sk_ASN1_OBJECT_push(extku, objtmp);
+        sk_ASN1_OBJECT_push(extku, objtmp);  /* no failure as it was reserved */
     }
     return extku;
 }

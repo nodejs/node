@@ -62,7 +62,7 @@ $output = pop;
 open OUT,">$output";
 *STDOUT=*OUT;
 
-&asm_init($ARGV[0],"vpaes-x86.pl",$x86only = $ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$x86only = $ARGV[$#ARGV] eq "386");
 
 $PREFIX="vpaes";
 
@@ -445,7 +445,7 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 ##
 &set_label("schedule_192",16);
 	&movdqu	("xmm0",&QWP(8,$inp));		# load key part 2 (very unaligned)
-	&call	("_vpaes_schedule_transform");	# input transform	
+	&call	("_vpaes_schedule_transform");	# input transform
 	&movdqa	("xmm6","xmm0");		# save short part
 	&pxor	("xmm4","xmm4");		# clear 4
 	&movhlps("xmm6","xmm4");		# clobber low side with zeros
@@ -476,7 +476,7 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 ##
 &set_label("schedule_256",16);
 	&movdqu	("xmm0",&QWP(16,$inp));		# load key part 2 (unaligned)
-	&call	("_vpaes_schedule_transform");	# input transform	
+	&call	("_vpaes_schedule_transform");	# input transform
 	&mov	($round,7);
 
 &set_label("loop_schedule_256");
@@ -487,7 +487,7 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 	&call	("_vpaes_schedule_round");
 	&dec	($round);
 	&jz	(&label("schedule_mangle_last"));
-	&call	("_vpaes_schedule_mangle");	
+	&call	("_vpaes_schedule_mangle");
 
 	# low round. swap xmm7 and xmm6
 	&pshufd	("xmm0","xmm0",0xFF);
@@ -610,7 +610,7 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 	# subbyte
 	&movdqa	("xmm4",&QWP($k_s0F,$const));
 	&movdqa	("xmm5",&QWP($k_inv,$const));	# 4 : 1/j
-	&movdqa	("xmm1","xmm4");	
+	&movdqa	("xmm1","xmm4");
 	&pandn	("xmm1","xmm0");
 	&psrld	("xmm1",4);			# 1 = i
 	&pand	("xmm0","xmm4");		# 0 = k

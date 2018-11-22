@@ -1,5 +1,5 @@
 .ident	"sparcv8.s, Version 1.4"
-.ident	"SPARC v8 ISA artwork by Andy Polyakov <appro@fy.chalmers.se>"
+.ident	"SPARC v8 ISA artwork by Andy Polyakov <appro@openssl.org>"
 
 /*
  * ====================================================================
@@ -13,7 +13,7 @@
  */
 
 /*
- * This is my modest contributon to OpenSSL project (see
+ * This is my modest contribution to OpenSSL project (see
  * http://www.openssl.org/ for more information about it) and is
  * a drop-in SuperSPARC ISA replacement for crypto/bn/bn_asm.c
  * module. For updates see http://fy.chalmers.se/~appro/hpe/.
@@ -159,12 +159,12 @@ bn_mul_add_words:
  */
 bn_mul_words:
 	cmp	%o2,0
-	bg,a	.L_bn_mul_words_proceeed
+	bg,a	.L_bn_mul_words_proceed
 	ld	[%o1],%g2
 	retl
 	clr	%o0
 
-.L_bn_mul_words_proceeed:
+.L_bn_mul_words_proceed:
 	andcc	%o2,-4,%g0
 	bz	.L_bn_mul_words_tail
 	clr	%o5
@@ -251,12 +251,12 @@ bn_mul_words:
  */
 bn_sqr_words:
 	cmp	%o2,0
-	bg,a	.L_bn_sqr_words_proceeed
+	bg,a	.L_bn_sqr_words_proceed
 	ld	[%o1],%g2
 	retl
 	clr	%o0
 
-.L_bn_sqr_words_proceeed:
+.L_bn_sqr_words_proceed:
 	andcc	%o2,-4,%g0
 	bz	.L_bn_sqr_words_tail
 	clr	%o5

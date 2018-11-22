@@ -54,6 +54,6 @@ static const EVP_MD blake2s_md = {
 
 const EVP_MD *EVP_blake2s256(void)
 {
-    return (&blake2s_md);
+    return &blake2s_md;
 }
 #endif

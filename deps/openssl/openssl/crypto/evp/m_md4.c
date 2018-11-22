@@ -50,6 +50,6 @@ static const EVP_MD md4_md = {
 
 const EVP_MD *EVP_md4(void)
 {
-    return (&md4_md);
+    return &md4_md;
 }
 #endif

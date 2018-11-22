@@ -9,7 +9,7 @@
 -}
 
 IF[{- !$disabled{"fuzz-afl"} || !$disabled{"fuzz-libfuzzer"} -}]
-  PROGRAMS_NO_INST=asn1 asn1parse bignum bndiv conf crl server x509
+  PROGRAMS_NO_INST=asn1 asn1parse bignum bndiv client conf crl server x509
 
   IF[{- !$disabled{"cms"} -}]
     PROGRAMS_NO_INST=cms
@@ -21,7 +21,7 @@ IF[{- !$disabled{"fuzz-afl"} || !$disabled{"fuzz-libfuzzer"} -}]
 
   SOURCE[asn1]=asn1.c driver.c
   INCLUDE[asn1]=../include {- $ex_inc -}
-  DEPEND[asn1]=../libcrypto {- $ex_lib -}
+  DEPEND[asn1]=../libcrypto ../libssl {- $ex_lib -}
 
   SOURCE[asn1parse]=asn1parse.c driver.c
   INCLUDE[asn1parse]=../include {- $ex_inc -}
@@ -34,6 +34,10 @@ IF[{- !$disabled{"fuzz-afl"} || !$disabled{"fuzz-libfuzzer"} -}]
   SOURCE[bndiv]=bndiv.c driver.c
   INCLUDE[bndiv]=../include {- $ex_inc -}
   DEPEND[bndiv]=../libcrypto {- $ex_lib -}
+
+  SOURCE[client]=client.c driver.c
+  INCLUDE[client]=../include {- $ex_inc -}
+  DEPEND[client]=../libcrypto ../libssl {- $ex_lib -}
 
   SOURCE[cms]=cms.c driver.c
   INCLUDE[cms]=../include {- $ex_inc -}
@@ -61,7 +65,7 @@ IF[{- !$disabled{"fuzz-afl"} || !$disabled{"fuzz-libfuzzer"} -}]
 ENDIF
 
 IF[{- !$disabled{tests} -}]
-  PROGRAMS_NO_INST=asn1-test asn1parse-test bignum-test bndiv-test conf-test crl-test server-test x509-test
+  PROGRAMS_NO_INST=asn1-test asn1parse-test bignum-test bndiv-test client-test conf-test crl-test server-test x509-test
 
   IF[{- !$disabled{"cms"} -}]
     PROGRAMS_NO_INST=cms-test
@@ -73,7 +77,7 @@ IF[{- !$disabled{tests} -}]
 
   SOURCE[asn1-test]=asn1.c test-corpus.c
   INCLUDE[asn1-test]=../include
-  DEPEND[asn1-test]=../libcrypto
+  DEPEND[asn1-test]=../libcrypto ../libssl
 
   SOURCE[asn1parse-test]=asn1parse.c test-corpus.c
   INCLUDE[asn1parse-test]=../include
@@ -86,6 +90,10 @@ IF[{- !$disabled{tests} -}]
   SOURCE[bndiv-test]=bndiv.c test-corpus.c
   INCLUDE[bndiv-test]=../include
   DEPEND[bndiv-test]=../libcrypto
+
+  SOURCE[client-test]=client.c test-corpus.c
+  INCLUDE[client-test]=../include
+  DEPEND[client-test]=../libcrypto ../libssl
 
   SOURCE[cms-test]=cms.c test-corpus.c
   INCLUDE[cms-test]=../include

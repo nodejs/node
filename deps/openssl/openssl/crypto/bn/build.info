@@ -11,16 +11,16 @@ INCLUDE[../../libcrypto]=../../crypto/include
 INCLUDE[bn_exp.o]=..
 
 GENERATE[bn-586.s]=asm/bn-586.pl \
-	$(PERLASM_SCHEME) $(CFLAGS) $(LIB_CFLAGS) $(PROCESSOR)
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
 DEPEND[bn-586.s]=../perlasm/x86asm.pl
 GENERATE[co-586.s]=asm/co-586.pl \
-	$(PERLASM_SCHEME) $(CFLAGS) $(LIB_CFLAGS) $(PROCESSOR)
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
 DEPEND[co-586.s]=../perlasm/x86asm.pl
 GENERATE[x86-mont.s]=asm/x86-mont.pl \
-	$(PERLASM_SCHEME) $(CFLAGS) $(LIB_CFLAGS) $(PROCESSOR)
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
 DEPEND[x86-mont.s]=../perlasm/x86asm.pl
 GENERATE[x86-gf2m.s]=asm/x86-gf2m.pl \
-	$(PERLASM_SCHEME) $(CFLAGS) $(LIB_CFLAGS) $(PROCESSOR)
+	$(PERLASM_SCHEME) $(LIB_CFLAGS) $(LIB_CPPFLAGS) $(PROCESSOR)
 DEPEND[x86-gf2m.s]=../perlasm/x86asm.pl
 
 GENERATE[sparcv9a-mont.S]=asm/sparcv9a-mont.pl $(PERLASM_SCHEME)
@@ -34,8 +34,10 @@ INCLUDE[sparct4-mont.o]=..
 GENERATE[sparcv9-gf2m.S]=asm/sparcv9-gf2m.pl $(PERLASM_SCHEME)
 INCLUDE[sparcv9-gf2m.o]=..
 
-GENERATE[bn-mips.s]=asm/mips.pl $(PERLASM_SCHEME)
-GENERATE[mips-mont.s]=asm/mips-mont.pl $(PERLASM_SCHEME)
+GENERATE[bn-mips.S]=asm/mips.pl $(PERLASM_SCHEME)
+INCLUDE[bn-mips.o]=..
+GENERATE[mips-mont.S]=asm/mips-mont.pl $(PERLASM_SCHEME)
+INCLUDE[mips-mont.o]=..
 
 GENERATE[s390x-mont.S]=asm/s390x-mont.pl $(PERLASM_SCHEME)
 GENERATE[s390x-gf2m.s]=asm/s390x-gf2m.pl $(PERLASM_SCHEME)
@@ -47,7 +49,7 @@ GENERATE[rsaz-x86_64.s]=asm/rsaz-x86_64.pl $(PERLASM_SCHEME)
 GENERATE[rsaz-avx2.s]=asm/rsaz-avx2.pl $(PERLASM_SCHEME)
 
 GENERATE[bn-ia64.s]=asm/ia64.S
-GENERATE[ia64-mont.s]=asm/ia64-mont.pl $(CFLAGS) $(LIB_CFLAGS)
+GENERATE[ia64-mont.s]=asm/ia64-mont.pl $(LIB_CFLAGS) $(LIB_CPPFLAGS)
 
 GENERATE[parisc-mont.s]=asm/parisc-mont.pl $(PERLASM_SCHEME)
 
@@ -63,22 +65,3 @@ INCLUDE[armv4-mont.o]=..
 GENERATE[armv4-gf2m.S]=asm/armv4-gf2m.pl $(PERLASM_SCHEME)
 INCLUDE[armv4-gf2m.o]=..
 GENERATE[armv8-mont.S]=asm/armv8-mont.pl $(PERLASM_SCHEME)
-
-OVERRIDES=bn-mips3.o pa-risc2W.o pa-risc2.c
-BEGINRAW[Makefile]
-##### BN assembler implementations
-
-{- $builddir -}/bn-mips3.o:	{- $sourcedir -}/asm/mips3.s
-	@if [ "$(CC)" = "gcc" ]; then \
-		ABI=`expr "$(CFLAGS)" : ".*-mabi=\([n3264]*\)"` && \
-		as -$$ABI -O -o $@ {- $sourcedir -}/asm/mips3.s; \
-	else	$(CC) -c $(CFLAGS) $(LIB_CFLAGS) -o $@ {- $sourcedir -}/asm/mips3.s; fi
-
-# GNU assembler fails to compile PA-RISC2 modules, insist on calling
-# vendor assembler...
-{- $builddir -}/pa-risc2W.o: {- $sourcedir -}/asm/pa-risc2W.s
-	CC="$(CC)" $(PERL) $(SRCDIR)/util/fipsas.pl $(SRCDIR) $< /usr/ccs/bin/as -o pa-risc2W.o {- $sourcedir -}/asm/pa-risc2W.s
-{- $builddir -}/pa-risc2.o: {- $sourcedir -}/asm/pa-risc2.s
-	CC="$(CC)" $(PERL) $(SRCDIR)/util/fipsas.pl $(SRCDIR) $< /usr/ccs/bin/as -o pa-risc2.o {- $sourcedir -}/asm/pa-risc2.s
-
-ENDRAW[Makefile]

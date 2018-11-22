@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,8 +14,9 @@
  */
 
 #include <string.h>
-#include <internal/bio.h>
+#include "internal/bio.h"
 #include <openssl/asn1.h>
+#include "internal/cryptlib.h"
 
 /* Must be large enough for biggest tag+length */
 #define DEFAULT_ASN1_BUF_SIZE 20
@@ -78,7 +79,11 @@ static int asn1_bio_setup_ex(BIO *b, BIO_ASN1_BUF_CTX *ctx,
 static const BIO_METHOD methods_asn1 = {
     BIO_TYPE_ASN1,
     "asn1",
+    /* TODO: Convert to new style write function */
+    bwrite_conv,
     asn1_bio_write,
+    /* TODO: Convert to new style read function */
+    bread_conv,
     asn1_bio_read,
     asn1_bio_puts,
     asn1_bio_gets,
@@ -90,7 +95,7 @@ static const BIO_METHOD methods_asn1 = {
 
 const BIO_METHOD *BIO_f_asn1(void)
 {
-    return (&methods_asn1);
+    return &methods_asn1;
 }
 
 static int asn1_bio_new(BIO *b)
@@ -111,9 +116,10 @@ static int asn1_bio_new(BIO *b)
 
 static int asn1_bio_init(BIO_ASN1_BUF_CTX *ctx, int size)
 {
-    ctx->buf = OPENSSL_malloc(size);
-    if (ctx->buf == NULL)
+    if ((ctx->buf = OPENSSL_malloc(size)) == NULL) {
+        ASN1err(ASN1_F_ASN1_BIO_INIT, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
     ctx->bufsize = size;
     ctx->asn1_class = V_ASN1_UNIVERSAL;
     ctx->asn1_tag = V_ASN1_OCTET_STRING;
@@ -157,7 +163,6 @@ static int asn1_bio_write(BIO *b, const char *in, int inl)
 
     for (;;) {
         switch (ctx->state) {
-
             /* Setup prefix data, call it */
         case ASN1_STATE_START:
             if (!asn1_bio_setup_ex(b, ctx, ctx->prefix,
@@ -178,7 +183,8 @@ static int asn1_bio_write(BIO *b, const char *in, int inl)
 
         case ASN1_STATE_HEADER:
             ctx->buflen = ASN1_object_size(0, inl, ctx->asn1_tag) - inl;
-            OPENSSL_assert(ctx->buflen <= ctx->bufsize);
+            if (!ossl_assert(ctx->buflen <= ctx->bufsize))
+                return 0;
             p = ctx->buf;
             ASN1_put_object(&p, 0, inl, ctx->asn1_tag, ctx->asn1_class);
             ctx->copylen = inl;
@@ -223,7 +229,8 @@ static int asn1_bio_write(BIO *b, const char *in, int inl)
 
             break;
 
-        default:
+        case ASN1_STATE_POST_COPY:
+        case ASN1_STATE_DONE:
             BIO_clear_retry_flags(b);
             return 0;
 

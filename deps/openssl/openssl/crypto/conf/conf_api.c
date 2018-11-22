@@ -25,11 +25,11 @@ CONF_VALUE *_CONF_get_section(const CONF *conf, const char *section)
     CONF_VALUE *v, vv;
 
     if ((conf == NULL) || (section == NULL))
-        return (NULL);
+        return NULL;
     vv.name = NULL;
     vv.section = (char *)section;
     v = lh_CONF_VALUE_retrieve(conf->data, &vv);
-    return (v);
+    return v;
 }
 
 /* Up until OpenSSL 0.9.5a, this was CONF_get_section */
@@ -42,7 +42,7 @@ STACK_OF(CONF_VALUE) *_CONF_get_section_values(const CONF *conf,
     if (v != NULL)
         return ((STACK_OF(CONF_VALUE) *)v->value);
     else
-        return (NULL);
+        return NULL;
 }
 
 int _CONF_add_string(CONF *conf, CONF_VALUE *section, CONF_VALUE *value)
@@ -74,27 +74,27 @@ char *_CONF_get_string(const CONF *conf, const char *section,
     char *p;
 
     if (name == NULL)
-        return (NULL);
+        return NULL;
     if (conf != NULL) {
         if (section != NULL) {
             vv.name = (char *)name;
             vv.section = (char *)section;
             v = lh_CONF_VALUE_retrieve(conf->data, &vv);
             if (v != NULL)
-                return (v->value);
+                return v->value;
             if (strcmp(section, "ENV") == 0) {
                 p = ossl_safe_getenv(name);
                 if (p != NULL)
-                    return (p);
+                    return p;
             }
         }
         vv.section = "default";
         vv.name = (char *)name;
         v = lh_CONF_VALUE_retrieve(conf->data, &vv);
         if (v != NULL)
-            return (v->value);
+            return v->value;
         else
-            return (NULL);
+            return NULL;
     } else
         return ossl_safe_getenv(name);
 }
@@ -111,14 +111,14 @@ static int conf_value_cmp(const CONF_VALUE *a, const CONF_VALUE *b)
     if (a->section != b->section) {
         i = strcmp(a->section, b->section);
         if (i)
-            return (i);
+            return i;
     }
 
     if ((a->name != NULL) && (b->name != NULL)) {
         i = strcmp(a->name, b->name);
-        return (i);
+        return i;
     } else if (a->name == b->name)
-        return (0);
+        return 0;
     else
         return ((a->name == NULL) ? -1 : 1);
 }
@@ -205,8 +205,7 @@ CONF_VALUE *_CONF_new_section(CONF *conf, const char *section)
     v->value = (char *)sk;
 
     vv = lh_CONF_VALUE_insert(conf->data, v);
-    OPENSSL_assert(vv == NULL);
-    if (lh_CONF_VALUE_error(conf->data) > 0)
+    if (vv != NULL || lh_CONF_VALUE_error(conf->data) > 0)
         goto err;
     return v;
 

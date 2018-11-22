@@ -76,7 +76,7 @@ my %dsa_expected = (
     "dsa.pem" => 1
 );
 
-plan tests =>  scalar keys(%cert_expected) + scalar keys(%dsa_expected) + 1;
+plan tests =>  scalar keys(%cert_expected) + scalar keys(%dsa_expected) + 2;
 
 foreach my $input (keys %cert_expected) {
     my @common = ($cmd, "x509", "-text", "-noout", "-inform", "PEM", "-in");
@@ -104,3 +104,5 @@ SKIP: {
     my @match = grep /00:a0:3a:21:14:5d:cd:b6:d5:a0:3e:49:23:c1:3a:/, @data;
     ok(scalar @match > 0 ? 1 : 0);
 }
+
+ok(run(test(["pemtest"])), "running pemtest");

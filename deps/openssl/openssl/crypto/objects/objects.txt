@@ -15,7 +15,13 @@ iso 3			: identified-organization
 identified-organization 6 1 5 5 8 1 1	: HMAC-MD5	: hmac-md5
 identified-organization 6 1 5 5 8 1 2	: HMAC-SHA1	: hmac-sha1
 
+# "1.3.36.8.3.3"
+identified-organization 36 8 3 3	: x509ExtAdmission	: Professional Information or basis for Admission
+
 identified-organization 132	: certicom-arc
+
+identified-organization 111     : ieee
+ieee 2 1619                     : ieee-siswg    : IEEE Security in Storage Working Group
 
 joint-iso-itu-t 23	: international-organizations	: International Organizations
 
@@ -29,6 +35,10 @@ selected-attribute-types 55	: clearance
 member-body 840		: ISO-US		: ISO US Member Body
 ISO-US 10040		: X9-57			: X9.57
 X9-57 4			: X9cm			: X9.57 CM ?
+
+member-body 156         : ISO-CN        : ISO CN Member Body
+ISO-CN 10197            : oscca
+oscca 1                 : sm-scheme
 
 !Cname dsa
 X9cm 1			: DSA			: dsaEncryption
@@ -175,6 +185,8 @@ pkcs1 11		: RSA-SHA256		: sha256WithRSAEncryption
 pkcs1 12		: RSA-SHA384		: sha384WithRSAEncryption
 pkcs1 13		: RSA-SHA512		: sha512WithRSAEncryption
 pkcs1 14		: RSA-SHA224		: sha224WithRSAEncryption
+pkcs1 15		: RSA-SHA512/224	: sha512-224WithRSAEncryption
+pkcs1 16		: RSA-SHA512/256	: sha512-256WithRSAEncryption
 
 pkcs 3			: pkcs3
 pkcs3 1			:			: dhKeyAgreement
@@ -294,6 +306,7 @@ id-smime-aa 26		: id-smime-aa-ets-certCRLTimestamp
 id-smime-aa 27		: id-smime-aa-ets-archiveTimeStamp
 id-smime-aa 28		: id-smime-aa-signatureType
 id-smime-aa 29		: id-smime-aa-dvcs-dvc
+id-smime-aa 47		: id-smime-aa-signingCertificateV2
 
 # S/MIME Algorithm Identifiers
 # obsolete
@@ -367,11 +380,20 @@ rsadsi 2 5		: MD5			: md5
 rsadsi 2 6		:			: hmacWithMD5
 rsadsi 2 7		:			: hmacWithSHA1
 
+sm-scheme 301           : SM2                   : sm2
+
+sm-scheme 401           : SM3                   : sm3
+sm-scheme 504           : RSA-SM3		: sm3WithRSAEncryption
+
 # From RFC4231
 rsadsi 2 8		:			: hmacWithSHA224
 rsadsi 2 9		:			: hmacWithSHA256
 rsadsi 2 10		:			: hmacWithSHA384
 rsadsi 2 11		:			: hmacWithSHA512
+
+# From RFC8018
+rsadsi 2 12             :                       : hmacWithSHA512-224
+rsadsi 2 13             :                       : hmacWithSHA512-256
 
 rsadsi 3 2		: RC2-CBC		: rc2-cbc
 			: RC2-ECB		: rc2-ecb
@@ -512,6 +534,8 @@ id-kp 23                : sendRouter            : Send Router
 id-kp 24                : sendProxiedRouter     : Send Proxied Router
 id-kp 25                : sendOwner             : Send Owner
 id-kp 26                : sendProxiedOwner      : Send Proxied Owner
+id-kp 27                : cmcCA                 : CMC Certificate Authority
+id-kp 28                : cmcRA                 : CMC Registration Authority
 
 # CMP information types
 id-it 1			: id-it-caProtEncCert
@@ -575,7 +599,7 @@ id-cmc 19		: id-cmc-responseInfo
 id-cmc 21		: id-cmc-queryPending
 id-cmc 22		: id-cmc-popLinkRandom
 id-cmc 23		: id-cmc-popLinkWitness
-id-cmc 24		: id-cmc-confirmCertAcceptance 
+id-cmc 24		: id-cmc-confirmCertAcceptance
 
 # other names
 id-on 1			: id-on-personalData
@@ -737,6 +761,11 @@ X509 53			: 			: deltaRevocationList
 X509 54			: dmdName		:
 X509 65			:			: pseudonym
 X509 72			: role			: role
+X509 97                 :			: organizationIdentifier
+X509 98			: c3			: countryCode3c
+X509 99			: n3			: countryCode3n
+X509 100		:			: dnsName
+
 
 X500 8			: X500algorithms	: directory services - algorithms
 X500algorithms 1 1	: RSA			: rsa
@@ -841,7 +870,7 @@ internet 6		: snmpv2		: SNMPv2
 # Documents refer to "internet 7" as "mail". This however leads to ambiguities
 # with RFC2798, Section 9.1.3, where "mail" is defined as the short name for
 # rfc822Mailbox. The short name is therefore here left out for a reason.
-# Subclasses of "mail", e.g. "MIME MHS" don't consitute a problem, as
+# Subclasses of "mail", e.g. "MIME MHS" don't constitute a problem, as
 # references are realized via long name "Mail" (with capital M).
 internet 7		:			: Mail
 
@@ -900,6 +929,9 @@ aes 46			: id-aes256-GCM		: aes-256-gcm
 aes 47			: id-aes256-CCM		: aes-256-ccm
 aes 48			: id-aes256-wrap-pad
 
+ieee-siswg 0 1 1        : AES-128-XTS		: aes-128-xts
+ieee-siswg 0 1 2        : AES-256-XTS		: aes-256-xts
+
 # There are no OIDs for these modes...
 
 			: AES-128-CFB1		: aes-128-cfb1
@@ -914,24 +946,57 @@ aes 48			: id-aes256-wrap-pad
 			: AES-128-OCB		: aes-128-ocb
 			: AES-192-OCB		: aes-192-ocb
 			: AES-256-OCB		: aes-256-ocb
-			: AES-128-XTS		: aes-128-xts
-			: AES-256-XTS		: aes-256-xts
 			: DES-CFB1		: des-cfb1
 			: DES-CFB8		: des-cfb8
 			: DES-EDE3-CFB1		: des-ede3-cfb1
 			: DES-EDE3-CFB8		: des-ede3-cfb8
 
-# OIDs for SHA224, SHA256, SHA385 and SHA512, according to x9.84.
+# OIDs for SHA224, SHA256, SHA385 and SHA512, according to x9.84 and
+# http://csrc.nist.gov/groups/ST/crypto_apps_infra/csor/algorithms.html
+# "Middle" names are specified to be id-sha256, id-sha384, etc., but
+# we adhere to unprefixed capitals for backward compatibility...
 !Alias nist_hashalgs nistAlgorithms 2
 nist_hashalgs 1		: SHA256		: sha256
 nist_hashalgs 2		: SHA384		: sha384
 nist_hashalgs 3		: SHA512		: sha512
 nist_hashalgs 4		: SHA224		: sha224
+nist_hashalgs 5		: SHA512-224		: sha512-224
+nist_hashalgs 6		: SHA512-256		: sha512-256
+nist_hashalgs 7		: SHA3-224		: sha3-224
+nist_hashalgs 8		: SHA3-256		: sha3-256
+nist_hashalgs 9		: SHA3-384		: sha3-384
+nist_hashalgs 10	: SHA3-512		: sha3-512
+nist_hashalgs 11	: SHAKE128		: shake128
+nist_hashalgs 12	: SHAKE256		: shake256
+nist_hashalgs 13	: id-hmacWithSHA3-224	: hmac-sha3-224
+nist_hashalgs 14	: id-hmacWithSHA3-256	: hmac-sha3-256
+nist_hashalgs 15	: id-hmacWithSHA3-384	: hmac-sha3-384
+nist_hashalgs 16	: id-hmacWithSHA3-512	: hmac-sha3-512
+# Below two are incomplete OIDs, to be uncommented when we figure out
+# how to handle them...
+# nist_hashalgs 17	: id-shake128-len	: shake128-len
+# nist_hashalgs 18	: id-shake256-len	: shake256-len
 
 # OIDs for dsa-with-sha224 and dsa-with-sha256
 !Alias dsa_with_sha2 nistAlgorithms 3
 dsa_with_sha2 1		: dsa_with_SHA224
 dsa_with_sha2 2		: dsa_with_SHA256
+# Above two belong below, but kept as they are for backward compatibility
+!Alias sigAlgs nistAlgorithms 3
+sigAlgs 3	: id-dsa-with-sha384	: dsa_with_SHA384
+sigAlgs 4	: id-dsa-with-sha512	: dsa_with_SHA512
+sigAlgs 5	: id-dsa-with-sha3-224	: dsa_with_SHA3-224
+sigAlgs 6	: id-dsa-with-sha3-256	: dsa_with_SHA3-256
+sigAlgs 7	: id-dsa-with-sha3-384	: dsa_with_SHA3-384
+sigAlgs 8	: id-dsa-with-sha3-512	: dsa_with_SHA3-512
+sigAlgs 9	: id-ecdsa-with-sha3-224	: ecdsa_with_SHA3-224
+sigAlgs 10	: id-ecdsa-with-sha3-256	: ecdsa_with_SHA3-256
+sigAlgs 11	: id-ecdsa-with-sha3-384	: ecdsa_with_SHA3-384
+sigAlgs 12	: id-ecdsa-with-sha3-512	: ecdsa_with_SHA3-512
+sigAlgs 13	: id-rsassa-pkcs1-v1_5-with-sha3-224	: RSA-SHA3-224
+sigAlgs 14	: id-rsassa-pkcs1-v1_5-with-sha3-256	: RSA-SHA3-256
+sigAlgs 15	: id-rsassa-pkcs1-v1_5-with-sha3-384	: RSA-SHA3-384
+sigAlgs 16	: id-rsassa-pkcs1-v1_5-with-sha3-512	: RSA-SHA3-512
 
 # Hold instruction CRL entry extension
 !Cname hold-instruction-code
@@ -1278,18 +1343,36 @@ id-tc26-mac 1		: id-tc26-hmac-gost-3411-2012-256 : HMAC GOST 34.11-2012 256 bit
 id-tc26-mac 2		: id-tc26-hmac-gost-3411-2012-512 : HMAC GOST 34.11-2012 512 bit
 
 id-tc26-algorithms 5	: id-tc26-cipher
+id-tc26-cipher 1	:  id-tc26-cipher-gostr3412-2015-magma
+id-tc26-cipher-gostr3412-2015-magma 1	: id-tc26-cipher-gostr3412-2015-magma-ctracpkm
+id-tc26-cipher-gostr3412-2015-magma 2	: id-tc26-cipher-gostr3412-2015-magma-ctracpkm-omac
+id-tc26-cipher 2	:  id-tc26-cipher-gostr3412-2015-kuznyechik
+id-tc26-cipher-gostr3412-2015-kuznyechik 1	: id-tc26-cipher-gostr3412-2015-kuznyechik-ctracpkm
+id-tc26-cipher-gostr3412-2015-kuznyechik 2	: id-tc26-cipher-gostr3412-2015-kuznyechik-ctracpkm-omac
 
 id-tc26-algorithms 6	: id-tc26-agreement
 id-tc26-agreement 1	: id-tc26-agreement-gost-3410-2012-256
 id-tc26-agreement 2	: id-tc26-agreement-gost-3410-2012-512
 
+id-tc26-algorithms 7	:	id-tc26-wrap
+id-tc26-wrap 1	: id-tc26-wrap-gostr3412-2015-magma
+id-tc26-wrap-gostr3412-2015-magma 1	: id-tc26-wrap-gostr3412-2015-magma-kexp15
+id-tc26-wrap 2	: id-tc26-wrap-gostr3412-2015-kuznyechik
+id-tc26-wrap-gostr3412-2015-magma 1	: id-tc26-wrap-gostr3412-2015-kuznyechik-kexp15
+
 id-tc26 2 		: id-tc26-constants
 
 id-tc26-constants 1	: id-tc26-sign-constants
+id-tc26-sign-constants 1: id-tc26-gost-3410-2012-256-constants
+id-tc26-gost-3410-2012-256-constants 1	: id-tc26-gost-3410-2012-256-paramSetA: GOST R 34.10-2012 (256 bit) ParamSet A
+id-tc26-gost-3410-2012-256-constants 2	: id-tc26-gost-3410-2012-256-paramSetB: GOST R 34.10-2012 (256 bit) ParamSet B
+id-tc26-gost-3410-2012-256-constants 3	: id-tc26-gost-3410-2012-256-paramSetC: GOST R 34.10-2012 (256 bit) ParamSet C
+id-tc26-gost-3410-2012-256-constants 4	: id-tc26-gost-3410-2012-256-paramSetD: GOST R 34.10-2012 (256 bit) ParamSet D
 id-tc26-sign-constants 2: id-tc26-gost-3410-2012-512-constants
 id-tc26-gost-3410-2012-512-constants 0	: id-tc26-gost-3410-2012-512-paramSetTest: GOST R 34.10-2012 (512 bit) testing parameter set
 id-tc26-gost-3410-2012-512-constants 1	: id-tc26-gost-3410-2012-512-paramSetA: GOST R 34.10-2012 (512 bit) ParamSet A
 id-tc26-gost-3410-2012-512-constants 2	: id-tc26-gost-3410-2012-512-paramSetB: GOST R 34.10-2012 (512 bit) ParamSet B
+id-tc26-gost-3410-2012-512-constants 3	: id-tc26-gost-3410-2012-512-paramSetC: GOST R 34.10-2012 (512 bit) ParamSet C
 
 id-tc26-constants 2     : id-tc26-digest-constants
 id-tc26-constants 5     : id-tc26-cipher-constants
@@ -1310,6 +1393,14 @@ member-body 643 100 112	: issuerSignTool	: Signing Tool of Issuer
 			: grasshopper-cfb
 			: grasshopper-mac
 
+#GOST R34.13-2015 Magma
+			: magma-ecb
+			: magma-ctr
+			: magma-ofb
+			: magma-cbc
+			: magma-cfb
+			: magma-mac
+
 # Definitions for Camellia cipher - CBC MODE
 
 1 2 392 200011 61 1 1 1 2 : CAMELLIA-128-CBC		: camellia-128-cbc
@@ -1322,7 +1413,7 @@ member-body 643 100 112	: issuerSignTool	: Signing Tool of Issuer
 # Definitions for Camellia cipher - ECB, CFB, OFB MODE
 
 !Alias ntt-ds 0 3 4401 5
-!Alias camellia ntt-ds 3 1 9 
+!Alias camellia ntt-ds 3 1 9
 
 camellia 1		: CAMELLIA-128-ECB		: camellia-128-ecb
 !Cname camellia-128-ofb128
@@ -1363,6 +1454,48 @@ camellia 50		: CAMELLIA-256-CMAC		: camellia-256-cmac
 			: CAMELLIA-192-CFB8		: camellia-192-cfb8
 			: CAMELLIA-256-CFB8		: camellia-256-cfb8
 
+# Definitions for ARIA cipher
+
+!Alias aria 1 2 410 200046 1 1
+aria 1                  : ARIA-128-ECB                  : aria-128-ecb
+aria 2                  : ARIA-128-CBC                  : aria-128-cbc
+!Cname aria-128-cfb128
+aria 3                  : ARIA-128-CFB                  : aria-128-cfb
+!Cname aria-128-ofb128
+aria 4                  : ARIA-128-OFB                  : aria-128-ofb
+aria 5			: ARIA-128-CTR                  : aria-128-ctr
+
+aria 6                  : ARIA-192-ECB                  : aria-192-ecb
+aria 7                  : ARIA-192-CBC                  : aria-192-cbc
+!Cname aria-192-cfb128
+aria 8                  : ARIA-192-CFB                  : aria-192-cfb
+!Cname aria-192-ofb128
+aria 9                  : ARIA-192-OFB                  : aria-192-ofb
+aria 10                 : ARIA-192-CTR                  : aria-192-ctr
+
+aria 11                 : ARIA-256-ECB                  : aria-256-ecb
+aria 12                 : ARIA-256-CBC                  : aria-256-cbc
+!Cname aria-256-cfb128
+aria 13                 : ARIA-256-CFB                  : aria-256-cfb
+!Cname aria-256-ofb128
+aria 14                 : ARIA-256-OFB                  : aria-256-ofb
+aria 15                 : ARIA-256-CTR                  : aria-256-ctr
+
+# There are no OIDs for these ARIA modes...
+                        : ARIA-128-CFB1                 : aria-128-cfb1
+                        : ARIA-192-CFB1                 : aria-192-cfb1
+                        : ARIA-256-CFB1                 : aria-256-cfb1
+                        : ARIA-128-CFB8                 : aria-128-cfb8
+                        : ARIA-192-CFB8                 : aria-192-cfb8
+                        : ARIA-256-CFB8                 : aria-256-cfb8
+
+aria 37                 : ARIA-128-CCM                  : aria-128-ccm
+aria 38                 : ARIA-192-CCM                  : aria-192-ccm
+aria 39                 : ARIA-256-CCM                  : aria-256-ccm
+aria 34                 : ARIA-128-GCM                  : aria-128-gcm
+aria 35                 : ARIA-192-GCM                  : aria-192-gcm
+aria 36                 : ARIA-256-GCM                  : aria-256-gcm
+
 # Definitions for SEED cipher - ECB, CBC, OFB mode
 
 member-body 410 200004  : KISA          : kisa
@@ -1372,6 +1505,19 @@ kisa 1 4                : SEED-CBC      : seed-cbc
 kisa 1 5                : SEED-CFB      : seed-cfb
 !Cname seed-ofb128
 kisa 1 6                : SEED-OFB      : seed-ofb
+
+
+# Definitions for SM4 cipher
+
+sm-scheme 104 1         : SM4-ECB             : sm4-ecb
+sm-scheme 104 2         : SM4-CBC             : sm4-cbc
+!Cname sm4-ofb128
+sm-scheme 104 3         : SM4-OFB             : sm4-ofb
+!Cname sm4-cfb128
+sm-scheme 104 4         : SM4-CFB             : sm4-cfb
+sm-scheme 104 5         : SM4-CFB1            : sm4-cfb1
+sm-scheme 104 6         : SM4-CFB8            : sm4-cfb8
+sm-scheme 104 7         : SM4-CTR             : sm4-ctr
 
 # There is no OID that just denotes "HMAC" oddly enough...
 
@@ -1394,7 +1540,7 @@ ISO-US 10046 2 1	: dhpublicnumber		: X9.42 DH
 
 # RFC 5639 curve OIDs (see http://www.ietf.org/rfc/rfc5639.txt)
 # versionOne OBJECT IDENTIFIER ::= {
-# iso(1) identifified-organization(3) teletrust(36) algorithm(3)
+# iso(1) identified-organization(3) teletrust(36) algorithm(3)
 # signature-algorithm(3) ecSign(2) ecStdCurvesAndGeneration(8)
 # ellipticCurve(1) 1 }
 1 3 36 3 3 2 8 1 1 1 : brainpoolP160r1
@@ -1410,7 +1556,7 @@ ISO-US 10046 2 1	: dhpublicnumber		: X9.42 DH
 1 3 36 3 3 2 8 1 1 11 : brainpoolP384r1
 1 3 36 3 3 2 8 1 1 12 : brainpoolP384t1
 1 3 36 3 3 2 8 1 1 13 : brainpoolP512r1
-1 3 36 3 3 2 8 1 1 14 : brainpoolP512t1            
+1 3 36 3 3 2 8 1 1 14 : brainpoolP512t1
 
 # ECDH schemes from RFC5753
 !Alias x9-63-scheme 1 3 133 16 840 63 0
@@ -1445,7 +1591,8 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
 1 3 6 1 4 1 311 60 2 1 3	: jurisdictionC		: jurisdictionCountryName
 
 # SCRYPT algorithm
-1 3 6 1 4 1 11591 4 11		: id-scrypt
+!Cname id-scrypt
+1 3 6 1 4 1 11591 4 11		: id-scrypt         : scrypt
 
 # NID for TLS1 PRF
                             : TLS1-PRF          : tls1-prf
@@ -1458,9 +1605,12 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
 id-pkinit 4                     : pkInitClientAuth      : PKINIT Client Auth
 id-pkinit 5                     : pkInitKDC             : Signing KDC Response
 
-# New curves from draft-ietf-curdle-pkix-00
+# From RFC8410
 1 3 101 110 : X25519
 1 3 101 111 : X448
+1 3 101 112 : ED25519
+1 3 101 113 : ED448
+
 
 # NIDs for cipher key exchange
                             : KxRSA        : kx-rsa
@@ -1472,6 +1622,7 @@ id-pkinit 5                     : pkInitKDC             : Signing KDC Response
                             : KxPSK        : kx-psk
                             : KxSRP        : kx-srp
                             : KxGOST       : kx-gost
+                            : KxANY        : kx-any
 
 # NIDs for cipher authentication
                             : AuthRSA      : auth-rsa
@@ -1482,4 +1633,45 @@ id-pkinit 5                     : pkInitKDC             : Signing KDC Response
                             : AuthGOST12   : auth-gost12
                             : AuthSRP      : auth-srp
                             : AuthNULL     : auth-null
+                            : AuthANY      : auth-any
+# NID for Poly1305
+                            : Poly1305     : poly1305
+# NID for SipHash
+                            : SipHash      : siphash
 
+# NIDs for RFC7919 DH parameters
+                            : ffdhe2048
+                            : ffdhe3072
+                            : ffdhe4096
+                            : ffdhe6144
+                            : ffdhe8192
+
+# OIDs for DSTU-4145/DSTU-7564 (http://zakon2.rada.gov.ua/laws/show/z0423-17)
+
+# DSTU OIDs
+member-body 804   : ISO-UA
+ISO-UA 2 1 1 1    : ua-pki
+ua-pki 1 1 1      : dstu28147         : DSTU Gost 28147-2009
+dstu28147 2       : dstu28147-ofb     : DSTU Gost 28147-2009 OFB mode
+dstu28147 3       : dstu28147-cfb     : DSTU Gost 28147-2009 CFB mode
+dstu28147 5       : dstu28147-wrap    : DSTU Gost 28147-2009 key wrap
+
+ua-pki 1 1 2      : hmacWithDstu34311 : HMAC DSTU Gost 34311-95
+ua-pki 1 2 1      : dstu34311         : DSTU Gost 34311-95
+
+ua-pki 1 3 1 1    : dstu4145le        : DSTU 4145-2002 little endian
+dstu4145le 1 1    : dstu4145be        : DSTU 4145-2002 big endian
+
+# 1.2.804. 2.1.1.1 1.3.1.1  .2.6
+#     UA    ua-pki  4145 le
+# DSTU named curves
+dstu4145le 2 0 : uacurve0 : DSTU curve 0
+dstu4145le 2 1 : uacurve1 : DSTU curve 1
+dstu4145le 2 2 : uacurve2 : DSTU curve 2
+dstu4145le 2 3 : uacurve3 : DSTU curve 3
+dstu4145le 2 4 : uacurve4 : DSTU curve 4
+dstu4145le 2 5 : uacurve5 : DSTU curve 5
+dstu4145le 2 6 : uacurve6 : DSTU curve 6
+dstu4145le 2 7 : uacurve7 : DSTU curve 7
+dstu4145le 2 8 : uacurve8 : DSTU curve 8
+dstu4145le 2 9 : uacurve9 : DSTU curve 9

@@ -37,6 +37,8 @@ static int ts_check_nonces(const ASN1_INTEGER *a, TS_TST_INFO *tst_info);
 static int ts_check_signer_name(GENERAL_NAME *tsa_name, X509 *signer);
 static int ts_find_name(STACK_OF(GENERAL_NAME) *gen_names,
                         GENERAL_NAME *name);
+static int ts_find_cert_v2(STACK_OF(ESS_CERT_ID_V2) *cert_ids, X509 *cert);
+static ESS_SIGNING_CERT_V2 *ess_get_signing_cert_v2(PKCS7_SIGNER_INFO *si);
 
 /*
  * This must be large enough to hold all values in ts_status_text (with
@@ -201,34 +203,57 @@ static int ts_check_signing_certs(PKCS7_SIGNER_INFO *si,
 {
     ESS_SIGNING_CERT *ss = ess_get_signing_cert(si);
     STACK_OF(ESS_CERT_ID) *cert_ids = NULL;
+    ESS_SIGNING_CERT_V2 *ssv2 = ess_get_signing_cert_v2(si);
+    STACK_OF(ESS_CERT_ID_V2) *cert_ids_v2 = NULL;
     X509 *cert;
     int i = 0;
     int ret = 0;
 
-    if (!ss)
-        goto err;
-    cert_ids = ss->cert_ids;
-    cert = sk_X509_value(chain, 0);
-    if (ts_find_cert(cert_ids, cert) != 0)
-        goto err;
+    if (ss != NULL) {
+        cert_ids = ss->cert_ids;
+        cert = sk_X509_value(chain, 0);
+        if (ts_find_cert(cert_ids, cert) != 0)
+            goto err;
 
-    /*
-     * Check the other certificates of the chain if there are more than one
-     * certificate ids in cert_ids.
-     */
-    if (sk_ESS_CERT_ID_num(cert_ids) > 1) {
-        for (i = 1; i < sk_X509_num(chain); ++i) {
-            cert = sk_X509_value(chain, i);
-            if (ts_find_cert(cert_ids, cert) < 0)
-                goto err;
+        /*
+         * Check the other certificates of the chain if there are more than one
+         * certificate ids in cert_ids.
+         */
+        if (sk_ESS_CERT_ID_num(cert_ids) > 1) {
+            for (i = 1; i < sk_X509_num(chain); ++i) {
+                cert = sk_X509_value(chain, i);
+                if (ts_find_cert(cert_ids, cert) < 0)
+                    goto err;
+            }
         }
+    } else if (ssv2 != NULL) {
+        cert_ids_v2 = ssv2->cert_ids;
+        cert = sk_X509_value(chain, 0);
+        if (ts_find_cert_v2(cert_ids_v2, cert) != 0)
+            goto err;
+
+        /*
+         * Check the other certificates of the chain if there are more than one
+         * certificate ids in cert_ids.
+         */
+        if (sk_ESS_CERT_ID_V2_num(cert_ids_v2) > 1) {
+            for (i = 1; i < sk_X509_num(chain); ++i) {
+                cert = sk_X509_value(chain, i);
+                if (ts_find_cert_v2(cert_ids_v2, cert) < 0)
+                    goto err;
+            }
+        }
+    } else {
+        goto err;
     }
+
     ret = 1;
  err:
     if (!ret)
         TSerr(TS_F_TS_CHECK_SIGNING_CERTS,
               TS_R_ESS_SIGNING_CERTIFICATE_ERROR);
     ESS_SIGNING_CERT_free(ss);
+    ESS_SIGNING_CERT_V2_free(ssv2);
     return ret;
 }
 
@@ -241,6 +266,18 @@ static ESS_SIGNING_CERT *ess_get_signing_cert(PKCS7_SIGNER_INFO *si)
         return NULL;
     p = attr->value.sequence->data;
     return d2i_ESS_SIGNING_CERT(NULL, &p, attr->value.sequence->length);
+}
+
+static ESS_SIGNING_CERT_V2 *ess_get_signing_cert_v2(PKCS7_SIGNER_INFO *si)
+{
+    ASN1_TYPE *attr;
+    const unsigned char *p;
+
+    attr = PKCS7_get_signed_attribute(si, NID_id_smime_aa_signingCertificateV2);
+    if (attr == NULL)
+        return NULL;
+    p = attr->value.sequence->data;
+    return d2i_ESS_SIGNING_CERT_V2(NULL, &p, attr->value.sequence->length);
 }
 
 /* Returns < 0 if certificate is not found, certificate index otherwise. */
@@ -265,6 +302,38 @@ static int ts_find_cert(STACK_OF(ESS_CERT_ID) *cert_ids, X509 *cert)
             && memcmp(cid->hash->data, cert_sha1, SHA_DIGEST_LENGTH) == 0) {
             ESS_ISSUER_SERIAL *is = cid->issuer_serial;
             if (!is || !ts_issuer_serial_cmp(is, cert))
+                return i;
+        }
+    }
+
+    return -1;
+}
+
+/* Returns < 0 if certificate is not found, certificate index otherwise. */
+static int ts_find_cert_v2(STACK_OF(ESS_CERT_ID_V2) *cert_ids, X509 *cert)
+{
+    int i;
+    unsigned char cert_digest[EVP_MAX_MD_SIZE];
+    unsigned int len;
+
+    /* Look for cert in the cert_ids vector. */
+    for (i = 0; i < sk_ESS_CERT_ID_V2_num(cert_ids); ++i) {
+        ESS_CERT_ID_V2 *cid = sk_ESS_CERT_ID_V2_value(cert_ids, i);
+        const EVP_MD *md;
+
+        if (cid->hash_alg != NULL)
+            md = EVP_get_digestbyobj(cid->hash_alg->algorithm);
+        else
+            md = EVP_sha256();
+
+        X509_digest(cert, md, cert_digest, &len);
+        if (cid->hash->length != (int)len)
+            return -1;
+
+        if (memcmp(cid->hash->data, cert_digest, cid->hash->length) == 0) {
+            ESS_ISSUER_SERIAL *is = cid->issuer_serial;
+
+            if (is == NULL || !ts_issuer_serial_cmp(is, cert))
                 return i;
         }
     }
@@ -480,7 +549,7 @@ static char *ts_get_status_text(STACK_OF(ASN1_UTF8STRING) *text)
     return result;
 }
 
-static int ts_check_policy(const ASN1_OBJECT *req_oid, 
+static int ts_check_policy(const ASN1_OBJECT *req_oid,
                            const TS_TST_INFO *tst_info)
 {
     const ASN1_OBJECT *resp_oid = tst_info->policy_id;

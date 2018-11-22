@@ -205,8 +205,8 @@ static DIST_POINT *crldp_from_section(X509V3_CTX *ctx,
 {
     int i;
     CONF_VALUE *cnf;
-    DIST_POINT *point = NULL;
-    point = DIST_POINT_new();
+    DIST_POINT *point = DIST_POINT_new();
+
     if (point == NULL)
         goto err;
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
@@ -237,16 +237,19 @@ static DIST_POINT *crldp_from_section(X509V3_CTX *ctx,
 static void *v2i_crld(const X509V3_EXT_METHOD *method,
                       X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval)
 {
-    STACK_OF(DIST_POINT) *crld = NULL;
+    STACK_OF(DIST_POINT) *crld;
     GENERAL_NAMES *gens = NULL;
     GENERAL_NAME *gen = NULL;
     CONF_VALUE *cnf;
+    const int num = sk_CONF_VALUE_num(nval);
     int i;
 
-    if ((crld = sk_DIST_POINT_new_null()) == NULL)
+    crld = sk_DIST_POINT_new_reserve(NULL, num);
+    if (crld == NULL)
         goto merr;
-    for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
+    for (i = 0; i < num; i++) {
         DIST_POINT *point;
+
         cnf = sk_CONF_VALUE_value(nval, i);
         if (!cnf->value) {
             STACK_OF(CONF_VALUE) *dpsect;
@@ -257,10 +260,7 @@ static void *v2i_crld(const X509V3_EXT_METHOD *method,
             X509V3_section_free(ctx, dpsect);
             if (!point)
                 goto err;
-            if (!sk_DIST_POINT_push(crld, point)) {
-                DIST_POINT_free(point);
-                goto merr;
-            }
+            sk_DIST_POINT_push(crld, point); /* no failure as it was reserved */
         } else {
             if ((gen = v2i_GENERAL_NAME(method, ctx, cnf)) == NULL)
                 goto err;
@@ -271,10 +271,7 @@ static void *v2i_crld(const X509V3_EXT_METHOD *method,
             gen = NULL;
             if ((point = DIST_POINT_new()) == NULL)
                 goto merr;
-            if (!sk_DIST_POINT_push(crld, point)) {
-                DIST_POINT_free(point);
-                goto merr;
-            }
+            sk_DIST_POINT_push(crld, point); /* no failure as it was reserved */
             if ((point->distpoint = DIST_POINT_NAME_new()) == NULL)
                 goto merr;
             point->distpoint->name.fullname = gens;
