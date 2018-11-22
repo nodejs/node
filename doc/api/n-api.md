@@ -3799,6 +3799,9 @@ callback was associated with the wrapping, it will no longer be called when the
 JavaScript object becomes garbage-collected.
 
 ### napi_add_finalizer
+
+> Stability: 1 - Experimental
+
 <!-- YAML
 added: v8.0.0
 napiVersion: 1
