@@ -13,6 +13,7 @@ const DEFAULT_MIN_VERSION = tls.DEFAULT_MIN_VERSION;
 assert.strictEqual(DEFAULT_MIN_VERSION, 'TLSv1');
 
 function test(cmin, cmax, cprot, smin, smax, sprot, expect) {
+  assert(expect);
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },
@@ -29,23 +30,18 @@ function test(cmin, cmax, cprot, smin, smax, sprot, expect) {
       secureProtocol: sprot,
     },
   }, common.mustCall((err, pair, cleanup) => {
-    if (expect && !expect.match(/^TLS/)) {
-      assert(err.message.match(expect));
+    if (err) {
+      assert.strictEqual(err.code, expect, err + '.code !== ' + expect);
       return cleanup();
     }
 
-    if (expect) {
-      assert.ifError(pair.server.err);
-      assert.ifError(pair.client.err);
-      assert(pair.server.conn);
-      assert(pair.client.conn);
-      assert.strictEqual(pair.client.conn.getProtocol(), expect);
-      assert.strictEqual(pair.server.conn.getProtocol(), expect);
-      return cleanup();
-    }
-
-    assert(pair.server.err);
-    assert(pair.client.err);
+    assert.ifError(err);
+    assert.ifError(pair.server.err);
+    assert.ifError(pair.client.err);
+    assert(pair.server.conn);
+    assert(pair.client.conn);
+    assert.strictEqual(pair.client.conn.getProtocol(), expect);
+    assert.strictEqual(pair.server.conn.getProtocol(), expect);
     return cleanup();
   }));
 }
@@ -82,17 +78,18 @@ test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
 test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method', 'TLSv1.2');
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
-  test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method', null);
-  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method', null);
-  test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method', null);
-  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method', null);
+  test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method', 'ECONNRESET');
+  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method', 'ECONNRESET');
+  test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
+       'ERR_SSL_VERSION_TOO_LOW');
+  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
   test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method', 'TLSv1.1');
-  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method', null);
+  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method', 'ECONNRESET');
   test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
-  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method', null);
+  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
 }
 
 if (DEFAULT_MIN_VERSION === 'TLSv1') {
@@ -110,18 +107,18 @@ test(U, U, 'TLSv1_method', U, U, 'TLSv1_method', 'TLSv1');
 
 // The default default.
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
-  test(U, U, 'TLSv1_1_method', U, U, U, null);
-  test(U, U, 'TLSv1_method', U, U, U, null);
-  test(U, U, U, U, U, 'TLSv1_1_method', null);
-  test(U, U, U, U, U, 'TLSv1_method', null);
+  test(U, U, 'TLSv1_1_method', U, U, U, 'ECONNRESET');
+  test(U, U, 'TLSv1_method', U, U, U, 'ECONNRESET');
+  test(U, U, U, U, U, 'TLSv1_1_method', 'ERR_SSL_VERSION_TOO_LOW');
+  test(U, U, U, U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
 }
 
 // The default with --tls-v1.1.
 if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
   test(U, U, 'TLSv1_1_method', U, U, U, 'TLSv1.1');
-  test(U, U, 'TLSv1_method', U, U, U, null);
+  test(U, U, 'TLSv1_method', U, U, U, 'ECONNRESET');
   test(U, U, U, U, U, 'TLSv1_1_method', 'TLSv1.1');
-  test(U, U, U, U, U, 'TLSv1_method', null);
+  test(U, U, U, U, U, 'TLSv1_method', 'ERR_SSL_VERSION_TOO_LOW');
 }
 
 // The default with --tls-v1.0.

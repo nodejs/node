@@ -182,6 +182,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(fingerprint_string, "fingerprint")                                         \
   V(flags_string, "flags")                                                     \
   V(fragment_string, "fragment")                                               \
+  V(function_string, "function")                                               \
   V(get_data_clone_error_string, "_getDataCloneError")                         \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
   V(gid_string, "gid")                                                         \
@@ -203,6 +204,7 @@ constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
   V(issuercert_string, "issuerCertificate")                                    \
   V(kill_signal_string, "killSignal")                                          \
   V(kind_string, "kind")                                                       \
+  V(library_string, "library")                                                 \
   V(mac_string, "mac")                                                         \
   V(main_string, "main")                                                       \
   V(max_buffer_string, "maxBuffer")                                            \
