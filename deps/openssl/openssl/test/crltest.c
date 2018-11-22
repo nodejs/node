@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,8 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <stdio.h>
-#include "../e_os.h"
+#include "internal/nelem.h"
 #include <string.h>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
@@ -177,25 +176,22 @@ static const char *kUnknownCriticalCRL2[] = {
     NULL
 };
 
+static const char **unknown_critical_crls[] = {
+    kUnknownCriticalCRL, kUnknownCriticalCRL2
+};
+
+static X509 *test_root = NULL;
+static X509 *test_leaf = NULL;
 
 /*
  * Glue an array of strings together.  Return a BIO and put the string
  * into |*out| so we can free it.
  */
-static BIO *glue(const char **pem, char **out)
+static BIO *glue2bio(const char **pem, char **out)
 {
-    char *dest;
-    int i;
     size_t s = 0;
 
-    /* Glue the strings together. */
-    for (i = 0; pem[i] != NULL; ++i)
-        s += strlen(pem[i]);
-    dest = *out = OPENSSL_malloc(s + 1);
-    if (dest == NULL)
-        return NULL;
-    for (i = 0; pem[i] != NULL; ++i)
-        dest += strlen(strcpy(dest, pem[i]));
+    *out = glue_strings(pem, &s);
     return BIO_new_mem_buf(*out, s);
 }
 
@@ -205,7 +201,7 @@ static BIO *glue(const char **pem, char **out)
 static X509_CRL *CRL_from_strings(const char **pem)
 {
     char *p;
-    BIO *b = glue(pem, &p);
+    BIO *b = glue2bio(pem, &p);
     X509_CRL *crl = PEM_read_bio_X509_CRL(b, NULL, NULL, NULL);
 
     OPENSSL_free(p);
@@ -219,7 +215,7 @@ static X509_CRL *CRL_from_strings(const char **pem)
 static X509 *X509_from_strings(const char **pem)
 {
     char *p;
-    BIO *b = glue(pem, &p);
+    BIO *b = glue2bio(pem, &p);
     X509 *x = PEM_read_bio_X509(b, NULL, NULL, NULL);
 
     OPENSSL_free(p);
@@ -242,27 +238,27 @@ static int verify(X509 *leaf, X509 *root, STACK_OF(X509_CRL) *crls,
     STACK_OF(X509) *roots = sk_X509_new_null();
     int status = X509_V_ERR_UNSPECIFIED;
 
-    if (ctx == NULL || store == NULL || param == NULL || roots == NULL)
+    if (!TEST_ptr(ctx)
+        || !TEST_ptr(store)
+        || !TEST_ptr(param)
+        || !TEST_ptr(roots))
         goto err;
 
     /* Create a stack; upref the cert because we free it below. */
     X509_up_ref(root);
-    if (!sk_X509_push(roots, root))
-        goto err;
-
-    if (!X509_STORE_CTX_init(ctx, store, leaf, NULL))
+    if (!TEST_true(sk_X509_push(roots, root))
+        || !TEST_true(X509_STORE_CTX_init(ctx, store, leaf, NULL)))
         goto err;
     X509_STORE_CTX_set0_trusted_stack(ctx, roots);
     X509_STORE_CTX_set0_crls(ctx, crls);
     X509_VERIFY_PARAM_set_time(param, PARAM_TIME);
-    if (X509_VERIFY_PARAM_get_time(param) != PARAM_TIME) {
-        fprintf(stderr, "set_time/get_time mismatch.\n");
+    if (!TEST_long_eq((long)X509_VERIFY_PARAM_get_time(param), PARAM_TIME))
         goto err;
-    }
     X509_VERIFY_PARAM_set_depth(param, 16);
     if (flags)
         X509_VERIFY_PARAM_set_flags(param, flags);
     X509_STORE_CTX_set0_param(ctx, param);
+    param = NULL;
 
     ERR_clear_error();
     status = X509_verify_cert(ctx) == 1 ? X509_V_OK
@@ -270,6 +266,7 @@ static int verify(X509 *leaf, X509 *root, STACK_OF(X509_CRL) *crls,
 err:
     sk_X509_pop_free(roots, X509_free);
     sk_X509_CRL_pop_free(crls, X509_CRL_free);
+    X509_VERIFY_PARAM_free(param);
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
     return status;
@@ -293,86 +290,89 @@ static STACK_OF(X509_CRL) *make_CRL_stack(X509_CRL *x1, X509_CRL *x2)
     return sk;
 }
 
-static int test_crl()
+static int test_basic_crl(void)
 {
-    X509 *root = X509_from_strings(kCRLTestRoot);
-    X509 *leaf = X509_from_strings(kCRLTestLeaf);
     X509_CRL *basic_crl = CRL_from_strings(kBasicCRL);
     X509_CRL *revoked_crl = CRL_from_strings(kRevokedCRL);
-    X509_CRL *bad_issuer_crl = CRL_from_strings(kBadIssuerCRL);
-    X509_CRL *known_critical_crl = CRL_from_strings(kKnownCriticalCRL);
-    X509_CRL *unknown_critical_crl = CRL_from_strings(kUnknownCriticalCRL);
-    X509_CRL *unknown_critical_crl2 = CRL_from_strings(kUnknownCriticalCRL2);
-    int status = 0;
+    int r;
 
-    if (root == NULL || leaf == NULL || basic_crl == NULL
-            || revoked_crl == NULL || bad_issuer_crl == NULL
-            || known_critical_crl == NULL || unknown_critical_crl == NULL
-            || unknown_critical_crl2 == NULL) {
-        fprintf(stderr, "Failed to parse certificates and CRLs.\n");
-        goto err;
-    }
-
-    if (verify(leaf, root, make_CRL_stack(basic_crl, NULL),
-               X509_V_FLAG_CRL_CHECK) != X509_V_OK) {
-        fprintf(stderr, "Cert with CRL didn't verify.\n");
-        goto err;
-    }
-
-    if (verify(leaf, root, make_CRL_stack(basic_crl, revoked_crl),
-               X509_V_FLAG_CRL_CHECK) != X509_V_ERR_CERT_REVOKED) {
-        fprintf(stderr, "Revoked CRL wasn't checked.\n");
-        goto err;
-    }
-
-    if (verify(leaf, root, NULL,
-               X509_V_FLAG_CRL_CHECK) != X509_V_ERR_UNABLE_TO_GET_CRL) {
-        fprintf(stderr, "CRLs were not required.\n");
-        goto err;
-    }
-
-    if (verify(leaf, root, make_CRL_stack(bad_issuer_crl, NULL),
-               X509_V_FLAG_CRL_CHECK) != X509_V_ERR_UNABLE_TO_GET_CRL) {
-        fprintf(stderr, "Bad CRL issuer was unnoticed.\n");
-        goto err;
-    }
-
-    if (verify(leaf, root, make_CRL_stack(known_critical_crl, NULL),
-               X509_V_FLAG_CRL_CHECK) != X509_V_OK) {
-        fprintf(stderr, "CRL with known critical extension was rejected.\n");
-        goto err;
-    }
-
-    if (verify(leaf, root, make_CRL_stack(unknown_critical_crl, NULL),
-               X509_V_FLAG_CRL_CHECK) !=
-            X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION) {
-        fprintf(stderr, "CRL with unknown critical extension was accepted.\n");
-        goto err;
-    }
-
-    if (verify(leaf, root, make_CRL_stack(unknown_critical_crl2, NULL),
-               X509_V_FLAG_CRL_CHECK) !=
-            X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION) {
-        fprintf(stderr, "CRL with unknown critical extension (2) was accepted.\n");
-        goto err;
-    }
-
-    status = 1;
-
-err:
-    X509_free(root);
-    X509_free(leaf);
+    r = TEST_ptr(basic_crl)
+        && TEST_ptr(revoked_crl)
+        && TEST_int_eq(verify(test_leaf, test_root,
+                              make_CRL_stack(basic_crl, NULL),
+                              X509_V_FLAG_CRL_CHECK), X509_V_OK)
+        && TEST_int_eq(verify(test_leaf, test_root,
+                              make_CRL_stack(basic_crl, revoked_crl),
+                              X509_V_FLAG_CRL_CHECK), X509_V_ERR_CERT_REVOKED);
     X509_CRL_free(basic_crl);
     X509_CRL_free(revoked_crl);
-    X509_CRL_free(bad_issuer_crl);
-    X509_CRL_free(known_critical_crl);
-    X509_CRL_free(unknown_critical_crl);
-    X509_CRL_free(unknown_critical_crl2);
-    return status;
+    return r;
 }
 
-int main()
+static int test_no_crl(void)
 {
-    ADD_TEST(test_crl);
-    return run_tests("crltest");
+    return TEST_int_eq(verify(test_leaf, test_root, NULL,
+                              X509_V_FLAG_CRL_CHECK),
+                       X509_V_ERR_UNABLE_TO_GET_CRL);
+}
+
+static int test_bad_issuer_crl(void)
+{
+    X509_CRL *bad_issuer_crl = CRL_from_strings(kBadIssuerCRL);
+    int r;
+
+    r = TEST_ptr(bad_issuer_crl)
+        && TEST_int_eq(verify(test_leaf, test_root,
+                              make_CRL_stack(bad_issuer_crl, NULL),
+                              X509_V_FLAG_CRL_CHECK),
+                       X509_V_ERR_UNABLE_TO_GET_CRL);
+    X509_CRL_free(bad_issuer_crl);
+    return r;
+}
+
+static int test_known_critical_crl(void)
+{
+    X509_CRL *known_critical_crl = CRL_from_strings(kKnownCriticalCRL);
+    int r;
+
+    r = TEST_ptr(known_critical_crl)
+        && TEST_int_eq(verify(test_leaf, test_root,
+                              make_CRL_stack(known_critical_crl, NULL),
+                              X509_V_FLAG_CRL_CHECK), X509_V_OK);
+    X509_CRL_free(known_critical_crl);
+    return r;
+}
+
+static int test_unknown_critical_crl(int n)
+{
+    X509_CRL *unknown_critical_crl = CRL_from_strings(unknown_critical_crls[n]);
+    int r;
+
+    r = TEST_ptr(unknown_critical_crl)
+        && TEST_int_eq(verify(test_leaf, test_root,
+                              make_CRL_stack(unknown_critical_crl, NULL),
+                              X509_V_FLAG_CRL_CHECK),
+                       X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION);
+    X509_CRL_free(unknown_critical_crl);
+    return r;
+}
+
+int setup_tests(void)
+{
+    if (!TEST_ptr(test_root = X509_from_strings(kCRLTestRoot))
+        || !TEST_ptr(test_leaf = X509_from_strings(kCRLTestLeaf)))
+        return 0;
+
+    ADD_TEST(test_no_crl);
+    ADD_TEST(test_basic_crl);
+    ADD_TEST(test_bad_issuer_crl);
+    ADD_TEST(test_known_critical_crl);
+    ADD_ALL_TESTS(test_unknown_critical_crl, OSSL_NELEM(unknown_critical_crls));
+    return 1;
+}
+
+void cleanup_tests(void)
+{
+    X509_free(test_root);
+    X509_free(test_leaf);
 }

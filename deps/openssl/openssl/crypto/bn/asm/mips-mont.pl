@@ -56,14 +56,14 @@
 $flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
-	$PTR_ADD="dadd";	# incidentally works even on n32
-	$PTR_SUB="dsub";	# incidentally works even on n32
+	$PTR_ADD="daddu";	# incidentally works even on n32
+	$PTR_SUB="dsubu";	# incidentally works even on n32
 	$REG_S="sd";
 	$REG_L="ld";
 	$SZREG=8;
 } else {
-	$PTR_ADD="add";
-	$PTR_SUB="sub";
+	$PTR_ADD="addu";
+	$PTR_SUB="subu";
 	$REG_S="sw";
 	$REG_L="lw";
 	$SZREG=4;
@@ -121,6 +121,8 @@ $m1=$s11;
 $FRAMESIZE=14;
 
 $code=<<___;
+#include "mips_arch.h"
+
 .text
 
 .set	noat
@@ -183,27 +185,27 @@ $code.=<<___;
 	$PTR_SUB $sp,$num
 	and	$sp,$at
 
-	$MULTU	$aj,$bi
-	$LD	$alo,$BNSZ($ap)
-	$LD	$nlo,$BNSZ($np)
-	mflo	$lo0
-	mfhi	$hi0
-	$MULTU	$lo0,$n0
-	mflo	$m1
+	$MULTU	($aj,$bi)
+	$LD	$ahi,$BNSZ($ap)
+	$LD	$nhi,$BNSZ($np)
+	mflo	($lo0,$aj,$bi)
+	mfhi	($hi0,$aj,$bi)
+	$MULTU	($lo0,$n0)
+	mflo	($m1,$lo0,$n0)
 
-	$MULTU	$alo,$bi
-	mflo	$alo
-	mfhi	$ahi
+	$MULTU	($ahi,$bi)
+	mflo	($alo,$ahi,$bi)
+	mfhi	($ahi,$ahi,$bi)
 
-	$MULTU	$nj,$m1
-	mflo	$lo1
-	mfhi	$hi1
-	$MULTU	$nlo,$m1
+	$MULTU	($nj,$m1)
+	mflo	($lo1,$nj,$m1)
+	mfhi	($hi1,$nj,$m1)
+	$MULTU	($nhi,$m1)
 	$ADDU	$lo1,$lo0
 	sltu	$at,$lo1,$lo0
 	$ADDU	$hi1,$at
-	mflo	$nlo
-	mfhi	$nhi
+	mflo	($nlo,$nhi,$m1)
+	mfhi	($nhi,$nhi,$m1)
 
 	move	$tp,$sp
 	li	$j,2*$BNSZ
@@ -215,25 +217,25 @@ $code.=<<___;
 	$LD	$aj,($aj)
 	$LD	$nj,($nj)
 
-	$MULTU	$aj,$bi
+	$MULTU	($aj,$bi)
 	$ADDU	$lo0,$alo,$hi0
 	$ADDU	$lo1,$nlo,$hi1
 	sltu	$at,$lo0,$hi0
 	sltu	$t0,$lo1,$hi1
 	$ADDU	$hi0,$ahi,$at
 	$ADDU	$hi1,$nhi,$t0
-	mflo	$alo
-	mfhi	$ahi
+	mflo	($alo,$aj,$bi)
+	mfhi	($ahi,$aj,$bi)
 
 	$ADDU	$lo1,$lo0
 	sltu	$at,$lo1,$lo0
-	$MULTU	$nj,$m1
+	$MULTU	($nj,$m1)
 	$ADDU	$hi1,$at
 	addu	$j,$BNSZ
 	$ST	$lo1,($tp)
 	sltu	$t0,$j,$num
-	mflo	$nlo
-	mfhi	$nhi
+	mflo	($nlo,$nj,$m1)
+	mfhi	($nhi,$nj,$m1)
 
 	bnez	$t0,.L1st
 	$PTR_ADD $tp,$BNSZ
@@ -263,34 +265,34 @@ $code.=<<___;
 	$PTR_ADD $bi,$bp,$i
 	$LD	$bi,($bi)
 	$LD	$aj,($ap)
-	$LD	$alo,$BNSZ($ap)
+	$LD	$ahi,$BNSZ($ap)
 	$LD	$tj,($sp)
 
-	$MULTU	$aj,$bi
+	$MULTU	($aj,$bi)
 	$LD	$nj,($np)
-	$LD	$nlo,$BNSZ($np)
-	mflo	$lo0
-	mfhi	$hi0
+	$LD	$nhi,$BNSZ($np)
+	mflo	($lo0,$aj,$bi)
+	mfhi	($hi0,$aj,$bi)
 	$ADDU	$lo0,$tj
-	$MULTU	$lo0,$n0
+	$MULTU	($lo0,$n0)
 	sltu	$at,$lo0,$tj
 	$ADDU	$hi0,$at
-	mflo	$m1
+	mflo	($m1,$lo0,$n0)
 
-	$MULTU	$alo,$bi
-	mflo	$alo
-	mfhi	$ahi
+	$MULTU	($ahi,$bi)
+	mflo	($alo,$ahi,$bi)
+	mfhi	($ahi,$ahi,$bi)
 
-	$MULTU	$nj,$m1
-	mflo	$lo1
-	mfhi	$hi1
+	$MULTU	($nj,$m1)
+	mflo	($lo1,$nj,$m1)
+	mfhi	($hi1,$nj,$m1)
 
-	$MULTU	$nlo,$m1
+	$MULTU	($nhi,$m1)
 	$ADDU	$lo1,$lo0
 	sltu	$at,$lo1,$lo0
 	$ADDU	$hi1,$at
-	mflo	$nlo
-	mfhi	$nhi
+	mflo	($nlo,$nhi,$m1)
+	mfhi	($nhi,$nhi,$m1)
 
 	move	$tp,$sp
 	li	$j,2*$BNSZ
@@ -303,19 +305,19 @@ $code.=<<___;
 	$LD	$aj,($aj)
 	$LD	$nj,($nj)
 
-	$MULTU	$aj,$bi
+	$MULTU	($aj,$bi)
 	$ADDU	$lo0,$alo,$hi0
 	$ADDU	$lo1,$nlo,$hi1
 	sltu	$at,$lo0,$hi0
 	sltu	$t0,$lo1,$hi1
 	$ADDU	$hi0,$ahi,$at
 	$ADDU	$hi1,$nhi,$t0
-	mflo	$alo
-	mfhi	$ahi
+	mflo	($alo,$aj,$bi)
+	mfhi	($ahi,$aj,$bi)
 
 	$ADDU	$lo0,$tj
 	addu	$j,$BNSZ
-	$MULTU	$nj,$m1
+	$MULTU	($nj,$m1)
 	sltu	$at,$lo0,$tj
 	$ADDU	$lo1,$lo0
 	$ADDU	$hi0,$at
@@ -323,8 +325,8 @@ $code.=<<___;
 	$LD	$tj,2*$BNSZ($tp)
 	$ADDU	$hi1,$t0
 	sltu	$at,$j,$num
-	mflo	$nlo
-	mfhi	$nhi
+	mflo	($nlo,$nj,$m1)
+	mfhi	($nhi,$nj,$m1)
 	$ST	$lo1,($tp)
 	bnez	$at,.Linner
 	$PTR_ADD $tp,$BNSZ

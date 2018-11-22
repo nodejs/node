@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -28,6 +28,7 @@
 # PPC970		7.00/+114%	3.51/+205%
 # POWER7		3.75/+260%	1.93/+100%
 # POWER8		-		2.03/+200%
+# POWER9		-		2.00/+150%
 #
 # Do we need floating-point implementation for PPC? Results presented
 # in poly1305_ieee754.c are tricky to compare to, because they are for

@@ -45,7 +45,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"ecp_nistz256-x86.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $sse2=0;
 for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
@@ -443,7 +443,7 @@ for(1..37) {
 	&mov	(&DWP(20,"esp"),"eax");
 	&mov	(&DWP(24,"esp"),"eax");
 	&mov	(&DWP(28,"esp"),"eax");
-	
+
 	&call	("_ecp_nistz256_sub");
 
 	&stack_pop(8);

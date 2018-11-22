@@ -12,6 +12,7 @@ use warnings;
 
 use File::Spec::Functions qw/canonpath/;
 use OpenSSL::Test qw/:DEFAULT srctop_file/;
+use OpenSSL::Test::Utils;
 
 setup("test_verify");
 
@@ -20,17 +21,13 @@ sub verify {
     my @args = qw(openssl verify -auth_level 1 -purpose);
     my @path = qw(test certs);
     push(@args, "$purpose", @opts);
-    for (@$trusted) {
-        push(@args, "-trusted", srctop_file(@path, "$_.pem"))
-    }
-    for (@$untrusted) {
-        push(@args, "-untrusted", srctop_file(@path, "$_.pem"))
-    }
+    for (@$trusted) { push(@args, "-trusted", srctop_file(@path, "$_.pem")) }
+    for (@$untrusted) { push(@args, "-untrusted", srctop_file(@path, "$_.pem")) }
     push(@args, srctop_file(@path, "$cert.pem"));
     run(app([@args]));
 }
 
-plan tests => 129;
+plan tests => 134;
 
 # Canonical success
 ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"]),
@@ -165,16 +162,13 @@ ok(verify("ee-cert", "sslserver", [qw(root-cert ca+anyEKU)], [qw(ca-cert)]),
    "accept wildcard trust");
 ok(verify("ee-cert", "sslserver", [qw(root-cert sca-cert)], [qw(ca-cert)]),
    "accept server purpose");
-ok(verify("ee-cert", "sslserver", [qw(root-cert sca+serverAuth)],
-          [qw(ca-cert)]),
+ok(verify("ee-cert", "sslserver", [qw(root-cert sca+serverAuth)], [qw(ca-cert)]),
    "accept server trust and purpose");
 ok(verify("ee-cert", "sslserver", [qw(root-cert sca+anyEKU)], [qw(ca-cert)]),
    "accept wildcard trust and server purpose");
-ok(verify("ee-cert", "sslserver", [qw(root-cert sca-clientAuth)],
-          [qw(ca-cert)]),
+ok(verify("ee-cert", "sslserver", [qw(root-cert sca-clientAuth)], [qw(ca-cert)]),
    "accept client mistrust and server purpose");
-ok(verify("ee-cert", "sslserver", [qw(root-cert cca+serverAuth)],
-          [qw(ca-cert)]),
+ok(verify("ee-cert", "sslserver", [qw(root-cert cca+serverAuth)], [qw(ca-cert)]),
    "accept server trust and client purpose");
 ok(verify("ee-cert", "sslserver", [qw(root-cert cca+anyEKU)], [qw(ca-cert)]),
    "accept wildcard trust and client purpose");
@@ -182,26 +176,19 @@ ok(!verify("ee-cert", "sslserver", [qw(root-cert cca-cert)], [qw(ca-cert)]),
    "fail client purpose");
 ok(!verify("ee-cert", "sslserver", [qw(root-cert ca-anyEKU)], [qw(ca-cert)]),
    "fail wildcard mistrust");
-ok(!verify("ee-cert", "sslserver", [qw(root-cert ca-serverAuth)],
-           [qw(ca-cert)]),
+ok(!verify("ee-cert", "sslserver", [qw(root-cert ca-serverAuth)], [qw(ca-cert)]),
    "fail server mistrust");
-ok(!verify("ee-cert", "sslserver", [qw(root-cert ca+clientAuth)],
-           [qw(ca-cert)]),
+ok(!verify("ee-cert", "sslserver", [qw(root-cert ca+clientAuth)], [qw(ca-cert)]),
    "fail client trust");
-ok(!verify("ee-cert", "sslserver", [qw(root-cert sca+clientAuth)],
-           [qw(ca-cert)]),
+ok(!verify("ee-cert", "sslserver", [qw(root-cert sca+clientAuth)], [qw(ca-cert)]),
    "fail client trust and server purpose");
-ok(!verify("ee-cert", "sslserver", [qw(root-cert cca+clientAuth)],
-           [qw(ca-cert)]),
+ok(!verify("ee-cert", "sslserver", [qw(root-cert cca+clientAuth)], [qw(ca-cert)]),
    "fail client trust and client purpose");
-ok(!verify("ee-cert", "sslserver", [qw(root-cert cca-serverAuth)],
-           [qw(ca-cert)]),
+ok(!verify("ee-cert", "sslserver", [qw(root-cert cca-serverAuth)], [qw(ca-cert)]),
    "fail server mistrust and client purpose");
-ok(!verify("ee-cert", "sslserver", [qw(root-cert cca-clientAuth)],
-           [qw(ca-cert)]),
+ok(!verify("ee-cert", "sslserver", [qw(root-cert cca-clientAuth)], [qw(ca-cert)]),
    "fail client mistrust and client purpose");
-ok(!verify("ee-cert", "sslserver", [qw(root-cert sca-serverAuth)],
-           [qw(ca-cert)]),
+ok(!verify("ee-cert", "sslserver", [qw(root-cert sca-serverAuth)], [qw(ca-cert)]),
    "fail server mistrust and server purpose");
 ok(!verify("ee-cert", "sslserver", [qw(root-cert sca-anyEKU)], [qw(ca-cert)]),
    "fail wildcard mistrust and server purpose");
@@ -242,58 +229,49 @@ ok(!verify("pc1-cert", "sslclient", [qw(root-cert)], [qw(ee-client ca-cert)]),
 ok(verify("pc1-cert", "sslclient", [qw(root-cert)], [qw(ee-client ca-cert)],
           "-allow_proxy_certs"),
    "accept proxy cert 1");
-ok(verify("pc2-cert", "sslclient", [qw(root-cert)],
-          [qw(pc1-cert ee-client ca-cert)], "-allow_proxy_certs"),
+ok(verify("pc2-cert", "sslclient", [qw(root-cert)], [qw(pc1-cert ee-client ca-cert)],
+          "-allow_proxy_certs"),
    "accept proxy cert 2");
-ok(!verify("bad-pc3-cert", "sslclient", [qw(root-cert)],
-           [qw(pc1-cert ee-client ca-cert)], "-allow_proxy_certs"),
+ok(!verify("bad-pc3-cert", "sslclient", [qw(root-cert)], [qw(pc1-cert ee-client ca-cert)],
+          "-allow_proxy_certs"),
    "fail proxy cert with incorrect subject");
-ok(!verify("bad-pc4-cert", "sslclient", [qw(root-cert)],
-           [qw(pc1-cert ee-client ca-cert)], "-allow_proxy_certs"),
+ok(!verify("bad-pc4-cert", "sslclient", [qw(root-cert)], [qw(pc1-cert ee-client ca-cert)],
+          "-allow_proxy_certs"),
    "fail proxy cert with incorrect pathlen");
-ok(verify("pc5-cert", "sslclient", [qw(root-cert)],
-          [qw(pc1-cert ee-client ca-cert)], "-allow_proxy_certs"),
+ok(verify("pc5-cert", "sslclient", [qw(root-cert)], [qw(pc1-cert ee-client ca-cert)],
+          "-allow_proxy_certs"),
    "accept proxy cert missing proxy policy");
-ok(!verify("pc6-cert", "sslclient", [qw(root-cert)],
-           [qw(pc1-cert ee-client ca-cert)], "-allow_proxy_certs"),
+ok(!verify("pc6-cert", "sslclient", [qw(root-cert)], [qw(pc1-cert ee-client ca-cert)],
+          "-allow_proxy_certs"),
    "failed proxy cert where last CN was added as a multivalue RDN component");
 
 # Security level tests
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"],
-          "-auth_level", "2"),
+ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
    "accept RSA 2048 chain at auth level 2");
-ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"],
-           "-auth_level", "3"),
+ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "3"),
    "reject RSA 2048 root at auth level 3");
-ok(verify("ee-cert", "sslserver", ["root-cert-768"], ["ca-cert-768i"],
-          "-auth_level", "0"),
+ok(verify("ee-cert", "sslserver", ["root-cert-768"], ["ca-cert-768i"], "-auth_level", "0"),
    "accept RSA 768 root at auth level 0");
 ok(!verify("ee-cert", "sslserver", ["root-cert-768"], ["ca-cert-768i"]),
    "reject RSA 768 root at auth level 1");
-ok(verify("ee-cert-768i", "sslserver", ["root-cert"], ["ca-cert-768"],
-          "-auth_level", "0"),
+ok(verify("ee-cert-768i", "sslserver", ["root-cert"], ["ca-cert-768"], "-auth_level", "0"),
    "accept RSA 768 intermediate at auth level 0");
 ok(!verify("ee-cert-768i", "sslserver", ["root-cert"], ["ca-cert-768"]),
    "reject RSA 768 intermediate at auth level 1");
-ok(verify("ee-cert-768", "sslserver", ["root-cert"], ["ca-cert"],
-          "-auth_level", "0"),
+ok(verify("ee-cert-768", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "0"),
    "accept RSA 768 leaf at auth level 0");
 ok(!verify("ee-cert-768", "sslserver", ["root-cert"], ["ca-cert"]),
    "reject RSA 768 leaf at auth level 1");
 #
-ok(verify("ee-cert", "sslserver", ["root-cert-md5"], ["ca-cert"],
-          "-auth_level", "2"),
+ok(verify("ee-cert", "sslserver", ["root-cert-md5"], ["ca-cert"], "-auth_level", "2"),
    "accept md5 self-signed TA at auth level 2");
-ok(verify("ee-cert", "sslserver", ["ca-cert-md5-any"], [],
-          "-auth_level", "2"),
+ok(verify("ee-cert", "sslserver", ["ca-cert-md5-any"], [], "-auth_level", "2"),
    "accept md5 intermediate TA at auth level 2");
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert-md5"],
-          "-auth_level", "0"),
+ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert-md5"], "-auth_level", "0"),
    "accept md5 intermediate at auth level 0");
 ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert-md5"]),
    "reject md5 intermediate at auth level 1");
-ok(verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"],
-          "-auth_level", "0"),
+ok(verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "0"),
    "accept md5 leaf at auth level 0");
 ok(!verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"]),
    "reject md5 leaf at auth level 1");
@@ -302,17 +280,13 @@ ok(!verify("ee-cert-md5", "sslserver", ["root-cert"], ["ca-cert"]),
 # between the trust-anchor and the leaf, so, for example, with a root->ca->leaf
 # chain, depth = 1 is sufficient, but depth == 0 is not.
 #
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"],
-          "-verify_depth", "2"),
+ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-verify_depth", "2"),
    "accept chain with verify_depth 2");
-ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"],
-          "-verify_depth", "1"),
+ok(verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-verify_depth", "1"),
    "accept chain with verify_depth 1");
-ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"],
-           "-verify_depth", "0"),
+ok(!verify("ee-cert", "sslserver", ["root-cert"], ["ca-cert"], "-verify_depth", "0"),
    "accept chain with verify_depth 0");
-ok(verify("ee-cert", "sslserver", ["ca-cert-md5-any"], [],
-          "-verify_depth", "0"),
+ok(verify("ee-cert", "sslserver", ["ca-cert-md5-any"], [], "-verify_depth", "0"),
    "accept md5 intermediate TA with verify_depth 0");
 
 # Name Constraints tests.
@@ -353,34 +327,47 @@ ok(!verify("badalt6-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
 ok(!verify("badalt7-cert", "sslserver", ["root-cert"], ["ncca1-cert"], ),
    "Name Constraints CN BMPSTRING hostname not permitted");
 
-ok(!verify("badalt8-cert", "sslserver", ["root-cert"],
-           ["ncca1-cert", "ncca3-cert"], ),
-   "Name constaints nested DNS name not permitted 1");
+ok(!verify("badalt8-cert", "sslserver", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
+   "Name constraints nested DNS name not permitted 1");
 
-ok(!verify("badalt9-cert", "sslserver", ["root-cert"],
-           ["ncca1-cert", "ncca3-cert"], ),
-   "Name constaints nested DNS name not permitted 2");
+ok(!verify("badalt9-cert", "sslserver", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
+   "Name constraints nested DNS name not permitted 2");
 
-ok(!verify("badalt10-cert", "sslserver", ["root-cert"],
-           ["ncca1-cert", "ncca3-cert"], ),
-   "Name constaints nested DNS name excluded");
+ok(!verify("badalt10-cert", "sslserver", ["root-cert"], ["ncca1-cert", "ncca3-cert"], ),
+   "Name constraints nested DNS name excluded");
 
-ok(!verify("many-names1", "sslserver", ["many-constraints"],
-           ["many-constraints"], ),
-   "Too many names and constraints to check (1)");
-ok(!verify("many-names2", "sslserver", ["many-constraints"],
-           ["many-constraints"], ),
-   "Too many names and constraints to check (2)");
-ok(!verify("many-names3", "sslserver", ["many-constraints"],
-           ["many-constraints"], ),
-   "Too many names and constraints to check (3)");
+ok(verify("ee-pss-sha1-cert", "sslserver", ["root-cert"], ["ca-cert"], ),
+    "Certificate PSS signature using SHA1");
 
-ok(verify("some-names1", "sslserver", ["many-constraints"],
-          ["many-constraints"], ),
-   "Not too many names and constraints to check (1)");
-ok(verify("some-names2", "sslserver", ["many-constraints"],
-          ["many-constraints"], ),
-   "Not too many names and constraints to check (2)");
-ok(verify("some-names2", "sslserver", ["many-constraints"],
-          ["many-constraints"], ),
-   "Not too many names and constraints to check (3)");
+ok(verify("ee-pss-sha256-cert", "sslserver", ["root-cert"], ["ca-cert"], ),
+    "CA with PSS signature using SHA256");
+
+ok(!verify("ee-pss-sha1-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
+    "Reject PSS signature using SHA1 and auth level 2");
+
+ok(verify("ee-pss-sha256-cert", "sslserver", ["root-cert"], ["ca-cert"], "-auth_level", "2"),
+    "PSS signature using SHA256 and auth level 2");
+
+ok(!verify("many-names1", "sslserver", ["many-constraints"], ["many-constraints"], ),
+    "Too many names and constraints to check (1)");
+ok(!verify("many-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
+    "Too many names and constraints to check (2)");
+ok(!verify("many-names3", "sslserver", ["many-constraints"], ["many-constraints"], ),
+    "Too many names and constraints to check (3)");
+
+ok(verify("some-names1", "sslserver", ["many-constraints"], ["many-constraints"], ),
+    "Not too many names and constraints to check (1)");
+ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
+    "Not too many names and constraints to check (2)");
+ok(verify("some-names2", "sslserver", ["many-constraints"], ["many-constraints"], ),
+    "Not too many names and constraints to check (3)");
+
+SKIP: {
+    skip "Ed25519 is not supported by this OpenSSL build", 1
+	      if disabled("ec");
+
+    # ED25519 certificate from draft-ietf-curdle-pkix-04
+    ok(verify("ee-ed25519", "sslserver", ["root-ed25519"], []),
+       "ED25519 signature");
+
+}

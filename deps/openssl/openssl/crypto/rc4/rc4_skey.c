@@ -14,15 +14,14 @@
 const char *RC4_options(void)
 {
     if (sizeof(RC4_INT) == 1)
-        return ("rc4(char)");
+        return "rc4(char)";
     else
-        return ("rc4(int)");
+        return "rc4(int)";
 }
 
 /*-
  * RC4 as implemented from a posting from
  * Newsgroups: sci.crypt
- * From: sterndark@netcom.com (David Sterndark)
  * Subject: RC4 Algorithm revealed.
  * Message-ID: <sternCvKL4B.Hyy@netcom.com>
  * Date: Wed, 14 Sep 1994 06:35:31 GMT

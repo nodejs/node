@@ -9,7 +9,7 @@ require "x86asm.pl";
 
 The first thing we do is setup the file and type of assembler
 
-&asm_init($ARGV[0],$0);
+&asm_init($ARGV[0]);
 
 The first argument is the 'type'.  Currently
 'cpp', 'sol', 'a.out', 'elf' or 'win32'.
@@ -62,7 +62,7 @@ So a very simple version of this function could be coded as
 	push(@INC,"perlasm","../../perlasm");
 	require "x86asm.pl";
 	
-	&asm_init($ARGV[0],"cacl.pl");
+	&asm_init($ARGV[0]);
 
 	&external_label("other");
 

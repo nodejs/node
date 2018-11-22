@@ -8,7 +8,7 @@
 
 
 # ====================================================================
-# [Re]written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# [Re]written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -32,8 +32,6 @@
 #	performance on the same Opteron machine.
 # (**)	This number requires compressed key schedule set up by
 #	RC4_set_key [see commentary below for further details].
-#
-#					<appro@fy.chalmers.se>
 
 # May 2011
 #
@@ -73,7 +71,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"rc4-586.pl",$x86only = $ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$x86only = $ARGV[$#ARGV] eq "386");
 
 $xx="eax";
 $yy="ebx";
@@ -136,7 +134,7 @@ if ($alt=0) {
 	push	(@XX,shift(@XX))			if ($i>=0);
   }
 } else {
-  # Using pinsrw here improves performane on Intel CPUs by 2-3%, but
+  # Using pinsrw here improves performance on Intel CPUs by 2-3%, but
   # brings down AMD by 7%...
   $RC4_loop_mmx = sub {
     my $i=shift;

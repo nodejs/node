@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
+#include "internal/refcount.h"
 #include <openssl/bn.h>
 #include "dh_locl.h"
 #include <openssl/engine.h>
@@ -99,7 +100,7 @@ void DH_free(DH *r)
     if (r == NULL)
         return;
 
-    CRYPTO_atomic_add(&r->references, -1, &i, r->lock);
+    CRYPTO_DOWN_REF(&r->references, &i, r->lock);
     REF_PRINT_COUNT("DH", r);
     if (i > 0)
         return;
@@ -130,7 +131,7 @@ int DH_up_ref(DH *r)
 {
     int i;
 
-    if (CRYPTO_atomic_add(&r->references, 1, &i, r->lock) <= 0)
+    if (CRYPTO_UP_REF(&r->references, &i, r->lock) <= 0)
         return 0;
 
     REF_PRINT_COUNT("DH", r);
@@ -140,12 +141,12 @@ int DH_up_ref(DH *r)
 
 int DH_set_ex_data(DH *d, int idx, void *arg)
 {
-    return (CRYPTO_set_ex_data(&d->ex_data, idx, arg));
+    return CRYPTO_set_ex_data(&d->ex_data, idx, arg);
 }
 
 void *DH_get_ex_data(DH *d, int idx)
 {
-    return (CRYPTO_get_ex_data(&d->ex_data, idx));
+    return CRYPTO_get_ex_data(&d->ex_data, idx);
 }
 
 int DH_bits(const DH *dh)
@@ -155,7 +156,7 @@ int DH_bits(const DH *dh)
 
 int DH_size(const DH *dh)
 {
-    return (BN_num_bytes(dh->p));
+    return BN_num_bytes(dh->p);
 }
 
 int DH_security_bits(const DH *dh)
@@ -242,6 +243,31 @@ int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key)
     }
 
     return 1;
+}
+
+const BIGNUM *DH_get0_p(const DH *dh)
+{
+    return dh->p;
+}
+
+const BIGNUM *DH_get0_q(const DH *dh)
+{
+    return dh->q;
+}
+
+const BIGNUM *DH_get0_g(const DH *dh)
+{
+    return dh->g;
+}
+
+const BIGNUM *DH_get0_priv_key(const DH *dh)
+{
+    return dh->priv_key;
+}
+
+const BIGNUM *DH_get0_pub_key(const DH *dh)
+{
+    return dh->pub_key;
 }
 
 void DH_clear_flags(DH *dh, int flags)

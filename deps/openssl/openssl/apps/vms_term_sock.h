@@ -1,4 +1,5 @@
 /*
+ * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2016 VMS Software, Inc. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use

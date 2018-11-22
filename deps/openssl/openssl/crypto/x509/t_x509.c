@@ -30,12 +30,12 @@ int X509_print_ex_fp(FILE *fp, X509 *x, unsigned long nmflag,
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
         X509err(X509_F_X509_PRINT_EX_FP, ERR_R_BUF_LIB);
-        return (0);
+        return 0;
     }
     BIO_set_fp(b, fp, BIO_NOCLOSE);
     ret = X509_print_ex(b, x, nmflag, cflag);
     BIO_free(b);
-    return (ret);
+    return ret;
 }
 #endif
 
@@ -119,6 +119,9 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
 
     if (!(cflag & X509_FLAG_NO_SIGNAME)) {
         const X509_ALGOR *tsig_alg = X509_get0_tbs_sigalg(x);
+
+        if (BIO_puts(bp, "    ") <= 0)
+            goto err;
         if (X509_signature_print(bp, tsig_alg, NULL) <= 0)
             goto err;
     }
@@ -212,7 +215,7 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
     ret = 1;
  err:
     OPENSSL_free(m);
-    return (ret);
+    return ret;
 }
 
 int X509_ocspid_print(BIO *bp, X509 *x)
@@ -266,10 +269,10 @@ int X509_ocspid_print(BIO *bp, X509 *x)
     }
     BIO_printf(bp, "\n");
 
-    return (1);
+    return 1;
  err:
     OPENSSL_free(der);
-    return (0);
+    return 0;
 }
 
 int X509_signature_dump(BIO *bp, const ASN1_STRING *sig, int indent)

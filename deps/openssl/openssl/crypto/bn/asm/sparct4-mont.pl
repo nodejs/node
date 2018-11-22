@@ -8,9 +8,9 @@
 
 
 # ====================================================================
-# Written by David S. Miller <davem@devemloft.net> and Andy Polyakov
-# <appro@openssl.org>. The module is licensed under 2-clause BSD
-# license. November 2012. All rights reserved.
+# Written by David S. Miller and Andy Polyakov
+# The module is licensed under 2-clause BSD license.
+# November 2012. All rights reserved.
 # ====================================================================
 
 ######################################################################

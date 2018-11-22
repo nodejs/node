@@ -254,7 +254,7 @@ static int dsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
 
 static int int_dsa_size(const EVP_PKEY *pkey)
 {
-    return (DSA_size(pkey->pkey.dsa));
+    return DSA_size(pkey->pkey.dsa);
 }
 
 static int dsa_bits(const EVP_PKEY *pkey)
@@ -369,7 +369,7 @@ static int do_dsa_print(BIO *bp, const DSA *x, int off, int ptype)
         goto err;
     ret = 1;
  err:
-    return (ret);
+    return ret;
 }
 
 static int dsa_param_decode(EVP_PKEY *pkey,

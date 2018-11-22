@@ -327,6 +327,12 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
     if (mctx == NULL)
         goto err;
 
+    /* make sure L > N, otherwise we'll get trapped in an infinite loop */
+    if (L <= N) {
+        DSAerr(DSA_F_DSA_BUILTIN_PARAMGEN2, DSA_R_INVALID_PARAMETERS);
+        goto err;
+    }
+
     if (evpmd == NULL) {
         if (N == 160)
             evpmd = EVP_sha1();

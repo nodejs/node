@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,12 +20,12 @@ int RSA_print_fp(FILE *fp, const RSA *x, int off)
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
         RSAerr(RSA_F_RSA_PRINT_FP, ERR_R_BUF_LIB);
-        return (0);
+        return 0;
     }
     BIO_set_fp(b, fp, BIO_NOCLOSE);
     ret = RSA_print(b, x, off);
     BIO_free(b);
-    return (ret);
+    return ret;
 }
 #endif
 

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -25,11 +25,20 @@
 # sha1-ppc.pl and 1.6x slower than aes-128-cbc. Another interesting
 # result is degree of computational resources' utilization. POWER8 is
 # "massively multi-threaded chip" and difference between single- and
-# maximum multi-process benchmark results tells that utlization is
+# maximum multi-process benchmark results tells that utilization is
 # whooping 94%. For sha512-ppc.pl we get [not unimpressive] 84% and
 # for sha1-ppc.pl - 73%. 100% means that multi-process result equals
 # to single-process one, given that all threads end up on the same
 # physical core.
+#
+######################################################################
+# Believed-to-be-accurate results in cycles per processed byte [on
+# little-endian system]. Numbers in square brackets are for 64-bit
+# build of sha512-ppc.pl, presented for reference.
+#
+#		POWER8		POWER9
+# SHA256	9.7 [15.8]	11.2 [12.5]
+# SHA512	6.1 [10.3]	7.0 [7.9]
 
 $flavour=shift;
 $output =shift;
@@ -70,7 +79,8 @@ if ($output =~ /512/) {
 }
 
 $func="sha${bits}_block_p8";
-$FRAME=8*$SIZE_T;
+$LOCALS=8*$SIZE_T+8*16;
+$FRAME=$LOCALS+9*16+6*$SIZE_T;
 
 $sp ="r1";
 $toc="r2";
@@ -82,16 +92,16 @@ $idx="r7";
 $lrsave="r8";
 $offload="r11";
 $vrsave="r12";
-($x00,$x10,$x20,$x30,$x40,$x50,$x60,$x70)=map("r$_",(0,10,26..31));
- $x00=0 if ($flavour =~ /osx/);
+@I = ($x00,$x10,$x20,$x30,$x40,$x50,$x60,$x70) = (0,map("r$_",(10,26..31)));
 
 @V=($A,$B,$C,$D,$E,$F,$G,$H)=map("v$_",(0..7));
-@X=map("v$_",(8..23));
-($Ki,$Func,$S0,$S1,$s0,$s1,$lemask)=map("v$_",(24..31));
+@X=map("v$_",(8..19,24..27));
+($Ki,$Func,$Sigma,$lemask)=map("v$_",(28..31));
 
 sub ROUND {
 my ($i,$a,$b,$c,$d,$e,$f,$g,$h)=@_;
 my $j=($i+1)%16;
+my $k=($i+2)%8;
 
 $code.=<<___		if ($i<15 && ($i%(16/$SZ))==(16/$SZ-1));
 	lvx_u		@X[$i+1],0,$inp		; load X[i] in advance
@@ -103,26 +113,30 @@ ___
 $code.=<<___		if ($LENDIAN && $i<16 && ($i%(16/$SZ))==0);
 	vperm		@X[$i],@X[$i],@X[$i],$lemask
 ___
+$code.=<<___		if ($i>=15);
+	vshasigma${sz}	$Sigma,@X[($j+1)%16],0,0
+	vaddu${sz}m	@X[$j],@X[$j],$Sigma
+	vshasigma${sz}	$Sigma,@X[($j+14)%16],0,15
+	vaddu${sz}m	@X[$j],@X[$j],$Sigma
+	vaddu${sz}m	@X[$j],@X[$j],@X[($j+9)%16]
+___
 $code.=<<___;
-	`"vshasigma${sz}	$s0,@X[($j+1)%16],0,0"		if ($i>=15)`
-	vsel		$Func,$g,$f,$e		; Ch(e,f,g)
-	vshasigma${sz}	$S1,$e,1,15		; Sigma1(e)
 	vaddu${sz}m	$h,$h,@X[$i%16]		; h+=X[i]
-	vshasigma${sz}	$S0,$a,1,0		; Sigma0(a)
-	`"vshasigma${sz}	$s1,@X[($j+14)%16],0,15"	if ($i>=15)`
-	vaddu${sz}m	$h,$h,$Func		; h+=Ch(e,f,g)
-	vxor		$Func,$a,$b
-	`"vaddu${sz}m		@X[$j],@X[$j],@X[($j+9)%16]"	if ($i>=15)`
-	vaddu${sz}m	$h,$h,$S1		; h+=Sigma1(e)
-	vsel		$Func,$b,$c,$Func	; Maj(a,b,c)
+	vsel		$Func,$g,$f,$e		; Ch(e,f,g)
 	vaddu${sz}m	$g,$g,$Ki		; future h+=K[i]
+	vaddu${sz}m	$h,$h,$Func		; h+=Ch(e,f,g)
+	vshasigma${sz}	$Sigma,$e,1,15		; Sigma1(e)
+	vaddu${sz}m	$h,$h,$Sigma		; h+=Sigma1(e)
+	vxor		$Func,$a,$b
+	vsel		$Func,$b,$c,$Func	; Maj(a,b,c)
 	vaddu${sz}m	$d,$d,$h		; d+=h
-	vaddu${sz}m	$S0,$S0,$Func		; Sigma0(a)+Maj(a,b,c)
-	`"vaddu${sz}m		@X[$j],@X[$j],$s0"		if ($i>=15)`
-	lvx		$Ki,$idx,$Tbl		; load next K[i]
-	addi		$idx,$idx,16
-	vaddu${sz}m	$h,$h,$S0		; h+=Sigma0(a)+Maj(a,b,c)
-	`"vaddu${sz}m		@X[$j],@X[$j],$s1"		if ($i>=15)`
+	vshasigma${sz}	$Sigma,$a,1,0		; Sigma0(a)
+	vaddu${sz}m	$Sigma,$Sigma,$Func	; Sigma0(a)+Maj(a,b,c)
+	vaddu${sz}m	$h,$h,$Sigma		; h+=Sigma0(a)+Maj(a,b,c)
+	lvx		$Ki,@I[$k],$idx		; load next K[i]
+___
+$code.=<<___		if ($k == 7);
+	addi		$idx,$idx,0x80
 ___
 }
 
@@ -133,21 +147,13 @@ $code=<<___;
 .globl	$func
 .align	6
 $func:
-	$STU		$sp,-`($FRAME+21*16+6*$SIZE_T)`($sp)
+	$STU		$sp,-$FRAME($sp)
 	mflr		$lrsave
-	li		r10,`$FRAME+8*16+15`
-	li		r11,`$FRAME+8*16+31`
-	stvx		v20,r10,$sp		# ABI says so
+	li		r10,`$LOCALS+15`
+	li		r11,`$LOCALS+31`
+	stvx		v24,r10,$sp		# ABI says so
 	addi		r10,r10,32
 	mfspr		$vrsave,256
-	stvx		v21,r11,$sp
-	addi		r11,r11,32
-	stvx		v22,r10,$sp
-	addi		r10,r10,32
-	stvx		v23,r11,$sp
-	addi		r11,r11,32
-	stvx		v24,r10,$sp
-	addi		r10,r10,32
 	stvx		v25,r11,$sp
 	addi		r11,r11,32
 	stvx		v26,r10,$sp
@@ -160,26 +166,26 @@ $func:
 	addi		r11,r11,32
 	stvx		v30,r10,$sp
 	stvx		v31,r11,$sp
-	li		r11,-1
-	stw		$vrsave,`$FRAME+21*16-4`($sp)	# save vrsave
+	li		r11,-4096+255		# 0xfffff0ff
+	stw		$vrsave,`$FRAME-6*$SIZE_T-4`($sp)	# save vrsave
 	li		$x10,0x10
-	$PUSH		r26,`$FRAME+21*16+0*$SIZE_T`($sp)
+	$PUSH		r26,`$FRAME-6*$SIZE_T`($sp)
 	li		$x20,0x20
-	$PUSH		r27,`$FRAME+21*16+1*$SIZE_T`($sp)
+	$PUSH		r27,`$FRAME-5*$SIZE_T`($sp)
 	li		$x30,0x30
-	$PUSH		r28,`$FRAME+21*16+2*$SIZE_T`($sp)
+	$PUSH		r28,`$FRAME-4*$SIZE_T`($sp)
 	li		$x40,0x40
-	$PUSH		r29,`$FRAME+21*16+3*$SIZE_T`($sp)
+	$PUSH		r29,`$FRAME-3*$SIZE_T`($sp)
 	li		$x50,0x50
-	$PUSH		r30,`$FRAME+21*16+4*$SIZE_T`($sp)
+	$PUSH		r30,`$FRAME-2*$SIZE_T`($sp)
 	li		$x60,0x60
-	$PUSH		r31,`$FRAME+21*16+5*$SIZE_T`($sp)
+	$PUSH		r31,`$FRAME-1*$SIZE_T`($sp)
 	li		$x70,0x70
-	$PUSH		$lrsave,`$FRAME+21*16+6*$SIZE_T+$LRSAVE`($sp)
+	$PUSH		$lrsave,`$FRAME+$LRSAVE`($sp)
 	mtspr		256,r11
 
 	bl		LPICmeup
-	addi		$offload,$sp,$FRAME+15
+	addi		$offload,$sp,`8*$SIZE_T+15`
 ___
 $code.=<<___		if ($LENDIAN);
 	li		$idx,8
@@ -213,9 +219,9 @@ $code.=<<___;
 .align	5
 Loop:
 	lvx		$Ki,$x00,$Tbl
-	li		$idx,16
 	lvx_u		@X[0],0,$inp
 	addi		$inp,$inp,16
+	mr		$idx,$Tbl		# copy $Tbl
 	stvx		$A,$x00,$offload	# offload $A-$H
 	stvx		$B,$x10,$offload
 	stvx		$C,$x20,$offload
@@ -225,8 +231,7 @@ Loop:
 	stvx		$G,$x60,$offload
 	stvx		$H,$x70,$offload
 	vaddu${sz}m	$H,$H,$Ki		# h+K[i]
-	lvx		$Ki,$idx,$Tbl
-	addi		$idx,$idx,16
+	lvx		$Ki,$x10,$Tbl
 ___
 for ($i=0;$i<16;$i++)	{ &ROUND($i,@V); unshift(@V,pop(@V)); }
 $code.=<<___;
@@ -259,10 +264,9 @@ $code.=<<___;
 	bne		Loop
 ___
 $code.=<<___		if ($SZ==4);
-	lvx		@X[0],$idx,$Tbl
-	addi		$idx,$idx,16
+	lvx		@X[0],$x20,$idx
 	vperm		$A,$A,$B,$Ki		# pack the answer
-	lvx		@X[1],$idx,$Tbl
+	lvx		@X[1],$x30,$idx
 	vperm		$E,$E,$F,$Ki
 	vperm		$A,$A,$C,@X[0]
 	vperm		$E,$E,$G,@X[0]
@@ -282,39 +286,24 @@ $code.=<<___		if ($SZ==8);
 	stvx_u		$G,$x30,$ctx
 ___
 $code.=<<___;
-	li		r10,`$FRAME+8*16+15`
+	addi		$offload,$sp,`$LOCALS+15`
 	mtlr		$lrsave
-	li		r11,`$FRAME+8*16+31`
 	mtspr		256,$vrsave
-	lvx		v20,r10,$sp		# ABI says so
-	addi		r10,r10,32
-	lvx		v21,r11,$sp
-	addi		r11,r11,32
-	lvx		v22,r10,$sp
-	addi		r10,r10,32
-	lvx		v23,r11,$sp
-	addi		r11,r11,32
-	lvx		v24,r10,$sp
-	addi		r10,r10,32
-	lvx		v25,r11,$sp
-	addi		r11,r11,32
-	lvx		v26,r10,$sp
-	addi		r10,r10,32
-	lvx		v27,r11,$sp
-	addi		r11,r11,32
-	lvx		v28,r10,$sp
-	addi		r10,r10,32
-	lvx		v29,r11,$sp
-	addi		r11,r11,32
-	lvx		v30,r10,$sp
-	lvx		v31,r11,$sp
-	$POP		r26,`$FRAME+21*16+0*$SIZE_T`($sp)
-	$POP		r27,`$FRAME+21*16+1*$SIZE_T`($sp)
-	$POP		r28,`$FRAME+21*16+2*$SIZE_T`($sp)
-	$POP		r29,`$FRAME+21*16+3*$SIZE_T`($sp)
-	$POP		r30,`$FRAME+21*16+4*$SIZE_T`($sp)
-	$POP		r31,`$FRAME+21*16+5*$SIZE_T`($sp)
-	addi		$sp,$sp,`$FRAME+21*16+6*$SIZE_T`
+	lvx		v24,$x00,$offload	# ABI says so
+	lvx		v25,$x10,$offload
+	lvx		v26,$x20,$offload
+	lvx		v27,$x30,$offload
+	lvx		v28,$x40,$offload
+	lvx		v29,$x50,$offload
+	lvx		v30,$x60,$offload
+	lvx		v31,$x70,$offload
+	$POP		r26,`$FRAME-6*$SIZE_T`($sp)
+	$POP		r27,`$FRAME-5*$SIZE_T`($sp)
+	$POP		r28,`$FRAME-4*$SIZE_T`($sp)
+	$POP		r29,`$FRAME-3*$SIZE_T`($sp)
+	$POP		r30,`$FRAME-2*$SIZE_T`($sp)
+	$POP		r31,`$FRAME-1*$SIZE_T`($sp)
+	addi		$sp,$sp,$FRAME
 	blr
 	.long		0
 	.byte		0,12,4,1,0x80,6,3,0

@@ -43,7 +43,7 @@ $code.=<<___;
 	SHRU	$A,16,   $Ahi		; smash $A to two halfwords
 ||	EXTU	$A,16,16,$Alo
 
-	XORMPY	$Alo,$B_2,$Alox2	; 16x8 bits muliplication
+	XORMPY	$Alo,$B_2,$Alox2	; 16x8 bits multiplication
 ||	XORMPY	$Ahi,$B_2,$Ahix2
 ||	EXTU	$B,16,24,$B_1
 	XORMPY	$Alo,$B_0,$Alox0

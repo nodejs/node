@@ -6,7 +6,7 @@
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
-# Perl utility to run PKITS tests for RFC3280 compliance. 
+# Perl utility to run PKITS tests for RFC3280 compliance.
 
 my $ossl_path;
 
@@ -80,7 +80,7 @@ my @testlists = (
     [ "4.4.7", "Valid Two CRLs Test7",              0 ],
 
     # The test document suggests these should return certificate revoked...
-    # Subsquent discussion has concluded they should not due to unhandle
+    # Subsequent discussion has concluded they should not due to unhandle
     # critical CRL extensions.
     [ "4.4.8", "Invalid Unknown CRL Entry Extension Test8", 36 ],
     [ "4.4.9", "Invalid Unknown CRL Extension Test9",       36 ],
@@ -705,7 +705,7 @@ my @testlists = (
     [ "4.14.29", "Valid cRLIssuer Test29",                        0 ],
 
     # Although this test is valid it has a circular dependency. As a result
-    # an attempt is made to reursively checks a CRL path and rejected due to
+    # an attempt is made to recursively checks a CRL path and rejected due to
     # a CRL path validation error. PKITS notes suggest this test does not
     # need to be run due to this issue.
     [ "4.14.30", "Valid cRLIssuer Test30",                                 54 ],

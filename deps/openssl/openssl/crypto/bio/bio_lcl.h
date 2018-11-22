@@ -7,8 +7,9 @@
  * https://www.openssl.org/source/license.html
  */
 
-#define USE_SOCKETS
 #include "e_os.h"
+#include "internal/sockets.h"
+#include "internal/refcount.h"
 
 /* BEGIN BIO_ADDRINFO/BIO_ADDR stuff. */
 
@@ -86,7 +87,7 @@ union bio_addr_st {
 /* END BIO_ADDRINFO/BIO_ADDR stuff. */
 
 #include "internal/cryptlib.h"
-#include <internal/bio.h>
+#include "internal/bio.h"
 
 typedef struct bio_f_buffer_ctx_struct {
     /*-
@@ -114,7 +115,8 @@ typedef struct bio_f_buffer_ctx_struct {
 struct bio_st {
     const BIO_METHOD *method;
     /* bio, mode, argp, argi, argl, ret */
-    long (*callback) (struct bio_st *, int, const char *, int, long, long);
+    BIO_callback_fn callback;
+    BIO_callback_fn_ex callback_ex;
     char *cb_arg;               /* first argument for the callback */
     int init;
     int shutdown;
@@ -124,7 +126,7 @@ struct bio_st {
     void *ptr;
     struct bio_st *next_bio;    /* used by filter BIOs */
     struct bio_st *prev_bio;    /* used by filter BIOs */
-    int references;
+    CRYPTO_REF_COUNT references;
     uint64_t num_read;
     uint64_t num_write;
     CRYPTO_EX_DATA ex_data;

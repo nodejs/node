@@ -55,18 +55,6 @@ err:
     return rv;
 }
 
-/*- MACRO
-void EVP_SealUpdate(ctx,out,outl,in,inl)
-EVP_CIPHER_CTX *ctx;
-unsigned char *out;
-int *outl;
-unsigned char *in;
-int inl;
-        {
-        EVP_EncryptUpdate(ctx,out,outl,in,inl);
-        }
-*/
-
 int EVP_SealFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 {
     int i;

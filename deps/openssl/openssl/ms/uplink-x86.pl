@@ -15,7 +15,7 @@ require "uplink-common.pl";
 $output = pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"uplink-x86");
+&asm_init($ARGV[0]);
 
 &external_label("OPENSSL_Uplink");
 &public_label("OPENSSL_UplinkTable");

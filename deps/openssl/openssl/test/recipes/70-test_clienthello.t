@@ -7,7 +7,7 @@
 # https://www.openssl.org/source/license.html
 
 
-use OpenSSL::Test;
+use OpenSSL::Test qw/:DEFAULT srctop_file/;
 use OpenSSL::Test::Utils;
 
 setup("test_clienthello");
@@ -17,4 +17,5 @@ plan skip_all => "No TLS/SSL protocols are supported by this OpenSSL build"
 
 plan tests => 1;
 
-ok(run(test(["clienthellotest"])), "running clienthellotest");
+ok(run(test(["clienthellotest", srctop_file("test", "session.pem")])),
+   "running clienthellotest");

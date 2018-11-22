@@ -1,4 +1,4 @@
-# Title=brainpoolP160r1 curve tests
+Title=brainpoolP160r1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP160r1
 -----BEGIN PRIVATE KEY-----
@@ -36,7 +36,7 @@ Derive=BOB_cf_brainpoolP160r1
 PeerKey=ALICE_cf_brainpoolP160r1_PUB
 SharedSecret=2e75cb6a8f13951b437e04a0ed1d714a610036cc
 
-# Title=brainpoolP160t1 curve tests
+Title=brainpoolP160t1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP160t1
 -----BEGIN PRIVATE KEY-----
@@ -74,7 +74,7 @@ Derive=BOB_cf_brainpoolP160t1
 PeerKey=ALICE_cf_brainpoolP160t1_PUB
 SharedSecret=6ea603a6a1a83812b967c83ef1867bd807be761e
 
-# Title=brainpoolP192r1 curve tests
+Title=brainpoolP192r1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP192r1
 -----BEGIN PRIVATE KEY-----
@@ -114,7 +114,7 @@ Derive=BOB_cf_brainpoolP192r1
 PeerKey=ALICE_cf_brainpoolP192r1_PUB
 SharedSecret=2b34396d02a40df0b9f8f9c0b8623be05b41249fbd69e02a
 
-# Title=brainpoolP192t1 curve tests
+Title=brainpoolP192t1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP192t1
 -----BEGIN PRIVATE KEY-----
@@ -154,7 +154,7 @@ Derive=BOB_cf_brainpoolP192t1
 PeerKey=ALICE_cf_brainpoolP192t1_PUB
 SharedSecret=84049068441a342d7c2951ff159cdc9d05c4bddf2a6e6309
 
-# Title=brainpoolP224r1 curve tests
+Title=brainpoolP224r1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP224r1
 -----BEGIN PRIVATE KEY-----
@@ -194,7 +194,7 @@ Derive=BOB_cf_brainpoolP224r1
 PeerKey=ALICE_cf_brainpoolP224r1_PUB
 SharedSecret=477240c0587dea6aecfcac5a154d7ba3a5d4eb1ab30a69012d4401de
 
-# Title=brainpoolP224t1 curve tests
+Title=brainpoolP224t1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP224t1
 -----BEGIN PRIVATE KEY-----
@@ -234,7 +234,7 @@ Derive=BOB_cf_brainpoolP224t1
 PeerKey=ALICE_cf_brainpoolP224t1_PUB
 SharedSecret=2c8dd0dbf3a62a202150e12443461d348be57bc58db0f2f7d8938933
 
-# Title=brainpoolP256r1 curve tests
+Title=brainpoolP256r1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP256r1
 -----BEGIN PRIVATE KEY-----
@@ -274,7 +274,7 @@ Derive=BOB_cf_brainpoolP256r1
 PeerKey=ALICE_cf_brainpoolP256r1_PUB
 SharedSecret=2fdd9d97efdcba3f5b181df53331db0ee42a3b1072147325ce8521dbaeafc3e4
 
-# Title=brainpoolP256t1 curve tests
+Title=brainpoolP256t1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP256t1
 -----BEGIN PRIVATE KEY-----
@@ -314,7 +314,7 @@ Derive=BOB_cf_brainpoolP256t1
 PeerKey=ALICE_cf_brainpoolP256t1_PUB
 SharedSecret=7f177af329a4b377aea6e80bddf14f09c17c4fe81598703898fb62c929cbff04
 
-# Title=brainpoolP320r1 curve tests
+Title=brainpoolP320r1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP320r1
 -----BEGIN PRIVATE KEY-----
@@ -354,7 +354,7 @@ Derive=BOB_cf_brainpoolP320r1
 PeerKey=ALICE_cf_brainpoolP320r1_PUB
 SharedSecret=4ee386c231d0a7c9bb6dc05362f56ca70bf7ba5dcb66d8c4574c0497fdab6a5b79818a64ff5dc87e
 
-# Title=brainpoolP320t1 curve tests
+Title=brainpoolP320t1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP320t1
 -----BEGIN PRIVATE KEY-----
@@ -394,7 +394,7 @@ Derive=BOB_cf_brainpoolP320t1
 PeerKey=ALICE_cf_brainpoolP320t1_PUB
 SharedSecret=079d62bad81ceeab9f213818faf249f7b29b87a81b56a33b774b2631860f90a25f5377da504cb619
 
-# Title=brainpoolP384r1 curve tests
+Title=brainpoolP384r1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP384r1
 -----BEGIN PRIVATE KEY-----
@@ -436,7 +436,7 @@ Derive=BOB_cf_brainpoolP384r1
 PeerKey=ALICE_cf_brainpoolP384r1_PUB
 SharedSecret=35e9a3f86a38888d183cc343801dcdaecb664d5b37f7fbc0459fd4612da6b29831bd2d8e5b599376ca510fcc3ac78be6
 
-# Title=brainpoolP384t1 curve tests
+Title=brainpoolP384t1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP384t1
 -----BEGIN PRIVATE KEY-----
@@ -478,7 +478,7 @@ Derive=BOB_cf_brainpoolP384t1
 PeerKey=ALICE_cf_brainpoolP384t1_PUB
 SharedSecret=030113dd1662230f1e47418c3044a0852dcd74fa508dbabb02d1fe5d788aa49d8047d02a802f796af21473ab17f6f85f
 
-# Title=brainpoolP512r1 curve tests
+Title=brainpoolP512r1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP512r1
 -----BEGIN PRIVATE KEY-----
@@ -520,7 +520,7 @@ Derive=BOB_cf_brainpoolP512r1
 PeerKey=ALICE_cf_brainpoolP512r1_PUB
 SharedSecret=84269a8f2932b7e09b23deabaeab26eda6bbdee8846153b0c62b7d2663506a9e71d32cf0cc127ec130f6880612f4e054bc79adb57ddbee97949508ce1eda0bb1
 
-# Title=brainpoolP512t1 curve tests
+Title=brainpoolP512t1 curve tests
 
 PrivateKey=ALICE_cf_brainpoolP512t1
 -----BEGIN PRIVATE KEY-----
@@ -562,7 +562,7 @@ Derive=BOB_cf_brainpoolP512t1
 PeerKey=ALICE_cf_brainpoolP512t1_PUB
 SharedSecret=48bc4ebdb9a88ca38bed58f5e547eb11d803fd01b6eadff1761ecb48c54525cba43bdb0ee4a4d7aa6701985e0bc12fd32382c035d80acc7ec26adfcb108a07cb
 
-# Title=c2pnb163v1 curve tests
+Title=c2pnb163v1 curve tests
 
 PrivateKey=ALICE_cf_c2pnb163v1
 -----BEGIN PRIVATE KEY-----
@@ -623,7 +623,7 @@ Derive=BOB_cf_c2pnb163v1
 PeerKey=MALICE_cf_c2pnb163v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -631,10 +631,10 @@ Derive=ALICE_cf_c2pnb163v1
 PeerKey=MALICE_cf_c2pnb163v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2pnb163v2 curve tests
+Title=c2pnb163v2 curve tests
 
 PrivateKey=ALICE_cf_c2pnb163v2
 -----BEGIN PRIVATE KEY-----
@@ -695,7 +695,7 @@ Derive=BOB_cf_c2pnb163v2
 PeerKey=MALICE_cf_c2pnb163v2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -703,10 +703,10 @@ Derive=ALICE_cf_c2pnb163v2
 PeerKey=MALICE_cf_c2pnb163v2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2pnb163v3 curve tests
+Title=c2pnb163v3 curve tests
 
 PrivateKey=ALICE_cf_c2pnb163v3
 -----BEGIN PRIVATE KEY-----
@@ -767,7 +767,7 @@ Derive=BOB_cf_c2pnb163v3
 PeerKey=MALICE_cf_c2pnb163v3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -775,10 +775,10 @@ Derive=ALICE_cf_c2pnb163v3
 PeerKey=MALICE_cf_c2pnb163v3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2pnb176v1 curve tests
+Title=c2pnb176v1 curve tests
 
 PrivateKey=ALICE_cf_c2pnb176v1
 -----BEGIN PRIVATE KEY-----
@@ -839,7 +839,7 @@ Derive=BOB_cf_c2pnb176v1
 PeerKey=MALICE_cf_c2pnb176v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -847,10 +847,10 @@ Derive=ALICE_cf_c2pnb176v1
 PeerKey=MALICE_cf_c2pnb176v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2pnb208w1 curve tests
+Title=c2pnb208w1 curve tests
 
 PrivateKey=ALICE_cf_c2pnb208w1
 -----BEGIN PRIVATE KEY-----
@@ -913,7 +913,7 @@ Derive=BOB_cf_c2pnb208w1
 PeerKey=MALICE_cf_c2pnb208w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -921,10 +921,10 @@ Derive=ALICE_cf_c2pnb208w1
 PeerKey=MALICE_cf_c2pnb208w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2pnb272w1 curve tests
+Title=c2pnb272w1 curve tests
 
 PrivateKey=ALICE_cf_c2pnb272w1
 -----BEGIN PRIVATE KEY-----
@@ -987,7 +987,7 @@ Derive=BOB_cf_c2pnb272w1
 PeerKey=MALICE_cf_c2pnb272w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -995,10 +995,10 @@ Derive=ALICE_cf_c2pnb272w1
 PeerKey=MALICE_cf_c2pnb272w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2pnb304w1 curve tests
+Title=c2pnb304w1 curve tests
 
 PrivateKey=ALICE_cf_c2pnb304w1
 -----BEGIN PRIVATE KEY-----
@@ -1061,7 +1061,7 @@ Derive=BOB_cf_c2pnb304w1
 PeerKey=MALICE_cf_c2pnb304w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1069,10 +1069,10 @@ Derive=ALICE_cf_c2pnb304w1
 PeerKey=MALICE_cf_c2pnb304w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2pnb368w1 curve tests
+Title=c2pnb368w1 curve tests
 
 PrivateKey=ALICE_cf_c2pnb368w1
 -----BEGIN PRIVATE KEY-----
@@ -1138,7 +1138,7 @@ Derive=BOB_cf_c2pnb368w1
 PeerKey=MALICE_cf_c2pnb368w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1146,10 +1146,10 @@ Derive=ALICE_cf_c2pnb368w1
 PeerKey=MALICE_cf_c2pnb368w1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb191v1 curve tests
+Title=c2tnb191v1 curve tests
 
 PrivateKey=ALICE_cf_c2tnb191v1
 -----BEGIN PRIVATE KEY-----
@@ -1212,7 +1212,7 @@ Derive=BOB_cf_c2tnb191v1
 PeerKey=MALICE_cf_c2tnb191v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1220,10 +1220,10 @@ Derive=ALICE_cf_c2tnb191v1
 PeerKey=MALICE_cf_c2tnb191v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb191v2 curve tests
+Title=c2tnb191v2 curve tests
 
 PrivateKey=ALICE_cf_c2tnb191v2
 -----BEGIN PRIVATE KEY-----
@@ -1286,7 +1286,7 @@ Derive=BOB_cf_c2tnb191v2
 PeerKey=MALICE_cf_c2tnb191v2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1294,10 +1294,10 @@ Derive=ALICE_cf_c2tnb191v2
 PeerKey=MALICE_cf_c2tnb191v2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb191v3 curve tests
+Title=c2tnb191v3 curve tests
 
 PrivateKey=ALICE_cf_c2tnb191v3
 -----BEGIN PRIVATE KEY-----
@@ -1360,7 +1360,7 @@ Derive=BOB_cf_c2tnb191v3
 PeerKey=MALICE_cf_c2tnb191v3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1368,10 +1368,10 @@ Derive=ALICE_cf_c2tnb191v3
 PeerKey=MALICE_cf_c2tnb191v3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb239v1 curve tests
+Title=c2tnb239v1 curve tests
 
 PrivateKey=ALICE_cf_c2tnb239v1
 -----BEGIN PRIVATE KEY-----
@@ -1434,7 +1434,7 @@ Derive=BOB_cf_c2tnb239v1
 PeerKey=MALICE_cf_c2tnb239v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1442,10 +1442,10 @@ Derive=ALICE_cf_c2tnb239v1
 PeerKey=MALICE_cf_c2tnb239v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb239v2 curve tests
+Title=c2tnb239v2 curve tests
 
 PrivateKey=ALICE_cf_c2tnb239v2
 -----BEGIN PRIVATE KEY-----
@@ -1508,7 +1508,7 @@ Derive=BOB_cf_c2tnb239v2
 PeerKey=MALICE_cf_c2tnb239v2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1516,10 +1516,10 @@ Derive=ALICE_cf_c2tnb239v2
 PeerKey=MALICE_cf_c2tnb239v2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb239v3 curve tests
+Title=c2tnb239v3 curve tests
 
 PrivateKey=ALICE_cf_c2tnb239v3
 -----BEGIN PRIVATE KEY-----
@@ -1582,7 +1582,7 @@ Derive=BOB_cf_c2tnb239v3
 PeerKey=MALICE_cf_c2tnb239v3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1590,10 +1590,10 @@ Derive=ALICE_cf_c2tnb239v3
 PeerKey=MALICE_cf_c2tnb239v3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb359v1 curve tests
+Title=c2tnb359v1 curve tests
 
 PrivateKey=ALICE_cf_c2tnb359v1
 -----BEGIN PRIVATE KEY-----
@@ -1659,7 +1659,7 @@ Derive=BOB_cf_c2tnb359v1
 PeerKey=MALICE_cf_c2tnb359v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1667,10 +1667,10 @@ Derive=ALICE_cf_c2tnb359v1
 PeerKey=MALICE_cf_c2tnb359v1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=c2tnb431r1 curve tests
+Title=c2tnb431r1 curve tests
 
 PrivateKey=ALICE_cf_c2tnb431r1
 -----BEGIN PRIVATE KEY-----
@@ -1736,7 +1736,7 @@ Derive=BOB_cf_c2tnb431r1
 PeerKey=MALICE_cf_c2tnb431r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -1744,10 +1744,10 @@ Derive=ALICE_cf_c2tnb431r1
 PeerKey=MALICE_cf_c2tnb431r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=prime192v1 curve tests
+Title=prime192v1 curve tests
 
 PrivateKey=ALICE_cf_prime192v1
 -----BEGIN PRIVATE KEY-----
@@ -1787,7 +1787,7 @@ Derive=BOB_cf_prime192v1
 PeerKey=ALICE_cf_prime192v1_PUB
 SharedSecret=e36cad3b0f8d00f60f090440a76df47896713ae61421c354
 
-# Title=prime192v2 curve tests
+Title=prime192v2 curve tests
 
 PrivateKey=ALICE_cf_prime192v2
 -----BEGIN PRIVATE KEY-----
@@ -1827,7 +1827,7 @@ Derive=BOB_cf_prime192v2
 PeerKey=ALICE_cf_prime192v2_PUB
 SharedSecret=ae2ff9f1f9f24e6d281dc78993d9f71913e1e105965000a1
 
-# Title=prime192v3 curve tests
+Title=prime192v3 curve tests
 
 PrivateKey=ALICE_cf_prime192v3
 -----BEGIN PRIVATE KEY-----
@@ -1867,7 +1867,7 @@ Derive=BOB_cf_prime192v3
 PeerKey=ALICE_cf_prime192v3_PUB
 SharedSecret=9e562ecbe29c510a13b0daea822ec864c2a9684d2a382812
 
-# Title=prime239v1 curve tests
+Title=prime239v1 curve tests
 
 PrivateKey=ALICE_cf_prime239v1
 -----BEGIN PRIVATE KEY-----
@@ -1907,7 +1907,7 @@ Derive=BOB_cf_prime239v1
 PeerKey=ALICE_cf_prime239v1_PUB
 SharedSecret=196b1d0206d4f87c313c266bfb12c90dd1f1f64b89bfc16518086b9801b8
 
-# Title=prime239v2 curve tests
+Title=prime239v2 curve tests
 
 PrivateKey=ALICE_cf_prime239v2
 -----BEGIN PRIVATE KEY-----
@@ -1947,7 +1947,7 @@ Derive=BOB_cf_prime239v2
 PeerKey=ALICE_cf_prime239v2_PUB
 SharedSecret=1d18ca6366bceba3c1477daa0e08202088abcf14fc2b8fbf98ba95858fcf
 
-# Title=prime239v3 curve tests
+Title=prime239v3 curve tests
 
 PrivateKey=ALICE_cf_prime239v3
 -----BEGIN PRIVATE KEY-----
@@ -1987,7 +1987,7 @@ Derive=BOB_cf_prime239v3
 PeerKey=ALICE_cf_prime239v3_PUB
 SharedSecret=4dcc2c67c5993162ed71ebb33077bbb85395b0d3eec2311aa404e45901a0
 
-# Title=prime256v1 curve tests
+Title=prime256v1 curve tests
 
 PrivateKey=ALICE_cf_prime256v1
 -----BEGIN PRIVATE KEY-----
@@ -2027,7 +2027,7 @@ Derive=BOB_cf_prime256v1
 PeerKey=ALICE_cf_prime256v1_PUB
 SharedSecret=ee63690b553dcd9bccb066137725f0489395a83f4d280f309339d606c969734a
 
-# Title=secp112r1 curve tests
+Title=secp112r1 curve tests
 
 PrivateKey=ALICE_cf_secp112r1
 -----BEGIN PRIVATE KEY-----
@@ -2063,7 +2063,7 @@ Derive=BOB_cf_secp112r1
 PeerKey=ALICE_cf_secp112r1_PUB
 SharedSecret=4ddd1d504b444d4be67ba2e4610a
 
-# Title=secp112r2 curve tests
+Title=secp112r2 curve tests
 
 PrivateKey=ALICE_cf_secp112r2
 -----BEGIN PRIVATE KEY-----
@@ -2121,7 +2121,7 @@ Derive=BOB_cf_secp112r2
 PeerKey=MALICE_cf_secp112r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GFp
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -2129,10 +2129,10 @@ Derive=ALICE_cf_secp112r2
 PeerKey=MALICE_cf_secp112r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GFp
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=secp128r1 curve tests
+Title=secp128r1 curve tests
 
 PrivateKey=ALICE_cf_secp128r1
 -----BEGIN PRIVATE KEY-----
@@ -2168,7 +2168,7 @@ Derive=BOB_cf_secp128r1
 PeerKey=ALICE_cf_secp128r1_PUB
 SharedSecret=5020f1b759da1f737a61a29a268d7669
 
-# Title=secp128r2 curve tests
+Title=secp128r2 curve tests
 
 PrivateKey=ALICE_cf_secp128r2
 -----BEGIN PRIVATE KEY-----
@@ -2226,7 +2226,7 @@ Derive=BOB_cf_secp128r2
 PeerKey=MALICE_cf_secp128r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GFp
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -2234,10 +2234,10 @@ Derive=ALICE_cf_secp128r2
 PeerKey=MALICE_cf_secp128r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GFp
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=secp160k1 curve tests
+Title=secp160k1 curve tests
 
 PrivateKey=ALICE_cf_secp160k1
 -----BEGIN PRIVATE KEY-----
@@ -2275,7 +2275,7 @@ Derive=BOB_cf_secp160k1
 PeerKey=ALICE_cf_secp160k1_PUB
 SharedSecret=b738a0bf17f3271a9a155bfdfe2f0f1d51494d42
 
-# Title=secp160r1 curve tests
+Title=secp160r1 curve tests
 
 PrivateKey=ALICE_cf_secp160r1
 -----BEGIN PRIVATE KEY-----
@@ -2313,7 +2313,7 @@ Derive=BOB_cf_secp160r1
 PeerKey=ALICE_cf_secp160r1_PUB
 SharedSecret=1912ea7b9bb1de5b8d3cef83e7a6e7a917816541
 
-# Title=secp160r2 curve tests
+Title=secp160r2 curve tests
 
 PrivateKey=ALICE_cf_secp160r2
 -----BEGIN PRIVATE KEY-----
@@ -2351,7 +2351,7 @@ Derive=BOB_cf_secp160r2
 PeerKey=ALICE_cf_secp160r2_PUB
 SharedSecret=ccb9cae5c9487ff60c487bd1b39a62eb4680e9b6
 
-# Title=secp192k1 curve tests
+Title=secp192k1 curve tests
 
 PrivateKey=ALICE_cf_secp192k1
 -----BEGIN PRIVATE KEY-----
@@ -2389,7 +2389,7 @@ Derive=BOB_cf_secp192k1
 PeerKey=ALICE_cf_secp192k1_PUB
 SharedSecret=a46a6bfb279d4dc30cffac585d1fbec905dbe46aca5e3c9d
 
-# Title=secp224k1 curve tests
+Title=secp224k1 curve tests
 
 PrivateKey=ALICE_cf_secp224k1
 -----BEGIN PRIVATE KEY-----
@@ -2429,7 +2429,7 @@ Derive=BOB_cf_secp224k1
 PeerKey=ALICE_cf_secp224k1_PUB
 SharedSecret=6f7b9d16c9c1d3a5c84b6028f2a4fed9ae8e02455e678a27243bcc48
 
-# Title=secp224r1 curve tests
+Title=secp224r1 curve tests
 
 PrivateKey=ALICE_cf_secp224r1
 -----BEGIN PRIVATE KEY-----
@@ -2469,7 +2469,7 @@ Derive=BOB_cf_secp224r1
 PeerKey=ALICE_cf_secp224r1_PUB
 SharedSecret=29d8b75934d74d5153bbb94e0370437c63ecc30bf3d2800ed1cb7eb5
 
-# Title=secp256k1 curve tests
+Title=secp256k1 curve tests
 
 PrivateKey=ALICE_cf_secp256k1
 -----BEGIN PRIVATE KEY-----
@@ -2509,7 +2509,7 @@ Derive=BOB_cf_secp256k1
 PeerKey=ALICE_cf_secp256k1_PUB
 SharedSecret=a4745cc4d19cabb9e5cb0abdd5c604cab2846a4638ad844ed9175f3cadda2da1
 
-# Title=secp384r1 curve tests
+Title=secp384r1 curve tests
 
 PrivateKey=ALICE_cf_secp384r1
 -----BEGIN PRIVATE KEY-----
@@ -2551,7 +2551,7 @@ Derive=BOB_cf_secp384r1
 PeerKey=ALICE_cf_secp384r1_PUB
 SharedSecret=b3cfe488126e2731fb7c19f82e94fcc05e1dd303649a9257e858030b795c2d344a054b0c44a24fd7f5821f531a9b8cfb
 
-# Title=secp521r1 curve tests
+Title=secp521r1 curve tests
 
 PrivateKey=ALICE_cf_secp521r1
 -----BEGIN PRIVATE KEY-----
@@ -2593,7 +2593,7 @@ Derive=BOB_cf_secp521r1
 PeerKey=ALICE_cf_secp521r1_PUB
 SharedSecret=01dd4aa9037bb4ad298b420998dcd32b3a9af1cda8b7919e372aeb4e54ccfb4d2409a340ed896bfbc5dd462f8d96b8784bc17b29db3ca04700e6ec752f9bec777695
 
-# Title=sect113r1 curve tests
+Title=sect113r1 curve tests
 
 PrivateKey=ALICE_cf_sect113r1
 -----BEGIN PRIVATE KEY-----
@@ -2651,7 +2651,7 @@ Derive=BOB_cf_sect113r1
 PeerKey=MALICE_cf_sect113r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -2659,10 +2659,10 @@ Derive=ALICE_cf_sect113r1
 PeerKey=MALICE_cf_sect113r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect113r2 curve tests
+Title=sect113r2 curve tests
 
 PrivateKey=ALICE_cf_sect113r2
 -----BEGIN PRIVATE KEY-----
@@ -2720,7 +2720,7 @@ Derive=BOB_cf_sect113r2
 PeerKey=MALICE_cf_sect113r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -2728,10 +2728,10 @@ Derive=ALICE_cf_sect113r2
 PeerKey=MALICE_cf_sect113r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect131r1 curve tests
+Title=sect131r1 curve tests
 
 PrivateKey=ALICE_cf_sect131r1
 -----BEGIN PRIVATE KEY-----
@@ -2792,7 +2792,7 @@ Derive=BOB_cf_sect131r1
 PeerKey=MALICE_cf_sect131r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -2800,10 +2800,10 @@ Derive=ALICE_cf_sect131r1
 PeerKey=MALICE_cf_sect131r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect131r2 curve tests
+Title=sect131r2 curve tests
 
 PrivateKey=ALICE_cf_sect131r2
 -----BEGIN PRIVATE KEY-----
@@ -2864,7 +2864,7 @@ Derive=BOB_cf_sect131r2
 PeerKey=MALICE_cf_sect131r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -2872,10 +2872,10 @@ Derive=ALICE_cf_sect131r2
 PeerKey=MALICE_cf_sect131r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect163k1 curve tests
+Title=sect163k1 curve tests
 
 PrivateKey=ALICE_cf_sect163k1
 -----BEGIN PRIVATE KEY-----
@@ -2936,7 +2936,7 @@ Derive=BOB_cf_sect163k1
 PeerKey=MALICE_cf_sect163k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -2944,10 +2944,10 @@ Derive=ALICE_cf_sect163k1
 PeerKey=MALICE_cf_sect163k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect163r1 curve tests
+Title=sect163r1 curve tests
 
 PrivateKey=ALICE_cf_sect163r1
 -----BEGIN PRIVATE KEY-----
@@ -3008,7 +3008,7 @@ Derive=BOB_cf_sect163r1
 PeerKey=MALICE_cf_sect163r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3016,10 +3016,10 @@ Derive=ALICE_cf_sect163r1
 PeerKey=MALICE_cf_sect163r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect163r2 curve tests
+Title=sect163r2 curve tests
 
 PrivateKey=ALICE_cf_sect163r2
 -----BEGIN PRIVATE KEY-----
@@ -3080,7 +3080,7 @@ Derive=BOB_cf_sect163r2
 PeerKey=MALICE_cf_sect163r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3088,10 +3088,10 @@ Derive=ALICE_cf_sect163r2
 PeerKey=MALICE_cf_sect163r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect193r1 curve tests
+Title=sect193r1 curve tests
 
 PrivateKey=ALICE_cf_sect193r1
 -----BEGIN PRIVATE KEY-----
@@ -3152,7 +3152,7 @@ Derive=BOB_cf_sect193r1
 PeerKey=MALICE_cf_sect193r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3160,10 +3160,10 @@ Derive=ALICE_cf_sect193r1
 PeerKey=MALICE_cf_sect193r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect193r2 curve tests
+Title=sect193r2 curve tests
 
 PrivateKey=ALICE_cf_sect193r2
 -----BEGIN PRIVATE KEY-----
@@ -3224,7 +3224,7 @@ Derive=BOB_cf_sect193r2
 PeerKey=MALICE_cf_sect193r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3232,10 +3232,10 @@ Derive=ALICE_cf_sect193r2
 PeerKey=MALICE_cf_sect193r2_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect233k1 curve tests
+Title=sect233k1 curve tests
 
 PrivateKey=ALICE_cf_sect233k1
 -----BEGIN PRIVATE KEY-----
@@ -3298,7 +3298,7 @@ Derive=BOB_cf_sect233k1
 PeerKey=MALICE_cf_sect233k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3306,10 +3306,10 @@ Derive=ALICE_cf_sect233k1
 PeerKey=MALICE_cf_sect233k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect233r1 curve tests
+Title=sect233r1 curve tests
 
 PrivateKey=ALICE_cf_sect233r1
 -----BEGIN PRIVATE KEY-----
@@ -3372,7 +3372,7 @@ Derive=BOB_cf_sect233r1
 PeerKey=MALICE_cf_sect233r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3380,10 +3380,10 @@ Derive=ALICE_cf_sect233r1
 PeerKey=MALICE_cf_sect233r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect239k1 curve tests
+Title=sect239k1 curve tests
 
 PrivateKey=ALICE_cf_sect239k1
 -----BEGIN PRIVATE KEY-----
@@ -3446,7 +3446,7 @@ Derive=BOB_cf_sect239k1
 PeerKey=MALICE_cf_sect239k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3454,10 +3454,10 @@ Derive=ALICE_cf_sect239k1
 PeerKey=MALICE_cf_sect239k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect283k1 curve tests
+Title=sect283k1 curve tests
 
 PrivateKey=ALICE_cf_sect283k1
 -----BEGIN PRIVATE KEY-----
@@ -3520,7 +3520,7 @@ Derive=BOB_cf_sect283k1
 PeerKey=MALICE_cf_sect283k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3528,10 +3528,10 @@ Derive=ALICE_cf_sect283k1
 PeerKey=MALICE_cf_sect283k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect283r1 curve tests
+Title=sect283r1 curve tests
 
 PrivateKey=ALICE_cf_sect283r1
 -----BEGIN PRIVATE KEY-----
@@ -3594,7 +3594,7 @@ Derive=BOB_cf_sect283r1
 PeerKey=MALICE_cf_sect283r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3602,10 +3602,10 @@ Derive=ALICE_cf_sect283r1
 PeerKey=MALICE_cf_sect283r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect409k1 curve tests
+Title=sect409k1 curve tests
 
 PrivateKey=ALICE_cf_sect409k1
 -----BEGIN PRIVATE KEY-----
@@ -3671,7 +3671,7 @@ Derive=BOB_cf_sect409k1
 PeerKey=MALICE_cf_sect409k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3679,10 +3679,10 @@ Derive=ALICE_cf_sect409k1
 PeerKey=MALICE_cf_sect409k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect409r1 curve tests
+Title=sect409r1 curve tests
 
 PrivateKey=ALICE_cf_sect409r1
 -----BEGIN PRIVATE KEY-----
@@ -3748,7 +3748,7 @@ Derive=BOB_cf_sect409r1
 PeerKey=MALICE_cf_sect409r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3756,10 +3756,10 @@ Derive=ALICE_cf_sect409r1
 PeerKey=MALICE_cf_sect409r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect571k1 curve tests
+Title=sect571k1 curve tests
 
 PrivateKey=ALICE_cf_sect571k1
 -----BEGIN PRIVATE KEY-----
@@ -3825,7 +3825,7 @@ Derive=BOB_cf_sect571k1
 PeerKey=MALICE_cf_sect571k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3833,10 +3833,10 @@ Derive=ALICE_cf_sect571k1
 PeerKey=MALICE_cf_sect571k1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=sect571r1 curve tests
+Title=sect571r1 curve tests
 
 PrivateKey=ALICE_cf_sect571r1
 -----BEGIN PRIVATE KEY-----
@@ -3902,7 +3902,7 @@ Derive=BOB_cf_sect571r1
 PeerKey=MALICE_cf_sect571r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3910,10 +3910,10 @@ Derive=ALICE_cf_sect571r1
 PeerKey=MALICE_cf_sect571r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=wap-wsg-idm-ecid-wtls10 curve tests
+Title=wap-wsg-idm-ecid-wtls10 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls10
 -----BEGIN PRIVATE KEY-----
@@ -3976,7 +3976,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls10
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls10_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -3984,10 +3984,10 @@ Derive=ALICE_cf_wap-wsg-idm-ecid-wtls10
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls10_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=wap-wsg-idm-ecid-wtls11 curve tests
+Title=wap-wsg-idm-ecid-wtls11 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls11
 -----BEGIN PRIVATE KEY-----
@@ -4050,7 +4050,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls11
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls11_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -4058,10 +4058,10 @@ Derive=ALICE_cf_wap-wsg-idm-ecid-wtls11
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls11_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=wap-wsg-idm-ecid-wtls12 curve tests
+Title=wap-wsg-idm-ecid-wtls12 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls12
 -----BEGIN PRIVATE KEY-----
@@ -4101,7 +4101,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls12
 PeerKey=ALICE_cf_wap-wsg-idm-ecid-wtls12_PUB
 SharedSecret=a3b3f20af8c33a0f5c246b4b9d9dda1cd40c294d1f53365d18a8b54b
 
-# Title=wap-wsg-idm-ecid-wtls1 curve tests
+Title=wap-wsg-idm-ecid-wtls1 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls1
 -----BEGIN PRIVATE KEY-----
@@ -4159,7 +4159,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls1
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -4167,10 +4167,10 @@ Derive=ALICE_cf_wap-wsg-idm-ecid-wtls1
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=wap-wsg-idm-ecid-wtls3 curve tests
+Title=wap-wsg-idm-ecid-wtls3 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls3
 -----BEGIN PRIVATE KEY-----
@@ -4231,7 +4231,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls3
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -4239,10 +4239,10 @@ Derive=ALICE_cf_wap-wsg-idm-ecid-wtls3
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls3_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=wap-wsg-idm-ecid-wtls4 curve tests
+Title=wap-wsg-idm-ecid-wtls4 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls4
 -----BEGIN PRIVATE KEY-----
@@ -4300,7 +4300,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls4
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls4_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -4308,10 +4308,10 @@ Derive=ALICE_cf_wap-wsg-idm-ecid-wtls4
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls4_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=wap-wsg-idm-ecid-wtls5 curve tests
+Title=wap-wsg-idm-ecid-wtls5 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls5
 -----BEGIN PRIVATE KEY-----
@@ -4372,7 +4372,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls5
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls5_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
 # ECC CDH Alice with Malice peer
@@ -4380,10 +4380,10 @@ Derive=ALICE_cf_wap-wsg-idm-ecid-wtls5
 PeerKey=MALICE_cf_wap-wsg-idm-ecid-wtls5_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
-Function=EC_POINT_get_affine_coordinates_GF2m
+Function=EC_POINT_get_affine_coordinates
 Reason=point at infinity
 
-# Title=wap-wsg-idm-ecid-wtls6 curve tests
+Title=wap-wsg-idm-ecid-wtls6 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls6
 -----BEGIN PRIVATE KEY-----
@@ -4419,7 +4419,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls6
 PeerKey=ALICE_cf_wap-wsg-idm-ecid-wtls6_PUB
 SharedSecret=b4cae255268f11a1e46fecad04c2
 
-# Title=wap-wsg-idm-ecid-wtls7 curve tests
+Title=wap-wsg-idm-ecid-wtls7 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls7
 -----BEGIN PRIVATE KEY-----
@@ -4457,7 +4457,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls7
 PeerKey=ALICE_cf_wap-wsg-idm-ecid-wtls7_PUB
 SharedSecret=ae9f5bcc6457c0422866bf855921eabc42b7121a
 
-# Title=wap-wsg-idm-ecid-wtls8 curve tests
+Title=wap-wsg-idm-ecid-wtls8 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls8
 -----BEGIN PRIVATE KEY-----
@@ -4493,7 +4493,7 @@ Derive=BOB_cf_wap-wsg-idm-ecid-wtls8
 PeerKey=ALICE_cf_wap-wsg-idm-ecid-wtls8_PUB
 SharedSecret=48baf4f1f5e8a0eb5dae28ef6290
 
-# Title=wap-wsg-idm-ecid-wtls9 curve tests
+Title=wap-wsg-idm-ecid-wtls9 curve tests
 
 PrivateKey=ALICE_cf_wap-wsg-idm-ecid-wtls9
 -----BEGIN PRIVATE KEY-----
@@ -4532,3 +4532,240 @@ PeerKey=ALICE_cf_wap-wsg-idm-ecid-wtls9_PUB
 SharedSecret=948d3030e95cead39a1bb3d8a01c2be178517ba7
 
 # tests: 484
+
+Title=zero x-coord regression tests
+
+PrivateKey=ALICE_zero_prime192v1
+-----BEGIN PRIVATE KEY-----
+MDkCAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQEEHzAdAgEBBBhaPNk8jG5hSG6y8tUqUoOaNNsZ3APU
+pps=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_prime192v1_PUB
+-----BEGIN PUBLIC KEY-----
+MEkwEwYHKoZIzj0CAQYIKoZIzj0DAQEDMgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAe2hWBe5g
+DLNj216pEvK7XjoKLg5gNg8S
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_prime192v1
+PeerKey=BOB_zero_prime192v1_PUB
+SharedSecret=baaffd49a8399d2ad52cbbe24d47b67afb4b3cf436f1cd65
+
+PrivateKey=ALICE_zero_prime192v2
+-----BEGIN PRIVATE KEY-----
+MDkCAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQIEHzAdAgEBBBj1AIQMJ7jqYIKCvxYAS+qKMmKmH0to
+41k=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_prime192v2_PUB
+-----BEGIN PUBLIC KEY-----
+MEkwEwYHKoZIzj0CAQYIKoZIzj0DAQIDMgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4Gj7Qqt
+2wx/jwFlKgvE4rnd50LspdMk
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_prime192v2
+PeerKey=BOB_zero_prime192v2_PUB
+SharedSecret=b8f200a4b87064f2e8600685ca3e69b8e661a117aabc770b
+
+PrivateKey=ALICE_zero_prime192v3
+-----BEGIN PRIVATE KEY-----
+MDkCAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQMEHzAdAgEBBBh/maLQMSlea9BfLqGy5NPuK0YAH/cz
+GqI=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_prime192v3_PUB
+-----BEGIN PUBLIC KEY-----
+MEkwEwYHKoZIzj0CAQYIKoZIzj0DAQMDMgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZEzb63e2
+3MKatRLR9Y1M5JEdI9jwMocI
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_prime192v3
+PeerKey=BOB_zero_prime192v3_PUB
+SharedSecret=b5de857d355bc5b9e270a4c290ea9728d764d8b243ff5d8d
+
+PrivateKey=ALICE_zero_prime239v1
+-----BEGIN PRIVATE KEY-----
+MD8CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQQEJTAjAgEBBB5pYWzRYI+c6O7NXCt0H2kw8XRL3rhe
+4MrJT8j++CI=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_prime239v1_PUB
+-----BEGIN PUBLIC KEY-----
+MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQQDPgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Ox02uwNNLFuvDRn5ip8TxvW0W22R7UzJa9Av6/nh
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_prime239v1
+PeerKey=BOB_zero_prime239v1_PUB
+SharedSecret=6b6206408bd05d42daa2cd224c401a1230b44e184f17b82f385f22dac215
+
+PrivateKey=ALICE_zero_prime239v2
+-----BEGIN PRIVATE KEY-----
+MD8CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQUEJTAjAgEBBB5l8bB7Cpmr7vyx9FiOT2wEF3YOFbDG
+bmRr3Vi/xr4=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_prime239v2_PUB
+-----BEGIN PUBLIC KEY-----
+MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQUDPgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+IOg3VJGQ89d1GWg4Igxcj5xpDmJiP8tv+e4mxt5U
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_prime239v2
+PeerKey=BOB_zero_prime239v2_PUB
+SharedSecret=772c2819c960c78f28f21f6542b7409294fad1f84567c44c4b7678dc0e42
+
+PrivateKey=ALICE_zero_prime239v3
+-----BEGIN PRIVATE KEY-----
+MD8CAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQYEJTAjAgEBBB5HF5FABzUOTYMZg9UdZTx/oRERm/fU
+M/+otKzpLjA=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_prime239v3_PUB
+-----BEGIN PUBLIC KEY-----
+MFUwEwYHKoZIzj0CAQYIKoZIzj0DAQYDPgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AsZ4u6r3qQI78EYBpiSgWjqNpoeShjr5piecMBWj
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_prime239v3
+PeerKey=BOB_zero_prime239v3_PUB
+SharedSecret=56a71f5dd1611e8032c3e2d8224d86e5e8c2fc6480d74c0e282282decd43
+
+PrivateKey=ALICE_zero_prime256v1
+-----BEGIN PRIVATE KEY-----
+MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCDXhMb6aR4JR2+l2tmgYqP0r8S4jtym
+yH++awvF2nGhhg==
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_prime256v1_PUB
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AABmSFx4Di+D1yQzvV2EoGu2VBwq8x2uhxcov4VqF0+T9A==
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_prime256v1
+PeerKey=BOB_zero_prime256v1_PUB
+SharedSecret=c4f5607deb8501f1a4ba23fce4122a4343a17ada2c86a9c8e0d03d92d4a4c84c
+
+PrivateKey=ALICE_zero_secp112r2
+-----BEGIN PRIVATE KEY-----
+MCwCAQAwEAYHKoZIzj0CAQYFK4EEAAcEFTATAgEBBA4hh3tRkG3tnA0496ffMw==
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_secp112r2_PUB
+-----BEGIN PUBLIC KEY-----
+MDIwEAYHKoZIzj0CAQYFK4EEAAcDHgAEAAAAAAAAAAAAAAAAAAAS5eEOWDV/Wk7w4djyDQ==
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_secp112r2
+PeerKey=BOB_zero_secp112r2_PUB
+SharedSecret=958cc1cb425713678830a4d7d95e
+
+PrivateKey=ALICE_zero_secp128r1
+-----BEGIN PRIVATE KEY-----
+MC4CAQAwEAYHKoZIzj0CAQYFK4EEABwEFzAVAgEBBBCykSzic/h3T2K6SkSP1SGt
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_secp128r1_PUB
+-----BEGIN PUBLIC KEY-----
+MDYwEAYHKoZIzj0CAQYFK4EEABwDIgAEAAAAAAAAAAAAAAAAAAAAAABya8M5aeOpNG3z799IdHc=
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_secp128r1
+PeerKey=BOB_zero_secp128r1_PUB
+SharedSecret=5235d452066f126cd7e99eea00fd3068
+
+PrivateKey=ALICE_zero_secp160r1
+-----BEGIN PRIVATE KEY-----
+MDMCAQAwEAYHKoZIzj0CAQYFK4EEAAgEHDAaAgEBBBUACoRnbig69XLlh5VcRexpbbn5zwA=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_secp160r1_PUB
+-----BEGIN PUBLIC KEY-----
+MD4wEAYHKoZIzj0CAQYFK4EEAAgDKgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAG/w1po29wYlxlygXs
+MGfbiGg5ng==
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_secp160r1
+PeerKey=BOB_zero_secp160r1_PUB
+SharedSecret=9ccd0ab8d093b6acdb3fe14c3736a0dfe61a4666
+
+PrivateKey=ALICE_zero_secp160r2
+-----BEGIN PRIVATE KEY-----
+MDMCAQAwEAYHKoZIzj0CAQYFK4EEAB4EHDAaAgEBBBUAQFGxInSw1eAvd45E9TUdbXtJGnA=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_secp160r2_PUB
+-----BEGIN PUBLIC KEY-----
+MD4wEAYHKoZIzj0CAQYFK4EEAB4DKgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAZtSBSZqfmXp47v5z2
+ZZZl2JFxDg==
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_secp160r2
+PeerKey=BOB_zero_secp160r2_PUB
+SharedSecret=303e0a282ac86f463fe834cb51b0057be42ed5ab
+
+PrivateKey=ALICE_zero_secp384r1
+-----BEGIN PRIVATE KEY-----
+ME4CAQAwEAYHKoZIzj0CAQYFK4EEACIENzA1AgEBBDD6kgzKbg28zbQyVTdC0IdHbm0UCQt2Rdbi
+VVHJeYRSnNpFOiFLaOsGOmwoeZzj6jc=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_secp384r1_PUB
+-----BEGIN PUBLIC KEY-----
+MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAPPme8E9RpepjC6P5+WDdWToUyb45/SvSFdO0sIqq+Gu/kn8sRuUqsG+3
+QriFDlIe
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_secp384r1
+PeerKey=BOB_zero_secp384r1_PUB
+SharedSecret=b1cfeaeef51dfd487d3a8b2849f1592e04d63f2d2c88b310a6290ebfe5399f5ffe954eabd0619231393e56c35b242986
+
+PrivateKey=ALICE_zero_secp521r1
+-----BEGIN PRIVATE KEY-----
+MGACAQAwEAYHKoZIzj0CAQYFK4EEACMESTBHAgEBBEIAbddDLMUWbAsY7l3vbNDmntXuAUcDYPg5
+w/cgUwSCIvrV9MBeSG8AWqT16riHmHlsn+XI5PAJM6eij3JDahnu9Mo=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_secp521r1_PUB
+-----BEGIN PUBLIC KEY-----
+MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0g7J/qa1d8ENJsobtEb0CymeZIsa
+1Qiq0GiJb+4/jmFLxjBU1Xcr8Bpl1BLgvKqOll0vXTMtfzn4RtRArgAfT4c=
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_secp521r1
+PeerKey=BOB_zero_secp521r1_PUB
+SharedSecret=003fc3028f61db94b20c7cd177923b6e73f12f0ab067c9ce8866755e3c82abb39c9863cde74fa80b32520bd7dd0eb156c30c08911503b67b2661f1264d09bb231423
+
+PrivateKey=ALICE_zero_wap-wsg-idm-ecid-wtls7
+-----BEGIN PRIVATE KEY-----
+MDMCAQAwEAYHKoZIzj0CAQYFZysBBAcEHDAaAgEBBBUAoGng7WzYr4P9vtdc3BS/UiNWmc0=
+-----END PRIVATE KEY-----
+
+PublicKey=BOB_zero_wap-wsg-idm-ecid-wtls7_PUB
+-----BEGIN PUBLIC KEY-----
+MD4wEAYHKoZIzj0CAQYFZysBBAcDKgAEAAAAAAAAAAAAAAAAAAAAAAAAAAAZtSBSZqfmXp47v5z2
+ZZZl2JFxDg==
+-----END PUBLIC KEY-----
+
+# ECDH Alice with Bob peer
+Derive=ALICE_zero_wap-wsg-idm-ecid-wtls7
+PeerKey=BOB_zero_wap-wsg-idm-ecid-wtls7_PUB
+SharedSecret=6582fc03bbb340fcf24a5fe8fcdf722655efa8b9
+
+# tests: 14

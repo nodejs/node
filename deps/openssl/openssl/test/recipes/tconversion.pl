@@ -23,7 +23,7 @@ my %conversionforms = (
 sub tconversion {
     my $testtype = shift;
     my $t = shift;
-    my @conversionforms = 
+    my @conversionforms =
 	defined($conversionforms{$testtype}) ?
 	@{$conversionforms{$testtype}} :
 	@{$conversionforms{"*"}};
@@ -36,7 +36,7 @@ sub tconversion {
 	+ $n			# initial conversions from p to all forms (A)
 	+ $n*$n			# conversion from result of A to all forms (B)
 	+ 1			# comparing original test file to p form of A
-	+ $n*($n-1);		# comparing first conversion to each form in A with B
+	+ $n*($n-1);		# comparing first conversion to each fom in A with B
     $totaltests-- if ($testtype eq "p7d"); # no comparison of original test file
     plan tests => $totaltests;
 

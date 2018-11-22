@@ -26,12 +26,12 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read(FILE *fp, STACK_OF(X509_INFO) *sk,
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
         PEMerr(PEM_F_PEM_X509_INFO_READ, ERR_R_BUF_LIB);
-        return (0);
+        return 0;
     }
     BIO_set_fp(b, fp, BIO_NOCLOSE);
     ret = PEM_X509_INFO_read_bio(b, sk, cb, u);
     BIO_free(b);
-    return (ret);
+    return ret;
 }
 #endif
 
@@ -240,7 +240,7 @@ STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
     OPENSSL_free(name);
     OPENSSL_free(header);
     OPENSSL_free(data);
-    return (ret);
+    return ret;
 }
 
 /* A TJH addition */
@@ -256,7 +256,13 @@ int PEM_X509_INFO_write_bio(BIO *bp, X509_INFO *xi, EVP_CIPHER *enc,
 
     if (enc != NULL) {
         objstr = OBJ_nid2sn(EVP_CIPHER_nid(enc));
-        if (objstr == NULL) {
+        if (objstr == NULL
+                   /*
+                    * Check "Proc-Type: 4,Encrypted\nDEK-Info: objstr,hex-iv\n"
+                    * fits into buf
+                    */
+                || (strlen(objstr) + 23 + 2 * EVP_CIPHER_iv_length(enc) + 13)
+                   > sizeof(buf)) {
             PEMerr(PEM_F_PEM_X509_INFO_WRITE_BIO, PEM_R_UNSUPPORTED_CIPHER);
             goto err;
         }
@@ -291,10 +297,7 @@ int PEM_X509_INFO_write_bio(BIO *bp, X509_INFO *xi, EVP_CIPHER *enc,
                 goto err;
             }
 
-            /* create the right magic header stuff */
-            OPENSSL_assert(strlen(objstr) + 23
-                           + 2 * EVP_CIPHER_iv_length(enc) + 13 <=
-                           sizeof(buf));
+            /* Create the right magic header stuff */ 
             buf[0] = '\0';
             PEM_proc_type(buf, PEM_TYPE_ENCRYPTED);
             PEM_dek_info(buf, objstr, EVP_CIPHER_iv_length(enc),
@@ -330,5 +333,5 @@ int PEM_X509_INFO_write_bio(BIO *bp, X509_INFO *xi, EVP_CIPHER *enc,
 
  err:
     OPENSSL_cleanse(buf, PEM_BUFSIZE);
-    return (ret);
+    return ret;
 }

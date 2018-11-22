@@ -7,8 +7,6 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* Original version from Steven Schoch <schoch@sheba.arc.nasa.gov> */
-
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include "internal/bn_int.h"
@@ -119,8 +117,8 @@ static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa)
 
     /* Generate a blinding value */
     do {
-        if (!BN_rand(blind, BN_num_bits(dsa->q) - 1, BN_RAND_TOP_ANY,
-                     BN_RAND_BOTTOM_ANY))
+        if (!BN_priv_rand(blind, BN_num_bits(dsa->q) - 1,
+                          BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
             goto err;
     } while (BN_is_zero(blind));
     BN_set_flags(blind, BN_FLG_CONSTTIME);
@@ -220,7 +218,7 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
             if (!BN_generate_dsa_nonce(k, dsa->q, dsa->priv_key, dgst,
                                        dlen, ctx))
                 goto err;
-        } else if (!BN_rand_range(k, dsa->q))
+        } else if (!BN_priv_rand_range(k, dsa->q))
             goto err;
     } while (BN_is_zero(k));
 
@@ -386,19 +384,19 @@ static int dsa_do_verify(const unsigned char *dgst, int dgst_len,
     BN_free(u1);
     BN_free(u2);
     BN_free(t1);
-    return (ret);
+    return ret;
 }
 
 static int dsa_init(DSA *dsa)
 {
     dsa->flags |= DSA_FLAG_CACHE_MONT_P;
-    return (1);
+    return 1;
 }
 
 static int dsa_finish(DSA *dsa)
 {
     BN_MONT_CTX_free(dsa->method_mont_p);
-    return (1);
+    return 1;
 }
 
 /*

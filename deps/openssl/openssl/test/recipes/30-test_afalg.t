@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,6 @@ plan skip_all => "$test_name not supported for this build"
 
 plan tests => 1;
 
-$ENV{OPENSSL_ENGINES} = bldtop_dir("engines/afalg");
+$ENV{OPENSSL_ENGINES} = bldtop_dir("engines");
 
 ok(run(test(["afalgtest"])), "running afalgtest");

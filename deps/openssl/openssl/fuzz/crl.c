@@ -10,13 +10,19 @@
 
 #include <openssl/x509.h>
 #include <openssl/bio.h>
+#include <openssl/err.h>
 #include "fuzzer.h"
 
-int FuzzerInitialize(int *argc, char ***argv) {
+int FuzzerInitialize(int *argc, char ***argv)
+{
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+    ERR_get_state();
+    CRYPTO_free_ex_index(0, -1);
     return 1;
 }
 
-int FuzzerTestOneInput(const uint8_t *buf, size_t len) {
+int FuzzerTestOneInput(const uint8_t *buf, size_t len)
+{
     const unsigned char *p = buf;
     unsigned char *der = NULL;
 
@@ -31,5 +37,11 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len) {
 
         X509_CRL_free(crl);
     }
+    ERR_clear_error();
+
     return 0;
+}
+
+void FuzzerCleanup(void)
+{
 }

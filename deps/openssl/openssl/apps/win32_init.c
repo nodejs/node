@@ -302,6 +302,6 @@ void win32_utf8argv(int *argc, char **argv[])
     return;
 }
 #else
-void win32_utf8argv(int &argc, char **argv[])
+void win32_utf8argv(int *argc, char **argv[])
 {   return;   }
 #endif

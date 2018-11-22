@@ -98,7 +98,7 @@ it may be reasonable to avoid protecting it with a password, since
 otherwise someone would have to type in the password every time the
 server needs to access the key.
 
-For X25519, it's treated as a distinct algorithm but not as one of
+For X25519 and X448, it's treated as a distinct algorithm but not as one of
 the curves listed with 'ecparam -list_curves' option. You can use
 the following command to generate an X25519 key:
 

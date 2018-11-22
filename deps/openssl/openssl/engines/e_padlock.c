@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -199,10 +199,10 @@ struct padlock_cipher_data {
 };
 
 /* Interface to assembler module */
-unsigned int padlock_capability();
+unsigned int padlock_capability(void);
 void padlock_key_bswap(AES_KEY *key);
 void padlock_verify_context(struct padlock_cipher_data *ctx);
-void padlock_reload_key();
+void padlock_reload_key(void);
 void padlock_aes_block(void *out, const void *inp,
                        struct padlock_cipher_data *ctx);
 int padlock_ecb_encrypt(void *out, const void *inp,

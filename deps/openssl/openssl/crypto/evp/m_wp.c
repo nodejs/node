@@ -49,6 +49,6 @@ static const EVP_MD whirlpool_md = {
 
 const EVP_MD *EVP_whirlpool(void)
 {
-    return (&whirlpool_md);
+    return &whirlpool_md;
 }
 #endif

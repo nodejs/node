@@ -43,5 +43,5 @@ unsigned char *MD4(const unsigned char *d, size_t n, unsigned char *md)
 #endif
     MD4_Final(md, &c);
     OPENSSL_cleanse(&c, sizeof(c)); /* security consideration */
-    return (md);
+    return md;
 }

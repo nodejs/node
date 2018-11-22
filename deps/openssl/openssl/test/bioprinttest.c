@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,23 +7,33 @@
  * https://www.openssl.org/source/license.html
  */
 
+#define TESTUTIL_NO_size_t_COMPARISON
+
 #include <stdio.h>
 #include <string.h>
 #include <openssl/bio.h>
+#include "internal/numbers.h"
+#include "testutil.h"
+#include "testutil/output.h"
+
+#define nelem(x) (int)(sizeof(x) / sizeof((x)[0]))
 
 static int justprint = 0;
 
-static char *fpexpected[][5] = {
-    /*   0 */ { "0.0000e+00", "0.0000", "0", "0.0000E+00", "0" },
-    /*   1 */ { "6.7000e-01", "0.6700", "0.67", "6.7000E-01", "0.67" },
-    /*   2 */ { "6.6667e-01", "0.6667", "0.6667", "6.6667E-01", "0.6667" },
-    /*   3 */ { "6.6667e-04", "0.0007", "0.0006667", "6.6667E-04", "0.0006667" },
-    /*   4 */ { "6.6667e-05", "0.0001", "6.667e-05", "6.6667E-05", "6.667E-05" },
-    /*   5 */ { "6.6667e+00", "6.6667", "6.667", "6.6667E+00", "6.667" },
-    /*   6 */ { "6.6667e+01", "66.6667", "66.67", "6.6667E+01", "66.67" },
-    /*   7 */ { "6.6667e+02", "666.6667", "666.7", "6.6667E+02", "666.7" },
-    /*   8 */ { "6.6667e+03", "6666.6667", "6667", "6.6667E+03", "6667" },
-    /*   9 */ { "6.6667e+04", "66666.6667", "6.667e+04", "6.6667E+04", "6.667E+04" },
+static char *fpexpected[][10][5] = {
+    {
+    /*  00 */ { "0.0000e+00", "0.0000", "0", "0.0000E+00", "0" },
+    /*  01 */ { "6.7000e-01", "0.6700", "0.67", "6.7000E-01", "0.67" },
+    /*  02 */ { "6.6667e-01", "0.6667", "0.6667", "6.6667E-01", "0.6667" },
+    /*  03 */ { "6.6667e-04", "0.0007", "0.0006667", "6.6667E-04", "0.0006667" },
+    /*  04 */ { "6.6667e-05", "0.0001", "6.667e-05", "6.6667E-05", "6.667E-05" },
+    /*  05 */ { "6.6667e+00", "6.6667", "6.667", "6.6667E+00", "6.667" },
+    /*  06 */ { "6.6667e+01", "66.6667", "66.67", "6.6667E+01", "66.67" },
+    /*  07 */ { "6.6667e+02", "666.6667", "666.7", "6.6667E+02", "666.7" },
+    /*  08 */ { "6.6667e+03", "6666.6667", "6667", "6.6667E+03", "6667" },
+    /*  09 */ { "6.6667e+04", "66666.6667", "6.667e+04", "6.6667E+04", "6.667E+04" },
+    },
+    {
     /*  10 */ { "0.00000e+00", "0.00000", "0", "0.00000E+00", "0" },
     /*  11 */ { "6.70000e-01", "0.67000", "0.67", "6.70000E-01", "0.67" },
     /*  12 */ { "6.66667e-01", "0.66667", "0.66667", "6.66667E-01", "0.66667" },
@@ -34,6 +44,8 @@ static char *fpexpected[][5] = {
     /*  17 */ { "6.66667e+02", "666.66667", "666.67", "6.66667E+02", "666.67" },
     /*  18 */ { "6.66667e+03", "6666.66667", "6666.7", "6.66667E+03", "6666.7" },
     /*  19 */ { "6.66667e+04", "66666.66667", "66667", "6.66667E+04", "66667" },
+    },
+    {
     /*  20 */ { "  0.0000e+00", "      0.0000", "           0", "  0.0000E+00", "           0" },
     /*  21 */ { "  6.7000e-01", "      0.6700", "        0.67", "  6.7000E-01", "        0.67" },
     /*  22 */ { "  6.6667e-01", "      0.6667", "      0.6667", "  6.6667E-01", "      0.6667" },
@@ -44,6 +56,8 @@ static char *fpexpected[][5] = {
     /*  27 */ { "  6.6667e+02", "    666.6667", "       666.7", "  6.6667E+02", "       666.7" },
     /*  28 */ { "  6.6667e+03", "   6666.6667", "        6667", "  6.6667E+03", "        6667" },
     /*  29 */ { "  6.6667e+04", "  66666.6667", "   6.667e+04", "  6.6667E+04", "   6.667E+04" },
+    },
+    {
     /*  30 */ { " 0.00000e+00", "     0.00000", "           0", " 0.00000E+00", "           0" },
     /*  31 */ { " 6.70000e-01", "     0.67000", "        0.67", " 6.70000E-01", "        0.67" },
     /*  32 */ { " 6.66667e-01", "     0.66667", "     0.66667", " 6.66667E-01", "     0.66667" },
@@ -54,6 +68,8 @@ static char *fpexpected[][5] = {
     /*  37 */ { " 6.66667e+02", "   666.66667", "      666.67", " 6.66667E+02", "      666.67" },
     /*  38 */ { " 6.66667e+03", "  6666.66667", "      6666.7", " 6.66667E+03", "      6666.7" },
     /*  39 */ { " 6.66667e+04", " 66666.66667", "       66667", " 6.66667E+04", "       66667" },
+    },
+    {
     /*  40 */ { "0e+00", "0", "0", "0E+00", "0" },
     /*  41 */ { "7e-01", "1", "0.7", "7E-01", "0.7" },
     /*  42 */ { "7e-01", "1", "0.7", "7E-01", "0.7" },
@@ -64,6 +80,8 @@ static char *fpexpected[][5] = {
     /*  47 */ { "7e+02", "667", "7e+02", "7E+02", "7E+02" },
     /*  48 */ { "7e+03", "6667", "7e+03", "7E+03", "7E+03" },
     /*  49 */ { "7e+04", "66667", "7e+04", "7E+04", "7E+04" },
+    },
+    {
     /*  50 */ { "0.000000e+00", "0.000000", "0", "0.000000E+00", "0" },
     /*  51 */ { "6.700000e-01", "0.670000", "0.67", "6.700000E-01", "0.67" },
     /*  52 */ { "6.666667e-01", "0.666667", "0.666667", "6.666667E-01", "0.666667" },
@@ -74,6 +92,8 @@ static char *fpexpected[][5] = {
     /*  57 */ { "6.666667e+02", "666.666667", "666.667", "6.666667E+02", "666.667" },
     /*  58 */ { "6.666667e+03", "6666.666667", "6666.67", "6.666667E+03", "6666.67" },
     /*  59 */ { "6.666667e+04", "66666.666667", "66666.7", "6.666667E+04", "66666.7" },
+    },
+    {
     /*  60 */ { "0.0000e+00", "000.0000", "00000000", "0.0000E+00", "00000000" },
     /*  61 */ { "6.7000e-01", "000.6700", "00000.67", "6.7000E-01", "00000.67" },
     /*  62 */ { "6.6667e-01", "000.6667", "000.6667", "6.6667E-01", "000.6667" },
@@ -84,32 +104,96 @@ static char *fpexpected[][5] = {
     /*  67 */ { "6.6667e+02", "666.6667", "000666.7", "6.6667E+02", "000666.7" },
     /*  68 */ { "6.6667e+03", "6666.6667", "00006667", "6.6667E+03", "00006667" },
     /*  69 */ { "6.6667e+04", "66666.6667", "6.667e+04", "6.6667E+04", "6.667E+04" },
+    },
 };
 
-static void dofptest(int test, double val, char *width, int prec, int *fail)
-{
-    char format[80], result[80];
-    int i;
+typedef struct z_data_st {
+    size_t value;
+    const char *format;
+    const char *expected;
+} z_data;
 
-    for (i = 0; i < 5; i++) {
-        char *fspec = NULL;
-        switch (i) {
-        case 0:
-            fspec = "e";
-            break;
-        case 1:
-            fspec = "f";
-            break;
-        case 2:
-            fspec = "g";
-            break;
-        case 3:
-            fspec = "E";
-            break;
-        case 4:
-            fspec = "G";
-            break;
-        }
+static z_data zu_data[] = {
+    { SIZE_MAX, "%zu", (sizeof(size_t) == 4 ? "4294967295"
+                        : sizeof(size_t) == 8 ? "18446744073709551615"
+                        : "") },
+    /*
+     * in 2-complement, the unsigned number divided by two plus one becomes the
+     * smallest possible negative signed number of the corresponding type
+     */
+    { SIZE_MAX / 2 + 1, "%zi", (sizeof(size_t) == 4 ? "-2147483648"
+                                : sizeof(size_t) == 8 ? "-9223372036854775808"
+                                : "") },
+    { 0, "%zu", "0" },
+    { 0, "%zi", "0" },
+};
+
+static int test_zu(int i)
+{
+    char bio_buf[80];
+    const z_data *data = &zu_data[i];
+
+    BIO_snprintf(bio_buf, sizeof(bio_buf) - 1, data->format, data->value);
+    if (!TEST_str_eq(bio_buf, data->expected))
+        return 0;
+    return 1;
+}
+
+typedef struct j_data_st {
+    uint64_t value;
+    const char *format;
+    const char *expected;
+} j_data;
+
+static j_data jf_data[] = {
+    { 0xffffffffffffffffU, "%ju", "18446744073709551615" },
+    { 0xffffffffffffffffU, "%jx", "ffffffffffffffff" },
+    { 0x8000000000000000U, "%ju", "9223372036854775808" },
+    /*
+     * These tests imply two's-complement, but it's the only binary
+     * representation we support, see test/sanitytest.c...
+     */
+    { 0x8000000000000000U, "%ji", "-9223372036854775808" },
+};
+
+static int test_j(int i)
+{
+    const j_data *data = &jf_data[i];
+    char bio_buf[80];
+
+    BIO_snprintf(bio_buf, sizeof(bio_buf) - 1, data->format, data->value);
+    if (!TEST_str_eq(bio_buf, data->expected))
+        return 0;
+    return 1;
+}
+
+
+/* Precision and width. */
+typedef struct pw_st {
+    int p;
+    const char *w;
+} pw;
+
+static pw pw_params[] = {
+    { 4, "" },
+    { 5, "" },
+    { 4, "12" },
+    { 5, "12" },
+    { 0, "" },
+    { -1, "" },
+    { 4, "08" }
+};
+
+static int dofptest(int test, int sub, double val, const char *width, int prec)
+{
+    static const char *fspecs[] = {
+        "e", "f", "g", "E", "G"
+    };
+    char format[80], result[80];
+    int ret = 1, i;
+
+    for (i = 0; i < nelem(fspecs); i++) {
+        const char *fspec = fspecs[i];
 
         if (prec >= 0)
             BIO_snprintf(format, sizeof(format), "%%%s.%d%s", width, prec,
@@ -119,107 +203,100 @@ static void dofptest(int test, double val, char *width, int prec, int *fail)
         BIO_snprintf(result, sizeof(result), format, val);
 
         if (justprint) {
-            if (i == 0) {
-                printf("    /* %3d */ { \"%s\"", test, result);
-            } else {
+            if (i == 0)
+                printf("    /*  %d%d */ { \"%s\"", test, sub, result);
+            else
                 printf(", \"%s\"", result);
-            }
-        } else {
-            if (strcmp(fpexpected[test][i], result) != 0) {
-                printf("Test %d(%d) failed. Expected \"%s\". Got \"%s\". "
-                       "Format \"%s\"\n", test, i, fpexpected[test][i], result,
-                       format);
-                *fail = 1;
-            }
+        } else if (!TEST_str_eq(fpexpected[test][sub][i], result)) {
+            TEST_info("test %d format=|%s| exp=|%s|, ret=|%s|",
+                    test, format, fpexpected[test][sub][i], result);
+            ret = 0;
         }
     }
-    if (justprint) {
+    if (justprint)
         printf(" },\n");
-    }
+    return ret;
 }
 
-int main(int argc, char **argv)
+static int test_fp(int i)
 {
-    int test = 0;
-    int i;
-    int fail = 0;
-    int prec = -1;
-    char *width = "";
-    const double frac = 2.0/3.0;
+    int t = 0, r;
+    const double frac = 2.0 / 3.0;
+    const pw *pwp = &pw_params[i];
+
+    if (justprint)
+        printf("    {\n");
+    r = TEST_true(dofptest(i, t++, 0.0, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, 0.67, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, frac, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, frac / 1000, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, frac / 10000, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, 6.0 + frac, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, 66.0 + frac, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, 666.0 + frac, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, 6666.0 + frac, pwp->w, pwp->p))
+        && TEST_true(dofptest(i, t++, 66666.0 + frac, pwp->w, pwp->p));
+    if (justprint)
+        printf("    },\n");
+    return r;
+}
+
+static int test_big(void)
+{
     char buf[80];
 
-    if (argc == 2 && strcmp(argv[1], "-expected") == 0) {
-        justprint = 1;
-    }
-
-    CRYPTO_set_mem_debug(1);
-    CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
-
-    /* Tests for floating point format specifiers */
-    for (i = 0; i < 7; i++) {
-        switch (i) {
-        case 0:
-            prec = 4;
-            width = "";
-            break;
-        case 1:
-            prec = 5;
-            width = "";
-            break;
-        case 2:
-            prec = 4;
-            width = "12";
-            break;
-        case 3:
-            prec = 5;
-            width = "12";
-            break;
-        case 4:
-            prec = 0;
-            width = "";
-            break;
-        case 5:
-            prec = -1;
-            width = "";
-            break;
-        case 6:
-            prec = 4;
-            width = "08";
-            break;
-        }
-
-        dofptest(test++, 0.0, width, prec, &fail);
-        dofptest(test++, 0.67, width, prec, &fail);
-        dofptest(test++, frac, width, prec, &fail);
-        dofptest(test++, frac / 1000, width, prec, &fail);
-        dofptest(test++, frac / 10000, width, prec, &fail);
-        dofptest(test++, 6.0 + frac, width, prec, &fail);
-        dofptest(test++, 66.0 + frac, width, prec, &fail);
-        dofptest(test++, 666.0 + frac, width, prec, &fail);
-        dofptest(test++, 6666.0 + frac, width, prec, &fail);
-        dofptest(test++, 66666.0 + frac, width, prec, &fail);
-    }
-
     /* Test excessively big number. Should fail */
-    if (BIO_snprintf(buf, sizeof(buf), "%f\n", 2 * (double)ULONG_MAX) != -1) {
-        printf("Test %d failed. Unexpected success return from "
-               "BIO_snprintf()\n", test);
-        fail = 1;
-    }
-
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (CRYPTO_mem_leaks_fp(stderr) <= 0)
-        return 1;
-# endif
-
-    if (!justprint) {
-        if (fail) {
-            printf("FAIL\n");
-            return 1;
-        }
-        printf ("PASS\n");
-    }
-    return 0;
+    if (!TEST_int_eq(BIO_snprintf(buf, sizeof(buf),
+                                  "%f\n", 2 * (double)ULONG_MAX), -1))
+        return 0;
+    return 1;
 }
 
 
+int setup_tests(void)
+{
+    justprint = test_has_option("-expected");
+
+    ADD_TEST(test_big);
+    ADD_ALL_TESTS(test_fp, nelem(pw_params));
+    ADD_ALL_TESTS(test_zu, nelem(zu_data));
+    ADD_ALL_TESTS(test_j, nelem(jf_data));
+    return 1;
+}
+
+/*
+ * Replace testutil output routines.  We do this to eliminate possible sources
+ * of BIO error
+ */
+void test_open_streams(void)
+{
+}
+
+void test_close_streams(void)
+{
+}
+
+/*
+ * This works out as long as caller doesn't use any "fancy" formats.
+ * But we are caller's caller, and test_str_eq is the only one called,
+ * and it uses only "%s", which is not "fancy"...
+ */
+int test_vprintf_stdout(const char *fmt, va_list ap)
+{
+    return vfprintf(stdout, fmt, ap);
+}
+
+int test_vprintf_stderr(const char *fmt, va_list ap)
+{
+    return vfprintf(stderr, fmt, ap);
+}
+
+int test_flush_stdout(void)
+{
+    return fflush(stdout);
+}
+
+int test_flush_stderr(void)
+{
+    return fflush(stderr);
+}

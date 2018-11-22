@@ -143,11 +143,6 @@ int bn_get_top(const BIGNUM *a)
     return a->top;
 }
 
-void bn_set_top(BIGNUM *a, int top)
-{
-    a->top = top;
-}
-
 int bn_get_dmax(const BIGNUM *a)
 {
     return a->dmax;
@@ -201,14 +196,4 @@ int bn_set_words(BIGNUM *a, const BN_ULONG *words, int num_words)
     a->top = num_words;
     bn_correct_top(a);
     return 1;
-}
-
-size_t bn_sizeof_BIGNUM(void)
-{
-    return sizeof(BIGNUM);
-}
-
-BIGNUM *bn_array_el(BIGNUM *base, int el)
-{
-    return &base[el];
 }

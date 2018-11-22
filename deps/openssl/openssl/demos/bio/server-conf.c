@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
@@ -32,7 +33,7 @@ int main(int argc, char *argv[])
     CONF_VALUE *cnf;
     long errline = -1;
     char buf[512];
-    int ret = 1, i;
+    int ret = EXIT_FAILURE, i;
 
     ctx = SSL_CTX_new(TLS_server_method());
 
@@ -129,12 +130,10 @@ int main(int argc, char *argv[])
         fflush(stdout);
     }
 
-    ret = 0;
+    ret = EXIT_SUCCESS;
  err:
-    if (ret) {
+    if (ret != EXIT_SUCCESS)
         ERR_print_errors_fp(stderr);
-    }
     BIO_free(in);
-    exit(ret);
-    return (!ret);
+    return ret;
 }

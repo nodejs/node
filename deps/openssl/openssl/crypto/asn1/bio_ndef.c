@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -113,9 +113,10 @@ static int ndef_prefix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
     ndef_aux = *(NDEF_SUPPORT **)parg;
 
     derlen = ASN1_item_ndef_i2d(ndef_aux->val, NULL, ndef_aux->it);
-    p = OPENSSL_malloc(derlen);
-    if (p == NULL)
+    if ((p = OPENSSL_malloc(derlen)) == NULL) {
+        ASN1err(ASN1_F_NDEF_PREFIX, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
 
     ndef_aux->derbuf = p;
     *pbuf = p;
@@ -182,9 +183,10 @@ static int ndef_suffix(BIO *b, unsigned char **pbuf, int *plen, void *parg)
         return 0;
 
     derlen = ASN1_item_ndef_i2d(ndef_aux->val, NULL, ndef_aux->it);
-    p = OPENSSL_malloc(derlen);
-    if (p == NULL)
+    if ((p = OPENSSL_malloc(derlen)) == NULL) {
+        ASN1err(ASN1_F_NDEF_SUFFIX, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
 
     ndef_aux->derbuf = p;
     *pbuf = p;
