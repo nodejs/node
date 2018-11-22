@@ -292,22 +292,19 @@ void StreamBase::CallJSOnreadMethod(ssize_t nread,
                                     size_t offset) {
   Environment* env = env_;
 
-#ifdef DEBUG
-  CHECK_EQ(static_cast<int32_t>(nread), nread);
-  CHECK_LE(offset, INT32_MAX);
+  DCHECK_EQ(static_cast<int32_t>(nread), nread);
+  DCHECK_LE(offset, INT32_MAX);
 
-  if (ab.IsEmpty()) {
-    CHECK_EQ(offset, 0);
-    CHECK_LE(nread, 0);
-  } else {
-    CHECK_GE(nread, 0);
-  }
-#endif
+  const bool ab_is_empty = ab.IsEmpty();
+  DCHECK_IMPLIES(ab_is_empty, offset == 0);
+  DCHECK_IMPLIES(ab_is_empty, nread <= 0);
+  DCHECK_IMPLIES(!ab_is_empty, nread >= 0);
+
   env->stream_base_state()[kReadBytesOrError] = nread;
   env->stream_base_state()[kArrayBufferOffset] = offset;
 
   Local<Value> argv[] = {
-    ab.IsEmpty() ? Undefined(env->isolate()).As<Value>() : ab.As<Value>()
+    ab_is_empty ? Undefined(env->isolate()).As<Value>() : ab.As<Value>()
   };
 
   AsyncWrap* wrap = GetAsyncWrap();
