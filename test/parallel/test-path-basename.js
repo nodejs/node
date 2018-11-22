@@ -29,6 +29,7 @@ assert.strictEqual(path.basename('/aaa/'), 'aaa');
 assert.strictEqual(path.basename('/aaa/b'), 'b');
 assert.strictEqual(path.basename('/a/b'), 'b');
 assert.strictEqual(path.basename('//a'), 'a');
+assert.strictEqual(path.basename('a', 'a'), '');
 
 // On Windows a backslash acts as a path separator.
 assert.strictEqual(path.win32.basename('\\dir\\basename.ext'), 'basename.ext');
@@ -53,6 +54,7 @@ assert.strictEqual(path.win32.basename('C:basename.ext\\'), 'basename.ext');
 assert.strictEqual(path.win32.basename('C:basename.ext\\\\'), 'basename.ext');
 assert.strictEqual(path.win32.basename('C:foo'), 'foo');
 assert.strictEqual(path.win32.basename('file:stream'), 'file:stream');
+assert.strictEqual(path.win32.basename('a', 'a'), '');
 
 // On unix a backslash is just treated as any other character.
 assert.strictEqual(path.posix.basename('\\dir\\basename.ext'),
