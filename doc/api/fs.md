@@ -3501,6 +3501,13 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
+On Windows, if the file descriptor is connected to the console (e.g. `fd == 1`
+or `stdout`) a string containing non-ASCII characters will not be rendered
+properly by default, regardless of the encoding used.
+It is possible to configure the console to render UTF-8 properly by changing the
+active codepage with the `chcp 65001` command. See the [chcp][] docs for more
+details.
+
 ## fs.writeFile(file, data[, options], callback)
 <!-- YAML
 added: v0.1.29
@@ -4899,3 +4906,4 @@ the file contents.
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags
+[chcp]: https://ss64.com/nt/chcp.html
