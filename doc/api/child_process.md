@@ -1404,7 +1404,7 @@ const subprocess = spawn(process.argv[0], ['child_program.js'], {
 subprocess.unref();
 ```
 
-## Child Promise Promises API
+## Child Process Promises API
 
 > Stability: 1 - Experimental
 
