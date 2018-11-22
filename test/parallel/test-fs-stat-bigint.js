@@ -7,6 +7,7 @@ const promiseFs = require('fs').promises;
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const { isDate } = require('util').types;
+const { inspect } = require('util');
 
 tmpdir.refresh();
 
@@ -62,7 +63,11 @@ function verifyStats(bigintStats, numStats) {
       assert.strictEqual(bigintStats[key], undefined);
       assert.strictEqual(numStats[key], undefined);
     } else if (Number.isSafeInteger(val)) {
-      assert.strictEqual(bigintStats[key], BigInt(val));
+      assert.strictEqual(
+        bigintStats[key], BigInt(val),
+        `${inspect(bigintStats[key])} !== ${inspect(BigInt(val))}\n` +
+        `key=${key}, val=${val}`
+      );
     } else {
       assert(
         Math.abs(Number(bigintStats[key]) - val) < 1,
