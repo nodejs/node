@@ -45,7 +45,7 @@ const server = net.createServer((connection) => {
 server.on('listening', () => {
   const client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
-  client.on('data', function(d) {
+  client.on('data', (d) => {
     console.log(d);
     recv += d;
   });
