@@ -30,15 +30,33 @@ function verifyStats(bigintStats, numStats) {
         `Number version ${time}, BigInt version ${time2}n`);
     } else if (key === 'mode') {
       assert.strictEqual(bigintStats[key], BigInt(val));
-      ['isBlockDevice',
-       'isCharacterDevice',
-       'isDirectory',
-       'isFIFO',
-       'isFile',
-       'isSocket',
-       'isSymbolicLink'
-      ].forEach(
-        (fct) => assert.strictEqual(bigintStats[fct](), numStats[fct]())
+      assert.strictEqual(
+        bigintStats.isBlockDevice(),
+        numStats.isBlockDevice()
+      );
+      assert.strictEqual(
+        bigintStats.isCharacterDevice(),
+        numStats.isCharacterDevice()
+      );
+      assert.strictEqual(
+        bigintStats.isDirectory(),
+        numStats.isDirectory()
+      );
+      assert.strictEqual(
+        bigintStats.isFIFO(),
+        numStats.isFIFO()
+      );
+      assert.strictEqual(
+        bigintStats.isFile(),
+        numStats.isFile()
+      );
+      assert.strictEqual(
+        bigintStats.isSocket(),
+        numStats.isSocket()
+      );
+      assert.strictEqual(
+        bigintStats.isSymbolicLink(),
+        numStats.isSymbolicLink()
       );
     } else if (common.isWindows && (key === 'blksize' || key === 'blocks')) {
       assert.strictEqual(bigintStats[key], undefined);
