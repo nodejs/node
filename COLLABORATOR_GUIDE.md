@@ -76,22 +76,20 @@ A pull request is _author ready_ when:
   pull request is older than 7 days.
 * There are no outstanding review comments.
 
-Please always add the `author ready` label to the PR in that case. Please always
-remove it again as soon as the conditions are not met anymore.
+Please always add the `author ready` label to the pull request in that case.
+Please always remove it again as soon as the conditions are not met anymore.
 
 ### Handling own pull requests
 
-When you open a pull request, it is recommended to start a CI right away (see
-[testing and CI](#testing-and-ci) for instructions) and to post the link to it
-in a comment in the pull request. Starting a new CI after each update is also
-recommended (for example, after an additional code change or after rebasing).
+When you open a pull request, [start a CI](#testing-and-ci) right away and post
+the link to it in a comment in the pull request. Later, after new code changes
+or rebasing, start a new CI.
 
-As soon as the PR is ready to land, please do so. Landing your own pull requests
-allows other Collaborators to focus on other pull requests. If your pull request
-is still awaiting the [minimum time to land](#waiting-for-approvals), add the
-`author ready` label so other Collaborators know it can land as soon as the time
-ends. If instead you wish to land the PR yourself, indicate this intent by using
-the "assign yourself" button, to self-assign the PR.
+As soon as the pull request is ready to land, please do so. This allows other
+Collaborators to focus on other pull requests. If your pull request is not ready
+to land but is [author ready](#author-ready-pull-requests), add the
+`author ready` label. If you wish to land the pull request yourself, use the
+"assign yourself" link to self-assign it.
 
 ## Accepting Modifications
 
