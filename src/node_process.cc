@@ -54,6 +54,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Name;
+using v8::NewStringType;
 using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Uint32;
@@ -135,7 +136,7 @@ void Cwd(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> cwd = String::NewFromUtf8(env->isolate(),
                                           buf,
-                                          v8::NewStringType::kNormal,
+                                          NewStringType::kNormal,
                                           cwd_len).ToLocalChecked();
   args.GetReturnValue().Set(cwd);
 }
@@ -591,7 +592,7 @@ void ProcessTitleGetter(Local<Name> property,
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
   info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer,
-      v8::NewStringType::kNormal).ToLocalChecked());
+      NewStringType::kNormal).ToLocalChecked());
 }
 
 
@@ -616,7 +617,7 @@ void EnvGetter(Local<Name> property,
   const char* val = getenv(*key);
   if (val) {
     return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val,
-        v8::NewStringType::kNormal).ToLocalChecked());
+        NewStringType::kNormal).ToLocalChecked());
   }
 #else  // _WIN32
   node::TwoByteValue key(isolate, property);
@@ -632,7 +633,7 @@ void EnvGetter(Local<Name> property,
       result < arraysize(buffer)) {
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(buffer);
     v8::MaybeLocal<String> rc = String::NewFromTwoByte(
-        isolate, two_byte_buffer, v8::NewStringType::kNormal);
+        isolate, two_byte_buffer, NewStringType::kNormal);
     if (rc.IsEmpty()) {
       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
       return;
@@ -744,7 +745,7 @@ void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     const char* s = strchr(var, '=');
     const int length = s ? s - var : strlen(var);
     env_v[i] =
-        String::NewFromUtf8(isolate, var, v8::NewStringType::kNormal, length)
+        String::NewFromUtf8(isolate, var, NewStringType::kNormal, length)
             .ToLocalChecked();
   }
 #else  // _WIN32
@@ -770,7 +771,7 @@ void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
     v8::MaybeLocal<String> rc =
         String::NewFromTwoByte(isolate,
                                two_byte_buffer,
-                               v8::NewStringType::kNormal,
+                               NewStringType::kNormal,
                                two_byte_buffer_len);
     if (rc.IsEmpty()) {
       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
