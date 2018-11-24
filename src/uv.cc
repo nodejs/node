@@ -76,12 +76,13 @@ void Initialize(Local<Object> target,
   Local<Map> err_map = Map::New(isolate);
 
 #define V(name, msg) do {                                                     \
-  Local<Array> arr = Array::New(isolate, 2);                                  \
-  arr->Set(env->context(), 0, OneByteString(isolate, #name)).FromJust();      \
-  arr->Set(env->context(), 1, OneByteString(isolate, msg)).FromJust();        \
+  Local<Value> arr[] = {                                                      \
+    OneByteString(isolate, #name),                                            \
+    OneByteString(isolate, msg)                                               \
+  };                                                                          \
   err_map->Set(context,                                                       \
                Integer::New(isolate, UV_##name),                              \
-               arr).ToLocalChecked();                                         \
+               Array::New(isolate, arr, arraysize(arr))).ToLocalChecked();    \
 } while (0);
   UV_ERRNO_MAP(V)
 #undef V
