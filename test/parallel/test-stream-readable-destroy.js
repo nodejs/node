@@ -176,7 +176,7 @@ const { inherits } = require('util');
 
   read.on('close', common.mustCall());
   read.destroy(expected, common.mustCall(function(err) {
-    assert.strictEqual(expected, err);
+    assert.strictEqual(err, expected);
   }));
 }
 
