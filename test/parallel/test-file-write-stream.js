@@ -53,10 +53,10 @@ file
     console.error('drain!', callbacks.drain);
     callbacks.drain++;
     if (callbacks.drain === -1) {
-      assert.strictEqual(EXPECTED, fs.readFileSync(fn, 'utf8'));
+      assert.strictEqual(fs.readFileSync(fn, 'utf8'), EXPECTED);
       file.write(EXPECTED);
     } else if (callbacks.drain === 0) {
-      assert.strictEqual(EXPECTED + EXPECTED, fs.readFileSync(fn, 'utf8'));
+      assert.strictEqual(fs.readFileSync(fn, 'utf8'), EXPECTED + EXPECTED);
       file.end();
     }
   })
