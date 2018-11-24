@@ -50,11 +50,12 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
           .ToLocalChecked();
   run_microtasks_fn->SetName(FIXED_ONE_BYTE_STRING(isolate, "runMicrotasks"));
 
-  Local<Array> ret = Array::New(isolate, 2);
-  ret->Set(context, 0, env->tick_info()->fields().GetJSArray()).FromJust();
-  ret->Set(context, 1, run_microtasks_fn).FromJust();
+  Local<Value> ret[] = {
+    env->tick_info()->fields().GetJSArray(),
+    run_microtasks_fn
+  };
 
-  args.GetReturnValue().Set(ret);
+  args.GetReturnValue().Set(Array::New(isolate, ret, arraysize(ret)));
 }
 
 void PromiseRejectCallback(PromiseRejectMessage message) {
