@@ -71,6 +71,6 @@ server.listen(0, function() {
 });
 
 process.on('exit', () => {
-  assert.strictEqual(expectedServer, resultServer);
-  assert.strictEqual(expectedClient, resultClient);
+  assert.strictEqual(resultServer, expectedServer);
+  assert.strictEqual(resultClient, expectedClient);
 });
