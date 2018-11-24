@@ -35,7 +35,7 @@ const server = http.Server(function(req, res) {
   });
 
   req.on('end', function() {
-    assert.strictEqual(expected, result);
+    assert.strictEqual(result, expected);
     server.close();
     res.writeHead(200);
     res.end('hello world\n');
