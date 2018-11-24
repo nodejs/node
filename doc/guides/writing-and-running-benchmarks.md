@@ -444,14 +444,14 @@ function main(conf) {
   const http = require('http');
   const len = conf.kb * 1024;
   const chunk = Buffer.alloc(len, 'x');
-  const server = http.createServer(function(req, res) {
+  const server = http.createServer((req, res) => {
     res.end(chunk);
   });
 
-  server.listen(common.PORT, function() {
+  server.listen(common.PORT, () => {
     bench.http({
       connections: conf.connections,
-    }, function() {
+    }, () => {
       server.close();
     });
   });
