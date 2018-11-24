@@ -168,7 +168,7 @@ process.on('exit', function() {
   assert.equal(response, 1, 'http request "response" callback was not called');
 });
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   request++;
   res.end();
 }).listen(0, function() {
@@ -176,7 +176,7 @@ const server = http.createServer(function(req, res) {
     agent: null,
     port: this.address().port
   };
-  http.get(options, function(res) {
+  http.get(options, (res) => {
     response++;
     res.resume();
     server.close();
@@ -191,14 +191,14 @@ This test could be greatly simplified by using `common.mustCall` like this:
 const common = require('../common');
 const http = require('http');
 
-const server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 })).listen(0, function() {
   const options = {
     agent: null,
     port: this.address().port
   };
-  http.get(options, common.mustCall(function(res) {
+  http.get(options, common.mustCall((res) => {
     res.resume();
     server.close();
   }));
