@@ -3530,7 +3530,7 @@ the end of the file.
 
 On Windows, if the file descriptor is connected to the console (e.g. `fd == 1`
 or `stdout`) a string containing non-ASCII characters will not be rendered
-properly by default.
+properly by default, regardless of the encoding used.
 It is possible to configure the console to render UTF-8 properly by changing the
 active codepage with the `chcp 65001` command. See the [chcp][] docs for more
 details.
