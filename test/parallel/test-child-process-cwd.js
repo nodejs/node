@@ -43,7 +43,7 @@ function testCwd(options, expectCode = 0, expectData) {
   // Can't assert callback, as stayed in to API:
   // _The 'exit' event may or may not fire after an error has occurred._
   child.on('exit', function(code, signal) {
-    assert.strictEqual(expectCode, code);
+    assert.strictEqual(code, expectCode);
   });
 
   child.on('close', common.mustCall(function() {
