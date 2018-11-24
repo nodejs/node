@@ -92,7 +92,7 @@ Node.js process and a cluster worker differs:
    the worker to use the supplied handle, rather than talk to the master
    process.
 3. `server.listen(0)` Normally, this will cause servers to listen on a
-   random port.  However, in a cluster, each worker will receive the
+   random port. However, in a cluster, each worker will receive the
    same "random" port each time they do `listen(0)`. In essence, the
    port is random the first time, but predictable thereafter. To listen
    on a unique port, generate a port number based on the cluster worker ID.
