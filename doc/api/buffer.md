@@ -788,7 +788,7 @@ const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 
 A `TypeError` will be thrown if `array` is not an `Array`.
 
-`Buffer.from(array)` may also use the internal `Buffer` pool just like
+`Buffer.from(array)` may also use the internal `Buffer` pool like
 [`Buffer.allocUnsafe()`] does.
 
 ```js
