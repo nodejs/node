@@ -233,16 +233,16 @@ const defaultSettings = {
 
 for (const name of Object.keys(constants)) {
   if (name.startsWith('HTTP_STATUS_')) {
-    assert.strictEqual(expectedStatusCodes[name], constants[name],
+    assert.strictEqual(constants[name], expectedStatusCodes[name],
                        `Expected status code match for ${name}`);
   } else if (name.startsWith('HTTP2_HEADER_')) {
-    assert.strictEqual(expectedHeaderNames[name], constants[name],
+    assert.strictEqual(constants[name], expectedHeaderNames[name],
                        `Expected header name match for ${name}`);
   } else if (name.startsWith('NGHTTP2_')) {
-    assert.strictEqual(expectedNGConstants[name], constants[name],
+    assert.strictEqual(constants[name], expectedNGConstants[name],
                        `Expected ng constant match for ${name}`);
   } else if (name.startsWith('DEFAULT_SETTINGS_')) {
-    assert.strictEqual(defaultSettings[name], constants[name],
+    assert.strictEqual(constants[name], defaultSettings[name],
                        `Expected default setting match for ${name}`);
   }
 }
