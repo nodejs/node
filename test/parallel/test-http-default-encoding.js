@@ -54,5 +54,5 @@ server.listen(0, function() {
 });
 
 process.on('exit', () => {
-  assert.strictEqual(expected, result);
+  assert.strictEqual(result, expected);
 });
