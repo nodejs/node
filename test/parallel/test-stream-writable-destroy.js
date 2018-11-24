@@ -189,7 +189,7 @@ const { inherits } = require('util');
   const expected = new Error('kaboom');
 
   write.destroy(expected, common.mustCall(function(err) {
-    assert.strictEqual(expected, err);
+    assert.strictEqual(err, expected);
   }));
 }
 
