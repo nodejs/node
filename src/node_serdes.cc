@@ -399,10 +399,11 @@ void DeserializerContext::ReadUint64(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = ctx->env()->isolate();
   Local<Context> context = ctx->env()->context();
 
-  Local<Array> ret = Array::New(isolate, 2);
-  ret->Set(context, 0, Integer::NewFromUnsigned(isolate, hi)).FromJust();
-  ret->Set(context, 1, Integer::NewFromUnsigned(isolate, lo)).FromJust();
-  return args.GetReturnValue().Set(ret);
+  Local<Value> ret[] = {
+    Integer::NewFromUnsigned(isolate, hi),
+    Integer::NewFromUnsigned(isolate, lo)
+  };
+  return args.GetReturnValue().Set(Array::New(isolate, ret, arraysize(ret)));
 }
 
 void DeserializerContext::ReadDouble(const FunctionCallbackInfo<Value>& args) {
