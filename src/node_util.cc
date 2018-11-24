@@ -64,13 +64,13 @@ static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   auto isolate = args.GetIsolate();
 
   Local<Promise> promise = args[0].As<Promise>();
-  Local<Array> ret = Array::New(isolate, 2);
 
   int state = promise->State();
-  ret->Set(env->context(), 0, Integer::New(isolate, state)).FromJust();
+  Local<Value> values[2] = { Integer::New(isolate, state) };
+  size_t number_of_values = 1;
   if (state != Promise::PromiseState::kPending)
-    ret->Set(env->context(), 1, promise->Result()).FromJust();
-
+    values[number_of_values++] = promise->Result();
+  Local<Array> ret = Array::New(isolate, values, number_of_values);
   args.GetReturnValue().Set(ret);
 }
 
@@ -82,11 +82,13 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
 
   Local<Proxy> proxy = args[0].As<Proxy>();
 
-  Local<Array> ret = Array::New(args.GetIsolate(), 2);
-  ret->Set(env->context(), 0, proxy->GetTarget()).FromJust();
-  ret->Set(env->context(), 1, proxy->GetHandler()).FromJust();
+  Local<Value> ret[] = {
+    proxy->GetTarget(),
+    proxy->GetHandler()
+  };
 
-  args.GetReturnValue().Set(ret);
+  args.GetReturnValue().Set(
+      Array::New(args.GetIsolate(), ret, arraysize(ret)));
 }
 
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
@@ -101,11 +103,13 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   // Fast path for WeakMap, WeakSet and Set iterators.
   if (args.Length() == 1)
     return args.GetReturnValue().Set(entries);
-  Local<Array> ret = Array::New(env->isolate(), 2);
-  ret->Set(env->context(), 0, entries).FromJust();
-  ret->Set(env->context(), 1, Boolean::New(env->isolate(), is_key_value))
-      .FromJust();
-  return args.GetReturnValue().Set(ret);
+
+  Local<Value> ret[] = {
+    entries,
+    Boolean::New(env->isolate(), is_key_value)
+  };
+  return args.GetReturnValue().Set(
+      Array::New(env->isolate(), ret, arraysize(ret)));
 }
 
 // Side effect-free stringification that will never throw exceptions.
