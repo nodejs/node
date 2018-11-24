@@ -359,25 +359,12 @@ int LibuvStreamWrap::DoWrite(WriteWrap* req_wrap,
                              size_t count,
                              uv_stream_t* send_handle) {
   LibuvWriteWrap* w = static_cast<LibuvWriteWrap*>(req_wrap);
-  int r;
-  if (send_handle == nullptr) {
-    r = w->Dispatch(uv_write, stream(), bufs, count, AfterUvWrite);
-  } else {
-    r = w->Dispatch(uv_write2,
-                    stream(),
-                    bufs,
-                    count,
-                    send_handle,
-                    AfterUvWrite);
-  }
-
-  if (!r) {
-    size_t bytes = 0;
-    for (size_t i = 0; i < count; i++)
-      bytes += bufs[i].len;
-  }
-
-  return r;
+  return w->Dispatch(uv_write2,
+                     stream(),
+                     bufs,
+                     count,
+                     send_handle,
+                     AfterUvWrite);
 }
 
 
