@@ -491,8 +491,8 @@ added: v0.0.1
 
 * {string}
 
-The file name of the current module. This is the resolved absolute path of the
-current module file.
+The file name of the current module. This is the current module file's absolute
+path with symlinks resolved.
 
 For a main program this is not necessarily the same as the file name used in the
 command line.
