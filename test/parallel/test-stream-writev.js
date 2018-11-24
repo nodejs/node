@@ -115,7 +115,7 @@ function test(decode, uncork, multi, next) {
   w.on('finish', function() {
     // make sure finish comes after all the write cb
     cnt('finish')();
-    assert.deepStrictEqual(expectChunks, actualChunks);
+    assert.deepStrictEqual(actualChunks, expectChunks);
     next();
   });
 }
