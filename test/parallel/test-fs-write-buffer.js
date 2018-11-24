@@ -38,11 +38,11 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual(expected.toString(), found);
+      assert.strictEqual(found, expected.toString());
     });
 
     fs.write(fd, expected, 0, expected.length, null, cb);
@@ -78,7 +78,7 @@ tmpdir.refresh();
     const cb = common.mustCall(function(err, written) {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
@@ -98,7 +98,7 @@ tmpdir.refresh();
     const cb = common.mustCall(function(err, written) {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
@@ -118,11 +118,11 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual(expected.toString(), found);
+      assert.strictEqual(found, expected.toString());
     });
 
     fs.write(fd, expected, undefined, undefined, cb);
@@ -138,11 +138,11 @@ tmpdir.refresh();
     const cb = common.mustCall((err, written) => {
       assert.ifError(err);
 
-      assert.strictEqual(expected.length, written);
+      assert.strictEqual(written, expected.length);
       fs.closeSync(fd);
 
       const found = fs.readFileSync(filename, 'utf8');
-      assert.strictEqual(expected.toString(), found);
+      assert.strictEqual(found, expected.toString());
     });
 
     fs.write(fd, Uint8Array.from(expected), cb);
