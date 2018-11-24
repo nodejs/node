@@ -28,21 +28,21 @@ const url = require('url');
 const expectedRequests = ['/hello', '/there', '/world'];
 
 const server = http.Server(common.mustCall(function(req, res) {
-  assert.strictEqual(expectedRequests.shift(), req.url);
+  assert.strictEqual(req.url, expectedRequests.shift());
 
   switch (req.url) {
     case '/hello':
-      assert.strictEqual(req.method, 'GET');
-      assert.strictEqual(req.headers.accept, '*/*');
-      assert.strictEqual(req.headers.foo, 'bar');
-      assert.strictEqual(req.headers.cookie, 'foo=bar; bar=baz; baz=quux');
+      assert.strictEqual('GET', req.method);
+      assert.strictEqual('*/*', req.headers.accept);
+      assert.strictEqual('bar', req.headers.foo);
+      assert.strictEqual('foo=bar; bar=baz; baz=quux', req.headers.cookie);
       break;
     case '/there':
-      assert.strictEqual(req.method, 'PUT');
-      assert.strictEqual(req.headers.cookie, 'node=awesome; ta=da');
+      assert.strictEqual('PUT', req.method);
+      assert.strictEqual('node=awesome; ta=da', req.headers.cookie);
       break;
     case '/world':
-      assert.strictEqual(req.method, 'POST');
+      assert.strictEqual('POST', req.method);
       assert.deepStrictEqual(req.headers.cookie, 'abc=123; def=456; ghi=789');
       break;
     default:
@@ -76,12 +76,12 @@ server.on('listening', function() {
     const cookieHeaders = req._header.match(/^Cookie: .+$/img);
     assert.deepStrictEqual(cookieHeaders,
                            ['Cookie: foo=bar; bar=baz; baz=quux']);
-    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(200, res.statusCode);
     let body = '';
     res.setEncoding('utf8');
     res.on('data', (chunk) => { body += chunk; });
     res.on('end', common.mustCall(() => {
-      assert.strictEqual(body, 'The path was /hello');
+      assert.strictEqual('The path was /hello', body);
     }));
   }));
 
@@ -94,12 +94,12 @@ server.on('listening', function() {
     }, common.mustCall((res) => {
       const cookieHeaders = req._header.match(/^Cookie: .+$/img);
       assert.deepStrictEqual(cookieHeaders, ['Cookie: node=awesome; ta=da']);
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(200, res.statusCode);
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk) => { body += chunk; });
       res.on('end', common.mustCall(() => {
-        assert.strictEqual(body, 'The path was /there');
+        assert.strictEqual('The path was /there', body);
       }));
     }));
     req.setHeader('Cookie', ['node=awesome', 'ta=da']);
@@ -121,12 +121,12 @@ server.on('listening', function() {
                              ['Cookie: abc=123',
                               'Cookie: def=456',
                               'Cookie: ghi=789']);
-      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(200, res.statusCode);
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk) => { body += chunk; });
       res.on('end', common.mustCall(() => {
-        assert.strictEqual(body, 'The path was /world');
+        assert.strictEqual('The path was /world', body);
       }));
     }));
     req.end();
