@@ -12,6 +12,8 @@ test-net-connect-options-port: PASS,FLAKY
 test-http2-pipe: PASS,FLAKY
 test-worker-syntax-error: PASS,FLAKY
 test-worker-syntax-error-file: PASS,FLAKY
+# https://github.com/nodejs/node/issues/24456
+test-stream-pipeline-http2: PASS,FLAKY
 
 [$system==linux]
 
