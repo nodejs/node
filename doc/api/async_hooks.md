@@ -478,13 +478,12 @@ The ID returned from `executionAsyncId()` is related to execution timing, not
 causality (which is covered by `triggerAsyncId()`):
 
 ```js
-const server = net.createServer(function onConnection(conn) {
+const server = net.createServer((conn) => {
   // Returns the ID of the server, not of the new connection, because the
-  // onConnection callback runs in the execution scope of the server's
-  // MakeCallback().
+  // callback runs in the execution scope of the server's MakeCallback().
   async_hooks.executionAsyncId();
 
-}).listen(port, function onListening() {
+}).listen(port, () => {
   // Returns the ID of a TickObject (i.e. process.nextTick()) because all
   // callbacks passed to .listen() are wrapped in a nextTick().
   async_hooks.executionAsyncId();
