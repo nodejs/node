@@ -274,7 +274,7 @@ see those as two separate modules and would attempt to load the module multiple
 times, causing an exception to be thrown).
 
 The `--preserve-symlinks` flag does not apply to the main module, which allows
-`node --preserve-symlinks node_module/.bin/<foo>` to work.  To apply the same
+`node --preserve-symlinks node_module/.bin/<foo>` to work. To apply the same
 behavior for the main module, also use `--preserve-symlinks-main`.
 
 ### `--preserve-symlinks-main`

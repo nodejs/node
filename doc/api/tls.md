@@ -690,7 +690,7 @@ the key type.
 For RSA keys, the following properties may be defined:
 * `bits` {number} The RSA bit size. Example: `1024`.
 * `exponent` {string} The RSA exponent, as a string in hexadecimal number
-  notation.  Example: `'0x010001'`.
+  notation. Example: `'0x010001'`.
 * `modulus` {string} The RSA modulus, as a hexadecimal string. Example:
    `'B56CE45CB7...'`.
 * `pubkey` {Buffer} The public key.
@@ -1139,7 +1139,7 @@ changes:
     `secureProtocol` option, use one or the other.  **Default:** `'TLSv1.2'`.
   * `minVersion` {string} Optionally set the minimum TLS version to allow. One
     of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
-    `secureProtocol` option, use one or the other.  It is not recommended to use
+    `secureProtocol` option, use one or the other. It is not recommended to use
     less than TLSv1.2, but it may be required for interoperability.
     **Default:** `'TLSv1.2'`, unless changed using CLI options. Using
     `--tls-v1.0` changes the default to `'TLSv1'`. Using `--tls-v1.1` changes
