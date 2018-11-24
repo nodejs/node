@@ -227,7 +227,7 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
 template <std::size_t N>
 inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
     v8::Isolate* isolate,
-    std::array<char, N> arr) {
+    const std::array<char, N>& arr) {
   return OneByteString(isolate, arr.data(), N - 1);
 }
 
