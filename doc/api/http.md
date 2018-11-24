@@ -960,7 +960,7 @@ Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
 ### server.headersTimeout
 <!-- YAML
-added: REPLACEME
+added: v6.15.0
 -->
 
 * {number} **Default:** `40000`

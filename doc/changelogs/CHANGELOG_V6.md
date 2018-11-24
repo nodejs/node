@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.15.0">6.15.0</a><br/>
 <a href="#6.14.4">6.14.4</a><br/>
 <a href="#6.14.3">6.14.3</a><br/>
 <a href="#6.14.2">6.14.2</a><br/>
@@ -72,6 +73,51 @@
 *Note*: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.15.0"></a>
+## 2018-11-27, Version 6.15.0 'Boron' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * Node.js: Debugger port 5858 listens on any interface by default (CVE-2018-12120)
+  * Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
+  * Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
+  * Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
+  * Node.js: HTTP request splitting (CVE-2018-12116)
+  * OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
+  * OpenSSL: Microarchitecture timing vulnerability in ECC scalar multiplication (CVE-2018-5407)
+
+### Notable Changes
+
+* **debugger**: Backport of [nodejs/node#8106](https://github.com/nodejs/node/pull/8106) to prevent the debugger from listening on `0.0.0.0`. It now defaults to `127.0.0.1`. Reported by Ben Noordhuis. (CVE-2018-12120 / Ben Noordhuis).
+* **deps**: Upgrade to OpenSSL 1.0.2q, fixing CVE-2018-0734 and CVE-2018-5407
+* **http**:
+    * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
+    * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
+    * Two-byte characters are now strictly disallowed for the `path` option in HTTP client requests. Paths containing characters outside of the range `\u0021` - `\u00ff` will now be rejected with a `TypeError`. This behavior can be reverted if necessary by supplying the `--security-revert=CVE-2018-12116` command line argument (this is not recommended). Reported as security concern for Node.js 6 and 8 by [Arkadiy Tetelman](https://twitter.com/arkadiyt) ([Lob](https://lob.com)), fixed by backporting a change by Benno Fünfstück applied to Node.js 10 and later. (CVE-2018-12116 / Matteo Collina)
+* **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
+
+### Commits
+
+* [[`4beba664e1`](https://github.com/nodejs/node/commit/4beba664e1)] - **deps**: add -no\_rand\_screen to openssl s\_client (Shigeki Ohtsu) [nodejs/node#1836](https://github.com/nodejs/node/pull/1836)
+* [[`049fe7978f`](https://github.com/nodejs/node/commit/049fe7978f)] - **deps**: fix asm build error of openssl in x86\_win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`e9becec84d`](https://github.com/nodejs/node/commit/e9becec84d)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`78b3a5b2f7`](https://github.com/nodejs/node/commit/78b3a5b2f7)] - **deps**: copy all openssl header files to include dir (Sam Roberts) [#24530](https://github.com/nodejs/node/pull/24530)
+* [[`6120f2429e`](https://github.com/nodejs/node/commit/6120f2429e)] - **deps**: upgrade openssl sources to 1.0.2q (Sam Roberts) [#24530](https://github.com/nodejs/node/pull/24530)
+* [[`92231a56d9`](https://github.com/nodejs/node/commit/92231a56d9)] - **deps,http**: http\_parser set max header size to 8KB (Matteo Collina) [nodejs-private/node-private#143](https://github.com/nodejs-private/node-private/pull/143)
+* [[`dd20c0186f`](https://github.com/nodejs/node/commit/dd20c0186f)] - **(SEMVER-MINOR)** **http**: add --security-revert for CVE-2018-12116 (Matteo Collina) [nodejs-private/node-private#146](https://github.com/nodejs-private/node-private/pull/146)
+* [[`811b63c794`](https://github.com/nodejs/node/commit/811b63c794)] - **(SEMVER-MINOR)** **http**: disallow two-byte characters in URL path (Benno Fünfstück) [nodejs-private/node-private#146](https://github.com/nodejs-private/node-private/pull/146)
+* [[`618eebdd17`](https://github.com/nodejs/node/commit/618eebdd17)] - **(SEMVER-MINOR)** **http,https**: protect against slow headers attack (Matteo Collina) [nodejs-private/node-private#152](https://github.com/nodejs-private/node-private/pull/152)
+* [[`b78d403da3`](https://github.com/nodejs/node/commit/b78d403da3)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [nodejs/node#1389](https://github.com/nodejs/node/pull/1389)
+* [[`35344e87bf`](https://github.com/nodejs/node/commit/35344e87bf)] - **src**: minor cleanup for node\_revert (James M Snell) [#14864](https://github.com/nodejs/node/pull/14864)
+* [[`a9791c9090`](https://github.com/nodejs/node/commit/a9791c9090)] - **src**: make debugger listen on 127.0.0.1 by default (Ben Noordhuis) [nodejs-private/node-private#148](https://github.com/nodejs-private/node-private/pull/148)
+* [[`9c268d0492`](https://github.com/nodejs/node/commit/9c268d0492)] - **url**: avoid hostname spoofing w/ javascript protocol (Matteo Collina) [nodejs-private/node-private#145](https://github.com/nodejs-private/node-private/pull/145)
 
 <a id="6.14.4"></a>
 ## 2018-08-15, Version 6.14.4 'Boron' (LTS), @rvagg
