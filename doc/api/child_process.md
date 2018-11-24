@@ -617,8 +617,8 @@ pipes between the parent and child. The value is one of the following:
    `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
    child's fd.
 4. `'inherit'` - Pass through the corresponding stdio stream to/from the
-   parent process.  In the first three positions, this is equivalent to
-   `process.stdin`, `process.stdout`, and `process.stderr`, respectively.  In
+   parent process. In the first three positions, this is equivalent to
+   `process.stdin`, `process.stdout`, and `process.stderr`, respectively. In
    any other position, equivalent to `'ignore'`.
 5. {Stream} object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying

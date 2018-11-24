@@ -1486,7 +1486,7 @@ closing naturally.
 
 ```js
 const fs = require('fs');
-// Create a stream from some character  device.
+// Create a stream from some character device.
 const stream = fs.createReadStream('/dev/input/event0');
 setTimeout(() => {
   stream.close(); // This may not close the stream.
@@ -4641,7 +4641,7 @@ The following constants are meant for use with `fs.open()`.
   <td><code>O_NOATIME</code></td>
     <td>Flag indicating reading accesses to the file system will no longer
     result in an update to the <code>atime</code> information associated with
-    the file.  This flag is available on Linux operating systems only.</td>
+    the file. This flag is available on Linux operating systems only.</td>
   </tr>
   <tr>
     <td><code>O_NOFOLLOW</code></td>
