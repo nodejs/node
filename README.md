@@ -62,7 +62,7 @@ The open source license grants you the freedom to use Node.js. It does not
 guarantee commitments of other people's time. Please be respectful and manage
 your expectations.
 
-## Release Types 
+## Release Types
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
@@ -597,4 +597,3 @@ Other keys used to sign some previous releases:
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
 [#node.js channel on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
-
