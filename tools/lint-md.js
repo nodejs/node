@@ -30708,64 +30708,91 @@ var remark = unified_1()
   .use(remarkStringify)
   .freeze();
 
-const name = "remark";
-const version$1 = "10.0.0";
-const description = "Markdown processor powered by plugins";
-const license = "MIT";
-const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
-const homepage = "http://remark.js.org";
-const repository = "https://github.com/remarkjs/remark/tree/master/packages/remark";
-const bugs = "https://github.com/remarkjs/remark/issues";
-const author = "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)";
-const contributors = ["Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)"];
-const files = ["index.js"];
-const dependencies = {"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"};
-const devDependencies = {"tape":"^4.9.1"};
-const scripts = {"test":"tape test.js"};
-const xo = false;
-const _resolved = "https://registry.npmjs.org/remark/-/remark-10.0.0.tgz";
-const _integrity = "sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==";
+const _args = [["remark@10.0.0","/Users/daijiro/Developments/node/tools/node-lint-md-cli-rollup"]];
 const _from = "remark@10.0.0";
+const _id = "remark@10.0.0";
+const _inBundle = false;
+const _integrity = "sha512-0fZvVmd9CgDi1qHGsRTyhpJShw60r3/4OSdRpAx+I7CmE8/Jmt829T9KWHpw2Ygw3chRZ26sMorqb8aIolU9tQ==";
+const _location = "/remark";
+const _phantomChildren = {};
+const _requested = {"type":"version","registry":true,"raw":"remark@10.0.0","name":"remark","escapedName":"remark","rawSpec":"10.0.0","saveSpec":null,"fetchSpec":"10.0.0"};
+const _requiredBy = ["/"];
+const _resolved = "https://registry.npmjs.org/remark/-/remark-10.0.0.tgz";
+const _spec = "10.0.0";
+const _where = "/Users/daijiro/Developments/node/tools/node-lint-md-cli-rollup";
+const author = {"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"};
+const bugs = {"url":"https://github.com/remarkjs/remark/issues"};
+const contributors = [{"name":"Titus Wormer","email":"tituswormer@gmail.com","url":"http://wooorm.com"}];
+const dependencies = {"remark-parse":"^6.0.0","remark-stringify":"^6.0.0","unified":"^7.0.0"};
+const description = "Markdown processor powered by plugins";
+const devDependencies = {"tape":"^4.9.1"};
+const files = ["index.js"];
+const homepage = "http://remark.js.org";
+const keywords = ["markdown","abstract","syntax","tree","ast","parse","stringify","process"];
+const license = "MIT";
+const name = "remark";
+const repository = {"type":"git","url":"https://github.com/remarkjs/remark/tree/master/packages/remark"};
+const scripts = {"test":"tape test.js"};
+const version$1 = "10.0.0";
+const xo = false;
 var _package = {
-	name: name,
-	version: version$1,
-	description: description,
-	license: license,
-	keywords: keywords,
-	homepage: homepage,
-	repository: repository,
-	bugs: bugs,
-	author: author,
-	contributors: contributors,
-	files: files,
-	dependencies: dependencies,
-	devDependencies: devDependencies,
-	scripts: scripts,
-	xo: xo,
-	_resolved: _resolved,
+	_args: _args,
+	_from: _from,
+	_id: _id,
+	_inBundle: _inBundle,
 	_integrity: _integrity,
-	_from: _from
+	_location: _location,
+	_phantomChildren: _phantomChildren,
+	_requested: _requested,
+	_requiredBy: _requiredBy,
+	_resolved: _resolved,
+	_spec: _spec,
+	_where: _where,
+	author: author,
+	bugs: bugs,
+	contributors: contributors,
+	dependencies: dependencies,
+	description: description,
+	devDependencies: devDependencies,
+	files: files,
+	homepage: homepage,
+	keywords: keywords,
+	license: license,
+	name: name,
+	repository: repository,
+	scripts: scripts,
+	version: version$1,
+	xo: xo
 };
 
 var _package$1 = Object.freeze({
-	name: name,
-	version: version$1,
-	description: description,
-	license: license,
-	keywords: keywords,
-	homepage: homepage,
-	repository: repository,
-	bugs: bugs,
-	author: author,
-	contributors: contributors,
-	files: files,
-	dependencies: dependencies,
-	devDependencies: devDependencies,
-	scripts: scripts,
-	xo: xo,
-	_resolved: _resolved,
-	_integrity: _integrity,
+	_args: _args,
 	_from: _from,
+	_id: _id,
+	_inBundle: _inBundle,
+	_integrity: _integrity,
+	_location: _location,
+	_phantomChildren: _phantomChildren,
+	_requested: _requested,
+	_requiredBy: _requiredBy,
+	_resolved: _resolved,
+	_spec: _spec,
+	_where: _where,
+	author: author,
+	bugs: bugs,
+	contributors: contributors,
+	dependencies: dependencies,
+	description: description,
+	devDependencies: devDependencies,
+	files: files,
+	homepage: homepage,
+	keywords: keywords,
+	license: license,
+	name: name,
+	repository: repository,
+	scripts: scripts,
+	version: version$1,
+	xo: xo,
 	default: _package
 });
 
@@ -30773,7 +30800,7 @@ const name$1 = "node-lint-md-cli-rollup";
 const description$1 = "remark packaged for node markdown linting";
 const version$2 = "1.0.0";
 const devDependencies$1 = {"rollup":"^0.55.5","rollup-plugin-commonjs":"^8.0.2","rollup-plugin-json":"^2.3.1","rollup-plugin-node-resolve":"^3.4.0"};
-const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^10.0.0","remark-lint":"^6.0.3","remark-preset-lint-node":"^1.2.0","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
+const dependencies$1 = {"markdown-extensions":"^1.1.0","remark":"^10.0.0","remark-lint":"^6.0.3","remark-preset-lint-node":"^1.3.1","unified-args":"^6.0.0","unified-engine":"^5.1.0"};
 const scripts$1 = {"build":"rollup -c","build-node":"npm run build && cp dist/* .."};
 var _package$2 = {
 	name: name$1,
@@ -32692,50 +32719,56 @@ function noAutoLinkWithoutProtocol(tree, file) {
   }
 }
 
-var remarkLintNoBlockquoteWithoutCaret = unifiedLintRule('remark-lint:no-blockquote-without-caret', noBlockquoteWithoutCaret);
+var remarkLintNoBlockquoteWithoutMarker = unifiedLintRule(
+  'remark-lint:no-blockquote-without-marker',
+  noBlockquoteWithoutMarker
+);
 
-function noBlockquoteWithoutCaret(ast, file) {
-  var contents = file.toString();
+var reason$4 = 'Missing marker in blockquote';
+
+function noBlockquoteWithoutMarker(tree, file) {
+  var contents = String(file);
   var location = vfileLocation(file);
   var last = contents.length;
 
-  unistUtilVisit(ast, 'blockquote', visitor);
+  unistUtilVisit(tree, 'blockquote', visitor);
 
   function visitor(node) {
-    var start = unistUtilPosition.start(node).line;
     var indent = node.position && node.position.indent;
+    var start;
+    var length;
+    var index;
+    var line;
+    var offset;
+    var character;
+    var pos;
 
     if (unistUtilGenerated(node) || !indent || indent.length === 0) {
-      return;
+      return
     }
 
-    indent.forEach(eachLine);
+    start = unistUtilPosition.start(node).line;
+    length = indent.length;
+    index = -1;
 
-    function eachLine(column, n) {
-      var character;
-      var line = start + n + 1;
-      var offset = location.toOffset({
-        line: line,
-        column: column
-      }) - 1;
+    while (++index < length) {
+      line = start + index + 1;
+      pos = {line: line, column: indent[index]};
+      offset = location.toOffset(pos) - 1;
 
       while (++offset < last) {
         character = contents.charAt(offset);
 
         if (character === '>') {
-          return;
+          break
         }
 
         /* istanbul ignore else - just for safety */
         if (character !== ' ' && character !== '\t') {
-          break;
+          file.message(reason$4, pos);
+          break
         }
       }
-
-      file.message('Missing caret in blockquote', {
-        line: line,
-        column: column
-      });
     }
   }
 }
@@ -32745,7 +32778,7 @@ var remarkLintNoDuplicateDefinitions = unifiedLintRule(
   noDuplicateDefinitions
 );
 
-var reason$4 = 'Do not use definitions with the same identifier';
+var reason$5 = 'Do not use definitions with the same identifier';
 
 function noDuplicateDefinitions(tree, file) {
   var map = {};
@@ -32762,7 +32795,7 @@ function noDuplicateDefinitions(tree, file) {
 
       if (duplicate && duplicate.type) {
         file.message(
-          reason$4 + ' (' + unistUtilStringifyPosition(unistUtilPosition.start(duplicate)) + ')',
+          reason$5 + ' (' + unistUtilStringifyPosition(unistUtilPosition.start(duplicate)) + ')',
           node
         );
       }
@@ -32787,11 +32820,11 @@ var remarkLintNoFileNameConsecutiveDashes = unifiedLintRule(
   noFileNameConsecutiveDashes
 );
 
-var reason$5 = 'Do not use consecutive dashes in a file name';
+var reason$6 = 'Do not use consecutive dashes in a file name';
 
 function noFileNameConsecutiveDashes(tree, file) {
   if (file.stem && /-{2,}/.test(file.stem)) {
-    file.message(reason$5);
+    file.message(reason$6);
   }
 }
 
@@ -32800,11 +32833,11 @@ var remarkLintNoFileNameOuterDashes = unifiedLintRule(
   noFileNameOuterDashes
 );
 
-var reason$6 = 'Do not use initial or final dashes in a file name';
+var reason$7 = 'Do not use initial or final dashes in a file name';
 
 function noFileNameOuterDashes(tree, file) {
   if (file.stem && /^-|-$/.test(file.stem)) {
-    file.message(reason$6);
+    file.message(reason$7);
   }
 }
 
@@ -33043,7 +33076,7 @@ function noMultipleToplevelHeadings(tree, file, pref) {
 
 var remarkLintNoShellDollars = unifiedLintRule('remark-lint:no-shell-dollars', noShellDollars);
 
-var reason$7 = 'Do not use dollar signs before shell-commands';
+var reason$8 = 'Do not use dollar signs before shell-commands';
 
 /* List of shell script file extensions (also used as code
  * flags for syntax highlighting on GitHub):
@@ -33089,7 +33122,7 @@ function noShellDollars(tree, file) {
         }
       }
 
-      file.message(reason$7, node);
+      file.message(reason$8, node);
     }
   }
 }
@@ -33099,21 +33132,21 @@ var remarkLintNoShortcutReferenceImage = unifiedLintRule(
   noShortcutReferenceImage
 );
 
-var reason$8 = 'Use the trailing [] on reference images';
+var reason$9 = 'Use the trailing [] on reference images';
 
 function noShortcutReferenceImage(tree, file) {
   unistUtilVisit(tree, 'imageReference', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node) && node.referenceType === 'shortcut') {
-      file.message(reason$8, node);
+      file.message(reason$9, node);
     }
   }
 }
 
 var remarkLintNoTableIndentation = unifiedLintRule('remark-lint:no-table-indentation', noTableIndentation);
 
-var reason$9 = 'Do not indent table rows';
+var reason$10 = 'Do not indent table rows';
 
 function noTableIndentation(tree, file) {
   var contents = String(file);
@@ -33135,14 +33168,14 @@ function noTableIndentation(tree, file) {
     );
 
     if (fence.indexOf('|') > 1) {
-      file.message(reason$9, row);
+      file.message(reason$10, row);
     }
   }
 }
 
 var remarkLintNoTabs = unifiedLintRule('remark-lint:no-tabs', noTabs);
 
-var reason$10 = 'Use spaces instead of hard-tabs';
+var reason$11 = 'Use spaces instead of hard-tabs';
 
 function noTabs(tree, file) {
   var content = String(file);
@@ -33150,14 +33183,37 @@ function noTabs(tree, file) {
   var index = content.indexOf('\t');
 
   while (index !== -1) {
-    file.message(reason$10, position(index));
+    file.message(reason$11, position(index));
     index = content.indexOf('\t', index + 1);
+  }
+}
+
+var remarkLintNoTrailingSpaces = unifiedLintRule('remark-lint:no-trailing-spaces', noTrailingSpaces);
+
+/**
+ * Lines that are just space characters are not present in
+ * the AST, which is why we loop through lines manually.
+ */
+
+function noTrailingSpaces(ast, file) {
+  var lines = file.toString().split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var currentLine = lines[i];
+    var lineIndex = i + 1;
+    if (/\s$/.test(currentLine)) {
+      file.message('Remove trailing whitespace', {
+        position: {
+          start: { line: lineIndex, column: currentLine.length + 1 },
+          end: { line: lineIndex }
+        }
+      });
+    }
   }
 }
 
 var remarkLintNoUnusedDefinitions = unifiedLintRule('remark-lint:no-unused-definitions', noUnusedDefinitions);
 
-var reason$11 = 'Found unused definition';
+var reason$12 = 'Found unused definition';
 
 function noUnusedDefinitions(tree, file) {
   var map = {};
@@ -33171,7 +33227,7 @@ function noUnusedDefinitions(tree, file) {
     entry = map[identifier];
 
     if (!entry.used) {
-      file.message(reason$11, entry.node);
+      file.message(reason$12, entry.node);
     }
   }
 
@@ -33789,7 +33845,7 @@ var plugins$1 = [
   ],
   remarkLintMaximumLineLength,
   remarkLintNoAutoLinkWithoutProtocol,
-  remarkLintNoBlockquoteWithoutCaret,
+  remarkLintNoBlockquoteWithoutMarker,
   remarkLintNoDuplicateDefinitions,
   remarkLintNoFileNameArticles,
   remarkLintNoFileNameConsecutiveDashes,
@@ -33802,6 +33858,7 @@ var plugins$1 = [
   remarkLintNoShortcutReferenceImage,
   remarkLintNoTableIndentation,
   remarkLintNoTabs,
+  remarkLintNoTrailingSpaces,
   remarkLintNoUnusedDefinitions,
   remarkLintRuleStyle,
   remarkLintTablePipes,
