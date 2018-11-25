@@ -427,6 +427,7 @@ function altDocs(filename, docCreated) {
     const [versionMajor, versionMinor] = version.num.split('.').map(Number);
     if (docCreatedMajor > versionMajor) return false;
     if (docCreatedMajor < versionMajor) return true;
+    if (Number.isNaN(versionMinor)) return true;
     return docCreatedMinor <= versionMinor;
   }
 
