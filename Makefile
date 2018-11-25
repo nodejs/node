@@ -1084,7 +1084,7 @@ tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
 LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
-  -not -path '*node_modules*' -not -path 'test/fixtures/*' -name '*.md') \
+  ! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md') \
   $(LINT_MD_ROOT_DOCS)
 run-lint-misc-md = tools/lint-md.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
