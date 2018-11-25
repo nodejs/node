@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.14.0">10.14.0</a><br/>
 <a href="#10.13.0">10.13.0</a><br/>
 </td>
 <td valign="top">
@@ -44,6 +45,41 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.14.0"></a>
+## 2018-11-27, Version 10.14.0 'Dubnium' (LTS), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
+  * Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
+  * Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
+  * OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
+  * OpenSSL: Timing vulnerability in ECDSA signature generation (CVE-2019-0735)
+
+### Notable Changes
+
+* **deps**: Upgrade to OpenSSL 1.1.0j, fixing CVE-2018-0734 and CVE-2019-0735
+* **http**:
+    * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
+    * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
+* **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
+
+### Commits
+
+* [[`38ca8baf81`](https://github.com/nodejs/node/commit/38ca8baf81)] - **deps**: update openssl 1.1.0 upgrade docs (Sam Roberts) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`241ba81a5b`](https://github.com/nodejs/node/commit/241ba81a5b)] - **deps**: update archs files for OpenSSL-1.1.0 (Sam Roberts) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`acc40efa90`](https://github.com/nodejs/node/commit/acc40efa90)] - **deps**: add s390 asm rules for OpenSSL-1.1.0 (Shigeki Ohtsu) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`7efd184bb1`](https://github.com/nodejs/node/commit/7efd184bb1)] - **deps**: upgrade openssl sources to 1.1.0j (Sam Roberts) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`a8532d4d23`](https://github.com/nodejs/node/commit/a8532d4d23)] - **deps,http**: http\_parser set max header size to 8KB (Matteo Collina) [nodejs-private/node-private#143](https://github.com/nodejs-private/node-private/pull/143)
+* [[`eb43bc04b1`](https://github.com/nodejs/node/commit/eb43bc04b1)] - **(SEMVER-MINOR)** **http,https**: protect against slow headers attack (Matteo Collina) [nodejs-private/node-private#150](https://github.com/nodejs-private/node-private/pull/150)
+* [[`8b1405ee01`](https://github.com/nodejs/node/commit/8b1405ee01)] - **url**: avoid hostname spoofing w/ javascript protocol (Matteo Collina) [nodejs-private/node-private#145](https://github.com/nodejs-private/node-private/pull/145)
 
 <a id="10.13.0"></a>
 ## 2018-10-30, Version 10.13.0 'Dubnium' (LTS), @MylesBorins
