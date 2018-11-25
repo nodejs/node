@@ -480,8 +480,7 @@ causality (which is covered by `triggerAsyncId()`):
 ```js
 const server = net.createServer((conn) => {
   // Returns the ID of the server, not of the new connection, because the
-  // onConnection callback runs in the execution scope of the server's
-  // MakeCallback().
+  // callback runs in the execution scope of the server's MakeCallback().
   async_hooks.executionAsyncId();
 
 }).listen(port, () => {
