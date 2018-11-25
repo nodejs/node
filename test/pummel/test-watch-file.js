@@ -46,6 +46,6 @@ const fd = fs.openSync(f, 'w+');
 fs.writeSync(fd, 'xyz\n');
 fs.closeSync(fd);
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.ok(changes > 0);
 });

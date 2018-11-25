@@ -11,7 +11,7 @@ const context = vm.createContext(sandbox);
 const script = new vm.Script(
   'var d = Date.now() + timeout;while (d > Date.now());'
 );
-const immediate = setImmediate(function() {
+const immediate = setImmediate(() => {
   throw new Error('Detected vm race condition!');
 });
 

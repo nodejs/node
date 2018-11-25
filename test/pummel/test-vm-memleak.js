@@ -29,12 +29,12 @@ const vm = require('vm');
 const start = Date.now();
 let maxMem = 0;
 
-const ok = process.execArgv.some(function(arg) {
+const ok = process.execArgv.some((arg) => {
   return arg === '--max_old_space_size=32';
 });
 assert(ok, 'Run this test with --max_old_space_size=32.');
 
-const interval = setInterval(function() {
+const interval = setInterval(() => {
   try {
     vm.runInNewContext('throw 1;');
   } catch {
@@ -56,7 +56,7 @@ function testContextLeak() {
     vm.createContext({});
 }
 
-process.on('exit', function() {
+process.on('exit', () => {
   console.error(`max mem: ${Math.round(maxMem / (1024 * 1024))}mb`);
   assert.ok(maxMem < 64 * 1024 * 1024);
 });

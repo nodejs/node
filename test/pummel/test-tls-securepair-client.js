@@ -33,7 +33,7 @@ const net = require('net');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tls = require('tls');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 
 test1();
 
@@ -70,7 +70,7 @@ function test(keyfn, certfn, check, next) {
 
   let serverStdoutBuffer = '';
   server.stdout.setEncoding('utf8');
-  server.stdout.on('data', function(s) {
+  server.stdout.on('data', (s) => {
     serverStdoutBuffer += s;
     console.error(state);
     switch (state) {
@@ -99,7 +99,7 @@ function test(keyfn, certfn, check, next) {
   });
 
 
-  const timeout = setTimeout(function() {
+  const timeout = setTimeout(() => {
     server.kill();
     process.exit(1);
   }, 5000);
@@ -107,7 +107,7 @@ function test(keyfn, certfn, check, next) {
   let gotWriteCallback = false;
   let serverExitCode = -1;
 
-  server.on('exit', function(code) {
+  server.on('exit', (code) => {
     serverExitCode = code;
     clearTimeout(timeout);
     if (next) next();
@@ -130,47 +130,47 @@ function test(keyfn, certfn, check, next) {
 
     s.connect(common.PORT);
 
-    s.on('connect', function() {
+    s.on('connect', () => {
       console.log('client connected');
     });
 
-    pair.on('secure', function() {
+    pair.on('secure', () => {
       console.log('client: connected+secure!');
       console.log('client pair.cleartext.getPeerCertificate(): %j',
                   pair.cleartext.getPeerCertificate());
       console.log('client pair.cleartext.getCipher(): %j',
                   pair.cleartext.getCipher());
       if (check) check(pair);
-      setTimeout(function() {
+      setTimeout(() => {
         pair.cleartext.write('hello\r\n', function() {
           gotWriteCallback = true;
         });
       }, 500);
     });
 
-    pair.cleartext.on('data', function(d) {
+    pair.cleartext.on('data', (d) => {
       console.log('cleartext: %s', d.toString());
     });
 
-    s.on('close', function() {
+    s.on('close', () => {
       console.log('client close');
     });
 
-    pair.encrypted.on('error', function(err) {
+    pair.encrypted.on('error', (err) => {
       console.log(`encrypted error: ${err}`);
     });
 
-    s.on('error', function(err) {
+    s.on('error', (err) => {
       console.log(`socket error: ${err}`);
     });
 
-    pair.on('error', function(err) {
+    pair.on('error', (err) => {
       console.log(`secure error: ${err}`);
     });
   }
 
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     assert.strictEqual(serverExitCode, 0);
     assert.strictEqual(state, 'WAIT-SERVER-CLOSE');
     assert.ok(gotWriteCallback);

@@ -44,9 +44,9 @@ function doTest() {
   const assert = require('assert');
   const tls = require('tls');
   const fs = require('fs');
-  const join = require('path').join;
+  const { join } = require('path');
   const fixtures = require('../common/fixtures');
-  const spawn = require('child_process').spawn;
+  const { spawn } = require('child_process');
 
   const SESSION_TIMEOUT = 1;
 
@@ -86,10 +86,10 @@ function doTest() {
     });
 
     let clientOutput = '';
-    client.stdout.on('data', function(data) {
+    client.stdout.on('data', (data) => {
       clientOutput += data.toString();
     });
-    client.on('exit', function(code) {
+    client.on('exit', (code) => {
       let connectionType;
       const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
@@ -106,7 +106,7 @@ function doTest() {
     });
   }
 
-  const server = tls.createServer(options, function(cleartext) {
+  const server = tls.createServer(options, (cleartext) => {
     cleartext.on('error', function(er) {
       if (er.code !== 'ECONNRESET')
         throw er;
@@ -114,13 +114,13 @@ function doTest() {
     cleartext.end();
   });
 
-  server.listen(common.PORT, function() {
-    Client(function(connectionType) {
+  server.listen(common.PORT, () => {
+    Client((connectionType) => {
       assert.strictEqual(connectionType, 'New');
-      Client(function(connectionType) {
+      Client((connectionType) => {
         assert.strictEqual(connectionType, 'Reused');
-        setTimeout(function() {
-          Client(function(connectionType) {
+        setTimeout(() => {
+          Client((connectionType) => {
             assert.strictEqual(connectionType, 'New');
             server.close();
           });

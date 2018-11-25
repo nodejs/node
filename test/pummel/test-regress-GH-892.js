@@ -31,7 +31,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const https = require('https');
 const fixtures = require('../common/fixtures');
 
@@ -57,7 +57,7 @@ function makeRequest() {
 
   const child = spawn(process.execPath, args);
 
-  child.on('exit', function(code) {
+  child.on('exit', (code) => {
     assert.ok(/DONE/.test(stderrBuffer));
     assert.strictEqual(code, 0);
   });
@@ -70,7 +70,7 @@ function makeRequest() {
 
   // Buffer the stderr so that we can check that it got 'DONE'
   child.stderr.setEncoding('ascii');
-  child.stderr.on('data', function(d) {
+  child.stderr.on('data', (d) => {
     stderrBuffer += d;
   });
 }
@@ -83,30 +83,30 @@ const serverOptions = {
 
 let uploadCount = 0;
 
-const server = https.Server(serverOptions, function(req, res) {
+const server = https.Server(serverOptions, (req, res) => {
   // Close the server immediately. This test is only doing a single upload.
   // We need to make sure the server isn't keeping the event loop alive
   // while the upload is in progress.
   server.close();
 
-  req.on('data', function(d) {
+  req.on('data', (d) => {
     process.stderr.write('.');
     uploadCount += d.length;
   });
 
-  req.on('end', function() {
+  req.on('end', () => {
     assert.strictEqual(uploadCount, bytesExpected);
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('successful upload\n');
   });
 });
 
-server.listen(common.PORT, function() {
+server.listen(common.PORT, () => {
   console.log(`expecting ${bytesExpected} bytes`);
   makeRequest();
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   console.error(`got ${uploadCount} bytes`);
   assert.strictEqual(uploadCount, bytesExpected);
 });

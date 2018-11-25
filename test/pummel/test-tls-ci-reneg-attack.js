@@ -28,7 +28,7 @@ if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
 const assert = require('assert');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
@@ -53,8 +53,8 @@ function test(next) {
 
   let seenError = false;
 
-  const server = tls.createServer(options, function(conn) {
-    conn.on('error', function(err) {
+  const server = tls.createServer(options, (conn) => {
+    conn.on('error', (err) => {
       console.error(`Caught exception: ${err}`);
       assert(/TLS session renegotiation attack/.test(err));
       conn.destroy();
@@ -63,7 +63,7 @@ function test(next) {
     conn.pipe(conn);
   });
 
-  server.listen(common.PORT, function() {
+  server.listen(common.PORT, () => {
     const args = (`s_client -connect 127.0.0.1:${common.PORT}`).split(' ');
     const child = spawn(common.opensslCli, args);
 
@@ -74,21 +74,21 @@ function test(next) {
     let handshakes = 0;
     let renegs = 0;
 
-    child.stderr.on('data', function(data) {
+    child.stderr.on('data', (data) => {
       if (seenError) return;
       handshakes += ((String(data)).match(/verify return:1/g) || []).length;
       if (handshakes === 2) spam();
       renegs += ((String(data)).match(/RENEGOTIATING/g) || []).length;
     });
 
-    child.on('exit', function() {
+    child.on('exit', () => {
       assert.strictEqual(renegs, tls.CLIENT_RENEG_LIMIT + 1);
       server.close();
       process.nextTick(next);
     });
 
     let closed = false;
-    child.stdin.on('error', function(err) {
+    child.stdin.on('error', (err) => {
       switch (err.code) {
         case 'ECONNRESET':
         case 'EPIPE':
@@ -99,7 +99,7 @@ function test(next) {
       }
       closed = true;
     });
-    child.stdin.on('close', function() {
+    child.stdin.on('close', () => {
       closed = true;
     });
 

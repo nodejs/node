@@ -44,7 +44,7 @@ setTimeout(common.mustCall(function() {
 }), 1000);
 
 // this timer shouldn't execute
-const id = setTimeout(function() { assert.strictEqual(true, false); }, 500);
+const id = setTimeout(() => { assert.strictEqual(true, false); }, 500);
 clearTimeout(id);
 
 setInterval(function() {
@@ -66,7 +66,7 @@ setInterval(function() {
 
 
 // Single param:
-setTimeout(function(param) {
+setTimeout((param) => {
   assert.strictEqual(param, 'test param');
 }, 1000, 'test param');
 
@@ -81,7 +81,7 @@ setInterval(function(param) {
 
 
 // Multiple param
-setTimeout(function(param1, param2) {
+setTimeout((param1, param2) => {
   assert.strictEqual(param1, 'param1');
   assert.strictEqual(param2, 'param2');
 }, 1000, 'param1', 'param2');
@@ -98,7 +98,7 @@ setInterval(function(param1, param2) {
 
 // setInterval(cb, 0) should be called multiple times.
 let count4 = 0;
-const interval4 = setInterval(function() {
+const interval4 = setInterval(() => {
   if (++count4 > 10) clearInterval(interval4);
 }, 0);
 
@@ -119,7 +119,7 @@ setTimeout(t, 200);
 clearTimeout(y);
 
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(interval_count, 3);
   assert.strictEqual(count4, 11);
 

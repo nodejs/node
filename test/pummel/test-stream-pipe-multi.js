@@ -25,7 +25,7 @@
 
 require('../common');
 const assert = require('assert');
-const Stream = require('stream').Stream;
+const { Stream } = require('stream');
 const rr = [];
 const ww = [];
 const cnt = 100;
@@ -65,7 +65,7 @@ FakeStream.prototype.close = function() {
 
 
 // expect all streams to close properly.
-process.on('exit', function() {
+process.on('exit', () => {
   assert.strictEqual(wclosed, cnt);
   assert.strictEqual(rclosed, cnt);
 });
@@ -95,15 +95,15 @@ for (let i = 0; i < cnt; i++) {
 
 // now start passing through data
 // simulate a relatively fast async stream.
-rr.forEach(function(r) {
+rr.forEach((r) => {
   let cnt = chunks;
   let paused = false;
 
-  r.on('pause', function() {
+  r.on('pause', () => {
     paused = true;
   });
 
-  r.on('resume', function() {
+  r.on('resume', () => {
     paused = false;
     step();
   });

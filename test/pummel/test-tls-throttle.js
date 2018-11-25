@@ -40,30 +40,30 @@ const options = {
   cert: fixtures.readKey('agent2-cert.pem')
 };
 
-const server = tls.Server(options, common.mustCall(function(socket) {
+const server = tls.Server(options, common.mustCall((socket) => {
   socket.end(body);
 }));
 
 let recvCount = 0;
 
-server.listen(common.PORT, function() {
+server.listen(common.PORT, () => {
   const client = tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
   });
 
-  client.on('data', function(d) {
+  client.on('data', (d) => {
     process.stdout.write('.');
     recvCount += d.length;
 
     client.pause();
-    process.nextTick(function() {
+    process.nextTick(() => {
       client.resume();
     });
   });
 
 
-  client.on('close', function() {
+  client.on('close', () => {
     console.error('close');
     server.close();
     clearTimeout(timeout);
@@ -80,7 +80,7 @@ function displayCounts() {
 const timeout = setTimeout(displayCounts, 10 * 1000);
 
 
-process.on('exit', function() {
+process.on('exit', () => {
   displayCounts();
   assert.strictEqual(body.length, recvCount);
 });

@@ -55,15 +55,15 @@ class Mediator extends stream.Writable {
 
 const mediator = new Mediator();
 
-const server = tls.Server(options, common.mustCall(function(socket) {
+const server = tls.Server(options, common.mustCall((socket) => {
   socket.pipe(mediator);
 }));
 
-server.listen(common.PORT, common.mustCall(function() {
+server.listen(common.PORT, common.mustCall(() => {
   const client1 = tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
-  }, common.mustCall(function() {
+  }, common.mustCall(() => {
     client1.end(request);
   }));
 }));
