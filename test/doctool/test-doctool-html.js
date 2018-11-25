@@ -95,6 +95,10 @@ const testData = [
     html: '<ol><li>fish</li><li>fish</li></ol>' +
       '<ul><li>Red fish</li><li>Blue fish</li></ul>',
   },
+  {
+    file: fixtures.path('altdocs.md'),
+    html: '<li><a href="https://nodejs.org/docs/latest-v8.x/api/foo.html">8.x',
+  },
 ];
 
 const spaces = /\s/g;
@@ -117,7 +121,8 @@ testData.forEach(({ file, html }) => {
         const actual = output.replace(spaces, '');
         // Assert that the input stripped of all whitespace contains the
         // expected markup.
-        assert(actual.includes(expected));
+        assert(actual.includes(expected),
+               `ACTUAL: ${actual}\nEXPECTED: ${expected}`);
       })
     );
   }));
