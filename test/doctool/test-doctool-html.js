@@ -97,7 +97,7 @@ const testData = [
   },
   {
     file: fixtures.path('altdocs.md'),
-    html: '<li><ahref="https://nodejs.org/docs/latest-v8.x/api/foo.html">8.x',
+    html: '<li><a href="https://nodejs.org/docs/latest-v8.x/api/foo.html">8.x',
   },
 ];
 
