@@ -13,4 +13,5 @@ function test(stream) {
   stream.destroy(err);
   stream.on('open', common.mustNotCall());
   stream.on('ready', common.mustNotCall());
+  stream.on('close', common.mustCall());
 }
