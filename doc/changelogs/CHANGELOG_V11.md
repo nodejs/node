@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#11.3.0">11.3.0</a><br/>
 <a href="#11.2.0">11.2.0</a><br/>
 <a href="#11.1.0">11.1.0</a><br/>
 <a href="#11.0.0">11.0.0</a><br/>
@@ -28,6 +29,44 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="11.3.0"></a>
+## 2018-11-27, Version 11.3.0 (Current), @rvagg
+
+This is a security release. All Node.js users should consult the security release summary at:
+
+  https://nodejs.org/en/blog/vulnerability/november-2018-security-releases/
+
+for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+  * Node.js: Denial of Service with large HTTP headers (CVE-2018-12121)
+  * Node.js: Slowloris HTTP Denial of Service (CVE-2018-12122 / Node.js)
+  * Node.js: Hostname spoofing in URL parser for javascript protocol (CVE-2018-12123)
+  * OpenSSL: Timing vulnerability in DSA signature generation (CVE-2018-0734)
+  * OpenSSL: Timing vulnerability in ECDSA signature generation (CVE-2019-0735)
+
+### Notable Changes
+
+* **deps**: Upgrade to OpenSSL 1.1.0j, fixing CVE-2018-0734 and CVE-2019-0735
+* **http**:
+    * Headers received by HTTP servers must not exceed 8192 bytes in total to prevent possible Denial of Service attacks. Reported by Trevor Norris. (CVE-2018-12121 / Matteo Collina)
+    * A timeout of 40 seconds now applies to servers receiving HTTP headers. This value can be adjusted with `server.headersTimeout`. Where headers are not completely received within this period, the socket is destroyed on the next received chunk. In conjunction with `server.setTimeout()`, this aids in protecting against excessive resource retention and possible Denial of Service. Reported by Jan Maybach ([liebdich.com](https://liebdich.com)). (CVE-2018-12122 / Matteo Collina)
+* **url**: Fix a bug that would allow a hostname being spoofed when parsing URLs with `url.parse()` with the `'javascript:'` protocol. Reported by [Martin Bajanik](https://twitter.com/_bayotop) ([Kentico](https://kenticocloud.com/)). (CVE-2018-12123 / Matteo Collina)
+
+### Commits
+
+* [[`8f191f3759`](https://github.com/nodejs/node/commit/8f191f3759)] - **deps**: update openssl 1.1.0 upgrade docs (Sam Roberts) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`f20ac47d7a`](https://github.com/nodejs/node/commit/f20ac47d7a)] - **deps**: update archs files for OpenSSL-1.1.0 (Sam Roberts) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`8248d227b7`](https://github.com/nodejs/node/commit/8248d227b7)] - **deps**: add s390 asm rules for OpenSSL-1.1.0 (Shigeki Ohtsu) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`65d03f0180`](https://github.com/nodejs/node/commit/65d03f0180)] - **deps**: upgrade openssl sources to 1.1.0j (Sam Roberts) [#24523](https://github.com/nodejs/node/pull/24523)
+* [[`a2b8aba23c`](https://github.com/nodejs/node/commit/a2b8aba23c)] - **deps,http**: llhttp set max header size to 8KB (Rod Vagg) [nodejs-private/node-private#149](https://github.com/nodejs-private/node-private/pull/149)
+* [[`74e01d0020`](https://github.com/nodejs/node/commit/74e01d0020)] - **deps,http**: http\_parser set max header size to 8KB (Matteo Collina) [nodejs-private/node-private#143](https://github.com/nodejs-private/node-private/pull/143)
+* [[`4ecbd3bdaa`](https://github.com/nodejs/node/commit/4ecbd3bdaa)] - **http**: reset headers\_nread\_ on llhttp parser reuse (Rod Vagg) [nodejs-private/node-private#149](https://github.com/nodejs-private/node-private/pull/149)
+* [[`04e0620597`](https://github.com/nodejs/node/commit/04e0620597)] - **http**: fix header limit errors and test for llhttp (Fedor Indutny) [nodejs-private/node-private#149](https://github.com/nodejs-private/node-private/pull/149)
+* [[`315ee2e626`](https://github.com/nodejs/node/commit/315ee2e626)] - **(SEMVER-MINOR)** **http,https**: protect against slow headers attack (Matteo Collina) [nodejs-private/node-private#144](https://github.com/nodejs-private/node-private/pull/144)
+* [[`d7504324e1`](https://github.com/nodejs/node/commit/d7504324e1)] - **url**: avoid hostname spoofing w/ javascript protocol (Matteo Collina) [nodejs-private/node-private#145](https://github.com/nodejs-private/node-private/pull/145)
 
 <a id="11.2.0"></a>
 ## 2018-11-15, Version 11.2.0 (Current), @BridgeAR
