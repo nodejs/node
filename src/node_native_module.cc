@@ -103,29 +103,54 @@ void NativeModuleLoader::CompileCodeCache(
 
   // TODO(joyeecheung): allow compiling cache for bootstrapper by
   // switching on id
-  Local<Value> result = CompileAsModule(env, *id, true);
+  MaybeLocal<Value> result =
+      CompileAsModule(env, *id, CompilationResultType::kCodeCache);
   if (!result.IsEmpty()) {
-    args.GetReturnValue().Set(result);
+    args.GetReturnValue().Set(result.ToLocalChecked());
   }
 }
 
 void NativeModuleLoader::CompileFunction(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
   CHECK(args[0]->IsString());
   node::Utf8Value id(env->isolate(), args[0].As<String>());
-  Local<Value> result = CompileAsModule(env, *id, false);
+
+  MaybeLocal<Value> result =
+      CompileAsModule(env, *id, CompilationResultType::kFunction);
   if (!result.IsEmpty()) {
-    args.GetReturnValue().Set(result);
+    args.GetReturnValue().Set(result.ToLocalChecked());
   }
 }
 
-Local<Value> NativeModuleLoader::CompileAsModule(Environment* env,
-                                                 const char* id,
-                                                 bool produce_code_cache) {
+// TODO(joyeecheung): it should be possible to generate the argument names
+// from some special comments for the bootstrapper case.
+MaybeLocal<Value> NativeModuleLoader::CompileAndCall(
+    Local<Context> context,
+    const char* id,
+    std::vector<Local<String>>* parameters,
+    std::vector<Local<Value>>* arguments,
+    Environment* optional_env) {
+  Isolate* isolate = context->GetIsolate();
+  MaybeLocal<Value> compiled = per_process_loader.LookupAndCompile(
+      context, id, parameters, CompilationResultType::kFunction, nullptr);
+  if (compiled.IsEmpty()) {
+    return compiled;
+  }
+  Local<Function> fn = compiled.ToLocalChecked().As<Function>();
+  return fn->Call(
+      context, v8::Null(isolate), arguments->size(), arguments->data());
+}
+
+MaybeLocal<Value> NativeModuleLoader::CompileAsModule(
+    Environment* env, const char* id, CompilationResultType result) {
+  std::vector<Local<String>> parameters = {env->exports_string(),
+                                           env->require_string(),
+                                           env->module_string(),
+                                           env->process_string(),
+                                           env->internal_binding_string()};
   return per_process_loader.LookupAndCompile(
-      env->context(), id, produce_code_cache, env);
+      env->context(), id, &parameters, result, env);
 }
 
 // Currently V8 only checks that the length of the source code is the
@@ -183,15 +208,18 @@ ScriptCompiler::CachedData* NativeModuleLoader::GetCachedData(
   return new ScriptCompiler::CachedData(code_cache_value, code_cache_length);
 }
 
-// Returns Local<Function> of the compiled module if produce_code_cache
+// Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).
 // Otherwise return a Local<Object> containing the cache.
-Local<Value> NativeModuleLoader::LookupAndCompile(Local<Context> context,
-                                                  const char* id,
-                                                  bool produce_code_cache,
-                                                  Environment* optional_env) {
+MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
+    Local<Context> context,
+    const char* id,
+    std::vector<Local<String>>* parameters,
+    CompilationResultType result_type,
+    Environment* optional_env) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
+  Local<Value> ret;  // Used to convert to MaybeLocal before return
 
   Local<String> source = GetSource(isolate, id);
 
@@ -209,7 +237,7 @@ Local<Value> NativeModuleLoader::LookupAndCompile(Local<Context> context,
   //    built with them.
   // 2. If we are generating code cache for tools/general_code_cache.js, we
   //    are not going to use any cache ourselves.
-  if (has_code_cache_ && !produce_code_cache) {
+  if (has_code_cache_ && result_type == CompilationResultType::kFunction) {
     cached_data = GetCachedData(id);
     if (cached_data != nullptr) {
       use_cache = true;
@@ -219,7 +247,7 @@ Local<Value> NativeModuleLoader::LookupAndCompile(Local<Context> context,
   ScriptCompiler::Source script_source(source, origin, cached_data);
 
   ScriptCompiler::CompileOptions options;
-  if (produce_code_cache) {
+  if (result_type == CompilationResultType::kCodeCache) {
     options = ScriptCompiler::kEagerCompile;
   } else if (use_cache) {
     options = ScriptCompiler::kConsumeCodeCache;
@@ -227,42 +255,25 @@ Local<Value> NativeModuleLoader::LookupAndCompile(Local<Context> context,
     options = ScriptCompiler::kNoCompileOptions;
   }
 
-  MaybeLocal<Function> maybe_fun;
-  // Currently we assume if Environment is ready, then we must be compiling
-  // native modules instead of bootstrappers.
-  if (optional_env != nullptr) {
-    Local<String> parameters[] = {optional_env->exports_string(),
-                                  optional_env->require_string(),
-                                  optional_env->module_string(),
-                                  optional_env->process_string(),
-                                  optional_env->internal_binding_string()};
-    maybe_fun = ScriptCompiler::CompileFunctionInContext(context,
-                                                         &script_source,
-                                                         arraysize(parameters),
-                                                         parameters,
-                                                         0,
-                                                         nullptr,
-                                                         options);
-  } else {
-    // Until we migrate bootstrappers compilations here this is unreachable
-    // TODO(joyeecheung): it should be possible to generate the argument names
-    // from some special comments for the bootstrapper case.
-    // Note that for bootstrappers we may not be able to get the argument
-    // names as env->some_string() because we might be compiling before
-    // those strings are initialized.
-    UNREACHABLE();
-  }
+  MaybeLocal<Function> maybe_fun =
+      ScriptCompiler::CompileFunctionInContext(context,
+                                               &script_source,
+                                               parameters->size(),
+                                               parameters->data(),
+                                               0,
+                                               nullptr,
+                                               options);
 
-  Local<Function> fun;
   // This could fail when there are early errors in the native modules,
   // e.g. the syntax errors
-  if (maybe_fun.IsEmpty() || !maybe_fun.ToLocal(&fun)) {
+  if (maybe_fun.IsEmpty()) {
     // In the case of early errors, v8 is already capable of
     // decorating the stack for us - note that we use CompileFunctionInContext
     // so there is no need to worry about wrappers.
-    return scope.Escape(Local<Value>());
+    return MaybeLocal<Value>();
   }
 
+  Local<Function> fun = maybe_fun.ToLocalChecked();
   if (use_cache) {
     if (optional_env != nullptr) {
       // This could happen when Node is run with any v8 flag, but
@@ -279,7 +290,7 @@ Local<Value> NativeModuleLoader::LookupAndCompile(Local<Context> context,
     }
   }
 
-  if (produce_code_cache) {
+  if (result_type == CompilationResultType::kCodeCache) {
     std::unique_ptr<ScriptCompiler::CachedData> cached_data(
         ScriptCompiler::CreateCodeCacheForFunction(fun));
     CHECK_NE(cached_data, nullptr);
@@ -296,10 +307,12 @@ Local<Value> NativeModuleLoader::LookupAndCompile(Local<Context> context,
                          copied.release(),
                          cached_data_length,
                          ArrayBufferCreationMode::kInternalized);
-    return scope.Escape(Uint8Array::New(buf, 0, cached_data_length));
+    ret = Uint8Array::New(buf, 0, cached_data_length);
   } else {
-    return scope.Escape(fun);
+    ret = fun;
   }
+
+  return scope.Escape(ret);
 }
 
 void NativeModuleLoader::Initialize(Local<Object> target,
