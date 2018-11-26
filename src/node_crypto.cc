@@ -946,8 +946,26 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Ciphers");
 
+  // Note: set_ciphersuites() is for TLSv1.3 and was introduced in openssl
+  // 1.1.1, set_cipher_list() is for TLSv1.2 and earlier.
+  //
+  // In openssl 1.1.0, set_cipher_list() would error if it resulted in no
+  // TLSv1.2 (and earlier) cipher suites, and there is no TLSv1.3 support.
+  //
+  // In openssl 1.1.1, set_cipher_list() will not error if it results in no
+  // TLSv1.2 cipher suites if there are any TLSv1.3 cipher suites, which there
+  // are by default. There will be an error later, during the handshake, but
+  // that results in an async error event, rather than a sync error thrown,
+  // which is a semver-major change for the tls API.
+  //
+  // Since we don't currently support TLSv1.3, work around this by removing the
+  // TLSv1.3 cipher suites, so we get backwards compatible synchronous errors.
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
-  if (!SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers)) {
+  if (
+#ifdef TLS1_3_VERSION
+      !SSL_CTX_set_ciphersuites(sc->ctx_.get(), "") ||
+#endif
+      !SSL_CTX_set_cipher_list(sc->ctx_.get(), *ciphers)) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     if (!err) {
       return env->ThrowError("Failed to set ciphers");
