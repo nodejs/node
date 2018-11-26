@@ -50,7 +50,7 @@ property:
 
 * {Function}
 
-The `import()` function is a `Function` used to dynamically import a module. Can import either CommonJS or ECMAscript Modules. Returns a Promise. Requires the following parameter:
+`import()` is a function-like keyword used to dynamically import a module - either CommonJS or ECMAscript Modules. It returns a Promise and requires the following parameter:
 
 * `module-name` {string} module name, relative or absolute path the the `.js` or `.mjs` file to be dynamically imported.
 * Returns: {Promise}
