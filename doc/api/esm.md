@@ -46,7 +46,7 @@ property:
 
 * `url` {string} The absolute `file:` URL of the module.
 
-#### import()
+#### `import()`
 
 * {Function}
 
