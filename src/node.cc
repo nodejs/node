@@ -116,7 +116,6 @@ typedef int mode_t;
 
 namespace node {
 
-using errors::TryCatchScope;
 using native_module::NativeModuleLoader;
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
@@ -144,7 +143,6 @@ using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
 using v8::None;
 using v8::Nothing;
-using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyAttribute;
@@ -741,41 +739,6 @@ Local<Value> MakeCallback(Isolate* isolate,
           .FromMaybe(Local<Value>()));
 }
 
-// Executes a str within the current v8 context.
-static MaybeLocal<Value> ExecuteString(Environment* env,
-                                       Local<String> source,
-                                       Local<String> filename) {
-  EscapableHandleScope scope(env->isolate());
-  TryCatchScope try_catch(env);
-
-  // try_catch must be nonverbose to disable FatalException() handler,
-  // we will handle exceptions ourself.
-  try_catch.SetVerbose(false);
-
-  ScriptOrigin origin(filename);
-
-  MaybeLocal<Script> script =
-      Script::Compile(env->context(), source, &origin);
-  if (script.IsEmpty()) {
-    ReportException(env, try_catch);
-    env->Exit(3);
-    return MaybeLocal<Value>();
-  }
-
-  MaybeLocal<Value> result = script.ToLocalChecked()->Run(env->context());
-  if (result.IsEmpty()) {
-    if (try_catch.HasTerminated()) {
-      env->isolate()->CancelTerminateExecution();
-      return MaybeLocal<Value>();
-    }
-    ReportException(env, try_catch);
-    env->Exit(4);
-    return MaybeLocal<Value>();
-  }
-
-  return scope.Escape(result.ToLocalChecked());
-}
-
 static void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
   if (env->inspector_agent()->IsActive()) {
@@ -1334,39 +1297,13 @@ void SignalExit(int signo) {
   raise(signo);
 }
 
-
-static MaybeLocal<Function> GetBootstrapper(
+static MaybeLocal<Value> ExecuteBootstrapper(
     Environment* env,
-    Local<String> source,
-    Local<String> script_name) {
-  EscapableHandleScope scope(env->isolate());
-
-  TryCatchScope try_catch(env);
-
-  // Disable verbose mode to stop FatalException() handler from trying
-  // to handle the exception. Errors this early in the start-up phase
-  // are not safe to ignore.
-  try_catch.SetVerbose(false);
-
-  // Execute the bootstrapper javascript file
-  MaybeLocal<Value> bootstrapper_v = ExecuteString(env, source, script_name);
-  if (bootstrapper_v.IsEmpty())  // This happens when execution was interrupted.
-    return MaybeLocal<Function>();
-
-  if (try_catch.HasCaught())  {
-    ReportException(env, try_catch);
-    exit(10);
-  }
-
-  CHECK(bootstrapper_v.ToLocalChecked()->IsFunction());
-  return scope.Escape(bootstrapper_v.ToLocalChecked().As<Function>());
-}
-
-static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
-                                int argc, Local<Value> argv[],
-                                Local<Value>* out) {
-  bool ret = bootstrapper->Call(
-      env->context(), Null(env->isolate()), argc, argv).ToLocal(out);
+    const char* id,
+    std::vector<Local<String>>* parameters,
+    std::vector<Local<Value>>* arguments) {
+  MaybeLocal<Value> ret = per_process_loader.CompileAndCall(
+      env->context(), id, parameters, arguments, env);
 
   // If there was an error during bootstrap then it was either handled by the
   // FatalException handler or it's unrecoverable (e.g. max call stack
@@ -1375,123 +1312,86 @@ static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
   // There are only two ways to have a stack size > 1: 1) the user manually
   // called MakeCallback or 2) user awaited during bootstrap, which triggered
   // _tickCallback().
-  if (!ret) {
+  if (ret.IsEmpty()) {
     env->async_hooks()->clear_async_id_stack();
   }
 
   return ret;
 }
 
-
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
-
-  TryCatchScope try_catch(env);
-  // Disable verbose mode to stop FatalException() handler from trying
-  // to handle the exception. Errors this early in the start-up phase
-  // are not safe to ignore.
-  try_catch.SetVerbose(false);
-
-  // The bootstrapper scripts are lib/internal/bootstrap/loaders.js and
-  // lib/internal/bootstrap/node.js, each included as a static C string
-  // generated in node_javascript.cc by node_js2c.
-
-  // TODO(joyeecheung): use NativeModuleLoader::Compile
-  // We duplicate the string literals here since once we refactor the bootstrap
-  // compilation out to NativeModuleLoader none of this is going to matter
   Isolate* isolate = env->isolate();
-  Local<String> loaders_name =
-      FIXED_ONE_BYTE_STRING(isolate, "internal/bootstrap/loaders.js");
-  Local<String> loaders_source =
-      per_process_loader.GetSource(isolate, "internal/bootstrap/loaders");
-  MaybeLocal<Function> loaders_bootstrapper =
-      GetBootstrapper(env, loaders_source, loaders_name);
-  Local<String> node_name =
-      FIXED_ONE_BYTE_STRING(isolate, "internal/bootstrap/node.js");
-  Local<String> node_source =
-      per_process_loader.GetSource(isolate, "internal/bootstrap/node");
-  MaybeLocal<Function> node_bootstrapper =
-      GetBootstrapper(env, node_source, node_name);
-
-  if (loaders_bootstrapper.IsEmpty() || node_bootstrapper.IsEmpty()) {
-    // Execution was interrupted.
-    return;
-  }
+  Local<Context> context = env->context();
 
   // Add a reference to the global object
-  Local<Object> global = env->context()->Global();
+  Local<Object> global = context->Global();
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(env, global);
 #endif
 
-  // Enable handling of uncaught exceptions
-  // (FatalException(), break on uncaught exception in debugger)
-  //
-  // This is not strictly necessary since it's almost impossible
-  // to attach the debugger fast enough to break on exception
-  // thrown during process startup.
-  try_catch.SetVerbose(true);
+  Local<Object> process = env->process_object();
 
-  env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
-
+  // Setting global properties for the bootstrappers to use:
+  // - global
+  // - process._rawDebug
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
-  global->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "global"),
-              global).FromJust();
+  global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
+      .FromJust();
+  env->SetMethod(process, "_rawDebug", RawDebug);
 
   // Create binding loaders
-  Local<Function> get_binding_fn = env->NewFunctionTemplate(binding::GetBinding)
-                                       ->GetFunction(env->context())
-                                       .ToLocalChecked();
-
-  Local<Function> get_linked_binding_fn =
+  std::vector<Local<String>> loaders_params = {
+      env->process_string(),
+      FIXED_ONE_BYTE_STRING(isolate, "getBinding"),
+      FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
+      FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
+      FIXED_ONE_BYTE_STRING(isolate, "debugBreak")};
+  std::vector<Local<Value>> loaders_args = {
+      process,
+      env->NewFunctionTemplate(binding::GetBinding)
+          ->GetFunction(context)
+          .ToLocalChecked(),
       env->NewFunctionTemplate(binding::GetLinkedBinding)
-          ->GetFunction(env->context())
-          .ToLocalChecked();
-
-  Local<Function> get_internal_binding_fn =
+          ->GetFunction(context)
+          .ToLocalChecked(),
       env->NewFunctionTemplate(binding::GetInternalBinding)
-          ->GetFunction(env->context())
-          .ToLocalChecked();
+          ->GetFunction(context)
+          .ToLocalChecked(),
+      Boolean::New(isolate,
+                   env->options()->debug_options->break_node_first_line)};
 
-  Local<Value> loaders_bootstrapper_args[] = {
-    env->process_object(),
-    get_binding_fn,
-    get_linked_binding_fn,
-    get_internal_binding_fn,
-    Boolean::New(env->isolate(),
-                 env->options()->debug_options->break_node_first_line)
-  };
-
+  MaybeLocal<Value> loader_exports;
   // Bootstrap internal loaders
-  Local<Value> bootstrapped_loaders;
-  if (!ExecuteBootstrapper(env, loaders_bootstrapper.ToLocalChecked(),
-                           arraysize(loaders_bootstrapper_args),
-                           loaders_bootstrapper_args,
-                           &bootstrapped_loaders)) {
+  loader_exports = ExecuteBootstrapper(
+      env, "internal/bootstrap/loaders", &loaders_params, &loaders_args);
+  if (loader_exports.IsEmpty()) {
     return;
   }
-
-  Local<Function> trigger_fatal_exception =
-      env->NewFunctionTemplate(FatalException)->GetFunction(env->context())
-          .ToLocalChecked();
 
   // Bootstrap Node.js
   Local<Object> bootstrapper = Object::New(env->isolate());
   SetupBootstrapObject(env, bootstrapper);
-  Local<Value> bootstrapped_node;
-  Local<Value> node_bootstrapper_args[] = {
-    env->process_object(),
-    bootstrapper,
-    bootstrapped_loaders,
-    trigger_fatal_exception,
-  };
-  if (!ExecuteBootstrapper(env, node_bootstrapper.ToLocalChecked(),
-                           arraysize(node_bootstrapper_args),
-                           node_bootstrapper_args,
-                           &bootstrapped_node)) {
+
+  // process, bootstrappers, loaderExports, triggerFatalException
+  std::vector<Local<String>> node_params = {
+      env->process_string(),
+      FIXED_ONE_BYTE_STRING(isolate, "bootstrappers"),
+      FIXED_ONE_BYTE_STRING(isolate, "loaderExports"),
+      FIXED_ONE_BYTE_STRING(isolate, "triggerFatalException")};
+  std::vector<Local<Value>> node_args = {
+      process,
+      bootstrapper,
+      loader_exports.ToLocalChecked(),
+      env->NewFunctionTemplate(FatalException)
+          ->GetFunction(context)
+          .ToLocalChecked()};
+
+  if (ExecuteBootstrapper(
+          env, "internal/bootstrap/node", &node_params, &node_args)
+          .IsEmpty()) {
     return;
   }
 }
