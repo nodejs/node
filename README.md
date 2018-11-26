@@ -250,6 +250,8 @@ For information about the governance of the Node.js project, see
 * [AnnaMag](https://github.com/AnnaMag) -
 **Anna M. Kedzierska** &lt;anna.m.kedzierska@gmail.com&gt;
 * [apapirovski](https://github.com/apapirovski) -
+**Anto Aravinth** &lt;anto.aravinth.cse@gmail.com&gt; (he/him)
+* [antsmartian](https://github.com/antsmartian)
 **Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [aqrln](https://github.com/aqrln) -
 **Alexey Orlenko** &lt;eaglexrlnk@gmail.com&gt; (he/him)
