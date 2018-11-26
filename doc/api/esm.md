@@ -46,6 +46,79 @@ property:
 
 * `url` {string} The absolute `file:` URL of the module.
 
+#### import()
+
+* {Function}
+
+The `import()` function is a `Function` used to dynamically import a module. Can import either CommonJS or ECMAscript Modules. Returns a Promise. Requires the following parameter:
+
+* `module-name` {string} module name, relative or absolute path the the `.js` or `.mjs` file to be dynamically imported.
+* Returns: {Promise}
+
+Conforms with the TC39 [draft proposal](https://tc39.github.io/proposal-dynamic-import/) for dynamic import
+
+Example using a Promise
+
+```js
+import('./importedModule.mjs').then((module) => {
+ // do something
+})
+```
+
+Example with the await keyword
+
+```js
+const importedModulePromise = await import('./importedModule.mjs')
+```
+
+With dynamic import, the entire module is always imported. Tree shaking and static code analysis is not possible with dynamically imported modules.
+
+The default export of the dynamically imported module is available under `module.default` property in the returned promise. The named exports are available in the `module.namedExport` property of the returned promise. 
+
+A key difference between static imports and dynamic imports is how the default export is handled. If you have a module that exports a number of functions or objects within the default export, when statically imported those functions and objects are properties of the root of the imported module, when dynamically imported those functions and objects are child properties of the `module.default` object.
+
+For example the exported module with a default export consisting of a number of functions
+
+```
+export default { func1, func2 }
+```
+
+When imported with static imports
+
+```js
+import myModule from `myModule`
+myModule.func1()
+```
+
+equates to below with dynamic imports
+
+```js
+const myImport = await import('myModule')
+const myModule = myImport.default
+myModule.func1()
+```
+
+An example with named exports
+
+```js
+export { func1, func2 }
+```
+
+When imported with static imports
+
+```js
+import { func1 } from 'myModule'
+func1()
+```
+
+When imported with dynamic imports
+
+```js
+const myImport = await import('myModule')
+const { func1 } = myImport
+func1()
+```
+
 ### Unsupported
 
 | Feature | Reason |
