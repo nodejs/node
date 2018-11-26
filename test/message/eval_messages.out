@@ -12,7 +12,7 @@ SyntaxError: Strict mode code may not include a with statement
     at executeUserCode (internal/bootstrap/node.js:*:*)
     at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
-    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
+    at internal/bootstrap/node.js:*:*
 42
 42
 [eval]:1
@@ -29,7 +29,7 @@ Error: hello
     at executeUserCode (internal/bootstrap/node.js:*:*)
     at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
-    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
+    at internal/bootstrap/node.js:*:*
 
 [eval]:1
 throw new Error("hello")
@@ -45,7 +45,7 @@ Error: hello
     at executeUserCode (internal/bootstrap/node.js:*:*)
     at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
-    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
+    at internal/bootstrap/node.js:*:*
 100
 [eval]:1
 var x = 100; y = x;
@@ -61,7 +61,7 @@ ReferenceError: y is not defined
     at executeUserCode (internal/bootstrap/node.js:*:*)
     at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
-    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
+    at internal/bootstrap/node.js:*:*
 
 [eval]:1
 var ______________________________________________; throw 10
