@@ -93,12 +93,10 @@ to land but is [author ready](#author-ready-pull-requests), add the
 
 ## Accepting Modifications
 
-All modifications to the Node.js code and documentation should be performed via
-GitHub pull requests, including modifications by Collaborators and TSC members.
-A pull request must be reviewed, and must also be tested with CI, before being
-landed into the codebase. There may be exceptions to the latter (the changed
-code cannot be tested with a CI or similar). If that is the case, please leave a
-comment that explains why the PR does not require a CI run.
+Contributors propose modifications to Node.js using GitHub pull requests. This
+is true for all modifications including those proposed by TSC members and other
+Collaborators. A pull request must pass code review and CI before landing into
+the codebase.
 
 ### Code Reviews
 
