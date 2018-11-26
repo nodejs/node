@@ -253,7 +253,7 @@ struct ArgsInfo {
       // on the command line (i.e. not generated through alias expansion).
       // '--' is a special case here since its purpose is to end `exec_argv`,
       // which is why we do not include it.
-      if (exec_args != nullptr && first() != "--")
+      if (exec_args != nullptr && ret != "--")
         exec_args->push_back(ret);
       underlying->erase(underlying->begin() + 1);
     } else {
