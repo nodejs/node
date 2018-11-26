@@ -1237,6 +1237,10 @@ void DefineCryptoConstants(Local<Object> target) {
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCipherList",
                               per_process_opts->tls_cipher_list.c_str());
+
+  NODE_DEFINE_CONSTANT(target, TLS1_VERSION);
+  NODE_DEFINE_CONSTANT(target, TLS1_1_VERSION);
+  NODE_DEFINE_CONSTANT(target, TLS1_2_VERSION);
 #endif
   NODE_DEFINE_CONSTANT(target, INT_MAX);
 }
@@ -1347,15 +1351,33 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   // Define libuv constants.
   NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
 
-  os_constants->Set(OneByteString(isolate, "dlopen"), dlopen_constants);
-  os_constants->Set(OneByteString(isolate, "errno"), err_constants);
-  os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
-  os_constants->Set(OneByteString(isolate, "priority"), priority_constants);
-  target->Set(OneByteString(isolate, "os"), os_constants);
-  target->Set(OneByteString(isolate, "fs"), fs_constants);
-  target->Set(OneByteString(isolate, "crypto"), crypto_constants);
-  target->Set(OneByteString(isolate, "zlib"), zlib_constants);
-  target->Set(OneByteString(isolate, "trace"), trace_constants);
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "dlopen"),
+                    dlopen_constants).FromJust();
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "errno"),
+                    err_constants).FromJust();
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "signals"),
+                    sig_constants).FromJust();
+  os_constants->Set(env->context(),
+                    OneByteString(isolate, "priority"),
+                    priority_constants).FromJust();
+  target->Set(env->context(),
+              OneByteString(isolate, "os"),
+              os_constants).FromJust();
+  target->Set(env->context(),
+              OneByteString(isolate, "fs"),
+              fs_constants).FromJust();
+  target->Set(env->context(),
+              OneByteString(isolate, "crypto"),
+              crypto_constants).FromJust();
+  target->Set(env->context(),
+              OneByteString(isolate, "zlib"),
+              zlib_constants).FromJust();
+  target->Set(env->context(),
+              OneByteString(isolate, "trace"),
+              trace_constants).FromJust();
 }
 
 }  // namespace node

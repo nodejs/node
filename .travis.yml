@@ -1,26 +1,33 @@
 language: cpp
-compiler:
-  - clang
-sudo: false
 cache: ccache
 os: linux
 matrix:
   include:
+    - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
+      if: type = pull_request
+      language: node_js
+      node_js: "node"
+      script:
+        - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
+            bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
+          fi
     - name: "Linter"
-      node_js: "latest"
+      language: node_js
+      node_js: "node"
       env:
         - NODE=$(which node)
       script:
         - make lint
-        # Lint the first commit in the PR.
-        - \[ -z "$TRAVIS_COMMIT_RANGE" \] || (echo -e '\nLinting the commit message according to the guidelines at https://goo.gl/p2fr5Q\n' && git log $TRAVIS_COMMIT_RANGE --pretty=format:'%h' --no-merges | tail -1 | xargs npx -q core-validate-commit --no-validate-metadata)
     - name: "Test Suite"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.9
       install:
+        - export CC='ccache gcc-4.9' CXX='ccache g++-4.9' JOBS=2
         - ./configure
         - make -j2 V=
       script:
-        - make -j2 test
-      before_install:
-        - export CXX="ccache clang++ -Qunused-arguments"
-        - export CC="ccache clang -Qunused-arguments -Wno-unknown-warning-option"
-        - export JOBS=2
+        - PARALLEL_ARGS='--flaky-tests=skip' make -j1 test

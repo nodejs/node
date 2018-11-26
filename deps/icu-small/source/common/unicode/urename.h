@@ -33,6 +33,9 @@
 
 #if !U_DISABLE_RENAMING
 
+// Disable Renaming for Visual Studio's IntelliSense feature, so that 'Go-to-Definition' (F12) will work.
+#if !(defined(_MSC_VER) && defined(__INTELLISENSE__))
+
 /* We need the U_ICU_ENTRY_POINT_RENAME definition. There's a default one in unicode/uvernum.h we can use, but we will give
    the platform a chance to define it first.
    Normally (if utypes.h or umachine.h was included first) this will not be necessary as it will already be defined.
@@ -107,6 +110,7 @@
 #define _UTF7Data U_ICU_ENTRY_POINT_RENAME(_UTF7Data)
 #define _UTF8Data U_ICU_ENTRY_POINT_RENAME(_UTF8Data)
 #define allowedHourFormatsCleanup U_ICU_ENTRY_POINT_RENAME(allowedHourFormatsCleanup)
+#define checkImpl U_ICU_ENTRY_POINT_RENAME(checkImpl)
 #define cmemory_cleanup U_ICU_ENTRY_POINT_RENAME(cmemory_cleanup)
 #define dayPeriodRulesCleanup U_ICU_ENTRY_POINT_RENAME(dayPeriodRulesCleanup)
 #define deleteAllowedHourFormats U_ICU_ENTRY_POINT_RENAME(deleteAllowedHourFormats)
@@ -253,12 +257,14 @@
 #define u_fstropen U_ICU_ENTRY_POINT_RENAME(u_fstropen)
 #define u_fungetc U_ICU_ENTRY_POINT_RENAME(u_fungetc)
 #define u_getBidiPairedBracket U_ICU_ENTRY_POINT_RENAME(u_getBidiPairedBracket)
+#define u_getBinaryPropertySet U_ICU_ENTRY_POINT_RENAME(u_getBinaryPropertySet)
 #define u_getCombiningClass U_ICU_ENTRY_POINT_RENAME(u_getCombiningClass)
 #define u_getDataDirectory U_ICU_ENTRY_POINT_RENAME(u_getDataDirectory)
 #define u_getDataVersion U_ICU_ENTRY_POINT_RENAME(u_getDataVersion)
 #define u_getDefaultConverter U_ICU_ENTRY_POINT_RENAME(u_getDefaultConverter)
 #define u_getFC_NFKC_Closure U_ICU_ENTRY_POINT_RENAME(u_getFC_NFKC_Closure)
 #define u_getISOComment U_ICU_ENTRY_POINT_RENAME(u_getISOComment)
+#define u_getIntPropertyMap U_ICU_ENTRY_POINT_RENAME(u_getIntPropertyMap)
 #define u_getIntPropertyMaxValue U_ICU_ENTRY_POINT_RENAME(u_getIntPropertyMaxValue)
 #define u_getIntPropertyMinValue U_ICU_ENTRY_POINT_RENAME(u_getIntPropertyMinValue)
 #define u_getIntPropertyValue U_ICU_ENTRY_POINT_RENAME(u_getIntPropertyValue)
@@ -763,6 +769,20 @@
 #define ucol_swap U_ICU_ENTRY_POINT_RENAME(ucol_swap)
 #define ucol_swapInverseUCA U_ICU_ENTRY_POINT_RENAME(ucol_swapInverseUCA)
 #define ucol_tertiaryOrder U_ICU_ENTRY_POINT_RENAME(ucol_tertiaryOrder)
+#define ucpmap_get U_ICU_ENTRY_POINT_RENAME(ucpmap_get)
+#define ucpmap_getRange U_ICU_ENTRY_POINT_RENAME(ucpmap_getRange)
+#define ucptrie_close U_ICU_ENTRY_POINT_RENAME(ucptrie_close)
+#define ucptrie_get U_ICU_ENTRY_POINT_RENAME(ucptrie_get)
+#define ucptrie_getRange U_ICU_ENTRY_POINT_RENAME(ucptrie_getRange)
+#define ucptrie_getType U_ICU_ENTRY_POINT_RENAME(ucptrie_getType)
+#define ucptrie_getValueWidth U_ICU_ENTRY_POINT_RENAME(ucptrie_getValueWidth)
+#define ucptrie_internalGetRange U_ICU_ENTRY_POINT_RENAME(ucptrie_internalGetRange)
+#define ucptrie_internalSmallIndex U_ICU_ENTRY_POINT_RENAME(ucptrie_internalSmallIndex)
+#define ucptrie_internalSmallU8Index U_ICU_ENTRY_POINT_RENAME(ucptrie_internalSmallU8Index)
+#define ucptrie_internalU8PrevIndex U_ICU_ENTRY_POINT_RENAME(ucptrie_internalU8PrevIndex)
+#define ucptrie_openFromBinary U_ICU_ENTRY_POINT_RENAME(ucptrie_openFromBinary)
+#define ucptrie_swap U_ICU_ENTRY_POINT_RENAME(ucptrie_swap)
+#define ucptrie_toBinary U_ICU_ENTRY_POINT_RENAME(ucptrie_toBinary)
 #define ucsdet_close U_ICU_ENTRY_POINT_RENAME(ucsdet_close)
 #define ucsdet_detect U_ICU_ENTRY_POINT_RENAME(ucsdet_detect)
 #define ucsdet_detectAll U_ICU_ENTRY_POINT_RENAME(ucsdet_detectAll)
@@ -1079,6 +1099,7 @@
 #define ulocdata_getPaperSize U_ICU_ENTRY_POINT_RENAME(ulocdata_getPaperSize)
 #define ulocdata_open U_ICU_ENTRY_POINT_RENAME(ulocdata_open)
 #define ulocdata_setNoSubstitute U_ICU_ENTRY_POINT_RENAME(ulocdata_setNoSubstitute)
+#define ulocimp_forLanguageTag U_ICU_ENTRY_POINT_RENAME(ulocimp_forLanguageTag)
 #define ulocimp_getCountry U_ICU_ENTRY_POINT_RENAME(ulocimp_getCountry)
 #define ulocimp_getLanguage U_ICU_ENTRY_POINT_RENAME(ulocimp_getLanguage)
 #define ulocimp_getRegionForSupplementalData U_ICU_ENTRY_POINT_RENAME(ulocimp_getRegionForSupplementalData)
@@ -1106,6 +1127,16 @@
 #define umtx_condWait U_ICU_ENTRY_POINT_RENAME(umtx_condWait)
 #define umtx_lock U_ICU_ENTRY_POINT_RENAME(umtx_lock)
 #define umtx_unlock U_ICU_ENTRY_POINT_RENAME(umtx_unlock)
+#define umutablecptrie_buildImmutable U_ICU_ENTRY_POINT_RENAME(umutablecptrie_buildImmutable)
+#define umutablecptrie_clone U_ICU_ENTRY_POINT_RENAME(umutablecptrie_clone)
+#define umutablecptrie_close U_ICU_ENTRY_POINT_RENAME(umutablecptrie_close)
+#define umutablecptrie_fromUCPMap U_ICU_ENTRY_POINT_RENAME(umutablecptrie_fromUCPMap)
+#define umutablecptrie_fromUCPTrie U_ICU_ENTRY_POINT_RENAME(umutablecptrie_fromUCPTrie)
+#define umutablecptrie_get U_ICU_ENTRY_POINT_RENAME(umutablecptrie_get)
+#define umutablecptrie_getRange U_ICU_ENTRY_POINT_RENAME(umutablecptrie_getRange)
+#define umutablecptrie_open U_ICU_ENTRY_POINT_RENAME(umutablecptrie_open)
+#define umutablecptrie_set U_ICU_ENTRY_POINT_RENAME(umutablecptrie_set)
+#define umutablecptrie_setRange U_ICU_ENTRY_POINT_RENAME(umutablecptrie_setRange)
 #define uniset_getUnicode32Instance U_ICU_ENTRY_POINT_RENAME(uniset_getUnicode32Instance)
 #define unorm2_append U_ICU_ENTRY_POINT_RENAME(unorm2_append)
 #define unorm2_close U_ICU_ENTRY_POINT_RENAME(unorm2_close)
@@ -1218,6 +1249,7 @@
 #define uplug_setPlugLevel U_ICU_ENTRY_POINT_RENAME(uplug_setPlugLevel)
 #define uplug_setPlugName U_ICU_ENTRY_POINT_RENAME(uplug_setPlugName)
 #define uplug_setPlugNoUnload U_ICU_ENTRY_POINT_RENAME(uplug_setPlugNoUnload)
+#define uprops_addPropertyStarts U_ICU_ENTRY_POINT_RENAME(uprops_addPropertyStarts)
 #define uprops_getSource U_ICU_ENTRY_POINT_RENAME(uprops_getSource)
 #define upropsvec_addPropertyStarts U_ICU_ENTRY_POINT_RENAME(upropsvec_addPropertyStarts)
 #define uprv_add32_overflow U_ICU_ENTRY_POINT_RENAME(uprv_add32_overflow)
@@ -1236,6 +1268,7 @@
 #define uprv_convertToPosix U_ICU_ENTRY_POINT_RENAME(uprv_convertToPosix)
 #define uprv_copyAscii U_ICU_ENTRY_POINT_RENAME(uprv_copyAscii)
 #define uprv_copyEbcdic U_ICU_ENTRY_POINT_RENAME(uprv_copyEbcdic)
+#define uprv_currencyLeads U_ICU_ENTRY_POINT_RENAME(uprv_currencyLeads)
 #define uprv_decContextClearStatus U_ICU_ENTRY_POINT_RENAME(uprv_decContextClearStatus)
 #define uprv_decContextDefault U_ICU_ENTRY_POINT_RENAME(uprv_decContextDefault)
 #define uprv_decContextGetRounding U_ICU_ENTRY_POINT_RENAME(uprv_decContextGetRounding)
@@ -1329,7 +1362,6 @@
 #define uprv_fmod U_ICU_ENTRY_POINT_RENAME(uprv_fmod)
 #define uprv_free U_ICU_ENTRY_POINT_RENAME(uprv_free)
 #define uprv_getCharNameCharacters U_ICU_ENTRY_POINT_RENAME(uprv_getCharNameCharacters)
-#define uprv_getDefaultCodepage U_ICU_ENTRY_POINT_RENAME(uprv_getDefaultCodepage)
 #define uprv_getDefaultLocaleID U_ICU_ENTRY_POINT_RENAME(uprv_getDefaultLocaleID)
 #define uprv_getInfinity U_ICU_ENTRY_POINT_RENAME(uprv_getInfinity)
 #define uprv_getMaxCharNameLength U_ICU_ENTRY_POINT_RENAME(uprv_getMaxCharNameLength)
@@ -1754,7 +1786,6 @@
 #define utrie2_fromUTrie U_ICU_ENTRY_POINT_RENAME(utrie2_fromUTrie)
 #define utrie2_get32 U_ICU_ENTRY_POINT_RENAME(utrie2_get32)
 #define utrie2_get32FromLeadSurrogateCodeUnit U_ICU_ENTRY_POINT_RENAME(utrie2_get32FromLeadSurrogateCodeUnit)
-#define utrie2_getVersion U_ICU_ENTRY_POINT_RENAME(utrie2_getVersion)
 #define utrie2_internalU8NextIndex U_ICU_ENTRY_POINT_RENAME(utrie2_internalU8NextIndex)
 #define utrie2_internalU8PrevIndex U_ICU_ENTRY_POINT_RENAME(utrie2_internalU8PrevIndex)
 #define utrie2_isFrozen U_ICU_ENTRY_POINT_RENAME(utrie2_isFrozen)
@@ -1766,7 +1797,6 @@
 #define utrie2_set32ForLeadSurrogateCodeUnit U_ICU_ENTRY_POINT_RENAME(utrie2_set32ForLeadSurrogateCodeUnit)
 #define utrie2_setRange32 U_ICU_ENTRY_POINT_RENAME(utrie2_setRange32)
 #define utrie2_swap U_ICU_ENTRY_POINT_RENAME(utrie2_swap)
-#define utrie2_swapAnyVersion U_ICU_ENTRY_POINT_RENAME(utrie2_swapAnyVersion)
 #define utrie_clone U_ICU_ENTRY_POINT_RENAME(utrie_clone)
 #define utrie_close U_ICU_ENTRY_POINT_RENAME(utrie_close)
 #define utrie_defaultGetFoldingOffset U_ICU_ENTRY_POINT_RENAME(utrie_defaultGetFoldingOffset)
@@ -1778,6 +1808,7 @@
 #define utrie_set32 U_ICU_ENTRY_POINT_RENAME(utrie_set32)
 #define utrie_setRange32 U_ICU_ENTRY_POINT_RENAME(utrie_setRange32)
 #define utrie_swap U_ICU_ENTRY_POINT_RENAME(utrie_swap)
+#define utrie_swapAnyVersion U_ICU_ENTRY_POINT_RENAME(utrie_swapAnyVersion)
 #define utrie_unserialize U_ICU_ENTRY_POINT_RENAME(utrie_unserialize)
 #define utrie_unserializeDummy U_ICU_ENTRY_POINT_RENAME(utrie_unserializeDummy)
 #define vzone_clone U_ICU_ENTRY_POINT_RENAME(vzone_clone)
@@ -1827,6 +1858,7 @@
 #define ztrans_setTime U_ICU_ENTRY_POINT_RENAME(ztrans_setTime)
 #define ztrans_setTo U_ICU_ENTRY_POINT_RENAME(ztrans_setTo)
 
-#endif
+#endif /* !(defined(_MSC_VER) && defined(__INTELLISENSE__)) */
+#endif /* U_DISABLE_RENAMING */
+#endif /* URENAME_H */
 
-#endif

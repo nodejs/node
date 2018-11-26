@@ -51,10 +51,6 @@
 * References to constructor instances should use camelCase.
 * References to methods should be used with parentheses: for example,
   `socket.end()` instead of `socket.end`.
-* To draw special attention to a note, adhere to the following guidelines:
-  * Make the "Note:" label italic, i.e. `*Note*:`.
-  * Use a capital letter after the "Note:" label.
-  * Preferably, make the note a new paragraph for better visual distinction.
 * Function arguments or object properties should use the following format:
   * ``` * `name` {type|type2} Optional description. **Default:** `value`. ```
   <!--lint disable maximum-line-length remark-lint-->
@@ -69,6 +65,8 @@
   <!--lint disable prohibited-strings remark-lint-->
   * NOT OK: Javascript, Google's v8
   <!-- lint enable prohibited-strings remark-lint-->
+* Use _Node.js_ and not _Node_, _NodeJS_, or similar variants.
+  * When referring to the executable, _`node`_ is acceptable.
 
 See also API documentation structure overview in [doctools README][].
 

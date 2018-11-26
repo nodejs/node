@@ -3,47 +3,61 @@ const common = require('../common.js');
 const url = require('url');
 const URL = url.URL;
 const assert = require('assert');
-const inputs = require('../fixtures/url-inputs.js').urls;
 
 const bench = common.createBenchmark(main, {
-  type: Object.keys(inputs),
-  method: ['legacy', 'whatwg'],
-  n: [1e5]
+  withBase: ['true', 'false'],
+  type: common.urlDataTypes,
+  e: [1],
+  method: ['legacy', 'whatwg']
 });
 
-function useLegacy(n, input) {
-  var noDead = url.parse(input);
+function useLegacy(data) {
+  const len = data.length;
+  var result = url.parse(data[0]);  // avoid dead code elimination
   bench.start();
-  for (var i = 0; i < n; i += 1) {
-    noDead = url.parse(input);
+  for (var i = 0; i < len; ++i) {
+    result = url.parse(data[i]);
   }
-  bench.end(n);
-  return noDead;
+  bench.end(len);
+  return result;
 }
 
-function useWHATWG(n, input) {
-  var noDead = new URL(input);
+function useWHATWGWithBase(data) {
+  const len = data.length;
+  var result = new URL(data[0][0], data[0][1]);  // avoid dead code elimination
   bench.start();
-  for (var i = 0; i < n; i += 1) {
-    noDead = new URL(input);
+  for (var i = 0; i < len; ++i) {
+    const item = data[i];
+    result = new URL(item[0], item[1]);
   }
-  bench.end(n);
-  return noDead;
+  bench.end(len);
+  return result;
 }
 
-function main({ type, n, method }) {
-  const input = inputs[type];
-  if (!input) {
-    throw new Error(`Unknown input type "${type}"`);
+function useWHATWGWithoutBase(data) {
+  const len = data.length;
+  var result = new URL(data[0]);  // avoid dead code elimination
+  bench.start();
+  for (var i = 0; i < len; ++i) {
+    result = new URL(data[i]);
   }
+  bench.end(len);
+  return result;
+}
 
+function main({ e, method, type, withBase }) {
+  e = +e;
+  withBase = withBase === 'true';
   var noDead;  // Avoid dead code elimination.
+  var data;
   switch (method) {
     case 'legacy':
-      noDead = useLegacy(n, input);
+      data = common.bakeUrlData(type, e, false, false);
+      noDead = useLegacy(data);
       break;
     case 'whatwg':
-      noDead = useWHATWG(n, input);
+      data = common.bakeUrlData(type, e, withBase, false);
+      noDead = withBase ? useWHATWGWithBase(data) : useWHATWGWithoutBase(data);
       break;
     default:
       throw new Error(`Unknown method ${method}`);

@@ -368,12 +368,10 @@ descrip.mms : FORCE
 
 # Install helper targets #############################################
 
-install_sw : all install_shared _install_dev_ns -
-             install_engines _install_runtime_ns -
+install_sw : install_dev install_engines install_runtime -
              install_startup install_ivp
 
-uninstall_sw : uninstall_shared _uninstall_dev_ns -
-               uninstall_engines _uninstall_runtime_ns -
+uninstall_sw : uninstall_dev uninstall_engines uninstall_runtime -
                uninstall_startup uninstall_ivp
 
 install_docs : install_html_docs
@@ -396,17 +394,7 @@ install_ssldirs : check_INSTALLTOP
                 COPY/PROT=W:R {- sourcefile("apps", "openssl-vms.cnf") -} -
                         ossl_dataroot:[000000]openssl.cnf
 
-install_shared : check_INSTALLTOP
-        @ {- output_off() if $disabled{shared}; "" -} !
-        @ WRITE SYS$OUTPUT "*** Installing shareable images"
-        @ ! Install shared (runtime) libraries
-        - CREATE/DIR ossl_installroot:[LIB.'arch']
-        {- join("\n        ",
-                map { "COPY/PROT=W:R $_.EXE ossl_installroot:[LIB.'arch']" }
-                @install_shlibs) -}
-        @ {- output_on() if $disabled{shared}; "" -} !
-
-_install_dev_ns : check_INSTALLTOP
+install_dev : check_INSTALLTOP install_runtime_libs
         @ WRITE SYS$OUTPUT "*** Installing development files"
         @ ! Install header files
         - CREATE/DIR ossl_installroot:[include.openssl]
@@ -417,20 +405,7 @@ _install_dev_ns : check_INSTALLTOP
                 map { "COPY/PROT=W:R $_.OLB ossl_installroot:[LIB.'arch']" }
                 @{$unified_info{install}->{libraries}}) -}
 
-install_dev : install_shared _install_dev_ns
-
-_install_runtime_ns : check_INSTALLTOP
-        @ ! Install the main program
-        - CREATE/DIR ossl_installroot:[EXE.'arch']
-        COPY/PROT=W:RE [.APPS]openssl.EXE -
-                ossl_installroot:[EXE.'arch']openssl{- $osslver -}.EXE
-        @ ! Install scripts
-        COPY/PROT=W:RE $(BIN_SCRIPTS) ossl_installroot:[EXE]
-        @ ! {- output_on() if $disabled{apps}; "" -}
-
-install_runtime : install_shared _install_runtime_ns
-
-install_engines : check_INSTALLTOP
+install_engines : check_INSTALLTOP install_runtime_libs build_engines
         @ {- output_off() unless scalar @{$unified_info{engines}}; "" -} !
         @ WRITE SYS$OUTPUT "*** Installing engines"
         - CREATE/DIR ossl_installroot:[ENGINES{- $sover.$target{pointer_size} -}.'arch']
@@ -438,6 +413,28 @@ install_engines : check_INSTALLTOP
                 map { "COPY/PROT=W:RE $_.EXE ossl_installroot:[ENGINES$sover$target{pointer_size}.'arch']" }
                 @{$unified_info{install}->{engines}}) -}
         @ {- output_on() unless scalar @{$unified_info{engines}}; "" -} !
+
+install_runtime : install_programs
+
+install_runtime_libs : check_INSTALLTOP build_libs
+        @ {- output_off() if $disabled{shared}; "" -} !
+        @ WRITE SYS$OUTPUT "*** Installing shareable images"
+        @ ! Install shared (runtime) libraries
+        - CREATE/DIR ossl_installroot:[LIB.'arch']
+        {- join("\n        ",
+                map { "COPY/PROT=W:R $_.EXE ossl_installroot:[LIB.'arch']" }
+                @install_shlibs) -}
+        @ {- output_on() if $disabled{shared}; "" -} !
+
+install_programs : check_INSTALLTOP install_runtime_libs build_programs
+        @ {- output_off() if $disabled{apps}; "" -} !
+        @ ! Install the main program
+        - CREATE/DIR ossl_installroot:[EXE.'arch']
+        COPY/PROT=W:RE [.APPS]openssl.EXE -
+                ossl_installroot:[EXE.'arch']openssl{- $osslver -}.EXE
+        @ ! Install scripts
+        COPY/PROT=W:RE $(BIN_SCRIPTS) ossl_installroot:[EXE]
+        @ ! {- output_on() if $disabled{apps}; "" -}
 
 install_startup : [.VMS]openssl_startup.com [.VMS]openssl_shutdown.com -
                  [.VMS]openssl_utils.com, check_INSTALLTOP

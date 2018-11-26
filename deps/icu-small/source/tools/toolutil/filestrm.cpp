@@ -104,14 +104,14 @@ T_FileStream_tmpfile()
 U_CAPI int32_t U_EXPORT2
 T_FileStream_read(FileStream* fileStream, void* addr, int32_t len)
 {
-    return fread(addr, 1, len, (FILE*)fileStream);
+    return static_cast<int32_t>(fread(addr, 1, len, (FILE*)fileStream));
 }
 
 U_CAPI int32_t U_EXPORT2
 T_FileStream_write(FileStream* fileStream, const void* addr, int32_t len)
 {
 
-    return fwrite(addr, 1, len, (FILE*)fileStream);
+    return static_cast<int32_t>(fwrite(addr, 1, len, (FILE*)fileStream));
 }
 
 U_CAPI void U_EXPORT2

@@ -56,6 +56,8 @@ const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isOSX = process.platform === 'darwin';
 
+const isOSXMojave = isOSX && (os.release().startsWith('18'));
+
 const enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
 const cpus = os.cpus();
 const enoughTestCpu = Array.isArray(cpus) &&
@@ -185,14 +187,20 @@ const pwdCommand = isWindows ?
 
 
 function platformTimeout(ms) {
+  // ESLint will not support 'bigint' in valid-typeof until it reaches stage 4.
+  // See https://github.com/eslint/eslint/pull/9636.
+  // eslint-disable-next-line valid-typeof
+  const multipliers = typeof ms === 'bigint' ?
+    { two: 2n, four: 4n, seven: 7n } : { two: 2, four: 4, seven: 7 };
+
   if (process.features.debug)
-    ms = 2 * ms;
+    ms = multipliers.two * ms;
 
   if (global.__coverage__)
-    ms = 4 * ms;
+    ms = multipliers.four * ms;
 
   if (isAIX)
-    return 2 * ms; // default localhost speed is slower on AIX
+    return multipliers.two * ms; // default localhost speed is slower on AIX
 
   if (process.arch !== 'arm')
     return ms;
@@ -200,10 +208,10 @@ function platformTimeout(ms) {
   const armv = process.config.variables.arm_version;
 
   if (armv === '6')
-    return 7 * ms;  // ARMv6
+    return multipliers.seven * ms;  // ARMv6
 
   if (armv === '7')
-    return 2 * ms;  // ARMv7
+    return multipliers.two * ms;  // ARMv7
 
   return ms; // ARMv8+
 }
@@ -370,7 +378,7 @@ function canCreateSymLink() {
     try {
       const output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
       return output.includes('SeCreateSymbolicLinkPrivilege');
-    } catch (e) {
+    } catch {
       return false;
     }
   }
@@ -454,7 +462,7 @@ function isAlive(pid) {
   try {
     process.kill(pid, 'SIGCONT');
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -663,7 +671,7 @@ function getTTYfd() {
   if (ttyFd === undefined) {
     try {
       return fs.openSync('/dev/tty');
-    } catch (e) {
+    } catch {
       // There aren't any tty fd's available to use.
       return -1;
     }
@@ -677,7 +685,7 @@ function runWithInvalidFD(func) {
   // be an valid one.
   try {
     while (fs.fstatSync(fd--) && fd > 0);
-  } catch (e) {
+  } catch {
     return func(fd);
   }
 
@@ -712,6 +720,7 @@ module.exports = {
   isMainThread,
   isOpenBSD,
   isOSX,
+  isOSXMojave,
   isSunOS,
   isWindows,
   localIPv6Hosts,

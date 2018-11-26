@@ -225,8 +225,8 @@ MacroProps NumberPropertyMapper::oldToNew(const DecimalFormatProperties& propert
         // TODO: Overriding here is a bit of a hack. Should this logic go earlier?
         if (macros.precision.fType == Precision::PrecisionType::RND_FRACTION) {
             // For the purposes of rounding, get the original min/max int/frac, since the local
-            // variables
-            // have been manipulated for display purposes.
+            // variables have been manipulated for display purposes.
+            int maxInt_ = properties.maximumIntegerDigits;
             int minInt_ = properties.minimumIntegerDigits;
             int minFrac_ = properties.minimumFractionDigits;
             int maxFrac_ = properties.maximumFractionDigits;
@@ -237,9 +237,15 @@ MacroProps NumberPropertyMapper::oldToNew(const DecimalFormatProperties& propert
                 // Patterns like "#.##E0" (no zeros in the mantissa), which mean round to maxFrac+1
                 macros.precision = Precision::constructSignificant(1, maxFrac_ + 1).withMode(roundingMode);
             } else {
-                // All other scientific patterns, which mean round to minInt+maxFrac
-                macros.precision = Precision::constructSignificant(
-                        minInt_ + minFrac_, minInt_ + maxFrac_).withMode(roundingMode);
+                int maxSig_ = minInt_ + maxFrac_;
+                // Bug #20058: if maxInt_ > minInt_ > 1, then minInt_ should be 1.
+                if (maxInt_ > minInt_ && minInt_ > 1) {
+                    minInt_ = 1;
+                }
+                int minSig_ = minInt_ + minFrac_;
+                // To avoid regression, maxSig is not reset when minInt_ set to 1.
+                // TODO: Reset maxSig_ = 1 + minFrac_ to follow the spec.
+                macros.precision = Precision::constructSignificant(minSig_, maxSig_).withMode(roundingMode);
             }
         }
     }

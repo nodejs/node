@@ -100,14 +100,15 @@
 // Forward-declare libuv loop
 struct uv_loop_s;
 
-// Forward-declare TracingController, used by CreatePlatform.
-namespace v8 {
-class TracingController;
-}
-
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
+
+namespace tracing {
+
+class TracingController;
+
+}
 
 NODE_EXTERN v8::Local<v8::Value> ErrnoException(v8::Isolate* isolate,
                                                 int errorno,
@@ -265,6 +266,9 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
+// This may return nullptr if context is not associated with a Node instance.
+NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
+
 // This returns the MultiIsolatePlatform used in the main thread of Node.js.
 // If NODE_USE_V8_PLATFORM haven't been defined when Node.js was built,
 // it returns nullptr.
@@ -272,7 +276,7 @@ NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
 
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
-    v8::TracingController* tracing_controller);
+    node::tracing::TracingController* tracing_controller);
 MultiIsolatePlatform* InitializeV8Platform(int thread_pool_size);
 NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
 
@@ -365,7 +369,7 @@ inline void NODE_SET_METHOD(v8::Local<v8::Object> recv,
   v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name,
       v8::NewStringType::kInternalized).ToLocalChecked();
   fn->SetName(fn_name);
-  recv->Set(fn_name, fn);
+  recv->Set(context, fn_name, fn).FromJust();
 }
 #define NODE_SET_METHOD node::NODE_SET_METHOD
 

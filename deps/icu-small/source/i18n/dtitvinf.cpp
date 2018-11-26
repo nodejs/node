@@ -594,7 +594,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
     const UHashElement* elem = NULL;
     while ( (elem = fIntervalPatterns->nextElement(pos)) != NULL ) {
         const UHashTok keyTok = elem->key;
-        UnicodeString* skeleton = (UnicodeString*)keyTok.pointer;
+        UnicodeString* newSkeleton = (UnicodeString*)keyTok.pointer;
 #ifdef DTITVINF_DEBUG
     skeleton->extract(0,  skeleton->length(), result, "UTF-8");
     sprintf(mesg, "available skeletons: skeleton: %s; \n", result);
@@ -606,7 +606,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
         for ( i = 0; i < fieldLength; ++i ) {
             skeletonFieldWidth[i] = 0;
         }
-        parseSkeleton(*skeleton, skeletonFieldWidth);
+        parseSkeleton(*newSkeleton, skeletonFieldWidth);
         // calculate distance
         int32_t distance = 0;
         int8_t fieldDifference = 1;
@@ -632,7 +632,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
             }
         }
         if ( distance < bestDistance ) {
-            bestSkeleton = skeleton;
+            bestSkeleton = newSkeleton;
             bestDistance = distance;
             bestMatchDistanceInfo = fieldDifference;
         }

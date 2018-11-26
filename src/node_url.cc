@@ -1,7 +1,8 @@
 #include "node_url.h"
-#include "node_internals.h"
 #include "base_object-inl.h"
+#include "node_errors.h"
 #include "node_i18n.h"
+#include "node_internals.h"
 
 #include <string>
 #include <vector>
@@ -20,6 +21,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Null;
 using v8::Object;
 using v8::String;
@@ -30,7 +32,7 @@ using v8::Value;
 inline Local<String> Utf8String(Isolate* isolate, const std::string& str) {
   return String::NewFromUtf8(isolate,
                              str.data(),
-                             v8::NewStringType::kNormal,
+                             NewStringType::kNormal,
                              str.length()).ToLocalChecked();
 }
 
@@ -2158,7 +2160,7 @@ static void Parse(Environment* env,
     argv[ERR_ARG_INPUT] =
       String::NewFromUtf8(env->isolate(),
                           input,
-                          v8::NewStringType::kNormal).ToLocalChecked();
+                          NewStringType::kNormal).ToLocalChecked();
     error_cb.As<Function>()->Call(context, recv, arraysize(argv), argv)
         .FromMaybe(Local<Value>());
   }
@@ -2208,7 +2210,7 @@ static void EncodeAuthSet(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           output.c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+                          NewStringType::kNormal).ToLocalChecked());
 }
 
 static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
@@ -2242,7 +2244,7 @@ static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       String::NewFromTwoByte(env->isolate(),
                              *value,
-                             v8::NewStringType::kNormal,
+                             NewStringType::kNormal,
                              n).ToLocalChecked());
 }
 
@@ -2263,7 +2265,7 @@ static void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           out.c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+                          NewStringType::kNormal).ToLocalChecked());
 }
 
 static void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
@@ -2283,7 +2285,7 @@ static void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           out.c_str(),
-                          v8::NewStringType::kNormal).ToLocalChecked());
+                          NewStringType::kNormal).ToLocalChecked());
 }
 
 std::string URL::ToFilePath() const {

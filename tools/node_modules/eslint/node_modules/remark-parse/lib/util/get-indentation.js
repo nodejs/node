@@ -1,26 +1,12 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:util:get-indentation
- * @fileoverview Get indentation.
- */
-
 'use strict';
 
-/* Expose. */
 module.exports = indentation;
 
 /* Map of characters, and their column length,
  * which can be used as indentation. */
 var characters = {' ': 1, '\t': 4};
 
-/**
- * Gets indentation information for a line.
- *
- * @param {string} value - Indented line.
- * @return {Object} - Indetation information.
- */
+/* Gets indentation information for a line. */
 function indentation(value) {
   var index = 0;
   var indent = 0;

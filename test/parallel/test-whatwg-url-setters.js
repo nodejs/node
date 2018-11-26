@@ -7,11 +7,13 @@ if (!common.hasIntl) {
 }
 
 const URL = require('url').URL;
-const { test, assert_equals } = require('../common/wpt');
+const { test, assert_equals } = require('../common/wpt').harness;
 const fixtures = require('../common/fixtures');
 
 const request = {
-  response: require(fixtures.path('url-setter-tests'))
+  response: require(fixtures.path(
+    'wpt', 'url', 'resources', 'setters_tests.json'
+  ))
 };
 
 /* The following tests are copied from WPT. Modifications to them should be

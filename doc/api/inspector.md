@@ -43,6 +43,9 @@ started.
 If wait is `true`, will block until a client has connected to the inspect port
 and flow control has been passed to the debugger client.
 
+See the [security warning](cli.html#inspector_security) regarding the `host`
+parameter usage.
+
 ## inspector.url()
 
 * Returns: {string|undefined}
@@ -144,7 +147,7 @@ session.post('Runtime.evaluate', { expression: '2 + 2' },
 The latest version of the V8 inspector protocol is published on the
 [Chrome DevTools Protocol Viewer][].
 
-Node inspector supports all the Chrome DevTools Protocol domains declared
+Node.js inspector supports all the Chrome DevTools Protocol domains declared
 by V8. Chrome DevTools Protocol domain provides an interface for interacting
 with one of the runtime agents used to inspect the application state and listen
 to the run-time events.

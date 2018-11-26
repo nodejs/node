@@ -134,13 +134,17 @@ function areLineBreaksRequired(node, options, first, last) {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent line breaks inside braces",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/object-curly-newline"
         },
+
         fixable: "whitespace",
+
         schema: [
             {
                 oneOf: [

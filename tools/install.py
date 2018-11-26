@@ -169,6 +169,8 @@ def headers(action):
     'config.gypi',
     'src/node.h',
     'src/node_api.h',
+    'src/js_native_api.h',
+    'src/js_native_api_types.h',
     'src/node_api_types.h',
     'src/node_buffer.h',
     'src/node_object_wrap.h',

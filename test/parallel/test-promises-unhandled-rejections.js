@@ -634,8 +634,8 @@ asyncTest(
       const e = new Error('error');
       const domainError = new Error('domain error');
       onUnhandledSucceed(done, function(reason, promise) {
-        assert.strictEqual(e, reason);
-        assert.strictEqual(domainError, domainReceivedError);
+        assert.strictEqual(reason, e);
+        assert.strictEqual(domainReceivedError, domainError);
       });
       Promise.reject(e);
       process.nextTick(function() {
@@ -681,7 +681,7 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
   setTimeout(function() {
     try {
       p.catch(function() {});
-    } catch (e) {
+    } catch {
       done(new Error('fail'));
     }
   }, 1);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -404,13 +404,14 @@ int ssl3_final_finish_mac(SSL *s, const char *sender, int len, unsigned char *p)
     }
     if (!EVP_MD_CTX_copy_ex(ctx, s->s3->handshake_dgst)) {
         SSLerr(SSL_F_SSL3_FINAL_FINISH_MAC, ERR_R_INTERNAL_ERROR);
-        return 0;
+        ret = 0;
+        goto err;
     }
 
     ret = EVP_MD_CTX_size(ctx);
     if (ret < 0) {
-        EVP_MD_CTX_reset(ctx);
-        return 0;
+        ret = 0;
+        goto err;
     }
 
     if ((sender != NULL && EVP_DigestUpdate(ctx, sender, len) <= 0)
@@ -422,6 +423,7 @@ int ssl3_final_finish_mac(SSL *s, const char *sender, int len, unsigned char *p)
         ret = 0;
     }
 
+ err:
     EVP_MD_CTX_free(ctx);
 
     return ret;

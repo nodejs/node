@@ -18,7 +18,9 @@
 * [Memory Management](#memory-management)
   * [Memory allocation](#memory-allocation)
   * [Use `nullptr` instead of `NULL` or `0`](#use-nullptr-instead-of-null-or-0)
+  * [Use explicit pointer comparisons](#use-explicit-pointer-comparisons)
   * [Ownership and Smart Pointers](#ownership-and-smart-pointers)
+  * [Avoid non-const references](#avoid-non-const-references)
 * [Others](#others)
   * [Type casting](#type-casting)
   * [Using `auto`](#using-auto)
@@ -194,6 +196,12 @@ class FancyContainer {
 
 Further reading in the [C++ Core Guidelines][ES.47].
 
+### Use explicit pointer comparisons
+
+Use explicit comparisons to `nullptr` when testing pointers, i.e.
+`if (foo == nullptr)` instead of `if (foo)` and
+`foo != nullptr` instead of `!foo`.
+
 ### Ownership and Smart Pointers
 
 * [R.20]: Use `std::unique_ptr` or `std::shared_ptr` to represent ownership
@@ -211,6 +219,43 @@ Since `std::unique_ptr` has only move semantics, passing one by value transfers
 ownership to the callee and invalidates the caller's instance.
 
 Don't use `std::auto_ptr`, it is deprecated ([Reference][cppref_auto_ptr]).
+
+### Avoid non-const references
+
+Using non-const references often obscures which values are changed by an
+assignment. Consider using a pointer instead, which requires more explicit
+syntax to indicate that modifications take place.
+
+```c++
+class ExampleClass {
+ public:
+  explicit ExampleClass(OtherClass* other_ptr) : pointer_to_other_(other_ptr) {}
+
+  void SomeMethod(const std::string& input_param,
+                  std::string* in_out_param);  // Pointer instead of reference
+
+  const std::string& get_foo() const { return foo_string_; }
+  void set_foo(const std::string& new_value) { foo_string_ = new_value; }
+
+  void ReplaceCharacterInFoo(char from, char to) {
+    // A non-const reference is okay here, because the method name already tells
+    // users that this modifies 'foo_string_' -- if that is not the case,
+    // it can still be better to use an indexed for loop, or leave appropriate
+    // comments.
+    for (char& character : foo_string_) {
+      if (character == from)
+        character = to;
+    }
+  }
+
+ private:
+  std::string foo_string_;
+  // Pointer instead of reference. If this object 'owns' the other object,
+  // this should be a `std::unique_ptr<OtherClass>`; a
+  // `std::shared_ptr<OtherClass>` can also be a better choice.
+  OtherClass* pointer_to_other_;
+};
+```
 
 ## Others
 

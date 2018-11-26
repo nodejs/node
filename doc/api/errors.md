@@ -260,7 +260,10 @@ not capture any frames.
 * {string}
 
 The `error.code` property is a string label that identifies the kind of error.
-See [Node.js Error Codes][] for details about specific codes.
+`error.code` is the most stable way to identify an error. It will only change
+between major versions of Node.js. In contrast, `error.message` strings may
+change between any versions of Node.js. See [Node.js Error Codes][] for details
+about specific codes.
 
 ### error.message
 
@@ -441,53 +444,83 @@ checks or `abort()` calls in the C++ layer.
 
 ## System Errors
 
-System errors are generated when exceptions occur within the Node.js
-runtime environment. Typically, these are operational errors that occur
-when an application violates an operating system constraint such as attempting
-to read a file that does not exist or when the user does not have sufficient
-permissions.
+Node.js generates system errors when exceptions occur within its runtime
+environment. These usually occur when an application violates an operating
+system constraint. For example, a system error will occur if an application
+attempts to read a file that does not exist.
 
-System errors are typically generated at the syscall level: an exhaustive list
-of error codes and their meanings is available by running `man 2 intro` or
-`man 3 errno` on most Unices; or [online][].
+System errors are usually generated at the syscall level. For a comprehensive
+list, see the [`errno`(3) man page][].
 
-In Node.js, system errors are represented as augmented `Error` objects with
-added properties.
+In Node.js, system errors are `Error` objects with extra properties.
 
 ### Class: SystemError
 
-#### error.info
-
-`SystemError` instances may have an additional `info` property whose
-value is an object with additional details about the error conditions.
-
-The following properties are provided:
-
+* `address` {string} If present, the address to which a network connection
+  failed
 * `code` {string} The string error code
-* `errno` {number} The system-provided error number
-* `message` {string} A system-provided human readable description of the error
+* `dest` {string} If present, the file path destination when reporting a file
+  system error
+* `errno` {number|string} The system-provided error number
+* `info` {Object} If present, extra details about the error condition
+* `message` {string} A system-provided human-readable description of the error
+* `path` {string} If present, the file path when reporting a file system error
+* `port` {number} If present, the network connection port that is not available
 * `syscall` {string} The name of the system call that triggered the error
-* `path` {Buffer} When reporting a file system error, the `path` will identify
-  the file path.
-* `dest` {Buffer} When reporting a file system error, the `dest` will identify
-  the file path destination (if any).
+
+#### error.address
+
+* {string}
+
+If present, `error.address` is a string describing the address to which a
+network connection failed.
 
 #### error.code
 
 * {string}
 
-The `error.code` property is a string representing the error code, which is
-typically `E` followed by a sequence of capital letters.
+The `error.code` property is a string representing the error code.
+
+#### error.dest
+
+* {string}
+
+If present, `error.dest` is the file path destination when reporting a file
+system error.
 
 #### error.errno
 
 * {string|number}
 
-The `error.errno` property is a number or a string.
-The number is a **negative** value which corresponds to the error code defined
-in [`libuv Error handling`]. See `uv-errno.h` header file
-(`deps/uv/include/uv-errno.h` in the Node.js source tree) for details. In case
+The `error.errno` property is a number or a string. If it is a number, it is a
+negative value which corresponds to the error code defined in
+[`libuv Error handling`]. See the libuv `errno.h` header file
+(`deps/uv/include/uv/errno.h` in the Node.js source tree) for details. In case
 of a string, it is the same as `error.code`.
+
+#### error.info
+
+* {Object}
+
+If present, `error.info` is an object with details about the error condition.
+
+#### error.message
+
+* {string}
+
+`error.message` is a system-provided human-readable description of the error.
+
+#### error.path
+
+* {string}
+
+If present, `error.path` is a string containing a relevant invalid pathname.
+
+#### error.port
+
+* {number}
+
+If present, `error.port` is the network connection port that is not available.
 
 #### error.syscall
 
@@ -495,32 +528,10 @@ of a string, it is the same as `error.code`.
 
 The `error.syscall` property is a string describing the [syscall][] that failed.
 
-#### error.path
-
-* {string}
-
-When present (e.g. in `fs` or `child_process`), the `error.path` property is a
-string containing a relevant invalid pathname.
-
-#### error.address
-
-* {string}
-
-When present (e.g. in `net` or `dgram`), the `error.address` property is a
-string describing the address to which the connection failed.
-
-#### error.port
-
-* {number}
-
-When present (e.g. in `net` or `dgram`), the `error.port` property is a number
-representing the connection's port that is not available.
-
 ### Common System Errors
 
-This list is **not exhaustive**, but enumerates many of the common system
-errors encountered when writing a Node.js program. An exhaustive list may be
-found [here][online].
+This is a list of system errors commonly-encountered when writing a Node.js
+program. For a comprehensive list, see the [`errno`(3) man page][].
 
 - `EACCES` (Permission denied): An attempt was made to access a file in a way
   forbidden by its file access permissions.
@@ -612,6 +623,19 @@ An attempt was made to register something that is not a function as an
 
 The type of an asynchronous resource was invalid. Note that users are also able
 to define their own types if using the public embedder API.
+
+<a id="ERR_BUFFER_CONTEXT_NOT_AVAILABLE"></a>
+### ERR_BUFFER_CONTEXT_NOT_AVAILABLE
+
+An attempt was made to create a Node.js `Buffer` instance from addon or embedder
+code, while in a JS engine Context that is not associated with a Node.js
+instance. The data passed to the `Buffer` method will have been released
+by the time the method returns.
+
+When encountering this error, a possible alternative to creating a `Buffer`
+instance is to create a normal `Uint8Array`, which only differs in the
+prototype of the resulting object. `Uint8Array`s are generally accepted in all
+Node.js core APIs where `Buffer`s are; they are available in all Contexts.
 
 <a id="ERR_BUFFER_OUT_OF_BOUNDS"></a>
 ### ERR_BUFFER_OUT_OF_BOUNDS
@@ -1631,6 +1655,17 @@ recommended to use 2048 bits or larger for stronger security.
 A TLS/SSL handshake timed out. In this case, the server must also abort the
 connection.
 
+<a id="ERR_TLS_INVALID_PROTOCOL_VERSION"></a>
+### ERR_TLS_INVALID_PROTOCOL_VERSION
+
+Valid TLS protocol versions are `'TLSv1'`, `'TLSv1.1'`, or `'TLSv1.2'`.
+
+<a id="ERR_TLS_PROTOCOL_VERSION_CONFLICT"></a>
+### ERR_TLS_PROTOCOL_VERSION_CONFLICT
+
+Attempting to set a TLS protocol `minVersion` or `maxVersion` conflicts with an
+attempt to set the `secureProtocol` explicitly. Use one mechanism or the other.
+
 <a id="ERR_TLS_RENEGOTIATE"></a>
 ### ERR_TLS_RENEGOTIATE
 
@@ -1843,6 +1878,14 @@ unknown file extension.
 
 Creation of a [`zlib`][] object failed due to incorrect configuration.
 
+<a id="HPE_HEADER_OVERFLOW"></a>
+### HPE_HEADER_OVERFLOW
+
+Too much HTTP header data was received. In order to protect against malicious or
+malconfigured clients, if more than 80KB of HTTP header data is received then
+HTTP parsing will abort without a request or response object being created, and
+an `Error` with this code will be emitted.
+
 <a id="MODULE_NOT_FOUND"></a>
 ### MODULE_NOT_FOUND
 
@@ -1916,7 +1959,7 @@ Used when an invalid character is found in an HTTP response status message
 ### ERR_INDEX_OUT_OF_RANGE
 <!-- YAML
   added: v10.0.0
-  removed: REPLACEME
+  removed: v11.0.0
 -->
 A given index was out of the accepted range (e.g. negative offsets).
 
@@ -2093,23 +2136,25 @@ This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
 such as `process.stdout.on('data')`.
 
 
-[`--force-fips`]: cli.html#cli_force_fips
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
+[`--force-fips`]: cli.html#cli_force_fips
+[`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
+[`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`Writable`]: stream.html#stream_class_stream_writable
 [`child_process`]: child_process.html
 [`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
-[`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
 [`crypto.scryptSync()`]: crypto.html#crypto_crypto_scryptsync_password_salt_keylen_options
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
-[`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
-[`EventEmitter`]: events.html#events_class_eventemitter
-[`fs`]: fs.html
-[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
+[`errno`(3) man page]: http://man7.org/linux/man-pages/man3/errno.3.html
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.symlink()`]: fs.html#fs_fs_symlink_target_path_type_callback
 [`fs.symlinkSync()`]: fs.html#fs_fs_symlinksync_target_path_type
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
+[`fs`]: fs.html
 [`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
 [`http`]: http.html
@@ -2121,31 +2166,29 @@ such as `process.stdout.on('data')`.
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readable._read()`]: stream.html#stream_readable_read_size_1
-[`require()`]: modules.html#modules_require
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
-[`server.listen()`]: net.html#net_server_listen
+[`require()`]: modules.html#modules_require
 [`server.close()`]: net.html#net_server_close_callback
-[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
+[`server.listen()`]: net.html#net_server_listen
+[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputencoding
 [`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
 [`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
 [`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
 [`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
-[`Writable`]: stream.html#stream_class_stream_writable
 [`zlib`]: zlib.html
 [ES6 module]: esm.html
+[ICU]: intl.html#intl_internationalization_support
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
+[WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
 [crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
-[ICU]: intl.html#intl_internationalization_support
-[online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscalls.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
-[WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings

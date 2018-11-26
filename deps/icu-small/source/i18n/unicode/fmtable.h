@@ -658,7 +658,7 @@ public:
     /**
      *  Adopt, and set value from, a DecimalQuantity
      *     Internal Function, do not use.
-     *  @param dl the DecimalQuantity to be adopted
+     *  @param dq the DecimalQuantity to be adopted
      *  @internal
      */
     void adoptDecimalQuantity(number::impl::DecimalQuantity *dq);

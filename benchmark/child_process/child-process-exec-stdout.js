@@ -30,7 +30,7 @@ function childProcessExecStdout({ dur, len }) {
       // Sometimes there's a yes.exe process left hanging around on Windows.
       try {
         execSync(`taskkill /f /t /pid ${child.pid}`);
-      } catch (_) {
+      } catch {
         // this is a best effort kill. stderr is piped to parent for tracing.
       }
     } else {

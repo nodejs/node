@@ -490,6 +490,8 @@ const ELEMENT_LIST_SCHEMA = {
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce consistent indentation",
             category: "Stylistic Issues",

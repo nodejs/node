@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -234,6 +234,7 @@ static unsigned char *HKDF_Expand(const EVP_MD *evp_md,
                                   unsigned char *okm, size_t okm_len)
 {
     HMAC_CTX *hmac;
+    unsigned char *ret = NULL;
 
     unsigned int i;
 
@@ -283,11 +284,10 @@ static unsigned char *HKDF_Expand(const EVP_MD *evp_md,
 
         done_len += copy_len;
     }
-
-    HMAC_CTX_free(hmac);
-    return okm;
+    ret = okm;
 
  err:
+    OPENSSL_cleanse(prev, sizeof(prev));
     HMAC_CTX_free(hmac);
-    return NULL;
+    return ret;
 }

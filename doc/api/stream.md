@@ -46,7 +46,7 @@ There are four fundamental stream types within Node.js:
 * [`Transform`][] - `Duplex` streams that can modify or transform the data as it
   is written and read (for example, [`zlib.createDeflate()`][]).
 
-Additionally this module includes the utility functions [pipeline][] and
+Additionally, this module includes the utility functions [pipeline][] and
 [finished][].
 
 ### Object Mode
@@ -97,7 +97,7 @@ is to limit the buffering of data to acceptable levels such that sources and
 destinations of differing speeds will not overwhelm the available memory.
 
 Because [`Duplex`][] and [`Transform`][] streams are both `Readable` and
-`Writable`, each maintain *two* separate internal buffers used for reading and
+`Writable`, each maintains *two* separate internal buffers used for reading and
 writing, allowing each side to operate independently of the other while
 maintaining an appropriate and efficient flow of data. For example,
 [`net.Socket`][] instances are [`Duplex`][] streams whose `Readable` side allows
@@ -291,7 +291,7 @@ for (let i = 0; i < 100; i++) {
 }
 writer.end('This is the end\n');
 writer.on('finish', () => {
-  console.error('All writes are now complete.');
+  console.log('All writes are now complete.');
 });
 ```
 
@@ -309,7 +309,7 @@ a readable stream, adding this writable to its set of destinations.
 const writer = getWritableStreamSomehow();
 const reader = getReadableStreamSomehow();
 writer.on('pipe', (src) => {
-  console.error('something is piping into the writer');
+  console.log('Something is piping into the writer.');
   assert.equal(src, reader);
 });
 reader.pipe(writer);
@@ -334,7 +334,7 @@ This is also emitted in case this [`Writable`][] stream emits an error when a
 const writer = getWritableStreamSomehow();
 const reader = getReadableStreamSomehow();
 writer.on('unpipe', (src) => {
-  console.error('Something has stopped piping into the writer.');
+  console.log('Something has stopped piping into the writer.');
   assert.equal(src, reader);
 });
 reader.pipe(writer);
@@ -388,7 +388,7 @@ changes:
   not operating in object mode, `chunk` must be a string, `Buffer` or
   `Uint8Array`. For object mode streams, `chunk` may be any JavaScript value
   other than `null`.
-* `encoding` {string} The encoding, if `chunk` is a string
+* `encoding` {string} The encoding if `chunk` is a string
 * `callback` {Function} Optional callback for when the stream is finished
 * Returns: {this}
 
@@ -463,6 +463,15 @@ process.nextTick(() => {
 
 See also: [`writable.cork()`][].
 
+##### writable.writable
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` if it is safe to call [`writable.write()`][].
+
 ##### writable.writableHighWaterMark
 <!-- YAML
 added: v9.3.0
@@ -531,7 +540,7 @@ not draining may lead to a remotely exploitable vulnerability.
 
 Writing data while the stream is not draining is particularly
 problematic for a [`Transform`][], because the `Transform` streams are paused
-by default until they are piped or an `'data'` or `'readable'` event handler
+by default until they are piped or a `'data'` or `'readable'` event handler
 is added.
 
 If the data to be written can be generated or fetched on demand, it is
@@ -551,7 +560,7 @@ function write(data, cb) {
 
 // Wait for cb to be called before doing any other write.
 write('hello', () => {
-  console.log('write completed, do more writes now');
+  console.log('Write completed, do more writes now.');
 });
 ```
 
@@ -610,7 +619,7 @@ until a mechanism for either consuming or ignoring that data is provided. If
 the consuming mechanism is disabled or taken away, the `Readable` will *attempt*
 to stop generating the data.
 
-For backwards compatibility reasons, removing [`'data'`][] event handlers will
+For backward compatibility reasons, removing [`'data'`][] event handlers will
 **not** automatically pause the stream. Also, if there are piped destinations,
 then calling [`stream.pause()`][stream-pause] will not guarantee that the
 stream will *remain* paused once those destinations drain and ask for more data.
@@ -1013,12 +1022,21 @@ also be emitted.
 Calling [`stream.read([size])`][stream-read] after the [`'end'`][] event has
 been emitted will return `null`. No runtime error will be raised.
 
+##### readable.readable
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` if it is safe to call [`readable.read()`][].
+
 ##### readable.readableHighWaterMark
 <!-- YAML
 added: v9.3.0
 -->
 
-* Returns: {number}
+* {number}
 
 Returns the value of `highWaterMark` passed when constructing this
 `Readable`.
@@ -1028,7 +1046,7 @@ Returns the value of `highWaterMark` passed when constructing this
 added: v9.4.0
 -->
 
-* Returns: {number}
+* {number}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
@@ -1091,7 +1109,7 @@ const readable = getReadableStreamSomehow();
 readable.setEncoding('utf8');
 readable.on('data', (chunk) => {
   assert.equal(typeof chunk, 'string');
-  console.log('got %d characters of string data', chunk.length);
+  console.log('Got %d characters of string data:', chunk.length);
 });
 ```
 
@@ -1119,9 +1137,9 @@ const writable = fs.createWriteStream('file.txt');
 // but only for the first second
 readable.pipe(writable);
 setTimeout(() => {
-  console.log('Stop writing to file.txt');
+  console.log('Stop writing to file.txt.');
   readable.unpipe(writable);
-  console.log('Manually close the file stream');
+  console.log('Manually close the file stream.');
   writable.end();
 }, 1000);
 ```
@@ -1338,9 +1356,9 @@ const rs = fs.createReadStream('archive.tar');
 
 finished(rs, (err) => {
   if (err) {
-    console.error('Stream failed', err);
+    console.error('Stream failed.', err);
   } else {
-    console.log('Stream is done reading');
+    console.log('Stream is done reading.');
   }
 });
 
@@ -1351,7 +1369,7 @@ Especially useful in error handling scenarios where a stream is destroyed
 prematurely (like an aborted HTTP request), and will not emit `'end'`
 or `'finish'`.
 
-The `finished` API is promisify'able as well;
+The `finished` API is promisify-able as well;
 
 ```js
 const finished = util.promisify(stream.finished);
@@ -1360,7 +1378,7 @@ const rs = fs.createReadStream('archive.tar');
 
 async function run() {
   await finished(rs);
-  console.log('Stream is done reading');
+  console.log('Stream is done reading.');
 }
 
 run().catch(console.error);
@@ -1395,15 +1413,15 @@ pipeline(
   fs.createWriteStream('archive.tar.gz'),
   (err) => {
     if (err) {
-      console.error('Pipeline failed', err);
+      console.error('Pipeline failed.', err);
     } else {
-      console.log('Pipeline succeeded');
+      console.log('Pipeline succeeded.');
     }
   }
 );
 ```
 
-The `pipeline` API is promisify'able as well:
+The `pipeline` API is promisify-able as well:
 
 ```js
 const pipeline = util.promisify(stream.pipeline);
@@ -1414,7 +1432,7 @@ async function run() {
     zlib.createGzip(),
     fs.createWriteStream('archive.tar.gz')
   );
-  console.log('Pipeline succeeded');
+  console.log('Pipeline succeeded.');
 }
 
 run().catch(console.error);
@@ -1493,6 +1511,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/18438
     description: >
       Add `emitClose` option to specify if `'close'` is emitted on destroy
+  - version: v11.2.0
+    pr-url: https://github.com/nodejs/node/pull/22795
+    description: >
+      Add `autoDestroy` option to automatically `destroy()` the stream
+      when it emits `'finish'` or errors
 -->
 
 * `options` {Object}
@@ -1521,6 +1544,8 @@ changes:
     [`stream._destroy()`][writable-_destroy] method.
   * `final` {Function} Implementation for the
     [`stream._final()`][stream-_final] method.
+  * `autoDestroy` {boolean} Whether this stream should automatically call
+    `.destroy()` on itself after ending. **Default:** `false`.
 
 ```js
 const { Writable } = require('stream');
@@ -1756,6 +1781,14 @@ Custom `Readable` streams *must* call the `new stream.Readable([options])`
 constructor and implement the `readable._read()` method.
 
 #### new stream.Readable([options])
+<!-- YAML
+changes:
+  - version: v11.2.0
+    pr-url: https://github.com/nodejs/node/pull/22795
+    description: >
+      Add `autoDestroy` option to automatically `destroy()` the stream
+      when it emits `'end'` or errors
+-->
 
 * `options` {Object}
   * `highWaterMark` {number} The maximum [number of bytes][hwm-gotcha] to store
@@ -1770,6 +1803,8 @@ constructor and implement the `readable._read()` method.
     method.
   * `destroy` {Function} Implementation for the
     [`stream._destroy()`][readable-_destroy] method.
+  * `autoDestroy` {boolean} Whether this stream should automatically call
+    `.destroy()` on itself after ending. **Default:** `false`.
 
 ```js
 const { Readable } = require('stream');
@@ -1875,7 +1910,7 @@ changes:
   any JavaScript value.
 * `encoding` {string} Encoding of string chunks. Must be a valid
   `Buffer` encoding, such as `'utf8'` or `'ascii'`.
-* Returns: {boolean} `true` if additional chunks of data may continued to be
+* Returns: {boolean} `true` if additional chunks of data may continue to be
   pushed; `false` otherwise.
 
 When `chunk` is a `Buffer`, `Uint8Array` or `string`, the `chunk` of data will
@@ -2288,7 +2323,7 @@ The `callback` function must be called only when the current chunk is completely
 consumed. The first argument passed to the `callback` must be an `Error` object
 if an error occurred while processing the input or `null` otherwise. If a second
 argument is passed to the `callback`, it will be forwarded on to the
-`readable.push()` method. In other words the following are equivalent:
+`readable.push()` method. In other words, the following are equivalent:
 
 ```js
 transform.prototype._transform = function(data, encoding, callback) {
@@ -2335,7 +2370,7 @@ less powerful and less useful.
   guaranteed. This meant that it was still necessary to be prepared to receive
   [`'data'`][] events *even when the stream was in a paused state*.
 
-In Node.js 0.10, the [`Readable`][] class was added. For backwards
+In Node.js 0.10, the [`Readable`][] class was added. For backward
 compatibility with older Node.js programs, `Readable` streams switch into
 "flowing mode" when a [`'data'`][] event handler is added, or when the
 [`stream.resume()`][stream-resume] method is called. The effect is that, even

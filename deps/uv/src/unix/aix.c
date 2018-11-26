@@ -886,16 +886,20 @@ int uv_set_process_title(const char* title) {
 
 int uv_get_process_title(char* buffer, size_t size) {
   size_t len;
-  len = strlen(process_argv[0]);
   if (buffer == NULL || size == 0)
     return UV_EINVAL;
-  else if (size <= len)
-    return UV_ENOBUFS;
 
   uv_once(&process_title_mutex_once, init_process_title_mutex_once);
   uv_mutex_lock(&process_title_mutex);
 
-  memcpy(buffer, process_argv[0], len + 1);
+  len = strlen(process_argv[0]);
+  if (size <= len) {
+    uv_mutex_unlock(&process_title_mutex);
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buffer, process_argv[0], len);
+  buffer[len] = '\0';
 
   uv_mutex_unlock(&process_title_mutex);
 

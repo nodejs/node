@@ -144,6 +144,9 @@ Useful when activating the inspector by sending the `SIGUSR1` signal.
 
 Default host is `127.0.0.1`.
 
+See the [security warning](#inspector_security) below regarding the `host`
+parameter usage.
+
 ### `--inspect[=[host:]port]`
 <!-- YAML
 added: v6.3.0
@@ -155,8 +158,24 @@ V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
 and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome DevTools Protocol][].
 
+<a id="inspector_security"></a>
+#### Warning: binding inspector to a public IP:port combination is insecure
+
+Binding the inspector to a public IP (including `0.0.0.0`) with an open port is
+insecure, as it allows external hosts to connect to the inspector and perform
+a [remote code execution][] attack.
+
+If you specify a host, make sure that at least one of the following is true:
+either the host is not public, or the port is properly firewalled to disallow
+unwanted connections.
+
+**More specifically, `--inspect=0.0.0.0` is insecure if the port (`9229` by
+default) is not firewall-protected.**
+
+See the [debugging security implications][] section for more information.
+
 ### `--loader=file`
-<!--
+<!-- YAML
 added: v9.0.0
 -->
 
@@ -255,7 +274,7 @@ see those as two separate modules and would attempt to load the module multiple
 times, causing an exception to be thrown).
 
 The `--preserve-symlinks` flag does not apply to the main module, which allows
-`node --preserve-symlinks node_module/.bin/<foo>` to work.  To apply the same
+`node --preserve-symlinks node_module/.bin/<foo>` to work. To apply the same
 behavior for the main module, also use `--preserve-symlinks-main`.
 
 ### `--preserve-symlinks-main`
@@ -322,6 +341,22 @@ added: v4.0.0
 
 Specify an alternative default TLS cipher list. Requires Node.js to be built
 with crypto support (default).
+
+### `--tls-v1.0`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable TLSv1.0 and greater in default [secureProtocol][]. Use for compatibility
+with old TLS clients or servers.
+
+### `--tls-v1.1`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable TLSv1.1 and greater in default [secureProtocol][]. Use for compatibility
+with old TLS clients or servers.
 
 ### `--trace-deprecation`
 <!-- YAML
@@ -504,6 +539,10 @@ added: v0.1.32
 
 `','`-separated list of core modules that should print debug information.
 
+### `NODE_DEBUG_NATIVE=module[,…]`
+
+`','`-separated list of core C++ modules that should print debug information.
+
 ### `NODE_DISABLE_COLORS=1`
 <!-- YAML
 added: v0.3.0
@@ -524,6 +563,9 @@ malformed, but any errors are otherwise ignored.
 
 Note that neither the well known nor extra certificates are used when the `ca`
 options property is explicitly specified for a TLS or HTTPS client or server.
+
+This environment variable is ignored when `node` runs as setuid root or
+has Linux file capabilities set.
 
 ### `NODE_ICU_DATA=file`
 <!-- YAML
@@ -550,7 +592,7 @@ if they had been specified on the command line before the actual command line
 (so they can be overridden). Node.js will exit with an error if an option
 that is not allowed in the environment is used, such as `-p` or a script file.
 
-Node options that are allowed are:
+Node.js options that are allowed are:
 - `--enable-fips`
 - `--experimental-modules`
 - `--experimental-repl-await`
@@ -642,6 +684,12 @@ added: v3.0.0
 Path to the file used to store the persistent REPL history. The default path is
 `~/.node_repl_history`, which is overridden by this variable. Setting the value
 to an empty string (`''` or `' '`) disables persistent REPL history.
+
+### `NODE_TLS_REJECT_UNAUTHORIZED=value`
+
+If `value` equals `'0'`, certificate validation is disabled for TLS connections.
+This makes TLS, and HTTPS by extension, insecure. The use of this environment
+variable is strongly discouraged.
 
 ### `NODE_V8_COVERAGE=dir`
 
@@ -738,6 +786,9 @@ greater than `4` (its current default value). For more information, see the
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [debugger]: debugger.html
+[debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [experimental ECMAScript Module]: esm.html#esm_loader_hooks
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
+[remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[secureProtocol]: tls.html#tls_tls_createsecurecontext_options

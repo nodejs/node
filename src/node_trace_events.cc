@@ -14,6 +14,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -57,30 +58,28 @@ void NodeCategorySet::New(const FunctionCallbackInfo<Value>& args) {
     if (!*val) return;
     categories.emplace(*val);
   }
-  CHECK_NOT_NULL(env->tracing_agent_writer());
+  CHECK_NOT_NULL(GetTracingAgentWriter());
   new NodeCategorySet(env, args.This(), std::move(categories));
 }
 
 void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   NodeCategorySet* category_set;
   ASSIGN_OR_RETURN_UNWRAP(&category_set, args.Holder());
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (!category_set->enabled_ && !categories.empty()) {
-    env->tracing_agent_writer()->Enable(categories);
+    GetTracingAgentWriter()->Enable(categories);
     category_set->enabled_ = true;
   }
 }
 
 void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   NodeCategorySet* category_set;
   ASSIGN_OR_RETURN_UNWRAP(&category_set, args.Holder());
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (category_set->enabled_ && !categories.empty()) {
-    env->tracing_agent_writer()->Disable(categories);
+    GetTracingAgentWriter()->Disable(categories);
     category_set->enabled_ = false;
   }
 }
@@ -88,12 +87,12 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
 void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string categories =
-      env->tracing_agent_writer()->agent()->GetEnabledCategories();
+      GetTracingAgentWriter()->agent()->GetEnabledCategories();
   if (!categories.empty()) {
     args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           categories.c_str(),
-                          v8::NewStringType::kNormal,
+                          NewStringType::kNormal,
                           categories.size()).ToLocalChecked());
   }
 }
@@ -112,8 +111,10 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(category_set, "enable", NodeCategorySet::Enable);
   env->SetProtoMethod(category_set, "disable", NodeCategorySet::Disable);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "CategorySet"),
-              category_set->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "CategorySet"),
+              category_set->GetFunction(env->context()).ToLocalChecked())
+              .FromJust();
 
   Local<String> isTraceCategoryEnabled =
       FIXED_ONE_BYTE_STRING(env->isolate(), "isTraceCategoryEnabled");

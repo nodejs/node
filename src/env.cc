@@ -1,13 +1,14 @@
-#include "node_internals.h"
 #include "async_wrap.h"
-#include "v8-profiler.h"
 #include "node_buffer.h"
-#include "node_platform.h"
-#include "node_file.h"
 #include "node_context_data.h"
+#include "node_file.h"
+#include "node_internals.h"
+#include "node_native_module.h"
+#include "node_platform.h"
 #include "node_worker.h"
 #include "tracing/agent.h"
 #include "tracing/traced_value.h"
+#include "v8-profiler.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -15,6 +16,8 @@
 namespace node {
 
 using v8::Context;
+using v8::EmbedderGraph;
+using v8::External;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -22,13 +25,19 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Message;
+using v8::NewStringType;
 using v8::Number;
+using v8::Object;
 using v8::Private;
+using v8::Promise;
+using v8::PromiseHookType;
 using v8::StackFrame;
 using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
+using v8::TracingController;
 using v8::TryCatch;
+using v8::Undefined;
 using v8::Value;
 using worker::Worker;
 
@@ -89,7 +98,7 @@ IsolateData::IsolateData(Isolate* isolate,
             String::NewFromOneByte(                                         \
                 isolate,                                                    \
                 reinterpret_cast<const uint8_t*>(StringValue),              \
-                v8::NewStringType::kInternalized,                           \
+                NewStringType::kInternalized,                               \
                 sizeof(StringValue) - 1).ToLocalChecked()));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
 #undef V
@@ -101,7 +110,7 @@ IsolateData::IsolateData(Isolate* isolate,
             String::NewFromOneByte(                                         \
                 isolate,                                                    \
                 reinterpret_cast<const uint8_t*>(StringValue),              \
-                v8::NewStringType::kInternalized,                           \
+                NewStringType::kInternalized,                               \
                 sizeof(StringValue) - 1).ToLocalChecked()));
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
@@ -111,7 +120,7 @@ IsolateData::IsolateData(Isolate* isolate,
         String::NewFromOneByte(                                             \
             isolate,                                                        \
             reinterpret_cast<const uint8_t*>(StringValue),                  \
-            v8::NewStringType::kInternalized,                               \
+            NewStringType::kInternalized,                                   \
             sizeof(StringValue) - 1).ToLocalChecked());
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
@@ -128,26 +137,35 @@ void InitThreadLocalOnce() {
 }
 
 void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
+  if (!env_->is_main_thread()) {
+    // Ideally, we’d have a consistent story that treats all threads/Environment
+    // instances equally here. However, tracing is essentially global, and this
+    // callback is called from whichever thread calls `StartTracing()` or
+    // `StopTracing()`. The only way to do this in a threadsafe fashion
+    // seems to be only tracking this from the main thread, and only allowing
+    // these state modifications from the main thread.
+    return;
+  }
+
   env_->trace_category_state()[0] =
       *TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(async_hooks));
 
   Isolate* isolate = env_->isolate();
+  HandleScope handle_scope(isolate);
   Local<Function> cb = env_->trace_category_state_function();
   if (cb.IsEmpty())
     return;
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
-  cb->Call(env_->context(), v8::Undefined(isolate),
+  cb->Call(env_->context(), Undefined(isolate),
            0, nullptr).ToLocalChecked();
 }
 
 Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context,
-                         tracing::AgentWriterHandle* tracing_agent_writer)
+                         Local<Context> context)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
-      tracing_agent_writer_(tracing_agent_writer),
       immediate_info_(context->GetIsolate()),
       tick_info_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
@@ -158,14 +176,15 @@ Environment::Environment(IsolateData* isolate_data,
       makecallback_cntr_(0),
       should_abort_on_uncaught_toggle_(isolate_, 1),
       trace_category_state_(isolate_, kTraceCategoryCount),
+      stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       http_parser_buffer_(nullptr),
-      fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
-      fs_stats_field_bigint_array_(isolate_, kFsStatsFieldsLength * 2),
+      fs_stats_field_array_(isolate_, kFsStatsBufferLength),
+      fs_stats_field_bigint_array_(isolate_, kFsStatsBufferLength),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
-  v8::HandleScope handle_scope(isolate());
-  v8::Context::Scope context_scope(context);
-  set_as_external(v8::External::New(isolate(), this));
+  HandleScope handle_scope(isolate());
+  Context::Scope context_scope(context);
+  set_as_external(External::New(isolate(), this));
 
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
@@ -182,10 +201,9 @@ Environment::Environment(IsolateData* isolate_data,
 
   AssignToContext(context, ContextInfo(""));
 
-  if (tracing_agent_writer_ != nullptr) {
-    trace_state_observer_.reset(new TrackingTraceStateObserver(this));
-    v8::TracingController* tracing_controller =
-        tracing_agent_writer_->GetTracingController();
+  if (tracing::AgentWriterHandle* writer = GetTracingAgentWriter()) {
+    trace_state_observer_ = std::make_unique<TrackingTraceStateObserver>(this);
+    TracingController* tracing_controller = writer->GetTracingController();
     if (tracing_controller != nullptr)
       tracing_controller->AddTraceStateObserver(trace_state_observer_.get());
   }
@@ -223,7 +241,7 @@ Environment::~Environment() {
   // CleanupHandles() should have removed all of them.
   CHECK(file_handle_read_wrap_freelist_.empty());
 
-  v8::HandleScope handle_scope(isolate());
+  HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
   // Destroy inspector agent before erasing the context. The inspector
@@ -234,9 +252,10 @@ Environment::~Environment() {
   context()->SetAlignedPointerInEmbedderData(
       ContextEmbedderIndex::kEnvironment, nullptr);
 
-  if (tracing_agent_writer_ != nullptr) {
-    v8::TracingController* tracing_controller =
-        tracing_agent_writer_->GetTracingController();
+  if (trace_state_observer_) {
+    tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
+    CHECK_NOT_NULL(writer);
+    TracingController* tracing_controller = writer->GetTracingController();
     if (tracing_controller != nullptr)
       tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
   }
@@ -400,7 +419,7 @@ void Environment::PrintSyncTrace() const {
     return;
 
   HandleScope handle_scope(isolate());
-  Local<v8::StackTrace> stack =
+  Local<StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
   fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n",
@@ -535,10 +554,10 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
   return true;
 }
 
-void Environment::EnvPromiseHook(v8::PromiseHookType type,
-                                 v8::Local<v8::Promise> promise,
-                                 v8::Local<v8::Value> parent) {
-  Local<v8::Context> context = promise->CreationContext();
+void Environment::EnvPromiseHook(PromiseHookType type,
+                                 Local<Promise> promise,
+                                 Local<Value> parent) {
+  Local<Context> context = promise->CreationContext();
 
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return;
@@ -558,7 +577,7 @@ void Environment::RunAndClearNativeImmediates() {
     std::vector<NativeImmediateCallback> list;
     native_immediate_callbacks_.swap(list);
     auto drain_list = [&]() {
-      v8::TryCatch try_catch(isolate());
+      TryCatch try_catch(isolate());
       for (auto it = list.begin(); it != list.end(); ++it) {
 #ifdef DEBUG
         v8::SealHandleScope seal_handle_scope(isolate());
@@ -738,14 +757,16 @@ void Environment::set_debug_categories(const std::string& cats, bool enabled) {
 }
 
 void CollectExceptionInfo(Environment* env,
-                          v8::Local<v8::Object> obj,
+                          Local<Object> obj,
                           int errorno,
                           const char* err_string,
                           const char* syscall,
                           const char* message,
                           const char* path,
                           const char* dest) {
-  obj->Set(env->errno_string(), v8::Integer::New(env->isolate(), errorno));
+  obj->Set(env->context(),
+           env->errno_string(),
+           Integer::New(env->isolate(), errorno)).FromJust();
 
   obj->Set(env->context(), env->code_string(),
            OneByteString(env->isolate(), err_string)).FromJust();
@@ -755,14 +776,14 @@ void CollectExceptionInfo(Environment* env,
              OneByteString(env->isolate(), message)).FromJust();
   }
 
-  v8::Local<v8::Value> path_buffer;
+  Local<Value> path_buffer;
   if (path != nullptr) {
     path_buffer =
       Buffer::Copy(env->isolate(), path, strlen(path)).ToLocalChecked();
     obj->Set(env->context(), env->path_string(), path_buffer).FromJust();
   }
 
-  v8::Local<v8::Value> dest_buffer;
+  Local<Value> dest_buffer;
   if (dest != nullptr) {
     dest_buffer =
       Buffer::Copy(env->isolate(), dest, strlen(dest)).ToLocalChecked();
@@ -775,7 +796,7 @@ void CollectExceptionInfo(Environment* env,
   }
 }
 
-void Environment::CollectExceptionInfo(v8::Local<v8::Value> object,
+void Environment::CollectExceptionInfo(Local<Value> object,
                                        int errorno,
                                        const char* syscall,
                                        const char* message,
@@ -783,7 +804,7 @@ void Environment::CollectExceptionInfo(v8::Local<v8::Value> object,
   if (!object->IsObject() || errorno == 0)
     return;
 
-  v8::Local<v8::Object> obj = object.As<v8::Object>();
+  Local<Object> obj = object.As<Object>();
   const char* err_string = node::errno_string(errorno);
 
   if (message == nullptr || message[0] == '\0') {
@@ -794,7 +815,7 @@ void Environment::CollectExceptionInfo(v8::Local<v8::Value> object,
                              syscall, message, path, nullptr);
 }
 
-void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
+void Environment::CollectUVExceptionInfo(Local<Value> object,
                                          int errorno,
                                          const char* syscall,
                                          const char* message,
@@ -803,7 +824,7 @@ void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
   if (!object->IsObject() || errorno == 0)
     return;
 
-  v8::Local<v8::Object> obj = object.As<v8::Object>();
+  Local<Object> obj = object.As<Object>();
   const char* err_string = uv_err_name(errorno);
 
   if (message == nullptr || message[0] == '\0') {
@@ -816,14 +837,7 @@ void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
 
 
 void Environment::AsyncHooks::grow_async_ids_stack() {
-  const uint32_t old_capacity = async_ids_stack_.Length() / 2;
-  const uint32_t new_capacity = old_capacity * 1.5;
-  AliasedBuffer<double, v8::Float64Array> new_buffer(
-      env()->isolate(), new_capacity * 2);
-
-  for (uint32_t i = 0; i < old_capacity * 2; ++i)
-    new_buffer[i] = async_ids_stack_[i];
-  async_ids_stack_ = std::move(new_buffer);
+  async_ids_stack_.reserve(async_ids_stack_.Length() * 3);
 
   env()->async_hooks_binding()->Set(
       env()->context(),
@@ -849,8 +863,8 @@ void Environment::stop_sub_worker_contexts() {
   }
 }
 
-void Environment::BuildEmbedderGraph(v8::Isolate* isolate,
-                                     v8::EmbedderGraph* graph,
+void Environment::BuildEmbedderGraph(Isolate* isolate,
+                                     EmbedderGraph* graph,
                                      void* data) {
   MemoryTracker tracker(isolate, graph);
   static_cast<Environment*>(data)->ForEachBaseObject([&](BaseObject* obj) {

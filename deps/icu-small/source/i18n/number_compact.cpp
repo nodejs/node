@@ -273,13 +273,13 @@ void CompactHandler::processQuantity(DecimalQuantity &quantity, MicroProps &micr
     if (U_FAILURE(status)) { return; }
 
     // Treat zero as if it had magnitude 0
-    int magnitude;
+    int32_t magnitude;
     if (quantity.isZero()) {
         magnitude = 0;
         micros.rounder.apply(quantity, status);
     } else {
         // TODO: Revisit chooseMultiplierAndApply
-        int multiplier = micros.rounder.chooseMultiplierAndApply(quantity, data, status);
+        int32_t multiplier = micros.rounder.chooseMultiplierAndApply(quantity, data, status);
         magnitude = quantity.isZero() ? 0 : quantity.getMagnitude();
         magnitude -= multiplier;
     }

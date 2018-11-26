@@ -103,7 +103,9 @@
     # Enable mitigations for executing untrusted code.
     'v8_untrusted_code_mitigations%': 'true',
 
-    'v8_enable_handle_zapping%': 1,
+    # Currently set for node by common.gypi, avoiding default because of gyp file bug.
+    # Should be turned on only for debugging.
+    #'v8_enable_handle_zapping%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -164,9 +166,10 @@
       ['v8_untrusted_code_mitigations=="false"', {
         'defines': ['DISABLE_UNTRUSTED_CODE_MITIGATIONS',],
       }],
-      ['v8_enable_handle_zapping==1', {
-        'defines': ['ENABLE_HANDLE_ZAPPING',],
-      }],
+      # Refs: https://github.com/nodejs/node/pull/23801
+      # ['v8_enable_handle_zapping==1', {
+      #  'defines': ['ENABLE_HANDLE_ZAPPING',],
+      # }],
     ],  # conditions
     'defines': [
       'V8_GYP_BUILD',

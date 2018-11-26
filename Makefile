@@ -203,9 +203,9 @@ coverage: coverage-test ## Run the tests and generate a coverage report.
 coverage-build: all
 	mkdir -p node_modules
 	if [ ! -d node_modules/nyc ]; then \
-		$(NODE) ./deps/npm install nyc --no-save --no-package-lock; fi
+		$(NODE) ./deps/npm install nyc@13 --no-save --no-package-lock; fi
 	if [ ! -d gcovr ]; then git clone -b 3.4 --depth=1 \
-		--single-branch git://github.com/gcovr/gcovr.git; fi
+		--single-branch https://github.com/gcovr/gcovr.git; fi
 	if [ ! -d build ]; then git clone --depth=1 \
 		--single-branch https://github.com/nodejs/build.git; fi
 	if [ ! -f gcovr/scripts/gcovr.orig ]; then \
@@ -234,8 +234,9 @@ coverage-test: coverage-build
 	$(NODE) ./node_modules/.bin/nyc merge 'out/Release/.coverage' \
 		.cov_tmp/libcov.json
 	(cd lib && .$(NODE) ../node_modules/.bin/nyc report \
-		--temp-directory "$(CURDIR)/.cov_tmp" \
-		--report-dir "$(CURDIR)/coverage")
+		--temp-dir "$(CURDIR)/.cov_tmp" \
+		--report-dir "$(CURDIR)/coverage" \
+		--reporter html)
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target \
 		--html --html-detail -o ../coverage/cxxcoverage.html \
@@ -307,19 +308,19 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-benchmark/napi/function_call/build/Release/binding.node: all \
+benchmark/napi/function_call/build/$(BUILDTYPE)/binding.node: \
 		benchmark/napi/function_call/napi_binding.c \
 		benchmark/napi/function_call/binding.cc \
-		benchmark/napi/function_call/binding.gyp
+		benchmark/napi/function_call/binding.gyp | all
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/benchmark/napi/function_call" \
 		--nodedir="$(shell pwd)"
 
-benchmark/napi/function_args/build/Release/binding.node: all \
+benchmark/napi/function_args/build/$(BUILDTYPE)/binding.node: \
 		benchmark/napi/function_args/napi_binding.c \
 		benchmark/napi/function_args/binding.cc \
-		benchmark/napi/function_args/binding.gyp
+		benchmark/napi/function_args/binding.gyp | all
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/benchmark/napi/function_args" \
@@ -331,16 +332,16 @@ ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
-node_use_openssl = $(shell $(call available-node,"-p" \
-		   "process.versions.openssl != undefined"))
+node_use_openssl = $(call available-node,"-p" \
+		   "process.versions.openssl != undefined")
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
-ifeq ($(node_use_openssl),true)
-	$(RM) -r test/addons/??_*/
-	[ -x $(NODE) ] && $(NODE) $< || node $<
-	touch $@
-else
-	@echo "Skipping .docbuildstamp (no crypto)"
-endif
+	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
+		echo "Skipping .docbuildstamp (no crypto)"; \
+	else \
+		$(RM) -r test/addons/??_*/; \
+		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
+		touch $@; \
+  fi
 
 ADDONS_BINDING_GYPS := \
 	$(filter-out test/addons/??_*/binding.gyp, \
@@ -392,7 +393,8 @@ ADDONS_NAPI_BINDING_SOURCES := \
 # Implicitly depends on $(NODE_EXE), see the build-addons-napi rule for rationale.
 test/addons-napi/.buildstamp: $(ADDONS_PREREQS) \
 	$(ADDONS_NAPI_BINDING_GYPS) $(ADDONS_NAPI_BINDING_SOURCES) \
-	src/node_api.h src/node_api_types.h
+	src/node_api.h src/node_api_types.h src/js_native_api.h \
+	src/js_native_api_types.h src/js_native_api_v8.h src/js_native_api_v8_internals.h
 	@$(call run_build_addons,"$$PWD/test/addons-napi",$@)
 
 .PHONY: build-addons-napi
@@ -443,7 +445,7 @@ test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
 test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) $(CI_JS_SUITES)
+		$(TEST_CI_ARGS) $(CI_JS_SUITES) --skip-tests=sequential/test-benchmark-napi
 	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -480,8 +482,11 @@ build-ci:
 #   of tests. See `test-ci-native` and `test-ci-js`.
 # - node-test-commit-linux-coverage: where the build and the tests need
 #   to be instrumented, see `coverage`.
+#
+# Using -j1 as the sub target in `test-ci` already have internal parallelism.
+# Refs: https://github.com/nodejs/node/pull/23733
 run-ci: build-ci
-	$(MAKE) test-ci
+	$(MAKE) test-ci -j1
 
 test-release: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
@@ -492,7 +497,10 @@ test-debug: test-build
 test-message: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) message
 
-test-simple: | cctest  # Depends on 'all'.
+test-wpt: all
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
+
+test-simple: | cctest # Depends on 'all'.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
 
 test-pummel: all
@@ -504,6 +512,9 @@ test-internet: all
 test-node-inspect: $(NODE_EXE)
 	USE_EMBEDDED_NODE_INSPECT=1 $(NODE) tools/test-npm-package \
 		--install deps/node-inspect test
+
+test-benchmark: | bench-addons-build
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) benchmark
 
 test-tick-processor: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) tick-processor
@@ -605,11 +616,11 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
 tools/doc/node_modules: tools/doc/package.json
-ifeq ($(node_use_openssl),true)
-	cd tools/doc && $(call available-node,$(run-npm-ci))
-else
-	@echo "Skipping tools/doc/node_modules (no crypto)"
-endif
+	@if [ "$(shell $(node_use_openssl))" != "true" ]; then \
+		echo "Skipping tools/doc/node_modules (no crypto)"; \
+	else \
+		cd tools/doc && $(call available-node,$(run-npm-ci)) \
+  fi
 
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
@@ -1040,8 +1051,8 @@ bench: bench-addons-build
 
 # Build required addons for benchmark before running it.
 .PHONY: bench-addons-build
-bench-addons-build: benchmark/napi/function_call/build/Release/binding.node \
-	benchmark/napi/function_args/build/Release/binding.node
+bench-addons-build: benchmark/napi/function_call/build/$(BUILDTYPE)/binding.node \
+	benchmark/napi/function_args/build/$(BUILDTYPE)/binding.node
 
 .PHONY: bench-addons-clean
 bench-addons-clean:
@@ -1050,13 +1061,11 @@ bench-addons-clean:
 
 .PHONY: lint-md-rollup
 lint-md-rollup:
-	cd tools/node-lint-md-cli-rollup/remark-preset-lint-node && npm up
-	cd tools/node-lint-md-cli-rollup && npm up
+	cd tools/node-lint-md-cli-rollup && npm install
 	cd tools/node-lint-md-cli-rollup && npm run build-node
 
 .PHONY: lint-md-clean
 lint-md-clean:
-	$(RM) -r tools/node-lint-md-cli-rollup/remark-preset-lint-node/node_modules
 	$(RM) -r tools/node-lint-md-cli-rollup/node_modules
 	$(RM) tools/.*mdlintstamp
 
@@ -1075,7 +1084,7 @@ tools/.docmdlintstamp: $(LINT_MD_DOC_FILES)
 LINT_MD_TARGETS = src lib benchmark test tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_MISC_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
-  -not -path '*node_modules*' -not -path 'test/fixtures/*' -name '*.md') \
+  ! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md') \
   $(LINT_MD_ROOT_DOCS)
 run-lint-misc-md = tools/lint-md.js -q -f $(LINT_MD_MISC_FILES)
 # Lint other changed markdown files maintained by us
@@ -1204,6 +1213,28 @@ lint-addon-docs: test/addons/.docbuildstamp
 cpplint: lint-cpp
 	@echo "Please use lint-cpp instead of cpplint"
 
+.PHONY: lint-py-build
+# python -m pip install flake8
+# Try with '--system' is to overcome systems that blindly set '--user'
+lint-py-build:
+	@echo "Pip installing flake8 linter on $(shell $(PYTHON) --version)..."
+	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
+		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages flake8
+
+ifneq ("","$(wildcard tools/pip/site-packages)")
+.PHONY: lint-py
+# Lints the Python code with flake8.
+# Flag the build if there are Python syntax errors or undefined names
+lint-py:
+	PYTHONPATH=tools/pip $(PYTHON) -m flake8 . \
+		--count --show-source --statistics --select=E901,E999,F821,F822,F823 \
+		--exclude=deps,lib,src,tools/*_macros.py,tools/gyp,tools/jinja2,tools/pip
+else
+lint-py:
+	@echo "Python linting with flake8 is not avalible"
+	@echo "Run 'make lint-py-build'"
+endif
+
 .PHONY: lint
 .PHONY: lint-ci
 ifneq ("","$(wildcard tools/node_modules/eslint/)")
@@ -1217,7 +1248,7 @@ lint: ## Run JS, C++, MD and doc linters.
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 
 # Related CI job: node-test-linter
-lint-ci: lint-js-ci lint-cpp lint-md lint-addon-docs
+lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
 		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \

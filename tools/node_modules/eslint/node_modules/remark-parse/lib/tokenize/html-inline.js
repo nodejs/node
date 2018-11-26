@@ -1,11 +1,3 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:html-inline
- * @fileoverview Tokenise inline HTML.
- */
-
 'use strict';
 
 var alphabetical = require('is-alphabetical');
@@ -18,7 +10,6 @@ inlineHTML.locator = locate;
 var EXPRESSION_HTML_LINK_OPEN = /^<a /i;
 var EXPRESSION_HTML_LINK_CLOSE = /^<\/a>/i;
 
-/* Tokenise inline HTML. */
 function inlineHTML(eat, value, silent) {
   var self = this;
   var length = value.length;

@@ -107,7 +107,8 @@ static int uv__dlerror(uv_lib_t* lib, const char* filename, DWORD errorno) {
                        MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
                        (LPSTR) &lib->errmsg, 0, NULL);
 
-  if (!res && GetLastError() == ERROR_MUI_FILE_NOT_FOUND) {
+  if (!res && (GetLastError() == ERROR_MUI_FILE_NOT_FOUND ||
+               GetLastError() == ERROR_RESOURCE_TYPE_NOT_FOUND)) {
     res = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                          FORMAT_MESSAGE_FROM_SYSTEM |
                          FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,

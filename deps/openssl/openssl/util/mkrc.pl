@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -60,7 +60,7 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             // Required:
-            VALUE "CompanyName", "The OpenSSL Project, http://www.openssl.org/\\0"
+            VALUE "CompanyName", "The OpenSSL Project, https://www.openssl.org/\\0"
             VALUE "FileDescription", "$description\\0"
             VALUE "FileVersion", "$version\\0"
             VALUE "InternalName", "$basename\\0"

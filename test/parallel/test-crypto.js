@@ -38,19 +38,19 @@ const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
 // Test Certificates
-const caPem = fixtures.readSync('test_ca.pem', 'ascii');
-const certPem = fixtures.readSync('test_cert.pem', 'ascii');
 const certPfx = fixtures.readSync('test_cert.pfx');
-const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  const options = { key: keyPem, cert: certPem, ca: caPem };
-  const credentials = tls.createSecureContext(options);
+  const credentials = tls.createSecureContext();
   const context = credentials.context;
-  const notcontext = { setOptions: context.setOptions, setKey: context.setKey };
-  tls.createSecureContext({ secureOptions: 1 }, notcontext);
+  const notcontext = { setOptions: context.setOptions };
+
+  // Methods of native objects should not segfault when reassigned to a new
+  // object and called illegally. This core dumped in 0.10 and was fixed in
+  // 0.11.
+  notcontext.setOptions();
 }, (err) => {
   // Throws TypeError, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&

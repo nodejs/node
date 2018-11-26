@@ -271,10 +271,12 @@ See `common.expectWarning()` for usage.
 Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
-* `ms` [&lt;number>]
-* return [&lt;number>]
+* `ms` [&lt;number>|&lt;bigint>]
+* return [&lt;number>|&lt;bigint>]
 
-Platform normalizes timeout.
+Returns a timeout value based on detected conditions. For example, a debug build
+may need extra time so the returned value will be larger than on a release
+build.
 
 ### PIPE
 * [&lt;string>]
@@ -770,12 +772,19 @@ Deletes and recreates the testing temporary directory.
 
 ## WPT Module
 
-The wpt.js module is a port of parts of
-[W3C testharness.js](https://github.com/w3c/testharness.js) for testing the
-Node.js
-[WHATWG URL API](https://nodejs.org/api/url.html#url_the_whatwg_url_api)
-implementation with tests from
-[W3C Web Platform Tests](https://github.com/w3c/web-platform-tests).
+### harness
+
+A legacy port of [Web Platform Tests][] harness.
+
+See the source code for definitions. Please avoid using it in new
+code - the current usage of this port in tests is being migrated to
+the original WPT harness, see [the WPT tests README][].
+
+### Class: WPTRunner
+
+A driver class for running WPT with the WPT harness in a vm.
+
+See [the WPT tests README][] for details.
 
 
 [&lt;Array>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
@@ -790,3 +799,5 @@ implementation with tests from
 [`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
 [`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
+[Web Platform Tests]: https://github.com/web-platform-tests/wpt
+[the WPT tests README]: ../wpt/README.md

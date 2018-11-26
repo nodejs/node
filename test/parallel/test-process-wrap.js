@@ -44,11 +44,10 @@ p.onexit = function(exitCode, signal) {
   processExited = true;
 };
 
-pipe.onread = function(err, b, off, len) {
+pipe.onread = function(arrayBuffer) {
   assert.ok(processExited);
-  if (b) {
+  if (arrayBuffer) {
     gotPipeData = true;
-    console.log('read %d', len);
   } else {
     gotPipeEOF = true;
     pipe.close();

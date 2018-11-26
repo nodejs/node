@@ -24,7 +24,7 @@ server.listen(0, common.localhostIPv4, common.mustCall(() => {
   }));
   req.on('timeout', common.mustCall(() => req.abort()));
   req.on('error', common.mustCall((err) => {
-    assert.strictEqual('socket hang up', err.message);
+    assert.strictEqual(err.message, 'socket hang up');
     server.close();
   }));
 }));

@@ -14,13 +14,17 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "require a newline after each call in a method chain",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/newline-per-chained-call"
         },
+
         fixable: "whitespace",
+
         schema: [{
             type: "object",
             properties: {

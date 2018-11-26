@@ -107,7 +107,9 @@ void TCPWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
 
-  target->Set(tcpString, t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              tcpString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_tcp_constructor_template(t);
 
   // Create FunctionTemplate for TCPConnectWrap.
@@ -117,14 +119,17 @@ void TCPWrap::Initialize(Local<Object> target,
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
   cwt->SetClassName(wrapString);
-  target->Set(wrapString, cwt->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              wrapString,
+              cwt->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, SOCKET);
   NODE_DEFINE_CONSTANT(constants, SERVER);
+  NODE_DEFINE_CONSTANT(constants, UV_TCP_IPV6ONLY);
   target->Set(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
+              env->constants_string(),
               constants).FromJust();
 }
 
@@ -248,13 +253,15 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
   node::Utf8Value ip6_address(env->isolate(), args[0]);
   int port;
+  unsigned int flags;
   if (!args[1]->Int32Value(env->context()).To(&port)) return;
+  if (!args[2]->Uint32Value(env->context()).To(&flags)) return;
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
   if (err == 0) {
     err = uv_tcp_bind(&wrap->handle_,
                       reinterpret_cast<const sockaddr*>(&addr),
-                      0);
+                      flags);
   }
   args.GetReturnValue().Set(err);
 }
@@ -276,6 +283,29 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 
 
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[2]->IsUint32());
+  int port = args[2].As<Uint32>()->Value();
+  Connect<sockaddr_in>(args,
+                       [port](const char* ip_address, sockaddr_in* addr) {
+      return uv_ip4_addr(ip_address, port, addr);
+  });
+}
+
+
+void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[2]->IsUint32());
+  int port;
+  if (!args[2]->Int32Value(env->context()).To(&port)) return;
+  Connect<sockaddr_in6>(args,
+                        [port](const char* ip_address, sockaddr_in6* addr) {
+      return uv_ip6_addr(ip_address, port, addr);
+  });
+}
+
+template <typename T>
+void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
+    std::function<int(const char* ip_address, T* addr)> uv_ip_addr) {
   Environment* env = Environment::GetCurrent(args);
 
   TCPWrap* wrap;
@@ -285,49 +315,12 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
-  CHECK(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(env->isolate(), args[1]);
-  int port = args[2].As<Uint32>()->Value();
 
-  sockaddr_in addr;
-  int err = uv_ip4_addr(*ip_address, port, &addr);
-
-  if (err == 0) {
-    AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
-    ConnectWrap* req_wrap =
-        new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = req_wrap->Dispatch(uv_tcp_connect,
-                             &wrap->handle_,
-                             reinterpret_cast<const sockaddr*>(&addr),
-                             AfterConnect);
-    if (err)
-      delete req_wrap;
-  }
-
-  args.GetReturnValue().Set(err);
-}
-
-
-void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
-  TCPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
-  Environment* env = wrap->env();
-
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsString());
-  CHECK(args[2]->IsUint32());
-
-  Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(env->isolate(), args[1]);
-  int port;
-  if (!args[2]->Int32Value(env->context()).To(&port)) return;
-
-  sockaddr_in6 addr;
-  int err = uv_ip6_addr(*ip_address, port, &addr);
+  T addr;
+  int err = uv_ip_addr(*ip_address, &addr);
 
   if (err == 0) {
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap);
@@ -363,22 +356,36 @@ Local<Object> AddressToJS(Environment* env,
     a6 = reinterpret_cast<const sockaddr_in6*>(addr);
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     port = ntohs(a6->sin6_port);
-    info->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    info->Set(env->family_string(), env->ipv6_string());
-    info->Set(env->port_string(), Integer::New(env->isolate(), port));
+    info->Set(env->context(),
+              env->address_string(),
+              OneByteString(env->isolate(), ip)).FromJust();
+    info->Set(env->context(),
+              env->family_string(),
+              env->ipv6_string()).FromJust();
+    info->Set(env->context(),
+              env->port_string(),
+              Integer::New(env->isolate(), port)).FromJust();
     break;
 
   case AF_INET:
     a4 = reinterpret_cast<const sockaddr_in*>(addr);
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
-    info->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    info->Set(env->family_string(), env->ipv4_string());
-    info->Set(env->port_string(), Integer::New(env->isolate(), port));
+    info->Set(env->context(),
+              env->address_string(),
+              OneByteString(env->isolate(), ip)).FromJust();
+    info->Set(env->context(),
+              env->family_string(),
+              env->ipv4_string()).FromJust();
+    info->Set(env->context(),
+              env->port_string(),
+              Integer::New(env->isolate(), port)).FromJust();
     break;
 
   default:
-    info->Set(env->address_string(), String::Empty(env->isolate()));
+    info->Set(env->context(),
+              env->address_string(),
+              String::Empty(env->isolate())).FromJust();
   }
 
   return scope.Escape(info);

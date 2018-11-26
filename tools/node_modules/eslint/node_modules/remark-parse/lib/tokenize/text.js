@@ -1,16 +1,7 @@
-/**
- * @author Titus Wormer
- * @copyright 2015 Titus Wormer
- * @license MIT
- * @module remark:parse:tokenize:text
- * @fileoverview Tokenise text.
- */
-
 'use strict';
 
 module.exports = text;
 
-/* Tokenise text. */
 function text(eat, value, silent) {
   var self = this;
   var methods;

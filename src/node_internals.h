@@ -32,7 +32,6 @@
 #include "uv.h"
 #include "v8.h"
 #include "tracing/trace_event.h"
-#include "node_perf_common.h"
 #include "node_api.h"
 
 #include <stdint.h>
@@ -103,46 +102,47 @@ struct sockaddr;
 // function. This helps the built-in modules are loaded properly when
 // node is built as static library. No need to depend on the
 // __attribute__((constructor)) like mechanism in GCC.
-#define NODE_BUILTIN_STANDARD_MODULES(V)                                      \
-    V(async_wrap)                                                             \
-    V(buffer)                                                                 \
-    V(cares_wrap)                                                             \
-    V(config)                                                                 \
-    V(contextify)                                                             \
-    V(domain)                                                                 \
-    V(fs)                                                                     \
-    V(fs_event_wrap)                                                          \
-    V(heap_utils)                                                             \
-    V(http2)                                                                  \
-    V(http_parser)                                                            \
-    V(inspector)                                                              \
-    V(js_stream)                                                              \
-    V(messaging)                                                              \
-    V(module_wrap)                                                            \
-    V(options)                                                                \
-    V(os)                                                                     \
-    V(performance)                                                            \
-    V(pipe_wrap)                                                              \
-    V(process_wrap)                                                           \
-    V(serdes)                                                                 \
-    V(signal_wrap)                                                            \
-    V(spawn_sync)                                                             \
-    V(stream_pipe)                                                            \
-    V(stream_wrap)                                                            \
-    V(string_decoder)                                                         \
-    V(symbols)                                                                \
-    V(tcp_wrap)                                                               \
-    V(timers)                                                                 \
-    V(trace_events)                                                           \
-    V(tty_wrap)                                                               \
-    V(types)                                                                  \
-    V(udp_wrap)                                                               \
-    V(url)                                                                    \
-    V(util)                                                                   \
-    V(uv)                                                                     \
-    V(v8)                                                                     \
-    V(worker)                                                                 \
-    V(zlib)
+#define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
+  V(async_wrap)                                                                \
+  V(buffer)                                                                    \
+  V(cares_wrap)                                                                \
+  V(config)                                                                    \
+  V(contextify)                                                                \
+  V(domain)                                                                    \
+  V(fs)                                                                        \
+  V(fs_event_wrap)                                                             \
+  V(heap_utils)                                                                \
+  V(http2)                                                                     \
+  V(http_parser)                                                               \
+  V(inspector)                                                                 \
+  V(js_stream)                                                                 \
+  V(messaging)                                                                 \
+  V(module_wrap)                                                               \
+  V(native_module)                                                             \
+  V(options)                                                                   \
+  V(os)                                                                        \
+  V(performance)                                                               \
+  V(pipe_wrap)                                                                 \
+  V(process_wrap)                                                              \
+  V(serdes)                                                                    \
+  V(signal_wrap)                                                               \
+  V(spawn_sync)                                                                \
+  V(stream_pipe)                                                               \
+  V(stream_wrap)                                                               \
+  V(string_decoder)                                                            \
+  V(symbols)                                                                   \
+  V(tcp_wrap)                                                                  \
+  V(timers)                                                                    \
+  V(trace_events)                                                              \
+  V(tty_wrap)                                                                  \
+  V(types)                                                                     \
+  V(udp_wrap)                                                                  \
+  V(url)                                                                       \
+  V(util)                                                                      \
+  V(uv)                                                                        \
+  V(v8)                                                                        \
+  V(worker)                                                                    \
+  V(zlib)
 
 #define NODE_BUILTIN_MODULES(V)                                               \
   NODE_BUILTIN_STANDARD_MODULES(V)                                            \
@@ -171,6 +171,10 @@ struct sockaddr;
 
 namespace node {
 
+namespace native_module {
+class NativeModuleLoader;
+}
+
 extern Mutex process_mutex;
 extern Mutex environ_mutex;
 
@@ -179,17 +183,10 @@ extern bool v8_initialized;
 
 extern Mutex per_process_opts_mutex;
 extern std::shared_ptr<PerProcessOptions> per_process_opts;
+extern native_module::NativeModuleLoader per_process_loader;
 
 // Forward declaration
 class Environment;
-
-// If persistent.IsWeak() == false, then do not call persistent.Reset()
-// while the returned Local<T> is still in scope, it will destroy the
-// reference to the object.
-template <class TypeName>
-inline v8::Local<TypeName> PersistentToLocal(
-    v8::Isolate* isolate,
-    const Persistent<TypeName>& persistent);
 
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
@@ -215,11 +212,6 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-void FatalException(v8::Isolate* isolate,
-                    v8::Local<v8::Value> error,
-                    v8::Local<v8::Message> message);
-
-
 void SignalExit(int signo);
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,
@@ -244,27 +236,6 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 #else
 # define MUST_USE_RESULT
 #endif
-
-bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
-
-enum ErrorHandlingMode { CONTEXTIFY_ERROR, FATAL_ERROR, MODULE_ERROR };
-void AppendExceptionLine(Environment* env,
-                         v8::Local<v8::Value> er,
-                         v8::Local<v8::Message> message,
-                         enum ErrorHandlingMode mode);
-
-[[noreturn]] void FatalError(const char* location, const char* message);
-
-// Like a `TryCatch` but exits the process if an exception was caught.
-class FatalTryCatch : public v8::TryCatch {
- public:
-  explicit FatalTryCatch(Environment* env)
-      : TryCatch(env->isolate()), env_(env) {}
-  ~FatalTryCatch();
-
- private:
-  Environment* env_;
-};
 
 class SlicedArguments {
  public:
@@ -299,65 +270,10 @@ SlicedArguments::SlicedArguments(
   size_ = size;
 }
 
-void ReportException(Environment* env,
-                     v8::Local<v8::Value> er,
-                     v8::Local<v8::Message> message);
-
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
-
-template <typename NativeT, typename V8T>
-v8::Local<v8::Value> FillStatsArray(AliasedBuffer<NativeT, V8T>* fields_ptr,
-                    const uv_stat_t* s, int offset = 0) {
-  AliasedBuffer<NativeT, V8T>& fields = *fields_ptr;
-  fields[offset + 0] = s->st_dev;
-  fields[offset + 1] = s->st_mode;
-  fields[offset + 2] = s->st_nlink;
-  fields[offset + 3] = s->st_uid;
-  fields[offset + 4] = s->st_gid;
-  fields[offset + 5] = s->st_rdev;
-#if defined(__POSIX__)
-  fields[offset + 6] = s->st_blksize;
-#else
-  fields[offset + 6] = 0;
-#endif
-  fields[offset + 7] = s->st_ino;
-  fields[offset + 8] = s->st_size;
-#if defined(__POSIX__)
-  fields[offset + 9] = s->st_blocks;
-#else
-  fields[offset + 9] = 0;
-#endif
-// Dates.
-// NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
-#define X(idx, name)                                                    \
-  /* NOLINTNEXTLINE(runtime/int) */                                     \
-  fields[offset + idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
-  /* NOLINTNEXTLINE(runtime/int) */                                     \
-                ((unsigned long)(s->st_##name.tv_nsec) / 1e6);          \
-
-  X(10, atim)
-  X(11, mtim)
-  X(12, ctim)
-  X(13, birthtim)
-#undef X
-
-  return fields_ptr->GetJSArray();
-}
-
-inline v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,
-                                                 const uv_stat_t* s,
-                                                 bool use_bigint = false,
-                                                 int offset = 0) {
-  if (use_bigint) {
-    return node::FillStatsArray(
-        env->fs_stats_field_bigint_array(), s, offset);
-  } else {
-    return node::FillStatsArray(env->fs_stats_field_array(), s, offset);
-  }
-}
 
 void SetupBootstrapObject(Environment* env,
                           v8::Local<v8::Object> bootstrapper);
@@ -537,6 +453,8 @@ void ThreadPoolWork::ScheduleWork() {
 int ThreadPoolWork::CancelWork() {
   return uv_cancel(reinterpret_cast<uv_req_t*>(&work_req_));
 }
+
+tracing::AgentWriterHandle* GetTracingAgentWriter();
 
 static inline const char* errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
@@ -879,7 +797,6 @@ static inline const char* errno_string(int errorno) {
 // Functions defined in node.cc that are exposed via the bootstrapper object
 
 extern double prog_start_time;
-void PrintErrorString(const char* format, ...);
 
 void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Chdir(const v8::FunctionCallbackInfo<v8::Value>& args);

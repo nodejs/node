@@ -12,6 +12,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce position of line comments",
             category: "Stylistic Issues",

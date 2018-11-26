@@ -6,6 +6,9 @@ OCSP_resp_get0_certs,
 OCSP_resp_get0_signer,
 OCSP_resp_get0_id,
 OCSP_resp_get0_produced_at,
+OCSP_resp_get0_signature,
+OCSP_resp_get0_tbs_sigalg,
+OCSP_resp_get0_respdata,
 OCSP_resp_find_status, OCSP_resp_count, OCSP_resp_get0, OCSP_resp_find,
 OCSP_single_get0_status, OCSP_check_validity,
 OCSP_basic_verify
@@ -32,6 +35,9 @@ OCSP_basic_verify
  const ASN1_GENERALIZEDTIME *OCSP_resp_get0_produced_at(
                              const OCSP_BASICRESP* single);
 
+ const ASN1_OCTET_STRING *OCSP_resp_get0_signature(const OCSP_BASICRESP *bs);
+ const X509_ALGOR *OCSP_resp_get0_tbs_sigalg(const OCSP_BASICRESP *bs);
+ const OCSP_RESPDATA *OCSP_resp_get0_respdata(const OCSP_BASICRESP *bs);
  const STACK_OF(X509) *OCSP_resp_get0_certs(const OCSP_BASICRESP *bs);
 
  int OCSP_resp_get0_signer(OCSP_BASICRESP *bs, X509 **signer,
@@ -77,6 +83,12 @@ B<*revtime>, B<*thisupd> and B<*nextupd>.
 
 OCSP_resp_get0_produced_at() extracts the B<producedAt> field from the
 single response B<bs>.
+
+OCSP_resp_get0_signature() returns the signature from B<bs>.
+
+OCSP_resp_get0_tbs_sigalg() returns the B<signatureAlgorithm> from B<bs>.
+
+OCSP_resp_get0_respdata() returns the B<tbsResponseData> from B<bs>.
 
 OCSP_resp_get0_certs() returns any certificates included in B<bs>.
 

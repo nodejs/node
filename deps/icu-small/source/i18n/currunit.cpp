@@ -27,9 +27,14 @@ CurrencyUnit::CurrencyUnit(ConstChar16Ptr _isoCode, UErrorCode& ec) {
     // The constructor always leaves the CurrencyUnit in a valid state (with a 3-character currency code).
     // Note: in ICU4J Currency.getInstance(), we check string length for 3, but in ICU4C we allow a
     // non-NUL-terminated string to be passed as an argument, so it is not possible to check length.
+    // However, we allow a NUL-terminated empty string, which should have the same behavior as nullptr.
+    // Consider NUL-terminated strings of length 1 or 2 as invalid.
     const char16_t* isoCodeToUse;
-    if (U_FAILURE(ec) || _isoCode == nullptr) {
+    if (U_FAILURE(ec) || _isoCode == nullptr || _isoCode[0] == 0) {
         isoCodeToUse = kDefaultCurrency;
+    } else if (_isoCode[1] == 0 || _isoCode[2] == 0) {
+        isoCodeToUse = kDefaultCurrency;
+        ec = U_ILLEGAL_ARGUMENT_ERROR;
     } else if (!uprv_isInvariantUString(_isoCode, 3)) {
         // TODO: Perform a more strict ASCII check like in ICU4J isAlpha3Code?
         isoCodeToUse = kDefaultCurrency;

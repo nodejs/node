@@ -31,7 +31,7 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 * [Current Project Team Members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
-  * [Release Team](#release-team)
+  * [Release Keys](#release-keys)
 * [Contributing to Node.js](#contributing-to-nodejs)
 
 ## Support
@@ -81,7 +81,7 @@ your expectations.
   changes. Use with caution.
 
 Current and LTS releases follow [Semantic Versioning](https://semver.org). A
-member of the [Release Team](#release-team) signs each Current and LTS release.
+member of the Release Team [signs](#release-keys) each Current and LTS release.
 For more information, see the
 [Release README](https://github.com/nodejs/Release).
 
@@ -133,9 +133,9 @@ $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
 `SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
-`SHASUM256.txt`. You will first need to import all the GPG keys of individuals
-authorized to create releases. They are at the bottom of this README under
-[Release Team](#release-team). To import the keys:
+`SHASUM256.txt`. You will first need to import
+[the GPG keys of individuals authorized to create releases](#release-keys). To
+import the keys:
 
 ```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
@@ -159,52 +159,8 @@ source and a list of supported platforms.
 
 ## Security
 
-If you find a security vulnerability in Node.js, please report it to
-security@nodejs.org. Please withhold public disclosure until after the security
-team has addressed the vulnerability.
-
-The security team will acknowledge your email within 24 hours. You will receive
-a more detailed response within 48 hours.
-
-There are no hard and fast rules to determine if a bug is worth reporting as a
-security issue. Here are some examples of past issues and what the Security
-Response Team thinks of them. When in doubt, please do send us a report
-nonetheless.
-
-
-### Public disclosure preferred
-
-- [#14519](https://github.com/nodejs/node/issues/14519): _Internal domain
-  function can be used to cause segfaults_. Causing program termination using
-  either the public JavaScript APIs or the private bindings layer APIs requires
-  the ability to execute arbitrary JavaScript code, which is already the highest
-  level of privilege possible.
-
-- [#12141](https://github.com/nodejs/node/pull/12141): _buffer: zero fill
-  Buffer(num) by default_. The buffer constructor behavior was documented,
-  but found to be prone to [mis-use](https://snyk.io/blog/exploiting-buffer/).
-  It has since been changed, but despite much debate, was not considered misuse
-  prone enough to justify fixing in older release lines and breaking our
-  API stability contract.
-
-### Private disclosure preferred
-
-- [CVE-2016-7099](https://nodejs.org/en/blog/vulnerability/september-2016-security-releases/):
-  _Fix invalid wildcard certificate validation check_. This is a high severity
-  defect that would allow a malicious TLS server to serve an invalid wildcard
-  certificate for its hostname and be improperly validated by a Node.js client.
-
-- [#5507](https://github.com/nodejs/node/pull/5507): _Fix a defect that makes
-  the CacheBleed Attack possible_. Many, though not all, OpenSSL vulnerabilities
-  in the TLS/SSL protocols also affect Node.js.
-
-- [CVE-2016-2216](https://nodejs.org/en/blog/vulnerability/february-2016-security-releases/):
-  _Fix defects in HTTP header parsing for requests and responses that can allow
-  response splitting_. While the impact of this vulnerability is application and
-  network dependent, it is remotely exploitable in the HTTP protocol.
-
-When in doubt, please do send us a report.
-
+For information on reporting security vulnerabilities in Node.js, see
+[SECURITY.md](./SECURITY.md).
 
 ## Current Project Team Members
 
@@ -247,10 +203,6 @@ For information about the governance of the Node.js project, see
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
-* [TimothyGu](https://github.com/TimothyGu) -
-**Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
-* [Trott](https://github.com/Trott) -
-**Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
 ### TSC Emeriti
 
@@ -278,8 +230,12 @@ For information about the governance of the Node.js project, see
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
+* [TimothyGu](https://github.com/TimothyGu) -
+**Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [trevnorris](https://github.com/trevnorris) -
 **Trevor Norris** &lt;trev.norris@gmail.com&gt;
+* [Trott](https://github.com/Trott) -
+**Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
 ### Collaborators
 
@@ -445,12 +401,14 @@ For information about the governance of the Node.js project, see
 **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -
 **Forrest L Norvell** &lt;ogd@aoaioxxysz.net&gt; (he/him)
-* [phillipj](https://github.com/phillipj) -
-**Phillip Johnsen** &lt;johphi@gmail.com&gt;
+* [oyyd](https://github.com/oyyd) -
+**Ouyang Yadong** &lt;oyydoibh@gmail.com&gt; (he/him)
 * [pmq20](https://github.com/pmq20) -
 **Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [princejwesley](https://github.com/princejwesley) -
 **Prince John Wesley** &lt;princejohnwesley@gmail.com&gt;
+* [psmarshall](https://github.com/psmarshall) -
+**Peter Marshall** &lt;petermarshall@chromium.org&gt; (he/him)
 * [Qard](https://github.com/Qard) -
 **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; (he/him)
 * [refack](https://github.com/refack) -
@@ -479,6 +437,8 @@ For information about the governance of the Node.js project, see
 **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
+* [shisama](https://github.com/shisama) -
+**Masashi Hirano** &lt;shisama07@gmail.com&gt; (he/him)
 * [silverwind](https://github.com/silverwind) -
 **Roman Reiss** &lt;me@silverwind.io&gt;
 * [srl295](https://github.com/srl295) -
@@ -546,6 +506,8 @@ For information about the governance of the Node.js project, see
 **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [petkaantonov](https://github.com/petkaantonov) -
 **Petka Antonov** &lt;petka_antonov@hotmail.com&gt;
+* [phillipj](https://github.com/phillipj) -
+**Phillip Johnsen** &lt;johphi@gmail.com&gt;
 * [piscisaureus](https://github.com/piscisaureus) -
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [rlidwka](https://github.com/rlidwka) -
@@ -564,10 +526,12 @@ For information about the governance of the Node.js project, see
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
 
-### Release Team
+### Release Keys
 
-Node.js releases are signed with one of the following GPG keys:
+GPG keys used to sign Node.js releases:
 
+* **Beth Griggs** &lt;bethany.griggs@uk.ibm.com&gt;
+`4ED778F539E3634C779C87C6D7062848A1AB005C`
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
 * **Evan Lucas** &lt;evanlucas@me.com&gt;
@@ -584,10 +548,13 @@ Node.js releases are signed with one of the following GPG keys:
 `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
 * **Rod Vagg** &lt;rod@vagg.org&gt;
 `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
+* **Ruben Bridgewater** &lt;ruben@bridgewater.de&gt;
+`A48C2BEE680E841632CD4E44F07496B3EB3C1762`
 
 To import the full set of trusted release keys:
 
 ```shell
+gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys B9AE9905FFD7803F25714661B63B535A4C206CA9
 gpg --keyserver pool.sks-keyservers.net --recv-keys 77984A986EBC2AA786BC0F66B01FBB92821C587A
@@ -596,6 +563,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE
 gpg --keyserver pool.sks-keyservers.net --recv-keys 8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600
 gpg --keyserver pool.sks-keyservers.net --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8
 gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
+gpg --keyserver pool.sks-keyservers.net --recv-keys A48C2BEE680E841632CD4E44F07496B3EB3C1762
 ```
 
 See the section above on [Verifying Binaries](#verifying-binaries) for how to

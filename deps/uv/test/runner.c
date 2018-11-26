@@ -215,9 +215,6 @@ int run_test(const char* test,
     process_count++;
   }
 
-  /* Give the helpers time to settle. Race-y, fix this. */
-  uv_sleep(250);
-
   /* Now start the test itself. */
   for (task = TASKS; task->main; task++) {
     if (strcmp(test, task->task_name) != 0) {

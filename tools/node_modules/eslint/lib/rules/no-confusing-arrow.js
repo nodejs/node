@@ -27,6 +27,8 @@ function isConditional(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow arrow functions where they could be confused with comparisons",
             category: "ECMAScript 6",

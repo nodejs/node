@@ -62,8 +62,9 @@ class ProcessWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "spawn", Spawn);
     env->SetProtoMethod(constructor, "kill", Kill);
 
-    target->Set(processString,
-                constructor->GetFunction(context).ToLocalChecked());
+    target->Set(env->context(),
+                processString,
+                constructor->GetFunction(context).ToLocalChecked()).FromJust();
   }
 
   SET_NO_MEMORY_INFO()

@@ -65,13 +65,15 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(PluralKeywordEnumeration)
 
 PluralRules::PluralRules(UErrorCode& /*status*/)
 :   UObject(),
-    mRules(NULL)
+    mRules(nullptr),
+    mInternalStatus(U_ZERO_ERROR)
 {
 }
 
 PluralRules::PluralRules(const PluralRules& other)
 : UObject(other),
-    mRules(NULL)
+    mRules(nullptr),
+    mInternalStatus(U_ZERO_ERROR)
 {
     *this=other;
 }
@@ -86,54 +88,67 @@ SharedPluralRules::~SharedPluralRules() {
 
 PluralRules*
 PluralRules::clone() const {
-    return new PluralRules(*this);
+    PluralRules* newObj = new PluralRules(*this);
+    // Since clone doesn't have a 'status' parameter, the best we can do is return nullptr if
+    // the newly created object was not fully constructed properly (an error occurred).
+    if (newObj != nullptr && U_FAILURE(newObj->mInternalStatus)) {
+        delete newObj;
+        newObj = nullptr;
+    }
+    return newObj;
 }
 
 PluralRules&
 PluralRules::operator=(const PluralRules& other) {
     if (this != &other) {
         delete mRules;
-        if (other.mRules==NULL) {
-            mRules = NULL;
+        mRules = nullptr;
+        mInternalStatus = other.mInternalStatus;
+        if (U_FAILURE(mInternalStatus)) {
+            // bail out early if the object we were copying from was already 'invalid'.
+            return *this;
         }
-        else {
+        if (other.mRules != nullptr) {
             mRules = new RuleChain(*other.mRules);
+            if (mRules == nullptr) {
+                mInternalStatus = U_MEMORY_ALLOCATION_ERROR;
+            }
+            else if (U_FAILURE(mRules->fInternalStatus)) {
+                // If the RuleChain wasn't fully copied, then set our status to failure as well.
+                mInternalStatus = mRules->fInternalStatus;
+            }
         }
     }
-
     return *this;
 }
 
 StringEnumeration* PluralRules::getAvailableLocales(UErrorCode &status) {
-    StringEnumeration *result = new PluralAvailableLocalesEnumeration(status);
-    if (result == NULL && U_SUCCESS(status)) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-    }
     if (U_FAILURE(status)) {
-        delete result;
-        result = NULL;
+        return nullptr;
     }
-    return result;
+    LocalPointer<StringEnumeration> result(new PluralAvailableLocalesEnumeration(status), status);
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    return result.orphan();
 }
 
 
 PluralRules* U_EXPORT2
 PluralRules::createRules(const UnicodeString& description, UErrorCode& status) {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
-
     PluralRuleParser parser;
-    PluralRules *newRules = new PluralRules(status);
-    if (U_SUCCESS(status) && newRules == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-    }
-    parser.parse(description, newRules, status);
+    LocalPointer<PluralRules> newRules(new PluralRules(status), status);
     if (U_FAILURE(status)) {
-        delete newRules;
-        newRules = NULL;
+        return nullptr;
     }
-    return newRules;
+    parser.parse(description, newRules.getAlias(), status);
+    if (U_FAILURE(status)) {
+        newRules.adoptInstead(nullptr);
+    }
+    return newRules.orphan();
 }
 
 
@@ -149,19 +164,17 @@ template<> U_I18N_API
 const SharedPluralRules *LocaleCacheKey<SharedPluralRules>::createObject(
         const void * /*unused*/, UErrorCode &status) const {
     const char *localeId = fLoc.getName();
-    PluralRules *pr = PluralRules::internalForLocale(
-            localeId, UPLURAL_TYPE_CARDINAL, status);
+    LocalPointer<PluralRules> pr(PluralRules::internalForLocale(localeId, UPLURAL_TYPE_CARDINAL, status), status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
-    SharedPluralRules *result = new SharedPluralRules(pr);
-    if (result == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        delete pr;
-        return NULL;
+    LocalPointer<SharedPluralRules> result(new SharedPluralRules(pr.getAlias()), status);
+    if (U_FAILURE(status)) {
+        return nullptr;
     }
+    pr.orphan(); // result was successfully created so it nows pr.
     result->addRef();
-    return result;
+    return result.orphan();
 }
 
 /* end plural rules cache */
@@ -171,13 +184,13 @@ const SharedPluralRules* U_EXPORT2
 PluralRules::createSharedInstance(
         const Locale& locale, UPluralType type, UErrorCode& status) {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     if (type != UPLURAL_TYPE_CARDINAL) {
         status = U_UNSUPPORTED_ERROR;
-        return NULL;
+        return nullptr;
     }
-    const SharedPluralRules *result = NULL;
+    const SharedPluralRules *result = nullptr;
     UnifiedCache::getByLocale(locale, result, status);
     return result;
 }
@@ -195,11 +208,11 @@ PluralRules::forLocale(const Locale& locale, UPluralType type, UErrorCode& statu
     const SharedPluralRules *shared = createSharedInstance(
             locale, type, status);
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     PluralRules *result = (*shared)->clone();
     shared->removeRef();
-    if (result == NULL) {
+    if (result == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
     }
     return result;
@@ -208,20 +221,23 @@ PluralRules::forLocale(const Locale& locale, UPluralType type, UErrorCode& statu
 PluralRules* U_EXPORT2
 PluralRules::internalForLocale(const Locale& locale, UPluralType type, UErrorCode& status) {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     if (type >= UPLURAL_TYPE_COUNT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
-    PluralRules *newObj = new PluralRules(status);
-    if (newObj==NULL || U_FAILURE(status)) {
-        delete newObj;
-        return NULL;
+    LocalPointer<PluralRules> newObj(new PluralRules(status), status);
+    if (U_FAILURE(status)) {
+        return nullptr;
     }
     UnicodeString locRule = newObj->getRuleFromResource(locale, type, status);
-    // TODO: which errors, if any, should be returned?
+    // TODO: which other errors, if any, should be returned?
     if (locRule.length() == 0) {
+        // If an out-of-memory error occurred, then stop and report the failure.
+        if (status == U_MEMORY_ALLOCATION_ERROR) {
+            return nullptr;
+        }
         // Locales with no specific rules (all numbers have the "other" category
         //   will return a U_MISSING_RESOURCE_ERROR at this point. This is not
         //   an error.
@@ -229,13 +245,13 @@ PluralRules::internalForLocale(const Locale& locale, UPluralType type, UErrorCod
         status = U_ZERO_ERROR;
     }
     PluralRuleParser parser;
-    parser.parse(locRule, newObj, status);
+    parser.parse(locRule, newObj.getAlias(), status);
         //  TODO: should rule parse errors be returned, or
         //        should we silently use default rules?
         //        Original impl used default rules.
         //        Ask the question to ICU Core.
 
-    return newObj;
+    return newObj.orphan();
 }
 
 UnicodeString
@@ -250,7 +266,7 @@ PluralRules::select(double number) const {
 
 UnicodeString
 PluralRules::select(const IFixedDecimal &number) const {
-    if (mRules == NULL) {
+    if (mRules == nullptr) {
         return UnicodeString(TRUE, PLURAL_DEFAULT_RULE, -1);
     }
     else {
@@ -262,14 +278,18 @@ PluralRules::select(const IFixedDecimal &number) const {
 
 StringEnumeration*
 PluralRules::getKeywords(UErrorCode& status) const {
-    if (U_FAILURE(status))  return NULL;
-    StringEnumeration* nameEnumerator = new PluralKeywordEnumeration(mRules, status);
     if (U_FAILURE(status)) {
-      delete nameEnumerator;
-      return NULL;
+        return nullptr;
     }
-
-    return nameEnumerator;
+    if (U_FAILURE(mInternalStatus)) {
+        status = mInternalStatus;
+        return nullptr;
+    }
+    LocalPointer<StringEnumeration> nameEnumerator(new PluralKeywordEnumeration(mRules, status), status);
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    return nameEnumerator.orphan();
 }
 
 double
@@ -367,8 +387,15 @@ getSamplesFromString(const UnicodeString &samples, double *dest,
 int32_t
 PluralRules::getSamples(const UnicodeString &keyword, double *dest,
                         int32_t destCapacity, UErrorCode& status) {
+    if (destCapacity == 0 || U_FAILURE(status)) {
+        return 0;
+    }
+    if (U_FAILURE(mInternalStatus)) {
+        status = mInternalStatus;
+        return 0;
+    }
     RuleChain *rc = rulesForKeyword(keyword);
-    if (rc == NULL || destCapacity == 0 || U_FAILURE(status)) {
+    if (rc == nullptr) {
         return 0;
     }
     int32_t numSamples = getSamplesFromString(rc->fIntegerSamples, dest, destCapacity, status);
@@ -381,7 +408,7 @@ PluralRules::getSamples(const UnicodeString &keyword, double *dest,
 
 RuleChain *PluralRules::rulesForKeyword(const UnicodeString &keyword) const {
     RuleChain *rc;
-    for (rc = mRules; rc != NULL; rc = rc->fNext) {
+    for (rc = mRules; rc != nullptr; rc = rc->fNext) {
         if (rc->fKeyword == keyword) {
             break;
         }
@@ -395,7 +422,7 @@ PluralRules::isKeyword(const UnicodeString& keyword) const {
     if (0 == keyword.compare(PLURAL_KEYWORD_OTHER, 5)) {
         return true;
     }
-    return rulesForKeyword(keyword) != NULL;
+    return rulesForKeyword(keyword) != nullptr;
 }
 
 UnicodeString
@@ -421,13 +448,13 @@ PluralRules::operator==(const PluralRules& other) const  {
         return FALSE;
     }
     myKeywordList->reset(status);
-    while ((ptrKeyword=myKeywordList->snext(status))!=NULL) {
+    while ((ptrKeyword=myKeywordList->snext(status))!=nullptr) {
         if (!other.isKeyword(*ptrKeyword)) {
             return FALSE;
         }
     }
     otherKeywordList->reset(status);
-    while ((ptrKeyword=otherKeywordList->snext(status))!=NULL) {
+    while ((ptrKeyword=otherKeywordList->snext(status))!=nullptr) {
         if (!this->isKeyword(*ptrKeyword)) {
             return FALSE;
         }
@@ -460,29 +487,33 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
         }
         switch (type) {
         case tAnd:
-            U_ASSERT(curAndConstraint != NULL);
-            curAndConstraint = curAndConstraint->add();
+            U_ASSERT(curAndConstraint != nullptr);
+            curAndConstraint = curAndConstraint->add(status);
             break;
         case tOr:
             {
-                U_ASSERT(currentChain != NULL);
+                U_ASSERT(currentChain != nullptr);
                 OrConstraint *orNode=currentChain->ruleHeader;
-                while (orNode->next != NULL) {
+                while (orNode->next != nullptr) {
                     orNode = orNode->next;
                 }
                 orNode->next= new OrConstraint();
+                if (orNode->next == nullptr) {
+                    status = U_MEMORY_ALLOCATION_ERROR;
+                    break;
+                }
                 orNode=orNode->next;
-                orNode->next=NULL;
-                curAndConstraint = orNode->add();
+                orNode->next=nullptr;
+                curAndConstraint = orNode->add(status);
             }
             break;
         case tIs:
-            U_ASSERT(curAndConstraint != NULL);
+            U_ASSERT(curAndConstraint != nullptr);
             U_ASSERT(curAndConstraint->value == -1);
-            U_ASSERT(curAndConstraint->rangeList == NULL);
+            U_ASSERT(curAndConstraint->rangeList == nullptr);
             break;
         case tNot:
-            U_ASSERT(curAndConstraint != NULL);
+            U_ASSERT(curAndConstraint != nullptr);
             curAndConstraint->negated=TRUE;
             break;
 
@@ -492,23 +523,29 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
         case tIn:
         case tWithin:
         case tEqual:
-            U_ASSERT(curAndConstraint != NULL);
-            curAndConstraint->rangeList = new UVector32(status);
-            curAndConstraint->rangeList->addElement(-1, status);  // range Low
-            curAndConstraint->rangeList->addElement(-1, status);  // range Hi
-            rangeLowIdx = 0;
-            rangeHiIdx  = 1;
-            curAndConstraint->value=PLURAL_RANGE_HIGH;
-            curAndConstraint->integerOnly = (type != tWithin);
+            {
+                U_ASSERT(curAndConstraint != nullptr);
+                LocalPointer<UVector32> newRangeList(new UVector32(status), status);
+                if (U_FAILURE(status)) {
+                    break;
+                }
+                curAndConstraint->rangeList = newRangeList.orphan();
+                curAndConstraint->rangeList->addElement(-1, status);  // range Low
+                curAndConstraint->rangeList->addElement(-1, status);  // range Hi
+                rangeLowIdx = 0;
+                rangeHiIdx  = 1;
+                curAndConstraint->value=PLURAL_RANGE_HIGH;
+                curAndConstraint->integerOnly = (type != tWithin);
+            }
             break;
         case tNumber:
-            U_ASSERT(curAndConstraint != NULL);
+            U_ASSERT(curAndConstraint != nullptr);
             if ( (curAndConstraint->op==AndConstraint::MOD)&&
                  (curAndConstraint->opNum == -1 ) ) {
                 curAndConstraint->opNum=getNumberValue(token);
             }
             else {
-                if (curAndConstraint->rangeList == NULL) {
+                if (curAndConstraint->rangeList == nullptr) {
                     // this is for an 'is' rule
                     curAndConstraint->value = getNumberValue(token);
                 } else {
@@ -534,7 +571,7 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
         case tComma:
             // TODO: rule syntax checking is inadequate, can happen with badly formed rules.
             //       Catch cases like "n mod 10, is 1" here instead.
-            if (curAndConstraint == NULL || curAndConstraint->rangeList == NULL) {
+            if (curAndConstraint == nullptr || curAndConstraint->rangeList == nullptr) {
                 status = U_UNEXPECTED_TOKEN;
                 break;
             }
@@ -545,7 +582,7 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
             curAndConstraint->rangeList->addElement(-1, status);  // range Hi
             break;
         case tMod:
-            U_ASSERT(curAndConstraint != NULL);
+            U_ASSERT(curAndConstraint != nullptr);
             curAndConstraint->op=AndConstraint::MOD;
             break;
         case tVariableN:
@@ -553,24 +590,24 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
         case tVariableF:
         case tVariableT:
         case tVariableV:
-            U_ASSERT(curAndConstraint != NULL);
+            U_ASSERT(curAndConstraint != nullptr);
             curAndConstraint->digitsType = type;
             break;
         case tKeyword:
             {
             RuleChain *newChain = new RuleChain;
-            if (newChain == NULL) {
+            if (newChain == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 break;
             }
             newChain->fKeyword = token;
-            if (prules->mRules == NULL) {
+            if (prules->mRules == nullptr) {
                 prules->mRules = newChain;
             } else {
                 // The new rule chain goes at the end of the linked list of rule chains,
                 //   unless there is an "other" keyword & chain. "other" must remain last.
                 RuleChain *insertAfter = prules->mRules;
-                while (insertAfter->fNext!=NULL &&
+                while (insertAfter->fNext!=nullptr &&
                        insertAfter->fNext->fKeyword.compare(PLURAL_KEYWORD_OTHER, 5) != 0 ){
                     insertAfter=insertAfter->fNext;
                 }
@@ -578,8 +615,12 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
                 insertAfter->fNext = newChain;
             }
             OrConstraint *orNode = new OrConstraint();
+            if (orNode == nullptr) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                break;
+            }
             newChain->ruleHeader = orNode;
-            curAndConstraint = orNode->add();
+            curAndConstraint = orNode->add(status);
             currentChain = newChain;
             }
             break;
@@ -629,7 +670,7 @@ PluralRules::getRuleFromResource(const Locale& locale, UPluralType type, UErrorC
     if (U_FAILURE(errCode)) {
         return emptyStr;
     }
-    LocalUResourceBundlePointer rb(ures_openDirect(NULL, "plurals", &errCode));
+    LocalUResourceBundlePointer rb(ures_openDirect(nullptr, "plurals", &errCode));
     if(U_FAILURE(errCode)) {
         return emptyStr;
     }
@@ -646,7 +687,7 @@ PluralRules::getRuleFromResource(const Locale& locale, UPluralType type, UErrorC
         errCode = U_ILLEGAL_ARGUMENT_ERROR;
         return emptyStr;
     }
-    LocalUResourceBundlePointer locRes(ures_getByKey(rb.getAlias(), typeKey, NULL, &errCode));
+    LocalUResourceBundlePointer locRes(ures_getByKey(rb.getAlias(), typeKey, nullptr, &errCode));
     if(U_FAILURE(errCode)) {
         return emptyStr;
     }
@@ -654,25 +695,25 @@ PluralRules::getRuleFromResource(const Locale& locale, UPluralType type, UErrorC
     const char *curLocaleName=locale.getName();
     const UChar* s = ures_getStringByKey(locRes.getAlias(), curLocaleName, &resLen, &errCode);
 
-    if (s == NULL) {
+    if (s == nullptr) {
         // Check parent locales.
         UErrorCode status = U_ZERO_ERROR;
         char parentLocaleName[ULOC_FULLNAME_CAPACITY];
-        const char *curLocaleName=locale.getName();
-        uprv_strcpy(parentLocaleName, curLocaleName);
+        const char *curLocaleName2=locale.getName();
+        uprv_strcpy(parentLocaleName, curLocaleName2);
 
         while (uloc_getParent(parentLocaleName, parentLocaleName,
                                        ULOC_FULLNAME_CAPACITY, &status) > 0) {
             resLen=0;
             s = ures_getStringByKey(locRes.getAlias(), parentLocaleName, &resLen, &status);
-            if (s != NULL) {
+            if (s != nullptr) {
                 errCode = U_ZERO_ERROR;
                 break;
             }
             status = U_ZERO_ERROR;
         }
     }
-    if (s==NULL) {
+    if (s==nullptr) {
         return emptyStr;
     }
 
@@ -680,18 +721,18 @@ PluralRules::getRuleFromResource(const Locale& locale, UPluralType type, UErrorC
     u_UCharsToChars(s, setKey, resLen + 1);
     // printf("\n PluralRule: %s\n", setKey);
 
-    LocalUResourceBundlePointer ruleRes(ures_getByKey(rb.getAlias(), "rules", NULL, &errCode));
+    LocalUResourceBundlePointer ruleRes(ures_getByKey(rb.getAlias(), "rules", nullptr, &errCode));
     if(U_FAILURE(errCode)) {
         return emptyStr;
     }
-    LocalUResourceBundlePointer setRes(ures_getByKey(ruleRes.getAlias(), setKey, NULL, &errCode));
+    LocalUResourceBundlePointer setRes(ures_getByKey(ruleRes.getAlias(), setKey, nullptr, &errCode));
     if (U_FAILURE(errCode)) {
         return emptyStr;
     }
 
     int32_t numberKeys = ures_getSize(setRes.getAlias());
     UnicodeString result;
-    const char *key=NULL;
+    const char *key=nullptr;
     for(int32_t i=0; i<numberKeys; ++i) {   // Keys are zero, one, few, ...
         UnicodeString rules = ures_getNextUnicodeString(setRes.getAlias(), &key, &errCode);
         UnicodeString uKey(key, -1, US_INV);
@@ -707,53 +748,45 @@ PluralRules::getRuleFromResource(const Locale& locale, UPluralType type, UErrorC
 UnicodeString
 PluralRules::getRules() const {
     UnicodeString rules;
-    if (mRules != NULL) {
+    if (mRules != nullptr) {
         mRules->dumpRules(rules);
     }
     return rules;
 }
 
-
-AndConstraint::AndConstraint() {
-    op = AndConstraint::NONE;
-    opNum=-1;
-    value = -1;
-    rangeList = NULL;
-    negated = FALSE;
-    integerOnly = FALSE;
-    digitsType = none;
-    next=NULL;
-}
-
-
 AndConstraint::AndConstraint(const AndConstraint& other) {
+    this->fInternalStatus = other.fInternalStatus;
+    if (U_FAILURE(fInternalStatus)) {
+        return; // stop early if the object we are copying from is invalid.
+    }
     this->op = other.op;
     this->opNum=other.opNum;
     this->value=other.value;
-    this->rangeList=NULL;
-    if (other.rangeList != NULL) {
-        UErrorCode status = U_ZERO_ERROR;
-        this->rangeList = new UVector32(status);
-        this->rangeList->assign(*other.rangeList, status);
+    if (other.rangeList != nullptr) {
+        LocalPointer<UVector32> newRangeList(new UVector32(fInternalStatus), fInternalStatus);
+        if (U_FAILURE(fInternalStatus)) {
+            return;
+        }
+        this->rangeList = newRangeList.orphan();
+        this->rangeList->assign(*other.rangeList, fInternalStatus);
     }
     this->integerOnly=other.integerOnly;
     this->negated=other.negated;
     this->digitsType = other.digitsType;
-    if (other.next==NULL) {
-        this->next=NULL;
-    }
-    else {
+    if (other.next != nullptr) {
         this->next = new AndConstraint(*other.next);
+        if (this->next == nullptr) {
+            fInternalStatus = U_MEMORY_ALLOCATION_ERROR;
+        }
     }
 }
 
 AndConstraint::~AndConstraint() {
     delete rangeList;
-    if (next!=NULL) {
-        delete next;
-    }
+    rangeList = nullptr;
+    delete next;
+    next = nullptr;
 }
-
 
 UBool
 AndConstraint::isFulfilled(const IFixedDecimal &number) {
@@ -776,7 +809,7 @@ AndConstraint::isFulfilled(const IFixedDecimal &number) {
         if (op == MOD) {
             n = fmod(n, opNum);
         }
-        if (rangeList == NULL) {
+        if (rangeList == nullptr) {
             result = value == -1 ||    // empty rule
                      n == value;       //  'is' rule
             break;
@@ -796,53 +829,67 @@ AndConstraint::isFulfilled(const IFixedDecimal &number) {
     return result;
 }
 
-
 AndConstraint*
-AndConstraint::add()
-{
+AndConstraint::add(UErrorCode& status) {
+    if (U_FAILURE(fInternalStatus)) {
+        status = fInternalStatus;
+        return nullptr;
+    }
     this->next = new AndConstraint();
+    if (this->next == nullptr) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
     return this->next;
 }
 
-OrConstraint::OrConstraint() {
-    childNode=NULL;
-    next=NULL;
-}
 
 OrConstraint::OrConstraint(const OrConstraint& other) {
-    if ( other.childNode == NULL ) {
-        this->childNode = NULL;
+    this->fInternalStatus = other.fInternalStatus;
+    if (U_FAILURE(fInternalStatus)) {
+        return; // stop early if the object we are copying from is invalid.
     }
-    else {
+    if ( other.childNode != nullptr ) {
         this->childNode = new AndConstraint(*(other.childNode));
+        if (this->childNode == nullptr) {
+            fInternalStatus = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
     }
-    if (other.next == NULL ) {
-        this->next = NULL;
-    }
-    else {
+    if (other.next != nullptr ) {
         this->next = new OrConstraint(*(other.next));
+        if (this->next == nullptr) {
+            fInternalStatus = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
+        if (U_FAILURE(this->next->fInternalStatus)) {
+            this->fInternalStatus = this->next->fInternalStatus;
+        }
     }
 }
 
 OrConstraint::~OrConstraint() {
-    if (childNode!=NULL) {
-        delete childNode;
-    }
-    if (next!=NULL) {
-        delete next;
-    }
+    delete childNode;
+    childNode = nullptr;
+    delete next;
+    next = nullptr;
 }
 
 AndConstraint*
-OrConstraint::add()
-{
+OrConstraint::add(UErrorCode& status) {
+    if (U_FAILURE(fInternalStatus)) {
+        status = fInternalStatus;
+        return nullptr;
+    }
     OrConstraint *curOrConstraint=this;
     {
-        while (curOrConstraint->next!=NULL) {
+        while (curOrConstraint->next!=nullptr) {
             curOrConstraint = curOrConstraint->next;
         }
-        U_ASSERT(curOrConstraint->childNode == NULL);
+        U_ASSERT(curOrConstraint->childNode == nullptr);
         curOrConstraint->childNode = new AndConstraint();
+        if (curOrConstraint->childNode == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
     }
     return curOrConstraint->childNode;
 }
@@ -852,10 +899,10 @@ OrConstraint::isFulfilled(const IFixedDecimal &number) {
     OrConstraint* orRule=this;
     UBool result=FALSE;
 
-    while (orRule!=NULL && !result) {
+    while (orRule!=nullptr && !result) {
         result=TRUE;
         AndConstraint* andRule = orRule->childNode;
-        while (andRule!=NULL && result) {
+        while (andRule!=nullptr && result) {
             result = andRule->isFulfilled(number);
             andRule=andRule->next;
         }
@@ -866,19 +913,33 @@ OrConstraint::isFulfilled(const IFixedDecimal &number) {
 }
 
 
-RuleChain::RuleChain(): fKeyword(), fNext(NULL), ruleHeader(NULL), fDecimalSamples(), fIntegerSamples(),
-                        fDecimalSamplesUnbounded(FALSE), fIntegerSamplesUnbounded(FALSE) {
-}
-
 RuleChain::RuleChain(const RuleChain& other) :
-        fKeyword(other.fKeyword), fNext(NULL), ruleHeader(NULL), fDecimalSamples(other.fDecimalSamples),
+        fKeyword(other.fKeyword), fDecimalSamples(other.fDecimalSamples),
         fIntegerSamples(other.fIntegerSamples), fDecimalSamplesUnbounded(other.fDecimalSamplesUnbounded),
-        fIntegerSamplesUnbounded(other.fIntegerSamplesUnbounded) {
-    if (other.ruleHeader != NULL) {
-        this->ruleHeader = new OrConstraint(*(other.ruleHeader));
+        fIntegerSamplesUnbounded(other.fIntegerSamplesUnbounded), fInternalStatus(other.fInternalStatus) {
+    if (U_FAILURE(this->fInternalStatus)) {
+        return; // stop early if the object we are copying from is invalid.
     }
-    if (other.fNext != NULL ) {
+    if (other.ruleHeader != nullptr) {
+        this->ruleHeader = new OrConstraint(*(other.ruleHeader));
+        if (this->ruleHeader == nullptr) {
+            this->fInternalStatus = U_MEMORY_ALLOCATION_ERROR;
+        }
+        else if (U_FAILURE(this->ruleHeader->fInternalStatus)) {
+            // If the OrConstraint wasn't fully copied, then set our status to failure as well.
+            this->fInternalStatus = this->ruleHeader->fInternalStatus;
+            return; // exit early.
+        }
+    }
+    if (other.fNext != nullptr ) {
         this->fNext = new RuleChain(*other.fNext);
+        if (this->fNext == nullptr) {
+            this->fInternalStatus = U_MEMORY_ALLOCATION_ERROR;
+        }
+        else if (U_FAILURE(this->fNext->fInternalStatus)) {
+            // If the RuleChain wasn't fully copied, then set our status to failure as well.
+            this->fInternalStatus = this->fNext->fInternalStatus;
+        }
     }
 }
 
@@ -887,11 +948,10 @@ RuleChain::~RuleChain() {
     delete ruleHeader;
 }
 
-
 UnicodeString
 RuleChain::select(const IFixedDecimal &number) const {
     if (!number.isNaN() && !number.isInfinite()) {
-        for (const RuleChain *rules = this; rules != NULL; rules = rules->fNext) {
+        for (const RuleChain *rules = this; rules != nullptr; rules = rules->fNext) {
              if (rules->ruleHeader->isFulfilled(number)) {
                  return rules->fKeyword;
              }
@@ -923,17 +983,17 @@ void
 RuleChain::dumpRules(UnicodeString& result) {
     UChar digitString[16];
 
-    if ( ruleHeader != NULL ) {
+    if ( ruleHeader != nullptr ) {
         result +=  fKeyword;
         result += COLON;
         result += SPACE;
         OrConstraint* orRule=ruleHeader;
-        while ( orRule != NULL ) {
+        while ( orRule != nullptr ) {
             AndConstraint* andRule=orRule->childNode;
-            while ( andRule != NULL ) {
-                if ((andRule->op==AndConstraint::NONE) &&  (andRule->rangeList==NULL) && (andRule->value == -1)) {
+            while ( andRule != nullptr ) {
+                if ((andRule->op==AndConstraint::NONE) &&  (andRule->rangeList==nullptr) && (andRule->value == -1)) {
                     // Empty Rules.
-                } else if ( (andRule->op==AndConstraint::NONE) && (andRule->rangeList==NULL) ) {
+                } else if ( (andRule->op==AndConstraint::NONE) && (andRule->rangeList==nullptr) ) {
                     result += tokenString(andRule->digitsType);
                     result += UNICODE_STRING_SIMPLE(" is ");
                     if (andRule->negated) {
@@ -950,7 +1010,7 @@ RuleChain::dumpRules(UnicodeString& result) {
                         uprv_itou(digitString,16, andRule->opNum,10,0);
                         result += UnicodeString(digitString);
                     }
-                    if (andRule->rangeList==NULL) {
+                    if (andRule->rangeList==nullptr) {
                         if (andRule->negated) {
                             result += UNICODE_STRING_SIMPLE(" is not ");
                             uprv_itou(digitString,16, andRule->value,10,0);
@@ -993,16 +1053,16 @@ RuleChain::dumpRules(UnicodeString& result) {
                         }
                     }
                 }
-                if ( (andRule=andRule->next) != NULL) {
+                if ( (andRule=andRule->next) != nullptr) {
                     result += UNICODE_STRING_SIMPLE(" and ");
                 }
             }
-            if ( (orRule = orRule->next) != NULL ) {
+            if ( (orRule = orRule->next) != nullptr ) {
                 result += UNICODE_STRING_SIMPLE(" or ");
             }
         }
     }
-    if ( fNext != NULL ) {
+    if ( fNext != nullptr ) {
         result += UNICODE_STRING_SIMPLE("; ");
         fNext->dumpRules(result);
     }
@@ -1011,6 +1071,9 @@ RuleChain::dumpRules(UnicodeString& result) {
 
 UErrorCode
 RuleChain::getKeywords(int32_t capacityOfKeywords, UnicodeString* keywords, int32_t& arraySize) const {
+    if (U_FAILURE(fInternalStatus)) {
+        return fInternalStatus;
+    }
     if ( arraySize < capacityOfKeywords-1 ) {
         keywords[arraySize++]=fKeyword;
     }
@@ -1018,7 +1081,7 @@ RuleChain::getKeywords(int32_t capacityOfKeywords, UnicodeString* keywords, int3
         return U_BUFFER_OVERFLOW_ERROR;
     }
 
-    if ( fNext != NULL ) {
+    if ( fNext != nullptr ) {
         return fNext->getKeywords(capacityOfKeywords, keywords, arraySize);
     }
     else {
@@ -1032,7 +1095,7 @@ RuleChain::isKeyword(const UnicodeString& keywordParam) const {
         return TRUE;
     }
 
-    if ( fNext != NULL ) {
+    if ( fNext != nullptr ) {
         return fNext->isKeyword(keywordParam);
     }
     else {
@@ -1043,7 +1106,7 @@ RuleChain::isKeyword(const UnicodeString& keywordParam) const {
 
 PluralRuleParser::PluralRuleParser() :
         ruleIndex(0), token(), type(none), prevType(none),
-        curAndConstraint(NULL), currentChain(NULL), rangeLowIdx(-1), rangeHiIdx(-1)
+        curAndConstraint(nullptr), currentChain(nullptr), rangeLowIdx(-1), rangeHiIdx(-1)
 {
 }
 
@@ -1341,21 +1404,36 @@ PluralKeywordEnumeration::PluralKeywordEnumeration(RuleChain *header, UErrorCode
         return;
     }
     fKeywordNames.setDeleter(uprv_deleteUObject);
-    UBool  addKeywordOther=TRUE;
-    RuleChain *node=header;
-    while(node!=NULL) {
-        fKeywordNames.addElement(new UnicodeString(node->fKeyword), status);
+    UBool  addKeywordOther = TRUE;
+    RuleChain *node = header;
+    while (node != nullptr) {
+        auto newElem = new UnicodeString(node->fKeyword);
+        if (newElem == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
+        fKeywordNames.addElement(newElem, status);
         if (U_FAILURE(status)) {
+            delete newElem;
             return;
         }
         if (0 == node->fKeyword.compare(PLURAL_KEYWORD_OTHER, 5)) {
-            addKeywordOther= FALSE;
+            addKeywordOther = FALSE;
         }
-        node=node->fNext;
+        node = node->fNext;
     }
 
     if (addKeywordOther) {
-        fKeywordNames.addElement(new UnicodeString(PLURAL_KEYWORD_OTHER), status);
+        auto newElem = new UnicodeString(PLURAL_KEYWORD_OTHER);
+        if (newElem == nullptr) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
+        fKeywordNames.addElement(newElem, status);
+        if (U_FAILURE(status)) {
+            delete newElem;
+            return;
+        }
     }
 }
 
@@ -1364,7 +1442,7 @@ PluralKeywordEnumeration::snext(UErrorCode& status) {
     if (U_SUCCESS(status) && pos < fKeywordNames.size()) {
         return (const UnicodeString*)fKeywordNames.elementAt(pos++);
     }
-    return NULL;
+    return nullptr;
 }
 
 void
@@ -1374,7 +1452,7 @@ PluralKeywordEnumeration::reset(UErrorCode& /*status*/) {
 
 int32_t
 PluralKeywordEnumeration::count(UErrorCode& /*status*/) const {
-       return fKeywordNames.size();
+    return fKeywordNames.size();
 }
 
 PluralKeywordEnumeration::~PluralKeywordEnumeration() {
@@ -1634,41 +1712,39 @@ int32_t FixedDecimal::getVisibleFractionDigitCount() const {
 
 
 PluralAvailableLocalesEnumeration::PluralAvailableLocalesEnumeration(UErrorCode &status) {
-    fLocales = NULL;
-    fRes = NULL;
     fOpenStatus = status;
     if (U_FAILURE(status)) {
         return;
     }
-    fOpenStatus = U_ZERO_ERROR;
-    LocalUResourceBundlePointer rb(ures_openDirect(NULL, "plurals", &fOpenStatus));
-    fLocales = ures_getByKey(rb.getAlias(), "locales", NULL, &fOpenStatus);
+    fOpenStatus = U_ZERO_ERROR; // clear any warnings.
+    LocalUResourceBundlePointer rb(ures_openDirect(nullptr, "plurals", &fOpenStatus));
+    fLocales = ures_getByKey(rb.getAlias(), "locales", nullptr, &fOpenStatus);
 }
 
 PluralAvailableLocalesEnumeration::~PluralAvailableLocalesEnumeration() {
     ures_close(fLocales);
     ures_close(fRes);
-    fLocales = NULL;
-    fRes = NULL;
+    fLocales = nullptr;
+    fRes = nullptr;
 }
 
 const char *PluralAvailableLocalesEnumeration::next(int32_t *resultLength, UErrorCode &status) {
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
     if (U_FAILURE(fOpenStatus)) {
         status = fOpenStatus;
-        return NULL;
+        return nullptr;
     }
     fRes = ures_getNextResource(fLocales, fRes, &status);
-    if (fRes == NULL || U_FAILURE(status)) {
+    if (fRes == nullptr || U_FAILURE(status)) {
         if (status == U_INDEX_OUTOFBOUNDS_ERROR) {
             status = U_ZERO_ERROR;
         }
-        return NULL;
+        return nullptr;
     }
     const char *result = ures_getKey(fRes);
-    if (resultLength != NULL) {
+    if (resultLength != nullptr) {
         *resultLength = static_cast<int32_t>(uprv_strlen(result));
     }
     return result;

@@ -26,15 +26,22 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
 tmpdir.refresh();
 
-const nonexistentFile = fixtures.path('non-existent');
-const nonexistentDir = fixtures.path('non-existent', 'foo', 'bar');
-const existingFile = fixtures.path('exit.js');
-const existingFile2 = fixtures.path('a.js');
-const existingDir = tmpdir.path;
+
+const nonexistentFile = path.join(tmpdir.path, 'non-existent');
+const nonexistentDir = path.join(tmpdir.path, 'non-existent', 'foo', 'bar');
+const existingFile = path.join(tmpdir.path, 'existingFile.js');
+const existingFile2 = path.join(tmpdir.path, 'existingFile2.js');
+const existingDir = path.join(tmpdir.path, 'dir');
 const existingDir2 = fixtures.path('keys');
+fs.mkdirSync(existingDir);
+fs.writeFileSync(existingFile, 'test', 'utf-8');
+fs.writeFileSync(existingFile2, 'test', 'utf-8');
+
+
 const { COPYFILE_EXCL } = fs.constants;
 const { internalBinding } = require('internal/test/binding');
 const {

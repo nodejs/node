@@ -704,7 +704,7 @@ Returns a list of two numbers, the first representing the build version,
 the second representing the library version.  See opensslv.h for more
 information on those numbers.
 
-= back
+=back
 
 =cut
 

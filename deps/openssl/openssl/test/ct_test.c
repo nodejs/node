@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -542,8 +542,8 @@ static int test_default_ct_policy_eval_ctx_time_is_now()
 {
     int success = 0;
     CT_POLICY_EVAL_CTX *ct_policy_ctx = CT_POLICY_EVAL_CTX_new();
-    const time_t default_time = CT_POLICY_EVAL_CTX_get_time(ct_policy_ctx) /
-            1000;
+    const time_t default_time =
+        (time_t)(CT_POLICY_EVAL_CTX_get_time(ct_policy_ctx) / 1000);
     const time_t time_tolerance = 600;  /* 10 minutes */
 
     if (fabs(difftime(time(NULL), default_time)) > time_tolerance) {

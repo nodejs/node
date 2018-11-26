@@ -178,18 +178,20 @@ const vm = require('vm');
     'filename': 'string',
     'columnOffset': 'number',
     'lineOffset': 'number',
-    'cachedData': 'Uint8Array',
+    'cachedData': 'Buffer, TypedArray, or DataView',
     'produceCachedData': 'boolean',
   };
 
   for (const option in optionTypes) {
+    const typeErrorMessage = `The "options.${option}" property must be ` +
+       `${option === 'cachedData' ? 'one of' : 'of'} type`;
     common.expectsError(() => {
       vm.compileFunction('', undefined, { [option]: null });
     }, {
       type: TypeError,
       code: 'ERR_INVALID_ARG_TYPE',
-      message: `The "options.${option}" property must be of type ` +
-        `${optionTypes[option]}. Received type object`
+      message: typeErrorMessage +
+        ` ${optionTypes[option]}. Received type object`
     });
   }
 
@@ -203,6 +205,20 @@ const vm = require('vm');
         code: 'ERR_INVALID_ARG_TYPE',
         message: 'The "options.parsingContext" property must be of type ' +
           `Context. Received type ${typeof value}`
+      });
+    }
+  );
+
+  // Testing for non Array type-based failures
+  [Boolean(), Number(), null, Object(), Symbol(), {}].forEach(
+    (value) => {
+      common.expectsError(() => {
+        vm.compileFunction('', value);
+      }, {
+        type: TypeError,
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "params" argument must be of type Array. ' +
+          `Received type ${typeof value}`
       });
     }
   );

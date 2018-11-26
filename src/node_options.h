@@ -92,6 +92,11 @@ class EnvironmentOptions : public Options {
   bool print_eval = false;
   bool force_repl = false;
 
+#if HAVE_OPENSSL
+  bool tls_v1_0 = false;
+  bool tls_v1_1 = false;
+#endif
+
   std::vector<std::string> preload_modules;
 
   std::vector<std::string> user_argv;

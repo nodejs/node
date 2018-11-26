@@ -10,47 +10,46 @@ file a new issue.
 
 ## Table of Contents
 
-- [Building Node.js](#building-nodejs)
-  - [Table of Contents](#table-of-contents)
-  - [Supported platforms](#supported-platforms)
-    - [Input](#input)
-    - [Strategy](#strategy)
-    - [Supported platforms](#supported-platforms)
-    - [Supported toolchains](#supported-toolchains)
-      - [Unix](#unix)
-      - [AIX](#aix)
-      - [Windows](#windows)
-      - [OpenSSL asm support](#openssl-asm-support)
-  - [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-    - [Unix/macOS](#unixmacos)
-      - [Prerequisites](#prerequisites)
-      - [Building Node.js](#building-nodejs)
-      - [Running Tests](#running-tests)
-      - [Building the documentation](#building-the-documentation)
-      - [Building a debug build](#building-a-debug-build)
-    - [Windows](#windows)
-    - [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
-    - [`Intl` (ECMA-402) support:](#intl-ecma-402-support)
-      - [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
-      - [Build with full ICU support (all locales supported by ICU):](#build-with-full-icu-support-all-locales-supported-by-icu)
-        - [Unix/macOS:](#unixmacos)
-        - [Windows:](#windows)
-      - [Building without Intl support](#building-without-intl-support)
-        - [Unix/macOS:](#unixmacos)
-        - [Windows:](#windows)
-      - [Use existing installed ICU (Unix/macOS only):](#use-existing-installed-icu-unixmacos-only)
-      - [Build with a specific ICU:](#build-with-a-specific-icu)
-        - [Unix/macOS](#unixmacos)
-        - [Windows](#windows)
-  - [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
-  - [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
-    - [Unix/macOS](#unixmacos)
-    - [Windows](#windows)
+* [Supported platforms](#supported-platforms)
+  * [Input](#input)
+  * [Strategy](#strategy)
+  * [Supported platforms](#supported-platforms-1)
+  * [Supported toolchains](#supported-toolchains)
+    * [Unix](#unix)
+    * [AIX](#aix)
+    * [Windows](#windows)
+    * [OpenSSL asm support](#openssl-asm-support)
+* [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
+  * [Unix/macOS](#unixmacos)
+    * [Prerequisites](#prerequisites)
+    * [Building Node.js](#building-nodejs-1)
+    * [Running Tests](#running-tests)
+    * [Running Coverage](#running-coverage)
+    * [Building the documentation](#building-the-documentation)
+    * [Building a debug build](#building-a-debug-build)
+  * [Windows](#windows-1)
+  * [Android/Android-based devices (e.g. Firefox OS)](#androidandroid-based-devices-eg-firefox-os)
+  * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
+    * [Default: `small-icu` (English only) support](#default-small-icu-english-only-support)
+    * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
+      * [Unix/macOS](#unixmacos-1)
+      * [Windows](#windows-2)
+    * [Building without Intl support](#building-without-intl-support)
+      * [Unix/macOS](#unixmacos-2)
+      * [Windows](#windows-3)
+    * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
+    * [Build with a specific ICU](#build-with-a-specific-icu)
+      * [Unix/macOS](#unixmacos-3)
+      * [Windows](#windows-4)
+* [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
+* [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
+  * [Unix/macOS](#unixmacos-4)
+  * [Windows](#windows-5)
 
 ## Supported platforms
 
 This list of supported platforms is current as of the branch/release to
-which it is attached.
+which it belongs.
 
 ### Input
 
@@ -58,22 +57,20 @@ Node.js relies on V8 and libuv. We adopt a subset of their supported platforms.
 
 ### Strategy
 
-Support is divided into three tiers:
+There are three support tiers:
 
 * **Tier 1**: Full test coverage and maintenance by the Node.js core team and
   the broader community.
-* **Tier 2**: Full test coverage but more limited maintenance,
-  often provided by the vendor of the platform.
-* **Experimental**: May not compile reliably or test suite may not pass.
-  These are often working to be promoted to Tier 2 but are not quite ready.
-  There is at least one individual actively providing maintenance and the team
-  is striving to broaden quality and reliability of support.
+* **Tier 2**: Full test coverage. Limited maintenance, often provided by the
+  vendor of the platform.
+* **Experimental**: May not compile or test suite may not pass.
+  These are often approaching Tier 2 support but are not quite ready.
+  There is at least one individual providing maintenance.
 
 ### Supported platforms
 
 The community does not build or test against end-of-life distributions (EoL).
-Thus, we do not recommend that you use Node on end-of-life or unsupported
-platforms in production.
+For production applications, run Node.js on supported platforms only.
 
 | System       | Support type | Version                         | Architectures    | Notes                         |
 | ------------ | ------------ | ------------------------------- | ---------------- | ----------------------------- |
@@ -98,8 +95,8 @@ platforms in production.
   by Joyent. SmartOS images >= 16.4 are not supported because
   GCC 4.8 runtime libraries are not available in their pkgsrc repository
 
-<em id="fn2">2</em>: Tier 1 support for building on Windows is only on 64 bit
-  hosts. Support is experimental for 32 bit hosts.
+<em id="fn2">2</em>: Tier 1 support for building on Windows is only on 64-bit
+  hosts. Support is experimental for 32-bit hosts.
 
 <em id="fn3">3</em>: On Windows, running Node.js in Windows terminal emulators
   like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
@@ -117,7 +114,7 @@ platforms in production.
 
 ### Supported toolchains
 
-Depending on host platform, the selection of toolchains may vary.
+Depending on the host platform, the selection of toolchains may vary.
 
 #### Unix
 
@@ -129,29 +126,28 @@ Depending on host platform, the selection of toolchains may vary.
 
 #### Windows
 
-* Visual Studio 2017 with the Windows 10 SDK on a 64 bit host.
+* Visual Studio 2017 with the Windows 10 SDK on a 64-bit host.
 
 #### OpenSSL asm support
 
-OpenSSL-1.1.0 requires the following asssembler version for use of asm
+OpenSSL-1.1.0 requires the following assembler version for use of asm
 support on x86_64 and ia32.
 
 * gas (GNU assembler) version 2.23 or higher
-* xcode version 5.0 or higher
+* Xcode version 5.0 or higher
 * llvm version 3.3 or higher
 * nasm version 2.10 or higher in Windows
 
-Otherwise `configure` will fail with an error. This can be avoided by
-either providing a newer assembler as per the list above or by
-using the `--openssl-no-asm` flag.
+If compiling without one of the above, use `configure` with the
+`--openssl-no-asm` flag. Otherwise, `configure` will fail.
 
 The forthcoming OpenSSL-1.1.1 will have different requirements. Please refer to
  https://www.openssl.org/docs/man1.1.1/man3/OPENSSL_ia32cap.html for details.
 
 ## Building Node.js on supported platforms
 
-*Note:* All prerequisites can be easily installed by following
-[this bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md).
+The [bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md)
+explains how to install all prerequisites.
 
 ### Unix/macOS
 
@@ -162,7 +158,7 @@ The forthcoming OpenSSL-1.1.1 will have different requirements. Please refer to
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On macOS, you will need to install the `Xcode Command Line Tools` by running
+On macOS, install the `Xcode Command Line Tools` by running
 `xcode-select --install`. Alternatively, if you already have the full Xcode
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
@@ -183,13 +179,9 @@ $ ./configure
 $ make -j4
 ```
 
-Running `make` with the `-j4` flag will cause it to run 4 compilation jobs
-concurrently which may significantly reduce build time. The number after `-j`
-can be changed to best suit the number of processor cores on your machine. If
-you run into problems running `make` with concurrency, try running it without
-the `-j4` flag. See the
-[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
-for more information.
+The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
+may reduce build time. For more information, see the
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7
 and not a newer version.
@@ -225,6 +217,13 @@ $ make -j4 test
 `make -j4 test` does a full check on the codebase, including running linters and
 documentation tests.
 
+Make sure the linter does not report any issues and that all tests pass. Please
+do not submit patches that fail either check.
+
+If you want to run the linter without running tests, use
+`make lint`/`vcbuild lint`. It will run both JavaScript linting and
+C++ linting.
+
 If you are updating tests and just want to run a single test to check it:
 
 ```text
@@ -239,7 +238,7 @@ $ python tools/test.py -J --mode=release child-process
 ```
 
 If you want to check the other options, please refer to the help by using
-the `--help` option
+the `--help` option:
 
 ```text
 $ python tools/test.py --help
@@ -251,18 +250,45 @@ You can usually run tests directly with node:
 $ ./node ./test/parallel/test-stream2-transform.js
 ```
 
-Optionally, continue below.
+Remember to recompile with `make -j4` in between test runs if you change code in
+the `lib` or `src` directories.
 
-To run the tests and generate code coverage reports:
+The tests attempt to detect support for IPv6 and exclude IPv6 tests if
+appropriate. If your main interface has IPv6 addresses, then your
+loopback interface must also have '::1' enabled. For some default installations
+on Ubuntu that does not seem to be the case. To enable '::1' on the
+loopback interface on Ubuntu:
+
+```bash
+sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
+```
+
+#### Running Coverage
+
+It's good practice to ensure any code you add or change is covered by tests.
+You can do so by running the test suite with coverage enabled:
 
 ```console
 $ ./configure --coverage
 $ make coverage
 ```
 
-This will generate coverage reports for both JavaScript and C++ tests (if you
-only want to run the JavaScript tests then you do not need to run the first
-command `./configure --coverage`).
+A detailed coverage report will be written to `coverage/index.html` for
+JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage
+(if you only want to run the JavaScript tests then you do not need to run
+the first command `./configure --coverage`).
+
+_Generating a test coverage report can take several minutes._
+
+To collect coverage for a subset of tests you can set the `CI_JS_SUITES` and
+`CI_NATIVE_SUITES` variables:
+
+```text
+$ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
+```
+
+The above command executes tests for the `child-process` subsystem and
+outputs the resulting coverage report.
 
 The `make coverage` command downloads some tools to the project root directory
 and overwrites the `lib/` directory. To clean up after generating the coverage
@@ -343,7 +369,7 @@ These core dumps are useful for debugging when provided with the
 corresponding original debug binary and system information.
 
 Reading the core dump requires `gdb` built on the same platform the core dump
-was captured on (i.e. 64 bit `gdb` for `node` built on a 64 bit system, Linux
+was captured on (i.e. 64-bit `gdb` for `node` built on a 64-bit system, Linux
 `gdb` for `node` built on Linux) otherwise you will get errors like
 `not in executable format: File format not recognized`.
 
@@ -462,7 +488,7 @@ $ ./configure --without-intl
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
 ```
 
-If you are cross compiling, your `pkg-config` must be able to supply a path
+If you are cross-compiling, your `pkg-config` must be able to supply a path
 that works for both your host and target environments.
 
 #### Build with a specific ICU:
@@ -471,6 +497,10 @@ You can find other ICU releases at
 [the ICU homepage](http://icu-project.org/download).
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
+
+To check the minimum recommended ICU, run `./configure --help` and see
+the help for the `--with-icu-source` option. A warning will be printed
+during configuration if the ICU version is too old.
 
 ##### Unix/macOS
 
@@ -506,7 +536,7 @@ This version of Node.js does not support FIPS.
 ## Building Node.js with external core modules
 
 It is possible to specify one or more JavaScript text files to be bundled in
-the binary as builtin modules when building Node.js.
+the binary as built-in modules when building Node.js.
 
 ### Unix/macOS
 
@@ -526,3 +556,14 @@ To make `./myModule.js` available via `require('myModule')` and
 ```console
 > .\vcbuild link-module './myModule.js' link-module './myModule2.js'
 ```
+
+## Note for downstream distributors of Node.js
+
+The Node.js ecosystem is reliant on ABI compatibility within a major
+release. To maintain ABI compatibility it is required that production
+builds of Node.js will be built against the same version of dependencies as the
+project vendors. If Node.js is to be built against a different version of a
+dependency please create a custom `NODE_MODULE_VERSION` to ensure ecosystem
+compatibility. Please consult with the TSC by opening an issue at
+https://github.com/nodejs/tsc/issues if you decide to create a custom
+`NODE_MODULE_VERSION` so we can avoid duplication in the ecosystem.

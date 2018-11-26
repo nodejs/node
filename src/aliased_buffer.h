@@ -22,7 +22,9 @@ namespace node {
  * The encapsulation herein provides a placeholder where such writes can be
  * observed. Any notification APIs will be left as a future exercise.
  */
-template <class NativeT, class V8T>
+template <class NativeT, class V8T,
+          // SFINAE NativeT to be scalar
+          typename = std::enable_if_t<std::is_scalar<NativeT>::value>>
 class AliasedBuffer {
  public:
   AliasedBuffer(v8::Isolate* isolate, const size_t count)
@@ -33,14 +35,14 @@ class AliasedBuffer {
     CHECK_GT(count, 0);
     const v8::HandleScope handle_scope(isolate_);
 
-    const size_t sizeInBytes = sizeof(NativeT) * count;
+    const size_t size_in_bytes = sizeof(NativeT) * count;
 
     // allocate native buffer
     buffer_ = Calloc<NativeT>(count);
 
     // allocate v8 ArrayBuffer
     v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
-        isolate_, buffer_, sizeInBytes);
+        isolate_, buffer_, size_in_bytes);
 
     // allocate v8 TypedArray
     v8::Local<V8T> js_array = V8T::New(ab, byte_offset_, count);
@@ -55,6 +57,7 @@ class AliasedBuffer {
    *
    *  Note that byte_offset must by aligned by sizeof(NativeT).
    */
+  // TODO(refack): refactor into a non-owning `AliasedBufferView`
   AliasedBuffer(v8::Isolate* isolate,
                 const size_t byte_offset,
                 const size_t count,
@@ -96,7 +99,7 @@ class AliasedBuffer {
     js_array_.Reset();
   }
 
-  AliasedBuffer& operator=(AliasedBuffer&& that) {
+  AliasedBuffer& operator=(AliasedBuffer&& that) noexcept {
     this->~AliasedBuffer();
     isolate_ = that.isolate_;
     count_ = that.count_;
@@ -224,6 +227,41 @@ class AliasedBuffer {
 
   size_t Length() const {
     return count_;
+  }
+
+  // Should only be used to extend the array.
+  // Should only be used on an owning array, not one created as a sub array of
+  // an owning `AliasedBuffer`.
+  void reserve(size_t new_capacity) {
+#if defined(DEBUG) && DEBUG
+    CHECK_GE(new_capacity, count_);
+    CHECK_EQ(byte_offset_, 0);
+    CHECK(free_buffer_);
+#endif
+    const v8::HandleScope handle_scope(isolate_);
+
+    const size_t old_size_in_bytes = sizeof(NativeT) * count_;
+    const size_t new_size_in_bytes = sizeof(NativeT) * new_capacity;
+
+    // allocate new native buffer
+    NativeT* new_buffer = Calloc<NativeT>(new_capacity);
+    // copy old content
+    memcpy(new_buffer, buffer_, old_size_in_bytes);
+
+    // allocate v8 new ArrayBuffer
+    v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(
+        isolate_, new_buffer, new_size_in_bytes);
+
+    // allocate v8 TypedArray
+    v8::Local<V8T> js_array = V8T::New(ab, byte_offset_, new_capacity);
+
+    // move over old v8 TypedArray
+    js_array_ = std::move(v8::Global<V8T>(isolate_, js_array));
+
+    // Free old buffer and set new values
+    free(buffer_);
+    buffer_ = new_buffer;
+    count_ = new_capacity;
   }
 
  private:

@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `require` calls to be mixed with regular variable declarations",
             category: "Node.js and CommonJS",

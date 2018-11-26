@@ -32,9 +32,13 @@
       '-Wendif-labels',
       '-W',
       '-Wno-unused-parameter',
+      '-Werror=undefined-inline',
     ],
   },
   'conditions': [
+    ['clang==1', {
+      'cflags': [ '-Werror=undefined-inline', ]
+    }],
     [ 'node_shared=="false"', {
       'msvs_settings': {
         'VCManifestTool': {
@@ -159,9 +163,14 @@
       ],
     }],
 
-    [ 'node_shared_http_parser=="false"', {
-      'dependencies': [ 'deps/http_parser/http_parser.gyp:http_parser' ],
-    }],
+    [ 'node_experimental_http_parser=="true"', {
+      'defines': [ 'NODE_EXPERIMENTAL_HTTP' ],
+      'dependencies': [ 'deps/llhttp/llhttp.gyp:llhttp' ],
+    }, {
+      'conditions': [ [ 'node_shared_http_parser=="false"', {
+        'dependencies': [ 'deps/http_parser/http_parser.gyp:http_parser' ],
+      } ] ],
+    } ],
 
     [ 'node_shared_cares=="false"', {
       'dependencies': [ 'deps/cares/cares.gyp:cares' ],

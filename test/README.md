@@ -19,6 +19,7 @@ GitHub with the `autocrlf` git config flag set to true.
 | `addons`            | Yes             | Tests for [addon](https://nodejs.org/api/addons.html) functionality along with some tests that require an addon to function properly. |
 | `addons-napi`        | Yes            | Tests for [n-api](https://nodejs.org/api/n-api.html) functionality. |
 | `async-hooks`        | Yes            | Tests for [async_hooks](https://nodejs.org/api/async_hooks.html) functionality. |
+| `benchmark`          | No             | Test minimal functionality of benchmarks. |
 | `cctest`             | Yes            | C++ tests that are run as part of the build process. |
 | `code-cache`         | No             | Tests for a Node.js binary compiled with V8 code cache. |
 | `common`             |                | Common modules shared among many tests. [Documentation](./common/README.md) |

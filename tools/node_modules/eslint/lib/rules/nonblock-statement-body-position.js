@@ -12,13 +12,17 @@ const POSITION_SCHEMA = { enum: ["beside", "below", "any"] };
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce the location of single-line statements",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/nonblock-statement-body-position"
         },
+
         fixable: "whitespace",
+
         schema: [
             POSITION_SCHEMA,
             {

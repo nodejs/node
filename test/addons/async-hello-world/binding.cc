@@ -53,9 +53,12 @@ void AfterAsync(uv_work_t* r) {
     // This should be changed to an empty handle.
     assert(!ret.IsEmpty());
   } else {
-    callback->Call(global, 2, argv);
+    callback->Call(isolate->GetCurrentContext(),
+                   global, 2, argv).ToLocalChecked();
   }
 
+  // None of the following operations should allocate handles into this scope.
+  v8::SealHandleScope seal_handle_scope(isolate);
   // cleanup
   node::EmitAsyncDestroy(isolate, req->context);
   req->callback.Reset();

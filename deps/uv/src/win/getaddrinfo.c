@@ -24,6 +24,7 @@
 #include "uv.h"
 #include "internal.h"
 #include "req-inl.h"
+#include "idna.h"
 
 /* EAI_* constants. */
 #include <winsock2.h>
@@ -259,11 +260,13 @@ int uv_getaddrinfo(uv_loop_t* loop,
                    const char* node,
                    const char* service,
                    const struct addrinfo* hints) {
+  char hostname_ascii[256];
   int nodesize = 0;
   int servicesize = 0;
   int hintssize = 0;
   char* alloc_ptr = NULL;
   int err;
+  long rc;
 
   if (req == NULL || (node == NULL && service == NULL)) {
     return UV_EINVAL;
@@ -277,12 +280,19 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   /* calculate required memory size for all input values */
   if (node != NULL) {
-    nodesize = ALIGNED_SIZE(MultiByteToWideChar(CP_UTF8, 0, node, -1, NULL, 0) *
-                            sizeof(WCHAR));
+    rc = uv__idna_toascii(node,
+                          node + strlen(node),
+                          hostname_ascii,
+                          hostname_ascii + sizeof(hostname_ascii));
+    if (rc < 0)
+      return rc;
+    nodesize = ALIGNED_SIZE(MultiByteToWideChar(CP_UTF8, 0, hostname_ascii,
+                                                -1, NULL, 0) * sizeof(WCHAR));
     if (nodesize == 0) {
       err = GetLastError();
       goto error;
     }
+    node = hostname_ascii;
   }
 
   if (service != NULL) {

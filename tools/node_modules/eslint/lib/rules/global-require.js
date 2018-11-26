@@ -48,6 +48,8 @@ function isShadowed(scope, node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `require()` calls to be placed at top-level module scope",
             category: "Node.js and CommonJS",

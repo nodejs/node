@@ -5,10 +5,14 @@
 
 <table>
 <tr>
-<th>Current</th>
+<th>LTS 'Dubnium'</th>
+<th title="Previously called 'Stable'">Current</th>
 </tr>
 <tr>
-<td>
+<td valign="top">
+<a href="#10.13.0">10.13.0</a><br/>
+</td>
+<td valign="top">
 <a href="#10.12.0">10.12.0</a><br/>
 <a href="#10.11.0">10.11.0</a><br/>
 <a href="#10.10.0">10.10.0</a><br/>
@@ -29,6 +33,7 @@
 </table>
 
 * Other Versions
+  * [11.x](CHANGELOG_V11.md)
   * [9.x](CHANGELOG_V9.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
@@ -39,6 +44,25 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.13.0"></a>
+## 2018-10-30, Version 10.13.0 'Dubnium' (LTS), @MylesBorins
+
+This release marks the transition of Node.js 10.x into Long Term
+Support (LTS) with the codename 'Dubnium'. The 10.x release line
+now moves in to "Active LTS" and will remain so until April 2020.
+After that time it will move in to "Maintenance" until end of
+life in April 2021.
+
+### Notable Changes
+
+This release only includes minimal changes necessary to fix known regressions prior to LTS.
+
+### Commits
+
+* [[`2ba6010082`](https://github.com/nodejs/node/commit/2ba6010082)] - **buffer**: fix crash for invalid index types (Anna Henningsen)
+* [[`2cd68be69d`](https://github.com/nodejs/node/commit/2cd68be69d)] - **build**: spawn `make test-ci` with `-j1` (Refael Ackermann) [#23733](https://github.com/nodejs/node/pull/23733)
+* [[`1003f4c975`](https://github.com/nodejs/node/commit/1003f4c975)] - **deps**: fix wrong default for v8 handle zapping (Refael Ackermann) [#23801](https://github.com/nodejs/node/pull/23801)
 
 <a id="10.12.0"></a>
 ## 2018-10-10, Version 10.12.0 (Current), @targos
@@ -1413,7 +1437,7 @@ Fixes for the following CVEs are included in this release:
 * [[`6aade4a765`](https://github.com/nodejs/node/commit/6aade4a765)] - **http**: remove a pair of outdated comments (Mark S. Everitt) [#21214](https://github.com/nodejs/node/pull/21214)
 * [[`bcaf59c739`](https://github.com/nodejs/node/commit/bcaf59c739)] - **http2**: fix memory leak for uncommon headers (Anna Henningsen) [#21336](https://github.com/nodejs/node/pull/21336)
 * [[`dee250fd77`](https://github.com/nodejs/node/commit/dee250fd77)] - **http2**: safer Http2Session destructor (Anatoli Papirovski) [#21194](https://github.com/nodejs/node/pull/21194)
-* [[`296fd57324`](https://github.com/nodejs/node/commit/296fd57324)] - **inspector**: stop dragging platform pointer (Eugene Ostroukhov) 
+* [[`296fd57324`](https://github.com/nodejs/node/commit/296fd57324)] - **inspector**: stop dragging platform pointer (Eugene Ostroukhov)
 * [[`fb71337bdf`](https://github.com/nodejs/node/commit/fb71337bdf)] - **(SEMVER-MINOR)** **lib**: rename checkIsArrayBufferView() (Ben Noordhuis) [#20816](https://github.com/nodejs/node/pull/20816)
 * [[`f3570f201b`](https://github.com/nodejs/node/commit/f3570f201b)] - **(SEMVER-MINOR)** **lib**: replace checkUint() with validateInt32() (Ben Noordhuis) [#20816](https://github.com/nodejs/node/pull/20816)
 * [[`b4b7d368be`](https://github.com/nodejs/node/commit/b4b7d368be)] - **lib**: unmask mode\_t values with 0o777 (Joyee Cheung) [#20975](https://github.com/nodejs/node/pull/20975)

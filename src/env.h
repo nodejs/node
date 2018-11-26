@@ -29,13 +29,13 @@
 #include "inspector_agent.h"
 #endif
 #include "handle_wrap.h"
+#include "node.h"
+#include "node_http2_state.h"
+#include "node_options.h"
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
-#include "node.h"
-#include "node_options.h"
-#include "node_http2_state.h"
 
 #include <list>
 #include <stdint.h>
@@ -82,11 +82,10 @@ struct PackageConfig {
 };
 }  // namespace loader
 
-// The number of items passed to push_values_to_array_function has diminishing
-// returns around 8. This should be used at all call sites using said function.
-#ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
-#define NODE_PUSH_VAL_TO_ARRAY_MAX 8
-#endif
+// Stat fields buffers contain twice the number of entries in an uv_stat_t
+// because `fs.StatWatcher` needs room to store 2 `fs.Stats` instances.
+constexpr size_t kFsStatsFieldsNumber = 14;
+constexpr size_t kFsStatsBufferLength = kFsStatsFieldsNumber * 2;
 
 // PER_ISOLATE_* macros: We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
@@ -116,256 +115,262 @@ struct PackageConfig {
 // for the sake of convenience.
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                      \
   V(handle_onclose_symbol, "handle_onclose")                                  \
-  V(owner_symbol, "owner")                                                    \
   V(oninit_symbol, "oninit")                                                  \
+  V(owner_symbol, "owner")                                                    \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
-#define PER_ISOLATE_STRING_PROPERTIES(V)                                      \
-  V(address_string, "address")                                                \
-  V(aliases_string, "aliases")                                                \
-  V(args_string, "args")                                                      \
-  V(async, "async")                                                           \
-  V(async_ids_stack_string, "async_ids_stack")                                \
-  V(buffer_string, "buffer")                                                  \
-  V(bytes_string, "bytes")                                                    \
-  V(bytes_parsed_string, "bytesParsed")                                       \
-  V(bytes_read_string, "bytesRead")                                           \
-  V(bytes_written_string, "bytesWritten")                                     \
-  V(cached_data_string, "cachedData")                                         \
-  V(cached_data_produced_string, "cachedDataProduced")                        \
-  V(cached_data_rejected_string, "cachedDataRejected")                        \
-  V(change_string, "change")                                                  \
-  V(channel_string, "channel")                                                \
-  V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")          \
-  V(constants_string, "constants")                                            \
-  V(oncertcb_string, "oncertcb")                                              \
-  V(code_string, "code")                                                      \
-  V(cwd_string, "cwd")                                                        \
-  V(dest_string, "dest")                                                      \
-  V(destroyed_string, "destroyed")                                            \
-  V(detached_string, "detached")                                              \
-  V(dns_a_string, "A")                                                        \
-  V(dns_aaaa_string, "AAAA")                                                  \
-  V(dns_cname_string, "CNAME")                                                \
-  V(dns_mx_string, "MX")                                                      \
-  V(dns_naptr_string, "NAPTR")                                                \
-  V(dns_ns_string, "NS")                                                      \
-  V(dns_ptr_string, "PTR")                                                    \
-  V(dns_soa_string, "SOA")                                                    \
-  V(dns_srv_string, "SRV")                                                    \
-  V(dns_txt_string, "TXT")                                                    \
-  V(duration_string, "duration")                                              \
-  V(emit_warning_string, "emitWarning")                                       \
-  V(exchange_string, "exchange")                                              \
-  V(encoding_string, "encoding")                                              \
-  V(entries_string, "entries")                                                \
-  V(entry_type_string, "entryType")                                           \
-  V(env_pairs_string, "envPairs")                                             \
-  V(env_var_settings_string, "envVarSettings")                                \
-  V(errno_string, "errno")                                                    \
-  V(error_string, "error")                                                    \
-  V(exit_code_string, "exitCode")                                             \
-  V(expire_string, "expire")                                                  \
-  V(exponent_string, "exponent")                                              \
-  V(exports_string, "exports")                                                \
-  V(ext_key_usage_string, "ext_key_usage")                                    \
-  V(external_stream_string, "_externalStream")                                \
-  V(family_string, "family")                                                  \
-  V(fatal_exception_string, "_fatalException")                                \
-  V(fd_string, "fd")                                                          \
-  V(file_string, "file")                                                      \
-  V(fingerprint_string, "fingerprint")                                        \
-  V(fingerprint256_string, "fingerprint256")                                  \
-  V(flags_string, "flags")                                                    \
-  V(fragment_string, "fragment")                                              \
-  V(get_data_clone_error_string, "_getDataCloneError")                        \
-  V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
-  V(gid_string, "gid")                                                        \
-  V(handle_string, "handle")                                                  \
-  V(help_text_string, "helpText")                                             \
-  V(homedir_string, "homedir")                                                \
-  V(host_string, "host")                                                      \
-  V(hostmaster_string, "hostmaster")                                          \
-  V(ignore_string, "ignore")                                                  \
-  V(infoaccess_string, "infoAccess")                                          \
-  V(inherit_string, "inherit")                                                \
-  V(input_string, "input")                                                    \
-  V(internal_string, "internal")                                              \
-  V(ipv4_string, "IPv4")                                                      \
-  V(ipv6_string, "IPv6")                                                      \
-  V(isclosing_string, "isClosing")                                            \
-  V(issuer_string, "issuer")                                                  \
-  V(issuercert_string, "issuerCertificate")                                   \
-  V(kill_signal_string, "killSignal")                                         \
-  V(kind_string, "kind")                                                      \
-  V(mac_string, "mac")                                                        \
-  V(main_string, "main")                                                      \
-  V(max_buffer_string, "maxBuffer")                                           \
-  V(message_string, "message")                                                \
-  V(message_port_string, "messagePort")                                       \
-  V(message_port_constructor_string, "MessagePort")                           \
-  V(minttl_string, "minttl")                                                  \
-  V(modulus_string, "modulus")                                                \
-  V(name_string, "name")                                                      \
-  V(netmask_string, "netmask")                                                \
-  V(nsname_string, "nsname")                                                  \
-  V(ocsp_request_string, "OCSPRequest")                                       \
-  V(onaltsvc_string, "onaltsvc")                                              \
-  V(onchange_string, "onchange")                                              \
-  V(onclienthello_string, "onclienthello")                                    \
-  V(oncomplete_string, "oncomplete")                                          \
-  V(onconnection_string, "onconnection")                                      \
-  V(ondone_string, "ondone")                                                  \
-  V(onerror_string, "onerror")                                                \
-  V(onexit_string, "onexit")                                                  \
-  V(onframeerror_string, "onframeerror")                                      \
-  V(ongetpadding_string, "ongetpadding")                                      \
-  V(onhandshakedone_string, "onhandshakedone")                                \
-  V(onhandshakestart_string, "onhandshakestart")                              \
-  V(onheaders_string, "onheaders")                                            \
-  V(onmessage_string, "onmessage")                                            \
-  V(onnewsession_string, "onnewsession")                                      \
-  V(onocspresponse_string, "onocspresponse")                                  \
-  V(ongoawaydata_string, "ongoawaydata")                                      \
-  V(onorigin_string, "onorigin")                                              \
-  V(onpriority_string, "onpriority")                                          \
-  V(onread_string, "onread")                                                  \
-  V(onreadstart_string, "onreadstart")                                        \
-  V(onreadstop_string, "onreadstop")                                          \
-  V(onping_string, "onping")                                                  \
-  V(onsettings_string, "onsettings")                                          \
-  V(onshutdown_string, "onshutdown")                                          \
-  V(onsignal_string, "onsignal")                                              \
-  V(onstreamclose_string, "onstreamclose")                                    \
-  V(ontrailers_string, "ontrailers")                                          \
-  V(onunpipe_string, "onunpipe")                                              \
-  V(onwrite_string, "onwrite")                                                \
-  V(openssl_error_stack, "opensslErrorStack")                                 \
-  V(options_string, "options")                                                \
-  V(output_string, "output")                                                  \
-  V(order_string, "order")                                                    \
-  V(parse_error_string, "Parse Error")                                        \
-  V(password_string, "password")                                              \
-  V(path_string, "path")                                                      \
-  V(pending_handle_string, "pendingHandle")                                   \
-  V(pid_string, "pid")                                                        \
-  V(pipe_string, "pipe")                                                      \
-  V(pipe_target_string, "pipeTarget")                                         \
-  V(pipe_source_string, "pipeSource")                                         \
-  V(port_string, "port")                                                      \
-  V(port1_string, "port1")                                                    \
-  V(port2_string, "port2")                                                    \
-  V(preference_string, "preference")                                          \
-  V(priority_string, "priority")                                              \
-  V(promise_string, "promise")                                                \
-  V(pubkey_string, "pubkey")                                                  \
-  V(query_string, "query")                                                    \
-  V(raw_string, "raw")                                                        \
-  V(read_host_object_string, "_readHostObject")                               \
-  V(readable_string, "readable")                                              \
-  V(refresh_string, "refresh")                                                \
-  V(regexp_string, "regexp")                                                  \
-  V(rename_string, "rename")                                                  \
-  V(replacement_string, "replacement")                                        \
-  V(retry_string, "retry")                                                    \
-  V(scheme_string, "scheme")                                                  \
-  V(serial_string, "serial")                                                  \
-  V(scopeid_string, "scopeid")                                                \
-  V(serial_number_string, "serialNumber")                                     \
-  V(service_string, "service")                                                \
-  V(servername_string, "servername")                                          \
-  V(session_id_string, "sessionId")                                           \
-  V(shell_string, "shell")                                                    \
-  V(signal_string, "signal")                                                  \
-  V(sink_string, "sink")                                                      \
-  V(size_string, "size")                                                      \
-  V(sni_context_err_string, "Invalid SNI context")                            \
-  V(sni_context_string, "sni_context")                                        \
-  V(source_string, "source")                                                  \
-  V(stack_string, "stack")                                                    \
-  V(start_time_string, "startTime")                                           \
-  V(status_string, "status")                                                  \
-  V(stdio_string, "stdio")                                                    \
-  V(subject_string, "subject")                                                \
-  V(subjectaltname_string, "subjectaltname")                                  \
-  V(syscall_string, "syscall")                                                \
-  V(thread_id_string, "threadId")                                             \
-  V(ticketkeycallback_string, "onticketkeycallback")                          \
-  V(timeout_string, "timeout")                                                \
-  V(tls_ticket_string, "tlsTicket")                                           \
-  V(ttl_string, "ttl")                                                        \
-  V(type_string, "type")                                                      \
-  V(uid_string, "uid")                                                        \
-  V(unknown_string, "<unknown>")                                              \
-  V(url_string, "url")                                                        \
-  V(username_string, "username")                                              \
-  V(valid_from_string, "valid_from")                                          \
-  V(valid_to_string, "valid_to")                                              \
-  V(value_string, "value")                                                    \
-  V(verify_error_string, "verifyError")                                       \
-  V(version_string, "version")                                                \
-  V(weight_string, "weight")                                                  \
-  V(windows_hide_string, "windowsHide")                                       \
-  V(windows_verbatim_arguments_string, "windowsVerbatimArguments")            \
-  V(wrap_string, "wrap")                                                      \
-  V(writable_string, "writable")                                              \
-  V(write_host_object_string, "_writeHostObject")                             \
-  V(write_queue_size_string, "writeQueueSize")                                \
-  V(x_forwarded_string, "x-forwarded-for")                                    \
-  V(zero_return_string, "ZERO_RETURN")
+#define PER_ISOLATE_STRING_PROPERTIES(V)                                       \
+  V(address_string, "address")                                                 \
+  V(aliases_string, "aliases")                                                 \
+  V(args_string, "args")                                                       \
+  V(asn1curve_string, "asn1Curve")                                             \
+  V(async_ids_stack_string, "async_ids_stack")                                 \
+  V(bits_string, "bits")                                                       \
+  V(buffer_string, "buffer")                                                   \
+  V(bytes_parsed_string, "bytesParsed")                                        \
+  V(bytes_read_string, "bytesRead")                                            \
+  V(bytes_written_string, "bytesWritten")                                      \
+  V(cached_data_produced_string, "cachedDataProduced")                         \
+  V(cached_data_rejected_string, "cachedDataRejected")                         \
+  V(cached_data_string, "cachedData")                                          \
+  V(change_string, "change")                                                   \
+  V(channel_string, "channel")                                                 \
+  V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
+  V(code_string, "code")                                                       \
+  V(constants_string, "constants")                                             \
+  V(cwd_string, "cwd")                                                         \
+  V(dest_string, "dest")                                                       \
+  V(destroyed_string, "destroyed")                                             \
+  V(detached_string, "detached")                                               \
+  V(dns_a_string, "A")                                                         \
+  V(dns_aaaa_string, "AAAA")                                                   \
+  V(dns_cname_string, "CNAME")                                                 \
+  V(dns_mx_string, "MX")                                                       \
+  V(dns_naptr_string, "NAPTR")                                                 \
+  V(dns_ns_string, "NS")                                                       \
+  V(dns_ptr_string, "PTR")                                                     \
+  V(dns_soa_string, "SOA")                                                     \
+  V(dns_srv_string, "SRV")                                                     \
+  V(dns_txt_string, "TXT")                                                     \
+  V(duration_string, "duration")                                               \
+  V(emit_warning_string, "emitWarning")                                        \
+  V(encoding_string, "encoding")                                               \
+  V(entries_string, "entries")                                                 \
+  V(entry_type_string, "entryType")                                            \
+  V(env_pairs_string, "envPairs")                                              \
+  V(env_var_settings_string, "envVarSettings")                                 \
+  V(errno_string, "errno")                                                     \
+  V(error_string, "error")                                                     \
+  V(exchange_string, "exchange")                                               \
+  V(exit_code_string, "exitCode")                                              \
+  V(expire_string, "expire")                                                   \
+  V(exponent_string, "exponent")                                               \
+  V(exports_string, "exports")                                                 \
+  V(ext_key_usage_string, "ext_key_usage")                                     \
+  V(external_stream_string, "_externalStream")                                 \
+  V(family_string, "family")                                                   \
+  V(fatal_exception_string, "_fatalException")                                 \
+  V(fd_string, "fd")                                                           \
+  V(file_string, "file")                                                       \
+  V(fingerprint256_string, "fingerprint256")                                   \
+  V(fingerprint_string, "fingerprint")                                         \
+  V(flags_string, "flags")                                                     \
+  V(fragment_string, "fragment")                                               \
+  V(get_data_clone_error_string, "_getDataCloneError")                         \
+  V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
+  V(gid_string, "gid")                                                         \
+  V(handle_string, "handle")                                                   \
+  V(help_text_string, "helpText")                                              \
+  V(homedir_string, "homedir")                                                 \
+  V(host_string, "host")                                                       \
+  V(hostmaster_string, "hostmaster")                                           \
+  V(ignore_string, "ignore")                                                   \
+  V(infoaccess_string, "infoAccess")                                           \
+  V(inherit_string, "inherit")                                                 \
+  V(input_string, "input")                                                     \
+  V(internal_binding_string, "internalBinding")                                \
+  V(internal_string, "internal")                                               \
+  V(ipv4_string, "IPv4")                                                       \
+  V(ipv6_string, "IPv6")                                                       \
+  V(isclosing_string, "isClosing")                                             \
+  V(issuer_string, "issuer")                                                   \
+  V(issuercert_string, "issuerCertificate")                                    \
+  V(kill_signal_string, "killSignal")                                          \
+  V(kind_string, "kind")                                                       \
+  V(mac_string, "mac")                                                         \
+  V(main_string, "main")                                                       \
+  V(max_buffer_string, "maxBuffer")                                            \
+  V(message_port_constructor_string, "MessagePort")                            \
+  V(message_port_string, "messagePort")                                        \
+  V(message_string, "message")                                                 \
+  V(minttl_string, "minttl")                                                   \
+  V(module_string, "module")                                                   \
+  V(modulus_string, "modulus")                                                 \
+  V(name_string, "name")                                                       \
+  V(netmask_string, "netmask")                                                 \
+  V(nistcurve_string, "nistCurve")                                             \
+  V(nsname_string, "nsname")                                                   \
+  V(ocsp_request_string, "OCSPRequest")                                        \
+  V(oncertcb_string, "oncertcb")                                               \
+  V(onchange_string, "onchange")                                               \
+  V(onclienthello_string, "onclienthello")                                     \
+  V(oncomplete_string, "oncomplete")                                           \
+  V(onconnection_string, "onconnection")                                       \
+  V(ondone_string, "ondone")                                                   \
+  V(onerror_string, "onerror")                                                 \
+  V(onexit_string, "onexit")                                                   \
+  V(onhandshakedone_string, "onhandshakedone")                                 \
+  V(onhandshakestart_string, "onhandshakestart")                               \
+  V(onmessage_string, "onmessage")                                             \
+  V(onnewsession_string, "onnewsession")                                       \
+  V(onocspresponse_string, "onocspresponse")                                   \
+  V(onread_string, "onread")                                                   \
+  V(onreadstart_string, "onreadstart")                                         \
+  V(onreadstop_string, "onreadstop")                                           \
+  V(onshutdown_string, "onshutdown")                                           \
+  V(onsignal_string, "onsignal")                                               \
+  V(onunpipe_string, "onunpipe")                                               \
+  V(onwrite_string, "onwrite")                                                 \
+  V(openssl_error_stack, "opensslErrorStack")                                  \
+  V(options_string, "options")                                                 \
+  V(order_string, "order")                                                     \
+  V(output_string, "output")                                                   \
+  V(parse_error_string, "Parse Error")                                         \
+  V(password_string, "password")                                               \
+  V(path_string, "path")                                                       \
+  V(pending_handle_string, "pendingHandle")                                    \
+  V(pid_string, "pid")                                                         \
+  V(pipe_source_string, "pipeSource")                                          \
+  V(pipe_string, "pipe")                                                       \
+  V(pipe_target_string, "pipeTarget")                                          \
+  V(port1_string, "port1")                                                     \
+  V(port2_string, "port2")                                                     \
+  V(port_string, "port")                                                       \
+  V(preference_string, "preference")                                           \
+  V(priority_string, "priority")                                               \
+  V(process_string, "process")                                                 \
+  V(promise_string, "promise")                                                 \
+  V(pubkey_string, "pubkey")                                                   \
+  V(query_string, "query")                                                     \
+  V(raw_string, "raw")                                                         \
+  V(read_host_object_string, "_readHostObject")                                \
+  V(readable_string, "readable")                                               \
+  V(reason_string, "reason")                                                   \
+  V(refresh_string, "refresh")                                                 \
+  V(regexp_string, "regexp")                                                   \
+  V(rename_string, "rename")                                                   \
+  V(replacement_string, "replacement")                                         \
+  V(require_string, "require")                                                 \
+  V(retry_string, "retry")                                                     \
+  V(scheme_string, "scheme")                                                   \
+  V(scopeid_string, "scopeid")                                                 \
+  V(serial_number_string, "serialNumber")                                      \
+  V(serial_string, "serial")                                                   \
+  V(servername_string, "servername")                                           \
+  V(service_string, "service")                                                 \
+  V(session_id_string, "sessionId")                                            \
+  V(shell_string, "shell")                                                     \
+  V(signal_string, "signal")                                                   \
+  V(sink_string, "sink")                                                       \
+  V(size_string, "size")                                                       \
+  V(sni_context_err_string, "Invalid SNI context")                             \
+  V(sni_context_string, "sni_context")                                         \
+  V(source_string, "source")                                                   \
+  V(stack_string, "stack")                                                     \
+  V(start_time_string, "startTime")                                            \
+  V(status_string, "status")                                                   \
+  V(stdio_string, "stdio")                                                     \
+  V(subject_string, "subject")                                                 \
+  V(subjectaltname_string, "subjectaltname")                                   \
+  V(syscall_string, "syscall")                                                 \
+  V(thread_id_string, "threadId")                                              \
+  V(ticketkeycallback_string, "onticketkeycallback")                           \
+  V(timeout_string, "timeout")                                                 \
+  V(tls_ticket_string, "tlsTicket")                                            \
+  V(ttl_string, "ttl")                                                         \
+  V(type_string, "type")                                                       \
+  V(uid_string, "uid")                                                         \
+  V(unknown_string, "<unknown>")                                               \
+  V(url_string, "url")                                                         \
+  V(username_string, "username")                                               \
+  V(valid_from_string, "valid_from")                                           \
+  V(valid_to_string, "valid_to")                                               \
+  V(value_string, "value")                                                     \
+  V(verify_error_string, "verifyError")                                        \
+  V(version_string, "version")                                                 \
+  V(weight_string, "weight")                                                   \
+  V(windows_hide_string, "windowsHide")                                        \
+  V(windows_verbatim_arguments_string, "windowsVerbatimArguments")             \
+  V(wrap_string, "wrap")                                                       \
+  V(writable_string, "writable")                                               \
+  V(write_host_object_string, "_writeHostObject")                              \
+  V(write_queue_size_string, "writeQueueSize")                                 \
+  V(x_forwarded_string, "x-forwarded-for")                                     \
+  V(zero_return_string, "ZERO_RETURN")                                         \
 
-#define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
-  V(as_external, v8::External)                                                \
-  V(async_hooks_after_function, v8::Function)                                 \
-  V(async_hooks_before_function, v8::Function)                                \
-  V(async_hooks_binding, v8::Object)                                          \
-  V(async_hooks_destroy_function, v8::Function)                               \
-  V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_promise_resolve_function, v8::Function)                       \
-  V(async_wrap_object_ctor_template, v8::FunctionTemplate)                    \
-  V(async_wrap_ctor_template, v8::FunctionTemplate)                           \
-  V(buffer_prototype_object, v8::Object)                                      \
-  V(context, v8::Context)                                                     \
-  V(domain_callback, v8::Function)                                            \
-  V(domexception_function, v8::Function)                                      \
-  V(fdclose_constructor_template, v8::ObjectTemplate)                         \
-  V(fd_constructor_template, v8::ObjectTemplate)                              \
-  V(filehandlereadwrap_template, v8::ObjectTemplate)                          \
-  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                    \
-  V(fs_use_promises_symbol, v8::Symbol)                                       \
-  V(handle_wrap_ctor_template, v8::FunctionTemplate)                          \
-  V(host_import_module_dynamically_callback, v8::Function)                    \
-  V(host_initialize_import_meta_object_callback, v8::Function)                \
-  V(http2ping_constructor_template, v8::ObjectTemplate)                       \
-  V(http2settings_constructor_template, v8::ObjectTemplate)                   \
-  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
-  V(immediate_callback_function, v8::Function)                                \
-  V(inspector_console_api_object, v8::Object)                                 \
-  V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                    \
-  V(message_port, v8::Object)                                                 \
-  V(message_port_constructor_template, v8::FunctionTemplate)                  \
-  V(pipe_constructor_template, v8::FunctionTemplate)                          \
-  V(performance_entry_callback, v8::Function)                                 \
-  V(performance_entry_template, v8::Function)                                 \
-  V(process_object, v8::Object)                                               \
-  V(promise_handler_function, v8::Function)                                   \
-  V(promise_wrap_template, v8::ObjectTemplate)                                \
-  V(push_values_to_array_function, v8::Function)                              \
-  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)           \
-  V(script_context_constructor_template, v8::FunctionTemplate)                \
-  V(script_data_constructor_function, v8::Function)                           \
-  V(secure_context_constructor_template, v8::FunctionTemplate)                \
-  V(shutdown_wrap_template, v8::ObjectTemplate)                               \
-  V(tcp_constructor_template, v8::FunctionTemplate)                           \
-  V(tick_callback_function, v8::Function)                                     \
-  V(timers_callback_function, v8::Function)                                   \
-  V(tls_wrap_constructor_function, v8::Function)                              \
-  V(trace_category_state_function, v8::Function)                              \
-  V(tty_constructor_template, v8::FunctionTemplate)                           \
-  V(udp_constructor_function, v8::Function)                                   \
-  V(url_constructor_function, v8::Function)                                   \
-  V(write_wrap_template, v8::ObjectTemplate)
+#define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                            \
+  V(as_external, v8::External)                                                 \
+  V(async_hooks_after_function, v8::Function)                                  \
+  V(async_hooks_before_function, v8::Function)                                 \
+  V(async_hooks_binding, v8::Object)                                           \
+  V(async_hooks_destroy_function, v8::Function)                                \
+  V(async_hooks_init_function, v8::Function)                                   \
+  V(async_hooks_promise_resolve_function, v8::Function)                        \
+  V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
+  V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
+  V(buffer_prototype_object, v8::Object)                                       \
+  V(context, v8::Context)                                                      \
+  V(domain_callback, v8::Function)                                             \
+  V(domexception_function, v8::Function)                                       \
+  V(fd_constructor_template, v8::ObjectTemplate)                               \
+  V(fdclose_constructor_template, v8::ObjectTemplate)                          \
+  V(filehandlereadwrap_template, v8::ObjectTemplate)                           \
+  V(fs_use_promises_symbol, v8::Symbol)                                        \
+  V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
+  V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
+  V(host_import_module_dynamically_callback, v8::Function)                     \
+  V(host_initialize_import_meta_object_callback, v8::Function)                 \
+  V(http2ping_constructor_template, v8::ObjectTemplate)                        \
+  V(http2session_on_altsvc_function, v8::Function)                             \
+  V(http2session_on_error_function, v8::Function)                              \
+  V(http2session_on_frame_error_function, v8::Function)                        \
+  V(http2session_on_goaway_data_function, v8::Function)                        \
+  V(http2session_on_headers_function, v8::Function)                            \
+  V(http2session_on_origin_function, v8::Function)                             \
+  V(http2session_on_ping_function, v8::Function)                               \
+  V(http2session_on_priority_function, v8::Function)                           \
+  V(http2session_on_select_padding_function, v8::Function)                     \
+  V(http2session_on_settings_function, v8::Function)                           \
+  V(http2session_on_stream_close_function, v8::Function)                       \
+  V(http2session_on_stream_trailers_function, v8::Function)                    \
+  V(http2settings_constructor_template, v8::ObjectTemplate)                    \
+  V(http2stream_constructor_template, v8::ObjectTemplate)                      \
+  V(immediate_callback_function, v8::Function)                                 \
+  V(inspector_console_api_object, v8::Object)                                  \
+  V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
+  V(message_port, v8::Object)                                                  \
+  V(message_port_constructor_template, v8::FunctionTemplate)                   \
+  V(performance_entry_callback, v8::Function)                                  \
+  V(performance_entry_template, v8::Function)                                  \
+  V(pipe_constructor_template, v8::FunctionTemplate)                           \
+  V(process_object, v8::Object)                                                \
+  V(promise_handler_function, v8::Function)                                    \
+  V(promise_wrap_template, v8::ObjectTemplate)                                 \
+  V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
+  V(script_context_constructor_template, v8::FunctionTemplate)                 \
+  V(script_data_constructor_function, v8::Function)                            \
+  V(secure_context_constructor_template, v8::FunctionTemplate)                 \
+  V(shutdown_wrap_template, v8::ObjectTemplate)                                \
+  V(tcp_constructor_template, v8::FunctionTemplate)                            \
+  V(tick_callback_function, v8::Function)                                      \
+  V(timers_callback_function, v8::Function)                                    \
+  V(tls_wrap_constructor_function, v8::Function)                               \
+  V(trace_category_state_function, v8::Function)                               \
+  V(tty_constructor_template, v8::FunctionTemplate)                            \
+  V(udp_constructor_function, v8::Function)                                    \
+  V(url_constructor_function, v8::Function)                                    \
+  V(write_wrap_template, v8::ObjectTemplate)                                   \
 
 class Environment;
 
@@ -487,7 +492,7 @@ class Environment {
       ~DefaultTriggerAsyncIdScope();
 
      private:
-      AliasedBuffer<double, v8::Float64Array> async_id_fields_ref_;
+      AsyncHooks* async_hooks_;
       double old_default_trigger_async_id_;
 
       DISALLOW_COPY_AND_ASSIGN(DefaultTriggerAsyncIdScope);
@@ -593,8 +598,7 @@ class Environment {
   static inline Environment* GetThreadLocalEnv();
 
   Environment(IsolateData* isolate_data,
-              v8::Local<v8::Context> context,
-              tracing::AgentWriterHandle* tracing_agent_writer);
+              v8::Local<v8::Context> context);
   ~Environment();
 
   void Start(const std::vector<std::string>& args,
@@ -630,7 +634,6 @@ class Environment {
   inline bool profiler_idle_notifier_started() const;
 
   inline v8::Isolate* isolate() const;
-  inline tracing::AgentWriterHandle* tracing_agent_writer() const;
   inline uv_loop_t* event_loop() const;
   inline uint32_t watched_providers() const;
 
@@ -668,6 +671,7 @@ class Environment {
   should_abort_on_uncaught_toggle();
 
   inline AliasedBuffer<uint8_t, v8::Uint8Array>& trace_category_state();
+  inline AliasedBuffer<int32_t, v8::Int32Array>& stream_base_state();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
@@ -677,6 +681,9 @@ class Environment {
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
+
+  std::set<std::string> native_modules_with_cache;
+  std::set<std::string> native_modules_without_cache;
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
@@ -710,10 +717,6 @@ class Environment {
   inline AliasedBuffer<double, v8::Float64Array>* fs_stats_field_array();
   inline AliasedBuffer<uint64_t, v8::BigUint64Array>*
       fs_stats_field_bigint_array();
-
-  // stat fields contains twice the number of entries because `fs.StatWatcher`
-  // needs room to store data for *two* `fs.Stats` instances.
-  static const int kFsStatsFieldsLength = 14;
 
   inline std::vector<std::unique_ptr<fs::FileHandleReadWrap>>&
       file_handle_read_wrap_freelist();
@@ -920,7 +923,6 @@ class Environment {
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
-  tracing::AgentWriterHandle* const tracing_agent_writer_;
   uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
@@ -950,6 +952,8 @@ class Environment {
   // Attached to a Uint8Array that tracks the state of trace category
   AliasedBuffer<uint8_t, v8::Uint8Array> trace_category_state_;
   std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
+
+  AliasedBuffer<int32_t, v8::Int32Array> stream_base_state_;
 
   std::unique_ptr<performance::performance_state> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;

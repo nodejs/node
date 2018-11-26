@@ -279,15 +279,12 @@ void BreakIterator::SkipToPosition(int position) {
 void BreakIterator::SetDebugBreak() {
   DebugBreakType debug_break_type = GetDebugBreakType();
   if (debug_break_type == DEBUGGER_STATEMENT) return;
+  HandleScope scope(isolate());
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
-  BytecodeArray* bytecode_array = debug_info_->DebugBytecodeArray();
-  interpreter::Bytecode bytecode =
-      interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
-  if (interpreter::Bytecodes::IsDebugBreak(bytecode)) return;
-  interpreter::Bytecode debugbreak =
-      interpreter::Bytecodes::GetDebugBreak(bytecode);
-  bytecode_array->set(code_offset(),
-                      interpreter::Bytecodes::ToByte(debugbreak));
+  Handle<BytecodeArray> bytecode_array(debug_info_->DebugBytecodeArray(),
+                                       isolate());
+  interpreter::BytecodeArrayAccessor(bytecode_array, code_offset())
+      .ApplyDebugBreak();
 }
 
 void BreakIterator::ClearDebugBreak() {
@@ -2127,6 +2124,8 @@ void Debug::ClearSideEffectChecks(Handle<DebugInfo> debug_info) {
   Handle<BytecodeArray> original(debug_info->OriginalBytecodeArray(), isolate_);
   for (interpreter::BytecodeArrayIterator it(debug_bytecode); !it.done();
        it.Advance()) {
+    // Restore from original. This may copy only the scaling prefix, which is
+    // correct, since we patch scaling prefixes to debug breaks if exists.
     debug_bytecode->set(it.current_offset(),
                         original->get(it.current_offset()));
   }

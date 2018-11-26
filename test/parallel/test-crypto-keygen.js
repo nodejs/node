@@ -182,7 +182,7 @@ function convertDERToPEM(label, der) {
 {
   // Test async DSA key generation.
   generateKeyPair('dsa', {
-    modulusLength: 256,
+    modulusLength: 512,
     divisorLength: 256,
     publicKeyEncoding: {
       type: 'spki',
@@ -624,6 +624,22 @@ function convertDERToPEM(label, der) {
     type: TypeError,
     message: 'Invalid ECDH curve name'
   });
+
+  // Test error type when curve is not a string
+  for (const namedCurve of [true, {}, [], 123]) {
+    common.expectsError(() => {
+      generateKeyPairSync('ec', {
+        namedCurve,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'sec1', format: 'pem' }
+      });
+    }, {
+      type: TypeError,
+      code: 'ERR_INVALID_OPT_VALUE',
+      message: `The value "${namedCurve}" is invalid for option ` +
+               '"namedCurve"'
+    });
+  }
 
   // It should recognize both NIST and standard curve names.
   generateKeyPair('ec', {

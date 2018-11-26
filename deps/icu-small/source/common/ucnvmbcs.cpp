@@ -4164,8 +4164,8 @@ ucnv_MBCSFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
     nextSourceIndex=0;
 
     /* Get the SI/SO character for the converter */
-    siLength = getSISOBytes(SI, cnv->options, siBytes);
-    soLength = getSISOBytes(SO, cnv->options, soBytes);
+    siLength = static_cast<uint8_t>(getSISOBytes(SI, cnv->options, siBytes));
+    soLength = static_cast<uint8_t>(getSISOBytes(SO, cnv->options, soBytes));
 
     /* conversion loop */
     /*

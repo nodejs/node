@@ -94,7 +94,6 @@
  * // ...
  * \endcode
  *
- * <p>
  * UTS 39 defines two strings to be <em>confusable</em> if they map to the same <em>skeleton string</em>. A skeleton can
  * be thought of as a "hash code". {@link uspoof_getSkeleton} computes the skeleton for a particular string, so
  * the following snippet is equivalent to the example above:
@@ -128,7 +127,6 @@
  * free(skel2);
  * \endcode
  *
- * <p>
  * If you need to check if a string is confusable with any string in a dictionary of many strings, rather than calling
  * {@link uspoof_areConfusable} many times in a loop, {@link uspoof_getSkeleton} can be used instead, as shown below:
  *
@@ -172,14 +170,12 @@
  * uspoof_close(sc);
  * \endcode
  *
- * <p>
  * <b>Note:</b> Since the Unicode confusables mapping table is frequently updated, confusable skeletons are <em>not</em>
  * guaranteed to be the same between ICU releases. We therefore recommend that you always compute confusable skeletons
  * at runtime and do not rely on creating a permanent, or difficult to update, database of skeletons.
  *
  * <h2>Spoof Detection</h2>
  *
- * <p>
  * The following snippet shows a minimal example of using <code>USpoofChecker</code> to perform spoof detection on a
  * string:
  *
@@ -204,16 +200,13 @@
  * uset_close(allowed);
  * \endcode
  *
- * <p>
  * As in the case for confusability checking, it is good practice to create one <code>USpoofChecker</code> instance at
  * startup, and call the cheaper {@link uspoof_check} online. We specify the set of
  * allowed characters to be those with type RECOMMENDED or INCLUSION, according to the recommendation in UTS 39.
  *
- * <p>
  * In addition to {@link uspoof_check}, the function {@link uspoof_checkUTF8} is exposed for UTF8-encoded char* strings,
  * and {@link uspoof_checkUnicodeString} is exposed for C++ programmers.
  *
- * <p>
  * If the {@link USPOOF_AUX_INFO} check is enabled, a limited amount of information on why a string failed the checks
  * is available in the returned bitmask.  For complete information, use the {@link uspoof_check2} class of functions
  * with a {@link USpoofCheckResult} parameter:
@@ -274,7 +267,6 @@
  * // Explicit cleanup not necessary.
  * \endcode
  *
- * <p>
  * The return value is a bitmask of the checks that failed. In this case, there was one check that failed:
  * {@link USPOOF_RESTRICTION_LEVEL}, corresponding to the fifth bit (16). The possible checks are:
  *
@@ -307,7 +299,6 @@
  * uspoof_close(sc);
  * \endcode
  *
- * <p>
  * Here is an example in C++ showing how to compute the restriction level of a string:
  *
  * \code{.cpp}
@@ -334,11 +325,9 @@
  * printf("Restriction level: %#010x (status: %s)\n", restrictionLevel, u_errorName(status));
  * \endcode
  *
- * <p>
  * The code '0x50000000' corresponds to the restriction level USPOOF_MINIMALLY_RESTRICTIVE.  Since
  * USPOOF_MINIMALLY_RESTRICTIVE is weaker than USPOOF_MODERATELY_RESTRICTIVE, the string fails the check.
  *
- * <p>
  * <b>Note:</b> The Restriction Level is the most powerful of the checks. The full logic is documented in
  * <a href="http://unicode.org/reports/tr39/#Restriction_Level_Detection">UTS 39</a>, but the basic idea is that strings
  * are restricted to contain characters from only a single script, <em>except</em> that most scripts are allowed to have
@@ -352,15 +341,12 @@
  *
  * <h2>Additional Information</h2>
  *
- * <p>
  * A <code>USpoofChecker</code> instance may be used repeatedly to perform checks on any number of identifiers.
  *
- * <p>
  * <b>Thread Safety:</b> The test functions for checking a single identifier, or for testing whether
  * two identifiers are possible confusable, are thread safe. They may called concurrently, from multiple threads,
  * using the same USpoofChecker instance.
  *
- * <p>
  * More generally, the standard ICU thread safety rules apply: functions that take a const USpoofChecker parameter are
  * thread safe. Those that take a non-const USpoofChecker are not thread safe..
  *
@@ -1219,14 +1205,21 @@ U_NAMESPACE_BEGIN
 
 /**
  * \class LocalUSpoofCheckResultPointer
- * "Smart pointer" class, closes a USpoofCheckResult via {@link uspoof_closeCheckResult}.
+ * "Smart pointer" class, closes a USpoofCheckResult via `uspoof_closeCheckResult()`.
  * For most methods see the LocalPointerBase base class.
  *
  * @see LocalPointerBase
  * @see LocalPointer
  * @stable ICU 58
  */
+
+/**
+ * \cond
+ * Note: Doxygen is giving a bogus warning on this U_DEFINE_LOCAL_OPEN_POINTER.
+ *       For now, suppress with a Doxygen cond
+ */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUSpoofCheckResultPointer, USpoofCheckResult, uspoof_closeCheckResult);
+/** \endcond */
 
 U_NAMESPACE_END
 

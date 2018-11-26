@@ -10,6 +10,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `return` statements after callbacks",
             category: "Node.js and CommonJS",

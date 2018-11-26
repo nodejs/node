@@ -1906,8 +1906,8 @@ EOF
             next unless defined($unified_info{includes}->{$dest}->{$k});
             my @incs = reverse @{$unified_info{includes}->{$dest}->{$k}};
             foreach my $obj (grep /\.o$/,
-                             (keys %{$unified_info{sources}->{$dest}},
-                              keys %{$unified_info{shared_sources}->{$dest}})) {
+                             (keys %{$unified_info{sources}->{$dest} // {}},
+                              keys %{$unified_info{shared_sources}->{$dest} // {}})) {
                 foreach my $inc (@incs) {
                     unshift @{$unified_info{includes}->{$obj}->{$k}}, $inc
                         unless grep { $_ eq $inc } @{$unified_info{includes}->{$obj}->{$k}};

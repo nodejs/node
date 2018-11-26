@@ -27,7 +27,7 @@ child.stderr.on('data', function(c) {
 child.on('close', common.mustCall(function(code) {
   try {
     output = JSON.parse(output);
-  } catch (er) {
+  } catch {
     console.error(output);
     process.exit(1);
   }

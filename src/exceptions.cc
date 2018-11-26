@@ -14,6 +14,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Message;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -39,7 +40,7 @@ Local<Value> ErrnoException(Isolate* isolate,
   Local<String> path_string;
   if (path != nullptr) {
     // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+    path_string = String::NewFromUtf8(isolate, path, NewStringType::kNormal)
                       .ToLocalChecked();
   }
 
@@ -51,15 +52,19 @@ Local<Value> ErrnoException(Isolate* isolate,
   e = Exception::Error(cons);
 
   Local<Object> obj = e.As<Object>();
-  obj->Set(env->errno_string(), Integer::New(isolate, errorno));
-  obj->Set(env->code_string(), estring);
+  obj->Set(env->context(),
+           env->errno_string(),
+           Integer::New(isolate, errorno)).FromJust();
+  obj->Set(env->context(), env->code_string(), estring).FromJust();
 
   if (path_string.IsEmpty() == false) {
-    obj->Set(env->path_string(), path_string);
+    obj->Set(env->context(), env->path_string(), path_string).FromJust();
   }
 
   if (syscall != nullptr) {
-    obj->Set(env->syscall_string(), OneByteString(isolate, syscall));
+    obj->Set(env->context(),
+             env->syscall_string(),
+             OneByteString(isolate, syscall)).FromJust();
   }
 
   return e;
@@ -71,15 +76,15 @@ static Local<String> StringFromPath(Isolate* isolate, const char* path) {
     return String::Concat(
         isolate,
         FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
-        String::NewFromUtf8(isolate, path + 8, v8::NewStringType::kNormal)
+        String::NewFromUtf8(isolate, path + 8, NewStringType::kNormal)
             .ToLocalChecked());
   } else if (strncmp(path, "\\\\?\\", 4) == 0) {
-    return String::NewFromUtf8(isolate, path + 4, v8::NewStringType::kNormal)
+    return String::NewFromUtf8(isolate, path + 4, NewStringType::kNormal)
         .ToLocalChecked();
   }
 #endif
 
-  return String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+  return String::NewFromUtf8(isolate, path, NewStringType::kNormal)
       .ToLocalChecked();
 }
 
@@ -132,13 +137,15 @@ Local<Value> UVException(Isolate* isolate,
     Exception::Error(js_msg)->ToObject(isolate->GetCurrentContext())
       .ToLocalChecked();
 
-  e->Set(env->errno_string(), Integer::New(isolate, errorno));
-  e->Set(env->code_string(), js_code);
-  e->Set(env->syscall_string(), js_syscall);
+  e->Set(env->context(),
+         env->errno_string(),
+         Integer::New(isolate, errorno)).FromJust();
+  e->Set(env->context(), env->code_string(), js_code).FromJust();
+  e->Set(env->context(), env->syscall_string(), js_syscall).FromJust();
   if (!js_path.IsEmpty())
-    e->Set(env->path_string(), js_path);
+    e->Set(env->context(), env->path_string(), js_path).FromJust();
   if (!js_dest.IsEmpty())
-    e->Set(env->dest_string(), js_dest);
+    e->Set(env->context(), env->dest_string(), js_dest).FromJust();
 
   return e;
 }
@@ -190,7 +197,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     Local<String> cons2 = String::Concat(
         isolate,
         cons1,
-        String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+        String::NewFromUtf8(isolate, path, NewStringType::kNormal)
             .ToLocalChecked());
     Local<String> cons3 =
         String::Concat(isolate, cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
@@ -204,7 +211,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
   if (path != nullptr) {
     obj->Set(env->path_string(),
-             String::NewFromUtf8(isolate, path, v8::NewStringType::kNormal)
+             String::NewFromUtf8(isolate, path, NewStringType::kNormal)
                  .ToLocalChecked());
   }
 

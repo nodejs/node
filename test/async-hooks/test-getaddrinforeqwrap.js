@@ -14,7 +14,7 @@ const hooks = initHooks();
 
 hooks.enable();
 dns.lookup('www.google.com', 4, common.mustCall(onlookup));
-function onlookup(err_, ip, family) {
+function onlookup() {
   // we don't care about the error here in order to allow
   // tests to run offline (lookup will fail in that case and the err be set);
 

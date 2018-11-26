@@ -186,20 +186,20 @@ inline void Environment::AsyncHooks::clear_async_id_stack() {
 inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
   ::DefaultTriggerAsyncIdScope(Environment* env,
                                double default_trigger_async_id)
-    : async_id_fields_ref_(env->async_hooks()->async_id_fields()) {
+    : async_hooks_(env->async_hooks()) {
   if (env->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
     CHECK_GE(default_trigger_async_id, 0);
   }
 
   old_default_trigger_async_id_ =
-    async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId];
-  async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId] =
+    async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId];
+  async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
     default_trigger_async_id;
 }
 
 inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
   ::~DefaultTriggerAsyncIdScope() {
-  async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId] =
+  async_hooks_->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] =
     old_default_trigger_async_id_;
 }
 
@@ -334,10 +334,6 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
-inline tracing::AgentWriterHandle* Environment::tracing_agent_writer() const {
-  return tracing_agent_writer_;
-}
-
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
   return ContainerOf(&Environment::timer_handle_, handle);
 }
@@ -444,6 +440,11 @@ Environment::should_abort_on_uncaught_toggle() {
 inline AliasedBuffer<uint8_t, v8::Uint8Array>&
 Environment::trace_category_state() {
   return trace_category_state_;
+}
+
+inline AliasedBuffer<int32_t, v8::Int32Array>&
+Environment::stream_base_state() {
+  return stream_base_state_;
 }
 
 inline uint32_t Environment::get_next_module_id() {
@@ -735,7 +736,7 @@ inline void Environment::SetMethod(v8::Local<v8::Object> that,
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
       v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->Set(name_string, function);
+  that->Set(context, name_string, function).FromJust();
   function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
@@ -755,7 +756,7 @@ inline void Environment::SetMethodNoSideEffect(v8::Local<v8::Object> that,
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
       v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->Set(name_string, function);
+  that->Set(context, name_string, function).FromJust();
   function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
@@ -894,7 +895,7 @@ void Environment::ForEachBaseObject(T&& iterator) {
 
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
-    return StrongPersistentToLocal(PropertyName ## _);                        \
+    return PersistentToLocal::Strong(PropertyName ## _);                      \
   }                                                                           \
   inline void Environment::set_ ## PropertyName(v8::Local<TypeName> value) {  \
     PropertyName ## _.Reset(isolate(), value);                                \

@@ -30,7 +30,7 @@ class FSContinuationData : public MemoryRetainer {
 
   uv_fs_t* req;
   int mode;
-  std::vector<std::string> paths;
+  std::vector<std::string> paths{};
 
   void PushPath(std::string&& path) {
     paths.emplace_back(std::move(path));
@@ -148,6 +148,92 @@ class FSReqCallback : public FSReqBase {
   DISALLOW_COPY_AND_ASSIGN(FSReqCallback);
 };
 
+// Wordaround a GCC4.9 bug that C++14 N3652 was not implemented
+// Refs: https://www.gnu.org/software/gcc/projects/cxx-status.html#cxx14
+// Refs: https://isocpp.org/files/papers/N3652.html
+#if __cpp_constexpr < 201304
+#  define constexpr inline
+#endif
+
+template <typename NativeT,
+          // SFINAE limit NativeT to arithmetic types
+          typename = std::enable_if<std::is_arithmetic<NativeT>::value>>
+constexpr NativeT ToNative(uv_timespec_t ts) {
+  // This template has exactly two specializations below.
+  static_assert(std::is_arithmetic<NativeT>::value == false, "Not implemented");
+  UNREACHABLE();
+}
+
+template <>
+constexpr double ToNative(uv_timespec_t ts) {
+  // We need to do a static_cast since the original FS values are ulong.
+  /* NOLINTNEXTLINE(runtime/int) */
+  const auto u_sec = static_cast<unsigned long>(ts.tv_sec);
+  const double full_sec = u_sec * 1000.0;
+  /* NOLINTNEXTLINE(runtime/int) */
+  const auto u_nsec = static_cast<unsigned long>(ts.tv_nsec);
+  const double full_nsec = u_nsec / 1000'000.0;
+  return full_sec + full_nsec;
+}
+
+template <>
+constexpr uint64_t ToNative(uv_timespec_t ts) {
+  // We need to do a static_cast since the original FS values are ulong.
+  /* NOLINTNEXTLINE(runtime/int) */
+  const auto u_sec = static_cast<unsigned long>(ts.tv_sec);
+  const auto full_sec = static_cast<uint64_t>(u_sec) * 1000UL;
+  /* NOLINTNEXTLINE(runtime/int) */
+  const auto u_nsec = static_cast<unsigned long>(ts.tv_nsec);
+  const auto full_nsec = static_cast<uint64_t>(u_nsec) / 1000'000UL;
+  return full_sec + full_nsec;
+}
+
+#undef constexpr  // end N3652 bug workaround
+
+template <typename NativeT, typename V8T>
+constexpr void FillStatsArray(AliasedBuffer<NativeT, V8T>* fields,
+                              const uv_stat_t* s, const size_t offset = 0) {
+  fields->SetValue(offset + 0, s->st_dev);
+  fields->SetValue(offset + 1, s->st_mode);
+  fields->SetValue(offset + 2, s->st_nlink);
+  fields->SetValue(offset + 3, s->st_uid);
+  fields->SetValue(offset + 4, s->st_gid);
+  fields->SetValue(offset + 5, s->st_rdev);
+#if defined(__POSIX__)
+  fields->SetValue(offset + 6, s->st_blksize);
+#else
+  fields->SetValue(offset + 6, 0);
+#endif
+  fields->SetValue(offset + 7, s->st_ino);
+  fields->SetValue(offset + 8, s->st_size);
+#if defined(__POSIX__)
+  fields->SetValue(offset + 9, s->st_blocks);
+#else
+  fields->SetValue(offset + 9, 0);
+#endif
+// Dates.
+  fields->SetValue(offset + 10, ToNative<NativeT>(s->st_atim));
+  fields->SetValue(offset + 11, ToNative<NativeT>(s->st_mtim));
+  fields->SetValue(offset + 12, ToNative<NativeT>(s->st_ctim));
+  fields->SetValue(offset + 13, ToNative<NativeT>(s->st_birthtim));
+}
+
+inline Local<Value> FillGlobalStatsArray(Environment* env,
+                                         const bool use_bigint,
+                                         const uv_stat_t* s,
+                                         const bool second = false) {
+  const ptrdiff_t offset = second ? kFsStatsFieldsNumber : 0;
+  if (use_bigint) {
+    auto* const arr = env->fs_stats_field_bigint_array();
+    FillStatsArray(arr, s, offset);
+    return arr->GetJSArray();
+  } else {
+    auto* const arr = env->fs_stats_field_array();
+    FillStatsArray(arr, s, offset);
+    return arr->GetJSArray();
+  }
+}
+
 template <typename NativeT = double, typename V8T = v8::Float64Array>
 class FSReqPromise : public FSReqBase {
  public:
@@ -157,10 +243,11 @@ class FSReqPromise : public FSReqBase {
                       ->NewInstance(env->context()).ToLocalChecked(),
                   AsyncWrap::PROVIDER_FSREQPROMISE,
                   use_bigint),
-        stats_field_array_(env->isolate(), env->kFsStatsFieldsLength) {
-    auto resolver = Promise::Resolver::New(env->context()).ToLocalChecked();
-    object()->Set(env->context(), env->promise_string(),
-                  resolver).FromJust();
+        stats_field_array_(env->isolate(), kFsStatsFieldsNumber) {
+    const auto resolver =
+      Promise::Resolver::New(env->context()).ToLocalChecked();
+    USE(object()->Set(env->context(), env->promise_string(),
+                      resolver).FromJust());
   }
 
   ~FSReqPromise() override {
@@ -176,7 +263,7 @@ class FSReqPromise : public FSReqBase {
         object()->Get(env()->context(),
                       env()->promise_string()).ToLocalChecked();
     Local<Promise::Resolver> resolver = value.As<Promise::Resolver>();
-    resolver->Reject(env()->context(), reject).FromJust();
+    USE(resolver->Reject(env()->context(), reject).FromJust());
   }
 
   void Resolve(Local<Value> value) override {
@@ -187,11 +274,12 @@ class FSReqPromise : public FSReqBase {
         object()->Get(env()->context(),
                       env()->promise_string()).ToLocalChecked();
     Local<Promise::Resolver> resolver = val.As<Promise::Resolver>();
-    resolver->Resolve(env()->context(), value).FromJust();
+    USE(resolver->Resolve(env()->context(), value).FromJust());
   }
 
   void ResolveStat(const uv_stat_t* stat) override {
-    Resolve(node::FillStatsArray(&stats_field_array_, stat));
+    FillStatsArray(&stats_field_array_, stat);
+    Resolve(stats_field_array_.GetJSArray());
   }
 
   void SetReturnValue(const FunctionCallbackInfo<Value>& args) override {
@@ -210,10 +298,14 @@ class FSReqPromise : public FSReqBase {
   SET_MEMORY_INFO_NAME(FSReqPromise)
   SET_SELF_SIZE(FSReqPromise)
 
+  FSReqPromise(const FSReqPromise&) = delete;
+  FSReqPromise& operator=(const FSReqPromise&) = delete;
+  FSReqPromise(const FSReqPromise&&) = delete;
+  FSReqPromise& operator=(const FSReqPromise&&) = delete;
+
  private:
   bool finished_ = false;
   AliasedBuffer<NativeT, V8T> stats_field_array_;
-  DISALLOW_COPY_AND_ASSIGN(FSReqPromise);
 };
 
 class FSReqAfterScope {
@@ -224,6 +316,11 @@ class FSReqAfterScope {
   bool Proceed();
 
   void Reject(uv_fs_t* req);
+
+  FSReqAfterScope(const FSReqAfterScope&) = delete;
+  FSReqAfterScope& operator=(const FSReqAfterScope&) = delete;
+  FSReqAfterScope(const FSReqAfterScope&&) = delete;
+  FSReqAfterScope& operator=(const FSReqAfterScope&&) = delete;
 
  private:
   FSReqBase* wrap_ = nullptr;
@@ -301,6 +398,11 @@ class FileHandle : public AsyncWrap, public StreamBase {
   SET_MEMORY_INFO_NAME(FileHandle)
   SET_SELF_SIZE(FileHandle)
 
+  FileHandle(const FileHandle&) = delete;
+  FileHandle& operator=(const FileHandle&) = delete;
+  FileHandle(const FileHandle&&) = delete;
+  FileHandle& operator=(const FileHandle&&) = delete;
+
  private:
   // Synchronous close that emits a warning
   void Close();
@@ -319,7 +421,7 @@ class FileHandle : public AsyncWrap, public StreamBase {
       ref_.Reset(env->isolate(), ref);
     }
 
-    ~CloseReq() {
+    ~CloseReq() override {
       uv_fs_req_cleanup(req());
       promise_.Reset();
       ref_.Reset();
@@ -343,9 +445,14 @@ class FileHandle : public AsyncWrap, public StreamBase {
       return static_cast<CloseReq*>(ReqWrap::from_req(req));
     }
 
+    CloseReq(const CloseReq&) = delete;
+    CloseReq& operator=(const CloseReq&) = delete;
+    CloseReq(const CloseReq&&) = delete;
+    CloseReq& operator=(const CloseReq&&) = delete;
+
    private:
-    Persistent<Promise> promise_;
-    Persistent<Value> ref_;
+    Persistent<Promise> promise_{};
+    Persistent<Value> ref_{};
   };
 
   // Asynchronous close
@@ -359,9 +466,6 @@ class FileHandle : public AsyncWrap, public StreamBase {
 
   bool reading_ = false;
   std::unique_ptr<FileHandleReadWrap> current_read_ = nullptr;
-
-
-  DISALLOW_COPY_AND_ASSIGN(FileHandle);
 };
 
 }  // namespace fs

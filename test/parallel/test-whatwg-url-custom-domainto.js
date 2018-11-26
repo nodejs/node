@@ -11,7 +11,10 @@ const assert = require('assert');
 const { domainToASCII, domainToUnicode } = require('url');
 
 const tests = require('../fixtures/url-idna');
-const wptToASCIITests = require('../fixtures/url-toascii');
+const fixtures = require('../common/fixtures');
+const wptToASCIITests = require(
+  fixtures.path('wpt', 'url', 'resources', 'toascii.json')
+);
 
 {
   const expectedError = common.expectsError(

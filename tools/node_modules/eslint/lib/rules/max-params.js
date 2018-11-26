@@ -19,6 +19,8 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce a maximum number of parameters in function definitions",
             category: "Stylistic Issues",

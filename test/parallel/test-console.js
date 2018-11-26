@@ -45,6 +45,10 @@ common.expectWarning(
     ['Count for \'noLabel\' does not exist', common.noWarnCode],
     ['No such label \'noLabel\' for console.timeLog()', common.noWarnCode],
     ['No such label \'noLabel\' for console.timeEnd()', common.noWarnCode],
+    ['Count for \'default\' does not exist', common.noWarnCode],
+    ['No such label \'default\' for console.timeLog()', common.noWarnCode],
+    ['No such label \'default\' for console.timeEnd()', common.noWarnCode],
+    ['Label \'default\' already exists for console.time()', common.noWarnCode],
     ['Label \'test\' already exists for console.time()', common.noWarnCode]
   ]
 );
@@ -55,6 +59,17 @@ console.timeEnd('noLabel');
 
 console.time('label');
 console.timeEnd('label');
+
+// Test using the default label
+// on console.time(), console.countReset(), console.timeLog(), console.timeEnd()
+console.countReset();
+console.timeLog();
+console.timeEnd();
+
+console.time();
+console.time();
+console.timeLog();
+console.timeEnd();
 
 // Check that the `Error` is a `TypeError` but do not check the message as it
 // will be different in different JavaScript engines.
@@ -179,6 +194,8 @@ assert.strictEqual(errStrings[errStrings.length - 1],
                    'Assertion failed: console.assert should not throw\n');
 
 console.assert(true, 'this should not throw');
+
+console.assert(true);
 
 assert.strictEqual(strings.length, process.stdout.writeTimes);
 assert.strictEqual(errStrings.length, process.stderr.writeTimes);

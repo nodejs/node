@@ -6,11 +6,15 @@ const net = require('net');
 
 const { internalBinding } = require('internal/test/binding');
 const { UV_EOF } = internalBinding('uv');
+const { streamBaseState, kReadBytesOrError } = internalBinding('stream_wrap');
 
 const s = new net.Socket({
   handle: {
     readStart: function() {
-      setImmediate(() => this.onread(UV_EOF, null));
+      setImmediate(() => {
+        streamBaseState[kReadBytesOrError] = UV_EOF;
+        this.onread();
+      });
     },
     close: (cb) => setImmediate(cb)
   },

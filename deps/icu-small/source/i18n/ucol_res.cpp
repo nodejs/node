@@ -400,11 +400,11 @@ CollationLoader::loadFromData(UErrorCode &errorCode) {
     // Try to fetch the optional rules string.
     {
         UErrorCode internalErrorCode = U_ZERO_ERROR;
-        int32_t length;
-        const UChar *s = ures_getStringByKey(data, "Sequence", &length,
+        int32_t len;
+        const UChar *s = ures_getStringByKey(data, "Sequence", &len,
                                              &internalErrorCode);
         if(U_SUCCESS(internalErrorCode)) {
-            t->rules.setTo(TRUE, s, length);
+            t->rules.setTo(TRUE, s, len);
         }
     }
 
@@ -426,10 +426,10 @@ CollationLoader::loadFromData(UErrorCode &errorCode) {
         LocalUResourceBundlePointer def(
                 ures_getByKeyWithFallback(actualBundle.getAlias(), "collations/default", NULL,
                                           &internalErrorCode));
-        int32_t length;
-        const UChar *s = ures_getString(def.getAlias(), &length, &internalErrorCode);
-        if(U_SUCCESS(internalErrorCode) && length < UPRV_LENGTHOF(defaultType)) {
-            u_UCharsToChars(s, defaultType, length + 1);
+        int32_t len;
+        const UChar *s = ures_getString(def.getAlias(), &len, &internalErrorCode);
+        if(U_SUCCESS(internalErrorCode) && len < UPRV_LENGTHOF(defaultType)) {
+            u_UCharsToChars(s, defaultType, len + 1);
         } else {
             uprv_strcpy(defaultType, "standard");
         }

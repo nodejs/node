@@ -39,14 +39,14 @@ NFRule::NFRule(const RuleBasedNumberFormat* _rbnf, const UnicodeString &_ruleTex
   , radix(10)
   , exponent(0)
   , decimalPoint(0)
-  , ruleText(_ruleText)
+  , fRuleText(_ruleText)
   , sub1(NULL)
   , sub2(NULL)
   , formatter(_rbnf)
   , rulePatternFormat(NULL)
 {
-    if (!ruleText.isEmpty()) {
-        parseRuleDescriptor(ruleText, status);
+    if (!fRuleText.isEmpty()) {
+        parseRuleDescriptor(fRuleText, status);
     }
 }
 
@@ -122,7 +122,7 @@ NFRule::makeRules(UnicodeString& description,
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
-    description = rule1->ruleText;
+    description = rule1->fRuleText;
 
     // check the description to see whether there's text enclosed
     // in brackets
@@ -314,7 +314,7 @@ NFRule::parseRuleDescriptor(UnicodeString& description, UErrorCode& status)
             if (c == gSlash) {
                 val = 0;
                 ++p;
-                int64_t ll_10 = 10;
+                ll_10 = 10;
                 while (p < descriptorLength) {
                     c = descriptor.charAt(p);
                     if (c >= gZero && c <= gNine) {
@@ -418,7 +418,7 @@ NFRule::extractSubstitutions(const NFRuleSet* ruleSet,
     if (U_FAILURE(status)) {
         return;
     }
-    this->ruleText = ruleText;
+    fRuleText = ruleText;
     sub1 = extractSubstitution(ruleSet, predecessor, status);
     if (sub1 == NULL) {
         // Small optimization. There is no need to create a redundant NullSubstitution.
@@ -427,15 +427,15 @@ NFRule::extractSubstitutions(const NFRuleSet* ruleSet,
     else {
         sub2 = extractSubstitution(ruleSet, predecessor, status);
     }
-    int32_t pluralRuleStart = this->ruleText.indexOf(gDollarOpenParenthesis, -1, 0);
-    int32_t pluralRuleEnd = (pluralRuleStart >= 0 ? this->ruleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart) : -1);
+    int32_t pluralRuleStart = fRuleText.indexOf(gDollarOpenParenthesis, -1, 0);
+    int32_t pluralRuleEnd = (pluralRuleStart >= 0 ? fRuleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart) : -1);
     if (pluralRuleEnd >= 0) {
-        int32_t endType = this->ruleText.indexOf(gComma, pluralRuleStart);
+        int32_t endType = fRuleText.indexOf(gComma, pluralRuleStart);
         if (endType < 0) {
             status = U_PARSE_ERROR;
             return;
         }
-        UnicodeString type(this->ruleText.tempSubString(pluralRuleStart + 2, endType - pluralRuleStart - 2));
+        UnicodeString type(fRuleText.tempSubString(pluralRuleStart + 2, endType - pluralRuleStart - 2));
         UPluralType pluralType;
         if (type.startsWith(UNICODE_STRING_SIMPLE("cardinal"))) {
             pluralType = UPLURAL_TYPE_CARDINAL;
@@ -448,7 +448,7 @@ NFRule::extractSubstitutions(const NFRuleSet* ruleSet,
             return;
         }
         rulePatternFormat = formatter->createPluralFormat(pluralType,
-                this->ruleText.tempSubString(endType + 1, pluralRuleEnd - endType - 1), status);
+                fRuleText.tempSubString(endType + 1, pluralRuleEnd - endType - 1), status);
     }
 }
 
@@ -484,16 +484,16 @@ NFRule::extractSubstitution(const NFRuleSet* ruleSet,
 
     // special-case the ">>>" token, since searching for the > at the
     // end will actually find the > in the middle
-    if (ruleText.indexOf(gGreaterGreaterGreater, 3, 0) == subStart) {
+    if (fRuleText.indexOf(gGreaterGreaterGreater, 3, 0) == subStart) {
         subEnd = subStart + 2;
 
         // otherwise the substitution token ends with the same character
         // it began with
     } else {
-        UChar c = ruleText.charAt(subStart);
-        subEnd = ruleText.indexOf(c, subStart + 1);
+        UChar c = fRuleText.charAt(subStart);
+        subEnd = fRuleText.indexOf(c, subStart + 1);
         // special case for '<%foo<<'
-        if (c == gLessThan && subEnd != -1 && subEnd < ruleText.length() - 1 && ruleText.charAt(subEnd+1) == c) {
+        if (c == gLessThan && subEnd != -1 && subEnd < fRuleText.length() - 1 && fRuleText.charAt(subEnd+1) == c) {
             // ordinals use "=#,##0==%abbrev=" as their rule.  Notice that the '==' in the middle
             // occurs because of the juxtaposition of two different rules.  The check for '<' is a hack
             // to get around this.  Having the duplicate at the front would cause problems with
@@ -513,12 +513,12 @@ NFRule::extractSubstitution(const NFRuleSet* ruleSet,
     // some text bounded by substitution token characters).  Use
     // makeSubstitution() to create the right kind of substitution
     UnicodeString subToken;
-    subToken.setTo(ruleText, subStart, subEnd + 1 - subStart);
+    subToken.setTo(fRuleText, subStart, subEnd + 1 - subStart);
     result = NFSubstitution::makeSubstitution(subStart, this, predecessor, ruleSet,
         this->formatter, subToken, status);
 
     // remove the substitution from the rule text
-    ruleText.removeBetween(subStart, subEnd+1);
+    fRuleText.removeBetween(subStart, subEnd+1);
 
     return result;
 }
@@ -601,7 +601,7 @@ NFRule::indexOfAnyRulePrefix() const
 {
     int result = -1;
     for (int i = 0; RULE_PREFIXES[i]; i++) {
-        int32_t pos = ruleText.indexOf(*RULE_PREFIXES[i]);
+        int32_t pos = fRuleText.indexOf(*RULE_PREFIXES[i]);
         if (pos != -1 && (result == -1 || pos < result)) {
             result = pos;
         }
@@ -637,7 +637,7 @@ NFRule::operator==(const NFRule& rhs) const
     return baseValue == rhs.baseValue
         && radix == rhs.radix
         && exponent == rhs.exponent
-        && ruleText == rhs.ruleText
+        && fRuleText == rhs.fRuleText
         && util_equalSubstitutions(sub1, rhs.sub1)
         && util_equalSubstitutions(sub2, rhs.sub2);
 }
@@ -690,14 +690,14 @@ NFRule::_appendRuleText(UnicodeString& result) const
     // if the rule text begins with a space, write an apostrophe
     // (whitespace after the rule descriptor is ignored; the
     // apostrophe is used to make the whitespace significant)
-    if (ruleText.charAt(0) == gSpace && (sub1 == NULL || sub1->getPos() != 0)) {
+    if (fRuleText.charAt(0) == gSpace && (sub1 == NULL || sub1->getPos() != 0)) {
         result.append(gTick);
     }
 
     // now, write the rule's rule text, inserting appropriate
     // substitution tokens in the appropriate places
     UnicodeString ruleTextCopy;
-    ruleTextCopy.setTo(ruleText);
+    ruleTextCopy.setTo(fRuleText);
 
     UnicodeString temp;
     if (sub2 != NULL) {
@@ -743,24 +743,24 @@ NFRule::doFormat(int64_t number, UnicodeString& toInsertInto, int32_t pos, int32
     // into the right places in toInsertInto (notice we do the
     // substitutions in reverse order so that the offsets don't get
     // messed up)
-    int32_t pluralRuleStart = ruleText.length();
+    int32_t pluralRuleStart = fRuleText.length();
     int32_t lengthOffset = 0;
     if (!rulePatternFormat) {
-        toInsertInto.insert(pos, ruleText);
+        toInsertInto.insert(pos, fRuleText);
     }
     else {
-        pluralRuleStart = ruleText.indexOf(gDollarOpenParenthesis, -1, 0);
-        int pluralRuleEnd = ruleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart);
+        pluralRuleStart = fRuleText.indexOf(gDollarOpenParenthesis, -1, 0);
+        int pluralRuleEnd = fRuleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart);
         int initialLength = toInsertInto.length();
-        if (pluralRuleEnd < ruleText.length() - 1) {
-            toInsertInto.insert(pos, ruleText.tempSubString(pluralRuleEnd + 2));
+        if (pluralRuleEnd < fRuleText.length() - 1) {
+            toInsertInto.insert(pos, fRuleText.tempSubString(pluralRuleEnd + 2));
         }
         toInsertInto.insert(pos,
             rulePatternFormat->format((int32_t)(number/util64_pow(radix, exponent)), status));
         if (pluralRuleStart > 0) {
-            toInsertInto.insert(pos, ruleText.tempSubString(0, pluralRuleStart));
+            toInsertInto.insert(pos, fRuleText.tempSubString(0, pluralRuleStart));
         }
-        lengthOffset = ruleText.length() - (toInsertInto.length() - initialLength);
+        lengthOffset = fRuleText.length() - (toInsertInto.length() - initialLength);
     }
 
     if (sub2 != NULL) {
@@ -789,17 +789,17 @@ NFRule::doFormat(double number, UnicodeString& toInsertInto, int32_t pos, int32_
     // [again, we have two copies of this routine that do the same thing
     // so that we don't sacrifice precision in a long by casting it
     // to a double]
-    int32_t pluralRuleStart = ruleText.length();
+    int32_t pluralRuleStart = fRuleText.length();
     int32_t lengthOffset = 0;
     if (!rulePatternFormat) {
-        toInsertInto.insert(pos, ruleText);
+        toInsertInto.insert(pos, fRuleText);
     }
     else {
-        pluralRuleStart = ruleText.indexOf(gDollarOpenParenthesis, -1, 0);
-        int pluralRuleEnd = ruleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart);
+        pluralRuleStart = fRuleText.indexOf(gDollarOpenParenthesis, -1, 0);
+        int pluralRuleEnd = fRuleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart);
         int initialLength = toInsertInto.length();
-        if (pluralRuleEnd < ruleText.length() - 1) {
-            toInsertInto.insert(pos, ruleText.tempSubString(pluralRuleEnd + 2));
+        if (pluralRuleEnd < fRuleText.length() - 1) {
+            toInsertInto.insert(pos, fRuleText.tempSubString(pluralRuleEnd + 2));
         }
         double pluralVal = number;
         if (0 <= pluralVal && pluralVal < 1) {
@@ -812,9 +812,9 @@ NFRule::doFormat(double number, UnicodeString& toInsertInto, int32_t pos, int32_
         }
         toInsertInto.insert(pos, rulePatternFormat->format((int32_t)(pluralVal), status));
         if (pluralRuleStart > 0) {
-            toInsertInto.insert(pos, ruleText.tempSubString(0, pluralRuleStart));
+            toInsertInto.insert(pos, fRuleText.tempSubString(0, pluralRuleStart));
         }
-        lengthOffset = ruleText.length() - (toInsertInto.length() - initialLength);
+        lengthOffset = fRuleText.length() - (toInsertInto.length() - initialLength);
     }
 
     if (sub2 != NULL) {
@@ -908,15 +908,15 @@ NFRule::doParse(const UnicodeString& text,
     ParsePosition pp;
     UnicodeString workText(text);
 
-    int32_t sub1Pos = sub1 != NULL ? sub1->getPos() : ruleText.length();
-    int32_t sub2Pos = sub2 != NULL ? sub2->getPos() : ruleText.length();
+    int32_t sub1Pos = sub1 != NULL ? sub1->getPos() : fRuleText.length();
+    int32_t sub2Pos = sub2 != NULL ? sub2->getPos() : fRuleText.length();
 
     // check to see whether the text before the first substitution
     // matches the text at the beginning of the string being
     // parsed.  If it does, strip that off the front of workText;
     // otherwise, dump out with a mismatch
     UnicodeString prefix;
-    prefix.setTo(ruleText, 0, sub1Pos);
+    prefix.setTo(fRuleText, 0, sub1Pos);
 
 #ifdef RBNF_DEBUG
     fprintf(stderr, "doParse %p ", this);
@@ -1000,7 +1000,7 @@ NFRule::doParse(const UnicodeString& text,
         // the substitution, giving us a new partial parse result
         pp.setIndex(0);
 
-        temp.setTo(ruleText, sub1Pos, sub2Pos - sub1Pos);
+        temp.setTo(fRuleText, sub1Pos, sub2Pos - sub1Pos);
         double partialResult = matchToDelimiter(workText, start, tempBaseValue,
             temp, pp, sub1,
             nonNumericalExecutedRuleMask,
@@ -1021,7 +1021,7 @@ NFRule::doParse(const UnicodeString& text,
             // partial result with whatever it gets back from its
             // substitution if there's a successful match, giving us
             // a real result
-            temp.setTo(ruleText, sub2Pos, ruleText.length() - sub2Pos);
+            temp.setTo(fRuleText, sub2Pos, fRuleText.length() - sub2Pos);
             partialResult = matchToDelimiter(workText2, 0, partialResult,
                 temp, pp2, sub2,
                 nonNumericalExecutedRuleMask,
@@ -1039,18 +1039,18 @@ NFRule::doParse(const UnicodeString& text,
             else {
                 // commented out because ParsePosition doesn't have error index in 1.1.x
                 // restored for ICU4C port
-                int32_t temp = pp2.getErrorIndex() + sub1Pos + pp.getIndex();
-                if (temp> parsePosition.getErrorIndex()) {
-                    parsePosition.setErrorIndex(temp);
+                int32_t i_temp = pp2.getErrorIndex() + sub1Pos + pp.getIndex();
+                if (i_temp> parsePosition.getErrorIndex()) {
+                    parsePosition.setErrorIndex(i_temp);
                 }
             }
         }
         else {
             // commented out because ParsePosition doesn't have error index in 1.1.x
             // restored for ICU4C port
-            int32_t temp = sub1Pos + pp.getErrorIndex();
-            if (temp > parsePosition.getErrorIndex()) {
-                parsePosition.setErrorIndex(temp);
+            int32_t i_temp = sub1Pos + pp.getErrorIndex();
+            if (i_temp > parsePosition.getErrorIndex()) {
+                parsePosition.setErrorIndex(i_temp);
             }
         }
         // keep trying to match things until the outer matchToDelimiter()
@@ -1483,11 +1483,11 @@ NFRule::findText(const UnicodeString& str,
         rulePatternFormat->parseType(str, this, result, position);
         int start = position.getBeginIndex();
         if (start >= 0) {
-            int32_t pluralRuleStart = ruleText.indexOf(gDollarOpenParenthesis, -1, 0);
-            int32_t pluralRuleSuffix = ruleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart) + 2;
+            int32_t pluralRuleStart = fRuleText.indexOf(gDollarOpenParenthesis, -1, 0);
+            int32_t pluralRuleSuffix = fRuleText.indexOf(gClosedParenthesisDollar, -1, pluralRuleStart) + 2;
             int32_t matchLen = position.getEndIndex() - start;
-            UnicodeString prefix(ruleText.tempSubString(0, pluralRuleStart));
-            UnicodeString suffix(ruleText.tempSubString(pluralRuleSuffix));
+            UnicodeString prefix(fRuleText.tempSubString(0, pluralRuleStart));
+            UnicodeString suffix(fRuleText.tempSubString(pluralRuleSuffix));
             if (str.compare(start - prefix.length(), prefix.length(), prefix, 0, prefix.length()) == 0
                     && str.compare(start + matchLen, suffix.length(), suffix, 0, suffix.length()) == 0)
             {

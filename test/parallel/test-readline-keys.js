@@ -99,13 +99,19 @@ addTest('\n\r\t', [
 ]);
 
 // space and backspace
-addTest('\b\x7f\x1b\b\x1b\x7f \x1b ', [
+addTest('\b\x7f\x1b\b\x1b\x7f\x1b\x1b  \x1b ', [
   { name: 'backspace', sequence: '\b' },
   { name: 'backspace', sequence: '\x7f' },
   { name: 'backspace', sequence: '\x1b\b', meta: true },
   { name: 'backspace', sequence: '\x1b\x7f', meta: true },
+  { name: 'space', sequence: '\x1b\x1b ', meta: true },
   { name: 'space', sequence: ' ' },
   { name: 'space', sequence: '\x1b ', meta: true },
+]);
+
+// escape key
+addTest('\x1b\x1b\x1b', [
+  { name: 'escape', sequence: '\x1b\x1b\x1b', meta: true },
 ]);
 
 // control keys

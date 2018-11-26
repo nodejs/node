@@ -1,4 +1,5 @@
 #include "tracing_agent.h"
+#include "node_internals.h"
 
 #include "env-inl.h"
 #include "v8.h"
@@ -64,6 +65,10 @@ DispatchResponse TracingAgent::start(
     return DispatchResponse::Error(
         "Call NodeTracing::end to stop tracing before updating the config");
   }
+  if (!env_->is_main_thread()) {
+    return DispatchResponse::Error(
+        "Tracing properties can only be changed through main thread sessions");
+  }
 
   std::set<std::string> categories_set;
   protocol::Array<std::string>* categories =
@@ -74,9 +79,9 @@ DispatchResponse TracingAgent::start(
   if (categories_set.empty())
     return DispatchResponse::Error("At least one category should be enabled");
 
-  auto* writer = env_->tracing_agent_writer();
+  tracing::AgentWriterHandle* writer = GetTracingAgentWriter();
   if (writer != nullptr) {
-    trace_writer_ = env_->tracing_agent_writer()->agent()->AddClient(
+    trace_writer_ = writer->agent()->AddClient(
         categories_set,
         std::unique_ptr<InspectorTraceWriter>(
             new InspectorTraceWriter(frontend_.get())),

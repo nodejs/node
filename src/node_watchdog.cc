@@ -20,9 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_watchdog.h"
-#include "node_internals.h"
-#include "debug_utils.h"
 #include <algorithm>
+#include "debug_utils.h"
+#include "node_errors.h"
+#include "node_internals.h"
 
 namespace node {
 

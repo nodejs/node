@@ -5,7 +5,12 @@ const assert = require('assert');
 
 const { internalBinding } = require('internal/test/binding');
 const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
-const { WriteWrap } = internalBinding('stream_wrap');
+const {
+  WriteWrap,
+  kReadBytesOrError,
+  kArrayBufferOffset,
+  streamBaseState
+} = internalBinding('stream_wrap');
 
 const server = new TCP(TCPConstants.SOCKET);
 
@@ -30,8 +35,11 @@ server.onconnection = (err, client) => {
 
   client.readStart();
   client.pendingWrites = [];
-  client.onread = common.mustCall((err, buffer) => {
-    if (buffer) {
+  client.onread = common.mustCall((arrayBuffer) => {
+    if (arrayBuffer) {
+      const offset = streamBaseState[kArrayBufferOffset];
+      const nread = streamBaseState[kReadBytesOrError];
+      const buffer = Buffer.from(arrayBuffer, offset, nread);
       assert.ok(buffer.length > 0);
 
       assert.strictEqual(client.writeQueueSize, 0);

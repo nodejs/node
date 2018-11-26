@@ -54,6 +54,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Null;
@@ -148,52 +149,33 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
   uv_cpu_info_t* cpu_infos;
-  int count, i, field_idx;
+  int count;
 
   int err = uv_cpu_info(&cpu_infos, &count);
   if (err)
     return;
 
-  CHECK(args[0]->IsFunction());
-  Local<Function> addfn = args[0].As<Function>();
-
-  CHECK(args[1]->IsFloat64Array());
-  Local<Float64Array> array = args[1].As<Float64Array>();
-  CHECK_EQ(array->Length(), 6 * NODE_PUSH_VAL_TO_ARRAY_MAX);
-  Local<ArrayBuffer> ab = array->Buffer();
-  double* fields = static_cast<double*>(ab->GetContents().Data());
-
-  CHECK(args[2]->IsArray());
-  Local<Array> cpus = args[2].As<Array>();
-
-  Local<Value> model_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
-  int model_idx = 0;
-
-  for (i = 0, field_idx = 0; i < count; i++) {
+  // It's faster to create an array packed with all the data and
+  // assemble them into objects in JS than to call Object::Set() repeatedly
+  // The array is in the format
+  // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
+  std::vector<Local<Value>> result(count * 7);
+  for (int i = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
-
-    fields[field_idx++] = ci->speed;
-    fields[field_idx++] = ci->cpu_times.user;
-    fields[field_idx++] = ci->cpu_times.nice;
-    fields[field_idx++] = ci->cpu_times.sys;
-    fields[field_idx++] = ci->cpu_times.idle;
-    fields[field_idx++] = ci->cpu_times.irq;
-    model_argv[model_idx++] = OneByteString(env->isolate(), ci->model);
-
-    if (model_idx >= NODE_PUSH_VAL_TO_ARRAY_MAX) {
-      addfn->Call(env->context(), cpus, model_idx, model_argv).ToLocalChecked();
-      model_idx = 0;
-      field_idx = 0;
-    }
-  }
-
-  if (model_idx > 0) {
-    addfn->Call(env->context(), cpus, model_idx, model_argv).ToLocalChecked();
+    result[i * 7] = OneByteString(isolate, ci->model);
+    result[i * 7 + 1] = Number::New(isolate, ci->speed);
+    result[i * 7 + 2] = Number::New(isolate, ci->cpu_times.user);
+    result[i * 7 + 3] = Number::New(isolate, ci->cpu_times.nice);
+    result[i * 7 + 4] = Number::New(isolate, ci->cpu_times.sys);
+    result[i * 7 + 5] = Number::New(isolate, ci->cpu_times.idle);
+    result[i * 7 + 6] = Number::New(isolate, ci->cpu_times.irq);
   }
 
   uv_free_cpu_info(cpu_infos, count);
-  args.GetReturnValue().Set(cpus);
+  args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
 
@@ -267,10 +249,11 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
         v8::NewStringType::kNormal).ToLocalChecked();
 
     if (ret->Has(env->context(), name).FromJust()) {
-      ifarr = Local<Array>::Cast(ret->Get(name));
+      ifarr = Local<Array>::Cast(ret->Get(env->context(),
+                                          name).ToLocalChecked());
     } else {
       ifarr = Array::New(env->isolate());
-      ret->Set(name, ifarr);
+      ret->Set(env->context(), name, ifarr).FromJust();
     }
 
     snprintf(mac,
@@ -297,22 +280,29 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     }
 
     o = Object::New(env->isolate());
-    o->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    o->Set(env->netmask_string(), OneByteString(env->isolate(), netmask));
-    o->Set(env->family_string(), family);
-    o->Set(env->mac_string(), FIXED_ONE_BYTE_STRING(env->isolate(), mac));
+    o->Set(env->context(),
+           env->address_string(),
+           OneByteString(env->isolate(), ip)).FromJust();
+    o->Set(env->context(),
+           env->netmask_string(),
+           OneByteString(env->isolate(), netmask)).FromJust();
+    o->Set(env->context(),
+           env->family_string(), family).FromJust();
+    o->Set(env->context(),
+           env->mac_string(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), mac)).FromJust();
 
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
-      o->Set(env->scopeid_string(),
-             Integer::NewFromUnsigned(env->isolate(), scopeid));
+      o->Set(env->context(), env->scopeid_string(),
+             Integer::NewFromUnsigned(env->isolate(), scopeid)).FromJust();
     }
 
     const bool internal = interfaces[i].is_internal;
-    o->Set(env->internal_string(),
-           internal ? True(env->isolate()) : False(env->isolate()));
+    o->Set(env->context(), env->internal_string(),
+           internal ? True(env->isolate()) : False(env->isolate())).FromJust();
 
-    ifarr->Set(ifarr->Length(), o);
+    ifarr->Set(env->context(), ifarr->Length(), o).FromJust();
   }
 
   uv_free_interface_addresses(interfaces, count);
@@ -368,6 +358,8 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
+  OnScopeLeave free_passwd([&]() { uv_os_free_passwd(&pwd); });
+
   Local<Value> error;
 
   Local<Value> uid = Number::New(env->isolate(), pwd.uid);
@@ -389,18 +381,23 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (username.IsEmpty() || homedir.IsEmpty() || shell.IsEmpty()) {
     CHECK(!error.IsEmpty());
-    uv_os_free_passwd(&pwd);
     env->isolate()->ThrowException(error);
     return;
   }
 
   Local<Object> entry = Object::New(env->isolate());
 
-  entry->Set(env->uid_string(), uid);
-  entry->Set(env->gid_string(), gid);
-  entry->Set(env->username_string(), username.ToLocalChecked());
-  entry->Set(env->homedir_string(), homedir.ToLocalChecked());
-  entry->Set(env->shell_string(), shell.ToLocalChecked());
+  entry->Set(env->context(), env->uid_string(), uid).FromJust();
+  entry->Set(env->context(), env->gid_string(), gid).FromJust();
+  entry->Set(env->context(),
+             env->username_string(),
+             username.ToLocalChecked()).FromJust();
+  entry->Set(env->context(),
+             env->homedir_string(),
+             homedir.ToLocalChecked()).FromJust();
+  entry->Set(env->context(),
+             env->shell_string(),
+             shell.ToLocalChecked()).FromJust();
 
   args.GetReturnValue().Set(entry);
 }
@@ -463,8 +460,9 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getUserInfo", GetUserInfo);
   env->SetMethod(target, "setPriority", SetPriority);
   env->SetMethod(target, "getPriority", GetPriority);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
-              Boolean::New(env->isolate(), IsBigEndian()));
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
+              Boolean::New(env->isolate(), IsBigEndian())).FromJust();
 }
 
 }  // namespace os

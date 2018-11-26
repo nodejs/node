@@ -8,11 +8,11 @@ const { checkInvocations } = require('./hook-checks');
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
-const p = new Promise(common.mustCall(function executor(resolve, reject) {
+const p = new Promise(common.mustCall(function executor(resolve) {
   resolve(5);
 }));
 
-p.then(function afterresolution(val) {
+p.then(function afterResolution(val) {
   assert.strictEqual(val, 5);
   return val;
 });

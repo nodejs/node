@@ -69,7 +69,7 @@ class NodeBIO;
  *     // a BaseObject or an AsyncWrap class
  *     bool IsRootNode() const override { return !wrapped_.IsWeak(); }
  *     v8::Local<v8::Object> WrappedObject() const override {
- *       return node::PersistentToLocal(wrapped_);
+ *       return node::PersistentToLocal::Default(wrapped_);
  *     }
  *   private:
  *     AnotherRetainerClass another_retainer_;

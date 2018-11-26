@@ -132,7 +132,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 
 {
-  const binding = process.binding('fs');
+  const binding = internalBinding('fs');
   const path = require('path');
 
   const FSReqCallback = binding.FSReqCallback;
@@ -149,7 +149,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 {
   const { HTTPParser } = internalBinding('http_parser');
-  testInitialized(new HTTPParser(0), 'HTTPParser');
+  testInitialized(new HTTPParser(HTTPParser.REQUEST), 'HTTPParser');
 }
 
 
@@ -239,7 +239,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
       const err = handle.writeLatin1String(wreq, 'hi'.repeat(100000));
       if (err)
         throw new Error(`write failed: ${getSystemErrorName(err)}`);
-      if (!wreq.async) {
+      if (!stream_wrap.streamBaseState[stream_wrap.kLastWriteWasAsync]) {
         testUninitialized(wreq, 'WriteWrap');
         // Synchronous finish. Write more data until we hit an
         // asynchronous write.

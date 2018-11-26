@@ -165,6 +165,8 @@ function updateModifiedFlag(conditions, modifiers) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow unmodified loop conditions",
             category: "Best Practices",

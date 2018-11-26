@@ -1,3 +1,4 @@
+#include <node_api.h>
 #include "myobject.h"
 #include "../common.h"
 

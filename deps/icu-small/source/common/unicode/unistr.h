@@ -243,6 +243,9 @@ class UnicodeStringAppendable;  // unicode/appendable.h
  * than other ICU APIs. In particular:
  * - If indexes are out of bounds for a UnicodeString object
  *   (<0 or >length()) then they are "pinned" to the nearest boundary.
+ * - If the buffer passed to an insert/append/replace operation is owned by the
+ *   target object, e.g., calling str.append(str), an extra copy may take place
+ *   to ensure safety.
  * - If primitive string pointer values (e.g., const char16_t * or char *)
  *   for input strings are NULL, then those input string parameters are treated
  *   as if they pointed to an empty string.

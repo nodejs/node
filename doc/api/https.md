@@ -28,6 +28,7 @@ This class is a subclass of `tls.Server` and emits events same as
 added: v0.1.90
 -->
 * `callback` {Function}
+* Returns: {https.Server}
 
 See [`server.close()`][`http.close()`] from the HTTP module for details.
 
@@ -49,6 +50,7 @@ added: v0.11.2
 -->
 * `msecs` {number} **Default:** `120000` (2 minutes)
 * `callback` {Function}
+* Returns: {https.Server}
 
 See [`http.Server#setTimeout()`][].
 
@@ -75,6 +77,7 @@ added: v0.3.4
 * `options` {Object} Accepts `options` from [`tls.createServer()`][],
  [`tls.createSecureContext()`][] and [`http.createServer()`][].
 * `requestListener` {Function} A listener to be added to the `'request'` event.
+* Returns: {https.Server}
 
 ```js
 // curl -k https://localhost:8000/

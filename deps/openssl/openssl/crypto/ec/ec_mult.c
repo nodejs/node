@@ -177,8 +177,8 @@ static int ec_mul_consttime(const EC_GROUP *group, EC_POINT *r,
      */
     cardinality_bits = BN_num_bits(cardinality);
     group_top = bn_get_top(cardinality);
-    if ((bn_wexpand(k, group_top + 1) == NULL)
-        || (bn_wexpand(lambda, group_top + 1) == NULL))
+    if ((bn_wexpand(k, group_top + 2) == NULL)
+        || (bn_wexpand(lambda, group_top + 2) == NULL))
         goto err;
 
     if (!BN_copy(k, scalar))
@@ -205,7 +205,7 @@ static int ec_mul_consttime(const EC_GROUP *group, EC_POINT *r,
      * k := scalar + 2*cardinality
      */
     kbit = BN_is_bit_set(lambda, cardinality_bits);
-    BN_consttime_swap(kbit, k, lambda, group_top + 1);
+    BN_consttime_swap(kbit, k, lambda, group_top + 2);
 
     group_top = bn_get_top(group->field);
     if ((bn_wexpand(s->X, group_top) == NULL)
@@ -214,6 +214,17 @@ static int ec_mul_consttime(const EC_GROUP *group, EC_POINT *r,
         || (bn_wexpand(r->X, group_top) == NULL)
         || (bn_wexpand(r->Y, group_top) == NULL)
         || (bn_wexpand(r->Z, group_top) == NULL))
+        goto err;
+
+    /*-
+     * Apply coordinate blinding for EC_POINT.
+     *
+     * The underlying EC_METHOD can optionally implement this function:
+     * ec_point_blind_coordinates() returns 0 in case of errors or 1 on
+     * success or if coordinate blinding is not implemented for this
+     * group.
+     */
+    if (!ec_point_blind_coordinates(group, s, ctx))
         goto err;
 
     /* top bit is a 1, in a fixed pos */
@@ -382,30 +393,32 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
         return EC_POINT_set_to_infinity(group, r);
     }
 
-    /*-
-     * Handle the common cases where the scalar is secret, enforcing a constant
-     * time scalar multiplication algorithm.
-     */
-    if ((scalar != NULL) && (num == 0)) {
+    if (!BN_is_zero(group->order) && !BN_is_zero(group->cofactor)) {
         /*-
-         * In this case we want to compute scalar * GeneratorPoint: this
-         * codepath is reached most prominently by (ephemeral) key generation
-         * of EC cryptosystems (i.e. ECDSA keygen and sign setup, ECDH
-         * keygen/first half), where the scalar is always secret. This is why
-         * we ignore if BN_FLG_CONSTTIME is actually set and we always call the
-         * constant time version.
+         * Handle the common cases where the scalar is secret, enforcing a constant
+         * time scalar multiplication algorithm.
          */
-        return ec_mul_consttime(group, r, scalar, NULL, ctx);
-    }
-    if ((scalar == NULL) && (num == 1)) {
-        /*-
-         * In this case we want to compute scalar * GenericPoint: this codepath
-         * is reached most prominently by the second half of ECDH, where the
-         * secret scalar is multiplied by the peer's public point. To protect
-         * the secret scalar, we ignore if BN_FLG_CONSTTIME is actually set and
-         * we always call the constant time version.
-         */
-        return ec_mul_consttime(group, r, scalars[0], points[0], ctx);
+        if ((scalar != NULL) && (num == 0)) {
+            /*-
+             * In this case we want to compute scalar * GeneratorPoint: this
+             * codepath is reached most prominently by (ephemeral) key generation
+             * of EC cryptosystems (i.e. ECDSA keygen and sign setup, ECDH
+             * keygen/first half), where the scalar is always secret. This is why
+             * we ignore if BN_FLG_CONSTTIME is actually set and we always call the
+             * constant time version.
+             */
+            return ec_mul_consttime(group, r, scalar, NULL, ctx);
+        }
+        if ((scalar == NULL) && (num == 1)) {
+            /*-
+             * In this case we want to compute scalar * GenericPoint: this codepath
+             * is reached most prominently by the second half of ECDH, where the
+             * secret scalar is multiplied by the peer's public point. To protect
+             * the secret scalar, we ignore if BN_FLG_CONSTTIME is actually set and
+             * we always call the constant time version.
+             */
+            return ec_mul_consttime(group, r, scalars[0], points[0], ctx);
+        }
     }
 
     for (i = 0; i < num; i++) {

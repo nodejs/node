@@ -27,6 +27,8 @@ const LINE_BREAK = astUtils.createGlobalLinebreakMatcher();
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow irregular whitespace outside of strings and comments",
             category: "Possible Errors",
@@ -81,9 +83,7 @@ module.exports = {
             const locStart = node.loc.start;
             const locEnd = node.loc.end;
 
-            errors = errors.filter(error => {
-                const errorLoc = error[1];
-
+            errors = errors.filter(({ loc: errorLoc }) => {
                 if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
                     if (errorLoc.column >= locStart.column && (errorLoc.column <= locEnd.column || errorLoc.line < locEnd.line)) {
                         return false;
@@ -157,7 +157,7 @@ module.exports = {
                         column: match.index
                     };
 
-                    errors.push([node, location, "Irregular whitespace not allowed."]);
+                    errors.push({ node, message: "Irregular whitespace not allowed.", loc: location });
                 }
             });
         }
@@ -182,7 +182,7 @@ module.exports = {
                     column: sourceLines[lineIndex].length
                 };
 
-                errors.push([node, location, "Irregular whitespace not allowed."]);
+                errors.push({ node, message: "Irregular whitespace not allowed.", loc: location });
                 lastLineIndex = lineIndex;
             }
         }
@@ -224,9 +224,7 @@ module.exports = {
                 }
 
                 // If we have any errors remaining report on them
-                errors.forEach(error => {
-                    context.report(...error);
-                });
+                errors.forEach(error => context.report(error));
             };
         } else {
             nodes.Program = noop;

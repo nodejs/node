@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { Readable } = require('stream');
+const { Readable, PassThrough, pipeline } = require('stream');
 const assert = require('assert');
 
 async function tests() {
@@ -323,6 +323,75 @@ async function tests() {
     }
 
     assert.strictEqual(data, expected);
+  })();
+
+  await (async function() {
+    console.log('.next() on destroyed stream');
+    const readable = new Readable({
+      read() {
+        // no-op
+      }
+    });
+
+    readable.destroy();
+
+    const { done } = await readable[Symbol.asyncIterator]().next();
+    assert.strictEqual(done, true);
+  })();
+
+  await (async function() {
+    console.log('.next() on pipelined stream');
+    const readable = new Readable({
+      read() {
+        // no-op
+      }
+    });
+
+    const passthrough = new PassThrough();
+    const err = new Error('kaboom');
+    pipeline(readable, passthrough, common.mustCall((e) => {
+      assert.strictEqual(e, err);
+    }));
+    readable.destroy(err);
+    try {
+      await readable[Symbol.asyncIterator]().next();
+    } catch (e) {
+      assert.strictEqual(e, err);
+    }
+  })();
+
+  await (async () => {
+    console.log('iterating on an ended stream completes');
+    const r = new Readable({
+      objectMode: true,
+      read() {
+        this.push('asdf');
+        this.push('hehe');
+        this.push(null);
+      }
+    });
+    // eslint-disable-next-line no-unused-vars
+    for await (const a of r) {
+    }
+    // eslint-disable-next-line no-unused-vars
+    for await (const b of r) {
+    }
+  })();
+
+  await (async () => {
+    console.log('destroy mid-stream does not error');
+    const r = new Readable({
+      objectMode: true,
+      read() {
+        this.push('asdf');
+        this.push('hehe');
+      }
+    });
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const a of r) {
+      r.destroy(null);
+    }
   })();
 }
 

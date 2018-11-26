@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow dangling underscores in identifiers",
             category: "Stylistic Issues",

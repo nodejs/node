@@ -3901,7 +3901,7 @@ double Value::NumberValue() const {
 
 
 int64_t Value::IntegerValue() const {
-  return NumberValue(Isolate::GetCurrent()->GetCurrentContext())
+  return IntegerValue(Isolate::GetCurrent()->GetCurrentContext())
       .FromMaybe(0);
 }
 
@@ -6981,6 +6981,23 @@ Local<v8::Array> v8::Array::New(Isolate* isolate, int length) {
   return Utils::ToLocal(obj);
 }
 
+Local<v8::Array> v8::Array::New(Isolate* isolate, Local<Value>* elements,
+                                size_t length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Factory* factory = i_isolate->factory();
+  LOG_API(i_isolate, Array, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  int len = static_cast<int>(length);
+
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(len);
+  for (int i = 0; i < len; i++) {
+    i::Handle<i::Object> element = Utils::OpenHandle(*elements[i]);
+    result->set(i, *element);
+  }
+
+  return Utils::ToLocal(
+      factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, len));
+}
 
 uint32_t v8::Array::Length() const {
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
@@ -7086,30 +7103,30 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(table_obj),
                                      isolate);
-  if (offset >= table->NumberOfElements()) return factory->NewJSArray(0);
-  int length = (table->NumberOfElements() - offset) *
-               (kind == MapAsArrayKind::kEntries ? 2 : 1);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  const bool collect_keys =
+      kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kKeys;
+  const bool collect_values =
+      kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kValues;
+  int capacity = table->UsedCapacity();
+  int max_length =
+      (capacity - offset) * ((collect_keys && collect_values) ? 2 : 1);
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    int capacity = table->UsedCapacity();
     i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
-    for (int i = 0; i < capacity; ++i) {
+    for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
-      if (offset-- > 0) continue;
-      if (kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kKeys) {
-        result->set(result_index++, key);
-      }
-      if (kind == MapAsArrayKind::kEntries || kind == MapAsArrayKind::kValues) {
-        result->set(result_index++, table->ValueAt(i));
-      }
+      if (collect_keys) result->set(result_index++, key);
+      if (collect_values) result->set(result_index++, table->ValueAt(i));
     }
   }
-  DCHECK_EQ(result_index, result->length());
-  DCHECK_EQ(result_index, length);
-  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, length);
+  DCHECK_GE(max_length, result_index);
+  if (result_index == 0) return factory->NewJSArray(0);
+  result->Shrink(isolate, result_index);
+  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
+                                         result_index);
 }
 
 }  // namespace
@@ -7194,24 +7211,26 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj),
                                      isolate);
-  int length = table->NumberOfElements() - offset;
-  if (length <= 0) return factory->NewJSArray(0);
-  i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
+  // Elements skipped by |offset| may already be deleted.
+  int capacity = table->UsedCapacity();
+  int max_length = capacity - offset;
+  if (max_length == 0) return factory->NewJSArray(0);
+  i::Handle<i::FixedArray> result = factory->NewFixedArray(max_length);
   int result_index = 0;
   {
     i::DisallowHeapAllocation no_gc;
-    int capacity = table->UsedCapacity();
     i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
-    for (int i = 0; i < capacity; ++i) {
+    for (int i = offset; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
-      if (offset-- > 0) continue;
       result->set(result_index++, key);
     }
   }
-  DCHECK_EQ(result_index, result->length());
-  DCHECK_EQ(result_index, length);
-  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS, length);
+  DCHECK_GE(max_length, result_index);
+  if (result_index == 0) return factory->NewJSArray(0);
+  result->Shrink(isolate, result_index);
+  return factory->NewJSArrayWithElements(result, i::PACKED_ELEMENTS,
+                                         result_index);
 }
 }  // namespace
 
@@ -10113,6 +10132,11 @@ void CpuProfiler::SetIdle(bool is_idle) {
   i::CpuProfiler* profiler = reinterpret_cast<i::CpuProfiler*>(this);
   i::Isolate* isolate = profiler->isolate();
   isolate->SetIdle(is_idle);
+}
+
+void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)
+      ->set_detailed_source_positions_for_profiling(true);
 }
 
 uintptr_t CodeEvent::GetCodeStartAddress() {

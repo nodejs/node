@@ -109,7 +109,7 @@ The process object. See the [`process` object][] section.
 
 ## queueMicrotask(callback)
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 <!-- type=global -->
@@ -119,12 +119,13 @@ added: REPLACEME
 * `callback` {Function} Function to be queued.
 
 The `queueMicrotask()` method queues a microtask to invoke `callback`. If
-`callback` throws an exception, the [`process` object][] `'error'` event will
-be emitted.
+`callback` throws an exception, the [`process` object][] `'uncaughtException'`
+event will be emitted.
 
-In general, `queueMicrotask` is the idiomatic choice over `process.nextTick()`.
-`process.nextTick()` will always run before the microtask queue, and so
-unexpected execution order may be observed.
+The microtask queue is managed by V8 and may be used in a similar manner to
+the `process.nextTick()` queue, which is managed by Node.js. The
+`process.nextTick()` queue is always processed before the microtask queue
+within each turn of the Node.js event loop.
 
 ```js
 // Here, `queueMicrotask()` is used to ensure the 'load' event is always
@@ -180,7 +181,7 @@ added: v0.0.1
 
 ## TextDecoder
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 <!-- type=global -->
@@ -189,7 +190,7 @@ The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 
 ## TextEncoder
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 <!-- type=global -->

@@ -3797,7 +3797,7 @@ Calendar::setWeekData(const Locale& desiredLocale, const char *type, UErrorCode&
         Locale max = Locale::createFromName(maxLocaleID);
         useLocale = Locale(max.getLanguage(),max.getCountry());
     } else {
-        useLocale = Locale(desiredLocale);
+        useLocale = desiredLocale;
     }
 
     /* The code here is somewhat of a hack, since week data and weekend data aren't really tied to

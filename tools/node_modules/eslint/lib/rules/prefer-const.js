@@ -57,6 +57,7 @@ function canBecomeVariableDeclaration(identifier) {
  * @returns {boolean} Indicates if the variable is from outer scope or function parameters.
  */
 function isOuterVariableInDestructing(name, initScope) {
+
     if (initScope.through.find(ref => ref.resolved && ref.resolved.name === name)) {
         return true;
     }
@@ -94,6 +95,54 @@ function getDestructuringHost(reference) {
         return null;
     }
     return node;
+}
+
+/**
+ * Determines if a destructuring assignment node contains
+ * any MemberExpression nodes. This is used to determine if a
+ * variable that is only written once using destructuring can be
+ * safely converted into a const declaration.
+ * @param {ASTNode} node The ObjectPattern or ArrayPattern node to check.
+ * @returns {boolean} True if the destructuring pattern contains
+ *      a MemberExpression, false if not.
+ */
+function hasMemberExpressionAssignment(node) {
+    switch (node.type) {
+        case "ObjectPattern":
+            return node.properties.some(prop => {
+                if (prop) {
+
+                    /*
+                     * Spread elements have an argument property while
+                     * others have a value property. Because different
+                     * parsers use different node types for spread elements,
+                     * we just check if there is an argument property.
+                     */
+                    return hasMemberExpressionAssignment(prop.argument || prop.value);
+                }
+
+                return false;
+            });
+
+        case "ArrayPattern":
+            return node.elements.some(element => {
+                if (element) {
+                    return hasMemberExpressionAssignment(element);
+                }
+
+                return false;
+            });
+
+        case "AssignmentPattern":
+            return hasMemberExpressionAssignment(node.left);
+
+        case "MemberExpression":
+            return true;
+
+        // no default
+    }
+
+    return false;
 }
 
 /**
@@ -148,7 +197,8 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
 
             if (destructuringHost !== null && destructuringHost.left !== void 0) {
                 const leftNode = destructuringHost.left;
-                let hasOuterVariables = false;
+                let hasOuterVariables = false,
+                    hasNonIdentifiers = false;
 
                 if (leftNode.type === "ObjectPattern") {
                     const properties = leftNode.properties;
@@ -157,16 +207,23 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
                         .filter(prop => prop.value)
                         .map(prop => prop.value.name)
                         .some(name => isOuterVariableInDestructing(name, variable.scope));
+
+                    hasNonIdentifiers = hasMemberExpressionAssignment(leftNode);
+
                 } else if (leftNode.type === "ArrayPattern") {
                     const elements = leftNode.elements;
 
                     hasOuterVariables = elements
                         .map(element => element && element.name)
                         .some(name => isOuterVariableInDestructing(name, variable.scope));
+
+                    hasNonIdentifiers = hasMemberExpressionAssignment(leftNode);
                 }
-                if (hasOuterVariables) {
+
+                if (hasOuterVariables || hasNonIdentifiers) {
                     return null;
                 }
+
             }
 
             writer = reference;
@@ -192,9 +249,11 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
     if (!shouldBeConst) {
         return null;
     }
+
     if (isReadBeforeInit) {
         return variable.defs[0].name;
     }
+
     return writer.identifier;
 }
 
@@ -271,6 +330,8 @@ function findUp(node, type, shouldStop) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require `const` declarations for variables that are never reassigned after declared",
             category: "ECMAScript 6",
@@ -295,9 +356,11 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
         const sourceCode = context.getSourceCode();
-        const checkingMixedDestructuring = options.destructuring !== "all";
+        const shouldMatchAnyDestructuredVariable = options.destructuring !== "all";
         const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
         const variables = [];
+        let reportCount = 0;
+        let name = "";
 
         /**
          * Reports given identifier nodes if all of the nodes should be declared
@@ -316,16 +379,43 @@ module.exports = {
         function checkGroup(nodes) {
             const nodesToReport = nodes.filter(Boolean);
 
-            if (nodes.length && (checkingMixedDestructuring || nodesToReport.length === nodes.length)) {
+            if (nodes.length && (shouldMatchAnyDestructuredVariable || nodesToReport.length === nodes.length)) {
                 const varDeclParent = findUp(nodes[0], "VariableDeclaration", parentNode => parentNode.type.endsWith("Statement"));
-                const shouldFix = varDeclParent &&
+                const isVarDecParentNull = varDeclParent === null;
 
-                    /*
-                     * If there are multiple variable declarations, like {let a = 1, b = 2}, then
-                     * do not attempt to fix if one of the declarations should be `const`. It's
-                     * too hard to know how the developer would want to automatically resolve the issue.
-                     */
-                    varDeclParent.declarations.length === 1 &&
+                if (!isVarDecParentNull && varDeclParent.declarations.length > 0) {
+                    const firstDeclaration = varDeclParent.declarations[0];
+
+                    if (firstDeclaration.init) {
+                        const firstDecParent = firstDeclaration.init.parent;
+
+                        /*
+                         * First we check the declaration type and then depending on
+                         * if the type is a "VariableDeclarator" or its an "ObjectPattern"
+                         * we compare the name from the first identifier, if the names are different
+                         * we assign the new name and reset the count of reportCount and nodeCount in
+                         * order to check each block for the number of reported errors and base our fix
+                         * based on comparing nodes.length and nodesToReport.length.
+                         */
+
+                        if (firstDecParent.type === "VariableDeclarator") {
+
+                            if (firstDecParent.id.name !== name) {
+                                name = firstDecParent.id.name;
+                                reportCount = 0;
+                            }
+
+                            if (firstDecParent.id.type === "ObjectPattern") {
+                                if (firstDecParent.init.name !== name) {
+                                    name = firstDecParent.init.name;
+                                    reportCount = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let shouldFix = varDeclParent &&
 
                     // Don't do a fix unless the variable is initialized (or it's in a for-in or for-of loop)
                     (varDeclParent.parent.type === "ForInStatement" || varDeclParent.parent.type === "ForOfStatement" || varDeclParent.declarations[0].init) &&
@@ -336,6 +426,21 @@ module.exports = {
                      * to apply the fix.
                      */
                     nodesToReport.length === nodes.length;
+
+                if (!isVarDecParentNull && varDeclParent.declarations && varDeclParent.declarations.length !== 1) {
+
+                    if (varDeclParent && varDeclParent.declarations && varDeclParent.declarations.length >= 1) {
+
+                        /*
+                         * Add nodesToReport.length to a count, then comparing the count to the length
+                         * of the declarations in the current block.
+                         */
+
+                        reportCount += nodesToReport.length;
+
+                        shouldFix = shouldFix && (reportCount === varDeclParent.declarations.length);
+                    }
+                }
 
                 nodesToReport.forEach(node => {
                     context.report({

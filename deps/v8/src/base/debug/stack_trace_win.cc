@@ -7,6 +7,13 @@
 
 #include "src/base/debug/stack_trace.h"
 
+// This file can't use "src/base/win32-headers.h" because it defines symbols
+// that lead to compilation errors. But `NOMINMAX` should be defined to disable
+// defining of the `min` and `max` MACROS.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <windows.h>
 #include <dbghelp.h>
 #include <Shlwapi.h>

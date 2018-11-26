@@ -67,7 +67,9 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
   sw->SetClassName(wrapString);
   sw->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  target->Set(wrapString, sw->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              wrapString,
+              sw->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_shutdown_wrap_template(sw->InstanceTemplate());
 
   Local<FunctionTemplate> ww =
@@ -77,9 +79,17 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
   ww->SetClassName(writeWrapString);
   ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  target->Set(writeWrapString,
-              ww->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              writeWrapString,
+              ww->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_write_wrap_template(ww->InstanceTemplate());
+
+  NODE_DEFINE_CONSTANT(target, kReadBytesOrError);
+  NODE_DEFINE_CONSTANT(target, kArrayBufferOffset);
+  NODE_DEFINE_CONSTANT(target, kBytesWritten);
+  NODE_DEFINE_CONSTANT(target, kLastWriteWasAsync);
+  target->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "streamBaseState"),
+              env->stream_base_state().GetJSArray()).FromJust();
 }
 
 

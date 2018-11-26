@@ -59,7 +59,9 @@ void TTYWrap::Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "isTTY", IsTTY);
   env->SetMethodNoSideEffect(target, "guessHandleType", GuessHandleType);
 
-  target->Set(ttyString, t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              ttyString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_tty_constructor_template(t);
 }
 
@@ -112,8 +114,8 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     Local<v8::Array> a = args[0].As<Array>();
-    a->Set(0, Integer::New(env->isolate(), width));
-    a->Set(1, Integer::New(env->isolate(), height));
+    a->Set(env->context(), 0, Integer::New(env->isolate(), width)).FromJust();
+    a->Set(env->context(), 1, Integer::New(env->isolate(), height)).FromJust();
   }
 
   args.GetReturnValue().Set(err);

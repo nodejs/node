@@ -1061,116 +1061,115 @@ int ParseSoaReply(Environment* env,
   EscapableHandleScope handle_scope(env->isolate());
   auto context = env->context();
 
-  /* Can't use ares_parse_soa_reply() here which can only parse single record */
-  unsigned int ancount = cares_get_16bit(buf + 6);
+  // Manage memory using standardard smart pointer std::unique_tr
+  struct AresDeleter {
+    void operator()(char* ptr) const noexcept { ares_free_string(ptr); }
+  };
+  using ares_unique_ptr = std::unique_ptr<char[], AresDeleter>;
+
+  // Can't use ares_parse_soa_reply() here which can only parse single record
+  const unsigned int ancount = cares_get_16bit(buf + 6);
   unsigned char* ptr = buf + NS_HFIXEDSZ;
-  char* name;
-  char* rr_name;
+  char* name_temp;
   long temp_len;  // NOLINT(runtime/int)
-  int status = ares_expand_name(ptr, buf, len, &name, &temp_len);
+  int status = ares_expand_name(ptr, buf, len, &name_temp, &temp_len);
+  const ares_unique_ptr name(name_temp);
   if (status != ARES_SUCCESS) {
-    /* returns EBADRESP in case of invalid input */
+    // returns EBADRESP in case of invalid input
     return status == ARES_EBADNAME ? ARES_EBADRESP : status;
   }
 
   if (ptr + temp_len + NS_QFIXEDSZ > buf + len) {
-    free(name);
     return ARES_EBADRESP;
   }
   ptr += temp_len + NS_QFIXEDSZ;
 
   for (unsigned int i = 0; i < ancount; i++) {
-    status = ares_expand_name(ptr, buf, len, &rr_name, &temp_len);
+    char* rr_name_temp;
+    long rr_temp_len;  // NOLINT(runtime/int)
+    int status2 = ares_expand_name(ptr, buf, len, &rr_name_temp, &rr_temp_len);
+    const ares_unique_ptr rr_name(rr_name_temp);
 
-    if (status != ARES_SUCCESS)
-      break;
+    if (status2 != ARES_SUCCESS)
+      return status2 == ARES_EBADNAME ? ARES_EBADRESP : status2;
 
-    ptr += temp_len;
+    ptr += rr_temp_len;
     if (ptr + NS_RRFIXEDSZ > buf + len) {
-      free(rr_name);
-      status = ARES_EBADRESP;
-      break;
+      return ARES_EBADRESP;
     }
 
     const int rr_type = cares_get_16bit(ptr);
     const int rr_len = cares_get_16bit(ptr + 8);
     ptr += NS_RRFIXEDSZ;
 
-    /* only need SOA */
+    // only need SOA
     if (rr_type == ns_t_soa) {
-      ares_soa_reply soa;
+      char* nsname_temp;
+      long nsname_temp_len;  // NOLINT(runtime/int)
 
-      status = ares_expand_name(ptr, buf, len, &soa.nsname, &temp_len);
-      if (status != ARES_SUCCESS) {
-        free(rr_name);
-        break;
+      int status3 = ares_expand_name(ptr, buf, len,
+                                     &nsname_temp,
+                                     &nsname_temp_len);
+      const ares_unique_ptr nsname(nsname_temp);
+      if (status3 != ARES_SUCCESS) {
+        return status3 == ARES_EBADNAME ? ARES_EBADRESP : status3;
       }
-      ptr += temp_len;
+      ptr += nsname_temp_len;
 
-      status = ares_expand_name(ptr, buf, len, &soa.hostmaster, &temp_len);
-      if (status != ARES_SUCCESS) {
-        free(rr_name);
-        free(soa.nsname);
-        break;
+      char* hostmaster_temp;
+      long hostmaster_temp_len;  // NOLINT(runtime/int)
+      int status4 = ares_expand_name(ptr, buf, len,
+                                     &hostmaster_temp,
+                                     &hostmaster_temp_len);
+      const ares_unique_ptr hostmaster(hostmaster_temp);
+      if (status4 != ARES_SUCCESS) {
+        return status4 == ARES_EBADNAME ? ARES_EBADRESP : status4;
       }
-      ptr += temp_len;
+      ptr += hostmaster_temp_len;
 
       if (ptr + 5 * 4 > buf + len) {
-        free(rr_name);
-        free(soa.nsname);
-        free(soa.hostmaster);
-        status = ARES_EBADRESP;
-        break;
+        return ARES_EBADRESP;
       }
 
-      soa.serial = cares_get_32bit(ptr + 0 * 4);
-      soa.refresh = cares_get_32bit(ptr + 1 * 4);
-      soa.retry = cares_get_32bit(ptr + 2 * 4);
-      soa.expire = cares_get_32bit(ptr + 3 * 4);
-      soa.minttl = cares_get_32bit(ptr + 4 * 4);
+      const unsigned int serial = cares_get_32bit(ptr + 0 * 4);
+      const unsigned int refresh = cares_get_32bit(ptr + 1 * 4);
+      const unsigned int retry = cares_get_32bit(ptr + 2 * 4);
+      const unsigned int expire = cares_get_32bit(ptr + 3 * 4);
+      const unsigned int minttl = cares_get_32bit(ptr + 4 * 4);
 
       Local<Object> soa_record = Object::New(env->isolate());
       soa_record->Set(context,
                       env->nsname_string(),
-                      OneByteString(env->isolate(), soa.nsname)).FromJust();
+                      OneByteString(env->isolate(), nsname.get())).FromJust();
       soa_record->Set(context,
                       env->hostmaster_string(),
                       OneByteString(env->isolate(),
-                                    soa.hostmaster)).FromJust();
+                                    hostmaster.get())).FromJust();
       soa_record->Set(context,
                       env->serial_string(),
-                      Integer::New(env->isolate(), soa.serial)).FromJust();
+                      Integer::New(env->isolate(), serial)).FromJust();
       soa_record->Set(context,
                       env->refresh_string(),
-                      Integer::New(env->isolate(), soa.refresh)).FromJust();
+                      Integer::New(env->isolate(), refresh)).FromJust();
       soa_record->Set(context,
                       env->retry_string(),
-                      Integer::New(env->isolate(), soa.retry)).FromJust();
+                      Integer::New(env->isolate(), retry)).FromJust();
       soa_record->Set(context,
                       env->expire_string(),
-                      Integer::New(env->isolate(), soa.expire)).FromJust();
+                      Integer::New(env->isolate(), expire)).FromJust();
       soa_record->Set(context,
                       env->minttl_string(),
-                      Integer::New(env->isolate(), soa.minttl)).FromJust();
+                      Integer::New(env->isolate(), minttl)).FromJust();
       soa_record->Set(context,
                       env->type_string(),
                       env->dns_soa_string()).FromJust();
 
-      free(soa.nsname);
-      free(soa.hostmaster);
 
       *ret = handle_scope.Escape(soa_record);
       break;
     }
 
-    free(rr_name);
     ptr += rr_len;
-  }
-
-  free(name);
-
-  if (status != ARES_SUCCESS) {
-    return status == ARES_EBADNAME ? ARES_EBADRESP : status;
   }
 
   return ARES_SUCCESS;
@@ -1797,14 +1796,16 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
-  Wrap* wrap = new Wrap(channel, req_wrap_obj);
+  auto wrap = std::make_unique<Wrap>(channel, req_wrap_obj);
 
   node::Utf8Value name(env->isolate(), string);
   channel->ModifyActivityQueryCount(1);
   int err = wrap->Send(*name);
   if (err) {
     channel->ModifyActivityQueryCount(-1);
-    delete wrap;
+  } else {
+    // Release ownership of the pointer allowing the ownership to be transferred
+    USE(wrap.release());
   }
 
   args.GetReturnValue().Set(err);
@@ -1812,7 +1813,8 @@ static void Query(const FunctionCallbackInfo<Value>& args) {
 
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
-  GetAddrInfoReqWrap* req_wrap = static_cast<GetAddrInfoReqWrap*>(req->data);
+  std::unique_ptr<GetAddrInfoReqWrap> req_wrap {
+      static_cast<GetAddrInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 
   HandleScope handle_scope(env->isolate());
@@ -1849,7 +1851,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
           continue;
 
         Local<String> s = OneByteString(env->isolate(), ip);
-        results->Set(n, s);
+        results->Set(env->context(), n, s).FromJust();
         n++;
       }
     };
@@ -1869,13 +1871,11 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   TRACE_EVENT_NESTABLE_ASYNC_END2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
       "count", n, "verbatim", verbatim);
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-
-  delete req_wrap;
 }
 
 
@@ -1883,7 +1883,8 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
                       int status,
                       const char* hostname,
                       const char* service) {
-  GetNameInfoReqWrap* req_wrap = static_cast<GetNameInfoReqWrap*>(req->data);
+  std::unique_ptr<GetNameInfoReqWrap> req_wrap {
+      static_cast<GetNameInfoReqWrap*>(req->data)};
   Environment* env = req_wrap->env();
 
   HandleScope handle_scope(env->isolate());
@@ -1904,14 +1905,12 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   }
 
   TRACE_EVENT_NESTABLE_ASYNC_END2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "hostname", TRACE_STR_COPY(hostname),
       "service", TRACE_STR_COPY(service));
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
-
-  delete req_wrap;
 }
 
 using ParseIPResult = decltype(static_cast<ares_addr_port_node*>(0)->addr);
@@ -1971,7 +1970,9 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
       CHECK(0 && "bad address family");
   }
 
-  auto req_wrap = new GetAddrInfoReqWrap(env, req_wrap_obj, args[4]->IsTrue());
+  auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
+                                                       req_wrap_obj,
+                                                       args[4]->IsTrue());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -1980,7 +1981,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_flags = flags;
 
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
       "hostname", TRACE_STR_COPY(*hostname),
       "family",
       family == AF_INET ? "ipv4" : family == AF_INET6 ? "ipv6" : "unspec");
@@ -1990,8 +1991,9 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
                                *hostname,
                                nullptr,
                                &hints);
-  if (err)
-    delete req_wrap;
+  if (err == 0)
+    // Release ownership of the pointer allowing the ownership to be transferred
+    USE(req_wrap.release());
 
   args.GetReturnValue().Set(err);
 }
@@ -2011,18 +2013,19 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(uv_ip4_addr(*ip, port, reinterpret_cast<sockaddr_in*>(&addr)) == 0 ||
         uv_ip6_addr(*ip, port, reinterpret_cast<sockaddr_in6*>(&addr)) == 0);
 
-  GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
+  auto req_wrap = std::make_unique<GetNameInfoReqWrap>(env, req_wrap_obj);
 
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap,
+      TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "ip", TRACE_STR_COPY(*ip), "port", port);
 
   int err = req_wrap->Dispatch(uv_getnameinfo,
                                AfterGetNameInfo,
                                reinterpret_cast<struct sockaddr*>(&addr),
                                NI_NAMEREQD);
-  if (err)
-    delete req_wrap;
+  if (err == 0)
+    // Release ownership of the pointer allowing the ownership to be transferred
+    USE(req_wrap.release());
 
   args.GetReturnValue().Set(err);
 }
@@ -2050,10 +2053,12 @@ void GetServers(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(err, 0);
 
     Local<Array> ret = Array::New(env->isolate(), 2);
-    ret->Set(0, OneByteString(env->isolate(), ip));
-    ret->Set(1, Integer::New(env->isolate(), cur->udp_port));
+    ret->Set(env->context(), 0, OneByteString(env->isolate(), ip)).FromJust();
+    ret->Set(env->context(),
+             1,
+             Integer::New(env->isolate(), cur->udp_port)).FromJust();
 
-    server_array->Set(i, ret);
+    server_array->Set(env->context(), i, ret).FromJust();
   }
 
   ares_free_data(servers);
@@ -2176,16 +2181,19 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "strerror", StrError);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-              Integer::New(env->isolate(), AF_INET));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET6"),
-              Integer::New(env->isolate(), AF_INET6));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AF_UNSPEC"),
-              Integer::New(env->isolate(), AF_UNSPEC));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_ADDRCONFIG"),
-              Integer::New(env->isolate(), AI_ADDRCONFIG));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
-              Integer::New(env->isolate(), AI_V4MAPPED));
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
+              Integer::New(env->isolate(), AF_INET)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET6"),
+              Integer::New(env->isolate(), AF_INET6)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "AF_UNSPEC"),
+              Integer::New(env->isolate(), AF_UNSPEC)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "AI_ADDRCONFIG"),
+              Integer::New(env->isolate(), AI_ADDRCONFIG)).FromJust();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "AI_V4MAPPED"),
+              Integer::New(env->isolate(), AI_V4MAPPED)).FromJust();
 
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
@@ -2193,7 +2201,9 @@ void Initialize(Local<Object> target,
   Local<String> addrInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap");
   aiw->SetClassName(addrInfoWrapString);
-  target->Set(addrInfoWrapString, aiw->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              addrInfoWrapString,
+              aiw->GetFunction(context).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> niw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
@@ -2201,7 +2211,9 @@ void Initialize(Local<Object> target,
   Local<String> nameInfoWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap");
   niw->SetClassName(nameInfoWrapString);
-  target->Set(nameInfoWrapString, niw->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              nameInfoWrapString,
+              niw->GetFunction(context).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> qrw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
@@ -2209,7 +2221,9 @@ void Initialize(Local<Object> target,
   Local<String> queryWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap");
   qrw->SetClassName(queryWrapString);
-  target->Set(queryWrapString, qrw->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(),
+              queryWrapString,
+              qrw->GetFunction(context).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> channel_wrap =
       env->NewFunctionTemplate(ChannelWrap::New);
@@ -2236,8 +2250,8 @@ void Initialize(Local<Object> target,
   Local<String> channelWrapString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "ChannelWrap");
   channel_wrap->SetClassName(channelWrapString);
-  target->Set(channelWrapString,
-              channel_wrap->GetFunction(context).ToLocalChecked());
+  target->Set(env->context(), channelWrapString,
+              channel_wrap->GetFunction(context).ToLocalChecked()).FromJust();
 }
 
 }  // anonymous namespace

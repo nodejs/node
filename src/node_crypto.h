@@ -81,6 +81,7 @@ using EVPKeyPointer = DeleteFnPtr<EVP_PKEY, EVP_PKEY_free>;
 using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
 using EVPMDPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
+using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using BignumPointer = DeleteFnPtr<BIGNUM, BN_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
@@ -272,6 +273,7 @@ class SSLWrap {
 
   static void GetPeerCertificate(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPeerFinished(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSession(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -518,7 +520,17 @@ class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  std::pair<Error, MallocedBuffer<unsigned char>> SignFinal(
+  struct SignResult {
+    Error error;
+    MallocedBuffer<unsigned char> signature;
+
+    explicit SignResult(
+        Error err,
+        MallocedBuffer<unsigned char>&& sig = MallocedBuffer<unsigned char>())
+      : error(err), signature(std::move(sig)) {}
+  };
+
+  SignResult SignFinal(
       const char* key_pem,
       int key_pem_len,
       const char* passphrase,

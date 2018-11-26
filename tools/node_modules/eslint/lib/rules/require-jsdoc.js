@@ -6,6 +6,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require JSDoc comments",
             category: "Stylistic Issues",

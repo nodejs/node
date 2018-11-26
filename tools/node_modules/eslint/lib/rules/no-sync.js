@@ -13,6 +13,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow synchronous methods",
             category: "Node.js and CommonJS",

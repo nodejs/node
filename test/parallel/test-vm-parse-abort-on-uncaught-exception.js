@@ -7,8 +7,8 @@ const vm = require('vm');
 
 try {
   new vm.Script({ toString() { throw new Error('foo'); } }, {});
-} catch (err) {}
+} catch {}
 
 try {
   new vm.Script('[', {});
-} catch (err) {}
+} catch {}

@@ -10,17 +10,24 @@ namespace performance {
 
 using v8::Array;
 using v8::Context;
+using v8::DontDelete;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::GCCallbackFlags;
+using v8::GCType;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Name;
+using v8::NewStringType;
 using v8::Number;
 using v8::Object;
+using v8::PropertyAttribute;
+using v8::ReadOnly;
 using v8::String;
+using v8::Uint32Array;
 using v8::Value;
 
 // Microseconds in a second, as a float.
@@ -36,7 +43,7 @@ uint64_t performance_node_start;
 uint64_t performance_v8_start;
 
 uint64_t performance_last_gc_start_mark_ = 0;
-v8::GCType performance_last_gc_type_ = v8::GCType::kGCTypeAll;
+GCType performance_last_gc_type_ = GCType::kGCTypeAll;
 
 void performance_state::Mark(enum PerformanceMilestone milestone,
                              uint64_t ts) {
@@ -69,13 +76,13 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
   Environment* env = entry.env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  v8::PropertyAttribute attr =
-      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+  PropertyAttribute attr =
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
   obj->DefineOwnProperty(context,
                          env->name_string(),
                          String::NewFromUtf8(isolate,
                                              entry.name().c_str(),
-                                             v8::NewStringType::kNormal)
+                                             NewStringType::kNormal)
                              .ToLocalChecked(),
                          attr)
       .FromJust();
@@ -83,7 +90,7 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
                          env->entry_type_string(),
                          String::NewFromUtf8(isolate,
                                              entry.type().c_str(),
-                                             v8::NewStringType::kNormal)
+                                             NewStringType::kNormal)
                              .ToLocalChecked(),
                          attr)
       .FromJust();
@@ -124,7 +131,7 @@ void PerformanceEntry::Notify(Environment* env,
                               PerformanceEntryType type,
                               Local<Value> object) {
   Context::Scope scope(env->context());
-  AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
+  AliasedBuffer<uint32_t, Uint32Array>& observers =
       env->performance_state()->observers;
   if (type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
       observers[type]) {
@@ -242,12 +249,12 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
   HandleScope scope(env->isolate());
   Local<Context> context = env->context();
 
-  AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
+  AliasedBuffer<uint32_t, Uint32Array>& observers =
       env->performance_state()->observers;
   if (observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) {
     Local<Object> obj = entry->ToObject();
-    v8::PropertyAttribute attr =
-        static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+    PropertyAttribute attr =
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
     obj->DefineOwnProperty(context,
                            env->kind_string(),
                            Integer::New(env->isolate(), entry->gckind()),
@@ -260,16 +267,16 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
 
 // Marks the start of a GC cycle
 void MarkGarbageCollectionStart(Isolate* isolate,
-                                v8::GCType type,
-                                v8::GCCallbackFlags flags) {
+                                GCType type,
+                                GCCallbackFlags flags) {
   performance_last_gc_start_mark_ = PERFORMANCE_NOW();
   performance_last_gc_type_ = type;
 }
 
 // Marks the end of a GC cycle
 void MarkGarbageCollectionEnd(Isolate* isolate,
-                              v8::GCType type,
-                              v8::GCCallbackFlags flags,
+                              GCType type,
+                              GCCallbackFlags flags,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
   // If no one is listening to gc performance entries, do not create them.
@@ -310,57 +317,38 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  CHECK_NOT_NULL(env);  // TODO(addaleax): Verify that this is correct.
+  CHECK_NOT_NULL(env);
   Local<Context> context = env->context();
   Local<Function> fn = args.Data().As<Function>();
   size_t count = args.Length();
   size_t idx;
   SlicedArguments call_args(args);
   Utf8Value name(isolate, GetName(fn));
+  bool is_construct_call = args.IsConstructCall();
 
-  uint64_t start;
-  uint64_t end;
-  v8::TryCatch try_catch(isolate);
-  if (args.IsConstructCall()) {
-    start = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, start / 1000);
-    v8::MaybeLocal<Object> ret = fn->NewInstance(context,
-                                                 call_args.size(),
-                                                 call_args.data());
-    end = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, end / 1000);
+  uint64_t start = PERFORMANCE_NOW();
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
+      TRACING_CATEGORY_NODE2(perf, timerify),
+      *name, *name, start / 1000);
+  v8::MaybeLocal<Value> ret;
 
-    if (ret.IsEmpty()) {
-      try_catch.ReThrow();
-      return;
-    }
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+  if (is_construct_call) {
+    ret = fn->NewInstance(context, call_args.size(), call_args.data())
+        .FromMaybe(Local<Object>());
   } else {
-    start = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, start / 1000);
-    v8::MaybeLocal<Value> ret = fn->Call(context,
-                                         args.This(),
-                                         call_args.size(),
-                                         call_args.data());
-    end = PERFORMANCE_NOW();
-    TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-        TRACING_CATEGORY_NODE2(perf, timerify),
-        *name, *name, end / 1000);
-
-    if (ret.IsEmpty()) {
-      try_catch.ReThrow();
-      return;
-    }
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+    ret = fn->Call(context, args.This(), call_args.size(), call_args.data());
   }
 
-  AliasedBuffer<uint32_t, v8::Uint32Array>& observers =
+  uint64_t end = PERFORMANCE_NOW();
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
+      TRACING_CATEGORY_NODE2(perf, timerify),
+      *name, *name, end / 1000);
+
+  if (ret.IsEmpty())
+    return;
+  args.GetReturnValue().Set(ret.ToLocalChecked());
+
+  AliasedBuffer<uint32_t, Uint32Array>& observers =
       env->performance_state()->observers;
   if (!observers[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION])
     return;
@@ -433,18 +421,18 @@ void Initialize(Local<Object> target,
   NODE_PERFORMANCE_MILESTONES(V)
 #undef V
 
-  v8::PropertyAttribute attr =
-      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+  PropertyAttribute attr =
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
   target->DefineOwnProperty(context,
                             FIXED_ONE_BYTE_STRING(isolate, "timeOrigin"),
-                            v8::Number::New(isolate, timeOrigin / 1e6),
+                            Number::New(isolate, timeOrigin / 1e6),
                             attr).ToChecked();
 
   target->DefineOwnProperty(
       context,
       FIXED_ONE_BYTE_STRING(isolate, "timeOriginTimestamp"),
-      v8::Number::New(isolate, timeOriginTimestamp / MICROS_PER_MILLIS),
+      Number::New(isolate, timeOriginTimestamp / MICROS_PER_MILLIS),
       attr).ToChecked();
 
   target->DefineOwnProperty(context,

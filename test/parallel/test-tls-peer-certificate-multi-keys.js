@@ -26,7 +26,6 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const util = require('util');
 const fixtures = require('../common/fixtures');
 
 const options = {
@@ -37,13 +36,22 @@ const options = {
 const server = tls.createServer(options, function(cleartext) {
   cleartext.end('World');
 });
+
+server.once('secureConnection', common.mustCall(function(socket) {
+  const cert = socket.getCertificate();
+  // The server's local cert is the client's peer cert.
+  assert.deepStrictEqual(
+    cert.subject.OU,
+    ['Information Technology', 'Engineering', 'Marketing']
+  );
+}));
+
 server.listen(0, common.mustCall(function() {
   const socket = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
   }, common.mustCall(function() {
     const peerCert = socket.getPeerCertificate();
-    console.error(util.inspect(peerCert));
     assert.deepStrictEqual(
       peerCert.subject.OU,
       ['Information Technology', 'Engineering', 'Marketing']

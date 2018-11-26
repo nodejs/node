@@ -228,7 +228,7 @@ function test(encoding, input, expected, singleSequence) {
         `input: ${input.toString('hex').match(hexNumberRE)}\n` +
         `Write sequence: ${JSON.stringify(sequence)}\n` +
         `Full Decoder State: ${inspect(decoder)}`;
-      assert.fail(output, expected, message);
+      assert.fail(message);
     }
   });
 }

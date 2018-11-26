@@ -45,7 +45,7 @@ be accepted unless:
 
 * Discussions and/or additional changes result in no Collaborators objecting to
   the change. Previously-objecting Collaborators do not necessarily have to
-  sign-off on the change, but they should not be opposed to it.
+  sign off on the change, but they should not be opposed to it.
 * The change is escalated to the TSC and the TSC votes to approve the change.
   This should only happen if disagreements between Collaborators cannot be
   resolved through discussion.
@@ -123,8 +123,8 @@ The meeting chair is responsible for ensuring that minutes are taken and that a
 pull request with the minutes is submitted after the meeting.
 
 Due to the challenges of scheduling a global meeting with participants in
-several timezones, the TSC will seek to resolve as many agenda items as possible
-outside of meetings using
+several time zones, the TSC will seek to resolve as many agenda items as
+possible outside of meetings using
 [the TSC issue tracker](https://github.com/nodejs/TSC/issues). The process in
 the issue tracker is:
 
@@ -196,7 +196,7 @@ completed within a month after the nomination is accepted.
 
 ## Consensus Seeking Process
 
-The TSC follows a [Consensus Seeking][] decision making model as described by
+The TSC follows a [Consensus Seeking][] decision-making model as described by
 the [TSC Charter][].
 
 [collaborators-discussions]: https://github.com/orgs/nodejs/teams/collaborators/discussions

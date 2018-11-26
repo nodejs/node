@@ -1,18 +1,5 @@
 # Contributing to Node.js
 
-Contributions to Node.js include code, documentation, answering user questions,
-running the project's infrastructure, and advocating for all types of Node.js
-users.
-
-The Node.js project welcomes all contributions from anyone willing to work in
-good faith with other contributors and the community. No contribution is too
-small and all contributions are valued.
-
-This guide explains the process for contributing to the Node.js project's core
-`nodejs/node` GitHub Repository and describes what to expect at each step.
-
-## Contents
-
 * [Code of Conduct](#code-of-conduct)
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
@@ -22,15 +9,11 @@ This guide explains the process for contributing to the Node.js project's core
 
 The Node.js project has a
 [Code of Conduct](https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md)
-that *all* contributors are expected to follow. This code describes the
-*minimum* behavior expectations for all contributors.
+to which all contributors must adhere.
 
 See [details on our policy on Code of Conduct](./doc/guides/contributing/coc.md).
 
 ## [Issues](./doc/guides/contributing/issues.md)
-
-Issues in `nodejs/node` are the primary means by which bug reports and
-general discussions are made.
 
 * [How to Contribute in Issues](./doc/guides/contributing/issues.md#how-to-contribute-in-issues)
 * [Asking for General Help](./doc/guides/contributing/issues.md#asking-for-general-help)
@@ -41,14 +24,11 @@ general discussions are made.
 
 ## [Pull Requests](./doc/guides/contributing/pull-requests.md)
 
-Pull Requests are the way concrete changes are made to the code, documentation,
-dependencies, and tools contained in the `nodejs/node` repository.
-
 * [Dependencies](./doc/guides/contributing/pull-requests.md#dependencies)
 * [Setting up your local environment](./doc/guides/contributing/pull-requests.md#setting-up-your-local-environment)
 * [The Process of Making Changes](./doc/guides/contributing/pull-requests.md#the-process-of-making-changes)
 * [Reviewing Pull Requests](./doc/guides/contributing/pull-requests.md#reviewing-pull-requests)
-* [Additional Notes](./doc/guides/contributing/pull-requests.md#additional-notes)
+* [Notes](./doc/guides/contributing/pull-requests.md#notes)
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1

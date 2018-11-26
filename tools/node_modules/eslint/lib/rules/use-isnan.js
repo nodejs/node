@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "require calls to `isNaN()` when checking for `NaN`",
             category: "Possible Errors",

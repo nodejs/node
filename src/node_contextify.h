@@ -40,7 +40,7 @@ class ContextifyContext {
   }
 
   inline v8::Local<v8::Context> context() const {
-    return PersistentToLocal(env()->isolate(), context_);
+    return PersistentToLocal::Default(env()->isolate(), context_);
   }
 
   inline v8::Local<v8::Object> global_proxy() const {
@@ -119,8 +119,6 @@ class ContextifyScript : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RunInThisContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RunInContext(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void DecorateErrorStack(Environment* env,
-                                 const v8::TryCatch& try_catch);
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,
                           const bool display_errors,

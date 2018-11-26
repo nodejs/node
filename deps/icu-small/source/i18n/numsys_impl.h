@@ -37,7 +37,7 @@ public:
     virtual int32_t count(UErrorCode& status) const;
 private:
     int32_t pos;
-    UVector *fNumsysNames;
+    UVector *fNumsysNames = nullptr;
 };
 
 U_NAMESPACE_END

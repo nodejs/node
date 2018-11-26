@@ -978,16 +978,6 @@ sub do_defs
 		}
 	}
 
-	# Prune the returned symbols
-
-        delete $syms{"bn_dump1"};
-	$platform{"BIO_s_log"} .= ",!WIN32,!macintosh";
-
-	$platform{"PEM_read_NS_CERT_SEQ"} = "VMS";
-	$platform{"PEM_write_NS_CERT_SEQ"} = "VMS";
-	$platform{"PEM_read_P8_PRIV_KEY_INFO"} = "VMS";
-	$platform{"PEM_write_P8_PRIV_KEY_INFO"} = "VMS";
-
 	# Info we know about
 
 	push @ret, map { $_."\\".&info_string($_,"EXIST",

@@ -25,7 +25,7 @@ functions that can be used to control this default behavior.
 
 ### immediate.hasRef()
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 * Returns: {boolean}
@@ -72,7 +72,7 @@ control this default behavior.
 
 ### timeout.hasRef()
 <!-- YAML
-added: REPLACEME
+added: v11.0.0
 -->
 
 * Returns: {boolean}

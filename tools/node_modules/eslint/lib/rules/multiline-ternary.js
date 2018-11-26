@@ -13,12 +13,15 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "layout",
+
         docs: {
             description: "enforce newlines between operands of ternary expressions",
             category: "Stylistic Issues",
             recommended: false,
             url: "https://eslint.org/docs/rules/multiline-ternary"
         },
+
         schema: [
             {
                 enum: ["always", "always-multiline", "never"]

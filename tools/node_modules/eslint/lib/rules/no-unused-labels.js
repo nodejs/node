@@ -11,6 +11,8 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow unused labels",
             category: "Best Practices",
@@ -19,7 +21,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

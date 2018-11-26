@@ -19,6 +19,8 @@ const NODE_DESCRIPTIONS = {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow assignment operators in conditional expressions",
             category: "Possible Errors",

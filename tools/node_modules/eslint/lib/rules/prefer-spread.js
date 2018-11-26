@@ -49,6 +49,8 @@ function isValidThisArg(expectedThis, thisArg, context) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require spread operators instead of `.apply()`",
             category: "ECMAScript 6",
@@ -57,7 +59,6 @@ module.exports = {
         },
 
         schema: [],
-
         fixable: "code"
     },
 

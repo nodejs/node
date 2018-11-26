@@ -26,7 +26,7 @@ const test_exception = (function() {
 
   // Test that the native side successfully captures the exception
   let returnedError = test_exception.returnException(throwTheError);
-  assert.strictEqual(theError, returnedError);
+  assert.strictEqual(returnedError, theError);
 
   // Test that the native side passes the exception through
   assert.throws(

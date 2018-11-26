@@ -1,47 +1,43 @@
-c-ares version 1.14.0
+c-ares version 1.15.0
 
 Changes:
- o android: Introduce new ares_library_init_android() call for Oreo support. [5]
+ o Add ares_init_options() configurability for path to resolv.conf file [1]
+ o Ability to exclude building of tools (adig, ahost, acountry) in CMake [3]
+ o Android: Support for domain search suffix [4]
+ o Report ARES_ENOTFOUND for .onion domain names as per RFC7686. [13]
 
 Bug fixes:
-
- o Fix patch for CVE-2017-1000381 to not be overly aggressive. [1]
- o win32: Preserve DNS server order returned by Windows when sorting and exclude
-   DNS servers in legacy subnets. [2] [4]
- o win32: Support most recent Visual Studio 2017
- o gethostbyaddr should fail with ECANCELLED not ENOTFOUND when ares_cancel
-   is called. [3]
- o win32: Exclude legacy ipv6 subnets [4]
- o android: Applications compiled for Oreo can no longer use
-   __system_property_get and must use Java calls to retrieve DNS servers.
-   [5] [7]
- o win32: Force use of ANSI functions [6]
- o CMake minimum version is now 3.1
- o ares_gethostbyname.3: fix callback status values [8]
- o docs: Document WSAStartup requirement [9]
- o Fix a typo in init_by_resolv_conf [10]
- o Android JNI code leaks local references in some cases [11]
- o Force using the ANSI versions of WinAPI functions [12]
+ o AIX build fix for trying to include both nameser_compat.h and
+   onameser_compat.h [2]
+ o Windows: Improve DNS suffixes extracting from WinNT registry [5]
+ o Fix modern GCC warnings [6]
+ o Apply the IPv6 server blacklist to all nameserver sources, not just Windows
+   [7]
+ o Fix warnings emitted by MSVC when using -W4 [8]
+ o Prevent changing name servers while queries are outstanding [9]
+ o Harden and rationalize c-ares timeout computation [10]
+ o Distribute ares_android.h [11]
+ o ares_set_servers_csv() on failure should not leave channel in a bad state
+   [12]
+ o Add missing docs to distribution
 
 Thanks go to these friendly people for their efforts and contributions:
-
-  AC Thompson, Anna Henningsen, Antonio Tajuelo, Brad House, Brad Spencer,
-  Christian Ammer, Daniel Stenberg, David Drysdale, David Hotham, Felix Yan,
-  Gergely Nagy, Gregor Jasny, Jakub Hrozek, John Schember,
-  Konstantinos Sofokleous, Roman Teterin, Sergey Kolomenkin, Sheel Bedi,
-  (18 contributors)
+  @afalin, Andi Schnebinger, Ben Noordhuis, Brad House, Brad Spencer,
+  David Hotham, @flyingdutchman23, John Schember, Ruslan Baratov,
+  Sarat Addepalli, Tobias Nießen (11 contributors)
 
 References to bug reports and discussions on issues:
+ [1] = https://github.com/c-ares/c-ares/issues/220
+ [2] = https://github.com/c-ares/c-ares/issues/224
+ [3] = https://github.com/c-ares/c-ares/issues/200
+ [4] = https://github.com/c-ares/c-ares/issues/207
+ [5] = https://github.com/c-ares/c-ares/pull/202
+ [6] = https://github.com/c-ares/c-ares/pull/201
+ [7] = https://github.com/c-ares/c-ares/pull/193
+ [8] = https://github.com/c-ares/c-ares/pull/192
+ [9] = https://github.com/c-ares/c-ares/pull/191
+ [10] = https://github.com/c-ares/c-ares/pull/187
+ [11] = https://c-ares.haxx.se/mail/c-ares-archive-2018-04/0000.shtml
+ [12] = https://c-ares.haxx.se/mail/c-ares-archive-2018-03/0000.shtml
+ [13] = https://github.com/c-ares/c-ares/issues/196
 
- [1] = https://github.com/c-ares/c-ares/commit/18ea99
- [2] = https://github.com/c-ares/c-ares/issues/150
- [3] = https://github.com/c-ares/c-ares/pull/138
- [4] = https://github.com/c-ares/c-ares/pull/144
- [5] = https://github.com/c-ares/c-ares/pull/148
- [6] = https://github.com/c-ares/c-ares/pull/142
- [7] = https://github.com/c-ares/c-ares/pull/175
- [8] = https://c-ares.haxx.se/mail/c-ares-archive-2011-06/0012.shtml
- [9] = https://github.com/c-ares/c-ares/pull/180
- [10] = https://github.com/c-ares/c-ares/pull/160
- [11] = https://github.com/c-ares/c-ares/pull/175
- [12] = https://github.com/c-ares/c-ares/pull/142

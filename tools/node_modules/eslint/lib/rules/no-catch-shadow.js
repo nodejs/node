@@ -18,15 +18,18 @@ const astUtils = require("../util/ast-utils");
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "disallow `catch` clause parameters from shadowing variables in the outer scope",
             category: "Variables",
             recommended: false,
-            url: "https://eslint.org/docs/rules/no-catch-shadow",
-            replacedBy: ["no-shadow"]
+            url: "https://eslint.org/docs/rules/no-catch-shadow"
         },
-        deprecated: true,
 
+        replacedBy: ["no-shadow"],
+
+        deprecated: true,
         schema: [],
 
         messages: {

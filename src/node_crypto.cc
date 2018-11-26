@@ -52,6 +52,15 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
                                  | XN_FLAG_FN_SN;
 
 namespace node {
+namespace Buffer {
+// OpenSSL uses `unsigned char*` for raw data, make this easier for us.
+v8::MaybeLocal<v8::Object> New(Environment* env, unsigned char* udata,
+                               size_t length) {
+  char* data = reinterpret_cast<char*>(udata);
+  return Buffer::New(env, data, length);
+}
+}  // namespace Buffer
+
 namespace crypto {
 
 using v8::Array;
@@ -116,9 +125,9 @@ static const char* const root_certs[] = {
 
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
-static std::string extra_root_certs_file;  // NOLINT(runtime/string)
-
 static X509_STORE* root_cert_store;
+
+static bool extra_root_certs_loaded = false;
 
 // Just to generate static methods
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
@@ -355,16 +364,16 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
   env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
 
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyReturnIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyReturnIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyHMACIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyHMACIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyAESIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyAESIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyNameIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyNameIndex));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
-         Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
+#define SET_INTEGER_CONSTANTS(name, value)                                     \
+    t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                        \
+           Integer::NewFromUnsigned(env->isolate(), value));
+  SET_INTEGER_CONSTANTS("kTicketKeyReturnIndex", kTicketKeyReturnIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyHMACIndex", kTicketKeyHMACIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyAESIndex", kTicketKeyAESIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyNameIndex", kTicketKeyNameIndex);
+  SET_INTEGER_CONSTANTS("kTicketKeyIVIndex", kTicketKeyIVIndex);
+
+#undef SET_INTEGER_CONSTANTS
 
   Local<FunctionTemplate> ctx_getter_templ =
       FunctionTemplate::New(env->isolate(),
@@ -379,8 +388,8 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       Local<FunctionTemplate>(),
       static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
-  target->Set(secureContextString,
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(), secureContextString,
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   env->set_secure_context_constructor_template(t);
 }
 
@@ -396,11 +405,15 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();
 
-  int min_version = 0;
-  int max_version = 0;
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[1]->IsInt32());
+  CHECK(args[2]->IsInt32());
+
+  int min_version = args[1].As<Int32>()->Value();
+  int max_version = args[2].As<Int32>()->Value();
   const SSL_METHOD* method = TLS_method();
 
-  if (args.Length() == 1 && args[0]->IsString()) {
+  if (args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
 
     // Note that SSLv2 and SSLv3 are disallowed but SSLv23_method and friends
@@ -424,6 +437,17 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
       method = TLS_server_method();
     } else if (strcmp(*sslmethod, "SSLv23_client_method") == 0) {
+      method = TLS_client_method();
+    } else if (strcmp(*sslmethod, "TLS_method") == 0) {
+      min_version = 0;
+      max_version = 0;
+    } else if (strcmp(*sslmethod, "TLS_server_method") == 0) {
+      min_version = 0;
+      max_version = 0;
+      method = TLS_server_method();
+    } else if (strcmp(*sslmethod, "TLS_client_method") == 0) {
+      min_version = 0;
+      max_version = 0;
       method = TLS_client_method();
     } else if (strcmp(*sslmethod, "TLSv1_method") == 0) {
       min_version = TLS1_VERSION;
@@ -486,6 +510,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 
   SSL_CTX_set_min_proto_version(sc->ctx_.get(), min_version);
   SSL_CTX_set_max_proto_version(sc->ctx_.get(), max_version);
+
   // OpenSSL 1.1.0 changed the ticket key size, but the OpenSSL 1.0.x size was
   // exposed in the public API. To retain compatibility, install a callback
   // which restores the old algorithm.
@@ -832,11 +857,6 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void UseExtraCaCerts(const std::string& file) {
-  extra_root_certs_file = file;
-}
-
-
 static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
     X509_STORE* store,
     const char* file) {
@@ -863,29 +883,43 @@ static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
   return err;
 }
 
+
+void UseExtraCaCerts(const std::string& file) {
+  ClearErrorOnReturn clear_error_on_return;
+
+  if (root_cert_store == nullptr) {
+    root_cert_store = NewRootCertStore();
+
+    if (!file.empty()) {
+      unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
+                                           root_cert_store,
+                                           file.c_str());
+      if (err) {
+        fprintf(stderr,
+                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+                file.c_str(),
+                ERR_error_string(err, nullptr));
+      } else {
+        extra_root_certs_loaded = true;
+      }
+    }
+  }
+}
+
+
+static void IsExtraRootCertsFileLoaded(
+    const FunctionCallbackInfo<Value>& args) {
+  return args.GetReturnValue().Set(extra_root_certs_loaded);
+}
+
+
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   ClearErrorOnReturn clear_error_on_return;
 
-  if (!root_cert_store) {
+  if (root_cert_store == nullptr) {
     root_cert_store = NewRootCertStore();
-
-    if (!extra_root_certs_file.empty()) {
-      unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
-                                           root_cert_store,
-                                           extra_root_certs_file.c_str());
-      if (err) {
-        // We do not call back into JS after this line anyway, so ignoring
-        // the return value of ProcessEmitWarning does not affect how a
-        // possible exception would be propagated.
-        ProcessEmitWarning(sc->env(),
-                           "Ignoring extra certs from `%s`, "
-                           "load failed: %s\n",
-                           extra_root_certs_file.c_str(),
-                           ERR_error_string(err, nullptr));
-      }
-    }
   }
 
   // Increment reference count so global store is not deleted along with CTX.
@@ -1267,18 +1301,24 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   Local<Array> arr = ret.As<Array>();
 
   int r =
-      arr->Get(kTicketKeyReturnIndex)->Int32Value(env->context()).FromJust();
+      arr->Get(env->context(),
+               kTicketKeyReturnIndex).ToLocalChecked()
+               ->Int32Value(env->context()).FromJust();
   if (r < 0)
     return r;
 
-  Local<Value> hmac = arr->Get(kTicketKeyHMACIndex);
-  Local<Value> aes = arr->Get(kTicketKeyAESIndex);
+  Local<Value> hmac = arr->Get(env->context(),
+                               kTicketKeyHMACIndex).ToLocalChecked();
+  Local<Value> aes = arr->Get(env->context(),
+                              kTicketKeyAESIndex).ToLocalChecked();
   if (Buffer::Length(aes) != kTicketPartSize)
     return -1;
 
   if (enc) {
-    Local<Value> name_val = arr->Get(kTicketKeyNameIndex);
-    Local<Value> iv_val = arr->Get(kTicketKeyIVIndex);
+    Local<Value> name_val = arr->Get(env->context(),
+                                     kTicketKeyNameIndex).ToLocalChecked();
+    Local<Value> iv_val = arr->Get(env->context(),
+                                   kTicketKeyIVIndex).ToLocalChecked();
 
     if (Buffer::Length(name_val) != kTicketPartSize ||
         Buffer::Length(iv_val) != kTicketPartSize) {
@@ -1388,6 +1428,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
   env->SetProtoMethodNoSideEffect(t, "getPeerCertificate", GetPeerCertificate);
+  env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate);
   env->SetProtoMethodNoSideEffect(t, "getFinished", GetFinished);
   env->SetProtoMethodNoSideEffect(t, "getPeerFinished", GetPeerFinished);
   env->SetProtoMethodNoSideEffect(t, "getSession", GetSession);
@@ -1622,8 +1663,17 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
   EVPKeyPointer pkey(X509_get_pubkey(cert));
   RSAPointer rsa;
-  if (pkey)
-    rsa.reset(EVP_PKEY_get1_RSA(pkey.get()));
+  ECPointer ec;
+  if (pkey) {
+    switch (EVP_PKEY_id(pkey.get())) {
+      case EVP_PKEY_RSA:
+        rsa.reset(EVP_PKEY_get1_RSA(pkey.get()));
+        break;
+      case EVP_PKEY_EC:
+        ec.reset(EVP_PKEY_get1_EC_KEY(pkey.get()));
+        break;
+    }
+  }
 
   if (rsa) {
     const BIGNUM* n;
@@ -1636,6 +1686,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                   NewStringType::kNormal,
                                   mem->length).ToLocalChecked()).FromJust();
     USE(BIO_reset(bio.get()));
+
+    int bits = BN_num_bits(n);
+    info->Set(context, env->bits_string(),
+              Integer::New(env->isolate(), bits)).FromJust();
 
     uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
     uint32_t lo = static_cast<uint32_t>(exponent_word);
@@ -1658,11 +1712,54 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     unsigned char* pubserialized =
         reinterpret_cast<unsigned char*>(Buffer::Data(pubbuff));
     i2d_RSA_PUBKEY(rsa.get(), &pubserialized);
-    info->Set(env->pubkey_string(), pubbuff);
+    info->Set(env->context(), env->pubkey_string(), pubbuff).FromJust();
+  } else if (ec) {
+    const EC_GROUP* group = EC_KEY_get0_group(ec.get());
+    if (group != nullptr) {
+      int bits = EC_GROUP_order_bits(group);
+      if (bits > 0) {
+        info->Set(context, env->bits_string(),
+                  Integer::New(env->isolate(), bits)).FromJust();
+      }
+    }
+
+    unsigned char* pub = nullptr;
+    size_t publen = EC_KEY_key2buf(ec.get(), EC_KEY_get_conv_form(ec.get()),
+                                   &pub, nullptr);
+    if (publen > 0) {
+      Local<Object> buf = Buffer::New(env, pub, publen).ToLocalChecked();
+      // Ownership of pub pointer accepted by Buffer.
+      pub = nullptr;
+      info->Set(context, env->pubkey_string(), buf).FromJust();
+    } else {
+      CHECK_NULL(pub);
+    }
+
+    if (EC_GROUP_get_asn1_flag(group) != 0) {
+      // Curve is well-known, get its OID and NIST nick-name (if it has one).
+
+      int nid = EC_GROUP_get_curve_name(group);
+      if (nid != 0) {
+        if (const char* sn = OBJ_nid2sn(nid)) {
+          info->Set(context, env->asn1curve_string(),
+                    OneByteString(env->isolate(), sn)).FromJust();
+        }
+      }
+      if (nid != 0) {
+        if (const char* nist = EC_curve_nid2nist(nid)) {
+          info->Set(context, env->nistcurve_string(),
+                    OneByteString(env->isolate(), nist)).FromJust();
+        }
+      }
+    } else {
+      // Unnamed curves can be described by their mathematical properties,
+      // but aren't used much (at all?) with X.509/TLS. Support later if needed.
+    }
   }
 
   pkey.reset();
   rsa.reset();
+  ec.reset();
 
   ASN1_TIME_print(bio.get(), X509_get_notBefore(cert));
   BIO_get_mem_ptr(bio.get(), &mem);
@@ -1850,8 +1947,26 @@ void SSLWrap<Base>::GetPeerCertificate(
   }
 
  done:
-  if (result.IsEmpty())
-    result = Object::New(env->isolate());
+  args.GetReturnValue().Set(result);
+}
+
+
+template <class Base>
+void SSLWrap<Base>::GetCertificate(
+    const FunctionCallbackInfo<Value>& args) {
+  Base* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+  Environment* env = w->ssl_env();
+
+  ClearErrorOnReturn clear_error_on_return;
+
+  Local<Object> result;
+
+  X509Pointer cert(SSL_get_certificate(w->ssl_.get()));
+
+  if (cert)
+    result = X509ToObject(env, cert.get());
+
   args.GetReturnValue().Set(result);
 }
 
@@ -2333,7 +2448,8 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     if (w->ocsp_response_.IsEmpty())
       return SSL_TLSEXT_ERR_NOACK;
 
-    Local<Object> obj = PersistentToLocal(env->isolate(), w->ocsp_response_);
+    Local<Object> obj = PersistentToLocal::Default(env->isolate(),
+                                                   w->ocsp_response_);
     char* resp = Buffer::Data(obj);
     size_t len = Buffer::Length(obj);
 
@@ -2413,7 +2529,8 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
   CHECK(w->is_waiting_cert_cb() && w->cert_cb_running_);
 
   Local<Object> object = w->object();
-  Local<Value> ctx = object->Get(env->sni_context_string());
+  Local<Value> ctx = object->Get(env->context(),
+                                 env->sni_context_string()).ToLocalChecked();
   Local<FunctionTemplate> cons = env->secure_context_constructor_template();
 
   // Not an object, probably undefined or null
@@ -2548,10 +2665,19 @@ int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   return 1;
 }
 
-static bool IsSupportedAuthenticatedMode(int mode) {
-  return mode == EVP_CIPH_CCM_MODE ||
+static bool IsSupportedAuthenticatedMode(const EVP_CIPHER* cipher) {
+  const int mode = EVP_CIPHER_mode(cipher);
+  // Check `chacha20-poly1305` separately, it is also an AEAD cipher,
+  // but its mode is 0 which doesn't indicate
+  return EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305 ||
+         mode == EVP_CIPH_CCM_MODE ||
          mode == EVP_CIPH_GCM_MODE ||
          IS_OCB_MODE(mode);
+}
+
+static bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
+  const EVP_CIPHER* cipher = EVP_CIPHER_CTX_cipher(ctx);
+  return IsSupportedAuthenticatedMode(cipher);
 }
 
 void CipherBase::Initialize(Environment* env, Local<Object> target) {
@@ -2568,8 +2694,9 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setAuthTag", SetAuthTag);
   env->SetProtoMethod(t, "setAAD", SetAAD);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "CipherBase"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -2601,7 +2728,7 @@ void CipherBase::CommonInit(const char* cipher_type,
                             "Failed to initialize cipher");
   }
 
-  if (IsSupportedAuthenticatedMode(mode)) {
+  if (IsSupportedAuthenticatedMode(cipher)) {
     CHECK_GE(iv_len, 0);
     if (!InitAuthenticated(cipher_type, iv_len, auth_tag_len))
       return;
@@ -2703,8 +2830,7 @@ void CipherBase::InitIv(const char* cipher_type,
   }
 
   const int expected_iv_len = EVP_CIPHER_iv_length(cipher);
-  const int mode = EVP_CIPHER_mode(cipher);
-  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(mode);
+  const bool is_authenticated_mode = IsSupportedAuthenticatedMode(cipher);
   const bool has_iv = iv_len >= 0;
 
   // Throw if no IV was passed and the cipher requires an IV
@@ -2776,7 +2902,20 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
   }
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  if (mode == EVP_CIPH_CCM_MODE || IS_OCB_MODE(mode)) {
+  if (mode == EVP_CIPH_GCM_MODE) {
+    if (auth_tag_len != kNoAuthTagLength) {
+      if (!IsValidGCMTagLength(auth_tag_len)) {
+        char msg[50];
+        snprintf(msg, sizeof(msg),
+            "Invalid authentication tag length: %u", auth_tag_len);
+        env()->ThrowError(msg);
+        return false;
+      }
+
+      // Remember the given authentication tag length for later.
+      auth_tag_len_ = auth_tag_len;
+    }
+  } else {
     if (auth_tag_len == kNoAuthTagLength) {
       char msg[128];
       snprintf(msg, sizeof(msg), "authTagLength required for %s", cipher_type);
@@ -2809,21 +2948,6 @@ bool CipherBase::InitAuthenticated(const char* cipher_type, int iv_len,
       if (iv_len == 12) max_message_size_ = 16777215;
       if (iv_len == 13) max_message_size_ = 65535;
     }
-  } else {
-    CHECK_EQ(mode, EVP_CIPH_GCM_MODE);
-
-    if (auth_tag_len != kNoAuthTagLength) {
-      if (!IsValidGCMTagLength(auth_tag_len)) {
-        char msg[50];
-        snprintf(msg, sizeof(msg),
-            "Invalid authentication tag length: %u", auth_tag_len);
-        env()->ThrowError(msg);
-        return false;
-      }
-
-      // Remember the given authentication tag length for later.
-      auth_tag_len_ = auth_tag_len;
-    }
   }
 
   return true;
@@ -2846,8 +2970,7 @@ bool CipherBase::CheckCCMMessageLength(int message_len) {
 bool CipherBase::IsAuthenticatedMode() const {
   // Check if this cipher operates in an AEAD mode that we support.
   CHECK(ctx_);
-  const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
-  return IsSupportedAuthenticatedMode(mode);
+  return IsSupportedAuthenticatedMode(ctx_.get());
 }
 
 
@@ -2892,7 +3015,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   } else {
     // At this point, the tag length is already known and must match the
     // length of the given authentication tag.
-    CHECK(mode == EVP_CIPH_CCM_MODE || IS_OCB_MODE(mode));
+    CHECK(IsSupportedAuthenticatedMode(cipher->ctx_.get()));
     CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
     is_valid = cipher->auth_tag_len_ == tag_len;
   }
@@ -3099,7 +3222,7 @@ bool CipherBase::Final(unsigned char** out, int* out_len) {
   *out = Malloc<unsigned char>(
       static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
 
-  if (kind_ == kDecipher && IsSupportedAuthenticatedMode(mode)) {
+  if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get())) {
     MaybePassAuthTagToOpenSSL();
   }
 
@@ -3168,7 +3291,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hmac::Initialize(Environment* env, v8::Local<Object> target) {
+void Hmac::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3177,8 +3300,9 @@ void Hmac::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", HmacUpdate);
   env->SetProtoMethod(t, "digest", HmacDigest);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Hmac"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3289,7 +3413,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Hash::Initialize(Environment* env, v8::Local<Object> target) {
+void Hash::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3297,8 +3421,9 @@ void Hash::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", HashUpdate);
   env->SetProtoMethod(t, "digest", HashDigest);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Hash"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3483,7 +3608,7 @@ static bool ApplyRSAOptions(const EVPKeyPointer& pkey,
 
 
 
-void Sign::Initialize(Environment* env, v8::Local<Object> target) {
+void Sign::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3492,8 +3617,9 @@ void Sign::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", SignUpdate);
   env->SetProtoMethod(t, "sign", SignFinal);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3553,22 +3679,20 @@ static MallocedBuffer<unsigned char> Node_SignFinal(EVPMDPointer&& mdctx,
   return MallocedBuffer<unsigned char>();
 }
 
-std::pair<SignBase::Error, MallocedBuffer<unsigned char>> Sign::SignFinal(
+Sign::SignResult Sign::SignFinal(
     const char* key_pem,
     int key_pem_len,
     const char* passphrase,
     int padding,
     int salt_len) {
-  MallocedBuffer<unsigned char> buffer;
-
   if (!mdctx_)
-    return std::make_pair(kSignNotInitialised, std::move(buffer));
+    return SignResult(kSignNotInitialised);
 
   EVPMDPointer mdctx = std::move(mdctx_);
 
   BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
   if (!bp)
-    return std::make_pair(kSignPrivateKey, std::move(buffer));
+    return SignResult(kSignPrivateKey);
 
   EVPKeyPointer pkey(PEM_read_bio_PrivateKey(bp.get(),
                                              nullptr,
@@ -3579,7 +3703,7 @@ std::pair<SignBase::Error, MallocedBuffer<unsigned char>> Sign::SignFinal(
   // without `pkey` being set to nullptr;
   // cf. the test of `test_bad_rsa_privkey.pem` for an example.
   if (!pkey || 0 != ERR_peek_error())
-    return std::make_pair(kSignPrivateKey, std::move(buffer));
+    return SignResult(kSignPrivateKey);
 
 #ifdef NODE_FIPS_MODE
   /* Validate DSA2 parameters from FIPS 186-4 */
@@ -3603,9 +3727,10 @@ std::pair<SignBase::Error, MallocedBuffer<unsigned char>> Sign::SignFinal(
   }
 #endif  // NODE_FIPS_MODE
 
-  buffer = Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
+  MallocedBuffer<unsigned char> buffer =
+      Node_SignFinal(std::move(mdctx), pkey, padding, salt_len);
   Error error = buffer.is_empty() ? kSignPrivateKey : kSignOk;
-  return std::make_pair(error, std::move(buffer));
+  return SignResult(error, std::move(buffer));
 }
 
 
@@ -3630,18 +3755,18 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   ClearErrorOnReturn clear_error_on_return;
 
-  std::pair<Error, MallocedBuffer<unsigned char>> ret = sign->SignFinal(
+  SignResult ret = sign->SignFinal(
       buf,
       buf_len,
       len >= 2 && !args[1]->IsNull() ? *passphrase : nullptr,
       padding,
       salt_len);
 
-  if (std::get<Error>(ret) != kSignOk)
-    return sign->CheckThrow(std::get<Error>(ret));
+  if (ret.error != kSignOk)
+    return sign->CheckThrow(ret.error);
 
   MallocedBuffer<unsigned char> sig =
-      std::move(std::get<MallocedBuffer<unsigned char>>(ret));
+      std::move(ret.signature);
 
   Local<Object> rc =
       Buffer::New(env, reinterpret_cast<char*>(sig.release()), sig.size)
@@ -3715,7 +3840,7 @@ static ParsePublicKeyResult ParsePublicKey(EVPKeyPointer* pkey,
       });
 }
 
-void Verify::Initialize(Environment* env, v8::Local<Object> target) {
+void Verify::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -3724,8 +3849,9 @@ void Verify::Initialize(Environment* env, v8::Local<Object> target) {
   env->SetProtoMethod(t, "update", VerifyUpdate);
   env->SetProtoMethod(t, "verify", VerifyFinal);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -3933,7 +4059,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
     Local<FunctionTemplate> t = env->NewFunctionTemplate(callback);
 
     const PropertyAttribute attributes =
-        static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
     t->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -3961,7 +4087,9 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
         Local<FunctionTemplate>(),
         attributes);
 
-    target->Set(name, t->GetFunction(env->context()).ToLocalChecked());
+    target->Set(env->context(),
+                name,
+                t->GetFunction(env->context()).ToLocalChecked()).FromJust();
   };
 
   make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
@@ -4209,7 +4337,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
       Buffer::New(env->isolate(), data.release(), data.size).ToLocalChecked());
 }
 
-void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<Value>& args,
+void DiffieHellman::SetKey(const FunctionCallbackInfo<Value>& args,
                            int (*set_field)(DH*, BIGNUM*), const char* what) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -4288,8 +4416,9 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
+              t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
 
@@ -5296,7 +5425,9 @@ static void array_push_back(const TypeName* md,
                             const char* to,
                             void* arg) {
   CipherPushContext* ctx = static_cast<CipherPushContext*>(arg);
-  ctx->arr->Set(ctx->arr->Length(), OneByteString(ctx->env()->isolate(), from));
+  ctx->arr->Set(ctx->env()->context(),
+                ctx->arr->Length(),
+                OneByteString(ctx->env()->isolate(), from)).FromJust();
 }
 
 
@@ -5624,6 +5755,7 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 #endif /* NODE_FIPS_MODE */
 
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -5644,6 +5776,9 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "certVerifySpkac", VerifySpkac);
   env->SetMethodNoSideEffect(target, "certExportPublicKey", ExportPublicKey);
   env->SetMethodNoSideEffect(target, "certExportChallenge", ExportChallenge);
+  // Exposed for testing purposes only.
+  env->SetMethodNoSideEffect(target, "isExtraRootCertsFileLoaded",
+                             IsExtraRootCertsFileLoaded);
 
   env->SetMethodNoSideEffect(target, "ECDHConvertKey", ConvertKey);
 #ifndef OPENSSL_NO_ENGINE
@@ -5703,9 +5838,9 @@ std::string GetOpenSSLVersion() {
   // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
   char buf[128];
   const int start = search(OPENSSL_VERSION_TEXT, 0, ' ') + 1;
-  const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ') + 1;
+  const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ');
   const int len = end - start;
-  snprintf(buf, sizeof(buf), "%.*s\n", len, &OPENSSL_VERSION_TEXT[start]);
+  snprintf(buf, sizeof(buf), "%.*s", len, &OPENSSL_VERSION_TEXT[start]);
   return std::string(buf);
 }
 

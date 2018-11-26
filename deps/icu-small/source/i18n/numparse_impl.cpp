@@ -159,10 +159,10 @@ NumberParserImpl::createParserFromProperties(const number::impl::DecimalFormatPr
 
     // ICU-TC meeting, April 11, 2018: accept percent/permille only if it is in the pattern,
     // and to maintain regressive behavior, divide by 100 even if no percent sign is present.
-    if (affixProvider->containsSymbolType(AffixPatternType::TYPE_PERCENT, status)) {
+    if (!isStrict && affixProvider->containsSymbolType(AffixPatternType::TYPE_PERCENT, status)) {
         parser->addMatcher(parser->fLocalMatchers.percent = {symbols});
     }
-    if (affixProvider->containsSymbolType(AffixPatternType::TYPE_PERMILLE, status)) {
+    if (!isStrict && affixProvider->containsSymbolType(AffixPatternType::TYPE_PERMILLE, status)) {
         parser->addMatcher(parser->fLocalMatchers.permille = {symbols});
     }
 

@@ -347,12 +347,15 @@ IndianCalendar::inDaylightTime(UErrorCode& status) const
     return (UBool)(U_SUCCESS(status) ? (internalGet(UCAL_DST_OFFSET) != 0) : FALSE);
 }
 
-// default century
-const UDate     IndianCalendar::fgSystemDefaultCentury          = DBL_MIN;
-const int32_t   IndianCalendar::fgSystemDefaultCenturyYear      = -1;
 
-UDate           IndianCalendar::fgSystemDefaultCenturyStart     = DBL_MIN;
-int32_t         IndianCalendar::fgSystemDefaultCenturyStartYear = -1;
+/**
+ * The system maintains a static default century start date and Year.  They are
+ * initialized the first time they are used.  Once the system default century date
+ * and year are set, they do not change.
+ */
+static UDate           gSystemDefaultCenturyStart       = DBL_MIN;
+static int32_t         gSystemDefaultCenturyStartYear   = -1;
+static icu::UInitOnce  gSystemDefaultCenturyInit        = U_INITONCE_INITIALIZER;
 
 
 UBool IndianCalendar::haveDefaultCentury() const
@@ -360,87 +363,45 @@ UBool IndianCalendar::haveDefaultCentury() const
     return TRUE;
 }
 
-UDate IndianCalendar::defaultCenturyStart() const
-{
-    return internalGetDefaultCenturyStart();
-}
-
-int32_t IndianCalendar::defaultCenturyStartYear() const
-{
-    return internalGetDefaultCenturyStartYear();
-}
-
-UDate
-IndianCalendar::internalGetDefaultCenturyStart() const
-{
-    // lazy-evaluate systemDefaultCenturyStart
-    UBool needsUpdate;
-    {
-        Mutex m;
-        needsUpdate = (fgSystemDefaultCenturyStart == fgSystemDefaultCentury);
-    }
-
-    if (needsUpdate) {
-        initializeSystemDefaultCentury();
-    }
-
-    // use defaultCenturyStart unless it's the flag value;
-    // then use systemDefaultCenturyStart
-
-    return fgSystemDefaultCenturyStart;
-}
-
-int32_t
-IndianCalendar::internalGetDefaultCenturyStartYear() const
-{
-    // lazy-evaluate systemDefaultCenturyStartYear
-    UBool needsUpdate;
-    {
-        Mutex m;
-
-        needsUpdate = (fgSystemDefaultCenturyStart == fgSystemDefaultCentury);
-    }
-
-    if (needsUpdate) {
-        initializeSystemDefaultCentury();
-    }
-
-    // use defaultCenturyStart unless it's the flag value;
-    // then use systemDefaultCenturyStartYear
-
-    return    fgSystemDefaultCenturyStartYear;
-}
-
-void
-IndianCalendar::initializeSystemDefaultCentury()
+static void U_CALLCONV
+initializeSystemDefaultCentury()
 {
     // initialize systemDefaultCentury and systemDefaultCenturyYear based
     // on the current time.  They'll be set to 80 years before
     // the current time.
-    // No point in locking as it should be idempotent.
-    if (fgSystemDefaultCenturyStart == fgSystemDefaultCentury) {
-        UErrorCode status = U_ZERO_ERROR;
+    UErrorCode status = U_ZERO_ERROR;
 
-        IndianCalendar calendar(Locale("@calendar=Indian"),status);
-        if (U_SUCCESS(status)) {
-            calendar.setTime(Calendar::getNow(), status);
-            calendar.add(UCAL_YEAR, -80, status);
+    IndianCalendar calendar ( Locale ( "@calendar=Indian" ), status);
+    if ( U_SUCCESS ( status ) ) {
+        calendar.setTime ( Calendar::getNow(), status );
+        calendar.add ( UCAL_YEAR, -80, status );
 
-            UDate    newStart = calendar.getTime(status);
-            int32_t  newYear  = calendar.get(UCAL_YEAR, status);
+        UDate    newStart = calendar.getTime ( status );
+        int32_t  newYear  = calendar.get ( UCAL_YEAR, status );
 
-            {
-                Mutex m;
-
-                fgSystemDefaultCenturyStart = newStart;
-                fgSystemDefaultCenturyStartYear = newYear;
-            }
-        }
-
-        // We have no recourse upon failure unless we want to propagate the failure
-        // out.
+        gSystemDefaultCenturyStart = newStart;
+        gSystemDefaultCenturyStartYear = newYear;
     }
+    // We have no recourse upon failure.
 }
+
+
+UDate
+IndianCalendar::defaultCenturyStart() const
+{
+    // lazy-evaluate systemDefaultCenturyStart
+    umtx_initOnce(gSystemDefaultCenturyInit, &initializeSystemDefaultCentury);
+    return gSystemDefaultCenturyStart;
+}
+
+int32_t
+IndianCalendar::defaultCenturyStartYear() const
+{
+    // lazy-evaluate systemDefaultCenturyStartYear
+    umtx_initOnce(gSystemDefaultCenturyInit, &initializeSystemDefaultCentury);
+    return    gSystemDefaultCenturyStartYear;
+}
+
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(IndianCalendar)
 

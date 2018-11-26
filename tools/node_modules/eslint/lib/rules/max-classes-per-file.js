@@ -15,18 +15,22 @@
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "enforce a maximum number of classes per file",
             category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/max-classes-per-file"
         },
+
         schema: [
             {
                 type: "integer",
                 minimum: 1
             }
         ],
+
         messages: {
             maximumExceeded: "Number of classes per file must not exceed {{ max }}"
         }

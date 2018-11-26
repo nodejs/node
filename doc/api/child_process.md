@@ -131,9 +131,6 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/21316
-    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -156,7 +153,7 @@ changes:
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `true`.
+    normally be created on Windows systems. **Default:** `false`.
 * `callback` {Function} called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -235,9 +232,6 @@ lsExample();
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/21316
-    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -257,7 +251,7 @@ changes:
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `true`.
+    normally be created on Windows systems. **Default:** `false`.
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
@@ -381,9 +375,6 @@ The `shell` option available in [`child_process.spawn()`][] is not supported by
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/21316
-    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -417,7 +408,7 @@ changes:
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `true`.
+    normally be created on Windows systems. **Default:** `false`.
 * Returns: {ChildProcess}
 
 The `child_process.spawn()` method spawns a new process using the given
@@ -626,8 +617,8 @@ pipes between the parent and child. The value is one of the following:
    `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
    child's fd.
 4. `'inherit'` - Pass through the corresponding stdio stream to/from the
-   parent process.  In the first three positions, this is equivalent to
-   `process.stdin`, `process.stdout`, and `process.stderr`, respectively.  In
+   parent process. In the first three positions, this is equivalent to
+   `process.stdin`, `process.stdout`, and `process.stderr`, respectively. In
    any other position, equivalent to `'ignore'`.
 5. {Stream} object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
@@ -690,9 +681,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/21316
-    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -727,7 +715,7 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `true`.
+    normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
@@ -760,9 +748,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/21316
-    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -796,7 +781,7 @@ changes:
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `true`.
+    normally be created on Windows systems. **Default:** `false`.
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execSync()` method is generally identical to
@@ -822,9 +807,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/22409
     description: The `input` option can now be any `TypedArray` or a
                  `DataView`.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/21316
-    description: The `windowsHide` option now defaults to `true`.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -869,7 +851,7 @@ changes:
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
-    normally be created on Windows systems. **Default:** `true`.
+    normally be created on Windows systems. **Default:** `false`.
 * Returns: {Object}
   * `pid` {number} Pid of the child process.
   * `output` {Array} Array of results from stdio output.
@@ -1056,9 +1038,9 @@ child process may not actually terminate the process.
 
 See kill(2) for reference.
 
-Also note: on Linux, child processes of child processes will not be terminated
+On Linux, child processes of child processes will not be terminated
 when attempting to kill their parent. This is likely to happen when running a
-new process in a shell or with use of the `shell` option of `ChildProcess`:
+new process in a shell or with the use of the `shell` option of `ChildProcess`:
 
 ```js
 'use strict';

@@ -165,6 +165,8 @@ function eachSelfAssignment(left, right, props, report) {
 
 module.exports = {
     meta: {
+        type: "problem",
+
         docs: {
             description: "disallow assignments where both sides are exactly the same",
             category: "Best Practices",

@@ -945,6 +945,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
     uv_req_t* req) {
   DWORD bytes, flags, err;
   uv_buf_t buf;
+  int count;
 
   assert(handle->type == UV_TCP);
 
@@ -999,7 +1000,8 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
     }
 
     /* Do nonblocking reads until the buffer is empty */
-    while (handle->flags & UV_HANDLE_READING) {
+    count = 32;
+    while ((handle->flags & UV_HANDLE_READING) && (count-- > 0)) {
       buf = uv_buf_init(NULL, 0);
       handle->alloc_cb((uv_handle_t*) handle, 65536, &buf);
       if (buf.base == NULL || buf.len == 0) {

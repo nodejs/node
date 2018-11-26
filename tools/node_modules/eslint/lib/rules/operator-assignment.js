@@ -89,6 +89,8 @@ function canBeFixed(node) {
 
 module.exports = {
     meta: {
+        type: "suggestion",
+
         docs: {
             description: "require or disallow assignment operator shorthand where possible",
             category: "Stylistic Issues",

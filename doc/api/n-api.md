@@ -34,13 +34,51 @@ properties:
   handling section [Error Handling][].
 
 The N-API is a C API that ensures ABI stability across Node.js versions
-and different compiler levels. However, we also understand that a C++
-API can be easier to use in many cases. To support these cases we expect
-there to be one or more C++ wrapper modules that provide an inlineable C++
-API. Binaries built with these wrapper modules will depend on the symbols
-for the N-API C based functions exported by Node.js. These wrappers are not
-part of N-API, nor will they be maintained as part of Node.js. One such
-example is: [node-addon-api](https://github.com/nodejs/node-addon-api).
+and different compiler levels. A C++ API can be easier to use.
+To support using C++, the project maintains a
+C++ wrapper module called
+[node-addon-api](https://github.com/nodejs/node-addon-api).
+This wrapper provides an inlineable C++ API. Binaries built
+with `node-addon-api` will depend on the symbols for the N-API C-based
+functions exported by Node.js. `node-addon-api` is a more
+efficient way to write code that calls N-API. Take, for example, the
+following `node-addon-api` code. The first section shows the
+`node-addon-api` code and the second section shows what actually gets
+used in the addon.
+
+```C++
+Object obj = Object::New(env);
+obj["foo"] = String::New(env, "bar");
+```
+
+```C++
+napi_status status;
+napi_value object, string;
+status = napi_create_object(env, &object);
+if (status != napi_ok) {
+  napi_throw_error(env, ...);
+  return;
+}
+
+status = napi_crate_string_utf8(env, "bar", NAPI_AUTO_LENGTH, &string);
+if (status != napi_ok) {
+  napi_throw_error(env, ...);
+  return;
+}
+
+status = napi_set_named_property(env, object, "foo", string);
+if (status != napi_ok) {
+  napi_throw_error(env, ...);
+  return;
+}
+```
+
+The end result is that the addon only uses the exported C APIs. As a result,
+it still gets the benefits of the ABI stability provided by the C API.
+
+When using `node-addon-api` instead of the C APIs, start with the API
+[docs](https://github.com/nodejs/node-addon-api#api-documentation)
+for `node-addon-api`.
 
 ## Implications of ABI Stability
 
@@ -116,6 +154,65 @@ available to the module code.
 | v10.x |         |          | v10.0.0  |
 
 \* Indicates that the N-API version was released as experimental
+
+The N-APIs associated strictly with accessing ECMAScript features from native
+code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
+The APIs defined in these headers are included in `node_api.h` and
+`node_api_types.h`. The headers are structured in this way in order to allow
+implementations of N-API outside of Node.js. For those implementations the
+Node.js specific APIs may not be applicable.
+
+The Node.js-specific parts of an addon can be separated from the code that
+exposes the actual functionality to the JavaScript environment so that the
+latter may be used with multiple implementations of N-API. In the example below,
+`addon.c` and `addon.h` refer only to `js_native_api.h`. This ensures that
+`addon.c` can be reused to compile against either the Node.js implementation of
+N-API or any implementation of N-API outside of Node.js.
+
+`addon_node.c` is a separate file that contains the Node.js specific entry point
+to the addon and which instantiates the addon by calling into `addon.c` when the
+addon is loaded into a Node.js environment.
+
+```C
+// addon.h
+#ifndef _ADDON_H_
+#define _ADDON_H_
+#include <js_native_api.h>
+napi_value create_addon(napi_env env);
+#endif  // _ADDON_H_
+```
+
+```C
+// addon.c
+#include "addon.h"
+napi_value create_addon(napi_env env) {
+  napi_value result;
+  assert(napi_create_object(env, &result) == napi_ok);
+  napi_value exported_function;
+  assert(napi_create_function(env,
+                              "doSomethingUseful",
+                              NAPI_AUTO_LENGTH,
+                              DoSomethingUseful,
+                              NULL,
+                              &exported_function) == napi_ok);
+  assert(napi_set_named_property(env,
+                                 result,
+                                 "doSomethingUseful",
+                                 exported_function) == napi_ok);
+  return result;
+}
+```
+
+```C
+// addon_node.c
+#include <node_api.h>
+
+static napi_value Init(napi_env env, napi_value exports) {
+  return create_addon(env);
+}
+
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+```
 
 ## Basic N-API Data Types
 
@@ -3702,6 +3799,9 @@ callback was associated with the wrapping, it will no longer be called when the
 JavaScript object becomes garbage-collected.
 
 ### napi_add_finalizer
+
+> Stability: 1 - Experimental
+
 <!-- YAML
 added: v8.0.0
 napiVersion: 1
