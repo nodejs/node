@@ -237,7 +237,7 @@ function runTest(assertCleaned) {
 
       try {
         // Ensure everything that we expected was output
-        assert.strictEqual(expected.length, 0);
+        assert.strictEqual(0, expected.length);
         setImmediate(runTestWrap, cleaned);
       } catch (err) {
         console.error(`Failed test # ${numtests - tests.length}`);
