@@ -16,16 +16,42 @@ namespace native_module {
 using NativeModuleRecordMap = std::map<std::string, UnionBytes>;
 using NativeModuleHashMap = std::map<std::string, std::string>;
 
-// The native (C++) side of the native module compilation.
-// This class should not depend on Environment
+// The native (C++) side of the NativeModule in JS land, which
+// handles compilation and caching of builtin modules (NativeModule)
+// and bootstrappers, whose source are bundled into the binary
+// as static data.
+// This class should not depend on a particular isolate, context, or
+// environment. Rather it should take them as arguments when necessary.
+// The instances of this class are per-process.
 class NativeModuleLoader {
  public:
+  // kCodeCache indicates that the compilation result should be returned
+  // as a Uint8Array, whereas kFunction indicates that the result should
+  // be returned as a Function.
+  // TODO(joyeecheung): it's possible to always produce code cache
+  // on the main thread and consume them in worker threads, or just
+  // share the cache among all the threads, although
+  // we need to decide whether to do that even when workers are not used.
+  enum class CompilationResultType { kCodeCache, kFunction };
+
   NativeModuleLoader();
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
   v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context) const;
   v8::Local<v8::String> GetSource(v8::Isolate* isolate, const char* id) const;
+
+  // Run a script with JS source bundled inside the binary as if it's wrapped
+  // in a function called with a null receiver and arguments specified in C++.
+  // The returned value is empty if an exception is encountered.
+  // JS code run with this method can assume that their top-level
+  // declarations won't affect the global scope.
+  v8::MaybeLocal<v8::Value> CompileAndCall(
+      v8::Local<v8::Context> context,
+      const char* id,
+      std::vector<v8::Local<v8::String>>* parameters,
+      std::vector<v8::Local<v8::Value>>* arguments,
+      Environment* optional_env);
 
  private:
   static void GetCacheUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -48,17 +74,21 @@ class NativeModuleLoader {
   void LoadCodeCacheHash();  // Loads data into code_cache_hash_
 
   v8::ScriptCompiler::CachedData* GetCachedData(const char* id) const;
-  static v8::Local<v8::Value> CompileAsModule(Environment* env,
-                                              const char* id,
-                                              bool produce_code_cache);
-  // TODO(joyeecheung): make this public and reuse it to compile bootstrappers.
+
+  // Compile a script as a NativeModule that can be loaded via
+  // NativeModule.p.require in JS land.
+  static v8::MaybeLocal<v8::Value> CompileAsModule(
+      Environment* env, const char* id, CompilationResultType result_type);
+
   // For bootstrappers optional_env may be a nullptr.
-  // This method magically knows what parameter it should pass to
-  // the function to be compiled.
-  v8::Local<v8::Value> LookupAndCompile(v8::Local<v8::Context> context,
-                                        const char* id,
-                                        bool produce_code_cache,
-                                        Environment* optional_env);
+  // If an exception is encountered (e.g. source code contains
+  // syntax error), the returned value is empty.
+  v8::MaybeLocal<v8::Value> LookupAndCompile(
+      v8::Local<v8::Context> context,
+      const char* id,
+      std::vector<v8::Local<v8::String>>* parameters,
+      CompilationResultType result_type,
+      Environment* optional_env);
 
   bool has_code_cache_ = false;
   NativeModuleRecordMap source_;

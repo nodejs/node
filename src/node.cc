@@ -162,7 +162,6 @@ using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Script;
-using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
 using v8::SideEffectType;
@@ -2500,14 +2499,16 @@ Local<Context> NewContext(Isolate* isolate,
     // Run lib/internal/per_context.js
     Context::Scope context_scope(context);
 
-    // TODO(joyeecheung): use NativeModuleLoader::Compile
-    Local<String> per_context =
-        per_process_loader.GetSource(isolate, "internal/per_context");
-    ScriptCompiler::Source per_context_src(per_context, nullptr);
-    Local<Script> s = ScriptCompiler::Compile(
-        context,
-        &per_context_src).ToLocalChecked();
-    s->Run(context).ToLocalChecked();
+    std::vector<Local<String>> parameters = {
+        FIXED_ONE_BYTE_STRING(isolate, "global")};
+    std::vector<Local<Value>> arguments = {context->Global()};
+    MaybeLocal<Value> result = per_process_loader.CompileAndCall(
+        context, "internal/per_context", &parameters, &arguments, nullptr);
+    if (result.IsEmpty()) {
+      // Execution failed during context creation.
+      // TODO(joyeecheung): deprecate this signature and return a MaybeLocal.
+      return Local<Context>();
+    }
   }
 
   return context;
