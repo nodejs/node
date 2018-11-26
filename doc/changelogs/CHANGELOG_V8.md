@@ -83,7 +83,7 @@ will be supported actively until April 2019 and maintained until December 2019.
   - support as and as+ flags in stringToFlags() (Sarat Addepalli) [#18801](https://github.com/nodejs/node/pull/18801)
   - emit 'ready' for fs streams and sockets (Sameer Srivastava) [#19408](https://github.com/nodejs/node/pull/19408)
 * **http, http2**:
-  - add options to http.createServer() (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)- 
+  - add options to http.createServer() (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)-
   - add 103 Early Hints status code (Yosuke Furukawa) [#16644](https://github.com/nodejs/node/pull/16644)
   - add http fallback options to .createServer (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)
 * **n-api**:
@@ -250,7 +250,7 @@ will be supported actively until April 2019 and maintained until December 2019.
 * [[`e17f05a817`](https://github.com/nodejs/node/commit/e17f05a817)] - **src**: create per-isolate strings after platform setup (Ulan Degenbaev) [#20175](https://github.com/nodejs/node/pull/20175)
 * [[`d38ccbb07f`](https://github.com/nodejs/node/commit/d38ccbb07f)] - **src**: use `unordered\_map` for perf marks (Anna Henningsen) [#19558](https://github.com/nodejs/node/pull/19558)
 * [[`553e34ef9c`](https://github.com/nodejs/node/commit/553e34ef9c)] - **src**: simplify http2 perf tracking code (Anna Henningsen) [#19470](https://github.com/nodejs/node/pull/19470)
-* [[`67182912d7`](https://github.com/nodejs/node/commit/67182912d7)] - **src**: add "icu::" prefix before ICU symbols (Steven R. Loomis) 
+* [[`67182912d7`](https://github.com/nodejs/node/commit/67182912d7)] - **src**: add "icu::" prefix before ICU symbols (Steven R. Loomis)
 * [[`2cf263519a`](https://github.com/nodejs/node/commit/2cf263519a)] - **src**: use unique\_ptr for scheduled delayed tasks (Franziska Hinkelmann) [#17083](https://github.com/nodejs/node/pull/17083)
 * [[`2148b1921e`](https://github.com/nodejs/node/commit/2148b1921e)] - **src**: use unique\_ptr in platform implementation (Franziska Hinkelmann) [#16970](https://github.com/nodejs/node/pull/16970)
 * [[`e9327541e1`](https://github.com/nodejs/node/commit/e9327541e1)] - **src**: cancel pending delayed platform tasks on exit (Anna Henningsen) [#16700](https://github.com/nodejs/node/pull/16700)
