@@ -835,12 +835,12 @@ Decompress a chunk of data with [`Unzip`][].
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
-[`Deflate`]: #zlib_class_zlib_deflate
 [`DeflateRaw`]: #zlib_class_zlib_deflateraw
+[`Deflate`]: #zlib_class_zlib_deflate
 [`Gunzip`]: #zlib_class_zlib_gunzip
 [`Gzip`]: #zlib_class_zlib_gzip
-[`Inflate`]: #zlib_class_zlib_inflate
 [`InflateRaw`]: #zlib_class_zlib_inflateraw
+[`Inflate`]: #zlib_class_zlib_inflate
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Unzip`]: #zlib_class_zlib_unzip
 [`stream.Transform`]: stream.html#stream_class_stream_transform

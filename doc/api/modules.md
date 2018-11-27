@@ -922,12 +922,12 @@ const requireUtil = createRequireFromPath('../src/utils');
 requireUtil('./some-tool');
 ```
 
+[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
+[`Error`]: errors.html#errors_class_error
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
-[`Error`]: errors.html#errors_class_error
 [`module` object]: #modules_the_module_object
 [`path.dirname()`]: path.html#path_path_dirname_path
-[GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [`require`]: #modules_require
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together

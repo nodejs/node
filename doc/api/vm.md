@@ -985,9 +985,9 @@ queues.
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
-[GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
 [ECMAScript Module Loader]: esm.html#esm_ecmascript_modules
 [Evaluate() concrete method]: https://tc39.github.io/ecma262/#sec-moduleevaluation
+[GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
 [Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation
 [Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records
