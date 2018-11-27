@@ -103,7 +103,8 @@ void NativeModuleLoader::CompileCodeCache(
 
   // TODO(joyeecheung): allow compiling cache for bootstrapper by
   // switching on id
-  MaybeLocal<Value> result = CompileAsModule(env, *id, true);
+  MaybeLocal<Value> result =
+      CompileAsModule(env, *id, CompilationResultType::kCodeCache);
   if (!result.IsEmpty()) {
     args.GetReturnValue().Set(result.ToLocalChecked());
   }
@@ -115,7 +116,8 @@ void NativeModuleLoader::CompileFunction(
   CHECK(args[0]->IsString());
   node::Utf8Value id(env->isolate(), args[0].As<String>());
 
-  MaybeLocal<Value> result = CompileAsModule(env, *id, false);
+  MaybeLocal<Value> result =
+      CompileAsModule(env, *id, CompilationResultType::kFunction);
   if (!result.IsEmpty()) {
     args.GetReturnValue().Set(result.ToLocalChecked());
   }
@@ -131,7 +133,7 @@ MaybeLocal<Value> NativeModuleLoader::CompileAndCall(
     Environment* optional_env) {
   Isolate* isolate = context->GetIsolate();
   MaybeLocal<Value> compiled = per_process_loader.LookupAndCompile(
-      context, id, parameters, false, nullptr);
+      context, id, parameters, CompilationResultType::kFunction, nullptr);
   if (compiled.IsEmpty()) {
     return compiled;
   }
@@ -140,16 +142,15 @@ MaybeLocal<Value> NativeModuleLoader::CompileAndCall(
       context, v8::Null(isolate), arguments->size(), arguments->data());
 }
 
-MaybeLocal<Value> NativeModuleLoader::CompileAsModule(Environment* env,
-                                                      const char* id,
-                                                      bool return_code_cache) {
+MaybeLocal<Value> NativeModuleLoader::CompileAsModule(
+    Environment* env, const char* id, CompilationResultType result) {
   std::vector<Local<String>> parameters = {env->exports_string(),
                                            env->require_string(),
                                            env->module_string(),
                                            env->process_string(),
                                            env->internal_binding_string()};
   return per_process_loader.LookupAndCompile(
-      env->context(), id, &parameters, return_code_cache, env);
+      env->context(), id, &parameters, result, env);
 }
 
 // Currently V8 only checks that the length of the source code is the
@@ -214,7 +215,7 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
     std::vector<Local<String>>* parameters,
-    bool return_code_cache,
+    CompilationResultType result_type,
     Environment* optional_env) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
@@ -236,7 +237,7 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
   //    built with them.
   // 2. If we are generating code cache for tools/general_code_cache.js, we
   //    are not going to use any cache ourselves.
-  if (has_code_cache_ && !return_code_cache) {
+  if (has_code_cache_ && result_type == CompilationResultType::kFunction) {
     cached_data = GetCachedData(id);
     if (cached_data != nullptr) {
       use_cache = true;
@@ -246,7 +247,7 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
   ScriptCompiler::Source script_source(source, origin, cached_data);
 
   ScriptCompiler::CompileOptions options;
-  if (return_code_cache) {
+  if (result_type == CompilationResultType::kCodeCache) {
     options = ScriptCompiler::kEagerCompile;
   } else if (use_cache) {
     options = ScriptCompiler::kConsumeCodeCache;
@@ -269,7 +270,7 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
     // In the case of early errors, v8 is already capable of
     // decorating the stack for us - note that we use CompileFunctionInContext
     // so there is no need to worry about wrappers.
-    return scope.EscapeMaybe(MaybeLocal<Value>());
+    return MaybeLocal<Value>();
   }
 
   Local<Function> fun = maybe_fun.ToLocalChecked();
@@ -289,7 +290,7 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
     }
   }
 
-  if (return_code_cache) {
+  if (result_type == CompilationResultType::kCodeCache) {
     std::unique_ptr<ScriptCompiler::CachedData> cached_data(
         ScriptCompiler::CreateCodeCacheForFunction(fun));
     CHECK_NE(cached_data, nullptr);
@@ -311,7 +312,7 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
     ret = fun;
   }
 
-  return scope.EscapeMaybe(MaybeLocal<Value>(ret));
+  return scope.Escape(ret);
 }
 
 void NativeModuleLoader::Initialize(Local<Object> target,

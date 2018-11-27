@@ -25,15 +25,27 @@ using NativeModuleHashMap = std::map<std::string, std::string>;
 // The instances of this class are per-process.
 class NativeModuleLoader {
  public:
+  // kCodeCache indicates that the compilation result should be returned
+  // as a Uint8Array, whereas kFunction indicates that the result should
+  // be returned as a Function.
+  // TODO(joyeecheung): it's possible to always produce code cache
+  // on the main thread and consume them in worker threads, or just
+  // share the cache among all the threads, although
+  // we need to decide whether to do that even when workers are not used.
+  enum class CompilationResultType { kCodeCache, kFunction };
+
   NativeModuleLoader();
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
   v8::Local<v8::Object> GetSourceObject(v8::Local<v8::Context> context) const;
   v8::Local<v8::String> GetSource(v8::Isolate* isolate, const char* id) const;
-  // Run a script with JS source bundled inside the binary as if it's a
-  // function called with a null receiver and arguments specified in C++.
+
+  // Run a script with JS source bundled inside the binary as if it's wrapped
+  // in a function called with a null receiver and arguments specified in C++.
   // The returned value is empty if an exception is encountered.
+  // JS code run with this method can assume that their top-level
+  // declarations won't affect the global scope.
   v8::MaybeLocal<v8::Value> CompileAndCall(
       v8::Local<v8::Context> context,
       const char* id,
@@ -64,16 +76,9 @@ class NativeModuleLoader {
   v8::ScriptCompiler::CachedData* GetCachedData(const char* id) const;
 
   // Compile a script as a NativeModule that can be loaded via
-  // NativeModule.p.require in JS land. If returns_code_cache is true,
-  // returns the cache data in a Uint8Array, otherwise returns the compiled
-  // function.
-  // TODO(joyeecheung): it's possible to always produce code cache
-  // on the main thread and consume them in worker threads, or just
-  // share the cache among all the threads, although
-  // We need to decide whether to do that even when workers are not used.
-  static v8::MaybeLocal<v8::Value> CompileAsModule(Environment* env,
-                                                   const char* id,
-                                                   bool return_code_cache);
+  // NativeModule.p.require in JS land.
+  static v8::MaybeLocal<v8::Value> CompileAsModule(
+      Environment* env, const char* id, CompilationResultType result_type);
 
   // For bootstrappers optional_env may be a nullptr.
   // If an exception is encountered (e.g. source code contains
@@ -82,7 +87,7 @@ class NativeModuleLoader {
       v8::Local<v8::Context> context,
       const char* id,
       std::vector<v8::Local<v8::String>>* parameters,
-      bool returns_code_cache,
+      CompilationResultType result_type,
       Environment* optional_env);
 
   bool has_code_cache_ = false;
