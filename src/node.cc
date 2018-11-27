@@ -53,6 +53,7 @@
 
 #include "ares.h"
 #include "async_wrap-inl.h"
+#include "brotli/encode.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "http_parser.h"
@@ -1723,6 +1724,14 @@ void SetupProcessObject(Environment* env,
                                      NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
                                      "."
                                      NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
+
+  const std::string brotli_version =
+      std::to_string(BrotliEncoderVersion() >> 24) +
+      "." +
+      std::to_string((BrotliEncoderVersion() & 0xFFF000) >> 12) +
+      "." +
+      std::to_string(BrotliEncoderVersion() & 0xFFF);
+
   READONLY_PROPERTY(versions,
                     "http_parser",
                     FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
@@ -1739,6 +1748,9 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "zlib",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
+  READONLY_PROPERTY(versions,
+                    "brotli",
+                    OneByteString(env->isolate(), brotli_version.c_str()));
   READONLY_PROPERTY(versions,
                     "ares",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
