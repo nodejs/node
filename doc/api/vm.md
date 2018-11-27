@@ -995,8 +995,8 @@ the `process.nextTick()` and `queueMicrotask()` functions.
 This issue occurs because all contexts share the same microtask and nextTick
 queues.
 
-[`Error`]: errors.html#errors_class_error
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.html#ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
+[`Error`]: errors.html#errors_class_error
 [`URL`]: url.html#url_class_url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
@@ -1005,12 +1005,12 @@ queues.
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox_options
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
-[GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
-[Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [ECMAScript Module Loader]: esm.html#esm_ecmascript_modules
 [Evaluate() concrete method]: https://tc39.github.io/ecma262/#sec-moduleevaluation
+[GetModuleNamespace]: https://tc39.github.io/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.github.io/ecma262/#sec-hostresolveimportedmodule
 [Instantiate() concrete method]: https://tc39.github.io/ecma262/#sec-moduledeclarationinstantiation
+[Module Namespace Object]: https://tc39.github.io/ecma262/#sec-module-namespace-exotic-objects
 [Source Text Module Record]: https://tc39.github.io/ecma262/#sec-source-text-module-records
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object

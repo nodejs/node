@@ -716,5 +716,5 @@ never be called.
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
-[promise execution tracking]: #async_hooks_promise_execution_tracking
 [`Worker`]: worker_threads.html#worker_threads_class_worker
+[promise execution tracking]: #async_hooks_promise_execution_tracking

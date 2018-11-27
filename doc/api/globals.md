@@ -229,6 +229,10 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+[`TextDecoder`]: util.html#util_class_util_textdecoder
+[`TextEncoder`]: util.html#util_class_util_textencoder
+[`URLSearchParams`]: url.html#url_class_urlsearchparams
+[`URL`]: url.html#url_class_url
 [`__dirname`]: modules.html#modules_dirname
 [`__filename`]: modules.html#modules_filename
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediate
@@ -242,10 +246,6 @@ The object that acts as the namespace for all W3C
 [`setImmediate`]: timers.html#timers_setimmediate_callback_args
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
-[`TextDecoder`]: util.html#util_class_util_textdecoder
-[`TextEncoder`]: util.html#util_class_util_textencoder
-[`URL`]: url.html#url_class_url
-[`URLSearchParams`]: url.html#url_class_urlsearchparams
 [buffer section]: buffer.html
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [module system documentation]: modules.html
