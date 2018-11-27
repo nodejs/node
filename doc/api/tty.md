@@ -214,6 +214,6 @@ a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
 [`net.Socket`]: net.html#net_class_net_socket
+[`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
-[`process.stderr`]: process.html#process_process_stderr
