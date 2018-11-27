@@ -2258,12 +2258,12 @@ contain multi-byte characters.
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
+[`readable.push('')`]: #stream_readable_push
 [`stream.cork()`]: #stream_writable_cork
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
-[`readable.push('')`]: #stream_readable_push
 [`writable.cork()`]: #stream_writable_cork
 [`writable.uncork()`]: #stream_writable_uncork
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
@@ -2283,21 +2283,21 @@ contain multi-byte characters.
 [fs read streams]: fs.html#fs_class_fs_readstream
 [fs write streams]: fs.html#fs_class_fs_writestream
 [http-incoming-message]: http.html#http_class_http_incomingmessage
-[zlib]: zlib.html
 [hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
+[readable-_destroy]: #stream_readable_destroy_err_callback
+[readable-destroy]: #stream_readable_destroy_error
+[stream-_final]: #stream_writable_final_callback
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
 [stream-_write]: #stream_writable_write_chunk_encoding_callback_1
 [stream-_writev]: #stream_writable_writev_chunks_callback
-[stream-_final]: #stream_writable_final_callback
 [stream-end]: #stream_writable_end_chunk_encoding_callback
 [stream-pause]: #stream_readable_pause
 [stream-push]: #stream_readable_push_chunk_encoding
 [stream-read]: #stream_readable_read_size
 [stream-resume]: #stream_readable_resume
 [stream-write]: #stream_writable_write_chunk_encoding_callback
-[readable-_destroy]: #stream_readable_destroy_err_callback
-[readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
+[zlib]: zlib.html
