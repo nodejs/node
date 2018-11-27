@@ -9,6 +9,8 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at evalScript (internal/bootstrap/node.js:*:*)
+    at executeUserCode (internal/bootstrap/node.js:*:*)
+    at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
     at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 42
@@ -24,6 +26,8 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at evalScript (internal/bootstrap/node.js:*:*)
+    at executeUserCode (internal/bootstrap/node.js:*:*)
+    at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
     at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 
@@ -38,6 +42,8 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at evalScript (internal/bootstrap/node.js:*:*)
+    at executeUserCode (internal/bootstrap/node.js:*:*)
+    at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
     at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 100
@@ -52,6 +58,8 @@ ReferenceError: y is not defined
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (internal/modules/cjs/loader.js:*:*)
     at evalScript (internal/bootstrap/node.js:*:*)
+    at executeUserCode (internal/bootstrap/node.js:*:*)
+    at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
     at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
 
