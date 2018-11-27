@@ -6,7 +6,7 @@ const net = require('net');
 const { internalBinding } = require('internal/test/binding');
 const TCPWrap = internalBinding('tcp_wrap').TCP;
 
-const echoServer = net.createServer(function(conn) {
+const echoServer = net.createServer((conn) => {
   conn.end();
 });
 
@@ -29,12 +29,12 @@ TCPWrap.prototype.unref = function() {
 
 echoServer.listen(0);
 
-echoServer.on('listening', function() {
+echoServer.on('listening', () => {
   const sock = new net.Socket();
   sock.unref();
   sock.ref();
   sock.connect(this.address().port);
-  sock.on('end', function() {
+  sock.on('end', () => {
     assert.strictEqual(refCount, 0);
     echoServer.close();
   });
