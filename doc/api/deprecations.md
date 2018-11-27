@@ -2072,24 +2072,25 @@ only. Use of `process.binding()` by userland code is unsupported.
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Cipher`]: crypto.html#crypto_class_cipher
 [`Decipher`]: crypto.html#crypto_class_decipher
-[`assert`]: assert.html
-[`clearInterval()`]: timers.html#timers_clearinterval_timeout
-[`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
+[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
 [`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
+[`assert`]: assert.html
 [`asyncResource.runInAsyncScope()`]: async_hooks.html#async_hooks_asyncresource_runinasyncscope_fn_thisarg_args
 [`child_process`]: child_process.html
+[`clearInterval()`]: timers.html#timers_clearinterval_timeout
+[`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
 [`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.createDecipher()`]: crypto.html#crypto_crypto_createdecipher_algorithm_password_options
 [`crypto.createDecipheriv()`]: crypto.html#crypto_crypto_createdecipheriv_algorithm_key_iv_options
-[`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.fips`]: crypto.html#crypto_crypto_fips
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`crypto.scrypt()`]: crypto.html#crypto_crypto_scrypt_password_salt_keylen_options_callback
@@ -2147,9 +2148,8 @@ only. Use of `process.binding()` by userland code is unsupported.
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
 [`zlib.bytesWritten`]: zlib.html#zlib_zlib_byteswritten
+[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
-[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand

@@ -194,19 +194,19 @@ to be helpful:
 ["ICU Data"]: http://userguide.icu-project.org/icudata
 [`--icu-data-dir`]: cli.html#cli_icu_data_dir_file
 [`Date.prototype.toLocaleString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString
-[`Intl`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl
 [`Intl.DateTimeFormat`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat
+[`Intl`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl
 [`NODE_ICU_DATA`]: cli.html#cli_node_icu_data_file
 [`Number.prototype.toLocaleString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toLocaleString
 [`RegExp` Unicode Property Escapes]: https://github.com/tc39/proposal-regexp-unicode-property-escapes
-[`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
-[`require('util').TextDecoder`]: util.html#util_class_util_textdecoder
 [`String.prototype.localeCompare()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/localeCompare
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
 [`String.prototype.toLowerCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
-[BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
+[`require('buffer').transcode()`]: buffer.html#buffer_buffer_transcode_source_fromenc_toenc
+[`require('util').TextDecoder`]: util.html#util_class_util_textdecoder
 [BUILDING.md#full-icu]: https://github.com/nodejs/node/blob/master/BUILDING.md#build-with-full-icu-support-all-locales-supported-by-icu
+[BUILDING.md]: https://github.com/nodejs/node/blob/master/BUILDING.md
 [ECMA-262]: https://tc39.github.io/ecma262/
 [ECMA-402]: https://tc39.github.io/ecma402/
 [ICU]: http://site.icu-project.org/
