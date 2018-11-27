@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const expected_keys = ['ares', 'modules', 'node',
+const expected_keys = ['ares', 'brotli', 'modules', 'node',
                        'uv', 'v8', 'zlib', 'nghttp2', 'napi',
                        'http_parser', 'llhttp'];
 
@@ -25,6 +25,7 @@ assert.deepStrictEqual(actual_keys, expected_keys);
 const commonTemplate = /^\d+\.\d+\.\d+(?:-.*)?$/;
 
 assert(commonTemplate.test(process.versions.ares));
+assert(commonTemplate.test(process.versions.brotli));
 assert(commonTemplate.test(process.versions.llhttp));
 assert(commonTemplate.test(process.versions.http_parser));
 assert(commonTemplate.test(process.versions.node));

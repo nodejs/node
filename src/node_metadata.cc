@@ -1,5 +1,6 @@
 #include "node_metadata.h"
 #include "ares.h"
+#include "brotli/encode.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
 #include "node_internals.h"
@@ -29,6 +30,13 @@ Metadata::Versions::Versions() {
   napi = NODE_STRINGIFY(NAPI_VERSION);
   llhttp = llhttp_version;
   http_parser = http_parser_version;
+
+  brotli =
+    std::to_string(BrotliEncoderVersion() >> 24) +
+    "." +
+    std::to_string((BrotliEncoderVersion() & 0xFFF000) >> 12) +
+    "." +
+    std::to_string(BrotliEncoderVersion() & 0xFFF);
 
 #if HAVE_OPENSSL
   openssl = crypto::GetOpenSSLVersion();

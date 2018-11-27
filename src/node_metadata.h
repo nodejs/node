@@ -12,6 +12,7 @@ namespace node {
   V(v8)                                                                        \
   V(uv)                                                                        \
   V(zlib)                                                                      \
+  V(brotli)                                                                    \
   V(ares)                                                                      \
   V(modules)                                                                   \
   V(nghttp2)                                                                   \
