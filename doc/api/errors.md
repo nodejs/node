@@ -624,6 +624,16 @@ An attempt was made to register something that is not a function as an
 The type of an asynchronous resource was invalid. Note that users are also able
 to define their own types if using the public embedder API.
 
+<a id="ERR_BROTLI_INVALID_PARAM"></a>
+### ERR_BROTLI_INVALID_PARAM
+
+An invalid parameter key was passed during construction of a Brotli stream.
+
+<a id="ERR_BROTLI_COMPRESSION_FAILED">
+### ERR_BROTLI_COMPRESSION_FAILED
+
+Data passed to a Brotli stream was not successfully compressed.
+
 <a id="ERR_BUFFER_CONTEXT_NOT_AVAILABLE"></a>
 ### ERR_BUFFER_CONTEXT_NOT_AVAILABLE
 

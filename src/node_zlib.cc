@@ -28,6 +28,9 @@
 #include "util-inl.h"
 
 #include "v8.h"
+
+#include "brotli/encode.h"
+#include "brotli/decode.h"
 #include "zlib.h"
 
 #include <errno.h>
@@ -82,7 +85,9 @@ enum node_zlib_mode {
   GUNZIP,
   DEFLATERAW,
   INFLATERAW,
-  UNZIP
+  UNZIP,
+  BROTLI_DECODE,
+  BROTLI_ENCODE
 };
 
 #define GZIP_HEADER_ID1 0x1f
@@ -111,13 +116,13 @@ class ZlibContext : public MemoryRetainer {
   void SetFlush(int flush);
   void GetAfterWriteOffsets(uint32_t* avail_in, uint32_t* avail_out) const;
   CompressionError GetErrorInfo() const;
+  inline void SetMode(node_zlib_mode mode) { mode_ = mode; }
+  CompressionError ResetStream();
 
   // Zlib-specific:
   CompressionError Init(int level, int window_bits, int mem_level, int strategy,
                         std::vector<unsigned char>&& dictionary);
-  inline void SetMode(node_zlib_mode mode) { mode_ = mode; }
   void SetAllocationFunctions(alloc_func alloc, free_func free, void* opaque);
-  CompressionError ResetStream();
   CompressionError SetParams(int level, int strategy);
 
   SET_MEMORY_INFO_NAME(ZlibContext)
@@ -144,6 +149,77 @@ class ZlibContext : public MemoryRetainer {
   z_stream strm_;
 
   DISALLOW_COPY_AND_ASSIGN(ZlibContext);
+};
+
+// Brotli has different data types for compression and decompression streams,
+// so some of the specifics are implemented in more specific subclasses
+class BrotliContext : public MemoryRetainer {
+ public:
+  BrotliContext() = default;
+
+  void SetBuffers(char* in, uint32_t in_len, char* out, uint32_t out_len);
+  void SetFlush(int flush);
+  void GetAfterWriteOffsets(uint32_t* avail_in, uint32_t* avail_out) const;
+  inline void SetMode(node_zlib_mode mode) { mode_ = mode; }
+
+ protected:
+  node_zlib_mode mode_ = NONE;
+  uint8_t* next_in_ = nullptr;
+  uint8_t* next_out_ = nullptr;
+  size_t avail_in_ = 0;
+  size_t avail_out_ = 0;
+  BrotliEncoderOperation flush_ = BROTLI_OPERATION_PROCESS;
+  // TODO(addaleax): These should not need to be stored here.
+  // This is currently only done this way to make implementing ResetStream()
+  // easier.
+  brotli_alloc_func alloc_ = nullptr;
+  brotli_free_func free_ = nullptr;
+  void* alloc_opaque_ = nullptr;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BrotliContext);
+};
+
+class BrotliEncoderContext final : public BrotliContext {
+ public:
+  void Close();
+  void DoThreadPoolWork();
+  CompressionError Init(brotli_alloc_func alloc,
+                        brotli_free_func free,
+                        void* opaque);
+  CompressionError ResetStream();
+  CompressionError SetParams(int key, uint32_t value);
+  CompressionError GetErrorInfo() const;
+
+  SET_MEMORY_INFO_NAME(BrotliEncoderContext)
+  SET_SELF_SIZE(BrotliEncoderContext)
+  SET_NO_MEMORY_INFO()  // state_ is covered through allocation tracking.
+
+ private:
+  bool last_result_ = false;
+  DeleteFnPtr<BrotliEncoderState, BrotliEncoderDestroyInstance> state_;
+};
+
+class BrotliDecoderContext final : public BrotliContext {
+ public:
+  void Close();
+  void DoThreadPoolWork();
+  CompressionError Init(brotli_alloc_func alloc,
+                        brotli_free_func free,
+                        void* opaque);
+  CompressionError ResetStream();
+  CompressionError SetParams(int key, uint32_t value);
+  CompressionError GetErrorInfo() const;
+
+  SET_MEMORY_INFO_NAME(BrotliDecoderContext)
+  SET_SELF_SIZE(BrotliDecoderContext)
+  SET_NO_MEMORY_INFO()  // state_ is covered through allocation tracking.
+
+ private:
+  BrotliDecoderResult last_result_ = BROTLI_DECODER_RESULT_SUCCESS;
+  BrotliDecoderErrorCode error_ = BROTLI_DECODER_NO_ERROR;
+  std::string error_string_;
+  DeleteFnPtr<BrotliDecoderState, BrotliDecoderDestroyInstance> state_;
 };
 
 template <typename CompressionContext>
@@ -340,6 +416,16 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
       Close();
   }
 
+  static void Reset(const FunctionCallbackInfo<Value> &args) {
+    CompressionStream* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+    AllocScope alloc_scope(wrap);
+    const CompressionError err = wrap->context()->ResetStream();
+    if (err.IsError())
+      wrap->EmitError(err);
+  }
+
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("compression context", ctx_);
     tracker->TrackFieldWithSize("zlib_memory",
@@ -362,14 +448,19 @@ class CompressionStream : public AsyncWrap, public ThreadPoolWork {
   // to V8; rather, we first store it as "unreported" memory in a separate
   // field and later report it back from the main thread.
   static void* AllocForZlib(void* data, uInt items, uInt size) {
-    CompressionStream* ctx = static_cast<CompressionStream*>(data);
     size_t real_size =
         MultiplyWithOverflowCheck(static_cast<size_t>(items),
-                                  static_cast<size_t>(size)) + sizeof(size_t);
-    char* memory = UncheckedMalloc(real_size);
+                                  static_cast<size_t>(size));
+    return AllocForBrotli(data, real_size);
+  }
+
+  static void* AllocForBrotli(void* data, size_t size) {
+    size += sizeof(size_t);
+    CompressionStream* ctx = static_cast<CompressionStream*>(data);
+    char* memory = UncheckedMalloc(size);
     if (UNLIKELY(memory == nullptr)) return nullptr;
-    *reinterpret_cast<size_t*>(memory) = real_size;
-    ctx->unreported_allocations_.fetch_add(real_size,
+    *reinterpret_cast<size_t*>(memory) = size;
+    ctx->unreported_allocations_.fetch_add(size,
                                            std::memory_order_relaxed);
     return memory + sizeof(size_t);
   }
@@ -484,6 +575,7 @@ class ZlibStream : public CompressionStream<ZlibContext> {
     Local<ArrayBuffer> ab = array->Buffer();
     uint32_t* write_result = static_cast<uint32_t*>(ab->GetContents().Data());
 
+    CHECK(args[5]->IsFunction());
     Local<Function> write_js_callback = args[5].As<Function>();
 
     std::vector<unsigned char> dictionary;
@@ -525,20 +617,88 @@ class ZlibStream : public CompressionStream<ZlibContext> {
       wrap->EmitError(err);
   }
 
-  static void Reset(const FunctionCallbackInfo<Value> &args) {
-    ZlibStream* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-
-    AllocScope alloc_scope(wrap);
-    const CompressionError err = wrap->context()->ResetStream();
-    if (err.IsError())
-      wrap->EmitError(err);
-  }
-
   SET_MEMORY_INFO_NAME(ZlibStream)
   SET_SELF_SIZE(ZlibStream)
 };
 
+template <typename CompressionContext>
+class BrotliCompressionStream : public CompressionStream<CompressionContext> {
+ public:
+  BrotliCompressionStream(Environment* env,
+                          Local<Object> wrap,
+                          node_zlib_mode mode)
+    : CompressionStream<CompressionContext>(env, wrap) {
+    context()->SetMode(mode);
+  }
+
+  inline CompressionContext* context() {
+    return this->CompressionStream<CompressionContext>::context();
+  }
+  typedef typename CompressionStream<CompressionContext>::AllocScope AllocScope;
+
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    CHECK(args[0]->IsInt32());
+    node_zlib_mode mode =
+        static_cast<node_zlib_mode>(args[0].As<Int32>()->Value());
+    new BrotliCompressionStream(env, args.This(), mode);
+  }
+
+  static void Init(const FunctionCallbackInfo<Value>& args) {
+    BrotliCompressionStream* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    CHECK(args.Length() == 3 && "init(params, writeResult, writeCallback)");
+
+    CHECK(args[1]->IsUint32Array());
+    uint32_t* write_result = reinterpret_cast<uint32_t*>(Buffer::Data(args[1]));
+
+    CHECK(args[2]->IsFunction());
+    Local<Function> write_js_callback = args[2].As<Function>();
+    wrap->InitStream(write_result, write_js_callback);
+
+    AllocScope alloc_scope(wrap);
+    CompressionError err =
+        wrap->context()->Init(
+          CompressionStream<CompressionContext>::AllocForBrotli,
+          CompressionStream<CompressionContext>::FreeForZlib,
+          static_cast<CompressionStream<CompressionContext>*>(wrap));
+    if (err.IsError()) {
+      wrap->EmitError(err);
+      args.GetReturnValue().Set(false);
+      return;
+    }
+
+    CHECK(args[0]->IsUint32Array());
+    const uint32_t* data = reinterpret_cast<uint32_t*>(Buffer::Data(args[0]));
+    size_t len = args[0].As<Uint32Array>()->Length();
+
+    for (int i = 0; static_cast<size_t>(i) < len; i++) {
+      if (data[i] == static_cast<uint32_t>(-1))
+        continue;
+      err = wrap->context()->SetParams(i, data[i]);
+      if (err.IsError()) {
+        wrap->EmitError(err);
+        args.GetReturnValue().Set(false);
+        return;
+      }
+    }
+
+    args.GetReturnValue().Set(true);
+  }
+
+  static void Params(const FunctionCallbackInfo<Value>& args) {
+    // Currently a no-op, and not accessed from JS land.
+    // At some point Brotli may support changing parameters on the fly,
+    // in which case we can implement this and a JS equivalent similar to
+    // the zlib Params() function.
+  }
+
+  SET_MEMORY_INFO_NAME(BrotliCompressionStream)
+  SET_SELF_SIZE(BrotliCompressionStream)
+};
+
+using BrotliEncoderStream = BrotliCompressionStream<BrotliEncoderContext>;
+using BrotliDecoderStream = BrotliCompressionStream<BrotliDecoderContext>;
 
 void ZlibContext::Close() {
   CHECK_LE(mode_, UNZIP);
@@ -876,29 +1036,194 @@ CompressionError ZlibContext::SetParams(int level, int strategy) {
 }
 
 
+void BrotliContext::SetBuffers(char* in, uint32_t in_len,
+                               char* out, uint32_t out_len) {
+  next_in_ = reinterpret_cast<uint8_t*>(in);
+  next_out_ = reinterpret_cast<uint8_t*>(out);
+  avail_in_ = in_len;
+  avail_out_ = out_len;
+}
+
+
+void BrotliContext::SetFlush(int flush) {
+  flush_ = static_cast<BrotliEncoderOperation>(flush);
+}
+
+
+void BrotliContext::GetAfterWriteOffsets(uint32_t* avail_in,
+                                         uint32_t* avail_out) const {
+  *avail_in = avail_in_;
+  *avail_out = avail_out_;
+}
+
+
+void BrotliEncoderContext::DoThreadPoolWork() {
+  CHECK_EQ(mode_, BROTLI_ENCODE);
+  CHECK(state_);
+  const uint8_t* next_in = next_in_;
+  last_result_ = BrotliEncoderCompressStream(state_.get(),
+                                             flush_,
+                                             &avail_in_,
+                                             &next_in,
+                                             &avail_out_,
+                                             &next_out_,
+                                             nullptr);
+  next_in_ += next_in - next_in_;
+}
+
+
+void BrotliEncoderContext::Close() {
+  state_.reset();
+  mode_ = NONE;
+}
+
+CompressionError BrotliEncoderContext::Init(brotli_alloc_func alloc,
+                                            brotli_free_func free,
+                                            void* opaque) {
+  alloc_ = alloc;
+  free_ = free;
+  alloc_opaque_ = opaque;
+  state_.reset(BrotliEncoderCreateInstance(alloc, free, opaque));
+  if (!state_) {
+    return CompressionError("Could not initialize Brotli instance",
+                            "ERR_ZLIB_INITIALIZATION_FAILED",
+                            -1);
+  } else {
+    return CompressionError {};
+  }
+}
+
+CompressionError BrotliEncoderContext::ResetStream() {
+  return Init(alloc_, free_, alloc_opaque_);
+}
+
+CompressionError BrotliEncoderContext::SetParams(int key, uint32_t value) {
+  if (!BrotliEncoderSetParameter(state_.get(),
+                                 static_cast<BrotliEncoderParameter>(key),
+                                 value)) {
+    return CompressionError("Setting parameter failed",
+                            "ERR_BROTLI_PARAM_SET_FAILED",
+                            -1);
+  } else {
+    return CompressionError {};
+  }
+}
+
+CompressionError BrotliEncoderContext::GetErrorInfo() const {
+  if (!last_result_) {
+    return CompressionError("Compression failed",
+                            "ERR_BROTLI_COMPRESSION_FAILED",
+                            -1);
+  } else {
+    return CompressionError {};
+  }
+}
+
+
+void BrotliDecoderContext::Close() {
+  state_.reset();
+  mode_ = NONE;
+}
+
+void BrotliDecoderContext::DoThreadPoolWork() {
+  CHECK_EQ(mode_, BROTLI_DECODE);
+  CHECK(state_);
+  const uint8_t* next_in = next_in_;
+  last_result_ = BrotliDecoderDecompressStream(state_.get(),
+                                               &avail_in_,
+                                               &next_in,
+                                               &avail_out_,
+                                               &next_out_,
+                                               nullptr);
+  next_in_ += next_in - next_in_;
+  if (last_result_ == BROTLI_DECODER_RESULT_ERROR) {
+    error_ = BrotliDecoderGetErrorCode(state_.get());
+    error_string_ = std::string("ERR_") + BrotliDecoderErrorString(error_);
+  }
+}
+
+CompressionError BrotliDecoderContext::Init(brotli_alloc_func alloc,
+                                            brotli_free_func free,
+                                            void* opaque) {
+  alloc_ = alloc;
+  free_ = free;
+  alloc_opaque_ = opaque;
+  state_.reset(BrotliDecoderCreateInstance(alloc, free, opaque));
+  if (!state_) {
+    return CompressionError("Could not initialize Brotli instance",
+                            "ERR_ZLIB_INITIALIZATION_FAILED",
+                            -1);
+  } else {
+    return CompressionError {};
+  }
+}
+
+CompressionError BrotliDecoderContext::ResetStream() {
+  return Init(alloc_, free_, alloc_opaque_);
+}
+
+CompressionError BrotliDecoderContext::SetParams(int key, uint32_t value) {
+  if (!BrotliDecoderSetParameter(state_.get(),
+                                 static_cast<BrotliDecoderParameter>(key),
+                                 value)) {
+    return CompressionError("Setting parameter failed",
+                            "ERR_BROTLI_PARAM_SET_FAILED",
+                            -1);
+  } else {
+    return CompressionError {};
+  }
+}
+
+CompressionError BrotliDecoderContext::GetErrorInfo() const {
+  if (error_ != BROTLI_DECODER_NO_ERROR) {
+    return CompressionError("Decompression failed",
+                            error_string_.c_str(),
+                            static_cast<int>(error_));
+  } else if (flush_ == BROTLI_OPERATION_FINISH &&
+             last_result_ == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
+    // Match zlib's behaviour, as brotli doesn't have its own code for this.
+    return CompressionError("unexpected end of file",
+                            "Z_BUF_ERROR",
+                            Z_BUF_ERROR);
+  } else {
+    return CompressionError {};
+  }
+}
+
+
+template <typename Stream>
+struct MakeClass {
+  static void Make(Environment* env, Local<Object> target, const char* name) {
+    Local<FunctionTemplate> z = env->NewFunctionTemplate(Stream::New);
+
+    z->InstanceTemplate()->SetInternalFieldCount(1);
+    z->Inherit(AsyncWrap::GetConstructorTemplate(env));
+
+    env->SetProtoMethod(z, "write", Stream::template Write<true>);
+    env->SetProtoMethod(z, "writeSync", Stream::template Write<false>);
+    env->SetProtoMethod(z, "close", Stream::Close);
+
+    env->SetProtoMethod(z, "init", Stream::Init);
+    env->SetProtoMethod(z, "params", Stream::Params);
+    env->SetProtoMethod(z, "reset", Stream::Reset);
+
+    Local<String> zlibString = OneByteString(env->isolate(), name);
+    z->SetClassName(zlibString);
+    target->Set(env->context(),
+                zlibString,
+                z->GetFunction(env->context()).ToLocalChecked()).FromJust();
+  }
+};
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Local<FunctionTemplate> z = env->NewFunctionTemplate(ZlibStream::New);
 
-  z->InstanceTemplate()->SetInternalFieldCount(1);
-  z->Inherit(AsyncWrap::GetConstructorTemplate(env));
-
-  env->SetProtoMethod(z, "write", ZlibStream::Write<true>);
-  env->SetProtoMethod(z, "writeSync", ZlibStream::Write<false>);
-  env->SetProtoMethod(z, "close", ZlibStream::Close);
-
-  env->SetProtoMethod(z, "init", ZlibStream::Init);
-  env->SetProtoMethod(z, "params", ZlibStream::Params);
-  env->SetProtoMethod(z, "reset", ZlibStream::Reset);
-
-  Local<String> zlibString = FIXED_ONE_BYTE_STRING(env->isolate(), "Zlib");
-  z->SetClassName(zlibString);
-  target->Set(env->context(),
-              zlibString,
-              z->GetFunction(env->context()).ToLocalChecked()).FromJust();
+  MakeClass<ZlibStream>::Make(env, target, "Zlib");
+  MakeClass<BrotliEncoderStream>::Make(env, target, "BrotliEncoder");
+  MakeClass<BrotliDecoderStream>::Make(env, target, "BrotliDecoder");
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
@@ -944,6 +1269,8 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFLATERAW);
   NODE_DEFINE_CONSTANT(target, INFLATERAW);
   NODE_DEFINE_CONSTANT(target, UNZIP);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODE);
+  NODE_DEFINE_CONSTANT(target, BROTLI_ENCODE);
 
   NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
   NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
@@ -957,6 +1284,72 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
   NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
+
+  // Brotli constants
+  NODE_DEFINE_CONSTANT(target, BROTLI_OPERATION_PROCESS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_OPERATION_FLUSH);
+  NODE_DEFINE_CONSTANT(target, BROTLI_OPERATION_FINISH);
+  NODE_DEFINE_CONSTANT(target, BROTLI_OPERATION_EMIT_METADATA);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_MODE);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MODE_GENERIC);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MODE_TEXT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MODE_FONT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DEFAULT_MODE);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_QUALITY);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MIN_QUALITY);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MAX_QUALITY);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DEFAULT_QUALITY);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_LGWIN);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MIN_WINDOW_BITS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MAX_WINDOW_BITS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_LARGE_MAX_WINDOW_BITS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DEFAULT_WINDOW);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_LGBLOCK);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MIN_INPUT_BLOCK_BITS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_MAX_INPUT_BLOCK_BITS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_SIZE_HINT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_LARGE_WINDOW);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_NPOSTFIX);
+  NODE_DEFINE_CONSTANT(target, BROTLI_PARAM_NDIRECT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_RESULT_ERROR);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_RESULT_SUCCESS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT);
+  NODE_DEFINE_CONSTANT(target,
+      BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_PARAM_LARGE_WINDOW);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_NO_ERROR);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_SUCCESS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_NEEDS_MORE_INPUT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_NEEDS_MORE_OUTPUT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_NIBBLE);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_RESERVED);
+  NODE_DEFINE_CONSTANT(target,
+      BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_META_NIBBLE);
+  NODE_DEFINE_CONSTANT(target,
+      BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_ALPHABET);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_SIMPLE_HUFFMAN_SAME);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_CL_SPACE);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_CONTEXT_MAP_REPEAT);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_1);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_2);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_TRANSFORM);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_DICTIONARY);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_WINDOW_BITS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_PADDING_1);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_PADDING_2);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_FORMAT_DISTANCE);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_INVALID_ARGUMENTS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MODES);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_TREE_GROUPS);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MAP);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_1);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_2);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_ALLOC_BLOCK_TYPE_TREES);
+  NODE_DEFINE_CONSTANT(target, BROTLI_DECODER_ERROR_UNREACHABLE);
 }
 
 }  // namespace node
