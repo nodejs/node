@@ -202,7 +202,9 @@ for version in $versions; do
 
     ssh ${customsshkey} ${webuser}@${webhost} $promotecmd nodejs $version
 
-    sign $version
+    if [ $? -eq 0 ];then
+      sign $version
+    fi
 
     break
   done
