@@ -73,7 +73,6 @@
       <ComponentRef Id="NodeStartMenu"/>
       <ComponentRef Id="AppData" />
       <ComponentRef Id="InstallToolsBat" />
-      <ComponentRef Id="InstallToolsTxt" />
       <ComponentGroupRef Id="Product.Generated"/>
 
       <Feature Id="NodeEtwSupport"
@@ -159,10 +158,6 @@
 
       <Component Id="InstallToolsBat">
         <File Id="InstallToolsBat" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\install_tools\install_tools.bat"/>
-      </Component>
-
-      <Component Id="InstallToolsTxt">
-        <File Id="InstallToolsTxt" Source="$(var.RepoDir)\tools\msvs\install_tools\install_tools.txt"/>
       </Component>
 
       <?if $(var.NoETW) != 1 ?>
