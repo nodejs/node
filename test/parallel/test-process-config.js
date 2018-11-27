@@ -48,7 +48,7 @@ let config = fs.readFileSync(configPath, 'utf8');
 config = config.split('\n').slice(1).join('\n');
 config = config.replace(/"/g, '\\"');
 config = config.replace(/'/g, '"');
-config = JSON.parse(config, function(key, value) {
+config = JSON.parse(config, (key, value) => {
   if (value === 'true') return true;
   if (value === 'false') return false;
   return value;
