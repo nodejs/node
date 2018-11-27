@@ -784,6 +784,7 @@ class Parser : public AsyncWrap, public StreamListener {
   void Init(parser_type_t type) {
 #ifdef NODE_EXPERIMENTAL_HTTP
     llhttp_init(&parser_, type, &settings);
+    header_nread_ = 0;
 #else  /* !NODE_EXPERIMENTAL_HTTP */
     http_parser_init(&parser_, type);
 #endif  /* NODE_EXPERIMENTAL_HTTP */
