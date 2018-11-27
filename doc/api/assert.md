@@ -1245,8 +1245,8 @@ assert.throws(throwingFirst, /Second$/);
 Due to the confusing notation, it is recommended not to use a string as the
 second argument. This might lead to difficult-to-spot errors.
 
-[`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
+[`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Error`]: errors.html#errors_class_error
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
@@ -1267,10 +1267,10 @@ second argument. This might lead to difficult-to-spot errors.
 [`assert.throws()`]: #assert_assert_throws_fn_error_message
 [`strict mode`]: #assert_strict_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
+[Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
 [Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [mdn-equality-guide]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
-[Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript

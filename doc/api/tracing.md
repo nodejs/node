@@ -206,5 +206,5 @@ console.log(trace_events.getEnabledCategories());
 
 [Performance API]: perf_hooks.html
 [V8]: v8.html
-[`async_hooks`]: async_hooks.html
 [`Worker`]: worker_threads.html#worker_threads_class_worker
+[`async_hooks`]: async_hooks.html
