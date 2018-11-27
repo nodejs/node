@@ -14,5 +14,6 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
     at tryModuleLoad (internal/modules/cjs/loader.js:*:*)
     at Function.Module._load (internal/modules/cjs/loader.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
+    at executeUserCode (internal/bootstrap/node.js:*:*)
+    at startExecution (internal/bootstrap/node.js:*:*)
     at startup (internal/bootstrap/node.js:*:*)
-    at bootstrapNodeJSCore (internal/bootstrap/node.js:*:*)
