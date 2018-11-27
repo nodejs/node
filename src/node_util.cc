@@ -66,7 +66,7 @@ static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   Local<Promise> promise = args[0].As<Promise>();
 
   int state = promise->State();
-  std::vector<Local<Value>> values;
+  std::vector<Local<Value>> values(2);
   values.push_back(Integer::New(isolate, state));
   if (state != Promise::PromiseState::kPending)
     values.push_back(promise->Result());
