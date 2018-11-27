@@ -879,6 +879,6 @@ socket.on('data', (id) => {
 [`server.close()`]: net.html#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
+[`cluster.settings`]: #cluster_cluster_settings
 [child_process event: 'exit']: child_process.html#child_process_event_exit
 [child_process event: 'message']: child_process.html#child_process_event_message
-[`cluster.settings`]: #cluster_cluster_settings
