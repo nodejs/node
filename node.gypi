@@ -208,6 +208,10 @@
       'dependencies': [ 'deps/nghttp2/nghttp2.gyp:nghttp2' ],
     }],
 
+    [ 'node_shared_brotli=="false"', {
+      'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
+    }],
+
     [ 'OS=="mac"', {
       # linking Corefoundation is needed since certain OSX debugging tools
       # like Instruments require it for some features
