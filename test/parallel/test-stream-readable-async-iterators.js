@@ -393,6 +393,71 @@ async function tests() {
       r.destroy(null);
     }
   })();
+
+  await (async () => {
+    console.log('all next promises must be resolved on end');
+    const r = new Readable({
+      objectMode: true,
+      read() {
+      }
+    });
+
+    const b = r[Symbol.asyncIterator]();
+    const c = b.next();
+    const d = b.next();
+    r.push(null);
+    assert.deepStrictEqual(await c, { done: true, value: undefined });
+    assert.deepStrictEqual(await d, { done: true, value: undefined });
+  })();
+
+  await (async () => {
+    console.log('all next promises must be resolved on destroy');
+    const r = new Readable({
+      objectMode: true,
+      read() {
+      }
+    });
+
+    const b = r[Symbol.asyncIterator]();
+    const c = b.next();
+    const d = b.next();
+    r.destroy();
+    assert.deepStrictEqual(await c, { done: true, value: undefined });
+    assert.deepStrictEqual(await d, { done: true, value: undefined });
+  })();
+
+  await (async () => {
+    console.log('all next promises must be resolved on destroy with error');
+    const r = new Readable({
+      objectMode: true,
+      read() {
+      }
+    });
+
+    const b = r[Symbol.asyncIterator]();
+    const c = b.next();
+    const d = b.next();
+    const err = new Error('kaboom');
+    r.destroy(err);
+
+    await Promise.all([(async () => {
+      let e;
+      try {
+        await c;
+      } catch (_e) {
+        e = _e;
+      }
+      assert.strictEqual(e, err);
+    })(), (async () => {
+      let e;
+      try {
+        await d;
+      } catch (_e) {
+        e = _e;
+      }
+      assert.strictEqual(e, err);
+    })()]);
+  })();
 }
 
 // to avoid missing some tests if a promise does not resolve
