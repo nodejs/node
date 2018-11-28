@@ -97,6 +97,7 @@
       'lib/internal/cluster/worker.js',
       'lib/internal/console/constructor.js',
       'lib/internal/console/global.js',
+      'lib/internal/console/inspector.js',
       'lib/internal/crypto/certificate.js',
       'lib/internal/crypto/cipher.js',
       'lib/internal/crypto/diffiehellman.js',
