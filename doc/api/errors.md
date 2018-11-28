@@ -1880,9 +1880,15 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 
 <a id="HPE_HEADER_OVERFLOW"></a>
 ### HPE_HEADER_OVERFLOW
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/commit/186035243fad247e3955f
+    description: Max header size in `http_parser` was set to 8KB.
+-->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 80KB of HTTP header data is received then
+malconfigured clients, if more than 8KB of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
