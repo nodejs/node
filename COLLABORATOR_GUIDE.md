@@ -93,9 +93,10 @@ to land but is [author ready](#author-ready-pull-requests), add the
 
 ## Accepting Modifications
 
-All modifications to Node.js start as GitHub pull requests. This includes
-modifications by Collaborators (including TSC members). A pull request must pass
-code review and CI before landing into the codebase.
+Contributors propose modifications to Node.js using GitHub pull requests. This
+is true for all modifications including those proposed by TSC members and other
+Collaborators. A pull request must pass code review and CI before landing into
+the codebase.
 
 ### Code Reviews
 
