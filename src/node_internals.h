@@ -24,15 +24,15 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "env-inl.h"
 #include "node.h"
+#include "node_binding.h"
 #include "node_mutex.h"
 #include "node_persistent.h"
+#include "tracing/trace_event.h"
 #include "util-inl.h"
-#include "env-inl.h"
 #include "uv.h"
 #include "v8.h"
-#include "tracing/trace_event.h"
-#include "node_api.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -57,12 +57,6 @@
 #define Z_MAX_LEVEL 9
 #define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
 
-enum {
-  NM_F_BUILTIN  = 1 << 0,
-  NM_F_LINKED   = 1 << 1,
-  NM_F_INTERNAL = 1 << 2,
-};
-
 struct sockaddr;
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
@@ -82,92 +76,6 @@ struct sockaddr;
                               constant_value,                                 \
                               constant_attributes).FromJust();                \
   } while (0)
-
-
-#if HAVE_OPENSSL
-#define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
-#else
-#define NODE_BUILTIN_OPENSSL_MODULES(V)
-#endif
-
-#if NODE_HAVE_I18N_SUPPORT
-#define NODE_BUILTIN_ICU_MODULES(V) V(icu)
-#else
-#define NODE_BUILTIN_ICU_MODULES(V)
-#endif
-
-// A list of built-in modules. In order to do module registration
-// in node::Init(), need to add built-in modules in the following list.
-// Then in node::RegisterBuiltinModules(), it calls modules' registration
-// function. This helps the built-in modules are loaded properly when
-// node is built as static library. No need to depend on the
-// __attribute__((constructor)) like mechanism in GCC.
-#define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
-  V(async_wrap)                                                                \
-  V(buffer)                                                                    \
-  V(cares_wrap)                                                                \
-  V(config)                                                                    \
-  V(contextify)                                                                \
-  V(domain)                                                                    \
-  V(fs)                                                                        \
-  V(fs_event_wrap)                                                             \
-  V(heap_utils)                                                                \
-  V(http2)                                                                     \
-  V(http_parser)                                                               \
-  V(inspector)                                                                 \
-  V(js_stream)                                                                 \
-  V(messaging)                                                                 \
-  V(module_wrap)                                                               \
-  V(native_module)                                                             \
-  V(options)                                                                   \
-  V(os)                                                                        \
-  V(performance)                                                               \
-  V(pipe_wrap)                                                                 \
-  V(process_wrap)                                                              \
-  V(serdes)                                                                    \
-  V(signal_wrap)                                                               \
-  V(spawn_sync)                                                                \
-  V(stream_pipe)                                                               \
-  V(stream_wrap)                                                               \
-  V(string_decoder)                                                            \
-  V(symbols)                                                                   \
-  V(tcp_wrap)                                                                  \
-  V(timers)                                                                    \
-  V(trace_events)                                                              \
-  V(tty_wrap)                                                                  \
-  V(types)                                                                     \
-  V(udp_wrap)                                                                  \
-  V(url)                                                                       \
-  V(util)                                                                      \
-  V(uv)                                                                        \
-  V(v8)                                                                        \
-  V(worker)                                                                    \
-  V(zlib)
-
-#define NODE_BUILTIN_MODULES(V)                                               \
-  NODE_BUILTIN_STANDARD_MODULES(V)                                            \
-  NODE_BUILTIN_OPENSSL_MODULES(V)                                             \
-  NODE_BUILTIN_ICU_MODULES(V)
-
-#define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
-  static node::node_module _module = {                                        \
-    NODE_MODULE_VERSION,                                                      \
-    flags,                                                                    \
-    nullptr,                                                                  \
-    __FILE__,                                                                 \
-    nullptr,                                                                  \
-    (node::addon_context_register_func) (regfunc),                            \
-    NODE_STRINGIFY(modname),                                                  \
-    priv,                                                                     \
-    nullptr                                                                   \
-  };                                                                          \
-  void _register_ ## modname() {                                              \
-    node_module_register(&_module);                                           \
-  }
-
-
-#define NODE_BUILTIN_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
-  NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_BUILTIN)
 
 namespace node {
 
@@ -280,12 +188,6 @@ void SetupBootstrapObject(Environment* env,
 void SetupProcessObject(Environment* env,
                         const std::vector<std::string>& args,
                         const std::vector<std::string>& exec_args);
-
-// Call _register<module_name> functions for all of
-// the built-in modules. Because built-in modules don't
-// use the __attribute__((constructor)). Need to
-// explicitly call the _register* functions.
-void RegisterBuiltinModules();
 
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
@@ -782,9 +684,6 @@ static inline const char* errno_string(int errorno) {
   }
 }
 
-#define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                  \
-  NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
-
 #define TRACING_CATEGORY_NODE "node"
 #define TRACING_CATEGORY_NODE1(one)                                           \
     TRACING_CATEGORY_NODE ","                                                 \
@@ -856,11 +755,6 @@ void GetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
 void DefineZlibConstants(v8::Local<v8::Object> target);
 
 }  // namespace node
-
-void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
-                                    v8::Local<v8::Value> module,
-                                    v8::Local<v8::Context> context,
-                                    napi_addon_register_func init);
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
