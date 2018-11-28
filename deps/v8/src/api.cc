@@ -4069,13 +4069,6 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   return Just(true);
 }
 
-
-bool v8::Object::Set(v8::Local<Value> key, v8::Local<Value> value) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Set(context, key, value).FromMaybe(false);
-}
-
-
 Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
                             v8::Local<Value> value) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -4088,13 +4081,6 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
-
-
-bool v8::Object::Set(uint32_t index, v8::Local<Value> value) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Set(context, index, value).FromMaybe(false);
-}
-
 
 Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
                                            v8::Local<Name> key,
@@ -4314,13 +4300,6 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
 
-
-Local<Value> v8::Object::Get(v8::Local<Value> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Get(context, key), Value);
-}
-
-
 MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   PREPARE_FOR_EXECUTION(context, Object, Get, Value);
   auto self = Utils::OpenHandle(this);
@@ -4330,13 +4309,6 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
-
-
-Local<Value> v8::Object::Get(uint32_t index) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Get(context, index), Value);
-}
-
 
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
                                          Local<Private> key) {
@@ -4456,19 +4428,9 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(
 }
 
 
-Local<Array> v8::Object::GetPropertyNames() {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(GetPropertyNames(context), Array);
-}
-
 MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context) {
   return GetOwnPropertyNames(
       context, static_cast<v8::PropertyFilter>(ONLY_ENUMERABLE | SKIP_SYMBOLS));
-}
-
-Local<Array> v8::Object::GetOwnPropertyNames() {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(GetOwnPropertyNames(context), Array);
 }
 
 MaybeLocal<Array> v8::Object::GetOwnPropertyNames(
@@ -4577,12 +4539,6 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   has_pending_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return maybe;
-}
-
-
-bool v8::Object::Has(v8::Local<Value> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Has(context, key).FromMaybe(false);
 }
 
 
@@ -4739,12 +4695,6 @@ Maybe<bool> v8::Object::HasRealNamedProperty(Local<Context> context,
 }
 
 
-bool v8::Object::HasRealNamedProperty(Local<String> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return HasRealNamedProperty(context, key).FromMaybe(false);
-}
-
-
 Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
                                                uint32_t index) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -4757,12 +4707,6 @@ Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
-}
-
-
-bool v8::Object::HasRealIndexedProperty(uint32_t index) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return HasRealIndexedProperty(context, index).FromMaybe(false);
 }
 
 
@@ -4779,12 +4723,6 @@ Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
-}
-
-
-bool v8::Object::HasRealNamedCallbackProperty(Local<String> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return HasRealNamedCallbackProperty(context, key).FromMaybe(false);
 }
 
 
@@ -4973,14 +4911,6 @@ MaybeLocal<Function> Function::New(Local<Context> context,
   return templ->GetFunction(context);
 }
 
-
-Local<Function> Function::New(Isolate* v8_isolate, FunctionCallback callback,
-                              Local<Value> data, int length) {
-  return Function::New(v8_isolate->GetCurrentContext(), callback, data, length,
-                       ConstructorBehavior::kAllow)
-      .FromMaybe(Local<Function>());
-}
-
 MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
                                          v8::Local<v8::Value> argv[]) const {
   return NewInstanceWithSideEffectType(context, argc, argv,
@@ -5055,14 +4985,6 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
-
-
-Local<v8::Value> Function::Call(v8::Local<v8::Value> recv, int argc,
-                                v8::Local<v8::Value> argv[]) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Call(context, recv, argc, argv), Value);
-}
-
 
 void Function::SetName(v8::Local<v8::String> name) {
   auto self = Utils::OpenHandle(this);
@@ -5973,10 +5895,6 @@ bool V8::TryHandleSignal(int signum, void* info, void* context) {
 }
 #endif
 
-bool V8::RegisterDefaultSignalHandler() {
-  return v8::internal::trap_handler::RegisterDefaultTrapHandler();
-}
-
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
   return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
 }
@@ -6380,12 +6298,6 @@ MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   RETURN_ESCAPED(result);
 }
 
-
-Local<v8::Object> ObjectTemplate::NewInstance() {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(NewInstance(context), Object);
-}
-
 void v8::ObjectTemplate::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsObjectTemplateInfo(), "v8::ObjectTemplate::Cast",
@@ -6418,12 +6330,6 @@ MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
       !ToLocal<Function>(i::ApiNatives::InstantiateFunction(self), &result);
   RETURN_ON_FAILED_EXECUTION(Function);
   RETURN_ESCAPED(result);
-}
-
-
-Local<v8::Function> FunctionTemplate::GetFunction() {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(GetFunction(context), Function);
 }
 
 MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
@@ -6563,16 +6469,6 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
     result = Utils::ToLocal(handle_result);                                \
   }
 
-Local<String> String::NewFromUtf8(Isolate* isolate,
-                                  const char* data,
-                                  NewStringType type,
-                                  int length) {
-  NEW_STRING(isolate, String, NewFromUtf8, char, data,
-             static_cast<v8::NewStringType>(type), length);
-  RETURN_TO_LOCAL_UNCHECKED(result, String);
-}
-
-
 MaybeLocal<String> String::NewFromUtf8(Isolate* isolate, const char* data,
                                        v8::NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromUtf8, char, data, type, length);
@@ -6584,16 +6480,6 @@ MaybeLocal<String> String::NewFromOneByte(Isolate* isolate, const uint8_t* data,
                                           v8::NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromOneByte, uint8_t, data, type, length);
   return result;
-}
-
-
-Local<String> String::NewFromTwoByte(Isolate* isolate,
-                                     const uint16_t* data,
-                                     NewStringType type,
-                                     int length) {
-  NEW_STRING(isolate, String, NewFromTwoByte, uint16_t, data,
-             static_cast<v8::NewStringType>(type), length);
-  RETURN_TO_LOCAL_UNCHECKED(result, String);
 }
 
 
@@ -6670,13 +6556,6 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
     return Utils::ToLocal(i_isolate->factory()->empty_string());
   }
 }
-
-
-Local<String> v8::String::NewExternal(
-    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
-  RETURN_TO_LOCAL_UNCHECKED(NewExternalOneByte(isolate, resource), String);
-}
-
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   i::DisallowHeapAllocation no_allocation;
@@ -10577,13 +10456,11 @@ void EmbedderHeapTracer::EnterFinalPause(EmbedderStackState stack_state) {
 }
 
 bool EmbedderHeapTracer::IsTracingDone() {
-// TODO(mlippautz): Implement using "return true" after removing the deprecated
-// call.
 #if __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated"
 #endif
-  return NumberOfWrappersToTrace() == 0;
+  return true;
 #if __clang__
 #pragma clang diagnostic pop
 #endif

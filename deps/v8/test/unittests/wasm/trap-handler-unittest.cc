@@ -17,7 +17,7 @@ namespace {
 
 void CrashOnPurpose() { *reinterpret_cast<volatile int*>(42); }
 
-// When using V8::RegisterDefaultSignalHandler, we save the old one to fall back
+// When using V8::EnableWebAssemblyTrapHandler, we save the old one to fall back
 // on if V8 doesn't handle the signal. This allows tools like ASan to register a
 // handler early on during the process startup and still generate stack traces
 // on failures.

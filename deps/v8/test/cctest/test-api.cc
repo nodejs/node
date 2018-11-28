@@ -7863,15 +7863,12 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
                           v8::WeakCallbackType::kParameter);
   object_b.handle.SetWeak(&object_b, &SetFlag,
                           v8::WeakCallbackType::kParameter);
+
 #if __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated"
 #endif
-  // MarkIndependent is marked deprecated but we still rely on it temporarily.
-  CHECK(!object_b.handle.IsIndependent());
-  object_a.handle.MarkIndependent();
-  object_b.handle.MarkIndependent();
-  CHECK(object_b.handle.IsIndependent());
+
 #if __clang__
 #pragma clang diagnostic pop
 #endif
@@ -8030,10 +8027,7 @@ void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated"
 #endif
-    // MarkIndependent is marked deprecated but we still rely on it temporarily.
-    object_a.handle.MarkIndependent();
-    object_b.handle.MarkIndependent();
-    CHECK(object_b.handle.IsIndependent());
+
 #if __clang__
 #pragma clang diagnostic pop
 #endif
@@ -8109,9 +8103,7 @@ THREADED_TEST(GCFromWeakCallbacks) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated"
 #endif
-      // MarkIndependent is marked deprecated but we still rely on it
-      // temporarily.
-      object.handle.MarkIndependent();
+
 #if __clang__
 #pragma clang diagnostic pop
 #endif

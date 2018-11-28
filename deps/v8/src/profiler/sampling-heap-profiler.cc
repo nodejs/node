@@ -103,9 +103,6 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated"
 #endif
-  // MarkIndependent is marked deprecated but we still rely on it here
-  // temporarily.
-  sample->global.MarkIndependent();
 #if __clang__
 #pragma clang diagnostic pop
 #endif
