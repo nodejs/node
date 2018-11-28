@@ -1884,7 +1884,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/commit/186035243fad247e3955f
-    description: deps,http: http_parser set max header size to 8KB
+    description: Max header size in `http_parser` was set to 8KB.
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
