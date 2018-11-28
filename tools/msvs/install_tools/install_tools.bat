@@ -1,6 +1,7 @@
 @echo off
 
 setlocal
+title Install Additional Tools for Node.js
 
 cls
 
