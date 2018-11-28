@@ -111,7 +111,8 @@ http.get({
 added: v10.14.0
 -->
 
-The maximum size of HTTP/1 headers is 8KB and the maximum time that the HTTP/1 headers could be received is limited to 40 seconds.
+The maximum size of HTTP/1 headers is 8KB and the maximum time that the HTTP/1
+headers could be received is limited to 40 seconds.
 
 
 ### new Agent([options])
