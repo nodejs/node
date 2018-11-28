@@ -17,7 +17,6 @@ server.listen(0, common.mustCall(function() {
 
   req.end();
   req.abort();
-  req.abort();
 
   req.emit('response', new http.IncomingMessage(new net.Socket()));
 }));
