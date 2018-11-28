@@ -9,7 +9,7 @@ const common = require('../common');
 const assert = require('assert');
 
 const isMainThread = common.isMainThread;
-const kMaxModuleCount = isMainThread ? 57 : 78;
+const kMaxModuleCount = isMainThread ? 59 : 80;
 
 assert(list.length <= kMaxModuleCount,
        `Total length: ${list.length}\n` + list.join('\n')
