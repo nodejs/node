@@ -50,10 +50,6 @@ list like the following:
 ## Class: http.Agent
 <!-- YAML
 added: v0.3.4
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/commit/186035243fad247e3955f
-    description: The maximum size of HTTP/1 headers is now 8KB.
 -->
 
 An `Agent` is responsible for managing connection persistence
@@ -630,6 +626,12 @@ const cookie = request.getHeader('Cookie');
 ```
 
 ### request.maxHeadersCount
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/commit/186035243fad247e3955f
+    description: The maximum size of HTTP/1 headers is now 8KB.
+-->
 
 * {number} **Default:** `2000`
 
