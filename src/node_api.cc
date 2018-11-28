@@ -1,10 +1,11 @@
 #include <node_buffer.h>
 #include "env.h"
 #define NAPI_EXPERIMENTAL
+#include "js_native_api_v8.h"
 #include "node_api.h"
+#include "node_binding.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#include "js_native_api_v8.h"
 
 struct node_napi_env__ : public napi_env__ {
   explicit node_napi_env__(v8::Local<v8::Context> context):
