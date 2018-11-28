@@ -15,12 +15,13 @@ echo.
 echo This will require about 3 Gb of free disk space, plus any space necessary to
 echo install Windows updates. This will take a while to run.
 echo.
-echo If the installation fails, please ensure Windows is fully updated and reboot
-echo your computer before trying again.
+echo Please close all open programs for the duration of the installation. If the
+echo installation fails, please ensure Windows is fully updated, reboot your
+echo computer and try to run this again. This script can be found in the
+echo Start menu under Node.js.
 echo.
-echo You can close this window to stop now. This script can be invoked from the
-echo Start menu. Detailed instructions to install these tools manually are
-echo available at https://github.com/nodejs/node-gyp#on-windows
+echo You can close this window to stop now. Detailed instructions to install these
+echo tools manually are available at https://github.com/nodejs/node-gyp#on-windows
 echo.
 pause
 
@@ -37,7 +38,6 @@ echo license terms or not. Read and understand the license terms of the packages
 echo being installed and their dependencies prior to installation:
 echo - https://chocolatey.org/packages/chocolatey
 echo - https://chocolatey.org/packages/python2
-echo - https://chocolatey.org/packages/visualstudio2017buildtools
 echo - https://chocolatey.org/packages/visualstudio2017-workload-vctools
 echo.
 echo This script is provided AS-IS without any warranties of any kind
