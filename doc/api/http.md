@@ -51,7 +51,8 @@ list like the following:
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: v11.3.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/commit/186035243fad247e3955f
     description: The maximum size of HTTP/1 headers is now 8KB.
 -->
 
@@ -956,7 +957,8 @@ added: v5.7.0
 <!-- YAML
 added: v0.7.0
 changes:
-  - version: v11.3.0
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/commit/186035243fad247e3955f
     description: The maximum size of HTTP/1 headers is now 8KB.
 -->
 
