@@ -50,6 +50,9 @@ list like the following:
 ## Class: http.Agent
 <!-- YAML
 added: v0.3.4
+changes:
+  - version: v11.3.0
+    description: The maximum size of HTTP/1 headers is now 8KB.
 -->
 
 An `Agent` is responsible for managing connection persistence
@@ -106,12 +109,6 @@ http.get({
   // Do stuff with response
 });
 ```
-
-<!-- YAML
-added: v11.3.0
--->
-
-The maximum size of HTTP/1 headers is 8KB.
 
 ### new Agent([options])
 <!-- YAML
@@ -958,17 +955,14 @@ added: v5.7.0
 ### server.maxHeadersCount
 <!-- YAML
 added: v0.7.0
+changes:
+  - version: v11.3.0
+    description: The maximum size of HTTP/1 headers is now 8KB.
 -->
 
 * {number} **Default:** `2000`
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
-
-<!-- YAML
-added: v11.3.0
--->
-
-The maximum size of HTTP/1 headers is 8KB.
 
 ### server.headersTimeout
 <!-- YAML
