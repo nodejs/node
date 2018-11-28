@@ -95,6 +95,8 @@
       'lib/internal/cluster/shared_handle.js',
       'lib/internal/cluster/utils.js',
       'lib/internal/cluster/worker.js',
+      'lib/internal/console/constructor.js',
+      'lib/internal/console/global.js',
       'lib/internal/crypto/certificate.js',
       'lib/internal/crypto/cipher.js',
       'lib/internal/crypto/diffiehellman.js',
