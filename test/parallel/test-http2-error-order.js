@@ -25,9 +25,9 @@ server.on('stream', (stream) => {
     .respondWithFile('dont exist');
 });
 
-server.listen(8000);
+server.listen(0);
 
-const client = connect('http://localhost:8000');
+const client = connect(`http://localhost:${server.address().port}`);
 const req = client.request();
 
 req.on('response', common.mustNotCall());
@@ -37,7 +37,7 @@ req.on('error', () => {
   client.close();
 });
 
-client.on('close', () => {
+client.on('close', common.mustCall(() => {
   assert.deepStrictEqual(messages, expected);
   server.close();
-});
+}));
