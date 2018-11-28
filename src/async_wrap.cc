@@ -380,8 +380,7 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
   p->env = Environment::GetCurrent(args);
   p->target.Reset(isolate, args[0].As<Object>());
   p->propBag.Reset(isolate, args[2].As<Object>());
-  p->target.SetWeak(
-    p, AsyncWrap::WeakCallback, WeakCallbackType::kParameter);
+  p->target.SetWeak(p, AsyncWrap::WeakCallback, WeakCallbackType::kParameter);
 }
 
 
