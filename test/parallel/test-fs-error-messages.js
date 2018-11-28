@@ -299,10 +299,11 @@ function re(literals, ...values) {
     return true;
   };
 
-  fs.rename(nonexistentFile, 'foo', common.mustCall(validateError));
+  const destFile = path.join(tmpdir.path, 'foo');
+  fs.rename(nonexistentFile, destFile, common.mustCall(validateError));
 
   assert.throws(
-    () => fs.renameSync(nonexistentFile, 'foo'),
+    () => fs.renameSync(nonexistentFile, destFile),
     validateError
   );
 }
