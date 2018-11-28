@@ -6,7 +6,7 @@ const {
   MessageChannel,
   MessagePort,
   Worker
-} = require('nodejs:worker_threads');
+} = require('@nodejs/worker_threads');
 
 {
   const channel = new MessageChannel();
@@ -33,9 +33,9 @@ const {
   const channel = new MessageChannel();
 
   const w = new Worker(`
-    const { MessagePort } = require('nodejs:worker_threads');
+    const { MessagePort } = require('@nodejs/worker_threads');
     const assert = require('assert');
-    require('nodejs:worker_threads').parentPort.on('message', ({ port }) => {
+    require('@nodejs/worker_threads').parentPort.on('message', ({ port }) => {
       assert(port instanceof MessagePort);
       port.postMessage('works');
     });

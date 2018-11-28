@@ -9,7 +9,7 @@ on independent threads, and to create message channels between them. It
 can be accessed using the `--experimental-worker` flag and:
 
 ```js
-const worker = require('nodejs:worker_threads');
+const worker = require('@nodejs/worker_threads');
 ```
 
 Workers are useful for performing CPU-intensive JavaScript operations; do not
@@ -23,7 +23,7 @@ share memory efficiently by transferring `ArrayBuffer` instances or sharing
 ```js
 const {
   Worker, isMainThread, parentPort, workerData
-} = require('nodejs:worker_threads');
+} = require('@nodejs/worker_threads');
 
 if (isMainThread) {
   module.exports = async function parseJSAsync(script) {
@@ -104,7 +104,7 @@ yields an object with `port1` and `port2` properties, which refer to linked
 [`MessagePort`][] instances.
 
 ```js
-const { MessageChannel } = require('nodejs:worker_threads');
+const { MessageChannel } = require('@nodejs/worker_threads');
 
 const { port1, port2 } = new MessageChannel();
 port1.on('message', (message) => console.log('received', message));
@@ -243,9 +243,9 @@ Notable differences inside a Worker environment are:
 
 - The [`process.stdin`][], [`process.stdout`][] and [`process.stderr`][]
   may be redirected by the parent thread.
-- The [`require('nodejs:worker_threads').isMainThread`][]
+- The [`require('@nodejs/worker_threads').isMainThread`][]
   property is set to `false`.
-- The [`require('nodejs:worker_threads').parentPort`][] message port is
+- The [`require('@nodejs/worker_threads').parentPort`][] message port is
   available,
 - [`process.exit()`][] does not stop the whole program, just the single thread,
   and [`process.abort()`][] is not available.
@@ -288,7 +288,7 @@ the thread barrier.
 const assert = require('assert');
 const {
   Worker, MessageChannel, MessagePort, isMainThread, parentPort
-} = require('nodejs:worker_threads');
+} = require('@nodejs/worker_threads');
 if (isMainThread) {
   const worker = new Worker(__filename);
   const subChannel = new MessageChannel();
@@ -316,7 +316,7 @@ if (isMainThread) {
   * `eval` {boolean} If true, interpret the first argument to the constructor
     as a script that is executed once the worker is online.
   * `workerData` {any} Any JavaScript value that will be cloned and made
-    available as [`require('nodejs:worker_threads').workerData`][]. The
+    available as [`require('@nodejs/worker_threads').workerData`][]. The
     cloning will occur as described in the [HTML structured clone algorithm][],
     and an error will be thrown if the object cannot be cloned (e.g. because it
     contains `function`s).
@@ -358,7 +358,7 @@ added: v10.5.0
 * `value` {any} The transmitted value
 
 The `'message'` event is emitted when the worker thread has invoked
-[`require('nodejs:worker_threads').postMessage()`][]. See the [`port.on('message')`][]
+[`require('@nodejs/worker_threads').postMessage()`][]. See the [`port.on('message')`][]
 event for more details.
 
 ### Event: 'online'
@@ -378,7 +378,7 @@ added: v10.5.0
 * `transferList` {Object[]}
 
 Send a message to the worker that will be received via
-[`require('nodejs:worker_threads').parentPort.on('message')`][].
+[`require('@nodejs/worker_threads').parentPort.on('message')`][].
 See [`port.postMessage()`][] for more details.
 
 ### worker.ref()
@@ -453,7 +453,7 @@ added: v10.5.0
 * {integer}
 
 An integer identifier for the referenced thread. Inside the worker thread,
-it is available as [`require('nodejs:worker_threads').threadId`][].
+it is available as [`require('@nodejs/worker_threads').threadId`][].
 
 ### worker.unref()
 <!-- YAML
@@ -482,12 +482,12 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
 [`process.title`]: process.html#process_process_title
-[`require('nodejs:worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
-[`require('nodejs:worker_threads').parentPort.on('message')`]: #worker_threads_event_message
-[`require('nodejs:worker_threads').parentPort`]: #worker_threads_worker_parentport
-[`require('nodejs:worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
-[`require('nodejs:worker_threads').threadId`]: #worker_threads_worker_threadid
-[`require('nodejs:worker_threads').workerData`]: #worker_threads_worker_workerdata
+[`require('@nodejs/worker_threads').isMainThread`]: #worker_threads_worker_ismainthread
+[`require('@nodejs/worker_threads').parentPort.on('message')`]: #worker_threads_event_message
+[`require('@nodejs/worker_threads').parentPort`]: #worker_threads_worker_parentport
+[`require('@nodejs/worker_threads').postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
+[`require('@nodejs/worker_threads').threadId`]: #worker_threads_worker_threadid
+[`require('@nodejs/worker_threads').workerData`]: #worker_threads_worker_workerdata
 [`trace_events`]: tracing.html
 [`worker.on('message')`]: #worker_threads_event_message_1
 [`worker.postMessage()`]: #worker_threads_worker_postmessage_value_transferlist
