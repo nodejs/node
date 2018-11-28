@@ -29,7 +29,7 @@ TCPWrap.prototype.unref = function() {
 
 echoServer.listen(0);
 
-echoServer.on('listening', () => {
+echoServer.on('listening', function() {
   const sock = new net.Socket();
   sock.unref();
   sock.ref();
