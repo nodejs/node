@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
-const { Worker } = require('worker_threads');
+const { Worker } = require('nodejs:worker_threads');
 const { spawnSync } = require('child_process');
 
 // This is a sibling test to test/addons/uv-handle-leak.

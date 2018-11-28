@@ -4,10 +4,10 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
-const { isMainThread } = require('worker_threads');
+const { isMainThread } = require('nodejs:worker_threads');
 
 if (isMainThread) {
-  const CODE = 'const { Worker } = require(\'worker_threads\'); ' +
+  const CODE = 'const { Worker } = require(\'nodejs:worker_threads\'); ' +
                `new Worker('${__filename.replace(/\\/g, '/')}')`;
   const FILE_NAME = 'node_trace.1.log';
   const tmpdir = require('../common/tmpdir');

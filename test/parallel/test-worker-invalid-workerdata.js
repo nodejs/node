@@ -2,7 +2,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const { Worker } = require('worker_threads');
+const { Worker } = require('nodejs:worker_threads');
 
 // This tests verifies that failing to serialize workerData does not keep
 // the process alive.

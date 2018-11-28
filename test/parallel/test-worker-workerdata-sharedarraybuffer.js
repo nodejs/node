@@ -3,14 +3,14 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Worker } = require('worker_threads');
+const { Worker } = require('nodejs:worker_threads');
 
 {
   const sharedArrayBuffer = new SharedArrayBuffer(12);
   const local = Buffer.from(sharedArrayBuffer);
 
   const w = new Worker(`
-    const { parentPort, workerData } = require('worker_threads');
+    const { parentPort, workerData } = require('nodejs:worker_threads');
     const local = Buffer.from(workerData.sharedArrayBuffer);
 
     parentPort.on('message', () => {

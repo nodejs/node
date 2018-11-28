@@ -2,7 +2,7 @@
 'use strict';
 const assert = require('assert');
 const common = require('../common');
-const { isMainThread, parentPort, Worker } = require('worker_threads');
+const { isMainThread, parentPort, Worker } = require('nodejs:worker_threads');
 
 // This test makes sure that we manipulate the references of
 // `parentPort` correctly so that any worker threads will

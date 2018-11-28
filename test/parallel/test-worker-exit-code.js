@@ -6,7 +6,7 @@ const common = require('../common');
 // in multiple situations.
 
 const assert = require('assert');
-const worker = require('worker_threads');
+const worker = require('nodejs:worker_threads');
 const { Worker, parentPort } = worker;
 
 const testCases = require('../fixtures/process-exit-code-cases');

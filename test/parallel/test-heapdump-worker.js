@@ -2,7 +2,7 @@
 'use strict';
 require('../common');
 const { validateSnapshotNodes } = require('../common/heap');
-const { Worker } = require('worker_threads');
+const { Worker } = require('nodejs:worker_threads');
 
 validateSnapshotNodes('Node / Worker', []);
 const worker = new Worker('setInterval(() => {}, 100);', { eval: true });

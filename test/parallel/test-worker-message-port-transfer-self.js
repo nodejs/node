@@ -4,7 +4,7 @@
 const common = require('../common');
 const assert = require('assert');
 const util = require('util');
-const { MessageChannel } = require('worker_threads');
+const { MessageChannel } = require('nodejs:worker_threads');
 const tick = require('../common/tick');
 
 const { port1, port2 } = new MessageChannel();

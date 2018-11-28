@@ -13,7 +13,7 @@ const binding = require(bindingPath);
 try {
   // We don’t want to run this in Workers because they do actually enforce
   // a clean-exit policy.
-  const { isMainThread } = require('worker_threads');
+  const { isMainThread } = require('nodejs:worker_threads');
   if (!isMainThread)
     common.skip('Cannot run test in environment with clean-exit policy');
 } catch {}

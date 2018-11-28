@@ -66,7 +66,7 @@ function main({ dur, script, mode }) {
 
   script = path.resolve(__dirname, '../../', `${script}.js`);
   if (mode === 'worker') {
-    Worker = require('worker_threads').Worker;
+    Worker = require('nodejs:worker_threads').Worker;
     bench.start();
     start(state, script, bench, spawnWorker);
   } else {

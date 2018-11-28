@@ -35,7 +35,7 @@ async function testContextCreatedAndDestroyed() {
     } else {
       let expects = `${process.argv0}[${process.pid}]`;
       if (!common.isMainThread) {
-        expects = `Worker[${require('worker_threads').threadId}]`;
+        expects = `Worker[${require('nodejs:worker_threads').threadId}]`;
       }
       strictEqual(expects, name);
     }

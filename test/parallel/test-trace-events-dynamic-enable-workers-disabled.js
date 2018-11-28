@@ -2,7 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const { Worker } = require('worker_threads');
+const { Worker } = require('nodejs:worker_threads');
 
 common.skipIfInspectorDisabled();
 

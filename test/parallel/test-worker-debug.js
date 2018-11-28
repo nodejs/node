@@ -10,7 +10,7 @@ const { Session } = require('inspector');
 const { pathToFileURL } = require('url');
 const {
   Worker, isMainThread, parentPort, workerData
-} = require('worker_threads');
+} = require('nodejs:worker_threads');
 
 
 const workerMessage = 'This is a message from a worker';

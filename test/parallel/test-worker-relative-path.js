@@ -3,7 +3,7 @@
 const path = require('path');
 const assert = require('assert');
 const common = require('../common');
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+const { Worker, isMainThread, parentPort } = require('nodejs:worker_threads');
 
 if (isMainThread) {
   const w = new Worker('./' + path.relative('.', __filename));
