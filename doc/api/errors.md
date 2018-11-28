@@ -1234,6 +1234,12 @@ An invalid HTTP token was supplied.
 
 An IP address is not valid.
 
+<a id="ERR_INVALID_NODE_BUILTIN"></a>
+### ERR_INVALID_NODE_BUILTIN
+
+An attempt was made to load a module from the Node.js namespace that doesn't
+exist. Only built in modules can be require from 'nodejs:'.
+
 <a id="ERR_INVALID_OPT_VALUE"></a>
 ### ERR_INVALID_OPT_VALUE
 
