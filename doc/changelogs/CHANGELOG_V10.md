@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.14.1">10.14.1</a><br/>
 <a href="#10.14.0">10.14.0</a><br/>
 <a href="#10.13.0">10.13.0</a><br/>
 </td>
@@ -45,6 +46,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.14.1"></a>
+## 2018-11-29, Version 10.14.1 'Dubnium' (LTS), @MylesBorins
+
+### Notable Changes
+
+* **win/msi**: Revert changes to installer causing issues on Windows systems.
+
+### Commits
+
+* [[`5d17bf1e13`](https://github.com/nodejs/node/commit/5d17bf1e13)] - **win**: add prompt to tools installation script (João Reis) [#23987](https://github.com/nodejs/node/pull/23987)
+* [[`589f0d2192`](https://github.com/nodejs/node/commit/589f0d2192)] - **win**: clarify Boxstarter behavior on install tools (Rob Reynolds) [#23987](https://github.com/nodejs/node/pull/23987)
+* [[`9e293c1328`](https://github.com/nodejs/node/commit/9e293c1328)] - ***Revert*** "**win,msi**: install tools for native modules" (Refael Ackermann) [#24344](https://github.com/nodejs/node/pull/24344)
 
 <a id="10.14.0"></a>
 ## 2018-11-27, Version 10.14.0 'Dubnium' (LTS), @rvagg
