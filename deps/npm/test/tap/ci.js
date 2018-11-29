@@ -83,9 +83,9 @@ test('basic installation', (t) => {
       const stdout = ret[1]
       const stderr = ret[2]
       t.equal(code, 0, 'command completed without error')
-      t.equal(stdout.trim(), '', 'no output on stdout')
+      t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
-        stderr.trim(),
+        stdout.trim(),
         /^added 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
@@ -150,9 +150,9 @@ test('supports npm-shrinkwrap.json as well', (t) => {
       const stdout = ret[1]
       const stderr = ret[2]
       t.equal(code, 0, 'command completed without error')
-      t.equal(stdout.trim(), '', 'no output on stdout')
+      t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
-        stderr.trim(),
+        stdout.trim(),
         /^added 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
@@ -197,10 +197,8 @@ test('removes existing node_modules/ before installing', (t) => {
     ], EXEC_OPTS))
     .then((ret) => {
       const code = ret[0]
-      const stdout = ret[1]
       const stderr = ret[2]
       t.equal(code, 0, 'command completed without error')
-      t.equal(stdout.trim(), '', 'no output on stdout')
       t.match(
         stderr.trim(),
         /^npm.*WARN.*removing existing node_modules/,

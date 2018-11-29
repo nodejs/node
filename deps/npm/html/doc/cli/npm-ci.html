@@ -28,9 +28,10 @@ cache:
   - &quot;$HOME/.npm&quot;</code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command is similar to <code><a href="../cli/npm-install.html">npm-install(1)</a></code>, except it&#39;s meant to be used in
 automated environments such as test platforms, continuous integration, and
-deployment. It can be significantly faster than a regular npm install by
-skipping certain user-oriented features. It is also more strict than a regular
-install, which can help catch errors or inconsistencies caused by the
+deployment -- or any situation where you want to make sure you&#39;re doing a clean
+install of your dependencies. It can be significantly faster than a regular npm
+install by skipping certain user-oriented features. It is also more strict than
+a regular install, which can help catch errors or inconsistencies caused by the
 incrementally-installed local environments of most npm users.</p>
 <p>In short, the main differences between using <code>npm install</code> and <code>npm ci</code> are:</p>
 <ul>
@@ -57,4 +58,4 @@ incrementally-installed local environments of most npm users.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-ci &mdash; npm@6.4.1</p>
+<p id="footer">npm-ci &mdash; npm@6.5.0-next.0</p>

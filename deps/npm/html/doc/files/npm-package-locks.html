@@ -120,17 +120,20 @@ inform you of any changes npm has made to your <code>node_modules</code>, so you
 if any transitive dependencies were updated, hoisted, etc.</p>
 <h3 id="resolving-lockfile-conflicts">Resolving lockfile conflicts</h3>
 <p>Occasionally, two separate npm install will create package locks that cause
-merge conflicts in source control systems. As of <a href="mailto:%60npm@5.7.0">`npm@5.7.0</a><code>, these conflicts
-can be resolved by manually fixing any</code>package.json<code>conflicts, and then
-running</code>npm install [--package-lock-only]<code>again. npm will automatically
+merge conflicts in source control systems. As of <code>npm@5.7.0</code>, these conflicts
+can be resolved by manually fixing any <code>package.json</code> conflicts, and then
+running <code>npm install [--package-lock-only]</code> again. npm will automatically
 resolve any conflicts for you and write a merged package lock that includes all
-the dependencies from both branches in a reasonable tree. If</code>--package-lock-only<code>is provided, it will do this without also modifying your
-local</code>node_modules/`.</p>
+the dependencies from both branches in a reasonable tree. If
+<code>--package-lock-only</code> is provided, it will do this without also modifying your
+local <code>node_modules/</code>.</p>
 <p>To make this process seamless on git, consider installing
 <a href="https://npm.im/npm-merge-driver"><code>npm-merge-driver</code></a>, which will teach git how
 to do this itself without any user interaction. In short: <code>$ npx
 npm-merge-driver install -g</code> will let you do this, and even works with
-<a href="mailto:pre-%60npm@5.7.0">pre-`npm@5.7.0</a><code>versions of npm 5, albeit a bit more noisily. Note that if</code>package.json<code>itself conflicts, you will have to resolve that by hand and run</code>npm install` manually, even with the merge driver.</p>
+pre-<code>npm@5.7.0</code> versions of npm 5, albeit a bit more noisily. Note that if
+<code>package.json</code> itself conflicts, you will have to resolve that by hand and run
+<code>npm install</code> manually, even with the merge driver.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527">https://medium.com/@sdboyer/so-you-want-to-write-a-package-manager-4ae9c17d9527</a></li>
@@ -151,4 +154,4 @@ npm-merge-driver install -g</code> will let you do this, and even works with
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-package-locks &mdash; npm@6.4.1</p>
+<p id="footer">npm-package-locks &mdash; npm@6.5.0-next.0</p>

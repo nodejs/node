@@ -124,7 +124,7 @@ test('npm ls --depth=1', function (t) {
 
 test('npm ls --depth=Infinity', function (t) {
   // travis has a preconfigured depth=0, in general we can not depend
-  // on the default value in all environments, so explictly set it here
+  // on the default value in all environments, so explicitly set it here
   common.npm(
     ['ls', '--depth=Infinity'],
     EXEC_OPTS,

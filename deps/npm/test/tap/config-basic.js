@@ -74,7 +74,7 @@ test('no builtin', function (t) {
   npmconf.load(cli, function (er, conf) {
     if (er) throw er
     expectNames.forEach(function (name, ii) {
-      isDeeplyDetails(t, conf.list[ii], expectList[ii], 'config properities list: ' + name)
+      isDeeplyDetails(t, conf.list[ii], expectList[ii], 'config properties list: ' + name)
     })
     isDeeplyDetails(t, conf.sources, expectSources, 'config by source')
     t.same(npmconf.rootConf.list, [], 'root configuration is empty')

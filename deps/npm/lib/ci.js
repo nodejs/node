@@ -31,7 +31,7 @@ function ci (args, cb) {
     .then(
       (details) => {
         npmlog.disableProgress()
-        console.error(`added ${details.pkgCount} packages in ${
+        console.log(`added ${details.pkgCount} packages in ${
           details.runTime / 1000
         }s`)
       }
