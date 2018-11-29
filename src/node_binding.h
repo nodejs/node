@@ -41,12 +41,6 @@ namespace node {
   NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
 // Globals per process
-extern node_module* modlist_builtin;
-extern node_module* modlist_internal;
-extern node_module* modlist_linked;
-extern node_module* modlist_addon;
-extern uv_once_t init_modpending_once;
-extern uv_key_t thread_local_modpending;
 // This is set by node::Init() which is used by embedders
 extern bool node_is_initialized;
 

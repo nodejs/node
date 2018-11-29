@@ -20,7 +20,7 @@
 
 // A list of built-in modules. In order to do module registration
 // in node::Init(), need to add built-in modules in the following list.
-// Then in node::RegisterBuiltinModules(), it calls modules' registration
+// Then in binding::RegisterBuiltinModules(), it calls modules' registration
 // function. This helps the built-in modules are loaded properly when
 // node is built as static library. No need to depend on the
 // __attribute__((constructor)) like mechanism in GCC.
@@ -74,7 +74,7 @@
 // This is used to load built-in modules. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
 // function for each built-in modules explicitly in
-// node::RegisterBuiltinModules(). This is only forward declaration.
+// binding::RegisterBuiltinModules(). This is only forward declaration.
 // The definitions are in each module's implementation when calling
 // the NODE_BUILTIN_MODULE_CONTEXT_AWARE.
 #define V(modname) void _register_##modname();
@@ -93,12 +93,13 @@ using v8::String;
 using v8::Value;
 
 // Globals per process
-node_module* modlist_builtin;
-node_module* modlist_internal;
-node_module* modlist_linked;
-node_module* modlist_addon;
-uv_once_t init_modpending_once = UV_ONCE_INIT;
-uv_key_t thread_local_modpending;
+static node_module* modlist_builtin;
+static node_module* modlist_internal;
+static node_module* modlist_linked;
+static node_module* modlist_addon;
+static uv_once_t init_modpending_once = UV_ONCE_INIT;
+static uv_key_t thread_local_modpending;
+
 // This is set by node::Init() which is used by embedders
 bool node_is_initialized = false;
 
