@@ -94,7 +94,7 @@ function outdated (args, silent, cb) {
           'Latest',
           'Location'
         ]
-        if (long) outHead.push('Package Type')
+        if (long) outHead.push('Package Type', 'Homepage')
         var outTable = [outHead].concat(outList)
 
         if (npm.color) {
@@ -123,6 +123,7 @@ function makePretty (p) {
   var latest = p[4]
   var type = p[6]
   var deppath = p[7]
+  var homepage = p[0].package.homepage
 
   var columns = [ depname,
     has || 'MISSING',
@@ -130,7 +131,10 @@ function makePretty (p) {
     latest,
     deppath
   ]
-  if (long) columns[5] = type
+  if (long) {
+    columns[5] = type
+    columns[6] = homepage
+  }
 
   if (npm.color) {
     columns[0] = color[has === want || want === 'linked' ? 'yellow' : 'red'](columns[0]) // dep
@@ -157,7 +161,7 @@ function makeParseable (list) {
       (has ? (depname + '@' + has) : 'MISSING'),
       depname + '@' + latest
     ]
-    if (long) out.push(type)
+    if (long) out.push(type, dep.package.homepage)
 
     return out.join(':')
   }).join(os.EOL)
@@ -181,7 +185,10 @@ function makeJSON (list) {
       latest: latest,
       location: dir
     }
-    if (long) out[depname].type = type
+    if (long) {
+      out[depname].type = type
+      out[depname].homepage = dep.package.homepage
+    }
   })
   return JSON.stringify(out, null, 2)
 }

@@ -39,9 +39,10 @@ cache:
 
 This command is similar to `npm-install(1)`, except it's meant to be used in
 automated environments such as test platforms, continuous integration, and
-deployment. It can be significantly faster than a regular npm install by
-skipping certain user-oriented features. It is also more strict than a regular
-install, which can help catch errors or inconsistencies caused by the
+deployment -- or any situation where you want to make sure you're doing a clean
+install of your dependencies. It can be significantly faster than a regular npm
+install by skipping certain user-oriented features. It is also more strict than
+a regular install, which can help catch errors or inconsistencies caused by the
 incrementally-installed local environments of most npm users.
 
 In short, the main differences between using `npm install` and `npm ci` are:

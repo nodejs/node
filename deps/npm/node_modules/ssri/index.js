@@ -1,6 +1,7 @@
 'use strict'
 
 const crypto = require('crypto')
+const figgyPudding = require('figgy-pudding')
 const Transform = require('stream').Transform
 
 const SPEC_ALGORITHMS = ['sha256', 'sha384', 'sha512']
@@ -10,10 +11,24 @@ const SRI_REGEX = /^([^-]+)-([^?]+)([?\S*]*)$/
 const STRICT_SRI_REGEX = /^([^-]+)-([A-Za-z0-9+/=]{44,88})(\?[\x21-\x7E]*)*$/
 const VCHAR_REGEX = /^[\x21-\x7E]+$/
 
+const SsriOpts = figgyPudding({
+  algorithms: {default: ['sha512']},
+  error: {default: false},
+  integrity: {},
+  options: {default: []},
+  pickAlgorithm: {default: () => getPrioritizedHash},
+  Promise: {default: () => Promise},
+  sep: {default: ' '},
+  single: {default: false},
+  size: {},
+  strict: {default: false}
+})
+
 class Hash {
   get isHash () { return true }
   constructor (hash, opts) {
-    const strict = !!(opts && opts.strict)
+    opts = SsriOpts(opts)
+    const strict = !!opts.strict
     this.source = hash.trim()
     // 3.1. Integrity metadata (called "Hash" by ssri)
     // https://w3c.github.io/webappsec-subresource-integrity/#integrity-metadata-description
@@ -37,7 +52,8 @@ class Hash {
     return this.toString()
   }
   toString (opts) {
-    if (opts && opts.strict) {
+    opts = SsriOpts(opts)
+    if (opts.strict) {
       // Strict mode enforces the standard as close to the foot of the
       // letter as it can.
       if (!(
@@ -70,7 +86,7 @@ class Integrity {
     return this.toString()
   }
   toString (opts) {
-    opts = opts || {}
+    opts = SsriOpts(opts)
     let sep = opts.sep || ' '
     if (opts.strict) {
       // Entries must be separated by whitespace, according to spec.
@@ -83,6 +99,7 @@ class Integrity {
     }).filter(x => x.length).join(sep)
   }
   concat (integrity, opts) {
+    opts = SsriOpts(opts)
     const other = typeof integrity === 'string'
     ? integrity
     : stringify(integrity, opts)
@@ -92,6 +109,7 @@ class Integrity {
     return parse(this, {single: true}).hexDigest()
   }
   match (integrity, opts) {
+    opts = SsriOpts(opts)
     const other = parse(integrity, opts)
     const algo = other.pickAlgorithm(opts)
     return (
@@ -105,7 +123,8 @@ class Integrity {
     ) || false
   }
   pickAlgorithm (opts) {
-    const pickAlgorithm = (opts && opts.pickAlgorithm) || getPrioritizedHash
+    opts = SsriOpts(opts)
+    const pickAlgorithm = opts.pickAlgorithm
     const keys = Object.keys(this)
     if (!keys.length) {
       throw new Error(`No algorithms available for ${
@@ -120,7 +139,7 @@ class Integrity {
 
 module.exports.parse = parse
 function parse (sri, opts) {
-  opts = opts || {}
+  opts = SsriOpts(opts)
   if (typeof sri === 'string') {
     return _parse(sri, opts)
   } else if (sri.algorithm && sri.digest) {
@@ -151,6 +170,7 @@ function _parse (integrity, opts) {
 
 module.exports.stringify = stringify
 function stringify (obj, opts) {
+  opts = SsriOpts(opts)
   if (obj.algorithm && obj.digest) {
     return Hash.prototype.toString.call(obj, opts)
   } else if (typeof obj === 'string') {
@@ -162,7 +182,8 @@ function stringify (obj, opts) {
 
 module.exports.fromHex = fromHex
 function fromHex (hexDigest, algorithm, opts) {
-  const optString = (opts && opts.options && opts.options.length)
+  opts = SsriOpts(opts)
+  const optString = opts.options && opts.options.length
   ? `?${opts.options.join('?')}`
   : ''
   return parse(
@@ -174,8 +195,8 @@ function fromHex (hexDigest, algorithm, opts) {
 
 module.exports.fromData = fromData
 function fromData (data, opts) {
-  opts = opts || {}
-  const algorithms = opts.algorithms || ['sha512']
+  opts = SsriOpts(opts)
+  const algorithms = opts.algorithms
   const optString = opts.options && opts.options.length
   ? `?${opts.options.join('?')}`
   : ''
@@ -196,7 +217,7 @@ function fromData (data, opts) {
 
 module.exports.fromStream = fromStream
 function fromStream (stream, opts) {
-  opts = opts || {}
+  opts = SsriOpts(opts)
   const P = opts.Promise || Promise
   const istream = integrityStream(opts)
   return new P((resolve, reject) => {
@@ -212,7 +233,7 @@ function fromStream (stream, opts) {
 
 module.exports.checkData = checkData
 function checkData (data, sri, opts) {
-  opts = opts || {}
+  opts = SsriOpts(opts)
   sri = parse(sri, opts)
   if (!Object.keys(sri).length) {
     if (opts.error) {
@@ -251,9 +272,9 @@ function checkData (data, sri, opts) {
 
 module.exports.checkStream = checkStream
 function checkStream (stream, sri, opts) {
-  opts = opts || {}
+  opts = SsriOpts(opts)
   const P = opts.Promise || Promise
-  const checker = integrityStream(Object.assign({}, opts, {
+  const checker = integrityStream(opts.concat({
     integrity: sri
   }))
   return new P((resolve, reject) => {
@@ -269,7 +290,7 @@ function checkStream (stream, sri, opts) {
 
 module.exports.integrityStream = integrityStream
 function integrityStream (opts) {
-  opts = opts || {}
+  opts = SsriOpts(opts)
   // For verification
   const sri = opts.integrity && parse(opts.integrity, opts)
   const goodSri = sri && Object.keys(sri).length
@@ -277,10 +298,7 @@ function integrityStream (opts) {
   const digests = goodSri && sri[algorithm]
   // Calculating stream
   const algorithms = Array.from(
-    new Set(
-      (opts.algorithms || ['sha512'])
-      .concat(algorithm ? [algorithm] : [])
-    )
+    new Set(opts.algorithms.concat(algorithm ? [algorithm] : []))
   )
   const hashes = algorithms.map(crypto.createHash)
   let streamSize = 0
@@ -325,9 +343,9 @@ function integrityStream (opts) {
 
 module.exports.create = createIntegrity
 function createIntegrity (opts) {
-  opts = opts || {}
-  const algorithms = opts.algorithms || ['sha512']
-  const optString = opts.options && opts.options.length
+  opts = SsriOpts(opts)
+  const algorithms = opts.algorithms
+  const optString = opts.options.length
   ? `?${opts.options.join('?')}`
   : ''
 

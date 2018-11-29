@@ -27,6 +27,7 @@ In the output:
 * `package type` (when using `--long` / `-l`) tells you whether this package is
   a `dependency` or a `devDependency`. Packages not included in `package.json`
   are always marked `dependencies`.
+* `homepage` (when using `--long` / `-l`) is the `homepage` value contained in the package's `package.json`
 * Red means there's a newer version matching your semver requirements, so you should update now.
 * Yellow indicates that there's a newer version above your semver requirements (usually new major, or new 0.x minor) so proceed with caution.
 

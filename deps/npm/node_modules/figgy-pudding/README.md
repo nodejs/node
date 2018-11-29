@@ -1,8 +1,12 @@
 # figgy-pudding [![npm version](https://img.shields.io/npm/v/figgy-pudding.svg)](https://npm.im/figgy-pudding) [![license](https://img.shields.io/npm/l/figgy-pudding.svg)](https://npm.im/figgy-pudding) [![Travis](https://img.shields.io/travis/zkat/figgy-pudding.svg)](https://travis-ci.org/zkat/figgy-pudding) [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/zkat/figgy-pudding?svg=true)](https://ci.appveyor.com/project/zkat/figgy-pudding) [![Coverage Status](https://coveralls.io/repos/github/zkat/figgy-pudding/badge.svg?branch=latest)](https://coveralls.io/github/zkat/figgy-pudding?branch=latest)
 
-# Death to the God Object! Now Bring Us Some Figgy Pudding!
+[`figgy-pudding`](https://github.com/zkat/figgy-pudding) is a small JavaScript
+library for managing and composing cascading options objects -- hiding what
+needs to be hidden from each layer, without having to do a lot of manual munging
+and passing of options.
 
-[`figgy-pudding`](https://github.com/zkat/figgy-pudding) is a simple JavaScript library for managing and composing cascading options objects -- hiding what needs to be hidden from each layer, without having to do a lot of manual munging and passing of options.
+### The God Object is Dead!
+### Now Bring Us Some Figgy Pudding!
 
 ## Install
 
@@ -14,57 +18,82 @@
 * [Features](#features)
 * [API](#api)
   * [`figgyPudding(spec)`](#figgy-pudding)
-  * [`Opts(values)`](#opts)
+  * [`PuddingFactory(values)`](#pudding-factory)
     * [`opts.get()`](#opts-get)
     * [`opts.concat()`](#opts-concat)
+    * [`opts.toJSON()`](#opts-to-json)
+    * [`opts.forEach()`](#opts-for-each)
+    * [`opts[Symbol.iterator]()`](#opts-symbol-iterator)
+    * [`opts.entries()`](#opts-entries)
+    * [`opts.keys()`](#opts-keys)
+    * [`opts.value()`](#opts-values)
 
 ### Example
 
 ```javascript
-const puddin = require('figgyPudding')
+// print-package.js
+const fetch = require('./fetch.js')
+const puddin = require('figgy-pudding')
 
-const RequestOpts = puddin({
-  follow: {
-    default: true
-  },
-  streaming: {
-    default: false
-  },
-  log: {
-    default: require('npmlog')
-  }
+const PrintOpts = puddin({
+  json: { default: false }
 })
 
-const MyAppOpts = puddin({
-  log: {
-    default: require('npmlog')
-  },
-  cache: {
-    default: './cache'
+async function printPkg (name, opts) {
+  // Expected pattern is to call this in every interface function. If `opts` is
+  // not passed in, it will automatically create an (empty) object for it.
+  opts = PrintOpts(opts)
+  const uri = `https://registry.npmjs.com/${name}`
+  const res = await fetch(uri, opts.concat({
+    // Add or override any passed-in configs and pass them down.
+    log: customLogger
+  }))
+  // The following would throw an error, because it's not in PrintOpts:
+  // console.log(opts.log)
+  if (opts.json) {
+    return res.json()
+  } else {
+    return res.text()
   }
-})
-
-function start (opts) {
-  opts = MyAppOpts(opts)
-  initCache(opts.get('cache'))
-  opts.get('streaming') // => undefined
-  reqStuff('https://npm.im/figgy-pudding', opts)
 }
 
-function reqStuff (uri, opts) {
-  opts = RequestOpts(opts)
-  require('request').get(uri, opts) // can't see `cache`
+console.log(await printPkg('figgy', {
+  // Pass in *all* configs at the toplevel, as a regular object.
+  json: true,
+  cache: './tmp-cache'
+}))
+```
+
+```javascript
+// fetch.js
+const puddin = require('figgy-pudding')
+
+const FetchOpts = puddin({
+  log: { default: require('npmlog') },
+  cache: {}
+})
+
+module.exports = async function (..., opts) {
+  opts = FetchOpts(opts)
 }
 ```
 
 ### Features
 
-* Hide options from layer that didn't ask for it
-* Shared multi-layer options
+* hide options from layer that didn't ask for it
+* shared multi-layer options
+* make sure `opts` argument is available
+* transparent key access like normal keys, through a Proxy. No need for`.get()`!
+* default values
+* key aliases
+* arbitrary key filter functions
+* key/value iteration
+* serialization
+* 100% test coverage using `tap --100`
 
 ### API
 
-#### <a name="figgy-pudding"></a> `> figgyPudding({ key: { default: val } | String }, [opts])`
+#### <a name="figgy-pudding"></a> `> figgyPudding({ key: { default: val } | String }, [opts]) -> PuddingFactory`
 
 Defines an Options constructor that can be used to collect only the needed
 options.
@@ -87,7 +116,7 @@ const MyAppOpts = figgyPudding({
 })
 ```
 
-#### <a name="opts"></a> `> Opts(...providers)`
+#### <a name="pudding-factory"></a> `> PuddingFactory(...providers) -> FiggyPudding{}`
 
 Instantiates an options object defined by `figgyPudding()`, which uses
 `providers`, in order, to find requested properties.
@@ -112,17 +141,17 @@ const opts = ReqOpts({
   log: require('npmlog')
 })
 
-opts.get('follow') // => true
-opts.get('log') // => Error: ReqOpts does not define `log`
+opts.follow // => true
+opts.log // => Error: ReqOpts does not define `log`
 
 const MoreOpts = figgyPudding({
   log: {}
 })
-MoreOpts(opts).get('log') // => npmlog object (passed in from original plain obj)
-MoreOpts(opts).get('follow') // => Error: MoreOpts does not define `follow`
+MoreOpts(opts).log // => npmlog object (passed in from original plain obj)
+MoreOpts(opts).follow // => Error: MoreOpts does not define `follow`
 ```
 
-#### <a name="opts-get"></a> `> opts.get(key)`
+#### <a name="opts-get"></a> `> opts.get(key) -> Value`
 
 Gets a value from the options object.
 
@@ -131,9 +160,10 @@ Gets a value from the options object.
 ```js
 const opts = MyOpts(config)
 opts.get('foo') // value of `foo`
+opts.foo // Proxy-based access through `.get()`
 ```
 
-#### <a name="opts-concat"></a> `> opts.concat(...moreProviders)`
+#### <a name="opts-concat"></a> `> opts.concat(...moreProviders) -> FiggyPudding{}`
 
 Creates a new opts object of the same type as `opts` with additional providers.
 Providers further to the right shadow providers to the left, with properties in
@@ -146,4 +176,85 @@ const opts = MyOpts({x: 1})
 opts.get('x') // 1
 opts.concat({x: 2}).get('x') // 2
 opts.get('x') // 1 (original opts object left intact)
+```
+
+#### <a name="opts-to-json"></a> `> opts.toJSON() -> Value`
+
+Converts `opts` to a plain, JSON-stringifiable JavaScript value. Used internally
+by JavaScript to get `JSON.stringify()` working.
+
+Only keys that are readable by the current pudding type will be serialized.
+
+##### Example
+
+```js
+const opts = MyOpts({x: 1})
+opts.toJSON() // {x: 1}
+JSON.stringify(opts) // '{"x":1}'
+```
+
+#### <a name="opts-for-each"></a> `> opts.forEach((value, key, opts) => {}, thisArg) -> undefined`
+
+Iterates over the values of `opts`, limited to the keys readable by the current
+pudding type. `thisArg` will be used to set the `this` argument when calling the
+`fn`.
+
+##### Example
+
+```js
+const opts = MyOpts({x: 1, y: 2})
+opts.forEach((value, key) => console.log(key, '=', value))
+```
+
+#### <a name="opts-entries"></a> `> opts.entries() -> Iterator<[[key, value], ...]>`
+
+Returns an iterator that iterates over the keys and values in `opts`, limited to
+the keys readable by the current pudding type. Each iteration returns an array
+of `[key, value]`.
+
+##### Example
+
+```js
+const opts = MyOpts({x: 1, y: 2})
+[...opts({x: 1, y: 2}).entries()] // [['x', 1], ['y', 2]]
+```
+
+#### <a name="opts-symbol-iterator"></a> `> opts[Symbol.iterator]() -> Iterator<[[key, value], ...]>`
+
+Returns an iterator that iterates over the keys and values in `opts`, limited to
+the keys readable by the current pudding type. Each iteration returns an array
+of `[key, value]`. Makes puddings work natively with JS iteration mechanisms.
+
+##### Example
+
+```js
+const opts = MyOpts({x: 1, y: 2})
+[...opts({x: 1, y: 2})] // [['x', 1], ['y', 2]]
+for (let [key, value] of opts({x: 1, y: 2})) {
+  console.log(key, '=', value)
+}
+```
+
+#### <a name="opts-keys"></a> `> opts.keys() -> Iterator<[key, ...]>`
+
+Returns an iterator that iterates over the keys in `opts`, limited to the keys
+readable by the current pudding type.
+
+##### Example
+
+```js
+const opts = MyOpts({x: 1, y: 2})
+[...opts({x: 1, y: 2}).keys()] // ['x', 'y']
+```
+
+#### <a name="opts-values"></a> `> opts.values() -> Iterator<[value, ...]>`
+
+Returns an iterator that iterates over the values in `opts`, limited to the keys
+readable by the current pudding type.
+
+##### Example
+'
+```js
+const opts = MyOpts({x: 1, y: 2})
+[...opts({x: 1, y: 2}).values()] // [1, 2]
 ```

@@ -1,17 +1,19 @@
-.TH "NPM\-EDIT" "1" "August 2018" "" ""
+.TH "NPM\-EDIT" "1" "November 2018" "" ""
 .SH "NAME"
 \fBnpm-edit\fR \- Edit an installed package
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm edit <pkg>[@<version>]
+npm edit <pkg>[/<subpkg>\.\.\.]
 .fi
 .RE
 .SH DESCRIPTION
 .P
-Opens the package folder in the default editor (or whatever you've
-configured as the npm \fBeditor\fP config \-\- see npm help 7 \fBnpm\-config\fP\|\.)
+Selects a (sub)dependency in the current
+working directory and opens the package folder in the default editor
+(or whatever you've configured as the npm \fBeditor\fP config \-\- see
+npm help 7 \fBnpm\-config\fP\|\.)
 .P
 After it has been edited, the package is rebuilt so as to pick up any
 changes in compiled packages\.
