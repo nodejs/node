@@ -22,16 +22,13 @@ const hmac = Buffer.alloc(16, 'H');
 
 server._sharedCreds.context.enableTicketKeyCallback();
 server._sharedCreds.context.onticketkeycallback = function(name, iv, enc) {
-  let newName, newIV;
   if (enc) {
-    newName = Buffer.alloc(16, 'A');
-    newIV = crypto.randomBytes(16);
-  } else {
-    // Renew
-    return [ 2, hmac, aes ];
+    const newName = Buffer.alloc(16, 'A');
+    const newIV = crypto.randomBytes(16);
+    return [ 1, hmac, aes, newName, newIV ];
   }
-
-  return [ 1, hmac, aes, newName, newIV ];
+  // Renew
+  return [ 2, hmac, aes ];
 };
 
 server.listen(0, function() {
