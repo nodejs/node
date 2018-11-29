@@ -5,7 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
 
-// Check that writeHead, write and end do not crash in compatibikity mode
+// Check that writeHead, write and end do not crash in compatibility mode
 
 const server = http2.createServer(common.mustCall((req, res) => {
   // destroy the stream first
