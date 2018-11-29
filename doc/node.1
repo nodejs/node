@@ -236,13 +236,23 @@ Specify process.title on startup.
 Specify an alternative default TLS cipher list.
 Requires Node.js to be built with crypto support. (Default)
 .
-.It Fl -tls-v1.0
-Enable TLSv1.0 and greater in default secureProtocol. Use for compatibility
-with old TLS clients or servers.
+.It Fl -tls-max-v1.2
+Set default  maxVersion to 'TLSv1.2'. Use to disable support for TLSv1.3.
 .
-.It Fl -tls-v1.1
-Enable TLSv1.1 and greater in default secureProtocol. Use for compatibility
-with old TLS clients or servers.
+.It Fl -tls-max-v1.3
+Set default  maxVersion to 'TLSv1.3'. Use to enable support for TLSv1.3.
+.
+.It Fl -tls-min-v1.0
+Set default minVersion to 'TLSv1'. Use for compatibility with old TLS clients
+or servers.
+.
+.It Fl -tls-min-v1.1
+Set default minVersion to 'TLSv1.1'. Use for compatibility with old TLS clients
+or servers.
+.
+.It Fl -tls-min-v1.3
+Set default minVersion to 'TLSv1.3'. Use to disable support for TLSv1.2 in
+favour of TLSv1.3, which is more secure.
 .
 .It Fl -trace-deprecation
 Print stack traces for deprecations.

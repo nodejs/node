@@ -129,6 +129,7 @@ validateList(cryptoCiphers);
 // Assume that we have at least AES256-SHA.
 const tlsCiphers = tls.getCiphers();
 assert(tls.getCiphers().includes('aes256-sha'));
+assert(tls.getCiphers().includes('tls_aes_128_ccm_8_sha256'));
 // There should be no capital letters in any element.
 const noCapitals = /^[^A-Z]+$/;
 assert(tlsCiphers.every((value) => noCapitals.test(value)));

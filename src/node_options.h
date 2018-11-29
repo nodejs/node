@@ -121,10 +121,11 @@ class EnvironmentOptions : public Options {
   bool print_eval = false;
   bool force_repl = false;
 
-#if HAVE_OPENSSL
-  bool tls_v1_0 = false;
-  bool tls_v1_1 = false;
-#endif
+  bool tls_min_v1_0 = false;
+  bool tls_min_v1_1 = false;
+  bool tls_min_v1_3 = false;
+  bool tls_max_v1_2 = false;
+  bool tls_max_v1_3 = false;
 
   std::vector<std::string> preload_modules;
 
