@@ -1,4 +1,4 @@
-// Flags: --tls-v1.0
+// Flags: --tls-min-v1.0
 'use strict';
 
 const common = require('../common');

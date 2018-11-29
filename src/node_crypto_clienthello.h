@@ -33,6 +33,12 @@ namespace crypto {
 // Parse the client hello so we can do async session resumption. OpenSSL's
 // session resumption uses synchronous callbacks, see SSL_CTX_sess_set_get_cb
 // and get_session_cb.
+//
+// TLS1.3 handshakes masquerade as TLS1.2 session resumption, and to do this,
+// they always include a session_id in the ClientHello, making up a bogus value
+// if necessary. The parser can't know if its a bogus id, and will cause a
+// 'newSession' event to be emitted. This should do no harm, the id won't be
+// found, and the handshake will continue.
 class ClientHelloParser {
  public:
   inline ClientHelloParser();

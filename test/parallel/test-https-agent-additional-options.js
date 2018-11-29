@@ -1,4 +1,4 @@
-// Flags: --tls-v1.1
+// Flags: --tls-min-v1.1
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)

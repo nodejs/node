@@ -104,6 +104,9 @@ not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`] for more info.
 
+Perfect Forward Secrecy was optional up to TLSv1.2, but it is not optional for
+TLSv1.3, because all TLSv1.3 cipher suites use ECDHE.
+
 ### ALPN and SNI
 
 <!-- type=misc -->
@@ -135,6 +138,8 @@ threshold is exceeded. The limits are configurable:
 
 The default renegotiation limits should not be modified without a full
 understanding of the implications and risks.
+
+TLSv1.3 does not support renegotiation.
 
 ### Session Resumption
 
@@ -175,6 +180,10 @@ For Node.js, clients use the same APIs for resumption with session identifiers
 as for resumption with session tickets. For debugging, if
 [`tls.TLSSocket.getTLSTicket()`][] returns a value, the session data contains a
 ticket, otherwise it contains client-side session state.
+
+With TLSv1.3, be aware that multiple tickets may be sent by the server,
+resulting in multiple `'session'` events, see [`'session'`][] for more
+information.
 
 Single process servers need no specific implementation to use session tickets.
 To use session tickets across server restarts or load balancers, servers must
@@ -230,6 +239,9 @@ Node.js is built with a default suite of enabled and disabled TLS ciphers.
 Currently, the default cipher suite is:
 
 ```txt
+TLS_AES_256_GCM_SHA384:
+TLS_CHACHA20_POLY1305_SHA256:
+TLS_AES_128_GCM_SHA256:
 ECDHE-RSA-AES128-GCM-SHA256:
 ECDHE-ECDSA-AES128-GCM-SHA256:
 ECDHE-RSA-AES256-GCM-SHA384:
@@ -270,7 +282,19 @@ The default can also be replaced on a per client or server basis using the
 in [`tls.createServer()`], [`tls.connect()`], and when creating new
 [`tls.TLSSocket`]s.
 
-Consult [OpenSSL cipher list format documentation][] for details on the format.
+The ciphers list can contain a mixture of TLSv1.3 cipher suite names, the ones
+that start with `'TLS_'`, and specifications for TLSv1.2 and below cipher
+suites.  The TLSv1.2 ciphers support a legacy specification format, consult
+the OpenSSL [cipher list format][] documentation for details, but those
+specifications do *not* apply to TLSv1.3 ciphers.  The TLSv1.3 suites can only
+be enabled by including their full name in the cipher list. They cannot, for
+example, be enabled or disabled by using the legacy TLSv1.2 `'EECDH'` or
+`'!EECDH'` specification.
+
+Despite the relative order of TLSv1.3 and TLSv1.2 cipher suites, the TLSv1.3
+protocol is significantly more secure than TLSv1.2, and will always be chosen
+over TLSv1.2 if the handshake indicates it is supported, and if any TLSv1.3
+cipher suites are enabled.
 
 The default cipher suite included within Node.js has been carefully
 selected to reflect current security best practices and risk mitigation.
@@ -289,7 +313,18 @@ Old clients that rely on insecure and deprecated RC4 or DES-based ciphers
 (like Internet Explorer 6) cannot complete the handshaking process with
 the default configuration. If these clients _must_ be supported, the
 [TLS recommendations] may offer a compatible cipher suite. For more details
-on the format, see the [OpenSSL cipher list format documentation].
+on the format, see the OpenSSL [cipher list format][] documentation.
+
+There are only 5 TLSv1.3 cipher suites:
+- `'TLS_AES_256_GCM_SHA384'`
+- `'TLS_CHACHA20_POLY1305_SHA256'`
+- `'TLS_AES_128_GCM_SHA256'`
+- `'TLS_AES_128_CCM_SHA256'`
+- `'TLS_AES_128_CCM_8_SHA256'`
+
+The first 3 are enabled by default. The last 2 `CCM`-based suites are supported
+by TLSv1.3 because they may be more performant on constrained systems, but they
+are not enabled by default since they offer less security.
 
 ## Class: tls.Server
 <!-- YAML
@@ -634,11 +669,11 @@ On the client, the `session` can be provided to the `session` option of
 
 See [Session Resumption][] for more information.
 
-Note: For TLS1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
-the handshake is complete.  For TLS1.3, only ticket based resumption is allowed
+Note: For TLSv1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
+the handshake is complete.  For TLSv1.3, only ticket based resumption is allowed
 by the protocol, multiple tickets are sent, and the tickets aren't sent until
 later, after the handshake completes, so it is necessary to wait for the
-`'session'` event to get a resumable session.  Future-proof applications are
+`'session'` event to get a resumable session.  Applications are
 recommended to use the `'session'` event instead of `getSession()` to ensure
 they will work for all TLS protocol versions.  Applications that only expect to
 get or use 1 session should listen for this event only once:
@@ -731,7 +766,7 @@ changes:
 
 Returns an object containing information on the negotiated cipher suite.
 
-For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`.
+For example: `{ name: 'AES256-SHA', version: 'TLSv1.2' }`.
 
 See
 [OpenSSL](https://www.openssl.org/docs/man1.1.1/man3/SSL_CIPHER_get_name.html)
@@ -904,12 +939,13 @@ be returned for server sockets or disconnected client sockets.
 
 Protocol versions are:
 
+* `'SSLv3'`
 * `'TLSv1'`
 * `'TLSv1.1'`
 * `'TLSv1.2'`
-* `'SSLv3'`
+* `'TLSv1.3'`
 
-See <https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_version.html> for more
+See <https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html> for more
 information.
 
 ### tlsSocket.getSession()
@@ -926,8 +962,8 @@ for debugging.
 
 See [Session Resumption][] for more information.
 
-Note: `getSession()` works only for TLS1.2 and below. Future-proof applications
-should use the [`'session'`][] event.
+Note: `getSession()` works only for TLSv1.2 and below. For TLSv1.3, applications
+must use the [`'session'`][] event (it also works for TLSv1.2 and below).
 
 ### tlsSocket.getTLSTicket()
 <!-- YAML
@@ -1009,8 +1045,12 @@ added: v0.11.8
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
   * `requestCert`
-* `callback` {Function} A function that will be called when the renegotiation
-  request has been completed.
+* `callback` {Function} If `renegotiate()` returned `true`, callback is
+   attached once to the `'secure'` event. If it returned `false`, it will be
+   called in the next tick with `ERR_TLS_RENEGOTIATE`, unless the `tlsSocket`
+   has been destroyed, in which case it will not be called at all.
+
+* Returns: {boolean} `true` if renegotiation was initiated, `false` otherwise.
 
 The `tlsSocket.renegotiate()` method initiates a TLS renegotiation process.
 Upon completion, the `callback` function will be passed a single argument
@@ -1021,6 +1061,9 @@ connection has been established.
 
 When running as the server, the socket will be destroyed with an error after
 `handshakeTimeout` timeout.
+
+For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
+protocol.
 
 ### tlsSocket.setMaxSendFragment(size)
 <!-- YAML
@@ -1220,6 +1263,9 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/26209
+    description: TLSv1.3 support added.
   - version: v11.5.0
     pr-url: https://github.com/nodejs/node/pull/24733
     description: The `ca:` option now supports `BEGIN TRUSTED CERTIFICATE`.
@@ -1310,15 +1356,22 @@ changes:
     `object.passphrase` is optional. Encrypted keys will be decrypted with
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
-    of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
-    `secureProtocol` option, use one or the other.  **Default:** `'TLSv1.2'`.
+    of `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
+    along with the `secureProtocol` option, use one or the other.
+    **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
+    `--tls-max-v1.2` sets the default to `'TLSv1.2`'. Using `--tls-max-v1.3`
+    sets the default to `'TLSv1.3'`. If multiple of the options are provided,
+    the highest maximum is used.
   * `minVersion` {string} Optionally set the minimum TLS version to allow. One
-    of `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified along with the
-    `secureProtocol` option, use one or the other. It is not recommended to use
-    less than TLSv1.2, but it may be required for interoperability.
+    of `TLSv1.3`, `TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
+    along with the `secureProtocol` option, use one or the other. It is not
+    recommended to use less than TLSv1.2, but it may be required for
+    interoperability.
     **Default:** `'TLSv1.2'`, unless changed using CLI options. Using
-    `--tls-v1.0` changes the default to `'TLSv1'`. Using `--tls-v1.1` changes
-    the default to `'TLSv1.1'`.
+    `--tls-min-v1.0` sets the default to `'TLSv1'`. Using `--tls-min-v1.1` sets
+    the default to `'TLSv1.1'`. Using `--tls-min-v1.3` sets the default to
+    `'TLSv1.3'`. If multiple of the options are provided, the lowest minimum is
+    used.
   * `passphrase` {string} Shared passphrase used for a single private key and/or
     a PFX.
   * `pfx` {string|string[]|Buffer|Buffer[]|Object[]} PFX or PKCS12 encoded
@@ -1334,12 +1387,15 @@ changes:
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
-  * `secureProtocol` {string} The TLS protocol version to use. The possible
-    values are listed as [SSL_METHODS][], use the function names as strings. For
-    example, use `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'`
-    to allow any TLS protocol version. It is not recommended to use TLS versions
-    less than 1.2, but it may be required for interoperability.  **Default:**
-    none, see `minVersion`.
+  * `secureProtocol` {string} Legacy mechanism to select the TLS protocol
+    version to use, it does not support independent control of the minimum and
+    maximum version, and does not support limiting the protocol to TLSv1.3.  Use
+    `minVersion` and `maxVersion` instead.  The possible values are listed as
+    [SSL_METHODS][], use the function names as strings.  For example, use
+    `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'` to allow any
+    TLS protocol version up to TLSv1.3.  It is not recommended to use TLS
+    versions less than 1.2, but it may be required for interoperability.
+    **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
 
@@ -1457,10 +1513,15 @@ added: v0.10.2
 
 * Returns: {string[]}
 
-Returns an array with the names of the supported SSL ciphers.
+Returns an array with the names of the supported TLS ciphers. The names are
+lower-case for historical reasons, but must be uppercased to be used in
+the `ciphers` option of [`tls.createSecureContext()`][].
+
+Cipher names that start with `'tls_'` are for TLSv1.3, all the others are for
+TLSv1.2 and below.
 
 ```js
-console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
+console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ```
 
 ## tls.DEFAULT_ECDH_CURVE
@@ -1619,16 +1680,16 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
-[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.1.0/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929
-[SSL_METHODS]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html#Dealing-with-Protocol-Methods
+[SSL_METHODS]: https://www.openssl.org/docs/man1.1.1/man7/ssl.html#Dealing-with-Protocol-Methods
 [Session Resumption]: #tls_session_resumption
 [Stream]: stream.html#stream_stream
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #tls_certificate_object
+[cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html

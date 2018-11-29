@@ -9,6 +9,8 @@ const net = require('net');
 const assert = require('assert');
 const tls = require('tls');
 
+tls.DEFAULT_MAX_VERSION = 'TLSv1.3';
+
 // This test ensures that an instance of StreamWrap should emit "end" and
 // "close" when the socket on the other side call `destroy()` instead of
 // `end()`.
@@ -21,10 +23,17 @@ const tlsServer = tls.createServer(
     ca: [fixtures.readSync('test_ca.pem')],
   },
   (socket) => {
-    socket.on('error', common.mustNotCall());
     socket.on('close', common.mustCall());
     socket.write(CONTENT);
     socket.destroy();
+
+    socket.on('error', (err) => {
+      // destroy() is sync, write() is async, whether write completes depends
+      // on the protocol, it is not guaranteed by stream API.
+      if (err.code === 'ERR_STREAM_DESTROYED')
+        return;
+      assert.ifError(err);
+    });
   },
 );
 
@@ -57,13 +66,12 @@ const server = net.createServer((conn) => {
 server.listen(0, () => {
   const port = server.address().port;
   const conn = tls.connect({ port, rejectUnauthorized: false }, () => {
-    conn.on('data', common.mustCall((data) => {
+    // Whether the server's write() completed before its destroy() is
+    // indeterminate, but if data was written, we should receive it correctly.
+    conn.on('data', (data) => {
       assert.strictEqual(data.toString('utf8'), CONTENT);
-    }));
+    });
     conn.on('error', common.mustNotCall());
-    conn.on(
-      'close',
-      common.mustCall(() => server.close()),
-    );
+    conn.on('close', common.mustCall(() => server.close()));
   });
 });

@@ -10,6 +10,9 @@ if (!common.hasCrypto)
 
 const tls = require('tls');
 
+// Renegotiation as a protocol feature was dropped after TLS1.2.
+tls.DEFAULT_MAX_VERSION = 'TLSv1.2';
+
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
@@ -86,5 +89,9 @@ server.listen(0, common.mustCall(() => {
       }));
     }));
     assert.strictEqual(ok, true);
+    client.on('secureConnect', common.mustCall(() => {
+    }));
+    client.on('secure', common.mustCall(() => {
+    }));
   }));
 }));

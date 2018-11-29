@@ -86,6 +86,8 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   // (3,2) TLS v1.1
   // (3,3) TLS v1.2
   //
+  // Note that TLS v1.3 uses a TLS v1.2 handshake so requires no specific
+  // support here.
   if (data[body_offset_ + 4] != 0x03 ||
       data[body_offset_ + 5] < 0x01 ||
       data[body_offset_ + 5] > 0x03) {
