@@ -123,7 +123,6 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::DEFAULT;
-using v8::DontEnum;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
@@ -145,8 +144,6 @@ using v8::None;
 using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::PropertyAttribute;
-using v8::ReadOnly;
 using v8::Script;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
@@ -917,31 +914,12 @@ static Local<Object> GetFeatures(Environment* env) {
 static void DebugProcess(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
-namespace {
-
-#define READONLY_PROPERTY(obj, str, var)                                      \
-  do {                                                                        \
-    obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
-                           var,                                               \
-                           ReadOnly).FromJust();                              \
-  } while (0)
-
-#define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
-  do {                                                                        \
-    obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
-                           var,                                               \
-                           static_cast<PropertyAttribute>(ReadOnly|DontEnum)) \
-        .FromJust();                                                          \
-  } while (0)
-
-}  // anonymous namespace
-
 void SetupProcessObject(Environment* env,
                         const std::vector<std::string>& args,
                         const std::vector<std::string>& exec_args) {
-  HandleScope scope(env->isolate());
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env->context();
 
   Local<Object> process = env->process_object();
 
@@ -1280,9 +1258,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethodNoSideEffect(process, "getgroups", GetGroups);
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 }
-
-
-#undef READONLY_PROPERTY
 
 
 void SignalExit(int signo) {

@@ -479,6 +479,31 @@ template <typename T, typename U>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const std::unordered_map<T, U>& map);
 
+// These macros expects a `Isolate* isolate` and a `Local<Context> context`
+// to be in the scope.
+#define READONLY_PROPERTY(obj, name, value)                                    \
+  do {                                                                         \
+    obj->DefineOwnProperty(                                                    \
+           context, FIXED_ONE_BYTE_STRING(isolate, name), value, v8::ReadOnly) \
+        .FromJust();                                                           \
+  } while (0)
+
+#define READONLY_DONT_ENUM_PROPERTY(obj, name, var)                            \
+  do {                                                                         \
+    obj->DefineOwnProperty(                                                    \
+           context,                                                            \
+           OneByteString(isolate, name),                                       \
+           var,                                                                \
+           static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum))    \
+        .FromJust();                                                           \
+  } while (0)
+
+#define READONLY_TRUE_PROPERTY(obj, name)                                      \
+  READONLY_PROPERTY(obj, name, True(isolate))
+
+#define READONLY_STRING_PROPERTY(obj, name, str)                               \
+  READONLY_PROPERTY(obj, name, ToV8Value(context, str).ToLocalChecked())
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

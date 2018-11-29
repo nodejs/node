@@ -12,40 +12,12 @@ using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
-using v8::ReadOnly;
-using v8::String;
 using v8::Value;
 
 // The config binding is used to provide an internal view of compile or runtime
 // config options that are required internally by lib/*.js code. This is an
 // alternative to dropping additional properties onto the process object as
 // has been the practice previously in node.cc.
-
-#define READONLY_BOOLEAN_PROPERTY(str)                                        \
-  do {                                                                        \
-    target->DefineOwnProperty(context,                                        \
-                              FIXED_ONE_BYTE_STRING(isolate, str),            \
-                              True(isolate), ReadOnly).FromJust();            \
-  } while (0)
-
-#define READONLY_STRING_PROPERTY(obj, str, val)                                \
-  do {                                                                         \
-    (obj)->DefineOwnProperty(context,                                          \
-                             FIXED_ONE_BYTE_STRING(isolate, str),              \
-                             String::NewFromUtf8(                              \
-                                 isolate,                                      \
-                                 val.data(),                                   \
-                                 v8::NewStringType::kNormal).ToLocalChecked(), \
-                             ReadOnly).FromJust();                             \
-  } while (0)
-
-
-#define READONLY_PROPERTY(obj, name, value)                                   \
-  do {                                                                        \
-    obj->DefineOwnProperty(env->context(),                                    \
-                           FIXED_ONE_BYTE_STRING(isolate, name),              \
-                           value, ReadOnly).FromJust();                       \
-  } while (0)
 
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
@@ -54,26 +26,26 @@ static void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
 #ifdef NODE_FIPS_MODE
-  READONLY_BOOLEAN_PROPERTY("fipsMode");
+  READONLY_TRUE_PROPERTY(target, "fipsMode");
   // TODO(addaleax): Use options parser variable instead.
   if (per_process_opts->force_fips_crypto)
-    READONLY_BOOLEAN_PROPERTY("fipsForced");
+    READONLY_TRUE_PROPERTY(target, "fipsForced");
 #endif
 
 #ifdef NODE_HAVE_I18N_SUPPORT
 
-  READONLY_BOOLEAN_PROPERTY("hasIntl");
+  READONLY_TRUE_PROPERTY(target, "hasIntl");
 
 #ifdef NODE_HAVE_SMALL_ICU
-  READONLY_BOOLEAN_PROPERTY("hasSmallICU");
+  READONLY_TRUE_PROPERTY(target, "hasSmallICU");
 #endif  // NODE_HAVE_SMALL_ICU
 
 #if NODE_USE_V8_PLATFORM
-  READONLY_BOOLEAN_PROPERTY("hasTracing");
+  READONLY_TRUE_PROPERTY(target, "hasTracing");
 #endif
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  READONLY_BOOLEAN_PROPERTY("hasNodeOptions");
+  READONLY_TRUE_PROPERTY(target, "hasNodeOptions");
 #endif
 
   // TODO(addaleax): This seems to be an unused, private API. Remove it?
@@ -83,12 +55,12 @@ static void Initialize(Local<Object> target,
 #endif  // NODE_HAVE_I18N_SUPPORT
 
   if (env->options()->preserve_symlinks)
-    READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
+    READONLY_TRUE_PROPERTY(target, "preserveSymlinks");
   if (env->options()->preserve_symlinks_main)
-    READONLY_BOOLEAN_PROPERTY("preserveSymlinksMain");
+    READONLY_TRUE_PROPERTY(target, "preserveSymlinksMain");
 
   if (env->options()->experimental_modules) {
-    READONLY_BOOLEAN_PROPERTY("experimentalModules");
+    READONLY_TRUE_PROPERTY(target, "experimentalModules");
     const std::string& userland_loader = env->options()->userland_loader;
     if (!userland_loader.empty()) {
       READONLY_STRING_PROPERTY(target, "userLoader",  userland_loader);
@@ -96,22 +68,22 @@ static void Initialize(Local<Object> target,
   }
 
   if (env->options()->experimental_vm_modules)
-    READONLY_BOOLEAN_PROPERTY("experimentalVMModules");
+    READONLY_TRUE_PROPERTY(target, "experimentalVMModules");
 
   if (env->options()->experimental_worker)
-    READONLY_BOOLEAN_PROPERTY("experimentalWorker");
+    READONLY_TRUE_PROPERTY(target, "experimentalWorker");
 
   if (env->options()->experimental_repl_await)
-    READONLY_BOOLEAN_PROPERTY("experimentalREPLAwait");
+    READONLY_TRUE_PROPERTY(target, "experimentalREPLAwait");
 
   if (env->options()->pending_deprecation)
-    READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
+    READONLY_TRUE_PROPERTY(target, "pendingDeprecation");
 
   if (env->options()->expose_internals)
-    READONLY_BOOLEAN_PROPERTY("exposeInternals");
+    READONLY_TRUE_PROPERTY(target, "exposeInternals");
 
   if (env->abort_on_uncaught_exception())
-    READONLY_BOOLEAN_PROPERTY("shouldAbortOnUncaughtException");
+    READONLY_TRUE_PROPERTY(target, "shouldAbortOnUncaughtException");
 
   READONLY_PROPERTY(target,
                     "bits",
