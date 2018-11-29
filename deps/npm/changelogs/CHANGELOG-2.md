@@ -1,7 +1,7 @@
 ### v2.15.12 (2017-03-24):
 
 This version brings the latest `node-gyp` to a soon to be released Node.js
-4.x.  The `node-gyp` update is paticularly important to Windows folks due to
+4.x.  The `node-gyp` update is particularly important to Windows folks due to
 its addition of Visual Studio 2017 support.
 
 * [`cdd60e733`](https://github.com/npm/npm/commit/cdd60e733905a9994e1d6d832996bfdd12abeaee)
@@ -372,7 +372,7 @@ Node.js 0.10 and 0.12, it's unlikely that patches that rely on ES 2015
 functionality will land anytime soon.
 
 Looking forward, the team's current plan is to drop support for Node.js 0.10
-when its LTS maintenace window expires in October, 2016, and 0.12 when its
+when its LTS maintenance window expires in October, 2016, and 0.12 when its
 maintenance / LTS window ends at the end of 2016. We will also drop support for
 Node.js 5.x when Node.js 6 becomes LTS and Node.js 7 is released, also in the
 October-December 2016 timeframe.
@@ -1507,7 +1507,7 @@ change makes it do.
 
 We _think_ this is what everyone wants, but if this causes problems for you, we
 want to know! If it proves problematic for people we will consider reverting it
-(preferrably before this becomes `npm@latest`).
+(preferably before this becomes `npm@latest`).
 
 Previously, when you ran `npm install foo` we would act as if you typed `npm
 install foo@*`. Now, like any range-type specifier, in addition to matching the
@@ -2742,7 +2742,7 @@ NodeConf Adventure!
   ([@iarna](https://github.com/iarna))
 * [`e02e85d`](https://github.com/npm/npm/commit/e02e85d)
   `osenv@0.1.2`: Switches to using the `os-tmpdir` module instead of
-  `os.tmpdir()` for greate consistency in behavior between node versions.
+  `os.tmpdir()` for greater consistency in behavior between node versions.
   ([@iarna](https://github.com/iarna))
 * [`a6f0265`](https://github.com/npm/npm/commit/a6f0265)
   `ini@1.3.4` ([@isaacs](https://github.com/isaacs))
@@ -4588,7 +4588,7 @@ Other changes:
   ([@gfxmonk](https://github.com/gfxmonk))
 * [`989624e`](https://github.com/npm/npm/commit/989624e8321f87734c1b1272fc2f646e7af1f81c)
   [#6767](https://github.com/npm/npm/issues/6767) Actually pass parameters when
-  adding git repo to cach under Windows.
+  adding git repo to cache under Windows.
   ([@othiym23](https://github.com/othiym23))
 * [`657af73`](https://github.com/npm/npm/commit/657af7308f7d6cd2f81389fcf0d762252acaf1ce)
   [#6774](https://github.com/npm/npm/issues/6774) When verifying paths on

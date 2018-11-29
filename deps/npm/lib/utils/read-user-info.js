@@ -21,9 +21,9 @@ function read (opts) {
 function readOTP (msg, otp, isRetry) {
   if (!msg) {
     msg = [
-      'There was an error while trying authentication due to OTP (One-Time-Password).',
-      'The One-Time-Password is generated via applications like Authy or',
-      'Google Authenticator, for more information see:',
+      'This command requires a one-time password (OTP) from your authenticator app.',
+      'Enter one below. You can also pass one on the command line by appending --otp=123456.',
+      'For more information, see:',
       'https://docs.npmjs.com/getting-started/using-two-factor-authentication',
       'Enter OTP: '
     ].join('\n')

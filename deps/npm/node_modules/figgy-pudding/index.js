@@ -47,7 +47,7 @@ class FiggyPudding {
     if (matcher) {
       const seen = new Set()
       for (let p of this.__providers) {
-        const iter = p.entries ? p.entries(matcher) : Object.entries(p)
+        const iter = p.entries ? p.entries(matcher) : entries(p)
         for (let [key, val] of iter) {
           if (matcher(key) && !seen.has(key)) {
             seen.add(key)
@@ -190,4 +190,8 @@ function reverse (arr) {
   const ret = []
   arr.forEach(x => ret.unshift(x))
   return ret
+}
+
+function entries (obj) {
+  return Object.keys(obj).map(k => [k, obj[k]])
 }

@@ -167,6 +167,12 @@ function upload (arg, pkg, isRetry, cached) {
       auth: auth
     }
 
+    function closeFile () {
+      if (!npm.config.get('dry-run')) {
+        params.body.close()
+      }
+    }
+
     // registry-frontdoor cares about the access level, which is only
     // configurable for scoped packages
     if (config.get('access')) {
@@ -195,6 +201,8 @@ function upload (arg, pkg, isRetry, cached) {
         return BB.fromNode((cb) => {
           npm.commands.unpublish([pkg._id], cb)
         }).finally(() => {
+          // close the file we are trying to upload, we will open it again.
+          closeFile()
           // ignore errors.  Use the force.  Reach out with your feelings.
           return upload(arg, pkg, true, cached).catch(() => {
             // but if it fails again, then report the first error.
@@ -202,6 +210,8 @@ function upload (arg, pkg, isRetry, cached) {
           })
         })
       } else {
+        // close the file we are trying to upload, all attempts to resume will open it again
+        closeFile()
         throw err
       }
     })

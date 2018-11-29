@@ -1,4 +1,4 @@
-.TH "SEMVER" "7" "August 2018" "" ""
+.TH "SEMVER" "7" "November 2018" "" ""
 .SH "NAME"
 \fBsemver\fR \- The semantic versioner for npm
 .SH Install
@@ -329,7 +329,7 @@ logical\-or ::= ( ' ' ) * '||' ( ' ' ) *
 range      ::= hyphen | simple ( ' ' simple ) * | ''
 hyphen     ::= partial ' \- ' partial
 simple     ::= primitive | partial | tilde | caret
-primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' | ) partial
+primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
 partial    ::= xr ( '\.' xr ( '\.' xr qualifier ? )? )?
 xr         ::= 'x' | 'X' | '*' | nr
 nr         ::= '0' | ['1'\-'9'] ( ['0'\-'9'] ) *
