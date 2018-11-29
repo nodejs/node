@@ -29,6 +29,7 @@ const maxMetaEntrySize = 1024 * 1024
 const Entry = require('./read-entry.js')
 const Pax = require('./pax.js')
 const zlib = require('minizlib')
+const Buffer = require('./buffer.js')
 
 const gzipHeader = Buffer.from([0x1f, 0x8b])
 const STATE = Symbol('state')

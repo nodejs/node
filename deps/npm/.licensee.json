@@ -1,0 +1,9 @@
+{
+  "license": "(MIT OR BSD-2-Clause OR BSD-3-Clause OR Apache-2.0 OR ISC OR Unlicense OR CC-BY-3.0 OR CC0-1.0 OR Artistic-2.0)",
+  "whitelist": {
+    "config-chain": "1.1.12",
+    "cyclist": "0.2.2",
+    "json-schema": "0.2.3",
+    "qrcode-terminal": "0.12.0"
+  }
+}

@@ -2143,7 +2143,7 @@ This release includes an updated `node-gyp` with fixes for Android.
   ([@watilde](https://github.com/watilde))
 * [`47928cd`](https://github.com/npm/npm/commit/47928cd6264e1d6d0ef67435b71c66d01bea664a)
   [#11003](https://github.com/npm/npm/issues/11003)
-  Remove "verison" typo from the help listing.
+  Remove "version" typo from the help listing.
   ([@doug-wade](https://github.com/doug-wade))
 
 #### MORE COMPLETE CONFIG LISTINGS
@@ -3473,7 +3473,7 @@ Hey, you found the feature we added!
   folder with the same layout as global modules.  Only your direct
   dependencies will show in `node_modules` and everything they depend on
   will be flattened in their `node_modules` folders.  This obviously will
-  elminate some deduping.
+  eliminate some deduping.
   ([@iarna](https://github.com/iarna))
 
 #### TYPOS IN THE LICENSE, OH MY
@@ -3492,7 +3492,7 @@ this change makes it do.
 
 We _think_ this is what everyone wants, but if this causes problems for
 you, we want to know! If it proves problematic for people we will consider
-reverting it (preferrably before this becomes `npm@latest`).
+reverting it (preferably before this becomes `npm@latest`).
 
 Previously, when you ran `npm install foo` we would act as if you typed
 `npm install foo@*`. Now, like any range-type specifier, in addition to
@@ -4070,7 +4070,7 @@ in line with `npm@2`.
 
 * [`95ee92c`](https://github.com/npm/npm/commit/95ee92c)
   [#9433](https://github.com/npm/npm/issues/9433)
-  Give better error messages for invalid URLs in the dependecy
+  Give better error messages for invalid URLs in the dependency
   list.
   ([@jamietre](https://github.com/jamietre))
 

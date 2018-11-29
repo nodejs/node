@@ -11,9 +11,11 @@
 
 <h1><a href="../cli/npm-edit.html">npm-edit</a></h1> <p>Edit an installed package</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm edit &lt;pkg&gt;[@&lt;version&gt;]</code></pre><h2 id="description">DESCRIPTION</h2>
-<p>Opens the package folder in the default editor (or whatever you&#39;ve
-configured as the npm <code>editor</code> config -- see <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.)</p>
+<pre><code>npm edit &lt;pkg&gt;[/&lt;subpkg&gt;...]</code></pre><h2 id="description">DESCRIPTION</h2>
+<p>Selects a (sub)dependency in the current
+working directory and opens the package folder in the default editor
+(or whatever you&#39;ve configured as the npm <code>editor</code> config -- see
+<code><a href="../misc/npm-config.html">npm-config(7)</a></code>.)</p>
 <p>After it has been edited, the package is rebuilt so as to pick up any
 changes in compiled packages.</p>
 <p>For instance, you can do <code>npm install connect</code> to install connect
@@ -48,5 +50,5 @@ or <code>&quot;notepad&quot;</code> on Windows.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-edit &mdash; npm@6.4.1</p>
+<p id="footer">npm-edit &mdash; npm@6.5.0-next.0</p>
 

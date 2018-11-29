@@ -230,7 +230,7 @@ logical-or ::= ( &#39; &#39; ) * &#39;||&#39; ( &#39; &#39; ) *
 range      ::= hyphen | simple ( &#39; &#39; simple ) * | &#39;&#39;
 hyphen     ::= partial &#39; - &#39; partial
 simple     ::= primitive | partial | tilde | caret
-primitive  ::= ( &#39;&lt;&#39; | &#39;&gt;&#39; | &#39;&gt;=&#39; | &#39;&lt;=&#39; | &#39;=&#39; | ) partial
+primitive  ::= ( &#39;&lt;&#39; | &#39;&gt;&#39; | &#39;&gt;=&#39; | &#39;&lt;=&#39; | &#39;=&#39; ) partial
 partial    ::= xr ( &#39;.&#39; xr ( &#39;.&#39; xr qualifier ? )? )?
 xr         ::= &#39;x&#39; | &#39;X&#39; | &#39;*&#39; | nr
 nr         ::= &#39;0&#39; | [&#39;1&#39;-&#39;9&#39;] ( [&#39;0&#39;-&#39;9&#39;] ) *
@@ -350,5 +350,5 @@ higher value components are invalid (<code>9999999999999999.4.7.4</code> is like
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">semver &mdash; npm@6.4.1</p>
+<p id="footer">semver &mdash; npm@6.5.0-next.0</p>
 
