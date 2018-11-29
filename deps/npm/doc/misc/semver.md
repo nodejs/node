@@ -274,7 +274,7 @@ logical-or ::= ( ' ' ) * '||' ( ' ' ) *
 range      ::= hyphen | simple ( ' ' simple ) * | ''
 hyphen     ::= partial ' - ' partial
 simple     ::= primitive | partial | tilde | caret
-primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' | ) partial
+primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
 partial    ::= xr ( '.' xr ( '.' xr qualifier ? )? )?
 xr         ::= 'x' | 'X' | '*' | nr
 nr         ::= '0' | ['1'-'9'] ( ['0'-'9'] ) *

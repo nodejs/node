@@ -1285,7 +1285,7 @@ had been held by 1.3.16 since _December of 2013_.
 If you can't get enough of the bleeding edge, I encourage you to check out
 our canary release of npm. Get it with `npm install -g npmc`. It's going to
 be seeing some exciting stuff in the next couple of weeks, starting with a
-rewriten `npm dedupe`, but moving on to… well, you'll just have to wait and
+rewritten `npm dedupe`, but moving on to… well, you'll just have to wait and
 find out.
 
 ### PERFORMANCE
@@ -1911,7 +1911,7 @@ right? Here's what's bumping that number for us this time:
   ([@KennethKinLum](https://github.com/KennethKinLum))
 * [`c9b534a14`](https://github.com/npm/npm/commit/c9b534a148818d1a97787c0dfdba5f64ce3618a6)
   [#17074](https://github.com/npm/npm/pull/17074)
-  Clarify config documention with multiple boolean flags.
+  Clarify config documentation with multiple boolean flags.
   ([@KennethKinLum](https://github.com/KennethKinLum))
 * [`e111b0a40`](https://github.com/npm/npm/commit/e111b0a40c4bc6691d7b8d67ddce5419e67bfd27)
   [#16768](https://github.com/npm/npm/pull/16768)
@@ -2117,7 +2117,7 @@ added 234 packages in .005ms
   Fix a crash while installing with `--no-shrinkwrap`.
   ([@jacknagel](https://github.com/jacknagel))
 
-### DOC UPATES
+### DOC UPDATES
 
 * [`89e0cb816`](https://github.com/npm/npm/commit/89e0cb8165dd9c3c7ac74d531617f367099608f4)
   [#16818](https://github.com/npm/npm/pull/16818)

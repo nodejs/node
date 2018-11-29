@@ -1,4 +1,4 @@
-.TH "NPM\-OUTDATED" "1" "August 2018" "" ""
+.TH "NPM\-OUTDATED" "1" "November 2018" "" ""
 .SH "NAME"
 \fBnpm-outdated\fR \- Check for outdated packages
 .SH SYNOPSIS
@@ -34,6 +34,8 @@ always be seeing only top\-level dependencies that are outdated\.
 \fBpackage type\fP (when using \fB\-\-long\fP / \fB\-l\fP) tells you whether this package is
 a \fBdependency\fP or a \fBdevDependency\fP\|\. Packages not included in \fBpackage\.json\fP
 are always marked \fBdependencies\fP\|\.
+.IP \(bu 2
+\fBhomepage\fP (when using \fB\-\-long\fP / \fB\-l\fP) is the \fBhomepage\fP value contained in the package's \fBpackage\.json\fP
 .IP \(bu 2
 Red means there's a newer version matching your semver requirements, so you should update now\.
 .IP \(bu 2

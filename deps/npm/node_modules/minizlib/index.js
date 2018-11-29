@@ -242,7 +242,7 @@ class Zlib extends MiniPass {
       cb = encoding, encoding = 'utf8'
 
     if (typeof chunk === 'string')
-      chunk = new Buffer(chunk, encoding)
+      chunk = Buffer.from(chunk, encoding)
 
     let availInBefore = chunk && chunk.length
     let availOutBefore = this[_chunkSize] - this[_offset]

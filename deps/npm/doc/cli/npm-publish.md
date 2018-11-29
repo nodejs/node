@@ -47,8 +47,8 @@ specifying a different default registry or using a `npm-scope(7)` in the name
   don't include this and you're running from a TTY then you'll be prompted.
 
 * `[--dry-run]`
-  Does everything publish would do except actually publishing to the registry.
-  Reports the details of what would have been published.
+  As of `npm@6`, does everything publish would do except actually publishing
+  to the registry. Reports the details of what would have been published.
 
 Fails if the package name and version combination already exists in
 the specified registry.

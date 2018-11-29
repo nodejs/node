@@ -87,7 +87,7 @@ function fetchAudit (href, body) {
   const opts = pacoteOpts()
   return registryFetch(href, {
     method: 'POST',
-    headers: { 'Content-Encoding': 'gzip', 'Content-Type': 'application/json' },
+    headers: { 'content-encoding': 'gzip', 'content-type': 'application/json' },
     config: npm.config,
     npmSession: opts.npmSession,
     projectScope: npm.projectScope,
