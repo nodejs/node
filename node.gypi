@@ -8,6 +8,7 @@
   # all obj files in static libs into the executable or shared lib.
   'variables': {
     'variables': {
+      'http_max_header_size%': 8192,
       'variables': {
         'force_load%': 'true',
         'current_type%': '<(_type)',
@@ -168,6 +169,7 @@
       'dependencies': [ 'deps/llhttp/llhttp.gyp:llhttp' ],
     }, {
       'conditions': [ [ 'node_shared_http_parser=="false"', {
+        'defines': [ 'HTTP_MAX_HEADER_SIZE=<(http_max_header_size)' ],
         'dependencies': [ 'deps/http_parser/http_parser.gyp:http_parser' ],
       } ] ],
     } ],

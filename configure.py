@@ -189,6 +189,11 @@ parser.add_option('--experimental-http-parser',
     dest='experimental_http_parser',
     help='use llhttp instead of http_parser')
 
+parser.add_option('--http-max-header-size',
+    action='store',
+    default='8192',
+    help='set the max size of HTTP headers [default: %default]')
+
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
@@ -1594,7 +1599,11 @@ flavor = GetFlavor(flavor_params)
 
 configure_node(output)
 configure_library('zlib', output)
+
+# configure http_parser
 configure_library('http_parser', output)
+output['variables']['http_max_header_size'] = options.http_max_header_size
+
 configure_library('libuv', output)
 configure_library('libcares', output)
 configure_library('nghttp2', output)
