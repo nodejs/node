@@ -1,6 +1,8 @@
 var fs = require('fs')
 var polyfills = require('./polyfills.js')
 var legacy = require('./legacy-streams.js')
+var clone = require('./clone.js')
+
 var queue = []
 
 var util = require('util')
@@ -24,17 +26,17 @@ if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || '')) {
   })
 }
 
-module.exports = patch(require('./fs.js'))
-if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH) {
-  module.exports = patch(fs)
+module.exports = patch(clone(fs))
+if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs.__patched) {
+    module.exports = patch(fs)
+    fs.__patched = true;
 }
 
 // Always patch fs.close/closeSync, because we want to
 // retry() whenever a close happens *anywhere* in the program.
 // This is essential when multiple graceful-fs instances are
 // in play at the same time.
-module.exports.close =
-fs.close = (function (fs$close) { return function (fd, cb) {
+module.exports.close = (function (fs$close) { return function (fd, cb) {
   return fs$close.call(fs, fd, function (err) {
     if (!err)
       retry()
@@ -44,14 +46,24 @@ fs.close = (function (fs$close) { return function (fd, cb) {
   })
 }})(fs.close)
 
-module.exports.closeSync =
-fs.closeSync = (function (fs$closeSync) { return function (fd) {
+module.exports.closeSync = (function (fs$closeSync) { return function (fd) {
   // Note that graceful-fs also retries when fs.closeSync() fails.
   // Looks like a bug to me, although it's probably a harmless one.
   var rval = fs$closeSync.apply(fs, arguments)
   retry()
   return rval
 }})(fs.closeSync)
+
+// Only patch fs once, otherwise we'll run into a memory leak if
+// graceful-fs is loaded multiple times, such as in test environments that
+// reset the loaded modules between tests.
+// We look for the string `graceful-fs` from the comment above. This
+// way we are not adding any extra properties and it will detect if older
+// versions of graceful-fs are installed.
+if (!/\bgraceful-fs\b/.test(fs.closeSync.toString())) {
+  fs.closeSync = module.exports.closeSync;
+  fs.close = module.exports.close;
+}
 
 function patch (fs) {
   // Everything that references the open() function needs to be in here
@@ -144,6 +156,7 @@ function patch (fs) {
 
       if (err && (err.code === 'EMFILE' || err.code === 'ENFILE'))
         enqueue([go$readdir, [args]])
+
       else {
         if (typeof cb === 'function')
           cb.apply(this, arguments)
@@ -163,12 +176,16 @@ function patch (fs) {
   }
 
   var fs$ReadStream = fs.ReadStream
-  ReadStream.prototype = Object.create(fs$ReadStream.prototype)
-  ReadStream.prototype.open = ReadStream$open
+  if (fs$ReadStream) {
+    ReadStream.prototype = Object.create(fs$ReadStream.prototype)
+    ReadStream.prototype.open = ReadStream$open
+  }
 
   var fs$WriteStream = fs.WriteStream
-  WriteStream.prototype = Object.create(fs$WriteStream.prototype)
-  WriteStream.prototype.open = WriteStream$open
+  if (fs$WriteStream) {
+    WriteStream.prototype = Object.create(fs$WriteStream.prototype)
+    WriteStream.prototype.open = WriteStream$open
+  }
 
   fs.ReadStream = ReadStream
   fs.WriteStream = WriteStream

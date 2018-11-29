@@ -74,6 +74,10 @@ test('it should not throw', function (t) {
         npm.install('.', function (err) {
           t.ifError(err, 'install success')
           npm.config.set('long', true)
+          // since it's possible for the homepage of a package to change, after the
+          // install we read the value from the package.json directly to specify our
+          // expected output.
+          expOut[1] = expOut[1] + ':' + JSON.parse(fs.readFileSync(path.resolve(pkg, 'node_modules', 'underscore', 'package.json'))).homepage
           npm.outdated(function (er, d) {
             t.ifError(err, 'npm outdated ran without error')
             t.is(process.exitCode, 1, 'exit code set to 1')

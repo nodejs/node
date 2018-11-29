@@ -1,3 +1,134 @@
+## v6.5.0 (2018-11-28):
+
+### NEW FEATURES
+
+* [`fc1a8d185`](https://github.com/npm/cli/commit/fc1a8d185fc678cdf3784d9df9eef9094e0b2dec)
+  Backronym `npm ci` to `npm clean-install`.
+  ([@zkat](https://github.com/zkat))
+* [`4be51a9cc`](https://github.com/npm/cli/commit/4be51a9cc65635bb26fa4ce62233f26e0104bc20)
+  [#81](https://github.com/npm/cli/pull/81)
+  Adds 'Homepage' to outdated --long output.
+  ([@jbottigliero](https://github.com/jbottigliero))
+
+### BUGFIXES
+
+* [`89652cb9b`](https://github.com/npm/cli/commit/89652cb9b810f929f5586fc90cc6794d076603fb)
+  [npm.community#1661](https://npm.community/t/https://npm.community/t/1661)
+  Fix sign-git-commit options. They were previously totally wrong.
+  ([@zkat](https://github.com/zkat))
+* [`414f2d1a1`](https://github.com/npm/cli/commit/414f2d1a1bdffc02ed31ebb48a43216f284c21d4)
+  [npm.community#1742](https://npm.community/t/npm-audit-making-non-rfc-compliant-requests-to-server-resulting-in-400-bad-request-pr-with-fix/1742)
+  Set lowercase headers for npm audit requests.
+  ([@maartenba](https://github.com/maartenba))
+* [`a34246baf`](https://github.com/npm/cli/commit/a34246bafe73218dc9e3090df9ee800451db2c7d)
+  [#75](https://github.com/npm/cli/pull/75)
+  Fix `npm edit` handling of scoped packages.
+  ([@larsgw](https://github.com/larsgw))
+* [`d3e8a7c72`](https://github.com/npm/cli/commit/d3e8a7c7240dd25379a5bcad324a367c58733c73)
+  [npm.community#2303](https://npm.community/t/npm-ci-logs-success-to-stderr/2303)
+  Make summary output for `npm ci` go to `stdout`, not `stderr`.
+  ([@alopezsanchez](https://github.com/alopezsanchez))
+* [`71d8fb4a9`](https://github.com/npm/cli/commit/71d8fb4a94d65e1855f6d0c5f2ad2b7c3202e3c4)
+  [npm.community#1377](https://npm.community/t/unhelpful-error-message-when-publishing-without-logging-in-error-eperm-operation-not-permitted-unlink/1377/3)
+  Close the file descriptor during publish if exiting upload via an error. This
+  will prevent strange error messages when the upload fails and make sure
+  cleanup happens correctly.
+  ([@macdja38](https://github.com/macdja38))
+
+### DOCS UPDATES
+
+* [`b1a8729c8`](https://github.com/npm/cli/commit/b1a8729c80175243fbbeecd164e9ddd378a09a50)
+  [#60](https://github.com/npm/cli/pull/60)
+  Mention --otp flag when prompting for OTP.
+  ([@bakkot](https://github.com/bakkot))
+* [`bcae4ea81`](https://github.com/npm/cli/commit/bcae4ea8173e489a76cc226bbd30dd9eabe21ec6)
+  [#64](https://github.com/npm/cli/pull/64)
+  Clarify that git dependencies use the default branch, not just `master`.
+  ([@zckrs](https://github.com/zckrs))
+* [`15da82690`](https://github.com/npm/cli/commit/15da8269032bf509ade3252978e934f2a61d4499)
+  [#72](https://github.com/npm/cli/pull/72)
+  `bash_completion.d` dir is sometimes found in `/etc` not `/usr/local`.
+  ([@RobertKielty](https://github.com/RobertKielty))
+* [`8a6ecc793`](https://github.com/npm/cli/commit/8a6ecc7936dae2f51638397ff5a1d35cccda5495)
+  [#74](https://github.com/npm/cli/pull/74)
+  Update OTP documentation for `dist-tag add` to clarify `--otp` is needed right
+  now.
+  ([@scotttrinh](https://github.com/scotttrinh))
+* [`dcc03ec85`](https://github.com/npm/cli/commit/dcc03ec858bddd7aa2173b5a86b55c1c2385a2a3)
+  [#82](https://github.com/npm/cli/pull/82)
+  Note that `prepare` runs when installing git dependencies.
+  ([@seishun](https://github.com/seishun))
+* [`a91a470b7`](https://github.com/npm/cli/commit/a91a470b71e08ccf6a75d4fb8c9937789fa8d067)
+  [#83](https://github.com/npm/cli/pull/83)
+  Specify that --dry-run isn't available in older versions of npm publish.
+  ([@kjin](https://github.com/kjin))
+* [`1b2fabcce`](https://github.com/npm/cli/commit/1b2fabccede37242233755961434c52536224de5)
+  [#96](https://github.com/npm/cli/pull/96)
+  Fix inline code tag issue in docs.
+  ([@midare](https://github.com/midare))
+* [`6cc70cc19`](https://github.com/npm/cli/commit/6cc70cc1977e58a3e1ea48e660ffc6b46b390e59)
+  [#68](https://github.com/npm/cli/pull/68)
+  Add semver link and a note on empty string format to `deprecate` doc.
+  ([@neverett](https://github.com/neverett))
+* [`61dbbb7c3`](https://github.com/npm/cli/commit/61dbbb7c3474834031bce88c423850047e8131dc)
+  Fix semver docs after version update.
+  ([@zkat](https://github.com/zkat))
+* [`4acd45a3d`](https://github.com/npm/cli/commit/4acd45a3d0ce92f9999446226fe7dfb89a90ba2e)
+  [#78](https://github.com/npm/cli/pull/78)
+  Correct spelling across various docs.
+  ([@hugovk](https://github.com/hugovk))
+
+### DEPENDENCIES
+
+* [`4f761283e`](https://github.com/npm/cli/commit/4f761283e8896d0ceb5934779005646463a030e8)
+  `figgy-pudding@3.5.1`
+  ([@zkat](https://github.com/zkat))
+* [`3706db0bc`](https://github.com/npm/cli/commit/3706db0bcbc306d167bb902362e7f6962f2fe1a1)
+  [npm.community#1764](https://npm.community/t/crash-invalid-config-key-requested-error/1764)
+  `ssri@6.0.1`
+  ([@zkat](https://github.com/zkat))
+* [`83c2b117d`](https://github.com/npm/cli/commit/83c2b117d0b760d0ea8d667e5e4bdfa6a7a7a8f6)
+  `bluebird@3.5.2`
+  ([@petkaantonov](https://github.com/petkaantonov))
+* [`2702f46bd`](https://github.com/npm/cli/commit/2702f46bd7284fb303ca2119d23c52536811d705)
+  `ci-info@1.5.1`
+  ([@watson](https://github.com/watson))
+* [`4db6c3898`](https://github.com/npm/cli/commit/4db6c3898b07100e3a324e4aae50c2fab4b93a04)
+  `config-chain@1.1.1`:2
+  ([@dawsbot](https://github.com/dawbot))
+* [`70bee4f69`](https://github.com/npm/cli/commit/70bee4f69bb4ce4e18c48582fe2b48d8b4aba566)
+  `glob@7.1.3`
+  ([@isaacs](https://github.com/isaacs))
+* [`e469fd6be`](https://github.com/npm/cli/commit/e469fd6be95333dcaa7cf377ca3620994ca8d0de)
+  `opener@1.5.1`:
+  Fix browser opening under Windows Subsystem for Linux (WSL).
+  ([@thijsputman](https://github.com/thijsputman))
+* [`03840dced`](https://github.com/npm/cli/commit/03840dced865abdca6e6449ea030962e5b19db0c)
+  `semver@5.5.1`
+  ([@iarna](https://github.com/iarna))
+* [`161dc0b41`](https://github.com/npm/cli/commit/161dc0b4177e76306a0e3b8660b3b496cc3db83b)
+  `bluebird@3.5.3`
+  ([@petkaantonov](https://github.com/petkaantonov))
+* [`bb6f94395`](https://github.com/npm/cli/commit/bb6f94395491576ec42996ff6665df225f6b4377)
+  `graceful-fs@4.1.1`:5
+  ([@isaacs](https://github.com/isaacs))
+* [`43b1f4c91`](https://github.com/npm/cli/commit/43b1f4c91fa1d7b3ebb6aa2d960085e5f3ac7607)
+  `tar@4.4.8`
+  ([@isaacs](https://github.com/isaacs))
+* [`ab62afcc4`](https://github.com/npm/cli/commit/ab62afcc472de82c479bf91f560a0bbd6a233c80)
+  `npm-packlist@1.1.1`:2
+  ([@isaacs](https://github.com/isaacs))
+* [`027f06be3`](https://github.com/npm/cli/commit/027f06be35bb09f390e46fcd2b8182539939d1f7)
+  `ci-info@1.6.0`
+  ([@watson](https://github.com/watson))
+
+### MISCELLANEOUS
+
+* [`27217dae8`](https://github.com/npm/cli/commit/27217dae8adbc577ee9cb323b7cfe9c6b2493aca)
+  [#70](https://github.com/npm/cli/pull/70)
+  Automatically audit dependency licenses for npm itself.
+  ([@kemitchell](https://github.com/kemitchell))
+
 ## v6.4.1 (2018-08-22):
 
 ### BUGFIXES
@@ -220,7 +351,7 @@ bumped due to bugs that had been around for a while.
   ([@zkat](https://github.com/zkat))
 * [`21cf0ab68`](https://github.com/npm/cli/commit/21cf0ab68cf528d5244ae664133ef400bdcfbdb6)
   [npm/cli#24](https://github.com/npm/cli/pull/24)
-  Use the defaut OTP explanation everywhere except when the context is
+  Use the default OTP explanation everywhere except when the context is
   "OTP-aware" (like when setting double-authentication). This improves the
   overall CLI messaging when prompting for an OTP code.
   ([@jdeniau](https://github.com/jdeniau))

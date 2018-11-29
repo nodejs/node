@@ -33,3 +33,4 @@ install:
   - "node . install"
 script:
   - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
+  - "node . run licenses"

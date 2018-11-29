@@ -18,9 +18,9 @@ following scripts:</p>
 Run BEFORE the package is packed and published, as well as on local <code>npm
 install</code> without any arguments. (See below)</li>
 <li>prepare:
-Run both BEFORE the package is packed and published, and on local <code>npm
-install</code> without any arguments (See below). This is run
-AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code>.</li>
+Run both BEFORE the package is packed and published, on local <code>npm
+install</code> without any arguments, and when installing git dependencies (See
+below). This is run AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code>.</li>
 <li>prepublishOnly:
 Run BEFORE the package is prepared and packed, ONLY on <code>npm publish</code>. (See
 below.)</li>
@@ -60,19 +60,19 @@ Run by the <code>npm shrinkwrap</code> command.</li>
 <p>Additionally, arbitrary scripts can be executed by running <code>npm
 run-script &lt;stage&gt;</code>. <em>Pre</em> and <em>post</em> commands with matching
 names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>,
-<code>postmyscript</code>). Scripts from dependencies can be run with <code>npm explore
-&lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
+<code>postmyscript</code>). Scripts from dependencies can be run with
+<code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
 <h2 id="prepublish-and-prepare">PREPUBLISH AND PREPARE</h2>
 <h3 id="deprecation-note">DEPRECATION NOTE</h3>
-<p>Since <a href="mailto:%60npm@1.1.71">`npm@1.1.71</a><code>, the npm CLI has run the</code>prepublish<code>script for both</code>npm
-publish<code>and</code>npm install<code>, because it&#39;s a convenient way to prepare a package
+<p>Since <code>npm@1.1.71</code>, the npm CLI has run the <code>prepublish</code> script for both <code>npm
+publish</code> and <code>npm install</code>, because it&#39;s a convenient way to prepare a package
 for use (some common use cases are described in the section below).  It has
-also turned out to be, in practice, [very
-confusing](https://github.com/npm/npm/issues/10074).  As of</code><a href="mailto:npm@4.0.0">npm@4.0.0</a><code>, a new
-event has been introduced,</code>prepare<code>, that preserves this existing behavior. A
-_new_ event,</code>prepublishOnly<code>has been added as a transitional strategy to
+also turned out to be, in practice, <a href="https://github.com/npm/npm/issues/10074">very
+confusing</a>.  As of <code>npm@4.0.0</code>, a new
+event has been introduced, <code>prepare</code>, that preserves this existing behavior. A
+<em>new</em> event, <code>prepublishOnly</code> has been added as a transitional strategy to
 allow users to avoid the confusing behavior of existing npm versions and only
-run on</code>npm publish` (for instance, running the tests one last time to ensure
+run on <code>npm publish</code> (for instance, running the tests one last time to ensure
 they&#39;re in good shape).</p>
 <p>See <a href="https://github.com/npm/npm/issues/10074">https://github.com/npm/npm/issues/10074</a> for a much lengthier
 justification, with further reading, for this change.</p>
@@ -234,5 +234,5 @@ scripts is for compilation which must be done on the target architecture.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@6.4.1</p>
+<p id="footer">npm-scripts &mdash; npm@6.5.0-next.0</p>
 

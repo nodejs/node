@@ -41,7 +41,7 @@ about your environment:
   information to allow you to customize your experience for your
   organization.
 * `Npm-In-CI` – Set to "true" if npm believes this install is running in a
-  continous integration environment, "false" otherwise. This is detected by
+  continuous integration environment, "false" otherwise. This is detected by
   looking for the following environment variables: `CI`, `TDDIUM`,
   `JENKINS_URL`, `bamboo.buildKey`. If you'd like to learn more you may find
   the [original PR](https://github.com/npm/npm-registry-client/pull/129)

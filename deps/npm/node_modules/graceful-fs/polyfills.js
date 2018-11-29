@@ -1,4 +1,3 @@
-var fs = require('./fs.js')
 var constants = require('constants')
 
 var origCwd = process.cwd
@@ -145,73 +144,36 @@ function patch (fs) {
       }
     }
   }})(fs.readSync)
-}
 
-function patchLchmod (fs) {
-  fs.lchmod = function (path, mode, callback) {
-    fs.open( path
-           , constants.O_WRONLY | constants.O_SYMLINK
-           , mode
-           , function (err, fd) {
-      if (err) {
-        if (callback) callback(err)
-        return
-      }
-      // prefer to return the chmod error, if one occurs,
-      // but still try to close, and report closing errors if they occur.
-      fs.fchmod(fd, mode, function (err) {
-        fs.close(fd, function(err2) {
-          if (callback) callback(err || err2)
-        })
-      })
-    })
-  }
-
-  fs.lchmodSync = function (path, mode) {
-    var fd = fs.openSync(path, constants.O_WRONLY | constants.O_SYMLINK, mode)
-
-    // prefer to return the chmod error, if one occurs,
-    // but still try to close, and report closing errors if they occur.
-    var threw = true
-    var ret
-    try {
-      ret = fs.fchmodSync(fd, mode)
-      threw = false
-    } finally {
-      if (threw) {
-        try {
-          fs.closeSync(fd)
-        } catch (er) {}
-      } else {
-        fs.closeSync(fd)
-      }
-    }
-    return ret
-  }
-}
-
-function patchLutimes (fs) {
-  if (constants.hasOwnProperty("O_SYMLINK")) {
-    fs.lutimes = function (path, at, mt, cb) {
-      fs.open(path, constants.O_SYMLINK, function (er, fd) {
-        if (er) {
-          if (cb) cb(er)
+  function patchLchmod (fs) {
+    fs.lchmod = function (path, mode, callback) {
+      fs.open( path
+             , constants.O_WRONLY | constants.O_SYMLINK
+             , mode
+             , function (err, fd) {
+        if (err) {
+          if (callback) callback(err)
           return
         }
-        fs.futimes(fd, at, mt, function (er) {
-          fs.close(fd, function (er2) {
-            if (cb) cb(er || er2)
+        // prefer to return the chmod error, if one occurs,
+        // but still try to close, and report closing errors if they occur.
+        fs.fchmod(fd, mode, function (err) {
+          fs.close(fd, function(err2) {
+            if (callback) callback(err || err2)
           })
         })
       })
     }
 
-    fs.lutimesSync = function (path, at, mt) {
-      var fd = fs.openSync(path, constants.O_SYMLINK)
-      var ret
+    fs.lchmodSync = function (path, mode) {
+      var fd = fs.openSync(path, constants.O_WRONLY | constants.O_SYMLINK, mode)
+
+      // prefer to return the chmod error, if one occurs,
+      // but still try to close, and report closing errors if they occur.
       var threw = true
+      var ret
       try {
-        ret = fs.futimesSync(fd, at, mt)
+        ret = fs.fchmodSync(fd, mode)
         threw = false
       } finally {
         if (threw) {
@@ -224,107 +186,144 @@ function patchLutimes (fs) {
       }
       return ret
     }
-
-  } else {
-    fs.lutimes = function (_a, _b, _c, cb) { if (cb) process.nextTick(cb) }
-    fs.lutimesSync = function () {}
   }
-}
 
-function chmodFix (orig) {
-  if (!orig) return orig
-  return function (target, mode, cb) {
-    return orig.call(fs, target, mode, function (er) {
-      if (chownErOk(er)) er = null
-      if (cb) cb.apply(this, arguments)
-    })
-  }
-}
+  function patchLutimes (fs) {
+    if (constants.hasOwnProperty("O_SYMLINK")) {
+      fs.lutimes = function (path, at, mt, cb) {
+        fs.open(path, constants.O_SYMLINK, function (er, fd) {
+          if (er) {
+            if (cb) cb(er)
+            return
+          }
+          fs.futimes(fd, at, mt, function (er) {
+            fs.close(fd, function (er2) {
+              if (cb) cb(er || er2)
+            })
+          })
+        })
+      }
 
-function chmodFixSync (orig) {
-  if (!orig) return orig
-  return function (target, mode) {
-    try {
-      return orig.call(fs, target, mode)
-    } catch (er) {
-      if (!chownErOk(er)) throw er
+      fs.lutimesSync = function (path, at, mt) {
+        var fd = fs.openSync(path, constants.O_SYMLINK)
+        var ret
+        var threw = true
+        try {
+          ret = fs.futimesSync(fd, at, mt)
+          threw = false
+        } finally {
+          if (threw) {
+            try {
+              fs.closeSync(fd)
+            } catch (er) {}
+          } else {
+            fs.closeSync(fd)
+          }
+        }
+        return ret
+      }
+
+    } else {
+      fs.lutimes = function (_a, _b, _c, cb) { if (cb) process.nextTick(cb) }
+      fs.lutimesSync = function () {}
     }
   }
-}
 
-
-function chownFix (orig) {
-  if (!orig) return orig
-  return function (target, uid, gid, cb) {
-    return orig.call(fs, target, uid, gid, function (er) {
-      if (chownErOk(er)) er = null
-      if (cb) cb.apply(this, arguments)
-    })
-  }
-}
-
-function chownFixSync (orig) {
-  if (!orig) return orig
-  return function (target, uid, gid) {
-    try {
-      return orig.call(fs, target, uid, gid)
-    } catch (er) {
-      if (!chownErOk(er)) throw er
+  function chmodFix (orig) {
+    if (!orig) return orig
+    return function (target, mode, cb) {
+      return orig.call(fs, target, mode, function (er) {
+        if (chownErOk(er)) er = null
+        if (cb) cb.apply(this, arguments)
+      })
     }
   }
-}
+
+  function chmodFixSync (orig) {
+    if (!orig) return orig
+    return function (target, mode) {
+      try {
+        return orig.call(fs, target, mode)
+      } catch (er) {
+        if (!chownErOk(er)) throw er
+      }
+    }
+  }
 
 
-function statFix (orig) {
-  if (!orig) return orig
-  // Older versions of Node erroneously returned signed integers for
-  // uid + gid.
-  return function (target, cb) {
-    return orig.call(fs, target, function (er, stats) {
-      if (!stats) return cb.apply(this, arguments)
+  function chownFix (orig) {
+    if (!orig) return orig
+    return function (target, uid, gid, cb) {
+      return orig.call(fs, target, uid, gid, function (er) {
+        if (chownErOk(er)) er = null
+        if (cb) cb.apply(this, arguments)
+      })
+    }
+  }
+
+  function chownFixSync (orig) {
+    if (!orig) return orig
+    return function (target, uid, gid) {
+      try {
+        return orig.call(fs, target, uid, gid)
+      } catch (er) {
+        if (!chownErOk(er)) throw er
+      }
+    }
+  }
+
+
+  function statFix (orig) {
+    if (!orig) return orig
+    // Older versions of Node erroneously returned signed integers for
+    // uid + gid.
+    return function (target, cb) {
+      return orig.call(fs, target, function (er, stats) {
+        if (!stats) return cb.apply(this, arguments)
+        if (stats.uid < 0) stats.uid += 0x100000000
+        if (stats.gid < 0) stats.gid += 0x100000000
+        if (cb) cb.apply(this, arguments)
+      })
+    }
+  }
+
+  function statFixSync (orig) {
+    if (!orig) return orig
+    // Older versions of Node erroneously returned signed integers for
+    // uid + gid.
+    return function (target) {
+      var stats = orig.call(fs, target)
       if (stats.uid < 0) stats.uid += 0x100000000
       if (stats.gid < 0) stats.gid += 0x100000000
-      if (cb) cb.apply(this, arguments)
-    })
+      return stats;
+    }
   }
-}
 
-function statFixSync (orig) {
-  if (!orig) return orig
-  // Older versions of Node erroneously returned signed integers for
-  // uid + gid.
-  return function (target) {
-    var stats = orig.call(fs, target)
-    if (stats.uid < 0) stats.uid += 0x100000000
-    if (stats.gid < 0) stats.gid += 0x100000000
-    return stats;
-  }
-}
-
-// ENOSYS means that the fs doesn't support the op. Just ignore
-// that, because it doesn't matter.
-//
-// if there's no getuid, or if getuid() is something other
-// than 0, and the error is EINVAL or EPERM, then just ignore
-// it.
-//
-// This specific case is a silent failure in cp, install, tar,
-// and most other unix tools that manage permissions.
-//
-// When running as root, or if other types of errors are
-// encountered, then it's strict.
-function chownErOk (er) {
-  if (!er)
-    return true
-
-  if (er.code === "ENOSYS")
-    return true
-
-  var nonroot = !process.getuid || process.getuid() !== 0
-  if (nonroot) {
-    if (er.code === "EINVAL" || er.code === "EPERM")
+  // ENOSYS means that the fs doesn't support the op. Just ignore
+  // that, because it doesn't matter.
+  //
+  // if there's no getuid, or if getuid() is something other
+  // than 0, and the error is EINVAL or EPERM, then just ignore
+  // it.
+  //
+  // This specific case is a silent failure in cp, install, tar,
+  // and most other unix tools that manage permissions.
+  //
+  // When running as root, or if other types of errors are
+  // encountered, then it's strict.
+  function chownErOk (er) {
+    if (!er)
       return true
-  }
 
-  return false
+    if (er.code === "ENOSYS")
+      return true
+
+    var nonroot = !process.getuid || process.getuid() !== 0
+    if (nonroot) {
+      if (er.code === "EINVAL" || er.code === "EPERM")
+        return true
+    }
+
+    return false
+  }
 }

@@ -108,7 +108,7 @@ tar.c( // or tar.create
     gzip: <true|gzip options>
   },
   ['some', 'files', 'and', 'folders']
-).pipe(fs.createWriteStream('my-tarball.tgz')
+).pipe(fs.createWriteStream('my-tarball.tgz'))
 ```
 
 To replicate `tar xf my-tarball.tgz` you'd do:

@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "August 2018" "" ""
+.TH "NPM\-SCRIPTS" "7" "November 2018" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -12,9 +12,9 @@ Run BEFORE the package is packed and published, as well as on local \fBnpm
 install\fP without any arguments\. (See below)
 .IP \(bu 2
 prepare:
-Run both BEFORE the package is packed and published, and on local \fBnpm
-install\fP without any arguments (See below)\. This is run
-AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP\|\.
+Run both BEFORE the package is packed and published, on local \fBnpm
+install\fP without any arguments, and when installing git dependencies (See
+below)\. This is run AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP\|\.
 .IP \(bu 2
 prepublishOnly:
 Run BEFORE the package is prepared and packed, ONLY on \fBnpm publish\fP\|\. (See
@@ -72,9 +72,8 @@ Run by the \fBnpm shrinkwrap\fP command\.
 Additionally, arbitrary scripts can be executed by running \fBnpm
 run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\. Scripts from dependencies can be run with `npm explore
-.P
-<pkg> \-\- npm run <stage>`\.
+\fBpostmyscript\fP)\. Scripts from dependencies can be run with
+\fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
 .SH PREPUBLISH AND PREPARE
 .SS DEPRECATION NOTE
 .P
