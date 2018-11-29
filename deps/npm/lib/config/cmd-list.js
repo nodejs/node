@@ -17,7 +17,9 @@ var shorthands = {
   't': 'test',
   'ddp': 'dedupe',
   'v': 'view',
-  'run': 'run-script'
+  'run': 'run-script',
+  'clean-install': 'ci',
+  'clean-install-test': 'cit'
 }
 
 var affordances = {
@@ -27,6 +29,8 @@ var affordances = {
   'ic': 'ci',
   'innit': 'init',
   'isntall': 'install',
+  'install-clean': 'ci',
+  'isntall-clean': 'ci',
   'dist-tags': 'dist-tag',
   'apihelp': 'help',
   'find-dupes': 'dedupe',
@@ -47,12 +51,14 @@ var affordances = {
   'r': 'uninstall',
   'rum': 'run-script',
   'sit': 'cit',
-  'urn': 'run-script'
+  'urn': 'run-script',
+  'ogr': 'org'
 }
 
 // these are filenames in .
 var cmdList = [
   'ci',
+  'install-ci-test',
   'install',
   'install-test',
   'uninstall',
@@ -85,6 +91,8 @@ var cmdList = [
   'token',
   'profile',
   'audit',
+  'fund',
+  'org',
 
   'help',
   'help-search',

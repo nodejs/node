@@ -1,6 +1,6 @@
 var test = require('tap').test
+var common = require('../common-config.js')
 var npmconf = require('../../lib/config/core.js')
-var common = require('./00-config-setup.js')
 var path = require('path')
 
 var projectData = {
@@ -58,15 +58,7 @@ var expectSources = {
 }
 
 function isDeeplyDetails (t, aa, bb, msg, seen) {
-  if (aa == null && bb == null) return t.pass(msg)
-  if (typeof bb !== 'object') return t.is(aa, bb, msg)
-  if (!seen) seen = []
-  for (var kk in seen) if (seen[kk] === aa || seen[kk] === bb) return
-  seen.push(aa, bb)
-  t.is(Object.keys(aa).length, Object.keys(bb).length, msg + ': # of elements')
-  Object.keys(bb).forEach(function (key) {
-    isDeeplyDetails(t, aa[key], bb[key], msg + ' -> ' + key, seen)
-  })
+  return t.same(aa, bb, msg)
 }
 
 test('no builtin', function (t) {
@@ -74,7 +66,7 @@ test('no builtin', function (t) {
   npmconf.load(cli, function (er, conf) {
     if (er) throw er
     expectNames.forEach(function (name, ii) {
-      isDeeplyDetails(t, conf.list[ii], expectList[ii], 'config properities list: ' + name)
+      isDeeplyDetails(t, conf.list[ii], expectList[ii], 'config properties list: ' + name)
     })
     isDeeplyDetails(t, conf.sources, expectSources, 'config by source')
     t.same(npmconf.rootConf.list, [], 'root configuration is empty')

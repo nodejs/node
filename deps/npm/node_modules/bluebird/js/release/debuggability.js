@@ -4,6 +4,7 @@ var getDomain = Promise._getDomain;
 var async = Promise._async;
 var Warning = require("./errors").Warning;
 var util = require("./util");
+var es5 = require("./es5");
 var canAttachTrace = util.canAttachTrace;
 var unhandledRejectionHandled;
 var possiblyUnhandledRejection;
@@ -122,6 +123,7 @@ Promise.longStackTraces = function () {
     if (!config.longStackTraces && longStackTracesIsSupported()) {
         var Promise_captureStackTrace = Promise.prototype._captureStackTrace;
         var Promise_attachExtraTrace = Promise.prototype._attachExtraTrace;
+        var Promise_dereferenceTrace = Promise.prototype._dereferenceTrace;
         config.longStackTraces = true;
         disableLongStackTraces = function() {
             if (async.haveItemsQueued() && !config.longStackTraces) {
@@ -129,12 +131,14 @@ Promise.longStackTraces = function () {
             }
             Promise.prototype._captureStackTrace = Promise_captureStackTrace;
             Promise.prototype._attachExtraTrace = Promise_attachExtraTrace;
+            Promise.prototype._dereferenceTrace = Promise_dereferenceTrace;
             Context.deactivateLongStackTraces();
             async.enableTrampoline();
             config.longStackTraces = false;
         };
         Promise.prototype._captureStackTrace = longStackTracesCaptureStackTrace;
         Promise.prototype._attachExtraTrace = longStackTracesAttachExtraTrace;
+        Promise.prototype._dereferenceTrace = longStackTracesDereferenceTrace;
         Context.activateLongStackTraces();
         async.disableTrampolineIfNecessary();
     }
@@ -150,10 +154,14 @@ var fireDomEvent = (function() {
             var event = new CustomEvent("CustomEvent");
             util.global.dispatchEvent(event);
             return function(name, event) {
-                var domEvent = new CustomEvent(name.toLowerCase(), {
+                var eventData = {
                     detail: event,
                     cancelable: true
-                });
+                };
+                es5.defineProperty(
+                    eventData, "promise", {value: event.promise});
+                es5.defineProperty(eventData, "reason", {value: event.reason});
+                var domEvent = new CustomEvent(name.toLowerCase(), eventData);
                 return !util.global.dispatchEvent(domEvent);
             };
         } else if (typeof Event === "function") {
@@ -164,6 +172,8 @@ var fireDomEvent = (function() {
                     cancelable: true
                 });
                 domEvent.detail = event;
+                es5.defineProperty(domEvent, "promise", {value: event.promise});
+                es5.defineProperty(domEvent, "reason", {value: event.reason});
                 return !util.global.dispatchEvent(domEvent);
             };
         } else {
@@ -312,6 +322,7 @@ Promise.prototype._attachCancellationCallback = function(onCancel) {
 };
 Promise.prototype._captureStackTrace = function () {};
 Promise.prototype._attachExtraTrace = function () {};
+Promise.prototype._dereferenceTrace = function () {};
 Promise.prototype._clearCancellationData = function() {};
 Promise.prototype._propagateFrom = function (parent, flags) {
     ;
@@ -415,6 +426,10 @@ function longStackTracesAttachExtraTrace(error, ignoreSelf) {
             util.notEnumerableProp(error, "__stackCleaned__", true);
         }
     }
+}
+
+function longStackTracesDereferenceTrace() {
+    this._trace = undefined;
 }
 
 function checkForgottenReturns(returnValue, promiseCreated, name, promise,
@@ -674,8 +689,8 @@ function parseLineInfo(line) {
 
 function setBounds(firstLineError, lastLineError) {
     if (!longStackTracesIsSupported()) return;
-    var firstStackLines = firstLineError.stack.split("\n");
-    var lastStackLines = lastLineError.stack.split("\n");
+    var firstStackLines = (firstLineError.stack || "").split("\n");
+    var lastStackLines = (lastLineError.stack || "").split("\n");
     var firstIndex = -1;
     var lastIndex = -1;
     var firstFileName;

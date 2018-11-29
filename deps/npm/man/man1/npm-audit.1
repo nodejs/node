@@ -1,15 +1,17 @@
-.TH "NPM\-AUDIT" "1" "August 2018" "" ""
+.TH "NPM\-AUDIT" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-audit\fR \- Run a security audit
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
-npm audit [\-\-json|\-\-parseable]
-npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run|\-\-production|\-\-only=dev]
+npm audit [\-\-json|\-\-parseable|\-\-audit\-level=(low|moderate|high|critical)]
+npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run]
+
+common options: [\-\-production] [\-\-only=(dev|prod)]
 .fi
 .RE
-.SH EXAMPLES
+.SS Examples
 .P
 Scan your project for vulnerabilities and automatically install any compatible
 updates to vulnerable dependencies:
@@ -89,12 +91,21 @@ To parse columns, you can use for example \fBawk\fP, and just print some of them
 $ npm audit \-\-parseable | awk \-F $'\\t' '{print $1,$4}'
 .fi
 .RE
-.SH DESCRIPTION
+.P
+Fail an audit only if the results include a vulnerability with a level of moderate or higher:
+.P
+.RS 2
+.nf
+$ npm audit \-\-audit\-level=moderate
+.fi
+.RE
+.SS Description
 .P
 The audit command submits a description of the dependencies configured in
 your project to your default registry and asks for a report of known
 vulnerabilities\. The report returned includes instructions on how to act on
-this information\.
+this information\. The command will exit with a 0 exit code if no
+vulnerabilities were found\.
 .P
 You can also have npm automatically fix the vulnerabilities by running \fBnpm
 audit fix\fP\|\. Note that some vulnerabilities cannot be fixed automatically and
@@ -102,7 +113,13 @@ will require manual intervention or review\. Also note that since \fBnpm audit f
 runs a full\-fledged \fBnpm install\fP under the hood, all configs that apply to the
 installer will also apply to \fBnpm install\fP \-\- so things like \fBnpm audit fix
 \-\-package\-lock\-only\fP will work as expected\.
-.SH CONTENT SUBMITTED
+.P
+By default, the audit command will exit with a non\-zero code if any vulnerability
+is found\. It may be useful in CI environments to include the \fB\-\-audit\-level\fP parameter
+to specify the minimum vulnerability level that will cause the command to fail\. This
+option does not filter the report output, it simply changes the command's failure
+threshold\.
+.SS Content Submitted
 .RS 0
 .IP \(bu 2
 npm_version
@@ -116,7 +133,7 @@ node_env
 A scrubbed version of your package\-lock\.json or npm\-shrinkwrap\.json
 
 .RE
-.SS SCRUBBING
+.SS Scrubbing
 .P
 In order to ensure that potentially sensitive information is not included in
 the audit data bundle, some dependencies may have their names (and sometimes
@@ -138,13 +155,19 @@ All local directory and tarball dependencies have their names and specifiers scr
 The non\-reversible identifiers are a sha256 of a session\-specific UUID and the
 value being replaced, ensuring a consistent value within the payload that is
 different between runs\.
-.SH SEE ALSO
+.SS Exit Code
+.P
+The \fBnpm audit\fP command will exit with a 0 exit code if no vulnerabilities were found\.
+.P
+If vulnerabilities were found the exit code will depend on the \fBaudit\-level\fP
+configuration setting\.
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help install
 .IP \(bu 2
-npm help 5 package\-locks
+npm help package\-locks
 .IP \(bu 2
-npm help 7 config
+npm help config
 
 .RE

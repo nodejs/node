@@ -8,7 +8,8 @@ const ini = require('ini')
 const test = require('tap').test
 const npmconf = require('../../lib/config/core.js')
 
-const packagePath = path.resolve(__dirname, 'config-envReplace')
+const common = require('../common-tap.js')
+const packagePath = common.pkg
 
 const packageJsonFile = JSON.stringify({
   name: 'config-envReplace'

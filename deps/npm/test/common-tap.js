@@ -1,10 +1,22 @@
 'use strict'
 /* eslint-disable camelcase */
 
+const configCommon = require('./common-config.js')
 var fs = require('graceful-fs')
 var readCmdShim = require('read-cmd-shim')
 var isWindows = require('../lib/utils/is-windows.js')
 var Bluebird = require('bluebird')
+
+if (isWindows) {
+  var PATH = process.env.PATH ? 'PATH' : 'Path'
+  process.env[PATH] += ';C:\\Program Files\\Git\\mingw64\\libexec\\git-core'
+}
+
+// remove any git envs so that we don't mess with the main repo
+// when running git subprocesses in tests
+Object.keys(process.env).filter(k => /^GIT/.test(k)).forEach(
+  k => delete process.env[k]
+)
 
 // cheesy hackaround for test deps (read: nock) that rely on setImmediate
 if (!global.setImmediate || !require('timers').setImmediate) {
@@ -15,10 +27,72 @@ if (!global.setImmediate || !require('timers').setImmediate) {
 }
 
 var spawn = require('child_process').spawn
+const spawnSync = require('child_process').spawnSync
 var path = require('path')
 
-var port = exports.port = 1337
+// space these out to help prevent collisions
+const testId = 3 * (+process.env.TAP_CHILD_ID || 0)
+
+// provide a working dir unique to each test
+const main = require.main.filename
+const testName = path.basename(main, '.js')
+exports.pkg = path.resolve(path.dirname(main), testName)
+var commonCache = path.resolve(__dirname, 'npm_cache_' + testName)
+exports.cache = commonCache
+
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+rimraf.sync(exports.pkg)
+rimraf.sync(commonCache)
+mkdirp.sync(exports.pkg)
+mkdirp.sync(commonCache)
+// if we're in sudo mode, make sure that the cache is not root-owned
+const isRoot = process.getuid && process.getuid() === 0
+const isSudo = isRoot && process.env.SUDO_UID && process.env.SUDO_GID
+if (isSudo) {
+  const sudoUid = +process.env.SUDO_UID
+  const sudoGid = +process.env.SUDO_GID
+  fs.chownSync(commonCache, sudoUid, sudoGid)
+}
+
+const returnCwd = path.dirname(__dirname)
+const find = require('which').sync('find')
+require('tap').teardown(() => {
+  // work around windows folder locking
+  process.chdir(returnCwd)
+  process.on('exit', () => {
+    try {
+      if (isSudo) {
+        // running tests as sudo.  ensure we didn't leave any root-owned
+        // files in the cache by mistake.
+        const args = [ commonCache, '-uid', '0' ]
+        const found = spawnSync(find, args)
+        const output = found && found.stdout && found.stdout.toString()
+        if (output.length) {
+          const er = new Error('Root-owned files left in cache!')
+          er.testName = main
+          er.files = output.trim().split('\n')
+          throw er
+        }
+      }
+      if (!process.env.NO_TEST_CLEANUP) {
+        rimraf.sync(exports.pkg)
+        rimraf.sync(commonCache)
+      }
+    } catch (e) {
+      if (process.platform !== 'win32') {
+        throw e
+      }
+    }
+  })
+})
+
+var port = exports.port = 15443 + testId
 exports.registry = 'http://localhost:' + port
+
+exports.altPort = 7331 + testId
+
+exports.gitPort = 4321 + testId
 
 var fakeRegistry = require('./fake-registry.js')
 exports.fakeRegistry = fakeRegistry
@@ -29,13 +103,14 @@ ourenv.npm_config_progress = 'false'
 ourenv.npm_config_metrics = 'false'
 ourenv.npm_config_audit = 'false'
 
-var npm_config_cache = path.resolve(__dirname, 'npm_cache')
-ourenv.npm_config_cache = exports.npm_config_cache = npm_config_cache
-ourenv.npm_config_userconfig = exports.npm_config_userconfig = path.join(__dirname, 'fixtures', 'config', 'userconfig')
-ourenv.npm_config_globalconfig = exports.npm_config_globalconfig = path.join(__dirname, 'fixtures', 'config', 'globalconfig')
+ourenv.npm_config_unsafe_perm = 'true'
+ourenv.npm_config_cache = commonCache
+ourenv.npm_config_userconfig = exports.npm_config_userconfig = configCommon.userconfig
+ourenv.npm_config_globalconfig = exports.npm_config_globalconfig = configCommon.globalconfig
 ourenv.npm_config_global_style = 'false'
 ourenv.npm_config_legacy_bundling = 'false'
 ourenv.npm_config_fetch_retries = '0'
+ourenv.npm_config_update_notifier = 'false'
 ourenv.random_env_var = 'foo'
 // suppress warnings about using a prerelease version of node
 ourenv.npm_config_node_version = process.version.replace(/-.*$/, '')
@@ -64,7 +139,10 @@ exports.npm = function (cmd, opts, cb) {
   opts.env = opts.env || process.env
   if (opts.env._storage) opts.env = Object.assign({}, opts.env._storage)
   if (!opts.env.npm_config_cache) {
-    opts.env.npm_config_cache = npm_config_cache
+    opts.env.npm_config_cache = commonCache
+  }
+  if (!opts.env.npm_config_unsafe_perm) {
+    opts.env.npm_config_unsafe_perm = 'true'
   }
   if (!opts.env.npm_config_send_metrics) {
     opts.env.npm_config_send_metrics = 'false'
@@ -109,11 +187,15 @@ exports.makeGitRepo = function (params, cb) {
   var added = params.added || ['package.json']
   var message = params.message || 'stub repo'
 
-  var opts = { cwd: root, env: { PATH: process.env.PATH } }
+  var opts = { cwd: root, env: { PATH: process.env.PATH || process.env.Path } }
   var commands = [
     git.chainableExec(['init'], opts),
     git.chainableExec(['config', 'user.name', user], opts),
     git.chainableExec(['config', 'user.email', email], opts),
+    // don't time out tests waiting for a gpg passphrase or 2fa
+    git.chainableExec(['config', 'commit.gpgSign', 'false'], opts),
+    git.chainableExec(['config', 'tag.gpgSign', 'false'], opts),
+    git.chainableExec(['config', 'tag.forceSignAnnotated', 'false'], opts),
     git.chainableExec(['add'].concat(added), opts),
     git.chainableExec(['commit', '-m', message], opts)
   ]
@@ -135,17 +217,15 @@ exports.readBinLink = function (path) {
 
 exports.skipIfWindows = function (why) {
   if (!isWindows) return
-  console.log('1..1')
   if (!why) why = 'this test not available on windows'
-  console.log('ok 1 # skip ' + why)
+  require('tap').plan(0, why)
   process.exit(0)
 }
 
 exports.pendIfWindows = function (why) {
   if (!isWindows) return
-  console.log('1..1')
   if (!why) why = 'this test is pending further changes on windows'
-  console.log('not ok 1 # todo ' + why)
+  require('tap').fail(' ', { todo: why, diagnostic: false })
   process.exit(0)
 }
 

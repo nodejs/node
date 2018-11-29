@@ -2,7 +2,7 @@
 // open the package folder in the $EDITOR
 
 module.exports = edit
-edit.usage = 'npm edit <pkg>[@<version>]'
+edit.usage = 'npm edit <pkg>[/<subpkg>...]'
 
 edit.completion = require('./utils/completion/installed-shallow.js')
 
@@ -22,6 +22,20 @@ function edit (args, cb) {
     ))
   }
   p = p.split('/')
+    // combine scoped parts
+    .reduce(function (parts, part) {
+      if (parts.length === 0) {
+        return [part]
+      }
+      var lastPart = parts[parts.length - 1]
+      // check if previous part is the first part of a scoped package
+      if (lastPart[0] === '@' && !lastPart.includes('/')) {
+        parts[parts.length - 1] += '/' + part
+      } else {
+        parts.push(part)
+      }
+      return parts
+    }, [])
     .join('/node_modules/')
     .replace(/(\/node_modules)+/, '/node_modules')
   var f = path.resolve(npm.dir, p)

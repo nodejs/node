@@ -20,6 +20,7 @@ semver.clean('  =v1.2.3   ') // '1.2.3'
 semver.satisfies('1.2.3', '1.x || >=2.5.0 || 5.0.0 - 7.2.3') // true
 semver.gt('1.2.3', '9.8.7') // false
 semver.lt('1.2.3', '9.8.7') // true
+semver.minVersion('>=1.0.0') // '1.0.0'
 semver.valid(semver.coerce('v2')) // '2.0.0'
 semver.valid(semver.coerce('42.6.7.9.3-alpha')) // '42.6.7'
 ```
@@ -29,9 +30,7 @@ As a command-line utility:
 ```
 $ semver -h
 
-SemVer 5.3.0
-
-A JavaScript implementation of the http://semver.org/ specification
+A JavaScript implementation of the https://semver.org/ specification
 Copyright Isaac Z. Schlueter
 
 Usage: semver [options] <version> [<version> [...]]
@@ -54,6 +53,9 @@ Options:
 -l --loose
         Interpret versions and ranges loosely
 
+-p --include-prerelease
+        Always include prerelease versions in range matching
+
 -c --coerce
         Coerce a string into SemVer if possible
         (does not imply --loose)
@@ -70,7 +72,7 @@ multiple versions to the utility will just sort them.
 ## Versions
 
 A "version" is described by the `v2.0.0` specification found at
-<http://semver.org/>.
+<https://semver.org/>.
 
 A leading `"="` or `"v"` character is stripped off and ignored.
 
@@ -135,6 +137,13 @@ alpha/beta/rc versions.  By including a prerelease tag in the range,
 the user is indicating that they are aware of the risk.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the *next* set of prerelease versions.
+
+Note that this behavior can be suppressed (treating all prerelease
+versions as if they were normal versions, for the purpose of range
+matching) by setting the `includePrerelease` flag on the options
+object to any
+[functions](https://github.com/npm/node-semver#functions) that do
+range matching.
 
 #### Prerelease Identifiers
 
@@ -274,7 +283,7 @@ logical-or ::= ( ' ' ) * '||' ( ' ' ) *
 range      ::= hyphen | simple ( ' ' simple ) * | ''
 hyphen     ::= partial ' - ' partial
 simple     ::= primitive | partial | tilde | caret
-primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' | ) partial
+primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
 partial    ::= xr ( '.' xr ( '.' xr qualifier ? )? )?
 xr         ::= 'x' | 'X' | '*' | nr
 nr         ::= '0' | ['1'-'9'] ( ['0'-'9'] ) *
@@ -289,9 +298,19 @@ part       ::= nr | [-0-9A-Za-z]+
 
 ## Functions
 
-All methods and classes take a final `loose` boolean argument that, if
-true, will be more forgiving about not-quite-valid semver strings.
-The resulting output will always be 100% strict, of course.
+All methods and classes take a final `options` object argument.  All
+options in this object are `false` by default.  The options supported
+are:
+
+- `loose`  Be more forgiving about not-quite-valid semver strings.
+  (Any resulting output will always be 100% strict compliant, of
+  course.)  For backwards compatibility reasons, if the `options`
+  argument is a boolean value instead of an object, it is interpreted
+  to be the `loose` param.
+- `includePrerelease`  Set to suppress the [default
+  behavior](https://github.com/npm/node-semver#prerelease-tags) of
+  excluding prerelease tagged versions from ranges unless they are
+  explicitly opted into.
 
 Strict-mode Comparators and Ranges will be strict about the SemVer
 strings that they parse.
@@ -314,6 +333,8 @@ strings that they parse.
 * `patch(v)`: Return the patch version number.
 * `intersects(r1, r2, loose)`: Return true if the two supplied ranges
   or comparators intersect.
+* `parse(v)`: Attempt to parse a string as a semantic version, returning either
+  a `SemVer` object or `null`.
 
 ### Comparison
 
@@ -350,6 +371,8 @@ strings that they parse.
   that satisfies the range, or `null` if none of them do.
 * `minSatisfying(versions, range)`: Return the lowest version in the list
   that satisfies the range, or `null` if none of them do.
+* `minVersion(range)`: Return the lowest version that can possibly match
+  the given range.
 * `gtr(version, range)`: Return `true` if version is greater than all the
   versions possible in the range.
 * `ltr(version, range)`: Return `true` if version is less than all the
@@ -375,14 +398,15 @@ range, use the `satisfies(version, range)` function.
 
 * `coerce(version)`: Coerces a string to semver if possible
 
-This aims to provide a very forgiving translation of a non-semver
-string to semver. It looks for the first digit in a string, and
-consumes all remaining characters which satisfy at least a partial semver
-(e.g., `1`, `1.2`, `1.2.3`) up to the max permitted length (256 characters).
-Longer versions are simply truncated (`4.6.3.9.2-alpha2` becomes `4.6.3`).
-All surrounding text is simply ignored (`v3.4 replaces v3.3.1` becomes `3.4.0`).
-Only text which lacks digits will fail coercion (`version one` is not valid).
-The maximum  length for any semver component considered for coercion is 16 characters;
-longer components will be ignored (`10000000000000000.4.7.4` becomes `4.7.4`).
-The maximum value for any semver component is `Integer.MAX_SAFE_INTEGER || (2**53 - 1)`;
-higher value components are invalid (`9999999999999999.4.7.4` is likely invalid).
+This aims to provide a very forgiving translation of a non-semver string to
+semver. It looks for the first digit in a string, and consumes all
+remaining characters which satisfy at least a partial semver (e.g., `1`,
+`1.2`, `1.2.3`) up to the max permitted length (256 characters).  Longer
+versions are simply truncated (`4.6.3.9.2-alpha2` becomes `4.6.3`).  All
+surrounding text is simply ignored (`v3.4 replaces v3.3.1` becomes
+`3.4.0`).  Only text which lacks digits will fail coercion (`version one`
+is not valid).  The maximum  length for any semver component considered for
+coercion is 16 characters; longer components will be ignored
+(`10000000000000000.4.7.4` becomes `4.7.4`).  The maximum value for any
+semver component is `Number.MAX_SAFE_INTEGER || (2**53 - 1)`; higher value
+components are invalid (`9999999999999999.4.7.4` is likely invalid).

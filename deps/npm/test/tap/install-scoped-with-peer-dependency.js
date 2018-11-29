@@ -2,15 +2,13 @@ var fs = require('fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
-var pkg = path.join(__dirname, 'install-scoped-with-peer-dependency')
+var pkg = common.pkg
 var local = path.join(pkg, 'package')
 
-var EXEC_OPTS = { }
+var EXEC_OPTS = { cwd: pkg }
 
 var json = {
   name: '@scope/package',
@@ -21,8 +19,12 @@ var json = {
 }
 
 test('setup', function (t) {
-  setup()
-
+  mkdirp.sync(local)
+  mkdirp.sync(path.resolve(pkg, 'node_modules'))
+  fs.writeFileSync(
+    path.join(local, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
   t.end()
 })
 
@@ -36,24 +38,3 @@ test('it should install peerDependencies in same tree level as the parent packag
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function setup () {
-  cleanup()
-  mkdirp.sync(local)
-  mkdirp.sync(path.resolve(pkg, 'node_modules'))
-  fs.writeFileSync(
-    path.join(local, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-  process.chdir(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

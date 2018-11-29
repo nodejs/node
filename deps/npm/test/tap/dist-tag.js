@@ -7,7 +7,7 @@ var mr = require('npm-registry-mock')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'dist-tag')
+var pkg = common.pkg
 var server
 
 var scoped = {
@@ -20,7 +20,13 @@ function mocks (server) {
   server.get('/-/package/@scoped%2fpkg/dist-tags')
     .reply(200, { latest: '1.0.0', a: '0.0.1', b: '0.5.0' })
 
+  server.get('/-/package/@scoped%2fpkg/dist-tags')
+    .reply(200, { latest: '1.0.0', a: '0.0.1', b: '0.5.0' })
+
   // ls named package
+  server.get('/-/package/@scoped%2fanother/dist-tags')
+    .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
+
   server.get('/-/package/@scoped%2fanother/dist-tags')
     .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
 
@@ -39,6 +45,12 @@ function mocks (server) {
     .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0', c: '7.7.7' })
   server.delete('/-/package/@scoped%2fanother/dist-tags/c')
     .reply(200, { c: '7.7.7' })
+
+  // using a scoped registry
+  server.get('/-/package/@scoped%2ffoo/dist-tags')
+    .reply(200, { latest: '2.0.0', a: '0.0.2', b: '0.6.0' })
+  server.delete('/-/package/@scoped%2ffoo/dist-tags/b')
+    .reply(200, { b: '0.6.0' })
 
   // rm
   server.get('/-/package/@scoped%2fanother/dist-tags')
@@ -83,11 +95,50 @@ test('npm dist-tags ls in current package', function (t) {
   )
 })
 
+test('npm dist-tags ls default in current package', function (t) {
+  common.npm(
+    [
+      'dist-tags',
+      '--registry', common.registry,
+      '--loglevel', 'silent'
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.notOk(code, 'exited OK')
+      t.notOk(stderr, 'no error output')
+      t.equal(stdout, 'a: 0.0.1\nb: 0.5.0\nlatest: 1.0.0\n')
+
+      t.end()
+    }
+  )
+})
+
 test('npm dist-tags ls on named package', function (t) {
   common.npm(
     [
       'dist-tags',
       'ls', '@scoped/another',
+      '--registry', common.registry,
+      '--loglevel', 'silent'
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.notOk(code, 'exited OK')
+      t.notOk(stderr, 'no error output')
+      t.equal(stdout, 'a: 0.0.2\nb: 0.6.0\nlatest: 2.0.0\n')
+
+      t.end()
+    }
+  )
+})
+
+test('npm dist-tags ls default, named package', function (t) {
+  common.npm(
+    [
+      'dist-tags',
+      '@scoped/another',
       '--registry', common.registry,
       '--loglevel', 'silent'
     ],
@@ -181,6 +232,31 @@ test('npm dist-tags rm @scoped/another nonexistent', function (t) {
       t.ok(code, 'expecting nonzero exit code')
       t.notOk(stderr, 'no error output')
       t.notOk(stdout, 'not expecting output')
+
+      t.end()
+    }
+  )
+})
+
+test('npm dist-tags rm with registry assigned to scope', function (t) {
+  fs.writeFileSync(path.resolve(pkg, '.npmrc'), `
+@scoped:registry=${common.registry}
+${common.registry.replace(/^https?:/, '')}:_authToken=taken
+`)
+
+  common.npm(
+    [
+      'dist-tags',
+      'rm', '@scoped/foo', 'b',
+      '--loglevel', 'silent',
+      '--userconfig', path.resolve(pkg, '.npmrc')
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access')
+      t.notOk(code, 'exited OK')
+      t.notOk(stderr, 'no error output')
+      t.equal(stdout, '-b: @scoped/foo@0.6.0\n')
 
       t.end()
     }

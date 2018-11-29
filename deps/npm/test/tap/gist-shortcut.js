@@ -2,27 +2,24 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var requireInject = require('require-inject')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'gist-shortcut')
+var pkg = common.pkg
 
 var json = {
   name: 'gist-shortcut',
   version: '0.0.0'
 }
 
-test('setup', function (t) {
-  setup()
-  t.end()
-})
-
 test('gist-shortcut', function (t) {
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  process.chdir(pkg)
   var cloneUrls = [
     ['git://gist.github.com/deadbeef.git', 'GitHub gist shortcuts try git URLs first'],
     ['https://gist.github.com/deadbeef.git', 'GitHub gist shortcuts try HTTPS URLs second'],
@@ -46,7 +43,7 @@ test('gist-shortcut', function (t) {
   })
 
   var opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     prefix: pkg,
     registry: common.registry,
     loglevel: 'silent'
@@ -59,23 +56,3 @@ test('gist-shortcut', function (t) {
     })
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-  process.chdir(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

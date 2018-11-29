@@ -1,13 +1,15 @@
 var fs = require('fs')
 var ini = require('ini')
-var test = require('tap').test
+var t = require('tap')
+const test = t.test
+var common = require('../common-config.js')
+var commonTap = require('../common-tap.js')
 var npmconf = require('../../lib/config/core.js')
-var common = require('./00-config-setup.js')
 
 var expectConf = [
   'globalconfig = ' + common.globalconfig,
   'email = i@izs.me',
-  'env-thing = asdf',
+  'env-thing = foo',
   'init.author.name = Isaac Z. Schlueter',
   'init.author.email = i@izs.me',
   'init.author.url = http://blog.izs.me/',
@@ -32,7 +34,7 @@ var expectConf = [
 var expectFile = [
   'globalconfig = ' + common.globalconfig,
   'email = i@izs.me',
-  'env-thing = asdf',
+  'env-thing = foo',
   'init.author.name = Isaac Z. Schlueter',
   'init.author.email = i@izs.me',
   'init.author.url = http://blog.izs.me/',
@@ -53,6 +55,10 @@ var expectFile = [
   'httponly = true',
   ''
 ].join('\n')
+
+const userconfig = commonTap.pkg + '/userconfig'
+fs.writeFileSync(userconfig, fs.readFileSync(common.userconfig))
+process.env.npm_config_userconfig = userconfig
 
 test('saving configs', function (t) {
   npmconf.load(function (er, conf) {

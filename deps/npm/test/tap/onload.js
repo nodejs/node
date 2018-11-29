@@ -2,13 +2,13 @@ var path = require('path')
 var test = require('tap').test
 var rimraf = require('rimraf')
 var common = require('../common-tap.js')
-var opts = { cwd: __dirname }
+var opts = { cwd: common.pkg }
 var binDir = '../../node_modules/.bin'
 var fixture = path.resolve(__dirname, binDir)
 var onload = path.resolve(__dirname, '../fixtures/onload.js')
 
 test('setup', function (t) {
-  rimraf.sync(path.join(__dirname, 'node_modules'))
+  rimraf.sync(path.join(common.pkg, 'node_modules'))
   t.end()
 })
 

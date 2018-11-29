@@ -39,7 +39,7 @@ test('earliestInstallable should consider devDependencies', function (t) {
     realpath: '/dep2'
   }
 
-  // an incompatible verson of dep2. required by dep1
+  // an incompatible version of dep2. required by dep1
   var dep2a = {
     package: {
       name: 'dep2',

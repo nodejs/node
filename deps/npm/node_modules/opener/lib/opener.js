@@ -16,7 +16,7 @@ module.exports = function opener(args, options, callback) {
     var command;
     switch (platform) {
         case "win32": {
-            command = "cmd";
+            command = "cmd.exe";
             break;
         }
         case "darwin": {

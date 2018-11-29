@@ -1,16 +1,13 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var Bluebird = require('bluebird')
 var mr = Bluebird.promisify(require('npm-registry-mock'))
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'ls-depth-cli')
+var pkg = common.pkg
 
 var EXEC_OPTS = {
   cwd: pkg,
@@ -29,8 +26,6 @@ var json = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -82,7 +77,7 @@ test('npm ls --depth=1', function (t) {
 
 test('npm ls --depth=Infinity', function (t) {
   // travis has a preconfigured depth=0, in general we can not depend
-  // on the default value in all environments, so explictly set it here
+  // on the default value in all environments, so explicitly set it here
   common.npm(
     ['ls', '--depth=Infinity'],
     EXEC_OPTS,
@@ -117,7 +112,7 @@ test('npm ls --depth=0 --json', function (t) {
         'dependencies': {
           'test-package-with-one-dep': {
             'version': '0.0.0',
-            'resolved': 'http://localhost:1337/test-package-with-one-dep/-/test-package-with-one-dep-0.0.0.tgz'
+            'resolved': 'http://localhost:' + common.port + '/test-package-with-one-dep/-/test-package-with-one-dep-0.0.0.tgz'
           }
         }
       })
@@ -128,7 +123,7 @@ test('npm ls --depth=0 --json', function (t) {
 
 test('npm ls --depth=Infinity --json', function (t) {
   // travis has a preconfigured depth=0, in general we can not depend
-  // on the default value in all environments, so explictly set it here
+  // on the default value in all environments, so explicitly set it here
   common.npm(
     ['ls', '--depth=Infinity', '--json'],
     EXEC_OPTS,
@@ -141,11 +136,11 @@ test('npm ls --depth=Infinity --json', function (t) {
         'dependencies': {
           'test-package-with-one-dep': {
             'version': '0.0.0',
-            'resolved': 'http://localhost:1337/test-package-with-one-dep/-/test-package-with-one-dep-0.0.0.tgz',
+            'resolved': 'http://localhost:' + common.port + '/test-package-with-one-dep/-/test-package-with-one-dep-0.0.0.tgz',
             'dependencies': {
               'test-package': {
                 'version': '0.0.0',
-                'resolved': 'http://localhost:1337/test-package/-/test-package-0.0.0.tgz'
+                'resolved': 'http://localhost:' + common.port + '/test-package/-/test-package-0.0.0.tgz'
               }
             }
           }
@@ -199,13 +194,3 @@ test('npm ls --depth=1 --parseable --long', function (t) {
     }
   )
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

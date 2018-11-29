@@ -1,4 +1,4 @@
-require('./00-config-setup.js')
+require('../common-config.js')
 
 var path = require('path')
 var fs = require('fs')

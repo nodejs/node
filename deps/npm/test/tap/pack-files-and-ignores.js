@@ -6,7 +6,7 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var fs = require('graceful-fs')
 var tar = require('tar')
-var basepath = path.resolve(__dirname, path.basename(__filename, '.js'))
+var basepath = common.pkg
 var fixturepath = path.resolve(basepath, 'npm-test-files')
 var targetpath = path.resolve(basepath, 'target')
 var Tacks = require('tacks')
@@ -402,6 +402,7 @@ test('certain files ignored by default', function (t) {
       'npm-debug.log': File(''),
       '.npmrc': File(''),
       '.foo.swp': File(''),
+      'core': Dir({core: File(''), foo: File('')}),
       '.DS_Store': Dir({foo: File('')}),
       '._ohno': File(''),
       '._ohnoes': Dir({noes: File('')}),
@@ -422,7 +423,11 @@ test('certain files ignored by default', function (t) {
     t.notOk(fileExists('npm-debug.log'), 'npm-debug.log not included')
     t.notOk(fileExists('.npmrc'), '.npmrc not included')
     t.notOk(fileExists('.foo.swp'), '.foo.swp not included')
+    t.ok(fileExists('core'), 'core/ included')
+    t.ok(fileExists('core/foo'), 'core/foo included')
+    t.notOk(fileExists('core/core'), 'core/core not included')
     t.notOk(fileExists('.DS_Store'), '.DS_Store not included')
+    t.notOk(fileExists('.DS_Store/foo'), '.DS_Store/foo not included')
     t.notOk(fileExists('._ohno'), '._ohno not included')
     t.notOk(fileExists('._ohnoes'), '._ohnoes not included')
     t.notOk(fileExists('foo.orig'), 'foo.orig not included')
@@ -450,6 +455,7 @@ test('default-ignored files can be explicitly included', function (t) {
           'npm-debug.log',
           '.npmrc',
           '.foo.swp',
+          'core',
           '.DS_Store',
           '._ohno',
           '._ohnoes',
@@ -469,6 +475,7 @@ test('default-ignored files can be explicitly included', function (t) {
       'npm-debug.log': File(''),
       '.npmrc': File(''),
       '.foo.swp': File(''),
+      'core': Dir({core: File(''), foo: File('')}),
       '.DS_Store': Dir({foo: File('')}),
       '._ohno': File(''),
       '._ohnoes': Dir({noes: File('')}),
@@ -477,7 +484,7 @@ test('default-ignored files can be explicitly included', function (t) {
     })
   )
   withFixture(t, fixture, function (done) {
-    t.ok(fileExists('.git'), '.git included')
+    t.notOk(fileExists('.git'), '.git should never be included')
     t.ok(fileExists('.svn'), '.svn included')
     t.ok(fileExists('CVS'), 'CVS included')
     t.ok(fileExists('.hg'), '.hg included')
@@ -489,6 +496,9 @@ test('default-ignored files can be explicitly included', function (t) {
     t.ok(fileExists('npm-debug.log'), 'npm-debug.log included')
     t.ok(fileExists('.npmrc'), '.npmrc included')
     t.ok(fileExists('.foo.swp'), '.foo.swp included')
+    t.ok(fileExists('core'), 'core/ included')
+    t.ok(fileExists('core/foo'), 'core/foo included')
+    t.ok(fileExists('core/core'), 'core/core included')
     t.ok(fileExists('.DS_Store'), '.DS_Store included')
     t.ok(fileExists('._ohno'), '._ohno included')
     t.ok(fileExists('._ohnoes'), '._ohnoes included')

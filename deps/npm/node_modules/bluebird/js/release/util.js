@@ -195,8 +195,12 @@ function toFastProperties(obj) {
     /*jshint -W027,-W055,-W031*/
     function FakeConstructor() {}
     FakeConstructor.prototype = obj;
-    var l = 8;
-    while (l--) new FakeConstructor();
+    var receiver = new FakeConstructor();
+    function ic() {
+        return typeof receiver.foo;
+    }
+    ic();
+    ic();
     return obj;
     eval(obj);
 }
@@ -370,7 +374,12 @@ var ret = {
     domainBind: domainBind
 };
 ret.isRecentNode = ret.isNode && (function() {
-    var version = process.versions.node.split(".").map(Number);
+    var version;
+    if (process.versions && process.versions.node) {    
+        version = process.versions.node.split(".").map(Number);
+    } else if (process.version) {
+        version = process.version.split(".").map(Number);
+    }
     return (version[0] === 0 && version[1] > 10) || (version[0] > 0);
 })();
 

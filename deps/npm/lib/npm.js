@@ -40,9 +40,7 @@
   var which = require('which')
   var glob = require('glob')
   var rimraf = require('rimraf')
-  var lazyProperty = require('lazy-property')
   var parseJSON = require('./utils/parse-json.js')
-  var clientConfig = require('./config/reg-client.js')
   var aliases = require('./config/cmd-list').aliases
   var cmdList = require('./config/cmd-list').cmdList
   var plumbing = require('./config/cmd-list').plumbing
@@ -106,7 +104,6 @@
   })
 
   var registryRefer
-  var registryLoaded
 
   Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
     Object.defineProperty(npm.commands, c, { get: function () {
@@ -153,7 +150,7 @@
           }).filter(function (arg) {
             return arg && arg.match
           }).join(' ')
-          if (registryLoaded) npm.registry.refer = registryRefer
+          npm.referer = registryRefer
         }
 
         cmd.apply(npm, args)
@@ -284,7 +281,27 @@
         ua = ua.replace(/\{npm-version\}/gi, npm.version)
         ua = ua.replace(/\{platform\}/gi, process.platform)
         ua = ua.replace(/\{arch\}/gi, process.arch)
-        config.set('user-agent', ua)
+
+        // continuous integration platforms
+        const ci = process.env.GERRIT_PROJECT ? 'ci/gerrit'
+          : process.env.GITLAB_CI ? 'ci/gitlab'
+            : process.env.CIRCLECI ? 'ci/circle-ci'
+              : process.env.SEMAPHORE ? 'ci/semaphore'
+                : process.env.DRONE ? 'ci/drone'
+                  : process.env.GITHUB_ACTION ? 'ci/github-actions'
+                    : process.env.TDDIUM ? 'ci/tddium'
+                      : process.env.JENKINS_URL ? 'ci/jenkins'
+                        : process.env['bamboo.buildKey'] ? 'ci/bamboo'
+                          : process.env.GO_PIPELINE_NAME ? 'ci/gocd'
+                          // codeship and a few others
+                            : process.env.CI_NAME ? `ci/${process.env.CI_NAME}`
+                            // test travis last, since many of these mimic it
+                              : process.env.TRAVIS ? 'ci/travis-ci'
+                                : process.env.CI === 'true' || process.env.CI === '1' ? 'ci/custom'
+                                  : ''
+        ua = ua.replace(/\{ci\}/gi, ci)
+
+        config.set('user-agent', ua.trim())
 
         if (config.get('metrics-registry') == null) {
           config.set('metrics-registry', config.get('registry'))
@@ -356,17 +373,6 @@
         config.set('scope', scopeifyScope(config.get('scope')))
         npm.projectScope = config.get('scope') ||
          scopeifyScope(getProjectScope(npm.prefix))
-
-        // at this point the configs are all set.
-        // go ahead and spin up the registry client.
-        lazyProperty(npm, 'registry', function () {
-          registryLoaded = true
-          var RegClient = require('npm-registry-client')
-          var registry = new RegClient(clientConfig(npm, log, npm.config))
-          registry.version = npm.version
-          registry.refer = registryRefer
-          return registry
-        })
 
         startMetrics()
 

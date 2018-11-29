@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'outdated-color')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 

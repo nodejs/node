@@ -2,8 +2,7 @@
 
 #set -e
 
-test_node_versions="0.8.28 0.10.40 0.12.7 4.3.0 5.6.0"
-test_iojs_versions="1.8.4 2.4.0 3.3.0"
+test_node_versions="6.17.0 8.15.1 10.15.3 11.12.0"
 
 myuid=$(id -u)
 mygid=$(id -g)
@@ -77,25 +76,6 @@ for v in $test_node_versions; do
   "
 done
 
-# An image for each of the io.js versions we want to test with that version installed and the latest npm
-for v in $test_iojs_versions; do
-  setup_container "node-gyp-test/${v}" "node-gyp-test/clones" "
-    curl -sL https://iojs.org/dist/v${v}/iojs-v${v}-linux-x64.tar.gz | tar -zxv --strip-components=1 -C /usr/ &&
-    npm install npm@latest -g &&
-    node -v && npm -v
-  "
-done
-
-# Run the tests for all of the test images we've created,
-# we should see node-gyp doing its download, configure and run thing
-# _NOTE: bignum doesn't compile on 0.8 currently so it'll fail for that version only_
-for v in $test_node_versions $test_iojs_versions; do
-  run_tests $v "
-    cd node-buffertools && npm install --loglevel=info && npm test && cd
-  "
-  # removed for now, too noisy: cd node-bignum && npm install --loglevel=info && npm test
-done
-
 # Test use of --target=x.y.z to compile against alternate versions
 test_download_node_version() {
   local run_with_ver="$1"
@@ -112,9 +92,7 @@ test_download_node_version() {
 }
 
 test_download_node_version "0.12.7" "0.10.30/src" "0.10.30"
-test_download_node_version "3.3.0" "iojs-1.8.4/src" "1.8.4"
 # should download the headers file
-test_download_node_version "3.3.0" "iojs-3.3.0/include/node" "3.3.0"
 test_download_node_version "4.3.0" "4.3.0/include/node" "4.3.0"
 test_download_node_version "5.6.0" "5.6.0/include/node" "5.6.0"
 
@@ -124,36 +102,6 @@ test_download_node_version "5.6.0" "5.6.0/include/node" "5.6.0"
 # point for tarballs
 # we can test whether it uses the proxy because after 2 connections the proxy will
 # die and therefore should not be running at the end of the test, `nc` can tell us this
-run_tests "3.3.0" "
-  (node /node-gyp-src/test/simple-proxy.js 8080 /foobar/ https://iojs.org/dist/ &) &&
-  cd node-buffertools &&
-  /node-gyp-src/bin/node-gyp.js --loglevel=info --dist-url=http://localhost:8080/foobar/ rebuild &&
-  nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
-"
-
-# REMOVE after next semver-major
-run_tests "3.3.0" "
-  (node /node-gyp-src/test/simple-proxy.js 8080 /doobar/ https://iojs.org/dist/ &) &&
-  cd node-buffertools &&
-  NVM_IOJS_ORG_MIRROR=http://localhost:8080/doobar/ /node-gyp-src/bin/node-gyp.js --loglevel=info rebuild &&
-  nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
-"
-
-# REMOVE after next semver-major
-run_tests "0.12.7" "
-  (node /node-gyp-src/test/simple-proxy.js 8080 /boombar/ https://nodejs.org/dist/ &) &&
-  cd node-buffertools &&
-  NVM_NODEJS_ORG_MIRROR=http://localhost:8080/boombar/ /node-gyp-src/bin/node-gyp.js --loglevel=info rebuild &&
-  nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
-"
-
-run_tests "3.3.0" "
-  (node /node-gyp-src/test/simple-proxy.js 8080 /doobar/ https://iojs.org/dist/ &) &&
-  cd node-buffertools &&
-  IOJS_ORG_MIRROR=http://localhost:8080/doobar/ /node-gyp-src/bin/node-gyp.js --loglevel=info rebuild &&
-  nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
-"
-
 run_tests "0.12.7" "
   (node /node-gyp-src/test/simple-proxy.js 8080 /boombar/ https://nodejs.org/dist/ &) &&
   cd node-buffertools &&

@@ -11,7 +11,7 @@ var npm = require('../npm.js')
 
 // Return true if tree is a part of a cycle that:
 //   A) Never connects to the top of the tree
-//   B) Has not not had a point in the cycle arbitraryly declared its top
+//   B) Has not not had a point in the cycle arbitrarily declared its top
 //      yet.
 function isDisconnectedCycle (tree, seen) {
   if (!seen) seen = {}

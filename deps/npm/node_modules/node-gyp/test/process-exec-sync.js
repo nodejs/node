@@ -1,16 +1,18 @@
 'use strict'
 
-var fs = require('graceful-fs')
-var child_process = require('child_process')
+const fs = require('graceful-fs')
+const childProcess = require('child_process')
 
-if (!String.prototype.startsWith) {
-  String.prototype.startsWith = function(search, pos) {
-    return this.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search
+function startsWith (str, search, pos) {
+  if (String.prototype.startsWith) {
+    return str.startsWith(search, pos)
   }
+
+  return str.substr(!pos || pos < 0 ? 0 : +pos, search.length) === search
 }
 
-function processExecSync(file, args, options) {
-  var child, error, timeout, tmpdir, command, quote
+function processExecSync (file, args, options) {
+  var child, error, timeout, tmpdir, command
   command = makeCommand(file, args)
 
   /*
@@ -22,19 +24,19 @@ function processExecSync(file, args, options) {
   // init timeout
   timeout = Date.now() + options.timeout
   // init tmpdir
-  var os_temp_base = '/tmp'
-  var os = determine_os()
-  os_temp_base = '/tmp'
+  var osTempBase = '/tmp'
+  var os = determineOS()
+  osTempBase = '/tmp'
 
   if (process.env.TMP) {
-    os_temp_base = process.env.TMP
+    osTempBase = process.env.TMP
   }
 
-  if (os_temp_base[os_temp_base.length - 1] !== '/') {
-    os_temp_base += '/'
+  if (osTempBase[osTempBase.length - 1] !== '/') {
+    osTempBase += '/'
   }
 
-  tmpdir = os_temp_base + 'processExecSync.' + Date.now() + Math.random()
+  tmpdir = osTempBase + 'processExecSync.' + Date.now() + Math.random()
   fs.mkdirSync(tmpdir)
 
   // init command
@@ -47,7 +49,7 @@ function processExecSync(file, args, options) {
   }
 
   // init child
-  child = child_process.exec(command, options)
+  child = childProcess.exec(command, options)
 
   var maxTry = 100000 // increases the test time by 6 seconds on win-2016-node-0.10
   var tryCount = 0
@@ -84,23 +86,23 @@ function processExecSync(file, args, options) {
   return child.stdout
 }
 
-function makeCommand(file, args) {
+function makeCommand (file, args) {
   var command, quote
   command = file
   if (args.length > 0) {
-    for(var i in args) {
+    for (var i in args) {
       command = command + ' '
       if (args[i][0] === '-') {
         command = command + args[i]
       } else {
         if (!quote) {
-          command = command + '\"'
+          command = command + '"'
           quote = true
         }
         command = command + args[i]
         if (quote) {
           if (args.length === (parseInt(i) + 1)) {
-            command = command + '\"'
+            command = command + '"'
           }
         }
       }
@@ -109,29 +111,29 @@ function makeCommand(file, args) {
   return command
 }
 
-function determine_os() {
+function determineOS () {
   var os = ''
   var tmpVar = ''
   if (process.env.OSTYPE) {
     tmpVar = process.env.OSTYPE
-  } else  if (process.env.OS) {
+  } else if (process.env.OS) {
     tmpVar = process.env.OS
   } else {
-    //default is linux
+    // default is linux
     tmpVar = 'linux'
   }
 
-  if (tmpVar.startsWith('linux')) {
+  if (startsWith(tmpVar, 'linux')) {
     os = 'linux'
   }
-  if (tmpVar.startsWith('win')) {
+  if (startsWith(tmpVar, 'win')) {
     os = 'win'
   }
 
   return os
 }
 
-function unlinkFile(file) {
+function unlinkFile (file) {
   fs.unlinkSync(file)
 }
 

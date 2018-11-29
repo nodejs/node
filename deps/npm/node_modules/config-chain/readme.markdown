@@ -1,6 +1,6 @@
-#config-chain
+# config-chain
 
-USE THIS MODULE TO LOAD ALL YOUR CONFIGURATIONS
+A module for loading custom configurations
 
 ## NOTE: Feature Freeze
 
@@ -8,12 +8,42 @@ USE THIS MODULE TO LOAD ALL YOUR CONFIGURATIONS
 
 This module is frozen.
 
-In general, I'd recommend using [rc](https://github.com/dominictarr/rc) instead,
+In general, we recommend using [rc](https://github.com/dominictarr/rc) instead,
 but as [npm](https://github.com/npmjs/npm) depends on this, it cannot be changed.
+
+
+## Install
+
+```sh 
+yarn add config-chain
+
+# npm users
+npm install --save config-chain
+```
+
+## Usage
+
+```js
+const cc = require('config-chain');
+
+console.log(cc.env('TERM_', process.env));
+/*
+{ SESSION_ID: 'w1:5F38',
+  PROGRAM_VERSION: '3.1.2',
+  PROGRAM: 'iTerm.app' }
+*/
+```
+
+The `.env` function gets all the keys on the provided object which are
+prefixed by the specified prefix, removes the prefix, and puts the values on a new object.
+
+<br/>
+
+## Full Usage
 
 ``` js
 
-  //npm install config-chain
+  // npm install config-chain
 
   var cc = require('config-chain')
     , opts = require('optimist').argv //ALWAYS USE OPTIMIST FOR COMMAND LINE OPTIONS.
@@ -63,17 +93,9 @@ but as [npm](https://github.com/npmjs/npm) depends on this, it cannot be changed
 
 ```
 
-FINALLY, EASY FLEXIBLE CONFIGURATIONS!
+Finally, flexible configurations!  👌
 
-##see also: [proto-list](https://github.com/isaacs/proto-list/)
-
-WHATS THAT YOU SAY?
-
-YOU WANT A "CLASS" SO THAT YOU CAN DO CRAYCRAY JQUERY CRAPS?
-
-EXTEND WITH YOUR OWN FUNCTIONALTY!?
-
-## CONFIGCHAIN LIVES TO SERVE ONLY YOU!
+## Custom Configuations
 
 ```javascript
 var cc = require('config-chain')
@@ -108,7 +130,7 @@ var config = cc({
   })
 ```
 
-# BORING API DOCS
+# API Docs
 
 ## cc(...args)
 
@@ -116,13 +138,11 @@ MAKE A CHAIN AND ADD ALL THE ARGS.
 
 If the arg is a STRING, then it shall be a JSON FILENAME.
 
-SYNC I/O!
-
 RETURN THE CHAIN!
 
 ## cc.json(...args)
 
-Join the args INTO A JSON FILENAME!
+Join the args into a JSON filename!
 
 SYNC I/O!
 
@@ -145,8 +165,8 @@ NO I/O!
 
 ## cc.env(prefix, env=process.env)
 
-Get all the keys on the provided env object (or process.env) which are
-prefixed by the specified prefix, and put the values on a new object.
+Get all the keys on the provided object which are
+prefixed by the specified prefix, removes the prefix, and puts the values on a new object.
 
 RETURN THE RESULTING OBJECT!
 

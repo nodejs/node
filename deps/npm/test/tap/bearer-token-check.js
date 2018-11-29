@@ -4,14 +4,12 @@ var writeFileSync = require('graceful-fs').writeFileSync
 var fs = require('fs')
 var mkdirp = require('mkdirp')
 var http = require('http')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
-var test = require('tap').test
+const t = require('tap')
 
 var common = require('../common-tap.js')
 var toNerfDart = require('../../lib/config/nerf-dart.js')
 
-var pkg = resolve(__dirname, 'install-bearer-check')
+var pkg = common.pkg
 var outfile = resolve(pkg, '_npmrc')
 var modules = resolve(pkg, 'node_modules')
 var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
@@ -38,14 +36,42 @@ server.on('request', (req, res) => {
   }
 })
 
-test('setup', function (t) {
-  server.listen(common.port, () => {
-    setup()
-    t.done()
-  })
+var contents = '@scoped:registry=' + common.registry + '\n' +
+               toNerfDart(common.registry) + ':_authToken=0xabad1dea\n'
+
+var json = {
+  name: 'test-package-install',
+  version: '1.0.0',
+  dependencies: {
+    '@scoped/underscore': '1.3.1'
+  }
+}
+
+var shrinkwrap = {
+  name: 'test-package-install',
+  version: '1.0.0',
+  dependencies: {
+    '@scoped/underscore': {
+      resolved: tarballURL,
+      version: '1.3.1'
+    }
+  }
+}
+
+t.teardown(() => server.close())
+
+t.test('setup', function (t) {
+  mkdirp.sync(modules)
+  writeFileSync(resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
+  writeFileSync(outfile, contents)
+  writeFileSync(
+    resolve(pkg, 'npm-shrinkwrap.json'),
+    JSON.stringify(shrinkwrap, null, 2) + '\n'
+  )
+  server.listen(common.port, t.end)
 })
 
-test('authed npm install with tarball not on registry', function (t) {
+t.test('authed npm install with tarball not on registry', function (t) {
   common.npm(
     [
       'install',
@@ -81,48 +107,3 @@ test('authed npm install with tarball not on registry', function (t) {
     }
   )
 })
-
-test('cleanup', function (t) {
-  server.close(() => {
-    cleanup()
-    t.end()
-  })
-})
-
-var contents = '@scoped:registry=' + common.registry + '\n' +
-               toNerfDart(common.registry) + ':_authToken=0xabad1dea\n'
-
-var json = {
-  name: 'test-package-install',
-  version: '1.0.0',
-  dependencies: {
-    '@scoped/underscore': '1.3.1'
-  }
-}
-
-var shrinkwrap = {
-  name: 'test-package-install',
-  version: '1.0.0',
-  dependencies: {
-    '@scoped/underscore': {
-      resolved: tarballURL,
-      version: '1.3.1'
-    }
-  }
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(modules)
-  writeFileSync(resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
-  writeFileSync(outfile, contents)
-  writeFileSync(
-    resolve(pkg, 'npm-shrinkwrap.json'),
-    JSON.stringify(shrinkwrap, null, 2) + '\n'
-  )
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

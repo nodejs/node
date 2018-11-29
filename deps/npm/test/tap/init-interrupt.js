@@ -2,21 +2,12 @@
 // if 'npm init' is interrupted with ^C, don't report
 // 'init written successfully'
 var test = require('tap').test
-var path = require('path')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var npmlog = require('npmlog')
 var requireInject = require('require-inject')
 
 var npm = require('../../lib/npm.js')
 
-var PKG_DIR = path.resolve(__dirname, 'init-interrupt')
-
-test('setup', function (t) {
-  cleanup()
-
-  t.end()
-})
+require('../common-tap.js')
 
 test('issue #6684 remove confusing message', function (t) {
   var initJsonMock = function (dir, input, config, cb) {
@@ -45,14 +36,3 @@ test('issue #6684 remove confusing message', function (t) {
     })
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(PKG_DIR)
-}

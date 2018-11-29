@@ -57,6 +57,19 @@ function doesChildVersionMatch (child, requested, requestor) {
     if (fromSw.toString() === requested.toString()) return true
   }
 
+  if (requested.type === 'git' && requested.gitRange) {
+    const sameRepo = npa(child.package._from).fetchSpec === requested.fetchSpec
+    try {
+      return sameRepo && semver.satisfies(child.package.version, requested.gitRange, true)
+    } catch (e) {
+      return false
+    }
+  }
+
+  if (requested.type === 'alias') {
+    return doesChildVersionMatch(child, requested.subSpec, requestor)
+  }
+
   if (!registryTypes[requested.type]) {
     var childReq = child.package._requested
     if (childReq) {
@@ -72,7 +85,7 @@ function doesChildVersionMatch (child, requested, requestor) {
     // You'll see this scenario happen with at least tags and git dependencies.
     // Some buggy clients will write spaces into the module name part of a _from.
     if (child.package._from) {
-      var fromReq = npa.resolve(moduleName(child), child.package._from.replace(new RegExp('^\\s*' + moduleName(child) + '\\s*@'), ''))
+      var fromReq = npa(child.package._from)
       if (fromReq.rawSpec === requested.rawSpec) return true
       if (fromReq.type === requested.type && fromReq.saveSpec && fromReq.saveSpec === requested.saveSpec) return true
     }
@@ -190,10 +203,15 @@ function removeObsoleteDep (child, log) {
 function packageRelativePath (tree) {
   if (!tree) return ''
   var requested = tree.package._requested || {}
-  var isLocal = requested.type === 'directory' || requested.type === 'file'
-  return isLocal ? requested.fetchSpec
-    : (tree.isLink || tree.isInLink) && !preserveSymlinks() ? tree.realpath
-      : tree.path
+  if (requested.type === 'directory') {
+    return requested.fetchSpec
+  } else if (requested.type === 'file') {
+    return path.dirname(requested.fetchSpec)
+  } else if ((tree.isLink || tree.isInLink) && !preserveSymlinks()) {
+    return tree.realpath
+  } else {
+    return tree.path
+  }
 }
 
 function matchingDep (tree, name) {
@@ -289,11 +307,13 @@ function computeVersionSpec (tree, child) {
   var requested
   var childReq = child.package._requested
   if (child.isLink) {
-    requested = npa.resolve(child.package.name, 'file:' + child.realpath, getTop(tree).path)
+    requested = npa.resolve(moduleName(child), 'file:' + child.realpath, getTop(tree).path)
   } else if (childReq && (isNotEmpty(childReq.saveSpec) || (isNotEmpty(childReq.rawSpec) && isNotEmpty(childReq.fetchSpec)))) {
     requested = child.package._requested
   } else if (child.package._from) {
     requested = npa(child.package._from, tree.path)
+  } else if (child.name && child.name !== child.package.name) {
+    requested = npa.resolve(child.name, `npm:${child.package.name}@${child.package.version})`)
   } else {
     requested = npa.resolve(child.package.name, child.package.version)
   }
@@ -304,6 +324,9 @@ function computeVersionSpec (tree, child) {
         semver.gte(version, '0.1.0', true) &&
         !npm.config.get('save-exact')) {
       rangeDescriptor = npm.config.get('save-prefix')
+    }
+    if (requested.type === 'alias') {
+      rangeDescriptor = `npm:${requested.subSpec.name}@${rangeDescriptor}`
     }
     return rangeDescriptor + version
   } else if (requested.type === 'directory' || requested.type === 'file') {
@@ -324,7 +347,7 @@ exports.removeDeps = function (args, tree, saveToDependencies, next) {
   for (let pkg of args) {
     var pkgName = moduleName(pkg)
     var toRemove = tree.children.filter(moduleNameMatches(pkgName))
-    var pkgToRemove = toRemove[0] || createChild({package: {name: pkgName}})
+    var pkgToRemove = toRemove[0] || createChild({name: pkgName})
     var saveType = getSaveType(tree, pkg) || 'dependencies'
     if (tree.isTop && saveToDependencies) {
       pkgToRemove.save = saveType
@@ -647,16 +670,18 @@ function resolveWithNewModule (pkg, tree, log, next) {
   validate('OOOF', arguments)
 
   log.silly('resolveWithNewModule', packageId(pkg), 'checking installable status')
-  return isInstallable(pkg, (err) => {
+  return isInstallable(tree, pkg, (err) => {
     let installable = !err
     addBundled(pkg, (bundleErr) => {
       var parent = earliestInstallable(tree, tree, pkg, log) || tree
       var isLink = pkg._requested.type === 'directory'
+      var name = pkg._requested.name || pkg.name
       var child = createChild({
+        name,
         package: pkg,
         parent: parent,
-        path: path.join(parent.isLink ? parent.realpath : parent.path, 'node_modules', pkg.name),
-        realpath: isLink ? pkg._requested.fetchSpec : path.join(parent.realpath, 'node_modules', pkg.name),
+        path: path.join(parent.isLink ? parent.realpath : parent.path, 'node_modules', name),
+        realpath: isLink ? pkg._requested.fetchSpec : path.join(parent.realpath, 'node_modules', name),
         children: pkg._bundled || [],
         isLink: isLink,
         isInLink: parent.isLink,
@@ -691,6 +716,12 @@ function resolveWithNewModule (pkg, tree, log, next) {
   })
 }
 
+var isOptionalPeerDep = exports.isOptionalPeerDep = function (tree, pkgname) {
+  if (!tree.package.peerDependenciesMeta) return
+  if (!tree.package.peerDependenciesMeta[pkgname]) return
+  return !!tree.package.peerDependenciesMeta[pkgname].optional
+}
+
 var validatePeerDeps = exports.validatePeerDeps = function (tree, onInvalid) {
   if (!tree.package.peerDependencies) return
   Object.keys(tree.package.peerDependencies).forEach(function (pkgname) {
@@ -699,7 +730,7 @@ var validatePeerDeps = exports.validatePeerDeps = function (tree, onInvalid) {
       var spec = npa.resolve(pkgname, version)
     } catch (e) {}
     var match = spec && findRequirement(tree.parent || tree, pkgname, spec)
-    if (!match) onInvalid(tree, pkgname, version)
+    if (!match && !isOptionalPeerDep(tree, pkgname)) onInvalid(tree, pkgname, version)
   })
 }
 
@@ -759,7 +790,7 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
   validate('OOOO', arguments)
 
   function undeletedModuleMatches (child) {
-    return !child.removed && moduleName(child) === pkg.name
+    return !child.removed && moduleName(child) === ((pkg._requested && pkg._requested.name) || pkg.name)
   }
   const undeletedMatches = tree.children.filter(undeletedModuleMatches)
   if (undeletedMatches.length) {

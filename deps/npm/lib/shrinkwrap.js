@@ -25,6 +25,13 @@ const writeFileAtomic = require('write-file-atomic')
 const unixFormatPath = require('./utils/unix-format-path.js')
 const isRegistry = require('./utils/is-registry.js')
 
+const { chown } = require('fs')
+const inferOwner = require('infer-owner')
+const selfOwner = {
+  uid: process.getuid && process.getuid(),
+  gid: process.getgid && process.getgid()
+}
+
 const PKGLOCK = 'package-lock.json'
 const SHRINKWRAP = 'npm-shrinkwrap.json'
 const PKGLOCK_VERSION = npm.lockfileVersion
@@ -110,17 +117,18 @@ function shrinkwrapDeps (deps, top, tree, seen) {
     var childIsOnlyDev = isOnlyDev(child)
     var pkginfo = deps[moduleName(child)] = {}
     var requested = getRequested(child) || child.package._requested || {}
+    var linked = child.isLink || child.isInLink
     pkginfo.version = childVersion(top, child, requested)
     if (requested.type === 'git' && child.package._from) {
       pkginfo.from = child.package._from
     }
-    if (child.fromBundle || child.isInLink) {
+    if (child.fromBundle && !linked) {
       pkginfo.bundled = true
     } else {
       if (isRegistry(requested)) {
         pkginfo.resolved = child.package._resolved
       }
-      // no integrity for git deps as integirty hashes are based on the
+      // no integrity for git deps as integrity hashes are based on the
       // tarball and we can't (yet) create consistent tarballs from a stable
       // source.
       if (requested.type !== 'git') {
@@ -139,6 +147,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
         pkginfo.requires[moduleName(required)] = childRequested(top, required, requested)
       })
     }
+    // iterate into children on non-links and links contained within the top level package
     if (child.children.length) {
       pkginfo.dependencies = {}
       shrinkwrapDeps(pkginfo.dependencies, top, child, seen)
@@ -159,6 +168,8 @@ function childVersion (top, child, req) {
     return 'file:' + unixFormatPath(path.relative(top.path, child.package._resolved || req.fetchSpec))
   } else if (!isRegistry(req) && !child.fromBundle) {
     return child.package._resolved || req.saveSpec || req.rawSpec
+  } else if (req.type === 'alias') {
+    return `npm:${child.package.name}@${child.package.version}`
   } else {
     return child.package.version
   }
@@ -167,6 +178,8 @@ function childVersion (top, child, req) {
 function childRequested (top, child, requested) {
   if (requested.type === 'directory' || requested.type === 'file') {
     return 'file:' + unixFormatPath(path.relative(top.path, child.package._resolved || requested.fetchSpec))
+  } else if (requested.type === 'git' && child.package._from) {
+    return child.package._from
   } else if (!isRegistry(requested) && !child.fromBundle) {
     return child.package._resolved || requested.saveSpec || requested.rawSpec
   } else if (requested.type === 'tag') {
@@ -211,13 +224,19 @@ function save (dir, pkginfo, opts, cb) {
         log.verbose('shrinkwrap', `skipping write for ${path.basename(info.path)} because there were no changes.`)
         cb(null, pkginfo)
       } else {
-        writeFileAtomic(info.path, swdata, (err) => {
-          if (err) return cb(err)
-          if (opts.silent) return cb(null, pkginfo)
-          if (!shrinkwrap && !lockfile) {
-            log.notice('', `created a lockfile as ${path.basename(info.path)}. You should commit this file.`)
-          }
-          cb(null, pkginfo)
+        inferOwner(info.path).then(owner => {
+          writeFileAtomic(info.path, swdata, (err) => {
+            if (err) return cb(err)
+            if (opts.silent) return cb(null, pkginfo)
+            if (!shrinkwrap && !lockfile) {
+              log.notice('', `created a lockfile as ${path.basename(info.path)}. You should commit this file.`)
+            }
+            if (selfOwner.uid === 0 && (selfOwner.uid !== owner.uid || selfOwner.gid !== owner.gid)) {
+              chown(info.path, owner.uid, owner.gid, er => cb(er, pkginfo))
+            } else {
+              cb(null, pkginfo)
+            }
+          })
         })
       }
     }
@@ -263,11 +282,15 @@ function checkPackageFile (dir, name) {
   return readFile(
     file, 'utf8'
   ).then((data) => {
+    const format = npm.config.get('format-package-lock') !== false
+    const indent = format ? detectIndent(data).indent : 0
+    const newline = format ? detectNewline(data) : 0
+
     return {
       path: file,
       raw: data,
-      indent: detectIndent(data).indent,
-      newline: detectNewline(data)
+      indent,
+      newline
     }
   }).catch({code: 'ENOENT'}, () => {})
 }

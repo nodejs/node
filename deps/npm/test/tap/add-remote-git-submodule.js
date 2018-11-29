@@ -1,7 +1,7 @@
 var fs = require('fs')
 var resolve = require('path').resolve
 
-var osenv = require('osenv')
+var cwd = process.cwd()
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var test = require('tap').test
@@ -9,12 +9,12 @@ var test = require('tap').test
 var npm = require('../../lib/npm.js')
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'add-remote-git-submodule')
-var repos = resolve(__dirname, 'add-remote-git-submodule-repos')
+var pkg = resolve(common.pkg, 'package')
+var repos = resolve(common.pkg, 'repos')
 var subwt = resolve(repos, 'subwt')
 var topwt = resolve(repos, 'topwt')
-var suburl = 'git://localhost:1234/sub.git'
-var topurl = 'git://localhost:1234/top.git'
+var suburl = 'git://localhost:' + common.gitPort + '/sub.git'
+var topurl = 'git://localhost:' + common.gitPort + '/top.git'
 
 var daemon
 var daemonPID
@@ -62,14 +62,13 @@ test('has file in submodule', function (t) {
 
 test('clean', function (t) {
   daemon.on('close', function () {
-    cleanup()
     t.end()
   })
   process.kill(daemonPID)
 })
 
 function bootstrap (t) {
-  process.chdir(osenv.tmpdir())
+  process.chdir(cwd)
   rimraf.sync(pkg)
   mkdirp.sync(pkg)
   process.chdir(pkg)
@@ -97,7 +96,7 @@ function setup (cb) {
           '--export-all',
           '--base-path=.',
           '--reuseaddr',
-          '--port=1234'
+          '--port=' + common.gitPort
         ],
         {
           cwd: repos,
@@ -140,10 +139,4 @@ function setup (cb) {
       ]
     }, cb)
   })
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(repos)
-  rimraf.sync(pkg)
 }

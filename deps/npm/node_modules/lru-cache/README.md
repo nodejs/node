@@ -18,8 +18,8 @@ var LRU = require("lru-cache")
               , length: function (n, key) { return n * 2 + key.length }
               , dispose: function (key, n) { n.close() }
               , maxAge: 1000 * 60 * 60 }
-  , cache = LRU(options)
-  , otherCache = LRU(50) // sets just the max size
+  , cache = new LRU(options)
+  , otherCache = new LRU(50) // sets just the max size
 
 cache.set("key", "value")
 cache.get("key") // "value"
@@ -49,10 +49,13 @@ away.
 * `max` The maximum size of the cache, checked by applying the length
   function to all values in the cache.  Not setting this is kind of
   silly, since that's the whole purpose of this lib, but it defaults
-  to `Infinity`.
+  to `Infinity`.  Setting it to a non-number or negative number will
+  throw a `TypeError`.  Setting it to 0 makes it be `Infinity`.
 * `maxAge` Maximum age in ms.  Items are not pro-actively pruned out
   as they age, but if you try to get an item that is too old, it'll
   drop it and return undefined instead of giving it to you.
+  Setting this to a negative value will make everything seem old!
+  Setting it to a non-number will throw a `TypeError`.
 * `length` Function that is used to calculate the length of stored
   items.  If you're storing strings or buffers, then you probably want
   to do something like `function(n, key){return n.length}`.  The default is
@@ -76,6 +79,11 @@ away.
   it'll be called whenever a `set()` operation overwrites an existing
   key.  If you set this option, `dispose()` will only be called when a
   key falls out of the cache, not when it is overwritten.
+* `updateAgeOnGet` When using time-expiring entries with `maxAge`,
+  setting this to `true` will make each item's effective time update
+  to the current time whenever it is retrieved from cache, causing it
+  to not expire.  (It can still fall out of cache based on recency of
+  use, of course.)
 
 ## API
 

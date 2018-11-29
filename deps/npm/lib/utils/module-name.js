@@ -21,6 +21,7 @@ function isNotEmpty (str) {
 
 var unknown = 0
 function moduleName (tree) {
+  if (tree.name) { return tree.name }
   var pkg = tree.package || tree
   if (isNotEmpty(pkg.name) && typeof pkg.name === 'string') return pkg.name.trim()
   var pkgName = pathToPackageName(tree.path)

@@ -62,6 +62,8 @@ directly supplied to gyp. OTOH if both "a.gyp" and "b.gyp" are supplied to gyp
 then the "all" target includes "b1" and "b2".
 """
 
+from __future__ import print_function
+
 import gyp.common
 import gyp.ninja_syntax as ninja_syntax
 import json
@@ -155,7 +157,7 @@ def _AddSources(sources, base_path, base_path_components, result):
       continue
     result.append(base_path + source)
     if debug:
-      print 'AddSource', org_source, result[len(result) - 1]
+      print('AddSource', org_source, result[len(result) - 1])
 
 
 def _ExtractSourcesFromAction(action, base_path, base_path_components,
@@ -185,7 +187,7 @@ def _ExtractSources(target, target_dict, toplevel_dir):
     base_path += '/'
 
   if debug:
-    print 'ExtractSources', target, base_path
+    print('ExtractSources', target, base_path)
 
   results = []
   if 'sources' in target_dict:
@@ -278,7 +280,7 @@ def _WasBuildFileModified(build_file, data, files, toplevel_dir):
   the root of the source tree."""
   if _ToLocalPath(toplevel_dir, _ToGypPath(build_file)) in files:
     if debug:
-      print 'gyp file modified', build_file
+      print('gyp file modified', build_file)
     return True
 
   # First element of included_files is the file itself.
@@ -291,8 +293,8 @@ def _WasBuildFileModified(build_file, data, files, toplevel_dir):
         _ToGypPath(gyp.common.UnrelativePath(include_file, build_file))
     if _ToLocalPath(toplevel_dir, rel_include_file) in files:
       if debug:
-        print 'included gyp file modified, gyp_file=', build_file, \
-            'included file=', rel_include_file
+        print('included gyp file modified, gyp_file=', build_file,
+              'included file=', rel_include_file)
       return True
   return False
 
@@ -373,7 +375,7 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
     # If a build file (or any of its included files) is modified we assume all
     # targets in the file are modified.
     if build_file_in_files[build_file]:
-      print 'matching target from modified build file', target_name
+      print('matching target from modified build file', target_name)
       target.match_status = MATCH_STATUS_MATCHES
       matching_targets.append(target)
     else:
@@ -381,7 +383,7 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
                                 toplevel_dir)
       for source in sources:
         if _ToGypPath(os.path.normpath(source)) in files:
-          print 'target', target_name, 'matches', source
+          print('target', target_name, 'matches', source)
           target.match_status = MATCH_STATUS_MATCHES
           matching_targets.append(target)
           break
@@ -433,7 +435,7 @@ def _DoesTargetDependOnMatchingTargets(target):
   for dep in target.deps:
     if _DoesTargetDependOnMatchingTargets(dep):
       target.match_status = MATCH_STATUS_MATCHES_BY_DEPENDENCY
-      print '\t', target.name, 'matches by dep', dep.name
+      print('\t', target.name, 'matches by dep', dep.name)
       return True
   target.match_status = MATCH_STATUS_DOESNT_MATCH
   return False
@@ -445,7 +447,7 @@ def _GetTargetsDependingOnMatchingTargets(possible_targets):
   supplied as input to analyzer.
   possible_targets: targets to search from."""
   found = []
-  print 'Targets that matched by dependency:'
+  print('Targets that matched by dependency:')
   for target in possible_targets:
     if _DoesTargetDependOnMatchingTargets(target):
       found.append(target)
@@ -484,12 +486,12 @@ def _AddCompileTargets(target, roots, add_if_no_ancestor, result):
           (add_if_no_ancestor or target.requires_build)) or
          (target.is_static_library and add_if_no_ancestor and
           not target.is_or_has_linked_ancestor)):
-    print '\t\tadding to compile targets', target.name, 'executable', \
-           target.is_executable, 'added_to_compile_targets', \
-           target.added_to_compile_targets, 'add_if_no_ancestor', \
-           add_if_no_ancestor, 'requires_build', target.requires_build, \
-           'is_static_library', target.is_static_library, \
-           'is_or_has_linked_ancestor', target.is_or_has_linked_ancestor
+    print('\t\tadding to compile targets', target.name, 'executable',
+           target.is_executable, 'added_to_compile_targets',
+           target.added_to_compile_targets, 'add_if_no_ancestor',
+           add_if_no_ancestor, 'requires_build', target.requires_build,
+           'is_static_library', target.is_static_library,
+           'is_or_has_linked_ancestor', target.is_or_has_linked_ancestor)
     result.add(target)
     target.added_to_compile_targets = True
 
@@ -500,7 +502,7 @@ def _GetCompileTargets(matching_targets, supplied_targets):
   supplied_targets: set of targets supplied to analyzer to search from."""
   result = set()
   for target in matching_targets:
-    print 'finding compile targets for match', target.name
+    print('finding compile targets for match', target.name)
     _AddCompileTargets(target, supplied_targets, True, result)
   return result
 
@@ -508,46 +510,46 @@ def _GetCompileTargets(matching_targets, supplied_targets):
 def _WriteOutput(params, **values):
   """Writes the output, either to stdout or a file is specified."""
   if 'error' in values:
-    print 'Error:', values['error']
+    print('Error:', values['error'])
   if 'status' in values:
-    print values['status']
+    print(values['status'])
   if 'targets' in values:
     values['targets'].sort()
-    print 'Supplied targets that depend on changed files:'
+    print('Supplied targets that depend on changed files:')
     for target in values['targets']:
-      print '\t', target
+      print('\t', target)
   if 'invalid_targets' in values:
     values['invalid_targets'].sort()
-    print 'The following targets were not found:'
+    print('The following targets were not found:')
     for target in values['invalid_targets']:
-      print '\t', target
+      print('\t', target)
   if 'build_targets' in values:
     values['build_targets'].sort()
-    print 'Targets that require a build:'
+    print('Targets that require a build:')
     for target in values['build_targets']:
-      print '\t', target
+      print('\t', target)
   if 'compile_targets' in values:
     values['compile_targets'].sort()
-    print 'Targets that need to be built:'
+    print('Targets that need to be built:')
     for target in values['compile_targets']:
-      print '\t', target
+      print('\t', target)
   if 'test_targets' in values:
     values['test_targets'].sort()
-    print 'Test targets:'
+    print('Test targets:')
     for target in values['test_targets']:
-      print '\t', target
+      print('\t', target)
 
   output_path = params.get('generator_flags', {}).get(
       'analyzer_output_path', None)
   if not output_path:
-    print json.dumps(values)
+    print(json.dumps(values))
     return
   try:
     f = open(output_path, 'w')
     f.write(json.dumps(values) + '\n')
     f.close()
   except IOError as e:
-    print 'Error writing to output file', output_path, str(e)
+    print('Error writing to output file', output_path, str(e))
 
 
 def _WasGypIncludeFileModified(params, files):
@@ -556,7 +558,7 @@ def _WasGypIncludeFileModified(params, files):
   if params['options'].includes:
     for include in params['options'].includes:
       if _ToGypPath(os.path.normpath(include)) in files:
-        print 'Include file modified, assuming all changed', include
+        print('Include file modified, assuming all changed', include)
         return True
   return False
 
@@ -613,7 +615,7 @@ class TargetCalculator(object):
 
   def _supplied_target_names_no_all(self):
     """Returns the supplied test targets without 'all'."""
-    result = self._supplied_target_names();
+    result = self._supplied_target_names()
     result.discard('all')
     return result
 
@@ -638,13 +640,13 @@ class TargetCalculator(object):
                                   set(self._root_targets))]
     else:
       test_targets = [x for x in test_targets_no_all]
-    print 'supplied test_targets'
+    print('supplied test_targets')
     for target_name in self._test_target_names:
-      print '\t', target_name
-    print 'found test_targets'
+      print('\t', target_name)
+    print('found test_targets')
     for target in test_targets:
-      print '\t', target.name
-    print 'searching for matching test targets'
+      print('\t', target.name)
+    print('searching for matching test targets')
     matching_test_targets = _GetTargetsDependingOnMatchingTargets(test_targets)
     matching_test_targets_contains_all = (test_target_names_contains_all and
                                           set(matching_test_targets) &
@@ -654,22 +656,22 @@ class TargetCalculator(object):
       # 'all' is subsequentely added to the matching names below.
       matching_test_targets = [x for x in (set(matching_test_targets) &
                                            set(test_targets_no_all))]
-    print 'matched test_targets'
+    print('matched test_targets')
     for target in matching_test_targets:
-      print '\t', target.name
+      print('\t', target.name)
     matching_target_names = [gyp.common.ParseQualifiedTarget(target.name)[1]
                              for target in matching_test_targets]
     if matching_test_targets_contains_all:
       matching_target_names.append('all')
-      print '\tall'
+      print('\tall')
     return matching_target_names
 
   def find_matching_compile_target_names(self):
     """Returns the set of output compile targets."""
-    assert self.is_build_impacted();
+    assert self.is_build_impacted()
     # Compile targets are found by searching up from changed targets.
     # Reset the visited status for _GetBuildTargets.
-    for target in self._name_to_target.itervalues():
+    for target in self._name_to_target.values():
       target.visited = False
 
     supplied_targets = _LookupTargets(self._supplied_target_names_no_all(),
@@ -677,10 +679,10 @@ class TargetCalculator(object):
     if 'all' in self._supplied_target_names():
       supplied_targets = [x for x in (set(supplied_targets) |
                                       set(self._root_targets))]
-    print 'Supplied test_targets & compile_targets'
+    print('Supplied test_targets & compile_targets')
     for target in supplied_targets:
-      print '\t', target.name
-    print 'Finding compile targets'
+      print('\t', target.name)
+    print('Finding compile targets')
     compile_targets = _GetCompileTargets(self._changed_targets,
                                          supplied_targets)
     return [gyp.common.ParseQualifiedTarget(target.name)[1]
@@ -699,7 +701,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
     toplevel_dir = _ToGypPath(os.path.abspath(params['options'].toplevel_dir))
     if debug:
-      print 'toplevel_dir', toplevel_dir
+      print('toplevel_dir', toplevel_dir)
 
     if _WasGypIncludeFileModified(params, config.files):
       result_dict = { 'status': all_changed_string,

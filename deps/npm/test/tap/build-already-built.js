@@ -2,22 +2,15 @@
 // message "already built" should not be error
 var test = require('tap').test
 var path = require('path')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var npmlog = require('npmlog')
 var mkdirp = require('mkdirp')
 var requireInject = require('require-inject')
 
 var npm = require('../../lib/npm.js')
 
-var PKG_DIR = path.resolve(__dirname, 'build-already-built')
-var fakePkg = 'foo'
-
-test('setup', function (t) {
-  cleanup()
-
-  t.end()
-})
+const common = require('../common-tap.js')
+var PKG_DIR = common.pkg
+var fakePkg = path.resolve(PKG_DIR, 'foo')
 
 test("issue #6735 build 'already built' message", function (t) {
   npm.load({ loglevel: 'warn' }, function () {
@@ -65,14 +58,3 @@ test("issue #6735 build 'already built' message", function (t) {
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(PKG_DIR)
-}

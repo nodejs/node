@@ -2,13 +2,11 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap')
 
-var root = path.join(__dirname, 'install-from-local')
+var root = common.pkg
 var pkg = path.join(root, 'package-with-local-paths')
 
 var EXEC_OPTS = { cwd: pkg }
@@ -37,7 +35,6 @@ var localDevDependency = {
 }
 
 test('setup', function (t) {
-  rimraf.sync(pkg)
   mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
@@ -89,10 +86,4 @@ test('\'npm install\' should install local packages', function (t) {
       t.end()
     }
   )
-})
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(root)
-  t.end()
 })

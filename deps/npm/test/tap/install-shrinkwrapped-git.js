@@ -3,7 +3,6 @@
 var fs = require('fs')
 var path = require('path')
 var resolve = path.resolve
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 var test = require('tap').test
@@ -11,7 +10,7 @@ var npm = require('../../lib/npm')
 var common = require('../common-tap')
 var chain = require('slide').chain
 
-var mockPath = resolve(__dirname, 'install-shrinkwrapped')
+var mockPath = common.pkg
 var parentPath = resolve(mockPath, 'parent')
 var parentNodeModulesPath = path.join(parentPath, 'node_modules')
 var outdatedNodeModulesPath = resolve(mockPath, 'node-modules-backup')
@@ -32,68 +31,6 @@ var childPackageJSON = JSON.stringify({
 })
 
 test('setup', function (t) {
-  cleanup()
-  setup(function (err, result) {
-    t.ifError(err, 'git started up successfully')
-
-    if (!err) {
-      gitDaemon = result[result.length - 2]
-      gitDaemonPID = result[result.length - 1]
-    }
-
-    t.end()
-  })
-})
-
-test('shrinkwrapped git dependency got updated', function (t) {
-  t.comment('test for https://github.com/npm/npm/issues/12718')
-
-  // Prepare the child package git repo with two commits
-  prepareChildAndGetRefs(function (err, refs) {
-    if (err) { throw err }
-    chain([
-      // Install & shrinkwrap child package's first commit
-      [npm.commands.install, ['git://localhost:1234/child.git#' + refs[0]]],
-      // Backup node_modules with the first commit
-      [fs.rename, parentNodeModulesPath, outdatedNodeModulesPath],
-      // Install & shrinkwrap child package's latest commit
-      [npm.commands.install, ['git://localhost:1234/child.git#' + refs[1].substr(0, 8)]],
-      // Restore node_modules with the first commit
-      [rimraf, parentNodeModulesPath],
-      [fs.rename, outdatedNodeModulesPath, parentNodeModulesPath],
-      // Update node_modules
-      [npm.commands.install, []]
-    ], function () {
-      const pkglock = require(path.join(parentPath, 'package-lock.json'))
-      t.similar(pkglock, {
-        dependencies: {
-          child: {
-            version: `git://localhost:1234/child.git#${refs[1]}`,
-            from: `git://localhost:1234/child.git#${refs[1].substr(0, 8)}`
-          }
-        }
-      }, 'version and from fields are correct in git-based pkglock dep')
-      var childPackageJSON = require(path.join(parentNodeModulesPath, 'child', 'package.json'))
-      t.equal(
-        childPackageJSON._resolved,
-        'git://localhost:1234/child.git#' + refs[1],
-        "Child package wasn't updated"
-      )
-      t.end()
-    })
-  })
-})
-
-test('clean', function (t) {
-  gitDaemon.on('close', function () {
-    cleanup()
-    t.end()
-  })
-  process.kill(gitDaemonPID)
-})
-
-function setup (cb) {
-  // Setup parent package
   mkdirp.sync(parentPath)
   fs.writeFileSync(resolve(parentPath, 'package.json'), parentPackageJSON)
   process.chdir(parentPath)
@@ -109,15 +46,62 @@ function setup (cb) {
     save: true // Always install packages with --save
   }, function () {
     // It's important to initialize git after npm because it uses config
-    initializeGit(cb)
-  })
-}
+    initializeGit(function (err, result) {
+      t.ifError(err, 'git started up successfully')
 
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(mockPath)
-  rimraf.sync(common['npm_config_cache'])
-}
+      if (!err) {
+        gitDaemon = result[result.length - 2]
+        gitDaemonPID = result[result.length - 1]
+      }
+
+      t.end()
+    })
+  })
+})
+
+test('shrinkwrapped git dependency got updated', function (t) {
+  t.comment('test for https://github.com/npm/npm/issues/12718')
+
+  // Prepare the child package git repo with two commits
+  prepareChildAndGetRefs(function (err, refs) {
+    if (err) { throw err }
+    chain([
+      // Install & shrinkwrap child package's first commit
+      [npm.commands.install, ['git://localhost:' + common.gitPort + '/child.git#' + refs[0]]],
+      // Backup node_modules with the first commit
+      [fs.rename, parentNodeModulesPath, outdatedNodeModulesPath],
+      // Install & shrinkwrap child package's latest commit
+      [npm.commands.install, ['git://localhost:' + common.gitPort + '/child.git#' + refs[1].substr(0, 8)]],
+      // Restore node_modules with the first commit
+      [rimraf, parentNodeModulesPath],
+      [fs.rename, outdatedNodeModulesPath, parentNodeModulesPath],
+      // Update node_modules
+      [npm.commands.install, []]
+    ], function () {
+      const pkglock = require(path.join(parentPath, 'package-lock.json'))
+      t.similar(pkglock, {
+        dependencies: {
+          child: {
+            version: `git://localhost:${common.gitPort}/child.git#${refs[1]}`,
+            from: `git://localhost:${common.gitPort}/child.git#${refs[1].substr(0, 8)}`
+          }
+        }
+      }, 'version and from fields are correct in git-based pkglock dep')
+      var childPackageJSON = require(path.join(parentNodeModulesPath, 'child', 'package.json'))
+      t.equal(
+        childPackageJSON._resolved,
+        'git://localhost:' + common.gitPort + '/child.git#' + refs[1],
+        "Child package wasn't updated"
+      )
+      t.end()
+    })
+  })
+})
+
+test('clean', function (t) {
+  gitDaemon.on('close', t.end)
+  process.kill(gitDaemonPID)
+})
 
 function prepareChildAndGetRefs (cb) {
   var opts = { cwd: childPath, env: { PATH: process.env.PATH } }
@@ -153,7 +137,7 @@ function startGitDaemon (cb) {
       '--export-all',
       '--base-path=' + mockPath, // Path to the dir that contains child.git
       '--reuseaddr',
-      '--port=1234'
+      '--port=' + common.gitPort
     ],
     {
       cwd: parentPath,

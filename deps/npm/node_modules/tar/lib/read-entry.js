@@ -6,6 +6,10 @@ const SLURP = Symbol('slurp')
 module.exports = class ReadEntry extends MiniPass {
   constructor (header, ex, gex) {
     super()
+    // read entries always start life paused.  this is to avoid the
+    // situation where Minipass's auto-ending empty streams results
+    // in an entry ending before we're ready for it.
+    this.pause()
     this.extended = ex
     this.globalExtended = gex
     this.header = header

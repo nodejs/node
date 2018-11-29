@@ -2,26 +2,19 @@ var test = require('tap').test
 var path = require('path')
 var fs = require('graceful-fs')
 var crypto = require('crypto')
-var rimraf = require('rimraf')
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
 var npm = require('../../')
 var locker = require('../../lib/utils/locker.js')
 var lock = locker.lock
 var unlock = locker.unlock
 
-var pkg = path.join(__dirname, '/locker')
+const common = require('../common-tap.js')
+var pkg = common.pkg
 var cache = path.join(pkg, '/cache')
 var tmp = path.join(pkg, '/tmp')
 var nm = path.join(pkg, '/node_modules')
 
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
 test('setup', function (t) {
-  cleanup()
   mkdirp.sync(cache)
   mkdirp.sync(tmp)
   t.end()
@@ -81,9 +74,4 @@ test('unlocking out of order errors out', function (t) {
       t.end()
     })
   })
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
 })

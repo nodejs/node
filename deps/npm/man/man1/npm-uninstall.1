@@ -1,7 +1,7 @@
-.TH "NPM\-UNINSTALL" "1" "August 2018" "" ""
+.TH "NPM\-UNINSTALL" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-uninstall\fR \- Remove a package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +10,7 @@ npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-S|\-\-save|\-D|\-\-save\-dev
 aliases: remove, rm, r, un, unlink
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This uninstalls a package, completely removing everything npm installed
 on its behalf\.
@@ -43,7 +43,7 @@ the package version in your main package\.json:
 Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
 well\.
 .P
-Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fP\|\.
+Scope is optional and follows the usual rules for npm help \fBscope\fP\|\.
 .P
 Examples:
 .P
@@ -56,20 +56,17 @@ npm uninstall dtrace\-provider \-\-save\-optional
 npm uninstall lodash \-\-no\-save
 .fi
 .RE
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help prune
 .IP \(bu 2
 npm help install
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-

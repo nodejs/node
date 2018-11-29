@@ -3,15 +3,13 @@
 const common = require('../common-tap.js')
 const test = require('tap').test
 const npm = require('../../')
-const osenv = require('osenv')
 const path = require('path')
 const fs = require('fs')
 const mkdirp = require('mkdirp')
-const rimraf = require('rimraf')
 const requireInject = require('require-inject')
 
-const pkg = path.resolve(__dirname, 'version-no-git')
-const cache = path.resolve(pkg, 'cache')
+const pkg = common.pkg
+const cache = common.cache
 const gitDir = path.resolve(pkg, '.git')
 
 test('npm version does not alter the line endings in package.json (LF)', function (t) {
@@ -66,16 +64,7 @@ test('npm version does not alter the line endings in package.json (CRLF)', funct
   })
 })
 
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-
-  rimraf.sync(pkg)
-  t.end()
-})
-
 function setup (lineEnding) {
-  mkdirp.sync(pkg)
-  mkdirp.sync(cache)
   mkdirp.sync(gitDir)
   fs.writeFileSync(
     path.resolve(pkg, 'package.json'),

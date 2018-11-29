@@ -1,0 +1,63 @@
+{
+  "_from": "infer-owner@1.0.4",
+  "_id": "infer-owner@1.0.4",
+  "_inBundle": false,
+  "_integrity": "sha512-IClj+Xz94+d7irH5qRyfJonOdfTzuDaifE6ZPWfx0N0+/ATZCbuTPq2prFl526urkQd90WyUKIh1DfBQ2hMz9A==",
+  "_location": "/infer-owner",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "infer-owner@1.0.4",
+    "name": "infer-owner",
+    "escapedName": "infer-owner",
+    "rawSpec": "1.0.4",
+    "saveSpec": null,
+    "fetchSpec": "1.0.4"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/infer-owner/-/infer-owner-1.0.4.tgz",
+  "_shasum": "c4cefcaa8e51051c2a40ba2ce8a3d27295af9467",
+  "_spec": "infer-owner@1.0.4",
+  "_where": "/Users/isaacs/dev/npm/cli",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "https://izs.me"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/infer-owner/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Infer the owner of a path based on the owner of its nearest existing parent",
+  "devDependencies": {
+    "mutate-fs": "^2.1.1",
+    "tap": "^12.4.2"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/npm/infer-owner#readme",
+  "license": "ISC",
+  "main": "index.js",
+  "name": "infer-owner",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/infer-owner.git"
+  },
+  "scripts": {
+    "postpublish": "git push origin --follow-tags",
+    "postversion": "npm publish",
+    "preversion": "npm test",
+    "snap": "TAP_SNAPSHOT=1 tap -J test/*.js --100",
+    "test": "tap -J test/*.js --100"
+  },
+  "version": "1.0.4"
+}

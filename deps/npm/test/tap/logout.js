@@ -8,14 +8,13 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'logout')
+var pkg = common.pkg
 var outfile = path.join(pkg, '_npmrc')
 var opts = { cwd: pkg }
 
-var contents = function () { /*
-foo=boo
-//localhost:1337/:_authToken=glarb
-*/ }.toString().split('\n').slice(1, -1).join('\n')
+var contents = `foo=boo
+//localhost:${common.port}/:_authToken=glarb
+`
 
 function mocks (server) {
   server.delete('/-/user/token/glarb')

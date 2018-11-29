@@ -24,7 +24,6 @@ function generateFromDir (dir) {
   return `'use strict'
 const path = require('path')
 const test = require('tap').test
-const mr = require('npm-registry-mock')
 const Tacks = require('tacks')
 const File = Tacks.File
 const Symlink = Tacks.Symlink
@@ -39,7 +38,7 @@ const tmpdir = path.join(basedir, 'tmp')
 
 const conf = {
   cwd: testdir,
-  env: Object.assign({}, process.env, {
+  env: common.newEnv().extend({
     npm_config_cache: cachedir,
     npm_config_tmp: tmpdir,
     npm_config_prefix: globaldir,
@@ -48,7 +47,6 @@ const conf = {
   })
 }
 
-let server
 const fixture = new Tacks(Dir({
   cache: Dir(),
   global: Dir(),
@@ -65,28 +63,22 @@ function cleanup () {
   fixture.remove(basedir)
 }
 
-test('setup', function (t) {
+test('setup', t => {
   setup()
-  mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
-    if (err) throw err
-    server = s
-    t.done()
-  })
+  return common.fakeRegistry.listen()
 })
 
-test('example', function (t) {
-  common.npm(['install'], conf, function (err, code, stdout, stderr) {
-    if (err) throw err
+test('example', t => {
+  return common.npm(['install'], conf).then(([code, stdout, stderr]) => {
     t.is(code, 0, 'command ran ok')
     t.comment(stdout.trim())
     t.comment(stderr.trim())
     // your assertions here
-    t.done()
   })
 })
 
-test('cleanup', function (t) {
-  server.close()
+test('cleanup', t => {
+  common.fakeRegistry.close()
   cleanup()
   t.done()
 })\n`

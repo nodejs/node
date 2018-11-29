@@ -3,13 +3,11 @@ var path = require('path')
 var existsSync = fs.existsSync || path.existsSync
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'install-cli-production')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 
@@ -59,7 +57,6 @@ test('setup', function (t) {
     JSON.stringify(json, null, 2)
   )
 
-  process.chdir(pkg)
   t.end()
 })
 
@@ -79,10 +76,4 @@ test('\'npm install --production\' should only install dependencies', function (
     )
     t.end()
   })
-})
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  t.end()
 })

@@ -1,10 +1,14 @@
 var common = require('../common-tap.js')
-var test = require('tap').test
+const t = require('tap')
+var test = t.test
 var osenv = require('osenv')
 var path = require('path')
 var fs = require('fs')
 var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
+
+// this test has to use a tmpdir so that it's outside of
+// the current package context of npm.
 var tmp = osenv.tmpdir()
 var t1dir = path.resolve(tmp, 'view-local-no-pkg')
 var t2dir = path.resolve(tmp, 'view-local-notmine')
@@ -12,6 +16,15 @@ var t3dir = path.resolve(tmp, 'view-local-mine')
 var mr = require('npm-registry-mock')
 
 var server
+
+t.teardown(() => {
+  rimraf.sync(t1dir)
+  rimraf.sync(t2dir)
+  rimraf.sync(t3dir)
+  if (server) {
+    server.close()
+  }
+})
 
 test('setup', function (t) {
   mkdirp.sync(t1dir)
@@ -46,7 +59,6 @@ function plugin (server) {
 }
 
 test('npm view . in global mode', function (t) {
-  process.chdir(t1dir)
   common.npm([
     'view',
     '.',
@@ -61,7 +73,6 @@ test('npm view . in global mode', function (t) {
 })
 
 test('npm view --global', function (t) {
-  process.chdir(t1dir)
   common.npm([
     'view',
     '--registry=' + common.registry,
@@ -75,7 +86,6 @@ test('npm view --global', function (t) {
 })
 
 test('npm view . with no package.json', function (t) {
-  process.chdir(t1dir)
   common.npm([
     'view',
     '.',
@@ -89,7 +99,6 @@ test('npm view . with no package.json', function (t) {
 })
 
 test('npm view . with no published package', function (t) {
-  process.chdir(t3dir)
   common.npm([
     'view',
     '.',
@@ -97,13 +106,12 @@ test('npm view . with no published package', function (t) {
   ], { cwd: t3dir }, function (err, code, stdout, stderr) {
     t.ifError(err, 'view command finished successfully')
     t.equal(code, 1, 'exit not ok')
-    t.similar(stderr, /version not found/m)
+    t.similar(stderr, /not in the npm registry/m)
     t.end()
   })
 })
 
 test('npm view .', function (t) {
-  process.chdir(t2dir)
   common.npm([
     'view',
     '.',
@@ -117,7 +125,6 @@ test('npm view .', function (t) {
 })
 
 test('npm view . select fields', function (t) {
-  process.chdir(t2dir)
   common.npm([
     'view',
     '.',
@@ -132,7 +139,6 @@ test('npm view . select fields', function (t) {
 })
 
 test('npm view .@<version>', function (t) {
-  process.chdir(t2dir)
   common.npm([
     'view',
     '.@0.0.0',
@@ -147,7 +153,6 @@ test('npm view .@<version>', function (t) {
 })
 
 test('npm view .@<version> version --json', function (t) {
-  process.chdir(t2dir)
   common.npm([
     'view',
     '.@0.0.0',
@@ -163,7 +168,6 @@ test('npm view .@<version> version --json', function (t) {
 })
 
 test('npm view . --json author name version', function (t) {
-  process.chdir(t2dir)
   common.npm([
     'view',
     '.',
@@ -186,7 +190,6 @@ test('npm view . --json author name version', function (t) {
 })
 
 test('npm view .@<version> --json author name version', function (t) {
-  process.chdir(t2dir)
   common.npm([
     'view',
     '.@0.0.0',
@@ -375,14 +378,4 @@ test('npm view with valid but non existent package name', function (t) {
 
     t.end()
   })
-})
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(t1dir)
-  rimraf.sync(t2dir)
-  rimraf.sync(t3dir)
-  t.pass('cleaned up')
-  server.close()
-  t.end()
 })

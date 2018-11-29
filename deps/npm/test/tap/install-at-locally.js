@@ -2,13 +2,12 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'install-at-locally')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg, stdio: [0, 1, 2] }
 
@@ -16,11 +15,6 @@ var json = {
   name: 'install-at-locally-mock',
   version: '0.0.0'
 }
-
-test('setup', function (t) {
-  cleanup()
-  t.end()
-})
 
 test('\'npm install ./package@1.2.3\' should install local pkg', function (t) {
   var target = './package@1.2.3'
@@ -46,18 +40,8 @@ test('\'npm install install/at/locally@./package@1.2.3\' should install local pk
   })
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
 function setup (target) {
-  cleanup()
+  rimraf.sync(pkg)
   var root = path.resolve(pkg, target)
   mkdirp.sync(root)
   fs.writeFileSync(
@@ -65,5 +49,4 @@ function setup (target) {
     JSON.stringify(json, null, 2)
   )
   mkdirp.sync(path.resolve(pkg, 'node_modules'))
-  process.chdir(pkg)
 }

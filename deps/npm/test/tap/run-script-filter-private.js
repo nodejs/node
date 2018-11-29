@@ -7,7 +7,7 @@ var test = require('tap').test
 
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'run-script-filter-private')
+var pkg = common.pkg
 
 var opts = { cwd: pkg }
 

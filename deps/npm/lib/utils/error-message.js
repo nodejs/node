@@ -2,6 +2,7 @@
 var npm = require('../npm.js')
 var util = require('util')
 var nameValidator = require('validate-npm-package-name')
+var npmlog = require('npmlog')
 
 module.exports = errorMessage
 
@@ -33,18 +34,56 @@ function errorMessage (er) {
 
     case 'EACCES':
     case 'EPERM':
-      short.push(['', er])
+      const isCachePath = typeof er.path === 'string' &&
+        er.path.startsWith(npm.config.get('cache'))
+      const isCacheDest = typeof er.dest === 'string' &&
+        er.dest.startsWith(npm.config.get('cache'))
+
+      const isWindows = process.platform === 'win32'
+
+      if (!isWindows && (isCachePath || isCacheDest)) {
+        // user probably doesn't need this, but still add it to the debug log
+        npmlog.verbose(er.stack)
+        short.push([
+          '',
+          [
+            '',
+            'Your cache folder contains root-owned files, due to a bug in',
+            'previous versions of npm which has since been addressed.',
+            '',
+            'To permanently fix this problem, please run:',
+            `  sudo chown -R ${process.getuid()}:${process.getgid()} ${JSON.stringify(npm.config.get('cache'))}`
+          ].join('\n')
+        ])
+      } else {
+        short.push(['', er])
+        detail.push([
+          '',
+          [
+            '\nThe operation was rejected by your operating system.',
+            (process.platform === 'win32'
+              ? 'It\'s possible that the file was already in use (by a text editor or antivirus),\n' +
+                'or that you lack permissions to access it.'
+              : 'It is likely you do not have the permissions to access this file as the current user'),
+            '\nIf you believe this might be a permissions issue, please double-check the',
+            'permissions of the file and its containing directories, or try running',
+            'the command again as root/Administrator.'
+          ].join('\n')])
+      }
+      break
+
+    case 'EUIDLOOKUP':
+      short.push(['lifecycle', er.message])
       detail.push([
         '',
         [
-          '\nThe operation was rejected by your operating system.',
-          (process.platform === 'win32'
-            ? 'It\'s possible that the file was already in use (by a text editor or antivirus),\nor that you lack permissions to access it.'
-            : 'It is likely you do not have the permissions to access this file as the current user'),
-          '\nIf you believe this might be a permissions issue, please double-check the',
-          'permissions of the file and its containing directories, or try running',
-          'the command again as root/Administrator (though this is not recommended).'
-        ].join('\n')])
+          '',
+          'Failed to look up the user/group for running scripts.',
+          '',
+          'Try again with a different --user or --group settings, or',
+          'run with --unsafe-perm to execute scripts as root.'
+        ].join('\n')
+      ])
       break
 
     case 'ELIFECYCLE':
@@ -103,8 +142,7 @@ function errorMessage (er) {
 
     case 'EOTP':
     case 'E401':
-      // the E401 message checking is a hack till we replace npm-registry-client with something
-      // OTP aware.
+      // E401 is for places where we accidentally neglect OTP stuff
       if (er.code === 'EOTP' || /one-time pass/.test(er.message)) {
         short.push(['', 'This operation requires a one-time password from your authenticator.'])
         detail.push([
@@ -155,10 +193,12 @@ function errorMessage (er) {
       var msg = er.message.replace(/^404\s+/, '')
       short.push(['404', msg])
       if (er.pkgid && er.pkgid !== '-') {
+        var pkg = er.pkgid.replace(/(?!^)@.*$/, '')
+
         detail.push(['404', ''])
         detail.push(['404', '', "'" + er.pkgid + "' is not in the npm registry."])
 
-        var valResult = nameValidator(er.pkgid)
+        var valResult = nameValidator(pkg)
 
         if (valResult.validForNewPackages) {
           detail.push(['404', 'You should bug the author to publish it (or use the name yourself!)'])
@@ -240,8 +280,9 @@ function errorMessage (er) {
 
     case 'EEXIST':
       short.push(['', er.message])
-      short.push(['', 'File exists: ' + er.path])
-      detail.push(['', 'Move it away, and try again.'])
+      short.push(['', 'File exists: ' + (er.dest || er.path)])
+      detail.push(['', 'Remove the existing file and try again, or run npm'])
+      detail.push(['', 'with --force to overwrite files recklessly.'])
       break
 
     case 'ENEEDAUTH':
@@ -285,6 +326,18 @@ function errorMessage (er) {
         msg.push("\nIt was specified as a dependency of '" + er.parent + "'\n")
       }
       detail.push(['notarget', msg.join('\n')])
+      break
+
+    case 'E403':
+      short.push(['403', er.message])
+      msg = [
+        'In most cases, you or one of your dependencies are requesting',
+        'a package version that is forbidden by your security policy.'
+      ]
+      if (er.parent) {
+        msg.push("\nIt was specified as a dependency of '" + er.parent + "'\n")
+      }
+      detail.push(['403', msg.join('\n')])
       break
 
     case 'ENOTSUP':

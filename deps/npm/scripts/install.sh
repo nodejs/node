@@ -23,12 +23,14 @@ if [ "x$0" = "xsh" ]; then
   if [ $ret -eq 0 ]; then
     (exit 0)
   else
+    echo "Uninstalling npm-install-$$.sh" >&2
     rm npm-install-$$.sh
     echo "Failed to download script" >&2
     exit $ret
   fi
   sh npm-install-$$.sh
   ret=$?
+  echo "Uninstalling npm-install-$$.sh" >&2
   rm npm-install-$$.sh
   exit $ret
 fi
@@ -98,8 +100,10 @@ fi
 
 if [ $ret -eq 0 ] && [ -x "$tar" ]; then
   echo "tar=$tar"
-  echo "version:"
-  $tar --version
+  if [ $tar --version > /dev/null 2>&1 ]; then
+    echo "version:"
+    $tar --version
+  fi
   ret=$?
 fi
 

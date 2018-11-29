@@ -1,16 +1,14 @@
 var fs = require('fs')
 var resolve = require('path').resolve
 
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var npm = require('../../lib/npm.js')
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'add-remote-git')
-var repo = resolve(__dirname, 'add-remote-git-repo')
+var pkg = resolve(common.pkg, 'package')
+var repo = resolve(pkg, 'repo')
 
 var daemon
 var daemonPID
@@ -20,7 +18,7 @@ var pjParent = JSON.stringify({
   name: 'parent',
   version: '1.2.3',
   dependencies: {
-    child: 'git://localhost:1234/child.git'
+    child: 'git://localhost:' + common.gitPort + '/child.git'
   }
 }, null, 2) + '\n'
 
@@ -30,7 +28,8 @@ var pjChild = JSON.stringify({
 }, null, 2) + '\n'
 
 test('setup', function (t) {
-  bootstrap()
+  mkdirp.sync(pkg)
+  fs.writeFileSync(resolve(pkg, 'package.json'), pjParent)
   setup(function (er, r) {
     t.ifError(er, 'git started up successfully')
 
@@ -47,23 +46,14 @@ test('install from repo', function (t) {
   process.chdir(pkg)
   npm.commands.install('.', [], function (er) {
     t.ifError(er, 'npm installed via git')
-
     t.end()
   })
 })
 
 test('clean', function (t) {
-  daemon.on('close', function () {
-    cleanup()
-    t.end()
-  })
+  daemon.on('close', t.end)
   process.kill(daemonPID)
 })
-
-function bootstrap () {
-  mkdirp.sync(pkg)
-  fs.writeFileSync(resolve(pkg, 'package.json'), pjParent)
-}
 
 function setup (cb) {
   mkdirp.sync(repo)
@@ -81,12 +71,12 @@ function setup (cb) {
           '--export-all',
           '--base-path=.',
           '--reuseaddr',
-          '--port=1234'
+          '--port=' + common.gitPort
         ],
         {
           cwd: pkg,
           env: process.env,
-          stdio: ['pipe', 'pipe', 'pipe']
+          stdio: ['pipe', 1, 'pipe']
         }
       )
       d.stderr.on('data', childFinder)
@@ -111,10 +101,4 @@ function setup (cb) {
       ]
     }, cb)
   })
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(repo)
-  rimraf.sync(pkg)
 }

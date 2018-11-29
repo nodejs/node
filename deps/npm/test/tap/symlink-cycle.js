@@ -3,12 +3,10 @@ var fs = require('fs')
 var path = require('path')
 var test = require('tap').test
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var writeFileSync = require('fs').writeFileSync
 var common = require('../common-tap.js')
 
-var base = path.join(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var cycle = path.join(base, 'cycle')
 
 var cycleJSON = {
@@ -27,7 +25,12 @@ var cycleJSON = {
 }
 
 test('setup', function (t) {
-  setup()
+  mkdirp.sync(path.join(cycle, 'node_modules'))
+  writeFileSync(
+    path.join(cycle, 'package.json'),
+    JSON.stringify(cycleJSON, null, 2)
+  )
+  fs.symlinkSync(cycle, path.join(cycle, 'node_modules', 'cycle'), 'junction')
   t.end()
 })
 
@@ -39,23 +42,3 @@ test('ls', function (t) {
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  process.chdir(osenv.tmpdir())
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  rimraf.sync(base)
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(path.join(cycle, 'node_modules'))
-  writeFileSync(
-    path.join(cycle, 'package.json'),
-    JSON.stringify(cycleJSON, null, 2)
-  )
-  fs.symlinkSync(cycle, path.join(cycle, 'node_modules', 'cycle'), 'junction')
-}

@@ -1,16 +1,13 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var npm = require('../../')
 var common = require('../common-tap')
 
-var pkg = path.resolve(__dirname, 'outdated-depth')
+var pkg = common.pkg
 
 var json = {
   name: 'outdated-depth',
@@ -22,8 +19,6 @@ var json = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -47,6 +42,7 @@ test('outdated depth zero', function (t) {
   mr({ port: common.port }, function (er, s) {
     npm.load(
       {
+        depth: 0,
         loglevel: 'silent',
         registry: common.registry
       },
@@ -54,25 +50,27 @@ test('outdated depth zero', function (t) {
         npm.install('.', function (er) {
           if (er) throw new Error(er)
           npm.outdated(function (err, d) {
-            t.ifError(err, 'npm outdated ran without error')
+            if (err) {
+              throw err
+            }
             t.is(process.exitCode, 1, 'exit code set to 1')
             process.exitCode = 0
             t.deepEqual(d[0], expected)
-            s.close()
-            t.end()
+            t.equal(d.length, 1)
+            npm.config.set('depth', 1)
+            npm.outdated(function (err, d) {
+              t.equal(d.length, 2)
+              if (err) {
+                throw err
+              }
+              t.is(process.exitCode, 1, 'exit code set to 1')
+              process.exitCode = 0
+              s.close()
+              t.end()
+            })
           })
         })
       }
     )
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

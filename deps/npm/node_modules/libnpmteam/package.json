@@ -1,0 +1,67 @@
+{
+  "_from": "libnpmteam@1.0.2",
+  "_id": "libnpmteam@1.0.2",
+  "_inBundle": false,
+  "_integrity": "sha512-p420vM28Us04NAcg1rzgGW63LMM6rwe+6rtZpfDxCcXxM0zUTLl7nPFEnRF3JfFBF5skF/yuZDUthTsHgde8QA==",
+  "_location": "/libnpmteam",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "libnpmteam@1.0.2",
+    "name": "libnpmteam",
+    "escapedName": "libnpmteam",
+    "rawSpec": "1.0.2",
+    "saveSpec": null,
+    "fetchSpec": "1.0.2"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/libnpmteam/-/libnpmteam-1.0.2.tgz",
+  "_shasum": "8b48bcbb6ce70dd8150c950fcbdbf3feb6eec820",
+  "_spec": "libnpmteam@1.0.2",
+  "_where": "/Users/isaacs/dev/npm/cli",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@zkat.tech"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/libnpmteam/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "aproba": "^2.0.0",
+    "figgy-pudding": "^3.4.1",
+    "get-stream": "^4.0.0",
+    "npm-registry-fetch": "^4.0.0"
+  },
+  "deprecated": false,
+  "description": "npm Team management APIs",
+  "devDependencies": {
+    "nock": "^9.6.1",
+    "standard": "^12.0.0",
+    "standard-version": "*",
+    "tap": "*",
+    "weallbehave": "*",
+    "weallcontribute": "*"
+  },
+  "homepage": "https://npmjs.com/package/libnpmteam",
+  "license": "ISC",
+  "name": "libnpmteam",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/libnpmteam.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --100 test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "1.0.2"
+}

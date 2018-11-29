@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # script for creating a zip and tarball for inclusion in node
 

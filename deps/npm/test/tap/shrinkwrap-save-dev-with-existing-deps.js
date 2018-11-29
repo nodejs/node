@@ -1,15 +1,11 @@
 /* eslint-disable camelcase */
 var fs = require('fs')
 var path = require('path')
-
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
-
 var common = require('../common-tap.js')
 
-var base = path.resolve(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var installme = path.join(base, 'installme')
 var installme_pkg = path.join(installme, 'package.json')
 var example = path.join(base, 'example')
@@ -74,7 +70,6 @@ function writeJson (filename, obj) {
 }
 
 test('setup', function (t) {
-  cleanup()
   writeJson(installme_pkg, installme_pkg_json)
   writeJson(example_pkg, example_pkg_json)
   writeJson(example_shrinkwrap, example_shrinkwrap_json)
@@ -95,13 +90,3 @@ test('install --save-dev leaves prod deps alone', function (t) {
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(base)
-}

@@ -1,7 +1,0 @@
-language: node_js
-before_script: npm install -g npm@latest
-node_js:
-  - '0.8'
-  - '0.10'
-  - '0.12'
-  - 'iojs'

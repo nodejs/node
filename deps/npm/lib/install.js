@@ -26,6 +26,7 @@ install.usage = usage(
   '\nnpm install [<@scope>/]<pkg>@<tag>' +
   '\nnpm install [<@scope>/]<pkg>@<version>' +
   '\nnpm install [<@scope>/]<pkg>@<version range>' +
+  '\nnpm install <alias>@npm:<name>' +
   '\nnpm install <folder>' +
   '\nnpm install <tarball file>' +
   '\nnpm install <tarball url>' +
@@ -104,7 +105,7 @@ var readPackageJson = require('read-package-json')
 var chain = require('slide').chain
 var asyncMap = require('slide').asyncMap
 var archy = require('archy')
-var mkdirp = require('mkdirp')
+var mkdirp = require('gentle-fs').mkdir
 var rimraf = require('rimraf')
 var iferr = require('iferr')
 var validate = require('aproba')
@@ -138,6 +139,10 @@ var validateArgs = require('./install/validate-args.js')
 var saveRequested = require('./install/save.js').saveRequested
 var saveShrinkwrap = require('./install/save.js').saveShrinkwrap
 var audit = require('./install/audit.js')
+var {
+  getPrintFundingReport,
+  getPrintFundingReportJSON
+} = require('./install/fund.js')
 var getSaveType = require('./install/save.js').getSaveType
 var doSerialActions = require('./install/actions.js').doSerial
 var doReverseSerialActions = require('./install/actions.js').doReverseSerial
@@ -240,6 +245,7 @@ function Installer (where, dryrun, args, opts) {
   this.saveOnlyLock = opts.saveOnlyLock
   this.global = opts.global != null ? opts.global : this.where === path.resolve(npm.globalDir, '..')
   this.audit = npm.config.get('audit') && !this.global
+  this.fund = npm.config.get('fund') && !this.global
   this.started = Date.now()
 }
 Installer.prototype = {}
@@ -401,7 +407,7 @@ Installer.prototype.normalizeCurrentTree = function (cb) {
   if (this.currentTree.error) {
     for (let child of this.currentTree.children) {
       if (!child.fakeChild && isExtraneous(child)) {
-        this.currentTree.package.dependencies[child.package.name] = computeVersionSpec(this.currentTree, child)
+        this.currentTree.package.dependencies[moduleName(child)] = computeVersionSpec(this.currentTree, child)
       }
     }
   }
@@ -703,8 +709,25 @@ Installer.prototype.cloneCurrentTreeToIdealTree = function (cb) {
   validate('F', arguments)
   log.silly('install', 'cloneCurrentTreeToIdealTree')
 
-  this.idealTree = copyTree(this.currentTree)
-  this.idealTree.warnings = []
+  if (npm.config.get('before')) {
+    this.idealTree = {
+      package: this.currentTree.package,
+      path: this.currentTree.path,
+      realpath: this.currentTree.realpath,
+      children: [],
+      requires: [],
+      missingDeps: {},
+      missingDevDeps: {},
+      requiredBy: [],
+      error: this.currentTree.error,
+      warnings: [],
+      isTop: true
+    }
+  } else {
+    this.idealTree = copyTree(this.currentTree)
+    this.idealTree.warnings = []
+  }
+
   cb()
 }
 
@@ -825,7 +848,11 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   var report = ''
   if (this.args.length && (added || updated)) {
     report += this.args.map((p) => {
-      return `+ ${p.name}@${p.version}`
+      return `+ ${p.name}@${p.version}${
+        !p._requested.name || p._requested.name === p.name
+          ? ''
+          : ` (as ${p._requested.name})`
+      }`
     }).join('\n') + '\n'
   }
   var actions = []
@@ -851,7 +878,6 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
   report += ' in ' + ((Date.now() - this.started) / 1000) + 's'
 
   output(report)
-  return auditResult && audit.printInstallReport(auditResult)
 
   function packages (num) {
     return num + ' package' + (num > 1 ? 's' : '')
@@ -873,9 +899,27 @@ Installer.prototype.printInstalledForHuman = function (diffs, auditResult) {
     if (argument.url) returned += ' (' + argument.email + ')'
     return returned
   }
+
+  const { fund, idealTree } = this
+  const printFundingReport = getPrintFundingReport({
+    fund,
+    idealTree
+  })
+  if (printFundingReport.length) {
+    output(printFundingReport)
+  }
+
+  if (auditResult) {
+    return audit.printInstallReport(auditResult)
+  }
 }
 
 Installer.prototype.printInstalledForJSON = function (diffs, auditResult) {
+  const { fund, idealTree } = this
+  const printFundingReport = getPrintFundingReportJSON({
+    fund,
+    idealTree
+  })
   var result = {
     added: [],
     removed: [],
@@ -884,6 +928,7 @@ Installer.prototype.printInstalledForJSON = function (diffs, auditResult) {
     failed: [],
     warnings: [],
     audit: auditResult,
+    funding: printFundingReport,
     elapsed: Date.now() - this.started
   }
   var self = this
@@ -922,10 +967,14 @@ Installer.prototype.printInstalledForJSON = function (diffs, auditResult) {
   function recordAction (action) {
     var mutation = action[0]
     var child = action[1]
+    const isAlias = child.package && child.package._requested && child.package._requested.type === 'alias'
+    const name = isAlias
+      ? child.package._requested.name
+      : child.package && child.package.name
     var result = {
       action: mutation,
-      name: moduleName(child),
-      version: child.package && child.package.version,
+      name,
+      version: child.package && `${isAlias ? `npm:${child.package.name}@` : ''}${child.package.version}`,
       path: child.path
     }
     if (mutation === 'move') {
@@ -947,10 +996,16 @@ Installer.prototype.printInstalledForParseable = function (diffs) {
     } else if (mutation === 'update') {
       var previousVersion = child.oldPkg.package && child.oldPkg.package.version
     }
+    const isAlias = child.package._requested && child.package._requested.type === 'alias'
+    const version = child.package && isAlias
+      ? `npm:${child.package.name}@${child.package.version}`
+      : child.package
+        ? child.package.version
+        : ''
     output(
       mutation + '\t' +
       moduleName(child) + '\t' +
-      (child.package ? child.package.version : '') + '\t' +
+      version + '\t' +
       (child.path ? path.relative(self.where, child.path) : '') + '\t' +
       (previousVersion || '') + '\t' +
       (previousPath || ''))

@@ -8,7 +8,7 @@ var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var testdir = path.join(__dirname, path.basename(__filename, '.js'))
+var testdir = common.pkg
 var pkg = path.join(testdir, 'pkg')
 var dep = path.join(testdir, 'dep')
 var work = path.join(testdir, 'uninstall-link-clean-TEST')

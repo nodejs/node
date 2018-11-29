@@ -1,3 +1,1487 @@
+## 6.13.4 (2019-12-11)
+
+## BUGFIXES
+
+* [`320ac9aee`](https://github.com/npm/cli/commit/320ac9aeeafd11bb693c53b31148b8d10c4165e8)
+  [npm/bin-links#12](https://github.com/npm/bin-links/pull/12)
+  [npm/gentle-fs#7](https://github.com/npm/gentle-fs/pull/7)
+  Do not remove global bin/man links inappropriately
+  ([@isaacs](https://github.com/isaacs))
+
+## DEPENDENCIES
+
+* [`52fd21061`](https://github.com/npm/cli/commit/52fd21061ff8b1a73429294620ffe5ebaaa60d3e)
+  `gentle-fs@2.3.0`
+  ([@isaacs](https://github.com/isaacs))
+* [`d06f5c0b0`](https://github.com/npm/cli/commit/d06f5c0b0611c43b6e70ded92af24fa5d83a0f48)
+  `bin-links@1.1.6`
+  ([@isaacs](https://github.com/isaacs))
+
+## 6.13.3 (2019-12-09)
+
+### DEPENDENCIES
+
+* [`19ce061a2`](https://github.com/npm/cli/commit/19ce061a2ee165d8de862c8f0f733c222846b9e1)
+  `bin-links@1.1.5` Properly normalize, sanitize, and verify `bin` entries
+  in `package.json`.
+* [`59c836aae`](https://github.com/npm/cli/commit/59c836aae8d0104a767e80c540b963c91774012a)
+  `npm-packlist@1.4.7`
+* [`fb4ecd7d2`](https://github.com/npm/cli/commit/fb4ecd7d2810b0b4897daaf081a5e2f3f483b310)
+  `pacote@9.5.11`
+    * [`5f33040`](https://github.com/npm/pacote/commit/5f3304028b6985fd380fc77c4840ff12a4898301)
+      [#476](https://github.com/npm/cli/issues/476)
+      [npm/pacote#22](https://github.com/npm/pacote/issues/22)
+      [npm/pacote#14](https://github.com/npm/pacote/issues/14) fix: Do not
+      drop perms in git when not root ([isaacs](https://github.com/isaacs),
+      [@darcyclarke](https://github.com/darcyclarke))
+    * [`6f229f7`](https://github.com/npm/pacote/6f229f78d9911b4734f0a19c6afdc5454034c759)
+      sanitize and normalize package bin field
+      ([isaacs](https://github.com/isaacs))
+* [`1743cb339`](https://github.com/npm/cli/commit/1743cb339767e86431dcd565c7bdb0aed67b293d)
+  `read-package-json@2.1.1`
+
+
+## 6.13.2 (2019-12-03)
+
+### BUG FIXES
+
+* [`4429645b3`](https://github.com/npm/cli/commit/4429645b3538e1cda54d8d1b7ecb3da7a88fdd3c)
+  [#546](https://github.com/npm/cli/pull/546)
+  fix docs target typo
+  ([@richardlau](https://github.com/richardlau))
+* [`867642942`](https://github.com/npm/cli/commit/867642942bec69bb9ab71cff1914fb6a9fe67de8)
+  [#142](https://github.com/npm/cli/pull/142)
+  fix(packageRelativePath): fix 'where' for file deps
+  ([@larsgw](https://github.com/larsgw))
+* [`d480f2c17`](https://github.com/npm/cli/commit/d480f2c176e6976b3cca3565e4c108b599b0379b)
+  [#527](https://github.com/npm/cli/pull/527)
+  Revert "windows: Add preliminary WSL support for npm and npx"
+  ([@craigloewen-msft](https://github.com/craigloewen-msft))
+* [`e4b97962e`](https://github.com/npm/cli/commit/e4b97962e5fce0d49beb541ce5a0f96aee0525de)
+  [#504](https://github.com/npm/cli/pull/504)
+  remove unnecessary package.json read when reading shrinkwrap
+  ([@Lighting-Jack](https://github.com/Lighting-Jack))
+* [`1c65d26ac`](https://github.com/npm/cli/commit/1c65d26ac9f10ac0037094c207d216fbf0e969bf)
+  [#501](https://github.com/npm/cli/pull/501)
+  fix(fund): open url for string shorthand
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`ae7afe565`](https://github.com/npm/cli/commit/ae7afe56504dbffabf9f73d55b6dac1e3e9fed4a)
+  [#263](https://github.com/npm/cli/pull/263)
+  Don't log error message if git tagging is disabled
+  ([@woppa684](https://github.com/woppa684))
+* [`4c1b16f6a`](https://github.com/npm/cli/commit/4c1b16f6aecaf78956b9335734cfde2ac076ee11)
+  [#182](https://github.com/npm/cli/pull/182)
+  Warn the user that it is uninstalling npm-install
+  ([@Hoidberg](https://github.com/Hoidberg))
+
+## 6.13.1 (2019-11-18)
+
+### BUG FIXES
+
+* [`938d6124d`](https://github.com/npm/cli/commit/938d6124d6d15d96b5a69d0ae32ef59fceb8ceab)
+  [#472](https://github.com/npm/cli/pull/472)
+  fix(fund): support funding string shorthand
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`b49c5535b`](https://github.com/npm/cli/commit/b49c5535b7c41729a8d167b035924c3c66b36de0)
+  [#471](https://github.com/npm/cli/pull/471)
+  should not publish tap-snapshot folder
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`3471d5200`](https://github.com/npm/cli/commit/3471d5200217bfa612b1a262e36c9c043a52eb09)
+  [#253](https://github.com/npm/cli/pull/253)
+  Add preliminary WSL support for npm and npx
+  ([@infinnie](https://github.com/infinnie))
+* [`3ef295f23`](https://github.com/npm/cli/commit/3ef295f23ee1b2300abf13ec19e935c47a455179)
+  [#486](https://github.com/npm/cli/pull/486)
+  print quick audit report for human output
+  ([@isaacs](https://github.com/isaacs))
+
+### TESTING
+
+* [`dbbf977ac`](https://github.com/npm/cli/commit/dbbf977acd1e74bcdec859c562ea4a2bc0536442)
+  [#278](https://github.com/npm/cli/pull/278)
+  added workflow to trigger and run benchmarks
+  ([@mikemimik](https://github.com/mikemimik))
+* [`b4f5e3825`](https://github.com/npm/cli/commit/b4f5e3825535256aaada09c5e8f104570a3d96a4)
+  [#457](https://github.com/npm/cli/pull/457)
+  feat(docs): adding tests and updating docs to reflect changes in registry teams API.
+  ([@nomadtechie](https://github.com/nomadtechie))
+* [`454c7dd60`](https://github.com/npm/cli/commit/454c7dd60c78371bf606f11a17ed0299025bc37c)
+  [#456](https://github.com/npm/cli/pull/456)
+  fix git configs for git 2.23 and above
+  ([@isaacs](https://github.com/isaacs))
+
+### DOCUMENTATION
+
+* [`b8c1576a4`](https://github.com/npm/cli/commit/b8c1576a448566397c721655b95fc90bf202b35a) [`30b013ae8`](https://github.com/npm/cli/commit/30b013ae8eacd04b1b8a41ce2ed0dd50c8ebae25) [`26c1b2ef6`](https://github.com/npm/cli/commit/26c1b2ef6be1595d28d935d35faa8ec72daae544) [`9f943a765`](https://github.com/npm/cli/commit/9f943a765faf6ebb8a442e862b808dbb630e018d) [`c0346b158`](https://github.com/npm/cli/commit/c0346b158fc25ab6ca9954d4dd78d9e62f573a41) [`8e09d5ad6`](https://github.com/npm/cli/commit/8e09d5ad67d4f142241193cecbce61c659389be3) [`4a2f551ee`](https://github.com/npm/cli/commit/4a2f551eeb3285f6f200534da33644789715a41a) [`87d67258c`](https://github.com/npm/cli/commit/87d67258c213d9ea9a49ce1804294a718f08ff13) [`5c3b32722`](https://github.com/npm/cli/commit/5c3b3272234764c8b4d2d798b69af077b5a529c7) [`b150eaeff`](https://github.com/npm/cli/commit/b150eaeff428180bfa03be53fd741d5625897758) [`7555a743c`](https://github.com/npm/cli/commit/7555a743ce4c3146d6245dd63f91503c7f439a6c) [`b89423e2f`](https://github.com/npm/cli/commit/b89423e2f6a09b290b15254e7ff7e8033b434d83)
+  [#463](https://github.com/npm/cli/pull/463)
+  [#285](https://github.com/npm/cli/pull/285)
+  [#268](https://github.com/npm/cli/pull/268)
+  [#232](https://github.com/npm/cli/pull/232)
+  [#485](https://github.com/npm/cli/pull/485)
+  [#453](https://github.com/npm/cli/pull/453)
+  docs cleanup: typos, styling and content
+  ([@claudiahdz](https://github.com/claudiahdz))
+  ([@XhmikosR](https://github.com/XhmikosR))
+  ([@mugli](https://github.com/mugli))
+  ([@brettz9](https://github.com/brettz9))
+  ([@mkotsollaris](https://github.com/mkotsollaris))
+
+### DEPENDENCIES
+
+* [`661d86cd2`](https://github.com/npm/cli/commit/661d86cd229b14ddf687b7f25a66941a79d233e7)
+  `make-fetch-happen@5.0.2`
+  ([@claudiahdz](https://github.com/claudiahdz))
+
+## 6.13.0 (2019-11-05)
+
+### NEW FEATURES
+
+* [`4414b06d9`](https://github.com/npm/cli/commit/4414b06d944c56bee05ccfb85260055a767ee334)
+  [#273](https://github.com/npm/cli/pull/273)
+  add fund command
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DOCUMENTATION
+
+* [`ae4c74d04`](https://github.com/npm/cli/commit/ae4c74d04f820a0255a92bdfe77ecf97af134fae)
+  [#274](https://github.com/npm/cli/pull/274)
+  migrate existing docs to gatsby
+  ([@claudiahdz](https://github.com/claudiahdz))
+* [`4ff1bb180`](https://github.com/npm/cli/commit/4ff1bb180b1db8c72e51b3d57bd4e268b738e049)
+  [#277](https://github.com/npm/cli/pull/277)
+  updated documentation copy
+  ([@oletizi](https://github.com/oletizi))
+
+### BUG FIXES
+
+* [`e4455409f`](https://github.com/npm/cli/commit/e4455409fe6fe9c198b250b488129171f0b4624a)
+  [#281](https://github.com/npm/cli/pull/281)
+  delete ps1 files on package removal
+  ([@NoDocCat](https://github.com/NoDocCat))
+* [`cd14d4701`](https://github.com/npm/cli/commit/cd14d47014e8c96ffd6a18791e8752028b19d637)
+  [#279](https://github.com/npm/cli/pull/279)
+  update supported node list to remove v6.0, v6.1, v9.0 - v9.2
+  ([@ljharb](https://github.com/ljharb))
+
+### DEPENDENCIES
+
+* [`a37296b20`](https://github.com/npm/cli/commit/a37296b20ca3e19c2bbfa78fedcfe695e03fda69)
+  `pacote@9.5.9`
+* [`d3cb3abe8`](https://github.com/npm/cli/commit/d3cb3abe8cee54bd2624acdcf8043932ef0d660a)
+  `read-cmd-shim@1.0.5`
+
+### TESTING
+
+* [`688cd97be`](https://github.com/npm/cli/commit/688cd97be94ca949719424ff69ff515a68c5caba)
+  [#272](https://github.com/npm/cli/pull/272)
+  use github actions for CI
+  ([@JasonEtco](https://github.com/JasonEtco))
+* [`9a2d8af84`](https://github.com/npm/cli/commit/9a2d8af84f7328f13d8f578cf4b150b9d5f09517)
+  [#240](https://github.com/npm/cli/pull/240)
+  Clean up some flakiness and inconsistency
+  ([@isaacs](https://github.com/isaacs))
+
+## 6.12.1 (2019-10-29)
+
+### BUG FIXES
+
+* [`6508e833d`](https://github.com/npm/cli/commit/6508e833df35a3caeb2b496f120ce67feff306b6)
+  [#269](https://github.com/npm/cli/pull/269)
+  add node v13 as a supported version
+  ([@ljharb](https://github.com/ljharb))
+* [`b6588a8f7`](https://github.com/npm/cli/commit/b6588a8f74fb8b1ad103060b73c4fd5174b1d1f6)
+  [#265](https://github.com/npm/cli/pull/265)
+  Fix regression in lockfile repair for sub-deps
+  ([@feelepxyz](https://github.com/feelepxyz))
+* [`d5dfe57a1`](https://github.com/npm/cli/commit/d5dfe57a1d810fe7fd64edefc976633ee3a4da53)
+  [#266](https://github.com/npm/cli/pull/266)
+  resolve circular dependency in pack.js
+  ([@addaleax](https://github.com/addaleax))
+
+### DEPENDENCIES
+
+* [`73678bb59`](https://github.com/npm/cli/commit/73678bb590a8633c3bdbf72e08f1279f9e17fd28)
+  `chownr@1.1.3`
+* [`4b76926e2`](https://github.com/npm/cli/commit/4b76926e2058ef30ab1d5e2541bb96d847653417)
+  `graceful-fs@4.2.3`
+* [`c691f36a9`](https://github.com/npm/cli/commit/c691f36a9c108b6267859fe61e4a38228b190c17)
+  `libcipm@4.0.7`
+* [`5e1a14975`](https://github.com/npm/cli/commit/5e1a14975311bfdc43df8e1eb317ae5690ee580c)
+  `npm-packlist@1.4.6`
+* [`c194482d6`](https://github.com/npm/cli/commit/c194482d65ee81a5a0a6281c7a9f984462286c56)
+  `npm-registry-fetch@4.0.2`
+* [`bc6a8e0ec`](https://github.com/npm/cli/commit/bc6a8e0ec966281e49b1dc66f9c641ea661ab7a6)
+  `tar@4.4.1`
+* [`4dcca3cbb`](https://github.com/npm/cli/commit/4dcca3cbb161da1f261095d9cdd26e1fbb536a8d)
+  `uuid@3.3.3`
+
+## 6.12.0 (2019-10-08):
+
+Now `npm ci` runs prepare scripts for git dependencies, and respects the
+`--no-optional` argument.  Warnings for `engine` mismatches are printed
+again.  Various other fixes and cleanups.
+
+### BUG FIXES
+
+* [`890b245dc`](https://github.com/npm/cli/commit/890b245dc1f609590d8ab993fac7cf5a37ed46a5)
+  [#252](https://github.com/npm/cli/pull/252) ci: add dirPacker to options
+  ([@claudiahdz](https://github.com/claudiahdz))
+* [`f3299acd0`](https://github.com/npm/cli/commit/f3299acd0b4249500e940776aca77cc6c0977263)
+  [#257](https://github.com/npm/cli/pull/257)
+  [npm.community#4792](https://npm.community/t/engines-and-engines-strict-ignored/4792)
+  warn message on engine mismatch
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`bbc92fb8f`](https://github.com/npm/cli/commit/bbc92fb8f3478ff67071ebaff551f01c1ea42ced)
+  [#259](https://github.com/npm/cli/pull/259)
+  [npm.community#10288](https://npm.community/t/npm-token-err-figgypudding-options-cannot-be-modified-use-concat-instead/10288)
+  Fix figgyPudding error in `npm token`
+  ([@benblank](https://github.com/benblank))
+* [`70f54dcb5`](https://github.com/npm/cli/commit/70f54dcb5693b301c6b357922b7e8d16b57d8b00)
+  [#241](https://github.com/npm/cli/pull/241) doctor: Make OK more
+  consistent ([@gemal](https://github.com/gemal))
+
+### FEATURES
+
+* [`ed993a29c`](https://github.com/npm/cli/commit/ed993a29ccf923425317c433844d55dbea2f23ee)
+  [#249](https://github.com/npm/cli/pull/249) Add CI environment variables
+  to user-agent ([@isaacs](https://github.com/isaacs))
+* [`f6b0459a4`](https://github.com/npm/cli/commit/f6b0459a466a2c663dbd549cdc331e7732552dca)
+  [#248](https://github.com/npm/cli/pull/248) Add option to save
+  package-lock without formatting Adds a new config
+  `--format-package-lock`, which defaults to true.
+  ([@bl00mber](https://github.com/bl00mber))
+
+### DEPENDENCIES
+
+* [`0ca063c5d`](https://github.com/npm/cli/commit/0ca063c5dc961c4aa17373f4b33fb54c51c8c8d6)
+  `npm-lifecycle@3.1.4`:
+  - fix: filter functions and undefined out of makeEnv
+    ([@isaacs](https://github.com/isaacs))
+* [`5df6b0ea2`](https://github.com/npm/cli/commit/5df6b0ea2e3106ba65bba649cc8d7f02f4738236)
+  `libcipm@4.0.4`:
+  - fix: pack git directories properly
+    ([@claudiahdz](https://github.com/claudiahdz))
+  - respect no-optional argument
+    ([@cruzdanilo](https://github.com/cruzdanilo))
+* [`7e04f728c`](https://github.com/npm/cli/commit/7e04f728cc4cd4853a8fc99e2df0a12988897589)
+  `tar@4.4.12`
+* [`5c380e5a3`](https://github.com/npm/cli/commit/5c380e5a33d760bb66a4285b032ae5f50af27199)
+  `stringify-package@1.0.1` ([@isaacs](https://github.com/isaacs))
+* [`62f2ca692`](https://github.com/npm/cli/commit/62f2ca692ac0c0467ef4cf74f91777a5175258c4)
+  `node-gyp@5.0.5` ([@isaacs](https://github.com/isaacs))
+* [`0ff0ea47a`](https://github.com/npm/cli/commit/0ff0ea47a8840dd7d952bde7f7983a5016cda8ea)
+  `npm-install-checks@3.0.2` ([@isaacs](https://github.com/isaacs))
+* [`f46edae94`](https://github.com/npm/cli/commit/f46edae9450b707650a0efab09aa1e9295a18070)
+  `hosted-git-info@2.8.5` ([@isaacs](https://github.com/isaacs))
+
+### TESTING
+
+* [`44a2b036b`](https://github.com/npm/cli/commit/44a2b036b34324ec85943908264b2e36de5a9435)
+  [#262](https://github.com/npm/cli/pull/262) fix root-ownership race
+  conditions in meta-test ([@isaacs](https://github.com/isaacs))
+
+## 6.11.3 (2019-09-03):
+
+Fix npm ci regressions and npm outdated depth.
+
+### BUG FIXES
+
+* [`235ed1d28`](https://github.com/npm/cli/commit/235ed1d2838ef302bb995e183980209d16c51b9b)
+  [#239](https://github.com/npm/cli/pull/239)
+  Don't override user specified depth in outdated
+  Restores ability to update packages using `--depth` as suggested by `npm audit`.
+  ([@G-Rath](https://github.com/G-Rath))
+* [`1fafb5151`](https://github.com/npm/cli/commit/1fafb51513466cd793866b576dfea9a8963a3335)
+  [#242](https://github.com/npm/cli/pull/242)
+  [npm.community#9586](https://npm.community/t/6-11-1-some-dependencies-are-no-longer-being-installed/9586/4)
+  Revert "install: do not descend into directory deps' child modules"
+  ([@isaacs](https://github.com/isaacs))
+* [`cebf542e6`](https://github.com/npm/cli/commit/cebf542e61dcabdd2bd3b876272bf8eebf7d01cc)
+  [#243](https://github.com/npm/cli/pull/243)
+  [npm.community#9720](https://npm.community/t/6-11-2-npm-ci-installs-package-with-wrong-permissions/9720)
+  ci: pass appropriate configs for file/dir modes
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`e5fbb7ed1`](https://github.com/npm/cli/commit/e5fbb7ed1fc7ef5c6ca4790e2d0dc441e0ac1596)
+  `read-cmd-shim@1.0.4`
+  ([@claudiahdz](https://github.com/claudiahdz))
+* [`23ce65616`](https://github.com/npm/cli/commit/23ce65616c550647c586f7babc3c2f60115af2aa)
+  `npm-pick-manifest@3.0.2`
+  ([@claudiahdz](https://github.com/claudiahdz))
+
+## 6.11.2 (2019-08-22):
+
+Fix a recent Windows regression, and two long-standing Windows bugs.  Also,
+get CI running on Windows, so these things are less likely in the future.
+
+### DEPENDENCIES
+
+* [`9778a1b87`](https://github.com/npm/cli/commit/9778a1b878aaa817af6e99385e7683c2a389570d)
+  `cmd-shim@3.0.3`: Fix regression where shims fail to preserve exit code
+  ([@isaacs](https://github.com/isaacs))
+* [`bf93e91d8`](https://github.com/npm/cli/commit/bf93e91d879c816a055d5913e6e4210d7299f299)
+  `npm-package-arg@6.1.1`: Properly handle git+file: urls on Windows when a
+  drive letter is included.  ([@isaacs](https://github.com/isaacs))
+
+### BUGFIXES
+
+* [`6cc4cc66f`](https://github.com/npm/cli/commit/6cc4cc66f1fb050dc4113e35cab59197fd48e04a)
+  escape args properly on Windows Bash Despite being bash, Node.js running
+  on windows git mingw bash still executes child processes using cmd.exe.
+  As a result, arguments in this environment need to be escaped in the
+  style of cmd.exe, not bash.  ([@isaacs](https://github.com/isaacs))
+
+### TESTS
+
+* [`291aba7b8`](https://github.com/npm/cli/commit/291aba7b821e247b96240b1ec037310ead69a594)
+  make tests pass on Windows ([@isaacs](https://github.com/isaacs))
+* [`fea3a023a`](https://github.com/npm/cli/commit/fea3a023a80863f32a5f97f5132401b1a16161b8)
+  travis: run tests on Windows as well
+  ([@isaacs](https://github.com/isaacs))
+
+## 6.11.1 (2019-08-20):
+
+Fix a regression for windows command shim syntax.
+
+* [`37db29647`](https://github.com/npm/cli/commit/37db2964710c80003604b7e3c1527d17be7ed3d0)
+  `cmd-shim@3.0.2` ([@isaacs](https://github.com/isaacs))
+
+## v6.11.0 (2019-08-20):
+
+A few meaty bugfixes, and introducing `peerDependenciesMeta`.
+
+### FEATURES
+
+* [`a12341088`](https://github.com/npm/cli/commit/a12341088820c0e7ef6c1c0db3c657f0c2b3943e)
+  [#224](https://github.com/npm/cli/pull/224) Implements
+  peerDependenciesMeta ([@arcanis](https://github.com/arcanis))
+* [`2f3b79bba`](https://github.com/npm/cli/commit/2f3b79bbad820fd4a398aa494b19f79b7fd520a1)
+  [#234](https://github.com/npm/cli/pull/234) add new forbidden 403 error
+  code ([@claudiahdz](https://github.com/claudiahdz))
+
+### BUGFIXES
+
+* [`24acc9fc8`](https://github.com/npm/cli/commit/24acc9fc89d99d87cc66206c6c6f7cdc82fbf763)
+  and
+  [`45772af0d`](https://github.com/npm/cli/commit/45772af0ddca54b658cb2ba2182eec26d0a4729d)
+  [#217](https://github.com/npm/cli/pull/217)
+  [npm.community#8863](https://npm.community/t/installing-the-same-module-under-multiple-relative-paths-fails-on-linux/8863)
+  [npm.community#9327](https://npm.community/t/reinstall-breaks-after-npm-update-to-6-10-2/9327,)
+  do not descend into directory deps' child modules, fix shrinkwrap files
+  that inappropriately list child nodes of symlink packages
+  ([@isaacs](https://github.com/isaacs) and
+  [@salomvary](https://github.com/salomvary))
+* [`50cfe113d`](https://github.com/npm/cli/commit/50cfe113da5fcc59c1d99b0dcf1050ace45803c7)
+  [#229](https://github.com/npm/cli/pull/229) fixed typo in semver doc
+  ([@gall0ws](https://github.com/gall0ws))
+* [`e8fb2a1bd`](https://github.com/npm/cli/commit/e8fb2a1bd9785e0092e9926f4fd65ad431e38452)
+  [#231](https://github.com/npm/cli/pull/231) Fix spelling mistakes in
+  CHANGELOG-3.md ([@XhmikosR](https://github.com/XhmikosR))
+* [`769d2e057`](https://github.com/npm/cli/commit/769d2e057daf5a2cbfe0ce86f02550e59825a691)
+  [npm/uid-number#7](https://github.com/npm/uid-number/issues/7) Better
+  error on invalid `--user`/`--group` configs. This addresses the issue
+  when people fail to install binary packages on Docker and other
+  environments where there is no 'nobody' user.
+  ([@isaacs](https://github.com/isaacs))
+* [`8b43c9624`](https://github.com/npm/cli/commit/8b43c962498c8e2707527e4fca442d7a4fa51595)
+  [nodejs/node#28987](https://github.com/nodejs/node/issues/28987)
+  [npm.community#6032](https://npm.community/t/npm-ci-doesnt-respect-npmrc-variables/6032)
+  [npm.community#6658](https://npm.community/t/npm-ci-doesnt-fill-anymore-the-process-env-npm-config-cache-variable-on-post-install-scripts/6658)
+  [npm.community#6069](https://npm.community/t/npm-ci-does-not-compile-native-dependencies-according-to-npmrc-configuration/6069)
+  [npm.community#9323](https://npm.community/t/npm-6-9-x-not-passing-environment-to-node-gyp-regression-from-6-4-x/9323/2)
+  Fix the regression where random config values in a .npmrc file are not
+  passed to lifecycle scripts, breaking build processes which rely on them.
+  ([@isaacs](https://github.com/isaacs))
+* [`8b85eaa47`](https://github.com/npm/cli/commit/8b85eaa47da3abaacc90fe23162a68cc6e1f0404)
+  save files with inferred ownership rather than relying on `SUDO_UID` and
+  `SUDO_GID`. ([@isaacs](https://github.com/isaacs))
+* [`b7f6e5f02`](https://github.com/npm/cli/commit/b7f6e5f0285515087b4614d81db17206524c0fdb)
+  Infer ownership of shrinkwrap files
+  ([@isaacs](https://github.com/isaacs))
+* [`54b095d77`](https://github.com/npm/cli/commit/54b095d77b3b131622b3cf4cb5c689aa2dd10b6b)
+  [#235](https://github.com/npm/cli/pull/235) Add spec to dist-tag remove
+  function ([@theberbie](https://github.com/theberbie))
+
+### DEPENDENCIES
+
+* [`dc8f9e52f`](https://github.com/npm/cli/commit/dc8f9e52f0bb107c0a6b20cc0c97cbc3b056c1b3)
+  `pacote@9.5.7`: Infer the ownership of all unpacked files in
+  `node_modules`, so that we never have user-owned files in root-owned
+  folders, or root-owned files in user-owned folders.
+  ([@isaacs](https://github.com/isaacs))
+* [`bb33940c3`](https://github.com/npm/cli/commit/bb33940c32aad61704084e61ebd1bd8e7cacccc8)
+  `cmd-shim@3.0.0`:
+  * [`9c93ac3`](https://github.com/npm/cmd-shim/commit/9c93ac39e95b0d6ae852e842e4c5dba5e19687c2)
+    [#2](https://github.com/npm/cmd-shim/pull/2)
+    [npm#3380](https://github.com/npm/npm/issues/3380) Handle environment
+    variables properly ([@basbossink](https://github.com/basbossink))
+  * [`2d277f8`](https://github.com/npm/cmd-shim/commit/2d277f8e84d45401747b0b9470058f168b974ad5)
+    [#25](https://github.com/npm/cmd-shim/pull/25)
+    [#36](https://github.com/npm/cmd-shim/pull/36)
+    [#35](https://github.com/npm/cmd-shim/pull/35) Fix 'no shebang' case by
+    always providing `$basedir` in shell script
+    ([@igorklopov](https://github.com/igorklopov))
+  * [`adaf20b`](https://github.com/npm/cmd-shim/commit/adaf20b7fa2c09c2111a2506c6a3e53ed0831f88)
+    [#26](https://github.com/npm/cmd-shim/pull/26) Fix `$*` causing an
+    error when arguments contain parentheses
+    ([@satazor](https://github.com/satazor))
+  * [`49f0c13`](https://github.com/npm/cmd-shim/commit/49f0c1318fd384e0031c3fd43801f0e22e1e555f)
+    [#30](https://github.com/npm/cmd-shim/pull/30) Fix paths for MSYS/MINGW
+    bash ([@dscho](https://github.com/dscho))
+  * [`51a8af3`](https://github.com/npm/cmd-shim/commit/51a8af30990cb072cb30d67fc1b564b14746bba9)
+    [#34](https://github.com/npm/cmd-shim/pull/34) Add proper support for
+    PowerShell ([@ExE-Boss](https://github.com/ExE-Boss))
+  * [`4c37e04`](https://github.com/npm/cmd-shim/commit/4c37e048dee672237e8962fdffca28e20e9f976d)
+    [#10](https://github.com/npm/cmd-shim/issues/10) Work around quoted
+    batch file names ([@isaacs](https://github.com/isaacs))
+* [`a4e279544`](https://github.com/npm/cli/commit/a4e279544f7983e0adff1e475e3760f1ea85825a)
+  `npm-lifecycle@3.1.3` ([@isaacs](https://github.com/isaacs)):
+    * fail properly if `uid-number` raises an error
+* [`7086a1809`](https://github.com/npm/cli/commit/7086a1809bbfda9be81344b3949c7d3ac687ffc4)
+  `libcipm@4.0.3` ([@isaacs](https://github.com/isaacs))
+* [`8845141f9`](https://github.com/npm/cli/commit/8845141f9d7827dae572c8cf26f2c775db905bd3)
+  `read-package-json@2.1.0` ([@isaacs](https://github.com/isaacs))
+* [`51c028215`](https://github.com/npm/cli/commit/51c02821575d80035ebe853492d110db11a7d1b9)
+  `bin-links@1.1.3` ([@isaacs](https://github.com/isaacs))
+* [`534a5548c`](https://github.com/npm/cli/commit/534a5548c9ebd59f0dd90e9ccca148ed8946efa6)
+  `read-cmd-shim@1.0.3` ([@isaacs](https://github.com/isaacs))
+* [`3038f2fd5`](https://github.com/npm/cli/commit/3038f2fd5b1d7dd886ee72798241d8943690f508)
+  `gentle-fs@2.2.1` ([@isaacs](https://github.com/isaacs))
+* [`a609a1648`](https://github.com/npm/cli/commit/a609a16489f76791697d270b499fd4949ab1f8c3)
+  `graceful-fs@4.2.2` ([@isaacs](https://github.com/isaacs))
+* [`f0346f754`](https://github.com/npm/cli/commit/f0346f75490619a81b310bfc18646ae5ae2e0ea4)
+  `cacache@12.0.3` ([@isaacs](https://github.com/isaacs))
+* [`ca9c615c8`](https://github.com/npm/cli/commit/ca9c615c8cff5c7db125735eb09f84d912d18694)
+  `npm-pick-manifest@3.0.0` ([@isaacs](https://github.com/isaacs))
+* [`b417affbf`](https://github.com/npm/cli/commit/b417affbf7133dc7687fd809e4956a43eae3438a)
+  `pacote@9.5.8` ([@isaacs](https://github.com/isaacs))
+
+### TESTS
+
+* [`b6df0913c`](https://github.com/npm/cli/commit/b6df0913ca73246f1fa6cfa0e81e34ba5f2b6204)
+  [#228](https://github.com/npm/cli/pull/228) Proper handing of
+  /usr/bin/node lifecycle-path test
+  ([@olivr70](https://github.com/olivr70))
+* [`aaf98e88c`](https://github.com/npm/cli/commit/aaf98e88c78fd6c850d0a3d3ee2f61c02f63bc8c)
+  `npm-registry-mock@1.3.0` ([@isaacs](https://github.com/isaacs))
+
+## v6.10.3 (2019-08-06):
+
+### BUGFIXES
+
+* [`27cccfbda`](https://github.com/npm/cli/commit/27cccfbdac8526cc807b07f416355949b1372a9b)
+  [#223](https://github.com/npm/cli/pull/223) vulns → vulnerabilities in
+  npm audit output ([@sapegin](https://github.com/sapegin))
+* [`d5e865eb7`](https://github.com/npm/cli/commit/d5e865eb79329665a927cc2767b4395c03045dbb)
+  [#222](https://github.com/npm/cli/pull/222)
+  [#226](https://github.com/npm/cli/pull/226) install, doctor: don't crash
+  if registry unset ([@dmitrydvorkin](https://github.com/dmitrydvorkin),
+  [@isaacs](https://github.com/isaacs))
+* [`5b3890226`](https://github.com/npm/cli/commit/5b389022652abeb0e1c278a152550eb95bc6c452)
+  [#227](https://github.com/npm/cli/pull/227)
+  [npm.community#9167](https://npm.community/t/npm-err-cb-never-called-permission-denied/9167/5)
+  Handle unhandledRejections, tell user what to do when encountering an
+  `EACCES` error in the cache.  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`77516df6e`](https://github.com/npm/cli/commit/77516df6eac94a6d7acb5e9ca06feaa0868d779b)
+  `licensee@7.0.3` ([@isaacs](https://github.com/isaacs))
+* [`ceb993590`](https://github.com/npm/cli/commit/ceb993590e4e376a9a78264ce7bb4327fbbb37fe)
+  `query-string@6.8.2` ([@isaacs](https://github.com/isaacs))
+* [`4050b9189`](https://github.com/npm/cli/commit/4050b91898c60e9b22998cf82b70b9b822de592a)
+  `hosted-git-info@2.8.2`
+    * [#46](https://github.com/npm/hosted-git-info/issues/46)
+      [#43](https://github.com/npm/hosted-git-info/issues/43)
+      [#47](https://github.com/npm/hosted-git-info/pull/47)
+      [#44](https://github.com/npm/hosted-git-info/pull/44) Add support for
+      GitLab subgroups ([@mterrel](https://github.com/mterrel),
+      [@isaacs](https://github.com/isaacs),
+      [@ybiquitous](https://github.com/ybiquitous))
+    * [`3b1d629`](https://github.com/npm/hosted-git-info/commit/3b1d629)
+      [#48](https://github.com/npm/hosted-git-info/issues/48) fix http
+      protocol using sshurl by default
+      ([@fengmk2](https://github.com/fengmk2))
+    * [`5d4a8d7`](https://github.com/npm/hosted-git-info/commit/5d4a8d7)
+      ignore noCommittish on tarball url generation
+      ([@isaacs](https://github.com/isaacs))
+    * [`1692435`](https://github.com/npm/hosted-git-info/commit/1692435)
+      use gist tarball url that works for anonymous gists
+      ([@isaacs](https://github.com/isaacs))
+    * [`d5cf830`](https://github.com/npm/hosted-git-info/commit/d5cf8309be7af884032616c63ea302ce49dd321c)
+      Do not allow invalid gist urls ([@isaacs](https://github.com/isaacs))
+    * [`e518222`](https://github.com/npm/hosted-git-info/commit/e5182224351183ce619dd5ef00019ae700ed37b7)
+      Use LRU cache to prevent unbounded memory consumption
+      ([@iarna](https://github.com/iarna))
+
+## v6.10.2 (2019-07-23):
+
+tl;dr - Fixes several issues with the cache when npm is run as `sudo` on
+Unix systems.
+
+### TESTING
+
+* [`2a78b96f8`](https://github.com/npm/cli/commit/2a78b96f830bbd834720ccc9eacccc54915ae6f7)
+  check test cache for root-owned files
+  ([@isaacs](https://github.com/isaacs))
+* [`108646ebc`](https://github.com/npm/cli/commit/108646ebc12f3eeebaa0a45884c45991a45e57e4)
+  run sudo tests on Travis-CI ([@isaacs](https://github.com/isaacs))
+* [`cf984e946`](https://github.com/npm/cli/commit/cf984e946f453cbea2fcc7a59608de3f24ab74c3)
+  set --no-esm tap flag ([@isaacs](https://github.com/isaacs))
+* [`8e0a3100d`](https://github.com/npm/cli/commit/8e0a3100dffb3965bb3dc4240e82980dfadf2f3c)
+  add script to run tests and leave fixtures for inspection and debugging
+  ([@isaacs](https://github.com/isaacs))
+
+### BUGFIXES
+
+* [`25f4f73f6`](https://github.com/npm/cli/commit/25f4f73f6dc9744757787c82351120cd1baee5f8)
+  add a util for writing arbitrary files to cache This prevents metrics
+  timing and debug logs from becoming root-owned.
+  ([@isaacs](https://github.com/isaacs))
+* [`2c61ce65d`](https://github.com/npm/cli/commit/2c61ce65d6b67100fdf3fcb9729055b669cb1a1d)
+  infer cache owner from parent dir in `correct-mkdir` util
+  ([@isaacs](https://github.com/isaacs))
+* [`235e5d6df`](https://github.com/npm/cli/commit/235e5d6df6f427585ec58425f1f3339d08f39d8a)
+  ensure correct owner on cached all-packages metadata
+  ([@isaacs](https://github.com/isaacs))
+* [`e2d377bb6`](https://github.com/npm/cli/commit/e2d377bb6419d8a3c1d80a73dba46062b4dad336)
+  [npm.community#8540](https://npm.community/t/npm-audit-fails-with-child-requires-fails-because-requires-must-be-an-object/8540)
+  audit: report server error on failure
+  ([@isaacs](https://github.com/isaacs))
+* [`52576a39e`](https://github.com/npm/cli/commit/52576a39ed75d94c46bb2c482fd38d2c6ea61c56)
+  [#216](https://github.com/npm/cli/pull/216)
+  [npm.community#5385](https://npm.community/t/6-8-0-npm-ci-fails-with-local-dependency/5385)
+  [npm.community#6076](https://npm.community/t/npm-ci-fail-to-local-packages/6076)
+  Fix `npm ci` with `file:` dependencies.  Partially reverts
+  [#40](https://github.com/npm/cli/pull/40)/[#86](https://github.com/npm/cli/pull/86),
+  recording dependencies of linked deps in order for `npm ci` to work.
+  ([@jfirebaugh](https://github.com/jfirebaugh))
+
+### DEPENDENCIES
+
+* [`0fefdee13`](https://github.com/npm/cli/commit/0fefdee130fd7d0dbb240fb9ecb50a793fbf3d29)
+  `cacache@12.0.2` ([@isaacs](https://github.com/isaacs))
+    * infer uid/gid instead of accepting as options, preventing the
+      overwhelming majority of cases where root-owned files end up in the
+      cache folder.
+      ([ac84d14](https://github.com/npm/cacache/commit/ac84d14))
+      ([@isaacs](https://github.com/isaacs))
+      ([#1](https://github.com/npm/cacache/pull/1))
+    * **i18n:** add another error message
+      ([676cb32](https://github.com/npm/cacache/commit/676cb32))
+      ([@zkat](https://github.com/zkat))
+* [`e1d87a392`](https://github.com/npm/cli/commit/e1d87a392371a070b0788ab7bfc62be18b21e9ad)
+  `pacote@9.5.4` ([@isaacs](https://github.com/isaacs))
+    * git: ensure stream failures are reported
+      ([7f07b5d](https://github.com/npm/pacote/commit/7f07b5d))
+      [#1](https://github.com/npm/pacote/issues/1)
+      ([@lddubeau](https://github.com/lddubeau))
+* [`3f035bf09`](https://github.com/npm/cli/commit/3f035bf098e2feea76574cec18b04812659aa16d)
+  `infer-owner@1.0.4` ([@isaacs](https://github.com/isaacs))
+* [`ba3283112`](https://github.com/npm/cli/commit/ba32831126591d2f6f48e31a4a2329b533b1ff19)
+  `npm-registry-fetch@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`ee90c334d`](https://github.com/npm/cli/commit/ee90c334d271383d0325af42f20f80f34cb61f07)
+  `libnpm@3.0.1` ([@isaacs](https://github.com/isaacs))
+* [`1e480c384`](https://github.com/npm/cli/commit/1e480c38416982ae28b5cdd48c698ca59d3c0395)
+  `libnpmaccess@3.0.2` ([@isaacs](https://github.com/isaacs))
+* [`7662ee850`](https://github.com/npm/cli/commit/7662ee850220c71ecaec639adbc7715286f0d28b)
+  `libnpmhook@5.0.3` ([@isaacs](https://github.com/isaacs))
+* [`1357fadc6`](https://github.com/npm/cli/commit/1357fadc613d0bfeb40f9a8f3ecace2face2fe2c)
+  `libnpmorg@1.0.1` ([@isaacs](https://github.com/isaacs))
+* [`a621b5cb6`](https://github.com/npm/cli/commit/a621b5cb6c881f95a11af86a8051754a67ae017c)
+  `libnpmsearch@2.0.2` ([@isaacs](https://github.com/isaacs))
+* [`560cd31dd`](https://github.com/npm/cli/commit/560cd31dd51b6aa2e396ccdd7289fab0a50b5608)
+  `libnpmteam@1.0.2` ([@isaacs](https://github.com/isaacs))
+* [`de7ae0867`](https://github.com/npm/cli/commit/de7ae0867d4c0180edc283457ce0b4e8e5eee554)
+  `npm-profile@4.0.2` ([@isaacs](https://github.com/isaacs))
+* [`e95da463c`](https://github.com/npm/cli/commit/e95da463cb7a325457ef411a569d7ef4bf76901d)
+  `libnpm@3.0.1` ([@isaacs](https://github.com/isaacs))
+* [`554b641d4`](https://github.com/npm/cli/commit/554b641d49d135ae8d137e83aa288897c32dacc6)
+  `npm-registry-fetch@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`06772f34a`](https://github.com/npm/cli/commit/06772f34ab851440dcd78574736936c674a84aed)
+  `node-gyp@5.0.3` ([@isaacs](https://github.com/isaacs))
+* [`85358db80`](https://github.com/npm/cli/commit/85358db80d6ccb5f7bc9a0b4d558ac6dd2468394)
+  `npm-lifecycle@3.1.2` ([@isaacs](https://github.com/isaacs))
+    * [`051cf20`](https://github.com/npm/npm-lifecycle/commit/051cf20072a01839c17920d2e841756251c4f924)
+      [#26](https://github.com/npm/npm-lifecycle/pull/26) fix switches for
+      alternative shells on Windows
+      ([@gucong3000](https://github.com/gucong3000))
+    * [`3aaf954`](https://github.com/npm/npm-lifecycle/commit/3aaf95435965e8f7acfd955582cf85237afd2c9b)
+      [#25](https://github.com/npm/npm-lifecycle/pull/25) set only one PATH
+      env variable for child process on Windows
+      ([@zkochan](https://github.com/zkochan))
+    * [`ea18ed2`](https://github.com/npm/npm-lifecycle/commit/ea18ed2b754ca7f11998cad70d88e9004c5bef4a)
+      [#36](https://github.com/npm/npm-lifecycle/pull/36)
+      [#11](https://github.com/npm/npm-lifecycle/issue/11)
+      [#18](https://github.com/npm/npm-lifecycle/issue/18) remove
+      procInterrupt listener on SIGINT in procError
+      ([@mattshin](https://github.com/mattshin))
+    * [`5523951`](https://github.com/npm/npm-lifecycle/commit/55239519c57b82521605622e6c71640a31ed4586)
+      [#29](https://github.com/npm/npm-lifecycle/issue/29)
+      [#30](https://github.com/npm/npm-lifecycle/pull/30) Use platform
+      specific path casing if present
+      ([@mattezell](https://github.com/mattezell))
+
+## v6.10.1 (2019-07-11):
+
+### BUGFIXES
+
+* [`3cbd57712`](https://github.com/npm/cli/commit/3cbd577120a9da6e51bb8b13534d1bf71ea5712c)
+  fix(git): strip GIT environs when running git
+  ([@isaacs](https://github.com/isaacs))
+* [`a81a8c4c4`](https://github.com/npm/cli/commit/a81a8c4c466f510215a51cef1bb08544d11844fe)
+  [#206](https://github.com/npm/cli/pull/206) improve isOnly(Dev,Optional)
+  ([@larsgw](https://github.com/larsgw))
+* [`172f9aca6`](https://github.com/npm/cli/commit/172f9aca67a66ee303c17f90a994cd52fc66552a)
+  [#179](https://github.com/npm/cli/pull/179) fix-xmas-underline
+  ([@raywu0123](https://github.com/raywu0123))
+* [`f52673fc7`](https://github.com/npm/cli/commit/f52673fc7284e58af8c04533e82b76bf7add72cf)
+  [#212](https://github.com/npm/cli/pull/212) build: use `/usr/bin/env` to
+  load bash ([@rsmarples](https://github.com/rsmarples))
+
+### DEPENDENCIES
+
+* [`ef4445ad3`](https://github.com/npm/cli/commit/ef4445ad34a53b5639499c8e3c9752f62ee6f37c)
+  [#208](https://github.com/npm/cli/pull/208) `node-gyp@5.0.2`
+  ([@irega](https://github.com/irega))
+* [`c0d611356`](https://github.com/npm/cli/commit/c0d611356f7b23077e97574b01c8886e544db425)
+  `npm-lifecycle@3.0.0` ([@isaacs](https://github.com/isaacs))
+* [`7716ba972`](https://github.com/npm/cli/commit/7716ba9720270d5b780755a5bb1ce79702067f1f)
+  `libcipm@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`42d22e837`](https://github.com/npm/cli/commit/42d22e8374c7d303d94e405d7385d94dd2558814)
+  `libnpm@3.0.0` ([@isaacs](https://github.com/isaacs))
+* [`a2ea7f9ff`](https://github.com/npm/cli/commit/a2ea7f9ff64ae743d05fdbf7d46fb9afafa8aa6f)
+  `semver@5.7.0` ([@isaacs](https://github.com/isaacs))
+* [`429226a5e`](https://github.com/npm/cli/commit/429226a5e992cd907d4f19bd738037007cf78c1f)
+  `lru-cache@5.1.1` ([@isaacs](https://github.com/isaacs))
+* [`175670ea6`](https://github.com/npm/cli/commit/175670ea65cca03f8b2e957df3dd4b8b0efd0e1f)
+  `npm-registry-fetch@3.9.1`: ([@isaacs](https://github.com/isaacs))
+* [`0d0517f7f`](https://github.com/npm/cli/commit/0d0517f7f8c902b5064ac18fb4015b31750ad2b2)
+  `call-limit@1.1.1` ([@isaacs](https://github.com/isaacs))
+* [`741400429`](https://github.com/npm/cli/commit/74140042917ea241062a812ceb65c5423c2bafa9)
+  `glob@7.1.4` ([@isaacs](https://github.com/isaacs))
+* [`bddd60e30`](https://github.com/npm/cli/commit/bddd60e302283a4a70d35f8f742e42bd13f4dabf)
+  `inherits@2.0.4` ([@isaacs](https://github.com/isaacs))
+* [`4acf03fd1`](https://github.com/npm/cli/commit/4acf03fd140ed3ddb2dcf3fdc9756bc3f5a8bcbb)
+  `libnpmsearch@2.0.1` ([@isaacs](https://github.com/isaacs))
+* [`c2bd17291`](https://github.com/npm/cli/commit/c2bd17291a86bea7ced2fbd07d66d013bd7a7560)
+  `marked@0.6.3` ([@isaacs](https://github.com/isaacs))
+* [`7f0221bb1`](https://github.com/npm/cli/commit/7f0221bb1bb41ffc933c785940e227feae38c80c)
+  `marked-man@0.6.0` ([@isaacs](https://github.com/isaacs))
+* [`f458fe7dd`](https://github.com/npm/cli/commit/f458fe7dd3bebddf603aaae183a424ea8aaa018f)
+  `npm-lifecycle@2.1.1` ([@isaacs](https://github.com/isaacs))
+* [`009752978`](https://github.com/npm/cli/commit/0097529780269c28444f1efa0d7c131d47a933eb)
+  `node-gyp@4.0.0` ([@isaacs](https://github.com/isaacs))
+* [`0fa2bb438`](https://github.com/npm/cli/commit/0fa2bb4386379d6e9d8c95db08662ec0529964f9)
+  `query-string@6.8.1` ([@isaacs](https://github.com/isaacs))
+* [`b86450929`](https://github.com/npm/cli/commit/b86450929796950a1fe4b1f9b02b1634c812f3bb)
+  `tar-stream@2.1.0` ([@isaacs](https://github.com/isaacs))
+* [`25db00fe9`](https://github.com/npm/cli/commit/25db00fe953453198adb9e1bd71d1bc2a9f04aaa)
+  `worker-farm@1.7.0` ([@isaacs](https://github.com/isaacs))
+* [`8dfbe8610`](https://github.com/npm/cli/commit/8dfbe861085dfa8fa56bb504b4a00fba04c34f9d)
+  `readable-stream@3.4.0` ([@isaacs](https://github.com/isaacs))
+* [`f6164d5dd`](https://github.com/npm/cli/commit/f6164d5ddd072eabdf2237f1694a31efd746eb1d)
+  [isaacs/chownr#21](https://github.com/isaacs/chownr/pull/21)
+  [isaacs/chownr#20](https://github.com/isaacs/chownr/issues/20)
+  [npm.community#7901](https://npm.community/t/7901/)
+  [npm.community#8203](https://npm.community/t/8203) `chownr@1.1.2` This
+  fixes an EISDIR error from cacache on Darwin in Node versions prior to
+  10.6. ([@isaacs](https://github.com/isaacs))
+
+## v6.10.0 (2019-07-03):
+
+### FEATURES
+
+* [`87fef4e35`](https://github.com/npm/cli/commit/87fef4e35)
+  [#176](https://github.com/npm/cli/pull/176) fix: Always return JSON for
+  outdated --json ([@sreeramjayan](https://github.com/sreeramjayan))
+* [`f101d44fc`](https://github.com/npm/cli/commit/f101d44fc)
+  [#203](https://github.com/npm/cli/pull/203) fix(unpublish): add space
+  after hyphen ([@ffflorian](https://github.com/ffflorian))
+* [`a4475de4c`](https://github.com/npm/cli/commit/a4475de4c)
+  [#202](https://github.com/npm/cli/pull/202) enable production flag for
+  npm audit ([@CalebCourier](https://github.com/CalebCourier))
+* [`d192904d0`](https://github.com/npm/cli/commit/d192904d0)
+  [#178](https://github.com/npm/cli/pull/178) fix: Return a value for
+  `view` when in silent mode
+  ([@stayradiated](https://github.com/stayradiated))
+* [`39d473adf`](https://github.com/npm/cli/commit/39d473adf)
+  [#185](https://github.com/npm/cli/pull/185) Allow git to follow global
+  tagsign config ([@junderw](https://github.com/junderw))
+
+### BUGFIXES
+
+* [`d9238af0b`](https://github.com/npm/cli/commit/d9238af0b)
+  [#201](https://github.com/npm/cli/pull/163)
+  [npm/npm#17858](https://github.com/npm/npm/issues/17858)
+  [npm/npm#18042](https://github.com/npm/npm/issues/18042)
+  [npm.community#644](https://npm.community/t/644) do not crash when
+  removing nameless packages
+  ([@SteveVanOpstal](https://github.com/SteveVanOpstal) and
+  [@isaacs](https://github.com/isaacs))
+* [`4bec4f111`](https://github.com/npm/cli/commit/4bec4f111)
+  [#200](https://github.com/npm/cli/pull/200) Check for `node` (as well as
+  `node.exe`) in npm's local dir on Windows
+  ([@rgoulais](https://github.com/rgoulais))
+* [`ce93dab2d`](https://github.com/npm/cli/commit/ce93dab2db423ef23b3e08a0612dafbeb2d25789)
+  [#180](https://github.com/npm/cli/pull/180)
+  [npm.community#6187](https://npm.community/t/6187) Fix handling of
+  `remote` deps in `npm outdated` ([@larsgw](https://github.com/larsgw))
+
+### TESTING
+
+* [`a823f3084`](https://github.com/npm/cli/commit/a823f3084) travis: Update
+  to include new v12 LTS ([@isaacs](https://github.com/isaacs))
+* [`33e2d1dac`](https://github.com/npm/cli/commit/33e2d1dac) fix flaky
+  debug-logs test ([@isaacs](https://github.com/isaacs))
+* [`e9411c6cd`](https://github.com/npm/cli/commit/e9411c6cd) Don't time out
+  waiting for gpg user input ([@isaacs](https://github.com/isaacs))
+* [`d2d301704`](https://github.com/npm/cli/commit/d2d301704)
+  [#195](https://github.com/npm/cli/pull/195) Add the arm64 check for
+  legacy-platform-all.js test case.
+  ([@ossdev07](https://github.com/ossdev07))
+* [`a4dc34243`](https://github.com/npm/cli/commit/a4dc34243) parallel tests
+  ([@isaacs](https://github.com/isaacs))
+
+### DOCUMENTATION
+
+* [`f5857e263`](https://github.com/npm/cli/commit/f5857e263)
+  [#192](https://github.com/npm/cli/pull/192) Clarify usage of
+  bundledDependencies
+  ([@john-osullivan](https://github.com/john-osullivan))
+* [`747fdaf66`](https://github.com/npm/cli/commit/747fdaf66)
+  [#159](https://github.com/npm/cli/pull/159) doc: add --audit-level param
+  ([@ngraef](https://github.com/ngraef))
+
+### DEPENDENCIES
+
+* [`e36b3c320`](https://github.com/npm/cli/commit/e36b3c320)
+  graceful-fs@4.2.0 ([@isaacs](https://github.com/isaacs))
+* [`6bb935c09`](https://github.com/npm/cli/commit/6bb935c09)
+  read-package-tree@5.3.1 ([@isaacs](https://github.com/isaacs))
+    * [`e9cd536`](https://github.com/npm/read-package-tree/commit/e9cd536)
+      Use custom caching `realpath` implementation, dramatically reducing
+      `lstat` calls when reading the package tree
+      ([@isaacs](https://github.com/isaacs))
+* [`39538b460`](https://github.com/npm/cli/commit/39538b460)
+  write-file-atomic@2.4.3 ([@isaacs](https://github.com/isaacs))
+    * [`f8b1552`](https://github.com/npm/write-file-atomic/commit/f8b1552)
+      [#38](https://github.com/npm/write-file-atomic/pull/38) Ignore errors
+      raised by `fs.closeSync` ([@lukeapage](https://github.com/lukeapage))
+* [`042193069`](https://github.com/npm/cli/commit/042193069) pacote@9.5.1
+  ([@isaacs](https://github.com/isaacs))
+    * [`8bbd051`](https://github.com/npm/pacote/commit/8bbd051)
+      [#172](https://github.com/zkat/pacote/pull/172) limit git retry
+      times, avoid unlimited retries ([小秦](https://github.com/xqin))
+    * [`92f5e4c`](https://github.com/npm/pacote/commit/92f5e4c)
+      [#170](https://github.com/zkat/pacote/pull/170) fix(errors): Fix
+      "TypeError: err.code.match is not a function" error
+      ([@jviotti](https://github.com/jviotti))
+* [`8bd8e909f`](https://github.com/npm/cli/commit/8bd8e909f) cacache@11.3.3
+  ([@isaacs](https://github.com/isaacs))
+    * [`47de8f5`](https://github.com/npm/cacache/commit/47de8f5)
+      [#146](https://github.com/zkat/cacache/pull/146)
+      [npm.community#2395](https://npm.community/t/2395) fix(config): Add
+      ssri config 'error' option ([@larsgw](https://github.com/larsgw))
+    * [`5156561`](https://github.com/npm/cacache/commit/5156561)
+      fix(write): avoid a `cb never called` situation
+      ([@zkat](https://github.com/zkat))
+    * [`90f40f0`](https://github.com/npm/cacache/commit/90f40f0)
+      [#166](https://github.com/zkat/cacache/pull/166)
+      [#165](https://github.com/zkat/cacache/issues/165) docs: Fix docs for
+      `path` property in get.info
+      ([@hdgarrood](https://github.com/hdgarrood))
+* [`bf61c45c6`](https://github.com/npm/cli/commit/bf61c45c6) bluebird@3.5.5
+  ([@isaacs](https://github.com/isaacs))
+* [`f75d46a9d`](https://github.com/npm/cli/commit/f75d46a9d) tar@4.4.10
+  ([@isaacs](https://github.com/isaacs))
+    * [`c80341a`](https://github.com/npm/node-tar/commit/c80341a)
+      [#215](https://github.com/npm/node-tar/pull/215) Fix
+      encoding/decoding of base-256 numbers
+      ([@justfalter](https://github.com/justfalter))
+    * [`77522f0`](https://github.com/npm/node-tar/commit/77522f0)
+      [#204](https://github.com/npm/node-tar/issues/204)
+      [#214](https://github.com/npm/node-tar/issues/214) Use `stat` instead
+      of `lstat` when checking CWD ([@stkb](https://github.com/stkb))
+* [`ec6236210`](https://github.com/npm/cli/commit/ec6236210)
+  npm-packlist@1.4.4 ([@isaacs](https://github.com/isaacs))
+    * [`63d1e3e`](https://github.com/npm/npm-packlist/commit/63d1e3e)
+      [#30](https://github.com/npm/npm-packlist/issues/30) Sort package
+      tarball entries by file type for compression benefits
+      ([@isaacs](https://github.com/isaacs))
+    * [`7fcd045`](https://github.com/npm/npm-packlist/commit/7fcd045)
+      Ignore `.DS_Store` files as well as folders
+      ([@isaacs](https://github.com/isaacs))
+    * [`68b7c96`](https://github.com/npm/npm-packlist/commit/68b7c96) Never
+      include .git folders in package root.  (Note: this prevents the issue
+      that broke the v6.9.1 release.)
+      ([@isaacs](https://github.com/isaacs))
+* [`57bef61bc`](https://github.com/npm/cli/commit/57bef61bc) update fstream
+  in node-gyp ([@isaacs](https://github.com/isaacs))
+    * Addresses [security advisory
+      #886](https://www.npmjs.com/advisories/886)
+* [`acbbf7eee`](https://github.com/npm/cli/commit/acbbf7eee)
+  [#183](https://github.com/npm/cli/pull/183) licensee@7.0.2
+  ([@kemitchell](https://github.com/kemitchell))
+* [`011ae67f0`](https://github.com/npm/cli/commit/011ae67f0)
+  readable-stream@3.3.0 ([@isaacs](https://github.com/isaacs))
+* [`f5e884909`](https://github.com/npm/cli/commit/f5e884909)
+  npm-registry-mock@1.2.1 ([@isaacs](https://github.com/isaacs))
+* [`b57d07e35`](https://github.com/npm/cli/commit/b57d07e35)
+  npm-registry-couchapp@2.7.2 ([@isaacs](https://github.com/isaacs))
+
+## v6.9.2 (2019-06-27):
+
+This release is identical to v6.9.1, but we had to publish a new version
+due to [a .git directory in the release](https://npm.community/t/8454).
+
+## v6.9.1 (2019-06-26):
+
+### BUGFIXES
+
+* [`6b1a9da0e`](https://github.com/npm/cli/commit/6b1a9da0e0f5c295cdaf4dea4b73bd221d778611)
+  [#165](https://github.com/npm/cli/pull/165)
+  Update `knownBroken` version.
+  ([@ljharb](https://github.com/ljharb))
+* [`d07547154`](https://github.com/npm/cli/commit/d07547154eb8a88aa4fde8a37e128e1e3272adc1)
+  [npm.community#5929](https://npm.community/t/npm-outdated-throw-an-error-cannot-read-property-length-of-undefined/5929)
+  Fix `outdated` rendering for global dependencies.
+  ([@zkat](https://github.com/zkat))
+* [`e4a1f1745`](https://github.com/npm/cli/commit/e4a1f174514a57580fd5e0fa33eee0f42bba77fc)
+  [npm.community#6259](https://npm.community/t/npm-token-create-doesnt-work-in-6-6-0-6-9-0/6259)
+  Fix OTP for token create and remove.
+  ([@zkat](https://github.com/zkat))
+
+### DEPENDENCIES
+
+* [`a163a9c35`](https://github.com/npm/cli/commit/a163a9c35f6f341de343562368056258bba5d7dc)
+  `sha@3.0.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`47b08b3b9`](https://github.com/npm/cli/commit/47b08b3b9860438b416efb438e975a628ec2eed5)
+  `query-string@6.4.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`d6a956cff`](https://github.com/npm/cli/commit/d6a956cff6357e6de431848e578c391768685a64)
+  `readable-stream@3.2.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`10b8bed2b`](https://github.com/npm/cli/commit/10b8bed2bb0afac5451164e87f25924cc1ac6f2e)
+  `tacks@1.3.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`e7483704d`](https://github.com/npm/cli/commit/e7483704dda1acffc8c6b8c165c14c8a7512f3c8)
+  `tap@12.6.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`3242fe698`](https://github.com/npm/cli/commit/3242fe698ead46a9cda94e1a4d489cd84a85d7e3)
+  `tar-stream@2.0.1`
+  ([@aeschright](https://github.com/aeschright))
+
+## v6.9.0 (2019-02-20):
+
+### FEATURES
+
+* [`2ba3a0f67`](https://github.com/npm/cli/commit/2ba3a0f6721f6d5a16775aebce6012965634fc7c)
+  [#90](https://github.com/npm/cli/pull/90)
+  Time traveling installs using the `--before` flag.
+  ([@zkat](https://github.com/zkat))
+* [`b7b54f2d1`](https://github.com/npm/cli/commit/b7b54f2d18e2d8d65ec67c850b21ae9f01c60e7e)
+  [#3](https://github.com/npm/cli/pull/3)
+  Add support for package aliases. This allows packages to be installed under a
+  different directory than the package name listed in `package.json`, and adds a
+  new dependency type to allow this to be done for registry dependencies.
+  ([@zkat](https://github.com/zkat))
+* [`684bccf06`](https://github.com/npm/cli/commit/684bccf061dfc97bb759121bc0ad635e01c65868)
+  [#146](https://github.com/npm/cli/pull/146)
+  Always save `package-lock.json` when using `--package-lock-only`.
+  ([@aeschright](https://github.com/aeschright))
+* [`b8b8afd40`](https://github.com/npm/cli/commit/b8b8afd4048b4ba1181e00ba2ac49ced43936ce0)
+  [#139](https://github.com/npm/cli/pull/139)
+  Make empty-string run-scripts run successfully as a no-op.
+  ([@vlasy](https://github.com/vlasy))
+* [`8047b19b1`](https://github.com/npm/cli/commit/8047b19b1b994fd4b4e7b5c91d7cc4e0384bd5e4)
+  [npm.community#3784](https://npm.community/t/3784)
+  Match git semver ranges when flattening the tree.
+  ([@larsgw](https://github.com/larsgw))
+* [`e135c2bb3`](https://github.com/npm/cli/commit/e135c2bb360dcf00ecee34a95985afec21ba3655)
+  [npm.community#1725](https://npm.community/t/1725?u=larsgw)
+  Re-enable updating local packages.
+  ([@larsgw](https://github.com/larsgw))
+
+### BUGFIXES
+
+* [`cf09fbaed`](https://github.com/npm/cli/commit/cf09fbaed489d908e9b551382cc5f61bdabe99a9)
+  [#153](https://github.com/npm/cli/pull/153)
+  Set modified to undefined in `npm view` when `time` is not available. This
+  fixes a bug where `npm view` would crash on certain third-party registries.
+  ([@simonua](https://github.com/simonua))
+* [`774fc26ee`](https://github.com/npm/cli/commit/774fc26eeb01345c11bd8c97e2c4f328d419d9b5)
+  [#154](https://github.com/npm/cli/pull/154)
+  Print out tar version in `install.sh` only when the flag is supported not all
+  the tar implementations support --version flag. This allows the install script
+  to work in OpenBSD, for example.
+  ([@agudulin](https://github.com/agudulin))
+* [`863baff11`](https://github.com/npm/cli/commit/863baff11d8c870f1a0d9619bb5133c67d71e407)
+  [#158](https://github.com/npm/cli/pull/158)
+  Fix typo in error message for `npm stars`.
+  ([@phihag](https://github.com/phihag))
+* [`a805a95ad`](https://github.com/npm/cli/commit/a805a95ad8832ef5008671f4bd4c11b83e32e0f2)
+  [npm.community#4227](https://npm.community/t/4227)
+  Strip version info from pkg on E404. This improves the error messaging format.
+  ([@larsgw](https://github.com/larsgw))
+
+### DOCS
+
+* [`5d7633833`](https://github.com/npm/cli/commit/5d76338338621fd0b3d4f7914a51726d27569ee1)
+  [#160](https://github.com/npm/cli/pull/160)
+  Add `npm add` as alias to npm install in docs.
+  ([@ahasall](https://github.com/ahasall))
+* [`489c2211c`](https://github.com/npm/cli/commit/489c2211c96a01d65df50fd57346c785bcc3efe6)
+  [#162](https://github.com/npm/cli/pull/162)
+  Fix link to RFC #10 in the changelog.
+  ([@mansona](https://github.com/mansona))
+* [`433020ead`](https://github.com/npm/cli/commit/433020ead5251b562bc3b0f5f55341a5b8cc9023)
+  [#135](https://github.com/npm/cli/pull/135)
+  Describe exit codes in npm-audit docs.
+  ([@emilis-tm](https://github.com/emilis-tm))
+
+### DEPENDENCIES
+
+* [`ee6b6746b`](https://github.com/npm/cli/commit/ee6b6746b04f145dfe489af2d26667ac32ba0cef)
+  [zkat/make-fetch-happen#29](https://github.com/zkat/make-fetch-happen/issues/29)
+  `agent-base@4.2.1`
+  ([@TooTallNate](https://github.com/TooTallNate))
+* [`2ce23baf5`](https://github.com/npm/cli/commit/2ce23baf53b1ce7d11b8efb80c598ddaf9cef9e7)
+  `lock-verify@2.1.0`:
+  Adds support for package aliases
+  ([@zkat](https://github.com/zkat))
+* [`baaedbc6e`](https://github.com/npm/cli/commit/baaedbc6e2fc370d73b35e7721794719115507cc)
+  `pacote@9.5.0`:
+  Adds opts.before support
+  ([@zkat](https://github.com/zkat))
+* [`57e771a03`](https://github.com/npm/cli/commit/57e771a032165d1e31e71d0ff7530442139c21a6)
+  [#164](https://github.com/npm/cli/pull/164)
+  `licensee@6.1.0`
+  ([@kemitchell](https://github.com/kemitchell))
+* [`2b78288d4`](https://github.com/npm/cli/commit/2b78288d4accd10c1b7cc6c36bc28045f5634d91)
+  add core to default inclusion tests in pack
+  ([@Kat Marchán](https://github.com/Kat Marchán))
+* [`9b8b6513f`](https://github.com/npm/cli/commit/9b8b6513fbce92764b32a067322984985ff683fe)
+  [npm.community#5382](https://npm.community/t/npm-pack-leaving-out-files-6-8-0-only/5382)
+  `npm-packlist@1.4.1`: Fixes bug where `core/` directories were being suddenly excluded.
+  ([@zkat](https://github.com/zkat))
+
+## v6.8.0 (2019-02-07):
+
+This release includes an implementation of [RFC #10](https://github.com/npm/rfcs/blob/latest/implemented/0010-monorepo-subdirectory-declaration.md), documenting an optional field that can be used to specify
+the directory path for a package within a monorepo.
+
+### NEW FEATURES
+
+* [`3663cdef2`](https://github.com/npm/cli/commit/3663cdef205fa9ba2c2830e5ef7ceeb31c30298c)
+  [#140](https://github.com/npm/cli/pull/140)
+  Update package.json docs to include repository.directory details.
+  ([@greysteil](https://github.com/greysteil))
+
+### BUGFIXES
+
+* [`550bf703a`](https://github.com/npm/cli/commit/550bf703ae3e31ba6a300658ae95b6937f67b68f)
+  Add @types to ignore list to fix git clean -fd.
+  ([@zkat](https://github.com/zkat))
+* [`cdb059293`](https://github.com/npm/cli/commit/cdb0592939d6256c80f7ec5a2b6251131a512a2a)
+  [#144](https://github.com/npm/cli/pull/144)
+  Fix common.npm callback arguments.
+  ([@larsgw](https://github.com/larsgw))
+* [`25573e9b9`](https://github.com/npm/cli/commit/25573e9b9d5d26261c68d453f06db5b3b1cd6789)
+  [npm.community#4770](https://npm.community/t/https://npm.community/t/4770)
+  Show installed but unmet peer deps.
+  ([@larsgw](https://github.com/larsgw))
+* [`ce2c4bd1a`](https://github.com/npm/cli/commit/ce2c4bd1a2ce7ac1727a4ca9a350b743a2e27b2a)
+  [#149](https://github.com/npm/cli/pull/149)
+  Use figgy-config to make sure extra opts are there.
+  ([@zkat](https://github.com/zkat))
+* [`3c22d1a35`](https://github.com/npm/cli/commit/3c22d1a35878f73c0af8ea5968b962a85a1a9b84)
+  [npm.community#5101](https://npm.community/t/npm-6-6-0-breaks-access-to-ls-collaborators/5101)
+  Fix `ls-collaborators` access error for non-scoped case.
+  ([@zkat](https://github.com/zkat))
+* [`d5137091d`](https://github.com/npm/cli/commit/d5137091dd695a2980f7ade85fdc56b2421ff677)
+  [npm.community#754](https://npm.community/t/npm-install-for-package-with-local-dependency-fails/754)
+  Fix issue with sub-folder local references.
+  ([@iarna](https://github.com/iarna))
+  ([@jhecking](https://github.com/jhecking))
+
+### DEPENDENCY BUMPS
+
+* [`d72141080`](https://github.com/npm/cli/commit/d72141080ec8fcf35bcc5650245efbe649de053e)
+  `npm-registry-couchapp@2.7.1`
+  ([@zkat](https://github.com/zkat))
+* [`671cad1b1`](https://github.com/npm/cli/commit/671cad1b18239d540da246d6f78de45d9f784396)
+  `npm-registry-fetch@3.9.0`:
+  Make sure publishing with legacy username:password `_auth` works again.
+  ([@zkat](https://github.com/zkat))
+* [`95ca1aef4`](https://github.com/npm/cli/commit/95ca1aef4077c8e68d9f4dce37f6ba49b591c4ca)
+  `pacote@9.4.1`
+  ([@aeschright](https://github.com/aeschright))
+* [`322fef403`](https://github.com/npm/cli/commit/322fef40376e71cd100159dc914e7ca89faae327)
+  `normalize-package-data@2.5.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`32d34c0da`](https://github.com/npm/cli/commit/32d34c0da4f393a74697297667eb9226155ecc6b)
+  `npm-packlist@1.3.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`338571cf0`](https://github.com/npm/cli/commit/338571cf0bd3a1e2ea800464d57581932ff0fb11)
+  `read-package-tree@5.2.2`
+  ([@zkat](https://github.com/zkat))
+
+### MISC
+
+* [`89b23a5f7`](https://github.com/npm/cli/commit/89b23a5f7b0ccdcdda1d7d4d3eafb6903156d186)
+  [#120](https://github.com/npm/cli/pull/120)
+  Use `const` in lib/fetch-package-metadata.md.
+  ([@watilde](https://github.com/watilde))
+* [`4970d553c`](https://github.com/npm/cli/commit/4970d553c0ea66128931d118469fd31c87cc7986)
+  [#126](https://github.com/npm/cli/pull/126)
+  Replace ronn with marked-man in `.npmignore`.
+  ([@watilde](https://github.com/watilde))
+* [`d9b6090dc`](https://github.com/npm/cli/commit/d9b6090dc26cd0fded18b4f80248cff3e51bb185)
+  [#138](https://github.com/npm/cli/pull/138)
+  Reduce work to test if executable ends with a 'g'.
+  ([@elidoran](https://github.com/elidoran))
+  ([@larsgw](https://github.com/larsgw))
+
+## v6.7.0 (2019-01-23):
+
+Hey y'all! This is a quick hotfix release that includes some important fixes to
+`npm@6.6.0` related to the large rewrite/refactor. We're tagging it as a feature
+release because the changes involve some minor new features, and semver is
+semver, but there's nothing major here.
+
+### NEW FEATURES
+
+* [`50463f58b`](https://github.com/npm/cli/commit/50463f58b4b70180a85d6d8c10fcf50d8970ef5e)
+  Improve usage errors to `npm org` commands and add optional filtering to `npm
+  org ls` subcommand.
+  ([@zkat](https://github.com/zkat))
+
+### BUGFIXES
+
+* [`4027070b0`](https://github.com/npm/cli/commit/4027070b03be3bdae2515f2291de89b91f901df9)
+  Fix default usage printout for `npm org` so you actually see how it's supposed
+  to be used.
+  ([@zkat](https://github.com/zkat))
+* [`cfea6ea5b`](https://github.com/npm/cli/commit/cfea6ea5b67ec5e4ec57e3a9cb8c82d018cb5476)
+  fix default usage message for npm hook
+  ([@zkat](https://github.com/zkat))
+
+### DOCS
+
+* [`e959e1421`](https://github.com/npm/cli/commit/e959e14217d751ddb295565fd75cc81de1ee0d5b)
+  Add manpage for `npm org` command.
+  ([@zkat](https://github.com/zkat))
+
+### DEPENDENCY BUMPS
+
+* [`8543fc357`](https://github.com/npm/cli/commit/8543fc3576f64e91f7946d4c56a5ffb045b55156)
+  `pacote@9.4.0`: Fall back to "fullfat" packuments on ETARGET errors. This will
+  make it so that, when a package is published but the corgi follower hasn't
+  caught up, users can still install a freshly-published package.
+  ([@zkat](https://github.com/zkat))
+* [`75475043b`](https://github.com/npm/cli/commit/75475043b03a254b2e7db2c04c3f0baea31d8dc5)
+  [npm.community#4752](https://npm.community/t/npm-6-6-0-broke-authentication-with-npm-registry-couchapp/4752)
+  `libnpmpublish@1.1.1`: Fixes auth error for username/password legacy authentication.
+  ([@sreeramjayan](https://github.com/sreeramjayan))
+* [`0af8c00ac`](https://github.com/npm/cli/commit/0af8c00acb01849362ffca25b567cc62447c7175)
+  [npm.community#4746](https://npm.community/t/npm-6-6-0-release-breaking-docker-npm-ci-commands/4746)
+  `libcipm@3.0.3`: Fixes issue with "cannot run in wd" errors for run-scripts.
+  ([@zkat](https://github.com/zkat))
+* [`5a7962e46`](https://github.com/npm/cli/commit/5a7962e46f582c6bd91784b0ddc941ed45e9f802)
+  `write-file-atomic@2.4.2`:
+  Fixes issues with leaking `signal-exit` instances and file descriptors.
+  ([@iarna](https://github.com/iarna))
+
+## v6.6.0 (2019-01-17):
+
+### REFACTORING OUT npm-REGISTRY-CLIENT
+
+Today is an auspicious day! This release marks the end of a massive internal
+refactor to npm that means we finally got rid of the legacy
+[`npm-registry-client`](https://npm.im/npm-registry-client) in favor of the
+shiny, new, `window.fetch`-like
+[`npm-registry-fetch`](https://npm.im/npm-registry-fetch).
+
+Now, the installer had already done most of this work with the release of
+`npm@5`, but it turns out _every other command_ still used the legacy client.
+This release updates all of those commands to use the new client, and while
+we're at it, adds a few extra goodies:
+
+* All OTP-requiring commands will now **prompt**. `--otp` is no longer required for `dist-tag`, `access`, et al.
+* We're starting to integrate a new config system which will eventually get extracted into a standalone package.
+* We now use [`libnpm`](https://npm.im/libnpm) for the API functionality of a lot of our commands! That means you can install a library if you want to write your own tooling around them.
+* There's now an `npm org` command for managing users in your org.
+* [`pacote`](https://npm.im/pacote) now consumes npm-style configurations, instead of its own naming for various config vars. This will make it easier to load npm configs using `libnpm.config` and hand them directly to `pacote`.
+
+There's too many commits to list all of them here, so check out the PR if you're
+curious about details:
+
+* [`c5af34c05`](https://github.com/npm/cli/commit/c5af34c05fd569aecd11f18d6d0ddeac3970b253)
+  [npm-registry-client@REMOVED](https://www.youtube.com/watch\?v\=kPIdRJlzERo)
+  ([@zkat](https://github.com/zkat))
+* [`4cca9cb90`](https://github.com/npm/cli/commit/4cca9cb9042c0eeb743377e8f1ae1c07733df43f)
+  [`ad67461dc`](https://github.com/npm/cli/commit/ad67461dc3a73d5ae6569fdbee44c67e1daf86e7)
+  [`77625f9e2`](https://github.com/npm/cli/commit/77625f9e20d4285b7726b3bf3ebc10cb21c638f0)
+  [`6e922aefb`](https://github.com/npm/cli/commit/6e922aefbb4634bbd77ed3b143e0765d63afc7f9)
+  [`584613ea8`](https://github.com/npm/cli/commit/584613ea8ff94b927db4957e5647504b30ca2b1f)
+  [`64de4ebf0`](https://github.com/npm/cli/commit/64de4ebf019b217179039124c6621e74651e4d27)
+  [`6cd87d1a9`](https://github.com/npm/cli/commit/6cd87d1a9bb90e795f9891ea4db384435f4a8930)
+  [`2786834c0`](https://github.com/npm/cli/commit/2786834c0257b8bb1bbb115f1ce7060abaab2e17)
+  [`514558e09`](https://github.com/npm/cli/commit/514558e094460fd0284a759c13965b685133b3fe)
+  [`dec07ebe3`](https://github.com/npm/cli/commit/dec07ebe3312245f6421c6e523660be4973ae8c2)
+  [`084741913`](https://github.com/npm/cli/commit/084741913c4fdb396e589abf3440b4be3aa0b67e)
+  [`45aff0e02`](https://github.com/npm/cli/commit/45aff0e02251785a85e56eafacf9efaeac6f92ae)
+  [`846ddcc44`](https://github.com/npm/cli/commit/846ddcc44538f2d9a51ac79405010dfe97fdcdeb)
+  [`8971ba1b9`](https://github.com/npm/cli/commit/8971ba1b953d4f05ff5094f1822b91526282edd8)
+  [`99156e081`](https://github.com/npm/cli/commit/99156e081a07516d6c970685bc3d858f89dc4f9c)
+  [`ab2155306`](https://github.com/npm/cli/commit/ab215530674d7f6123c9572d0ad4ca9e9b5fb184)
+  [`b37a66542`](https://github.com/npm/cli/commit/b37a66542ca2879069b2acd338b1904de71b7f40)
+  [`d2af0777a`](https://github.com/npm/cli/commit/d2af0777ac179ff5009dbbf0354a4a84f151b60f)
+  [`e0b4c6880`](https://github.com/npm/cli/commit/e0b4c6880504fa2e8491c2fbd098efcb2e496849)
+  [`ff72350b4`](https://github.com/npm/cli/commit/ff72350b4c56d65e4a92671d86a33080bf3c2ea5)
+  [`6ed943303`](https://github.com/npm/cli/commit/6ed943303ce7a267ddb26aa25caa035f832895dd)
+  [`90a069e7d`](https://github.com/npm/cli/commit/90a069e7d4646682211f4cabe289c306ee1d5397)
+  [`b24ed5fdc`](https://github.com/npm/cli/commit/b24ed5fdc3a4395628465ae5273bad54eea274c8)
+  [`ec9fcc14f`](https://github.com/npm/cli/commit/ec9fcc14f4e0e2f3967e2fd6ad8b8433076393cb)
+  [`8a56fa39e`](https://github.com/npm/cli/commit/8a56fa39e61136da45565447fe201a57f04ad4cd)
+  [`41d19e18f`](https://github.com/npm/cli/commit/41d19e18f769c6f0acfdffbdb01d12bf332908ce)
+  [`125ff9551`](https://github.com/npm/cli/commit/125ff9551595dda9dab2edaef10f4c73ae8e1433)
+  [`1c3b226ff`](https://github.com/npm/cli/commit/1c3b226ff37159c426e855e83c8f6c361603901d)
+  [`3c0a7b06b`](https://github.com/npm/cli/commit/3c0a7b06b6473fe068fc8ae8466c07a177975b87)
+  [`08fcb3f0f`](https://github.com/npm/cli/commit/08fcb3f0f26e025702b35253ed70a527ab69977f)
+  [`c8135d97a`](https://github.com/npm/cli/commit/c8135d97a424b38363dc4530c45e4583471e9849)
+  [`ae936f22c`](https://github.com/npm/cli/commit/ae936f22ce80614287f2769e9aaa9a155f03cc15)
+  [#2](https://github.com/npm/cli/pull/2)
+  Move rest of commands to `npm-registry-fetch` and use [`figgy-pudding`](https://npm.im/figgy-pudding) for configs.
+  ([@zkat](https://github.com/zkat))
+
+### NEW FEATURES
+
+* [`02c837e01`](https://github.com/npm/cli/commit/02c837e01a71a26f37cbd5a09be89df8a9ce01da)
+  [#106](https://github.com/npm/cli/pull/106)
+  Make `npm dist-tags` the same as `npm dist-tag ls`.
+  ([@isaacs](https://github.com/isaacs))
+* [`1065a7809`](https://github.com/npm/cli/commit/1065a7809161fd4dc23e96b642019fc842fdacf2)
+  [#65](https://github.com/npm/cli/pull/65)
+  Add support for `IBM i`.
+  ([@dmabupt](https://github.com/dmabupt))
+* [`a22e6f5fc`](https://github.com/npm/cli/commit/a22e6f5fc3e91350d3c64dcc88eabbe0efbca759)
+  [#131](https://github.com/npm/cli/pull/131)
+  Update profile to support new npm-profile API.
+  ([@zkat](https://github.com/zkat))
+
+### BUGFIXES
+
+* [`890a74458`](https://github.com/npm/cli/commit/890a74458dd4a55e2d85f3eba9dbf125affa4206)
+  [npm.community#3278](https://npm.community/t/3278)
+  Fix support for passing git binary path config with `--git`.
+  ([@larsgw](https://github.com/larsgw))
+* [`90e55a143`](https://github.com/npm/cli/commit/90e55a143ed1de8678d65c17bc3c2b103a15ddac)
+  [npm.community#2713](https://npm.community/t/npx-envinfo-preset-jest-fails-on-windows-with-a-stack-trace/2713)
+  Check for `npm.config`'s existence in `error-handler.js` to prevent weird
+  errors when failures happen before config object is loaded.
+  ([@BeniCheni](https://github.com/BeniCheni))
+* [`134207174`](https://github.com/npm/cli/commit/134207174652e1eb6d7b0f44fd9858a0b6a0cd6c)
+  [npm.community#2569](https://npm.community/t/2569)
+  Fix checking for optional dependencies.
+  ([@larsgw](https://github.com/larsgw))
+* [`7a2f6b05d`](https://github.com/npm/cli/commit/7a2f6b05d27f3bcf47a48230db62e86afa41c9d3)
+  [npm.community#4172](https://npm.community/t/4172)
+  Remove tink experiments.
+  ([@larsgw](https://github.com/larsgw))
+* [`c5b6056b6`](https://github.com/npm/cli/commit/c5b6056b6b35eefb81ae5fb00a5c7681c5318c22)
+  [#123](https://github.com/npm/cli/pull/123)
+  Handle git branch references correctly.
+  ([@johanneswuerbach](https://github.com/johanneswuerbach))
+* [`f58b43ef2`](https://github.com/npm/cli/commit/f58b43ef2c5e3dea2094340a0cf264b2d11a5da4)
+  [npm.community#3983](https://npm.community/t/npm-audit-error-messaging-update-for-401s/3983)
+  Report any errors above 400 as potentially not supporting audit.
+  ([@zkat](https://github.com/zkat))
+* [`a5c9e6f35`](https://github.com/npm/cli/commit/a5c9e6f35a591a6e2d4b6ace5c01bc03f2b75fdc)
+  [#124](https://github.com/npm/cli/pull/124)
+  Set default homepage to an empty string.
+  ([@anchnk](https://github.com/anchnk))
+* [`5d076351d`](https://github.com/npm/cli/commit/5d076351d7ec1d3585942a9289548166a7fbbd4c)
+  [npm.community#4054](https://npm.community/t/4054)
+  Fix npm-prefix description.
+  ([@larsgw](https://github.com/larsgw))
+
+### DOCS
+
+* [`31a7274b7`](https://github.com/npm/cli/commit/31a7274b70de18b24e7bee51daa22cc7cbb6141c)
+  [#71](https://github.com/npm/cli/pull/71)
+  Fix typo in npm-token documentation.
+  ([@GeorgeTaveras1231](https://github.com/GeorgeTaveras1231))
+* [`2401b7592`](https://github.com/npm/cli/commit/2401b7592c6ee114e6db7077ebf8c072b7bfe427)
+  Correct docs for fake-registry interface.
+  ([@iarna](https://github.com/iarna))
+
+### DEPENDENCIES
+
+* [`9cefcdc1d`](https://github.com/npm/cli/commit/9cefcdc1d2289b56f9164d14d7e499e115cfeaee)
+  `npm-registry-fetch@3.8.0`
+  ([@zkat](https://github.com/zkat))
+* [`1c769c9b3`](https://github.com/npm/cli/commit/1c769c9b3e431d324c1a5b6dd10e1fddb5cb88c7)
+  `pacote@9.1.0`
+  ([@zkat](https://github.com/zkat))
+* [`f3bc5539b`](https://github.com/npm/cli/commit/f3bc5539b30446500abcc3873781b2c717f8e22c)
+  `figgy-pudding@3.5.1`
+  ([@zkat](https://github.com/zkat))
+* [`bf7199d3c`](https://github.com/npm/cli/commit/bf7199d3cbf50545da1ebd30d28f0a6ed5444a00)
+  `npm-profile@4.0.1`
+  ([@zkat](https://github.com/zkat))
+* [`118c50496`](https://github.com/npm/cli/commit/118c50496c01231cab3821ae623be6df89cb0a32)
+  `semver@5.5.1`
+  ([@isaacs](https://github.com/isaacs))
+* [`eab4df925`](https://github.com/npm/cli/commit/eab4df9250e9169c694b3f6c287d2932bf5e08fb)
+  `libcipm@3.0.2`
+  ([@zkat](https://github.com/zkat))
+* [`b86e51573`](https://github.com/npm/cli/commit/b86e515734faf433dc6c457c36c1de52795aa870)
+  `libnpm@1.4.0`
+  ([@zkat](https://github.com/zkat))
+* [`56fffbff2`](https://github.com/npm/cli/commit/56fffbff27fe2fae8bef27d946755789ef0d89bd)
+  `get-stream@4.1.0`
+  ([@zkat](https://github.com/zkat))
+* [`df972e948`](https://github.com/npm/cli/commit/df972e94868050b5aa42ac18b527fd929e1de9e4)
+  npm-profile@REMOVED
+  ([@zkat](https://github.com/zkat))
+* [`32c73bf0e`](https://github.com/npm/cli/commit/32c73bf0e3f0441d0c7c940292235d4b93aa87e2)
+  `libnpm@2.0.1`
+  ([@zkat](https://github.com/zkat))
+* [`569491b80`](https://github.com/npm/cli/commit/569491b8042f939dc13986b6adb2a0a260f95b63)
+  `licensee@5.0.0`
+  ([@zkat](https://github.com/zkat))
+* [`a3ba0ccf1`](https://github.com/npm/cli/commit/a3ba0ccf1fa86aec56b1ad49883abf28c1f56b3c)
+  move rimraf to prod deps
+  ([@zkat](https://github.com/zkat))
+* [`f63a0d6cf`](https://github.com/npm/cli/commit/f63a0d6cf0b7db3dcc80e72e1383c3df723c8119)
+  `spdx-license-ids@3.0.3`:
+  Ref: https://github.com/npm/cli/pull/121
+  ([@zkat](https://github.com/zkat))
+* [`f350e714f`](https://github.com/npm/cli/commit/f350e714f66a77f71a7ebe17daeea2ea98179a1a)
+  `aproba@2.0.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`a67e4d8b2`](https://github.com/npm/cli/commit/a67e4d8b214e58ede037c3854961acb33fd889da)
+  `byte-size@5.0.1`
+  ([@aeschright](https://github.com/aeschright))
+* [`8bea4efa3`](https://github.com/npm/cli/commit/8bea4efa34857c4e547904b3630dd442def241de)
+  `cacache@11.3.2`
+  ([@aeschright](https://github.com/aeschright))
+* [`9d4776836`](https://github.com/npm/cli/commit/9d4776836a4eaa4b19701b4e4f00cd64578bf078)
+  `chownr@1.1.1`
+  ([@aeschright](https://github.com/aeschright))
+* [`70da139e9`](https://github.com/npm/cli/commit/70da139e97ed1660c216e2d9b3f9cfb986bfd4a4)
+  `ci-info@2.0.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`bcdeddcc3`](https://github.com/npm/cli/commit/bcdeddcc3d4dc242f42404223dafe4afdc753b32)
+  `cli-table3@0.5.1`
+  ([@aeschright](https://github.com/aeschright))
+* [`63aab82c7`](https://github.com/npm/cli/commit/63aab82c7bfca4f16987cf4156ddebf8d150747c)
+  `is-cidr@3.0.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`d522bd90c`](https://github.com/npm/cli/commit/d522bd90c3b0cb08518f249ae5b90bd609fff165)
+  `JSONStream@1.3.5`
+  ([@aeschright](https://github.com/aeschright))
+* [`2a59bfc79`](https://github.com/npm/cli/commit/2a59bfc7989bd5575d8cbba912977c6d1ba92567)
+  `libnpmhook@5.0.2`
+  ([@aeschright](https://github.com/aeschright))
+* [`66d60e394`](https://github.com/npm/cli/commit/66d60e394e5a96330f90e230505758f19a3643ac)
+  `marked@0.6.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`8213def9a`](https://github.com/npm/cli/commit/8213def9aa9b6e702887e4f2ed7654943e1e4154)
+  `npm-packlist@1.2.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`e4ffc6a2b`](https://github.com/npm/cli/commit/e4ffc6a2bfb8d0b7047cb6692030484760fc8c91)
+  `unique-filename@1.1.1`
+  ([@aeschright](https://github.com/aeschright))
+* [`09a5c2fab`](https://github.com/npm/cli/commit/09a5c2fabe0d1c00ec8c99f328f6d28a3495eb0b)
+  `semver@5.6.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`740e79e17`](https://github.com/npm/cli/commit/740e79e17a78247f73349525043c9388ce94459a)
+  `rimraf@2.6.3`
+  ([@aeschright](https://github.com/aeschright))
+* [`455476c8d`](https://github.com/npm/cli/commit/455476c8d148ca83a4e030e96e93dcf1c7f0ff5f)
+  `require-inject@1.4.4`
+  ([@aeschright](https://github.com/aeschright))
+* [`3f40251c5`](https://github.com/npm/cli/commit/3f40251c5868feaacbcdbcb1360877ce76998f5e)
+  `npm-pick-manifest@2.2.3`
+  ([@aeschright](https://github.com/aeschright))
+* [`4ffa8a8e9`](https://github.com/npm/cli/commit/4ffa8a8e9e80e5562898dd76fe5a49f5694f38c8)
+  `query-string@6.2.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`a0a0ca9ec`](https://github.com/npm/cli/commit/a0a0ca9ec2a962183d420fa751f4139969760f18)
+  `pacote@9.3.0`
+  ([@aeschright](https://github.com/aeschright))
+* [`5777ea8ad`](https://github.com/npm/cli/commit/5777ea8ad2058be3166a6dad2d31d2d393c9f778)
+  `readable-stream@3.1.1`
+  ([@aeschright](https://github.com/aeschright))
+* [`887e94386`](https://github.com/npm/cli/commit/887e94386f42cb59a5628e7762b3662d084b23c8)
+  `lru-cache@4.1.5`
+  ([@aeschright](https://github.com/aeschright))
+* [`41f15524c`](https://github.com/npm/cli/commit/41f15524c58c59d206c4b1d25ae9e0f22745213b)
+  Updating semver docs.
+  ([@aeschright](https://github.com/aeschright))
+* [`fb3bbb72d`](https://github.com/npm/cli/commit/fb3bbb72d448ac37a465b31233b21381917422f3)
+  `npm-audit-report@1.3.2`:
+  ([@melkikh](https://github.com/melkikh))
+
+### TESTING
+
+* [`f1edffba9`](https://github.com/npm/cli/commit/f1edffba90ebd96cf88675d2e18ebc48954ba50e)
+  Modernize maketest script.
+  ([@iarna](https://github.com/iarna))
+* [`ae263473d`](https://github.com/npm/cli/commit/ae263473d92a896b482830d4019a04b5dbd1e9d7)
+  maketest: Use promise based example common.npm call.
+  ([@iarna](https://github.com/iarna))
+* [`d9970da5e`](https://github.com/npm/cli/commit/d9970da5ee97a354eab01cbf16f9101693a15d2d)
+  maketest: Use newEnv for env production.
+  ([@iarna](https://github.com/iarna))
+
+### MISCELLANEOUS
+
+* [`c665f35aa`](https://github.com/npm/cli/commit/c665f35aacdb8afdbe35f3dd7ccb62f55ff6b896)
+  [#119](https://github.com/npm/cli/pull/119)
+  Replace var with const/let in lib/repo.js.
+  ([@watilde](https://github.com/watilde))
+* [`46639ba9f`](https://github.com/npm/cli/commit/46639ba9f04ea729502f1af28b02eb67fb6dcb66)
+  Update package-lock.json for https tarball URLs
+  ([@aeschright](https://github.com/aeschright))
+
+## v6.5.0 (2018-11-28):
+
+### NEW FEATURES
+
+* [`fc1a8d185`](https://github.com/npm/cli/commit/fc1a8d185fc678cdf3784d9df9eef9094e0b2dec)
+  Backronym `npm ci` to `npm clean-install`.
+  ([@zkat](https://github.com/zkat))
+* [`4be51a9cc`](https://github.com/npm/cli/commit/4be51a9cc65635bb26fa4ce62233f26e0104bc20)
+  [#81](https://github.com/npm/cli/pull/81)
+  Adds 'Homepage' to outdated --long output.
+  ([@jbottigliero](https://github.com/jbottigliero))
+
+### BUGFIXES
+
+* [`89652cb9b`](https://github.com/npm/cli/commit/89652cb9b810f929f5586fc90cc6794d076603fb)
+  [npm.community#1661](https://npm.community/t/1661)
+  Fix sign-git-commit options. They were previously totally wrong.
+  ([@zkat](https://github.com/zkat))
+* [`414f2d1a1`](https://github.com/npm/cli/commit/414f2d1a1bdffc02ed31ebb48a43216f284c21d4)
+  [npm.community#1742](https://npm.community/t/npm-audit-making-non-rfc-compliant-requests-to-server-resulting-in-400-bad-request-pr-with-fix/1742)
+  Set lowercase headers for npm audit requests.
+  ([@maartenba](https://github.com/maartenba))
+* [`a34246baf`](https://github.com/npm/cli/commit/a34246bafe73218dc9e3090df9ee800451db2c7d)
+  [#75](https://github.com/npm/cli/pull/75)
+  Fix `npm edit` handling of scoped packages.
+  ([@larsgw](https://github.com/larsgw))
+* [`d3e8a7c72`](https://github.com/npm/cli/commit/d3e8a7c7240dd25379a5bcad324a367c58733c73)
+  [npm.community#2303](https://npm.community/t/npm-ci-logs-success-to-stderr/2303)
+  Make summary output for `npm ci` go to `stdout`, not `stderr`.
+  ([@alopezsanchez](https://github.com/alopezsanchez))
+* [`71d8fb4a9`](https://github.com/npm/cli/commit/71d8fb4a94d65e1855f6d0c5f2ad2b7c3202e3c4)
+  [npm.community#1377](https://npm.community/t/unhelpful-error-message-when-publishing-without-logging-in-error-eperm-operation-not-permitted-unlink/1377/3)
+  Close the file descriptor during publish if exiting upload via an error. This
+  will prevent strange error messages when the upload fails and make sure
+  cleanup happens correctly.
+  ([@macdja38](https://github.com/macdja38))
+
+### DOCS UPDATES
+
+* [`b1a8729c8`](https://github.com/npm/cli/commit/b1a8729c80175243fbbeecd164e9ddd378a09a50)
+  [#60](https://github.com/npm/cli/pull/60)
+  Mention --otp flag when prompting for OTP.
+  ([@bakkot](https://github.com/bakkot))
+* [`bcae4ea81`](https://github.com/npm/cli/commit/bcae4ea8173e489a76cc226bbd30dd9eabe21ec6)
+  [#64](https://github.com/npm/cli/pull/64)
+  Clarify that git dependencies use the default branch, not just `master`.
+  ([@zckrs](https://github.com/zckrs))
+* [`15da82690`](https://github.com/npm/cli/commit/15da8269032bf509ade3252978e934f2a61d4499)
+  [#72](https://github.com/npm/cli/pull/72)
+  `bash_completion.d` dir is sometimes found in `/etc` not `/usr/local`.
+  ([@RobertKielty](https://github.com/RobertKielty))
+* [`8a6ecc793`](https://github.com/npm/cli/commit/8a6ecc7936dae2f51638397ff5a1d35cccda5495)
+  [#74](https://github.com/npm/cli/pull/74)
+  Update OTP documentation for `dist-tag add` to clarify `--otp` is needed right
+  now.
+  ([@scotttrinh](https://github.com/scotttrinh))
+* [`dcc03ec85`](https://github.com/npm/cli/commit/dcc03ec858bddd7aa2173b5a86b55c1c2385a2a3)
+  [#82](https://github.com/npm/cli/pull/82)
+  Note that `prepare` runs when installing git dependencies.
+  ([@seishun](https://github.com/seishun))
+* [`a91a470b7`](https://github.com/npm/cli/commit/a91a470b71e08ccf6a75d4fb8c9937789fa8d067)
+  [#83](https://github.com/npm/cli/pull/83)
+  Specify that --dry-run isn't available in older versions of npm publish.
+  ([@kjin](https://github.com/kjin))
+* [`1b2fabcce`](https://github.com/npm/cli/commit/1b2fabccede37242233755961434c52536224de5)
+  [#96](https://github.com/npm/cli/pull/96)
+  Fix inline code tag issue in docs.
+  ([@midare](https://github.com/midare))
+* [`6cc70cc19`](https://github.com/npm/cli/commit/6cc70cc1977e58a3e1ea48e660ffc6b46b390e59)
+  [#68](https://github.com/npm/cli/pull/68)
+  Add semver link and a note on empty string format to `deprecate` doc.
+  ([@neverett](https://github.com/neverett))
+* [`61dbbb7c3`](https://github.com/npm/cli/commit/61dbbb7c3474834031bce88c423850047e8131dc)
+  Fix semver docs after version update.
+  ([@zkat](https://github.com/zkat))
+* [`4acd45a3d`](https://github.com/npm/cli/commit/4acd45a3d0ce92f9999446226fe7dfb89a90ba2e)
+  [#78](https://github.com/npm/cli/pull/78)
+  Correct spelling across various docs.
+  ([@hugovk](https://github.com/hugovk))
+
+### DEPENDENCIES
+
+* [`4f761283e`](https://github.com/npm/cli/commit/4f761283e8896d0ceb5934779005646463a030e8)
+  `figgy-pudding@3.5.1`
+  ([@zkat](https://github.com/zkat))
+* [`3706db0bc`](https://github.com/npm/cli/commit/3706db0bcbc306d167bb902362e7f6962f2fe1a1)
+  [npm.community#1764](https://npm.community/t/crash-invalid-config-key-requested-error/1764)
+  `ssri@6.0.1`
+  ([@zkat](https://github.com/zkat))
+* [`83c2b117d`](https://github.com/npm/cli/commit/83c2b117d0b760d0ea8d667e5e4bdfa6a7a7a8f6)
+  `bluebird@3.5.2`
+  ([@petkaantonov](https://github.com/petkaantonov))
+* [`2702f46bd`](https://github.com/npm/cli/commit/2702f46bd7284fb303ca2119d23c52536811d705)
+  `ci-info@1.5.1`
+  ([@watson](https://github.com/watson))
+* [`4db6c3898`](https://github.com/npm/cli/commit/4db6c3898b07100e3a324e4aae50c2fab4b93a04)
+  `config-chain@1.1.1`:2
+  ([@dawsbot](https://github.com/dawbot))
+* [`70bee4f69`](https://github.com/npm/cli/commit/70bee4f69bb4ce4e18c48582fe2b48d8b4aba566)
+  `glob@7.1.3`
+  ([@isaacs](https://github.com/isaacs))
+* [`e469fd6be`](https://github.com/npm/cli/commit/e469fd6be95333dcaa7cf377ca3620994ca8d0de)
+  `opener@1.5.1`:
+  Fix browser opening under Windows Subsystem for Linux (WSL).
+  ([@thijsputman](https://github.com/thijsputman))
+* [`03840dced`](https://github.com/npm/cli/commit/03840dced865abdca6e6449ea030962e5b19db0c)
+  `semver@5.5.1`
+  ([@iarna](https://github.com/iarna))
+* [`161dc0b41`](https://github.com/npm/cli/commit/161dc0b4177e76306a0e3b8660b3b496cc3db83b)
+  `bluebird@3.5.3`
+  ([@petkaantonov](https://github.com/petkaantonov))
+* [`bb6f94395`](https://github.com/npm/cli/commit/bb6f94395491576ec42996ff6665df225f6b4377)
+  `graceful-fs@4.1.1`:5
+  ([@isaacs](https://github.com/isaacs))
+* [`43b1f4c91`](https://github.com/npm/cli/commit/43b1f4c91fa1d7b3ebb6aa2d960085e5f3ac7607)
+  `tar@4.4.8`
+  ([@isaacs](https://github.com/isaacs))
+* [`ab62afcc4`](https://github.com/npm/cli/commit/ab62afcc472de82c479bf91f560a0bbd6a233c80)
+  `npm-packlist@1.1.1`:2
+  ([@isaacs](https://github.com/isaacs))
+* [`027f06be3`](https://github.com/npm/cli/commit/027f06be35bb09f390e46fcd2b8182539939d1f7)
+  `ci-info@1.6.0`
+  ([@watson](https://github.com/watson))
+
+### MISCELLANEOUS
+
+* [`27217dae8`](https://github.com/npm/cli/commit/27217dae8adbc577ee9cb323b7cfe9c6b2493aca)
+  [#70](https://github.com/npm/cli/pull/70)
+  Automatically audit dependency licenses for npm itself.
+  ([@kemitchell](https://github.com/kemitchell))
+
 ## v6.4.1 (2018-08-22):
 
 ### BUGFIXES
@@ -36,7 +1520,7 @@
   circular dependency fix, as well as adding a proper LICENSE file.
   ([@isaacs](https://github.com/isaacs))
 * [`e8d5f4418`](https://github.com/npm/cli/commit/e8d5f441821553a31fc8cd751670663699d2c8ce)
-  [npm.community#632](https://npm.community/t/https://npm.community/t/using-npm-ci-does-not-run-prepare-script-for-git-modules/632)
+  [npm.community#632](https://npm.community/t/using-npm-ci-does-not-run-prepare-script-for-git-modules/632)
   `libcipm@2.0.2`:
   Fixes issue where `npm ci` wasn't running the `prepare` lifecycle script when
   installing git dependencies
@@ -220,7 +1704,7 @@ bumped due to bugs that had been around for a while.
   ([@zkat](https://github.com/zkat))
 * [`21cf0ab68`](https://github.com/npm/cli/commit/21cf0ab68cf528d5244ae664133ef400bdcfbdb6)
   [npm/cli#24](https://github.com/npm/cli/pull/24)
-  Use the defaut OTP explanation everywhere except when the context is
+  Use the default OTP explanation everywhere except when the context is
   "OTP-aware" (like when setting double-authentication). This improves the
   overall CLI messaging when prompting for an OTP code.
   ([@jdeniau](https://github.com/jdeniau))

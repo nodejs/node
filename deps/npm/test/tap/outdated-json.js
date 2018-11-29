@@ -1,16 +1,13 @@
 var fs = require('graceful-fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 var server
 
-var pkg = path.resolve(__dirname, 'outdated-json')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 
@@ -42,8 +39,6 @@ var expected = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(pkg)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -92,14 +87,37 @@ test('it should log json data', function (t) {
   )
 })
 
-test('cleanup', function (t) {
-  server.close()
-  cleanup()
-  t.end()
+test('it should log json data even when the list is empty', function (t) {
+  common.npm(
+    [
+      'rm',
+      'request',
+      'underscore'
+    ],
+    EXEC_OPTS,
+    function (er, code, stdout) {
+      t.ifError(er, 'run without error')
+      t.is(code, 0, 'successful exit status')
+      common.npm(
+        [
+          '--registry', common.registry,
+          '--silent',
+          '--json',
+          'outdated'
+        ],
+        EXEC_OPTS,
+        function (er, code, stdout) {
+          t.ifError(er, 'run without error')
+          t.is(code, 0, 'successful exit status')
+          t.same(JSON.parse(stdout), {}, 'got an empty object printed')
+          t.end()
+        }
+      )
+    }
+  )
 })
 
-function cleanup () {
-  // windows fix for locked files
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
+test('cleanup', function (t) {
+  server.close()
+  t.end()
+})

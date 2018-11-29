@@ -1,14 +1,12 @@
 var fs = require('fs')
 var resolve = require('path').resolve
 
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'install-property-conflicts')
+var pkg = common.pkg
 var target = resolve(pkg, '_target')
 
 var EXEC_OPTS = {
@@ -22,8 +20,12 @@ var json = {
 }
 
 test('setup', function (t) {
-  setup()
-  t.pass('setup ran')
+  // make sure it installs locally
+  mkdirp.sync(resolve(target, 'node_modules'))
+  fs.writeFileSync(
+    resolve(pkg, 'package.json'),
+    JSON.stringify(json, null, 2) + '\n'
+  )
   t.end()
 })
 
@@ -49,26 +51,3 @@ test('install package with a `type` property', function (t) {
     }
   )
 })
-
-test('clean', function (t) {
-  cleanup()
-  t.pass('cleaned up')
-  t.end()
-})
-
-function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
-  // make sure it installs locally
-  mkdirp.sync(resolve(target, 'node_modules'))
-  fs.writeFileSync(
-    resolve(pkg, 'package.json'),
-    JSON.stringify(json, null, 2) + '\n'
-  )
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-  rimraf.sync(target)
-}

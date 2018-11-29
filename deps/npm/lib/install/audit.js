@@ -7,118 +7,115 @@ exports.printInstallReport = printInstallReport
 exports.printParseableReport = printParseableReport
 exports.printFullReport = printFullReport
 
-const Bluebird = require('bluebird')
 const auditReport = require('npm-audit-report')
+const npmConfig = require('../config/figgy-config.js')
+const figgyPudding = require('figgy-pudding')
 const treeToShrinkwrap = require('../shrinkwrap.js').treeToShrinkwrap
 const packageId = require('../utils/package-id.js')
 const output = require('../utils/output.js')
 const npm = require('../npm.js')
 const qw = require('qw')
-const registryFetch = require('npm-registry-fetch')
-const zlib = require('zlib')
-const gzip = Bluebird.promisify(zlib.gzip)
-const log = require('npmlog')
+const regFetch = require('npm-registry-fetch')
 const perf = require('../utils/perf.js')
-const url = require('url')
 const npa = require('npm-package-arg')
 const uuid = require('uuid')
 const ssri = require('ssri')
 const cloneDeep = require('lodash.clonedeep')
-const pacoteOpts = require('../config/pacote.js')
 
 // used when scrubbing module names/specifiers
 const runId = uuid.v4()
 
+const InstallAuditConfig = figgyPudding({
+  color: {},
+  json: {},
+  unicode: {}
+}, {
+  other (key) {
+    return /:registry$/.test(key)
+  }
+})
+
 function submitForInstallReport (auditData) {
-  const cfg = npm.config // avoid the no-dynamic-lookups test
-  const scopedRegistries = cfg.keys.filter(_ => /:registry$/.test(_)).map(_ => cfg.get(_))
-  perf.emit('time', 'audit compress')
-  // TODO: registryFetch will be adding native support for `Content-Encoding: gzip` at which point
-  // we'll pass in something like `gzip: true` and not need to JSON stringify, gzip or headers.
-  return gzip(JSON.stringify(auditData)).then(body => {
-    perf.emit('timeEnd', 'audit compress')
-    log.info('audit', 'Submitting payload of ' + body.length + 'bytes')
-    scopedRegistries.forEach(reg => {
-      // we don't care about the response so destroy the stream if we can, or leave it flowing
-      // so it can eventually finish and clean up after itself
-      fetchAudit(url.resolve(reg, '/-/npm/v1/security/audits/quick'))
-        .then(_ => {
-          _.body.on('error', () => {})
-          if (_.body.destroy) {
-            _.body.destroy()
-          } else {
-            _.body.resume()
-          }
-        }, _ => {})
-    })
-    perf.emit('time', 'audit submit')
-    return fetchAudit('/-/npm/v1/security/audits/quick', body).then(response => {
-      perf.emit('timeEnd', 'audit submit')
-      perf.emit('time', 'audit body')
-      return response.json()
-    }).then(result => {
-      perf.emit('timeEnd', 'audit body')
-      return result
-    })
+  const opts = InstallAuditConfig(npmConfig())
+  const scopedRegistries = [...opts.keys()].filter(
+    k => /:registry$/.test(k)
+  ).map(k => opts[k])
+  scopedRegistries.forEach(registry => {
+    // we don't care about the response so destroy the stream if we can, or leave it flowing
+    // so it can eventually finish and clean up after itself
+    regFetch('/-/npm/v1/security/audits/quick', opts.concat({
+      method: 'POST',
+      registry,
+      gzip: true,
+      body: auditData
+    })).then(_ => {
+      _.body.on('error', () => {})
+      if (_.body.destroy) {
+        _.body.destroy()
+      } else {
+        _.body.resume()
+      }
+    }, _ => {})
+  })
+  perf.emit('time', 'audit submit')
+  return regFetch('/-/npm/v1/security/audits/quick', opts.concat({
+    method: 'POST',
+    gzip: true,
+    body: auditData
+  })).then(response => {
+    perf.emit('timeEnd', 'audit submit')
+    perf.emit('time', 'audit body')
+    return response.json()
+  }).then(result => {
+    perf.emit('timeEnd', 'audit body')
+    return result
   })
 }
 
 function submitForFullReport (auditData) {
-  perf.emit('time', 'audit compress')
-  // TODO: registryFetch will be adding native support for `Content-Encoding: gzip` at which point
-  // we'll pass in something like `gzip: true` and not need to JSON stringify, gzip or headers.
-  return gzip(JSON.stringify(auditData)).then(body => {
-    perf.emit('timeEnd', 'audit compress')
-    log.info('audit', 'Submitting payload of ' + body.length + ' bytes')
-    perf.emit('time', 'audit submit')
-    return fetchAudit('/-/npm/v1/security/audits', body).then(response => {
-      perf.emit('timeEnd', 'audit submit')
-      perf.emit('time', 'audit body')
-      return response.json()
-    }).then(result => {
-      perf.emit('timeEnd', 'audit body')
-      result.runId = runId
-      return result
-    })
-  })
-}
-
-function fetchAudit (href, body) {
-  const opts = pacoteOpts()
-  return registryFetch(href, {
+  perf.emit('time', 'audit submit')
+  const opts = InstallAuditConfig(npmConfig())
+  return regFetch('/-/npm/v1/security/audits', opts.concat({
     method: 'POST',
-    headers: { 'Content-Encoding': 'gzip', 'Content-Type': 'application/json' },
-    config: npm.config,
-    npmSession: opts.npmSession,
-    projectScope: npm.projectScope,
-    log: log,
-    body: body
+    gzip: true,
+    body: auditData
+  })).then(response => {
+    perf.emit('timeEnd', 'audit submit')
+    perf.emit('time', 'audit body')
+    return response.json()
+  }).then(result => {
+    perf.emit('timeEnd', 'audit body')
+    result.runId = runId
+    return result
   })
 }
 
 function printInstallReport (auditResult) {
+  const opts = InstallAuditConfig(npmConfig())
   return auditReport(auditResult, {
     reporter: 'install',
-    withColor: npm.color,
-    withUnicode: npm.config.get('unicode')
+    withColor: opts.color,
+    withUnicode: opts.unicode
   }).then(result => output(result.report))
 }
 
 function printFullReport (auditResult) {
+  const opts = InstallAuditConfig(npmConfig())
   return auditReport(auditResult, {
     log: output,
-    reporter: npm.config.get('json') ? 'json' : 'detail',
-    withColor: npm.color,
-    withUnicode: npm.config.get('unicode')
+    reporter: opts.json ? 'json' : 'detail',
+    withColor: opts.color,
+    withUnicode: opts.unicode
   }).then(result => output(result.report))
 }
 
 function printParseableReport (auditResult) {
+  const opts = InstallAuditConfig(npmConfig())
   return auditReport(auditResult, {
     log: output,
     reporter: 'parseable',
-    withColor: npm.color,
-    withUnicode: npm.config.get('unicode')
+    withColor: opts.color,
+    withUnicode: opts.unicode
   }).then(result => output(result.report))
 }
 

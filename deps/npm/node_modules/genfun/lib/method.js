@@ -46,13 +46,9 @@ function Method (genfun, selector, func) {
     } else {
       method.minimalSelector++
       if (!Object.hasOwnProperty.call(object, Role.roleKeyName)) {
-        if (Object.defineProperty) {
-          // Object.defineProperty is JS 1.8.0+
-          Object.defineProperty(
-            object, Role.roleKeyName, {value: [], enumerable: false})
-        } else {
-          object[Role.roleKeyName] = []
-        }
+        // Object.defineProperty is JS 1.8.0+
+        Object.defineProperty(
+          object, Role.roleKeyName, {value: [], enumerable: false})
       }
       // XXX HACK - no method replacement now, so we just shove
       // it in a place where it'll always show up first. This

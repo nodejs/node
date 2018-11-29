@@ -1,4 +1,4 @@
-.TH "SEMVER" "7" "August 2018" "" ""
+.TH "SEMVER" "7" "December 2019" "" ""
 .SH "NAME"
 \fBsemver\fR \- The semantic versioner for npm
 .SH Install
@@ -6,7 +6,6 @@
 .RS 2
 .nf
 npm install \-\-save semver
-`
 .fi
 .RE
 .SH Usage
@@ -23,6 +22,7 @@ semver\.clean('  =v1\.2\.3   ') // '1\.2\.3'
 semver\.satisfies('1\.2\.3', '1\.x || >=2\.5\.0 || 5\.0\.0 \- 7\.2\.3') // true
 semver\.gt('1\.2\.3', '9\.8\.7') // false
 semver\.lt('1\.2\.3', '9\.8\.7') // true
+semver\.minVersion('>=1\.0\.0') // '1\.0\.0'
 semver\.valid(semver\.coerce('v2')) // '2\.0\.0'
 semver\.valid(semver\.coerce('42\.6\.7\.9\.3\-alpha')) // '42\.6\.7'
 .fi
@@ -34,9 +34,7 @@ As a command\-line utility:
 .nf
 $ semver \-h
 
-SemVer 5\.3\.0
-
-A JavaScript implementation of the http://semver\.org/ specification
+A JavaScript implementation of the https://semver\.org/ specification
 Copyright Isaac Z\. Schlueter
 
 Usage: semver [options] <version> [<version> [\.\.\.]]
@@ -59,6 +57,9 @@ Options:
 \-l \-\-loose
         Interpret versions and ranges loosely
 
+\-p \-\-include\-prerelease
+        Always include prerelease versions in range matching
+
 \-c \-\-coerce
         Coerce a string into SemVer if possible
         (does not imply \-\-loose)
@@ -75,7 +76,7 @@ multiple versions to the utility will just sort them\.
 .SH Versions
 .P
 A "version" is described by the \fBv2\.0\.0\fP specification found at
-http://semver\.org/\|\.
+https://semver\.org/\|\.
 .P
 A leading \fB"="\fP or \fB"v"\fP character is stripped off and ignored\.
 .SH Ranges
@@ -145,6 +146,13 @@ alpha/beta/rc versions\.  By including a prerelease tag in the range,
 the user is indicating that they are aware of the risk\.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the \fInext\fR set of prerelease versions\.
+.P
+Note that this behavior can be suppressed (treating all prerelease
+versions as if they were normal versions, for the purpose of range
+matching) by setting the \fBincludePrerelease\fP flag on the options
+object to any
+functions \fIhttps://github\.com/npm/node\-semver#functions\fR that do
+range matching\.
 .SS Prerelease Identifiers
 .P
 The method \fB\|\.inc\fP takes an additional \fBidentifier\fP string argument that
@@ -329,7 +337,7 @@ logical\-or ::= ( ' ' ) * '||' ( ' ' ) *
 range      ::= hyphen | simple ( ' ' simple ) * | ''
 hyphen     ::= partial ' \- ' partial
 simple     ::= primitive | partial | tilde | caret
-primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' | ) partial
+primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' ) partial
 partial    ::= xr ( '\.' xr ( '\.' xr qualifier ? )? )?
 xr         ::= 'x' | 'X' | '*' | nr
 nr         ::= '0' | ['1'\-'9'] ( ['0'\-'9'] ) *
@@ -344,9 +352,23 @@ part       ::= nr | [\-0\-9A\-Za\-z]+
 .RE
 .SH Functions
 .P
-All methods and classes take a final \fBloose\fP boolean argument that, if
-true, will be more forgiving about not\-quite\-valid semver strings\.
-The resulting output will always be 100% strict, of course\.
+All methods and classes take a final \fBoptions\fP object argument\.  All
+options in this object are \fBfalse\fP by default\.  The options supported
+are:
+.RS 0
+.IP \(bu 2
+\fBloose\fP  Be more forgiving about not\-quite\-valid semver strings\.
+(Any resulting output will always be 100% strict compliant, of
+course\.)  For backwards compatibility reasons, if the \fBoptions\fP
+argument is a boolean value instead of an object, it is interpreted
+to be the \fBloose\fP param\.
+.IP \(bu 2
+\fBincludePrerelease\fP  Set to suppress the default
+behavior \fIhttps://github\.com/npm/node\-semver#prerelease\-tags\fR of
+excluding prerelease tagged versions from ranges unless they are
+explicitly opted into\.
+
+.RE
 .P
 Strict\-mode Comparators and Ranges will be strict about the SemVer
 strings that they parse\.
@@ -357,7 +379,7 @@ strings that they parse\.
 \fBinc(v, release)\fP: Return the version incremented by the release
 type (\fBmajor\fP,   \fBpremajor\fP, \fBminor\fP, \fBpreminor\fP, \fBpatch\fP,
 \fBprepatch\fP, or \fBprerelease\fP), or null if it's not valid
-.RS 0
+.RS
 .IP \(bu 2
 \fBpremajor\fP in one call will bump the version up to the next major
 version and down to a prerelease of that major version\.
@@ -381,6 +403,9 @@ if none exist\. Example: \fBprerelease('1\.2\.3\-alpha\.1') \-> ['alpha', 1]\fP
 .IP \(bu 2
 \fBintersects(r1, r2, loose)\fP: Return true if the two supplied ranges
 or comparators intersect\.
+.IP \(bu 2
+\fBparse(v)\fP: Attempt to parse a string as a semantic version, returning either
+a \fBSemVer\fP object or \fBnull\fP\|\.
 
 .RE
 .SS Comparison
@@ -436,6 +461,9 @@ that satisfies the range, or \fBnull\fP if none of them do\.
 \fBminSatisfying(versions, range)\fP: Return the lowest version in the list
 that satisfies the range, or \fBnull\fP if none of them do\.
 .IP \(bu 2
+\fBminVersion(range)\fP: Return the lowest version that can possibly match
+the given range\.
+.IP \(bu 2
 \fBgtr(version, range)\fP: Return \fBtrue\fP if version is greater than all the
 versions possible in the range\.
 .IP \(bu 2
@@ -468,15 +496,15 @@ range, use the \fBsatisfies(version, range)\fP function\.
 
 .RE
 .P
-This aims to provide a very forgiving translation of a non\-semver
-string to semver\. It looks for the first digit in a string, and
-consumes all remaining characters which satisfy at least a partial semver
-(e\.g\., \fB1\fP, \fB1\.2\fP, \fB1\.2\.3\fP) up to the max permitted length (256 characters)\.
-Longer versions are simply truncated (\fB4\.6\.3\.9\.2\-alpha2\fP becomes \fB4\.6\.3\fP)\.
-All surrounding text is simply ignored (\fBv3\.4 replaces v3\.3\.1\fP becomes \fB3\.4\.0\fP)\.
-Only text which lacks digits will fail coercion (\fBversion one\fP is not valid)\.
-The maximum  length for any semver component considered for coercion is 16 characters;
-longer components will be ignored (\fB10000000000000000\.4\.7\.4\fP becomes \fB4\.7\.4\fP)\.
-The maximum value for any semver component is \fBInteger\.MAX_SAFE_INTEGER || (2**53 \- 1)\fP;
-higher value components are invalid (\fB9999999999999999\.4\.7\.4\fP is likely invalid)\.
-
+This aims to provide a very forgiving translation of a non\-semver string to
+semver\. It looks for the first digit in a string, and consumes all
+remaining characters which satisfy at least a partial semver (e\.g\., \fB1\fP,
+\fB1\.2\fP, \fB1\.2\.3\fP) up to the max permitted length (256 characters)\.  Longer
+versions are simply truncated (\fB4\.6\.3\.9\.2\-alpha2\fP becomes \fB4\.6\.3\fP)\.  All
+surrounding text is simply ignored (\fBv3\.4 replaces v3\.3\.1\fP becomes
+\fB3\.4\.0\fP)\.  Only text which lacks digits will fail coercion (\fBversion one\fP
+is not valid)\.  The maximum  length for any semver component considered for
+coercion is 16 characters; longer components will be ignored
+(\fB10000000000000000\.4\.7\.4\fP becomes \fB4\.7\.4\fP)\.  The maximum value for any
+semver component is \fBNumber\.MAX_SAFE_INTEGER || (2**53 \- 1)\fP; higher value
+components are invalid (\fB9999999999999999\.4\.7\.4\fP is likely invalid)\.

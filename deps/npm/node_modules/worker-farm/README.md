@@ -1,4 +1,4 @@
-# Worker Farm [![Build Status](https://secure.travis-ci.org/rvagg/node-worker-farm.png)](http://travis-ci.org/rvagg/node-worker-farm)
+# Worker Farm [![Build Status](https://secure.travis-ci.org/rvagg/node-worker-farm.svg)](http://travis-ci.org/rvagg/node-worker-farm)
 
 [![NPM](https://nodei.co/npm/worker-farm.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/worker-farm/) [![NPM](https://nodei.co/npm-dl/worker-farm.png?months=6&height=3)](https://nodei.co/npm/worker-farm/)
 
@@ -111,6 +111,7 @@ If you don't provide an `options` object then the following defaults will be use
   , maxCallTime                 : Infinity
   , maxRetries                  : Infinity
   , autoStart                   : false
+  , onChild                     : function() {}
 }
 ```
 
@@ -129,6 +130,8 @@ If you don't provide an `options` object then the following defaults will be use
   * **<code>maxRetries</code>** allows you to control the max number of call requeues after worker termination (unexpected or timeout). By default this option is set to `Infinity` which means that each call of each terminated worker will always be auto requeued. When the number of retries exceeds `maxRetries` value, the job callback will be executed with a `ProcessTerminatedError`. Note that if you are running with finite `maxCallTime` and `maxConcurrentCallsPerWorkers` greater than `1` then any `TimeoutError` will increase the retries counter *for each* concurrent call of the terminated worker.
 
   * **<code>autoStart</code>** when set to `true` will start the workers as early as possible. Use this when your workers have to do expensive initialization. That way they'll be ready when the first request comes through.
+
+  * **<code>onChild</code>** when new child process starts this callback will be called with subprocess object as an argument. Use this when you need to add some custom communication with child processes.
 
 ### workerFarm.end(farm)
 

@@ -12,13 +12,16 @@ const test = require('tap').test
 
 const Dir = Tacks.Dir
 const File = Tacks.File
-const testDir = path.join(__dirname, 'ci')
+const testDir = common.pkg
 
 const EXEC_OPTS = { cwd: testDir }
 
 const PKG = {
   name: 'top',
   version: '1.2.3',
+  scripts: {
+    install: 'node -p process.env.npm_config_foo'
+  },
   dependencies: {
     optimist: '0.6.0',
     clean: '2.1.6'
@@ -44,25 +47,27 @@ test('setup', () => {
   const fixture = new Tacks(Dir({
     'package.json': File(PKG)
   }))
-  fixture.create(testDir)
-  return mr({port: common.port})
+  return rimraf(testDir).then(() => {
+    fixture.create(testDir)
+    return mr({port: common.port})
+  })
     .then((server) => {
       SERVER = server
       return common.npm([
         'install',
         '--registry', common.registry
       ], EXEC_OPTS)
-        .then(() => fs.readFileAsync(
-          path.join(testDir, 'package-lock.json'),
-          'utf8')
-        )
-        .then((lock) => {
-          RAW_LOCKFILE = lock
-        })
-        .then(() => common.npm(['ls', '--json'], EXEC_OPTS))
-        .then((ret) => {
-          TREE = scrubFrom(JSON.parse(ret[1]))
-        })
+    })
+    .then(() => fs.readFileAsync(
+      path.join(testDir, 'package-lock.json'),
+      'utf8')
+    )
+    .then((lock) => {
+      RAW_LOCKFILE = lock
+    })
+    .then(() => common.npm(['ls', '--json'], EXEC_OPTS))
+    .then((ret) => {
+      TREE = scrubFrom(JSON.parse(ret[1]))
     })
 })
 
@@ -75,6 +80,7 @@ test('basic installation', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -83,10 +89,10 @@ test('basic installation', (t) => {
       const stdout = ret[1]
       const stderr = ret[2]
       t.equal(code, 0, 'command completed without error')
-      t.equal(stdout.trim(), '', 'no output on stdout')
+      t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
-        stderr.trim(),
-        /^added 6 packages in \d+(?:\.\d+)?s$/,
+        stdout.trim(),
+        /\nasdf\nadded 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
       return fs.readdirAsync(path.join(testDir, 'node_modules'))
@@ -142,6 +148,7 @@ test('supports npm-shrinkwrap.json as well', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -150,10 +157,10 @@ test('supports npm-shrinkwrap.json as well', (t) => {
       const stdout = ret[1]
       const stderr = ret[2]
       t.equal(code, 0, 'command completed without error')
-      t.equal(stdout.trim(), '', 'no output on stdout')
+      t.equal(stderr.trim(), '', 'no output on stderr')
       t.match(
-        stderr.trim(),
-        /^added 6 packages in \d+(?:\.\d+)?s$/,
+        stdout.trim(),
+        /\nasdf\nadded 6 packages in \d+(?:\.\d+)?s$/,
         'no warnings on stderr, and final output has right number of packages'
       )
     })
@@ -192,15 +199,14 @@ test('removes existing node_modules/ before installing', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
     .then((ret) => {
       const code = ret[0]
-      const stdout = ret[1]
       const stderr = ret[2]
       t.equal(code, 0, 'command completed without error')
-      t.equal(stdout.trim(), '', 'no output on stdout')
       t.match(
         stderr.trim(),
         /^npm.*WARN.*removing existing node_modules/,
@@ -232,6 +238,7 @@ test('errors if package-lock.json missing', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))
@@ -268,6 +275,7 @@ test('errors if package-lock.json invalid', (t) => {
     .then(() => fixture.create(testDir))
     .then(() => common.npm([
       'ci',
+      '--foo=asdf',
       '--registry', common.registry,
       '--loglevel', 'warn'
     ], EXEC_OPTS))

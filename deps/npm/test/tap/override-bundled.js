@@ -8,7 +8,7 @@ var path = require('path')
 var common = require('../common-tap.js')
 
 var testname = path.basename(__filename, '.js')
-var testdir = path.resolve(__dirname, testname)
+var testdir = common.pkg
 var testmod = path.resolve(testdir, 'top-test')
 var testtgz = testmod + '-1.0.0.tgz'
 

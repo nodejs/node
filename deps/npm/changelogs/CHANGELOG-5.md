@@ -225,7 +225,7 @@ as `https://` URLs instead of versions.
   zeros deleted resulted in authentication failures.
   ([@iarna](https://github.com/iarna))
 * [`6eaa860ea`](https://github.com/npm/npm/commit/6eaa860ead3222a6dbd6d370b4271e7bf242b30b)
-  Eliminate direct use of `new Buffer` in `npm`. While the use of it in `npm` was safe, there
+  Eliminate direct use of `new Buffer` in `npm`. While the use of it in `npm` was safe, there 
   are two other reasons for this change:
 
   1. Node 10 emits warnings about its use.
@@ -341,7 +341,7 @@ and a handful of bug fixes! Let's get right in!
 
 ### NEW PACKAGE VIEW
 
-There's a new `npm view` in town.  You might it as `npm info` or `npm show`.
+There's a new `npm view` in town.  You might it as `npm info` or `npm show`. 
 The new output gives you a nicely summarized view that for most packages
 fits on one screen.  If you ask it for `--json` you'll still get the same
 results, so your scripts should still work fine.
@@ -377,7 +377,7 @@ you can double check your `.npmignore` settings before doing a publish.
 ### MERGE CONFLICT, SMERGE CONFLICT
 
 If you resolve a `package-lock.json` merge conflict with `npm install` we
-now suggest you setup a merge driver to handle these automatically for you.
+now suggest you setup a merge driver to handle these automatically for you. 
 If you're reading this and you'd like to set it up now, run:
 
 ```console
@@ -1285,7 +1285,7 @@ had been held by 1.3.16 since _December of 2013_.
 If you can't get enough of the bleeding edge, I encourage you to check out
 our canary release of npm. Get it with `npm install -g npmc`. It's going to
 be seeing some exciting stuff in the next couple of weeks, starting with a
-rewriten `npm dedupe`, but moving on to… well, you'll just have to wait and
+rewritten `npm dedupe`, but moving on to… well, you'll just have to wait and
 find out.
 
 ### PERFORMANCE
@@ -1911,7 +1911,7 @@ right? Here's what's bumping that number for us this time:
   ([@KennethKinLum](https://github.com/KennethKinLum))
 * [`c9b534a14`](https://github.com/npm/npm/commit/c9b534a148818d1a97787c0dfdba5f64ce3618a6)
   [#17074](https://github.com/npm/npm/pull/17074)
-  Clarify config documention with multiple boolean flags.
+  Clarify config documentation with multiple boolean flags.
   ([@KennethKinLum](https://github.com/KennethKinLum))
 * [`e111b0a40`](https://github.com/npm/npm/commit/e111b0a40c4bc6691d7b8d67ddce5419e67bfd27)
   [#16768](https://github.com/npm/npm/pull/16768)
@@ -2117,7 +2117,7 @@ added 234 packages in .005ms
   Fix a crash while installing with `--no-shrinkwrap`.
   ([@jacknagel](https://github.com/jacknagel))
 
-### DOC UPATES
+### DOC UPDATES
 
 * [`89e0cb816`](https://github.com/npm/npm/commit/89e0cb8165dd9c3c7ac74d531617f367099608f4)
   [#16818](https://github.com/npm/npm/pull/16818)

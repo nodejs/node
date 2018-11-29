@@ -6,9 +6,9 @@ var join = require('path').join
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
 
-var pkg = join(__dirname, 'prepare_package')
+var pkg = common.pkg
 var tmp = join(pkg, 'tmp')
-var cache = join(pkg, 'cache')
+var cache = common.cache
 
 test('setup', function (t) {
   var n = 0

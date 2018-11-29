@@ -2,12 +2,10 @@
 var path = require('path')
 var fs = require('fs')
 var test = require('tap').test
-var osenv = require('osenv')
 var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
 var common = require('../common-tap.js')
 
-var base = path.join(__dirname, path.basename(__filename, '.js'))
+var base = common.pkg
 var installFrom = path.join(base, 'from')
 var installIn = path.join(base, 'in')
 
@@ -43,18 +41,7 @@ test('force install self', function (t) {
   })
 })
 
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(base)
-}
-
 function setup () {
-  cleanup()
   mkdirp.sync(path.resolve(installFrom, 'node_modules'))
   fs.writeFileSync(
     path.join(installFrom, 'package.json'),

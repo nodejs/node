@@ -1,11 +1,18 @@
 'use strict'
 const common = require('./common-tap.js')
 const Bluebird = require('bluebird')
-const log = require('npmlog')
+const silentLogger = {
+  http: () => {},
+  silly: () => {}
+}
+
+const log = process.env.TAP_CHILD_ID
+  ? silentLogger
+  : require('npmlog')
 
 const http = require('http')
 const EventEmitter = require('events')
-// See mock-registry.md for details
+// See fake-registry.md for details
 
 class FakeRegistry extends EventEmitter {
   constructor (opts) {

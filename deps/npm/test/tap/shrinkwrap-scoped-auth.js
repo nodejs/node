@@ -6,23 +6,19 @@ var writeFileSync = require('graceful-fs').writeFileSync
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var ssri = require('ssri')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 var toNerfDart = require('../../lib/config/nerf-dart.js')
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
+var pkg = common.pkg
 var outfile = path.resolve(pkg, '_npmrc')
 var modules = path.resolve(pkg, 'node_modules')
 var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
 var tarballURL = common.registry + tarballPath
 var tarball = path.resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
 var tarballIntegrity = ssri.fromData(fs.readFileSync(tarball)).toString()
-
-var server
 
 function mocks (server) {
   var auth = 'Bearer 0xabad1dea'
@@ -33,11 +29,41 @@ function mocks (server) {
   })
 }
 
+var contents = '@scoped:registry=' + common.registry + '\n' +
+               toNerfDart(common.registry) + ':_authToken=0xabad1dea\n'
+
+var json = {
+  name: 'test-package-install',
+  version: '1.0.0',
+  dependencies: {
+    '@scoped/underscore': '1.0.0'
+  }
+}
+
+var shrinkwrap = {
+  name: 'test-package-install',
+  version: '1.0.0',
+  lockfileVersion: 1,
+  dependencies: {
+    '@scoped/underscore': {
+      resolved: tarballURL,
+      integrity: tarballIntegrity,
+      version: '1.3.1'
+    }
+  }
+}
+
 test('setup', function (t) {
+  mkdirp.sync(modules)
+  writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
+  writeFileSync(outfile, contents)
+  writeFileSync(
+    path.resolve(pkg, 'npm-shrinkwrap.json'),
+    JSON.stringify(shrinkwrap, null, 2) + '\n'
+  )
   mr({ port: common.port, plugin: mocks }, function (er, s) {
-    server = s
+    t.parent.teardown(() => s.close())
     t.ok(s, 'set up mock registry')
-    setup()
     t.end()
   })
 })
@@ -68,49 +94,3 @@ test('authed npm install with shrinkwrapped scoped package', function (t) {
     }
   )
 })
-
-test('cleanup', function (t) {
-  server.close()
-  cleanup()
-  t.end()
-})
-
-var contents = '@scoped:registry=' + common.registry + '\n' +
-               toNerfDart(common.registry) + ':_authToken=0xabad1dea\n'
-
-var json = {
-  name: 'test-package-install',
-  version: '1.0.0',
-  dependencies: {
-    '@scoped/underscore': '1.0.0'
-  }
-}
-
-var shrinkwrap = {
-  name: 'test-package-install',
-  version: '1.0.0',
-  lockfileVersion: 1,
-  dependencies: {
-    '@scoped/underscore': {
-      resolved: tarballURL,
-      integrity: tarballIntegrity,
-      version: '1.3.1'
-    }
-  }
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(modules)
-  writeFileSync(path.resolve(pkg, 'package.json'), JSON.stringify(json, null, 2) + '\n')
-  writeFileSync(outfile, contents)
-  writeFileSync(
-    path.resolve(pkg, 'npm-shrinkwrap.json'),
-    JSON.stringify(shrinkwrap, null, 2) + '\n'
-  )
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

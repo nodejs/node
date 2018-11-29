@@ -1,5 +1,25 @@
 'use strict'
 
+const url = require('url')
+
+function packageName (href) {
+  try {
+    let basePath = url.parse(href).pathname.substr(1)
+    if (!basePath.match(/^-/)) {
+      basePath = basePath.split('/')
+      var index = basePath.indexOf('_rewrite')
+      if (index === -1) {
+        index = basePath.length - 1
+      } else {
+        index++
+      }
+      return decodeURIComponent(basePath[index])
+    }
+  } catch (_) {
+    // this is ok
+  }
+}
+
 class HttpErrorBase extends Error {
   constructor (method, res, body, spec) {
     super()
@@ -9,6 +29,7 @@ class HttpErrorBase extends Error {
     this.method = method
     this.uri = res.url
     this.body = body
+    this.pkgid = spec ? spec.toString() : packageName(res.url)
   }
 }
 module.exports.HttpErrorBase = HttpErrorBase

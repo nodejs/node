@@ -1,17 +1,14 @@
 var fs = require('fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap')
 var server
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
-var cache = path.resolve(pkg, 'cache')
+var pkg = common.pkg
+var cache = common.cache
 
 var json = {
   name: 'prune',
@@ -32,8 +29,6 @@ var EXEC_OPTS = {
 }
 
 test('setup', function (t) {
-  cleanup()
-  mkdirp.sync(cache)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
@@ -109,7 +104,7 @@ test('production: npm prune', function (t) {
   ], EXEC_OPTS, function (err, code, stdout) {
     if (err) throw err
     t.notOk(code, 'exit ok')
-    t.equal(stdout.trim(), 'remove\tmkdirp\t0.3.5\tnode_modules/mkdirp')
+    t.equal(stdout.trim().replace(/\\/g, '/'), 'remove\tmkdirp\t0.3.5\tnode_modules/mkdirp')
     t.end()
   })
 })
@@ -122,12 +117,5 @@ test('pruduction: verify installs', function (t) {
 
 test('cleanup', function (t) {
   server.close()
-  cleanup()
-  t.pass('cleaned up')
   t.end()
 })
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

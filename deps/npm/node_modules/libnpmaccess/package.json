@@ -1,0 +1,67 @@
+{
+  "_from": "libnpmaccess@3.0.2",
+  "_id": "libnpmaccess@3.0.2",
+  "_inBundle": false,
+  "_integrity": "sha512-01512AK7MqByrI2mfC7h5j8N9V4I7MHJuk9buo8Gv+5QgThpOgpjB7sQBDDkeZqRteFb1QM/6YNdHfG7cDvfAQ==",
+  "_location": "/libnpmaccess",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "libnpmaccess@3.0.2",
+    "name": "libnpmaccess",
+    "escapedName": "libnpmaccess",
+    "rawSpec": "3.0.2",
+    "saveSpec": null,
+    "fetchSpec": "3.0.2"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/libnpmaccess/-/libnpmaccess-3.0.2.tgz",
+  "_shasum": "8b2d72345ba3bef90d3b4f694edd5c0417f58923",
+  "_spec": "libnpmaccess@3.0.2",
+  "_where": "/Users/isaacs/dev/npm/cli",
+  "author": {
+    "name": "Kat Marchán",
+    "email": "kzm@zkat.tech"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/libnpmaccess/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "aproba": "^2.0.0",
+    "get-stream": "^4.0.0",
+    "npm-package-arg": "^6.1.0",
+    "npm-registry-fetch": "^4.0.0"
+  },
+  "deprecated": false,
+  "description": "programmatic library for `npm access` commands",
+  "devDependencies": {
+    "nock": "^9.6.1",
+    "standard": "*",
+    "standard-version": "*",
+    "tap": "*",
+    "weallbehave": "*",
+    "weallcontribute": "*"
+  },
+  "homepage": "https://npmjs.com/package/libnpmaccess",
+  "license": "ISC",
+  "name": "libnpmaccess",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/libnpmaccess.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --100 test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "3.0.2"
+}

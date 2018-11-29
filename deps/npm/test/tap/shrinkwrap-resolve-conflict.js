@@ -12,7 +12,7 @@ const Tacks = require('tacks')
 const File = Tacks.File
 const Dir = Tacks.Dir
 
-const testDir = path.resolve(__dirname, path.basename(__filename, '.js'))
+const testDir = common.pkg
 const modAdir = path.resolve(testDir, 'modA')
 const modBdir = path.resolve(testDir, 'modB')
 const modCdir = path.resolve(testDir, 'modC')

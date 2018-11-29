@@ -11,15 +11,13 @@ var fs = require('graceful-fs')
 var path = require('path')
 var existsSync = fs.existsSync || path.existsSync
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'false-name')
-var cache = path.join(pkg, 'cache')
+var pkg = common.pkg
+var cache = common.cache
 var server
 
 var EXEC_OPTS = { cwd: pkg }
@@ -60,7 +58,7 @@ test('not every pkg.name can be required', function (t) {
       )
       t.ok(
         existsSync(path.join(pkg, 'node_modules', 'test-package')),
-        'test-pacakge subdep installed OK'
+        'test-package subdep installed OK'
       )
       t.end()
     }
@@ -69,17 +67,10 @@ test('not every pkg.name can be required', function (t) {
 
 test('cleanup', function (t) {
   server.close()
-  cleanup()
   t.end()
 })
 
-function cleanup () {
-  rimraf.sync(pkg)
-}
-
 function setup () {
-  cleanup()
-  mkdirp.sync(cache)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)

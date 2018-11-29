@@ -3,14 +3,11 @@ var path = require('path')
 
 var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
-var test = require('tap').test
+var t = require('tap')
 
 var common = require('../common-tap.js')
-var server
 
-var pkg = path.join(__dirname, 'install-cli-production-nosave')
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 
@@ -21,16 +18,20 @@ var PACKAGE_JSON1 = {
   }
 }
 
-test('setup', function (t) {
-  setup()
+t.test('setup', function (t) {
+  mkdirp.sync(path.resolve(pkg, 'node_modules'))
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(PACKAGE_JSON1, null, 2)
+  )
   mr({ port: common.port }, function (er, s) {
     t.ifError(er, 'started mock registry')
-    server = s
+    t.parent.teardown(() => s.close())
     t.end()
   })
 })
 
-test('install --production <module> without --save exits successfully', function (t) {
+t.test('install --production <module> without --save exits successfully', function (t) {
   common.npm(
     [
       '--registry', common.registry,
@@ -45,25 +46,3 @@ test('install --production <module> without --save exits successfully', function
     }
   )
 })
-
-test('cleanup', function (t) {
-  server.close()
-  cleanup()
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
-function setup () {
-  cleanup()
-  mkdirp.sync(path.resolve(pkg, 'node_modules'))
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(PACKAGE_JSON1, null, 2)
-  )
-
-  process.chdir(pkg)
-}

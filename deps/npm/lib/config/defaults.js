@@ -113,6 +113,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'audit-level': 'low',
     'auth-type': 'legacy',
 
+    'before': null,
     'bin-links': true,
     browser: null,
 
@@ -140,6 +141,9 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     editor: osenv.editor(),
     'engine-strict': false,
     force: false,
+    'format-package-lock': true,
+
+    fund: true,
 
     'fetch-retries': 2,
     'fetch-retry-factor': 10,
@@ -200,7 +204,8 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'user-agent': 'npm/{npm-version} ' +
                     'node/{node-version} ' +
                     '{platform} ' +
-                    '{arch}',
+                    '{arch} ' +
+                    '{ci}',
     'read-only': false,
     'rebuild-bundle': true,
     registry: 'https://registry.npmjs.org/',
@@ -239,7 +244,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
                      process.getuid() !== 0,
     'update-notifier': true,
     usage: false,
-    user: process.platform === 'win32' ? 0 : 'nobody',
+    user: (process.platform === 'win32' || os.type() === 'OS400') ? 0 : 'nobody',
     userconfig: path.resolve(home, '.npmrc'),
     umask: process.umask ? process.umask() : umask.fromString('022'),
     version: false,
@@ -260,6 +265,7 @@ exports.types = {
   audit: Boolean,
   'audit-level': ['low', 'moderate', 'high', 'critical'],
   'auth-type': ['legacy', 'sso', 'saml', 'oauth'],
+  'before': [null, Date],
   'bin-links': Boolean,
   browser: [null, String],
   ca: [null, String, Array],
@@ -280,6 +286,8 @@ exports.types = {
   editor: String,
   'engine-strict': Boolean,
   force: Boolean,
+  fund: Boolean,
+  'format-package-lock': Boolean,
   'fetch-retries': Number,
   'fetch-retry-factor': Number,
   'fetch-retry-mintimeout': Number,
@@ -394,6 +402,7 @@ function getLocalAddresses () {
 }
 
 exports.shorthands = {
+  before: ['--enjoy-by'],
   s: ['--loglevel', 'silent'],
   d: ['--loglevel', 'info'],
   dd: ['--loglevel', 'verbose'],

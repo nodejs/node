@@ -1,18 +1,15 @@
 var fs = require('fs')
 var path = require('path')
 
-var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.resolve(__dirname, 'shrinkwrap-dev-dependency')
+var pkg = common.pkg
 
 var opts = [
-  '--cache', path.resolve(pkg, 'cache'),
+  '--cache', common.cache,
   '--registry', common.registry
 ]
 
@@ -46,26 +43,11 @@ var json = {
   }
 }
 
-function setup () {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify(json, null, 2))
-  process.chdir(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
-
-test('setup', function (t) {
-  setup()
-  t.end()
-})
-
 test("shrinkwrap doesn't strip out the dependency", function (t) {
   t.plan(3)
-  setup()
+
+  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify(json, null, 2))
+  process.chdir(pkg)
 
   mr({port: common.port}, function (er, s) {
     common.npm(opts.concat(['install', '.']), {stdio: [0, 'pipe', 2]}, function (err, code) {
@@ -85,9 +67,4 @@ test("shrinkwrap doesn't strip out the dependency", function (t) {
       })
     })
   })
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
 })

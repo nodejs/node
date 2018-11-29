@@ -74,7 +74,7 @@ function quotemeta (str) {
 }
 
 function tarballToVersion (name, tb) {
-  const registry = quotemeta(npm.config.get('registry'))
+  const registry = quotemeta(npm.config.get('registry') || '')
     .replace(/https?:/, 'https?:')
     .replace(/([^/])$/, '$1/')
   let matchRegTarball
@@ -141,6 +141,7 @@ function isGit (sw) {
 }
 
 function makeFakeChild (name, topPath, tree, sw, requested) {
+  const isDirectory = requested.type === 'directory'
   const from = sw.from || requested.raw
   const pkg = {
     name: name,
@@ -167,17 +168,17 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
   }
   const child = createChild({
     package: pkg,
-    loaded: false,
+    loaded: isDirectory,
     parent: tree,
     children: [],
     fromShrinkwrap: requested,
     fakeChild: sw,
     fromBundle: sw.bundled ? tree.fromBundle || tree : null,
     path: childPath(tree.path, pkg),
-    realpath: requested.type === 'directory' ? requested.fetchSpec : childPath(tree.realpath, pkg),
+    realpath: isDirectory ? requested.fetchSpec : childPath(tree.realpath, pkg),
     location: (tree.location === '/' ? '' : tree.location + '/') + pkg.name,
-    isLink: requested.type === 'directory',
-    isInLink: tree.isLink,
+    isLink: isDirectory,
+    isInLink: tree.isLink || tree.isInLink,
     swRequires: sw.requires
   })
   tree.children.push(child)

@@ -1,16 +1,11 @@
 var common = require('../common-tap.js')
 var test = require('tap').test
 var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
-var path = require('path')
 var mr = require('npm-registry-mock')
-
-var osenv = require('osenv')
-
 var requireInject = require('require-inject')
 
-var PKG_DIR = path.resolve(__dirname, 'update-examples')
-var CACHE_DIR = path.resolve(PKG_DIR, 'cache')
+var PKG_DIR = common.pkg
+var CACHE_DIR = common.cache
 
 // ** constant templates for mocks **
 var DEFAULT_PKG = {
@@ -65,7 +60,6 @@ var registryMocks = {
 }
 
 // ** dynamic mocks, cloned from templates and modified **
-var mockServer
 var mockDepJson = clone(DEP_PKG)
 var mockInstalled = clone(INSTALLED)
 var mockParentJson = clone(DEFAULT_PKG)
@@ -84,9 +78,20 @@ function extend (a, b) {
   return a
 }
 
+const path = require('path')
+let cacheIteration = 0
+const isRoot = process.getuid && process.getuid() === 0
+const sudoUID = isRoot ? +process.env.SUDO_UID : null
+const sudoGID = isRoot ? +process.env.SUDO_GID : null
+const { chownSync } = require('fs')
 function resetPackage (options) {
-  rimraf.sync(CACHE_DIR)
+  CACHE_DIR = path.resolve(common.cache, '' + cacheIteration++)
+  npm.config.set('cache', CACHE_DIR)
   mkdirp.sync(CACHE_DIR)
+
+  if (isRoot && sudoUID && sudoGID) {
+    chownSync(CACHE_DIR, sudoUID, sudoGID)
+  }
 
   installAskedFor = undefined
 
@@ -138,20 +143,18 @@ var npm = requireInject.installGlobally('../../lib/npm.js', {
 
 test('setup', function (t) {
   t.plan(5)
-  process.chdir(osenv.tmpdir())
-  mkdirp.sync(PKG_DIR)
   process.chdir(PKG_DIR)
   t.pass('made ' + PKG_DIR)
 
-  resetPackage({})
-
   mr({ port: common.port, mocks: registryMocks }, function (er, server) {
     t.pass('mock registry active')
-    npm.load({ cache: CACHE_DIR,
+    npm.load({
+      cache: CACHE_DIR,
       registry: common.registry,
-      cwd: PKG_DIR }, function (err) {
+      cwd: PKG_DIR
+    }, function (err) {
       t.ifError(err, 'started server')
-      mockServer = server
+      t.parent.teardown(() => server.close())
 
       t.pass('npm.load complete')
 
@@ -215,13 +218,4 @@ test('update old caret dependency with newer', function (t) {
     t.equal(installAskedFor, 'dep1@0.4.1', 'should want to install dep@0.4.1')
     t.end()
   })
-})
-
-test('cleanup', function (t) {
-  mockServer.close()
-
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(PKG_DIR)
-
-  t.end()
 })

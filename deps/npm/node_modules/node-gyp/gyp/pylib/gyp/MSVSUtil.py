@@ -235,7 +235,7 @@ def InsertLargePdbShims(target_list, target_dicts, vars):
 
     # Set up the shim to output its PDB to the same location as the final linker
     # target.
-    for config_name, config in shim_dict.get('configurations').iteritems():
+    for config_name, config in shim_dict.get('configurations').items():
       pdb_path = _GetPdbPath(target_dict, config_name, vars)
 
       # A few keys that we don't want to propagate.

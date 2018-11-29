@@ -47,7 +47,7 @@ This is gonna be a much, MUCH smaller major version than 3.x was. Maybe even
 smaller than 2.x was. I can't tell you everything that'll be in there just
 yet, but at the very least it's going to have what's in our
 [4.x milestone](https://github.com/npm/npm/pulls?q=is%3Aopen+is%3Apr+milestone%3A4.x),
-PLUS, the first steps in
+PLUS, the first steps in 
 [making `prepublish` work](https://github.com/npm/npm/issues/10074) the way
 people expect it to.
 
@@ -2143,7 +2143,7 @@ This release includes an updated `node-gyp` with fixes for Android.
   ([@watilde](https://github.com/watilde))
 * [`47928cd`](https://github.com/npm/npm/commit/47928cd6264e1d6d0ef67435b71c66d01bea664a)
   [#11003](https://github.com/npm/npm/issues/11003)
-  Remove "verison" typo from the help listing.
+  Remove "version" typo from the help listing.
   ([@doug-wade](https://github.com/doug-wade))
 
 #### MORE COMPLETE CONFIG LISTINGS
@@ -2864,7 +2864,7 @@ Historically, if you used a pre-release version of Node.js, you would get
 dozens and dozens of warnings when EVERY engine check failed across all of
 your modules, because `>= 0.10.0` doesn't match prereleases.
 
-You might find this stream of redundent warnings undesirable. I do.
+You might find this stream of redundant warnings undesirable. I do.
 
 We've moved this into a SINGLE warning you'll get about using a pre-release
 version of Node.js and now suppress those other warnings.
@@ -3473,7 +3473,7 @@ Hey, you found the feature we added!
   folder with the same layout as global modules.  Only your direct
   dependencies will show in `node_modules` and everything they depend on
   will be flattened in their `node_modules` folders.  This obviously will
-  elminate some deduping.
+  eliminate some deduping.
   ([@iarna](https://github.com/iarna))
 
 #### TYPOS IN THE LICENSE, OH MY
@@ -3492,7 +3492,7 @@ this change makes it do.
 
 We _think_ this is what everyone wants, but if this causes problems for
 you, we want to know! If it proves problematic for people we will consider
-reverting it (preferrably before this becomes `npm@latest`).
+reverting it (preferably before this becomes `npm@latest`).
 
 Previously, when you ran `npm install foo` we would act as if you typed
 `npm install foo@*`. Now, like any range-type specifier, in addition to
@@ -3524,7 +3524,7 @@ it would just refuse to install anything. (We fixed that in
   [#10338](https://github.com/npm/npm/pull/10338)
   Updating a module could result in the module stealing some of its
   dependencies from the top level, potentially breaking other modules or
-  resulting in many redundent installations. This bug was first introduced
+  resulting in many redundant installations. This bug was first introduced
   by [`971fd47a`](https://github.com/npm/npm/commit/971fd47a).
   ([@iarna](https://github.com/iarna))
 * [`5653366`](https://github.com/npm/npm/commit/5653366)
@@ -4070,7 +4070,7 @@ in line with `npm@2`.
 
 * [`95ee92c`](https://github.com/npm/npm/commit/95ee92c)
   [#9433](https://github.com/npm/npm/issues/9433)
-  Give better error messages for invalid URLs in the dependecy
+  Give better error messages for invalid URLs in the dependency
   list.
   ([@jamietre](https://github.com/jamietre))
 

@@ -6,8 +6,8 @@ var mr = require('npm-registry-mock')
 var test = require('tap').test
 var common = require('../common-tap.js')
 
-var opts = {cwd: __dirname}
-var outfile = path.resolve(__dirname, '_npmrc')
+var opts = { cwd: common.pkg }
+var outfile = path.resolve(common.pkg, '_npmrc')
 var responses = {
   'Username': 'u\n',
   'Password': 'p\n',
@@ -98,7 +98,7 @@ test('npm login --scope <scope> uses <scope>:registry as its URI', function (t) 
           ],
           opts,
           function (err, code) {
-            t.notOk(code, 'exited OK')
+            t.equal(code, 0, 'exited OK')
             t.notOk(err, 'no error output')
             var config = fs.readFileSync(outfile, 'utf8')
             t.like(config, new RegExp(scope + ':registry=' + uri), 'scope:registry is set')

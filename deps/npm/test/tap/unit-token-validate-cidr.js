@@ -1,7 +1,6 @@
 'use strict'
 const test = require('tap').test
-const requireInject = require('require-inject')
-const validateCIDRList = requireInject('../../lib/token.js', {'../../lib/npm.js': {}})._validateCIDRList
+const validateCIDRList = require('../../lib/token.js')._validateCIDRList
 
 test('validateCIDRList', (t) => {
   t.plan(10)

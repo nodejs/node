@@ -1,7 +1,6 @@
 /* eslint-disable camelcase */
 var child_process = require('child_process')
 var readdir = require('graceful-fs').readdirSync
-var path = require('path')
 var resolve = require('path').resolve
 
 var rimraf = require('rimraf')
@@ -15,7 +14,6 @@ var Dir = Tacks.Dir
 var File = Tacks.File
 
 var fixture = new Tacks(Dir({
-  cache: Dir({}),
   deps: Dir({
     gitch: Dir({
       '.npmignore': File(
@@ -42,8 +40,8 @@ var fixture = new Tacks(Dir({
   })
 }))
 
-var testdir = resolve(__dirname, path.basename(__filename, '.js'))
-var cachedir = resolve(testdir, 'cache')
+var testdir = common.pkg
+var cachedir = common.cache
 var dep = resolve(testdir, 'deps', 'gitch')
 var packname = 'gitch-1.0.0.tgz'
 var packed = resolve(testdir, packname)

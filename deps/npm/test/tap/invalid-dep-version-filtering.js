@@ -7,8 +7,8 @@ var Tacks = require('tacks')
 var File = Tacks.File
 var Dir = Tacks.Dir
 
-var testdir = path.join(__dirname, path.basename(__filename, '.js'))
-var cachedir = path.join(testdir, 'cache')
+var testdir = common.pkg
+var cachedir = common.cache
 
 var fixture = new Tacks(Dir({
   cache: Dir(),

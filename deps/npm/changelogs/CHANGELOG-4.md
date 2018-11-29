@@ -296,7 +296,7 @@ Also there's maybe a bit of an easter egg in this release. 'Cause those are fun 
 ### v4.4.1 (2017-03-06):
 
 This is a quick little patch release to forgo the update notification
-checker if you're on an unsuported (but not otherwise broken) version of
+checker if you're on an unsupported (but not otherwise broken) version of
 Node.js.  Right now that means 0.10 or 0.12.
 
 * [`56ac249`](https://github.com/npm/npm/commit/56ac249ef8ede1021f1bc62a0e4fe1e9ba556af2)
@@ -1434,7 +1434,7 @@ install`, and `prepublishOnly` will be removed, leaving `prepare` and
 
 * [`9b4a227`](https://github.com/npm/npm/commit/9b4a2278cee0a410a107c8ea4d11614731e0a943) [`bc32078`](https://github.com/npm/npm/commit/bc32078fa798acef0e036414cb448645f135b570)
   [#14290](https://github.com/npm/npm/pull/14290)
-  Add `prepare` and `prepublishOnly` lifecyle events.
+  Add `prepare` and `prepublishOnly` lifecycle events.
   ([@othiym23](https://github.com/othiym23))
 * [`52fdefd`](https://github.com/npm/npm/commit/52fdefddb48f0c39c6e8eb4c118eb306c9436117)
   [#14290](https://github.com/npm/npm/pull/14290)

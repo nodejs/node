@@ -3,7 +3,7 @@ module.exports = setUser
 var assert = require('assert')
 var path = require('path')
 var fs = require('fs')
-var mkdirp = require('mkdirp')
+var mkdirp = require('gentle-fs').mkdir
 
 function setUser (cb) {
   var defaultConf = this.root

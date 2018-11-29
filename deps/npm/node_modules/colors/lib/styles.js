@@ -65,11 +65,11 @@ var codes = {
   blueBG: [44, 49],
   magentaBG: [45, 49],
   cyanBG: [46, 49],
-  whiteBG: [47, 49]
+  whiteBG: [47, 49],
 
 };
 
-Object.keys(codes).forEach(function (key) {
+Object.keys(codes).forEach(function(key) {
   var val = codes[key];
   var style = styles[key] = [];
   style.open = '\u001b[' + val[0] + 'm';

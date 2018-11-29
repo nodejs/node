@@ -6,6 +6,8 @@
 
 """Pretty-prints the contents of a GYP file."""
 
+from __future__ import print_function
+
 import sys
 import re
 
@@ -16,7 +18,7 @@ COMMENT_RE = re.compile(r'\s*#.*')
 # Regex to remove quoted strings when we're counting braces.
 # It takes into account quoted quotes, and makes sure that the quotes match.
 # NOTE: It does not handle quotes that span more than one line, or
-# cases where an escaped quote is preceeded by an escaped backslash.
+# cases where an escaped quote is preceded by an escaped backslash.
 QUOTE_RE_STR = r'(?P<q>[\'"])(.*?)(?<![^\\][\\])(?P=q)'
 QUOTE_RE = re.compile(QUOTE_RE_STR)
 
@@ -119,22 +121,22 @@ def prettyprint_input(lines):
   last_line = ""
   for line in lines:
     if COMMENT_RE.match(line):
-      print line
+      print(line)
     else:
       line = line.strip('\r\n\t ')  # Otherwise doesn't strip \r on Unix.
       if len(line) > 0:
         (brace_diff, after) = count_braces(line)
         if brace_diff != 0:
           if after:
-            print " " * (basic_offset * indent) + line
+            print(" " * (basic_offset * indent) + line)
             indent += brace_diff
           else:
             indent += brace_diff
-            print " " * (basic_offset * indent) + line
+            print(" " * (basic_offset * indent) + line)
         else:
-          print " " * (basic_offset * indent) + line
+          print(" " * (basic_offset * indent) + line)
       else:
-        print ""
+        print("")
       last_line = line
 
 

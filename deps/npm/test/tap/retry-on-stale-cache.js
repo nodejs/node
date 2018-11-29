@@ -7,8 +7,8 @@ var Tacks = require('tacks')
 var Dir = Tacks.Dir
 var File = Tacks.File
 
-var workdir = path.join(__dirname, path.basename(__filename, '.js'))
-var cachedir = path.join(workdir, 'cache')
+var workdir = common.pkg
+var cachedir = common.cache
 var modulesdir = path.join(workdir, 'modules')
 var oldModule = path.join(modulesdir, 'good-night-0.1.0.tgz')
 var newModule = path.join(modulesdir, 'good-night-1.0.0.tgz')
@@ -20,7 +20,6 @@ var config = [
 ]
 
 var fixture = new Tacks(Dir({
-  'cache': Dir(),
   'modules': Dir({
     'good-night-0.1.0.tgz': File(Buffer.from(
       '1f8b0800000000000003ed934f4bc43010c57beea7187a59056dd36eff80' +

@@ -10,14 +10,13 @@ var path = require('path')
 
 var common = require('../common-tap')
 
-var pkg = join(__dirname, 'prepublish_package')
-var cachedir = join(pkg, 'cache')
+var pkg = common.pkg
+var cachedir = common.cache
 var tmpdir = join(pkg, 'tmp')
 
 var env = {
   'npm_config_cache': cachedir,
   'npm_config_tmp': tmpdir,
-  'npm_config_prefix': pkg,
   'npm_config_global': 'false'
 }
 
@@ -64,7 +63,6 @@ var fixture = new Tacks(Dir({
 }))
 
 test('setup', function (t) {
-  cleanup()
   fixture.create(pkg)
   mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
     t.ifError(err, 'registry mocked successfully')
@@ -131,12 +129,7 @@ test('test', function (t) {
 })
 
 test('cleanup', function (t) {
-  cleanup()
   server.close()
   t.pass('cleaned up')
   t.end()
 })
-
-function cleanup () {
-  fixture.remove(pkg)
-}

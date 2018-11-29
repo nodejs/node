@@ -4,6 +4,9 @@
 // Packs the specified package into a .tgz file, which can then
 // be installed.
 
+// Set this early to avoid issues with circular dependencies.
+module.exports = pack
+
 const BB = require('bluebird')
 
 const byteSize = require('byte-size')
@@ -18,9 +21,9 @@ const lifecycle = BB.promisify(require('./utils/lifecycle'))
 const log = require('npmlog')
 const move = require('move-concurrently')
 const npm = require('./npm')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output')
 const pacote = require('pacote')
-const pacoteOpts = require('./config/pacote')
 const path = require('path')
 const PassThrough = require('stream').PassThrough
 const pathIsInside = require('path-is-inside')
@@ -37,7 +40,6 @@ pack.usage = 'npm pack [[<@scope>/]<pkg>...] [--dry-run]'
 // if it can be installed, it can be packed.
 pack.completion = install.completion
 
-module.exports = pack
 function pack (args, silent, cb) {
   const cwd = process.cwd()
   if (typeof cb !== 'function') {
@@ -88,8 +90,8 @@ function pack_ (pkg, dir) {
 }
 
 function packFromPackage (arg, target, filename) {
-  const opts = pacoteOpts()
-  return pacote.tarball.toFile(arg, target, pacoteOpts())
+  const opts = npmConfig()
+  return pacote.tarball.toFile(arg, target, opts)
     .then(() => cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'unpacking'}, (tmp) => {
       const tmpTarget = path.join(tmp, filename)
       return pacote.extract(arg, tmpTarget, opts)

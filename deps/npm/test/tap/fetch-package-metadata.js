@@ -1,34 +1,18 @@
 'use strict'
-var path = require('path')
-var mkdirp = require('mkdirp')
-
 var mr = require('npm-registry-mock')
 var npa = require('npm-package-arg')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 var npm = require('../../lib/npm.js')
 
-var pkg = path.resolve(__dirname, path.basename(__filename, '.js'))
-
-function setup (cb) {
-  cleanup()
-  mkdirp.sync(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}
+var pkg = common.pkg
 
 test('setup', function (t) {
-  setup()
   process.chdir(pkg)
 
   var opts = {
-    cache: path.resolve(pkg, 'cache'),
+    cache: common.cache,
     registry: common.registry,
     // important to make sure devDependencies don't get stripped
     dev: true
@@ -56,14 +40,9 @@ test('fetch-package-metadata provides resolved metadata', function (t) {
   function thenVerifyMetadata (err, pkg) {
     t.ifError(err, 'fetched metadata')
 
-    t.equals(pkg._resolved, 'http://localhost:1337/test-package/-/test-package-0.0.0.tgz', '_resolved')
+    t.equals(pkg._resolved, 'http://localhost:' + common.port + '/test-package/-/test-package-0.0.0.tgz', '_resolved')
     t.equals(pkg._integrity, 'sha1-sNMrbEXCWcV4uiADdisgUTG9+9E=', '_integrity')
     server.close()
     t.end()
   }
-})
-
-test('cleanup', function (t) {
-  cleanup()
-  t.end()
 })

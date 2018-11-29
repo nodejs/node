@@ -20,7 +20,7 @@ function fork (forkModule, workerOptions) {
     // this *should* be picked up by onExit and the operation requeued
   })
 
-  child.send({ module: forkModule })
+  child.send({ owner: 'farm', module: forkModule })
 
   // return a send() function for this child
   return {

@@ -2,13 +2,11 @@ var fs = require('graceful-fs')
 var path = require('path')
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, path.basename(__filename, '.js'))
+var pkg = common.pkg
 
 var EXEC_OPTS = { cwd: pkg }
 
@@ -28,8 +26,23 @@ var dependency = {
 }
 
 test('setup', function (t) {
-  setup()
-  t.pass('setup ran')
+  mkdirp.sync(path.join(pkg, 'dependency'))
+  fs.writeFileSync(
+    path.join(pkg, 'dependency', 'package.json'),
+    JSON.stringify(dependency, null, 2)
+  )
+
+  mkdirp.sync(path.join(pkg, 'node_modules'))
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+
+  // Disable package-lock
+  fs.writeFileSync(
+    path.join(pkg, '.npmrc'),
+    'package-lock=false\n'
+  )
   t.end()
 })
 
@@ -49,35 +62,3 @@ test('\'npm install-test\' should not generate package-lock.json.*', function (t
     t.end()
   })
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  t.pass('cleaned up')
-  t.end()
-})
-
-function setup () {
-  mkdirp.sync(path.join(pkg, 'dependency'))
-  fs.writeFileSync(
-    path.join(pkg, 'dependency', 'package.json'),
-    JSON.stringify(dependency, null, 2)
-  )
-
-  mkdirp.sync(path.join(pkg, 'node_modules'))
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-
-  // Disable package-lock
-  fs.writeFileSync(
-    path.join(pkg, '.npmrc'),
-    'package-lock=false\n'
-  )
-  process.chdir(pkg)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

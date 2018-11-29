@@ -1,7 +1,11 @@
 'use strict'
-const profile = require('npm-profile')
+
+const profile = require('libnpm/profile')
 const npm = require('./npm.js')
+const figgyPudding = require('figgy-pudding')
+const npmConfig = require('./config/figgy-config.js')
 const output = require('./utils/output.js')
+const otplease = require('./utils/otplease.js')
 const Table = require('cli-table3')
 const Bluebird = require('bluebird')
 const isCidrV4 = require('is-cidr').v4
@@ -76,23 +80,44 @@ function generateTokenIds (tokens, minLength) {
   return byId
 }
 
+const TokenConfig = figgyPudding({
+  auth: {},
+  registry: {},
+  otp: {},
+  cidr: {},
+  'read-only': {},
+  json: {},
+  parseable: {}
+})
+
 function config () {
-  const conf = {
-    json: npm.config.get('json'),
-    parseable: npm.config.get('parseable'),
-    registry: npm.config.get('registry'),
-    otp: npm.config.get('otp')
-  }
+  let conf = TokenConfig(npmConfig())
   const creds = npm.config.getCredentialsByURI(conf.registry)
   if (creds.token) {
-    conf.auth = {token: creds.token}
+    conf = conf.concat({
+      auth: { token: creds.token }
+    })
   } else if (creds.username) {
-    conf.auth = {basic: {username: creds.username, password: creds.password}}
+    conf = conf.concat({
+      auth: {
+        basic: {
+          username: creds.username,
+          password: creds.password
+        }
+      }
+    })
   } else if (creds.auth) {
     const auth = Buffer.from(creds.auth, 'base64').toString().split(':', 2)
-    conf.auth = {basic: {username: auth[0], password: auth[1]}}
+    conf = conf.concat({
+      auth: {
+        basic: {
+          username: auth[0],
+          password: auth[1]
+        }
+      }
+    })
   } else {
-    conf.auth = {}
+    conf = conf.concat({ auth: {} })
   }
   if (conf.otp) conf.auth.otp = conf.otp
   return conf
@@ -161,13 +186,8 @@ function rm (args) {
       }
     })
     return Bluebird.map(toRemove, (key) => {
-      return profile.removeToken(key, conf).catch((ex) => {
-        if (ex.code !== 'EOTP') throw ex
-        log.info('token', 'failed because revoking this token requires OTP')
-        return readUserInfo.otp().then((otp) => {
-          conf.auth.otp = otp
-          return profile.removeToken(key, conf)
-        })
+      return otplease(conf, conf => {
+        return profile.removeToken(key, conf)
       })
     })
   })).then(() => {
@@ -183,21 +203,15 @@ function rm (args) {
 
 function create (args) {
   const conf = config()
-  const cidr = npm.config.get('cidr')
-  const readonly = npm.config.get('read-only')
+  const cidr = conf.cidr
+  const readonly = conf['read-only']
 
   const validCIDR = validateCIDRList(cidr)
   return readUserInfo.password().then((password) => {
     log.info('token', 'creating')
-    return profile.createToken(password, readonly, validCIDR, conf).catch((ex) => {
-      if (ex.code !== 'EOTP') throw ex
-      log.info('token', 'failed because it requires OTP')
-      return readUserInfo.otp().then((otp) => {
-        conf.auth.otp = otp
-        log.info('token', 'creating with OTP')
-        return pulseTillDone.withPromise(profile.createToken(password, readonly, validCIDR, conf))
-      })
-    })
+    return pulseTillDone.withPromise(otplease(conf, conf => {
+      return profile.createToken(password, readonly, validCIDR, conf)
+    }))
   }).then((result) => {
     delete result.key
     delete result.updated

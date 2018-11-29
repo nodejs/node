@@ -1,16 +1,13 @@
-var cat = require('graceful-fs').writeFileSync
+var writeFileSync = require('graceful-fs').writeFileSync
 var resolve = require('path').resolve
 
 var mkdirp = require('mkdirp')
 var Bluebird = require('bluebird')
 var mr = Bluebird.promisify(require('npm-registry-mock'))
-var rimraf = require('rimraf')
 var test = require('tap').test
-var tmpdir = require('osenv').tmpdir
-
 var common = require('../common-tap.js')
 
-var pkg = resolve(__dirname, 'ls-l-depth-0')
+var pkg = common.pkg
 var dep = resolve(pkg, 'deps', 'glock')
 var modules = resolve(pkg, 'node_modules')
 
@@ -24,8 +21,6 @@ var expected =
   '    https://glo.ck\n' +
   '    file:glock-1.8.7.tgz\n' +
   '\n'
-
-var server
 
 var EXEC_OPTS = { cwd: pkg }
 
@@ -44,9 +39,12 @@ var fixture = {
 var deppack
 
 test('setup', function (t) {
-  setup()
+  mkdirp.sync(modules)
+  mkdirp.sync(dep)
+
+  writeFileSync(resolve(dep, 'package.json'), JSON.stringify(fixture))
   return mr({ port: common.port }).then((s) => {
-    server = s
+    t.parent.teardown(() => s.close())
     return common.npm(['pack', dep], EXEC_OPTS)
   }).spread((code, stdout) => {
     t.is(code, 0, 'pack')
@@ -67,10 +65,12 @@ test('#6311: npm ll --depth=0 duplicates listing', function (t) {
       if (err) throw err
       t.notOk(code, 'npm install exited cleanly')
       t.is(stderr, '', 'npm install ran silently')
-      t.equal(
+      t.match(
         stdout.trim(),
-        'add\tunderscore\t1.5.1\tnode_modules/underscore\t\t\n' +
-        'add\tglock\t1.8.7\tnode_modules/glock',
+        new RegExp(
+          '^add\tunderscore\t1[.]5[.]1\tnode_modules[\\\\/]underscore\t\t[\n]' +
+          'add\tglock\t1[.]8[.]7\tnode_modules[\\\\/]glock$'
+        ),
         'got expected install output'
       )
 
@@ -98,24 +98,3 @@ test('#6311: npm ll --depth=0 duplicates listing', function (t) {
     }
   )
 })
-
-test('cleanup', function (t) {
-  cleanup()
-  server.close()
-
-  t.end()
-})
-
-function cleanup () {
-  process.chdir(tmpdir())
-  rimraf.sync(pkg)
-}
-
-function setup () {
-  cleanup()
-
-  mkdirp.sync(modules)
-  mkdirp.sync(dep)
-
-  cat(resolve(dep, 'package.json'), JSON.stringify(fixture))
-}

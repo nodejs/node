@@ -12,6 +12,7 @@ var readPackageTree = require('read-package-tree')
 var archy = require('archy')
 var semver = require('semver')
 var color = require('ansicolors')
+var moduleName = require('./utils/module-name.js')
 var npa = require('npm-package-arg')
 var sortedObject = require('sorted-object')
 var npm = require('./npm.js')
@@ -59,7 +60,9 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
     args = []
   } else {
     args = args.map(function (a) {
-      if (typeof a === 'object') {
+      if (typeof a === 'object' && a.package._requested.type === 'alias') {
+        return [moduleName(a), `npm:${a.package.name}@${a.package.version}`, a]
+      } else if (typeof a === 'object') {
         return [a.package.name, a.package.version, a]
       } else {
         var p = npa(a)
@@ -305,7 +308,7 @@ function filterFound (root, args) {
     if (!markDeps) continue
     Object.keys(markDeps).forEach(function (depName) {
       var dep = markDeps[depName]
-      if (dep.peerMissing) return
+      if (dep.peerMissing && !dep._from) return
       dep._parent = markPkg
       for (var ii = 0; ii < args.length; ii++) {
         var argName = args[ii][0]
@@ -392,8 +395,11 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   }
 
   var out = {}
-  // the top level is a bit special.
-  out.label = data._id || ''
+  if (data._requested && data._requested.type === 'alias') {
+    out.label = `${d}@npm:${data._id}`
+  } else {
+    out.label = data._id || ''
+  }
   if (data._found === 'explicit' && data._id) {
     if (npm.color) {
       out.label = color.bgBlack(color.yellow(out.label.trim())) + ' '

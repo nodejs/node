@@ -1,37 +1,36 @@
-var fs = require('fs')
-var path = require('path')
-var mkdirp = require('mkdirp')
-var rimraf = require('rimraf')
-var mr = require('npm-registry-mock')
+'use strict'
 
-var test = require('tap').test
-var common = require('../common-tap.js')
+const fs = require('fs')
+const path = require('path')
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const mr = require('npm-registry-mock')
 
-var pkg = path.resolve(__dirname, 'access')
-var server
+const test = require('tap').test
+const common = require('../common-tap.js')
 
-var scoped = {
+const pkg = common.pkg
+
+let server
+
+const scoped = {
   name: '@scoped/pkg',
   version: '1.1.1'
 }
 
 test('setup', function (t) {
-  mkdirp(pkg, function (er) {
-    t.ifError(er, pkg + ' made successfully')
+  mr({port: common.port}, function (err, s) {
+    t.ifError(err, 'registry mocked successfully')
+    server = s
 
-    mr({port: common.port}, function (err, s) {
-      t.ifError(err, 'registry mocked successfully')
-      server = s
-
-      fs.writeFile(
-        path.join(pkg, 'package.json'),
-        JSON.stringify(scoped),
-        function (er) {
-          t.ifError(er, 'wrote package.json')
-          t.end()
-        }
-      )
-    })
+    fs.writeFile(
+      path.join(pkg, 'package.json'),
+      JSON.stringify(scoped),
+      function (er) {
+        t.ifError(er, 'wrote package.json')
+        t.end()
+      }
+    )
   })
 })
 
@@ -61,7 +60,7 @@ test('npm access public on current package', function (t) {
 
 test('npm access public when no package passed and no package.json', function (t) {
   // need to simulate a missing package.json
-  var missing = path.join(__dirname, 'access-public-missing-guard')
+  var missing = path.join(pkg, 'access-public-missing-guard')
   mkdirp.sync(path.join(missing, 'node_modules'))
 
   common.npm([
@@ -74,14 +73,13 @@ test('npm access public when no package passed and no package.json', function (t
   function (er, code, stdout, stderr) {
     t.ifError(er, 'npm access')
     t.match(stderr, /no package name passed to command and no package.json found/)
-    rimraf.sync(missing)
-    t.end()
+    rimraf(missing, t.end)
   })
 })
 
 test('npm access public when no package passed and invalid package.json', function (t) {
   // need to simulate a missing package.json
-  var invalid = path.join(__dirname, 'access-public-invalid-package')
+  var invalid = path.join(pkg, 'access-public-invalid-package')
   mkdirp.sync(path.join(invalid, 'node_modules'))
   // it's hard to force `read-package-json` to break w/o ENOENT, but this will do it
   fs.writeFileSync(path.join(invalid, 'package.json'), '{\n')
@@ -96,8 +94,7 @@ test('npm access public when no package passed and invalid package.json', functi
   function (er, code, stdout, stderr) {
     t.ifError(er, 'npm access')
     t.match(stderr, /Failed to parse json/)
-    rimraf.sync(invalid)
-    t.end()
+    rimraf(invalid, t.end)
   })
 })
 
@@ -160,19 +157,22 @@ test('npm change access on unscoped package', function (t) {
     function (er, code, stdout, stderr) {
       t.ok(code, 'exited with Error')
       t.matches(
-        stderr, /access commands are only accessible for scoped packages/)
+        stderr, /only available for scoped packages/)
       t.end()
     }
   )
 })
 
 test('npm access grant read-only', function (t) {
-  server.put('/-/team/myorg/myteam/package', {
-    permissions: 'read-only',
-    package: '@scoped/another'
-  }).reply(201, {
-    accessChaged: true
+  server.filteringRequestBody((body) => {
+    const data = JSON.parse(body)
+    t.deepEqual(data, {
+      permissions: 'read-only',
+      package: '@scoped/another'
+    }, 'got the right body')
+    return true
   })
+  server.put('/-/team/myorg/myteam/package', true).reply(201)
   common.npm(
     [
       'access',
@@ -191,12 +191,15 @@ test('npm access grant read-only', function (t) {
 })
 
 test('npm access grant read-write', function (t) {
-  server.put('/-/team/myorg/myteam/package', {
-    permissions: 'read-write',
-    package: '@scoped/another'
-  }).reply(201, {
-    accessChaged: true
+  server.filteringRequestBody((body) => {
+    const data = JSON.parse(body)
+    t.deepEqual(data, {
+      permissions: 'read-write',
+      package: '@scoped/another'
+    }, 'got the right body')
+    return true
   })
+  server.put('/-/team/myorg/myteam/package', true).reply(201)
   common.npm(
     [
       'access',
@@ -372,7 +375,7 @@ test('npm access ls-packages on user', function (t) {
 
 test('npm access ls-packages with no package specified or package.json', function (t) {
   // need to simulate a missing package.json
-  var missing = path.join(__dirname, 'access-missing-guard')
+  var missing = path.join(pkg, 'access-missing-guard')
   mkdirp.sync(path.join(missing, 'node_modules'))
 
   var serverPackages = {
@@ -400,8 +403,7 @@ test('npm access ls-packages with no package specified or package.json', functio
     function (er, code, stdout, stderr) {
       t.ifError(er, 'npm access ls-packages')
       t.same(JSON.parse(stdout), clientPackages)
-      rimraf.sync(missing)
-      t.end()
+      rimraf(missing, t.end)
     }
   )
 })
@@ -450,6 +452,34 @@ test('npm access ls-collaborators on package', function (t) {
       'access',
       'ls-collaborators',
       '@scoped/another',
+      '--registry', common.registry
+    ],
+    { cwd: pkg },
+    function (er, code, stdout, stderr) {
+      t.ifError(er, 'npm access ls-collaborators')
+      t.same(JSON.parse(stdout), clientCollaborators)
+      t.end()
+    }
+  )
+})
+
+test('npm access ls-collaborators on unscoped', function (t) {
+  var serverCollaborators = {
+    'myorg:myteam': 'write',
+    'myorg:anotherteam': 'read'
+  }
+  var clientCollaborators = {
+    'myorg:myteam': 'read-write',
+    'myorg:anotherteam': 'read-only'
+  }
+  server.get(
+    '/-/package/pkg/collaborators?format=cli'
+  ).reply(200, serverCollaborators)
+  common.npm(
+    [
+      'access',
+      'ls-collaborators',
+      'pkg',
       '--registry', common.registry
     ],
     { cwd: pkg },
@@ -524,7 +554,6 @@ test('npm access blerg', function (t) {
 
 test('cleanup', function (t) {
   t.pass('cleaned up')
-  rimraf.sync(pkg)
   server.done()
   server.close()
   t.end()

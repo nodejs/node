@@ -1,7 +1,7 @@
-.TH "NPM\-DIST\-TAG" "1" "August 2018" "" ""
+.TH "NPM\-DIST\-TAG" "1" "December 2019" "" ""
 .SH "NAME"
 \fBnpm-dist-tag\fR \- Modify package distribution tags
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -12,23 +12,23 @@ npm dist\-tag ls [<pkg>]
 aliases: dist\-tags
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Add, remove, and enumerate distribution tags on a package:
 .RS 0
 .IP \(bu 2
 add:
 Tags the specified version of the package with the specified tag, or the
-\fB\-\-tag\fP config if not specified\. If the tag you're adding is \fBlatest\fP and you
-have two\-factor authentication on auth\-and\-writes then you'll need to include
-an otp on the command line with \fB\-\-otp\fP\|\.
+\fB\-\-tag\fP config if not specified\. If you have two\-factor authentication on
+auth\-and\-writes then you’ll need to include a one\-time password on the
+command line with \fB\-\-otp <one\-time password>\fP\|\.
 .IP \(bu 2
 rm:
 Clear a tag that is no longer in use from the package\.
 .IP \(bu 2
 ls:
 Show all of the dist\-tags for a package, defaulting to the package in
-the current prefix\.
+the current prefix\. This is the default action if none is specified\.
 
 .RE
 .P
@@ -56,7 +56,7 @@ Publishing a package sets the \fBlatest\fP tag to the published version unless t
 .P
 By default, \fBnpm install <pkg>\fP (without any \fB@<version>\fP or \fB@<tag>\fP
 specifier) installs the \fBlatest\fP tag\.
-.SH PURPOSE
+.SS Purpose
 .P
 Tags can be used to provide an alias instead of version numbers\.
 .P
@@ -74,7 +74,7 @@ The \fBnext\fP tag is used by some projects to identify the upcoming version\.
 .P
 By default, other than \fBlatest\fP, no tag has any special significance to npm
 itself\.
-.SH CAVEATS
+.SS Caveats
 .P
 This command used to be known as \fBnpm tag\fP, which only created new tags, and so
 had a different syntax\.
@@ -88,7 +88,7 @@ example, \fBv1\.4\fP cannot be used as a tag, because it is interpreted by semve
 .P
 The simplest way to avoid semver problems with tags is to use tags that do not
 begin with a number or the letter \fBv\fP\|\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help publish
@@ -97,13 +97,10 @@ npm help install
 .IP \(bu 2
 npm help dedupe
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-
