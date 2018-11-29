@@ -39,8 +39,10 @@ function onlistening() {
 function onsecureConnection() {}
 
 function onsecureConnect() {
-  // Destroying client socket
-  this.destroy();
+  // end() client socket, which causes slightly different hook events than
+  // destroy(), but with TLS1.3 destroy() rips the connection down before the
+  // server completes the handshake.
+  this.end();
 
   // Closing server
   server.close(common.mustCall(onserverClosed));
@@ -68,7 +70,8 @@ function onexit() {
       { type: 'WRITEWRAP', id: 'write:2', triggerAsyncId: null },
       { type: 'WRITEWRAP', id: 'write:3', triggerAsyncId: null },
       { type: 'WRITEWRAP', id: 'write:4', triggerAsyncId: null },
-      { type: 'Immediate', id: 'immediate:1', triggerAsyncId: 'tcp:1' },
-      { type: 'Immediate', id: 'immediate:2', triggerAsyncId: 'tcp:2' } ]
+      { type: 'Immediate', id: 'immediate:1', triggerAsyncId: 'tcp:2' },
+      { type: 'Immediate', id: 'immediate:2', triggerAsyncId: 'tcp:1' },
+    ]
   );
 }

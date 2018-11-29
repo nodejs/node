@@ -20,8 +20,11 @@ const options = {
 };
 
 const server = tls.createServer(options, common.mustCall((conn) => {
-  conn.write('hello');
+  conn.write('hello', common.mustCall());
   conn.on('data', common.mustCall());
+  conn.on('end', common.mustCall());
+  conn.on('data', common.mustCall());
+  conn.on('close', common.mustCall());
   conn.end();
 })).listen(0, common.mustCall(() => {
   const netSocket = new net.Socket({
@@ -42,6 +45,7 @@ const server = tls.createServer(options, common.mustCall((conn) => {
     address,
   });
 
+  socket.on('secureConnect', common.mustCall());
   socket.on('end', common.mustCall());
   socket.on('data', common.mustCall());
   socket.on('close', common.mustCall(() => {

@@ -113,6 +113,12 @@ void TLSWrap::InitSSL() {
   SSL_set_mode(ssl_.get(), SSL_MODE_RELEASE_BUFFERS);
 #endif  // SSL_MODE_RELEASE_BUFFERS
 
+  // This is default in 1.1.1, but set it anyway, Cycle() doesn't currently
+  // re-call ClearIn() if SSL_read() returns SSL_ERROR_WANT_READ, so data can be
+  // left sitting in the incoming enc_in_ and never get processed.
+  // - https://wiki.openssl.org/index.php/TLS1.3#Non-application_data_records
+  SSL_set_mode(ssl_.get(), SSL_MODE_AUTO_RETRY);
+
   SSL_set_app_data(ssl_.get(), this);
   // Using InfoCallback isn't how we are supposed to check handshake progress:
   //   https://github.com/openssl/openssl/issues/7199#issuecomment-420915993
@@ -224,6 +230,8 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   Local<Object> object = c->object();
 
   if (where & SSL_CB_HANDSHAKE_START) {
+    // Start is tracked to limit number and frequency of renegotiation attempts,
+    // since excessive renegotiation may be an attack.
     Local<Value> callback;
 
     if (object->Get(env->context(), env->onhandshakestart_string())
@@ -237,6 +245,7 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
   // sending HelloRequest in OpenSSL-1.1.1.
   // We need to check whether this is in a renegotiation state or not.
   if (where & SSL_CB_HANDSHAKE_DONE && !SSL_renegotiate_pending(ssl)) {
+    CHECK(!SSL_renegotiate_pending(ssl));
     Local<Value> callback;
 
     c->established_ = true;
@@ -271,8 +280,23 @@ void TLSWrap::EncOut() {
 
   // No encrypted output ready to write to the underlying stream.
   if (BIO_pending(enc_out_) == 0) {
-    if (pending_cleartext_input_.empty())
-      InvokeQueued(0);
+    if (pending_cleartext_input_.empty()) {
+      if (!in_dowrite_) {
+        InvokeQueued(0);
+      } else {
+        // TODO(@sam-github, @addaleax) If in_dowrite_ is true, appdata was
+        // passed to SSL_write().  If we are here, the data was not encrypted to
+        // enc_out_ yet.  Calling Done() "works", but since the write is not
+        // flushed, its too soon.  Just returning and letting the next EncOut()
+        // call Done() passes the test suite, but without more careful analysis,
+        // its not clear if it is always correct. Not calling Done() could block
+        // data flow, so for now continue to call Done(), just do it in the next
+        // tick.
+        env()->SetImmediate([](Environment* env, void* data) {
+            static_cast<TLSWrap*>(data)->InvokeQueued(0);
+        }, this, object());
+      }
+    }
     return;
   }
 
@@ -534,8 +558,8 @@ void TLSWrap::ClearIn() {
   Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
     write_callback_scheduled_ = true;
-    // XXX(sam) Should forward an error object with .code/.function/.etc, if
-    // possible.
+    // TODO(@sam-github) Should forward an error object with
+    // .code/.function/.etc, if possible.
     InvokeQueued(UV_EPROTO, error_str.c_str());
   } else {
     // Push back the not-yet-written pending buffers into their queue.
@@ -603,6 +627,7 @@ void TLSWrap::ClearError() {
 
 
 // Called by StreamBase::Write() to request async write of clear text into SSL.
+// TODO(@sam-github) Should there be a TLSWrap::DoTryWrite()?
 int TLSWrap::DoWrite(WriteWrap* w,
                      uv_buf_t* bufs,
                      size_t count,
@@ -688,7 +713,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
   }
 
   // Write any encrypted/handshake output that may be ready.
+  // Guard against sync call of current_write_->Done(), its unsupported.
+  in_dowrite_ = true;
   EncOut();
+  in_dowrite_ = false;
 
   return 0;
 }

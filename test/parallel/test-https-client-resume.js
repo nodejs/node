@@ -55,7 +55,8 @@ server.listen(0, common.mustCall(function() {
                   '\r\n');
   }));
 
-  client1.on('session', common.mustCall((session) => {
+  // TLS1.2 servers issue 1 ticket, TLS1.3 issues more, but only use the first.
+  client1.once('session', common.mustCall((session) => {
     console.log('session');
 
     const opts = {

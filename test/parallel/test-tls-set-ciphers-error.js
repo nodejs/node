@@ -19,4 +19,7 @@ const fixtures = require('../common/fixtures');
   options.ciphers = 'FOOBARBAZ';
   assert.throws(() => tls.createServer(options, common.mustNotCall()),
                 /no cipher match/i);
+  options.ciphers = 'TLS_not_a_cipher';
+  assert.throws(() => tls.createServer(options, common.mustNotCall()),
+                /no cipher match/i);
 }
