@@ -21,6 +21,7 @@
   * [Use explicit pointer comparisons](#use-explicit-pointer-comparisons)
   * [Ownership and Smart Pointers](#ownership-and-smart-pointers)
   * [Avoid non-const references](#avoid-non-const-references)
+  * [Use AliasedBuffers to manipulate TypedArrays](#use-aliasedbuffers-to-manipulate-typedarrays)
 * [Others](#others)
   * [Type casting](#type-casting)
   * [Using `auto`](#using-auto)
@@ -257,6 +258,21 @@ class ExampleClass {
 };
 ```
 
+### Use AliasedBuffers to manipulate TypedArrays
+
+When working with typed arrays that involve direct data modification
+from C++, use an `AliasedBuffer` when possible. The API abstraction and
+the usage scope of `AliasedBuffer` are documented in [aliased_buffer.h][].
+
+```c++
+// Create an AliasedBuffer.
+AliasedBuffer<uint32_t, v8::Uint32Array> data;
+...
+
+// Modify the data through natural operator semantics.
+data[0] = 12345;
+```
+
 ## Others
 
 ### Type casting
@@ -382,3 +398,4 @@ even `try` and `catch` **will** break.
 [Run Time Type Information]: https://en.wikipedia.org/wiki/Run-time_type_information
 [cppref_auto_ptr]: https://en.cppreference.com/w/cpp/memory/auto_ptr
 [without C++ exception handling]: https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html#intro.using.exception.no
+[aliased_buffer.h]: https://github.com/nodejs/node/blob/master/src/aliased_buffer.h#L12
