@@ -397,7 +397,6 @@ void DeserializerContext::ReadUint64(const FunctionCallbackInfo<Value>& args) {
   uint32_t lo = static_cast<uint32_t>(value);
 
   Isolate* isolate = ctx->env()->isolate();
-  Local<Context> context = ctx->env()->context();
 
   Local<Value> ret[] = {
     Integer::NewFromUnsigned(isolate, hi),
