@@ -1,10 +1,10 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 
 const {
-  assert, connect, keys
+  assert, connect, keys, tls
 } = require(fixtures.path('tls-connect'));
 
 // Use ec10 and agent10, they are the only identities with intermediate CAs.
@@ -63,8 +63,28 @@ connect({
   return cleanup();
 });
 
-// Request cert from client that doesn't have one.
+// Request cert from TLS1.2 client that doesn't have one.
 connect({
+  client: {
+    maxVersion: 'TLSv1.2',
+    ca: server.ca,
+    checkServerIdentity,
+  },
+  server: {
+    key: server.key,
+    cert: server.cert,
+    ca: client.ca,
+    requestCert: true,
+  },
+}, function(err, pair, cleanup) {
+  assert.strictEqual(pair.server.err.code,
+                     'ERR_SSL_PEER_DID_NOT_RETURN_A_CERTIFICATE');
+  assert.strictEqual(pair.client.err.code, 'ECONNRESET');
+  return cleanup();
+});
+
+// Request cert from TLS1.3 client that doesn't have one.
+if (tls.DEFAULT_MAX_VERSION === 'TLSv1.3') connect({
   client: {
     ca: server.ca,
     checkServerIdentity,
@@ -76,8 +96,17 @@ connect({
     requestCert: true,
   },
 }, function(err, pair, cleanup) {
-  assert.strictEqual(err.code, 'ECONNRESET');
-  return cleanup();
+  assert.strictEqual(pair.server.err.code,
+                     'ERR_SSL_PEER_DID_NOT_RETURN_A_CERTIFICATE');
+
+  // TLS1.3 client completes handshake before server, and its only after the
+  // server handshakes, requests certs, gets back a zero-length list of certs,
+  // and sends a fatal Alert to the client that the client discovers there has
+  // been a fatal error.
+  pair.client.conn.once('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED');
+    cleanup();
+  }));
 });
 
 // Typical configuration error, incomplete cert chains sent, we have to know the

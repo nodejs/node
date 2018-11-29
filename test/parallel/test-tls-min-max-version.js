@@ -10,11 +10,12 @@ const {
 const DEFAULT_MIN_VERSION = tls.DEFAULT_MIN_VERSION;
 const DEFAULT_MAX_VERSION = tls.DEFAULT_MAX_VERSION;
 
-// For v11.x, the default is fixed and cannot be changed via CLI.
-assert.strictEqual(DEFAULT_MIN_VERSION, 'TLSv1');
-
 function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   assert(proto || cerr || serr, 'test missing any expectations');
+  // Report where test was called from. Strip leading garbage from
+  //     at Object.<anonymous> (file:line)
+  // from the stack location, we only want the file:line part.
+  const where = (new Error()).stack.split('\n')[2].replace(/[^(]*/, '');
   connect({
     client: {
       checkServerIdentity: (servername, cert) => { },
@@ -34,26 +35,10 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
     function u(_) { return _ === undefined ? 'U' : _; }
     console.log('test:', u(cmin), u(cmax), u(cprot), u(smin), u(smax), u(sprot),
                 'expect', u(proto), u(cerr), u(serr));
+    console.log('  ', where);
     if (!proto) {
       console.log('client', pair.client.err ? pair.client.err.code : undefined);
       console.log('server', pair.server.err ? pair.server.err.code : undefined);
-      // 11.x doesn't have https://github.com/nodejs/node/pull/24729
-      if (cerr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-          pair.client.err &&
-          pair.client.err.message.includes('methods disabled'))
-        pair.client.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
-      if (serr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-          pair.server.err &&
-          pair.server.err.message.includes('methods disabled'))
-        pair.server.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
-      if (cerr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-          pair.client.err &&
-          pair.client.err.message.includes('Unknown method'))
-        pair.client.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
-      if (serr === 'ERR_TLS_INVALID_PROTOCOL_METHOD' &&
-          pair.server.err &&
-          pair.server.err.message.includes('Unknown method'))
-        pair.server.err.code = 'ERR_TLS_INVALID_PROTOCOL_METHOD';
       if (cerr) {
         assert(pair.client.err);
         // Accept these codes as aliases, the one reported depends on the
@@ -83,8 +68,8 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
 
 const U = undefined;
 
-// Default protocol is TLSv1.2.
-test(U, U, U, U, U, U, 'TLSv1.2');
+// Default protocol is the max version.
+test(U, U, U, U, U, U, DEFAULT_MAX_VERSION);
 
 // Insecure or invalid protocols cannot be enabled.
 test(U, U, U, U, U, 'SSLv2_method',
@@ -120,7 +105,23 @@ test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
 
 // SSLv23 also means "any supported protocol" greater than the default
 // minimum (which is configurable via command line).
-test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method', 'TLSv1.2');
+if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
+  test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method',
+       U, 'ECONNRESET', 'ERR_SSL_INTERNAL_ERROR');
+} else {
+  test(U, U, 'TLSv1_2_method', U, U, 'SSLv23_method', 'TLSv1.2');
+}
+
+if (DEFAULT_MIN_VERSION === 'TLSv1.3') {
+  test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method',
+       U, 'ECONNRESET', 'ERR_SSL_INTERNAL_ERROR');
+  test(U, U, 'TLSv1_method', U, U, 'SSLv23_method',
+       U, 'ECONNRESET', 'ERR_SSL_INTERNAL_ERROR');
+  test(U, U, 'SSLv23_method', U, U, 'TLSv1_1_method',
+       U, 'ERR_SSL_NO_PROTOCOLS_AVAILABLE', 'ERR_SSL_UNEXPECTED_MESSAGE');
+  test(U, U, 'SSLv23_method', U, U, 'TLSv1_method',
+       U, 'ERR_SSL_NO_PROTOCOLS_AVAILABLE', 'ERR_SSL_UNEXPECTED_MESSAGE');
+}
 
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
   test(U, U, 'TLSv1_1_method', U, U, 'SSLv23_method',
@@ -168,7 +169,11 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
     test(U, U, U, U, U, 'TLSv1_method',
          U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
   } else {
-    assert(false, 'unreachable');
+    // TLS1.3 client hellos are are not understood by TLS1.1 or below.
+    test(U, U, U, U, U, 'TLSv1_1_method',
+         U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+    test(U, U, U, U, U, 'TLSv1_method',
+         U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
   }
 }
 
@@ -183,7 +188,9 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
     test(U, U, U, U, U, 'TLSv1_method',
          U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
   } else {
-    assert(false, 'unreachable');
+    // TLS1.3 client hellos are are not understood by TLS1.1 or below.
+    test(U, U, U, U, U, 'TLSv1_method',
+         U, 'ECONNRESET', 'ERR_SSL_UNSUPPORTED_PROTOCOL');
   }
 }
 
@@ -199,14 +206,32 @@ if (DEFAULT_MIN_VERSION === 'TLSv1') {
 test('TLSv1', 'TLSv1.2', U, U, U, 'TLSv1_method', 'TLSv1');
 test('TLSv1', 'TLSv1.2', U, U, U, 'TLSv1_1_method', 'TLSv1.1');
 test('TLSv1', 'TLSv1.2', U, U, U, 'TLSv1_2_method', 'TLSv1.2');
+test('TLSv1', 'TLSv1.2', U, U, U, 'TLS_method', 'TLSv1.2');
 
 test(U, U, 'TLSv1_method', 'TLSv1', 'TLSv1.2', U, 'TLSv1');
 test(U, U, 'TLSv1_1_method', 'TLSv1', 'TLSv1.2', U, 'TLSv1.1');
 test(U, U, 'TLSv1_2_method', 'TLSv1', 'TLSv1.2', U, 'TLSv1.2');
 
+test('TLSv1', 'TLSv1.1', U, 'TLSv1', 'TLSv1.3', U, 'TLSv1.1');
 test('TLSv1', 'TLSv1.1', U, 'TLSv1', 'TLSv1.2', U, 'TLSv1.1');
 test('TLSv1', 'TLSv1.2', U, 'TLSv1', 'TLSv1.1', U, 'TLSv1.1');
+test('TLSv1', 'TLSv1.3', U, 'TLSv1', 'TLSv1.1', U, 'TLSv1.1');
 test('TLSv1', 'TLSv1', U, 'TLSv1', 'TLSv1.1', U, 'TLSv1');
 test('TLSv1', 'TLSv1.2', U, 'TLSv1', 'TLSv1', U, 'TLSv1');
+test('TLSv1', 'TLSv1.3', U, 'TLSv1', 'TLSv1', U, 'TLSv1');
 test('TLSv1.1', 'TLSv1.1', U, 'TLSv1', 'TLSv1.2', U, 'TLSv1.1');
 test('TLSv1', 'TLSv1.2', U, 'TLSv1.1', 'TLSv1.1', U, 'TLSv1.1');
+test('TLSv1', 'TLSv1.2', U, 'TLSv1', 'TLSv1.3', U, 'TLSv1.2');
+
+// v-any client can connect to v-specific server
+test('TLSv1', 'TLSv1.3', U, 'TLSv1.3', 'TLSv1.3', U, 'TLSv1.3');
+test('TLSv1', 'TLSv1.3', U, 'TLSv1.2', 'TLSv1.3', U, 'TLSv1.3');
+test('TLSv1', 'TLSv1.3', U, 'TLSv1.2', 'TLSv1.2', U, 'TLSv1.2');
+test('TLSv1', 'TLSv1.3', U, 'TLSv1.1', 'TLSv1.1', U, 'TLSv1.1');
+test('TLSv1', 'TLSv1.3', U, 'TLSv1', 'TLSv1', U, 'TLSv1');
+
+// v-specific client can connect to v-any server
+test('TLSv1.3', 'TLSv1.3', U, 'TLSv1', 'TLSv1.3', U, 'TLSv1.3');
+test('TLSv1.2', 'TLSv1.2', U, 'TLSv1', 'TLSv1.3', U, 'TLSv1.2');
+test('TLSv1.1', 'TLSv1.1', U, 'TLSv1', 'TLSv1.3', U, 'TLSv1.1');
+test('TLSv1', 'TLSv1', U, 'TLSv1', 'TLSv1.3', U, 'TLSv1');

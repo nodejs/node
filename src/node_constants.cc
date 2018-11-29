@@ -1245,6 +1245,7 @@ void DefineCryptoConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, TLS1_VERSION);
   NODE_DEFINE_CONSTANT(target, TLS1_1_VERSION);
   NODE_DEFINE_CONSTANT(target, TLS1_2_VERSION);
+  NODE_DEFINE_CONSTANT(target, TLS1_3_VERSION);
 #endif
   NODE_DEFINE_CONSTANT(target, INT_MAX);
 }

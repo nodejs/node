@@ -14,7 +14,6 @@ const tls = require('tls');
 // new and resume session events will never be emitted on the server.
 
 const options = {
-  maxVersion: 'TLSv1.2',
   secureOptions: SSL_OP_NO_TICKET,
   key: fixtures.readSync('test_key.pem'),
   cert: fixtures.readSync('test_cert.pem')
@@ -38,6 +37,10 @@ server.on('resumeSession', common.mustCall((id, cb) => {
 
 server.listen(0, common.mustCall(() => {
   const clientOpts = {
+    // Don't send a TLS1.3/1.2 ClientHello, they contain a fake session_id,
+    // which triggers a 'resumeSession' event for client1. TLS1.2 ClientHello
+    // won't have a session_id until client2, which will have a valid session.
+    maxVersion: 'TLSv1.2',
     port: server.address().port,
     rejectUnauthorized: false,
     session: false

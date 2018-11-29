@@ -64,7 +64,7 @@ function sendClient() {
     }
     client.end();
   }, max_iter));
-  client.write('a');
+  client.write('a', common.mustCall());
   client.on('error', common.mustNotCall());
   client.on('close', common.mustCall(function() {
     clientClosed = true;

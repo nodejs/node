@@ -327,6 +327,31 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("-i", "--interactive");
 
   AddOption("--napi-modules", "", NoOp{}, kAllowedInEnvironment);
+
+  AddOption("--tls-min-v1.0",
+            "set default TLS minimum to TLSv1.0 (default: TLSv1)",
+            &EnvironmentOptions::tls_min_v1_0,
+            kAllowedInEnvironment);
+  AddOption("--tls-min-v1.1",
+            "set default TLS minimum to TLSv1.1 (default: TLSv1)",
+            &EnvironmentOptions::tls_min_v1_1,
+            kAllowedInEnvironment);
+  AddOption("--tls-min-v1.3",
+            "set default TLS minimum to TLSv1.3 (default: TLSv1)",
+            &EnvironmentOptions::tls_min_v1_3,
+            kAllowedInEnvironment);
+  AddOption("--tls-max-v1.2",
+            "set default TLS maximum to TLSv1.2 (default: TLSv1.3)",
+            &EnvironmentOptions::tls_max_v1_2,
+            kAllowedInEnvironment);
+  // Current plan is:
+  // - 11.x and below: TLS1.3 is opt-in with --tls-max-v1.3
+  // - 12.x: TLS1.3 is opt-out with --tls-max-v1.2
+  // In either case, support both options they are uniformly available.
+  AddOption("--tls-max-v1.3",
+            "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
+            &EnvironmentOptions::tls_max_v1_3,
+            kAllowedInEnvironment);
 }
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
