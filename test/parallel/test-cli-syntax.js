@@ -34,6 +34,12 @@ const notFoundRE = /^Error: Cannot find module/m;
 
     const cmd = [node, ..._args].join(' ');
     exec(cmd, common.mustCall((err, stdout, stderr) => {
+      if (err) {
+        console.log('-- stdout --');
+        console.log(stdout);
+        console.log('-- stderr --');
+        console.log(stderr);
+      }
       assert.ifError(err);
       assert.strictEqual(stdout, '');
       assert.strictEqual(stderr, '');
