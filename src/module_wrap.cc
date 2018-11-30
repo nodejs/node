@@ -14,6 +14,8 @@
 namespace node {
 namespace loader {
 
+using errors::TryCatchScope;
+
 using node::contextify::ContextifyContext;
 using node::url::URL;
 using node::url::URL_FLAGS_FAILED;
@@ -40,7 +42,6 @@ using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
-using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -135,7 +136,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-  TryCatch try_catch(isolate);
+  TryCatchScope try_catch(env);
   Local<Module> module;
 
   Local<PrimitiveArray> host_defined_options =
@@ -244,7 +245,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
-  TryCatch try_catch(isolate);
+  TryCatchScope try_catch(env);
   Maybe<bool> ok = module->InstantiateModule(context, ResolveCallback);
 
   // clear resolve cache on instantiate
@@ -279,7 +280,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   bool break_on_sigint = args[1]->IsTrue();
 
   Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-  TryCatch try_catch(isolate);
+  TryCatchScope try_catch(env);
 
   bool timed_out = false;
   bool received_signal = false;

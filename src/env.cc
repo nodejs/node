@@ -1,6 +1,7 @@
 #include "async_wrap.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
+#include "node_errors.h"
 #include "node_file.h"
 #include "node_internals.h"
 #include "node_native_module.h"
@@ -15,6 +16,7 @@
 
 namespace node {
 
+using errors::TryCatchScope;
 using v8::Context;
 using v8::EmbedderGraph;
 using v8::External;
@@ -36,7 +38,6 @@ using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
 using v8::TracingController;
-using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 using worker::Worker;
@@ -156,7 +157,7 @@ void Environment::TrackingTraceStateObserver::UpdateTraceCategoryState() {
   Local<Function> cb = env_->trace_category_state_function();
   if (cb.IsEmpty())
     return;
-  TryCatch try_catch(isolate);
+  TryCatchScope try_catch(env_);
   try_catch.SetVerbose(true);
   cb->Call(env_->context(), Undefined(isolate),
            0, nullptr).ToLocalChecked();
@@ -577,7 +578,7 @@ void Environment::RunAndClearNativeImmediates() {
     std::vector<NativeImmediateCallback> list;
     native_immediate_callbacks_.swap(list);
     auto drain_list = [&]() {
-      TryCatch try_catch(isolate());
+      TryCatchScope try_catch(this);
       for (auto it = list.begin(); it != list.end(); ++it) {
 #ifdef DEBUG
         v8::SealHandleScope seal_handle_scope(isolate());
@@ -642,7 +643,7 @@ void Environment::RunTimers(uv_timer_t* handle) {
   // impossible for us to end up in an infinite loop due to how the JS-side
   // is structured.
   do {
-    TryCatch try_catch(env->isolate());
+    TryCatchScope try_catch(env);
     try_catch.SetVerbose(true);
     ret = cb->Call(env->context(), process, 1, &arg);
   } while (ret.IsEmpty() && env->can_call_into_js());
