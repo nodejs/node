@@ -14,7 +14,7 @@ class DummyParser {
 DummyParser.REQUEST = Symbol();
 
 const binding =
-  getOptionValue('--http-parser') === 'traditional' ?
+  getOptionValue('--http-parser') === 'legacy' ?
     internalBinding('http_parser') : internalBinding('http_parser_llhttp');
 binding.HTTPParser = DummyParser;
 

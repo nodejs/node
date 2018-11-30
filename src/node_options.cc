@@ -40,7 +40,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("either --check or --eval can be used, not both");
   }
 
-  if (http_parser != "traditional" && http_parser != "llhttp") {
+  if (http_parser != "legacy" && http_parser != "llhttp") {
     errors->push_back("invalid value for --http-parser");
   }
 
@@ -108,11 +108,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
   AddOption("--http-parser",
-            "Select which HTTP parser to use; either 'traditional' or 'llhttp' "
+            "Select which HTTP parser to use; either 'legacy' or 'llhttp' "
 #ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
             "(default: llhttp).",
 #else
-            "(default: traditional).",
+            "(default: legacy).",
 #endif
             &EnvironmentOptions::http_parser,
             kAllowedInEnvironment);

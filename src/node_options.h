@@ -76,7 +76,7 @@ class EnvironmentOptions : public Options {
 #ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
     "llhttp";
 #else
-    "traditional";
+    "legacy";
 #endif
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
