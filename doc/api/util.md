@@ -202,6 +202,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17907
     description: The `%o` specifier's `depth` option will now fall back to the
                  default depth.
+  - version: v10.12.0
+    pr-url: https://github.com/nodejs/node/pull/22097
+    description: The `%d` and `%i` specifiers now support BigInt.
   - version: v8.4.0
     pr-url: https://github.com/nodejs/node/pull/14558
     description: The `%o` and `%O` specifiers are supported now.
