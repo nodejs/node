@@ -394,6 +394,14 @@ assertOnlyDeepEqual(
   new Map([[1, {}]]),
   new Map([[true, {}]])
 );
+assertOnlyDeepEqual(
+  new Map([[undefined, true]]),
+  new Map([[null, true]])
+);
+assertNotDeepOrStrict(
+  new Map([[undefined, true]]),
+  new Map([[true, true]])
+);
 
 // GH-6416. Make sure circular refs don't throw.
 {
