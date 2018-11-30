@@ -52,7 +52,8 @@ class FSEventWrap: public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
                          Local<Value> unused,
-                         Local<Context> context);
+                         Local<Context> context,
+                         void* priv);
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Start(const FunctionCallbackInfo<Value>& args);
   static void GetInitialized(const FunctionCallbackInfo<Value>& args);
@@ -95,7 +96,8 @@ void FSEventWrap::GetInitialized(const FunctionCallbackInfo<Value>& args) {
 
 void FSEventWrap::Initialize(Local<Object> target,
                              Local<Value> unused,
-                             Local<Context> context) {
+                             Local<Context> context,
+                             void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   auto fsevent_string = FIXED_ONE_BYTE_STRING(env->isolate(), "FSEvent");

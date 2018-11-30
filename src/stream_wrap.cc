@@ -52,7 +52,8 @@ using v8::Value;
 
 void LibuvStreamWrap::Initialize(Local<Object> target,
                                  Local<Value> unused,
-                                 Local<Context> context) {
+                                 Local<Context> context,
+                                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   auto is_construct_call_callback =
