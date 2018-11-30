@@ -51,11 +51,6 @@
 
     'v8_enable_gdbjit%': 0,
 
-    # Build-time flag for enabling nojit mode.
-    # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag
-    # does everything we need.
-    'v8_enable_jitless_mode%': 0,
-
     # Enable code-generation-time checking of types in the CodeStubAssembler.
     'v8_enable_verify_csa%': 0,
 
@@ -80,6 +75,9 @@
     # describes various parameters of the VM for use by debuggers. See
     # tools/gen-postmortem-metadata.py for details.
     'v8_postmortem_support%': 'false',
+
+    # Use Siphash as added protection against hash flooding attacks.
+    'v8_use_siphash%': 'false',
 
     # Interpreted regexp engine exists as platform-independent alternative
     # based where the regular expression is compiled to a bytecode.
@@ -121,23 +119,16 @@
     #'v8_enable_handle_zapping%': 0,
 
     'v8_enable_pointer_compression%': 'false',
-
     'v8_enable_31bit_smis_on_64bit_arch%': 'false',
 
     'v8_enable_embedded_builtins%': 'true',
 
+    # Enable code comments for builtins in the snapshot (impacts performance).
+    'v8_enable_snapshot_code_comments%': 'false',
+
     'v8_enable_fast_mksnapshot%': 0,
   },
 
-  'conditions': [
-    # V8's predicate inverted since we default to 'true' and set 'false' for unsupported cases.
-    #      !is_aix
-    ['not (OS!="aix")', {
-      'variables': {
-        'v8_enable_embedded_builtins': 'false',
-      }
-    }],
-  ],
   'target_defaults': {
     'conditions': [
       ['v8_embedder_string!=""', {
@@ -151,6 +142,10 @@
       }],
       ['v8_enable_lite_mode==1', {
         'defines': ['V8_LITE_MODE',],
+
+        # TODO(v8:7777): Remove the define once the --jitless runtime flag does
+        # everything we need.
+        'defines': ['V8_JITLESS_MODE', ],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
@@ -173,7 +168,7 @@
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],
       }],
-      ['v8_interpreted_regexp==1', {
+      ['v8_interpreted_regexp==1 or v8_enable_lite_mode==1', {
         'defines': ['V8_INTERPRETED_REGEXP',],
       }],
       ['v8_deprecation_warnings==1', {
@@ -191,6 +186,9 @@
       }],
       ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
+      }],
+      ['v8_use_siphash=="true"', {
+        'defines': ['V8_USE_SIPHASH',],
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
@@ -218,9 +216,6 @@
         'defines': [
           'V8_EMBEDDED_BUILTINS',
         ],
-      }],
-      ['v8_enable_jitless_mode==1', {
-        'defines': ['V8_JITLESS_MODE',],
       }],
     ],  # conditions
     'defines': [
