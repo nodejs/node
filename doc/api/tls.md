@@ -1054,6 +1054,10 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24405
+    description: The `minVersion` and `maxVersion` can be used to restrict
+                 the allowed TLS protocol versions.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19794
     description: The `ecdhCurve` cannot be set to `false` anymore due to a
@@ -1070,10 +1074,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4099
     description: The `ca` option can now be a single string containing multiple
                  CA certificates.
-  - version: REPLACEME
-    pr-url: REPLACEME
-    description: The `minVersion` and `maxVersion` can be used to restrict
-                 the allowed TLS protocol versions.
 -->
 
 * `options` {Object}
