@@ -54,57 +54,57 @@ common.expectsError(() => Buffer.alloc(1).compare('abc'), {
 
   assert.strictEqual(a.compare(b), -1);
 
-// Equivalent to a.compare(b).
+  // Equivalent to a.compare(b).
   assert.strictEqual(a.compare(b, 0), -1);
   // No longer valid
   // Refs: https://github.com/nodejs/node/issues/23668
-  //assert.strictEqual(a.compare(b, '0'), -1);
+  // assert.strictEqual(a.compare(b, '0'), -1);
   assert.strictEqual(a.compare(b, undefined), -1);
 
-// Equivalent to a.compare(b).
+  // Equivalent to a.compare(b).
   assert.strictEqual(a.compare(b, 0, undefined, 0), -1);
 
-// Zero-length target, return 1
+  // Zero-length target, return 1
   assert.strictEqual(a.compare(b, 0, 0, 0), 1);
   // No longer valid
   // Refs: https://github.com/nodejs/node/issues/23668
   // assert.strictEqual(a.compare(b, '0', '0', '0'), 1);
 
-// Equivalent to Buffer.compare(a, b.slice(6, 10))
+  // Equivalent to Buffer.compare(a, b.slice(6, 10))
   assert.strictEqual(a.compare(b, 6, 10), 1);
 
-// Zero-length source, return -1
+  // Zero-length source, return -1
   assert.strictEqual(a.compare(b, 6, 10, 0, 0), -1);
 
-// Zero-length source and target, return 0
+  // Zero-length source and target, return 0
   assert.strictEqual(a.compare(b, 0, 0, 0, 0), 0);
   assert.strictEqual(a.compare(b, 1, 1, 2, 2), 0);
 
-// Equivalent to Buffer.compare(a.slice(4), b.slice(0, 5))
+  // Equivalent to Buffer.compare(a.slice(4), b.slice(0, 5))
   assert.strictEqual(a.compare(b, 0, 5, 4), 1);
 
-// Equivalent to Buffer.compare(a.slice(1), b.slice(5))
+  // Equivalent to Buffer.compare(a.slice(1), b.slice(5))
   assert.strictEqual(a.compare(b, 5, undefined, 1), 1);
 
-// Equivalent to Buffer.compare(a.slice(2), b.slice(2, 4))
+  // Equivalent to Buffer.compare(a.slice(2), b.slice(2, 4))
   assert.strictEqual(a.compare(b, 2, 4, 2), -1);
 
-// Equivalent to Buffer.compare(a.slice(4), b.slice(0, 7))
+  // Equivalent to Buffer.compare(a.slice(4), b.slice(0, 7))
   assert.strictEqual(a.compare(b, 0, 7, 4), -1);
 
-// Equivalent to Buffer.compare(a.slice(4, 6), b.slice(0, 7));
+  // Equivalent to Buffer.compare(a.slice(4, 6), b.slice(0, 7));
   assert.strictEqual(a.compare(b, 0, 7, 4, 6), -1);
 
-// zero length target
+  // zero length target
   assert.strictEqual(a.compare(b, 0, null), 1);
 
-// coerces to targetEnd == 5
+  // coerces to targetEnd == 5
   assert.strictEqual(a.compare(b, 0, { valueOf: () => 5 }), -1);
 
-// zero length target
+  // zero length target
   assert.strictEqual(a.compare(b, Infinity, -Infinity), 1);
 
-// zero length target because default for targetEnd <= targetSource
+  // zero length target because default for targetEnd <= targetSource
   // No longer valid
   // Refs: https://github.com/nodejs/node/issues/23668
   // assert.strictEqual(a.compare(b, '0xff'), 1);
@@ -135,7 +135,7 @@ common.expectsError(() => Buffer.alloc(1).compare('abc'), {
     const expected = {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-    }
+    };
 
     common.expectsError(
       () => b.compare(c, '1'),
@@ -161,7 +161,7 @@ common.expectsError(() => Buffer.alloc(1).compare('abc'), {
     const expected = {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-    }
+    };
     common.expectsError(
       () => b.copy(c, -1),
       expected

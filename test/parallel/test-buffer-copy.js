@@ -160,7 +160,7 @@ assert.strictEqual(b.copy(c, 512, 0, 10), 0);
   const expected = {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-  }
+  };
 
   common.expectsError(
     () => b.copy(c, '1'),
@@ -182,7 +182,7 @@ assert.strictEqual(b.copy(c, 512, 0, 10), 0);
   const expected = {
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
-  }
+  };
 
   common.expectsError(
     () => b.copy(c, -1),
