@@ -491,7 +491,10 @@ class Parser : public AsyncWrap, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
     CHECK(parser->current_buffer_.IsEmpty());
-    parser->Execute(nullptr, 0);
+    Local<Value> ret = parser->Execute(nullptr, 0);
+
+    if (!ret.IsEmpty())
+      args.GetReturnValue().Set(ret);
   }
 
 
@@ -684,11 +687,28 @@ class Parser : public AsyncWrap, public StreamListener {
     }
 #else  /* !NODE_EXPERIMENTAL_HTTP */
     size_t nread = http_parser_execute(&parser_, &settings, data, len);
-    if (data != nullptr) {
+    err = HTTP_PARSER_ERRNO(&parser_);
+
+    // Finish()
+    if (data == nullptr) {
+      // `http_parser_execute()` returns either `0` or `1` when `len` is 0
+      // (part of the finishing sequence).
+      CHECK_EQ(len, 0);
+      switch (nread) {
+        case 0:
+          err = HPE_OK;
+          break;
+        case 1:
+          nread = 0;
+          break;
+        default:
+          UNREACHABLE();
+      }
+
+    // Regular Execute()
+    } else {
       Save();
     }
-
-    err = HTTP_PARSER_ERRNO(&parser_);
 #endif  /* NODE_EXPERIMENTAL_HTTP */
 
     // Unassign the 'buffer_' variable
@@ -738,6 +758,10 @@ class Parser : public AsyncWrap, public StreamListener {
       return scope.Escape(e);
     }
 
+    // No return value is needed for `Finish()`
+    if (data == nullptr) {
+      return scope.Escape(Local<Value>());
+    }
     return scope.Escape(nread_obj);
   }
 
