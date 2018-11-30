@@ -62,7 +62,8 @@ static void IsBoxedPrimitive(const FunctionCallbackInfo<Value>& args) {
 
 void InitializeTypes(Local<Object> target,
                      Local<Value> unused,
-                     Local<Context> context) {
+                     Local<Context> context,
+                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
 #define V(type) env->SetMethodNoSideEffect(target,     \

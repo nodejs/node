@@ -43,7 +43,8 @@ using v8::Value;
 
 void TTYWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
-                         Local<Context> context) {
+                         Local<Context> context,
+                         void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<String> ttyString = FIXED_ONE_BYTE_STRING(env->isolate(), "TTY");

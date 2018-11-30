@@ -56,7 +56,6 @@ static void GetOwnNonIndexProperties(
 }
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   // Return undefined if it's not a Promise.
   if (!args[0]->IsPromise())
     return;
@@ -75,7 +74,6 @@ static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   // Return undefined if it's not a proxy.
   if (!args[0]->IsProxy())
     return;
@@ -196,7 +194,8 @@ void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
-                Local<Context> context) {
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
 #define V(name, _)                                                            \

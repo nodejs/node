@@ -483,7 +483,8 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
-                Local<Context> context) {
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   env->SetMethodNoSideEffect(target, "getOptions", GetOptions);

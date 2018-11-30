@@ -119,7 +119,8 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
-                Local<Context> context) {
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
