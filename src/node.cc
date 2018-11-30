@@ -116,6 +116,7 @@ typedef int mode_t;
 
 namespace node {
 
+using errors::TryCatchScope;
 using native_module::NativeModuleLoader;
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
@@ -154,7 +155,6 @@ using v8::SealHandleScope;
 using v8::SideEffectType;
 using v8::String;
 using v8::TracingController;
-using v8::TryCatch;
 using v8::Undefined;
 using v8::V8;
 using v8::Value;
@@ -746,7 +746,7 @@ static MaybeLocal<Value> ExecuteString(Environment* env,
                                        Local<String> source,
                                        Local<String> filename) {
   EscapableHandleScope scope(env->isolate());
-  TryCatch try_catch(env->isolate());
+  TryCatchScope try_catch(env);
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
@@ -1341,7 +1341,7 @@ static MaybeLocal<Function> GetBootstrapper(
     Local<String> script_name) {
   EscapableHandleScope scope(env->isolate());
 
-  TryCatch try_catch(env->isolate());
+  TryCatchScope try_catch(env);
 
   // Disable verbose mode to stop FatalException() handler from trying
   // to handle the exception. Errors this early in the start-up phase
@@ -1386,7 +1386,7 @@ static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
 
-  TryCatch try_catch(env->isolate());
+  TryCatchScope try_catch(env);
   // Disable verbose mode to stop FatalException() handler from trying
   // to handle the exception. Errors this early in the start-up phase
   // are not safe to ignore.

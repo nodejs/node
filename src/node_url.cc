@@ -11,6 +11,8 @@
 
 namespace node {
 
+using errors::TryCatchScope;
+
 using v8::Array;
 using v8::Context;
 using v8::Function;
@@ -25,7 +27,6 @@ using v8::NewStringType;
 using v8::Null;
 using v8::Object;
 using v8::String;
-using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -2406,7 +2407,7 @@ const Local<Value> URL::ToObject(Environment* env) const {
 
   MaybeLocal<Value> ret;
   {
-    FatalTryCatch try_catch(env);
+    TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
 
     // The SetURLConstructor method must have been called already to
     // set the constructor function used below. SetURLConstructor is

@@ -3,9 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node_internals.h"
-#include "node_context_data.h"
 #include "base_object-inl.h"
+#include "node_context_data.h"
+#include "node_errors.h"
+#include "node_internals.h"
 
 namespace node {
 namespace contextify {

@@ -3,11 +3,14 @@
 #include "async_wrap.h"
 #include "env-inl.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_internals.h"
 #include "stream_base-inl.h"
 #include "v8.h"
 
 namespace node {
+
+using errors::TryCatchScope;
 
 using v8::Array;
 using v8::Context;
@@ -18,7 +21,6 @@ using v8::Int32;
 using v8::Local;
 using v8::Object;
 using v8::String;
-using v8::TryCatch;
 using v8::Value;
 
 
@@ -42,7 +44,7 @@ bool JSStream::IsAlive() {
 bool JSStream::IsClosing() {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
-  TryCatch try_catch(env()->isolate());
+  TryCatchScope try_catch(env());
   Local<Value> value;
   if (!MakeCallback(env()->isclosing_string(), 0, nullptr).ToLocal(&value)) {
     if (!try_catch.HasTerminated())
@@ -56,7 +58,7 @@ bool JSStream::IsClosing() {
 int JSStream::ReadStart() {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
-  TryCatch try_catch(env()->isolate());
+  TryCatchScope try_catch(env());
   Local<Value> value;
   int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onreadstart_string(), 0, nullptr).ToLocal(&value) ||
@@ -71,7 +73,7 @@ int JSStream::ReadStart() {
 int JSStream::ReadStop() {
   HandleScope scope(env()->isolate());
   Context::Scope context_scope(env()->context());
-  TryCatch try_catch(env()->isolate());
+  TryCatchScope try_catch(env());
   Local<Value> value;
   int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onreadstop_string(), 0, nullptr).ToLocal(&value) ||
@@ -91,7 +93,7 @@ int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
     req_wrap->object()
   };
 
-  TryCatch try_catch(env()->isolate());
+  TryCatchScope try_catch(env());
   Local<Value> value;
   int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onshutdown_string(),
@@ -126,7 +128,7 @@ int JSStream::DoWrite(WriteWrap* w,
     bufs_arr
   };
 
-  TryCatch try_catch(env()->isolate());
+  TryCatchScope try_catch(env());
   Local<Value> value;
   int value_int = UV_EPROTO;
   if (!MakeCallback(env()->onwrite_string(),
