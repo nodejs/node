@@ -94,7 +94,7 @@ function test1() {
 
   server.listen(0, common.mustCall(() => {
     const port = server.address().port;
-    const client = http.get({ port: port }, common.mustNotCall(() => {}));
+    const client = http.get({ port: port }, common.mustNotCall());
 
     client.on('error', common.mustCall((err) => {
       assert.strictEqual(err.code, 'HPE_HEADER_OVERFLOW');
