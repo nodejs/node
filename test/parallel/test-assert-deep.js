@@ -239,6 +239,7 @@ assertNotDeepOrStrict(new Set([1, 2, 3, 4]), new Set([1, 2, 3]));
 assertDeepAndStrictEqual(new Set(['1', '2', '3']), new Set(['1', '2', '3']));
 assertDeepAndStrictEqual(new Set([[1, 2], [3, 4]]), new Set([[3, 4], [1, 2]]));
 assertNotDeepOrStrict(new Set([{ a: 0 }]), new Set([{ a: 1 }]));
+assertNotDeepOrStrict(new Set([Symbol()]), new Set([Symbol()]));
 
 {
   const a = [ 1, 2 ];
@@ -636,6 +637,8 @@ assertDeepAndStrictEqual(-0, -0);
   Object.defineProperty(obj2, Symbol(), { value: 1 });
   assertOnlyDeepEqual(obj1, obj3);
   assertDeepAndStrictEqual(obj1, obj2);
+  obj2[Symbol()] = true;
+  assertOnlyDeepEqual(obj1, obj2);
   // TypedArrays have a fast path. Test for this as well.
   const a = new Uint8Array(4);
   const b = new Uint8Array(4);
