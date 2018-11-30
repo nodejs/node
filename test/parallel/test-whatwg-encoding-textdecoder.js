@@ -233,6 +233,16 @@ testDecodeSample(
   ]
 );
 
+{
+  common.expectsError(
+    () => new TextDecoder('utf-8', 1),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+}
+
 // From: https://github.com/w3c/web-platform-tests/blob/master/encoding/api-invalid-label.html
 [
   'utf-8',
