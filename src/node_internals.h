@@ -697,6 +697,9 @@ static inline const char* errno_string(int errorno) {
 
 extern double prog_start_time;
 
+extern const char* llhttp_version;
+extern const char* http_parser_version;
+
 void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
 void Chdir(const v8::FunctionCallbackInfo<v8::Value>& args);
 void CPUUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
