@@ -819,7 +819,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
     return;
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_.get());
-  while (X509* x509 = PEM_read_bio_X509(
+  while (X509* x509 = PEM_read_bio_X509_AUX(
       bio.get(), nullptr, NoPasswordCallback, nullptr)) {
     if (cert_store == root_cert_store) {
       cert_store = NewRootCertStore();
