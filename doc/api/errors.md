@@ -1888,9 +1888,13 @@ changes:
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 8KB of HTTP header data is received then
+malconfigured clients, if more than 8KB of HTTP/1 header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
+
+The maximum amount of HTTP/1 header data could be configured and changed
+when building node by using `./configure --http-max-header-size=MAX`
+for example.
 
 <a id="MODULE_NOT_FOUND"></a>
 ### MODULE_NOT_FOUND
