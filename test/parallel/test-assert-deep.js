@@ -571,9 +571,20 @@ assertNotDeepOrStrict(
   assertDeepAndStrictEqual(m3, m4);
 }
 
-// Handle sparse arrays
-assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
-assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
+// Handle sparse arrays.
+{
+  assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
+  assertOnlyDeepEqual([1, , , 3], [1, , , 3, , , ]);
+  const a = new Array(3);
+  const b = new Array(3);
+  a[2] = true;
+  b[1] = true;
+  assertNotDeepOrStrict(a, b);
+  b[2] = true;
+  assertNotDeepOrStrict(a, b);
+  a[0] = true;
+  assertNotDeepOrStrict(a, b);
+}
 
 // Handle different error messages
 {
