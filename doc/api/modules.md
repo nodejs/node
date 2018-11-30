@@ -914,9 +914,11 @@ added: v10.12.0
   function.
 * Returns: {[`require`][]} Require function
 
+Create a custom require function that will resolve modules relative to the filename path.
+
 ```js
 const { createRequireFromPath } = require('module');
-const requireUtil = createRequireFromPath('../src/utils');
+const requireUtil = createRequireFromPath('../src/utils'); // can also be a file
 
 // require `../src/utils/some-tool`
 requireUtil('./some-tool');
