@@ -11,12 +11,6 @@
 #include "node_crypto.h"
 #endif
 
-#ifdef NODE_EXPERIMENTAL_HTTP
-#include "llhttp.h"
-#else /* !NODE_EXPERIMENTAL_HTTP */
-#include "http_parser.h"
-#endif /* NODE_EXPERIMENTAL_HTTP */
-
 namespace node {
 
 namespace per_process {
@@ -32,14 +26,8 @@ Metadata::Versions::Versions() {
   modules = NODE_STRINGIFY(NODE_MODULE_VERSION);
   nghttp2 = NGHTTP2_VERSION;
   napi = NODE_STRINGIFY(NAPI_VERSION);
-
-#ifdef NODE_EXPERIMENTAL_HTTP
-  llhttp = NODE_STRINGIFY(LLHTTP_VERSION_MAJOR) "." NODE_STRINGIFY(
-      LLHTTP_VERSION_MINOR) "." NODE_STRINGIFY(LLHTTP_VERSION_PATCH);
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-  http_parser = NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR) "." NODE_STRINGIFY(
-      HTTP_PARSER_VERSION_MINOR) "." NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
-#endif /* NODE_EXPERIMENTAL_HTTP */
+  llhttp = llhttp_version;
+  http_parser = http_parser_version;
 
 #if HAVE_OPENSSL
   openssl = crypto::GetOpenSSLVersion();

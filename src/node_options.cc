@@ -39,6 +39,11 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   if (syntax_check_only && has_eval_string) {
     errors->push_back("either --check or --eval can be used, not both");
   }
+
+  if (http_parser != "legacy" && http_parser != "llhttp") {
+    errors->push_back("invalid value for --http-parser");
+  }
+
   debug_options->CheckOptions(errors);
 }
 
@@ -102,6 +107,15 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_worker,
             kAllowedInEnvironment);
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
+  AddOption("--http-parser",
+            "Select which HTTP parser to use; either 'legacy' or 'llhttp' "
+#ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
+            "(default: llhttp).",
+#else
+            "(default: legacy).",
+#endif
+            &EnvironmentOptions::http_parser,
+            kAllowedInEnvironment);
   AddOption("--loader",
             "(with --experimental-modules) use the specified file as a "
             "custom loader",

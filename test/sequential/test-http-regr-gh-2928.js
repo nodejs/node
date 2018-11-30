@@ -6,9 +6,8 @@
 const common = require('../common');
 const assert = require('assert');
 const httpCommon = require('_http_common');
-const { internalBinding } = require('internal/test/binding');
 const is_reused_symbol = require('internal/freelist').symbols.is_reused_symbol;
-const { HTTPParser } = internalBinding('http_parser');
+const { HTTPParser } = require('_http_common');
 const net = require('net');
 
 const COUNT = httpCommon.parsers.max + 1;

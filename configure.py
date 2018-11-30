@@ -187,7 +187,7 @@ parser.add_option('--openssl-system-ca-path',
 parser.add_option('--experimental-http-parser',
     action='store_true',
     dest='experimental_http_parser',
-    help='use llhttp instead of http_parser')
+    help='use llhttp instead of http_parser by default')
 
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',

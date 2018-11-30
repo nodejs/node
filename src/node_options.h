@@ -72,6 +72,12 @@ class EnvironmentOptions : public Options {
   bool experimental_vm_modules = false;
   bool experimental_worker = false;
   bool expose_internals = false;
+  std::string http_parser =
+#ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
+    "llhttp";
+#else
+    "legacy";
+#endif
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
   bool no_warnings = false;
