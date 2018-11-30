@@ -13,9 +13,10 @@ const test = (stream) => {
   stream.on('ready', common.mustNotCall());
   stream.on('close', common.mustCall());
   stream.on('error', common.mustCall((er) => {
+    assert.strictEqual(stream.closed, true);
     assert.strictEqual(err, er);
   }));
-}
+};
 
 test(fs.createReadStream(__filename));
 test(fs.createWriteStream(`${tmpdir.path}/dummy`));
