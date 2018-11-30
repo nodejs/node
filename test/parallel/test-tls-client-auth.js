@@ -254,7 +254,7 @@ connect({
   return cleanup();
 });
 
-// Confirm lack of support for "BEGIN TRUSTED CERTIFICATE".
+// Confirm support for "BEGIN TRUSTED CERTIFICATE".
 connect({
   client: {
     key: client.key,
@@ -269,11 +269,11 @@ connect({
     requestCert: true,
   },
 }, function(err, pair, cleanup) {
-  assert.strictEqual(err.code, 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY');
+  assert.ifError(err);
   return cleanup();
 });
 
-// Confirm lack of support for "BEGIN TRUSTED CERTIFICATE".
+// Confirm support for "BEGIN TRUSTED CERTIFICATE".
 connect({
   client: {
     key: client.key,
@@ -288,7 +288,7 @@ connect({
     requestCert: true,
   },
 }, function(err, pair, cleanup) {
-  assert.strictEqual(err.code, 'ECONNRESET');
+  assert.ifError(err);
   return cleanup();
 });
 
