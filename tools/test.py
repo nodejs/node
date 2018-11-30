@@ -423,7 +423,7 @@ class CompactProgressIndicator(ProgressIndicator):
     }
     status = self.Truncate(status, 78)
     self.last_status_length = len(status)
-    print(status, end=' ')
+    print(status, end='')
     sys.stdout.flush()
 
 
@@ -438,7 +438,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
     super(ColorProgressIndicator, self).__init__(cases, flaky_tests_mode, templates)
 
   def ClearLine(self, last_line_length):
-    print("\033[1K\r", end=' ')
+    print("\033[1K\r", end='')
 
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
@@ -454,7 +454,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     super(MonochromeProgressIndicator, self).__init__(cases, flaky_tests_mode, templates)
 
   def ClearLine(self, last_line_length):
-    print(("\r" + (" " * last_line_length) + "\r"), end=' ')
+    print(("\r" + (" " * last_line_length) + "\r"), end='')
 
 
 PROGRESS_INDICATORS = {
