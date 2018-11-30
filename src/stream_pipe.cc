@@ -248,7 +248,8 @@ namespace {
 
 void InitializeStreamPipe(Local<Object> target,
                           Local<Value> unused,
-                          Local<Context> context) {
+                          Local<Context> context,
+                          void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   // Create FunctionTemplate for FileHandle::CloseReq

@@ -276,7 +276,8 @@ void FlushData(const FunctionCallbackInfo<Value>& args) {
 
 void InitializeStringDecoder(Local<Object> target,
                              Local<Value> unused,
-                             Local<Context> context) {
+                             Local<Context> context,
+                             void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
