@@ -383,7 +383,7 @@ class CompactProgressIndicator(ProgressIndicator):
     pass
 
   def Done(self):
-    self.PrintProgress('Done')
+    self.PrintProgress('Done\n')
 
   def AboutToRun(self, case):
     self.PrintProgress(case.GetLabel())
