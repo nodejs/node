@@ -1054,6 +1054,9 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `ca:` option now supports `BEGIN TRUSTED CERTIFICATE`.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24405
     description: The `minVersion` and `maxVersion` can be used to restrict
@@ -1092,8 +1095,8 @@ changes:
     certificate can match or chain to.
     For self-signed certificates, the certificate is its own CA, and must be
     provided.
-    For PEM encoded certificates, supported types are "X509 CERTIFICATE", and
-    "CERTIFICATE".
+    For PEM encoded certificates, supported types are "TRUSTED CERTIFICATE",
+    "X509 CERTIFICATE", and "CERTIFICATE".
   * `cert` {string|string[]|Buffer|Buffer[]} Cert chains in PEM format. One cert
     chain should be provided per private key. Each cert chain should consist of
     the PEM formatted certificate for a provided private `key`, followed by the
