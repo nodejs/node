@@ -1598,6 +1598,7 @@ header name:
 `last-modified`, `location`, `max-forwards`, `proxy-authorization`, `referer`,
 `retry-after`, or `user-agent` are discarded.
 * `set-cookie` is always an array. Duplicates are added to the array.
+* For duplicate `cookie` headers, the values are joined together with '; '.
 * For all other headers, the values are joined together with ', '.
 
 ### message.httpVersion
