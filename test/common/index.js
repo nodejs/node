@@ -460,7 +460,7 @@ function busyLoop(time) {
 
 function isAlive(pid) {
   try {
-    process.kill(pid, 'SIGCONT');
+    process.kill(pid, 0);
     return true;
   } catch {
     return false;
