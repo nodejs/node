@@ -15,7 +15,6 @@
            'toolsets': ['target'],
            'dependencies': [
              'mksnapshot',
-             'js2c',
              'natives_blob',
            ],
          }],

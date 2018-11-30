@@ -116,7 +116,7 @@
       'process_outputs_as_sources': 1,
       'action': [
         'python',
-        '<(protocol_path)/CodeGenerator.py',
+        '<(protocol_path)/code_generator.py',
         '--jinja_dir', '../third_party',
         '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/inspector',
         '--config', '<(inspector_path)/inspector_protocol_config.json',
