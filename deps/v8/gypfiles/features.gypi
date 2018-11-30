@@ -129,15 +129,6 @@
     'v8_enable_fast_mksnapshot%': 0,
   },
 
-  'conditions': [
-    # V8's predicate inverted since we default to 'true' and set 'false' for unsupported cases.
-    #      !is_aix
-    ['not (OS!="aix")', {
-      'variables': {
-        'v8_enable_embedded_builtins': 'false',
-      }
-    }],
-  ],
   'target_defaults': {
     'conditions': [
       ['v8_embedder_string!=""', {
