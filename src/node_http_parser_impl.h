@@ -19,6 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// This file is included from 2 files, node_http_parser_traditional.cc
+// and node_http_parser_llhttp.cc.
+
+#ifndef SRC_NODE_HTTP_PARSER_IMPL_H_
+#define SRC_NODE_HTTP_PARSER_IMPL_H_
+
 #include "node.h"
 #include "node_buffer.h"
 #include "node_internals.h"
@@ -47,7 +53,7 @@
 
 
 namespace node {
-namespace {
+namespace {  // NOLINT(build/namespaces)
 
 using v8::Array;
 using v8::Boolean;
@@ -910,10 +916,10 @@ const parser_settings_t Parser::settings = {
 };
 
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
+void InitializeHttpParser(Local<Object> target,
+                          Local<Value> unused,
+                          Local<Context> context,
+                          void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -964,4 +970,4 @@ void Initialize(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(http_parser, node::Initialize)
+#endif  // SRC_NODE_HTTP_PARSER_IMPL_H_

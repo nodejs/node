@@ -15,13 +15,9 @@ namespace node {
   V(ares)                                                                      \
   V(modules)                                                                   \
   V(nghttp2)                                                                   \
-  V(napi)
-
-#ifdef NODE_EXPERIMENTAL_HTTP
-#define NODE_VERSIONS_KEY_HTTP(V) V(llhttp)
-#else /* !NODE_EXPERIMENTAL_HTTP */
-#define NODE_VERSIONS_KEY_HTTP(V) V(http_parser)
-#endif /* NODE_EXPERIMENTAL_HTTP */
+  V(napi)                                                                      \
+  V(llhttp)                                                                    \
+  V(http_parser)                                                               \
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)
@@ -31,7 +27,6 @@ namespace node {
 
 #define NODE_VERSIONS_KEYS(V)                                                  \
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
-  NODE_VERSIONS_KEY_HTTP(V)                                                    \
   NODE_VERSIONS_KEY_CRYPTO(V)
 
 class Metadata {

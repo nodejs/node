@@ -164,12 +164,14 @@
     }],
 
     [ 'node_experimental_http_parser=="true"', {
-      'defines': [ 'NODE_EXPERIMENTAL_HTTP' ],
-      'dependencies': [ 'deps/llhttp/llhttp.gyp:llhttp' ],
-    }, {
-      'conditions': [ [ 'node_shared_http_parser=="false"', {
-        'dependencies': [ 'deps/http_parser/http_parser.gyp:http_parser' ],
-      } ] ],
+      'defines': [ 'NODE_EXPERIMENTAL_HTTP_DEFAULT' ],
+    } ],
+
+    [ 'node_shared_http_parser=="false"', {
+      'dependencies': [
+        'deps/http_parser/http_parser.gyp:http_parser',
+        'deps/llhttp/llhttp.gyp:llhttp'
+      ],
     } ],
 
     [ 'node_shared_cares=="false"', {

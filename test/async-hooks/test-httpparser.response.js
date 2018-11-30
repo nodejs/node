@@ -11,13 +11,7 @@ const hooks = initHooks();
 
 hooks.enable();
 
-// The hooks.enable() must come before require('internal/test/binding')
-// because internal/test/binding schedules a process warning on nextTick.
-// If this order is not preserved, the hooks check will fail because it
-// will not be notified about the nextTick creation but will see the
-// callback event.
-const { internalBinding } = require('internal/test/binding');
-const { HTTPParser } = internalBinding('http_parser');
+const { HTTPParser } = require('_http_common');
 
 const RESPONSE = HTTPParser.RESPONSE;
 const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;

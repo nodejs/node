@@ -119,6 +119,22 @@ added: v6.0.0
 Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`.)
 
+### `--http-parser=library`
+<!-- YAML
+added: REPLACEME
+-->
+
+Chooses an HTTP parser library. Available values are:
+
+- `llhttp` for https://llhttp.org/
+- `legacy` for https://github.com/nodejs/http-parser
+
+The default is `legacy`, unless otherwise specified when building Node.js.
+
+This flag exists to aid in experimentation with the internal implementation of
+the Node.js http parser.
+This flag is likely to become a no-op and removed at some point in the future.
+
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
