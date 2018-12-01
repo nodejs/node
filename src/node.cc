@@ -25,6 +25,7 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_metadata.h"
 #include "node_native_module.h"
 #include "node_perf.h"
 #include "node_platform.h"
@@ -48,16 +49,9 @@
 #include "node_dtrace.h"
 #endif
 
-#include "ares.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
-#ifdef NODE_EXPERIMENTAL_HTTP
-# include "llhttp.h"
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-# include "http_parser.h"
-#endif  /* NODE_EXPERIMENTAL_HTTP */
-#include "nghttp2/nghttp2ver.h"
 #include "req_wrap-inl.h"
 #include "string_bytes.h"
 #include "tracing/agent.h"
@@ -68,7 +62,6 @@
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
 #include "v8-profiler.h"
-#include "zlib.h"
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
@@ -156,22 +149,6 @@ using v8::Value;
 
 static bool v8_is_profiling = false;
 
-#ifdef NODE_EXPERIMENTAL_HTTP
-static const char llhttp_version[] =
-    NODE_STRINGIFY(LLHTTP_VERSION_MAJOR)
-    "."
-    NODE_STRINGIFY(LLHTTP_VERSION_MINOR)
-    "."
-    NODE_STRINGIFY(LLHTTP_VERSION_PATCH);
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-static const char http_parser_version[] =
-    NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
-    "."
-    NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
-    "."
-    NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
-#endif  /* NODE_EXPERIMENTAL_HTTP */
-
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
 
@@ -210,27 +187,12 @@ class NodeTraceStateObserver :
     auto trace_process = tracing::TracedValue::Create();
     trace_process->BeginDictionary("versions");
 
-#ifdef NODE_EXPERIMENTAL_HTTP
-    trace_process->SetString("llhttp", llhttp_version);
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-    trace_process->SetString("http_parser", http_parser_version);
-#endif  /* NODE_EXPERIMENTAL_HTTP */
+#define V(key)                                                                 \
+  trace_process->SetString(#key, per_process::metadata.versions.key.c_str());
 
-    const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
-    const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
+    NODE_VERSIONS_KEYS(V)
+#undef V
 
-    trace_process->SetString("node", NODE_VERSION_STRING);
-    trace_process->SetString("v8", V8::GetVersion());
-    trace_process->SetString("uv", uv_version_string());
-    trace_process->SetString("zlib", ZLIB_VERSION);
-    trace_process->SetString("ares", ARES_VERSION_STR);
-    trace_process->SetString("modules", node_modules_version);
-    trace_process->SetString("nghttp2", NGHTTP2_VERSION);
-    trace_process->SetString("napi", node_napi_version);
-
-#if HAVE_OPENSSL
-    trace_process->SetString("openssl", crypto::GetOpenSSLVersion());
-#endif
     trace_process->EndDictionary();
 
     trace_process->SetString("arch", NODE_ARCH);
@@ -943,53 +905,10 @@ void SetupProcessObject(Environment* env,
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
 
-#ifdef NODE_EXPERIMENTAL_HTTP
-  READONLY_PROPERTY(versions,
-                    "llhttp",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), llhttp_version));
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-  READONLY_PROPERTY(versions,
-                    "http_parser",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
-#endif  /* NODE_EXPERIMENTAL_HTTP */
-
-  // +1 to get rid of the leading 'v'
-  READONLY_PROPERTY(versions,
-                    "node",
-                    OneByteString(env->isolate(), NODE_VERSION + 1));
-  READONLY_PROPERTY(versions,
-                    "v8",
-                    OneByteString(env->isolate(), V8::GetVersion()));
-  READONLY_PROPERTY(versions,
-                    "uv",
-                    OneByteString(env->isolate(), uv_version_string()));
-  READONLY_PROPERTY(versions,
-                    "zlib",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
-  READONLY_PROPERTY(versions,
-                    "ares",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
-
-  const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
-  READONLY_PROPERTY(
-      versions,
-      "modules",
-      FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
-  READONLY_PROPERTY(versions,
-                    "nghttp2",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
-  const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
-  READONLY_PROPERTY(
-      versions,
-      "napi",
-      FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
-
-#if HAVE_OPENSSL
-  READONLY_PROPERTY(
-      versions,
-      "openssl",
-      OneByteString(env->isolate(), crypto::GetOpenSSLVersion().c_str()));
-#endif
+#define V(key)                                                                 \
+  READONLY_STRING_PROPERTY(versions, #key, per_process::metadata.versions.key);
+  NODE_VERSIONS_KEYS(V)
+#undef V
 
   // process.arch
   READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
