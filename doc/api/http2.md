@@ -2297,7 +2297,7 @@ For incoming headers:
 `upgrade-insecure-requests`, `user-agent` or `x-content-type-options` are
 discarded.
 * `set-cookie` is always an array. Duplicates are added to the array.
-* `cookie`: the values are joined together with '; '.
+* For duplicate `cookie` headers, the values are joined together with '; '.
 * For all other headers, the values are joined together with ', '.
 
 ```js
