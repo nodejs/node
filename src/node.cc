@@ -27,6 +27,7 @@
 #include "node_internals.h"
 #include "node_metadata.h"
 #include "node_native_module.h"
+#include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_platform.h"
 #include "node_revert.h"
@@ -257,13 +258,15 @@ static struct {
   }
 
 #if HAVE_INSPECTOR
-  bool StartInspector(Environment* env, const char* script_path,
-                      std::shared_ptr<DebugOptions> options) {
+  bool StartInspector(Environment* env, const char* script_path) {
     // Inspector agent can't fail to start, but if it was configured to listen
     // right away on the websocket port and fails to bind/etc, this will return
     // false.
     return env->inspector_agent()->Start(
-        script_path == nullptr ? "" : script_path, options, true);
+        script_path == nullptr ? "" : script_path,
+        env->options()->debug_options(),
+        env->inspector_host_port(),
+        true);
   }
 
   bool InspectorStarted(Environment* env) {
@@ -304,8 +307,7 @@ static struct {
   void Dispose() {}
   void DrainVMTasks(Isolate* isolate) {}
   void CancelVMTasks(Isolate* isolate) {}
-  bool StartInspector(Environment* env, const char* script_path,
-                      const DebugOptions& options) {
+  bool StartInspector(Environment* env, const char* script_path) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return true;
   }
@@ -1090,24 +1092,24 @@ void SetupProcessObject(Environment* env,
 
   // TODO(refack): move the following 4 to `node_config`
   // --inspect-brk
-  if (env->options()->debug_options->wait_for_connect()) {
+  if (env->options()->debug_options().wait_for_connect()) {
     READONLY_DONT_ENUM_PROPERTY(process,
                                 "_breakFirstLine", True(env->isolate()));
   }
 
-  if (env->options()->debug_options->break_node_first_line) {
+  if (env->options()->debug_options().break_node_first_line) {
     READONLY_DONT_ENUM_PROPERTY(process,
                                 "_breakNodeFirstLine", True(env->isolate()));
   }
 
   // --inspect --debug-brk
-  if (env->options()->debug_options->deprecated_invocation()) {
+  if (env->options()->debug_options().deprecated_invocation()) {
     READONLY_DONT_ENUM_PROPERTY(process,
                                 "_deprecatedDebugBrk", True(env->isolate()));
   }
 
   // --debug or, --debug-brk without --inspect
-  if (env->options()->debug_options->invalid_invocation()) {
+  if (env->options()->debug_options().invalid_invocation()) {
     READONLY_DONT_ENUM_PROPERTY(process,
                                 "_invalidDebug", True(env->isolate()));
   }
@@ -1255,7 +1257,7 @@ void LoadEnvironment(Environment* env) {
           ->GetFunction(context)
           .ToLocalChecked(),
       Boolean::New(isolate,
-                   env->options()->debug_options->break_node_first_line)};
+                   env->options()->debug_options().break_node_first_line)};
 
   MaybeLocal<Value> loader_exports;
   // Bootstrap internal loaders
@@ -1290,12 +1292,10 @@ void LoadEnvironment(Environment* env) {
   }
 }
 
-
-static void StartInspector(Environment* env, const char* path,
-                           std::shared_ptr<DebugOptions> debug_options) {
+static void StartInspector(Environment* env, const char* path) {
 #if HAVE_INSPECTOR
   CHECK(!env->inspector_agent()->IsListening());
-  v8_platform.StartInspector(env, path, debug_options);
+  v8_platform.StartInspector(env, path);
 #endif  // HAVE_INSPECTOR
 }
 
@@ -1938,9 +1938,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   env.Start(args, exec_args, v8_is_profiling);
 
   const char* path = args.size() > 1 ? args[1].c_str() : nullptr;
-  StartInspector(&env, path, env.options()->debug_options);
+  StartInspector(&env, path);
 
-  if (env.options()->debug_options->inspector_enabled &&
+  if (env.options()->debug_options().inspector_enabled &&
       !v8_platform.InspectorStarted(&env)) {
     return 12;  // Signal internal error.
   }

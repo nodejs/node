@@ -825,14 +825,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 void DebugPortGetter(Local<Name> property,
                      const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Mutex::ScopedLock lock(process_mutex);
-  int port = env->options()->debug_options->port();
-#if HAVE_INSPECTOR
-  if (port == 0) {
-    if (auto io = env->inspector_agent()->io())
-      port = io->port();
-  }
-#endif  // HAVE_INSPECTOR
+  int port = env->inspector_host_port()->port();
   info.GetReturnValue().Set(port);
 }
 
@@ -841,9 +834,8 @@ void DebugPortSetter(Local<Name> property,
                      Local<Value> value,
                      const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Mutex::ScopedLock lock(process_mutex);
-  env->options()->debug_options->host_port.port =
-      value->Int32Value(env->context()).FromMaybe(0);
+  int32_t port = value->Int32Value(env->context()).FromMaybe(0);
+  env->inspector_host_port()->set_port(static_cast<int>(port));
 }
 
 

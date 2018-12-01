@@ -11,7 +11,7 @@
 #error("This header can only be used when inspector is enabled")
 #endif
 
-#include "node_options.h"
+#include "node_options-inl.h"
 #include "node_persistent.h"
 #include "v8.h"
 
@@ -50,8 +50,9 @@ class Agent {
 
   // Create client_, may create io_ if option enabled
   bool Start(const std::string& path,
-             std::shared_ptr<DebugOptions> options,
-             bool is_worker);
+             const DebugOptions& options,
+             std::shared_ptr<HostPort> host_port,
+             bool is_main);
   // Stop and destroy io_
   void Stop();
 
@@ -104,7 +105,8 @@ class Agent {
   // Calls StartIoThread() from off the main thread.
   void RequestIoThreadStart();
 
-  std::shared_ptr<DebugOptions> options() { return debug_options_; }
+  const DebugOptions& options() { return debug_options_; }
+  std::shared_ptr<HostPort> host_port() { return host_port_; }
   void ContextCreated(v8::Local<v8::Context> context, const ContextInfo& info);
 
   // Interface for interacting with inspectors in worker threads
@@ -121,7 +123,13 @@ class Agent {
   std::unique_ptr<InspectorIo> io_;
   std::unique_ptr<ParentInspectorHandle> parent_handle_;
   std::string path_;
-  std::shared_ptr<DebugOptions> debug_options_;
+
+  // This is a copy of the debug options parsed from CLI in the Environment.
+  // Do not use the host_port in that, instead manipulate the shared host_port_
+  // pointer which is meant to store the actual host and port of the inspector
+  // server.
+  DebugOptions debug_options_;
+  std::shared_ptr<HostPort> host_port_;
 
   bool pending_enable_async_hook_ = false;
   bool pending_disable_async_hook_ = false;

@@ -3,22 +3,44 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <string>
-#include <vector>
-#include <unordered_map>
 #include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "node_constants.h"
+#include "util.h"
 
 namespace node {
 
-struct HostPort {
-  std::string host_name;
-  int port;
+class HostPort {
+ public:
+  HostPort(const std::string& host_name, int port)
+      : host_name_(host_name), port_(port) {}
+  HostPort(const HostPort&) = default;
+  HostPort& operator=(const HostPort&) = default;
+  HostPort(HostPort&&) = default;
+  HostPort& operator=(HostPort&&) = default;
+
+  void set_host(const std::string& host) { host_name_ = host; }
+
+  void set_port(int port) { port_ = port; }
+
+  const std::string& host() const { return host_name_; }
+
+  int port() const {
+    // TODO(joyeecheung): make port a uint16_t
+    CHECK_GE(port_, 0);
+    return port_;
+  }
 
   void Update(const HostPort& other) {
-    if (!other.host_name.empty()) host_name = other.host_name;
-    if (other.port >= 0) port = other.port;
+    if (!other.host_name_.empty()) host_name_ = other.host_name_;
+    if (other.port_ >= 0) port_ = other.port_;
   }
+
+ private:
+  std::string host_name_;
+  int port_;
 };
 
 class Options {
@@ -33,12 +55,24 @@ class Options {
 // per-Isolate, rather than per-Environment.
 class DebugOptions : public Options {
  public:
+  DebugOptions() = default;
+  DebugOptions(const DebugOptions&) = default;
+  DebugOptions& operator=(const DebugOptions&) = default;
+  DebugOptions(DebugOptions&&) = default;
+  DebugOptions& operator=(DebugOptions&&) = default;
+
+  // --inspect
   bool inspector_enabled = false;
+  // --debug
   bool deprecated_debug = false;
+  // --inspect-brk
   bool break_first_line = false;
+  // --inspect-brk-node
   bool break_node_first_line = false;
-  HostPort host_port = {"127.0.0.1", -1};
+
   enum { kDefaultInspectorPort = 9229 };
+
+  HostPort host_port{"127.0.0.1", kDefaultInspectorPort};
 
   bool deprecated_invocation() const {
     return deprecated_debug &&
@@ -53,19 +87,10 @@ class DebugOptions : public Options {
   bool wait_for_connect() const {
     return break_first_line || break_node_first_line;
   }
-
-  const std::string& host() {
-    return host_port.host_name;
-  }
-
-  int port() {
-    return host_port.port < 0 ? kDefaultInspectorPort : host_port.port;
-  }
 };
 
 class EnvironmentOptions : public Options {
  public:
-  std::shared_ptr<DebugOptions> debug_options { new DebugOptions() };
   bool abort_on_uncaught_exception = false;
   bool experimental_modules = false;
   bool experimental_repl_await = false;
@@ -108,7 +133,11 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> user_argv;
 
   inline DebugOptions* get_debug_options();
+  inline const DebugOptions& debug_options() const;
   void CheckOptions(std::vector<std::string>* errors);
+
+ private:
+  DebugOptions debug_options_;
 };
 
 class PerIsolateOptions : public Options {

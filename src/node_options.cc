@@ -44,7 +44,9 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     errors->push_back("invalid value for --http-parser");
   }
 
-  debug_options->CheckOptions(errors);
+#if HAVE_INSPECTOR
+  debug_options_.CheckOptions(errors);
+#endif  // HAVE_INSPECTOR
 }
 
 namespace options_parser {
@@ -54,7 +56,6 @@ namespace options_parser {
 // TODO(addaleax): Make that unnecessary.
 
 DebugOptionsParser::DebugOptionsParser() {
-#if HAVE_INSPECTOR
   AddOption("--inspect-port",
             "set host:port for inspector",
             &DebugOptions::host_port,
@@ -84,10 +85,11 @@ DebugOptionsParser::DebugOptionsParser() {
   AddOption("--debug-brk", "", &DebugOptions::break_first_line);
   Implies("--debug-brk", "--debug");
   AddAlias("--debug-brk=", { "--inspect-port", "--debug-brk" });
-#endif
 }
 
+#if HAVE_INSPECTOR
 DebugOptionsParser DebugOptionsParser::instance;
+#endif  // HAVE_INSPECTOR
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-modules",
@@ -214,8 +216,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
 #endif
 
+#if HAVE_INSPECTOR
   Insert(&DebugOptionsParser::instance,
          &EnvironmentOptions::get_debug_options);
+#endif  // HAVE_INSPECTOR
 }
 
 EnvironmentOptionsParser EnvironmentOptionsParser::instance;
@@ -372,7 +376,7 @@ HostPort SplitHostPort(const std::string& arg,
   // so if it has an effect only an IPv6 address was specified.
   std::string host = RemoveBrackets(arg);
   if (host.length() < arg.length())
-    return HostPort { host, -1 };
+    return HostPort{host, DebugOptions::kDefaultInspectorPort};
 
   size_t colon = arg.rfind(':');
   if (colon == std::string::npos) {
@@ -380,7 +384,7 @@ HostPort SplitHostPort(const std::string& arg,
     // if it's not all decimal digits, it's a host name.
     for (char c : arg) {
       if (c < '0' || c > '9') {
-        return HostPort { arg, -1 };
+        return HostPort{arg, DebugOptions::kDefaultInspectorPort};
       }
     }
     return HostPort { "", ParseAndValidatePort(arg, errors) };
@@ -446,11 +450,11 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
         const HostPort& host_port = *parser.Lookup<HostPort>(field, opts);
         Local<Object> obj = Object::New(isolate);
         Local<Value> host;
-        if (!ToV8Value(context, host_port.host_name).ToLocal(&host) ||
+        if (!ToV8Value(context, host_port.host()).ToLocal(&host) ||
             obj->Set(context, env->host_string(), host).IsNothing() ||
             obj->Set(context,
                      env->port_string(),
-                     Integer::New(isolate, host_port.port))
+                     Integer::New(isolate, host_port.port()))
                 .IsNothing()) {
           return;
         }
