@@ -5,6 +5,7 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "node_native_module.h"
+#include "node_options-inl.h"
 #include "node_platform.h"
 #include "node_worker.h"
 #include "tracing/agent.h"
@@ -192,7 +193,7 @@ Environment::Environment(IsolateData* isolate_data,
   // part of the per-Isolate option set, for which in turn the defaults are
   // part of the per-process option set.
   options_.reset(new EnvironmentOptions(*isolate_data->options()->per_env));
-  options_->debug_options.reset(new DebugOptions(*options_->debug_options));
+  inspector_host_port_.reset(new HostPort(options_->debug_options().host_port));
 
 #if HAVE_INSPECTOR
   // We can only create the inspector agent after having cloned the options.

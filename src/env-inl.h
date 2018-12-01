@@ -585,6 +585,10 @@ inline std::shared_ptr<EnvironmentOptions> Environment::options() {
   return options_;
 }
 
+inline std::shared_ptr<HostPort> Environment::inspector_host_port() {
+  return inspector_host_port_;
+}
+
 inline std::shared_ptr<PerIsolateOptions> IsolateData::options() {
   return options_;
 }

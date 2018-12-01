@@ -243,12 +243,12 @@ void Open(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() > 0 && args[0]->IsUint32()) {
     uint32_t port = args[0].As<Uint32>()->Value();
-    agent->options()->host_port.port = port;
+    agent->host_port()->set_port(static_cast<int>(port));
   }
 
   if (args.Length() > 1 && args[1]->IsString()) {
     Utf8Value host(env->isolate(), args[1].As<String>());
-    agent->options()->host_port.host_name = *host;
+    agent->host_port()->set_host(*host);
   }
 
   if (args.Length() > 2 && args[2]->IsBoolean()) {

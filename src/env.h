@@ -911,6 +911,7 @@ class Environment {
                                  void* data);
 
   inline std::shared_ptr<EnvironmentOptions> options();
+  inline std::shared_ptr<HostPort> inspector_host_port();
 
  private:
   inline void CreateImmediate(native_immediate_callback cb,
@@ -942,6 +943,14 @@ class Environment {
   std::vector<double> destroy_async_id_list_;
 
   std::shared_ptr<EnvironmentOptions> options_;
+  // options_ contains debug options parsed from CLI arguments,
+  // while inspector_host_port_ stores the actual inspector host
+  // and port being used. For example the port is -1 by default
+  // and can be specified as 0 (meaning any port allocated when the
+  // server starts listening), but when the inspector server starts
+  // the inspector_host_port_->port() will be the actual port being
+  // used.
+  std::shared_ptr<HostPort> inspector_host_port_;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;
