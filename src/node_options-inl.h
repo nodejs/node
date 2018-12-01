@@ -14,7 +14,11 @@ PerIsolateOptions* PerProcessOptions::get_per_isolate_options() {
 }
 
 DebugOptions* EnvironmentOptions::get_debug_options() {
-  return debug_options.get();
+  return &debug_options_;
+}
+
+const DebugOptions& EnvironmentOptions::debug_options() const {
+  return debug_options_;
 }
 
 EnvironmentOptions* PerIsolateOptions::get_per_env_options() {

@@ -669,8 +669,9 @@ class NodeInspectorClient : public V8InspectorClient {
 };
 
 Agent::Agent(Environment* env)
-  : parent_env_(env),
-    debug_options_(env->options()->debug_options) {}
+    : parent_env_(env),
+      debug_options_(env->options()->debug_options()),
+      host_port_(env->inspector_host_port()) {}
 
 Agent::~Agent() {
   if (start_io_thread_async.data == this) {
@@ -681,13 +682,14 @@ Agent::~Agent() {
 }
 
 bool Agent::Start(const std::string& path,
-                  std::shared_ptr<DebugOptions> options,
+                  const DebugOptions& options,
+                  std::shared_ptr<HostPort> host_port,
                   bool is_main) {
-  if (options == nullptr) {
-    options = std::make_shared<DebugOptions>();
-  }
   path_ = path;
   debug_options_ = options;
+  CHECK_NE(host_port, nullptr);
+  host_port_ = host_port;
+
   client_ = std::make_shared<NodeInspectorClient>(parent_env_, is_main);
   if (parent_env_->is_main_thread()) {
     CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
@@ -699,13 +701,18 @@ bool Agent::Start(const std::string& path,
     StartDebugSignalHandler();
   }
 
-  bool wait_for_connect = options->wait_for_connect();
+  bool wait_for_connect = options.wait_for_connect();
   if (parent_handle_) {
     wait_for_connect = parent_handle_->WaitForConnect();
     parent_handle_->WorkerStarted(client_->getThreadHandle(), wait_for_connect);
-  } else if (!options->inspector_enabled || !StartIoThread()) {
+  } else if (!options.inspector_enabled || !StartIoThread()) {
     return false;
   }
+
+  // TODO(joyeecheung): we should not be using process as a global object
+  // to transport --inspect-brk. Instead, the JS land can get this through
+  // require('internal/options') since it should be set once CLI parsing
+  // is done.
   if (wait_for_connect) {
     HandleScope scope(parent_env_->isolate());
     parent_env_->process_object()->DefineOwnProperty(
@@ -725,8 +732,7 @@ bool Agent::StartIoThread() {
 
   CHECK_NOT_NULL(client_);
 
-  io_ = InspectorIo::Start(
-      client_->getThreadHandle(), path_, debug_options_);
+  io_ = InspectorIo::Start(client_->getThreadHandle(), path_, host_port_);
   if (io_ == nullptr) {
     return false;
   }
@@ -867,8 +873,7 @@ void Agent::ContextCreated(Local<Context> context, const ContextInfo& info) {
 }
 
 bool Agent::WillWaitForConnect() {
-  if (debug_options_->wait_for_connect())
-    return true;
+  if (debug_options_.wait_for_connect()) return true;
   if (parent_handle_)
     return parent_handle_->WaitForConnect();
   return false;

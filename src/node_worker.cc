@@ -37,7 +37,10 @@ Mutex next_thread_id_mutex;
 
 #if NODE_USE_V8_PLATFORM && HAVE_INSPECTOR
 void StartWorkerInspector(Environment* child, const std::string& url) {
-  child->inspector_agent()->Start(url, nullptr, false);
+  child->inspector_agent()->Start(url,
+                                  child->options()->debug_options(),
+                                  child->inspector_host_port(),
+                                  false);
 }
 
 void AddWorkerInspector(Environment* parent,

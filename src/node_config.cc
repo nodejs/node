@@ -1,5 +1,6 @@
 #include "node.h"
 #include "node_i18n.h"
+#include "node_options-inl.h"
 #include "env-inl.h"
 #include "util-inl.h"
 
@@ -94,20 +95,18 @@ static void Initialize(Local<Object> target,
     READONLY_STRING_PROPERTY(target, "warningFile", warning_file);
   }
 
-  std::shared_ptr<DebugOptions> debug_options = env->options()->debug_options;
   Local<Object> debug_options_obj = Object::New(isolate);
   READONLY_PROPERTY(target, "debugOptions", debug_options_obj);
 
-  READONLY_STRING_PROPERTY(debug_options_obj, "host",
-                           debug_options->host());
-
-  READONLY_PROPERTY(debug_options_obj,
-                    "port",
-                    Integer::New(isolate, debug_options->port()));
-
+  const DebugOptions& debug_options = env->options()->debug_options();
   READONLY_PROPERTY(debug_options_obj,
                     "inspectorEnabled",
-                    Boolean::New(isolate, debug_options->inspector_enabled));
+                    Boolean::New(isolate, debug_options.inspector_enabled));
+  READONLY_STRING_PROPERTY(
+      debug_options_obj, "host", debug_options.host_port.host());
+  READONLY_PROPERTY(debug_options_obj,
+                    "port",
+                    Integer::New(isolate, debug_options.host_port.port()));
 }  // InitConfig
 
 }  // namespace node

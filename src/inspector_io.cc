@@ -242,9 +242,9 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
 std::unique_ptr<InspectorIo> InspectorIo::Start(
     std::shared_ptr<MainThreadHandle> main_thread,
     const std::string& path,
-    std::shared_ptr<DebugOptions> options) {
+    std::shared_ptr<HostPort> host_port) {
   auto io = std::unique_ptr<InspectorIo>(
-      new InspectorIo(main_thread, path, options));
+      new InspectorIo(main_thread, path, host_port));
   if (io->request_queue_->Expired()) {  // Thread is not running
     return nullptr;
   }
@@ -253,9 +253,12 @@ std::unique_ptr<InspectorIo> InspectorIo::Start(
 
 InspectorIo::InspectorIo(std::shared_ptr<MainThreadHandle> main_thread,
                          const std::string& path,
-                         std::shared_ptr<DebugOptions> options)
-                         : main_thread_(main_thread), options_(options),
-                           thread_(), script_name_(path), id_(GenerateID()) {
+                         std::shared_ptr<HostPort> host_port)
+    : main_thread_(main_thread),
+      host_port_(host_port),
+      thread_(),
+      script_name_(path),
+      id_(GenerateID()) {
   Mutex::ScopedLock scoped_lock(thread_start_lock_);
   CHECK_EQ(uv_thread_create(&thread_, InspectorIo::ThreadMain, this), 0);
   thread_start_condition_.Wait(scoped_lock);
@@ -287,16 +290,17 @@ void InspectorIo::ThreadMain() {
   std::unique_ptr<InspectorIoDelegate> delegate(
       new InspectorIoDelegate(queue, main_thread_, id_,
                               script_path, script_name_));
-  InspectorSocketServer server(std::move(delegate), &loop,
-                               options_->host().c_str(),
-                               options_->port());
+  InspectorSocketServer server(std::move(delegate),
+                               &loop,
+                               host_port_->host().c_str(),
+                               host_port_->port());
   request_queue_ = queue->handle();
   // Its lifetime is now that of the server delegate
   queue.reset();
   {
     Mutex::ScopedLock scoped_lock(thread_start_lock_);
     if (server.Start()) {
-      port_ = server.Port();
+      host_port_->set_port(server.Port());
     }
     thread_start_condition_.Broadcast(scoped_lock);
   }
