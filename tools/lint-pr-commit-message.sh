@@ -28,12 +28,12 @@ fi
 
 PATCH=$( curl -sL https://github.com/nodejs/node/pull/${PR_ID}.patch | grep '^From \|^Subject: ' )
 if FIRST_COMMIT="$( echo "$PATCH" | awk '/^From [0-9a-f]{40} / { if (count++ == 0) print $2 }' )"; then
-  MESSAGE=$( echo "$PATCH" | awk '/^Subject: \[PATCH 1/ { gsub(/^Subject: \[PATCH[^\]]*\] /, ""); print }' )
+  MESSAGE=$( git show --quiet --format='format:%B' $FIRST_COMMIT )
   echo "
 *** Linting the first commit message for pull request ${PR_ID}
 *** according to the guidelines at https://goo.gl/p2fr5Q.
 *** Commit message for $(echo $FIRST_COMMIT | cut -c 1-10) is:
-      ${MESSAGE}
+${MESSAGE}
 "
   npx -q core-validate-commit --no-validate-metadata "${FIRST_COMMIT}"
 fi
