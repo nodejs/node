@@ -96,3 +96,12 @@ function closeSync() {
   openCount--;
   return fs._closeSync.apply(fs, arguments);
 }
+
+// Test writeFileSync with flags
+const file4 = path.join(tmpdir.path, 'testWriteFileSyncFlags.txt');
+
+fs.writeFileSync(file4, 'hello ', { encoding: 'utf8', flag: 'a' });
+fs.writeFileSync(file4, 'world!', { encoding: 'utf8', flag: 'a' });
+
+content = fs.readFileSync(file4, { encoding: 'utf8' });
+assert.strictEqual(content, 'hello world!');
