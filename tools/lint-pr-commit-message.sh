@@ -26,7 +26,7 @@ if [ -z "${PR_ID}" ]; then
   exit 1
 fi
 
-PATCH=$( curl -sL https://github.com/nodejs/node/pull/${PR_ID}.patch | grep '^From \|^Subject: ' )
+PATCH=$( curl -sL https://github.com/nodejs/node/pull/${PR_ID}.patch | grep '^From ' )
 if FIRST_COMMIT="$( echo "$PATCH" | awk '/^From [0-9a-f]{40} / { if (count++ == 0) print $2 }' )"; then
   MESSAGE=$( git show --quiet --format='format:%B' $FIRST_COMMIT )
   echo "
