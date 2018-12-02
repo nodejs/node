@@ -460,7 +460,7 @@ common.expectsError(
     type: a.AssertionError,
     code: 'ERR_ASSERTION',
     operator: 'doesNotThrow',
-    message: 'Got unwanted exception: user message\n[object Object]'
+    message: 'Got unwanted exception: user message'
   }
 );
 
