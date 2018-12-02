@@ -32,6 +32,11 @@ from os.path import join, exists, basename, isdir
 import re
 import utils
 
+try:
+  xrange          # Python 2
+except NameError:
+  xrange = range  # Python 3
+
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 class TTYTestCase(test.TestCase):
@@ -51,7 +56,7 @@ class TTYTestCase(test.TestCase):
     else: return str.startswith('==') or str.startswith('**')
 
   def IsFailureOutput(self, output):
-    f = file(self.expected)
+    f = open(self.expected)
     # Convert output lines to regexps that we can match
     env = { 'basename': basename(self.file) }
     patterns = [ ]
