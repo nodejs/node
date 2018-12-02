@@ -2723,6 +2723,26 @@ added: v8.4.0
 
 The request method as a string. Read-only. Examples: `'GET'`, `'DELETE'`.
 
+#### request.authority
+<!-- YAML
+added: v8.4.0
+-->
+
+* {string}
+
+The request authority psuedo header field. It can also be accessed via
+`req.headers[':authority']`
+
+#### request.scheme
+<!-- YAML
+added: v8.4.0
+-->
+
+* {string}
+
+The request schem psuedo header field indicating the scheme
+portion of the target URI.
+
 #### request.rawHeaders
 <!-- YAML
 added: v8.4.0
