@@ -9,6 +9,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferCreationMode;
 using v8::Context;
+using v8::DEFAULT;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -19,11 +20,15 @@ using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Name;
+using v8::None;
 using v8::Object;
+using v8::PropertyCallbackInfo;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::Set;
+using v8::SideEffectType;
 using v8::String;
 using v8::Uint8Array;
 using v8::Value;
@@ -70,15 +75,25 @@ void NativeModuleLoader::GetCacheUsage(
   args.GetReturnValue().Set(result);
 }
 
-void NativeModuleLoader::GetSourceObject(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(per_process_loader.GetSourceObject(env->context()));
+void NativeModuleLoader::SourceObjectGetter(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+  Local<Context> context = info.GetIsolate()->GetCurrentContext();
+  info.GetReturnValue().Set(per_process_loader.GetSourceObject(context));
+}
+
+void NativeModuleLoader::ConfigStringGetter(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+  info.GetReturnValue().Set(
+      per_process_loader.GetConfigString(info.GetIsolate()));
 }
 
 Local<Object> NativeModuleLoader::GetSourceObject(
     Local<Context> context) const {
   return MapToObject(context, source_);
+}
+
+Local<String> NativeModuleLoader::GetConfigString(Isolate* isolate) const {
+  return config_.ToStringChecked(isolate);
 }
 
 Local<String> NativeModuleLoader::GetSource(Isolate* isolate,
@@ -88,7 +103,7 @@ Local<String> NativeModuleLoader::GetSource(Isolate* isolate,
   return it->second.ToStringChecked(isolate);
 }
 
-NativeModuleLoader::NativeModuleLoader() {
+NativeModuleLoader::NativeModuleLoader() : config_(GetConfig()) {
   LoadJavaScriptSource();
   LoadJavaScriptHash();
   LoadCodeCache();
@@ -321,8 +336,27 @@ void NativeModuleLoader::Initialize(Local<Object> target,
                                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(
-      target, "getSource", NativeModuleLoader::GetSourceObject);
+  CHECK(target
+            ->SetAccessor(env->context(),
+                          env->config_string(),
+                          ConfigStringGetter,
+                          nullptr,
+                          MaybeLocal<Value>(),
+                          DEFAULT,
+                          None,
+                          SideEffectType::kHasNoSideEffect)
+            .FromJust());
+  CHECK(target
+            ->SetAccessor(env->context(),
+                          env->source_string(),
+                          SourceObjectGetter,
+                          nullptr,
+                          MaybeLocal<Value>(),
+                          DEFAULT,
+                          None,
+                          SideEffectType::kHasNoSideEffect)
+            .FromJust());
+
   env->SetMethod(
       target, "getCacheUsage", NativeModuleLoader::GetCacheUsage);
   env->SetMethod(
