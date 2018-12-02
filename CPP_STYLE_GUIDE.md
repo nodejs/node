@@ -260,12 +260,12 @@ class ExampleClass {
 
 ### Use AliasedBuffers to manipulate TypedArrays
 
-When working with typed arrays that involves direct data modification
-from C++, use an AliasedBuffer when possible. The API abstraction and
-the usage scope of AliasedBuffer is documented in [aliased_buffer.h][].
+When working with typed arrays that involve direct data modification
+from C++, use an `AliasedBuffer` when possible. The API abstraction and
+the usage scope of `AliasedBuffer` is documented in [aliased_buffer.h][].
 
 ```c++
-// Create an AliasedBuffer
+// Create an AliasedBuffer.
 AliasedBuffer<uint32_t, v8::Uint32Array> data;
 ...
 
