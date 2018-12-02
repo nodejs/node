@@ -2654,6 +2654,16 @@ added: v10.1.0
 The `request.aborted` property will be `true` if the request has
 been aborted.
 
+#### request.authority
+<!-- YAML
+added: v8.4.0
+-->
+
+* {string}
+
+The request authority pseudo header field. It can also be accessed via
+`req.headers[':authority']`.
+
 #### request.destroy([error])
 <!-- YAML
 added: v8.4.0
@@ -2723,26 +2733,6 @@ added: v8.4.0
 
 The request method as a string. Read-only. Examples: `'GET'`, `'DELETE'`.
 
-#### request.authority
-<!-- YAML
-added: v8.4.0
--->
-
-* {string}
-
-The request authority psuedo header field. It can also be accessed via
-`req.headers[':authority']`
-
-#### request.scheme
-<!-- YAML
-added: v8.4.0
--->
-
-* {string}
-
-The request scheme psuedo header field indicating the scheme
-portion of the target URL.
-
 #### request.rawHeaders
 <!-- YAML
 added: v8.4.0
@@ -2781,6 +2771,16 @@ added: v8.4.0
 
 The raw request/response trailer keys and values exactly as they were
 received. Only populated at the `'end'` event.
+
+#### request.scheme
+<!-- YAML
+added: v8.4.0
+-->
+
+* {string}
+
+The request scheme pseudo header field indicating the scheme
+portion of the target URL.
 
 #### request.setTimeout(msecs, callback)
 <!-- YAML
