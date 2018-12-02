@@ -100,28 +100,21 @@ request must pass code review and CI before landing into the codebase.
 ### Code Reviews
 
 At least two Collaborators must approve a pull request before the pull request
-lands. (One Collaborator approval is enough if the pull request has been open
-for more than 7 days.) Approving a pull request indicates that the Collaborator
-accepts responsibility for the change. Approval must be from Collaborators who
-are not authors of the change.
+lands. One Collaborator approval is enough if the pull request has been open
+for more than seven days.
+
+Approving a pull request indicates that the Collaborator accepts responsibility
+for the change.
+
+Approval must be from Collaborators who are not authors of the change.
 
 In some cases, it may be necessary to summon a GitHub team to a pull request for
 review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
-If you are unsure about the modification and are not prepared to take
-full responsibility for the change, defer to another Collaborator.
-
 If you are the first Collaborator to approve a pull request that has no CI yet,
-please start one (see [testing and CI](#testing-and-ci) for further information
-on how to do that) and post the link to the CI in the PR. Please also start a
-new CI in case the PR creator pushed new code since the last CI run (due to
-e.g., an addressed review comment or a rebase).
-
-In case there are already enough approvals (`LGTM`), a CI run, and the PR is
-open longer than the minimum waiting time without any open comments, please do
-not (only) add another approval. Instead go ahead and land the PR after checking
-the CI outcome.
+please [start one](#testing-and-ci). Post the link to the CI in the PR. Please
+also start a new CI if the PR creator pushed new code since the last CI run.
 
 ### Consensus Seeking
 
