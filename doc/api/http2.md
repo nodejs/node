@@ -2730,7 +2730,7 @@ added: v8.4.0
 
 * {string}
 
-The request authority psuedo header field. It can also be accessed via 
+The request authority psuedo header field. It can also be accessed via
 `req.headers[':authority']`
 
 #### request.scheme
@@ -2740,7 +2740,8 @@ added: v8.4.0
 
 * {string}
 
-The request schem psuedo header field indicating the scheme portion of the target URI.
+The request schem psuedo header field indicating the scheme
+portion of the target URI.
 
 #### request.rawHeaders
 <!-- YAML
