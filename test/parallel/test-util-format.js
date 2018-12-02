@@ -116,7 +116,7 @@ assert.strictEqual(util.format('%f', -0.5), '-0.5');
 assert.strictEqual(util.format('%f', Math.PI), '3.141592653589793');
 assert.strictEqual(util.format('%f', ''), 'NaN');
 assert.strictEqual(util.format('%f', Symbol('foo')), 'NaN');
-assert.strictEqual(util.format('%f', 5n, '5'));
+assert.strictEqual(util.format('%f', 5n), '5');
 assert.strictEqual(util.format('%f %f', 42, 43), '42 43');
 assert.strictEqual(util.format('%f %f', 42), '42 %f');
 
