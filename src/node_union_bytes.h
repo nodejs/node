@@ -55,21 +55,31 @@ class UnionBytes {
       : is_one_byte_(false), two_bytes_(data), length_(length) {}
   UnionBytes(const uint8_t* data, size_t length)
       : is_one_byte_(true), one_bytes_(data), length_(length) {}
+
+  UnionBytes(const UnionBytes&) = default;
+  UnionBytes& operator=(const UnionBytes&) = default;
+  UnionBytes(UnionBytes&&) = default;
+  UnionBytes& operator=(UnionBytes&&) = default;
+
   bool is_one_byte() const { return is_one_byte_; }
   const uint16_t* two_bytes_data() const {
     CHECK(!is_one_byte_);
+    CHECK_NE(two_bytes_, nullptr);
     return two_bytes_;
   }
   const uint8_t* one_bytes_data() const {
     CHECK(is_one_byte_);
+    CHECK_NE(one_bytes_, nullptr);
     return one_bytes_;
   }
   v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) const {
     if (is_one_byte_) {
+      CHECK_NE(one_bytes_, nullptr);
       NonOwningExternalOneByteResource* source =
           new NonOwningExternalOneByteResource(one_bytes_, length_);
       return v8::String::NewExternalOneByte(isolate, source).ToLocalChecked();
     } else {
+      CHECK_NE(two_bytes_, nullptr);
       NonOwningExternalTwoByteResource* source =
           new NonOwningExternalTwoByteResource(two_bytes_, length_);
       return v8::String::NewExternalTwoByte(isolate, source).ToLocalChecked();
