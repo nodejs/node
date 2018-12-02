@@ -2075,9 +2075,9 @@ will be emitted in the following order:
 * `'socket'`
 * (`req.abort()` called here)
 * `'abort'`
-* `'close'`
 * `'error'` with an error with message `'Error: socket hang up'` and code
   `'ECONNRESET'`
+* `'close'`
 
 If `req.abort()` is called after the response is received, the following events
 will be emitted in the following order:
@@ -2087,10 +2087,10 @@ will be emitted in the following order:
   * `'data'` any number of times, on the `res` object
 * (`req.abort()` called here)
 * `'abort'`
+* `'aborted'` on the `res` object
 * `'close'`
-  * `'aborted'` on the `res` object
-  * `'end'` on the `res` object
-  * `'close'` on the `res` object
+* `'end'` on the `res` object
+* `'close'` on the `res` object
 
 Note that setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
