@@ -49,6 +49,12 @@ assert.throws(() => n.send(), {
   code: 'ERR_MISSING_ARGS'
 });
 
+assert.throws(() => n.send(Symbol()), {
+  name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+  message: 'The "message" argument must be one of type string,' +
+           ' object, number, or boolean. Received type symbol',
+  code: 'ERR_INVALID_ARG_TYPE'
+});
 n.send({ hello: 'world' });
 
 n.on('exit', common.mustCall((c) => {
