@@ -49,10 +49,6 @@ static void Initialize(Local<Object> target,
   READONLY_TRUE_PROPERTY(target, "hasNodeOptions");
 #endif
 
-  // TODO(addaleax): This seems to be an unused, private API. Remove it?
-  READONLY_STRING_PROPERTY(target, "icuDataDir",
-      per_process_opts->icu_data_dir);
-
 #endif  // NODE_HAVE_I18N_SUPPORT
 
   if (env->options()->preserve_symlinks)
