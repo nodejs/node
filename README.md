@@ -83,7 +83,7 @@ your expectations.
 Current and LTS releases follow [Semantic Versioning](https://semver.org). A
 member of the Release Team [signs](#release-keys) each Current and LTS release.
 For more information, see the
-[Release README](https://github.com/nodejs/Release).
+[Release README](https://github.com/nodejs/Release#readme).
 
 ### Download
 
