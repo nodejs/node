@@ -13,7 +13,6 @@ const server = http.createServer(common.mustNotCall());
 server.on('clientError', common.mustCall((err, socket) => {
   assert(/^Parse Error/.test(err.message));
   assert.strictEqual(err.code, 'HPE_INVALID_EOF_STATE');
-  server.close();
   socket.destroy();
 }, 1));
 server.listen(0, () => {
