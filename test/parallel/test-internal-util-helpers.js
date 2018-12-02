@@ -5,6 +5,7 @@ require('../common');
 const assert = require('assert');
 const { types } = require('util');
 const { isError } = require('internal/util');
+const vm = require('vm');
 
 // Special cased errors.
 {
@@ -22,4 +23,10 @@ const { isError } = require('internal/util');
   assert(!types.isNativeError(newErr));
   assert(newErr instanceof Error);
   assert(isError(newErr));
+
+  const context = vm.createContext({});
+  const differentRealmErr = vm.runInContext('new Error()', context);
+  assert(types.isNativeError(differentRealmErr));
+  assert(!(differentRealmErr instanceof Error));
+  assert(isError(differentRealmErr));
 }
