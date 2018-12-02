@@ -7,7 +7,12 @@ const { types } = require('util');
 const { isError } = require('internal/util');
 const vm = require('vm');
 
-// Special cased errors.
+// Special cased errors. Test the internal function which is used in
+// `util.inspect()`, the `repl` and maybe more. This verifies that errors from
+// different realms, and non native instances of error are properly detected as
+// error while definitely false ones are not detected. This is different than
+// the public `util.isError()` function which falsy detects the fake errors as
+// actual errors.
 {
   const fake = { [Symbol.toStringTag]: 'Error' };
   assert(!types.isNativeError(fake));
