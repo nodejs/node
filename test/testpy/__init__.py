@@ -31,6 +31,11 @@ from os.path import join, dirname, exists, splitext
 import re
 import ast
 
+try:
+    reduce          # Python 2
+except NameError:   # Python 3
+    from functools import reduce
+
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
