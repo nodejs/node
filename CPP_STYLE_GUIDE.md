@@ -262,7 +262,7 @@ class ExampleClass {
 
 When working with typed arrays that involve direct data modification
 from C++, use an `AliasedBuffer` when possible. The API abstraction and
-the usage scope of `AliasedBuffer` is documented in [aliased_buffer.h][].
+the usage scope of `AliasedBuffer` are documented in [aliased_buffer.h][].
 
 ```c++
 // Create an AliasedBuffer.
