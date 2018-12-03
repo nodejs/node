@@ -56,6 +56,9 @@ extern bool config_expose_internals;
 // it to stderr.
 extern std::string config_warning_file;
 
+// Set in node.cc by ParseArgs when --max-http-header-size is used
+extern uint64_t max_http_header_size;
+
 // Forward declaration
 class Environment;
 
