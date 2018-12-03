@@ -31,7 +31,6 @@ if (child.status !== 0) {
 
 // Verifies that:
 // - node::LoadCodeCache()
-// - node::LoadCodeCacheHash()
 // are defined in the generated code.
 // See src/node_native_module.h for explanations.
 
@@ -41,18 +40,13 @@ const rl = readline.createInterface({
 });
 
 let hasCacheDef = false;
-let hasHashDef = false;
 
 rl.on('line', common.mustCallAtLeast((line) => {
   if (line.includes('LoadCodeCache(')) {
     hasCacheDef = true;
   }
-  if (line.includes('LoadCodeCacheHash(')) {
-    hasHashDef = true;
-  }
 }, 2));
 
 rl.on('close', common.mustCall(() => {
   assert.ok(hasCacheDef);
-  assert.ok(hasHashDef);
 }));
