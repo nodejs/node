@@ -1,10 +1,15 @@
+// Flags: --expose-internals
 'use strict';
-
 const assert = require('assert');
 const common = require('../common');
 const http = require('http');
 const net = require('net');
-const MAX = 8 * 1024; // 8KB
+const MAX = +(process.argv[2] || 8 * 1024); // Command line option, or 8KB.
+
+const { getOptionValue } = require('internal/options');
+
+console.log('pid is', process.pid);
+console.log('max header size is', getOptionValue('--max-http-header-size'));
 
 // Verify that we cannot receive more than 8KB of headers.
 
@@ -28,19 +33,15 @@ function fillHeaders(headers, currentSize, valid = false) {
   headers += 'a'.repeat(MAX - headers.length - 3);
   // Generate valid headers
   if (valid) {
-    // TODO(mcollina): understand why -9 is needed instead of -1
-    headers = headers.slice(0, -9);
+    // TODO(mcollina): understand why -32 is needed instead of -1
+    headers = headers.slice(0, -32);
   }
   return headers + '\r\n\r\n';
 }
 
-const timeout = common.platformTimeout(10);
-
 function writeHeaders(socket, headers) {
   const array = [];
-
-  // this is off from 1024 so that \r\n does not get split
-  const chunkSize = 1000;
+  const chunkSize = 100;
   let last = 0;
 
   for (let i = 0; i < headers.length / chunkSize; i++) {
@@ -55,19 +56,25 @@ function writeHeaders(socket, headers) {
   next();
 
   function next() {
-    if (socket.write(array.shift())) {
-      if (array.length === 0) {
-        socket.end();
-      } else {
-        setTimeout(next, timeout);
-      }
+    if (socket.destroyed) {
+      console.log('socket was destroyed early, data left to write:',
+                  array.join('').length);
+      return;
+    }
+
+    const chunk = array.shift();
+
+    if (chunk) {
+      console.log('writing chunk of size', chunk.length);
+      socket.write(chunk, next);
     } else {
-      socket.once('drain', next);
+      socket.end();
     }
   }
 }
 
 function test1() {
+  console.log('test1');
   let headers =
     'HTTP/1.1 200 OK\r\n' +
     'Content-Length: 0\r\n' +
@@ -82,6 +89,9 @@ function test1() {
       writeHeaders(sock, headers);
       sock.resume();
     });
+
+    // The socket might error but that's ok
+    sock.on('error', () => {});
   });
 
   server.listen(0, common.mustCall(() => {
@@ -90,17 +100,17 @@ function test1() {
 
     client.on('error', common.mustCall((err) => {
       assert.strictEqual(err.code, 'HPE_HEADER_OVERFLOW');
-      server.close();
-      setImmediate(test2);
+      server.close(test2);
     }));
   }));
 }
 
 const test2 = common.mustCall(() => {
+  console.log('test2');
   let headers =
     'GET / HTTP/1.1\r\n' +
     'Host: localhost\r\n' +
-    'Agent: node\r\n' +
+    'Agent: nod2\r\n' +
     'X-CRASH: ';
 
   // /, Host, localhost, Agent, node, X-CRASH, a...
@@ -109,7 +119,7 @@ const test2 = common.mustCall(() => {
 
   const server = http.createServer(common.mustNotCall());
 
-  server.on('clientError', common.mustCall((err) => {
+  server.once('clientError', common.mustCall((err) => {
     assert.strictEqual(err.code, 'HPE_HEADER_OVERFLOW');
   }));
 
@@ -121,27 +131,37 @@ const test2 = common.mustCall(() => {
     });
 
     finished(client, common.mustCall((err) => {
-      server.close();
-      setImmediate(test3);
+      server.close(test3);
     }));
   }));
 });
 
 const test3 = common.mustCall(() => {
+  console.log('test3');
   let headers =
     'GET / HTTP/1.1\r\n' +
     'Host: localhost\r\n' +
-    'Agent: node\r\n' +
+    'Agent: nod3\r\n' +
     'X-CRASH: ';
 
   // /, Host, localhost, Agent, node, X-CRASH, a...
   const currentSize = 1 + 4 + 9 + 5 + 4 + 7;
   headers = fillHeaders(headers, currentSize, true);
 
+  console.log('writing', headers.length);
+
   const server = http.createServer(common.mustCall((req, res) => {
-    res.end('hello world');
-    setImmediate(server.close.bind(server));
+    res.end('hello from test3 server');
+    server.close();
   }));
+
+  server.on('clientError', (err) => {
+    console.log(err.code);
+    if (err.code === 'HPE_HEADER_OVERFLOW') {
+      console.log(err.rawPacket.toString('hex'));
+    }
+  });
+  server.on('clientError', common.mustNotCall());
 
   server.listen(0, common.mustCall(() => {
     const client = net.connect(server.address().port);
@@ -149,6 +169,8 @@ const test3 = common.mustCall(() => {
       writeHeaders(client, headers);
       client.resume();
     });
+
+    client.pipe(process.stdout);
   }));
 });
 

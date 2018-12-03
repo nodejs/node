@@ -738,6 +738,10 @@ const struct http_parser_settings Parser::settings = {
   nullptr   // on_chunk_complete
 };
 
+void InitMaxHttpHeaderSizeOnce() {
+  const uint32_t max_http_header_size = per_process_opts->max_http_header_size;
+  http_parser_set_max_header_size(max_http_header_size);
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -784,6 +788,9 @@ void Initialize(Local<Object> target,
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
               t->GetFunction(env->context()).ToLocalChecked());
+
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitMaxHttpHeaderSizeOnce);
 }
 
 }  // anonymous namespace
