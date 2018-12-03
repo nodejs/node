@@ -189,10 +189,6 @@ void NativeModuleLoader::LoadJavaScriptSource() {{
   {initializers}
 }}
 
-void NativeModuleLoader::LoadJavaScriptHash() {{
-  {hash_initializers}
-}}
-
 UnionBytes NativeModuleLoader::GetConfig() {{
   return UnionBytes(config_raw, arraysize(config_raw));  // config.gypi
 }}
@@ -215,13 +211,6 @@ INITIALIZER = """
 source_.emplace(
     "{module}",
     UnionBytes({var}, arraysize({var}))
-);
-"""
-
-HASH_INITIALIZER = """\
-source_hash_.emplace(
-    "{module}",
-    "{hash_value}"
 );
 """
 
@@ -251,8 +240,6 @@ def JS2C(source, target):
   # Build source code lines
   definitions = []
   initializers = []
-  hash_initializers = []
-  config_initializers = []
 
   def GetDefinition(var, source):
     # Treat non-ASCII as UTF-8 and convert it to UTF-16.
@@ -267,15 +254,11 @@ def JS2C(source, target):
 
   def AddModule(module, source):
     var = '%s_raw' % (module.replace('-', '_').replace('/', '_'))
-    source_hash = hashlib.sha256(source).hexdigest()
     definition = GetDefinition(var, source)
     initializer = INITIALIZER.format(module=module,
                                      var=var)
-    hash_initializer = HASH_INITIALIZER.format(module=module,
-                                               hash_value=source_hash)
     definitions.append(definition)
     initializers.append(initializer)
-    hash_initializers.append(hash_initializer)
 
   for name in modules:
     lines = ReadFile(str(name))
@@ -320,9 +303,7 @@ def JS2C(source, target):
   output = open(str(target[0]), "w")
   output.write(
     TEMPLATE.format(definitions=''.join(definitions),
-                    initializers=''.join(initializers),
-                    hash_initializers=''.join(hash_initializers),
-                    config_initializers=''.join(config_initializers)))
+                    initializers=''.join(initializers)))
   output.close()
 
 def main():
