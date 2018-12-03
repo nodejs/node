@@ -405,6 +405,13 @@ Indicate the end of node options. Pass the rest of the arguments to the script.
 If no script filename or eval/print script is supplied prior to this, then
 the next argument will be used as a script filename.
 
+### `--max-http-header-size=size`
+<!-- YAML
+added: REPLACEME
+-->
+
+Specify the maximum size, in bytes, of HTTP headers. Defaults to 8KB.
+
 ## Environment Variables
 
 ### `NODE_DEBUG=module[,…]`
@@ -472,6 +479,7 @@ Node.js options that are allowed are:
 - `--inspect-brk`
 - `--inspect-port`
 - `--inspect`
+- `--max-http-header-size`
 - `--no-deprecation`
 - `--no-warnings`
 - `--openssl-config`
