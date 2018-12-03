@@ -985,3 +985,67 @@ assert.throws(
             '  ]'
   }
 );
+
+// Verify that manipulating the `getTime()` function has no impact on the time
+// verification.
+{
+  const a = new Date('2000');
+  const b = new Date('2000');
+  Object.defineProperty(a, 'getTime', {
+    value: () => 5
+  });
+  assert.deepStrictEqual(a, b);
+}
+
+// Verify that extra keys will be tested for when using fake arrays.
+{
+  const a = {
+    0: 1,
+    1: 1,
+    2: 'broken'
+  };
+  Object.setPrototypeOf(a, Object.getPrototypeOf([]));
+  Object.defineProperty(a, Symbol.toStringTag, {
+    value: 'Array',
+  });
+  Object.defineProperty(a, 'length', {
+    value: 2
+  });
+  assert.notDeepStrictEqual(a, [1, 1]);
+}
+
+// Verify that changed tags will still check for the error message.
+{
+  const err = new Error('foo');
+  err[Symbol.toStringTag] = 'Foobar';
+  const err2 = new Error('bar');
+  err2[Symbol.toStringTag] = 'Foobar';
+  assertNotDeepOrStrict(err, err2, AssertionError);
+}
+
+// Check for non-native errors.
+{
+  const source = new Error('abc');
+  const err = Object.create(
+    Object.getPrototypeOf(source), Object.getOwnPropertyDescriptors(source));
+  Object.defineProperty(err, 'message', { value: 'foo' });
+  const err2 = Object.create(
+    Object.getPrototypeOf(source), Object.getOwnPropertyDescriptors(source));
+  Object.defineProperty(err2, 'message', { value: 'bar' });
+  err[Symbol.toStringTag] = 'Foo';
+  err2[Symbol.toStringTag] = 'Foo';
+  assert.notDeepStrictEqual(err, err2);
+}
+
+// Verify that `valueOf` is not called for boxed primitives.
+{
+  const a = new Number(5);
+  const b = new Number(5);
+  Object.defineProperty(a, 'valueOf', {
+    value: () => { throw new Error('failed'); }
+  });
+  Object.defineProperty(b, 'valueOf', {
+    value: () => { throw new Error('failed'); }
+  });
+  assertDeepAndStrictEqual(a, b);
+}
