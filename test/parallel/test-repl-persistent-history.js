@@ -111,13 +111,6 @@ const tests = [
     test: [UP],
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },
-  { // Tests multiline history
-    env: {},
-    test: ['{', '}', UP, CLEAR],
-    expected: [prompt, '{', '... ', '}', '{}\n',
-               prompt, `${prompt}{}`, prompt],
-    clean: false
-  },
   {
     before: function before() {
       if (common.isWindows) {
