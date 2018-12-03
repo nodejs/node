@@ -7,6 +7,7 @@ namespace node {
 
 using v8::Context;
 using v8::Local;
+using v8::Number;
 using v8::Object;
 using v8::ReadOnly;
 using v8::String;
@@ -22,6 +23,13 @@ using v8::Value;
     target->DefineOwnProperty(env->context(),                                 \
                               OneByteString(env->isolate(), str),             \
                               True(env->isolate()), ReadOnly).FromJust();     \
+  } while (0)
+
+#define READONLY_PROPERTY(obj, name, value)                                   \
+  do {                                                                        \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           FIXED_ONE_BYTE_STRING(env->isolate(), name),       \
+                           value, ReadOnly).FromJust();                       \
   } while (0)
 
 void InitConfig(Local<Object> target,
@@ -45,6 +53,11 @@ void InitConfig(Local<Object> target,
 
   if (config_expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
+
+
+  READONLY_PROPERTY(target,
+                    "maxHTTPHeaderSize",
+                    Number::New(env->isolate(), max_http_header_size));
 
   if (!config_warning_file.empty()) {
     Local<String> name = OneByteString(env->isolate(), "warningFile");

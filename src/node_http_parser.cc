@@ -731,6 +731,9 @@ const struct http_parser_settings Parser::settings = {
   nullptr   // on_chunk_complete
 };
 
+void InitMaxHttpHeaderSizeOnce() {
+  http_parser_set_max_header_size(max_http_header_size);
+}
 
 void InitHttpParser(Local<Object> target,
                     Local<Value> unused,
@@ -775,6 +778,8 @@ void InitHttpParser(Local<Object> target,
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
               t->GetFunction());
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitMaxHttpHeaderSizeOnce);
 }
 
 }  // namespace node
