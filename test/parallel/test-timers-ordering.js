@@ -38,7 +38,7 @@ function f(i) {
     assert.strictEqual(i, last_i + 1, `order is broken: ${i} != ${last_i} + 1`);
     last_i = i;
 
-    // check that this iteration is fired at least 1ms later than the previous
+    // Check that this iteration is fired at least 1ms later than the previous
     const now = getLibuvNow();
     assert(now >= last_ts + 1,
            `current ts ${now} < prev ts ${last_ts} + 1`);

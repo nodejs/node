@@ -7,7 +7,7 @@
 const assert = require('assert');
 const common = require('../../common.js');
 
-// this fails when we try to open with a different version of node,
+// This fails when we try to open with a different version of node,
 // which is quite common for benchmarks.  so in that case, just
 // abort quietly.
 

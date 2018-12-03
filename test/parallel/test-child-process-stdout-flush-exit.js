@@ -45,7 +45,7 @@ if (process.argv[2] === 'child') {
     assert.fail(`Unexpected parent stderr: ${data}`);
   });
 
-  // check if we receive both 'hello' at start and 'goodbye' at end
+  // Check if we receive both 'hello' at start and 'goodbye' at end
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(data) {
     stdout += data;

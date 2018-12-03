@@ -32,7 +32,7 @@ socket = new net.Socket({
 });
 falseyValues.forEach((testVal) => socket.setNoDelay(testVal));
 
-// if a handler doesn't have a setNoDelay function it shouldn't be called.
+// If a handler doesn't have a setNoDelay function it shouldn't be called.
 // In the case below, if it is called an exception will be thrown
 socket = new net.Socket({
   handle: {

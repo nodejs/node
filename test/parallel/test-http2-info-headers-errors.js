@@ -39,7 +39,7 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock sendHeaders because we only care about testing error handling
+// Mock sendHeaders because we only care about testing error handling
 Http2Stream.prototype.info = () => currentError.ngError;
 
 const server = http2.createServer();

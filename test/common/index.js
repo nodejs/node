@@ -336,7 +336,7 @@ function _mustCallInner(fn, criteria = 1, field) {
     name: fn.name || '<anonymous>'
   };
 
-  // add the exit listener only once to avoid listener leak warnings
+  // Add the exit listener only once to avoid listener leak warnings
   if (mustCallChecks.length === 0) process.on('exit', runCallChecks);
 
   mustCallChecks.push(context);
@@ -392,7 +392,7 @@ function getCallSite(top) {
     `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
   const err = new Error();
   Error.captureStackTrace(err, top);
-  // with the V8 Error API, the stack is not formatted until it is accessed
+  // With the V8 Error API, the stack is not formatted until it is accessed
   err.stack;
   Error.prepareStackTrace = originalStackFormatter;
   return err.stack;
@@ -507,7 +507,7 @@ function expectWarningByMap(warningMap) {
   process.on('warning', (warning) => catchWarning[warning.name](warning));
 }
 
-// accepts a warning name and description or array of descriptions or a map
+// Accepts a warning name and description or array of descriptions or a map
 // of warning names to description(s)
 // ensures a warning is generated for each name/description pair
 function expectWarning(nameOrMap, expected, code) {

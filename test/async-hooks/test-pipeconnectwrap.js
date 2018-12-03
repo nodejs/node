@@ -53,7 +53,7 @@ function onlisten() {
 
 const awaitOnconnectCalls = new Set(['server', 'client']);
 function maybeOnconnect(source) {
-  // both server and client must call onconnect. On most OS's waiting for
+  // Both server and client must call onconnect. On most OS's waiting for
   // the client is sufficient, but on CentOS 5 the sever needs to respond too.
   assert.ok(awaitOnconnectCalls.size > 0);
   awaitOnconnectCalls.delete(source);

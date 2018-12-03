@@ -14,7 +14,7 @@ if (process.argv[2] === 'child') {
   const hooks = initHooks();
   hooks.enable();
 
-  // once 'destroy' has been emitted, we can no longer emit 'after'
+  // Once 'destroy' has been emitted, we can no longer emit 'after'
 
   // Emitting 'before', 'after' and then 'destroy'
   const event1 = new AsyncResource('event1', async_hooks.executionAsyncId());

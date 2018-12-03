@@ -207,7 +207,7 @@ testMe.complete(' ', common.mustCall(function(error, data) {
   clearTimeout(spaceTimeout);
 }));
 
-// tab completion should pick up the global "toString" object, and
+// Tab completion should pick up the global "toString" object, and
 // any other properties up the "global" object's prototype chain
 testMe.complete('toSt', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['toString'], 'toSt']);

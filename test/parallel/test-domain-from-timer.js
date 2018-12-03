@@ -25,7 +25,7 @@
 require('../common');
 const assert = require('assert');
 
-// timeouts call the callback directly from cc, so need to make sure the
+// Timeouts call the callback directly from cc, so need to make sure the
 // domain will be used regardless
 setTimeout(() => {
   const domain = require('domain');

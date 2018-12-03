@@ -146,7 +146,7 @@ Benchmark.prototype._run = function() {
   (function recursive(queueIndex) {
     const config = self.queue[queueIndex];
 
-    // set NODE_RUN_BENCHMARK_FN to indicate that the child shouldn't construct
+    // Set NODE_RUN_BENCHMARK_FN to indicate that the child shouldn't construct
     // a configuration queue, but just execute the benchmark function.
     const childEnv = Object.assign({}, process.env);
     childEnv.NODE_RUN_BENCHMARK_FN = '';
@@ -187,7 +187,7 @@ Benchmark.prototype.start = function() {
 };
 
 Benchmark.prototype.end = function(operations) {
-  // get elapsed time now and do error checking later for accuracy.
+  // Get elapsed time now and do error checking later for accuracy.
   const elapsed = process.hrtime(this._time);
 
   if (!this._started) {

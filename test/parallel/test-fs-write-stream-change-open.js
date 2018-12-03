@@ -35,7 +35,7 @@ const stream = fs.WriteStream(file);
 const _fs_close = fs.close;
 const _fs_open = fs.open;
 
-// change the fs.open with an identical function after the WriteStream
+// Change the fs.open with an identical function after the WriteStream
 // has pushed it onto its internal action queue, but before it's
 // returned.  This simulates AOP-style extension of the fs lib.
 fs.open = function() {

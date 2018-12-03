@@ -91,7 +91,7 @@ const s = 'string';
 const u = undefined;
 const n = null;
 
-// function spawn(file=f [,args=a] [, options=o]) has valid combinations:
+// Function spawn(file=f [,args=a] [, options=o]) has valid combinations:
 //   (f)
 //   (f, a)
 //   (f, a, o)

@@ -2,7 +2,7 @@
 const common = require('../common');
 const timers = require('timers');
 
-// delete global APIs to make sure they're not relied on by the internal timers
+// Delete global APIs to make sure they're not relied on by the internal timers
 // code
 delete global.setTimeout;
 delete global.clearTimeout;

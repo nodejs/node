@@ -36,7 +36,7 @@ const keepAliveAgent = new http.Agent({
 
 const countdown = new Countdown(N, () => {
   server.close(() => {
-    // give the server sockets time to close (which will also free their
+    // Give the server sockets time to close (which will also free their
     // associated parser objects) after the server has been closed.
     setTimeout(() => {
       createdIds.forEach((createdAsyncId) => {

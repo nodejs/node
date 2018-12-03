@@ -32,7 +32,7 @@ process.on('exit', function onexit() {
   const a0 = as[0];
   assert.strictEqual(a0.type, 'PROMISE');
   assert.strictEqual(typeof a0.uid, 'number');
-  // we can't get the asyncId from the parent dynamically, since init was
+  // We can't get the asyncId from the parent dynamically, since init was
   // never called. However, it is known that the parent promise was created
   // immediately before the child promise, thus there should only be one
   // difference in id.

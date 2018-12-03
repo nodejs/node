@@ -122,7 +122,7 @@ for (const test of TEST_CASES) {
     hex += encrypt.final('hex');
 
     const auth_tag = encrypt.getAuthTag();
-    // only test basic encryption run if output is marked as tampered.
+    // Only test basic encryption run if output is marked as tampered.
     if (!test.tampered) {
       assert.strictEqual(hex, test.ct);
       assert.strictEqual(auth_tag.toString('hex'), test.tag);
@@ -170,7 +170,7 @@ for (const test of TEST_CASES) {
       let hex = encrypt.update(test.plain, 'ascii', 'hex');
       hex += encrypt.final('hex');
       const auth_tag = encrypt.getAuthTag();
-      // only test basic encryption run if output is marked as tampered.
+      // Only test basic encryption run if output is marked as tampered.
       if (!test.tampered) {
         assert.strictEqual(hex, test.ct);
         assert.strictEqual(auth_tag.toString('hex'), test.tag);

@@ -92,7 +92,7 @@ function onexit() {
   checkInvocations(
     signal1, { init: 1, before: 2, after: 2, destroy: 1 },
     'signal1: when second SIGUSR2 process exits');
-  // second signal not destroyed yet since its event listener is still active
+  // Second signal not destroyed yet since its event listener is still active
   checkInvocations(
     signal2, { init: 1, before: 1, after: 1 },
     'signal2: when second SIGUSR2 process exits');

@@ -106,7 +106,7 @@ r.on('readable', function() {
 });
 
 w.on('finish', common.mustCall(function() {
-  // each chunk should start with 1234, and then be asfdasdfasdf...
+  // Each chunk should start with 1234, and then be asfdasdfasdf...
   // The first got pulled out before the first unshift('1234'), so it's
   // lacking that piece.
   assert.strictEqual(written[0], 'asdfasdfas');

@@ -143,7 +143,7 @@ if (cluster.isMaster) {
         // a new worker.
         cluster.worker.disconnect();
 
-        // try to send an error to the request that triggered the problem
+        // Try to send an error to the request that triggered the problem
         res.statusCode = 500;
         res.setHeader('content-type', 'text/plain');
         res.end('Oops, there was a problem!\n');

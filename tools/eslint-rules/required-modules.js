@@ -17,7 +17,7 @@ module.exports = function(context) {
 
   const foundModules = [];
 
-  // if no modules are required we don't need to check the CallExpressions
+  // If no modules are required we don't need to check the CallExpressions
   if (requiredModules.length === 0) {
     return {};
   }

@@ -26,7 +26,7 @@ const cluster = require('cluster');
 
 const SENTINEL = 42;
 
-// workers forcibly exit when control channel is disconnected, if
+// Workers forcibly exit when control channel is disconnected, if
 // their .exitedAfterDisconnect flag isn't set
 //
 // test this by:

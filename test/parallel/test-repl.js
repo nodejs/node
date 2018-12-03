@@ -204,13 +204,13 @@ const errorTests = [
     send: 'JSON.parse(\'{"valid": "json"}\');',
     expect: '{ valid: \'json\' }'
   },
-  // invalid input to JSON.parse error is special case of syntax error,
+  // Invalid input to JSON.parse error is special case of syntax error,
   // should throw
   {
     send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
     expect: [/^SyntaxError: /, '']
   },
-  // end of input to JSON.parse error is special case of syntax error,
+  // End of input to JSON.parse error is special case of syntax error,
   // should throw
   {
     send: 'JSON.parse(\'066\');',
@@ -380,19 +380,19 @@ const errorTests = [
     send: 'var path = 42; path',
     expect: '42'
   },
-  // this makes sure that we don't print `undefined` when we actually print
+  // This makes sure that we don't print `undefined` when we actually print
   // the error message
   {
     send: '.invalid_repl_command',
     expect: 'Invalid REPL keyword'
   },
-  // this makes sure that we don't crash when we use an inherited property as
+  // This makes sure that we don't crash when we use an inherited property as
   // a REPL command
   {
     send: '.toString',
     expect: 'Invalid REPL keyword'
   },
-  // fail when we are not inside a String and a line continuation is used
+  // Fail when we are not inside a String and a line continuation is used
   {
     send: '[] \\',
     expect: [
@@ -421,7 +421,7 @@ const errorTests = [
     send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
     expect: '... ... \'the    fourth\\t\\t  eye  \''
   },
-  // more than one multiline strings also should preserve whitespace chars
+  // More than one multiline strings also should preserve whitespace chars
   {
     send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
     expect: '... ... \'the    fourth\\t\\t  eye  \''
@@ -431,7 +431,7 @@ const errorTests = [
     send: '\'\\\n.break',
     expect: '... ' + prompt_unix
   },
-  // using REPL command "help" within a string literal should still work
+  // Using REPL command "help" within a string literal should still work
   {
     send: '\'thefourth\\\n.help\neye\'',
     expect: [
@@ -450,7 +450,7 @@ const errorTests = [
     send: '\n\r\n\r\n',
     expect: ''
   },
-  // empty lines in the string literals should not affect the string
+  // Empty lines in the string literals should not affect the string
   {
     send: '\'the\\\n\\\nfourtheye\'\n',
     expect: '... ... \'thefourtheye\''
@@ -460,14 +460,14 @@ const errorTests = [
     send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
     expect: 'true'
   },
-  // the following test's result depends on the RegExp's match from the above
+  // The following test's result depends on the RegExp's match from the above
   {
     send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
           'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
     expect: ['\'1\'', '\'2\'', '\'3\'', '\'4\'', '\'5\'', '\'6\'',
              '\'7\'', '\'8\'', '\'9\'']
   },
-  // regression tests for https://github.com/nodejs/node/issues/2749
+  // Regression tests for https://github.com/nodejs/node/issues/2749
   {
     send: 'function x() {\nreturn \'\\n\';\n }',
     expect: '... ... undefined'
@@ -476,7 +476,7 @@ const errorTests = [
     send: 'function x() {\nreturn \'\\\\\';\n }',
     expect: '... ... undefined'
   },
-  // regression tests for https://github.com/nodejs/node/issues/3421
+  // Regression tests for https://github.com/nodejs/node/issues/3421
   {
     send: 'function x() {\n//\'\n }',
     expect: '... ... undefined'

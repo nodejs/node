@@ -35,7 +35,7 @@ try {
 }
 
 function doTest(flags, done) {
-  // invoke the main file via a symlink.  In this case --preserve-symlinks-main
+  // Invoke the main file via a symlink.  In this case --preserve-symlinks-main
   // dictates that it'll resolve relative imports in the main file relative to
   // the symlink, and not relative to the symlink target; the file structure set
   // up above requires this to not crash when loading ./submodule_link.js

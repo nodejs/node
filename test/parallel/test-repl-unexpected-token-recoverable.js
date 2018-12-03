@@ -6,7 +6,7 @@ require('../common');
 const assert = require('assert');
 
 const spawn = require('child_process').spawn;
-// use -i to force node into interactive mode, despite stdout not being a TTY
+// Use -i to force node into interactive mode, despite stdout not being a TTY
 const args = [ '-i' ];
 const child = spawn(process.execPath, args);
 

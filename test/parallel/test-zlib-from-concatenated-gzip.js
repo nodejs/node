@@ -39,7 +39,7 @@ zlib.unzip(Buffer.concat([
   assert.strictEqual(result.toString(), abc);
 }));
 
-// files that have the "right" magic bytes for starting a new gzip member
+// Files that have the "right" magic bytes for starting a new gzip member
 // in the middle of themselves, even if they are part of a single
 // regularly compressed member
 const pmmFileZlib = fixtures.path('pseudo-multimember-gzip.z');
@@ -59,7 +59,7 @@ fs.createReadStream(pmmFileGz)
     assert.deepStrictEqual(Buffer.concat(pmmResultBuffers), pmmExpected);
   }));
 
-// test that the next gzip member can wrap around the input buffer boundary
+// Test that the next gzip member can wrap around the input buffer boundary
 [0, 1, 2, 3, 4, defEncoded.length].forEach((offset) => {
   const resultBuffers = [];
 
