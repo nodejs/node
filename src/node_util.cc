@@ -56,6 +56,7 @@ static void GetOwnNonIndexProperties(
 }
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   // Return undefined if it's not a Promise.
   if (!args[0]->IsPromise())
     return;
@@ -74,6 +75,7 @@ static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   // Return undefined if it's not a proxy.
   if (!args[0]->IsProxy())
     return;
