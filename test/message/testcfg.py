@@ -31,6 +31,16 @@ import os
 from os.path import join, exists, basename, isdir
 import re
 
+try:
+    reduce          # Python 2
+except NameError:   # Python 3
+    from functools import reduce
+
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 class MessageTestCase(test.TestCase):
@@ -49,7 +59,7 @@ class MessageTestCase(test.TestCase):
     else: return str.startswith('==') or str.startswith('**')
 
   def IsFailureOutput(self, output):
-    f = file(self.expected)
+    f = open(self.expected)
     # Skip initial '#' comment and spaces
     #for line in f:
     #  if (not line.startswith('#')) and (not line.strip()):
