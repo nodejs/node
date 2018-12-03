@@ -89,6 +89,10 @@ static void InitConfig(Local<Object> target,
     READONLY_BOOLEAN_PROPERTY("shouldAbortOnUncaughtException");
 
   READONLY_PROPERTY(target,
+                    "maxHTTPHeaderSize",
+                    Number::New(env->isolate(), max_http_header_size));
+
+  READONLY_PROPERTY(target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
 

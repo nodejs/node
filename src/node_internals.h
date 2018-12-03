@@ -176,6 +176,9 @@ extern std::string config_warning_file;  // NOLINT(runtime/string)
 // NODE_PENDING_DEPRECATION is used
 extern bool config_pending_deprecation;
 
+// Set in node.cc by ParseArgs when --max-http-header-size is used
+extern uint64_t max_http_header_size;
+
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 
