@@ -42,7 +42,7 @@ tmpdir.refresh();
 
 const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
 
-// test that empty file will be created and have content added (callback API)
+// Test that empty file will be created and have content added (callback API)
 {
   const filename = join(tmpdir.path, 'append.txt');
 
@@ -56,7 +56,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   }));
 }
 
-// test that empty file will be created and have content added (promise API)
+// Test that empty file will be created and have content added (promise API)
 {
   const filename = join(tmpdir.path, 'append-promise.txt');
 

@@ -30,7 +30,7 @@ let success;
 let worker;
 let server;
 
-// workers do not exit on disconnect, they exit under normal node rules: when
+// Workers do not exit on disconnect, they exit under normal node rules: when
 // they have nothing keeping their loop alive, like an active connection
 //
 // test this by:

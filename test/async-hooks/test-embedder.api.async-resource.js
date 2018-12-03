@@ -29,13 +29,13 @@ assert.strictEqual(
   async_hooks.executionAsyncId()
 );
 
-// create first custom event 'alcazares' with triggerAsyncId derived
+// Create first custom event 'alcazares' with triggerAsyncId derived
 // from async_hooks executionAsyncId
 const alcaTriggerId = async_hooks.executionAsyncId();
 const alcaEvent = new AsyncResource('alcazares', alcaTriggerId);
 const alcazaresActivities = hooks.activitiesOfTypes([ 'alcazares' ]);
 
-// alcazares event was constructed and thus only has an `init` call
+// Alcazares event was constructed and thus only has an `init` call
 assert.strictEqual(alcazaresActivities.length, 1);
 const alcazares = alcazaresActivities[0];
 assert.strictEqual(alcazares.type, 'alcazares');
@@ -83,7 +83,7 @@ function tick1() {
   checkInvocations(poblado, { init: 1, before: 1, after: 1 },
                    'poblado emitted after');
 
-  // after we disable the hooks we shouldn't receive any events anymore
+  // After we disable the hooks we shouldn't receive any events anymore
   hooks.disable();
   alcaEvent.emitDestroy();
   tick(1, common.mustCall(tick2));

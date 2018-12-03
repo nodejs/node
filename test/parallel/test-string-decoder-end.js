@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// verify that the string decoder works getting 1 byte at a time,
+// Verify that the string decoder works getting 1 byte at a time,
 // the whole buffer at once, and that both match the .toString(enc)
 // result of the entire buffer.
 

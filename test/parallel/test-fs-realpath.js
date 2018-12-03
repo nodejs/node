@@ -251,7 +251,7 @@ function test_relative_input_cwd(realpath, realpathSync, callback) {
     return callback();
   }
 
-  // we need to calculate the relative path to the tmp dir from cwd
+  // We need to calculate the relative path to the tmp dir from cwd
   const entrydir = process.cwd();
   const entry = path.relative(entrydir,
                               path.join(`${tmpDir}/cycles/realpath-3a`));

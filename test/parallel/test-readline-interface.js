@@ -189,7 +189,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once that does not end with a new line
+  // Sending multiple newlines at once that does not end with a new line
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -206,7 +206,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once that does not end with a new(empty)
+  // Sending multiple newlines at once that does not end with a new(empty)
   // line and a `end` event
   {
     const fi = new FakeInput();
@@ -228,7 +228,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending multiple newlines at once that does not end with a new line
+  // Sending multiple newlines at once that does not end with a new line
   // and a `end` event(last line is)
 
   // \r should behave like \n when alone
@@ -354,7 +354,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // constructor throws if completer is not a function or undefined
+  // Constructor throws if completer is not a function or undefined
   {
     const fi = new FakeInput();
     common.expectsError(function() {
@@ -979,7 +979,7 @@ function isWarned(emitter) {
     assert.strictEqual(isWarned(process.stdout._events), false);
   }
 
-  // can create a new readline Interface with a null output argument
+  // Can create a new readline Interface with a null output argument
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -1037,7 +1037,7 @@ function isWarned(emitter) {
 const crlfDelay = Infinity;
 
 [ true, false ].forEach(function(terminal) {
-  // sending multiple newlines at once that does not end with a new line
+  // Sending multiple newlines at once that does not end with a new line
   // and a `end` event(last line is)
 
   // \r\n should emit one line event, not two

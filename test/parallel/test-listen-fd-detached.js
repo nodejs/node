@@ -35,7 +35,7 @@ switch (process.argv[2]) {
   default: return test();
 }
 
-// spawn the parent, and listen for it to tell us the pid of the child.
+// Spawn the parent, and listen for it to tell us the pid of the child.
 // WARNING: This is an example of listening on some arbitrary FD number
 // that has already been bound elsewhere in advance.  However, binding
 // server handles to stdio fd's is NOT a good or reliable way to do
@@ -53,7 +53,7 @@ function test() {
   function next() {
     console.error('output from parent = %s', json);
     const child = JSON.parse(json);
-    // now make sure that we can request to the subprocess, then kill it.
+    // Now make sure that we can request to the subprocess, then kill it.
     http.get({
       server: 'localhost',
       port: child.port,

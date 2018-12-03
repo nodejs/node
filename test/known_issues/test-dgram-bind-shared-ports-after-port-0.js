@@ -45,7 +45,7 @@ if (cluster.isMaster) {
   // worker code
   process.on('message', (msg) => msg === BYE && process.exit(0));
 
-  // first worker will bind to '0', second will try the assigned port and fail
+  // First worker will bind to '0', second will try the assigned port and fail
   const PRT1 = process.env.PRT1 || 0;
   const socket1 = dgram.createSocket('udp4', () => {});
   socket1.on('error', PRT1 === 0 ? () => {} : assert.fail);

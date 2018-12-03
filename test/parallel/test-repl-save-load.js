@@ -97,7 +97,7 @@ let loadFile = join(tmpdir.path, 'file.does.not.exist');
 
 // should not break
 putIn.write = function(data) {
-  // make sure I get a failed to load message and not some crazy error
+  // Make sure I get a failed to load message and not some crazy error
   assert.strictEqual(data, `Failed to load:${loadFile}\n`);
   // eat me to avoid work
   putIn.write = () => {};
@@ -121,7 +121,7 @@ const invalidFileName = join(tmpdir.path, '\0\0\0\0\0');
 
 // should not break
 putIn.write = function(data) {
-  // make sure I get a failed to save message and not some other error
+  // Make sure I get a failed to save message and not some other error
   assert.strictEqual(data, `Failed to save:${invalidFileName}\n`);
   // reset to no-op
   putIn.write = () => {};

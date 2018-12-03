@@ -16,7 +16,7 @@ function nextdir() {
   return `cov_${++dirc}`;
 }
 
-// outputs coverage when event loop is drained, with no async logic.
+// Outputs coverage when event loop is drained, with no async logic.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
@@ -46,7 +46,7 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
-// outputs coverage when process.kill(process.pid, "SIGINT"); exits process.
+// Outputs coverage when process.kill(process.pid, "SIGINT"); exits process.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [

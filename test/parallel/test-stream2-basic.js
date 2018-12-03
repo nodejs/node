@@ -40,7 +40,7 @@ class TestReader extends R {
     n = Math.max(n, 0);
     const toRead = Math.min(n, max);
     if (toRead === 0) {
-      // simulate the read buffer filling up with some more bytes some time
+      // Simulate the read buffer filling up with some more bytes some time
       // in the future.
       setTimeout(() => {
         this._pos = 0;

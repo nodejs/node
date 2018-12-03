@@ -27,7 +27,7 @@ const net = require('net');
 
 const s = new net.Stream();
 
-// test that destroy called on a stream with a server only ever decrements the
+// Test that destroy called on a stream with a server only ever decrements the
 // server connection count once
 
 s.server = new net.Server();

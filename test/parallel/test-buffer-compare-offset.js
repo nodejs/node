@@ -54,7 +54,7 @@ assert.strictEqual(a.compare(b, 0, { valueOf: () => 5 }), -1);
 // zero length target
 assert.strictEqual(a.compare(b, Infinity, -Infinity), 1);
 
-// zero length target because default for targetEnd <= targetSource
+// Zero length target because default for targetEnd <= targetSource
 assert.strictEqual(a.compare(b, '0xff'), 1);
 
 const oor = common.expectsError({ code: 'ERR_OUT_OF_RANGE' }, 7);

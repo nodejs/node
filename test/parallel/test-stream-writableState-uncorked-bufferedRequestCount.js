@@ -35,7 +35,7 @@ assert.strictEqual(writable._writableState.bufferedRequestCount, 1);
 
 process.nextTick(uncork);
 
-// the second chunk is buffered, because we uncork at the end of tick
+// The second chunk is buffered, because we uncork at the end of tick
 writable.write('second chunk');
 assert.strictEqual(writable._writableState.corked, 1);
 assert.strictEqual(writable._writableState.bufferedRequestCount, 2);

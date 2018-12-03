@@ -171,7 +171,7 @@ async function testCommandLineAPI(session) {
   const printBModulePath = require.resolve('../fixtures/printB.js');
   const printBModuleStr = JSON.stringify(printBModulePath);
 
-  // we can use `require` outside of a callframe with require in scope
+  // We can use `require` outside of a callframe with require in scope
   let result = await session.send(
     {
       'method': 'Runtime.evaluate', 'params': {
@@ -182,7 +182,7 @@ async function testCommandLineAPI(session) {
   checkException(result);
   assert.strictEqual(result.result.value, true);
 
-  // the global require has the same properties as a normal `require`
+  // The global require has the same properties as a normal `require`
   result = await session.send(
     {
       'method': 'Runtime.evaluate', 'params': {
@@ -273,7 +273,7 @@ async function testCommandLineAPI(session) {
     parentsEqual: true,
     parentId: '<inspector console>'
   });
-  // the `require` in the module shadows the command line API's `require`
+  // The `require` in the module shadows the command line API's `require`
   result = await session.send(
     {
       'method': 'Debugger.evaluateOnCallFrame', 'params': {

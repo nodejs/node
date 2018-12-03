@@ -62,7 +62,7 @@ execs.forEach((v, i) => {
   }, i * 100);
 });
 
-// cluster emits 'setup' asynchronously, so we must stay alive long
+// Cluster emits 'setup' asynchronously, so we must stay alive long
 // enough for that to happen
 setTimeout(() => {
   console.log('cluster setup complete');

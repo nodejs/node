@@ -1,4 +1,4 @@
-// test the speed of .pipe() with JSStream wrapping for PassThrough streams
+// Test the speed of .pipe() with JSStream wrapping for PassThrough streams
 'use strict';
 
 const common = require('../common.js');

@@ -27,7 +27,7 @@ const fs = require('fs');
 const { internalBinding } = require('internal/test/binding');
 const { UV_EBADF } = internalBinding('uv');
 
-// ensure that (read|write|append)FileSync() closes the file descriptor
+// Ensure that (read|write|append)FileSync() closes the file descriptor
 fs.openSync = function() {
   return 42;
 };

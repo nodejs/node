@@ -37,7 +37,7 @@ server.listen(0, common.mustCall(() => {
       }
     );
 
-    // should throw if something other than number is passed to setNextStreamID
+    // Should throw if something other than number is passed to setNextStreamID
     Object.entries(types).forEach(([type, value]) => {
       if (type === 'number') {
         return;

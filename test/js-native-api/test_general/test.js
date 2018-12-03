@@ -48,7 +48,7 @@ assert.strictEqual(test_general.testGetVersion(), 3);
   assert.strictEqual(test_general.testNapiTypeof(val), typeof val);
 });
 
-// since typeof in js return object need to validate specific case
+// Since typeof in js return object need to validate specific case
 // for null
 assert.strictEqual(test_general.testNapiTypeof(null), 'null');
 

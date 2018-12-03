@@ -177,7 +177,7 @@ function testDecodeSample(encoding, string, bytes) {
     string);
 }
 
-// z (ASCII U+007A), cent (Latin-1 U+00A2), CJK water (BMP U+6C34),
+// `z` (ASCII U+007A), cent (Latin-1 U+00A2), CJK water (BMP U+6C34),
 // G-Clef (non-BMP U+1D11E), PUA (BMP U+F8FF), PUA (non-BMP U+10FFFD)
 // byte-swapped BOM (non-character U+FFFE)
 const sample = 'z\xA2\u6C34\uD834\uDD1E\uF8FF\uDBFF\uDFFD\uFFFE';

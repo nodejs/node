@@ -103,7 +103,7 @@ const interval4 = setInterval(function() {
 }, 0);
 
 
-// we should be able to clearTimeout multiple times without breakage.
+// We should be able to clearTimeout multiple times without breakage.
 let expectedTimeouts = 3;
 
 function t() {

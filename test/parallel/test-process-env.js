@@ -65,7 +65,7 @@ if (process.argv[2] === 'you-are-the-child') {
 }
 
 
-// delete should return true except for non-configurable properties
+// Delete should return true except for non-configurable properties
 // https://github.com/nodejs/node/issues/7960
 delete process.env.NON_EXISTING_VARIABLE;
 assert(delete process.env.NON_EXISTING_VARIABLE);

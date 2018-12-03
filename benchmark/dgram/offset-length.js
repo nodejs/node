@@ -1,4 +1,4 @@
-// test UDP send/recv throughput with the "old" offset/length API
+// Test UDP send/recv throughput with the "old" offset/length API
 'use strict';
 
 const common = require('../common.js');

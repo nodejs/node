@@ -286,7 +286,7 @@ The listener function is called with the following arguments:
 ```js
 process.on('unhandledRejection', (reason, p) => {
   console.log('Unhandled Rejection at:', p, 'reason:', reason);
-  // application specific logging, throwing an error, or other logic here
+  // Application specific logging, throwing an error, or other logic here
 });
 
 somePromise.then((res) => {

@@ -3,7 +3,7 @@
 const assert = require('assert');
 require('../common');
 
-// assert legit flags are allowed, and bogus flags are disallowed
+// Assert legit flags are allowed, and bogus flags are disallowed
 {
   const goodFlags = [
     '--perf_basic_prof',

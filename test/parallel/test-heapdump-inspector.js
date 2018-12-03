@@ -13,7 +13,7 @@ const snapshotNode = {
   ]
 };
 
-// starts with no JSBindingsConnection (or 1 if coverage enabled).
+// Starts with no JSBindingsConnection (or 1 if coverage enabled).
 {
   const expected = [];
   if (process.env.NODE_V8_COVERAGE) {

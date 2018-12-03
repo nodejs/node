@@ -61,12 +61,12 @@ asyncHook.disable();
 // resource referenced by "asyncId" may not have been populated.
 function init(asyncId, type, triggerAsyncId, resource) { }
 
-// before is called just before the resource's callback is called. It can be
+// Before is called just before the resource's callback is called. It can be
 // called 0-N times for handles (e.g. TCPWrap), and will be called exactly 1
 // time for requests (e.g. FSReqCallback).
 function before(asyncId) { }
 
-// after is called just after the resource's callback has finished.
+// After is called just after the resource's callback has finished.
 function after(asyncId) { }
 
 // destroy is called when an AsyncWrap instance is destroyed.
@@ -159,7 +159,7 @@ const fs = require('fs');
 const util = require('util');
 
 function debug(...args) {
-  // use a function like this one when debugging inside an AsyncHooks callback
+  // Use a function like this one when debugging inside an AsyncHooks callback
   fs.writeFileSync('log.out', `${util.format(...args)}\n`, { flag: 'a' });
 }
 ```

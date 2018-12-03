@@ -201,7 +201,7 @@ common.expectsError(
   }
 );
 
-// test verifies that StringDecoder will correctly decode the given input
+// Test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
 // possible ways to write() the input buffer, see writeSequences(). The
 // singleSequence allows for easy debugging of a specific sequence which is

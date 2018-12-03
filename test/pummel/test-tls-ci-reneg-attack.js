@@ -70,7 +70,7 @@ function test(next) {
     child.stdout.resume();
     child.stderr.resume();
 
-    // count handshakes, start the attack after the initial handshake is done
+    // Count handshakes, start the attack after the initial handshake is done
     let handshakes = 0;
     let renegs = 0;
 

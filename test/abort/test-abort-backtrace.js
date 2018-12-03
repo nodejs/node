@@ -10,7 +10,7 @@ if (process.argv[2] === 'child') {
   const stderr = child.stderr.toString();
 
   assert.strictEqual(child.stdout.toString(), '');
-  // stderr will be empty for systems that don't support backtraces.
+  // Stderr will be empty for systems that don't support backtraces.
   if (stderr !== '') {
     const frames = stderr.trimRight().split('\n').map((s) => s.trim());
 

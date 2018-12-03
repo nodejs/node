@@ -27,8 +27,8 @@ function finished(client, callback) {
 }
 
 function fillHeaders(headers, currentSize, valid = false) {
-  // llhttp counts actual header name/value sizes, excluding the whitespace and
-  // stripped chars.
+  // `llhttp` counts actual header name/value sizes, excluding the whitespace
+  // and stripped chars.
   if (getOptionValue('--http-parser') === 'llhttp') {
     // OK, Content-Length, 0, X-CRASH, aaa...
     headers += 'a'.repeat(MAX - currentSize);

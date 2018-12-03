@@ -55,7 +55,7 @@ server.listen(0, common.mustCall(() => {
   proxy.listen(0, () => {
     const client = http2.connect(`http://localhost:${proxy.address().port}`);
 
-    // confirm that :authority is required and :scheme & :path are forbidden
+    // Confirm that :authority is required and :scheme & :path are forbidden
     common.expectsError(
       () => client.request({
         [HTTP2_HEADER_METHOD]: 'CONNECT'

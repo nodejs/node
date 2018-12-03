@@ -49,7 +49,7 @@ function CLI(usage, settings) {
         this.optional[currentOptional] = true;
         mode = 'both';
       } else {
-        // expect the next value to be option related (either -- or the value)
+        // Expect the next value to be option related (either -- or the value)
         mode = 'option';
       }
     } else if (mode === 'option') {

@@ -143,7 +143,7 @@ const Readable = require('stream').Readable;
   readable.on('end', common.mustCall(onStreamEnd));
   readable.push('pushed');
 
-  // we are still not flowing, we will be resuming in the next tick
+  // We are still not flowing, we will be resuming in the next tick
   assert.strictEqual(state.flowing, false);
 
   // wait for nextTick, so the readableListener flag resets

@@ -371,7 +371,7 @@ range, or outside the set of options for a given function parameter.
 
 ```js
 require('net').connect(-1);
-// throws "RangeError: "port" option should be >= 0 and < 65536: -1"
+// Throws "RangeError: "port" option should be >= 0 and < 65536: -1"
 ```
 
 Node.js will generate and throw `RangeError` instances *immediately* as a form
@@ -388,7 +388,7 @@ will do so.
 
 ```js
 doesNotExist;
-// throws ReferenceError, doesNotExist is not a variable in this program.
+// Throws ReferenceError, doesNotExist is not a variable in this program.
 ```
 
 Unless an application is dynamically generating and running code,

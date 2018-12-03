@@ -234,7 +234,7 @@ const relativeTests2 = [
   // may change to http:///s//a/../../../g
   ['../../../../g', bases[4], 'http:///g'],
 
-  // from Dan Connelly's tests in http://www.w3.org/2000/10/swap/uripath.py
+  // From Dan Connelly's tests in http://www.w3.org/2000/10/swap/uripath.py
   ['bar:abc', 'foo:xyz', 'bar:abc'],
   ['../abc', 'http://example/x/y/z', 'http://example/x/abc'],
   ['http://example/x/abc', 'http://example2/x/y/z', 'http://example/x/abc'],

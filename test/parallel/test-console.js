@@ -174,7 +174,7 @@ console.timeEnd();
 console.time(NaN);
 console.timeEnd(NaN);
 
-// make sure calling time twice without timeEnd doesn't reset the timer.
+// Make sure calling time twice without timeEnd doesn't reset the timer.
 console.time('test');
 const time = console._times.get('test');
 setTimeout(() => {
@@ -248,7 +248,7 @@ assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
-// verify that console.time() coerces label values to strings as expected
+// Verify that console.time() coerces label values to strings as expected
 assert.ok(/^: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));

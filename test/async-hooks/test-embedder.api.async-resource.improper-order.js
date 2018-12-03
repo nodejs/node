@@ -14,7 +14,7 @@ if (process.argv[2] === 'child') {
   const hooks = initHooks();
   hooks.enable();
 
-  // async hooks enforce proper order of 'before' and 'after' invocations
+  // Async hooks enforce proper order of 'before' and 'after' invocations
 
   // Proper ordering
   const event1 = new AsyncResource('event1', async_hooks.executionAsyncId());
