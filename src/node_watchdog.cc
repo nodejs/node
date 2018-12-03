@@ -187,7 +187,9 @@ int SigintWatchdogHelper::Start() {
 
   sigset_t sigmask;
   sigfillset(&sigmask);
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask));
+  sigset_t savemask;
+  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &savemask));
+  sigmask = savemask;
   int ret = pthread_create(&thread_, nullptr, RunSigintWatchdog, nullptr);
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
   if (ret != 0) {
