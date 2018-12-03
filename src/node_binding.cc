@@ -411,13 +411,14 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
         exports->SetPrototype(env->context(), Null(env->isolate())).FromJust());
     DefineConstants(env->isolate(), exports);
   } else if (!strcmp(*module_v, "natives")) {
-    exports = per_process_loader.GetSourceObject(env->context());
+    exports = per_process::native_module_loader.GetSourceObject(env->context());
     // Legacy feature: process.binding('natives').config contains stringified
     // config.gypi
     CHECK(exports
               ->Set(env->context(),
                     env->config_string(),
-                    per_process_loader.GetConfigString(env->isolate()))
+                    per_process::native_module_loader.GetConfigString(
+                        env->isolate()))
               .FromJust());
   } else {
     return ThrowIfNoSuchModule(env, *module_v);
