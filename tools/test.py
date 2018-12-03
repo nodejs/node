@@ -50,6 +50,16 @@ from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
 from Queue import Queue, Empty
 
+try:
+  reduce          # Python 2
+except NameError:   # Python 3
+  from functools import reduce
+
+try:
+  xrange          # Python 2
+except NameError:
+  xrange = range  # Python 3
+
 logger = logging.getLogger('testrunner')
 skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 
@@ -110,9 +120,9 @@ class ProgressIndicator(object):
       for thread in threads:
         # Use a timeout so that signals (ctrl-c) will be processed.
         thread.join(timeout=10000000)
-    except (KeyboardInterrupt, SystemExit), e:
+    except (KeyboardInterrupt, SystemExit) as e:
       self.shutdown_event.set()
-    except Exception, e:
+    except Exception as e:
       # If there's an exception we schedule an interruption for any
       # remaining threads.
       self.shutdown_event.set()
@@ -149,7 +159,7 @@ class ProgressIndicator(object):
             output = case.Run()
             output.diagnostic.append('ECONNREFUSED received, test retried')
         case.duration = (datetime.now() - start)
-      except IOError, e:
+      except IOError as e:
         return
       if self.shutdown_event.is_set():
         return
@@ -600,7 +610,7 @@ def Win32SetErrorMode(mode):
   prev_error_mode = SEM_INVALID_VALUE
   try:
     import ctypes
-    prev_error_mode = ctypes.windll.kernel32.SetErrorMode(mode);
+    prev_error_mode = ctypes.windll.kernel32.SetErrorMode(mode)
   except ImportError:
     pass
   return prev_error_mode
@@ -619,15 +629,15 @@ def KillTimedOutProcess(context, pid):
 def RunProcess(context, timeout, args, **rest):
   if context.verbose: print("#", " ".join(args))
   popen_args = args
-  prev_error_mode = SEM_INVALID_VALUE;
+  prev_error_mode = SEM_INVALID_VALUE
   if utils.IsWindows():
     if context.suppress_dialogs:
       # Try to change the error mode to avoid dialogs on fatal errors. Don't
       # touch any existing error mode flags by merging the existing error mode.
       # See http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx.
-      error_mode = SEM_NOGPFAULTERRORBOX;
-      prev_error_mode = Win32SetErrorMode(error_mode);
-      Win32SetErrorMode(error_mode | prev_error_mode);
+      error_mode = SEM_NOGPFAULTERRORBOX
+      prev_error_mode = Win32SetErrorMode(error_mode)
+      Win32SetErrorMode(error_mode | prev_error_mode)
 
   faketty = rest.pop('faketty', False)
   pty_out = rest.pop('pty_out')
@@ -696,7 +706,7 @@ def CheckedUnlink(name):
   while True:
     try:
       os.unlink(name)
-    except OSError, e:
+    except OSError as e:
       # On Windows unlink() fails if another process (typically a virus scanner
       # or the indexing service) has the file open. Those processes keep a
       # file open for a short time only, so yield and try again; it'll succeed.
@@ -765,8 +775,8 @@ def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_fil
   else:
     os.close(fd_out)
     os.close(fd_err)
-    output = file(outname).read()
-    errors = file(errname).read()
+    output = open(outname).read()
+    errors = open(errname).read()
     CheckedUnlink(outname)
     CheckedUnlink(errname)
 
