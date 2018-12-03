@@ -201,6 +201,8 @@ unsigned int reverted = 0;
 std::string icu_data_dir;  // NOLINT(runtime/string)
 #endif
 
+uint64_t max_http_header_size = 8 * 1024;
+
 // used by C++ modules as well
 bool no_deprecation = false;
 
@@ -3120,6 +3122,8 @@ static void PrintHelp() {
          "                             set host:port for inspector\n"
 #endif
          "  --no-deprecation           silence deprecation warnings\n"
+         "  --max-http-header-size     Specify the maximum size of HTTP\n"
+         "                             headers in bytes. Defaults to 8KB.\n"
          "  --trace-deprecation        show stack traces on deprecations\n"
          "  --throw-deprecation        throw an exception on deprecations\n"
          "  --pending-deprecation      emit pending deprecation warnings\n"
@@ -3264,6 +3268,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--expose-http2",
     "--experimental-modules",
     "--loader",
+    "--max-http-header-size",
     "--trace-warnings",
     "--redirect-warnings",
     "--trace-sync-io",
@@ -3468,6 +3473,8 @@ static void ParseArgs(int* argc,
       new_v8_argc += 1;
     } else if (strncmp(arg, "--v8-pool-size=", 15) == 0) {
       v8_thread_pool_size = atoi(arg + 15);
+    } else if (strncmp(arg, "--max-http-header-size=", 23) == 0) {
+      max_http_header_size = atoi(arg + 23);
 #if HAVE_OPENSSL
     } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
       default_cipher_list = arg + 18;
