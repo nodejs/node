@@ -110,7 +110,6 @@ typedef int mode_t;
 
 namespace node {
 
-using native_module::NativeModuleLoader;
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
 using v8::Array;
@@ -162,7 +161,6 @@ double prog_start_time;
 Mutex per_process_opts_mutex;
 std::shared_ptr<PerProcessOptions> per_process_opts {
     new PerProcessOptions() };
-NativeModuleLoader per_process_loader;
 static Mutex node_isolate_mutex;
 static Isolate* node_isolate;
 
@@ -1187,7 +1185,7 @@ static MaybeLocal<Value> ExecuteBootstrapper(
     const char* id,
     std::vector<Local<String>>* parameters,
     std::vector<Local<Value>>* arguments) {
-  MaybeLocal<Value> ret = per_process_loader.CompileAndCall(
+  MaybeLocal<Value> ret = per_process::native_module_loader.CompileAndCall(
       env->context(), id, parameters, arguments, env);
 
   // If there was an error during bootstrap then it was either handled by the
@@ -1906,7 +1904,7 @@ Local<Context> NewContext(Isolate* isolate,
     std::vector<Local<String>> parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "global")};
     std::vector<Local<Value>> arguments = {context->Global()};
-    MaybeLocal<Value> result = per_process_loader.CompileAndCall(
+    MaybeLocal<Value> result = per_process::native_module_loader.CompileAndCall(
         context, "internal/per_context", &parameters, &arguments, nullptr);
     if (result.IsEmpty()) {
       // Execution failed during context creation.

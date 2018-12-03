@@ -43,11 +43,17 @@ const loadedModules = process.moduleLoadList
 // are all compiled without cache and we are doing the bookkeeping right.
 if (process.config.variables.node_code_cache_path === undefined) {
   console.log('The binary is not configured with code cache');
-  assert.deepStrictEqual(compiledWithCache, new Set());
-
-  for (const key of loadedModules) {
-    assert(compiledWithoutCache.has(key),
-           `"${key}" should've been compiled without code cache`);
+  if (isMainThread) {
+    assert.deepStrictEqual(compiledWithCache, new Set());
+    for (const key of loadedModules) {
+      assert(compiledWithoutCache.has(key),
+             `"${key}" should've been compiled without code cache`);
+    }
+  } else {
+    // TODO(joyeecheung): create a list of modules whose cache can be shared
+    // from the main thread to the worker thread and check that their
+    // cache are hit
+    assert.notDeepStrictEqual(compiledWithCache, new Set());
   }
 } else {
   console.log('The binary is configured with code cache');

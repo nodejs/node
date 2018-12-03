@@ -3,6 +3,11 @@
 #include "node_internals.h"
 
 namespace node {
+
+namespace per_process {
+native_module::NativeModuleLoader native_module_loader;
+}  // namespace per_process
+
 namespace native_module {
 
 using v8::Array;
@@ -78,13 +83,14 @@ void NativeModuleLoader::GetCacheUsage(
 void NativeModuleLoader::SourceObjectGetter(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
-  info.GetReturnValue().Set(per_process_loader.GetSourceObject(context));
+  info.GetReturnValue().Set(
+      per_process::native_module_loader.GetSourceObject(context));
 }
 
 void NativeModuleLoader::ConfigStringGetter(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(
-      per_process_loader.GetConfigString(info.GetIsolate()));
+      per_process::native_module_loader.GetConfigString(info.GetIsolate()));
 }
 
 Local<Object> NativeModuleLoader::GetSourceObject(
@@ -96,31 +102,53 @@ Local<String> NativeModuleLoader::GetConfigString(Isolate* isolate) const {
   return config_.ToStringChecked(isolate);
 }
 
-Local<String> NativeModuleLoader::GetSource(Isolate* isolate,
-                                            const char* id) const {
-  const auto it = source_.find(id);
-  CHECK_NE(it, source_.end());
-  return it->second.ToStringChecked(isolate);
-}
-
 NativeModuleLoader::NativeModuleLoader() : config_(GetConfig()) {
   LoadJavaScriptSource();
   LoadCodeCache();
 }
 
-void NativeModuleLoader::CompileCodeCache(
-    const FunctionCallbackInfo<Value>& args) {
+// This is supposed to be run only by the main thread in
+// tools/generate_code_cache.js
+void NativeModuleLoader::GetCodeCache(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(args[0]->IsString());
-  node::Utf8Value id(env->isolate(), args[0].As<String>());
+  Isolate* isolate = env->isolate();
+  CHECK(env->is_main_thread());
 
-  // TODO(joyeecheung): allow compiling cache for bootstrapper by
-  // switching on id
-  MaybeLocal<Value> result =
-      CompileAsModule(env, *id, CompilationResultType::kCodeCache);
-  if (!result.IsEmpty()) {
-    args.GetReturnValue().Set(result.ToLocalChecked());
+  CHECK(args[0]->IsString());
+  node::Utf8Value id_v(isolate, args[0].As<String>());
+  const char* id = *id_v;
+
+  const NativeModuleLoader& loader = per_process::native_module_loader;
+  MaybeLocal<Uint8Array> ret = loader.GetCodeCache(isolate, id);
+  if (!ret.IsEmpty()) {
+    args.GetReturnValue().Set(ret.ToLocalChecked());
   }
+}
+
+// This is supposed to be run only by the main thread in
+// tools/generate_code_cache.js
+MaybeLocal<Uint8Array> NativeModuleLoader::GetCodeCache(Isolate* isolate,
+                                                        const char* id) const {
+  EscapableHandleScope scope(isolate);
+  Mutex::ScopedLock lock(code_cache_mutex_);
+
+  ScriptCompiler::CachedData* cached_data = nullptr;
+  const auto it = code_cache_.find(id);
+  if (it == code_cache_.end()) {
+    // The module has not been compiled before.
+    return MaybeLocal<Uint8Array>();
+  }
+
+  cached_data = it->second.get();
+
+  MallocedBuffer<uint8_t> copied(cached_data->length);
+  memcpy(copied.data, cached_data->data, cached_data->length);
+  Local<ArrayBuffer> buf =
+      ArrayBuffer::New(isolate,
+                       copied.release(),
+                       cached_data->length,
+                       ArrayBufferCreationMode::kInternalized);
+  return scope.Escape(Uint8Array::New(buf, 0, cached_data->length));
 }
 
 void NativeModuleLoader::CompileFunction(
@@ -129,8 +157,7 @@ void NativeModuleLoader::CompileFunction(
   CHECK(args[0]->IsString());
   node::Utf8Value id(env->isolate(), args[0].As<String>());
 
-  MaybeLocal<Value> result =
-      CompileAsModule(env, *id, CompilationResultType::kFunction);
+  MaybeLocal<Function> result = CompileAsModule(env, *id);
   if (!result.IsEmpty()) {
     args.GetReturnValue().Set(result.ToLocalChecked());
   }
@@ -145,57 +172,43 @@ MaybeLocal<Value> NativeModuleLoader::CompileAndCall(
     std::vector<Local<Value>>* arguments,
     Environment* optional_env) {
   Isolate* isolate = context->GetIsolate();
-  MaybeLocal<Value> compiled = per_process_loader.LookupAndCompile(
-      context, id, parameters, CompilationResultType::kFunction, nullptr);
+  MaybeLocal<Function> compiled =
+      per_process::native_module_loader.LookupAndCompile(
+          context, id, parameters, nullptr);
   if (compiled.IsEmpty()) {
-    return compiled;
+    return MaybeLocal<Value>();
   }
   Local<Function> fn = compiled.ToLocalChecked().As<Function>();
   return fn->Call(
       context, v8::Null(isolate), arguments->size(), arguments->data());
 }
 
-MaybeLocal<Value> NativeModuleLoader::CompileAsModule(
-    Environment* env, const char* id, CompilationResultType result) {
+MaybeLocal<Function> NativeModuleLoader::CompileAsModule(Environment* env,
+                                                         const char* id) {
   std::vector<Local<String>> parameters = {env->exports_string(),
                                            env->require_string(),
                                            env->module_string(),
                                            env->process_string(),
                                            env->internal_binding_string()};
-  return per_process_loader.LookupAndCompile(
-      env->context(), id, &parameters, result, env);
-}
-
-// Returns nullptr if there is no code cache corresponding to the id
-ScriptCompiler::CachedData* NativeModuleLoader::GetCachedData(
-    const char* id) const {
-  const auto it = per_process_loader.code_cache_.find(id);
-  // This could be false if the module cannot be cached somehow.
-  // See lib/internal/bootstrap/cache.js on the modules that cannot be cached
-  if (it == per_process_loader.code_cache_.end()) {
-    return nullptr;
-  }
-
-  const uint8_t* code_cache_value = it->second.one_bytes_data();
-  size_t code_cache_length = it->second.length();
-
-  return new ScriptCompiler::CachedData(code_cache_value, code_cache_length);
+  return per_process::native_module_loader.LookupAndCompile(
+      env->context(), id, &parameters, env);
 }
 
 // Returns Local<Function> of the compiled module if return_code_cache
 // is false (we are only compiling the function).
 // Otherwise return a Local<Object> containing the cache.
-MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
+MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
     std::vector<Local<String>>* parameters,
-    CompilationResultType result_type,
     Environment* optional_env) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
   Local<Value> ret;  // Used to convert to MaybeLocal before return
 
-  Local<String> source = GetSource(isolate, id);
+  const auto source_it = source_.find(id);
+  CHECK_NE(source_it, source_.end());
+  Local<String> source = source_it->second.ToStringChecked(isolate);
 
   std::string filename_s = id + std::string(".js");
   Local<String> filename =
@@ -204,30 +217,23 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
   Local<Integer> column_offset = Integer::New(isolate, 0);
   ScriptOrigin origin(filename, line_offset, column_offset);
 
-  bool use_cache = false;
-  ScriptCompiler::CachedData* cached_data = nullptr;
+  Mutex::ScopedLock lock(code_cache_mutex_);
 
-  // 1. We won't even check the existence of the cache if the binary is not
-  //    built with them.
-  // 2. If we are generating code cache for tools/general_code_cache.js, we
-  //    are not going to use any cache ourselves.
-  if (has_code_cache_ && result_type == CompilationResultType::kFunction) {
-    cached_data = GetCachedData(id);
-    if (cached_data != nullptr) {
-      use_cache = true;
+  ScriptCompiler::CachedData* cached_data = nullptr;
+  {
+    auto cache_it = code_cache_.find(id);
+    if (cache_it != code_cache_.end()) {
+      // Transfer ownership to ScriptCompiler::Source later.
+      cached_data = cache_it->second.release();
+      code_cache_.erase(cache_it);
     }
   }
 
+  const bool use_cache = cached_data != nullptr;
+  ScriptCompiler::CompileOptions options =
+      use_cache ? ScriptCompiler::kConsumeCodeCache
+                : ScriptCompiler::kEagerCompile;
   ScriptCompiler::Source script_source(source, origin, cached_data);
-
-  ScriptCompiler::CompileOptions options;
-  if (result_type == CompilationResultType::kCodeCache) {
-    options = ScriptCompiler::kEagerCompile;
-  } else if (use_cache) {
-    options = ScriptCompiler::kConsumeCodeCache;
-  } else {
-    options = ScriptCompiler::kNoCompileOptions;
-  }
 
   MaybeLocal<Function> maybe_fun =
       ScriptCompiler::CompileFunctionInContext(context,
@@ -244,10 +250,14 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
     // In the case of early errors, v8 is already capable of
     // decorating the stack for us - note that we use CompileFunctionInContext
     // so there is no need to worry about wrappers.
-    return MaybeLocal<Value>();
+    return MaybeLocal<Function>();
   }
 
   Local<Function> fun = maybe_fun.ToLocalChecked();
+  // XXX(joyeecheung): this bookkeeping is not exactly accurate because
+  // it only starts after the Environment is created, so the per_context.js
+  // will never be in any of these two sets, but the two sets are only for
+  // testing anyway.
   if (use_cache) {
     if (optional_env != nullptr) {
       // This could happen when Node is run with any v8 flag, but
@@ -264,29 +274,15 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
     }
   }
 
-  if (result_type == CompilationResultType::kCodeCache) {
-    std::unique_ptr<ScriptCompiler::CachedData> cached_data(
-        ScriptCompiler::CreateCodeCacheForFunction(fun));
-    CHECK_NE(cached_data, nullptr);
-    size_t cached_data_length = cached_data->length;
-    // Since we have no special allocator to create an ArrayBuffer
-    // from a new'ed pointer, we will need to copy it - but this
-    // code path is only run by the tooling that generates the code
-    // cache to be bundled in the binary
-    // so it should be fine.
-    MallocedBuffer<uint8_t> copied(cached_data->length);
-    memcpy(copied.data, cached_data->data, cached_data_length);
-    Local<ArrayBuffer> buf =
-        ArrayBuffer::New(isolate,
-                         copied.release(),
-                         cached_data_length,
-                         ArrayBufferCreationMode::kInternalized);
-    ret = Uint8Array::New(buf, 0, cached_data_length);
-  } else {
-    ret = fun;
-  }
+  // Generate new cache for next compilation
+  std::unique_ptr<ScriptCompiler::CachedData> new_cached_data(
+      ScriptCompiler::CreateCodeCacheForFunction(fun));
+  CHECK_NE(new_cached_data, nullptr);
 
-  return scope.Escape(ret);
+  // The old entry should've been erased by now so we can just emplace
+  code_cache_.emplace(id, std::move(new_cached_data));
+
+  return scope.Escape(fun);
 }
 
 void NativeModuleLoader::Initialize(Local<Object> target,
@@ -320,8 +316,7 @@ void NativeModuleLoader::Initialize(Local<Object> target,
       target, "getCacheUsage", NativeModuleLoader::GetCacheUsage);
   env->SetMethod(
       target, "compileFunction", NativeModuleLoader::CompileFunction);
-  env->SetMethod(
-      target, "compileCodeCache", NativeModuleLoader::CompileCodeCache);
+  env->SetMethod(target, "getCodeCache", NativeModuleLoader::GetCodeCache);
   // internalBinding('native_module') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
