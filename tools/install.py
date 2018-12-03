@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import ast
 import errno
 import os
@@ -25,11 +26,11 @@ def load_config():
 def try_unlink(path):
   try:
     os.unlink(path)
-  except OSError, e:
+  except OSError as e:
     if e.errno != errno.ENOENT: raise
 
 def try_symlink(source_path, link_path):
-  print 'symlinking %s -> %s' % (source_path, link_path)
+  print('symlinking %s -> %s' % (source_path, link_path))
   try_unlink(link_path)
   try_mkdir_r(os.path.dirname(link_path))
   os.symlink(source_path, link_path)
@@ -37,7 +38,7 @@ def try_symlink(source_path, link_path):
 def try_mkdir_r(path):
   try:
     os.makedirs(path)
-  except OSError, e:
+  except OSError as e:
     if e.errno != errno.EEXIST: raise
 
 def try_rmdir_r(path):
@@ -45,7 +46,7 @@ def try_rmdir_r(path):
   while path.startswith(install_path):
     try:
       os.rmdir(path)
-    except OSError, e:
+    except OSError as e:
       if e.errno == errno.ENOTEMPTY: return
       if e.errno == errno.ENOENT: return
       raise
@@ -60,14 +61,14 @@ def mkpaths(path, dst):
 
 def try_copy(path, dst):
   source_path, target_path = mkpaths(path, dst)
-  print 'installing %s' % target_path
+  print('installing %s' % target_path)
   try_mkdir_r(os.path.dirname(target_path))
   try_unlink(target_path) # prevent ETXTBSY errors
   return shutil.copy2(source_path, target_path)
 
 def try_remove(path, dst):
   source_path, target_path = mkpaths(path, dst)
-  print 'removing %s' % target_path
+  print('removing %s' % target_path)
   try_unlink(target_path)
   try_rmdir_r(os.path.dirname(target_path))
 
