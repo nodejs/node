@@ -105,9 +105,7 @@ Local<String> NativeModuleLoader::GetSource(Isolate* isolate,
 
 NativeModuleLoader::NativeModuleLoader() : config_(GetConfig()) {
   LoadJavaScriptSource();
-  LoadJavaScriptHash();
   LoadCodeCache();
-  LoadCodeCacheHash();
 }
 
 void NativeModuleLoader::CompileCodeCache(
@@ -168,29 +166,6 @@ MaybeLocal<Value> NativeModuleLoader::CompileAsModule(
       env->context(), id, &parameters, result, env);
 }
 
-// Currently V8 only checks that the length of the source code is the
-// same as the code used to generate the hash, so we add an additional
-// check here:
-// 1. During compile time, when generating node_javascript.cc and
-//    node_code_cache.cc, we compute and include the hash of the
-//    JavaScript source in both.
-// 2. At runtime, we check that the hash of the code being compiled
-//   and the hash of the code used to generate the cache
-//   (without the parameters) is the same.
-// This is based on the assumptions:
-// 1. `code_cache_hash` must be in sync with `code_cache`
-//     (both defined in node_code_cache.cc)
-// 2. `source_hash` must be in sync with `source`
-//     (both defined in node_javascript.cc)
-// 3. If `source_hash` is in sync with `code_cache_hash`,
-//    then the source code used to generate `code_cache`
-//    should be in sync with the source code in `source`
-// The only variable left, then, are the parameters passed to the
-// CompileFunctionInContext. If the parameters used generate the cache
-// is different from the one used to compile modules at run time, then
-// there could be false postivies, but that should be rare and should fail
-// early in the bootstrap process so it should be easy to detect and fix.
-
 // Returns nullptr if there is no code cache corresponding to the id
 ScriptCompiler::CachedData* NativeModuleLoader::GetCachedData(
     const char* id) const {
@@ -203,22 +178,6 @@ ScriptCompiler::CachedData* NativeModuleLoader::GetCachedData(
 
   const uint8_t* code_cache_value = it->second.one_bytes_data();
   size_t code_cache_length = it->second.length();
-
-  const auto it2 = code_cache_hash_.find(id);
-  CHECK_NE(it2, code_cache_hash_.end());
-  const std::string& code_cache_hash_value = it2->second;
-
-  const auto it3 = source_hash_.find(id);
-  CHECK_NE(it3, source_hash_.end());
-  const std::string& source_hash_value = it3->second;
-
-  // It may fail when any of the inputs of the `node_js2c` target in
-  // node.gyp is modified but the tools/generate_code_cache.js
-  // is not re run.
-  // FIXME(joyeecheung): Figure out how to resolve the dependency issue.
-  // When the code cache was introduced we were at a point where refactoring
-  // node.gyp may not be worth the effort.
-  CHECK_EQ(code_cache_hash_value, source_hash_value);
 
   return new ScriptCompiler::CachedData(code_cache_value, code_cache_length);
 }

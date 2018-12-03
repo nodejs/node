@@ -11,9 +11,5 @@ namespace native_module {
 // into native_module_loader.code_cache_.
 void NativeModuleLoader::LoadCodeCache() {}
 
-// The generated source code would instert <std::string, std::string> pairs
-// into native_module_loader.code_cache_hash_.
-void NativeModuleLoader::LoadCodeCacheHash() {}
-
 }  // namespace native_module
 }  // namespace node
