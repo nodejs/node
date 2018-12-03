@@ -259,6 +259,10 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
             kAllowedInEnvironment);
   AddAlias("--trace-events-enabled", {
     "--trace-event-categories", "v8,node,node.async_hooks" });
+  AddOption("--max-http-header-size",
+            "set the maximum size of HTTP headers (default: 8KB)",
+            &PerProcessOptions::max_http_header_size,
+            kAllowedInEnvironment);
   AddOption("--v8-pool-size",
             "set V8's thread pool size",
             &PerProcessOptions::v8_thread_pool_size,

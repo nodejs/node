@@ -830,7 +830,7 @@ class Parser : public AsyncWrap, public StreamListener {
   int TrackHeader(size_t len) {
 #ifdef NODE_EXPERIMENTAL_HTTP
     header_nread_ += len;
-    if (header_nread_ >= kMaxHeaderSize) {
+    if (header_nread_ >= per_process_opts->max_http_header_size) {
       llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
       return HPE_USER;
     }
@@ -892,9 +892,6 @@ class Parser : public AsyncWrap, public StreamListener {
   typedef int (Parser::*DataCall)(const char* at, size_t length);
 
   static const parser_settings_t settings;
-#ifdef NODE_EXPERIMENTAL_HTTP
-  static const uint64_t kMaxHeaderSize = 8 * 1024;
-#endif  /* NODE_EXPERIMENTAL_HTTP */
 };
 
 const parser_settings_t Parser::settings = {
@@ -914,6 +911,14 @@ const parser_settings_t Parser::settings = {
   nullptr,
 #endif  /* NODE_EXPERIMENTAL_HTTP */
 };
+
+
+#ifndef NODE_EXPERIMENTAL_HTTP
+void InitMaxHttpHeaderSizeOnce() {
+  const uint32_t max_http_header_size = per_process_opts->max_http_header_size;
+  http_parser_set_max_header_size(max_http_header_size);
+}
+#endif  /* NODE_EXPERIMENTAL_HTTP */
 
 
 void InitializeHttpParser(Local<Object> target,
@@ -965,6 +970,11 @@ void InitializeHttpParser(Local<Object> target,
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
               t->GetFunction(env->context()).ToLocalChecked()).FromJust();
+
+#ifndef NODE_EXPERIMENTAL_HTTP
+  static uv_once_t init_once = UV_ONCE_INIT;
+  uv_once(&init_once, InitMaxHttpHeaderSizeOnce);
+#endif  /* NODE_EXPERIMENTAL_HTTP */
 }
 
 }  // anonymous namespace

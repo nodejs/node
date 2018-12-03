@@ -197,6 +197,13 @@ added: v9.0.0
 
 Specify the `file` of the custom [experimental ECMAScript Module][] loader.
 
+### `--max-http-header-size=size`
+<!-- YAML
+added: REPLACEME
+-->
+
+Specify the maximum size, in bytes, of HTTP headers. Defaults to 8KB.
+
 ### `--napi-modules`
 <!-- YAML
 added: v7.10.0
@@ -620,6 +627,7 @@ Node.js options that are allowed are:
 - `--inspect-brk`
 - `--inspect-port`
 - `--loader`
+- `--max-http-header-size`
 - `--napi-modules`
 - `--no-deprecation`
 - `--no-force-async-hooks-checks`
