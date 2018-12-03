@@ -106,7 +106,7 @@ b.copy(Buffer.alloc(1), 1, 1, 1);
 // try to copy 0 bytes from past the end of the source buffer
 b.copy(Buffer.alloc(1), 0, 2048, 2048);
 
-// testing for smart defaults and ability to pass string values as offset
+// Testing for smart defaults and ability to pass string values as offset
 {
   const writeTest = Buffer.from('abcdes');
   writeTest.write('n', 'ascii');
@@ -799,7 +799,7 @@ common.expectsError(
   outOfRangeError
 );
 
-// attempt to overflow buffers, similar to previous bug in array buffers
+// Attempt to overflow buffers, similar to previous bug in array buffers
 common.expectsError(
   () => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
   outOfRangeError

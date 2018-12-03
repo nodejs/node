@@ -1926,7 +1926,7 @@ console.log(fs.readFileSync('temp.txt', 'utf8'));
 // get the file descriptor of the file to be truncated
 const fd = fs.openSync('temp.txt', 'r+');
 
-// truncate the file to 10 bytes, whereas the actual size is 7 bytes
+// Truncate the file to 10 bytes, whereas the actual size is 7 bytes
 fs.ftruncate(fd, 10, (err) => {
   assert.ifError(err);
   console.log(fs.readFileSync('temp.txt'));

@@ -33,7 +33,7 @@ const { connect: netConnect } = require('net');
   }));
 }
 
-// check for session connect callback on already connected socket
+// Check for session connect callback on already connected socket
 {
   const server = createServer();
   server.listen(0, mustCall(() => {

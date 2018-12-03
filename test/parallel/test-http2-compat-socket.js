@@ -62,7 +62,7 @@ server.on('request', common.mustCall(function(request, response) {
     });
   }));
 
-  // properties that do not exist on the proxy are retrieved from the socket
+  // Properties that do not exist on the proxy are retrieved from the socket
   assert.ok(request.socket._server);
   assert.strictEqual(request.socket.connecting, false);
 

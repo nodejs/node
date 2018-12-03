@@ -31,7 +31,7 @@ function childProcessExecStdout({ dur, len }) {
       try {
         execSync(`taskkill /f /t /pid ${child.pid}`);
       } catch {
-        // this is a best effort kill. stderr is piped to parent for tracing.
+        // This is a best effort kill. stderr is piped to parent for tracing.
       }
     } else {
       child.kill();

@@ -58,7 +58,7 @@ function main({ api, cipher, type, len, writes }) {
 
   const fn = api === 'stream' ? streamWrite : legacyWrite;
 
-  // write data as fast as possible to alice, and have bob decrypt.
+  // Write data as fast as possible to alice, and have bob decrypt.
   // use old API for comparison to v0.8
   bench.start();
   fn(alice_cipher, bob_cipher, message, encoding, writes);

@@ -43,7 +43,7 @@ function test(file, expected) {
 }
 
 {
-  // change CWD as we do this test so it's not dependent on current CWD
+  // Change CWD as we do this test so it's not dependent on current CWD
   // being in the test folder
   process.chdir(__dirname);
   test('test-init', 'Loaded successfully!');
@@ -57,7 +57,7 @@ function test(file, expected) {
 }
 
 {
-  // ensures that `node fs` does not mistakenly load the native 'fs' module
+  // Ensures that `node fs` does not mistakenly load the native 'fs' module
   // instead of the desired file and that the fs module loads as
   // expected in node
   process.chdir(fixtures.path('test-init-native'));

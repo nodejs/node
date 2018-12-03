@@ -64,7 +64,7 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock submitPushPromise because we only care about testing error handling
+// Mock submitPushPromise because we only care about testing error handling
 Http2Stream.prototype.pushPromise = () => currentError.ngError;
 
 const server = http2.createServer();

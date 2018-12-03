@@ -40,7 +40,7 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock submitResponse because we only care about testing error handling
+// Mock submitResponse because we only care about testing error handling
 Http2Stream.prototype.respond = () => currentError.ngError;
 
 const server = http2.createServer();

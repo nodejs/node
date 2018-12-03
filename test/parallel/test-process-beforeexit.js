@@ -46,7 +46,7 @@ function tryListen() {
     }));
 }
 
-// test that a function invoked from the beforeExit handler can use a timer
+// Test that a function invoked from the beforeExit handler can use a timer
 // to keep the event loop open, which can use another timer to keep the event
 // loop open, etc.
 function tryRepeatedTimer() {

@@ -23,7 +23,7 @@
 const common = require('../common');
 const http = require('http');
 
-// sending `agent: false` when `port: null` is also passed in (i.e. the result
+// Sending `agent: false` when `port: null` is also passed in (i.e. the result
 // of a `url.parse()` call with the default port used, 80 or 443), should not
 // result in an assertion error...
 const opts = {
@@ -34,7 +34,7 @@ const opts = {
   agent: false
 };
 
-// we just want an "error" (no local HTTP server on port 80) or "response"
+// We just want an "error" (no local HTTP server on port 80) or "response"
 // to happen (user happens ot have HTTP server running on port 80).
 // As long as the process doesn't crash from a C++ assertion then we're good.
 const req = http.request(opts);

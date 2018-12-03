@@ -108,7 +108,7 @@ common.expectsError(
   errorProperty);
 
 {
-  // check sourceEnd resets to targetEnd if former is greater than the latter
+  // Check sourceEnd resets to targetEnd if former is greater than the latter
   b.fill(++cntr);
   c.fill(++cntr);
   b.copy(c, 0, 0, 1025);

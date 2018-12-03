@@ -92,7 +92,7 @@ source.on('close', function() {
 if (process.env.BOUND === 'y') {
   source.bind(0);
 } else {
-  // cluster doesn't know about exclusive sockets, so it won't close them. This
+  // Cluster doesn't know about exclusive sockets, so it won't close them. This
   // is expected, its the same situation for timers, outgoing tcp connections,
   // etc, which also keep workers alive after disconnect was requested.
   source.unref();

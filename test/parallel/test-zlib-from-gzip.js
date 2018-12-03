@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// test unzipping a file that was created with a non-node gzip lib,
+// Test unzipping a file that was created with a non-node gzip lib,
 // piped in as fast as possible.
 
 const common = require('../common');

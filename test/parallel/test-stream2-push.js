@@ -27,7 +27,7 @@ const { Readable, Writable } = require('stream');
 const EE = require('events').EventEmitter;
 
 
-// a mock thing a bit like the net.Socket/tcp_wrap.handle interaction
+// A mock thing a bit like the net.Socket/tcp_wrap.handle interaction
 
 const stream = new Readable({
   highWaterMark: 16,

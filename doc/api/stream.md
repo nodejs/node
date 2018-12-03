@@ -131,7 +131,7 @@ const server = http.createServer((req, res) => {
     body += chunk;
   });
 
-  // the 'end' event indicates that the entire body has been received
+  // The 'end' event indicates that the entire body has been received
   req.on('end', () => {
     try {
       const data = JSON.parse(body);

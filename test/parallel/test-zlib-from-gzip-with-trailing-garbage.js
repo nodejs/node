@@ -23,7 +23,7 @@ zlib.gunzip(data, common.mustCall((err, result) => {
   );
 }));
 
-// if the trailing garbage happens to look like a gzip header, it should
+// If the trailing garbage happens to look like a gzip header, it should
 // throw an error.
 data = Buffer.concat([
   zlib.gzipSync('abc'),

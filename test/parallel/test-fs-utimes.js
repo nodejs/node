@@ -186,7 +186,7 @@ process.on('exit', () => {
 const path = `${tmpdir.path}/test-utimes-precision`;
 fs.writeFileSync(path, '');
 
-// test Y2K38 for all platforms [except 'arm', 'OpenBSD' and 'SunOS']
+// Test Y2K38 for all platforms [except 'arm', 'OpenBSD' and 'SunOS']
 if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
   // because 2 ** 31 doesn't look right
   // eslint-disable-next-line space-infix-ops

@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 
-// makes sure that Http2ServerResponse setHeader & removeHeader, do not throw
+// Makes sure that Http2ServerResponse setHeader & removeHeader, do not throw
 // any errors if the stream was destroyed before headers were sent
 
 const server = h2.createServer();

@@ -1,4 +1,4 @@
-// test UDP send throughput with the multi buffer API against Buffer.concat
+// Test UDP send throughput with the multi buffer API against Buffer.concat
 'use strict';
 
 const common = require('../common.js');

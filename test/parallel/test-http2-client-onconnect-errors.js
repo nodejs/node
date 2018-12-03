@@ -65,7 +65,7 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock submitRequest because we only care about testing error handling
+// Mock submitRequest because we only care about testing error handling
 Http2Session.prototype.request = () => currentError;
 
 const server = http2.createServer(common.mustNotCall());

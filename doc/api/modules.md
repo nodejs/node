@@ -49,7 +49,7 @@ console.log(`The area of mySquare is ${mySquare.area()}`);
 The `square` module is defined in `square.js`:
 
 ```js
-// assigning to exports will not modify module, must use module.exports
+// Assigning to exports will not modify module, must use module.exports
 module.exports = class Square {
   constructor(width) {
     this.width = width;
