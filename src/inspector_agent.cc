@@ -110,7 +110,9 @@ static int StartDebugSignalHandler() {
   sigset_t sigmask;
   // Mask all signals.
   sigfillset(&sigmask);
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask));
+  sigset_t savemask;
+  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &savemask));
+  sigmask = savemask;
   pthread_t thread;
   const int err = pthread_create(&thread, &attr,
                                  StartIoThreadMain, nullptr);
