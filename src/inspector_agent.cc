@@ -211,14 +211,15 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        const std::unique_ptr<V8Inspector>& inspector,
                        std::shared_ptr<WorkerManager> worker_manager,
                        std::unique_ptr<InspectorSessionDelegate> delegate,
+                       std::shared_ptr<MainThreadHandle> main_thread_,
                        bool prevent_shutdown)
-                       : delegate_(std::move(delegate)),
-                         prevent_shutdown_(prevent_shutdown) {
+      : delegate_(std::move(delegate)), prevent_shutdown_(prevent_shutdown) {
     session_ = inspector->connect(1, this, StringView());
-    node_dispatcher_.reset(new protocol::UberDispatcher(this));
-    tracing_agent_.reset(new protocol::TracingAgent(env));
+    node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
+    tracing_agent_ =
+        std::make_unique<protocol::TracingAgent>(env, main_thread_);
     tracing_agent_->Wire(node_dispatcher_.get());
-    worker_agent_.reset(new protocol::WorkerAgent(worker_manager));
+    worker_agent_ = std::make_unique<protocol::WorkerAgent>(worker_manager);
     worker_agent_->Wire(node_dispatcher_.get());
   }
 
@@ -467,9 +468,12 @@ class NodeInspectorClient : public V8InspectorClient {
                       bool prevent_shutdown) {
     events_dispatched_ = true;
     int session_id = next_session_id_++;
-    channels_[session_id] =
-        std::make_unique<ChannelImpl>(env_, client_, getWorkerManager(),
-                                      std::move(delegate), prevent_shutdown);
+    channels_[session_id] = std::make_unique<ChannelImpl>(env_,
+                                                          client_,
+                                                          getWorkerManager(),
+                                                          std::move(delegate),
+                                                          getThreadHandle(),
+                                                          prevent_shutdown);
     return session_id;
   }
 

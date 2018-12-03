@@ -25,3 +25,4 @@ session.post('NodeTracing.start', {
       'Tracing properties can only be changed through main thread sessions'
   });
 }));
+session.disconnect();

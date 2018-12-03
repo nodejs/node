@@ -84,6 +84,7 @@ class MainThreadInterface {
   }
   void AddObject(int handle, std::unique_ptr<Deletable> object);
   Deletable* GetObject(int id);
+  Deletable* GetObjectIfExists(int id);
   void RemoveObject(int handle);
 
  private:
