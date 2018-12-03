@@ -3,10 +3,7 @@
   "description": "remark packaged for node markdown linting",
   "version": "1.0.0",
   "devDependencies": {
-    "rollup": "^0.55.5",
-    "rollup-plugin-commonjs": "^8.0.2",
-    "rollup-plugin-json": "^2.3.1",
-    "rollup-plugin-node-resolve": "^3.4.0"
+    "@zeit/ncc": "^0.2.0"
   },
   "dependencies": {
     "markdown-extensions": "^1.1.0",
@@ -16,8 +13,9 @@
     "unified-args": "^6.0.0",
     "unified-engine": "^5.1.0"
   },
+  "main": "src/cli-entry.js",
   "scripts": {
-    "build": "rollup -c",
-    "build-node": "npm run build && cp dist/* .."
+    "build": "ncc build",
+    "build-node": "npm run build && cp dist/index.js ../lint-md.js"
   }
 }
