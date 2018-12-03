@@ -116,7 +116,8 @@ std::string GetHumanReadableProcessName() {
 }
 
 void GetHumanReadableProcessName(char (*name)[1024]) {
-  char title[1024] = "Node.js";
+  // Leave room after title for pid, which can be up to 20 digits for 64 bit.
+  char title[1000] = "Node.js";
   uv_get_process_title(title, sizeof(title));
   snprintf(*name, sizeof(*name), "%s[%d]", title, uv_os_getpid());
 }
