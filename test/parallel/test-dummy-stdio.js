@@ -12,7 +12,8 @@ function runTest(fd, streamName, testOutputStream, expectedName) {
     '-e', `
     require('internal/process/stdio').resetStdioForTesting();
     fs.closeSync(${fd});
-    process.${testOutputStream}.write(process.${streamName}.constructor.name);
+    const ctorName = process.${streamName}.constructor.name;
+    process.${testOutputStream}.write(ctorName);
     `]);
   assert.strictEqual(result[testOutputStream].toString(), expectedName,
                      `stdout:\n${result.stdout}\nstderr:\n${result.stderr}\n` +
