@@ -389,6 +389,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24852
+    description: The `getters` option is supported now.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24326
     description: The `depth` default changed back to `2`.
@@ -468,6 +471,11 @@ changes:
     of an object and Set and Map entries will be sorted in the returned string.
     If set to `true` the [default sort][] is going to be used. If set to a
     function, it is used as a [compare function][].
+  * `getters` {boolean|string} If set to `true`, getters are going to be
+    inspected as well. If set to `'get'` only getters without setter are going
+    to be inspected. If set to `'set'` only getters having a corresponding
+    setter are going to be inspected. This might cause side effects depending on
+    the getter function. **Default:** `false`.
 * Returns: {string} The representation of passed object
 
 The `util.inspect()` method returns a string representation of `object` that is
