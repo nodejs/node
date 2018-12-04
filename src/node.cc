@@ -345,6 +345,10 @@ tracing::AgentWriterHandle* GetTracingAgentWriter() {
   return v8_platform.GetTracingAgentWriter();
 }
 
+void DisposePlatform() {
+  v8_platform.Dispose();
+}
+
 #ifdef __POSIX__
 static const unsigned kMaxSignal = 32;
 #endif

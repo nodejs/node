@@ -859,10 +859,13 @@ void Environment::AsyncHooks::grow_async_ids_stack() {
 uv_key_t Environment::thread_local_env = {};
 
 void Environment::Exit(int exit_code) {
-  if (is_main_thread())
+  if (is_main_thread()) {
+    stop_sub_worker_contexts();
+    DisposePlatform();
     exit(exit_code);
-  else
+  } else {
     worker_context_->Exit(exit_code);
+  }
 }
 
 void Environment::stop_sub_worker_contexts() {
