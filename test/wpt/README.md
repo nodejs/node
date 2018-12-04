@@ -40,7 +40,7 @@ $ git node wpt url
 
 ### 3. Create the test driver
 
-For example, for the URL tests, add a file `test/wpt/test-whatwg-url.js`:
+For example, for the URL tests, add a file `test/wpt/test-url.js`:
 
 ```js
 'use strict';
@@ -75,14 +75,14 @@ Run the test using `tools/test.py` and see if there are any failures.
 For example, to run all the URL tests under `test/fixtures/wpt/url`:
 
 ```text
-$ tools/test.py wpt/test-whatwg-url
+$ tools/test.py wpt/test-url
 ```
 
 To run a specific test in WPT, for example, `url/url-searchparams.any.js`,
 pass the file name as argument to the corresponding test driver:
 
 ```text
-node --expose-internals test/wpt/test-whatwg-url.js url-searchparams.any.js
+node --expose-internals test/wpt/test-url.js url-searchparams.any.js
 ```
 
 If there are any failures, update the corresponding status file
