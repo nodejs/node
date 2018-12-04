@@ -3458,7 +3458,6 @@ bool Hash::HashInit(const char* hash_type) {
     mdctx_.reset();
     return false;
   }
-  finalized_ = false;
   return true;
 }
 
@@ -3512,7 +3511,6 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   unsigned int md_len;
 
   EVP_DigestFinal_ex(hash->mdctx_.get(), md_value, &md_len);
-  hash->finalized_ = true;
 
   Local<Value> error;
   MaybeLocal<Value> rc =
