@@ -461,10 +461,12 @@ class WasmRunner : public WasmRunnerBase {
                                          wrapper_code, wrapper_.signature());
     int32_t result;
     {
-      trap_handler::ThreadInWasmScope scope;
+      trap_handler::SetThreadInWasm();
 
       result = runner.Call(static_cast<void*>(&p)...,
                            static_cast<void*>(&return_value));
+
+      trap_handler::ClearThreadInWasm();
     }
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
     return WasmRunnerBase::trap_happened

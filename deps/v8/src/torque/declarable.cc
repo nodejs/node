@@ -34,18 +34,6 @@ std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
   return os;
 }
 
-std::string Variable::RValue() const {
-  if (!IsDefined()) {
-    ReportError("Reading uninitialized variable.");
-  }
-  if (type()->IsStructType()) {
-    return value();
-  }
-  std::string result = "(*" + value() + ")";
-  if (!IsConst()) result += ".value()";
-  return result;
-}
-
 void PrintLabel(std::ostream& os, const Label& l, bool with_names) {
   os << l.name();
   if (l.GetParameterCount() != 0) {

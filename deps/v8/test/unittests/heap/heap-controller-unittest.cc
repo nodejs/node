@@ -34,8 +34,8 @@ void CheckEqualRounded(double expected, double actual) {
 
 TEST_F(HeapControllerTest, HeapGrowingFactor) {
   HeapController heap_controller(i_isolate()->heap());
-  double min_factor = heap_controller.kMinGrowingFactor;
-  double max_factor = heap_controller.kMaxGrowingFactor;
+  double min_factor = heap_controller.min_growing_factor_;
+  double max_factor = heap_controller.max_growing_factor_;
 
   CheckEqualRounded(max_factor, heap_controller.GrowingFactor(34, 1, 4.0));
   CheckEqualRounded(3.553, heap_controller.GrowingFactor(45, 1, 4.0));
@@ -51,15 +51,15 @@ TEST_F(HeapControllerTest, HeapGrowingFactor) {
 TEST_F(HeapControllerTest, MaxHeapGrowingFactor) {
   HeapController heap_controller(i_isolate()->heap());
   CheckEqualRounded(
-      1.3, heap_controller.MaxGrowingFactor(heap_controller.kMinSize * MB));
+      1.3, heap_controller.MaxGrowingFactor(HeapController::kMinSize * MB));
   CheckEqualRounded(1.600, heap_controller.MaxGrowingFactor(
-                               heap_controller.kMaxSize / 2 * MB));
+                               HeapController::kMaxSize / 2 * MB));
   CheckEqualRounded(
       1.999, heap_controller.MaxGrowingFactor(
-                 (heap_controller.kMaxSize - Heap::kPointerMultiplier) * MB));
+                 (HeapController::kMaxSize - Heap::kPointerMultiplier) * MB));
   CheckEqualRounded(4.0,
                     heap_controller.MaxGrowingFactor(
-                        static_cast<size_t>(heap_controller.kMaxSize) * MB));
+                        static_cast<size_t>(HeapController::kMaxSize) * MB));
 }
 
 TEST_F(HeapControllerTest, OldGenerationAllocationLimit) {
@@ -75,39 +75,43 @@ TEST_F(HeapControllerTest, OldGenerationAllocationLimit) {
   double factor =
       heap_controller.GrowingFactor(gc_speed, mutator_speed, max_factor);
 
-  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateAllocationLimit(
-                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
-                new_space_capacity, Heap::HeapGrowingMode::kDefault));
+  EXPECT_EQ(
+      static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+      heap->heap_controller()->CalculateAllocationLimit(
+          old_gen_size, max_old_generation_size, max_factor, gc_speed,
+          mutator_speed, new_space_capacity, Heap::HeapGrowingMode::kDefault));
 
-  factor = Min(factor, heap_controller.kConservativeGrowingFactor);
-  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateAllocationLimit(
-                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
-                new_space_capacity, Heap::HeapGrowingMode::kSlow));
+  factor = Min(factor, heap_controller.conservative_growing_factor_);
+  EXPECT_EQ(
+      static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+      heap->heap_controller()->CalculateAllocationLimit(
+          old_gen_size, max_old_generation_size, max_factor, gc_speed,
+          mutator_speed, new_space_capacity, Heap::HeapGrowingMode::kSlow));
 
-  factor = Min(factor, heap_controller.kConservativeGrowingFactor);
+  factor = Min(factor, heap_controller.conservative_growing_factor_);
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             heap->heap_controller()->CalculateAllocationLimit(
-                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
-                new_space_capacity, Heap::HeapGrowingMode::kConservative));
+                old_gen_size, max_old_generation_size, max_factor, gc_speed,
+                mutator_speed, new_space_capacity,
+                Heap::HeapGrowingMode::kConservative));
 
-  factor = heap_controller.kMinGrowingFactor;
-  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateAllocationLimit(
-                old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
-                new_space_capacity, Heap::HeapGrowingMode::kMinimal));
+  factor = heap_controller.min_growing_factor_;
+  EXPECT_EQ(
+      static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+      heap->heap_controller()->CalculateAllocationLimit(
+          old_gen_size, max_old_generation_size, max_factor, gc_speed,
+          mutator_speed, new_space_capacity, Heap::HeapGrowingMode::kMinimal));
 }
 
 TEST_F(HeapControllerTest, MaxOldGenerationSize) {
   HeapController heap_controller(i_isolate()->heap());
   uint64_t configurations[][2] = {
-      {0, heap_controller.kMinSize},
-      {512, heap_controller.kMinSize},
+      {0, HeapController::kMinSize},
+      {512, HeapController::kMinSize},
       {1 * GB, 256 * Heap::kPointerMultiplier},
       {2 * static_cast<uint64_t>(GB), 512 * Heap::kPointerMultiplier},
-      {4 * static_cast<uint64_t>(GB), heap_controller.kMaxSize},
-      {8 * static_cast<uint64_t>(GB), heap_controller.kMaxSize}};
+      {4 * static_cast<uint64_t>(GB), HeapController::kMaxSize},
+      {8 * static_cast<uint64_t>(GB), HeapController::kMaxSize}};
 
   for (auto configuration : configurations) {
     ASSERT_EQ(configuration[1],

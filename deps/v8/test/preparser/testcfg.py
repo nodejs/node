@@ -81,7 +81,7 @@ class TestSuite(testsuite.TestSuite):
     return VariantsGenerator
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def __init__(self, suite, path, name, test_config, source, template_flags):
     super(TestCase, self).__init__(suite, path, name, test_config)
 

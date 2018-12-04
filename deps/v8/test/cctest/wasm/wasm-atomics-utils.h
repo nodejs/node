@@ -13,6 +13,14 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+#define OPERATION_LIST(V) \
+  V(Add)                  \
+  V(Sub)                  \
+  V(And)                  \
+  V(Or)                   \
+  V(Xor)                  \
+  V(Exchange)
+
 typedef uint64_t (*Uint64BinOp)(uint64_t, uint64_t);
 typedef uint32_t (*Uint32BinOp)(uint32_t, uint32_t);
 typedef uint16_t (*Uint16BinOp)(uint16_t, uint16_t);

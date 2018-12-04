@@ -213,7 +213,7 @@ class CompilationCache {
 
  private:
   explicit CompilationCache(Isolate* isolate);
-  ~CompilationCache();
+  ~CompilationCache() = default;
 
   base::HashMap* EagerOptimizingSet();
 

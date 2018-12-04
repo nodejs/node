@@ -13,20 +13,20 @@
 namespace v8 {
 namespace internal {
 
-int OrderedHashSet::GetMapRootIndex() {
-  return Heap::kOrderedHashSetMapRootIndex;
+RootIndex OrderedHashSet::GetMapRootIndex() {
+  return RootIndex::kOrderedHashSetMap;
 }
 
-int OrderedHashMap::GetMapRootIndex() {
-  return Heap::kOrderedHashMapMapRootIndex;
+RootIndex OrderedHashMap::GetMapRootIndex() {
+  return RootIndex::kOrderedHashMapMap;
 }
 
-int SmallOrderedHashMap::GetMapRootIndex() {
-  return Heap::kSmallOrderedHashMapMapRootIndex;
+RootIndex SmallOrderedHashMap::GetMapRootIndex() {
+  return RootIndex::kSmallOrderedHashMapMap;
 }
 
-int SmallOrderedHashSet::GetMapRootIndex() {
-  return Heap::kSmallOrderedHashSetMapRootIndex;
+RootIndex SmallOrderedHashSet::GetMapRootIndex() {
+  return RootIndex::kSmallOrderedHashSetMap;
 }
 
 inline Object* OrderedHashMap::ValueAt(int entry) {

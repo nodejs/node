@@ -304,7 +304,6 @@ typedef FPURegister DoubleRegister;
 DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
 #undef DECLARE_DOUBLE_REGISTER
 
-constexpr DoubleRegister no_freg = DoubleRegister::no_reg();
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // SIMD registers.
@@ -385,7 +384,7 @@ constexpr MSAControlRegister MSACSR = {kMSACSRRegister};
 // Machine instruction Operands.
 
 // Class Operand represents a shifter operand in data processing instructions.
-class Operand BASE_EMBEDDED {
+class Operand {
  public:
   // Immediate.
   V8_INLINE explicit Operand(int32_t immediate,
@@ -408,6 +407,7 @@ class Operand BASE_EMBEDDED {
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedCode(CodeStub* stub);
+  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Register.
   V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
@@ -883,6 +883,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void ll(Register rd, const MemOperand& rs);
   void sc(Register rd, const MemOperand& rs);
+  void llwp(Register rd, Register rt, Register base);
+  void scwp(Register rd, Register rt, Register base);
 
   // ---------PC-Relative-instructions-----------
 
@@ -2212,8 +2214,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   friend class EnsureSpace;
 };
 
-
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit inline EnsureSpace(Assembler* assembler);
 };

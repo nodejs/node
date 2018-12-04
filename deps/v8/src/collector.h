@@ -184,7 +184,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
       : Collector<T, growth_factor, max_growth>(initial_capacity),
         sequence_start_(kNoSequence) {}
 
-  virtual ~SequenceCollector() {}
+  ~SequenceCollector() override = default;
 
   void StartSequence() {
     DCHECK_EQ(sequence_start_, kNoSequence);
@@ -208,7 +208,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
     sequence_start_ = kNoSequence;
   }
 
-  virtual void Reset() {
+  void Reset() override {
     sequence_start_ = kNoSequence;
     this->Collector<T, growth_factor, max_growth>::Reset();
   }
@@ -218,7 +218,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
   int sequence_start_;
 
   // Move the currently active sequence to the new chunk.
-  virtual void NewChunk(int new_capacity) {
+  void NewChunk(int new_capacity) override {
     if (sequence_start_ == kNoSequence) {
       // Fall back on default behavior if no sequence has been started.
       this->Collector<T, growth_factor, max_growth>::NewChunk(new_capacity);

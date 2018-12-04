@@ -14,30 +14,38 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-collator-inl.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-break-iterator-inl.h"
+#include "src/objects/js-collator-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-collection-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-date-time-format-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/js-number-format-inl.h"
+#include "src/objects/js-plural-rules-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
-#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/js-segmenter-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
+#include "src/objects/microtask-queue-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions-inl.h"
@@ -112,6 +120,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
     case FIXED_ARRAY_TYPE:
+    case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -187,6 +196,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
     // TODO(titzer): debug printing for more wasm objects
+    case WASM_EXCEPTION_TYPE:
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_TABLE_TYPE:
@@ -309,8 +319,14 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSDataView::cast(this)->JSDataViewPrint(os);
       break;
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+      JSV8BreakIterator::cast(this)->JSV8BreakIteratorPrint(os);
+      break;
     case JS_INTL_COLLATOR_TYPE:
       JSCollator::cast(this)->JSCollatorPrint(os);
+      break;
+    case JS_INTL_DATE_TIME_FORMAT_TYPE:
+      JSDateTimeFormat::cast(this)->JSDateTimeFormatPrint(os);
       break;
     case JS_INTL_LIST_FORMAT_TYPE:
       JSListFormat::cast(this)->JSListFormatPrint(os);
@@ -318,18 +334,24 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocalePrint(os);
       break;
+    case JS_INTL_NUMBER_FORMAT_TYPE:
+      JSNumberFormat::cast(this)->JSNumberFormatPrint(os);
+      break;
     case JS_INTL_PLURAL_RULES_TYPE:
       JSPluralRules::cast(this)->JSPluralRulesPrint(os);
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(os);
       break;
+    case JS_INTL_SEGMENTER_TYPE:
+      JSSegmenter::cast(this)->JSSegmenterPrint(os);
+      break;
 #endif  // V8_INTL_SUPPORT
-#define MAKE_STRUCT_CASE(NAME, Name, name) \
-  case NAME##_TYPE:                        \
+#define MAKE_STRUCT_CASE(TYPE, Name, name) \
+  case TYPE:                               \
     Name::cast(this)->Name##Print(os);     \
     break;
-  STRUCT_LIST(MAKE_STRUCT_CASE)
+      STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
 
     case ALLOCATION_SITE_TYPE:
@@ -358,9 +380,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case STRING_TYPE:
     case CONS_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -372,9 +394,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SLICED_ONE_BYTE_STRING_TYPE:
     case THIN_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-    case SHORT_EXTERNAL_STRING_TYPE:
-    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case UNCACHED_EXTERNAL_STRING_TYPE:
+    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
@@ -832,7 +854,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
       Smi* smi;
       if (raw_transitions()->ToSmi(&smi)) {
         os << Brief(smi);
-      } else if (raw_transitions()->ToStrongOrWeakHeapObject(&heap_object)) {
+      } else if (raw_transitions()->GetHeapObject(&heap_object)) {
         os << Brief(heap_object);
       }
       transitions.PrintTransitions(os);
@@ -1073,29 +1095,6 @@ void FeedbackVector::FeedbackSlotPrint(std::ostream& os,
   nexus.Print(os);
 }
 
-namespace {
-
-const char* ICState2String(InlineCacheState state) {
-  switch (state) {
-    case UNINITIALIZED:
-      return "UNINITIALIZED";
-    case PREMONOMORPHIC:
-      return "PREMONOMORPHIC";
-    case MONOMORPHIC:
-      return "MONOMORPHIC";
-    case RECOMPUTE_HANDLER:
-      return "RECOMPUTE_HANDLER";
-    case POLYMORPHIC:
-      return "POLYMORPHIC";
-    case MEGAMORPHIC:
-      return "MEGAMORPHIC";
-    case GENERIC:
-      return "GENERIC";
-  }
-  UNREACHABLE();
-}
-}  // anonymous namespace
-
 void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
   switch (kind()) {
     case FeedbackSlotKind::kCall:
@@ -1114,7 +1113,7 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kCloneObject: {
-      os << ICState2String(StateFromFeedback());
+      os << InlineCacheState2String(StateFromFeedback());
       break;
     }
     case FeedbackSlotKind::kBinaryOp: {
@@ -1278,7 +1277,7 @@ void JSWeakSet::JSWeakSetPrint(std::ostream& os) {  // NOLINT
 void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSArrayBuffer");
   os << "\n - backing_store: " << backing_store();
-  os << "\n - byte_length: " << Brief(byte_length());
+  os << "\n - byte_length: " << byte_length();
   if (is_external()) os << "\n - external";
   if (is_neuterable()) os << "\n - neuterable";
   if (was_neutered()) os << "\n - neutered";
@@ -1291,8 +1290,8 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSTypedArray");
   os << "\n - buffer: " << Brief(buffer());
-  os << "\n - byte_offset: " << Brief(byte_offset());
-  os << "\n - byte_length: " << Brief(byte_length());
+  os << "\n - byte_offset: " << byte_offset();
+  os << "\n - byte_length: " << byte_length();
   os << "\n - length: " << Brief(length());
   if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
@@ -1309,8 +1308,8 @@ void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
 void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSDataView");
   os << "\n - buffer =" << Brief(buffer());
-  os << "\n - byte_offset: " << Brief(byte_offset());
-  os << "\n - byte_length: " << Brief(byte_length());
+  os << "\n - byte_offset: " << byte_offset();
+  os << "\n - byte_length: " << byte_length();
   if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
 }
@@ -1953,11 +1952,32 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
 }
 
 #ifdef V8_INTL_SUPPORT
+void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSV8BreakIterator");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - type: " << TypeAsString();
+  os << "\n - break iterator: " << Brief(break_iterator());
+  os << "\n - unicode string: " << Brief(unicode_string());
+  os << "\n - bound adopt text: " << Brief(bound_adopt_text());
+  os << "\n - bound first: " << Brief(bound_first());
+  os << "\n - bound next: " << Brief(bound_next());
+  os << "\n - bound current: " << Brief(bound_current());
+  os << "\n - bound break type: " << Brief(bound_break_type());
+  os << "\n";
+}
+
 void JSCollator::JSCollatorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSCollator");
-  os << "\n - usage: " << JSCollator::UsageToString(usage());
   os << "\n - icu collator: " << Brief(icu_collator());
   os << "\n - bound compare: " << Brief(bound_compare());
+  os << "\n";
+}
+
+void JSDateTimeFormat::JSDateTimeFormatPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSDateTimeFormat");
+  os << "\n - icu locale: " << Brief(icu_locale());
+  os << "\n - icu simple date format: " << Brief(icu_simple_date_format());
+  os << "\n - bound format: " << Brief(bound_format());
   os << "\n";
 }
 
@@ -1966,7 +1986,7 @@ void JSListFormat::JSListFormatPrint(std::ostream& os) {  // NOLINT
   os << "\n - locale: " << Brief(locale());
   os << "\n - style: " << StyleAsString();
   os << "\n - type: " << TypeAsString();
-  os << "\n - formatter: " << Brief(formatter());
+  os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";
 }
 
@@ -1978,11 +1998,21 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   os << "\n - baseName: " << Brief(base_name());
   os << "\n - locale: " << Brief(locale());
   os << "\n - calendar: " << Brief(calendar());
-  os << "\n - caseFirst: " << Brief(case_first());
+  os << "\n - caseFirst: " << CaseFirstAsString();
   os << "\n - collation: " << Brief(collation());
-  os << "\n - hourCycle: " << Brief(hour_cycle());
-  os << "\n - numeric: " << Brief(numeric());
+  os << "\n - hourCycle: " << HourCycleAsString();
+  os << "\n - numeric: " << NumericAsString();
   os << "\n - numberingSystem: " << Brief(numbering_system());
+  os << "\n";
+}
+
+void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSNumberFormat");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - icu_number_format: " << Brief(icu_number_format());
+  os << "\n - bound_format: " << Brief(bound_format());
+  os << "\n - style: " << StyleAsString();
+  os << "\n - currency_display: " << CurrencyDisplayAsString();
   os << "\n";
 }
 
@@ -2002,7 +2032,16 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
   os << "\n - locale: " << Brief(locale());
   os << "\n - style: " << StyleAsString();
   os << "\n - numeric: " << NumericAsString();
-  os << "\n - formatter: " << Brief(formatter());
+  os << "\n - icu formatter: " << Brief(icu_formatter());
+  os << "\n";
+}
+
+void JSSegmenter::JSSegmenterPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSSegmenter");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - granularity: " << GranularityAsString();
+  os << "\n - lineBreakStyle: " << LineBreakStyleAsString();
+  os << "\n - icubreak iterator: " << Brief(icu_break_iterator());
   os << "\n";
 }
 #endif  // V8_INTL_SUPPORT
@@ -2173,6 +2212,13 @@ void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopePrint(
   os << "\n";
 }
 
+void MicrotaskQueue::MicrotaskQueuePrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "MicrotaskQueue");
+  os << "\n - pending_microtask_count: " << pending_microtask_count();
+  os << "\n - queue: " << Brief(queue());
+  os << "\n";
+}
+
 void InterpreterData::InterpreterDataPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "InterpreterData");
   os << "\n - bytecode_array: " << Brief(bytecode_array());
@@ -2191,12 +2237,12 @@ void MaybeObject::Print(std::ostream& os) {
   HeapObject* heap_object;
   if (ToSmi(&smi)) {
     smi->SmiPrint(os);
-  } else if (IsClearedWeakHeapObject()) {
+  } else if (IsCleared()) {
     os << "[cleared]";
-  } else if (ToWeakHeapObject(&heap_object)) {
+  } else if (GetHeapObjectIfWeak(&heap_object)) {
     os << "[weak] ";
     heap_object->HeapObjectPrint(os);
-  } else if (ToStrongHeapObject(&heap_object)) {
+  } else if (GetHeapObjectIfStrong(&heap_object)) {
     heap_object->HeapObjectPrint(os);
   } else {
     UNREACHABLE();
@@ -2356,7 +2402,7 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
     case kUninitialized:
       return;
     case kWeakRef: {
-      Map* target = Map::cast(raw_transitions_->ToWeakHeapObject());
+      Map* target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
       Name* key = GetSimpleTransitionKey(target);
       PrintOneTransition(os, key, target);
       break;

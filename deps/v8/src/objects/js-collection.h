@@ -113,9 +113,6 @@ class JSWeakCollection : public JSObject {
   // Visit the whole object.
   typedef BodyDescriptorImpl BodyDescriptor;
 
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);
 };

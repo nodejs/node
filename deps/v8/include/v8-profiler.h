@@ -341,12 +341,6 @@ class V8_EXPORT CpuProfiler {
   V8_DEPRECATED("Use Isolate::SetIdle(bool) instead.",
                 void SetIdle(bool is_idle));
 
-  /**
-   * Generate more detailed source positions to code objects. This results in
-   * better results when mapping profiling samples to script source.
-   */
-  static void UseDetailedSourcePositionsForProfiling(Isolate* isolate);
-
  private:
   CpuProfiler();
   ~CpuProfiler();
@@ -451,7 +445,7 @@ class V8_EXPORT OutputStream {  // NOLINT
     kContinue = 0,
     kAbort = 1
   };
-  virtual ~OutputStream() {}
+  virtual ~OutputStream() = default;
   /** Notify about the end of stream. */
   virtual void EndOfStream() = 0;
   /** Get preferred output chunk size. Called only once. */
@@ -545,7 +539,7 @@ class V8_EXPORT ActivityControl {  // NOLINT
     kContinue = 0,
     kAbort = 1
   };
-  virtual ~ActivityControl() {}
+  virtual ~ActivityControl() = default;
   /**
    * Notify about current progress. The activity can be stopped by
    * returning kAbort as the callback result.
@@ -631,7 +625,7 @@ class V8_EXPORT AllocationProfile {
    */
   virtual Node* GetRootNode() = 0;
 
-  virtual ~AllocationProfile() {}
+  virtual ~AllocationProfile() = default;
 
   static const int kNoLineNumberInfo = Message::kNoLineNumberInfo;
   static const int kNoColumnNumberInfo = Message::kNoColumnInfo;
@@ -799,15 +793,15 @@ class V8_EXPORT HeapProfiler {
     virtual const char* GetName(Local<Object> object) = 0;
 
    protected:
-    virtual ~ObjectNameResolver() {}
+    virtual ~ObjectNameResolver() = default;
   };
 
   /**
    * Takes a heap snapshot and returns it.
    */
   const HeapSnapshot* TakeHeapSnapshot(
-      ActivityControl* control = NULL,
-      ObjectNameResolver* global_object_name_resolver = NULL);
+      ActivityControl* control = nullptr,
+      ObjectNameResolver* global_object_name_resolver = nullptr);
 
   /**
    * Starts tracking of heap objects population statistics. After calling
@@ -834,7 +828,7 @@ class V8_EXPORT HeapProfiler {
    * method.
    */
   SnapshotObjectId GetHeapStats(OutputStream* stream,
-                                int64_t* timestamp_us = NULL);
+                                int64_t* timestamp_us = nullptr);
 
   /**
    * Stops tracking of heap objects population statistics, cleans up all
@@ -991,8 +985,8 @@ class V8_EXPORT RetainedObjectInfo {  // NOLINT
   virtual intptr_t GetSizeInBytes() { return -1; }
 
  protected:
-  RetainedObjectInfo() {}
-  virtual ~RetainedObjectInfo() {}
+  RetainedObjectInfo() = default;
+  virtual ~RetainedObjectInfo() = default;
 
  private:
   RetainedObjectInfo(const RetainedObjectInfo&);

@@ -26,7 +26,7 @@ namespace internal {
 //   template <typename ObjectVisitor>
 //   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
 //                                  ObjectVisitor* v);
-class BodyDescriptorBase BASE_EMBEDDED {
+class BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
   static inline void IteratePointers(HeapObject* obj, int start_offset,
@@ -35,6 +35,15 @@ class BodyDescriptorBase BASE_EMBEDDED {
   template <typename ObjectVisitor>
   static inline void IteratePointer(HeapObject* obj, int offset,
                                     ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateCustomWeakPointers(HeapObject* obj,
+                                               int start_offset, int end_offset,
+                                               ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateCustomWeakPointer(HeapObject* obj, int offset,
+                                              ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   static inline void IterateMaybeWeakPointers(HeapObject* obj, int start_offset,

@@ -16,7 +16,6 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
-#include "src/objects/api-callbacks.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -140,25 +139,13 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
       Object);
 
   Handle<Object> result;
-  bool sucess = false;
+  bool success = false;
   if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
-  sucess = Execution::Call(isolate, eval_fun, receiver, 0, nullptr)
-               .ToHandle(&result);
+  success = Execution::Call(isolate, eval_fun, receiver, 0, nullptr)
+                .ToHandle(&result);
   if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
-  if (!sucess) {
-    DCHECK(isolate->has_pending_exception());
-    return MaybeHandle<Object>();
-  }
-
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (result->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, Handle<JSGlobalProxy>::cast(result));
-    // TODO(verwaest): This will crash when the global proxy is detached.
-    result = PrototypeIterator::GetCurrent<JSObject>(iter);
-  }
-
-  return result;
+  if (!success) DCHECK(isolate->has_pending_exception());
+  return success ? result : MaybeHandle<Object>();
 }
 
 Handle<SharedFunctionInfo> DebugEvaluate::ContextBuilder::outer_info() const {
@@ -254,19 +241,17 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
 namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
-// Use macro to include both inlined and non-inlined version of an intrinsic.
+// Use macro to include only the non-inlined version of an intrinsic.
 #define INTRINSIC_WHITELIST(V)                \
   /* Conversions */                           \
   V(NumberToString)                           \
   V(ToBigInt)                                 \
-  V(ToInteger)                                \
   V(ToLength)                                 \
   V(ToNumber)                                 \
   V(ToObject)                                 \
   V(ToString)                                 \
   /* Type checks */                           \
   V(IsArray)                                  \
-  V(IsDate)                                   \
   V(IsFunction)                               \
   V(IsJSProxy)                                \
   V(IsJSReceiver)                             \
@@ -292,6 +277,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ReThrow)                                  \
   V(ThrowCalledNonCallable)                   \
   V(ThrowInvalidStringLength)                 \
+  V(ThrowIteratorError)                       \
   V(ThrowIteratorResultNotAnObject)           \
   V(ThrowReferenceError)                      \
   V(ThrowSymbolIteratorInvalid)               \
@@ -322,7 +308,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ArrayIndexOf)                             \
   V(ArrayIsArray)                             \
   V(ClassOf)                                  \
-  V(GenerateRandomNumbers)                    \
   V(GetFunctionName)                          \
   V(GetOwnPropertyDescriptor)                 \
   V(GlobalPrint)                              \
@@ -363,12 +348,16 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(OptimizeOsr)                              \
   V(UnblockConcurrentRecompilation)
 
-#define CASE(Name)       \
-  case Runtime::k##Name: \
-  case Runtime::kInline##Name:
+// Intrinsics with inline versions have to be whitelisted here a second time.
+#define INLINE_INTRINSIC_WHITELIST(V) \
+  V(Call)                             \
+  V(IsJSReceiver)
 
+#define CASE(Name) case Runtime::k##Name:
+#define INLINE_CASE(Name) case Runtime::kInline##Name:
   switch (id) {
     INTRINSIC_WHITELIST(CASE)
+    INLINE_INTRINSIC_WHITELIST(INLINE_CASE)
     return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
@@ -379,7 +368,9 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   }
 
 #undef CASE
+#undef INLINE_CASE
 #undef INTRINSIC_WHITELIST
+#undef INLINE_INTRINSIC_WHITELIST
 }
 
 #ifdef DEBUG
@@ -389,24 +380,23 @@ bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
   if (IntrinsicHasNoSideEffect(intrinsic_id)) return true;
 
 // Whitelist intrinsics called from specific builtins.
-#define BUILTIN_INTRINSIC_WHITELIST(V, W)                                 \
-  /* Arrays */                                                            \
-  V(Builtins::kArrayFilter, W(CreateDataProperty))                        \
-  V(Builtins::kArrayMap, W(CreateDataProperty))                           \
-  V(Builtins::kArrayPrototypeSlice, W(CreateDataProperty) W(SetProperty)) \
-  /* TypedArrays */                                                       \
-  V(Builtins::kTypedArrayConstructor,                                     \
-    W(TypedArrayCopyElements) W(ThrowInvalidTypedArrayAlignment))         \
-  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements))      \
-  V(Builtins::kTypedArrayPrototypeMap, W(SetProperty))
+#define BUILTIN_INTRINSIC_WHITELIST(V, W)                            \
+  /* Arrays */                                                       \
+  V(Builtins::kArrayFilter, W(CreateDataProperty))                   \
+  V(Builtins::kArrayMap, W(CreateDataProperty))                      \
+  V(Builtins::kArrayPrototypeSlice,                                  \
+    W(CreateDataProperty) W(SetKeyedProperty) W(SetNamedProperty))   \
+  /* TypedArrays */                                                  \
+  V(Builtins::kTypedArrayConstructor,                                \
+    W(TypedArrayCopyElements) W(ThrowInvalidTypedArrayAlignment))    \
+  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements)) \
+  V(Builtins::kTypedArrayPrototypeMap, W(SetKeyedProperty) W(SetNamedProperty))
 
 #define CASE(Builtin, ...) \
   case Builtin:            \
     return (__VA_ARGS__ false);
 
-#define MATCH(Intrinsic)                   \
-  intrinsic_id == Runtime::k##Intrinsic || \
-      intrinsic_id == Runtime::kInline##Intrinsic ||
+#define MATCH(Intrinsic) intrinsic_id == Runtime::k##Intrinsic ||
 
   switch (builtin_id) {
     BUILTIN_INTRINSIC_WHITELIST(CASE, MATCH)
@@ -433,6 +423,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaLookupSlot:
     case Bytecode::kLdaGlobal:
     case Bytecode::kLdaNamedProperty:
+    case Bytecode::kLdaNamedPropertyNoFeedback:
     case Bytecode::kLdaKeyedProperty:
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
@@ -477,6 +468,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     // Literals.
     case Bytecode::kCreateArrayLiteral:
     case Bytecode::kCreateEmptyArrayLiteral:
+    case Bytecode::kCreateArrayFromIterable:
     case Bytecode::kCreateObjectLiteral:
     case Bytecode::kCreateEmptyObjectLiteral:
     case Bytecode::kCreateRegExpLiteral:
@@ -561,6 +553,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeFlat:
     case Builtins::kArrayPrototypeFlatMap:
     case Builtins::kArrayPrototypeKeys:
+    case Builtins::kArrayPrototypeLastIndexOf:
     case Builtins::kArrayPrototypeSlice:
     case Builtins::kArrayPrototypeSort:
     case Builtins::kArrayForEach:
@@ -807,7 +800,10 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kMakeURIError:
     // RegExp builtins.
     case Builtins::kRegExpConstructor:
+    // Internal.
+    case Builtins::kStrictPoisonPillThrower:
       return DebugInfo::kHasNoSideEffect;
+
     // Set builtins.
     case Builtins::kSetIteratorPrototypeNext:
     case Builtins::kSetPrototypeAdd:
@@ -819,6 +815,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypePush:
     case Builtins::kArrayPrototypeReverse:
     case Builtins::kArrayPrototypeShift:
+    case Builtins::kArrayPrototypeUnshift:
     case Builtins::kArraySplice:
     case Builtins::kArrayUnshift:
     // Map builtins.
@@ -851,6 +848,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecode Bytecode;
   switch (bytecode) {
     case Bytecode::kStaNamedProperty:
+    case Bytecode::kStaNamedPropertyNoFeedback:
     case Bytecode::kStaNamedOwnProperty:
     case Bytecode::kStaKeyedProperty:
     case Bytecode::kStaInArrayLiteral:
@@ -959,34 +957,6 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   }
 
   return DebugInfo::kHasSideEffects;
-}
-
-// static
-bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
-  DisallowHeapAllocation no_gc;
-  if (callback_info->IsAccessorInfo()) {
-    // List of whitelisted internal accessors can be found in accessors.h.
-    AccessorInfo* info = AccessorInfo::cast(callback_info);
-    if (info->has_no_side_effect()) return true;
-    if (FLAG_trace_side_effect_free_debug_evaluate) {
-      PrintF("[debug-evaluate] API Callback '");
-      info->name()->ShortPrint();
-      PrintF("' may cause side effect.\n");
-    }
-  } else if (callback_info->IsInterceptorInfo()) {
-    InterceptorInfo* info = InterceptorInfo::cast(callback_info);
-    if (info->has_no_side_effect()) return true;
-    if (FLAG_trace_side_effect_free_debug_evaluate) {
-      PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
-    }
-  } else if (callback_info->IsCallHandlerInfo()) {
-    CallHandlerInfo* info = CallHandlerInfo::cast(callback_info);
-    if (info->IsSideEffectFreeCallHandlerInfo()) return true;
-    if (FLAG_trace_side_effect_free_debug_evaluate) {
-      PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
-    }
-  }
-  return false;
 }
 
 // static

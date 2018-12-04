@@ -7,6 +7,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/machine-type.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -34,16 +35,6 @@ class Node;
 
 
 using ::testing::Matcher;
-
-#define SPECULATIVE_BINOPS(V)           \
-  V(SpeculativeNumberAdd)               \
-  V(SpeculativeNumberSubtract)          \
-  V(SpeculativeNumberShiftLeft)         \
-  V(SpeculativeNumberShiftRight)        \
-  V(SpeculativeNumberShiftRightLogical) \
-  V(SpeculativeNumberBitwiseAnd)        \
-  V(SpeculativeNumberBitwiseOr)         \
-  V(SpeculativeNumberBitwiseXor)
 
 Matcher<Node*> IsDead();
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher);
@@ -221,7 +212,10 @@ Matcher<Node*> IsNumberAdd(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher,                \
                             const Matcher<Node*>& effect_matcher,             \
                             const Matcher<Node*>& control_matcher);
-SPECULATIVE_BINOPS(DECLARE_SPECULATIVE_BINOP_MATCHER);
+SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_SPECULATIVE_BINOP_MATCHER);
+DECLARE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberEqual)
+DECLARE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThan)
+DECLARE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThanOrEqual)
 #undef DECLARE_SPECULATIVE_BINOP_MATCHER
 
 Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
@@ -272,6 +266,9 @@ Matcher<Node*> IsNumberSqrt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberTan(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberTanh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberTrunc(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsStringConcat(const Matcher<Node*>& length_matcher,
+                              const Matcher<Node*>& lhs_matcher,
+                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsStringFromSingleCharCode(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsStringLength(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,

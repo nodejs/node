@@ -41,7 +41,6 @@ class DebugEvaluate : public AllStatic {
 
   static DebugInfo::SideEffectState FunctionGetSideEffectState(
       Isolate* isolate, Handle<SharedFunctionInfo> info);
-  static bool CallbackHasNoSideEffect(Object* callback_info);
   static void ApplySideEffectChecks(Handle<BytecodeArray> bytecode_array);
 
  private:

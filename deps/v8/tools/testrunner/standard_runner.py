@@ -282,7 +282,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       print '>>> Running with test processors'
       loader = LoadProc()
       tests_counter = TestsCounter()
-      results = ResultsTracker()
+      results = self._create_result_tracker(options)
       indicators = self._create_progress_indicators(options)
 
       outproc_factory = None

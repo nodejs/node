@@ -51,6 +51,7 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
   }
 }
 
+// NOLINTNEXTLINE
 FrameInspector::~FrameInspector() {
   // Destructor needs to be defined in the .cc file, because it instantiates
   // std::unique_ptr destructors but the types are not known in the header.

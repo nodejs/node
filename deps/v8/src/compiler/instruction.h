@@ -1039,7 +1039,8 @@ class V8_EXPORT_PRIVATE Constant final {
     kFloat64,
     kExternalReference,
     kHeapObject,
-    kRpoNumber
+    kRpoNumber,
+    kDelayedStringConstant
   };
 
   explicit Constant(int32_t v);
@@ -1047,10 +1048,12 @@ class V8_EXPORT_PRIVATE Constant final {
   explicit Constant(float v) : type_(kFloat32), value_(bit_cast<int32_t>(v)) {}
   explicit Constant(double v) : type_(kFloat64), value_(bit_cast<int64_t>(v)) {}
   explicit Constant(ExternalReference ref)
-      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref)) {}
+      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref.address())) {}
   explicit Constant(Handle<HeapObject> obj)
       : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
+  explicit Constant(const StringConstantBase* str)
+      : type_(kDelayedStringConstant), value_(bit_cast<intptr_t>(str)) {}
   explicit Constant(RelocatablePtrConstantInfo info);
 
   Type type() const { return type_; }
@@ -1090,7 +1093,7 @@ class V8_EXPORT_PRIVATE Constant final {
 
   ExternalReference ToExternalReference() const {
     DCHECK_EQ(kExternalReference, type());
-    return bit_cast<ExternalReference>(static_cast<intptr_t>(value_));
+    return ExternalReference::FromRawAddress(static_cast<Address>(value_));
   }
 
   RpoNumber ToRpoNumber() const {
@@ -1100,6 +1103,7 @@ class V8_EXPORT_PRIVATE Constant final {
 
   Handle<HeapObject> ToHeapObject() const;
   Handle<Code> ToCode() const;
+  const StringConstantBase* ToDelayedStringConstant() const;
 
  private:
   Type type_;
@@ -1293,7 +1297,8 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasContext() const {
     return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
-           type_ == FrameStateType::kBuiltinContinuation;
+           type_ == FrameStateType::kBuiltinContinuation ||
+           type_ == FrameStateType::kConstructStub;
   }
 
   size_t GetSize() const;
@@ -1321,7 +1326,7 @@ class FrameStateDescriptor : public ZoneObject {
 // frame state descriptor that we have to go back to.
 class DeoptimizationEntry final {
  public:
-  DeoptimizationEntry() {}
+  DeoptimizationEntry() = default;
   DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
                       DeoptimizeReason reason, VectorSlotPair const& feedback)
       : descriptor_(descriptor),
@@ -1520,13 +1525,20 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
   MachineRepresentation GetRepresentation(int virtual_register) const;
   void MarkAsRepresentation(MachineRepresentation rep, int virtual_register);
-  int representation_mask() const { return representation_mask_; }
 
   bool IsReference(int virtual_register) const {
     return CanBeTaggedPointer(GetRepresentation(virtual_register));
   }
   bool IsFP(int virtual_register) const {
     return IsFloatingPoint(GetRepresentation(virtual_register));
+  }
+  int representation_mask() const { return representation_mask_; }
+  bool HasFPVirtualRegisters() const {
+    constexpr int kFPRepMask =
+        RepresentationBit(MachineRepresentation::kFloat32) |
+        RepresentationBit(MachineRepresentation::kFloat64) |
+        RepresentationBit(MachineRepresentation::kSimd128);
+    return (representation_mask() & kFPRepMask) != 0;
   }
 
   Instruction* GetBlockStart(RpoNumber rpo) const;

@@ -55,7 +55,7 @@ template <typename KeyT>
 class BaseShape {
  public:
   typedef KeyT Key;
-  static inline int GetMapRootIndex();
+  static inline RootIndex GetMapRootIndex();
   static const bool kNeedsHoleCheck = true;
   static Object* Unwrap(Object* key) { return key; }
   static inline bool IsKey(ReadOnlyRoots roots, Object* key);
@@ -244,7 +244,7 @@ class HashTableKey {
   virtual bool IsMatch(Object* other) = 0;
   // Returns the hash value for this key.
   // Required.
-  virtual ~HashTableKey() {}
+  virtual ~HashTableKey() = default;
 
   uint32_t Hash() const { return hash_; }
 
@@ -321,7 +321,7 @@ class ObjectHashTable
 
 class EphemeronHashTableShape : public ObjectHashTableShape {
  public:
-  static inline int GetMapRootIndex();
+  static inline RootIndex GetMapRootIndex();
 };
 
 // EphemeronHashTable is similar to ObjectHashTable but gets special treatment

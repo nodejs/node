@@ -226,7 +226,7 @@ V8RuntimeAgentImpl::V8RuntimeAgentImpl(
       m_inspector(session->inspector()),
       m_enabled(false) {}
 
-V8RuntimeAgentImpl::~V8RuntimeAgentImpl() {}
+V8RuntimeAgentImpl::~V8RuntimeAgentImpl() = default;
 
 void V8RuntimeAgentImpl::evaluate(
     const String16& expression, Maybe<String16> objectGroup,

@@ -99,7 +99,7 @@ TEST(WeakSet_Weakness) {
   CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
 
   // Force a full GC.
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
@@ -112,7 +112,7 @@ TEST(WeakSet_Weakness) {
       &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   CHECK(global_handles->IsWeak(key.location()));
 
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
@@ -149,7 +149,7 @@ TEST(WeakSet_Shrinking) {
   CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
       0, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
   CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
       32,

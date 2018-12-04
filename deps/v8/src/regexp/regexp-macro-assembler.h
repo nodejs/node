@@ -212,8 +212,8 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
 
   NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone);
-  virtual ~NativeRegExpMacroAssembler();
-  virtual bool CanReadUnaligned();
+  ~NativeRegExpMacroAssembler() override;
+  bool CanReadUnaligned() override;
 
   static Result Match(Handle<Code> regexp,
                       Handle<String> subject,

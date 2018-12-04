@@ -22,7 +22,7 @@ class Scanner;
 // Scanner::IsDuplicateSymbol.
 class DuplicateFinder {
  public:
-  DuplicateFinder() {}
+  DuplicateFinder() = default;
 
  private:
   friend class Scanner;

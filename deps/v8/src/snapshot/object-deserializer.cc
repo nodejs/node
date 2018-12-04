@@ -90,6 +90,21 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
                                    MaybeObjectHandle::Weak(script));
     heap->SetRootScriptList(*list);
   }
+
+  // Allocation sites are present in the snapshot, and must be linked into
+  // a list at deserialization time.
+  for (AllocationSite* site : new_allocation_sites()) {
+    if (!site->HasWeakNext()) continue;
+    // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
+    // as a (weak) root. If this root is relocated correctly, this becomes
+    // unnecessary.
+    if (heap->allocation_sites_list() == Smi::kZero) {
+      site->set_weak_next(ReadOnlyRoots(heap).undefined_value());
+    } else {
+      site->set_weak_next(heap->allocation_sites_list());
+    }
+    heap->set_allocation_sites_list(site);
+  }
 }
 
 }  // namespace internal

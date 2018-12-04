@@ -8,6 +8,7 @@
 
 #include "src/accessors.h"
 #include "src/ast/ast.h"
+#include "src/ast/scopes-inl.h"
 #include "src/base/optional.h"
 #include "src/bootstrapper.h"
 #include "src/counters.h"
@@ -23,15 +24,11 @@ namespace v8 {
 namespace internal {
 
 namespace {
-void* kDummyPreParserVariable = reinterpret_cast<void*>(0x1);
-void* kDummyPreParserLexicalVariable = reinterpret_cast<void*>(0x2);
-
 bool IsLexical(Variable* variable) {
-  if (variable == kDummyPreParserLexicalVariable) return true;
-  if (variable == kDummyPreParserVariable) return false;
+  if (variable == Scope::kDummyPreParserLexicalVariable) return true;
+  if (variable == Scope::kDummyPreParserVariable) return false;
   return IsLexicalVariableMode(variable->mode());
 }
-
 }  // namespace
 
 // ----------------------------------------------------------------------------
@@ -76,8 +73,9 @@ Variable* VariableMap::DeclareName(Zone* zone, const AstRawString* name,
   if (p->value == nullptr) {
     // The variable has not been declared yet -> insert it.
     DCHECK_EQ(name, p->key);
-    p->value = mode == VariableMode::kVar ? kDummyPreParserVariable
-                                          : kDummyPreParserLexicalVariable;
+    p->value = mode == VariableMode::kVar
+                   ? Scope::kDummyPreParserVariable
+                   : Scope::kDummyPreParserLexicalVariable;
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -154,7 +152,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
 Scope::Snapshot::Snapshot(Scope* scope)
     : outer_scope_(scope),
       top_inner_scope_(scope->inner_scope_),
-      top_unresolved_(scope->unresolved_),
+      top_unresolved_(scope->unresolved_list_.first()),
       top_local_(scope->GetClosureScope()->locals_.end()),
       top_decl_(scope->GetClosureScope()->decls_.end()),
       outer_scope_calls_eval_(scope->scope_calls_eval_) {
@@ -310,6 +308,8 @@ void DeclarationScope::SetDefaults() {
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   has_rest_ = false;
+  has_promise_ = false;
+  has_generator_object_ = false;
   sloppy_block_function_map_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -319,7 +319,7 @@ void DeclarationScope::SetDefaults() {
   should_eager_compile_ = false;
   was_lazily_parsed_ = false;
   is_skipped_function_ = false;
-  produced_preparsed_scope_data_ = nullptr;
+  preparsed_scope_data_builder_ = nullptr;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -337,7 +337,7 @@ void Scope::SetDefaults() {
 #endif
   inner_scope_ = nullptr;
   sibling_ = nullptr;
-  unresolved_ = nullptr;
+  unresolved_list_.Clear();
 
   start_position_ = kNoSourcePosition;
   end_position_ = kNoSourcePosition;
@@ -779,6 +779,7 @@ Variable* DeclarationScope::DeclareGeneratorObjectVar(
   Variable* result = EnsureRareData()->generator_object =
       NewTemporary(name, kNotAssigned);
   result->set_is_used();
+  has_generator_object_ = true;
   return result;
 }
 
@@ -787,6 +788,7 @@ Variable* DeclarationScope::DeclarePromiseVar(const AstRawString* name) {
   DCHECK_NULL(promise_var());
   Variable* result = EnsureRareData()->promise = NewTemporary(name);
   result->set_is_used();
+  has_promise_ = true;
   return result;
 }
 
@@ -834,16 +836,9 @@ Scope* Scope::FinalizeBlockScope() {
   }
 
   // Move unresolved variables
-  if (unresolved_ != nullptr) {
-    if (outer_scope()->unresolved_ != nullptr) {
-      VariableProxy* unresolved = unresolved_;
-      while (unresolved->next_unresolved() != nullptr) {
-        unresolved = unresolved->next_unresolved();
-      }
-      unresolved->set_next_unresolved(outer_scope()->unresolved_);
-    }
-    outer_scope()->unresolved_ = unresolved_;
-    unresolved_ = nullptr;
+  if (!unresolved_list_.is_empty()) {
+    outer_scope()->unresolved_list_.Prepend(std::move(unresolved_list_));
+    unresolved_list_.Clear();
   }
 
   if (inner_scope_calls_eval_) outer_scope()->inner_scope_calls_eval_ = true;
@@ -887,7 +882,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   DCHECK_EQ(new_parent->outer_scope_, outer_scope_);
   DCHECK_EQ(new_parent, new_parent->GetClosureScope());
   DCHECK_NULL(new_parent->inner_scope_);
-  DCHECK_NULL(new_parent->unresolved_);
+  DCHECK(new_parent->unresolved_list_.is_empty());
   DCHECK(new_parent->locals_.is_empty());
   Scope* inner_scope = new_parent->sibling_;
   if (inner_scope != top_inner_scope_) {
@@ -910,14 +905,21 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
     new_parent->sibling_ = top_inner_scope_;
   }
 
-  if (outer_scope_->unresolved_ != top_unresolved_) {
-    VariableProxy* last = outer_scope_->unresolved_;
-    while (last->next_unresolved() != top_unresolved_) {
-      last = last->next_unresolved();
+  if (outer_scope_->unresolved_list_.first() != top_unresolved_) {
+    // If the marked VariableProxy (snapshoted) is not the first, we need to
+    // find it and move all VariableProxys up to that point into the new_parent,
+    // then we restore the snapshoted state by reinitializing the outer_scope
+    // list.
+    {
+      auto iter = outer_scope_->unresolved_list_.begin();
+      while (*iter != top_unresolved_) {
+        ++iter;
+      }
+      outer_scope_->unresolved_list_.Rewind(iter);
     }
-    last->set_next_unresolved(nullptr);
-    new_parent->unresolved_ = outer_scope_->unresolved_;
-    outer_scope_->unresolved_ = top_unresolved_;
+
+    new_parent->unresolved_list_ = std::move(outer_scope_->unresolved_list_);
+    outer_scope_->unresolved_list_.ReinitializeHead(top_unresolved_);
   }
 
   // TODO(verwaest): This currently only moves do-expression declared variables
@@ -1261,8 +1263,7 @@ void Scope::DeclareCatchVariableName(const AstRawString* name) {
 void Scope::AddUnresolved(VariableProxy* proxy) {
   DCHECK(!already_resolved_);
   DCHECK(!proxy->is_resolved());
-  proxy->set_next_unresolved(unresolved_);
-  unresolved_ = proxy;
+  unresolved_list_.AddFront(proxy);
 }
 
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
@@ -1274,22 +1275,7 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
 }
 
 bool Scope::RemoveUnresolved(VariableProxy* var) {
-  if (unresolved_ == var) {
-    unresolved_ = var->next_unresolved();
-    var->set_next_unresolved(nullptr);
-    return true;
-  }
-  VariableProxy* current = unresolved_;
-  while (current != nullptr) {
-    VariableProxy* next = current->next_unresolved();
-    if (var == next) {
-      current->set_next_unresolved(next->next_unresolved());
-      var->set_next_unresolved(nullptr);
-      return true;
-    }
-    current = next;
-  }
-  return false;
+  return unresolved_list_.Remove(var);
 }
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
@@ -1483,11 +1469,12 @@ Scope* Scope::GetOuterScopeWithContext() {
 
 Handle<StringSet> DeclarationScope::CollectNonLocals(
     Isolate* isolate, ParseInfo* info, Handle<StringSet> non_locals) {
-  VariableProxy* free_variables = FetchFreeVariables(this, info);
-  for (VariableProxy* proxy = free_variables; proxy != nullptr;
-       proxy = proxy->next_unresolved()) {
-    non_locals = StringSet::Add(isolate, non_locals, proxy->name());
-  }
+  ResolveScopesThenForEachVariable(this,
+                                   [=, &non_locals](VariableProxy* proxy) {
+                                     non_locals = StringSet::Add(
+                                         isolate, non_locals, proxy->name());
+                                   },
+                                   info);
   return non_locals;
 }
 
@@ -1504,10 +1491,15 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   decls_.Clear();
   locals_.Clear();
   inner_scope_ = nullptr;
-  unresolved_ = nullptr;
+  unresolved_list_.Clear();
   sloppy_block_function_map_ = nullptr;
   rare_data_ = nullptr;
   has_rest_ = false;
+  has_promise_ = false;
+  has_generator_object_ = false;
+
+  DCHECK_NE(zone_, ast_value_factory->zone());
+  zone_->ReleaseMemory();
 
   if (aborted) {
     // Prepare scope for use in the outer zone.
@@ -1532,7 +1524,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 
 void Scope::SavePreParsedScopeData() {
   DCHECK(FLAG_preparser_scope_analysis);
-  if (ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(this)) {
+  if (PreParsedScopeDataBuilder::ScopeIsSkippableFunctionScope(this)) {
     AsDeclarationScope()->SavePreParsedScopeDataForDeclarationScope();
   }
 
@@ -1542,30 +1534,33 @@ void Scope::SavePreParsedScopeData() {
 }
 
 void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
-  if (produced_preparsed_scope_data_ != nullptr) {
+  if (preparsed_scope_data_builder_ != nullptr) {
     DCHECK(FLAG_preparser_scope_analysis);
-    produced_preparsed_scope_data_->SaveScopeAllocationData(this);
+    preparsed_scope_data_builder_->SaveScopeAllocationData(this);
   }
 }
 
 void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
-  VariableProxy* unresolved = nullptr;
-
-  if (!outer_scope_->is_script_scope() ||
-      (FLAG_preparser_scope_analysis &&
-       produced_preparsed_scope_data_ != nullptr &&
-       produced_preparsed_scope_data_->ContainsInnerFunctions())) {
+  base::ThreadedList<VariableProxy> new_unresolved_list;
+  if (!IsArrowFunction(function_kind_) &&
+      (!outer_scope_->is_script_scope() ||
+       (FLAG_preparser_scope_analysis &&
+        preparsed_scope_data_builder_ != nullptr &&
+        preparsed_scope_data_builder_->ContainsInnerFunctions()))) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
-    for (VariableProxy* proxy = FetchFreeVariables(this); proxy != nullptr;
-         proxy = proxy->next_unresolved()) {
-      DCHECK(!proxy->is_resolved());
-      VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
-      copy->set_next_unresolved(unresolved);
-      unresolved = copy;
-    }
+    ResolveScopesThenForEachVariable(
+        this, [=, &new_unresolved_list](VariableProxy* proxy) {
+          // Don't copy unresolved references to the script scope, unless it's a
+          // reference to a private field. In that case keep it so we can fail
+          // later.
+          if (!outer_scope_->is_script_scope() || proxy->is_private_field()) {
+            VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
+            new_unresolved_list.AddFront(copy);
+          }
+        });
 
     // Migrate function_ to the right Zone.
     if (function_ != nullptr) {
@@ -1586,7 +1581,7 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
 
   ResetAfterPreparsing(ast_node_factory->ast_value_factory(), false);
 
-  unresolved_ = unresolved;
+  unresolved_list_ = std::move(new_unresolved_list);
 }
 
 #ifdef DEBUG
@@ -1673,8 +1668,8 @@ void PrintMap(int indent, const char* label, VariableMap* map, bool locals,
   for (VariableMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
     if (var == function_var) continue;
-    if (var == kDummyPreParserVariable ||
-        var == kDummyPreParserLexicalVariable) {
+    if (var == Scope::kDummyPreParserVariable ||
+        var == Scope::kDummyPreParserLexicalVariable) {
       continue;
     }
     bool local = !IsDynamicVariableMode(var->mode());
@@ -2045,8 +2040,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   // scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
     DCHECK_EQ(variables_.occupancy(), 0);
-    for (VariableProxy* proxy = unresolved_; proxy != nullptr;
-         proxy = proxy->next_unresolved()) {
+    for (VariableProxy* proxy : unresolved_list_) {
       Variable* var = outer_scope()->LookupRecursive(info, proxy, nullptr);
       if (var == nullptr) {
         DCHECK(proxy->is_private_field());
@@ -2060,8 +2054,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
     }
   } else {
     // Resolve unresolved variables for this scope.
-    for (VariableProxy* proxy = unresolved_; proxy != nullptr;
-         proxy = proxy->next_unresolved()) {
+    for (VariableProxy* proxy : unresolved_list_) {
       if (!ResolveVariable(info, proxy)) return false;
     }
 
@@ -2072,57 +2065,6 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
     }
   }
   return true;
-}
-
-VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
-                                         ParseInfo* info,
-                                         VariableProxy* stack) {
-  // Module variables must be allocated before variable resolution
-  // to ensure that UpdateNeedsHoleCheck() can detect import variables.
-  if (info != nullptr && is_module_scope()) {
-    AsModuleScope()->AllocateModuleVariables();
-  }
-  // Lazy parsed declaration scopes are already partially analyzed. If there are
-  // unresolved references remaining, they just need to be resolved in outer
-  // scopes.
-  Scope* lookup =
-      is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()
-          ? outer_scope()
-          : this;
-  for (VariableProxy *proxy = unresolved_, *next = nullptr; proxy != nullptr;
-       proxy = next) {
-    next = proxy->next_unresolved();
-    DCHECK(!proxy->is_resolved());
-    Variable* var =
-        lookup->LookupRecursive(info, proxy, max_outer_scope->outer_scope());
-    if (var == nullptr) {
-      proxy->set_next_unresolved(stack);
-      stack = proxy;
-    } else if (var != kDummyPreParserVariable &&
-               var != kDummyPreParserLexicalVariable) {
-      if (info != nullptr) {
-        // In this case we need to leave scopes in a way that they can be
-        // allocated. If we resolved variables from lazy parsed scopes, we need
-        // to context allocate the var.
-        ResolveTo(info, proxy, var);
-        if (!var->is_dynamic() && lookup != this) var->ForceContextAllocation();
-      } else {
-        var->set_is_used();
-        if (proxy->is_assigned()) {
-          var->set_maybe_assigned();
-        }
-      }
-    }
-  }
-
-  // Clear unresolved_ as it's in an inconsistent state.
-  unresolved_ = nullptr;
-
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    stack = scope->FetchFreeVariables(max_outer_scope, info, stack);
-  }
-
-  return stack;
 }
 
 bool Scope::MustAllocate(Variable* var) {
@@ -2236,6 +2178,24 @@ void DeclarationScope::AllocateReceiver() {
   AllocateParameter(receiver(), -1);
 }
 
+void DeclarationScope::AllocatePromise() {
+  if (!has_promise_) return;
+  DCHECK_NOT_NULL(promise_var());
+  DCHECK_EQ(this, promise_var()->scope());
+  AllocateStackSlot(promise_var());
+  DCHECK_EQ(VariableLocation::LOCAL, promise_var()->location());
+  DCHECK_EQ(kPromiseVarIndex, promise_var()->index());
+}
+
+void DeclarationScope::AllocateGeneratorObject() {
+  if (!has_generator_object_) return;
+  DCHECK_NOT_NULL(generator_object_var());
+  DCHECK_EQ(this, generator_object_var()->scope());
+  AllocateStackSlot(generator_object_var());
+  DCHECK_EQ(VariableLocation::LOCAL, generator_object_var()->location());
+  DCHECK_EQ(kGeneratorObjectVarIndex, generator_object_var()->index());
+}
+
 void Scope::AllocateNonParameterLocal(Variable* var) {
   DCHECK(var->scope() == this);
   if (var->IsUnallocated() && MustAllocate(var)) {
@@ -2302,6 +2262,19 @@ void Scope::AllocateVariablesRecursively() {
   // Don't allocate variables of preparsed scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
     return;
+  }
+
+  // Make sure to allocate the .promise (for async functions) or
+  // .generator_object (for async generators) first, so that it
+  // get's the required stack slot 0 in case it's needed. See
+  // http://bit.ly/v8-zero-cost-async-stack-traces for details.
+  if (is_function_scope()) {
+    FunctionKind kind = GetClosureScope()->function_kind();
+    if (IsAsyncGeneratorFunction(kind)) {
+      AsDeclarationScope()->AllocateGeneratorObject();
+    } else if (IsAsyncFunction(kind)) {
+      AsDeclarationScope()->AllocatePromise();
+    }
   }
 
   // Allocate variables for inner scopes.
@@ -2409,6 +2382,10 @@ int Scope::ContextLocalCount() const {
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
          (is_function_var_in_context ? 1 : 0);
 }
+
+void* const Scope::kDummyPreParserVariable = reinterpret_cast<void*>(0x1);
+void* const Scope::kDummyPreParserLexicalVariable =
+    reinterpret_cast<void*>(0x2);
 
 }  // namespace internal
 }  // namespace v8

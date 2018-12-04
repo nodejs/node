@@ -319,7 +319,7 @@ class SealHandleScope final {
  public:
 #ifndef DEBUG
   explicit SealHandleScope(Isolate* isolate) {}
-  ~SealHandleScope() {}
+  ~SealHandleScope() = default;
 #else
   explicit inline SealHandleScope(Isolate* isolate);
   inline ~SealHandleScope();

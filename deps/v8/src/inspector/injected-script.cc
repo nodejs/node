@@ -738,7 +738,7 @@ InjectedScript::ContextScope::ContextScope(V8InspectorSessionImpl* session,
     : InjectedScript::Scope(session),
       m_executionContextId(executionContextId) {}
 
-InjectedScript::ContextScope::~ContextScope() {}
+InjectedScript::ContextScope::~ContextScope() = default;
 
 Response InjectedScript::ContextScope::findInjectedScript(
     V8InspectorSessionImpl* session) {
@@ -749,7 +749,7 @@ InjectedScript::ObjectScope::ObjectScope(V8InspectorSessionImpl* session,
                                          const String16& remoteObjectId)
     : InjectedScript::Scope(session), m_remoteObjectId(remoteObjectId) {}
 
-InjectedScript::ObjectScope::~ObjectScope() {}
+InjectedScript::ObjectScope::~ObjectScope() = default;
 
 Response InjectedScript::ObjectScope::findInjectedScript(
     V8InspectorSessionImpl* session) {
@@ -770,7 +770,7 @@ InjectedScript::CallFrameScope::CallFrameScope(V8InspectorSessionImpl* session,
                                                const String16& remoteObjectId)
     : InjectedScript::Scope(session), m_remoteCallFrameId(remoteObjectId) {}
 
-InjectedScript::CallFrameScope::~CallFrameScope() {}
+InjectedScript::CallFrameScope::~CallFrameScope() = default;
 
 Response InjectedScript::CallFrameScope::findInjectedScript(
     V8InspectorSessionImpl* session) {

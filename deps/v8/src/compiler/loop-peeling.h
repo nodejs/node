@@ -26,7 +26,7 @@ class V8_EXPORT_PRIVATE PeeledIteration : public NON_EXPORTED_BASE(ZoneObject) {
   Node* map(Node* node);
 
  protected:
-  PeeledIteration() {}
+  PeeledIteration() = default;
 };
 
 class CommonOperatorBuilder;

@@ -209,7 +209,8 @@ static void InitializeVM() {
   __ Ret();                     \
   __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN() CHECK(v8::internal::FreePages(buf, allocated));
+#define TEARDOWN() \
+  CHECK(v8::internal::FreePages(GetPlatformPageAllocator(), buf, allocated));
 
 #endif  // ifdef USE_SIMULATOR.
 
@@ -15068,9 +15069,6 @@ TEST(default_nan_double) {
 
 
 TEST(call_no_relocation) {
-  Address call_start;
-  Address return_address;
-
   INIT_V8();
   SETUP();
 
@@ -15091,9 +15089,7 @@ TEST(call_no_relocation) {
   __ Push(lr, xzr);
   {
     Assembler::BlockConstPoolScope scope(&masm);
-    call_start = buf_addr + __ pc_offset();
     __ Call(buf_addr + function.pos(), RelocInfo::NONE);
-    return_address = buf_addr + __ pc_offset();
   }
   __ Pop(xzr, lr);
   END();

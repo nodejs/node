@@ -24,7 +24,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   explicit BaseCollectionsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  virtual ~BaseCollectionsAssembler() {}
+  virtual ~BaseCollectionsAssembler() = default;
 
  protected:
   enum Variant { kMap, kSet, kWeakMap, kWeakSet };
@@ -628,7 +628,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   Node* AllocateJSCollectionIterator(Node* context, int map_index,
                                      Node* collection);
   TNode<Object> AllocateTable(Variant variant, TNode<Context> context,
-                              TNode<IntPtrT> at_least_space_for);
+                              TNode<IntPtrT> at_least_space_for) override;
   Node* GetHash(Node* const key);
   Node* CallGetHashRaw(Node* const key);
   Node* CallGetOrCreateHashRaw(Node* const key);
@@ -731,9 +731,9 @@ Node* CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
   Node* const iterator = AllocateInNewSpace(IteratorType::kSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, IteratorType::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(iterator, IteratorType::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kTableOffset, table);
   StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kIndexOffset,
                                  SmiConstant(0));
@@ -770,7 +770,7 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
 
 Node* CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(Node* const key) {
   Node* const function_addr =
-      ExternalConstant(ExternalReference::get_or_create_hash_raw(isolate()));
+      ExternalConstant(ExternalReference::get_or_create_hash_raw());
   Node* const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
@@ -1699,7 +1699,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSMapIterator::kTableOffset,
-                         Heap::kEmptyOrderedHashMapRootIndex);
+                         RootIndex::kEmptyOrderedHashMap);
     Goto(&return_value);
   }
 }
@@ -1907,7 +1907,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSSetIterator::kTableOffset,
-                         Heap::kEmptyOrderedHashSetRootIndex);
+                         RootIndex::kEmptyOrderedHashSet);
     Goto(&return_value);
   }
 }
@@ -1986,7 +1986,7 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                 TNode<IntPtrT> number_of_elements);
 
   TNode<Object> AllocateTable(Variant variant, TNode<Context> context,
-                              TNode<IntPtrT> at_least_space_for);
+                              TNode<IntPtrT> at_least_space_for) override;
 
   // Generates and sets the identity for a JSRececiver.
   TNode<Smi> CreateIdentityHash(TNode<Object> receiver);
@@ -2062,8 +2062,7 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<FixedArray> table = CAST(
       AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
 
-  Heap::RootListIndex map_root_index = static_cast<Heap::RootListIndex>(
-      EphemeronHashTableShape::GetMapRootIndex());
+  RootIndex map_root_index = EphemeronHashTableShape::GetMapRootIndex();
   StoreMapNoWriteBarrier(table, map_root_index);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
@@ -2075,14 +2074,14 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
   TNode<IntPtrT> start = KeyIndexFromEntry(IntPtrConstant(0));
   FillFixedArrayWithValue(HOLEY_ELEMENTS, table, start, length,
-                          Heap::kUndefinedValueRootIndex);
+                          RootIndex::kUndefinedValue);
   return table;
 }
 
 TNode<Smi> WeakCollectionsBuiltinsAssembler::CreateIdentityHash(
     TNode<Object> key) {
-  TNode<ExternalReference> function_addr = ExternalConstant(
-      ExternalReference::jsreceiver_create_identity_hash(isolate()));
+  TNode<ExternalReference> function_addr =
+      ExternalConstant(ExternalReference::jsreceiver_create_identity_hash());
   TNode<ExternalReference> isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 

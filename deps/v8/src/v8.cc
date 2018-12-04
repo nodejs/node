@@ -4,6 +4,8 @@
 
 #include "src/v8.h"
 
+#include <fstream>
+
 #include "src/api.h"
 #include "src/base/atomicops.h"
 #include "src/base/once.h"
@@ -70,6 +72,12 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_force_marking_deque_overflows = true;
     FLAG_gc_global = true;
     FLAG_max_semi_space_size = 1;
+  }
+
+  if (FLAG_trace_turbo) {
+    // Create an empty file shared by the process (e.g. the wasm engine).
+    std::ofstream(Isolate::GetTurboCfgFileName(nullptr).c_str(),
+                  std::ios_base::trunc);
   }
 
   base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);

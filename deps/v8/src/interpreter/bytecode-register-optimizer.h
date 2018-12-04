@@ -23,8 +23,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
  public:
   class BytecodeWriter {
    public:
-    BytecodeWriter() {}
-    virtual ~BytecodeWriter() {}
+    BytecodeWriter() = default;
+    virtual ~BytecodeWriter() = default;
 
     // Called to emit a register transfer bytecode.
     virtual void EmitLdar(Register input) = 0;
@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
                             BytecodeRegisterAllocator* register_allocator,
                             int fixed_registers_count, int parameter_count,
                             BytecodeWriter* bytecode_writer);
-  virtual ~BytecodeRegisterOptimizer() {}
+  ~BytecodeRegisterOptimizer() override = default;
 
   // Perform explicit register transfer operations.
   void DoLdar(Register input) {

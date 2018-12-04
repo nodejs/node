@@ -35,7 +35,7 @@ namespace {
 
 class InterceptorLoggingTest : public TestWithNativeContext {
  public:
-  InterceptorLoggingTest() {}
+  InterceptorLoggingTest() = default;
 
   static const int kTestIndex = 0;
 

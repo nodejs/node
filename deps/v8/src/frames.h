@@ -42,9 +42,7 @@ class InnerPointerToCodeCache {
     Flush();
   }
 
-  void Flush() {
-    memset(&cache_[0], 0, sizeof(cache_));
-  }
+  void Flush() { memset(static_cast<void*>(&cache_[0]), 0, sizeof(cache_)); }
 
   InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
 
@@ -69,8 +67,7 @@ class StackHandlerConstants : public AllStatic {
   static const int kSlotCount = kSize >> kPointerSizeLog2;
 };
 
-
-class StackHandler BASE_EMBEDDED {
+class StackHandler {
  public:
   // Get the address of this stack handler.
   inline Address address() const;
@@ -110,7 +107,7 @@ class StackHandler BASE_EMBEDDED {
   V(NATIVE, NativeFrame)
 
 // Abstract base class for all stack frames.
-class StackFrame BASE_EMBEDDED {
+class StackFrame {
  public:
 #define DECLARE_TYPE(type, ignore) type,
   enum Type {
@@ -262,7 +259,7 @@ class StackFrame BASE_EMBEDDED {
   }
 
   // Get the id of this stack frame.
-  Id id() const { return static_cast<Id>(OffsetFrom(caller_sp())); }
+  Id id() const { return static_cast<Id>(caller_sp()); }
 
   // Get the top handler from the current stack iterator.
   inline StackHandler* top_handler() const;
@@ -301,7 +298,7 @@ class StackFrame BASE_EMBEDDED {
 
  protected:
   inline explicit StackFrame(StackFrameIteratorBase* iterator);
-  virtual ~StackFrame() { }
+  virtual ~StackFrame() = default;
 
   // Compute the stack pointer for the calling frame.
   virtual Address GetCallerStackPointer() const = 0;
@@ -476,7 +473,7 @@ class BuiltinExitFrame : public ExitFrame {
 
 class StandardFrame;
 
-class FrameSummary BASE_EMBEDDED {
+class FrameSummary {
  public:
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                             \
@@ -1202,7 +1199,7 @@ class JavaScriptBuiltinContinuationWithCatchFrame
   friend class StackFrameIteratorBase;
 };
 
-class StackFrameIteratorBase BASE_EMBEDDED {
+class StackFrameIteratorBase {
  public:
   Isolate* isolate() const { return isolate_; }
 
@@ -1257,7 +1254,7 @@ class StackFrameIterator: public StackFrameIteratorBase {
 };
 
 // Iterator that supports iterating through all JavaScript frames.
-class JavaScriptFrameIterator BASE_EMBEDDED {
+class JavaScriptFrameIterator {
  public:
   inline explicit JavaScriptFrameIterator(Isolate* isolate);
   inline JavaScriptFrameIterator(Isolate* isolate, ThreadLocalTop* top);
@@ -1275,7 +1272,7 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
 // NOTE: The stack trace frame iterator is an iterator that only traverse proper
 // JavaScript frames that have proper JavaScript functions and WebAssembly
 // frames.
-class StackTraceFrameIterator BASE_EMBEDDED {
+class StackTraceFrameIterator {
  public:
   explicit StackTraceFrameIterator(Isolate* isolate);
   // Skip frames until the frame with the given id is reached.

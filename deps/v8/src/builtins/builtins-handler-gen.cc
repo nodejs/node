@@ -28,7 +28,7 @@ TF_BUILTIN(KeyedLoadIC_Slow, CodeStubAssembler) {
   Node* name = Parameter(Descriptor::kName);
   Node* context = Parameter(Descriptor::kContext);
 
-  TailCallRuntime(Runtime::kKeyedGetProperty, context, receiver, name);
+  TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
 void Builtins::Generate_KeyedStoreIC_Megamorphic(

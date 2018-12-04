@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-dynamic-import
+// Resources: test/mjsunit/harmony/modules-skip-1.js
 
 ran = false;
 async function test1() {

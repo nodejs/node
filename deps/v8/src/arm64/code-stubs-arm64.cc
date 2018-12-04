@@ -124,7 +124,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
                     IsolateAddressId::kPendingExceptionAddress, isolate())));
   }
   __ Str(code_entry, MemOperand(x10));
-  __ LoadRoot(x0, Heap::kExceptionRootIndex);
+  __ LoadRoot(x0, RootIndex::kException);
   __ B(&exit);
 
   // Invoke: Link this frame into the handler chain.
@@ -434,8 +434,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Check if the function scheduled an exception.
   __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));
   __ Ldr(x5, MemOperand(x5));
-  __ JumpIfNotRoot(x5, Heap::kTheHoleValueRootIndex,
-                   &promote_scheduled_exception);
+  __ JumpIfNotRoot(x5, RootIndex::kTheHoleValue, &promote_scheduled_exception);
 
   __ DropSlots(stack_space);
   __ Ret();
@@ -484,7 +483,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kHolderIndex == 0);
 
   Register undef = x7;
-  __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(undef, RootIndex::kUndefinedValue);
 
   // Push new target, call data.
   __ Push(undef, call_data);
@@ -562,7 +561,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
                      name));
 
   __ Ldr(data, FieldMemOperand(callback, AccessorInfo::kDataOffset));
-  __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ Mov(isolate_address, ExternalReference::isolate_address(isolate()));
   __ Ldr(name, FieldMemOperand(callback, AccessorInfo::kNameOffset));
 

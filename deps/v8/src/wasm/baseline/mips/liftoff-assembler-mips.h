@@ -15,6 +15,14 @@ namespace wasm {
 
 namespace liftoff {
 
+#if defined(V8_TARGET_BIG_ENDIAN)
+constexpr int32_t kLowWordOffset = 4;
+constexpr int32_t kHighWordOffset = 0;
+#else
+constexpr int32_t kLowWordOffset = 0;
+constexpr int32_t kHighWordOffset = 4;
+#endif
+
 // fp-4 holds the stack marker, fp-8 is the instance parameter, first stack
 // slot is located at fp-16.
 constexpr int32_t kConstantStackSpace = 8;
@@ -41,8 +49,10 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
       assm->lw(dst.gp(), src);
       break;
     case kWasmI64:
-      assm->lw(dst.low_gp(), src);
-      assm->lw(dst.high_gp(), MemOperand(base, offset + 4));
+      assm->lw(dst.low_gp(),
+               MemOperand(base, offset + liftoff::kLowWordOffset));
+      assm->lw(dst.high_gp(),
+               MemOperand(base, offset + liftoff::kHighWordOffset));
       break;
     case kWasmF32:
       assm->lwc1(dst.fp(), src);
@@ -63,8 +73,10 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->Usw(src.gp(), dst);
       break;
     case kWasmI64:
-      assm->Usw(src.low_gp(), dst);
-      assm->Usw(src.high_gp(), MemOperand(base, offset + 4));
+      assm->Usw(src.low_gp(),
+                MemOperand(base, offset + liftoff::kLowWordOffset));
+      assm->Usw(src.high_gp(),
+                MemOperand(base, offset + liftoff::kHighWordOffset));
       break;
     case kWasmF32:
       assm->Uswc1(src.fp(), dst, t8);
@@ -106,11 +118,6 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
   switch (type.value()) {
     case LoadType::kI64Load8U:
     case LoadType::kI64Load8S:
-      // Swap low and high registers.
-      assm->TurboAssembler::Move(kScratchReg, tmp.low_gp());
-      assm->TurboAssembler::Move(tmp.low_gp(), tmp.high_gp());
-      assm->TurboAssembler::Move(tmp.high_gp(), kScratchReg);
-      V8_FALLTHROUGH;
     case LoadType::kI32Load8U:
     case LoadType::kI32Load8S:
       // No need to change endianness for byte size.
@@ -140,20 +147,20 @@ inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
       assm->TurboAssembler::ByteSwapSigned(tmp.high_gp(), kScratchReg, 4);
       break;
     case LoadType::kI64Load16U:
-      assm->TurboAssembler::ByteSwapUnsigned(tmp.low_gp(), tmp.high_gp(), 2);
+      assm->TurboAssembler::ByteSwapUnsigned(tmp.low_gp(), tmp.low_gp(), 2);
       assm->TurboAssembler::Move(tmp.high_gp(), zero_reg);
       break;
     case LoadType::kI64Load16S:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 2);
-      assm->sra(tmp.high_gp(), tmp.high_gp(), 31);
+      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 2);
+      assm->sra(tmp.high_gp(), tmp.low_gp(), 31);
       break;
     case LoadType::kI64Load32U:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 4);
+      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 4);
       assm->TurboAssembler::Move(tmp.high_gp(), zero_reg);
       break;
     case LoadType::kI64Load32S:
-      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 4);
-      assm->sra(tmp.high_gp(), tmp.high_gp(), 31);
+      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 4);
+      assm->sra(tmp.high_gp(), tmp.low_gp(), 31);
       break;
     default:
       UNREACHABLE();
@@ -179,11 +186,6 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
   LiftoffRegister tmp = src;
   switch (type.value()) {
     case StoreType::kI64Store8:
-      // Swap low and high registers.
-      assm->TurboAssembler::Move(kScratchReg, tmp.low_gp());
-      assm->TurboAssembler::Move(tmp.low_gp(), tmp.high_gp());
-      assm->TurboAssembler::Move(tmp.high_gp(), kScratchReg);
-      V8_FALLTHROUGH;
     case StoreType::kI32Store8:
       // No need to change endianness for byte size.
       return;
@@ -193,8 +195,10 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       assm->emit_type_conversion(kExprI32ReinterpretF32, tmp, src);
       V8_FALLTHROUGH;
     case StoreType::kI32Store:
-    case StoreType::kI32Store16:
       assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 4);
+      break;
+    case StoreType::kI32Store16:
+      assm->TurboAssembler::ByteSwapSigned(tmp.gp(), tmp.gp(), 2);
       break;
     case StoreType::kF64Store:
       is_float = true;
@@ -202,11 +206,15 @@ inline void ChangeEndiannessStore(LiftoffAssembler* assm, LiftoffRegister src,
       assm->emit_type_conversion(kExprI64ReinterpretF64, tmp, src);
       V8_FALLTHROUGH;
     case StoreType::kI64Store:
-    case StoreType::kI64Store32:
-    case StoreType::kI64Store16:
       assm->TurboAssembler::Move(kScratchReg, tmp.low_gp());
       assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.high_gp(), 4);
       assm->TurboAssembler::ByteSwapSigned(tmp.high_gp(), kScratchReg, 4);
+      break;
+    case StoreType::kI64Store32:
+      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 4);
+      break;
+    case StoreType::kI64Store16:
+      assm->TurboAssembler::ByteSwapSigned(tmp.low_gp(), tmp.low_gp(), 2);
       break;
     default:
       UNREACHABLE();
@@ -358,11 +366,16 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       sra(dst.high_gp(), dst.high_gp(), 31);
       break;
     case LoadType::kI64Load: {
-      MemOperand src_op_upper = (offset_reg != no_reg)
-                                    ? MemOperand(src, offset_imm + 4)
-                                    : MemOperand(src_addr, offset_imm + 4);
-      TurboAssembler::Ulw(dst.high_gp(), src_op_upper);
+      MemOperand src_op =
+          (offset_reg != no_reg)
+              ? MemOperand(src, offset_imm + liftoff::kLowWordOffset)
+              : MemOperand(src_addr, offset_imm + liftoff::kLowWordOffset);
+      MemOperand src_op_upper =
+          (offset_reg != no_reg)
+              ? MemOperand(src, offset_imm + liftoff::kHighWordOffset)
+              : MemOperand(src_addr, offset_imm + liftoff::kHighWordOffset);
       TurboAssembler::Ulw(dst.low_gp(), src_op);
+      TurboAssembler::Ulw(dst.high_gp(), src_op_upper);
       break;
     }
     case LoadType::kF32Load:
@@ -377,6 +390,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_load_mem) {
+    pinned.set(src_op.rm());
     liftoff::ChangeEndiannessLoad(this, dst, type, pinned);
   }
 #endif
@@ -396,6 +410,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {
+    pinned.set(dst_op.rm());
     LiftoffRegister tmp = GetUnusedRegister(src.reg_class(), pinned);
     // Save original value.
     Move(tmp, src, type.value_type());
@@ -427,11 +442,16 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       TurboAssembler::Usw(src.gp(), dst_op);
       break;
     case StoreType::kI64Store: {
-      MemOperand dst_op_upper = (offset_reg != no_reg)
-                                    ? MemOperand(dst, offset_imm + 4)
-                                    : MemOperand(dst_addr, offset_imm + 4);
-      TurboAssembler::Usw(src.high_gp(), dst_op_upper);
+      MemOperand dst_op =
+          (offset_reg != no_reg)
+              ? MemOperand(dst, offset_imm + liftoff::kLowWordOffset)
+              : MemOperand(dst_addr, offset_imm + liftoff::kLowWordOffset);
+      MemOperand dst_op_upper =
+          (offset_reg != no_reg)
+              ? MemOperand(dst, offset_imm + liftoff::kHighWordOffset)
+              : MemOperand(dst_addr, offset_imm + liftoff::kHighWordOffset);
       TurboAssembler::Usw(src.low_gp(), dst_op);
+      TurboAssembler::Usw(src.high_gp(), dst_op_upper);
       break;
     }
     case StoreType::kF32Store:
@@ -624,12 +644,20 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
       Register dst, Register src, Register amount, LiftoffRegList pinned) { \
     instruction(dst, src, amount);                                          \
   }
+#define I32_SHIFTOP_I(name, instruction)                             \
+  I32_SHIFTOP(name, instruction##v)                                  \
+  void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
+                                         int amount) {               \
+    DCHECK(is_uint5(amount));                                        \
+    instruction(dst, src, amount);                                   \
+  }
 
 I32_SHIFTOP(shl, sllv)
 I32_SHIFTOP(sar, srav)
-I32_SHIFTOP(shr, srlv)
+I32_SHIFTOP_I(shr, srl)
 
 #undef I32_SHIFTOP
+#undef I32_SHIFTOP_I
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
@@ -745,6 +773,13 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                    &TurboAssembler::ShrPair, pinned);
 }
 
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    int amount) {
+  DCHECK(is_uint6(amount));
+  ShrPair(dst.high_gp(), dst.low_gp(), src.high_gp(), src.low_gp(), amount,
+          kScratchReg);
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   // This is a nop on mips32.
 }
@@ -779,6 +814,11 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
   bind(&done);
 }
 
+void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  BAILOUT("f32_copysign");
+}
+
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   Label ool, done;
@@ -799,6 +839,11 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
   bind(&ool);
   TurboAssembler::Float64MaxOutOfLine(dst, lhs, rhs);
   bind(&done);
+}
+
+void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  BAILOUT("f64_copysign");
 }
 
 #define FP_BINOP(name, instruction)                                          \
@@ -1025,6 +1070,29 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     default:
       return false;
   }
+}
+
+void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
+  BAILOUT("emit_i32_signextend_i8");
+}
+
+void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
+  BAILOUT("emit_i32_signextend_i16");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i8");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i16");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i32");
 }
 
 void LiftoffAssembler::emit_jump(Label* label) {

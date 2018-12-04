@@ -23,16 +23,15 @@ class ValueUnwrapContext {
 
 }  // namespace
 
-Node* AsyncBuiltinsAssembler::Await(
-    Node* context, Node* generator, Node* value, Node* outer_promise,
-    int context_length, const ContextInitializer& init_closure_context,
-    Node* on_resolve_context_index, Node* on_reject_context_index,
-    Node* is_predicted_as_caught) {
-  DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
-
+Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
+                                       Node* value, Node* outer_promise,
+                                       Node* on_resolve_context_index,
+                                       Node* on_reject_context_index,
+                                       Node* is_predicted_as_caught) {
   Node* const native_context = LoadNativeContext(context);
 
-  static const int kWrappedPromiseOffset = FixedArray::SizeFor(context_length);
+  static const int kWrappedPromiseOffset =
+      FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
   static const int kThrowawayPromiseOffset =
       kWrappedPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kResolveClosureOffset =
@@ -45,9 +44,20 @@ Node* AsyncBuiltinsAssembler::Await(
   Node* const base = AllocateInNewSpace(kTotalSize);
   Node* const closure_context = base;
   {
-    // Initialize closure context
-    InitializeFunctionContext(native_context, closure_context, context_length);
-    init_closure_context(closure_context);
+    // Initialize the await context, storing the {generator} as extension.
+    StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
+    StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
+                                   SmiConstant(Context::MIN_CONTEXT_SLOTS));
+    Node* const empty_scope_info =
+        LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
+    StoreContextElementNoWriteBarrier(
+        closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
+    StoreContextElementNoWriteBarrier(closure_context, Context::PREVIOUS_INDEX,
+                                      native_context);
+    StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
+                                      generator);
+    StoreContextElementNoWriteBarrier(
+        closure_context, Context::NATIVE_CONTEXT_INDEX, native_context);
   }
 
   // Let promiseCapability be ! NewPromiseCapability(%Promise%).
@@ -149,11 +159,8 @@ Node* AsyncBuiltinsAssembler::Await(
 
 Node* AsyncBuiltinsAssembler::AwaitOptimized(
     Node* context, Node* generator, Node* value, Node* outer_promise,
-    int context_length, const ContextInitializer& init_closure_context,
     Node* on_resolve_context_index, Node* on_reject_context_index,
     Node* is_predicted_as_caught) {
-  DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
-
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
@@ -161,7 +168,7 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
   CSA_ASSERT(this, IsConstructor(promise_fun));
 
   static const int kThrowawayPromiseOffset =
-      FixedArray::SizeFor(context_length);
+      FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
   static const int kResolveClosureOffset =
       kThrowawayPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kRejectClosureOffset =
@@ -176,9 +183,20 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
   Node* const base = AllocateInNewSpace(kTotalSize);
   Node* const closure_context = base;
   {
-    // Initialize closure context
-    InitializeFunctionContext(native_context, closure_context, context_length);
-    init_closure_context(closure_context);
+    // Initialize the await context, storing the {generator} as extension.
+    StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
+    StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
+                                   SmiConstant(Context::MIN_CONTEXT_SLOTS));
+    Node* const empty_scope_info =
+        LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
+    StoreContextElementNoWriteBarrier(
+        closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
+    StoreContextElementNoWriteBarrier(closure_context, Context::PREVIOUS_INDEX,
+                                      native_context);
+    StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
+                                      generator);
+    StoreContextElementNoWriteBarrier(
+        closure_context, Context::NATIVE_CONTEXT_INDEX, native_context);
   }
 
   Node* const promise_map =
@@ -261,6 +279,39 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
                      on_resolve, on_reject, throwaway);
 }
 
+Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
+                                    Node* outer_promise,
+                                    Node* on_resolve_context_index,
+                                    Node* on_reject_context_index,
+                                    Node* is_predicted_as_caught) {
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Label if_old(this), if_new(this), done(this);
+
+  STATIC_ASSERT(sizeof(FLAG_harmony_await_optimization) == 1);
+
+  TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
+      MachineType::Uint8(),
+      ExternalConstant(
+          ExternalReference::address_of_harmony_await_optimization_flag())));
+
+  Branch(Word32Equal(flag_value, Int32Constant(0)), &if_old, &if_new);
+
+  BIND(&if_old);
+  result.Bind(AwaitOld(context, generator, value, outer_promise,
+                       on_resolve_context_index, on_reject_context_index,
+                       is_predicted_as_caught));
+  Goto(&done);
+
+  BIND(&if_new);
+  result.Bind(AwaitOptimized(context, generator, value, outer_promise,
+                             on_resolve_context_index, on_reject_context_index,
+                             is_predicted_as_caught));
+  Goto(&done);
+
+  BIND(&done);
+  return result.value();
+}
+
 void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
                                                      Node* native_context,
                                                      Node* function,
@@ -275,11 +326,11 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(function, JSObject::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(function, JSFunction::kFeedbackCellOffset,
-                       Heap::kManyClosuresCellRootIndex);
+                       RootIndex::kManyClosuresCell);
 
   Node* shared_info = LoadContextElement(native_context, context_index);
   CSA_ASSERT(this, IsSharedFunctionInfo(shared_info));

@@ -113,6 +113,10 @@ class LocalArrayBufferTracker {
   typedef std::unordered_map<JSArrayBuffer*, JSArrayBuffer::Allocation, Hasher>
       TrackingData;
 
+  // Internal version of add that does not update counters. Requires separate
+  // logic for updating external memory counters.
+  inline void AddInternal(JSArrayBuffer* buffer, size_t length);
+
   inline Space* space();
 
   Page* page_;

@@ -345,29 +345,37 @@ template <typename type>
 struct FloatCompareWrapper {
   type value;
   explicit FloatCompareWrapper(type x) : value(x) {}
-  bool operator==(type other) const {
+  bool operator==(FloatCompareWrapper<type> const& other) const {
     return std::isnan(value)
-               ? std::isnan(other)
-               : value == other && std::signbit(value) == std::signbit(other);
+               ? std::isnan(other.value)
+               : value == other.value &&
+                     std::signbit(value) == std::signbit(other.value);
   }
 };
 
 template <typename type>
 std::ostream& operator<<(std::ostream& out, FloatCompareWrapper<type> wrapper) {
-  return out << wrapper.value;
+  uint8_t bytes[sizeof(type)];
+  memcpy(bytes, &wrapper.value, sizeof(type));
+  out << wrapper.value << " (0x";
+  const char* kHexDigits = "0123456789ABCDEF";
+  for (unsigned i = 0; i < sizeof(type); ++i) {
+    out << kHexDigits[bytes[i] >> 4] << kHexDigits[bytes[i] & 15];
+  }
+  return out << ")";
 }
 
 #define CHECK_FLOAT_EQ(lhs, rhs)                                               \
   do {                                                                         \
     using FloatWrapper = ::v8::internal::compiler::FloatCompareWrapper<float>; \
-    CHECK_EQ(FloatWrapper(lhs), rhs);                                          \
+    CHECK_EQ(FloatWrapper(lhs), FloatWrapper(rhs));                            \
   } while (false)
 
 #define CHECK_DOUBLE_EQ(lhs, rhs)                              \
   do {                                                         \
     using DoubleWrapper =                                      \
         ::v8::internal::compiler::FloatCompareWrapper<double>; \
-    CHECK_EQ(DoubleWrapper(lhs), rhs);                         \
+    CHECK_EQ(DoubleWrapper(lhs), DoubleWrapper(rhs));          \
   } while (false)
 
 }  // namespace compiler

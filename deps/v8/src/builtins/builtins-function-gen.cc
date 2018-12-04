@@ -62,7 +62,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     const int length_index = JSFunction::kLengthDescriptorIndex;
     TNode<Name> maybe_length = CAST(LoadWeakFixedArrayElement(
         descriptors, DescriptorArray::ToKeyIndex(length_index)));
-    GotoIf(WordNotEqual(maybe_length, LoadRoot(Heap::klength_stringRootIndex)),
+    GotoIf(WordNotEqual(maybe_length, LoadRoot(RootIndex::klength_string)),
            &slow);
 
     TNode<Object> maybe_length_accessor = CAST(LoadWeakFixedArrayElement(
@@ -74,8 +74,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     const int name_index = JSFunction::kNameDescriptorIndex;
     TNode<Name> maybe_name = CAST(LoadWeakFixedArrayElement(
         descriptors, DescriptorArray::ToKeyIndex(name_index)));
-    GotoIf(WordNotEqual(maybe_name, LoadRoot(Heap::kname_stringRootIndex)),
-           &slow);
+    GotoIf(WordNotEqual(maybe_name, LoadRoot(RootIndex::kname_string)), &slow);
 
     TNode<Object> maybe_name_accessor = CAST(LoadWeakFixedArrayElement(
         descriptors, DescriptorArray::ToValueIndex(name_index)));

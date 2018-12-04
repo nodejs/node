@@ -17,36 +17,34 @@ namespace wasm_heap_unittest {
 
 class DisjointAllocationPoolTest : public ::testing::Test {
  public:
-  Address A(size_t n) { return static_cast<Address>(n); }
-  void CheckLooksLike(const DisjointAllocationPool& mem,
-                      std::vector<std::pair<size_t, size_t>> expectation);
-  void CheckLooksLike(AddressRange range,
-                      std::pair<size_t, size_t> expectation);
-  DisjointAllocationPool Make(std::vector<std::pair<size_t, size_t>> model);
+  void CheckPool(const DisjointAllocationPool& mem,
+                 std::initializer_list<base::AddressRegion> expected_regions);
+  void CheckRange(base::AddressRegion region1, base::AddressRegion region2);
+  DisjointAllocationPool Make(
+      std::initializer_list<base::AddressRegion> regions);
 };
 
-void DisjointAllocationPoolTest::CheckLooksLike(
+void DisjointAllocationPoolTest::CheckPool(
     const DisjointAllocationPool& mem,
-    std::vector<std::pair<size_t, size_t>> expectation) {
-  const auto& ranges = mem.ranges();
-  CHECK_EQ(ranges.size(), expectation.size());
-  auto iter = expectation.begin();
-  for (auto it = ranges.begin(), e = ranges.end(); it != e; ++it, ++iter) {
-    CheckLooksLike(*it, *iter);
+    std::initializer_list<base::AddressRegion> expected_regions) {
+  const auto& regions = mem.regions();
+  CHECK_EQ(regions.size(), expected_regions.size());
+  auto iter = expected_regions.begin();
+  for (auto it = regions.begin(), e = regions.end(); it != e; ++it, ++iter) {
+    CHECK_EQ(*it, *iter);
   }
 }
 
-void DisjointAllocationPoolTest::CheckLooksLike(
-    AddressRange range, std::pair<size_t, size_t> expectation) {
-  CHECK_EQ(range.start, A(expectation.first));
-  CHECK_EQ(range.end, A(expectation.second));
+void DisjointAllocationPoolTest::CheckRange(base::AddressRegion region1,
+                                            base::AddressRegion region2) {
+  CHECK_EQ(region1, region2);
 }
 
 DisjointAllocationPool DisjointAllocationPoolTest::Make(
-    std::vector<std::pair<size_t, size_t>> model) {
+    std::initializer_list<base::AddressRegion> regions) {
   DisjointAllocationPool ret;
-  for (auto& pair : model) {
-    ret.Merge({A(pair.first), A(pair.second)});
+  for (auto& region : regions) {
+    ret.Merge(region);
   }
   return ret;
 }
@@ -54,90 +52,90 @@ DisjointAllocationPool DisjointAllocationPoolTest::Make(
 TEST_F(DisjointAllocationPoolTest, ConstructEmpty) {
   DisjointAllocationPool a;
   CHECK(a.IsEmpty());
-  CheckLooksLike(a, {});
-  a.Merge({1, 5});
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {});
+  a.Merge({1, 4});
+  CheckPool(a, {{1, 4}});
 }
 
 TEST_F(DisjointAllocationPoolTest, ConstructWithRange) {
-  DisjointAllocationPool a({1, 5});
+  DisjointAllocationPool a({1, 4});
   CHECK(!a.IsEmpty());
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {{1, 4}});
 }
 
 TEST_F(DisjointAllocationPoolTest, SimpleExtract) {
-  DisjointAllocationPool a = Make({{1, 5}});
-  AddressRange b = a.Allocate(2);
-  CheckLooksLike(a, {{3, 5}});
-  CheckLooksLike(b, {1, 3});
+  DisjointAllocationPool a = Make({{1, 4}});
+  base::AddressRegion b = a.Allocate(2);
+  CheckPool(a, {{3, 2}});
+  CheckRange(b, {1, 2});
   a.Merge(b);
-  CheckLooksLike(a, {{1, 5}});
-  CHECK_EQ(a.ranges().size(), 1);
-  CHECK_EQ(a.ranges().front().start, A(1));
-  CHECK_EQ(a.ranges().front().end, A(5));
+  CheckPool(a, {{1, 4}});
+  CHECK_EQ(a.regions().size(), 1);
+  CHECK_EQ(a.regions().front().begin(), 1);
+  CHECK_EQ(a.regions().front().end(), 5);
 }
 
 TEST_F(DisjointAllocationPoolTest, ExtractAll) {
-  DisjointAllocationPool a({A(1), A(5)});
-  AddressRange b = a.Allocate(4);
-  CheckLooksLike(b, {1, 5});
+  DisjointAllocationPool a({1, 4});
+  base::AddressRegion b = a.Allocate(4);
+  CheckRange(b, {1, 4});
   CHECK(a.IsEmpty());
   a.Merge(b);
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {{1, 4}});
 }
 
 TEST_F(DisjointAllocationPoolTest, FailToExtract) {
-  DisjointAllocationPool a = Make({{1, 5}});
-  AddressRange b = a.Allocate(5);
-  CheckLooksLike(a, {{1, 5}});
+  DisjointAllocationPool a = Make({{1, 4}});
+  base::AddressRegion b = a.Allocate(5);
+  CheckPool(a, {{1, 4}});
   CHECK(b.is_empty());
 }
 
 TEST_F(DisjointAllocationPoolTest, FailToExtractExact) {
-  DisjointAllocationPool a = Make({{1, 5}, {10, 14}});
-  AddressRange b = a.Allocate(5);
-  CheckLooksLike(a, {{1, 5}, {10, 14}});
+  DisjointAllocationPool a = Make({{1, 4}, {10, 4}});
+  base::AddressRegion b = a.Allocate(5);
+  CheckPool(a, {{1, 4}, {10, 4}});
   CHECK(b.is_empty());
 }
 
 TEST_F(DisjointAllocationPoolTest, ExtractExact) {
-  DisjointAllocationPool a = Make({{1, 5}, {10, 15}});
-  AddressRange b = a.Allocate(5);
-  CheckLooksLike(a, {{1, 5}});
-  CheckLooksLike(b, {10, 15});
+  DisjointAllocationPool a = Make({{1, 4}, {10, 5}});
+  base::AddressRegion b = a.Allocate(5);
+  CheckPool(a, {{1, 4}});
+  CheckRange(b, {10, 5});
 }
 
 TEST_F(DisjointAllocationPoolTest, Merging) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}});
-  a.Merge({15, 20});
-  CheckLooksLike(a, {{10, 25}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}});
+  a.Merge({15, 5});
+  CheckPool(a, {{10, 15}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingMore) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({15, 20});
-  a.Merge({25, 30});
-  CheckLooksLike(a, {{10, 35}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({15, 5});
+  a.Merge({25, 5});
+  CheckPool(a, {{10, 25}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkip) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({25, 30});
-  CheckLooksLike(a, {{10, 15}, {20, 35}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({25, 5});
+  CheckPool(a, {{10, 5}, {20, 15}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrc) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({25, 30});
-  a.Merge({35, 40});
-  CheckLooksLike(a, {{10, 15}, {20, 40}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({25, 5});
+  a.Merge({35, 5});
+  CheckPool(a, {{10, 5}, {20, 20}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({25, 30});
-  a.Merge({36, 40});
-  CheckLooksLike(a, {{10, 15}, {20, 35}, {36, 40}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({25, 5});
+  a.Merge({36, 4});
+  CheckPool(a, {{10, 5}, {20, 15}, {36, 4}});
 }
 
 enum ModuleStyle : int { Fixed = 0, Growable = 1 };
@@ -200,7 +198,7 @@ TEST_P(WasmCodeManagerTest, EmptyCase) {
   CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
   ASSERT_DEATH_IF_SUPPORTED(AllocModule(&manager, 1 * page(), GetParam()),
-                            "OOM in NativeModule::AddOwnedCode");
+                            "OOM in NativeModule::AllocateForCode commit");
 }
 
 TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
@@ -223,9 +221,12 @@ TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
   CHECK_NOT_NULL(code);
   CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
+  // This fails in "reservation" if we cannot extend the code space, or in
+  // "commit" it we can (since we hit the allocation limit in the
+  // WasmCodeManager). Hence don't check for that part of the OOM message.
   ASSERT_DEATH_IF_SUPPORTED(
       AddCode(native_module.get(), index++, 1 * kCodeAlignment),
-      "OOM in NativeModule::AddOwnedCode");
+      "OOM in NativeModule::AllocateForCode");
 }
 
 TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
@@ -237,7 +238,7 @@ TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
   WasmCode* code = AddCode(nm1.get(), 0, 2 * page() - kJumpTableSize);
   CHECK_NOT_NULL(code);
   ASSERT_DEATH_IF_SUPPORTED(AddCode(nm2.get(), 0, 2 * page() - kJumpTableSize),
-                            "OOM in NativeModule::AddOwnedCode");
+                            "OOM in NativeModule::AllocateForCode commit");
 }
 
 TEST_P(WasmCodeManagerTest, DifferentHeapsApplyLimitsIndependently) {
@@ -264,7 +265,7 @@ TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
     // grow.
     ASSERT_DEATH_IF_SUPPORTED(
         AddCode(nm.get(), 0, remaining_space_in_module + kCodeAlignment),
-        "OOM in NativeModule::AddOwnedCode");
+        "OOM in NativeModule::AllocateForCode");
   } else {
     // The module grows by one page. One page remains uncommitted.
     CHECK_NOT_NULL(

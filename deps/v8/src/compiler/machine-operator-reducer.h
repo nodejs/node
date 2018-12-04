@@ -25,7 +25,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
  public:
   explicit MachineOperatorReducer(MachineGraph* mcgraph,
                                   bool allow_signalling_nan = true);
-  ~MachineOperatorReducer();
+  ~MachineOperatorReducer() override;
 
   const char* reducer_name() const override { return "MachineOperatorReducer"; }
 

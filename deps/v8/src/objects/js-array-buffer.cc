@@ -41,7 +41,7 @@ void JSArrayBuffer::Neuter() {
   CHECK(!was_neutered());
   CHECK(is_external());
   set_backing_store(nullptr);
-  set_byte_length(Smi::kZero);
+  set_byte_length(0);
   set_was_neutered(true);
   set_is_neuterable(false);
   // Invalidate the neutering protector.
@@ -49,13 +49,6 @@ void JSArrayBuffer::Neuter() {
   if (isolate->IsArrayBufferNeuteringIntact()) {
     isolate->InvalidateArrayBufferNeuteringProtector();
   }
-}
-
-void JSArrayBuffer::StopTrackingWasmMemory(Isolate* isolate) {
-  DCHECK(is_wasm_memory());
-  isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(isolate,
-                                                              backing_store());
-  set_is_wasm_memory(false);
 }
 
 void JSArrayBuffer::FreeBackingStoreFromMainThread() {
@@ -76,7 +69,8 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
         isolate->wasm_engine()->memory_tracker();
     if (!memory_tracker->FreeMemoryIfIsWasmMemory(isolate,
                                                   allocation.backing_store)) {
-      CHECK(FreePages(allocation.allocation_base, allocation.length));
+      CHECK(FreePages(GetPlatformPageAllocator(), allocation.allocation_base,
+                      allocation.length));
     }
   } else {
     isolate->array_buffer_allocator()->Free(allocation.allocation_base,
@@ -84,28 +78,21 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
   }
 }
 
-void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
-  set_bit_field(IsWasmMemory::update(bit_field(), is_wasm_memory));
-}
-
 void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
                           bool is_external, void* data, size_t byte_length,
-                          SharedFlag shared, bool is_wasm_memory) {
+                          SharedFlag shared_flag, bool is_wasm_memory) {
   DCHECK_EQ(array_buffer->GetEmbedderFieldCount(),
             v8::ArrayBuffer::kEmbedderFieldCount);
+  DCHECK_LE(byte_length, JSArrayBuffer::kMaxByteLength);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     array_buffer->SetEmbedderField(i, Smi::kZero);
   }
+  array_buffer->set_byte_length(byte_length);
   array_buffer->set_bit_field(0);
   array_buffer->set_is_external(is_external);
-  array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
-  array_buffer->set_is_shared(shared == SharedFlag::kShared);
+  array_buffer->set_is_neuterable(shared_flag == SharedFlag::kNotShared);
+  array_buffer->set_is_shared(shared_flag == SharedFlag::kShared);
   array_buffer->set_is_wasm_memory(is_wasm_memory);
-
-  Handle<Object> heap_byte_length =
-      isolate->factory()->NewNumberFromSize(byte_length);
-  CHECK(heap_byte_length->IsSmi() || heap_byte_length->IsHeapNumber());
-  array_buffer->set_byte_length(*heap_byte_length);
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
   // registration method below handles the case of registering a buffer that has
@@ -120,14 +107,15 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
 bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
                                         Isolate* isolate,
                                         size_t allocated_length,
-                                        bool initialize, SharedFlag shared) {
+                                        bool initialize,
+                                        SharedFlag shared_flag) {
   void* data;
   CHECK_NOT_NULL(isolate->array_buffer_allocator());
   if (allocated_length != 0) {
     if (allocated_length >= MB)
       isolate->counters()->array_buffer_big_allocations()->AddSample(
           ConvertToMb(allocated_length));
-    if (shared == SharedFlag::kShared)
+    if (shared_flag == SharedFlag::kShared)
       isolate->counters()->shared_array_allocations()->AddSample(
           ConvertToMb(allocated_length));
     if (initialize) {
@@ -147,7 +135,7 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
 
   const bool is_external = false;
   JSArrayBuffer::Setup(array_buffer, isolate, is_external, data,
-                       allocated_length, shared);
+                       allocated_length, shared_flag);
   return true;
 }
 
@@ -175,9 +163,8 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
         "JSTypedArray::MaterializeArrayBuffer");
   }
   buffer->set_is_external(false);
-  DCHECK(buffer->byte_length()->IsSmi() ||
-         buffer->byte_length()->IsHeapNumber());
-  DCHECK(NumberToInt32(buffer->byte_length()) == fixed_typed_array->DataSize());
+  DCHECK_EQ(buffer->byte_length(),
+            static_cast<uintptr_t>(fixed_typed_array->DataSize()));
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
   // registration method below handles the case of registering a buffer that has
@@ -234,9 +221,9 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
       // 3b iv. Let length be O.[[ArrayLength]].
-      uint32_t length = o->length()->Number();
+      size_t length = o->length_value();
       // 3b v. If numericIndex ≥ length, return false.
-      if (index >= length) {
+      if (o->WasNeutered() || index >= length) {
         RETURN_FAILURE(isolate, should_throw,
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }

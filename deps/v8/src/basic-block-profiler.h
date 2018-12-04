@@ -36,7 +36,7 @@ class BasicBlockProfiler {
                                     const BasicBlockProfiler::Data& s);
 
     explicit Data(size_t n_blocks);
-    ~Data();
+    ~Data() = default;
 
     void ResetCounts();
 
@@ -51,7 +51,7 @@ class BasicBlockProfiler {
 
   typedef std::list<Data*> DataList;
 
-  BasicBlockProfiler();
+  BasicBlockProfiler() = default;
   ~BasicBlockProfiler();
 
   V8_EXPORT_PRIVATE static BasicBlockProfiler* Get();

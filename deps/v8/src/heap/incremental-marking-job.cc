@@ -24,8 +24,9 @@ void IncrementalMarkingJob::ScheduleTask(Heap* heap) {
   if (!task_pending_ && !heap->IsTearingDown()) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     task_pending_ = true;
-    auto task = new Task(heap->isolate(), this);
-    V8::GetCurrentPlatform()->CallOnForegroundThread(isolate, task);
+    auto taskrunner =
+        V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
+    taskrunner->PostTask(base::make_unique<Task>(heap->isolate(), this));
   }
 }
 

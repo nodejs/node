@@ -58,7 +58,7 @@ ItemParallelJob::~ItemParallelJob() {
   }
 }
 
-void ItemParallelJob::Run(std::shared_ptr<Counters> async_counters) {
+void ItemParallelJob::Run(const std::shared_ptr<Counters>& async_counters) {
   DCHECK_GT(tasks_.size(), 0);
   const size_t num_items = items_.size();
   const size_t num_tasks = tasks_.size();

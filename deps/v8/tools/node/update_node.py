@@ -34,17 +34,12 @@ import node_common
 TARGET_SUBDIR = os.path.join("deps", "v8")
 
 SUB_REPOSITORIES = [ ["base", "trace_event", "common"],
-                     ["third_party", "googletest", "src"],
-                     ["third_party", "jinja2"],
-                     ["third_party", "markupsafe"] ]
+                     ["third_party", "googletest", "src"] ]
 
 DELETE_FROM_GITIGNORE = [ "/base",
-                          "/third_party/googletest/src",
-                          "/third_party/jinja2",
-                          "/third_party/markupsafe" ]
+                          "/third_party/googletest/src" ]
 
 # Node.js requires only a single header file from gtest to build V8.
-# Both jinja2 and markupsafe are required to generate part of the inspector.
 ADD_TO_GITIGNORE = [ "/third_party/googletest/*",
                      "!/third_party/googletest/BUILD.gn",
                      "!/third_party/googletest/src",
@@ -55,9 +50,7 @@ ADD_TO_GITIGNORE = [ "/third_party/googletest/*",
                      "/third_party/googletest/src/googletest/include/*",
                      "!/third_party/googletest/src/googletest/include/gtest",
                      "/third_party/googletest/src/googletest/include/gtest/*",
-                     "!/third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
-                     "!/third_party/jinja2",
-                     "!/third_party/markupsafe" ]
+                     "!/third_party/googletest/src/googletest/include/gtest/gtest_prod.h" ]
 
 # Node.js owns deps/v8/gypfiles in their downstream repository.
 FILES_TO_KEEP = [ "gypfiles" ]

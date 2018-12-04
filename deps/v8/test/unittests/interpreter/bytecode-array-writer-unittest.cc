@@ -34,7 +34,7 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
         bytecode_array_writer_(
             zone(), &constant_array_builder_,
             SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS) {}
-  ~BytecodeArrayWriterUnittest() override {}
+  ~BytecodeArrayWriterUnittest() override = default;
 
   void Write(Bytecode bytecode, BytecodeSourceInfo info = BytecodeSourceInfo());
   void Write(Bytecode bytecode, uint32_t operand0,

@@ -24,41 +24,28 @@ namespace internal {
 
 namespace {
 
-WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
+Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   StackFrameIterator it(isolate, isolate->thread_local_top());
   // On top: C entry stub.
   DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
   it.Advance();
-  // Next: the wasm (compiled or interpreted) frame.
-  WasmInstanceObject* result = nullptr;
-  if (it.frame()->is_wasm_compiled()) {
-    result = WasmCompiledFrame::cast(it.frame())->wasm_instance();
-  } else {
-    DCHECK(it.frame()->is_wasm_interpreter_entry());
-    result = WasmInterpreterEntryFrame::cast(it.frame())->wasm_instance();
-  }
-  return result;
-}
-
-Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
-  return GetWasmInstanceOnStackTop(isolate)->native_context();
+  // Next: the wasm compiled frame.
+  DCHECK(it.frame()->is_wasm_compiled());
+  WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
+  return frame->wasm_instance()->native_context();
 }
 
 class ClearThreadInWasmScope {
  public:
-  explicit ClearThreadInWasmScope(bool coming_from_wasm)
-      : coming_from_wasm_(coming_from_wasm) {
-    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled() && coming_from_wasm,
+  ClearThreadInWasmScope() {
+    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled(),
               trap_handler::IsThreadInWasm());
-    if (coming_from_wasm) trap_handler::ClearThreadInWasm();
+    trap_handler::ClearThreadInWasm();
   }
   ~ClearThreadInWasmScope() {
     DCHECK(!trap_handler::IsThreadInWasm());
-    if (coming_from_wasm_) trap_handler::SetThreadInWasm();
+    trap_handler::SetThreadInWasm();
   }
-
- private:
-  const bool coming_from_wasm_;
 };
 
 }  // namespace
@@ -72,11 +59,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 1);
 
   // This runtime function is always being called from wasm code.
-  ClearThreadInWasmScope flag_scope(true);
-
-  // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->native_context());
+  ClearThreadInWasmScope flag_scope;
 
   int ret = WasmMemoryObject::Grow(
       isolate, handle(instance->memory_object(), isolate), delta_pages);
@@ -88,11 +71,9 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  ClearThreadInWasmScope clear_wasm_flag(isolate->context() == nullptr);
+  ClearThreadInWasmScope clear_wasm_flag;
 
   HandleScope scope(isolate);
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
   return isolate->Throw(*error_obj);
@@ -116,81 +97,73 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
 RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(HeapObject, tag_raw, 0);
+  CONVERT_SMI_ARG_CHECKED(size, 1);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> tag(tag_raw, isolate);
   Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(
           MessageTemplate::kWasmExceptionError));
-  isolate->set_wasm_caught_exception(*exception);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, id, 0);
-  CHECK(!JSReceiver::SetProperty(isolate, exception,
-                                 isolate->factory()->InternalizeUtf8String(
-                                     wasm::WasmException::kRuntimeIdStr),
-                                 id, LanguageMode::kStrict)
-             .is_null());
-  CONVERT_SMI_ARG_CHECKED(size, 1);
+  CHECK(
+      !JSReceiver::SetProperty(isolate, exception,
+                               isolate->factory()->wasm_exception_tag_symbol(),
+                               tag, LanguageMode::kStrict)
+           .is_null());
   Handle<JSTypedArray> values =
       isolate->factory()->NewJSTypedArray(ElementsKind::UINT16_ELEMENTS, size);
-  CHECK(!JSReceiver::SetProperty(isolate, exception,
-                                 isolate->factory()->InternalizeUtf8String(
-                                     wasm::WasmException::kRuntimeValuesStr),
-                                 values, LanguageMode::kStrict)
+  CHECK(!JSReceiver::SetProperty(
+             isolate, exception,
+             isolate->factory()->wasm_exception_values_symbol(), values,
+             LanguageMode::kStrict)
              .is_null());
-  return ReadOnlyRoots(isolate).undefined_value();
+  return *exception;
 }
 
-RUNTIME_FUNCTION(Runtime_WasmThrow) {
+RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  DCHECK_EQ(0, args.length());
-  Handle<Object> exception(isolate->get_wasm_caught_exception(), isolate);
-  CHECK(!exception.is_null());
-  isolate->clear_wasm_caught_exception();
-  return isolate->Throw(*exception);
-}
-
-RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
-  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
-  HandleScope scope(isolate);
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  Handle<Object> except_obj(isolate->get_wasm_caught_exception(), isolate);
+  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> tag;
     if (JSReceiver::GetProperty(isolate, exception,
-                                isolate->factory()->InternalizeUtf8String(
-                                    wasm::WasmException::kRuntimeIdStr))
+                                isolate->factory()->wasm_exception_tag_symbol())
             .ToHandle(&tag)) {
-      if (tag->IsSmi()) {
-        return *tag;
-      }
+      return *tag;
     }
   }
-  return Smi::FromInt(wasm::kInvalidExceptionTag);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  DCHECK_EQ(1, args.length());
-  Handle<Object> except_obj(isolate->get_wasm_caught_exception(), isolate);
+  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> values_obj;
-    if (JSReceiver::GetProperty(isolate, exception,
-                                isolate->factory()->InternalizeUtf8String(
-                                    wasm::WasmException::kRuntimeValuesStr))
+    if (JSReceiver::GetProperty(
+            isolate, exception,
+            isolate->factory()->wasm_exception_values_symbol())
             .ToHandle(&values_obj)) {
       if (values_obj->IsJSTypedArray()) {
         Handle<JSTypedArray> values = Handle<JSTypedArray>::cast(values_obj);
         CHECK_EQ(values->type(), kExternalUint16Array);
-        CONVERT_SMI_ARG_CHECKED(index, 0);
+        CONVERT_SMI_ARG_CHECKED(index, 1);
+        CHECK(!values->WasNeutered());
         CHECK_LT(index, Smi::ToInt(values->length()));
         auto* vals =
             reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
@@ -204,23 +177,26 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
 RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  Handle<Object> except_obj(isolate->get_wasm_caught_exception(), isolate);
+  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> values_obj;
-    if (JSReceiver::GetProperty(isolate, exception,
-                                isolate->factory()->InternalizeUtf8String(
-                                    wasm::WasmException::kRuntimeValuesStr))
+    if (JSReceiver::GetProperty(
+            isolate, exception,
+            isolate->factory()->wasm_exception_values_symbol())
             .ToHandle(&values_obj)) {
       if (values_obj->IsJSTypedArray()) {
         Handle<JSTypedArray> values = Handle<JSTypedArray>::cast(values_obj);
         CHECK_EQ(values->type(), kExternalUint16Array);
-        CONVERT_SMI_ARG_CHECKED(index, 0);
+        CONVERT_SMI_ARG_CHECKED(index, 1);
+        CHECK(!values->WasNeutered());
         CHECK_LT(index, Smi::ToInt(values->length()));
-        CONVERT_SMI_ARG_CHECKED(value, 1);
+        CONVERT_SMI_ARG_CHECKED(value, 2);
         auto* vals =
             reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
         vals[index] = static_cast<uint16_t>(value);
@@ -235,8 +211,6 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   HandleScope scope(isolate);
   CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[0]);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 1);
-  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
-                                      isolate);
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
@@ -245,13 +219,10 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   CHECK(arg_buffer_obj->IsSmi());
   Address arg_buffer = reinterpret_cast<Address>(*arg_buffer_obj);
 
-  ClearThreadInWasmScope wasm_flag(true);
+  ClearThreadInWasmScope wasm_flag;
 
-  // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->native_context());
-
-  // Find the frame pointer of the interpreter entry.
+  // Find the frame pointer and instance of the interpreter frame on the stack.
+  Handle<WasmInstanceObject> instance;
   Address frame_pointer = 0;
   {
     StackFrameIterator it(isolate, isolate->thread_local_top());
@@ -260,8 +231,14 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     it.Advance();
     // Next: the wasm interpreter entry.
     DCHECK_EQ(StackFrame::WASM_INTERPRETER_ENTRY, it.frame()->type());
+    instance = handle(
+        WasmInterpreterEntryFrame::cast(it.frame())->wasm_instance(), isolate);
     frame_pointer = it.frame()->fp();
   }
+
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(instance->native_context());
 
   // Run the function in the interpreter. Note that neither the {WasmDebugInfo}
   // nor the {InterpreterHandle} have to exist, because interpretation might
@@ -284,11 +261,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   DCHECK(!trap_handler::IsTrapHandlerEnabled() ||
          trap_handler::IsThreadInWasm());
 
-  ClearThreadInWasmScope wasm_flag(true);
-
-  // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
+  ClearThreadInWasmScope wasm_flag;
 
   // Check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -303,7 +276,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_SMI_ARG_CHECKED(func_index, 1);
 
-  ClearThreadInWasmScope wasm_flag(true);
+  ClearThreadInWasmScope wasm_flag;
 
 #ifdef DEBUG
   StackFrameIterator it(isolate, isolate->thread_local_top());

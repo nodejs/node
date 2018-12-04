@@ -40,7 +40,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
 #endif
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     struct sigaction action;
     action.sa_sigaction = SignalHandler;
     sigemptyset(&action.sa_mask);
@@ -51,7 +51,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
 #endif
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Be a good citizen and restore the old signal handler.
     sigaction(SIGSEGV, &old_action_, nullptr);
 #if V8_OS_MACOSX
@@ -95,12 +95,14 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
 
   void TestPermissions(PageAllocator::Permission permission, bool can_read,
                        bool can_write) {
-    const size_t page_size = AllocatePageSize();
-    int* buffer = static_cast<int*>(
-        AllocatePages(nullptr, page_size, page_size, permission));
+    v8::PageAllocator* page_allocator =
+        v8::internal::GetPlatformPageAllocator();
+    const size_t page_size = page_allocator->AllocatePageSize();
+    int* buffer = static_cast<int*>(AllocatePages(
+        page_allocator, nullptr, page_size, page_size, permission));
     ProbeMemory(buffer, MemoryAction::kRead, can_read);
     ProbeMemory(buffer, MemoryAction::kWrite, can_write);
-    CHECK(FreePages(buffer, page_size));
+    CHECK(FreePages(page_allocator, buffer, page_size));
   }
 };
 
@@ -125,41 +127,46 @@ TEST(AllocationTest, AllocateAndFree) {
   size_t page_size = v8::internal::AllocatePageSize();
   CHECK_NE(0, page_size);
 
+  v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
+
   // A large allocation, aligned at native allocation granularity.
   const size_t kAllocationSize = 1 * v8::internal::MB;
   void* mem_addr = v8::internal::AllocatePages(
-      v8::internal::GetRandomMmapAddr(), kAllocationSize, page_size,
-      PageAllocator::Permission::kReadWrite);
+      page_allocator, page_allocator->GetRandomMmapAddr(), kAllocationSize,
+      page_size, PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(mem_addr);
-  CHECK(v8::internal::FreePages(mem_addr, kAllocationSize));
+  CHECK(v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize));
 
   // A large allocation, aligned significantly beyond native granularity.
   const size_t kBigAlignment = 64 * v8::internal::MB;
   void* aligned_mem_addr = v8::internal::AllocatePages(
-      AlignedAddress(v8::internal::GetRandomMmapAddr(), kBigAlignment),
+      page_allocator,
+      AlignedAddress(page_allocator->GetRandomMmapAddr(), kBigAlignment),
       kAllocationSize, kBigAlignment, PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(aligned_mem_addr);
   CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
-  CHECK(v8::internal::FreePages(aligned_mem_addr, kAllocationSize));
+  CHECK(v8::internal::FreePages(page_allocator, aligned_mem_addr,
+                                kAllocationSize));
 }
 
 TEST(AllocationTest, ReserveMemory) {
+  v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
   size_t page_size = v8::internal::AllocatePageSize();
   const size_t kAllocationSize = 1 * v8::internal::MB;
   void* mem_addr = v8::internal::AllocatePages(
-      v8::internal::GetRandomMmapAddr(), kAllocationSize, page_size,
-      PageAllocator::Permission::kReadWrite);
+      page_allocator, page_allocator->GetRandomMmapAddr(), kAllocationSize,
+      page_size, PageAllocator::Permission::kReadWrite);
   CHECK_NE(0, page_size);
   CHECK_NOT_NULL(mem_addr);
-  size_t commit_size = v8::internal::CommitPageSize();
-  CHECK(v8::internal::SetPermissions(mem_addr, commit_size,
+  size_t commit_size = page_allocator->CommitPageSize();
+  CHECK(v8::internal::SetPermissions(page_allocator, mem_addr, commit_size,
                                      PageAllocator::Permission::kReadWrite));
   // Check whether we can write to memory.
   int* addr = static_cast<int*>(mem_addr);
   addr[v8::internal::KB - 1] = 2;
-  CHECK(v8::internal::SetPermissions(mem_addr, commit_size,
+  CHECK(v8::internal::SetPermissions(page_allocator, mem_addr, commit_size,
                                      PageAllocator::Permission::kNoAccess));
-  CHECK(v8::internal::FreePages(mem_addr, kAllocationSize));
+  CHECK(v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize));
 }
 
 }  // namespace internal

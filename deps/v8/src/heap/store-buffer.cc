@@ -31,15 +31,15 @@ StoreBuffer::StoreBuffer(Heap* heap)
 }
 
 void StoreBuffer::SetUp() {
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   const size_t requested_size = kStoreBufferSize * kStoreBuffers;
   // Allocate buffer memory aligned at least to kStoreBufferSize. This lets us
   // use a bit test to detect the ends of the buffers.
   const size_t alignment =
-      std::max<size_t>(kStoreBufferSize, AllocatePageSize());
+      std::max<size_t>(kStoreBufferSize, page_allocator->AllocatePageSize());
   void* hint = AlignedAddress(heap_->GetRandomMmapAddr(), alignment);
-  VirtualMemory reservation;
-  if (!AlignedAllocVirtualMemory(requested_size, alignment, hint,
-                                 &reservation)) {
+  VirtualMemory reservation(page_allocator, requested_size, hint, alignment);
+  if (!reservation.IsReserved()) {
     heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
 

@@ -37,7 +37,7 @@ GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
   }
 }
 
-GraphReducer::~GraphReducer() {}
+GraphReducer::~GraphReducer() = default;
 
 
 void GraphReducer::AddReducer(Reducer* reducer) {

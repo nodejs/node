@@ -214,6 +214,7 @@ v8_source_set("cctest_sources") {
     "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
+    "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
     "test-strtod.cc",
     "test-symbols.cc",
@@ -237,6 +238,7 @@ v8_source_set("cctest_sources") {
     "trace-extension.cc",
     "trace-extension.h",
     "types-fuzz.h",
+    "unicode-helpers.cc",
     "unicode-helpers.h",
     "wasm/test-c-wasm-entry.cc",
     "wasm/test-jump-table-assembler.cc",
@@ -285,6 +287,7 @@ v8_source_set("cctest_sources") {
       "test-code-stubs.h",
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
+      "test-poison-disasm-arm.cc",
       "test-sync-primitives-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {

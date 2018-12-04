@@ -309,7 +309,6 @@ typedef FPURegister DoubleRegister;
 DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
 #undef DECLARE_DOUBLE_REGISTER
 
-constexpr DoubleRegister no_freg = DoubleRegister::no_reg();
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // SIMD registers.
@@ -392,7 +391,7 @@ constexpr MSAControlRegister MSACSR = {kMSACSRRegister};
 constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
 constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
 // Class Operand represents a shifter operand in data processing instructions.
-class Operand BASE_EMBEDDED {
+class Operand {
  public:
   // Immediate.
   V8_INLINE explicit Operand(int64_t immediate,
@@ -415,6 +414,7 @@ class Operand BASE_EMBEDDED {
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedCode(CodeStub* stub);
+  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Register.
   V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
@@ -820,16 +820,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Never use the int16_t b(l)cond version with a branch offset
   // instead of using the Label* version.
 
-  // Jump targets must be in the current 256 MB-aligned region. i.e. 28 bits.
-  void j(int64_t target);
-  void jal(int64_t target);
-  void j(Label* target);
-  void jal(Label* target);
   void jalr(Register rs, Register rd = ra);
   void jr(Register target);
   void jic(Register rt, int16_t offset);
   void jialc(Register rt, int16_t offset);
 
+  // Following instructions are deprecated and require 256 MB
+  // code alignment. Use PC-relative instructions instead.
+  void j(int64_t target);
+  void jal(int64_t target);
+  void j(Label* target);
+  void jal(Label* target);
 
   // -------Data-processing-instructions---------
 
@@ -2279,8 +2280,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   friend class EnsureSpace;
 };
 
-
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit inline EnsureSpace(Assembler* assembler);
 };

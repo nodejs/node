@@ -16,7 +16,7 @@ GraphTrimmer::GraphTrimmer(Zone* zone, Graph* graph)
 }
 
 
-GraphTrimmer::~GraphTrimmer() {}
+GraphTrimmer::~GraphTrimmer() = default;
 
 
 void GraphTrimmer::TrimGraph() {

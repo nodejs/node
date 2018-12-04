@@ -18,12 +18,16 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
+namespace U_ICU_NAMESPACE {
+class PluralRules;
+}  //  namespace U_ICU_NAMESPACE
+
 namespace v8 {
 namespace internal {
 
 class JSPluralRules : public JSObject {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> InitializePluralRules(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> Initialize(
       Isolate* isolate, Handle<JSPluralRules> plural_rules,
       Handle<Object> locales, Handle<Object> options);
 
@@ -31,8 +35,7 @@ class JSPluralRules : public JSObject {
                                           Handle<JSPluralRules> plural_rules);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ResolvePlural(
-      Isolate* isolate, Handle<JSPluralRules> plural_rules,
-      Handle<Object> number);
+      Isolate* isolate, Handle<JSPluralRules> plural_rules, double number);
 
   DECL_CAST(JSPluralRules)
   DECL_PRINTER(JSPluralRules)

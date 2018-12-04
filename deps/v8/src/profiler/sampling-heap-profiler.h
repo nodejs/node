@@ -8,7 +8,7 @@
 #include <deque>
 #include <map>
 #include <memory>
-#include <set>
+#include <unordered_map>
 #include "include/v8-profiler.h"
 #include "src/heap/heap.h"
 #include "src/profiler/strings-storage.h"
@@ -77,13 +77,7 @@ class SamplingHeapProfiler {
         : parent_(parent),
           script_id_(script_id),
           script_position_(start_position),
-          name_(name),
-          pinned_(false) {}
-    ~AllocationNode() {
-      for (auto child : children_) {
-        delete child.second;
-      }
-    }
+          name_(name) {}
 
    private:
     typedef uint64_t FunctionId;
@@ -107,12 +101,12 @@ class SamplingHeapProfiler {
     // TODO(alph): make use of unordered_map's here. Pay attention to
     // iterator invalidation during TranslateAllocationNode.
     std::map<size_t, unsigned int> allocations_;
-    std::map<FunctionId, AllocationNode*> children_;
+    std::map<FunctionId, std::unique_ptr<AllocationNode>> children_;
     AllocationNode* const parent_;
     const int script_id_;
     const int script_position_;
     const char* const name_;
-    bool pinned_;
+    bool pinned_ = false;
 
     friend class SamplingHeapProfiler;
 
@@ -146,7 +140,7 @@ class SamplingHeapProfiler {
   std::unique_ptr<SamplingAllocationObserver> other_spaces_observer_;
   StringsStorage* const names_;
   AllocationNode profile_root_;
-  std::set<std::unique_ptr<Sample>> samples_;
+  std::unordered_map<Sample*, std::unique_ptr<Sample>> samples_;
   const int stack_depth_;
   const uint64_t rate_;
   v8::HeapProfiler::SamplingFlags flags_;
@@ -166,7 +160,7 @@ class SamplingAllocationObserver : public AllocationObserver {
         heap_(heap),
         random_(random),
         rate_(rate) {}
-  virtual ~SamplingAllocationObserver() {}
+  ~SamplingAllocationObserver() override = default;
 
  protected:
   void Step(int bytes_allocated, Address soon_object, size_t size) override {

@@ -240,8 +240,12 @@ static void Getter(v8::Local<v8::Name> name,
 static void StringGetter(v8::Local<v8::String> name,
                          const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
-static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
-                   const v8::PropertyCallbackInfo<void>& info) {}
+static int set_accessor_call_count = 0;
+
+static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
+                   const v8::PropertyCallbackInfo<void>& info) {
+  set_accessor_call_count++;
+}
 }  // namespace
 
 // Re-declaration of non-configurable accessors should throw.
@@ -281,7 +285,7 @@ TEST(AccessorSetHasNoSideEffect) {
   obj->SetAccessor(context, v8_str("foo"), Getter).ToChecked();
   CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo"), true).IsEmpty());
 
-  obj->SetAccessor(context, v8_str("foo"), Getter, 0,
+  obj->SetAccessor(context, v8_str("foo"), Getter, nullptr,
                    v8::MaybeLocal<v8::Value>(), v8::AccessControl::DEFAULT,
                    v8::PropertyAttribute::None,
                    v8::SideEffectType::kHasNoSideEffect)
@@ -297,6 +301,65 @@ TEST(AccessorSetHasNoSideEffect) {
                   .ToLocalChecked()
                   ->Int32Value(env.local())
                   .FromJust());
+  CHECK_EQ(0, set_accessor_call_count);
+}
+
+// Set accessors can be whitelisted as side-effect-free via SetAccessor.
+TEST(SetAccessorSetSideEffectReceiverCheck1) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  obj->SetAccessor(env.local(), v8_str("foo"), Getter, Setter,
+                   v8::MaybeLocal<v8::Value>(), v8::AccessControl::DEFAULT,
+                   v8::PropertyAttribute::None,
+                   v8::SideEffectType::kHasNoSideEffect,
+                   v8::SideEffectType::kHasSideEffectToReceiver)
+      .ToChecked();
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo"), true)
+            .ToLocalChecked()
+            ->Equals(env.local(), v8_str("return value"))
+            .FromJust());
+  v8::TryCatch try_catch(isolate);
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo = 1"), true)
+            .IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(0, set_accessor_call_count);
+}
+
+static void ConstructCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+}
+
+TEST(SetAccessorSetSideEffectReceiverCheck2) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  i::FLAG_enable_one_shot_optimization = false;
+
+  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(
+      isolate, ConstructCallback, v8::Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kAllow,
+      v8::SideEffectType::kHasNoSideEffect);
+  templ->InstanceTemplate()->SetAccessor(
+      v8_str("bar"), Getter, Setter, v8::Local<v8::Value>(),
+      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
+      v8::Local<v8::AccessorSignature>(),
+      v8::SideEffectType::kHasSideEffectToReceiver,
+      v8::SideEffectType::kHasSideEffectToReceiver);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("f"),
+                  templ->GetFunction(env.local()).ToLocalChecked())
+            .FromJust());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f().bar"), true)
+            .ToLocalChecked()
+            ->Equals(env.local(), v8_str("return value"))
+            .FromJust());
+  v8::debug::EvaluateGlobal(isolate, v8_str("new f().bar = 1"), true)
+      .ToLocalChecked();
+  CHECK_EQ(1, set_accessor_call_count);
 }
 
 // Accessors can be whitelisted as side-effect-free via SetNativeDataProperty.
@@ -366,10 +429,10 @@ TEST(ObjectTemplateSetAccessorHasNoSideEffect) {
 
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("foo"), StringGetter);
-  templ->SetAccessor(v8_str("foo2"), StringGetter, 0, v8::Local<v8::Value>(),
-                     v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-                     v8::Local<v8::AccessorSignature>(),
-                     v8::SideEffectType::kHasNoSideEffect);
+  templ->SetAccessor(
+      v8_str("foo2"), StringGetter, nullptr, v8::Local<v8::Value>(),
+      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
+      v8::Local<v8::AccessorSignature>(), v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
@@ -395,7 +458,7 @@ TEST(ObjectTemplateSetNativePropertyHasNoSideEffect) {
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetNativeDataProperty(v8_str("foo"), Getter);
   templ->SetNativeDataProperty(
-      v8_str("foo2"), Getter, 0, v8::Local<v8::Value>(),
+      v8_str("foo2"), Getter, nullptr, v8::Local<v8::Value>(),
       v8::PropertyAttribute::None, v8::Local<v8::AccessorSignature>(),
       v8::AccessControl::DEFAULT, v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();

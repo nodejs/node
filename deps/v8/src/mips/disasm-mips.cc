@@ -1546,6 +1546,16 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           }
           break;
         }
+        case LL_R6: {
+          DCHECK(IsMipsArchVariant(kMips32r6));
+          Format(instr, "llwp    'rd, 'rt, 0('rs)");
+          break;
+        }
+        case SC_R6: {
+          DCHECK(IsMipsArchVariant(kMips32r6));
+          Format(instr, "scwp    'rd, 'rt, 0('rs)");
+          break;
+        }
         default: {
           sa >>= kBp2Bits;
           switch (sa) {

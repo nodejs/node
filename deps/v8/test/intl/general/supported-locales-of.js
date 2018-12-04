@@ -27,55 +27,67 @@
 
 // Tests supportedLocalesOf method.
 
-var undef = Intl.DateTimeFormat.supportedLocalesOf();
-assertEquals([], undef);
+var services = [
+  Intl.DateTimeFormat,
+  Intl.Collator,
+  Intl.NumberFormat,
+  Intl.PluralRules
+];
 
-var empty = Intl.DateTimeFormat.supportedLocalesOf([]);
-assertEquals([], empty);
+for (const service of services) {
+  let undef = service.supportedLocalesOf();
+  assertEquals([], undef);
 
-var strLocale = Intl.DateTimeFormat.supportedLocalesOf('sr');
-assertEquals('sr', strLocale[0]);
+  let empty = service.supportedLocalesOf([]);
+  assertEquals([], empty);
 
-var multiLocale =
-    Intl.DateTimeFormat.supportedLocalesOf(['sr-Thai-RS', 'de', 'zh-CN']);
-assertEquals('sr-Thai-RS', multiLocale[0]);
-assertEquals('de', multiLocale[1]);
-assertEquals('zh-CN', multiLocale[2]);
+  let strLocale = service.supportedLocalesOf("sr");
+  assertEquals("sr", strLocale[0]);
 
-collatorUndef = Intl.Collator.supportedLocalesOf();
-assertEquals([], collatorUndef);
+  var locales = ["sr-Thai-RS", "de", "zh-CN"];
+  let multiLocale = service.supportedLocalesOf(locales);
+  assertEquals("sr-Thai-RS", multiLocale[0]);
+  assertEquals("de", multiLocale[1]);
+  assertEquals("zh-CN", multiLocale[2]);
 
-collatorEmpty = Intl.Collator.supportedLocalesOf([]);
-assertEquals([], collatorEmpty);
+  let numLocale = service.supportedLocalesOf(1);
+  assertEquals([], numLocale);
+  assertThrows(function() {
+    numLocale = Intl.Collator.supportedLocalesOf([1]);
+  }, TypeError);
 
-collatorStrLocale = Intl.Collator.supportedLocalesOf('sr');
-assertEquals('sr', collatorStrLocale[0]);
+  extensionLocale = service.supportedLocalesOf("id-u-co-pinyin");
+  assertEquals("id-u-co-pinyin", extensionLocale[0]);
 
-collatorMultiLocale =
-    Intl.Collator.supportedLocalesOf(['sr-Thai-RS', 'de', 'zh-CN']);
-assertEquals('sr-Thai-RS', collatorMultiLocale[0]);
-assertEquals('de', collatorMultiLocale[1]);
-assertEquals('zh-CN', collatorMultiLocale[2]);
+  bestFitLocale = service.supportedLocalesOf("de", {
+    localeMatcher: "best fit"
+  });
+  assertEquals("de", bestFitLocale[0]);
 
-numLocale = Intl.Collator.supportedLocalesOf(1);
-assertEquals([], numLocale);
+  // Need a better test for "lookup" once it differs from "best fit".
+  lookupLocale = service.supportedLocalesOf("zh-CN", {
+    localeMatcher: "lookup"
+  });
+  assertEquals("zh-CN", lookupLocale[0]);
 
-assertThrows(function() {
-  numLocale = Intl.Collator.supportedLocalesOf([1]);
-}, TypeError);
+  assertThrows(function() {
+    service.supportedLocalesOf("id-u-co-pinyin", { localeMatcher: "xyz" });
+  }, RangeError);
 
-extensionLocale = Intl.Collator.supportedLocalesOf('id-u-co-pinyin');
-assertEquals('id-u-co-pinyin', extensionLocale[0]);
+  privateuseLocale = service.supportedLocalesOf("en-US-x-twain");
+  assertEquals("en-US-x-twain", privateuseLocale[0]);
 
-bestFitLocale =
-    Intl.Collator.supportedLocalesOf('de', {localeMatcher: 'best fit'});
-assertEquals('de', bestFitLocale[0]);
+  privateuseLocale2 = service.supportedLocalesOf("x-twain");
+  assertEquals(undefined, privateuseLocale2[0]);
 
-// Need a better test for "lookup" once it differs from "best fit".
-lookupLocale =
-    Intl.Collator.supportedLocalesOf('zh-CN', {localeMatcher: 'lookup'});
-assertEquals('zh-CN', lookupLocale[0]);
+  grandfatheredLocale = service.supportedLocalesOf("art-lojban");
+  assertEquals(undefined, grandfatheredLocale[0]);
 
-assertThrows(function() {
-  Intl.Collator.supportedLocalesOf('id-u-co-pinyin', {localeMatcher: 'xyz'});
-}, RangeError);
+  grandfatheredLocale2 = service.supportedLocalesOf("i-pwn");
+  assertEquals(undefined, grandfatheredLocale2[0]);
+
+  unicodeInPrivateuseLocale = service.supportedLocalesOf(
+    "en-US-x-u-co-phonebk"
+  );
+  assertEquals("en-US-x-u-co-phonebk", unicodeInPrivateuseLocale[0]);
+}

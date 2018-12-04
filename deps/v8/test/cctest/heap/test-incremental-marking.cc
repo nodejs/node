@@ -33,12 +33,13 @@ namespace heap {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform() : task_(nullptr), old_platform_(i::V8::GetCurrentPlatform()) {
+  MockPlatform()
+      : taskrunner_(new MockTaskRunner()),
+        old_platform_(i::V8::GetCurrentPlatform()) {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~MockPlatform() {
-    delete task_;
+  ~MockPlatform() override {
     i::V8::SetPlatformForTesting(old_platform_);
     for (auto& task : worker_tasks_) {
       old_platform_->CallOnWorkerThread(std::move(task));
@@ -46,8 +47,9 @@ class MockPlatform : public TestPlatform {
     worker_tasks_.clear();
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    task_ = task;
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return taskrunner_;
   }
 
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
@@ -56,17 +58,40 @@ class MockPlatform : public TestPlatform {
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
-  bool PendingTask() { return task_ != nullptr; }
+  bool PendingTask() { return taskrunner_->PendingTask(); }
 
-  void PerformTask() {
-    Task* task = task_;
-    task_ = nullptr;
-    task->Run();
-    delete task;
-  }
+  void PerformTask() { taskrunner_->PerformTask(); }
 
  private:
-  Task* task_;
+  class MockTaskRunner : public v8::TaskRunner {
+   public:
+    void PostTask(std::unique_ptr<v8::Task> task) override {
+      task_ = std::move(task);
+    }
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      UNREACHABLE();
+    };
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      UNREACHABLE();
+    }
+
+    bool IdleTasksEnabled() override { return false; };
+
+    bool PendingTask() { return task_ != nullptr; }
+
+    void PerformTask() {
+      std::unique_ptr<Task> task = std::move(task_);
+      task->Run();
+    }
+
+   private:
+    std::unique_ptr<Task> task_;
+  };
+
+  std::shared_ptr<MockTaskRunner> taskrunner_;
   std::vector<std::unique_ptr<Task>> worker_tasks_;
   v8::Platform* old_platform_;
 };

@@ -58,10 +58,12 @@ class ConcurrentMarking {
   // task 0, reserved for the main thread).
   static constexpr int kMaxTasks = 7;
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
+  using EmbedderTracingWorklist = Worklist<HeapObject*, 16 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
                     MarkingWorklist* bailout, MarkingWorklist* on_hold,
-                    WeakObjects* weak_objects);
+                    WeakObjects* weak_objects,
+                    EmbedderTracingWorklist* embedder_objects);
 
   // Schedules asynchronous tasks to perform concurrent marking. Objects in the
   // heap should not be moved while these are active (can be stopped safely via
@@ -108,6 +110,7 @@ class ConcurrentMarking {
   MarkingWorklist* const bailout_;
   MarkingWorklist* const on_hold_;
   WeakObjects* const weak_objects_;
+  EmbedderTracingWorklist* const embedder_objects_;
   TaskState task_state_[kMaxTasks + 1];
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> ephemeron_marked_{false};

@@ -19,8 +19,17 @@
 namespace v8 {
 namespace internal {
 
-SMI_ACCESSORS(String, length, kLengthOffset)
-SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
+INT32_ACCESSORS(String, length, kLengthOffset)
+
+int String::synchronized_length() const {
+  return base::AsAtomic32::Acquire_Load(
+      reinterpret_cast<const int32_t*>(FIELD_ADDR(this, kLengthOffset)));
+}
+
+void String::synchronized_set_length(int value) {
+  base::AsAtomic32::Release_Store(
+      reinterpret_cast<int32_t*>(FIELD_ADDR(this, kLengthOffset)), value);
+}
 
 CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(ExternalOneByteString)
@@ -536,9 +545,9 @@ HeapObject* ThinString::unchecked_actual() const {
   return reinterpret_cast<HeapObject*>(READ_FIELD(this, kActualOffset));
 }
 
-bool ExternalString::is_short() const {
+bool ExternalString::is_uncached() const {
   InstanceType type = map()->instance_type();
-  return (type & kShortExternalStringMask) == kShortExternalStringTag;
+  return (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
 Address ExternalString::resource_as_address() {
@@ -562,7 +571,7 @@ uint32_t ExternalString::resource_as_uint32() {
 
 void ExternalString::set_uint32_as_resource(uint32_t value) {
   *reinterpret_cast<uintptr_t*>(FIELD_ADDR(this, kResourceOffset)) = value;
-  if (is_short()) return;
+  if (is_uncached()) return;
   const char** data_field =
       reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
   *data_field = nullptr;
@@ -573,7 +582,7 @@ const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
 }
 
 void ExternalOneByteString::update_data_cache() {
-  if (is_short()) return;
+  if (is_uncached()) return;
   const char** data_field =
       reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
   *data_field = resource()->data();
@@ -609,7 +618,7 @@ const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 }
 
 void ExternalTwoByteString::update_data_cache() {
-  if (is_short()) return;
+  if (is_uncached()) return;
   const uint16_t** data_field =
       reinterpret_cast<const uint16_t**>(FIELD_ADDR(this, kResourceDataOffset));
   *data_field = resource()->data();
@@ -733,8 +742,7 @@ class String::SubStringRange::iterator final {
   typedef uc16* pointer;
   typedef uc16& reference;
 
-  iterator(const iterator& other)
-      : content_(other.content_), offset_(other.offset_) {}
+  iterator(const iterator& other) = default;
 
   uc16 operator*() { return content_.Get(offset_); }
   bool operator==(const iterator& other) const {

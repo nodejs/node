@@ -18,6 +18,8 @@ const int Deoptimizer::table_entry_size_ = 10;
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm());
+
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
@@ -53,7 +55,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
       kNumberOfRegisters * kPointerSize + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
-  __ mov(ebx, Operand(esp, kSavedRegistersAreaSize));
+  __ mov(esi, Operand(esp, kSavedRegistersAreaSize));
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register edx.
@@ -74,7 +76,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ mov(Operand(esp, 0 * kPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kPointerSize),
          Immediate(static_cast<int>(deopt_kind())));
-  __ mov(Operand(esp, 2 * kPointerSize), ebx);  // Bailout id.
+  __ mov(Operand(esp, 2 * kPointerSize), esi);  // Bailout id.
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Code address or 0.
   __ mov(Operand(esp, 4 * kPointerSize), edx);  // Fp-to-sp delta.
   __ mov(Operand(esp, 5 * kPointerSize),
@@ -86,19 +88,19 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Preserve deoptimizer object in register eax and get the input
   // frame descriptor pointer.
-  __ mov(ebx, Operand(eax, Deoptimizer::input_offset()));
+  __ mov(esi, Operand(eax, Deoptimizer::input_offset()));
 
   // Fill in the input registers.
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ pop(Operand(ebx, offset));
+    __ pop(Operand(esi, offset));
   }
 
   int float_regs_offset = FrameDescription::float_registers_offset();
   // Fill in the float input registers.
   for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
     int dst_offset = i * kFloatSize + float_regs_offset;
-    __ pop(Operand(ebx, dst_offset));
+    __ pop(Operand(esi, dst_offset));
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
@@ -108,7 +110,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int dst_offset = code * kDoubleSize + double_regs_offset;
     int src_offset = code * kDoubleSize;
     __ movsd(xmm0, Operand(esp, src_offset));
-    __ movsd(Operand(ebx, dst_offset), xmm0);
+    __ movsd(Operand(esi, dst_offset), xmm0);
   }
 
   // Clear FPU all exceptions.
@@ -121,13 +123,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Compute a pointer to the unwinding limit in register ecx; that is
   // the first stack slot not part of the input frame.
-  __ mov(ecx, Operand(ebx, FrameDescription::frame_size_offset()));
+  __ mov(ecx, Operand(esi, FrameDescription::frame_size_offset()));
   __ add(ecx, esp);
 
   // Unwind the stack down to - but not including - the unwinding
   // limit and copy the contents of the activation frame to the input
   // frame description.
-  __ lea(edx, Operand(ebx, FrameDescription::frame_content_offset()));
+  __ lea(edx, Operand(esi, FrameDescription::frame_content_offset()));
   Label pop_loop_header;
   __ jmp(&pop_loop_header);
   Label pop_loop;
@@ -140,7 +142,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Compute the output frame in the deoptimizer.
   __ push(eax);
-  __ PrepareCallCFunction(1, ebx);
+  __ PrepareCallCFunction(1, esi);
   __ mov(Operand(esp, 0 * kPointerSize), eax);
   {
     AllowExternalCallThatCantCauseGC scope(masm());
@@ -153,20 +155,21 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
-  // Outer loop state: eax = current FrameDescription**, edx = one past the
-  // last FrameDescription**.
+  // Outer loop state: eax = current FrameDescription**, edx = one
+  // past the last FrameDescription**.
   __ mov(edx, Operand(eax, Deoptimizer::output_count_offset()));
   __ mov(eax, Operand(eax, Deoptimizer::output_offset()));
   __ lea(edx, Operand(eax, edx, times_4, 0));
   __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
-  // Inner loop state: ebx = current FrameDescription*, ecx = loop index.
-  __ mov(ebx, Operand(eax, 0));
-  __ mov(ecx, Operand(ebx, FrameDescription::frame_size_offset()));
+  // Inner loop state: esi = current FrameDescription*, ecx = loop
+  // index.
+  __ mov(esi, Operand(eax, 0));
+  __ mov(ecx, Operand(esi, FrameDescription::frame_size_offset()));
   __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
   __ sub(ecx, Immediate(sizeof(uint32_t)));
-  __ push(Operand(ebx, ecx, times_1, FrameDescription::frame_content_offset()));
+  __ push(Operand(esi, ecx, times_1, FrameDescription::frame_content_offset()));
   __ bind(&inner_loop_header);
   __ test(ecx, ecx);
   __ j(not_zero, &inner_push_loop);
@@ -180,20 +183,21 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
     int src_offset = code * kDoubleSize + double_regs_offset;
-    __ movsd(xmm_reg, Operand(ebx, src_offset));
+    __ movsd(xmm_reg, Operand(esi, src_offset));
   }
 
   // Push pc and continuation from the last output frame.
-  __ push(Operand(ebx, FrameDescription::pc_offset()));
-  __ push(Operand(ebx, FrameDescription::continuation_offset()));
+  __ push(Operand(esi, FrameDescription::pc_offset()));
+  __ push(Operand(esi, FrameDescription::continuation_offset()));
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    __ push(Operand(ebx, offset));
+    __ push(Operand(esi, offset));
   }
 
   // Restore the registers from the stack.
+  Assembler::AllowExplicitEbxAccessScope restoring_spilled_value(masm());
   __ popad();
 
   // Return to the continuation point.

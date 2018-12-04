@@ -27,7 +27,7 @@ class TimezoneCache {
   virtual void Clear() = 0;
 
   // Called when tearing down the isolate
-  virtual ~TimezoneCache() {}
+  virtual ~TimezoneCache() = default;
 };
 
 }  // namespace base

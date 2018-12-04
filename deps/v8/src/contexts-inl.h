@@ -99,6 +99,10 @@ bool Context::IsDebugEvaluateContext() const {
   return map()->instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
 }
 
+bool Context::IsAwaitContext() const {
+  return map()->instance_type() == AWAIT_CONTEXT_TYPE;
+}
+
 bool Context::IsBlockContext() const {
   return map()->instance_type() == BLOCK_CONTEXT_TYPE;
 }

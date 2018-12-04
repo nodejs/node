@@ -31,7 +31,8 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_is_special_data_property(true);
   info->set_is_sloppy(false);
   info->set_replace_on_access(false);
-  info->set_has_no_side_effect(false);
+  info->set_getter_side_effect_type(SideEffectType::kHasSideEffect);
+  info->set_setter_side_effect_type(SideEffectType::kHasSideEffect);
   name = factory->InternalizeName(name);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
@@ -70,7 +71,7 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
     default:
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
         return CheckForName(isolate, name, isolate->factory()->length_string(),
-                            String::kLengthOffset, FieldIndex::kTagged, index);
+                            String::kLengthOffset, FieldIndex::kWord32, index);
       }
 
       return false;

@@ -34,7 +34,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   static std::unique_ptr<V8InspectorSessionImpl> create(
       V8InspectorImpl*, int contextGroupId, int sessionId,
       V8Inspector::Channel*, const StringView& state);
-  ~V8InspectorSessionImpl();
+  ~V8InspectorSessionImpl() override;
 
   V8InspectorImpl* inspector() const { return m_inspector; }
   V8ConsoleAgentImpl* consoleAgent() { return m_consoleAgent.get(); }

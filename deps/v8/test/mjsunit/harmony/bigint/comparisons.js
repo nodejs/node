@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-bigint
+// Flags: --allow-natives-syntax
 
 'use strict'
 
@@ -297,18 +297,6 @@ const six = BigInt(6);
   assertTrue(Reflect.defineProperty(obj, 'foo', {value: zero}));
   assertTrue(Reflect.defineProperty(obj, 'foo', {value: another_zero}));
   assertFalse(Reflect.defineProperty(obj, 'foo', {value: one}));
-}{
-  assertTrue(%SameValue(zero, zero));
-  assertTrue(%SameValue(zero, another_zero));
-
-  assertFalse(%SameValue(zero, +0));
-  assertFalse(%SameValue(zero, -0));
-
-  assertFalse(%SameValue(+0, zero));
-  assertFalse(%SameValue(-0, zero));
-
-  assertTrue(%SameValue(one, one));
-  assertTrue(%SameValue(one, another_one));
 }
 
 // SameValueZero
@@ -351,18 +339,6 @@ const six = BigInt(6);
 
   assertTrue(new Map([[one, 42]]).has(one));
   assertTrue(new Map([[one, 42]]).has(another_one));
-}{
-  assertTrue(%SameValueZero(zero, zero));
-  assertTrue(%SameValueZero(zero, another_zero));
-
-  assertFalse(%SameValueZero(zero, +0));
-  assertFalse(%SameValueZero(zero, -0));
-
-  assertFalse(%SameValueZero(+0, zero));
-  assertFalse(%SameValueZero(-0, zero));
-
-  assertTrue(%SameValueZero(one, one));
-  assertTrue(%SameValueZero(one, another_one));
 }
 
 // Abstract comparison

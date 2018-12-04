@@ -99,10 +99,15 @@ namespace {
 #define CALLEE_SAVE_FP_REGISTERS \
   f20.bit() | f22.bit() | f24.bit() | f26.bit() | f28.bit() | f30.bit()
 
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
 // == ppc & ppc64 ============================================================
 // ===========================================================================
+#ifdef V8_TARGET_LITTLE_ENDIAN  // ppc64le linux
+#define STACK_SHADOW_WORDS 12
+#else  // AIX
+#define STACK_SHADOW_WORDS 14
+#endif
 #define PARAM_REGISTERS r3, r4, r5, r6, r7, r8, r9, r10
 #define CALLEE_SAVE_REGISTERS                                                 \
   r14.bit() | r15.bit() | r16.bit() | r17.bit() | r18.bit() | r19.bit() |     \
@@ -117,21 +122,13 @@ namespace {
 // ===========================================================================
 // == s390x ==================================================================
 // ===========================================================================
+#define STACK_SHADOW_WORDS 20
 #define PARAM_REGISTERS r2, r3, r4, r5, r6
 #define CALLEE_SAVE_REGISTERS \
   r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit() | ip.bit() | r13.bit()
 #define CALLEE_SAVE_FP_REGISTERS                                        \
   d8.bit() | d9.bit() | d10.bit() | d11.bit() | d12.bit() | d13.bit() | \
       d14.bit() | d15.bit()
-
-#elif V8_TARGET_ARCH_S390
-// ===========================================================================
-// == s390 ===================================================================
-// ===========================================================================
-#define PARAM_REGISTERS r2, r3, r4, r5, r6
-#define CALLEE_SAVE_REGISTERS \
-  r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit() | ip.bit() | r13.bit()
-#define CALLEE_SAVE_FP_REGISTERS (d4.bit() | d6.bit())
 
 #else
 // ===========================================================================

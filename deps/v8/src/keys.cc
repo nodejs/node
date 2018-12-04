@@ -20,9 +20,6 @@
 namespace v8 {
 namespace internal {
 
-KeyAccumulator::~KeyAccumulator() {
-}
-
 namespace {
 
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
@@ -634,10 +631,10 @@ Handle<FixedArray> GetOwnEnumPropertyDictionaryKeys(Isolate* isolate,
                                                     Handle<JSObject> object,
                                                     T* raw_dictionary) {
   Handle<T> dictionary(raw_dictionary, isolate);
-  int length = dictionary->NumberOfEnumerableProperties();
-  if (length == 0) {
+  if (dictionary->NumberOfElements() == 0) {
     return isolate->factory()->empty_fixed_array();
   }
+  int length = dictionary->NumberOfEnumerableProperties();
   Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
   T::CopyEnumKeysTo(isolate, dictionary, storage, mode, accumulator);
   return storage;

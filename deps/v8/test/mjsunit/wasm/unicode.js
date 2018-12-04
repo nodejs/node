@@ -52,7 +52,7 @@ checkExports('☺☺mul☺☺', '☺☺mul☺☺', '☺☺add☺☺', '☺☺add
   builder.addFunction('three snowmen: ☃☃☃', kSig_i_v).addBody([]).exportFunc();
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
-      /Compiling wasm function #0:three snowmen: ☃☃☃ failed: /);
+      /Compiling wasm function "three snowmen: ☃☃☃" failed: /);
 })();
 
 (function errorMessageUnicodeInImportModuleName() {

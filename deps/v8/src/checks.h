@@ -5,7 +5,7 @@
 #ifndef V8_CHECKS_H_
 #define V8_CHECKS_H_
 
-#include "include/v8.h"
+#include "include/v8-internal.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
 

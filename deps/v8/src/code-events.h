@@ -66,7 +66,7 @@ class CodeEventListener {
   };
 #undef DECLARE_ENUM
 
-  virtual ~CodeEventListener() {}
+  virtual ~CodeEventListener() = default;
 
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                const char* comment) = 0;
@@ -98,7 +98,7 @@ class CodeEventDispatcher {
  public:
   using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
 
-  CodeEventDispatcher() {}
+  CodeEventDispatcher() = default;
 
   bool AddListener(CodeEventListener* listener) {
     base::LockGuard<base::Mutex> guard(&mutex_);

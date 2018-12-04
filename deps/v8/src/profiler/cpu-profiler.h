@@ -106,7 +106,7 @@ class TickSampleEventRecord {
  public:
   // The parameterless constructor is used when we dequeue data from
   // the ticks buffer.
-  TickSampleEventRecord() { }
+  TickSampleEventRecord() = default;
   explicit TickSampleEventRecord(unsigned order) : order(order) { }
 
   unsigned order;
@@ -135,10 +135,10 @@ class ProfilerEventsProcessor : public base::Thread {
  public:
   ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
                           base::TimeDelta period);
-  virtual ~ProfilerEventsProcessor();
+  ~ProfilerEventsProcessor() override;
 
   // Thread control.
-  virtual void Run();
+  void Run() override;
   void StopSynchronously();
   V8_INLINE bool running() { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);

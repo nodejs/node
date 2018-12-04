@@ -96,7 +96,7 @@ TEST(VectorStructure) {
              FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCreateClosure));
     FeedbackSlot slot = helper.slot(1);
     FeedbackCell* cell =
-        FeedbackCell::cast(vector->Get(slot)->ToStrongHeapObject());
+        FeedbackCell::cast(vector->Get(slot)->GetHeapObjectAssumeStrong());
     CHECK_EQ(cell->value(), *factory->undefined_value());
   }
 }
@@ -203,7 +203,7 @@ TEST(VectorCallFeedback) {
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   HeapObject* heap_object;
-  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
   CcTest::CollectAllGarbage();
@@ -228,12 +228,74 @@ TEST(VectorCallFeedbackForArray) {
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   HeapObject* heap_object;
-  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 
   CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+}
+
+size_t GetFeedbackVectorLength(Isolate* isolate, const char* src,
+                               bool with_oneshot_opt) {
+  i::FLAG_enable_one_shot_optimization = with_oneshot_opt;
+  i::Handle<i::Object> i_object = v8::Utils::OpenHandle(*CompileRun(src));
+  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(i_object);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
+  return feedback_vector->length();
+}
+
+TEST(OneShotCallICSlotCount) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  i::FLAG_compilation_cache = false;
+
+  const char* no_call = R"(
+    function f1() {};
+    function f2() {};
+    (function() {
+      return arguments.callee;
+    })();
+  )";
+  // len = 2 * 1 ldaNamed property
+  CHECK_EQ(GetFeedbackVectorLength(isolate, no_call, false), 2);
+  // no slots of named property loads/stores in one shot
+  CHECK_EQ(GetFeedbackVectorLength(isolate, no_call, true), 0);
+
+  const char* single_call = R"(
+    function f1() {};
+    function f2() {};
+    (function() {
+      f1();
+      return arguments.callee;
+    })();
+  )";
+  // len = 2 * 1 ldaNamed Slot + 2 * 1 CachedGlobalSlot + 2 * 1 CallICSlot
+  CHECK_EQ(GetFeedbackVectorLength(isolate, single_call, false), 6);
+  // len = 2 * 1 CachedGlobalSlot
+  CHECK_EQ(GetFeedbackVectorLength(isolate, single_call, true), 2);
+
+  const char* multiple_calls = R"(
+    function f1() {};
+    function f2() {};
+    (function() {
+      f1();
+      f2();
+      f1();
+      f2();
+      return arguments.callee;
+    })();
+  )";
+  // len = 2 * 1 ldaNamedSlot + 2 *  2 CachedGlobalSlot (one for each unique
+  // function) + 2 * 4 CallICSlot (one for each function call)
+  CHECK_EQ(GetFeedbackVectorLength(isolate, multiple_calls, false), 14);
+  // CachedGlobalSlot (one for each unique function)
+  // len = 2 * 2 CachedGlobalSlot (one for each unique function)
+  CHECK_EQ(GetFeedbackVectorLength(isolate, multiple_calls, true), 4);
 }
 
 TEST(VectorCallCounts) {
@@ -284,7 +346,7 @@ TEST(VectorConstructCounts) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 
-  CHECK(feedback_vector->Get(slot)->IsWeakHeapObject());
+  CHECK(feedback_vector->Get(slot)->IsWeak());
 
   CompileRun("f(Foo); f(Foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());

@@ -23,7 +23,7 @@ void CrashOnPurpose() { *reinterpret_cast<volatile int*>(42); }
 // on failures.
 class SignalHandlerFallbackTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     struct sigaction action;
     action.sa_sigaction = SignalHandler;
     sigemptyset(&action.sa_mask);
@@ -32,7 +32,7 @@ class SignalHandlerFallbackTest : public ::testing::Test {
     sigaction(SIGBUS, &action, &old_bus_action_);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // be a good citizen and restore the old signal handler.
     sigaction(SIGSEGV, &old_segv_action_, nullptr);
     sigaction(SIGBUS, &old_bus_action_, nullptr);

@@ -71,18 +71,8 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(Address operand_start,
 
 namespace {
 
-const char* NameForRuntimeId(uint32_t idx) {
-  switch (idx) {
-#define CASE(name, nargs, ressize) \
-  case Runtime::k##name:           \
-    return #name;                  \
-  case Runtime::kInline##name:     \
-    return "_" #name;
-    FOR_EACH_INTRINSIC(CASE)
-#undef CASE
-    default:
-      UNREACHABLE();
-  }
+const char* NameForRuntimeId(Runtime::FunctionId idx) {
+  return Runtime::FunctionForId(idx)->name;
 }
 
 const char* NameForNativeContextIndex(uint32_t idx) {
@@ -160,8 +150,9 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
         break;
       }
       case interpreter::OperandType::kRuntimeId:
-        os << "[" << NameForRuntimeId(DecodeUnsignedOperand(
-                         operand_start, op_type, operand_scale))
+        os << "["
+           << NameForRuntimeId(static_cast<Runtime::FunctionId>(
+                  DecodeUnsignedOperand(operand_start, op_type, operand_scale)))
            << "]";
         break;
       case interpreter::OperandType::kImm:

@@ -26,7 +26,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   }
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
-      static_cast<Heap::RootListIndex>(Derived::GetMapRootIndex()),
+      Derived::GetMapRootIndex(),
       kHashTableStartIndex + num_buckets + (capacity * kEntrySize), pretenure);
   Handle<Derived> table = Handle<Derived>::cast(backing_store);
   for (int i = 0; i < num_buckets; ++i) {

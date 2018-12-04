@@ -81,8 +81,8 @@ TEST(Object, StructListOrder) {
   int last = current - 1;
   ASSERT_LT(0, last);
   InstanceType current_type = static_cast<InstanceType>(current);
-#define TEST_STRUCT(type, class, name)                 \
-  current_type = InstanceType::type##_TYPE;            \
+#define TEST_STRUCT(TYPE, class, name)                 \
+  current_type = InstanceType::TYPE;                   \
   current = static_cast<int>(current_type);            \
   EXPECT_EQ(last + 1, current)                         \
       << " STRUCT_LIST is not ordered: "               \

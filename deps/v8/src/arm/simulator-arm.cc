@@ -3212,15 +3212,15 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         DecodeVCMP(instr);
       } else if (((instr->Opc2Value() == 0x1)) && (instr->Opc3Value() == 0x3)) {
         // vsqrt
-        lazily_initialize_fast_sqrt(isolate_);
+        lazily_initialize_fast_sqrt();
         if (instr->SzValue() == 0x1) {
           double dm_value = get_double_from_d_register(vm).get_scalar();
-          double dd_value = fast_sqrt(dm_value, isolate_);
+          double dd_value = fast_sqrt(dm_value);
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
           float sm_value = get_float_from_s_register(m).get_scalar();
-          float sd_value = fast_sqrt(sm_value, isolate_);
+          float sd_value = fast_sqrt(sm_value);
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
         }
@@ -5282,10 +5282,10 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               src[i] = bit_cast<uint32_t>(result);
             }
           } else {
-            lazily_initialize_fast_sqrt(isolate_);
+            lazily_initialize_fast_sqrt();
             for (int i = 0; i < 4; i++) {
               float radicand = bit_cast<float>(src[i]);
-              float result = 1.0f / fast_sqrt(radicand, isolate_);
+              float result = 1.0f / fast_sqrt(radicand);
               result = canonicalizeNaN(result);
               src[i] = bit_cast<uint32_t>(result);
             }

@@ -18,7 +18,7 @@ namespace compiler {
 
 class SchedulerRPOTest : public TestWithZone {
  public:
-  SchedulerRPOTest() {}
+  SchedulerRPOTest() = default;
 
   void CheckRPONumbers(BasicBlockVector* order, size_t expected,
                        bool loops_allowed) {

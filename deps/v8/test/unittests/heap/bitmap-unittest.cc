@@ -20,7 +20,7 @@ class BitmapTest : public ::testing::Test {
     memset(memory_, 0, Bitmap::kSize);
   }
 
-  virtual ~BitmapTest() { delete[] memory_; }
+  ~BitmapTest() override { delete[] memory_; }
 
   Bitmap* bitmap() { return reinterpret_cast<Bitmap*>(memory_); }
   uint8_t* raw_bitmap() { return memory_; }

@@ -27,7 +27,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     }
   `;
 
-  let worker = new Worker(workerScript);
+  let worker = new Worker(workerScript, {type: 'string'});
   worker.postMessage(module);
   assertEquals(42, worker.getMessage());
   worker.terminate();

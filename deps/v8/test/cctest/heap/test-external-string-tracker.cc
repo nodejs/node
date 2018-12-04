@@ -27,14 +27,14 @@ class TestOneByteResource : public v8::String::ExternalOneByteStringResource {
         length_(strlen(data) - offset),
         counter_(counter) {}
 
-  ~TestOneByteResource() {
+  ~TestOneByteResource() override {
     i::DeleteArray(orig_data_);
     if (counter_ != nullptr) ++*counter_;
   }
 
-  const char* data() const { return data_; }
+  const char* data() const override { return data_; }
 
-  size_t length() const { return length_; }
+  size_t length() const override { return length_; }
 
  private:
   const char* orig_data_;

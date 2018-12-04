@@ -21,6 +21,7 @@ enum ValueType : uint8_t {
   kWasmS128,
   kWasmAnyRef,
   kWasmAnyFunc,
+  kWasmExceptRef,
   kWasmVar,
 };
 
@@ -220,6 +221,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kLocalS128;
       case kWasmAnyRef:
         return kLocalAnyRef;
+      case kWasmExceptRef:
+        return kLocalExceptRef;
       case kWasmStmt:
         return kLocalVoid;
       default:

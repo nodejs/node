@@ -1201,13 +1201,15 @@ typedef uint32_t Instr;
   /* Compare Logical */             \
   V(cmpl, CMPL, 0x7C000040)
 
-#define PPC_X_OPCODE_EH_S_FORM_LIST(V)              \
-  /* Store Byte Conditional Indexed */              \
-  V(stbcx, STBCX, 0x7C00056D)                       \
-  /* Store Halfword Conditional Indexed Xform */    \
-  V(sthcx, STHCX, 0x7C0005AD)                       \
-  /* Store Word Conditional Indexed & record CR0 */ \
-  V(stwcx, STWCX, 0x7C00012D)
+#define PPC_X_OPCODE_EH_S_FORM_LIST(V)                    \
+  /* Store Byte Conditional Indexed */                    \
+  V(stbcx, STBCX, 0x7C00056D)                             \
+  /* Store Halfword Conditional Indexed Xform */          \
+  V(sthcx, STHCX, 0x7C0005AD)                             \
+  /* Store Word Conditional Indexed & record CR0 */       \
+  V(stwcx, STWCX, 0x7C00012D)                             \
+  /* Store Doubleword Conditional Indexed & record CR0 */ \
+  V(stdcx, STDCX, 0x7C0001AD)
 
 #define PPC_X_OPCODE_EH_L_FORM_LIST(V)          \
   /* Load Byte And Reserve Indexed */           \
@@ -1215,15 +1217,15 @@ typedef uint32_t Instr;
   /* Load Halfword And Reserve Indexed Xform */ \
   V(lharx, LHARX, 0x7C0000E8)                   \
   /* Load Word and Reserve Indexed */           \
-  V(lwarx, LWARX, 0x7C000028)
+  V(lwarx, LWARX, 0x7C000028)                   \
+  /* Load Doubleword And Reserve Indexed */     \
+  V(ldarx, LDARX, 0x7C0000A8)
 
 #define PPC_X_OPCODE_UNUSED_LIST(V)                                            \
   /* Bit Permute Doubleword */                                                 \
   V(bpermd, BPERMD, 0x7C0001F8)                                                \
   /* Extend Sign Word */                                                       \
   V(extsw, EXTSW, 0x7C0007B4)                                                  \
-  /* Load Doubleword And Reserve Indexed */                                    \
-  V(ldarx, LDARX, 0x7C0000A8)                                                  \
   /* Load Word Algebraic with Update Indexed */                                \
   V(lwaux, LWAUX, 0x7C0002EA)                                                  \
   /* Load Word Algebraic Indexed */                                            \
@@ -1232,8 +1234,6 @@ typedef uint32_t Instr;
   V(prtyd, PRTYD, 0x7C000174)                                                  \
   /* Store Doubleword Byte-Reverse Indexed */                                  \
   V(stdbrx, STDBRX, 0x7C000528)                                                \
-  /* Store Doubleword Conditional Indexed & record CR0 */                      \
-  V(stdcx, STDCX, 0x7C0001AD)                                                  \
   /* Trap Doubleword */                                                        \
   V(td, TD, 0x7C000088)                                                        \
   /* Branch Conditional to Branch Target Address Register */                   \

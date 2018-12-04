@@ -50,7 +50,7 @@ class AllocationBuilder final {
 
   // Compound allocation of a context.
   void AllocateContext(int length, Handle<Map> map) {
-    DCHECK(map->instance_type() >= BLOCK_CONTEXT_TYPE &&
+    DCHECK(map->instance_type() >= AWAIT_CONTEXT_TYPE &&
            map->instance_type() <= WITH_CONTEXT_TYPE);
     int size = FixedArray::SizeFor(length);
     Allocate(size, NOT_TENURED, Type::OtherInternal());

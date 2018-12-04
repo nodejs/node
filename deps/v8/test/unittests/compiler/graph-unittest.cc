@@ -4,6 +4,7 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
+#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
@@ -24,16 +25,22 @@ GraphTest::GraphTest(int num_parameters)
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
+  js_heap_broker()->SetNativeContextRef();
 }
 
 
-GraphTest::~GraphTest() {}
+GraphTest::~GraphTest() = default;
 
 
 Node* GraphTest::Parameter(int32_t index) {
   return graph()->NewNode(common()->Parameter(index), graph()->start());
 }
 
+Node* GraphTest::Parameter(Type type, int32_t index) {
+  Node* node = GraphTest::Parameter(index);
+  NodeProperties::SetType(node, type);
+  return node;
+}
 
 Node* GraphTest::Float32Constant(volatile float value) {
   return graph()->NewNode(common()->Float32Constant(value));
@@ -113,15 +120,9 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
     : GraphTest(num_parameters),
-      typer_(isolate(), js_heap_broker(), Typer::kNoFlags, graph()) {}
+      typer_(js_heap_broker(), Typer::kNoFlags, graph()) {}
 
-TypedGraphTest::~TypedGraphTest() {}
-
-Node* TypedGraphTest::Parameter(Type type, int32_t index) {
-  Node* node = GraphTest::Parameter(index);
-  NodeProperties::SetType(node, type);
-  return node;
-}
+TypedGraphTest::~TypedGraphTest() = default;
 
 namespace graph_unittest {
 

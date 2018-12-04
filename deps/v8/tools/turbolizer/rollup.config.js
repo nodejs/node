@@ -6,8 +6,7 @@ import typescript from 'rollup-plugin-typescript2';
 import node from 'rollup-plugin-node-resolve';
 
 export default {
-  entry: "src/turbo-visualizer.ts",
-  format: "iife",
+  input: "src/turbo-visualizer.ts",
   plugins: [node(), typescript({abortOnError:false})],
-  dest: "build/turbolizer.js"
+  output: {file: "build/turbolizer.js", format: "iife", sourcemap: true}
 };

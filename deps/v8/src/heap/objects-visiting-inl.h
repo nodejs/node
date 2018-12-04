@@ -170,15 +170,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitJSFunction(Map* map,
-                                                      JSFunction* object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
-  JSFunction::BodyDescriptorWeak::IterateBody(map, object, size, visitor);
-  return size;
-}
-
-template <typename ConcreteVisitor>
 int NewSpaceVisitor<ConcreteVisitor>::VisitNativeContext(Map* map,
                                                          Context* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);

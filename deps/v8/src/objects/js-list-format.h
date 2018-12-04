@@ -12,6 +12,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/managed.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -28,16 +29,12 @@ class JSListFormat : public JSObject {
  public:
   // Initializes relative time format object with properties derived from input
   // locales and options.
-  static MaybeHandle<JSListFormat> InitializeListFormat(
+  static MaybeHandle<JSListFormat> Initialize(
       Isolate* isolate, Handle<JSListFormat> list_format_holder,
       Handle<Object> locales, Handle<Object> options);
 
   static Handle<JSObject> ResolvedOptions(Isolate* isolate,
                                           Handle<JSListFormat> format_holder);
-
-  // Unpacks formatter object from corresponding JavaScript object.
-  static icu::ListFormatter* UnpackFormatter(
-      Isolate* isolate, Handle<JSListFormat> list_format_holder);
 
   // ecma402 #sec-formatlist
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatList(
@@ -56,7 +53,7 @@ class JSListFormat : public JSObject {
 
   // ListFormat accessors.
   DECL_ACCESSORS(locale, String)
-  DECL_ACCESSORS(formatter, Foreign)
+  DECL_ACCESSORS(icu_formatter, Managed<icu::ListFormatter>)
 
   // Style: identifying the relative time format style used.
   //
@@ -105,8 +102,8 @@ class JSListFormat : public JSObject {
   // Layout description.
   static const int kJSListFormatOffset = JSObject::kHeaderSize;
   static const int kLocaleOffset = kJSListFormatOffset + kPointerSize;
-  static const int kFormatterOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kFormatterOffset + kPointerSize;
+  static const int kICUFormatterOffset = kLocaleOffset + kPointerSize;
+  static const int kFlagsOffset = kICUFormatterOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
 
  private:

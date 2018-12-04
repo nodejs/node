@@ -28,9 +28,9 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const promise = Allocate(JSPromise::kSizeWithEmbedderFields);
   StoreMapNoWriteBarrier(promise, promise_map);
   StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(promise, JSPromise::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   return promise;
 }
 
@@ -137,7 +137,7 @@ TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
         CreatePromiseResolvingFunctions(promise, debug_event, native_context);
 
     Node* capability = Allocate(PromiseCapability::kSize);
-    StoreMapNoWriteBarrier(capability, Heap::kPromiseCapabilityMapRootIndex);
+    StoreMapNoWriteBarrier(capability, RootIndex::kPromiseCapabilityMap);
     StoreObjectFieldNoWriteBarrier(capability,
                                    PromiseCapability::kPromiseOffset, promise);
     StoreObjectFieldNoWriteBarrier(capability,
@@ -150,13 +150,13 @@ TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
   BIND(&if_slow_promise_capability);
   {
     Node* capability = Allocate(PromiseCapability::kSize);
-    StoreMapNoWriteBarrier(capability, Heap::kPromiseCapabilityMapRootIndex);
+    StoreMapNoWriteBarrier(capability, RootIndex::kPromiseCapabilityMap);
     StoreObjectFieldRoot(capability, PromiseCapability::kPromiseOffset,
-                         Heap::kUndefinedValueRootIndex);
+                         RootIndex::kUndefinedValue);
     StoreObjectFieldRoot(capability, PromiseCapability::kResolveOffset,
-                         Heap::kUndefinedValueRootIndex);
+                         RootIndex::kUndefinedValue);
     StoreObjectFieldRoot(capability, PromiseCapability::kRejectOffset,
-                         Heap::kUndefinedValueRootIndex);
+                         RootIndex::kUndefinedValue);
 
     Node* executor_context =
         CreatePromiseGetCapabilitiesExecutorContext(capability, native_context);
@@ -352,7 +352,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
 
     BIND(&if_fulfilled);
     {
-      var_map.Bind(LoadRoot(Heap::kPromiseFulfillReactionJobTaskMapRootIndex));
+      var_map.Bind(LoadRoot(RootIndex::kPromiseFulfillReactionJobTaskMap));
       var_handler.Bind(on_fulfilled);
       Goto(&enqueue);
     }
@@ -360,7 +360,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
     BIND(&if_rejected);
     {
       CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
-      var_map.Bind(LoadRoot(Heap::kPromiseRejectReactionJobTaskMapRootIndex));
+      var_map.Bind(LoadRoot(RootIndex::kPromiseRejectReactionJobTaskMap));
       var_handler.Bind(on_rejected);
       GotoIf(PromiseHasHandler(promise), &enqueue);
       CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
@@ -401,7 +401,7 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(
     Node* next, Node* promise_or_capability, Node* fulfill_handler,
     Node* reject_handler) {
   Node* const reaction = Allocate(PromiseReaction::kSize);
-  StoreMapNoWriteBarrier(reaction, Heap::kPromiseReactionMapRootIndex);
+  StoreMapNoWriteBarrier(reaction, RootIndex::kPromiseReactionMap);
   StoreObjectFieldNoWriteBarrier(reaction, PromiseReaction::kNextOffset, next);
   StoreObjectFieldNoWriteBarrier(reaction,
                                  PromiseReaction::kPromiseOrCapabilityOffset,
@@ -431,10 +431,10 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
 }
 
 Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-    Heap::RootListIndex map_root_index, Node* context, Node* argument,
-    Node* handler, Node* promise_or_capability) {
-  DCHECK(map_root_index == Heap::kPromiseFulfillReactionJobTaskMapRootIndex ||
-         map_root_index == Heap::kPromiseRejectReactionJobTaskMapRootIndex);
+    RootIndex map_root_index, Node* context, Node* argument, Node* handler,
+    Node* promise_or_capability) {
+  DCHECK(map_root_index == RootIndex::kPromiseFulfillReactionJobTaskMap ||
+         map_root_index == RootIndex::kPromiseRejectReactionJobTaskMap);
   Node* const map = LoadRoot(map_root_index);
   return AllocatePromiseReactionJobTask(map, context, argument, handler,
                                         promise_or_capability);
@@ -444,7 +444,7 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
     Node* promise_to_resolve, Node* then, Node* thenable, Node* context) {
   Node* const microtask = Allocate(PromiseResolveThenableJobTask::kSize);
   StoreMapNoWriteBarrier(microtask,
-                         Heap::kPromiseResolveThenableJobTaskMapRootIndex);
+                         RootIndex::kPromiseResolveThenableJobTaskMap);
   StoreObjectFieldNoWriteBarrier(
       microtask, PromiseResolveThenableJobTask::kContextOffset, context);
   StoreObjectFieldNoWriteBarrier(
@@ -502,8 +502,8 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
       // of stores here to avoid screwing up the store buffer.
       STATIC_ASSERT(PromiseReaction::kSize == PromiseReactionJobTask::kSize);
       if (type == PromiseReaction::kFulfill) {
-        StoreMapNoWriteBarrier(
-            current, Heap::kPromiseFulfillReactionJobTaskMapRootIndex);
+        StoreMapNoWriteBarrier(current,
+                               RootIndex::kPromiseFulfillReactionJobTaskMap);
         StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
                          argument);
         StoreObjectField(current, PromiseReactionJobTask::kContextOffset,
@@ -516,7 +516,7 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
         Node* handler =
             LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
         StoreMapNoWriteBarrier(current,
-                               Heap::kPromiseRejectReactionJobTaskMapRootIndex);
+                               RootIndex::kPromiseRejectReactionJobTaskMap);
         StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
                          argument);
         StoreObjectField(current, PromiseReactionJobTask::kContextOffset,

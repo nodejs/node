@@ -13,7 +13,7 @@ assertEquals(globalThis.globalThis.globalThis.globalThis, this);
 {
   const realm = Realm.create();
   assertEquals(Realm.global(realm), Realm.eval(realm, 'globalThis'));
-  assertTrue(Realm.global(realm) !== globalThis);
+  assertNotEquals(Realm.global(realm), globalThis);
 }
 
 {

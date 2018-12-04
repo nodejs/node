@@ -65,7 +65,8 @@ class PropertyAccessInfo final {
     kDataField,
     kDataConstantField,
     kAccessorConstant,
-    kModuleExport
+    kModuleExport,
+    kStringLength
   };
 
   static PropertyAccessInfo NotFound(MapHandles const& receiver_maps,
@@ -84,6 +85,7 @@ class PropertyAccessInfo final {
                                              MaybeHandle<JSObject> holder);
   static PropertyAccessInfo ModuleExport(MapHandles const& receiver_maps,
                                          Handle<Cell> cell);
+  static PropertyAccessInfo StringLength(MapHandles const& receiver_maps);
 
   PropertyAccessInfo();
 
@@ -98,6 +100,7 @@ class PropertyAccessInfo final {
   bool IsDataConstantField() const { return kind() == kDataConstantField; }
   bool IsAccessorConstant() const { return kind() == kAccessorConstant; }
   bool IsModuleExport() const { return kind() == kModuleExport; }
+  bool IsStringLength() const { return kind() == kStringLength; }
 
   bool HasTransitionMap() const { return !transition_map().is_null(); }
 
@@ -115,7 +118,7 @@ class PropertyAccessInfo final {
   Handle<Cell> export_cell() const;
 
  private:
-  PropertyAccessInfo(MaybeHandle<JSObject> holder,
+  PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                      MapHandles const& receiver_maps);
   PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                      Handle<Object> constant, MapHandles const& receiver_maps);

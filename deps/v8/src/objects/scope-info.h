@@ -177,7 +177,8 @@ class ScopeInfo : public FixedArray {
                                   MaybeHandle<ScopeInfo> outer_scope);
   static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
-  static Handle<ScopeInfo> CreateForEmptyFunction(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
+      Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.

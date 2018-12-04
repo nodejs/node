@@ -27,15 +27,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// static
-const WasmExceptionSig WasmException::empty_sig_(0, 0, nullptr);
-
-// static
-constexpr const char* WasmException::kRuntimeIdStr;
-
-// static
-constexpr const char* WasmException::kRuntimeValuesStr;
-
 WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
                                             uint32_t function_index) const {
   if (!function_names) {
@@ -54,20 +45,6 @@ void WasmModule::AddFunctionNameForTesting(int function_index,
     function_names.reset(new std::unordered_map<uint32_t, WireBytesRef>());
   }
   function_names->insert(std::make_pair(function_index, name));
-}
-
-// Get a string stored in the module bytes representing a name.
-WasmName ModuleWireBytes::GetName(WireBytesRef ref) const {
-  if (ref.is_empty()) return {"<?>", 3};  // no name.
-  CHECK(BoundsCheck(ref.offset(), ref.length()));
-  return WasmName::cast(
-      module_bytes_.SubVector(ref.offset(), ref.end_offset()));
-}
-
-// Get a string stored in the module bytes representing a function name.
-WasmName ModuleWireBytes::GetName(const WasmFunction* function,
-                                  const WasmModule* module) const {
-  return GetName(module->LookupFunctionName(*this, function->func_index));
 }
 
 // Get a string stored in the module bytes representing a name.
@@ -129,6 +106,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
   Handle<String> global_string = factory->InternalizeUtf8String("global");
+  Handle<String> exception_string = factory->InternalizeUtf8String("exception");
 
   // Create the result array.
   const WasmModule* module = module_object->module();
@@ -160,6 +138,9 @@ Handle<JSArray> GetImports(Isolate* isolate,
         break;
       case kExternalGlobal:
         import_kind = global_string;
+        break;
+      case kExternalException:
+        import_kind = exception_string;
         break;
       default:
         UNREACHABLE();
@@ -196,6 +177,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
   Handle<String> global_string = factory->InternalizeUtf8String("global");
+  Handle<String> exception_string = factory->InternalizeUtf8String("exception");
 
   // Create the result array.
   const WasmModule* module = module_object->module();
@@ -225,6 +207,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
         break;
       case kExternalGlobal:
         export_kind = global_string;
+        break;
+      case kExternalException:
+        export_kind = exception_string;
         break;
       default:
         UNREACHABLE();

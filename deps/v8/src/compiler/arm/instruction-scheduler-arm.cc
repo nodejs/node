@@ -285,27 +285,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmWord32AtomicPairXor:
     case kArmWord32AtomicPairExchange:
     case kArmWord32AtomicPairCompareExchange:
-    case kArmWord64AtomicNarrowAddUint8:
-    case kArmWord64AtomicNarrowAddUint16:
-    case kArmWord64AtomicNarrowAddUint32:
-    case kArmWord64AtomicNarrowSubUint8:
-    case kArmWord64AtomicNarrowSubUint16:
-    case kArmWord64AtomicNarrowSubUint32:
-    case kArmWord64AtomicNarrowAndUint8:
-    case kArmWord64AtomicNarrowAndUint16:
-    case kArmWord64AtomicNarrowAndUint32:
-    case kArmWord64AtomicNarrowOrUint8:
-    case kArmWord64AtomicNarrowOrUint16:
-    case kArmWord64AtomicNarrowOrUint32:
-    case kArmWord64AtomicNarrowXorUint8:
-    case kArmWord64AtomicNarrowXorUint16:
-    case kArmWord64AtomicNarrowXorUint32:
-    case kArmWord64AtomicNarrowExchangeUint8:
-    case kArmWord64AtomicNarrowExchangeUint16:
-    case kArmWord64AtomicNarrowExchangeUint32:
-    case kArmWord64AtomicNarrowCompareExchangeUint8:
-    case kArmWord64AtomicNarrowCompareExchangeUint16:
-    case kArmWord64AtomicNarrowCompareExchangeUint32:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

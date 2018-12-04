@@ -17,6 +17,7 @@ DefaultWorkerThreadsTaskRunner::DefaultWorkerThreadsTaskRunner(
   }
 }
 
+// NOLINTNEXTLINE
 DefaultWorkerThreadsTaskRunner::~DefaultWorkerThreadsTaskRunner() {
   // This destructor is needed because we have unique_ptr to the WorkerThreads,
   // und the {WorkerThread} class is forward declared in the header file.

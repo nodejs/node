@@ -26,7 +26,7 @@ class TestSuite(testsuite.TestSuite):
     return TestCase
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def _get_files_params(self):
     return [os.path.join(self.suite.root, self.path + self._get_suffix())]
 

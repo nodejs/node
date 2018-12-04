@@ -32,24 +32,12 @@ void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
   }
 }
 
-WASM_EXEC_TEST(I32AtomicAdd) {
-  RunU32BinOp(execution_tier, kExprI32AtomicAdd, Add);
-}
-WASM_EXEC_TEST(I32AtomicSub) {
-  RunU32BinOp(execution_tier, kExprI32AtomicSub, Sub);
-}
-WASM_EXEC_TEST(I32AtomicAnd) {
-  RunU32BinOp(execution_tier, kExprI32AtomicAnd, And);
-}
-WASM_EXEC_TEST(I32AtomicOr) {
-  RunU32BinOp(execution_tier, kExprI32AtomicOr, Or);
-}
-WASM_EXEC_TEST(I32AtomicXor) {
-  RunU32BinOp(execution_tier, kExprI32AtomicXor, Xor);
-}
-WASM_EXEC_TEST(I32AtomicExchange) {
-  RunU32BinOp(execution_tier, kExprI32AtomicExchange, Exchange);
-}
+#define TEST_OPERATION(Name)                                 \
+  WASM_EXEC_TEST(I32Atomic##Name) {                          \
+    RunU32BinOp(execution_tier, kExprI32Atomic##Name, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
 
 void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
                  Uint16BinOp expected_op) {
@@ -73,24 +61,12 @@ void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
   }
 }
 
-WASM_EXEC_TEST(I32AtomicAdd16U) {
-  RunU16BinOp(execution_tier, kExprI32AtomicAdd16U, Add);
-}
-WASM_EXEC_TEST(I32AtomicSub16U) {
-  RunU16BinOp(execution_tier, kExprI32AtomicSub16U, Sub);
-}
-WASM_EXEC_TEST(I32AtomicAnd16U) {
-  RunU16BinOp(execution_tier, kExprI32AtomicAnd16U, And);
-}
-WASM_EXEC_TEST(I32AtomicOr16U) {
-  RunU16BinOp(execution_tier, kExprI32AtomicOr16U, Or);
-}
-WASM_EXEC_TEST(I32AtomicXor16U) {
-  RunU16BinOp(execution_tier, kExprI32AtomicXor16U, Xor);
-}
-WASM_EXEC_TEST(I32AtomicExchange16U) {
-  RunU16BinOp(execution_tier, kExprI32AtomicExchange16U, Exchange);
-}
+#define TEST_OPERATION(Name)                                      \
+  WASM_EXEC_TEST(I32Atomic##Name##16U) {                          \
+    RunU16BinOp(execution_tier, kExprI32Atomic##Name##16U, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
 
 void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                 Uint8BinOp expected_op) {
@@ -113,24 +89,12 @@ void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
   }
 }
 
-WASM_EXEC_TEST(I32AtomicAdd8U) {
-  RunU8BinOp(execution_tier, kExprI32AtomicAdd8U, Add);
-}
-WASM_EXEC_TEST(I32AtomicSub8U) {
-  RunU8BinOp(execution_tier, kExprI32AtomicSub8U, Sub);
-}
-WASM_EXEC_TEST(I32AtomicAnd8U) {
-  RunU8BinOp(execution_tier, kExprI32AtomicAnd8U, And);
-}
-WASM_EXEC_TEST(I32AtomicOr8U) {
-  RunU8BinOp(execution_tier, kExprI32AtomicOr8U, Or);
-}
-WASM_EXEC_TEST(I32AtomicXor8U) {
-  RunU8BinOp(execution_tier, kExprI32AtomicXor8U, Xor);
-}
-WASM_EXEC_TEST(I32AtomicExchange8U) {
-  RunU8BinOp(execution_tier, kExprI32AtomicExchange8U, Exchange);
-}
+#define TEST_OPERATION(Name)                                    \
+  WASM_EXEC_TEST(I32Atomic##Name##8U) {                         \
+    RunU8BinOp(execution_tier, kExprI32Atomic##Name##8U, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
 
 WASM_EXEC_TEST(I32AtomicCompareExchange) {
   EXPERIMENTAL_FLAG_SCOPE(threads);

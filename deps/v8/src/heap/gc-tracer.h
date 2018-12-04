@@ -321,7 +321,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void AddBackgroundScopeSample(BackgroundScope::ScopeId scope, double duration,
                                 RuntimeCallCounter* runtime_call_counter);
 
-  void RecordMarkCompactHistograms(HistogramTimer* gc_timer);
+  void RecordGCPhasesHistograms(HistogramTimer* gc_timer);
 
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);
@@ -339,6 +339,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
   FRIEND_TEST(GCTracerTest, MutatorUtilization);
   FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
+  FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);
 
   struct BackgroundCounter {
     double total_duration_ms;

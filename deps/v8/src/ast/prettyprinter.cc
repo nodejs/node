@@ -31,7 +31,7 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   InitializeAstVisitor(isolate);
 }
 
-CallPrinter::~CallPrinter() {}
+CallPrinter::~CallPrinter() = default;
 
 CallPrinter::ErrorHint CallPrinter::GetErrorHint() const {
   if (is_call_error_) {
@@ -666,7 +666,7 @@ void AstPrinter::PrintLiteral(const AstConsString* value, bool quote) {
 
 //-----------------------------------------------------------------------------
 
-class IndentedScope BASE_EMBEDDED {
+class IndentedScope {
  public:
   IndentedScope(AstPrinter* printer, const char* txt)
       : ast_printer_(printer) {

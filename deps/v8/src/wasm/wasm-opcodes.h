@@ -6,7 +6,6 @@
 #define V8_WASM_WASM_OPCODES_H_
 
 #include "src/globals.h"
-#include "src/vector.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
 
@@ -21,8 +20,6 @@ namespace wasm {
 using FunctionSig = Signature<ValueType>;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig);
-
-using WasmName = Vector<const char>;
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)         \

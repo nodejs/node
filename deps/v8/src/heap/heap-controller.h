@@ -18,20 +18,18 @@ class V8_EXPORT_PRIVATE MemoryController {
   MemoryController(Heap* heap, double min_growing_factor,
                    double max_growing_factor,
                    double conservative_growing_factor,
-                   double target_mutator_utilization, size_t min_size,
-                   size_t max_size)
+                   double target_mutator_utilization)
       : heap_(heap),
-        kMinGrowingFactor(min_growing_factor),
-        kMaxGrowingFactor(max_growing_factor),
-        kConservativeGrowingFactor(conservative_growing_factor),
-        kTargetMutatorUtilization(target_mutator_utilization),
-        kMinSize(min_size),
-        kMaxSize(max_size) {}
-  virtual ~MemoryController() {}
+        min_growing_factor_(min_growing_factor),
+        max_growing_factor_(max_growing_factor),
+        conservative_growing_factor_(conservative_growing_factor),
+        target_mutator_utilization_(target_mutator_utilization) {}
+  virtual ~MemoryController() = default;
 
   // Computes the allocation limit to trigger the next garbage collection.
   size_t CalculateAllocationLimit(size_t curr_size, size_t max_size,
-                                  double gc_speed, double mutator_speed,
+                                  double max_factor, double gc_speed,
+                                  double mutator_speed,
                                   size_t new_space_capacity,
                                   Heap::HeapGrowingMode growing_mode);
 
@@ -41,18 +39,13 @@ class V8_EXPORT_PRIVATE MemoryController {
  protected:
   double GrowingFactor(double gc_speed, double mutator_speed,
                        double max_factor);
-  double MaxGrowingFactor(size_t curr_max_size);
   virtual const char* ControllerName() = 0;
 
   Heap* const heap_;
-
-  const double kMinGrowingFactor;
-  const double kMaxGrowingFactor;
-  const double kConservativeGrowingFactor;
-  const double kTargetMutatorUtilization;
-  // Sizes are in MB.
-  const size_t kMinSize;
-  const size_t kMaxSize;
+  const double min_growing_factor_;
+  const double max_growing_factor_;
+  const double conservative_growing_factor_;
+  const double target_mutator_utilization_;
 
   FRIEND_TEST(HeapControllerTest, HeapGrowingFactor);
   FRIEND_TEST(HeapControllerTest, MaxHeapGrowingFactor);
@@ -60,18 +53,18 @@ class V8_EXPORT_PRIVATE MemoryController {
   FRIEND_TEST(HeapControllerTest, OldGenerationAllocationLimit);
 };
 
-class HeapController : public MemoryController {
+class V8_EXPORT_PRIVATE HeapController : public MemoryController {
  public:
-  explicit HeapController(Heap* heap)
-      : MemoryController(heap, 1.1, 4.0, 1.3, 0.97, kMinHeapSize,
-                         kMaxHeapSize) {}
-
   // Sizes are in MB.
-  static const size_t kMinHeapSize = 128 * Heap::kPointerMultiplier;
-  static const size_t kMaxHeapSize = 1024 * Heap::kPointerMultiplier;
+  static constexpr size_t kMinSize = 128 * Heap::kPointerMultiplier;
+  static constexpr size_t kMaxSize = 1024 * Heap::kPointerMultiplier;
+
+  explicit HeapController(Heap* heap)
+      : MemoryController(heap, 1.1, 4.0, 1.3, 0.97) {}
+  double MaxGrowingFactor(size_t curr_max_size);
 
  protected:
-  const char* ControllerName() { return "HeapController"; }
+  const char* ControllerName() override { return "HeapController"; }
 };
 
 }  // namespace internal

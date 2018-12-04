@@ -15,9 +15,6 @@ namespace internal {
 
 class TemplateInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_ACCESSORS(tag, Object)
   DECL_ACCESSORS(serial_number, Object)
   DECL_INT_ACCESSORS(number_of_properties)

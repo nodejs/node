@@ -4,10 +4,9 @@
 
 module test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
-    if constexpr((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
-        return true;
-      }
-    else {
+    if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+      return true;
+    } else {
       return false;
     }
   }
@@ -21,22 +20,22 @@ module test {
   }
 
   macro LabelTestHelper1(): never
-  labels Label1 {
+      labels Label1 {
     goto Label1;
   }
 
   macro LabelTestHelper2(): never
-  labels Label2(Smi) {
+      labels Label2(Smi) {
     goto Label2(42);
   }
 
   macro LabelTestHelper3(): never
-  labels Label3(String, Smi) {
+      labels Label3(String, Smi) {
     goto Label3('foo', 7);
   }
 
   macro TestConstexpr1() {
-    check(from_constexpr<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
+    check(FromConstexpr<bool>(IsFastElementsKind(PACKED_SMI_ELEMENTS)));
   }
 
   macro TestConstexprIf() {
@@ -46,10 +45,10 @@ module test {
   }
 
   macro TestConstexprReturn() {
-    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
-    check(from_constexpr<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
-    check(!from_constexpr<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
-    check(from_constexpr<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
+    check(FromConstexpr<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
+    check(!FromConstexpr<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
   }
 
   macro TestGotoLabel(): Boolean {
@@ -82,7 +81,7 @@ module test {
     }
   }
 
-  builtin GenericBuiltinTest<T : type>(c: Context, param: T): Object {
+  builtin GenericBuiltinTest<T: type>(c: Context, param: T): Object {
     return Null;
   }
 
@@ -97,8 +96,9 @@ module test {
     check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
   }
 
-  macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
-    if constexpr(flag) {
+  macro LabelTestHelper4(flag: constexpr bool): never
+      labels Label4, Label5 {
+    if constexpr (flag) {
       goto Label4;
     } else {
       goto Label5;
@@ -128,7 +128,7 @@ module test {
     }
   }
 
-  macro GenericMacroTest<T : type>(param: T): Object {
+  macro GenericMacroTest<T: type>(param: T): Object {
     return Undefined;
   }
 
@@ -136,25 +136,31 @@ module test {
     return param2;
   }
 
-  macro GenericMacroTestWithLabels<T : type>(param: T): Object labels X {
+  macro GenericMacroTestWithLabels<T: type>(param: T): Object
+      labels X {
     return Undefined;
   }
 
-  GenericMacroTestWithLabels<Object>(param2: Object): Object labels Y {
-    return param2;
+  GenericMacroTestWithLabels<Object>(param2: Object): Object
+      labels Y {
+    return Cast<Smi>(param2) otherwise Y;
   }
 
   macro TestMacroSpecialization() {
     try {
+      const smi0: Smi = 0;
       check(GenericMacroTest<Smi>(0) == Undefined);
       check(GenericMacroTest<Smi>(1) == Undefined);
       check(GenericMacroTest<Object>(Null) == Null);
       check(GenericMacroTest<Object>(False) == False);
       check(GenericMacroTest<Object>(True) == True);
-      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      check(GenericMacroTestWithLabels<Object>(Null) otherwise Fail == Null);
-      check(GenericMacroTestWithLabels<Object>(False) otherwise Fail == False);
+      check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
+      check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
+      check((GenericMacroTestWithLabels<Object>(smi0) otherwise Fail) == smi0);
+      try {
+        GenericMacroTestWithLabels<Object>(False) otherwise Expected;
+      }
+      label Expected {}
     }
     label Fail {
       unreachable;
@@ -177,8 +183,8 @@ module test {
   }
 
   macro TestVariableRedeclaration(context: Context): Boolean {
-    let var1: int31 = from_constexpr<bool>(42 == 0) ? 0 : 1;
-    let var2: int31 = from_constexpr<bool>(42 == 0) ? 1 : 0;
+    let var1: int31 = FromConstexpr<bool>(42 == 0) ? 0 : 1;
+    let var2: int31 = FromConstexpr<bool>(42 == 0) ? 1 : 0;
     return True;
   }
 
@@ -204,7 +210,7 @@ module test {
 
   macro TestUnsafeCast(c: Context, n: Number): Boolean {
     if (TaggedIsSmi(n)) {
-      let m: Smi = unsafe_cast<Smi>(n);
+      let m: Smi = UnsafeCast<Smi>(n);
 
       check(TestHelperPlus1(c, m) == 11);
       return True;
@@ -213,8 +219,8 @@ module test {
   }
 
   macro TestHexLiteral() {
-    check(convert<intptr>(0xffff) + 1 == 0x10000);
-    check(convert<intptr>(-0xffff) == -65535);
+    check(Convert<intptr>(0xffff) + 1 == 0x10000);
+    check(Convert<intptr>(-0xffff) == -65535);
   }
 
   macro TestLargeIntegerLiterals(c: Context) {
@@ -244,17 +250,17 @@ module test {
   }
 
   macro TestLocalConstBindings() {
-    const x : constexpr int31 = 3;
-    const x_smi : Smi = x;
+    const x: constexpr int31 = 3;
+    const xSmi: Smi = x;
     {
-      const x : Smi = x + from_constexpr<Smi>(1);
-      check(x == x_smi + 1);
-      const x_smi : Smi = x;
-      check(x == x_smi);
+      const x: Smi = x + FromConstexpr<Smi>(1);
+      check(x == xSmi + 1);
+      const xSmi: Smi = x;
+      check(x == xSmi);
       check(x == 4);
     }
-    check(x_smi == 3);
-    check(x == x_smi);
+    check(xSmi == 3);
+    check(x == xSmi);
   }
 
   struct TestStructA {
@@ -273,12 +279,12 @@ module test {
   }
 
   macro TestStruct2(): TestStructA {
-    return TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31};
+    return TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31};
   }
 
   macro TestStruct3(): TestStructA {
     let a: TestStructA =
-    TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 13, 5};
+    TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 13, 5};
     let b: TestStructA = a;
     let c: TestStructA = TestStruct2();
     a.i = TestStruct1(c);
@@ -287,14 +293,15 @@ module test {
     d.x = a;
     d = TestStructB{a, 7};
     let e: TestStructA = d.x;
-    let f: Smi = TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
+    let f: Smi =
+    TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
     f = TestStruct2().i;
     return a;
   }
 
   struct TestStructC {
-    x : TestStructA;
-    y : TestStructA;
+    x: TestStructA;
+    y: TestStructA;
   }
 
   macro TestStruct4(): TestStructC {
@@ -387,38 +394,42 @@ module test {
     check(sum == 7);
   }
 
-  macro TestSubtyping(x : Smi) {
-    const foo : Object = x;
+  macro TestSubtyping(x: Smi) {
+    const foo: Object = x;
   }
 
-  macro IncrementIfSmi<A : type>(x : A) : A {
+  macro IncrementIfSmi<A: type>(x: A): A {
     typeswitch (x) {
-      case (x : Smi) {
+      case (x: Smi): {
         return x + 1;
-      } case (o : A) {
+      }
+      case (o: A): {
         return o;
       }
     }
   }
 
-  macro TypeswitchExample(x : Number | FixedArray) : int32 {
-    let result : int32 = 0;
-    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
-      case (x : FixedArray) {
+  macro TypeswitchExample(x: Number | FixedArray): int32 {
+    let result: int32 = 0;
+    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+      case (x: FixedArray): {
         result = result + 1;
-      } case (Number) {
+      }
+      case (Number): {
         result = result + 2;
       }
     }
 
     result = result * 10;
 
-    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
-      case (x : Smi) {
-        result = result + convert<int32>(x);
-      } case (a : FixedArray) {
-        result = result + convert<int32>(a.length);
-      } case (x : HeapNumber) {
+    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+      case (x: Smi): {
+        result = result + Convert<int32>(x);
+      }
+      case (a: FixedArray): {
+        result = result + Convert<int32>(a.length);
+      }
+      case (x: HeapNumber): {
         result = result + 7;
       }
     }
@@ -427,23 +438,154 @@ module test {
   }
 
   macro TestTypeswitch() {
-    check(TypeswitchExample(from_constexpr<Smi>(5)) == 26);
-    const a : FixedArray = AllocateZeroedFixedArray(3);
+    check(TypeswitchExample(FromConstexpr<Smi>(5)) == 26);
+    const a: FixedArray = AllocateZeroedFixedArray(3);
     check(TypeswitchExample(a) == 13);
-    check(TypeswitchExample(from_constexpr<Number>(0.5)) == 27);
+    check(TypeswitchExample(FromConstexpr<Number>(0.5)) == 27);
   }
 
-  macro ExampleGenericOverload<A: type>(o : Object) : A {
+  macro ExampleGenericOverload<A: type>(o: Object): A {
     return o;
   }
-  macro ExampleGenericOverload<A: type>(o : Smi) : A {
+  macro ExampleGenericOverload<A: type>(o: Smi): A {
     return o + 1;
   }
 
   macro TestGenericOverload() {
-    const x_smi : Smi = 5;
-    const x_object : Object = x_smi;
-    check(ExampleGenericOverload<Smi>(x_smi) == 6);
-    check(unsafe_cast<Smi>(ExampleGenericOverload<Object>(x_object)) == 5);
+    const xSmi: Smi = 5;
+    const xObject: Object = xSmi;
+    check(ExampleGenericOverload<Smi>(xSmi) == 6);
+    check(UnsafeCast<Smi>(ExampleGenericOverload<Object>(xObject)) == 5);
+  }
+
+  macro BoolToBranch(x: bool): never
+      labels Taken, NotTaken {
+    if (x) {
+      goto Taken;
+    } else {
+      goto NotTaken;
+    }
+  }
+
+  macro TestOrAnd1(x: bool, y: bool, z: bool): bool {
+    return BoolToBranch(x) || y && z ? true : false;
+  }
+
+  macro TestOrAnd2(x: bool, y: bool, z: bool): bool {
+    return x || BoolToBranch(y) && z ? true : false;
+  }
+
+  macro TestOrAnd3(x: bool, y: bool, z: bool): bool {
+    return x || y && BoolToBranch(z) ? true : false;
+  }
+
+  macro TestAndOr1(x: bool, y: bool, z: bool): bool {
+    return BoolToBranch(x) && y || z ? true : false;
+  }
+
+  macro TestAndOr2(x: bool, y: bool, z: bool): bool {
+    return x && BoolToBranch(y) || z ? true : false;
+  }
+
+  macro TestAndOr3(x: bool, y: bool, z: bool): bool {
+    return x && y || BoolToBranch(z) ? true : false;
+  }
+
+  macro TestLogicalOperators() {
+    check(TestAndOr1(true, true, true));
+    check(TestAndOr2(true, true, true));
+    check(TestAndOr3(true, true, true));
+    check(TestAndOr1(true, true, false));
+    check(TestAndOr2(true, true, false));
+    check(TestAndOr3(true, true, false));
+    check(TestAndOr1(true, false, true));
+    check(TestAndOr2(true, false, true));
+    check(TestAndOr3(true, false, true));
+    check(!TestAndOr1(true, false, false));
+    check(!TestAndOr2(true, false, false));
+    check(!TestAndOr3(true, false, false));
+    check(TestAndOr1(false, true, true));
+    check(TestAndOr2(false, true, true));
+    check(TestAndOr3(false, true, true));
+    check(!TestAndOr1(false, true, false));
+    check(!TestAndOr2(false, true, false));
+    check(!TestAndOr3(false, true, false));
+    check(TestAndOr1(false, false, true));
+    check(TestAndOr2(false, false, true));
+    check(TestAndOr3(false, false, true));
+    check(!TestAndOr1(false, false, false));
+    check(!TestAndOr2(false, false, false));
+    check(!TestAndOr3(false, false, false));
+    check(TestOrAnd1(true, true, true));
+    check(TestOrAnd2(true, true, true));
+    check(TestOrAnd3(true, true, true));
+    check(TestOrAnd1(true, true, false));
+    check(TestOrAnd2(true, true, false));
+    check(TestOrAnd3(true, true, false));
+    check(TestOrAnd1(true, false, true));
+    check(TestOrAnd2(true, false, true));
+    check(TestOrAnd3(true, false, true));
+    check(TestOrAnd1(true, false, false));
+    check(TestOrAnd2(true, false, false));
+    check(TestOrAnd3(true, false, false));
+    check(TestOrAnd1(false, true, true));
+    check(TestOrAnd2(false, true, true));
+    check(TestOrAnd3(false, true, true));
+    check(!TestOrAnd1(false, true, false));
+    check(!TestOrAnd2(false, true, false));
+    check(!TestOrAnd3(false, true, false));
+    check(!TestOrAnd1(false, false, true));
+    check(!TestOrAnd2(false, false, true));
+    check(!TestOrAnd3(false, false, true));
+    check(!TestOrAnd1(false, false, false));
+    check(!TestOrAnd2(false, false, false));
+    check(!TestOrAnd3(false, false, false));
+  }
+
+  macro TestCall(i: Smi): Smi
+      labels A {
+    if (i < 5) return i;
+    goto A;
+  }
+
+  macro TestOtherwiseWithCode1() {
+    let v: Smi = 0;
+    let s: Smi = 1;
+    try {
+      TestCall(10) otherwise goto B(++s);
+    }
+    label B(v1: Smi) {
+      v = v1;
+    }
+    assert(v == 2);
+  }
+
+  macro TestOtherwiseWithCode2() {
+    let s: Smi = 0;
+    for (let i: Smi = 0; i < 10; ++i) {
+      TestCall(i) otherwise break;
+      ++s;
+    }
+    assert(s == 5);
+  }
+
+  macro TestOtherwiseWithCode3() {
+    let s: Smi = 0;
+    for (let i: Smi = 0; i < 10; ++i) {
+      s += TestCall(i) otherwise break;
+    }
+    assert(s == 10);
+  }
+
+  macro TestForwardLabel() {
+    try {
+      goto A;
+    }
+    label A {
+      goto B(5);
+    }
+    label B(b: Smi) {
+      assert(b == 5);
+    }
   }
 }

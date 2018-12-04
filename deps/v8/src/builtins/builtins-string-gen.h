@@ -23,8 +23,12 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         Node* rhs, Node* rhs_instance_type,
                         TNode<IntPtrT> length, Label* if_equal,
                         Label* if_not_equal, Label* if_indirect);
+  TNode<BoolT> IsStringPrimitiveWithNoCustomIteration(TNode<Object> object,
+                                                      TNode<Context> context);
 
  protected:
+  TNode<JSArray> StringToList(TNode<Context> context, TNode<String> string);
+
   void StringEqual_Loop(Node* lhs, Node* lhs_instance_type,
                         MachineType lhs_type, Node* rhs,
                         Node* rhs_instance_type, MachineType rhs_type,
@@ -64,7 +68,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void GenerateStringAt(const char* method_name, TNode<Context> context,
                         Node* receiver, TNode<Object> maybe_position,
                         TNode<Object> default_return,
-                        StringAtAccessor accessor);
+                        const StringAtAccessor& accessor);
 
   TNode<Int32T> LoadSurrogatePairAt(SloppyTNode<String> string,
                                     SloppyTNode<IntPtrT> length,
@@ -72,7 +76,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                     UnicodeEncoding encoding);
 
   void StringIndexOf(Node* const subject_string, Node* const search_string,
-                     Node* const position, std::function<void(Node*)> f_return);
+                     Node* const position,
+                     const std::function<void(Node*)>& f_return);
 
   TNode<Smi> IndexOfDollarChar(Node* const context, Node* const string);
 
@@ -107,9 +112,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  Handle<Symbol> symbol,
                                  const NodeFunction0& regexp_call,
                                  const NodeFunction1& generic_call);
-
-  void Generate_StringAdd(StringAddFlags flags, PretenureFlag pretenure_flag,
-                          Node* context, Node* left, Node* right);
 };
 
 class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
@@ -145,7 +147,7 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
 
   void BuildLoop(Variable* const var_index, Node* const end, int increment,
                  Label* const if_none_found, Label* const out,
-                 std::function<Node*(Node*)> get_character);
+                 const std::function<Node*(Node*)>& get_character);
 };
 
 }  // namespace internal

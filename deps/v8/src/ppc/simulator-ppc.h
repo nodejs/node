@@ -265,6 +265,8 @@ class Simulator : public SimulatorBase {
 
   intptr_t* ReadDW(intptr_t addr);
   void WriteDW(intptr_t addr, int64_t value);
+  inline int WriteExDW(intptr_t addr, uint64_t value, Instruction* instr);
+  inline uint64_t ReadExDWU(intptr_t addr, Instruction* instr);
 
   void Trace(Instruction* instr);
   void SetCR0(intptr_t result, bool setSO = false);

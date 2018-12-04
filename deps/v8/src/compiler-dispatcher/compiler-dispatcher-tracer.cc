@@ -63,7 +63,7 @@ CompilerDispatcherTracer::CompilerDispatcherTracer(Isolate* isolate)
   }
 }
 
-CompilerDispatcherTracer::~CompilerDispatcherTracer() {}
+CompilerDispatcherTracer::~CompilerDispatcherTracer() = default;
 
 void CompilerDispatcherTracer::RecordPrepare(double duration_ms) {
   base::LockGuard<base::Mutex> lock(&mutex_);

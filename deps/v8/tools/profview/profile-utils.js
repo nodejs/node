@@ -93,9 +93,10 @@ function codeEquals(code1, code2, allowDifferentKinds = false) {
 
 function createNodeFromStackEntry(code, codeId, vmState) {
   let name = code ? code.name : "UNKNOWN";
-
-  return { name, codeId, type : resolveCodeKindAndVmState(code, vmState),
-           children : [], ownTicks : 0, ticks : 0 };
+  let node = createEmptyNode(name);
+  node.codeId = codeId;
+  node.type = resolveCodeKindAndVmState(code, vmState);
+  return node;
 }
 
 function childIdFromCode(codeId, code) {
@@ -148,29 +149,30 @@ function findNextFrame(file, stack, stackPos, step, filter) {
 }
 
 function addOrUpdateChildNode(parent, file, stackIndex, stackPos, ascending) {
-  let stack = file.ticks[stackIndex].s;
-  let vmState = file.ticks[stackIndex].vm;
-  let codeId = stack[stackPos];
-  let code = codeId >= 0 ? file.code[codeId] : undefined;
   if (stackPos === -1) {
     // We reached the end without finding the next step.
     // If we are doing top-down call tree, update own ticks.
     if (!ascending) {
       parent.ownTicks++;
     }
-  } else {
-    console.assert(stackPos >= 0 && stackPos < stack.length);
-    // We found a child node.
-    let childId = childIdFromCode(codeId, code);
-    let child = parent.children[childId];
-    if (!child) {
-      child = createNodeFromStackEntry(code, codeId, vmState);
-      child.delayedExpansion = { frameList : [], ascending };
-      parent.children[childId] = child;
-    }
-    child.ticks++;
-    addFrameToFrameList(child.delayedExpansion.frameList, stackIndex, stackPos);
+    return;
   }
+
+  let stack = file.ticks[stackIndex].s;
+  console.assert(stackPos >= 0 && stackPos < stack.length);
+  let codeId = stack[stackPos];
+  let code = codeId >= 0 ? file.code[codeId] : undefined;
+  // We found a child node.
+  let childId = childIdFromCode(codeId, code);
+  let child = parent.children[childId];
+  if (!child) {
+    let vmState = file.ticks[stackIndex].vm;
+    child = createNodeFromStackEntry(code, codeId, vmState);
+    child.delayedExpansion = { frameList : [], ascending };
+    parent.children[childId] = child;
+  }
+  child.ticks++;
+  addFrameToFrameList(child.delayedExpansion.frameList, stackIndex, stackPos);
 }
 
 // This expands a tree node (direct children only).
@@ -314,13 +316,7 @@ class FunctionListTree {
       this.tree = root;
       this.categories = categories;
     } else {
-      this.tree = {
-        name : "root",
-        codeId: -1,
-        children : [],
-        ownTicks : 0,
-        ticks : 0
-      };
+      this.tree = createEmptyNode("root");
       this.categories = null;
     }
 
@@ -339,7 +335,7 @@ class FunctionListTree {
       let codeId = stack[i];
       if (codeId < 0 || this.codeVisited[codeId]) continue;
 
-      let code = codeId >= 0 ? file.code[codeId] : undefined;
+      let code = file.code[codeId];
       if (this.filter) {
         let type = code ? code.type : undefined;
         let kind = code ? code.kind : undefined;
@@ -600,4 +596,16 @@ function computeOptimizationStats(file,
     lazyDeoptimizations,
     softDeoptimizations,
   };
+}
+
+function normalizeLeadingWhitespace(lines) {
+  let regex = /^\s*/;
+  let minimumLeadingWhitespaceChars = Infinity;
+  for (let line of lines) {
+    minimumLeadingWhitespaceChars =
+        Math.min(minimumLeadingWhitespaceChars, regex.exec(line)[0].length);
+  }
+  for (let i = 0; i < lines.length; i++) {
+    lines[i] = lines[i].substring(minimumLeadingWhitespaceChars);
+  }
 }

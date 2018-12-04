@@ -20,10 +20,7 @@ RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
   PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
 }
 
-
-RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() {
-}
-
+RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() = default;
 
 void RegExpMacroAssemblerTracer::AbortedCodeGeneration() {
   PrintF(" AbortedCodeGeneration\n");

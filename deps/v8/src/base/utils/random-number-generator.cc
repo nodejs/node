@@ -99,7 +99,7 @@ int RandomNumberGenerator::NextInt(int max) {
 
 double RandomNumberGenerator::NextDouble() {
   XorShift128(&state0_, &state1_);
-  return ToDouble(state0_, state1_);
+  return ToDouble(state0_);
 }
 
 

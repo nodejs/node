@@ -4,10 +4,10 @@
 
 #ifdef V8_INTL_SUPPORT
 
-#include "src/builtins/builtins-intl.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-number-format.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -125,8 +125,7 @@ TEST(GetStringOption) {
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
   v8::internal::LookupIterator it(isolate, options, key);
   CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
-                            LanguageMode::kStrict,
-                            AllocationMemento::MAY_BE_STORE_FROM_KEYED)
+                            LanguageMode::kStrict, StoreOrigin::kMaybeKeyed)
             .FromJust());
 
   {
@@ -209,52 +208,26 @@ TEST(GetBoolOption) {
   }
 }
 
-bool ScriptTagWasRemoved(std::string locale, std::string expected) {
-  std::string without_script_tag;
-  bool didShorten = Intl::RemoveLocaleScriptTag(locale, &without_script_tag);
-  return didShorten && expected == without_script_tag;
-}
-
-bool ScriptTagWasNotRemoved(std::string locale) {
-  std::string without_script_tag;
-  bool didShorten = Intl::RemoveLocaleScriptTag(locale, &without_script_tag);
-  return !didShorten && without_script_tag.empty();
-}
-
-TEST(RemoveLocaleScriptTag) {
-  CHECK(ScriptTagWasRemoved("aa_Bbbb_CC", "aa_CC"));
-  CHECK(ScriptTagWasRemoved("aaa_Bbbb_CC", "aaa_CC"));
-
-  CHECK(ScriptTagWasNotRemoved("aa"));
-  CHECK(ScriptTagWasNotRemoved("aaa"));
-  CHECK(ScriptTagWasNotRemoved("aa_CC"));
-  CHECK(ScriptTagWasNotRemoved("aa_Bbb_CC"));
-  CHECK(ScriptTagWasNotRemoved("aa_1bbb_CC"));
-}
-
 TEST(GetAvailableLocales) {
   std::set<std::string> locales;
 
-  locales = Intl::GetAvailableLocales(IcuService::kBreakIterator);
+  locales = Intl::GetAvailableLocales(ICUService::kBreakIterator);
   CHECK(locales.count("en-US"));
   CHECK(!locales.count("abcdefg"));
 
-  locales = Intl::GetAvailableLocales(IcuService::kCollator);
+  locales = Intl::GetAvailableLocales(ICUService::kCollator);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(IcuService::kDateFormat);
+  locales = Intl::GetAvailableLocales(ICUService::kDateFormat);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(IcuService::kNumberFormat);
+  locales = Intl::GetAvailableLocales(ICUService::kNumberFormat);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(IcuService::kPluralRules);
+  locales = Intl::GetAvailableLocales(ICUService::kPluralRules);
   CHECK(locales.count("en-US"));
 
-  locales = Intl::GetAvailableLocales(IcuService::kResourceBundle);
-  CHECK(locales.count("en-US"));
-
-  locales = Intl::GetAvailableLocales(IcuService::kRelativeDateTimeFormatter);
+  locales = Intl::GetAvailableLocales(ICUService::kRelativeDateTimeFormatter);
   CHECK(locales.count("en-US"));
 }
 

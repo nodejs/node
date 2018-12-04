@@ -93,6 +93,9 @@
   'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
+  # BUG(v8:8209). Flaky
+  'test-cpu-profiler/Issue1398': [SKIP],
+
   # BUG(7702). Flaky data race and other test failures.
   'test-cpu-profiler/MultipleProfilers': [SKIP],
 
@@ -154,7 +157,7 @@
   'test-mark-compact/Promotion': [PASS, FAIL],
 
   # BUG(v8:3434).
-  ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+  'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
@@ -256,6 +259,9 @@
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
+
+  # BUG(v8:8220). Flaky
+  'test-log/LogAll': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -285,10 +291,13 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-
-  # crbug.com/v8/7605
-  'test-heap/OutOfMemorySmallObjects': [PASS, ['not simulator_run', SKIP]],
 }],  # 'arch == arm'
+
+##############################################################################
+['arch == arm and not simulator_run', {
+  # crbug.com/v8/7605
+  'test-heap/OutOfMemorySmallObjects': [SKIP],
+}],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
 ['arch == mipsel or arch == mips', {
@@ -314,12 +323,10 @@
 }],  # 'arch == mips'
 
 ##############################################################################
-['arch == mips or arch == mips64', {
-   # TODO(mips-team): Implement LiftOff on big-endian
-   'test-run-wasm/RunWasmLiftoff*': [SKIP],
-   'test-run-wasm-64/RunWasmLiftoff*': [SKIP],
-}],  # 'arch == mips or arch == mips64'
-
+['arch == mips64', {
+  # TODO(mips-team): Currently fails on mips64 board.
+  'test-run-wasm/RunWasmLiftoff_I32Binop*': [SKIP],
+}],  # 'arch == mips64'
 ##############################################################################
 ['arch == mips64el or arch == mips64', {
   # BUG(v8:3154).
@@ -345,11 +352,10 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
-['arch == mipsel or arch == mips64el or arch == mips or arch == mips64 or arch == ppc or arch == ppc64 or arch == s390 or arch == s390x', {
+['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
   # TODO(mips-team): Implement I64Atomic operations on MIPS
-  # TODO(ppc-team, s390-team): Implement I64Atomic operations on PPC/s390
   'test-run-wasm-atomics64/*': [SKIP],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64 or arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
+}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
 
 ##############################################################################
 ['mips_arch_variant == r6', {
@@ -370,6 +376,12 @@
   'test-log/LogCallbacks': [SKIP],
   'test-log/ProfLazyMode': [SKIP],
 }],  # 'arch == android_arm or arch == android_ia32'
+
+##############################################################################
+['system == android', {
+  # Uses too much memory.
+  'test-api/NewStringRangeError': [SKIP],
+}],  # 'system == android'
 
 ##############################################################################
 ['system == aix and arch == ppc64', {

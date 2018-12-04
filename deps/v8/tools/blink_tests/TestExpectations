@@ -3,3 +3,5 @@
 # Turn off Slimming Paint tests on linux.
 [ Linux ] virtual/slimmingpaint/ [ Skip ]
 
+# Several failures since https://crrev.com/c/1196547
+crbug.com/879604 external/wpt/cookies/samesite/ [ Skip ]

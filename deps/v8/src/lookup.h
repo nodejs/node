@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE LookupIterator final {
  public:
   enum Configuration {
     // Configuration bits.
@@ -160,7 +160,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   void PrepareTransitionToDataProperty(Handle<JSReceiver> receiver,
                                        Handle<Object> value,
                                        PropertyAttributes attributes,
-                                       Object::StoreFromKeyed store_mode);
+                                       StoreOrigin store_origin);
   inline bool IsCacheableTransition();
   void ApplyTransitionToDataProperty(Handle<JSReceiver> receiver);
   void ReconfigureDataProperty(Handle<Object> value,

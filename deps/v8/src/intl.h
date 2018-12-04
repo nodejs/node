@@ -23,15 +23,15 @@ class TimeZone;
 namespace v8 {
 namespace internal {
 
-enum class IcuService {
+enum class ICUService {
   kBreakIterator,
   kCollator,
   kDateFormat,
   kNumberFormat,
   kPluralRules,
-  kResourceBundle,
   kRelativeDateTimeFormatter,
-  kListFormatter
+  kListFormatter,
+  kSegmenter
 };
 
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,

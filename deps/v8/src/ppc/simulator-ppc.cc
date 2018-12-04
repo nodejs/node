@@ -870,6 +870,27 @@ void Simulator::TrashCallerSaveRegisters() {
 #endif
 }
 
+int Simulator::WriteExDW(intptr_t addr, uint64_t value, Instruction* instr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::Word) &&
+      global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+          addr, &global_monitor_processor_)) {
+    uint64_t* ptr = reinterpret_cast<uint64_t*>(addr);
+    *ptr = value;
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
+uint64_t Simulator::ReadExDWU(intptr_t addr, Instruction* instr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoadExcl(addr, TransactionSize::Word);
+  global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
+                                                   &global_monitor_processor_);
+  uint64_t* ptr = reinterpret_cast<uint64_t*>(addr);
+  return *ptr;
+}
 
 uint32_t Simulator::ReadWU(intptr_t addr, Instruction* instr) {
   // All supported PPC targets allow unaligned accesses, so we don't need to
@@ -2320,6 +2341,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       SetCR0(WriteExW(ra_val + rb_val, rs_val, instr));
       break;
     }
+    case STDCX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      int64_t rs_val = get_register(rs);
+      intptr_t rb_val = get_register(rb);
+      SetCR0(WriteExDW(ra_val + rb_val, rs_val, instr));
+      break;
+    }
     case TW: {
       // used for call redirection in simulation mode
       SoftwareInterrupt(instr);
@@ -3087,6 +3118,15 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_register(rt, ReadExWU(ra_val + rb_val, instr));
       break;
     }
+    case LDARX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rb_val = get_register(rb);
+      set_register(rt, ReadExDWU(ra_val + rb_val, instr));
+      break;
+    }
     case DCBF: {
       // todo - simulate dcbf
       break;
@@ -3305,11 +3345,11 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       return;
     }
     case FSQRT: {
-      lazily_initialize_fast_sqrt(isolate_);
+      lazily_initialize_fast_sqrt();
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fast_sqrt(frb_val, isolate_);
+      double frt_val = fast_sqrt(frb_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }

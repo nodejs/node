@@ -718,6 +718,7 @@ class Operand {
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedCode(CodeStub* stub);
+  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   inline bool IsHeapObjectRequest() const;
   inline HeapObjectRequest heap_object_request() const;
@@ -3624,8 +3625,7 @@ class PatchingAssembler : public Assembler {
   void PatchSubSp(uint32_t immediate);
 };
 
-
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBufferSpace();

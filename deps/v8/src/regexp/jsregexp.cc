@@ -2168,10 +2168,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   macro_assembler->Bind(&fall_through);
 }
 
-
-RegExpNode::~RegExpNode() {
-}
-
+RegExpNode::~RegExpNode() = default;
 
 RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
                                                   Trace* trace) {

@@ -20,7 +20,7 @@ class TracingCpuProfilerImpl final
     : private v8::TracingController::TraceStateObserver {
  public:
   explicit TracingCpuProfilerImpl(Isolate*);
-  ~TracingCpuProfilerImpl();
+  ~TracingCpuProfilerImpl() override;
 
   // v8::TracingController::TraceStateObserver
   void OnTraceEnabled() final;

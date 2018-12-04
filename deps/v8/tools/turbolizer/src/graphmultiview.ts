@@ -4,6 +4,7 @@
 
 import {GraphView} from "./graph-view.js"
 import {ScheduleView} from "./schedule-view.js"
+import {SequenceView} from "./sequence-view.js"
 import {SourceResolver} from "./source-resolver.js"
 import {SelectionBroker} from "./selection-broker.js"
 import {View, PhaseView} from "./view.js"
@@ -13,6 +14,7 @@ export class GraphMultiView extends View {
   selectionBroker: SelectionBroker;
   graph: GraphView;
   schedule: ScheduleView;
+  sequence: SequenceView;
   selectMenu: HTMLSelectElement;
   currentPhaseView: View & PhaseView;
 
@@ -36,6 +38,7 @@ export class GraphMultiView extends View {
     this.graph = new GraphView(id, selectionBroker,
       (phaseName) => view.displayPhaseByName(phaseName));
     this.schedule = new ScheduleView(id, selectionBroker);
+    this.sequence = new SequenceView(id, selectionBroker);
     this.selectMenu = (<HTMLSelectElement>document.getElementById('display-selector'));
   }
 
@@ -69,6 +72,8 @@ export class GraphMultiView extends View {
       this.displayPhaseView(this.graph, phase.data);
     } else if (phase.type == 'schedule') {
       this.displayPhaseView(this.schedule, phase);
+    } else if (phase.type == 'sequence') {
+      this.displayPhaseView(this.sequence, phase);
     }
   }
 

@@ -60,7 +60,7 @@ class EvaluateCallback {
       protocol::Maybe<protocol::Runtime::ExceptionDetails>
           exceptionDetails) = 0;
   virtual void sendFailure(const protocol::DispatchResponse& response) = 0;
-  virtual ~EvaluateCallback() {}
+  virtual ~EvaluateCallback() = default;
 };
 
 class InjectedScript final {
@@ -153,7 +153,7 @@ class InjectedScript final {
   class ContextScope : public Scope {
    public:
     ContextScope(V8InspectorSessionImpl*, int executionContextId);
-    ~ContextScope();
+    ~ContextScope() override;
 
    private:
     Response findInjectedScript(V8InspectorSessionImpl*) override;
@@ -165,7 +165,7 @@ class InjectedScript final {
   class ObjectScope : public Scope {
    public:
     ObjectScope(V8InspectorSessionImpl*, const String16& remoteObjectId);
-    ~ObjectScope();
+    ~ObjectScope() override;
     const String16& objectGroupName() const { return m_objectGroupName; }
     v8::Local<v8::Value> object() const { return m_object; }
 
@@ -181,7 +181,7 @@ class InjectedScript final {
   class CallFrameScope : public Scope {
    public:
     CallFrameScope(V8InspectorSessionImpl*, const String16& remoteCallFrameId);
-    ~CallFrameScope();
+    ~CallFrameScope() override;
     size_t frameOrdinal() const { return m_frameOrdinal; }
 
    private:

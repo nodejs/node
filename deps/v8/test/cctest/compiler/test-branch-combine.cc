@@ -309,12 +309,12 @@ class CmpMaterializeBoolGen : public BinopGen<int32_t> {
   CmpMaterializeBoolGen(IrOpcode::Value opcode, bool i)
       : w(opcode), invert(i) {}
 
-  virtual void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
+  void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) override {
     Node* cond = w.MakeNode(m, a, b);
     if (invert) cond = m->Word32Equal(cond, m->Int32Constant(0));
     m->Return(cond);
   }
-  virtual int32_t expected(int32_t a, int32_t b) {
+  int32_t expected(int32_t a, int32_t b) override {
     if (invert) return !w.Int32Compare(a, b) ? 1 : 0;
     return w.Int32Compare(a, b) ? 1 : 0;
   }
@@ -333,7 +333,7 @@ class CmpBranchGen : public BinopGen<int32_t> {
   CmpBranchGen(IrOpcode::Value opcode, bool i, bool t, int32_t eq, int32_t ne)
       : w(opcode), invert(i), true_first(t), eq_constant(eq), ne_constant(ne) {}
 
-  virtual void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
+  void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) override {
     RawMachineLabel blocka, blockb;
     Node* cond = w.MakeNode(m, a, b);
     if (invert) cond = m->Word32Equal(cond, m->Int32Constant(0));
@@ -350,7 +350,7 @@ class CmpBranchGen : public BinopGen<int32_t> {
       m->Return(m->Int32Constant(eq_constant));
     }
   }
-  virtual int32_t expected(int32_t a, int32_t b) {
+  int32_t expected(int32_t a, int32_t b) override {
     if (invert) return !w.Int32Compare(a, b) ? eq_constant : ne_constant;
     return w.Int32Compare(a, b) ? eq_constant : ne_constant;
   }

@@ -44,7 +44,7 @@ class Inspectable : public v8_inspector::V8InspectorSession::Inspectable {
  public:
   Inspectable(v8::Isolate* isolate, v8::Local<v8::Value> object)
       : object_(isolate, object) {}
-  ~Inspectable() override {}
+  ~Inspectable() override = default;
   v8::Local<v8::Value> get(v8::Local<v8::Context> context) override {
     return object_.Get(context->GetIsolate());
   }

@@ -49,7 +49,7 @@ class CheckedNumeric {
  public:
   typedef T type;
 
-  CheckedNumeric() {}
+  CheckedNumeric() = default;
 
   // Copy constructor.
   template <typename Src>

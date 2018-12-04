@@ -42,7 +42,7 @@ class ZoneAllocator {
   T* address(T& x) const { return &x; }
   const T* address(const T& x) const { return &x; }
 
-  T* allocate(size_t n, const void* hint = 0) {
+  T* allocate(size_t n, const void* hint = nullptr) {
     return static_cast<T*>(zone_->NewArray<T>(static_cast<int>(n)));
   }
   void deallocate(T* p, size_t) { /* noop for Zones */
@@ -103,7 +103,7 @@ class RecyclingZoneAllocator : public ZoneAllocator<T> {
   template <typename U>
   friend class RecyclingZoneAllocator;
 
-  T* allocate(size_t n, const void* hint = 0) {
+  T* allocate(size_t n, const void* hint = nullptr) {
     // Only check top block in free list, since this will be equal to or larger
     // than the other blocks in the free list.
     if (free_list_ && free_list_->size >= n) {

@@ -24,11 +24,9 @@ STATIC_ASSERT_ENUM(PageAllocator::kReadExecute,
 
 #undef STATIC_ASSERT_ENUM
 
-size_t PageAllocator::AllocatePageSize() {
-  return base::OS::AllocatePageSize();
-}
-
-size_t PageAllocator::CommitPageSize() { return base::OS::CommitPageSize(); }
+PageAllocator::PageAllocator()
+    : allocate_page_size_(base::OS::AllocatePageSize()),
+      commit_page_size_(base::OS::CommitPageSize()) {}
 
 void PageAllocator::SetRandomMmapSeed(int64_t seed) {
   base::OS::SetRandomMmapSeed(seed);

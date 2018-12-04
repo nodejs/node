@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "src/codegen.h"
-#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/mips/simulator-mips.h"
 
@@ -18,18 +17,18 @@ namespace internal {
 
 #if defined(V8_HOST_ARCH_MIPS)
 
-MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
-                                                MemCopyUint8Function stub) {
+MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR) || defined(_MIPS_ARCH_MIPS32R6) || \
     defined(_MIPS_ARCH_MIPS32RX)
   return stub;
 #else
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   size_t allocated = 0;
-  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
+  byte* buffer = AllocatePage(page_allocator,
+                              page_allocator->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
-                      CodeObjectRequired::kNo);
+  MacroAssembler masm(AssemblerOptions{}, buffer, static_cast<int>(allocated));
 
   // This code assumes that cache lines are 32 bytes and if the cache line is
   // larger it will not work correctly.
@@ -541,26 +540,28 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ nop();
   }
   CodeDesc desc;
-  masm.GetCode(isolate, &desc);
+  masm.GetCode(nullptr, &desc);
   DCHECK(!RelocInfo::RequiresRelocationAfterCodegen(desc));
 
   Assembler::FlushICache(buffer, allocated);
-  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
+  CHECK(SetPermissions(page_allocator, buffer, allocated,
+                       PageAllocator::kReadExecute));
   return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
 #endif
 
-UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
+UnaryMathFunction CreateSqrtFunction() {
 #if defined(USE_SIMULATOR)
   return nullptr;
 #else
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   size_t allocated = 0;
-  byte* buffer = AllocatePage(isolate->heap()->GetRandomMmapAddr(), &allocated);
+  byte* buffer = AllocatePage(page_allocator,
+                              page_allocator->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
-                      CodeObjectRequired::kNo);
+  MacroAssembler masm(AssemblerOptions{}, buffer, static_cast<int>(allocated));
 
   __ MovFromFloatParameter(f12);
   __ sqrt_d(f0, f12);
@@ -568,12 +569,13 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(isolate, &desc);
+  masm.GetCode(nullptr, &desc);
   DCHECK(!RelocInfo::RequiresRelocationAfterCodegen(desc));
 
   Assembler::FlushICache(buffer, allocated);
-  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
-  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
+  CHECK(SetPermissions(page_allocator, buffer, allocated,
+                       PageAllocator::kReadExecute));
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
 #endif
 }
 

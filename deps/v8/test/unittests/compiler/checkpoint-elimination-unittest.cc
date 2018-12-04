@@ -18,7 +18,7 @@ namespace compiler {
 class CheckpointEliminationTest : public GraphTest {
  public:
   CheckpointEliminationTest() : GraphTest() {}
-  ~CheckpointEliminationTest() override {}
+  ~CheckpointEliminationTest() override = default;
 
  protected:
   Reduction Reduce(AdvancedReducer::Editor* editor, Node* node) {

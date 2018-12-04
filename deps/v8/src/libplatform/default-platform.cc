@@ -140,11 +140,9 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
   std::shared_ptr<DefaultForegroundTaskRunner> task_runner;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
-    if (foreground_task_runner_map_.find(isolate) ==
-        foreground_task_runner_map_.end()) {
-      return failed_result;
-    }
-    task_runner = foreground_task_runner_map_[isolate];
+    auto it = foreground_task_runner_map_.find(isolate);
+    if (it == foreground_task_runner_map_.end()) return failed_result;
+    task_runner = it->second;
   }
 
   std::unique_ptr<Task> task = task_runner->PopTaskFromQueue(wait_for_work);

@@ -35,7 +35,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
       IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
       std::unique_ptr<v8::TracingController> tracing_controller = {});
 
-  virtual ~DefaultPlatform();
+  ~DefaultPlatform() override;
 
   void SetThreadPoolSize(int thread_pool_size);
 

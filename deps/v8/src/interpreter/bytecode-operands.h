@@ -145,6 +145,19 @@ class BytecodeOperands : public AllStatic {
       0 OPERAND_SCALE_LIST(OPERAND_SCALE_COUNT);
 #undef OPERAND_SCALE_COUNT
 
+  static int OperandScaleAsIndex(OperandScale operand_scale) {
+    switch (operand_scale) {
+      case OperandScale::kSingle:
+        return 0;
+      case OperandScale::kDouble:
+        return 1;
+      case OperandScale::kQuadruple:
+        return 2;
+      default:
+        UNREACHABLE();
+    }
+  }
+
   // Returns true if |accumulator_use| reads the accumulator.
   static constexpr bool ReadsAccumulator(AccumulatorUse accumulator_use) {
     return accumulator_use == AccumulatorUse::kRead ||

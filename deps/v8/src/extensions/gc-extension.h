@@ -16,8 +16,8 @@ class GCExtension : public v8::Extension {
   explicit GCExtension(const char* fun_name)
       : v8::Extension("v8/gc",
                       BuildSource(buffer_, sizeof(buffer_), fun_name)) {}
-  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate, v8::Local<v8::String> name);
+  v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) override;
   static void GC(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:

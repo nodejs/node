@@ -27,7 +27,7 @@ namespace internal {
 // Note that length_ (whose value is in the integer range) is defined
 // as intptr_t to provide endian-neutrality on 64-bit archs.
 
-class Arguments BASE_EMBEDDED {
+class Arguments {
  public:
   Arguments(int length, Object** arguments)
       : length_(length), arguments_(arguments) {

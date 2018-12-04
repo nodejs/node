@@ -123,7 +123,7 @@ class StoreBuffer {
         : CancelableTask(isolate),
           store_buffer_(store_buffer),
           tracer_(isolate->heap()->tracer()) {}
-    virtual ~Task() {}
+    ~Task() override = default;
 
    private:
     void RunInternal() override {

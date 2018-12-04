@@ -21,8 +21,9 @@ struct SourceRange {
   static SourceRange OpenEnded(int32_t start) {
     return SourceRange(start, kNoSourcePosition);
   }
-  static SourceRange ContinuationOf(const SourceRange& that) {
-    return that.IsEmpty() ? Empty() : OpenEnded(that.end);
+  static SourceRange ContinuationOf(const SourceRange& that,
+                                    int end = kNoSourcePosition) {
+    return that.IsEmpty() ? Empty() : SourceRange(that.end, end);
   }
   int32_t start, end;
 };
@@ -56,7 +57,7 @@ enum class SourceRangeKind {
 
 class AstNodeSourceRanges : public ZoneObject {
  public:
-  virtual ~AstNodeSourceRanges() {}
+  virtual ~AstNodeSourceRanges() = default;
   virtual SourceRange GetRange(SourceRangeKind kind) = 0;
 };
 
@@ -65,7 +66,7 @@ class BinaryOperationSourceRanges final : public AstNodeSourceRanges {
   explicit BinaryOperationSourceRanges(const SourceRange& right_range)
       : right_range_(right_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     DCHECK_EQ(kind, SourceRangeKind::kRight);
     return right_range_;
   }
@@ -79,7 +80,7 @@ class ContinuationSourceRanges : public AstNodeSourceRanges {
   explicit ContinuationSourceRanges(int32_t continuation_position)
       : continuation_position_(continuation_position) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     DCHECK_EQ(kind, SourceRangeKind::kContinuation);
     return SourceRange::OpenEnded(continuation_position_);
   }
@@ -99,7 +100,7 @@ class CaseClauseSourceRanges final : public AstNodeSourceRanges {
   explicit CaseClauseSourceRanges(const SourceRange& body_range)
       : body_range_(body_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     DCHECK_EQ(kind, SourceRangeKind::kBody);
     return body_range_;
   }
@@ -114,7 +115,7 @@ class ConditionalSourceRanges final : public AstNodeSourceRanges {
                                    const SourceRange& else_range)
       : then_range_(then_range), else_range_(else_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     switch (kind) {
       case SourceRangeKind::kThen:
         return then_range_;
@@ -136,7 +137,7 @@ class IfStatementSourceRanges final : public AstNodeSourceRanges {
                                    const SourceRange& else_range)
       : then_range_(then_range), else_range_(else_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     switch (kind) {
       case SourceRangeKind::kElse:
         return else_range_;
@@ -162,7 +163,7 @@ class IterationStatementSourceRanges final : public AstNodeSourceRanges {
   explicit IterationStatementSourceRanges(const SourceRange& body_range)
       : body_range_(body_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     switch (kind) {
       case SourceRangeKind::kBody:
         return body_range_;
@@ -198,7 +199,7 @@ class NaryOperationSourceRanges final : public AstNodeSourceRanges {
   void AddRange(const SourceRange& range) { ranges_.push_back(range); }
   size_t RangeCount() const { return ranges_.size(); }
 
-  SourceRange GetRange(SourceRangeKind kind) { UNREACHABLE(); }
+  SourceRange GetRange(SourceRangeKind kind) override { UNREACHABLE(); }
 
  private:
   ZoneVector<SourceRange> ranges_;
@@ -227,7 +228,7 @@ class TryCatchStatementSourceRanges final : public AstNodeSourceRanges {
   explicit TryCatchStatementSourceRanges(const SourceRange& catch_range)
       : catch_range_(catch_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     switch (kind) {
       case SourceRangeKind::kCatch:
         return catch_range_;
@@ -247,7 +248,7 @@ class TryFinallyStatementSourceRanges final : public AstNodeSourceRanges {
   explicit TryFinallyStatementSourceRanges(const SourceRange& finally_range)
       : finally_range_(finally_range) {}
 
-  SourceRange GetRange(SourceRangeKind kind) {
+  SourceRange GetRange(SourceRangeKind kind) override {
     switch (kind) {
       case SourceRangeKind::kFinally:
         return finally_range_;

@@ -22,6 +22,8 @@ class V8_EXPORT_PRIVATE OperatorProperties final {
     return HasContextInput(op) ? 1 : 0;
   }
 
+  static bool NeedsExactContext(const Operator* op);
+
   static bool HasFrameStateInput(const Operator* op);
   static int GetFrameStateInputCount(const Operator* op) {
     return HasFrameStateInput(op) ? 1 : 0;

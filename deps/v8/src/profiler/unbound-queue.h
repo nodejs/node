@@ -18,8 +18,8 @@ namespace internal {
 // elements, so producer never blocks.  Implemented after Herb
 // Sutter's article:
 // http://www.ddj.com/high-performance-computing/210604448
-template<typename Record>
-class UnboundQueue BASE_EMBEDDED {
+template <typename Record>
+class UnboundQueue {
  public:
   inline UnboundQueue();
   inline ~UnboundQueue();

@@ -599,7 +599,6 @@ bool NodeProperties::CanBeNullOrUndefined(Isolate* isolate, Node* receiver,
       case IrOpcode::kCheckSmi:
       case IrOpcode::kCheckString:
       case IrOpcode::kCheckSymbol:
-      case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToNumber:
