@@ -131,6 +131,9 @@ Chooses an HTTP parser library. Available values are:
 
 The default is `legacy`, unless otherwise specified when building Node.js.
 
+This flag is likely to become a no-op and later be removed at some point
+in the future.
+
 ### `--icu-data-dir=file`
 <!-- YAML
 added: v0.11.15
