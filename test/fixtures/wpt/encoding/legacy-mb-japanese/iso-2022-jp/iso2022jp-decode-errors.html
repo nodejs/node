@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"/>
+<title>ISO 2022-JP decoding errors</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<link rel="author" title="Richard Ishida" href="mailto:ishida@w3.org">
+<link rel="help" href="https://encoding.spec.whatwg.org/#euc-jp">
+<meta name="assert" content="When decoding iso-2022-jp text, the browser uses replacement characters as described by the algorithm in the Encoding spec.">
+<style>
+ iframe { display:none }
+ form { display:none }
+</style>
+</head>
+
+<body onload="showNodes();">
+
+<iframe src="iso2022jp_errors.html" name="scriptWindow" id="scrwin"></iframe>
+
+<div id="log"></div>
+
+<script>
+var tests = [];
+
+function iframeRef(frameRef) {
+    return frameRef.contentWindow
+        ? frameRef.contentWindow.document
+        : frameRef.contentDocument;
+}
+
+function showNodes() {
+    var iframe = iframeRef(document.getElementById("scrwin"));
+    var nodes = iframe.querySelectorAll("span");
+
+    var t = -1;
+    t++;
+    tests[t] = async_test("ascii: 0E 24 42 79 56 1B 28 42");
+    t++;
+    tests[t] = async_test("roman: 1B 28 4A 0F 1B 28 42");
+    t++;
+    tests[t] = async_test("katakana: 1B 28 49 65 1B 28 42");
+
+    t++;
+    tests[t] = async_test(
+        "lead byte and trail byte 1B: 1B 24 42 7F 56 1B 28 42"
+    );
+    t++;
+    tests[t] = async_test("trail byte null index code point: 1B 24 42 24 74");
+    //t++; tests[t] = async_test("trail byte end of stream: 1B 24 42 79")   not sure how to test this, since it corrupts the html following
+    t++;
+    tests[t] = async_test("trail byte out of range: 1B 24 42 79 7F 1B 28 42");
+
+    t++;
+    tests[t] = async_test("escape start: 1B 65 79 56 1B 28 42");
+    t++;
+    tests[t] = async_test("escape: 1B 24 65 79 56 1B 28 42");
+
+    t = -1;
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "�$ByV");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "��");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "�");
+    });
+    tests[t].done();
+    //t++; tests[t].step(function() {assert_equals(nodes[t].textContent, '�') } )
+    //tests[t].done()
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "�");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "�eyV");
+    });
+    tests[t].done();
+    t++;
+    tests[t].step(function() {
+        assert_equals(nodes[t].textContent, "�$eyV");
+    });
+    tests[t].done();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset=iso-2022-jp> <!-- if the server overrides this, it is stupid, as this is a testsuite -->
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+ function encode(input, output, desc) {
+   test(function() {
+     var a = document.createElement("a") // <a> uses document encoding for URL's query
+     a.href = "https://example.com/?" + input
+     assert_equals(a.search.substr(1), output) // remove leading "?"
+   }, "iso-2022-jp encoder: " + desc)
+ }
+
+ encode("s", "s", "very basic")
+ encode("\u00A5\u203Es\\\uFF90\u4F69", "%1B(J\\~s%1B(B\\%1B$B%_PP%1B(B", "basics")
+ encode("\x0E\x0F\x1Bx", "%0E%0F%1Bx", "SO/SI ESC")
+ encode("\uFFFD", "%26%2365533%3B", "U+FFFD");
+</script>
