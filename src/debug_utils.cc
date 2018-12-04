@@ -30,6 +30,27 @@
 
 #endif  // __POSIX__
 
+#if defined(__linux__) || defined(__sun)
+#include <link.h>
+#endif  // (__linux__) || defined(__sun)
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>  // _dyld_get_image_name()
+#endif                    // __APPLE__
+
+#ifdef _AIX
+#include <sys/ldr.h>  // ld_info structure
+#endif                // _AIX
+
+#ifdef _WIN32
+#include <Lm.h>
+#include <Windows.h>
+#include <dbghelp.h>
+#include <process.h>
+#include <psapi.h>
+#include <tchar.h>
+#endif  // _WIN32
+
 namespace node {
 
 #ifdef __POSIX__
@@ -298,6 +319,108 @@ void CheckedUvLoopClose(uv_loop_t* loop) {
   // Finally, abort.
   CHECK(0 && "uv_loop_close() while having open handles");
 }
+
+std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
+  std::vector<std::string> list;
+#ifdef __linux__
+  dl_iterate_phdr(
+      [](struct dl_phdr_info* info, size_t size, void* data) {
+        auto list = static_cast<std::vector<std::string>*>(data);
+        if (*info->dlpi_name != '\0') {
+          list->push_back(info->dlpi_name);
+        }
+        return 0;
+      },
+      &list);
+#elif __APPLE__
+  uint32_t i = 0;
+  for (const char* name = _dyld_get_image_name(i); name != nullptr;
+       name = _dyld_get_image_name(++i)) {
+    list.push_back(name);
+  }
+
+#elif _AIX
+  // We can't tell in advance how large the buffer needs to be.
+  // Retry until we reach too large a size (1Mb).
+  const unsigned int kBufferGrowStep = 4096;
+  MallocedBuffer<char> buffer(kBufferGrowStep);
+  int rc = -1;
+  do {
+    rc = loadquery(L_GETINFO, buffer.data, buffer.size);
+    if (rc == 0) break;
+    buffer = MallocedBuffer<char>(buffer.size + kBufferGrowStep);
+  } while (buffer.size < 1024 * 1024);
+
+  if (rc == 0) {
+    char* buf = buffer.data;
+    ld_info* cur_info = nullptr;
+    do {
+      std::ostringstream str;
+      cur_info = reinterpret_cast<ld_info*>(buf);
+      char* member_name = cur_info->ldinfo_filename +
+          strlen(cur_info->ldinfo_filename) + 1;
+      if (*member_name != '\0') {
+        str << cur_info->ldinfo_filename << "(" << member_name << ")";
+        list.push_back(str.str());
+        str.str("");
+      } else {
+        list.push_back(cur_info->ldinfo_filename);
+      }
+      buf += cur_info->ldinfo_next;
+    } while (cur_info->ldinfo_next != 0);
+  }
+#elif __sun
+  Link_map* p;
+
+  if (dlinfo(RTLD_SELF, RTLD_DI_LINKMAP, &p) != -1) {
+    for (Link_map* l = p; l != nullptr; l = l->l_next) {
+      list.push_back(l->l_name);
+    }
+  }
+
+#elif _WIN32
+  // Windows implementation - get a handle to the process.
+  HANDLE process_handle = OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ,
+                                      FALSE, GetCurrentProcessId());
+  if (process_handle == nullptr) {
+    // Cannot proceed, return an empty list.
+    return list;
+  }
+  // Get a list of all the modules in this process
+  DWORD size_1 = 0;
+  DWORD size_2 = 0;
+  // First call to get the size of module array needed
+  if (EnumProcessModules(process_handle, nullptr, 0, &size_1)) {
+    MallocedBuffer<HMODULE> modules(size_1);
+
+    // Second call to populate the module array
+    if (EnumProcessModules(process_handle, modules.data, size_1, &size_2)) {
+      for (DWORD i = 0;
+           i < (size_1 / sizeof(HMODULE)) && i < (size_2 / sizeof(HMODULE));
+           i++) {
+        WCHAR module_name[MAX_PATH];
+        // Obtain and report the full pathname for each module
+        if (GetModuleFileNameExW(process_handle,
+                                 modules.data[i],
+                                 module_name,
+                                 arraysize(module_name) / sizeof(WCHAR))) {
+          DWORD size = WideCharToMultiByte(
+              CP_UTF8, 0, module_name, -1, nullptr, 0, nullptr, nullptr);
+          char* str = new char[size];
+          WideCharToMultiByte(
+              CP_UTF8, 0, module_name, -1, str, size, nullptr, nullptr);
+          list.push_back(str);
+        }
+      }
+    }
+  }
+
+  // Release the handle to the process.
+  CloseHandle(process_handle);
+#endif
+  return list;
+}
+
 
 }  // namespace node
 
