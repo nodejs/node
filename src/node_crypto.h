@@ -476,14 +476,12 @@ class Hash : public BaseObject {
 
   Hash(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        mdctx_(nullptr),
-        finalized_(false) {
+        mdctx_(nullptr) {
     MakeWeak();
   }
 
  private:
   EVPMDPointer mdctx_;
-  bool finalized_;
 };
 
 class SignBase : public BaseObject {
