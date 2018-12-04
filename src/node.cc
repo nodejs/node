@@ -383,6 +383,10 @@ static struct {
 #endif  //  !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
 } v8_platform;
 
+void DisposePlatform() {
+  v8_platform.Dispose();
+}
+
 #ifdef __POSIX__
 static const unsigned kMaxSignal = 32;
 #endif
