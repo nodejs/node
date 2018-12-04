@@ -113,6 +113,7 @@ class NativeSymbolDebuggingContext {
     = delete;
   NativeSymbolDebuggingContext operator=(NativeSymbolDebuggingContext&&)
     = delete;
+  static std::vector<std::string> GetLoadedLibraries();
 };
 
 // Variant of `uv_loop_close` that tries to be as helpful as possible
