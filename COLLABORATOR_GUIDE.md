@@ -141,8 +141,9 @@ the TSC meeting agenda.
 
 #### Helpful resources
 
-* How to respectfully and usefully review code, part [one](https://mtlynch.io/human-code-reviews-1/) and [two](https://mtlynch.io/human-code-reviews-2/)
-* [How to write a positive code review](https://css-tricks.com/code-review-etiquette/)
+* [How to Do Code Reviews Like a Human (Part One)](https://mtlynch.io/human-code-reviews-1/)
+* [How to Do Code Reviews Like a Human (Part Two)](https://mtlynch.io/human-code-reviews-2/)
+* [Code Review Etiquette](https://css-tricks.com/code-review-etiquette/)
 
 ### Waiting for Approvals
 
