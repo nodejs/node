@@ -58,7 +58,7 @@ Node* ProxiesCodeStubAssembler::AllocateProxy(Node* target, Node* handler,
   Node* proxy = Allocate(JSProxy::kSize);
   StoreMapNoWriteBarrier(proxy, map.value());
   StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset,
-                       Heap::kEmptyPropertyDictionaryRootIndex);
+                       RootIndex::kEmptyPropertyDictionary);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
 
@@ -124,7 +124,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
 Node* ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
     Node* proxy, Node* native_context) {
   Node* const context = Allocate(FixedArray::SizeFor(kProxyContextLength));
-  StoreMapNoWriteBarrier(context, Heap::kFunctionContextMapRootIndex);
+  StoreMapNoWriteBarrier(context, RootIndex::kFunctionContextMap);
   InitializeFunctionContext(native_context, context, kProxyContextLength);
   StoreContextElementNoWriteBarrier(context, kProxySlot, proxy);
   return context;
@@ -230,9 +230,9 @@ TF_BUILTIN(ProxyRevocable, ProxiesCodeStubAssembler) {
       native_context, Context::PROXY_REVOCABLE_RESULT_MAP_INDEX);
   StoreMapNoWriteBarrier(result, result_map);
   StoreObjectFieldRoot(result, JSProxyRevocableResult::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(result, JSProxyRevocableResult::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(result, JSProxyRevocableResult::kProxyOffset,
                                  proxy);
   StoreObjectFieldNoWriteBarrier(result, JSProxyRevocableResult::kRevokeOffset,

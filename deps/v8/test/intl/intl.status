@@ -29,6 +29,13 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6891
+  'segmenter/segment': [FAIL],
+  'segmenter/segment-iterator': [FAIL],
+  'segmenter/segment-iterator-following': [FAIL],
+  'segmenter/segment-iterator-next': [FAIL],
+  'segmenter/segment-iterator-preceding': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
@@ -41,4 +48,12 @@
   'relative-time-format/default-locale-pt-BR': [SKIP],
 }],  # system == windows'
 
+['system == android', {
+  # Android's ICU data file does not have the Chinese/Japanese dictionary
+  # required for the test to pass.
+  'break-iterator/zh-break': [FAIL],
+  # Unable to change locale on Android:
+  'relative-time-format/default-locale-fr-CA': [FAIL],
+  'relative-time-format/default-locale-pt-BR': [FAIL],
+}],  # 'system == android'
 ]

@@ -66,7 +66,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
         js_heap_broker_(isolate(), zone()),
         simplified_(zone()),
         deps_(isolate(), zone()) {}
-  ~ConstantFoldingReducerTest() override {}
+  ~ConstantFoldingReducerTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {

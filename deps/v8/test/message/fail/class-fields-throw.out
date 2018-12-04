@@ -1,0 +1,7 @@
+*%(basename)s:8: ReferenceError: foo is not defined
+  x = foo();
+      ^
+ReferenceError: foo is not defined
+    at X.<instance_fields_initializer> (*%(basename)s:8:7)
+    at new X (*%(basename)s:7:1)
+    at *%(basename)s:11:1

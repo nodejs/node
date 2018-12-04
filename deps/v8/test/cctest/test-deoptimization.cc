@@ -95,15 +95,6 @@ class AllowNativesSyntaxNoInlining {
   bool turbo_inlining_;
 };
 
-
-// Abort any ongoing incremental marking to make sure that all weak global
-// handle callbacks are processed.
-static void NonIncrementalGC(i::Isolate* isolate) {
-  isolate->heap()->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                                     i::GarbageCollectionReason::kTesting);
-}
-
-
 static Handle<JSFunction> GetJSFunction(v8::Local<v8::Context> context,
                                         const char* property_name) {
   v8::Local<v8::Function> fun = v8::Local<v8::Function>::Cast(
@@ -127,7 +118,7 @@ TEST(DeoptimizeSimple) {
         "function f() { g(); };"
         "f();");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -147,7 +138,7 @@ TEST(DeoptimizeSimple) {
         "function f(x) { if (x) { g(); } else { return } };"
         "f(true);");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -174,7 +165,7 @@ TEST(DeoptimizeSimpleWithArguments) {
         "function f(x, y, z) { g(1,x); y+z; };"
         "f(1, \"2\", false);");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -195,7 +186,7 @@ TEST(DeoptimizeSimpleWithArguments) {
         "function f(x, y, z) { if (x) { g(x, y); } else { return y + z; } };"
         "f(true, 1, \"2\");");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -223,7 +214,7 @@ TEST(DeoptimizeSimpleNested) {
         "function g(z) { count++; %DeoptimizeFunction(f); return z;}"
         "function f(x,y,z) { return h(x, y, g(z)); };"
         "result = f(1, 2, 3);");
-    NonIncrementalGC(CcTest::i_isolate());
+    CcTest::CollectAllGarbage();
 
     CHECK_EQ(1, env->Global()
                     ->Get(env.local(), v8_str("count"))
@@ -257,7 +248,7 @@ TEST(DeoptimizeRecursive) {
         "function f(x) { calls++; if (x > 0) { f(x - 1); } else { g(); } };"
         "f(10);");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -300,7 +291,7 @@ TEST(DeoptimizeMultiple) {
         "function f1(x) { return f2(x + 1, x + 1) + x; };"
         "result = f1(1);");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -330,7 +321,7 @@ TEST(DeoptimizeConstructor) {
         "function f() {  g(); };"
         "result = new f() instanceof f;");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -354,7 +345,7 @@ TEST(DeoptimizeConstructor) {
         "result = new f(1, 2);"
         "result = result.x + result.y;");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -392,7 +383,7 @@ TEST(DeoptimizeConstructorMultiple) {
         "function f1(x) { this.result = new f2(x + 1, x + 1).result + x; };"
         "result = new f1(1).result;");
   }
-  NonIncrementalGC(CcTest::i_isolate());
+  CcTest::CollectAllGarbage();
 
   CHECK_EQ(1, env->Global()
                   ->Get(env.local(), v8_str("count"))
@@ -453,7 +444,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
           "deopt = true;"
           "var result = f('a+', new X());");
     }
-    NonIncrementalGC(i_isolate);
+    CcTest::CollectAllGarbage(i_isolate);
 
     CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
     CHECK_EQ(1, env->Global()
@@ -513,7 +504,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   // Call f and force deoptimization while processing the binary operation.
   CompileRun("deopt = true;"
              "var result = f(7, new X());");
-  NonIncrementalGC(i_isolate);
+  CcTest::CollectAllGarbage(i_isolate);
   CHECK(!GetJSFunction((*env).local(), "f")->IsOptimized());
 }
 
@@ -718,7 +709,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
           "deopt = true;"
           "var result = f('a', new X());");
     }
-    NonIncrementalGC(i_isolate);
+    CcTest::CollectAllGarbage(i_isolate);
 
     CHECK(!GetJSFunction(env.local(), "f")->IsOptimized());
     CHECK_EQ(1, env->Global()
@@ -729,8 +720,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
     CHECK_EQ(true, env->Global()
                        ->Get(env.local(), v8_str("result"))
                        .ToLocalChecked()
-                       ->BooleanValue(env.local())
-                       .FromJust());
+                       ->BooleanValue(isolate));
     CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate));
   }
   isolate->Exit();
@@ -817,7 +807,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
           "f2(new X(), 'z');"
           "g2(new X(), 'z');");
     }
-    NonIncrementalGC(i_isolate);
+    CcTest::CollectAllGarbage(i_isolate);
 
     CHECK(!GetJSFunction(env.local(), "f1")->IsOptimized());
     CHECK(!GetJSFunction(env.local(), "g1")->IsOptimized());
@@ -919,7 +909,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
           "deopt = true;"
           "var result = f1(new X());");
     }
-    NonIncrementalGC(i_isolate);
+    CcTest::CollectAllGarbage(i_isolate);
 
     CHECK(!GetJSFunction(env.local(), "f1")->IsOptimized());
     CHECK(!GetJSFunction(env.local(), "g1")->IsOptimized());

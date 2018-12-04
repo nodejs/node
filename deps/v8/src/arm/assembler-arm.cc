@@ -46,6 +46,7 @@
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -417,6 +418,13 @@ Operand Operand::EmbeddedCode(CodeStub* stub) {
   return result;
 }
 
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
+  return result;
+}
+
 MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am)
     : rn_(rn), rm_(no_reg), offset_(offset), am_(am) {
   // Accesses below the stack pointer are not safe, and are prohibited by the
@@ -472,6 +480,7 @@ void NeonMemOperand::SetAlignment(int align) {
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     switch (request.kind()) {
@@ -483,6 +492,12 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
         break;
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        object = str->AllocateStringConstant(isolate);
+        break;
+      }
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
@@ -1418,7 +1433,7 @@ int Assembler::branch_offset(Label* L) {
 
 // Branch instructions.
 void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool b_imm_check = is_int24(imm24);
@@ -1432,7 +1447,7 @@ void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
 }
 
 void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool bl_imm_check = is_int24(imm24);
@@ -5103,13 +5118,7 @@ void Assembler::dq(uint64_t value) {
 }
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  if (options().disable_reloc_info_for_patching) return;
-  if (RelocInfo::IsNone(rmode) ||
-      // Don't record external references unless the heap will be serialized.
-      (RelocInfo::IsOnlyForSerializer(rmode) &&
-       !options().record_reloc_info_for_serialization && !emit_debug_code())) {
-    return;
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);

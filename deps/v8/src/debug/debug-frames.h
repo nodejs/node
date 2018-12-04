@@ -19,7 +19,7 @@ class FrameInspector {
   FrameInspector(StandardFrame* frame, int inlined_frame_index,
                  Isolate* isolate);
 
-  ~FrameInspector();
+  ~FrameInspector();  // NOLINT (modernize-use-equals-default)
 
   int GetParametersCount();
   Handle<JSFunction> GetFunction() const { return function_; }

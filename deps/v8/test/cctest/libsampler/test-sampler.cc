@@ -55,7 +55,7 @@ class TestSampler : public Sampler {
 
 class TestApiCallbacks {
  public:
-  TestApiCallbacks() {}
+  TestApiCallbacks() = default;
 
   static void Getter(v8::Local<v8::String> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {

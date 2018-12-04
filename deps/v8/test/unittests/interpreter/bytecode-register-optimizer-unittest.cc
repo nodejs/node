@@ -23,7 +23,7 @@ class BytecodeRegisterOptimizerTest
     Register output;
   };
 
-  BytecodeRegisterOptimizerTest() {}
+  BytecodeRegisterOptimizerTest() = default;
   ~BytecodeRegisterOptimizerTest() override { delete register_allocator_; }
 
   void Initialize(int number_of_parameters, int number_of_locals) {

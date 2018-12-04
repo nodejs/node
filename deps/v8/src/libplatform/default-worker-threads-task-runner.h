@@ -19,7 +19,7 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
  public:
   DefaultWorkerThreadsTaskRunner(uint32_t thread_pool_size);
 
-  ~DefaultWorkerThreadsTaskRunner();
+  ~DefaultWorkerThreadsTaskRunner() override;
 
   void Terminate();
 

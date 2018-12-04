@@ -85,7 +85,7 @@ void InitializeICUPluralRules(
 }  // namespace
 
 // static
-MaybeHandle<JSPluralRules> JSPluralRules::InitializePluralRules(
+MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
     Isolate* isolate, Handle<JSPluralRules> plural_rules,
     Handle<Object> locales, Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -190,8 +190,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::InitializePluralRules(
 }
 
 MaybeHandle<String> JSPluralRules::ResolvePlural(
-    Isolate* isolate, Handle<JSPluralRules> plural_rules,
-    Handle<Object> number) {
+    Isolate* isolate, Handle<JSPluralRules> plural_rules, double number) {
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
   CHECK_NOT_NULL(icu_plural_rules);
 
@@ -207,7 +206,7 @@ MaybeHandle<String> JSPluralRules::ResolvePlural(
   // this step, then switch to that API. Bug thread:
   // http://bugs.icu-project.org/trac/ticket/12763
   icu::UnicodeString rounded_string;
-  icu_decimal_format->format(number->Number(), rounded_string);
+  icu_decimal_format->format(number, rounded_string);
 
   icu::Formattable formattable;
   UErrorCode status = U_ZERO_ERROR;

@@ -14,7 +14,7 @@ AstFunctionLiteralIdReindexer::AstFunctionLiteralIdReindexer(size_t stack_limit,
                                                              int delta)
     : AstTraversalVisitor(stack_limit), delta_(delta) {}
 
-AstFunctionLiteralIdReindexer::~AstFunctionLiteralIdReindexer() {}
+AstFunctionLiteralIdReindexer::~AstFunctionLiteralIdReindexer() = default;
 
 void AstFunctionLiteralIdReindexer::Reindex(Expression* pattern) {
   Visit(pattern);

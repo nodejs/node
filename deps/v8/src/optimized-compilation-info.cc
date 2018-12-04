@@ -17,21 +17,10 @@ namespace internal {
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure)
-    : OptimizedCompilationInfo({}, AbstractCode::OPTIMIZED_FUNCTION, zone) {
+    : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
-
-  SetFlag(kCalledWithCodeStartRegister);
-  if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
-  if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
-  SetFlag(kSwitchJumpTableEnabled);
-  if (FLAG_untrusted_code_mitigations) MarkAsPoisoningRegisterArguments();
-
-  // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
-  if (FLAG_analyze_environment_liveness) {
-    MarkAsAnalyzeEnvironmentLiveness();
-  }
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -45,39 +34,54 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Vector<const char> debug_name, Zone* zone, Code::Kind code_kind)
-    : OptimizedCompilationInfo(
-          debug_name, static_cast<AbstractCode::Kind>(code_kind), zone) {
-  if (code_kind == Code::BYTECODE_HANDLER) {
-    SetFlag(OptimizedCompilationInfo::kCalledWithCodeStartRegister);
-  }
-#if ENABLE_GDB_JIT_INTERFACE
-#if DEBUG
-  if (code_kind == Code::BUILTIN || code_kind == Code::STUB) {
-    MarkAsSourcePositionsEnabled();
-  }
-#endif
-#endif
+    : OptimizedCompilationInfo(code_kind, zone) {
+  debug_name_ = debug_name;
+
   SetTracingFlags(
       PassesFilter(debug_name, CStrVector(FLAG_trace_turbo_filter)));
-  // Embedded builtins don't support embedded absolute code addresses, so we
-  // cannot use jump tables.
-  if (code_kind != Code::BUILTIN) {
-    SetFlag(kSwitchJumpTableEnabled);
-  }
 }
 
-OptimizedCompilationInfo::OptimizedCompilationInfo(
-    Vector<const char> debug_name, AbstractCode::Kind code_kind, Zone* zone)
-    : flags_(FLAG_untrusted_code_mitigations ? kUntrustedCodeMitigations : 0),
-      code_kind_(code_kind),
-      stub_key_(0),
-      builtin_index_(Builtins::kNoBuiltinId),
-      osr_offset_(BailoutId::None()),
-      zone_(zone),
-      deferred_handles_(nullptr),
-      bailout_reason_(BailoutReason::kNoReason),
-      optimization_id_(-1),
-      debug_name_(debug_name) {}
+OptimizedCompilationInfo::OptimizedCompilationInfo(Code::Kind code_kind,
+                                                   Zone* zone)
+    : code_kind_(code_kind), zone_(zone) {
+  ConfigureFlags();
+}
+
+void OptimizedCompilationInfo::ConfigureFlags() {
+  if (FLAG_untrusted_code_mitigations) SetFlag(kUntrustedCodeMitigations);
+
+  switch (code_kind_) {
+    case Code::OPTIMIZED_FUNCTION:
+      SetFlag(kCalledWithCodeStartRegister);
+      SetFlag(kSwitchJumpTableEnabled);
+      if (FLAG_function_context_specialization) {
+        MarkAsFunctionContextSpecializing();
+      }
+      if (FLAG_turbo_splitting) {
+        MarkAsSplittingEnabled();
+      }
+      if (FLAG_untrusted_code_mitigations) {
+        MarkAsPoisoningRegisterArguments();
+      }
+      if (FLAG_analyze_environment_liveness) {
+        // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
+        MarkAsAnalyzeEnvironmentLiveness();
+      }
+      break;
+    case Code::BYTECODE_HANDLER:
+      SetFlag(kCalledWithCodeStartRegister);
+      break;
+    case Code::BUILTIN:
+    case Code::STUB:
+#if ENABLE_GDB_JIT_INTERFACE && DEBUG
+      MarkAsSourcePositionsEnabled();
+#endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
+      break;
+    default:
+      SetFlag(kSwitchJumpTableEnabled);
+      break;
+  }
+}
 
 OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {

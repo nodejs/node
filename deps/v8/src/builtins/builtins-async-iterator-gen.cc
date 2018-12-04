@@ -333,20 +333,6 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeNext, AsyncFromSyncBuiltinsAssembler) {
       "[Async-from-Sync Iterator].prototype.next");
 }
 
-TF_BUILTIN(AsyncFromSyncIteratorPrototypeNextOptimized,
-           AsyncFromSyncBuiltinsAssembler) {
-  Node* const iterator = Parameter(Descriptor::kReceiver);
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  auto get_method = [=](Node* const unused) {
-    return LoadObjectField(iterator, JSAsyncFromSyncIterator::kNextOffset);
-  };
-  Generate_AsyncFromSyncIteratorMethodOptimized(
-      context, iterator, value, get_method, UndefinedMethodHandler(),
-      "[Async-from-Sync Iterator].prototype.next");
-}
-
 // https://tc39.github.io/proposal-async-iteration/
 // Section #sec-%asyncfromsynciteratorprototype%.return
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
@@ -374,31 +360,6 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
       "[Async-from-Sync Iterator].prototype.return");
 }
 
-TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturnOptimized,
-           AsyncFromSyncBuiltinsAssembler) {
-  Node* const iterator = Parameter(Descriptor::kReceiver);
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  auto if_return_undefined = [=](Node* const native_context,
-                                 Node* const promise, Label* if_exception) {
-    // If return is undefined, then
-    // Let iterResult be ! CreateIterResultObject(value, true)
-    Node* const iter_result = CallBuiltin(Builtins::kCreateIterResultObject,
-                                          context, value, TrueConstant());
-
-    // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iterResult »).
-    // IfAbruptRejectPromise(nextDone, promiseCapability).
-    // Return promiseCapability.[[Promise]].
-    CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
-    Return(promise);
-  };
-
-  Generate_AsyncFromSyncIteratorMethodOptimized(
-      context, iterator, value, factory()->return_string(), if_return_undefined,
-      "[Async-from-Sync Iterator].prototype.return");
-}
-
 // https://tc39.github.io/proposal-async-iteration/
 // Section #sec-%asyncfromsynciteratorprototype%.throw
 TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
@@ -411,21 +372,6 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrow,
                                 Label* if_exception) { Goto(if_exception); };
 
   Generate_AsyncFromSyncIteratorMethod(
-      context, iterator, reason, factory()->throw_string(), if_throw_undefined,
-      "[Async-from-Sync Iterator].prototype.throw", Label::kNonDeferred,
-      reason);
-}
-
-TF_BUILTIN(AsyncFromSyncIteratorPrototypeThrowOptimized,
-           AsyncFromSyncBuiltinsAssembler) {
-  Node* const iterator = Parameter(Descriptor::kReceiver);
-  Node* const reason = Parameter(Descriptor::kReason);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  auto if_throw_undefined = [=](Node* const native_context, Node* const promise,
-                                Label* if_exception) { Goto(if_exception); };
-
-  Generate_AsyncFromSyncIteratorMethodOptimized(
       context, iterator, reason, factory()->throw_string(), if_throw_undefined,
       "[Async-from-Sync Iterator].prototype.throw", Label::kNonDeferred,
       reason);

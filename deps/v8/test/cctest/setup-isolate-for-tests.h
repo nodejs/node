@@ -14,11 +14,9 @@ class SetupIsolateDelegateForTests : public SetupIsolateDelegate {
  public:
   explicit SetupIsolateDelegateForTests(bool create_heap_objects)
       : SetupIsolateDelegate(create_heap_objects) {}
-  virtual ~SetupIsolateDelegateForTests() {}
+  ~SetupIsolateDelegateForTests() override = default;
 
   void SetupBuiltins(Isolate* isolate) override;
-
-  void SetupInterpreter(interpreter::Interpreter* interpreter) override;
 
   bool SetupHeap(Heap* heap) override;
 };

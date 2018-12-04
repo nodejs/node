@@ -17,13 +17,15 @@ namespace default_platform_unittest {
 namespace {
 
 struct MockTask : public Task {
-  virtual ~MockTask() { Die(); }
+  // See issue v8:8185
+  ~MockTask() /* override */ { Die(); }
   MOCK_METHOD0(Run, void());
   MOCK_METHOD0(Die, void());
 };
 
 struct MockIdleTask : public IdleTask {
-  virtual ~MockIdleTask() { Die(); }
+  // See issue v8:8185
+  ~MockIdleTask() /* override */ { Die(); }
   MOCK_METHOD1(Run, void(double deadline_in_seconds));
   MOCK_METHOD0(Die, void());
 };
@@ -242,10 +244,10 @@ class TestBackgroundTask : public Task {
   explicit TestBackgroundTask(base::Semaphore* sem, bool* executed)
       : sem_(sem), executed_(executed) {}
 
-  virtual ~TestBackgroundTask() { Die(); }
+  ~TestBackgroundTask() override { Die(); }
   MOCK_METHOD0(Die, void());
 
-  void Run() {
+  void Run() override {
     *executed_ = true;
     sem_->Signal();
   }

@@ -174,22 +174,10 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
   CurrentCallableActivator activator(global_context_, macro, decl);
 
   DeclareSignature(signature);
-  Variable* return_variable = nullptr;
-  if (!signature.return_type->IsVoidOrNever()) {
-    return_variable =
-        DeclareVariable(kReturnValueVariable, signature.return_type,
-                        signature.return_type->IsConstexpr());
-  }
 
-  PushControlSplit();
   if (body != nullptr) {
     Visit(body);
   }
-  auto changed_vars = PopControlSplit();
-  if (return_variable) changed_vars.insert(return_variable);
-  global_context_.AddControlSplitChangedVariables(
-      decl, declarations()->GetCurrentSpecializationTypeNamesVector(),
-      changed_vars);
 }
 
 void DeclarationVisitor::Visit(ConstDeclaration* decl) {
@@ -273,28 +261,13 @@ void DeclarationVisitor::Visit(ReturnStatement* stmt) {
 Variable* DeclarationVisitor::DeclareVariable(const std::string& name,
                                               const Type* type, bool is_const) {
   Variable* result = declarations()->DeclareVariable(name, type, is_const);
-  if (type->IsStructType()) {
-    const StructType* struct_type = StructType::cast(type);
-    for (auto& field : struct_type->fields()) {
-      std::string field_var_name = name + "." + field.name;
-      DeclareVariable(field_var_name, field.type, is_const);
-    }
-  }
   return result;
 }
 
 Parameter* DeclarationVisitor::DeclareParameter(const std::string& name,
                                                 const Type* type) {
-  Parameter* result = declarations()->DeclareParameter(
+  return declarations()->DeclareParameter(
       name, GetParameterVariableFromName(name), type);
-  if (type->IsStructType()) {
-    const StructType* struct_type = StructType::cast(type);
-    for (auto& field : struct_type->fields()) {
-      std::string field_var_name = name + "." + field.name;
-      DeclareParameter(field_var_name, field.type);
-    }
-  }
-  return result;
 }
 
 void DeclarationVisitor::Visit(VarDeclarationStatement* stmt) {
@@ -372,7 +345,9 @@ void DeclarationVisitor::Visit(LogicalAndExpression* expr) {
   Visit(expr->right);
 }
 
-void DeclarationVisitor::DeclareExpressionForBranch(Expression* node) {
+void DeclarationVisitor::DeclareExpressionForBranch(
+    Expression* node, base::Optional<Statement*> true_statement,
+    base::Optional<Statement*> false_statement) {
   Declarations::NodeScopeActivator scope(declarations(), node);
   // Conditional expressions can either explicitly return a bit
   // type, or they can be backed by macros that don't return but
@@ -380,46 +355,27 @@ void DeclarationVisitor::DeclareExpressionForBranch(Expression* node) {
   // visiting the conditional expression, those label-based
   // macro conditionals will be able to find them through normal
   // label lookups.
-  declarations()->DeclareLabel(kTrueLabelName);
-  declarations()->DeclareLabel(kFalseLabelName);
+  declarations()->DeclareLabel(kTrueLabelName, true_statement);
+  declarations()->DeclareLabel(kFalseLabelName, false_statement);
   Visit(node);
 }
 
 void DeclarationVisitor::Visit(ConditionalExpression* expr) {
   DeclareExpressionForBranch(expr->condition);
-  PushControlSplit();
   Visit(expr->if_true);
   Visit(expr->if_false);
-  auto changed_vars = PopControlSplit();
-  global_context_.AddControlSplitChangedVariables(
-      expr, declarations()->GetCurrentSpecializationTypeNamesVector(),
-      changed_vars);
 }
 
 void DeclarationVisitor::Visit(IfStatement* stmt) {
-  if (!stmt->is_constexpr) {
-    PushControlSplit();
-  }
-  DeclareExpressionForBranch(stmt->condition);
+  DeclareExpressionForBranch(stmt->condition, stmt->if_true, stmt->if_false);
   Visit(stmt->if_true);
   if (stmt->if_false) Visit(*stmt->if_false);
-  if (!stmt->is_constexpr) {
-    auto changed_vars = PopControlSplit();
-    global_context_.AddControlSplitChangedVariables(
-        stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
-        changed_vars);
-  }
 }
 
 void DeclarationVisitor::Visit(WhileStatement* stmt) {
   Declarations::NodeScopeActivator scope(declarations(), stmt);
   DeclareExpressionForBranch(stmt->condition);
-  PushControlSplit();
   Visit(stmt->body);
-  auto changed_vars = PopControlSplit();
-  global_context_.AddControlSplitChangedVariables(
-      stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
-      changed_vars);
 }
 
 void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
@@ -429,18 +385,12 @@ void DeclarationVisitor::Visit(ForOfLoopStatement* stmt) {
   Visit(stmt->iterable);
   if (stmt->begin) Visit(*stmt->begin);
   if (stmt->end) Visit(*stmt->end);
-  PushControlSplit();
   Visit(stmt->body);
-  auto changed_vars = PopControlSplit();
-  global_context_.AddControlSplitChangedVariables(
-      stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
-      changed_vars);
 }
 
 void DeclarationVisitor::Visit(ForLoopStatement* stmt) {
   Declarations::NodeScopeActivator scope(declarations(), stmt);
   if (stmt->var_declaration) Visit(*stmt->var_declaration);
-  PushControlSplit();
 
   // Same as DeclareExpressionForBranch, but without the extra scope.
   // If no test expression is present we can not use it for the scope.
@@ -450,22 +400,20 @@ void DeclarationVisitor::Visit(ForLoopStatement* stmt) {
 
   Visit(stmt->body);
   if (stmt->action) Visit(*stmt->action);
-  auto changed_vars = PopControlSplit();
-  global_context_.AddControlSplitChangedVariables(
-      stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),
-      changed_vars);
 }
 
-void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
-  // Activate a new scope to declare handler labels, they should not be
-  // visible outside the label block.
+void DeclarationVisitor::Visit(TryLabelExpression* stmt) {
+  // Activate a new scope to declare the handler's label parameters, they should
+  // not be visible outside the label block.
   {
     Declarations::NodeScopeActivator scope(declarations(), stmt);
 
-    // Declare labels
-    for (LabelBlock* block : stmt->label_blocks) {
+    // Declare label
+    {
+      LabelBlock* block = stmt->label_block;
       CurrentSourcePosition::Scope scope(block->pos);
-      Label* shared_label = declarations()->DeclareLabel(block->label);
+      Label* shared_label =
+          declarations()->DeclareLabel(block->label, block->body);
       {
         Declarations::NodeScopeActivator scope(declarations(), block->body);
         if (block->parameters.has_varargs) {
@@ -475,7 +423,7 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
         }
 
         size_t i = 0;
-        for (auto p : block->parameters.names) {
+        for (const auto& p : block->parameters.names) {
           const Type* type =
               declarations()->GetType(block->parameters.types[i]);
           if (type->IsConstexpr()) {
@@ -485,18 +433,16 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
           shared_label->AddVariable(DeclareVariable(p, type, false));
           ++i;
         }
-      }
-      if (global_context_.verbose()) {
-        std::cout << " declaring label " << block->label << "\n";
+        if (global_context_.verbose()) {
+          std::cout << " declaring label " << block->label << "\n";
+        }
       }
     }
 
-    Visit(stmt->try_block);
+    Visit(stmt->try_expression);
   }
 
-  for (LabelBlock* block : stmt->label_blocks) {
-    Visit(block->body);
-  }
+  Visit(stmt->label_block->body);
 }
 
 void DeclarationVisitor::GenerateHeader(std::string& file_name) {
@@ -531,7 +477,7 @@ void DeclarationVisitor::GenerateHeader(std::string& file_name) {
     }
     if (declareParameters) {
       int index = 0;
-      for (auto parameter : builtin->parameter_names()) {
+      for (const auto& parameter : builtin->parameter_names()) {
         if (index >= firstParameterIndex) {
           new_contents_stream << ", k" << CamelifyString(parameter);
         }
@@ -569,6 +515,10 @@ void DeclarationVisitor::Visit(IdentifierExpression* expr) {
   }
 }
 
+void DeclarationVisitor::Visit(StatementExpression* expr) {
+  Visit(expr->statement);
+}
+
 void DeclarationVisitor::Visit(CallExpression* expr) {
   Visit(&expr->callee);
   for (Expression* arg : expr->arguments) Visit(arg);
@@ -589,37 +539,9 @@ void DeclarationVisitor::Visit(TypeDeclaration* decl) {
   }
 }
 
-void DeclarationVisitor::MarkLocationModified(Expression* location) {
-  if (IdentifierExpression* id = IdentifierExpression::cast(location)) {
-    const Value* value = declarations()->LookupValue(id->name);
-    if (value->IsVariable()) {
-      const Variable* variable = Variable::cast(value);
-      bool was_live = MarkVariableModified(variable);
-      if (was_live && global_context_.verbose()) {
-        std::cout << *variable << " was modified in control split at "
-                  << PositionAsString(id->pos) << "\n";
-      }
-    }
-  }
-}
-
-bool DeclarationVisitor::MarkVariableModified(const Variable* variable) {
-  auto e = live_and_changed_variables_.rend();
-  auto c = live_and_changed_variables_.rbegin();
-  bool was_live_in_preceeding_split = false;
-  while (c != e) {
-    if (c->live.find(variable) != c->live.end()) {
-      c->changed.insert(variable);
-      was_live_in_preceeding_split = true;
-    }
-    c++;
-  }
-  return was_live_in_preceeding_split;
-}
-
 void DeclarationVisitor::DeclareSignature(const Signature& signature) {
   auto type_iterator = signature.parameter_types.types.begin();
-  for (auto name : signature.parameter_names) {
+  for (const auto& name : signature.parameter_names) {
     const Type* t(*type_iterator++);
     if (name.size() != 0) {
       DeclareParameter(name, t);
@@ -628,6 +550,7 @@ void DeclarationVisitor::DeclareSignature(const Signature& signature) {
   for (auto& label : signature.labels) {
     auto label_params = label.types;
     Label* new_label = declarations()->DeclareLabel(label.name);
+    new_label->set_external_label_name("label_" + label.name);
     size_t i = 0;
     for (auto var_type : label_params) {
       if (var_type->IsConstexpr()) {
@@ -635,7 +558,8 @@ void DeclarationVisitor::DeclareSignature(const Signature& signature) {
       }
 
       std::string var_name = label.name + std::to_string(i++);
-      new_label->AddVariable(DeclareVariable(var_name, var_type, false));
+      new_label->AddVariable(
+          declarations()->CreateVariable(var_name, var_type, false));
     }
   }
 }

@@ -34,7 +34,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       }
     }
   `;
-  let worker = new Worker(workerScript);
+  let worker = new Worker(workerScript, {type: 'string'});
 
   // Call method without using the interpreter.
   var initial_interpreted = %WasmNumInterpretedCalls(instance);

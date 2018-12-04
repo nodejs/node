@@ -38,7 +38,7 @@ SimplifiedOperatorReducer::SimplifiedOperatorReducer(
       jsgraph_(jsgraph),
       js_heap_broker_(js_heap_broker) {}
 
-SimplifiedOperatorReducer::~SimplifiedOperatorReducer() {}
+SimplifiedOperatorReducer::~SimplifiedOperatorReducer() = default;
 
 
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {

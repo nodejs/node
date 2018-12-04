@@ -7,7 +7,6 @@
 
 #include "src/interpreter/interpreter.h"
 #include "src/snapshot/builtin-deserializer-allocator.h"
-#include "src/snapshot/builtin-snapshot-utils.h"
 #include "src/snapshot/deserializer.h"
 
 namespace v8 {
@@ -32,24 +31,16 @@ class BuiltinDeserializer final
   //
   // After this, the instruction cache must be flushed by the caller (we don't
   // do it ourselves since the startup serializer batch-flushes all code pages).
-  void DeserializeEagerBuiltinsAndHandlers();
+  void DeserializeEagerBuiltins();
 
   // Deserializes the single given builtin. This is used whenever a builtin is
   // lazily deserialized at runtime.
   Code* DeserializeBuiltin(int builtin_id);
 
-  // Deserializes the single given handler. This is used whenever a handler is
-  // lazily deserialized at runtime.
-  Code* DeserializeHandler(Bytecode bytecode, OperandScale operand_scale);
-
  private:
   // Deserializes the single given builtin. Assumes that reservations have
   // already been allocated.
   Code* DeserializeBuiltinRaw(int builtin_id);
-
-  // Deserializes the single given bytecode handler. Assumes that reservations
-  // have already been allocated.
-  Code* DeserializeHandlerRaw(Bytecode bytecode, OperandScale operand_scale);
 
   // Extracts the size builtin Code objects (baked into the snapshot).
   uint32_t ExtractCodeObjectSize(int builtin_id);

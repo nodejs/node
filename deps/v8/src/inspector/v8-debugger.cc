@@ -480,7 +480,7 @@ void V8Debugger::clearContinueToLocation() {
 void V8Debugger::handleProgramBreak(
     v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
     const std::vector<v8::debug::BreakpointId>& breakpointIds,
-    bool isPromiseRejection, bool isUncaught) {
+    v8::debug::ExceptionType exceptionType, bool isUncaught) {
   // Don't allow nested breaks.
   if (isPaused()) return;
 
@@ -523,12 +523,12 @@ void V8Debugger::handleProgramBreak(
 
   m_inspector->forEachSession(
       contextGroupId, [&pausedContext, &exception, &breakpointIds,
-                       &isPromiseRejection, &isUncaught, &scheduledOOMBreak,
+                       &exceptionType, &isUncaught, &scheduledOOMBreak,
                        &scheduledAssertBreak](V8InspectorSessionImpl* session) {
         if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
-              breakpointIds, isPromiseRejection, isUncaught, scheduledOOMBreak,
+              breakpointIds, exceptionType, isUncaught, scheduledOOMBreak,
               scheduledAssertBreak);
         }
       });
@@ -576,7 +576,7 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool is_live_edited, bool has_compile_error) {
   int contextId;
   if (!script->ContextId().To(&contextId)) return;
-  if (script->IsWasm()) {
+  if (script->IsWasm() && script->SourceMappingURL().IsEmpty()) {
     WasmTranslation* wasmTranslation = &m_wasmTranslation;
     m_inspector->forEachSession(
         m_inspector->contextGroupId(contextId),
@@ -608,12 +608,11 @@ void V8Debugger::BreakProgramRequested(
 
 void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
                                  v8::Local<v8::Value> exception,
-                                 v8::Local<v8::Value> promise,
-                                 bool isUncaught) {
-  bool isPromiseRejection = promise->IsPromise();
+                                 v8::Local<v8::Value> promise, bool isUncaught,
+                                 v8::debug::ExceptionType exceptionType) {
   std::vector<v8::debug::BreakpointId> break_points_hit;
-  handleProgramBreak(pausedContext, exception, break_points_hit,
-                     isPromiseRejection, isUncaught);
+  handleProgramBreak(pausedContext, exception, break_points_hit, exceptionType,
+                     isUncaught);
 }
 
 bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
@@ -751,11 +750,37 @@ v8::MaybeLocal<v8::Value> V8Debugger::generatorScopes(
   return getTargetScopes(context, generator, GENERATOR);
 }
 
+v8::MaybeLocal<v8::Uint32> V8Debugger::stableObjectId(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> value) {
+  DCHECK(value->IsObject());
+  if (m_stableObjectId.IsEmpty()) {
+    m_stableObjectId.Reset(m_isolate, v8::debug::WeakMap::New(m_isolate));
+  }
+  v8::Local<v8::debug::WeakMap> stableObjectId =
+      m_stableObjectId.Get(m_isolate);
+  v8::Local<v8::Value> idValue;
+  if (!stableObjectId->Get(context, value).ToLocal(&idValue) ||
+      !idValue->IsUint32()) {
+    idValue = v8::Integer::NewFromUnsigned(m_isolate, ++m_lastStableObjectId);
+    stableObjectId->Set(context, value, idValue).ToLocalChecked();
+  }
+  return idValue.As<v8::Uint32>();
+}
+
 v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
     v8::Local<v8::Context> context, v8::Local<v8::Value> value) {
   v8::Local<v8::Array> properties;
   if (!v8::debug::GetInternalProperties(m_isolate, value).ToLocal(&properties))
     return v8::MaybeLocal<v8::Array>();
+  if (value->IsObject()) {
+    v8::Local<v8::Uint32> id;
+    if (stableObjectId(context, value).ToLocal(&id)) {
+      createDataProperty(
+          context, properties, properties->Length(),
+          toV8StringInternalized(m_isolate, "[[StableObjectId]]"));
+      createDataProperty(context, properties, properties->Length(), id);
+    }
+  }
   if (value->IsFunction()) {
     v8::Local<v8::Function> function = value.As<v8::Function>();
     v8::Local<v8::Object> location;

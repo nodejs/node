@@ -500,22 +500,6 @@ class GlobalHandles::NodeIterator {
   DISALLOW_COPY_AND_ASSIGN(NodeIterator);
 };
 
-class GlobalHandles::PendingPhantomCallbacksSecondPassTask
-    : public v8::internal::CancelableTask {
- public:
-  PendingPhantomCallbacksSecondPassTask(GlobalHandles* global_handles,
-                                        Isolate* isolate)
-      : CancelableTask(isolate), global_handles_(global_handles) {}
-
-  void RunInternal() override {
-    global_handles_->InvokeSecondPassPhantomCallbacksFromTask();
-  }
-
- private:
-  GlobalHandles* global_handles_;
-  DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
-};
-
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
       number_of_global_handles_(0),
@@ -871,9 +855,10 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
     } else if (!second_pass_callbacks_task_posted_) {
       second_pass_callbacks_task_posted_ = true;
-      auto task = new PendingPhantomCallbacksSecondPassTask(this, isolate());
-      V8::GetCurrentPlatform()->CallOnForegroundThread(
-          reinterpret_cast<v8::Isolate*>(isolate()), task);
+      auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+          reinterpret_cast<v8::Isolate*>(isolate()));
+      taskrunner->PostTask(MakeCancelableLambdaTask(
+          isolate(), [this] { InvokeSecondPassPhantomCallbacksFromTask(); }));
     }
   }
   return freed_nodes;
@@ -913,6 +898,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   int freed_nodes = 0;
   bool synchronous_second_pass =
+      isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;

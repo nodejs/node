@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "include/v8-inspector.h"
+#include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
@@ -58,42 +59,32 @@ namespace heap {
 class HeapTester;
 }  // namespace heap
 
-class AccessCompilerData;
 class AddressToIndexHashMap;
 class AstStringConstants;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
 class CancelableTaskManager;
 class CodeEventDispatcher;
-class ExternalCodeEventListener;
-class CodeGenerator;
-class CodeRange;
-class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
 class CompilationStatistics;
 class CompilerDispatcher;
 class ContextSlotCache;
 class Counters;
-class CpuFeatures;
 class Debug;
 class DeoptimizerData;
 class DescriptorLookupCache;
-class EmptyStatement;
 class EternalHandles;
 class ExternalCallbackScope;
 class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
-class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
-class InstructionStream;
 class Logger;
 class MaterializedObjectStore;
 class Microtask;
 class OptimizingCompileDispatcher;
 class PromiseOnStack;
-class Redirection;
 class RegExpStack;
 class RootVisitor;
 class RuntimeProfiler;
@@ -102,10 +93,7 @@ class SetupIsolateDelegate;
 class Simulator;
 class StartupDeserializer;
 class StandardFrame;
-class StatsTable;
-class StringTracker;
 class StubCache;
-class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
@@ -117,6 +105,10 @@ template <StateTag Tag> class VMState;
 
 namespace interpreter {
 class Interpreter;
+}
+
+namespace compiler {
+class PerIsolateCompilerCache;
 }
 
 namespace wasm {
@@ -395,8 +387,7 @@ class ThreadId {
   inline void set_##name(type v) { name##_ = v; }  \
   inline type name() const { return name##_; }
 
-
-class ThreadLocalTop BASE_EMBEDDED {
+class ThreadLocalTop {
  public:
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -435,9 +426,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   Context* context_ = nullptr;
   ThreadId thread_id_ = ThreadId::Invalid();
   Object* pending_exception_ = nullptr;
-  // TODO(kschimpf): Change this to a stack of caught exceptions (rather than
-  // just innermost catching try block).
-  Object* wasm_caught_exception_ = nullptr;
 
   // Communication channel between Isolate::FindHandler and the CEntry.
   Context* pending_handler_context_ = nullptr;
@@ -531,7 +519,6 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
-  V(int, pending_microtask_count, 0)                                          \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(CodeTracer*, code_tracer, nullptr)                                        \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
@@ -553,8 +540,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
   V(bool, next_v8_call_is_safe_for_termination, false)                        \
-  V(bool, only_terminate_in_safe_scope, false)                                \
-  V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)
+  V(bool, only_terminate_in_safe_scope, false)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
@@ -671,6 +657,8 @@ class Isolate : private HiddenFactory {
 
   void ClearSerializerData();
 
+  bool LogObjectRelocation();
+
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThisThread();
@@ -717,11 +705,6 @@ class Isolate : private HiddenFactory {
   inline void set_pending_exception(Object* exception_obj);
   inline void clear_pending_exception();
 
-  // Interface to wasm caught exception.
-  inline Object* get_wasm_caught_exception();
-  inline void set_wasm_caught_exception(Object* exception);
-  inline void clear_wasm_caught_exception();
-
   bool AreWasmThreadsEnabled(Handle<Context> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Object*, pending_exception)
@@ -758,7 +741,6 @@ class Isolate : private HiddenFactory {
   bool IsExternalHandlerOnTop(Object* exception);
 
   inline bool is_catchable_by_javascript(Object* exception);
-  bool is_catchable_by_wasm(Object* exception);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -1016,6 +998,12 @@ class Isolate : private HiddenFactory {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
+
+  // kRootRegister may be used to address any location that falls into this
+  // region. Fields outside this region are not guaranteed to live at a static
+  // offset from kRootRegister.
+  inline base::AddressRegion root_register_addressable_region();
+
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
@@ -1103,6 +1091,7 @@ class Isolate : private HiddenFactory {
   v8::internal::Factory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
+    // NOLINTNEXTLINE (google-readability-casting)
     return (v8::internal::Factory*)this;  // NOLINT(readability/casting)
   }
 
@@ -1193,6 +1182,7 @@ class Isolate : private HiddenFactory {
   }
 
 #ifdef V8_INTL_SUPPORT
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   icu::RegexMatcher* language_singleton_regexp_matcher() {
     return language_singleton_regexp_matcher_;
   }
@@ -1204,6 +1194,7 @@ class Isolate : private HiddenFactory {
   icu::RegexMatcher* language_variant_regexp_matcher() {
     return language_variant_regexp_matcher_;
   }
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 
   const std::string& default_locale() { return default_locale_; }
 
@@ -1212,6 +1203,7 @@ class Isolate : private HiddenFactory {
     default_locale_ = locale;
   }
 
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   void set_language_tag_regexp_matchers(
       icu::RegexMatcher* language_singleton_regexp_matcher,
       icu::RegexMatcher* language_tag_regexp_matcher,
@@ -1223,6 +1215,7 @@ class Isolate : private HiddenFactory {
     language_tag_regexp_matcher_ = language_tag_regexp_matcher;
     language_variant_regexp_matcher_ = language_variant_regexp_matcher;
   }
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
 #endif  // V8_INTL_SUPPORT
 
   static const int kProtectorValid = 1;
@@ -1243,6 +1236,18 @@ class Isolate : private HiddenFactory {
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
+
+  // The StringIteratorProtector protects the original string iterating behavior
+  // for primitive strings. As long as the StringIteratorProtector is valid,
+  // iterating over a primitive string is guaranteed to be unobservable from
+  // user code and can thus be cut short. More specifically, the protector gets
+  // invalidated as soon as either String.prototype[Symbol.iterator] or
+  // String.prototype[Symbol.iterator]().next is modified. This guarantee does
+  // not apply to string objects (as opposed to primitives), since they could
+  // define their own Symbol.iterator.
+  // String.prototype itself does not need to be protected, since it is
+  // non-configurable and non-writable.
+  inline bool IsStringIteratorLookupChainIntact();
 
   // Make sure we do check for neutered array buffers.
   inline bool IsArrayBufferNeuteringIntact();
@@ -1284,6 +1289,7 @@ class Isolate : private HiddenFactory {
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
+  void InvalidateStringIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
   void InvalidatePromiseResolveProtector();
@@ -1332,6 +1338,10 @@ class Isolate : private HiddenFactory {
   bool force_slow_path() const { return force_slow_path_; }
   bool* force_slow_path_address() { return &force_slow_path_; }
 
+  DebugInfo::ExecutionMode* debug_execution_mode_address() {
+    return &debug_execution_mode_;
+  }
+
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* random_number_generator();
 
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* fuzzer_rng();
@@ -1374,13 +1384,13 @@ class Isolate : private HiddenFactory {
   void RunMicrotasks();
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
 
-  Handle<Symbol> SymbolFor(Heap::RootListIndex dictionary_index,
-                           Handle<String> name, bool private_symbol);
+  Handle<Symbol> SymbolFor(RootIndex dictionary_index, Handle<String> name,
+                           bool private_symbol);
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
-  std::string GetTurboCfgFileName();
+  static std::string GetTurboCfgFileName(Isolate* isolate);
 
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
@@ -1396,10 +1406,6 @@ class Isolate : private HiddenFactory {
 
   Address promise_hook_or_async_event_delegate_address() {
     return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
-  }
-
-  Address pending_microtask_count_address() {
-    return reinterpret_cast<Address>(&pending_microtask_count_);
   }
 
   Address handle_scope_implementer_address() {
@@ -1472,6 +1478,15 @@ class Isolate : private HiddenFactory {
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
 
+  compiler::PerIsolateCompilerCache* compiler_cache() const {
+    return compiler_cache_;
+  }
+  void set_compiler_utils(compiler::PerIsolateCompilerCache* cache,
+                          Zone* zone) {
+    compiler_cache_ = cache;
+    compiler_zone_ = zone;
+  }
+
   AccountingAllocator* allocator() { return allocator_; }
 
   CompilerDispatcher* compiler_dispatcher() const {
@@ -1489,6 +1504,11 @@ class Isolate : private HiddenFactory {
       HostInitializeImportMetaObjectCallback callback);
   Handle<JSObject> RunHostInitializeImportMetaObjectCallback(
       Handle<Module> module);
+
+  void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
+  MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,
+                                                   Handle<JSObject> Error);
+  bool HasPrepareStackTraceCallback() const;
 
   void SetRAILMode(RAILMode rail_mode);
 
@@ -1525,10 +1545,7 @@ class Isolate : private HiddenFactory {
   }
 
   wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
-  void set_wasm_engine(std::shared_ptr<wasm::WasmEngine> engine) {
-    DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
-    wasm_engine_ = std::move(engine);
-  }
+  void SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine);
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
     return top_backup_incumbent_scope_;
@@ -1556,8 +1573,7 @@ class Isolate : private HiddenFactory {
 
   class ThreadDataTable {
    public:
-    ThreadDataTable();
-    ~ThreadDataTable();
+    ThreadDataTable() = default;
 
     PerIsolateThreadData* Lookup(ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
@@ -1718,9 +1734,11 @@ class Isolate : private HiddenFactory {
   double load_start_time_ms_;
 
 #ifdef V8_INTL_SUPPORT
+#if USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   icu::RegexMatcher* language_singleton_regexp_matcher_;
   icu::RegexMatcher* language_tag_regexp_matcher_;
   icu::RegexMatcher* language_variant_regexp_matcher_;
+#endif  // USE_CHROMIUM_ICU == 0 && U_ICU_VERSION_MAJOR_NUM < 63
   std::string default_locale_;
 #endif  // V8_INTL_SUPPORT
 
@@ -1761,6 +1779,9 @@ class Isolate : private HiddenFactory {
   const AstStringConstants* ast_string_constants_;
 
   interpreter::Interpreter* interpreter_;
+
+  compiler::PerIsolateCompilerCache* compiler_cache_ = nullptr;
+  Zone* compiler_zone_ = nullptr;
 
   CompilerDispatcher* compiler_dispatcher_;
 
@@ -1856,6 +1877,8 @@ class Isolate : private HiddenFactory {
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =
       nullptr;
 
+  PrepareStackTraceCallback prepare_stack_trace_callback_ = nullptr;
+
   // TODO(kenton@cloudflare.com): This mutex can be removed if
   // thread_data_table_ is always accessed under the isolate lock. I do not
   // know if this is the case, so I'm preserving it for now.
@@ -1901,7 +1924,7 @@ class PromiseOnStack {
 // If the GCC version is 4.1.x or 4.2.x an additional field is added to the
 // class as a work around for a bug in the generated code found with these
 // versions of GCC. See V8 issue 122 for details.
-class SaveContext BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE SaveContext {
  public:
   explicit SaveContext(Isolate* isolate);
   ~SaveContext();
@@ -1919,8 +1942,7 @@ class SaveContext BASE_EMBEDDED {
   Address c_entry_fp_;
 };
 
-
-class AssertNoContextChange BASE_EMBEDDED {
+class AssertNoContextChange {
 #ifdef DEBUG
  public:
   explicit AssertNoContextChange(Isolate* isolate);
@@ -1937,8 +1959,7 @@ class AssertNoContextChange BASE_EMBEDDED {
 #endif
 };
 
-
-class ExecutionAccess BASE_EMBEDDED {
+class ExecutionAccess {
  public:
   explicit ExecutionAccess(Isolate* isolate) : isolate_(isolate) {
     Lock(isolate);
@@ -1958,7 +1979,7 @@ class ExecutionAccess BASE_EMBEDDED {
 
 
 // Support for checking for stack-overflows.
-class StackLimitCheck BASE_EMBEDDED {
+class StackLimitCheck {
  public:
   explicit StackLimitCheck(Isolate* isolate) : isolate_(isolate) { }
 
@@ -2034,7 +2055,7 @@ class PostponeInterruptsScope : public InterruptsScope {
                           int intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kPostponeInterrupts) {}
-  virtual ~PostponeInterruptsScope() = default;
+  ~PostponeInterruptsScope() override = default;
 };
 
 // Support for overriding PostponeInterruptsScope. Interrupt is not ignored if
@@ -2046,7 +2067,7 @@ class SafeForInterruptsScope : public InterruptsScope {
                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kRunInterrupts) {}
-  virtual ~SafeForInterruptsScope() = default;
+  ~SafeForInterruptsScope() override = default;
 };
 
 class StackTraceFailureMessage {

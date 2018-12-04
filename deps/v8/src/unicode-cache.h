@@ -16,7 +16,7 @@ namespace internal {
 // Caching predicates used by scanners.
 class UnicodeCache {
  public:
-  UnicodeCache() {}
+  UnicodeCache() = default;
   typedef unibrow::Utf8Decoder<512> Utf8Decoder;
 
   StaticResource<Utf8Decoder>* utf8_decoder() { return &utf8_decoder_; }

@@ -151,8 +151,7 @@ class RegExpBuilder : public ZoneObject {
 #endif
 };
 
-
-class RegExpParser BASE_EMBEDDED {
+class RegExpParser {
  public:
   RegExpParser(FlatStringReader* in, Handle<String>* error,
                JSRegExp::Flags flags, Isolate* isolate, Zone* zone);
@@ -177,7 +176,14 @@ class RegExpParser BASE_EMBEDDED {
   bool ParseHexEscape(int length, uc32* value);
   bool ParseUnicodeEscape(uc32* value);
   bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
-  bool ParsePropertyClass(ZoneList<CharacterRange>* result, bool negate);
+
+  bool ParsePropertyClassName(std::vector<char>* name_1,
+                              std::vector<char>* name_2);
+  bool AddPropertyClassRange(ZoneList<CharacterRange>* add_to, bool negate,
+                             const std::vector<char>& name_1,
+                             const std::vector<char>& name_2);
+
+  RegExpTree* GetPropertySequence(const std::vector<char>& name_1);
   RegExpTree* ParseCharacterClass(const RegExpBuilder* state);
 
   uc32 ParseOctalLiteral();

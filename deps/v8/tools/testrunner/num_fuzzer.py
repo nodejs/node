@@ -138,7 +138,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
 
     combiner = self._create_combiner(fuzzer_rng, options)
-    results = ResultsTracker()
+    results = self._create_result_tracker(options)
     execproc = ExecutionProc(options.j)
     sigproc = self._create_signal_proc()
     indicators = self._create_progress_indicators(options)

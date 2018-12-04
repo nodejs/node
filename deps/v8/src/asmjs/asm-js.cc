@@ -391,7 +391,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       return MaybeHandle<Object>();
     }
     memory->set_is_growable(false);
-    size_t size = NumberToSize(memory->byte_length());
+    size_t size = memory->byte_length();
     // Check the asm.js heap size against the valid limits.
     if (!IsValidAsmjsMemorySize(size)) {
       ReportInstantiationFailure(script, position, "Invalid heap size");

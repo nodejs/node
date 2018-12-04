@@ -27,11 +27,23 @@
 namespace v8 {
 namespace internal {
 
-class Callable;
 class CallInterfaceDescriptor;
+class Callable;
+class Factory;
+class InterpreterData;
 class Isolate;
+class JSAsyncGeneratorObject;
+class JSCollator;
 class JSCollection;
+class JSDateTimeFormat;
+class JSListFormat;
+class JSLocale;
+class JSNumberFormat;
+class JSPluralRules;
 class JSRegExpStringIterator;
+class JSRelativeTimeFormat;
+class JSSegmenter;
+class JSV8BreakIterator;
 class JSWeakCollection;
 class JSWeakMap;
 class JSWeakSet;
@@ -41,8 +53,7 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
-class InterpreterData;
-class Factory;
+class TorqueAssembler;
 class Zone;
 
 template <typename T>
@@ -245,6 +256,7 @@ class StringWrapper;
 class SymbolWrapper;
 class Undetectable;
 class UniqueName;
+class WasmExceptionObject;
 class WasmExportedFunctionData;
 class WasmGlobalObject;
 class WasmMemoryObject;
@@ -697,6 +709,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
+  TNode<Uint32T> Uint32Constant(uint32_t value) {
+    return Unsigned(Int32Constant(bit_cast<int32_t>(value)));
+  }
+  TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
+    return Unsigned(IntPtrConstant(bit_cast<intptr_t>(value)));
+  }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Smi* value);
   TNode<Smi> SmiConstant(int value);
@@ -773,11 +791,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Branch(SloppyTNode<IntegralT> condition, Label* true_label,
               Label* false_label);
 
-  void Branch(TNode<BoolT> condition, std::function<void()> true_body,
-              std::function<void()> false_body);
+  void Branch(TNode<BoolT> condition, const std::function<void()>& true_body,
+              const std::function<void()>& false_body);
   void Branch(TNode<BoolT> condition, Label* true_label,
-              std::function<void()> false_body);
-  void Branch(TNode<BoolT> condition, std::function<void()> true_body,
+              const std::function<void()>& false_body);
+  void Branch(TNode<BoolT> condition, const std::function<void()>& true_body,
               Label* false_label);
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
@@ -808,7 +826,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
 
   // Load a value from the root array.
-  TNode<Object> LoadRoot(Heap::RootListIndex root_index);
+  TNode<Object> LoadRoot(RootIndex root_index);
 
   // Store value to raw memory location.
   Node* Store(Node* base, Node* value);
@@ -817,28 +835,38 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
+  // {value_high} is used for 64-bit stores on 32-bit platforms, must be
+  // nullptr in other cases.
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
-                    Node* value);
+                    Node* value, Node* value_high = nullptr);
 
   // Exchange value at raw memory location
-  Node* AtomicExchange(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicExchange(MachineType type, Node* base, Node* offset, Node* value,
+                       Node* value_high = nullptr);
 
   // Compare and Exchange value at raw memory location
   Node* AtomicCompareExchange(MachineType type, Node* base, Node* offset,
-                              Node* old_value, Node* new_value);
+                              Node* old_value, Node* new_value,
+                              Node* old_value_high = nullptr,
+                              Node* new_value_high = nullptr);
 
-  Node* AtomicAdd(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicAdd(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
-  Node* AtomicSub(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicSub(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
-  Node* AtomicAnd(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicAnd(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
-  Node* AtomicOr(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicOr(MachineType type, Node* base, Node* offset, Node* value,
+                 Node* value_high = nullptr);
 
-  Node* AtomicXor(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicXor(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
   // Store a value to the root array.
-  Node* StoreRoot(Heap::RootListIndex root_index, Node* value);
+  Node* StoreRoot(RootIndex root_index, Node* value);
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
@@ -906,6 +934,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
+  TNode<Uint32T> Uint32Add(TNode<Uint32T> left, TNode<Uint32T> right) {
+    return Unsigned(
+        Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
+
   TNode<WordT> IntPtrAdd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> IntPtrSub(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> IntPtrMul(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
@@ -920,6 +953,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<IntPtrT> IntPtrMul(TNode<IntPtrT> left, TNode<IntPtrT> right) {
     return Signed(
         IntPtrMul(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
+  TNode<UintPtrT> UintPtrAdd(TNode<UintPtrT> left, TNode<UintPtrT> right) {
+    return Unsigned(
+        IntPtrAdd(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
+  TNode<UintPtrT> UintPtrSub(TNode<UintPtrT> left, TNode<UintPtrT> right) {
+    return Unsigned(
+        IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
@@ -970,6 +1011,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.
   // Assumes that the double can be exactly represented as an int.
   TNode<UintPtrT> ChangeFloat64ToUintPtr(SloppyTNode<Float64T> value);
+  // Same in the opposite direction.
+  TNode<Float64T> ChangeUintPtrToFloat64(TNode<UintPtrT> value);
 
   // Changes an intptr_t to a double, e.g. for storing an element index
   // outside Smi range in a HeapNumber. Lossless on 32-bit,
@@ -1117,7 +1160,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                     TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     Node* arity = Int32Constant(argc);
-    Node* receiver = LoadRoot(Heap::kUndefinedValueRootIndex);
+    Node* receiver = LoadRoot(RootIndex::kUndefinedValue);
 
     // Construct(target, new_target, arity, receiver, arguments...)
     return CallStub(callable, context, new_target, new_target, arity, receiver,
@@ -1380,6 +1423,60 @@ class CodeAssemblerLabel {
   std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>> variable_merges_;
 };
 
+class CodeAssemblerParameterizedLabelBase {
+ public:
+  bool is_used() const { return plain_label_.is_used(); }
+  explicit CodeAssemblerParameterizedLabelBase(CodeAssembler* assembler,
+                                               size_t arity,
+                                               CodeAssemblerLabel::Type type)
+      : state_(assembler->state()),
+        phi_inputs_(arity),
+        plain_label_(assembler, type) {}
+
+ protected:
+  CodeAssemblerLabel* plain_label() { return &plain_label_; }
+  void AddInputs(std::vector<Node*> inputs);
+  Node* CreatePhi(MachineRepresentation rep, const std::vector<Node*>& inputs);
+  const std::vector<Node*>& CreatePhis(
+      std::vector<MachineRepresentation> representations);
+
+ private:
+  CodeAssemblerState* state_;
+  std::vector<std::vector<Node*>> phi_inputs_;
+  std::vector<Node*> phi_nodes_;
+  CodeAssemblerLabel plain_label_;
+};
+
+template <class... Types>
+class CodeAssemblerParameterizedLabel
+    : public CodeAssemblerParameterizedLabelBase {
+ public:
+  static constexpr size_t kArity = sizeof...(Types);
+  explicit CodeAssemblerParameterizedLabel(CodeAssembler* assembler,
+                                           CodeAssemblerLabel::Type type)
+      : CodeAssemblerParameterizedLabelBase(assembler, kArity, type) {}
+
+ private:
+  friend class internal::TorqueAssembler;
+
+  void AddInputs(TNode<Types>... inputs) {
+    CodeAssemblerParameterizedLabelBase::AddInputs(
+        std::vector<Node*>{inputs...});
+  }
+  void CreatePhis(TNode<Types>*... results) {
+    const std::vector<Node*>& phi_nodes =
+        CodeAssemblerParameterizedLabelBase::CreatePhis(
+            {MachineRepresentationOf<Types>::value...});
+    auto it = phi_nodes.begin();
+    USE(it);
+    ITERATE_PACK(AssignPhi(results, *(it++)));
+  }
+  template <class T>
+  static void AssignPhi(TNode<T>* result, Node* phi) {
+    if (phi != nullptr) *result = TNode<T>::UncheckedCast(phi);
+  }
+};
+
 class V8_EXPORT_PRIVATE CodeAssemblerState {
  public:
   // Create with CallStub linkage.
@@ -1413,6 +1510,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssemblerLabel;
   friend class CodeAssemblerVariable;
   friend class CodeAssemblerTester;
+  friend class CodeAssemblerParameterizedLabelBase;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,

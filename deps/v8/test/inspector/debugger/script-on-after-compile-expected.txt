@@ -658,6 +658,24 @@ scriptParsed
 }
 scriptFailedToParse
 {
+    scriptSource : {a:2:<nl>//# sourceURL=http://a.js
+}
+{
+    endColumn : 25
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 33c5612558c02e5a3bfa0d098c82865f38f98df2
+    isModule : false
+    length : 31
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : http://a.js
+}
+scriptFailedToParse
+{
     scriptSource : }//# sourceURL=failed.js<nl>//# sourceMappingURL=failed-map
 }
 {

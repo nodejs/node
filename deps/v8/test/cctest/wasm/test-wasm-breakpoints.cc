@@ -72,7 +72,7 @@ class BreakHandler : public debug::DebugDelegate {
       : isolate_(isolate), expected_breaks_(expected_breaks) {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
   }
-  ~BreakHandler() {
+  ~BreakHandler() override {
     // Check that all expected breakpoints have been hit.
     CHECK_EQ(count_, expected_breaks_.size());
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
@@ -181,7 +181,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
       : isolate_(isolate), expected_values_(expected_values) {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
   }
-  ~CollectValuesBreakHandler() {
+  ~CollectValuesBreakHandler() override {
     v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
                                 nullptr);
   }

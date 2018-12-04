@@ -63,7 +63,8 @@ bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
     return false;
   }
   DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
-  Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
+  Object* len_obj =
+      object->InObjectPropertyAt(JSArgumentsObjectWithLength::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::ToInt(len_obj));
 

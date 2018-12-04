@@ -120,7 +120,7 @@ namespace {
 class CommonOperatorTest : public TestWithZone {
  public:
   CommonOperatorTest() : common_(zone()) {}
-  ~CommonOperatorTest() override {}
+  ~CommonOperatorTest() override = default;
 
   CommonOperatorBuilder* common() { return &common_; }
 

@@ -34,6 +34,7 @@ class GraphTest : public virtual TestWithNativeContext,
   Node* end() { return graph()->end(); }
 
   Node* Parameter(int32_t index = 0);
+  Node* Parameter(Type type, int32_t index = 0);
   Node* Float32Constant(volatile float value);
   Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
@@ -79,9 +80,6 @@ class TypedGraphTest : public GraphTest {
   ~TypedGraphTest() override;
 
  protected:
-  Node* Parameter(int32_t index = 0) { return GraphTest::Parameter(index); }
-  Node* Parameter(Type type, int32_t index = 0);
-
   Typer* typer() { return &typer_; }
 
  private:

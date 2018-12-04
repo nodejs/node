@@ -10,6 +10,10 @@
 #include "src/counters.h"
 #include "src/dateparser-inl.h"
 #include "src/objects-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#include "src/objects/js-date-time-format.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -834,6 +838,65 @@ BUILTIN(DatePrototypeToTimeString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
 }
+
+#ifdef V8_INTL_SUPPORT
+// ecma402 #sup-date.prototype.tolocaledatestring
+BUILTIN(DatePrototypeToLocaleDateString) {
+  HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleDateString);
+
+  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleDateString");
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ToLocaleDateTime(
+                   isolate,
+                   date,                                     // date
+                   args.atOrUndefined(isolate, 1),           // locales
+                   args.atOrUndefined(isolate, 2),           // options
+                   JSDateTimeFormat::RequiredOption::kDate,  // required
+                   JSDateTimeFormat::DefaultsOption::kDate,  // defaults
+                   "dateformatdate"));                       // service
+}
+
+// ecma402 #sup-date.prototype.tolocalestring
+BUILTIN(DatePrototypeToLocaleString) {
+  HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleString);
+
+  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleString");
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ToLocaleDateTime(
+                   isolate,
+                   date,                                    // date
+                   args.atOrUndefined(isolate, 1),          // locales
+                   args.atOrUndefined(isolate, 2),          // options
+                   JSDateTimeFormat::RequiredOption::kAny,  // required
+                   JSDateTimeFormat::DefaultsOption::kAll,  // defaults
+                   "dateformatall"));                       // service
+}
+
+// ecma402 #sup-date.prototype.tolocaletimestring
+BUILTIN(DatePrototypeToLocaleTimeString) {
+  HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleTimeString);
+
+  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleTimeString");
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ToLocaleDateTime(
+                   isolate,
+                   date,                                     // date
+                   args.atOrUndefined(isolate, 1),           // locales
+                   args.atOrUndefined(isolate, 2),           // options
+                   JSDateTimeFormat::RequiredOption::kTime,  // required
+                   JSDateTimeFormat::DefaultsOption::kTime,  // defaults
+                   "dateformattime"));                       // service
+}
+#endif  // V8_INTL_SUPPORT
 
 // ES6 section 20.3.4.43 Date.prototype.toUTCString ( )
 BUILTIN(DatePrototypeToUTCString) {

@@ -91,7 +91,9 @@ void Semaphore::Signal() {
   // This check may fail with <libc-2.21, which we use on the try bots, if the
   // semaphore is destroyed while sem_post is still executed. A work around is
   // to extend the lifetime of the semaphore.
-  CHECK_EQ(0, result);
+  if (result != 0) {
+    FATAL("Error when signaling semaphore, errno: %d", errno);
+  }
 }
 
 

@@ -255,7 +255,7 @@ bool Signature::HasSameTypesAs(const Signature& other) const {
     return false;
   }
   size_t i = 0;
-  for (auto l : labels) {
+  for (const auto& l : labels) {
     if (l.types != other.labels[i++].types) {
       return false;
     }
@@ -293,28 +293,66 @@ bool operator<(const Type& a, const Type& b) {
   return a.MangledName() < b.MangledName();
 }
 
-VisitResult::VisitResult(const Type* type, const Value* declarable)
-    : type_(type), value_(), declarable_(declarable) {}
-
-std::string VisitResult::LValue() const {
-  return std::string("*") + (declarable_ ? (*declarable_)->value() : value_);
+VisitResult ProjectStructField(VisitResult structure,
+                               const std::string& fieldname) {
+  DCHECK(structure.IsOnStack());
+  BottomOffset begin = structure.stack_range().begin();
+  const StructType* type = StructType::cast(structure.type());
+  for (auto& field : type->fields()) {
+    BottomOffset end = begin + LoweredSlotCount(field.type);
+    if (field.name == fieldname) {
+      return VisitResult(field.type, StackRange{begin, end});
+    }
+    begin = end;
+  }
+  UNREACHABLE();
 }
 
-std::string VisitResult::RValue() const {
-  std::string result;
-  if (declarable()) {
-    auto value = *declarable();
-    if (value->IsVariable() && !Variable::cast(value)->IsDefined()) {
-      std::stringstream s;
-      s << "\"" << value->name() << "\" is used before it is defined";
-      ReportError(s.str());
+namespace {
+void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
+  DCHECK_NE(type, TypeOracle::GetNeverType());
+  if (type->IsConstexpr()) return;
+  if (type == TypeOracle::GetVoidType()) return;
+  if (auto* s = StructType::DynamicCast(type)) {
+    for (const NameAndType& field : s->fields()) {
+      AppendLoweredTypes(field.type, result);
     }
-    result = value->RValue();
   } else {
-    result = value_;
+    result->push_back(type);
   }
-  return "implicit_cast<" + type()->GetGeneratedTypeName() + ">(" + result +
-         ")";
+}
+}  // namespace
+
+TypeVector LowerType(const Type* type) {
+  TypeVector result;
+  AppendLoweredTypes(type, &result);
+  return result;
+}
+
+size_t LoweredSlotCount(const Type* type) { return LowerType(type).size(); }
+
+TypeVector LowerParameterTypes(const TypeVector& parameters) {
+  std::vector<const Type*> result;
+  for (const Type* t : parameters) {
+    AppendLoweredTypes(t, &result);
+  }
+  return result;
+}
+
+TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
+                               size_t arg_count) {
+  std::vector<const Type*> result = LowerParameterTypes(parameter_types.types);
+  for (size_t i = parameter_types.types.size(); i < arg_count; ++i) {
+    DCHECK(parameter_types.var_args);
+    AppendLoweredTypes(TypeOracle::GetObjectType(), &result);
+  }
+  return result;
+}
+
+VisitResult VisitResult::NeverResult() {
+  VisitResult result;
+  result.type_ = TypeOracle::GetNeverType();
+  return result;
 }
 
 }  // namespace torque

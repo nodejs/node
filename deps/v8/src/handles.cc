@@ -30,11 +30,9 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   Isolate* isolate;
   if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
   Heap* heap = isolate->heap();
-  Object** roots_array_start = heap->roots_array_start();
-  if (roots_array_start <= location_ &&
-      location_ < roots_array_start + Heap::kStrongRootListLength &&
-      heap->RootCanBeTreatedAsConstant(
-          static_cast<Heap::RootListIndex>(location_ - roots_array_start))) {
+  RootIndex root_index;
+  if (heap->IsRootHandleLocation(location_, &root_index) &&
+      heap->RootCanBeTreatedAsConstant(root_index)) {
     return true;
   }
   if (!AllowHandleDereference::IsAllowed()) return false;
@@ -157,11 +155,9 @@ Object** CanonicalHandleScope::Lookup(Object* object) {
     return HandleScope::CreateHandle(isolate_, object);
   }
   if (object->IsHeapObject()) {
-    int index = root_index_map_->Lookup(HeapObject::cast(object));
-    if (index != RootIndexMap::kInvalidRootIndex) {
-      return isolate_->heap()
-          ->root_handle(static_cast<Heap::RootListIndex>(index))
-          .location();
+    RootIndex root_index;
+    if (root_index_map_->Lookup(HeapObject::cast(object), &root_index)) {
+      return isolate_->heap()->root_handle(root_index).location();
     }
   }
   Object*** entry = identity_map_->Get(object);

@@ -59,7 +59,7 @@ class TestSuite(testsuite.TestSuite):
     return TestCase
 
 
-class TestCase(testcase.TestCase):
+class TestCase(testcase.D8TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 
@@ -95,6 +95,11 @@ class TestCase(testcase.TestCase):
 
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
+
+  def skip_predictable(self):
+    # Message tests expected to fail don't print allocation output for
+    # predictable testing.
+    return super(TestCase, self).skip_predictable() or self._expected_fail()
 
   @property
   def output_proc(self):

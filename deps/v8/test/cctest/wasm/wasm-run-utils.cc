@@ -41,13 +41,15 @@ TestingModuleBuilder::TestingModuleBuilder(
   if (maybe_import) {
     // Manually compile a wasm to JS wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-    MaybeHandle<Code> code = compiler::CompileWasmToJSWrapper(
-        isolate_, maybe_import->js_function, maybe_import->sig,
-        maybe_import_index, test_module_->origin,
+    auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
+                                                maybe_import->sig);
+    MaybeHandle<Code> code = compiler::CompileWasmImportCallWrapper(
+        isolate_, kind, maybe_import->sig, maybe_import_index,
+        test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
-    auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
-        code.ToHandleChecked(), WasmCode::kWasmToJsWrapper, maybe_import_index);
+    auto wasm_to_js_wrapper = native_module_->AddImportWrapper(
+        code.ToHandleChecked(), maybe_import_index);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
@@ -123,9 +125,8 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
   FunctionSig* sig = test_module_->functions[index].sig;
-  MaybeHandle<Code> maybe_ret_code = compiler::CompileJSToWasmWrapper(
-      isolate_, native_module_, sig, false,
-      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler);
+  MaybeHandle<Code> maybe_ret_code =
+      compiler::CompileJSToWasmWrapper(isolate_, sig, false);
   Handle<Code> ret_code = maybe_ret_code.ToHandleChecked();
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),
@@ -363,7 +364,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
                                   Code::C_WASM_ENTRY);
     code_ = compiler::Pipeline::GenerateCodeForTesting(
         &info, isolate, call_descriptor, graph(),
-        AssemblerOptions::Default(isolate), nullptr);
+        AssemblerOptions::Default(isolate));
     code = code_.ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {
@@ -419,18 +420,13 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
          func_wire_bytes.length());
-  WireBytesRef func_name_ref =
-      module_env.module->LookupFunctionName(wire_bytes, function_->func_index);
-  ScopedVector<char> func_name(func_name_ref.length());
-  memcpy(func_name.start(), wire_bytes.start() + func_name_ref.offset(),
-         func_name_ref.length());
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.start(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
-                           func_body, func_name, function_->func_index,
+                           func_body, function_->func_index,
                            isolate()->counters(), tier);
   WasmFeatures unused_detected_features;
   unit.ExecuteCompilation(&unused_detected_features);
@@ -458,7 +454,7 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
   function_ = builder_->GetFunctionAt(index);
 }
 
-WasmFunctionCompiler::~WasmFunctionCompiler() {}
+WasmFunctionCompiler::~WasmFunctionCompiler() = default;
 
 FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
                                        Vector<MachineType> param_types) {

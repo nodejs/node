@@ -203,7 +203,7 @@ TEST_F(AsmTypeTest, SaneParentsMap) {
         << Type::CamelName()->Name() << ", parents "                       \
         << reinterpret_cast<void*>(parents) << ", type "                   \
         << static_cast<void*>(Type::CamelName());                          \
-  } while (0);
+  } while (false);
   FOR_EACH_ASM_VALUE_TYPE_LIST(V)
 #undef V
 }
@@ -212,7 +212,7 @@ TEST_F(AsmTypeTest, Names) {
 #define V(CamelName, string_name, number, parent_types)         \
   do {                                                          \
     EXPECT_THAT(Type::CamelName()->Name(), StrEq(string_name)); \
-  } while (0);
+  } while (false);
   FOR_EACH_ASM_VALUE_TYPE_LIST(V)
 #undef V
 

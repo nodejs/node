@@ -41,12 +41,16 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
  public:
   explicit CompileTask(Isolate* isolate,
                        OptimizingCompileDispatcher* dispatcher)
-      : CancelableTask(isolate), isolate_(isolate), dispatcher_(dispatcher) {
+      : CancelableTask(isolate),
+        isolate_(isolate),
+        worker_thread_runtime_call_stats_(
+            isolate->counters()->worker_thread_runtime_call_stats()),
+        dispatcher_(dispatcher) {
     base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
     ++dispatcher_->ref_count_;
   }
 
-  virtual ~CompileTask() {}
+  ~CompileTask() override = default;
 
  private:
   // v8::Task overrides.
@@ -56,8 +60,13 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
     DisallowHandleDereference no_deref;
 
     {
-      TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
+      WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
+          worker_thread_runtime_call_stats_);
+      RuntimeCallTimerScope runtimeTimer(
+          runtime_call_stats_scope.Get(),
+          RuntimeCallCounterId::kRecompileConcurrent);
 
+      TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.RecompileConcurrent");
 
@@ -77,6 +86,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
   }
 
   Isolate* isolate_;
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   OptimizingCompileDispatcher* dispatcher_;
 
   DISALLOW_COPY_AND_ASSIGN(CompileTask);
@@ -210,7 +220,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       }
       DisposeCompilationJob(job, false);
     } else {
-      Compiler::FinalizeCompilationJob(job, isolate_);
+      Compiler::FinalizeOptimizedCompilationJob(job, isolate_);
     }
   }
 }

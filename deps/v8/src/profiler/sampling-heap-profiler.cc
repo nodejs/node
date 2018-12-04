@@ -6,8 +6,10 @@
 
 #include <stdint.h>
 #include <memory>
+
 #include "src/api-inl.h"
 #include "src/base/ieee754.h"
+#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap.h"
@@ -61,7 +63,6 @@ SamplingHeapProfiler::SamplingHeapProfiler(
           heap->isolate()->random_number_generator())),
       names_(names),
       profile_root_(nullptr, "(root)", v8::UnboundScript::kNoScriptId, 0),
-      samples_(),
       stack_depth_(stack_depth),
       rate_(rate),
       flags_(flags) {
@@ -75,8 +76,6 @@ SamplingHeapProfiler::SamplingHeapProfiler(
 SamplingHeapProfiler::~SamplingHeapProfiler() {
   heap_->RemoveAllocationObserversFromAllSpaces(other_spaces_observer_.get(),
                                                 new_space_observer_.get());
-
-  samples_.clear();
 }
 
 
@@ -96,9 +95,9 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 
   AllocationNode* node = AddStack();
   node->allocations_[size]++;
-  Sample* sample = new Sample(size, node, loc, this);
-  samples_.emplace(sample);
-  sample->global.SetWeak(sample, OnWeakCallback, WeakCallbackType::kParameter);
+  auto sample = base::make_unique<Sample>(size, node, loc, this);
+  sample->global.SetWeak(sample.get(), OnWeakCallback,
+                         WeakCallbackType::kParameter);
 #if __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated"
@@ -109,6 +108,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 #if __clang__
 #pragma clang diagnostic pop
 #endif
+  samples_.emplace(sample.get(), std::move(sample));
 }
 
 void SamplingHeapProfiler::OnWeakCallback(
@@ -125,17 +125,10 @@ void SamplingHeapProfiler::OnWeakCallback(
       AllocationNode::FunctionId id = AllocationNode::function_id(
           node->script_id_, node->script_position_, node->name_);
       parent->children_.erase(id);
-      delete node;
       node = parent;
     }
   }
-  auto it = std::find_if(sample->profiler->samples_.begin(),
-                         sample->profiler->samples_.end(),
-                         [&sample](const std::unique_ptr<Sample>& s) {
-                           return s.get() == sample;
-                         });
-
-  sample->profiler->samples_.erase(it);
+  sample->profiler->samples_.erase(sample);
   // sample is deleted because its unique ptr was erased from samples_.
 }
 
@@ -147,11 +140,11 @@ SamplingHeapProfiler::AllocationNode::FindOrAddChildNode(const char* name,
   auto it = children_.find(id);
   if (it != children_.end()) {
     DCHECK_EQ(strcmp(it->second->name_, name), 0);
-    return it->second;
+    return it->second.get();
   }
-  auto child = new AllocationNode(this, name, script_id, start_position);
-  children_.insert(std::make_pair(id, child));
-  return child;
+  auto child =
+      base::make_unique<AllocationNode>(this, name, script_id, start_position);
+  return children_.emplace(id, std::move(child)).first->second.get();
 }
 
 SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
@@ -262,19 +255,19 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     allocations.push_back(ScaleSample(alloc.first, alloc.second));
   }
 
-  profile->nodes().push_back(v8::AllocationProfile::Node(
-      {ToApiHandle<v8::String>(
-           isolate_->factory()->InternalizeUtf8String(node->name_)),
-       script_name, node->script_id_, node->script_position_, line, column,
-       std::vector<v8::AllocationProfile::Node*>(), allocations}));
+  profile->nodes().push_back(v8::AllocationProfile::Node{
+      ToApiHandle<v8::String>(
+          isolate_->factory()->InternalizeUtf8String(node->name_)),
+      script_name, node->script_id_, node->script_position_, line, column,
+      std::vector<v8::AllocationProfile::Node*>(), allocations});
   v8::AllocationProfile::Node* current = &profile->nodes().back();
-  // The children map may have nodes inserted into it during translation
+  // The |children_| map may have nodes inserted into it during translation
   // because the translation may allocate strings on the JS heap that have
   // the potential to be sampled. That's ok since map iterators are not
   // invalidated upon std::map insertion.
-  for (auto it : node->children_) {
+  for (const auto& it : node->children_) {
     current->children.push_back(
-        TranslateAllocationNode(profile, it.second, scripts));
+        TranslateAllocationNode(profile, it.second.get(), scripts));
   }
   node->pinned_ = false;
   return current;
@@ -298,7 +291,6 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   TranslateAllocationNode(profile, &profile_root_, scripts);
   return profile;
 }
-
 
 }  // namespace internal
 }  // namespace v8

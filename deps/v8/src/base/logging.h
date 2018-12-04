@@ -49,7 +49,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
     if (V8_UNLIKELY(!(condition))) {       \
       FATAL("Check failed: %s.", message); \
     }                                      \
-  } while (0)
+  } while (false)
 #define CHECK(condition) CHECK_WITH_MSG(condition, #condition)
 
 #ifdef DEBUG
@@ -59,7 +59,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
     if (V8_UNLIKELY(!(condition))) {          \
       V8_Dcheck(__FILE__, __LINE__, message); \
     }                                         \
-  } while (0)
+  } while (false)
 #define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
 
 // Helper macro for binary operators.
@@ -73,7 +73,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
       FATAL("Check failed: %s.", _msg->c_str());                          \
       delete _msg;                                                        \
     }                                                                     \
-  } while (0)
+  } while (false)
 
 #define DCHECK_OP(name, op, lhs, rhs)                                     \
   do {                                                                    \
@@ -84,7 +84,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
       V8_Dcheck(__FILE__, __LINE__, _msg->c_str());                       \
       delete _msg;                                                        \
     }                                                                     \
-  } while (0)
+  } while (false)
 
 #else
 
@@ -98,7 +98,7 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
         typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>((lhs),  \
                                                                      (rhs)); \
     CHECK_WITH_MSG(_cmp, #lhs " " #op " " #rhs);                             \
-  } while (0)
+  } while (false)
 
 #define DCHECK_WITH_MSG(condition, msg) void(0);
 

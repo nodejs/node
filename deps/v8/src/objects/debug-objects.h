@@ -21,9 +21,6 @@ class BytecodeArray;
 // debugged.
 class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   enum Flag {
     kNone = 0,
     kHasBreakInfo = 1 << 0,

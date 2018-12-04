@@ -9,6 +9,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/elements-kind.h"
 #include "src/globals.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {

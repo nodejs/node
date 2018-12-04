@@ -322,7 +322,9 @@ class Platform {
    * |isolate|. Tasks posted for the same isolate should be execute in order of
    * scheduling. The definition of "foreground" is opaque to V8.
    */
-  virtual void CallOnForegroundThread(Isolate* isolate, Task* task) = 0;
+  V8_DEPRECATE_SOON(
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
+      virtual void CallOnForegroundThread(Isolate* isolate, Task* task)) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -330,8 +332,10 @@ class Platform {
    * Tasks posted for the same isolate should be execute in order of
    * scheduling. The definition of "foreground" is opaque to V8.
    */
-  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                             double delay_in_seconds) = 0;
+  V8_DEPRECATE_SOON(
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
+      virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                                 double delay_in_seconds)) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -341,7 +345,10 @@ class Platform {
    * starved for an arbitrarily long time if no idle time is available.
    * The definition of "foreground" is opaque to V8.
    */
-  virtual void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) {
+  V8_DEPRECATE_SOON(
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
+      virtual void CallIdleOnForegroundThread(Isolate* isolate,
+                                              IdleTask* task)) {
     // This must be overriden if |IdleTasksEnabled()|.
     abort();
   }

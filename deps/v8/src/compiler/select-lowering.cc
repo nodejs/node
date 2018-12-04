@@ -17,7 +17,7 @@ namespace compiler {
 SelectLowering::SelectLowering(Graph* graph, CommonOperatorBuilder* common)
     : common_(common), graph_(graph) {}
 
-SelectLowering::~SelectLowering() {}
+SelectLowering::~SelectLowering() = default;
 
 
 Reduction SelectLowering::Reduce(Node* node) {

@@ -75,11 +75,6 @@ AllocationTraceTree::AllocationTraceTree()
       root_(this, 0) {
 }
 
-
-AllocationTraceTree::~AllocationTraceTree() {
-}
-
-
 AllocationTraceNode* AllocationTraceTree::AddPathFromEnd(
     const Vector<unsigned>& path) {
   AllocationTraceNode* node = root();

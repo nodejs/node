@@ -64,21 +64,15 @@ assertEquals(10, j);
 
 
 function Accumulate(x) {
-  var accumulator = "";
+  var accumulator = [];
   for (var i in x) {
-    accumulator += i;
+    accumulator.push(i);
   }
   return accumulator;
 }
 
 for (var i = 0; i < 3; ++i) {
-  var elements = Accumulate("abcd");
-  // We do not assume that for-in enumerates elements in order.
-  assertTrue(-1 != elements.indexOf("0"));
-  assertTrue(-1 != elements.indexOf("1"));
-  assertTrue(-1 != elements.indexOf("2"));
-  assertTrue(-1 != elements.indexOf("3"));
-  assertEquals(4, elements.length);
+  assertEquals(Accumulate("abcd"), ['0', '1', '2', '3']);
 }
 
 function for_in_string_prototype() {
@@ -99,23 +93,51 @@ function for_in_string_prototype() {
   // If for-in returns elements in a different order on multiple calls, this
   // assert will fail.  If that happens, consider if that behavior is OK.
   assertEquals(elements, elements1, "For-in elements not the same both times.");
-  // We do not assume that for-in enumerates elements in order.
-  assertTrue(-1 != elements.indexOf("0"));
-  assertTrue(-1 != elements.indexOf("1"));
-  assertTrue(-1 != elements.indexOf("2"));
-  assertTrue(-1 != elements.indexOf("7"));
-  assertTrue(-1 != elements.indexOf("foo"));
-  assertTrue(-1 != elements.indexOf("bar"));
-  assertTrue(-1 != elements.indexOf("gub"));
-  assertEquals(13, elements.length);
+  assertEquals(["7","bar","gub","0","1","2","foo"], elements)
 
-  elements = Accumulate(x);
-  assertTrue(-1 != elements.indexOf("0"));
-  assertTrue(-1 != elements.indexOf("1"));
-  assertTrue(-1 != elements.indexOf("2"));
-  assertTrue(-1 != elements.indexOf("foo"));
-  assertEquals(6, elements.length);
+  assertEquals(['0', '1', '2', 'foo'], Accumulate(x))
 }
 
 for_in_string_prototype();
 for_in_string_prototype();
+
+
+(function for_in_dictionary_prototype_1() {
+  let prototype1 = {prop: 0, prop1: 1};
+  let derived1 = Object.create(null, {
+    prop: {enumerable: false, configurable: true, value: 0},
+  });
+  Object.setPrototypeOf(derived1, prototype1);
+
+  let prototype2 = {prop: 0, prop1: 1};
+  let derived2 = Object.create(prototype2, {
+    prop: {enumerable: false, configurable: true, value: 0},
+  });
+
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop1'], Accumulate(derived1));
+    assertEquals(['prop1'], Accumulate(derived2));
+  }
+})();
+
+(function for_in_dictionary_prototype_2() {
+  let prototype1 = {prop: 0, prop1: 1};
+  let derived1 = Object.create(null, {
+    prop: {enumerable: false, configurable: true, value: 1},
+    prop2: {enumerable: true, configurable: true, value: 2},
+    prop3: {enumerable: false, configurable: true, value: 3},
+  });
+  Object.setPrototypeOf(derived1, prototype1);
+
+  let prototype2 = {prop: 0, prop1: 1};
+  let derived2 = Object.create(prototype2, {
+    prop: {enumerable: false, configurable: true, value: 0},
+    prop2: {enumerable: true, configurable: true, value: 2},
+    prop3: {enumerable: false, configurable: true, value: 3},
+  });
+
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['prop2', 'prop1'], Accumulate(derived1));
+    assertEquals(['prop2', 'prop1'], Accumulate(derived2));
+  }
+})();

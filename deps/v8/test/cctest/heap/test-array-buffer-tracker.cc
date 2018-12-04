@@ -323,10 +323,8 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     Heap* heap = i_isolate->heap();
 
     // Ensure heap is in a clean state.
-    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                            GarbageCollectionReason::kTesting);
-    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
-                            GarbageCollectionReason::kTesting);
+    CcTest::CollectAllGarbage(i_isolate);
+    CcTest::CollectAllGarbage(i_isolate);
 
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);

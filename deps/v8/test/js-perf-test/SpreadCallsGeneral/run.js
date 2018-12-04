@@ -64,6 +64,6 @@ CreateBenchmark('ApplySpreadLiteral', ApplySpreadLiteral);
 CreateBenchmark('SpreadCall', SpreadCall);
 CreateBenchmark('SpreadCallSpreadLiteral', SpreadCallSpreadLiteral);
 
-BenchmarkSuite.config.doWarmup = undefined;
+BenchmarkSuite.config.doWarmup = true;
 BenchmarkSuite.config.doDeterministic = undefined;
 BenchmarkSuite.RunSuites({NotifyResult: PrintResult, NotifyError: PrintError});

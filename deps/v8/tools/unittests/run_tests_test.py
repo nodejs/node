@@ -684,5 +684,28 @@ class SystemTest(unittest.TestCase):
       self.assertIn('sweet/bananas', result.stdout)
       self.assertEqual(1, result.returncode, result)
 
+  def testExitAfterNFailures(self):
+    with temp_base() as basedir:
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          '--progress=verbose',
+          '--exit-after-n-failures=2',
+          '-j1',
+          'sweet/mangoes',       # PASS
+          'sweet/strawberries',  # FAIL
+          'sweet/blackberries',  # FAIL
+          'sweet/raspberries',   # should not run
+      )
+      self.assertIn('Running 4 base tests', result.stdout, result)
+      self.assertIn('sweet/mangoes: pass', result.stdout, result)
+      self.assertIn('sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('Too many failures, exiting...', result.stdout, result)
+      self.assertIn('sweet/blackberries: FAIL', result.stdout, result)
+      self.assertNotIn('Done running sweet/raspberries', result.stdout, result)
+      self.assertIn('2 tests failed', result.stdout, result)
+      self.assertIn('3 tests ran', result.stdout, result)
+      self.assertEqual(1, result.returncode, result)
+
 if __name__ == '__main__':
   unittest.main()

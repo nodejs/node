@@ -51,13 +51,12 @@ struct BuiltinMetadata {
 #define DECL_TFC(Name, ...) { #Name, Builtins::TFC, {} },
 #define DECL_TFS(Name, ...) { #Name, Builtins::TFS, {} },
 #define DECL_TFH(Name, ...) { #Name, Builtins::TFH, {} },
-#define DECL_BCH(Name, ...) { #Name "Handler", Builtins::BCH, {} }, \
-                            { #Name "WideHandler", Builtins::BCH, {} }, \
-                            { #Name "ExtraWideHandler", Builtins::BCH, {} },
+#define DECL_BCH(Name, ...) { #Name, Builtins::BCH, {} },
+#define DECL_DLH(Name, ...) { #Name, Builtins::DLH, {} },
 #define DECL_ASM(Name, ...) { #Name, Builtins::ASM, {} },
 const BuiltinMetadata builtin_metadata[] = {
   BUILTIN_LIST(DECL_CPP, DECL_API, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH,
-               DECL_BCH, DECL_ASM)
+               DECL_BCH, DECL_DLH, DECL_ASM)
 };
 #undef DECL_CPP
 #undef DECL_API
@@ -66,6 +65,7 @@ const BuiltinMetadata builtin_metadata[] = {
 #undef DECL_TFS
 #undef DECL_TFH
 #undef DECL_BCH
+#undef DECL_DLH
 #undef DECL_ASM
 // clang-format on
 
@@ -166,11 +166,12 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN,
+                 IGNORE_BUILTIN)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
-      DCHECK_NE(kind, BCH);
+      DCHECK(kind != BCH && kind != DLH);
       if (kind == TFJ || kind == CPP) {
         return Callable(code, JSTrampolineDescriptor{});
       }
@@ -264,8 +265,11 @@ bool Builtins::IsLazy(int index) {
     case kArrayReduceRightPreLoopEagerDeoptContinuation:
     case kArraySomeLoopEagerDeoptContinuation:
     case kArraySomeLoopLazyDeoptContinuation:
-    case kAsyncGeneratorAwaitCaught:            // https://crbug.com/v8/6786.
-    case kAsyncGeneratorAwaitUncaught:          // https://crbug.com/v8/6786.
+    case kAsyncFunctionAwaitResolveClosure:   // https://crbug.com/v8/7522
+    case kAsyncGeneratorAwaitResolveClosure:  // https://crbug.com/v8/7522
+    case kAsyncGeneratorYieldResolveClosure:  // https://crbug.com/v8/7522
+    case kAsyncGeneratorAwaitCaught:          // https://crbug.com/v8/6786.
+    case kAsyncGeneratorAwaitUncaught:        // https://crbug.com/v8/6786.
     // CEntry variants must be immovable, whereas lazy deserialization allocates
     // movable code.
     case kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
@@ -281,9 +285,13 @@ bool Builtins::IsLazy(int index) {
     case kCompileLazy:
     case kDebugBreakTrampoline:
     case kDeserializeLazy:
+    case kDeserializeLazyHandler:
+    case kDeserializeLazyWideHandler:
+    case kDeserializeLazyExtraWideHandler:
     case kFunctionPrototypeHasInstance:  // https://crbug.com/v8/6786.
     case kHandleApiCall:
     case kIllegal:
+    case kIllegalHandler:
     case kInstantiateAsmJs:
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
@@ -306,9 +314,14 @@ bool Builtins::IsLazy(int index) {
       return false;
     default:
       // TODO(6624): Extend to other kinds.
-      return KindOf(index) == TFJ;
+      return KindOf(index) == TFJ || KindOf(index) == BCH;
   }
   UNREACHABLE();
+}
+
+// static
+bool Builtins::IsLazyDeserializer(Code* code) {
+  return IsLazyDeserializer(code->builtin_index());
 }
 
 // static
@@ -316,17 +329,6 @@ bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
 #ifndef V8_TARGET_ARCH_IA32
   switch (index) {
-// Bytecode handlers do not yet support being embedded.
-#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-#define BYTECODE_BUILTIN(Name, ...) \
-  case k##Name##Handler:            \
-  case k##Name##WideHandler:        \
-  case k##Name##ExtraWideHandler:   \
-    return false;
-    BUILTIN_LIST_BYTECODE_HANDLERS(BYTECODE_BUILTIN)
-#undef BYTECODE_BUILTIN
-#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
-
     // TODO(jgruber): There's currently two blockers for moving
     // InterpreterEntryTrampoline into the binary:
     // 1. InterpreterEnterBytecode calculates a pointer into the middle of
@@ -423,6 +425,7 @@ const char* Builtins::KindNameOf(int index) {
     case TFS: return "TFS";
     case TFH: return "TFH";
     case BCH: return "BCH";
+    case DLH: return "DLH";
     case ASM: return "ASM";
   }
   // clang-format on

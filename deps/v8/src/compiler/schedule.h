@@ -166,12 +166,12 @@ class V8_EXPORT_PRIVATE BasicBlock final
   BasicBlock* loop_header_;  // Pointer to dominating loop header basic block,
   // nullptr if none. For loop headers, this points to
   // enclosing loop header.
-  BasicBlock* loop_end_;     // end of the loop, if this block is a loop header.
-  int32_t loop_depth_;       // loop nesting, 0 is top-level
+  BasicBlock* loop_end_;  // end of the loop, if this block is a loop header.
+  int32_t loop_depth_;    // loop nesting, 0 is top-level
 
-  Control control_;          // Control at the end of the block.
-  Node* control_input_;      // Input value for control.
-  NodeVector nodes_;         // nodes of this block in forward order.
+  Control control_;      // Control at the end of the block.
+  Node* control_input_;  // Input value for control.
+  NodeVector nodes_;     // nodes of this block in forward order.
 
   BasicBlockVector successors_;
   BasicBlockVector predecessors_;
@@ -186,7 +186,6 @@ class V8_EXPORT_PRIVATE BasicBlock final
 std::ostream& operator<<(std::ostream&, const BasicBlock&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Control&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
-
 
 // A schedule represents the result of assigning nodes to basic blocks
 // and ordering them within basic blocks. Prior to computing a schedule,
@@ -272,12 +271,13 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
   friend class BasicBlockInstrumentor;
   friend class RawMachineAssembler;
 
-  // Ensure properties of the CFG assumed by further stages.
+  // For CSA/Torque: Ensure properties of the CFG assumed by further stages.
   void EnsureCFGWellFormedness();
-  // Eliminates no-op phi nodes added for blocks that only have a single
-  // predecessor. This ensures the property required for SSA deconstruction that
-  // the target block of a control flow split has no phis.
-  void EliminateNoopPhiNodes(BasicBlock* block);
+  // For CSA/Torque: Eliminates unnecessary phi nodes, including phis with a
+  // single input. The latter is necessary to ensure the property required for
+  // SSA deconstruction that the target block of a control flow split has no
+  // phis.
+  void EliminateRedundantPhiNodes();
   // Ensure split-edge form for a hand-assembled schedule.
   void EnsureSplitEdgeForm(BasicBlock* block);
   // Ensure entry into a deferred block happens from a single hot block.
@@ -294,9 +294,9 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
   void SetBlockForNode(BasicBlock* block, Node* node);
 
   Zone* zone_;
-  BasicBlockVector all_blocks_;           // All basic blocks in the schedule.
-  BasicBlockVector nodeid_to_block_;      // Map from node to containing block.
-  BasicBlockVector rpo_order_;            // Reverse-post-order block list.
+  BasicBlockVector all_blocks_;       // All basic blocks in the schedule.
+  BasicBlockVector nodeid_to_block_;  // Map from node to containing block.
+  BasicBlockVector rpo_order_;        // Reverse-post-order block list.
   BasicBlock* start_;
   BasicBlock* end_;
 

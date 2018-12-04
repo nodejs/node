@@ -143,7 +143,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
     SharedFunctionInfo* shared = info->closure()->shared();
     return GetJSCallDescriptor(zone, info->is_osr(),
                                1 + shared->internal_formal_parameter_count(),
-                               CallDescriptor::kNoFlags);
+                               CallDescriptor::kCanUseRoots);
   }
   return nullptr;  // TODO(titzer): ?
 }
@@ -167,7 +167,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
     case Runtime::kStringEqual:
-    case Runtime::kStringNotEqual:
     case Runtime::kStringLessThan:
     case Runtime::kStringLessThanOrEqual:
     case Runtime::kStringGreaterThan:
@@ -180,7 +179,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     // Some inline intrinsics are also safe to call without a FrameState.
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineGeneratorClose:
-    case Runtime::kInlineGeneratorGetInputOrDebugPos:
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:
     case Runtime::kInlineIsArray:
@@ -333,12 +331,16 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       Operator::kNoProperties,          // properties
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSaved,                   // callee-saved fp
-      CallDescriptor::kCanUseRoots |    // flags
-          flags,                        // flags
+      flags,                            // flags
       "js-call");
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.
+// TODO(jgruber): Clean up stack parameter count handling. The descriptor
+// already knows the formal stack parameter count and ideally only additional
+// stack parameters should be passed into this method. All call-sites should
+// be audited for correctness (e.g. many used to assume a stack parameter count
+// of 0).
 CallDescriptor* Linkage::GetStubCallDescriptor(
     Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
@@ -349,6 +351,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   const int context_count = descriptor.HasContextParameter() ? 1 : 0;
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
+
+  DCHECK_GE(stack_parameter_count, descriptor.GetStackParameterCount());
 
   size_t return_count = descriptor.GetReturnCount();
   LocationSignature::Builder locations(zone, return_count, parameter_count);

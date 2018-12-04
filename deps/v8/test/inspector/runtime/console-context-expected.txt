@@ -28,9 +28,10 @@ console.context() methods:
     [15] : assert
     [16] : profile
     [17] : profileEnd
-    [18] : time
-    [19] : timeEnd
-    [20] : timeStamp
+    [18] : timeLog
+    [19] : time
+    [20] : timeEnd
+    [21] : timeStamp
 ]
 
 Running test: testDefaultConsoleContext

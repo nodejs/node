@@ -16,6 +16,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/math-random.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator-base.h"
@@ -132,11 +133,6 @@ ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
-}
-
-ExternalReference ExternalReference::pending_microtask_count_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->pending_microtask_count_address());
 }
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -463,6 +459,11 @@ ExternalReference ExternalReference::abort_with_reason() {
   return ExternalReference(Redirect(FUNCTION_ADDR(i::abort_with_reason)));
 }
 
+ExternalReference
+ExternalReference::address_of_harmony_await_optimization_flag() {
+  return ExternalReference(&FLAG_harmony_await_optimization);
+}
+
 ExternalReference ExternalReference::address_of_min_int() {
   return ExternalReference(reinterpret_cast<Address>(&double_min_int_constant));
 }
@@ -724,6 +725,10 @@ ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }
 
+ExternalReference ExternalReference::refill_math_random() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(MathRandom::RefillCache)));
+}
+
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw() {
   auto f = SearchStringRaw<SubjectChar, PatternChar>;
@@ -751,14 +756,13 @@ ExternalReference ExternalReference::orderedhashmap_gethash_raw() {
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
-ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
+ExternalReference ExternalReference::get_or_create_hash_raw() {
   typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
   GetOrCreateHash f = Object::GetOrCreateHash;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
-ExternalReference ExternalReference::jsreceiver_create_identity_hash(
-    Isolate* isolate) {
+ExternalReference ExternalReference::jsreceiver_create_identity_hash() {
   typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
   CreateIdentityHash f = JSReceiver::CreateIdentityHash;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
@@ -795,6 +799,10 @@ ExternalReference ExternalReference::try_internalize_string_function() {
       Redirect(FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
 }
 
+ExternalReference ExternalReference::smi_lexicographic_compare_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(Smi::LexicographicCompare)));
+}
+
 ExternalReference ExternalReference::check_object_type() {
   return ExternalReference(Redirect(FUNCTION_ADDR(CheckObjectType)));
 }
@@ -825,8 +833,8 @@ ExternalReference ExternalReference::page_flags(Page* page) {
                            MemoryChunk::kFlagsOffset);
 }
 
-ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
-  return ExternalReference(entry);
+ExternalReference ExternalReference::FromRawAddress(Address address) {
+  return ExternalReference(address);
 }
 
 ExternalReference ExternalReference::cpu_features() {
@@ -850,6 +858,11 @@ ExternalReference::promise_hook_or_async_event_delegate_address(
       isolate->promise_hook_or_async_event_delegate_address());
 }
 
+ExternalReference ExternalReference::debug_execution_mode_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug_execution_mode_address());
+}
+
 ExternalReference ExternalReference::debug_is_active_address(Isolate* isolate) {
   return ExternalReference(isolate->debug()->is_active_address());
 }
@@ -870,21 +883,19 @@ ExternalReference ExternalReference::invalidate_prototype_chains_function() {
       Redirect(FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
 }
 
-double power_helper(Isolate* isolate, double x, double y) {
+double power_helper(double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {
     return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   }
   if (y == 0.5) {
-    lazily_initialize_fast_sqrt(isolate);
+    lazily_initialize_fast_sqrt();
     return (std::isinf(x)) ? V8_INFINITY
-                           : fast_sqrt(x + 0.0, isolate);  // Convert -0 to +0.
+                           : fast_sqrt(x + 0.0);  // Convert -0 to +0.
   }
   if (y == -0.5) {
-    lazily_initialize_fast_sqrt(isolate);
-    return (std::isinf(x)) ? 0
-                           : 1.0 / fast_sqrt(x + 0.0,
-                                             isolate);  // Convert -0 to +0.
+    lazily_initialize_fast_sqrt();
+    return (std::isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
   }
   return power_double_double(x, y);
 }
@@ -947,6 +958,25 @@ ExternalReference ExternalReference::wasm_thread_in_wasm_flag_address_address(
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
   return ExternalReference(reinterpret_cast<void*>(
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
+}
+
+static uint64_t atomic_pair_compare_exchange(intptr_t address,
+                                             int old_value_low,
+                                             int old_value_high,
+                                             int new_value_low,
+                                             int new_value_high) {
+  uint64_t old_value = static_cast<uint64_t>(old_value_high) << 32 |
+                       (old_value_low & 0xFFFFFFFF);
+  uint64_t new_value = static_cast<uint64_t>(new_value_high) << 32 |
+                       (new_value_low & 0xFFFFFFFF);
+  std::atomic_compare_exchange_strong(
+      reinterpret_cast<std::atomic<uint64_t>*>(address), &old_value, new_value);
+  return old_value;
+}
+
+ExternalReference ExternalReference::atomic_pair_compare_exchange_function() {
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(atomic_pair_compare_exchange)));
 }
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {

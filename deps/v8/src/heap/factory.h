@@ -44,6 +44,7 @@ class JSGeneratorObject;
 class JSMap;
 class JSMapIterator;
 class JSModuleNamespace;
+class JSPromise;
 class JSProxy;
 class JSSet;
 class JSSetIterator;
@@ -56,6 +57,7 @@ class PreParsedScopeData;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
+class StackFrameInfo;
 class StoreHandler;
 class TemplateObjectDescription;
 class UncompiledDataWithoutPreParsedScope;
@@ -107,14 +109,13 @@ class V8_EXPORT_PRIVATE Factory {
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
   template <typename T = FixedArray>
-  Handle<T> NewFixedArrayWithMap(Heap::RootListIndex map_root_index, int length,
+  Handle<T> NewFixedArrayWithMap(RootIndex map_root_index, int length,
                                  PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a weak fixed array-like object with given map and initialized
   // with undefined values.
   template <typename T = WeakFixedArray>
-  Handle<T> NewWeakFixedArrayWithMap(Heap::RootListIndex map_root_index,
-                                     int length,
+  Handle<T> NewWeakFixedArrayWithMap(RootIndex map_root_index, int length,
                                      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a fixed array initialized with undefined values.
@@ -439,6 +440,8 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
       Handle<JSReceiver> thenable, Handle<Context> context);
 
+  Handle<MicrotaskQueue> NewMicrotaskQueue();
+
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
                              PretenureFlag pretenure = NOT_TENURED);
@@ -667,13 +670,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<JSMap> NewJSMap();
   Handle<JSSet> NewJSSet();
 
-  Handle<JSMapIterator> NewJSMapIterator(Handle<Map> map,
-                                         Handle<OrderedHashMap> table,
-                                         int index);
-  Handle<JSSetIterator> NewJSSetIterator(Handle<Map> map,
-                                         Handle<OrderedHashSet> table,
-                                         int index);
-
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       Handle<JSReceiver> target_function, Handle<Object> bound_this,
@@ -828,44 +824,11 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
   Handle<String> NumberToString(Smi* number, bool check_cache = true);
 
-  inline Handle<String> Uint32ToString(uint32_t value,
-                                       bool check_cache = false);
+  inline Handle<String> Uint32ToString(uint32_t value, bool check_cache = true);
 
-#define ROOT_ACCESSOR(type, name, camel_name) inline Handle<type> name();
+#define ROOT_ACCESSOR(type, name, CamelName) inline Handle<type> name();
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name) inline Handle<Map> name##_map();
-  STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
-
-#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Handle<Map> name##_map();
-  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
-#undef ALLOCATION_SITE_MAP_ACCESSOR
-
-#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Handle<Map> name##_map();
-  DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
-#undef DATA_HANDLER_MAP_ACCESSOR
-
-#define STRING_ACCESSOR(name, str) inline Handle<String> name();
-  INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
-#undef STRING_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name) inline Handle<Symbol> name();
-  PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name, description) inline Handle<Symbol> name();
-  PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
-  WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName) \
-  inline Handle<AccessorInfo> accessor_name##_accessor();
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
-#undef ACCESSOR_INFO_ACCESSOR
 
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForApiFunction(
@@ -961,6 +924,7 @@ class V8_EXPORT_PRIVATE Factory {
     // Downcast to the privately inherited sub-class using c-style casts to
     // avoid undefined behavior (as static_cast cannot cast across private
     // bases).
+    // NOLINTNEXTLINE (google-readability-casting)
     return (Isolate*)this;  // NOLINT(readability/casting)
   }
 
@@ -975,7 +939,7 @@ class V8_EXPORT_PRIVATE Factory {
   HeapObject* AllocateRawArray(int size, PretenureFlag pretenure);
   HeapObject* AllocateRawFixedArray(int length, PretenureFlag pretenure);
   HeapObject* AllocateRawWeakArrayList(int length, PretenureFlag pretenure);
-  Handle<FixedArray> NewFixedArrayWithFiller(Heap::RootListIndex map_root_index,
+  Handle<FixedArray> NewFixedArrayWithFiller(RootIndex map_root_index,
                                              int length, Object* filler,
                                              PretenureFlag pretenure);
 
@@ -1054,7 +1018,7 @@ class NewFunctionArgs final {
   Handle<Map> GetMap(Isolate* isolate) const;
 
  private:
-  NewFunctionArgs() {}  // Use the static factory constructors.
+  NewFunctionArgs() = default;  // Use the static factory constructors.
 
   void SetShouldCreateAndSetInitialMap();
   void SetShouldSetPrototype();

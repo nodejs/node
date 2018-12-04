@@ -21,8 +21,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-string-trimming
-
 description("This test checks the `trim`, `trimStart`/`trimLeft`, and `trimEnd`/`trimRight` methods on `String.prototype`.");
 
 // References to trim(), trimLeft() and trimRight() functions for testing Function's *.call() and *.apply() methods

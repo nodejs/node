@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-bigint
-
 var buffer = new ArrayBuffer(64);
 var dataview = new DataView(buffer, 8, 24);
 var bytes = new Uint8Array(buffer);

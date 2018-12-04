@@ -30,7 +30,7 @@ Node* SmiTag(CodeAssembler& m, Node* value) {
 }
 
 Node* UndefinedConstant(CodeAssembler& m) {
-  return m.LoadRoot(Heap::kUndefinedValueRootIndex);
+  return m.LoadRoot(RootIndex::kUndefinedValue);
 }
 
 Node* SmiFromInt32(CodeAssembler& m, Node* value) {

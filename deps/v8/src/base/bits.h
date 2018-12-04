@@ -146,6 +146,14 @@ constexpr inline bool IsPowerOfTwo(T value) {
 V8_BASE_EXPORT uint32_t RoundUpToPowerOfTwo32(uint32_t value);
 // Same for 64 bit integers. |value| must be <= 2^63
 V8_BASE_EXPORT uint64_t RoundUpToPowerOfTwo64(uint64_t value);
+// Same for size_t integers.
+inline size_t RoundUpToPowerOfTwo(size_t value) {
+  if (sizeof(size_t) == sizeof(uint64_t)) {
+    return RoundUpToPowerOfTwo64(value);
+  } else {
+    return RoundUpToPowerOfTwo32(value);
+  }
+}
 
 // RoundDownToPowerOfTwo32(value) returns the greatest power of two which is
 // less than or equal to |value|. If you pass in a |value| that is already a

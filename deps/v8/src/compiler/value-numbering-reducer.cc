@@ -21,7 +21,7 @@ ValueNumberingReducer::ValueNumberingReducer(Zone* temp_zone, Zone* graph_zone)
       temp_zone_(temp_zone),
       graph_zone_(graph_zone) {}
 
-ValueNumberingReducer::~ValueNumberingReducer() {}
+ValueNumberingReducer::~ValueNumberingReducer() = default;
 
 
 Reduction ValueNumberingReducer::Reduce(Node* node) {

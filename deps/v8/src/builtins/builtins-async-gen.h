@@ -16,65 +16,28 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
       : PromiseBuiltinsAssembler(state) {}
 
  protected:
-  typedef std::function<void(Node*)> ContextInitializer;
-
   // Perform steps to resume generator after `value` is resolved.
   // `on_reject_context_index` is an index into the Native Context, which should
   // point to a SharedFunctioninfo instance used to create the closure. The
   // value following the reject index should be a similar value for the resolve
   // closure. Returns the Promise-wrapped `value`.
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
-              int context_length,
-              const ContextInitializer& init_closure_context,
               Node* on_resolve_context_index, Node* on_reject_context_index,
               Node* is_predicted_as_caught);
-  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
-                       Node* outer_promise, int context_length,
-                       const ContextInitializer& init_closure_context,
-                       Node* on_resolve_context_index,
-                       Node* on_reject_context_index,
-                       Node* is_predicted_as_caught);
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
-              int context_length,
-              const ContextInitializer& init_closure_context,
               int on_resolve_context_index, int on_reject_context_index,
               Node* is_predicted_as_caught) {
-    return Await(context, generator, value, outer_promise, context_length,
-                 init_closure_context, IntPtrConstant(on_resolve_context_index),
+    return Await(context, generator, value, outer_promise,
+                 IntPtrConstant(on_resolve_context_index),
                  IntPtrConstant(on_reject_context_index),
                  is_predicted_as_caught);
   }
-  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
-                       Node* outer_promise, int context_length,
-                       const ContextInitializer& init_closure_context,
-                       int on_resolve_context_index,
-                       int on_reject_context_index,
-                       Node* is_predicted_as_caught) {
-    return AwaitOptimized(
-        context, generator, value, outer_promise, context_length,
-        init_closure_context, IntPtrConstant(on_resolve_context_index),
-        IntPtrConstant(on_reject_context_index), is_predicted_as_caught);
-  }
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
-              int context_length,
-              const ContextInitializer& init_closure_context,
               int on_resolve_context_index, int on_reject_context_index,
               bool is_predicted_as_caught) {
-    return Await(context, generator, value, outer_promise, context_length,
-                 init_closure_context, on_resolve_context_index,
-                 on_reject_context_index,
+    return Await(context, generator, value, outer_promise,
+                 on_resolve_context_index, on_reject_context_index,
                  BooleanConstant(is_predicted_as_caught));
-  }
-  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
-                       Node* outer_promise, int context_length,
-                       const ContextInitializer& init_closure_context,
-                       int on_resolve_context_index,
-                       int on_reject_context_index,
-                       bool is_predicted_as_caught) {
-    return AwaitOptimized(context, generator, value, outer_promise,
-                          context_length, init_closure_context,
-                          on_resolve_context_index, on_reject_context_index,
-                          BooleanConstant(is_predicted_as_caught));
   }
 
   // Return a new built-in function object as defined in
@@ -86,6 +49,14 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                                Node* function, Node* context_index);
   Node* AllocateAsyncIteratorValueUnwrapContext(Node* native_context,
                                                 Node* done);
+
+  Node* AwaitOld(Node* context, Node* generator, Node* value,
+                 Node* outer_promise, Node* on_resolve_context_index,
+                 Node* on_reject_context_index, Node* is_predicted_as_caught);
+  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
+                       Node* outer_promise, Node* on_resolve_context_index,
+                       Node* on_reject_context_index,
+                       Node* is_predicted_as_caught);
 };
 
 }  // namespace internal

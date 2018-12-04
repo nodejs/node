@@ -71,7 +71,7 @@ class ThreadedRunner final : public base::Thread {
   explicit ThreadedRunner(TestTask* task)
       : Thread(Options("runner thread")), task_(task) {}
 
-  virtual void Run() {
+  void Run() override {
     task_->Run();
     delete task_;
   }

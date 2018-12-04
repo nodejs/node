@@ -43,4 +43,10 @@
   'wasm-trace-memory-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32
 
+['variant == code_serializer', {
+  # TODO(yangguo): Code serializer output is incompatible with all message
+  # tests.
+  '*': [SKIP],
+}],  # variant == code_serializer
+
 ]

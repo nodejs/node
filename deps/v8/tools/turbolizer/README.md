@@ -10,8 +10,8 @@ the '--trace-turbo' command-line flag.
 
 Turbolizer is build using npm:
 
-  npm i
-  npm run-script build
+    npm i
+    npm run-script build
 
 Afterwards, turbolizer can be hosted locally by starting a web server that serve
 the contents of the turbolizer directory, e.g.:

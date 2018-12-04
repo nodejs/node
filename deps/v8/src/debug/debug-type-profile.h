@@ -36,7 +36,7 @@ class TypeProfile : public std::vector<TypeProfileScript> {
   static void SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode);
 
  private:
-  TypeProfile() {}
+  TypeProfile() = default;
 };
 
 }  // namespace internal

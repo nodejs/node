@@ -19,6 +19,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/builtin-function-id.h"
 
 namespace v8 {
 namespace internal {
@@ -33,14 +34,13 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(Isolate* isolate, JSHeapBroker* js_heap_broker, Flags flags,
-             Graph* graph)
+Typer::Typer(JSHeapBroker* js_heap_broker, Flags flags, Graph* graph)
     : flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
       js_heap_broker_(js_heap_broker),
-      operation_typer_(isolate, js_heap_broker, zone()) {
+      operation_typer_(js_heap_broker, zone()) {
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
@@ -1114,10 +1114,6 @@ Type Typer::Visitor::TypeToBoolean(Node* node) {
   return TypeUnaryOp(node, ToBoolean);
 }
 
-Type Typer::Visitor::TypeJSToInteger(Node* node) {
-  return TypeUnaryOp(node, ToInteger);
-}
-
 Type Typer::Visitor::TypeJSToLength(Node* node) {
   return TypeUnaryOp(node, ToLength);
 }
@@ -1212,6 +1208,10 @@ Type Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSCreateEmptyLiteralArray(Node* node) {
+  return Type::Array();
+}
+
+Type Typer::Visitor::TypeJSCreateArrayFromIterable(Node* node) {
   return Type::Array();
 }
 
@@ -1433,7 +1433,6 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     // Unary math functions.
     case BuiltinFunctionId::kMathAbs:
     case BuiltinFunctionId::kMathExp:
-    case BuiltinFunctionId::kMathExpm1:
       return Type::Union(Type::PlainNumber(), Type::NaN(), t->zone());
     case BuiltinFunctionId::kMathAcos:
     case BuiltinFunctionId::kMathAcosh:
@@ -1443,6 +1442,7 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     case BuiltinFunctionId::kMathAtanh:
     case BuiltinFunctionId::kMathCbrt:
     case BuiltinFunctionId::kMathCos:
+    case BuiltinFunctionId::kMathExpm1:
     case BuiltinFunctionId::kMathFround:
     case BuiltinFunctionId::kMathLog:
     case BuiltinFunctionId::kMathLog1p:
@@ -1489,6 +1489,10 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
 
     // Symbol functions.
     case BuiltinFunctionId::kSymbolConstructor:
+      return Type::Symbol();
+    case BuiltinFunctionId::kSymbolPrototypeToString:
+      return Type::String();
+    case BuiltinFunctionId::kSymbolPrototypeValueOf:
       return Type::Symbol();
 
     // BigInt functions.
@@ -1714,16 +1718,11 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsSmi:
       return TypeUnaryOp(node, ObjectIsSmi);
     case Runtime::kInlineIsArray:
-    case Runtime::kInlineIsDate:
     case Runtime::kInlineIsTypedArray:
     case Runtime::kInlineIsRegExp:
       return Type::Boolean();
     case Runtime::kInlineCreateIterResultObject:
       return Type::OtherObject();
-    case Runtime::kInlineStringCharFromCode:
-      return Type::String();
-    case Runtime::kInlineToInteger:
-      return TypeUnaryOp(node, ToInteger);
     case Runtime::kInlineToLength:
       return TypeUnaryOp(node, ToLength);
     case Runtime::kInlineToNumber:
@@ -1855,6 +1854,8 @@ Type Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return TypeBinaryOp(node, NumberLessThanOrEqualTyper);
 }
 
+Type Typer::Visitor::TypeStringConcat(Node* node) { return Type::String(); }
+
 Type Typer::Visitor::TypeStringToNumber(Node* node) {
   return TypeUnaryOp(node, ToNumber);
 }
@@ -1947,18 +1948,8 @@ Type Typer::Visitor::TypePoisonIndex(Node* node) {
 }
 
 Type Typer::Visitor::TypeCheckBounds(Node* node) {
-  Type index = Operand(node, 0);
-  Type length = Operand(node, 1);
-  DCHECK(length.Is(Type::Unsigned31()));
-  if (index.Maybe(Type::MinusZero())) {
-    index = Type::Union(index, typer_->cache_.kSingletonZero, zone());
-  }
-  index = Type::Intersect(index, Type::Integral32(), zone());
-  if (index.IsNone() || length.IsNone()) return Type::None();
-  double min = std::max(index.Min(), 0.0);
-  double max = std::min(index.Max(), length.Max() - 1);
-  if (max < min) return Type::None();
-  return Type::Range(min, max, zone());
+  return typer_->operation_typer_.CheckBounds(Operand(node, 0),
+                                              Operand(node, 1));
 }
 
 Type Typer::Visitor::TypeCheckHeapObject(Node* node) {
@@ -2191,8 +2182,8 @@ Type Typer::Visitor::TypeNewArgumentsElements(Node* node) {
 
 Type Typer::Visitor::TypeNewConsString(Node* node) { return Type::String(); }
 
-Type Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
-  return Type::Boolean();
+Type Typer::Visitor::TypeDelayedStringConstant(Node* node) {
+  return Type::String();
 }
 
 Type Typer::Visitor::TypeFindOrderedHashMapEntry(Node* node) {

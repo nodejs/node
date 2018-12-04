@@ -71,7 +71,7 @@ class MachineOperatorReducerTestWithParam
  public:
   explicit MachineOperatorReducerTestWithParam(int num_parameters = 2)
       : MachineOperatorReducerTest(num_parameters) {}
-  ~MachineOperatorReducerTestWithParam() override {}
+  ~MachineOperatorReducerTestWithParam() override = default;
 };
 
 
@@ -344,6 +344,27 @@ TEST_F(MachineOperatorReducerTest, ChangeFloat64ToInt32WithConstant) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// ChangeFloat64ToInt64
+
+TEST_F(MachineOperatorReducerTest,
+       ChangeFloat64ToInt64WithChangeInt64ToFloat64) {
+  Node* value = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      machine()->ChangeFloat64ToInt64(),
+      graph()->NewNode(machine()->ChangeInt64ToFloat64(), value)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
+}
+
+TEST_F(MachineOperatorReducerTest, ChangeFloat64ToInt64WithConstant) {
+  TRACED_FOREACH(int32_t, x, kInt32Values) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        machine()->ChangeFloat64ToInt64(), Float64Constant(FastI2D(x))));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsInt64Constant(x));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // ChangeFloat64ToUint32
@@ -397,6 +418,27 @@ TEST_F(MachineOperatorReducerTest, ChangeInt32ToInt64WithConstant) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// ChangeInt64ToFloat64
+
+TEST_F(MachineOperatorReducerTest,
+       ChangeInt64ToFloat64WithChangeFloat64ToInt64) {
+  Node* value = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      machine()->ChangeInt64ToFloat64(),
+      graph()->NewNode(machine()->ChangeFloat64ToInt64(), value)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
+}
+
+TEST_F(MachineOperatorReducerTest, ChangeInt64ToFloat64WithConstant) {
+  TRACED_FOREACH(int32_t, x, kInt32Values) {
+    Reduction reduction = Reduce(
+        graph()->NewNode(machine()->ChangeInt64ToFloat64(), Int64Constant(x)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(BitEq(FastI2D(x))));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // ChangeUint32ToFloat64
@@ -2020,6 +2062,16 @@ TEST_F(MachineOperatorReducerTest, Float64InsertHighWord32WithConstant) {
 // -----------------------------------------------------------------------------
 // Float64Equal
 
+TEST_F(MachineOperatorReducerTest, Float64EqualWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(double, y, kFloat64Values) {
+      Reduction const r = Reduce(graph()->NewNode(
+          machine()->Float64Equal(), Float64Constant(x), Float64Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(x == y));
+    }
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Float64EqualWithFloat32Conversions) {
   Node* const p0 = Parameter(0);
@@ -2049,6 +2101,17 @@ TEST_F(MachineOperatorReducerTest, Float64EqualWithFloat32Constant) {
 // -----------------------------------------------------------------------------
 // Float64LessThan
 
+TEST_F(MachineOperatorReducerTest, Float64LessThanWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(double, y, kFloat64Values) {
+      Reduction const r =
+          Reduce(graph()->NewNode(machine()->Float64LessThan(),
+                                  Float64Constant(x), Float64Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(x < y));
+    }
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Float64LessThanWithFloat32Conversions) {
   Node* const p0 = Parameter(0);
@@ -2089,6 +2152,17 @@ TEST_F(MachineOperatorReducerTest, Float64LessThanWithFloat32Constant) {
 // -----------------------------------------------------------------------------
 // Float64LessThanOrEqual
 
+TEST_F(MachineOperatorReducerTest, Float64LessThanOrEqualWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(double, y, kFloat64Values) {
+      Reduction const r =
+          Reduce(graph()->NewNode(machine()->Float64LessThanOrEqual(),
+                                  Float64Constant(x), Float64Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(x <= y));
+    }
+  }
+}
 
 TEST_F(MachineOperatorReducerTest,
        Float64LessThanOrEqualWithFloat32Conversions) {

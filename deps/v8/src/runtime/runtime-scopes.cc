@@ -158,8 +158,8 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
       FeedbackSlot feedback_cells_slot(
           Smi::ToInt(*possibly_feedback_cell_slot));
       Handle<FeedbackCell> feedback_cell(
-          FeedbackCell::cast(
-              feedback_vector->Get(feedback_cells_slot)->ToStrongHeapObject()),
+          FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)
+                                 ->GetHeapObjectAssumeStrong()),
           isolate);
       Handle<JSFunction> function =
           isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -461,8 +461,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
   return result;
 }
 
-
-class HandleArguments BASE_EMBEDDED {
+class HandleArguments {
  public:
   explicit HandleArguments(Handle<Object>* array) : array_(array) {}
   Object* operator[](int index) { return *array_[index]; }
@@ -471,8 +470,7 @@ class HandleArguments BASE_EMBEDDED {
   Handle<Object>* array_;
 };
 
-
-class ParameterArguments BASE_EMBEDDED {
+class ParameterArguments {
  public:
   explicit ParameterArguments(Object** parameters) : parameters_(parameters) {}
   Object*& operator[](int index) { return *(parameters_ - index - 1); }
@@ -803,6 +801,8 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (!holder.is_null() && holder->IsModule()) {
+    Handle<Object> receiver = isolate->factory()->undefined_value();
+    if (receiver_return) *receiver_return = receiver;
     return Module::LoadVariable(isolate, Handle<Module>::cast(holder), index);
   }
   if (index != Context::kNotFound) {

@@ -193,9 +193,9 @@ consts_misc = [
         'value': 'ScopeInfo::kVariablePartIndex' },
 
     { 'name': 'jsarray_buffer_was_neutered_mask',
-        'value': 'JSArrayBuffer::WasNeutered::kMask' },
+        'value': 'JSArrayBuffer::WasNeuteredBit::kMask' },
     { 'name': 'jsarray_buffer_was_neutered_shift',
-        'value': 'JSArrayBuffer::WasNeutered::kShift' },
+        'value': 'JSArrayBuffer::WasNeuteredBit::kShift' },
 
     { 'name': 'context_idx_scope_info',
         'value': 'Context::SCOPE_INFO_INDEX' },
@@ -250,7 +250,9 @@ extras_accessors = [
     'FixedArray, data, uintptr_t, kHeaderSize',
     'FixedTypedArrayBase, external_pointer, Object, kExternalPointerOffset',
     'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
-    'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
+    'JSArrayBuffer, byte_length, size_t, kByteLengthOffset',
+    'JSArrayBufferView, byte_length, size_t, kByteLengthOffset',
+    'JSArrayBufferView, byte_offset, size_t, kByteOffsetOffset',
     'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
     'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
@@ -275,6 +277,7 @@ extras_accessors = [
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
+    'String, length, int32_t, kLengthOffset',
 ];
 
 #

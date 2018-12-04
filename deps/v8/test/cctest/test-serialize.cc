@@ -785,6 +785,17 @@ TEST(CustomSnapshotDataBlob1) {
   delete[] data1.data;  // We can dispose of the snapshot blob now.
 }
 
+TEST(SnapshotChecksum) {
+  DisableAlwaysOpt();
+  const char* source1 = "function f() { return 42; }";
+
+  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
+  CHECK(i::Snapshot::VerifyChecksum(&data1));
+  const_cast<char*>(data1.data)[142] = data1.data[142] ^ 4;  // Flip a bit.
+  CHECK(!i::Snapshot::VerifyChecksum(&data1));
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+}
+
 struct InternalFieldData {
   uint32_t data;
 };
@@ -1301,7 +1312,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
     CHECK(IsCompiled("String.raw"));
-    CHECK(!IsCompiled("Array.prototype.lastIndexOf"));
+    CHECK(IsCompiled("Array.prototype.lastIndexOf"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
@@ -1821,9 +1832,9 @@ class SerializerOneByteResource
  public:
   SerializerOneByteResource(const char* data, size_t length)
       : data_(data), length_(length), dispose_count_(0) {}
-  virtual const char* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-  virtual void Dispose() { dispose_count_++; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  void Dispose() override { dispose_count_++; }
   int dispose_count() { return dispose_count_; }
 
  private:
@@ -1837,11 +1848,11 @@ class SerializerTwoByteResource : public v8::String::ExternalStringResource {
  public:
   SerializerTwoByteResource(const char* data, size_t length)
       : data_(AsciiToTwoByteString(data)), length_(length), dispose_count_(0) {}
-  ~SerializerTwoByteResource() { DeleteArray<const uint16_t>(data_); }
+  ~SerializerTwoByteResource() override { DeleteArray<const uint16_t>(data_); }
 
-  virtual const uint16_t* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-  virtual void Dispose() { dispose_count_++; }
+  const uint16_t* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  void Dispose() override { dispose_count_++; }
   int dispose_count() { return dispose_count_; }
 
  private:
@@ -3582,11 +3593,10 @@ void CheckSFIsAreWeak(WeakFixedArray* sfis, Isolate* isolate) {
   for (int i = 0; i < sfis->length(); ++i) {
     MaybeObject* maybe_object = sfis->Get(i);
     HeapObject* heap_object;
-    CHECK(maybe_object->IsWeakHeapObject() ||
-          maybe_object->IsClearedWeakHeapObject() ||
-          (maybe_object->ToStrongHeapObject(&heap_object) &&
+    CHECK(maybe_object->IsWeakOrCleared() ||
+          (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
            heap_object->IsUndefined(isolate)));
-    if (maybe_object->IsWeakHeapObject()) {
+    if (maybe_object->IsWeak()) {
       ++no_of_weak;
     }
   }

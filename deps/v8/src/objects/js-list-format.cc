@@ -119,7 +119,7 @@ JSListFormat::Type get_type(const char* str) {
   UNREACHABLE();
 }
 
-MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
+MaybeHandle<JSListFormat> JSListFormat::Initialize(
     Isolate* isolate, Handle<JSListFormat> list_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
   Factory* factory = isolate->factory();
@@ -199,7 +199,7 @@ MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
   Handle<Managed<icu::ListFormatter>> managed_formatter =
       Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
 
-  list_format_holder->set_formatter(*managed_formatter);
+  list_format_holder->set_icu_formatter(*managed_formatter);
   return list_format_holder;
 }
 
@@ -215,11 +215,6 @@ Handle<JSObject> JSListFormat::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->type_string(),
                         format_holder->TypeAsString(), NONE);
   return result;
-}
-
-icu::ListFormatter* JSListFormat::UnpackFormatter(Isolate* isolate,
-                                                  Handle<JSListFormat> holder) {
-  return Managed<icu::ListFormatter>::cast(holder->formatter())->raw();
 }
 
 Handle<String> JSListFormat::StyleAsString() const {
@@ -352,8 +347,7 @@ Maybe<bool> FormatListCommon(Isolate* isolate,
                              std::unique_ptr<icu::UnicodeString[]>& array) {
   DCHECK(!list->IsUndefined());
 
-  icu::ListFormatter* formatter =
-      JSListFormat::UnpackFormatter(isolate, format_holder);
+  icu::ListFormatter* formatter = format_holder->icu_formatter()->raw();
   CHECK_NOT_NULL(formatter);
 
   *length = list->GetElementsAccessor()->NumberOfElements(*list);

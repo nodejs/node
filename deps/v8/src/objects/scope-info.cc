@@ -369,7 +369,6 @@ Handle<ScopeInfo> ScopeInfo::CreateForEmptyFunction(Isolate* isolate) {
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                                                     ScopeType type) {
-  DCHECK(isolate->bootstrapper()->IsActive());
   DCHECK(type == SCRIPT_SCOPE || type == FUNCTION_SCOPE);
 
   const int parameter_count = 0;

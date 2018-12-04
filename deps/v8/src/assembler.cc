@@ -44,9 +44,23 @@
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
+
+AssemblerOptions AssemblerOptions::EnableV8AgnosticCode() const {
+  AssemblerOptions options = *this;
+  options.v8_agnostic_code = true;
+  options.record_reloc_info_for_serialization = false;
+  options.enable_root_array_delta_access = false;
+  // Inherit |enable_simulator_code| value.
+  options.isolate_independent_code = false;
+  options.inline_offheap_trampolines = false;
+  // Inherit |code_range_start| value.
+  // Inherit |use_pc_relative_calls_and_jumps| value.
+  return options;
+}
 
 AssemblerOptions AssemblerOptions::Default(
     Isolate* isolate, bool explicitly_support_serialization) {
@@ -61,9 +75,12 @@ AssemblerOptions AssemblerOptions::Default(
   options.enable_simulator_code = !serializer;
 #endif
   options.inline_offheap_trampolines = !serializer;
+
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-  options.code_range_start =
-      isolate->heap()->memory_allocator()->code_range()->start();
+  const base::AddressRegion& code_range =
+      isolate->heap()->memory_allocator()->code_range();
+  DCHECK_IMPLIES(code_range.begin() != kNullAddress, !code_range.is_empty());
+  options.code_range_start = code_range.begin();
 #endif
   return options;
 }
@@ -355,6 +372,13 @@ HeapObjectRequest::HeapObjectRequest(CodeStub* code_stub, int offset)
   DCHECK_NOT_NULL(value_.code_stub);
 }
 
+HeapObjectRequest::HeapObjectRequest(const StringConstantBase* string,
+                                     int offset)
+    : kind_(kStringConstant), offset_(offset) {
+  value_.string = string;
+  DCHECK_NOT_NULL(value_.string);
+}
+
 // Platform specific but identical code for all the platforms.
 
 void Assembler::RecordDeoptReason(DeoptimizeReason reason,
@@ -381,11 +405,13 @@ void Assembler::DataAlign(int m) {
 }
 
 void AssemblerBase::RequestHeapObject(HeapObjectRequest request) {
+  DCHECK(!options().v8_agnostic_code);
   request.set_offset(pc_offset());
   heap_object_requests_.push_front(request);
 }
 
 int AssemblerBase::AddCodeTarget(Handle<Code> target) {
+  DCHECK(!options().v8_agnostic_code);
   int current = static_cast<int>(code_targets_.size());
   if (current > 0 && !target.is_null() &&
       code_targets_.back().address() == target.address()) {
@@ -398,6 +424,7 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
 }
 
 Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
+  DCHECK(!options().v8_agnostic_code);
   DCHECK_LE(0, code_target_index);
   DCHECK_LT(code_target_index, code_targets_.size());
   return code_targets_[code_target_index];
@@ -405,6 +432,7 @@ Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
 
 void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
                                      Handle<Code> code) {
+  DCHECK(!options().v8_agnostic_code);
   DCHECK_LE(0, code_target_index);
   DCHECK_LT(code_target_index, code_targets_.size());
   code_targets_[code_target_index] = code;

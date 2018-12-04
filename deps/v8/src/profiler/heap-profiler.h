@@ -27,7 +27,7 @@ class StringsStorage;
 class HeapProfiler : public HeapObjectAllocationTracker {
  public:
   explicit HeapProfiler(Heap* heap);
-  ~HeapProfiler();
+  ~HeapProfiler() override;
 
   HeapSnapshot* TakeSnapshot(
       v8::ActivityControl* control,
@@ -92,8 +92,6 @@ class HeapProfiler : public HeapObjectAllocationTracker {
                     v8::PersistentValueVector<v8::Object>* objects);
 
  private:
-  void MaybeClearStringsStorage();
-
   Heap* heap() const;
 
   // Mapping from HeapObject addresses to objects' uids.

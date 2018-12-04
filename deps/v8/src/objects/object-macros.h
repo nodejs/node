@@ -290,6 +290,12 @@
 #define WRITE_INTPTR_FIELD(p, offset, value) \
   (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_UINTPTR_FIELD(p, offset) \
+  (*reinterpret_cast<const uintptr_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_UINTPTR_FIELD(p, offset, value) \
+  (*reinterpret_cast<uintptr_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_UINT8_FIELD(p, offset) \
   (*reinterpret_cast<const uint8_t*>(FIELD_ADDR(p, offset)))
 

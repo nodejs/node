@@ -37,7 +37,7 @@ class OperandSet {
     set_->push_back(op);
 
     if (!kSimpleFPAliasing && op.IsFPRegister())
-      fp_reps_ |= RepBit(LocationOperand::cast(op).representation());
+      fp_reps_ |= RepresentationBit(LocationOperand::cast(op).representation());
   }
 
   bool Contains(const InstructionOperand& op) const {
@@ -55,7 +55,7 @@ class OperandSet {
       const LocationOperand& loc = LocationOperand::cast(op);
       MachineRepresentation rep = loc.representation();
       // If haven't encountered mixed rep FP registers, skip the extra checks.
-      if (!HasMixedFPReps(fp_reps_ | RepBit(rep))) return false;
+      if (!HasMixedFPReps(fp_reps_ | RepresentationBit(rep))) return false;
 
       // Check register against aliasing registers of other FP representations.
       MachineRepresentation other_rep1, other_rep2;
@@ -100,10 +100,6 @@ class OperandSet {
   }
 
  private:
-  static int RepBit(MachineRepresentation rep) {
-    return 1 << static_cast<int>(rep);
-  }
-
   static bool HasMixedFPReps(int reps) {
     return reps && !base::bits::IsPowerOfTwo(reps);
   }

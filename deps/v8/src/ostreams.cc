@@ -22,10 +22,6 @@ namespace internal {
 
 OFStreamBase::OFStreamBase(FILE* f) : f_(f) {}
 
-
-OFStreamBase::~OFStreamBase() {}
-
-
 int OFStreamBase::sync() {
   std::fflush(f_);
   return 0;
@@ -46,9 +42,6 @@ OFStream::OFStream(FILE* f) : std::ostream(nullptr), buf_(f) {
   DCHECK_NOT_NULL(f);
   rdbuf(&buf_);
 }
-
-
-OFStream::~OFStream() {}
 
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
 AndroidLogStream::~AndroidLogStream() {

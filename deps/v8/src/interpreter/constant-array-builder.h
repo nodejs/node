@@ -36,7 +36,7 @@ namespace interpreter {
 // interpreter. Each instance of this class is intended to be used to
 // generate exactly one FixedArray of constants via the ToFixedArray
 // method.
-class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
  public:
   // Capacity of the 8-bit operand slice.
   static const size_t k8BitCapacity = 1u << kBitsPerByte;

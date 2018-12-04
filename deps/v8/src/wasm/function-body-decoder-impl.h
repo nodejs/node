@@ -487,7 +487,8 @@ enum ControlKind : uint8_t {
   kControlBlock,
   kControlLoop,
   kControlTry,
-  kControlTryCatch
+  kControlTryCatch,
+  kControlTryCatchAll
 };
 
 enum Reachability : uint8_t {
@@ -534,9 +535,12 @@ struct ControlBase {
   bool is_if_else() const { return kind == kControlIfElse; }
   bool is_block() const { return kind == kControlBlock; }
   bool is_loop() const { return kind == kControlLoop; }
-  bool is_try() const { return is_incomplete_try() || is_try_catch(); }
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
+  bool is_try_catchall() const { return kind == kControlTryCatchAll; }
+  bool is_try() const {
+    return is_incomplete_try() || is_try_catch() || is_try_catchall();
+  }
 
   inline Merge<Value>* br_merge() {
     return is_loop() ? &this->start_merge : &this->end_merge;
@@ -737,6 +741,13 @@ class WasmDecoder : public Decoder {
           }
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;
+        case kLocalExceptRef:
+          if (enabled.eh) {
+            type = kWasmExceptRef;
+            break;
+          }
+          decoder->error(decoder->pc() - 1, "invalid local type");
+          return false;
         case kLocalS128:
           if (enabled.simd) {
             type = kWasmS128;
@@ -776,7 +787,7 @@ class WasmDecoder : public Decoder {
           break;
         case kExprSetLocal:  // fallthru
         case kExprTeeLocal: {
-          LocalIndexImmediate<Decoder::kValidate> imm(decoder, pc);
+          LocalIndexImmediate<validate> imm(decoder, pc);
           if (assigned->length() > 0 &&
               imm.index < static_cast<uint32_t>(assigned->length())) {
             // Unverified code might have an out-of-bounds index.
@@ -806,8 +817,7 @@ class WasmDecoder : public Decoder {
     return VALIDATE(decoder->ok()) ? assigned : nullptr;
   }
 
-  inline bool Validate(const byte* pc,
-                       LocalIndexImmediate<Decoder::kValidate>& imm) {
+  inline bool Validate(const byte* pc, LocalIndexImmediate<validate>& imm) {
     if (!VALIDATE(imm.index < total_locals())) {
       errorf(pc + 1, "invalid local index: %u", imm.index);
       return false;
@@ -1034,7 +1044,7 @@ class WasmDecoder : public Decoder {
       case kExprSetLocal:
       case kExprTeeLocal:
       case kExprGetLocal: {
-        LocalIndexImmediate<Decoder::kValidate> imm(decoder, pc);
+        LocalIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
       case kExprBrTable: {
@@ -1466,7 +1476,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprThrow: {
             CHECK_PROTOTYPE_OPCODE(eh);
-            ExceptionIndexImmediate<Decoder::kValidate> imm(this, this->pc_);
+            ExceptionIndexImmediate<validate> imm(this, this->pc_);
             len = 1 + imm.length;
             if (!this->Validate(this->pc_, imm)) break;
             PopArgs(imm.exception->ToFunctionSig());
@@ -1490,7 +1500,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprCatch: {
             // TODO(kschimpf): Fix to use type signature of exception.
             CHECK_PROTOTYPE_OPCODE(eh);
-            ExceptionIndexImmediate<Decoder::kValidate> imm(this, this->pc_);
+            ExceptionIndexImmediate<validate> imm(this, this->pc_);
             len = 1 + imm.length;
 
             if (!this->Validate(this->pc_, imm)) break;
@@ -1524,9 +1534,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprCatchAll: {
-            // TODO(kschimpf): Implement.
             CHECK_PROTOTYPE_OPCODE(eh);
-            OPCODE_ERROR(opcode, "not implemented yet");
+            if (!VALIDATE(!control_.empty())) {
+              this->error("catch-all does not match any try");
+              break;
+            }
+            Control* c = &control_.back();
+            if (!VALIDATE(c->is_try())) {
+              this->error("catch-all does not match any try");
+              break;
+            }
+            if (!VALIDATE(!c->is_try_catchall())) {
+              this->error("catch-all already present for try");
+              break;
+            }
+            c->kind = kControlTryCatchAll;
+            // TODO(mstarzinger): Implement control flow for catch-all.
             break;
           }
           case kExprLoop: {
@@ -1581,7 +1604,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             Control* c = &control_.back();
             if (!VALIDATE(!c->is_incomplete_try())) {
-              this->error(this->pc_, "missing catch in try");
+              this->error(this->pc_, "missing catch or catch-all in try");
               break;
             }
             if (c->is_onearmed_if()) {
@@ -1742,7 +1765,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprGetLocal: {
-            LocalIndexImmediate<Decoder::kValidate> imm(this, this->pc_);
+            LocalIndexImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm)) break;
             auto* value = Push(imm.type);
             CALL_INTERFACE_IF_REACHABLE(GetLocal, value, imm);
@@ -1750,7 +1773,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprSetLocal: {
-            LocalIndexImmediate<Decoder::kValidate> imm(this, this->pc_);
+            LocalIndexImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm)) break;
             auto value = Pop(0, local_type_vec_[imm.index]);
             CALL_INTERFACE_IF_REACHABLE(SetLocal, value, imm);
@@ -1758,7 +1781,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprTeeLocal: {
-            LocalIndexImmediate<Decoder::kValidate> imm(this, this->pc_);
+            LocalIndexImmediate<validate> imm(this, this->pc_);
             if (!this->Validate(this->pc_, imm)) break;
             auto value = Pop(0, local_type_vec_[imm.index]);
             auto* result = Push(value.type);
@@ -2445,7 +2468,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
-  virtual void onFirstError() {
+  void onFirstError() override {
     this->end_ = this->pc_;  // Terminate decoding loop.
     TRACE(" !%s\n", this->error_msg_.c_str());
     CALL_INTERFACE(OnFirstError);

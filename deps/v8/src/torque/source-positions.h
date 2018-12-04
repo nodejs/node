@@ -29,7 +29,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
 
 class SourceFileMap : public ContextualClass<SourceFileMap> {
  public:
-  SourceFileMap() {}
+  SourceFileMap() = default;
   static const std::string& GetSource(SourceId source) {
     return Get().sources_[source.id_];
   }

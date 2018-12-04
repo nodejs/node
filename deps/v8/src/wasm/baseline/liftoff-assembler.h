@@ -248,7 +248,7 @@ class LiftoffAssembler : public TurboAssembler {
   };
 
   LiftoffAssembler();
-  ~LiftoffAssembler();
+  ~LiftoffAssembler() override;
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
@@ -399,6 +399,7 @@ class LiftoffAssembler : public TurboAssembler {
                            LiftoffRegList pinned = {});
   inline void emit_i32_shr(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
+  inline void emit_i32_shr(Register dst, Register src, int amount);
 
   // i32 unops.
   inline bool emit_i32_clz(Register dst, Register src);
@@ -433,6 +434,8 @@ class LiftoffAssembler : public TurboAssembler {
                            Register amount, LiftoffRegList pinned = {});
   inline void emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                            Register amount, LiftoffRegList pinned = {});
+  inline void emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                           int amount);
 
   inline void emit_i32_to_intptr(Register dst, Register src);
 
@@ -452,6 +455,21 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_sub(dst, lhs, rhs);
     }
   }
+  inline void emit_ptrsize_and(Register dst, Register lhs, Register rhs) {
+    if (kPointerSize == 8) {
+      emit_i64_and(LiftoffRegister(dst), LiftoffRegister(lhs),
+                   LiftoffRegister(rhs));
+    } else {
+      emit_i32_and(dst, lhs, rhs);
+    }
+  }
+  inline void emit_ptrsize_shr(Register dst, Register src, int amount) {
+    if (kPointerSize == 8) {
+      emit_i64_shr(LiftoffRegister(dst), LiftoffRegister(src), amount);
+    } else {
+      emit_i32_shr(dst, src, amount);
+    }
+  }
 
   // f32 binops.
   inline void emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
@@ -466,6 +484,8 @@ class LiftoffAssembler : public TurboAssembler {
                            DoubleRegister rhs);
   inline void emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
+  inline void emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                DoubleRegister rhs);
 
   // f32 unops.
   inline void emit_f32_abs(DoubleRegister dst, DoubleRegister src);
@@ -489,6 +509,8 @@ class LiftoffAssembler : public TurboAssembler {
                            DoubleRegister rhs);
   inline void emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
+  inline void emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                DoubleRegister rhs);
 
   // f64 unops.
   inline void emit_f64_abs(DoubleRegister dst, DoubleRegister src);
@@ -499,9 +521,14 @@ class LiftoffAssembler : public TurboAssembler {
   inline bool emit_f64_nearest_int(DoubleRegister dst, DoubleRegister src);
   inline void emit_f64_sqrt(DoubleRegister dst, DoubleRegister src);
 
-  // type conversions.
   inline bool emit_type_conversion(WasmOpcode opcode, LiftoffRegister dst,
                                    LiftoffRegister src, Label* trap = nullptr);
+
+  inline void emit_i32_signextend_i8(Register dst, Register src);
+  inline void emit_i32_signextend_i16(Register dst, Register src);
+  inline void emit_i64_signextend_i8(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i64_signextend_i16(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i64_signextend_i32(LiftoffRegister dst, LiftoffRegister src);
 
   inline void emit_jump(Label*);
   inline void emit_jump(Register);

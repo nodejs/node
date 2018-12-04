@@ -86,6 +86,19 @@ void BodyDescriptorBase::IterateMaybeWeakPointer(HeapObject* obj, int offset,
   v->VisitPointer(obj, HeapObject::RawMaybeWeakField(obj, offset));
 }
 
+template <typename ObjectVisitor>
+DISABLE_CFI_PERF void BodyDescriptorBase::IterateCustomWeakPointers(
+    HeapObject* obj, int start_offset, int end_offset, ObjectVisitor* v) {
+  v->VisitCustomWeakPointers(obj, HeapObject::RawField(obj, start_offset),
+                             HeapObject::RawField(obj, end_offset));
+}
+
+template <typename ObjectVisitor>
+void BodyDescriptorBase::IterateCustomWeakPointer(HeapObject* obj, int offset,
+                                                  ObjectVisitor* v) {
+  v->VisitCustomWeakPointer(obj, HeapObject::RawField(obj, offset));
+}
+
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
@@ -149,8 +162,7 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-template <bool includeWeakNext>
-class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
+class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(AllocationSite::kCommonPointerFieldEndOffset ==
                 AllocationSite::kPretenureDataOffset);
@@ -165,8 +177,7 @@ class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
       return true;
     }
     // check for weak_next offset
-    if (includeWeakNext &&
-        map->instance_size() == AllocationSite::kSizeWithWeakNext &&
+    if (map->instance_size() == AllocationSite::kSizeWithWeakNext &&
         offset == AllocationSite::kWeakNextOffset) {
       return true;
     }
@@ -179,12 +190,12 @@ class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
     // Iterate over all the common pointer fields
     IteratePointers(obj, AllocationSite::kStartOffset,
                     AllocationSite::kCommonPointerFieldEndOffset, v);
-    // Skip PretenureDataOffset and PretenureCreateCount which are Int32 fields
-    // Visit weak_next only for full body descriptor and if it has weak_next
-    // field
-    if (includeWeakNext && object_size == AllocationSite::kSizeWithWeakNext)
-      IteratePointers(obj, AllocationSite::kWeakNextOffset,
-                      AllocationSite::kSizeWithWeakNext, v);
+    // Skip PretenureDataOffset and PretenureCreateCount which are Int32 fields.
+    // Visit weak_next only if it has weak_next field.
+    if (object_size == AllocationSite::kSizeWithWeakNext) {
+      IterateCustomWeakPointers(obj, AllocationSite::kWeakNextOffset,
+                                AllocationSite::kSizeWithWeakNext, v);
+    }
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -207,11 +218,34 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    // Array buffers contain raw pointers that the GC does not know about. These
-    // are stored at kBackStoreOffset and later, so we do not iterate over
-    // those.
-    IteratePointers(obj, kPropertiesOrHashOffset, kBackingStoreOffset, v);
+    // JSArrayBuffer instances contain raw data that the GC does not know about.
+    IteratePointers(obj, kPropertiesOrHashOffset, kByteLengthOffset, v);
     IterateBodyImpl(map, obj, kSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return map->instance_size();
+  }
+};
+
+class JSArrayBufferView::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  STATIC_ASSERT(kBufferOffset + kPointerSize == kByteOffsetOffset);
+  STATIC_ASSERT(kByteOffsetOffset + kUIntptrSize == kByteLengthOffset);
+  STATIC_ASSERT(kByteLengthOffset + kUIntptrSize == kHeaderSize);
+
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    if (offset < kByteOffsetOffset) return true;
+    if (offset < kHeaderSize) return false;
+    return IsValidSlotImpl(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    // JSArrayBufferView contains raw data that the GC does not know about.
+    IteratePointers(obj, kPropertiesOrHashOffset, kByteOffsetOffset, v);
+    IterateBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -624,6 +658,49 @@ class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class Context::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= Context::kHeaderSize && offset < Context::kSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, Context::kHeaderSize,
+                    Context::kHeaderSize + FIRST_WEAK_SLOT * kPointerSize, v);
+    IterateCustomWeakPointers(
+        obj, Context::kHeaderSize + FIRST_WEAK_SLOT * kPointerSize,
+        Context::kSize, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return Context::kSize;
+  }
+};
+
+class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= CodeDataContainer::kHeaderSize &&
+           offset < CodeDataContainer::kSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, CodeDataContainer::kHeaderSize,
+                    CodeDataContainer::kPointerFieldsStrongEndOffset, v);
+    IterateCustomWeakPointers(
+        obj, CodeDataContainer::kPointerFieldsStrongEndOffset,
+        CodeDataContainer::kPointerFieldsWeakEndOffset, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return CodeDataContainer::kSize;
+  }
+};
+
 template <typename Op, typename ReturnType, typename T1, typename T2,
           typename T3, typename T4>
 ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
@@ -663,6 +740,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case EPHEMERON_HASH_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
+    case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -707,8 +785,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_ARRAY_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
-    case JS_TYPED_ARRAY_TYPE:
-    case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
@@ -726,12 +802,17 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
     case JS_INTL_COLLATOR_TYPE:
+    case JS_INTL_DATE_TIME_FORMAT_TYPE:
     case JS_INTL_LIST_FORMAT_TYPE:
     case JS_INTL_LOCALE_TYPE:
+    case JS_INTL_NUMBER_FORMAT_TYPE:
     case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_INTL_SEGMENTER_TYPE:
 #endif  // V8_INTL_SUPPORT
+    case WASM_EXCEPTION_TYPE:
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
@@ -746,6 +827,10 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
                                                                   p4);
     case JS_ARRAY_BUFFER_TYPE:
       return Op::template apply<JSArrayBuffer::BodyDescriptor>(p1, p2, p3, p4);
+    case JS_DATA_VIEW_TYPE:
+      return Op::template apply<JSDataView::BodyDescriptor>(p1, p2, p3, p4);
+    case JS_TYPED_ARRAY_TYPE:
+      return Op::template apply<JSTypedArray::BodyDescriptor>(p1, p2, p3, p4);
     case JS_FUNCTION_TYPE:
       return Op::template apply<JSFunction::BodyDescriptor>(p1, p2, p3, p4);
     case ODDBALL_TYPE:
@@ -808,7 +893,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case ALLOCATION_SITE_TYPE:
       return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3, p4);
 
-#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
+#define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
       if (type == PROTOTYPE_INFO_TYPE) {

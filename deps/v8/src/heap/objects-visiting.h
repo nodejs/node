@@ -21,7 +21,9 @@ class BigInt;
 class BytecodeArray;
 class DataHandler;
 class JSArrayBuffer;
+class JSDataView;
 class JSRegExp;
+class JSTypedArray;
 class JSWeakCollection;
 class UncompiledDataWithoutPreParsedScope;
 class UncompiledDataWithPreParsedScope;
@@ -44,8 +46,9 @@ class UncompiledDataWithPreParsedScope;
   V(FixedFloat64Array)                   \
   V(FixedTypedArrayBase)                 \
   V(JSArrayBuffer)                       \
-  V(JSFunction)                          \
+  V(JSDataView)                          \
   V(JSObject)                            \
+  V(JSTypedArray)                        \
   V(JSWeakCollection)                    \
   V(Map)                                 \
   V(Oddball)                             \
@@ -119,7 +122,6 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
 
   // Special cases for young generation.
 
-  V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
   V8_INLINE int VisitNativeContext(Map* map, Context* object);
   V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
 

@@ -375,7 +375,7 @@ void CoverageInfo::Print(std::unique_ptr<char[]> function_name) {
 
   for (int i = 0; i < SlotCount(); i++) {
     os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
-       << std::endl;
+       << ": " << BlockCount(i) << std::endl;
   }
 }
 

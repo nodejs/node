@@ -18,7 +18,7 @@ class V8_EXPORT_PRIVATE CheckpointElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   explicit CheckpointElimination(Editor* editor);
-  ~CheckpointElimination() final {}
+  ~CheckpointElimination() final = default;
 
   const char* reducer_name() const override { return "CheckpointElimination"; }
 

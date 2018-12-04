@@ -16,72 +16,13 @@
 namespace v8 {
 namespace internal {
 
-#define ROOT_ACCESSOR(type, name, camel_name)                         \
-  Handle<type> Factory::name() {                                      \
-    return Handle<type>(bit_cast<type**>(                             \
-        &isolate()->heap()->roots_[Heap::k##camel_name##RootIndex])); \
+#define ROOT_ACCESSOR(type, name, CamelName)                   \
+  Handle<type> Factory::name() {                               \
+    return Handle<type>(bit_cast<type**>(                      \
+        &isolate()->heap()->roots_[RootIndex::k##CamelName])); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                      \
-  Handle<Map> Factory::name##_map() {                              \
-    return Handle<Map>(bit_cast<Map**>(                            \
-        &isolate()->heap()->roots_[Heap::k##Name##MapRootIndex])); \
-  }
-STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
-
-#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name)             \
-  Handle<Map> Factory::name##_map() {                                    \
-    return Handle<Map>(bit_cast<Map**>(                                  \
-        &isolate()->heap()->roots_[Heap::k##Name##Size##MapRootIndex])); \
-  }
-ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
-#undef ALLOCATION_SITE_MAP_ACCESSOR
-
-#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)                \
-  Handle<Map> Factory::name##_map() {                                    \
-    return Handle<Map>(bit_cast<Map**>(                                  \
-        &isolate()->heap()->roots_[Heap::k##Name##Size##MapRootIndex])); \
-  }
-DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
-#undef DATA_HANDLER_MAP_ACCESSOR
-
-#define STRING_ACCESSOR(name, str)                              \
-  Handle<String> Factory::name() {                              \
-    return Handle<String>(bit_cast<String**>(                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
-  }
-INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
-#undef STRING_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name)                                   \
-  Handle<Symbol> Factory::name() {                              \
-    return Handle<Symbol>(bit_cast<Symbol**>(                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
-  }
-PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name, description)                      \
-  Handle<Symbol> Factory::name() {                              \
-    return Handle<Symbol>(bit_cast<Symbol**>(                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
-  }
-PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
-WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName)        \
-  Handle<AccessorInfo> Factory::accessor_name##_accessor() {       \
-    return Handle<AccessorInfo>(bit_cast<AccessorInfo**>(          \
-        &isolate()                                                 \
-             ->heap()                                              \
-             ->roots_[Heap::k##AccessorName##AccessorRootIndex])); \
-  }
-ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
-#undef ACCESSOR_INFO_ACCESSOR
 
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   if (string->IsInternalizedString()) return string;

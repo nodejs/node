@@ -85,7 +85,7 @@ TEST(MIPS1) {
   Label L, C;
 
   __ mov(a1, a0);
-  __ li(v0, 0);
+  __ li(v0, 0l);
   __ b(&C);
   __ nop();
 
@@ -2316,7 +2316,7 @@ TEST(movt_movd) {
         __ Lw(t1, MemOperand(a0, offsetof(TestFloat, fcsr)));
         __ cfc1(t0, FCSR);
         __ ctc1(t1, FCSR);
-        __ li(t2, 0x0);
+        __ li(t2, 0x0l);
         __ mtc1(t2, f12);
         __ mtc1(t2, f10);
         __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, dstdold)));
@@ -5421,7 +5421,7 @@ uint64_t run_jic(int16_t offset) {
 
   Label get_program_counter, stop_execution;
   __ push(ra);
-  __ li(v0, 0);
+  __ li(v0, 0l);
   __ li(t1, 0x66);
 
   __ addiu(v0, v0, 0x1);        // <-- offset = -32
@@ -5496,7 +5496,7 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
                       v8::internal::CodeObjectRequired::kYes);
 
   Label stop_execution;
-  __ li(v0, 0);
+  __ li(v0, 0l);
   __ li(t1, 0x66);
 
   __ addiu(v0, v0, 0x1);        // <-- offset = -8
@@ -5755,7 +5755,7 @@ uint64_t run_jialc(int16_t offset) {
 
   Label main_block, get_program_counter;
   __ push(ra);
-  __ li(v0, 0);
+  __ li(v0, 0l);
   __ beq(v0, v0, &main_block);
   __ nop();
 
@@ -5980,8 +5980,8 @@ int64_t run_bc(int32_t offset) {
 
   Label continue_1, stop_execution;
   __ push(ra);
-  __ li(v0, 0);
-  __ li(t8, 0);
+  __ li(v0, 0l);
+  __ li(t8, 0l);
   __ li(t9, 2);   // Condition for the stopping execution.
 
   for (int32_t i = -100; i <= -11; ++i) {
@@ -6060,8 +6060,8 @@ int64_t run_balc(int32_t offset) {
 
   Label continue_1, stop_execution;
   __ push(ra);
-  __ li(v0, 0);
-  __ li(t8, 0);
+  __ li(v0, 0l);
+  __ li(t8, 0l);
   __ li(t9, 2);   // Condition for stopping execution.
 
   __ beq(t8, t8, &continue_1);
@@ -7072,7 +7072,7 @@ void run_msa_ctc_cfc(uint64_t value) {
 
   MSAControlRegister msareg = {kMSACSRRegister};
   __ li(t0, value);
-  __ li(t2, 0);
+  __ li(t2, 0l);
   __ cfcmsa(t1, msareg);
   __ ctcmsa(msareg, t0);
   __ cfcmsa(t2, msareg);

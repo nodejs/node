@@ -35,7 +35,7 @@ class V8_PLATFORM_EXPORT TraceObject {
     const char* as_string;
   };
 
-  TraceObject() {}
+  TraceObject() = default;
   ~TraceObject();
   void Initialize(
       char phase, const uint8_t* category_enabled_flag, const char* name,
@@ -106,8 +106,8 @@ class V8_PLATFORM_EXPORT TraceObject {
 
 class V8_PLATFORM_EXPORT TraceWriter {
  public:
-  TraceWriter() {}
-  virtual ~TraceWriter() {}
+  TraceWriter() = default;
+  virtual ~TraceWriter() = default;
   virtual void AppendTraceEvent(TraceObject* trace_event) = 0;
   virtual void Flush() = 0;
 
@@ -147,8 +147,8 @@ class V8_PLATFORM_EXPORT TraceBufferChunk {
 
 class V8_PLATFORM_EXPORT TraceBuffer {
  public:
-  TraceBuffer() {}
-  virtual ~TraceBuffer() {}
+  TraceBuffer() = default;
+  virtual ~TraceBuffer() = default;
 
   virtual TraceObject* AddTraceEvent(uint64_t* handle) = 0;
   virtual TraceObject* GetEventByHandle(uint64_t handle) = 0;

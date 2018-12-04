@@ -172,8 +172,8 @@ class Serializer : public SerializerDeserializer {
                          Object** end) override;
   void SerializeRootObject(Object* object);
 
-  void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
-               int skip);
+  void PutRoot(RootIndex root_index, HeapObject* object, HowToCode how,
+               WhereToPoint where, int skip);
   void PutSmi(Smi* smi);
   void PutBackReference(HeapObject* object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference,
@@ -210,7 +210,8 @@ class Serializer : public SerializerDeserializer {
   }
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
-  void Pad();
+  // Use padding_offset to specify the space you want to use after padding.
+  void Pad(int padding_offset = 0);
 
   // We may not need the code address map for logging for every instance
   // of the serializer.  Initialize it on demand.
@@ -284,6 +285,7 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
     serializer_->PushStack(obj);
 #endif  // DEBUG
   }
+  // NOLINTNEXTLINE (modernize-use-equals-default)
   ~ObjectSerializer() override {
 #ifdef DEBUG
     serializer_->PopStack();

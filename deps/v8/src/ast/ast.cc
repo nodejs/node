@@ -551,12 +551,6 @@ bool ObjectLiteral::IsFastCloningSupported() const {
              ConstructorBuiltins::kMaximumClonedShallowObjectProperties;
 }
 
-bool ArrayLiteral::is_empty() const {
-  DCHECK(is_initialized());
-  return values()->is_empty() && (boilerplate_description().is_null() ||
-                                  boilerplate_description()->is_empty());
-}
-
 int ArrayLiteral::InitDepthAndFlags() {
   if (is_initialized()) return depth();
 

@@ -71,6 +71,326 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 }  // namespace
 
+TEST(IsContextualKeyword) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(Token::TypeForTesting(token) == 'C',
+             Token::IsContextualKeyword(token));
+  }
+}
+
+bool TokenIsAnyIdentifier(Token::Value token) {
+  switch (token) {
+    case Token::IDENTIFIER:
+    case Token::ASYNC:
+    case Token::AWAIT:
+    case Token::YIELD:
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::ENUM:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AnyIdentifierToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAnyIdentifier(token), Token::IsAnyIdentifier(token));
+  }
+}
+
+bool TokenIsIdentifier(Token::Value token, LanguageMode language_mode,
+                       bool is_generator, bool disallow_await) {
+  switch (token) {
+    case Token::IDENTIFIER:
+    case Token::ASYNC:
+      return true;
+    case Token::YIELD:
+      return !is_generator && is_sloppy(language_mode);
+    case Token::AWAIT:
+      return !disallow_await;
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return is_sloppy(language_mode);
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsIdentifierToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    for (size_t raw_language_mode = 0; raw_language_mode < LanguageModeSize;
+         raw_language_mode++) {
+      LanguageMode mode = static_cast<LanguageMode>(raw_language_mode);
+      for (int is_generator = 0; is_generator < 2; is_generator++) {
+        for (int disallow_await = 0; disallow_await < 2; disallow_await++) {
+          CHECK_EQ(
+              TokenIsIdentifier(token, mode, is_generator, disallow_await),
+              Token::IsIdentifier(token, mode, is_generator, disallow_await));
+        }
+      }
+    }
+  }
+}
+
+bool TokenIsStrictReservedWord(Token::Value token) {
+  switch (token) {
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsStrictReservedWord) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsStrictReservedWord(token),
+             Token::IsStrictReservedWord(token));
+  }
+}
+
+bool TokenIsLiteral(Token::Value token) {
+  switch (token) {
+    case Token::NULL_LITERAL:
+    case Token::TRUE_LITERAL:
+    case Token::FALSE_LITERAL:
+    case Token::NUMBER:
+    case Token::SMI:
+    case Token::BIGINT:
+    case Token::STRING:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsLiteralToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsLiteral(token), Token::IsLiteral(token));
+  }
+}
+bool TokenIsAssignmentOp(Token::Value token) {
+  switch (token) {
+    case Token::INIT:
+    case Token::ASSIGN:
+#define T(name, string, precedence) case Token::name:
+      BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_ASSIGN_TOKEN)
+#undef T
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AssignmentOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAssignmentOp(token), Token::IsAssignmentOp(token));
+  }
+}
+
+bool TokenIsBinaryOp(Token::Value token) {
+  switch (token) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+#define T(name, string, precedence) case Token::name:
+      BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_TOKEN)
+#undef T
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(BinaryOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBinaryOp(token), Token::IsBinaryOp(token));
+  }
+}
+
+bool TokenIsCompareOp(Token::Value token) {
+  switch (token) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+    case Token::NE:
+    case Token::NE_STRICT:
+    case Token::LT:
+    case Token::GT:
+    case Token::LTE:
+    case Token::GTE:
+    case Token::INSTANCEOF:
+    case Token::IN:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(CompareOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCompareOp(token), Token::IsCompareOp(token));
+  }
+}
+
+bool TokenIsOrderedRelationalCompareOp(Token::Value token) {
+  switch (token) {
+    case Token::LT:
+    case Token::GT:
+    case Token::LTE:
+    case Token::GTE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsOrderedRelationalCompareOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsOrderedRelationalCompareOp(token),
+             Token::IsOrderedRelationalCompareOp(token));
+  }
+}
+
+bool TokenIsEqualityOp(Token::Value token) {
+  switch (token) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsEqualityOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsEqualityOp(token), Token::IsEqualityOp(token));
+  }
+}
+
+bool TokenIsBitOp(Token::Value token) {
+  switch (token) {
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::BIT_NOT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsBitOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBitOp(token), Token::IsBitOp(token));
+  }
+}
+
+bool TokenIsUnaryOp(Token::Value token) {
+  switch (token) {
+    case Token::NOT:
+    case Token::BIT_NOT:
+    case Token::DELETE:
+    case Token::TYPEOF:
+    case Token::VOID:
+    case Token::ADD:
+    case Token::SUB:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsUnaryOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsUnaryOp(token), Token::IsUnaryOp(token));
+  }
+}
+
+bool TokenIsCountOp(Token::Value token) {
+  switch (token) {
+    case Token::INC:
+    case Token::DEC:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsCountOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCountOp(token), Token::IsCountOp(token));
+  }
+}
+
+bool TokenIsShiftOp(Token::Value token) {
+  switch (token) {
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsShiftOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsShiftOp(token), Token::IsShiftOp(token));
+  }
+}
+
+bool TokenIsTrivialExpressionToken(Token::Value token) {
+  switch (token) {
+    case Token::SMI:
+    case Token::NUMBER:
+    case Token::BIGINT:
+    case Token::NULL_LITERAL:
+    case Token::TRUE_LITERAL:
+    case Token::FALSE_LITERAL:
+    case Token::STRING:
+    case Token::IDENTIFIER:
+    case Token::THIS:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsTrivialExpressionToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsTrivialExpressionToken(token),
+             Token::IsTrivialExpressionToken(token));
+  }
+}
+
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;
@@ -253,8 +573,8 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   ScriptResource(const char* data, size_t length)
       : data_(data), length_(length) { }
 
-  const char* data() const { return data_; }
-  size_t length() const { return length_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
 
  private:
   const char* data_;
@@ -1230,8 +1550,10 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           "However, the preparser succeeded",
           source->ToCString().get(), message_string->ToCString().get());
     }
-    // Check that preparser and parser produce the same error.
-    if (test_preparser && !ignore_error_msg) {
+    // Check that preparser and parser produce the same error, except for cases
+    // where we do not track errors in the preparser.
+    if (test_preparser && !ignore_error_msg &&
+        !pending_error_handler.ErrorUnidentifiableByPreParser()) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
       if (!i::String::Equals(isolate, message_string, preparser_message)) {
@@ -1721,7 +2043,7 @@ TEST(ErrorsFutureStrictReservedWords) {
                                           {"() => {", "}"},
                                           {nullptr, nullptr}};
   const char* invalid_statements[] = {
-      FUTURE_STRICT_RESERVED_LEX_BINDINGS("let") nullptr};
+      FUTURE_STRICT_RESERVED_LEX_BINDINGS(let) nullptr};
 
   RunParserSyncTest(non_strict_contexts, invalid_statements, kError);
 }
@@ -2280,7 +2602,7 @@ TEST(OptionalCatchBinding) {
     {"try {", "} catch ({e}) { }"},
     {"try {} catch ({e}) {", "}"},
     {"function f() {", "}"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2288,7 +2610,7 @@ TEST(OptionalCatchBinding) {
     "try { } catch { } finally { }",
     "try { let e; } catch { let e; }",
     "try { let e; } catch { let e; } finally { let e; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -2301,7 +2623,7 @@ TEST(OptionalCatchBindingInDoExpression) {
   // clang-format off
   const char* context_data[][2] = {
     {"((x = (eval(''), do {", "}))=>{})()"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2309,12 +2631,12 @@ TEST(OptionalCatchBindingInDoExpression) {
     "try { } catch { } finally { }",
     "try { let e; } catch { let e; }",
     "try { let e; } catch { let e; } finally { let e; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
   static const ParserFlag do_and_catch_flags[] = {kAllowHarmonyDoExpressions};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
                     do_and_catch_flags, arraysize(do_and_catch_flags));
 }
 
@@ -3240,272 +3562,276 @@ TEST(MaybeAssignedInsideLoop) {
   std::vector<unsigned> top;  // Can't use {} in initializers below.
 
   Input module_and_script_tests[] = {
-      {1, "for (j=x; j<10; ++j) { foo = j }", top},
-      {1, "for (j=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (j=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (j=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (j=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for (j=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for (j=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for (j=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for (j=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for (j=x; j<10; ++j) { foo = j }", top},
+      {true, "for (j=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (j=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {false, "for (j=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for (j=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for (j=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for (j=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for (j=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for ({j}=x; j<10; ++j) { foo = j }", top},
-      {1, "for ({j}=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for ({j}=x; j<10; ++j) { var foo = j }", top},
-      {1, "for ({j}=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for ({j}=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for ({j}=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for ({j}=x; j<10; ++j) { foo = j }", top},
+      {true, "for ({j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for ({j}=x; j<10; ++j) { var foo = j }", top},
+      {true, "for ({j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {false, "for ({j}=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for ({j}=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for (var j=x; j<10; ++j) { foo = j }", top},
-      {1, "for (var j=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (var j=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (var j=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (var j=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for (var j=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for (var j=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for (var j=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for (var j=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for (var j=x; j<10; ++j) { foo = j }", top},
+      {true, "for (var j=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (var j=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (var j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {false, "for (var j=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for (var j=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for (var j=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for (var j=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for (var j=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for (var {j}=x; j<10; ++j) { foo = j }", top},
-      {1, "for (var {j}=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (var {j}=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (var {j}=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (var {j}=x; j<10; ++j) { let foo = j }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { const foo = j }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
-      {0, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", {0}},
+      {true, "for (var {j}=x; j<10; ++j) { foo = j }", top},
+      {true, "for (var {j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (var {j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {false, "for (var {j}=x; j<10; ++j) { let foo = j }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { const foo = j }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {false, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", {0}},
 
-      {1, "for (let j=x; j<10; ++j) { foo = j }", top},
-      {1, "for (let j=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (let j=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (let j=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (let j=x; j<10; ++j) { let foo = j }", {0, 0}},
-      {0, "for (let j=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j=x; j<10; ++j) { const foo = j }", {0, 0}},
-      {0, "for (let j=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j=x; j<10; ++j) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let j=x; j<10; ++j) { foo = j }", top},
+      {true, "for (let j=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (let j=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (let j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {false, "for (let j=x; j<10; ++j) { let foo = j }", {0, 0}},
+      {false, "for (let j=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let j=x; j<10; ++j) { const foo = j }", {0, 0}},
+      {false, "for (let j=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
+      {false,
+       "for (let j=x; j<10; ++j) { function foo() {return j} }",
+       {0, 0, 0}},
 
-      {1, "for (let {j}=x; j<10; ++j) { foo = j }", top},
-      {1, "for (let {j}=x; j<10; ++j) { [foo] = [j] }", top},
-      {1, "for (let {j}=x; j<10; ++j) { var foo = j }", top},
-      {1, "for (let {j}=x; j<10; ++j) { var [foo] = [j] }", top},
-      {0, "for (let {j}=x; j<10; ++j) { let foo = j }", {0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { const foo = j }", {0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j}=x; j<10; ++j) { function foo(){return j} }", {0, 0, 0}},
+      {true, "for (let {j}=x; j<10; ++j) { foo = j }", top},
+      {true, "for (let {j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var foo = j }", top},
+      {true, "for (let {j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {false, "for (let {j}=x; j<10; ++j) { let foo = j }", {0, 0}},
+      {false, "for (let {j}=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let {j}=x; j<10; ++j) { const foo = j }", {0, 0}},
+      {false, "for (let {j}=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
+      {false,
+       "for (let {j}=x; j<10; ++j) { function foo(){return j} }",
+       {0, 0, 0}},
 
-      {1, "for (j of x) { foo = j }", top},
-      {1, "for (j of x) { [foo] = [j] }", top},
-      {1, "for (j of x) { var foo = j }", top},
-      {1, "for (j of x) { var [foo] = [j] }", top},
-      {0, "for (j of x) { let foo = j }", {1}},
-      {0, "for (j of x) { let [foo] = [j] }", {1}},
-      {0, "for (j of x) { const foo = j }", {1}},
-      {0, "for (j of x) { const [foo] = [j] }", {1}},
-      {0, "for (j of x) { function foo() {return j} }", {1}},
+      {true, "for (j of x) { foo = j }", top},
+      {true, "for (j of x) { [foo] = [j] }", top},
+      {true, "for (j of x) { var foo = j }", top},
+      {true, "for (j of x) { var [foo] = [j] }", top},
+      {false, "for (j of x) { let foo = j }", {1}},
+      {false, "for (j of x) { let [foo] = [j] }", {1}},
+      {false, "for (j of x) { const foo = j }", {1}},
+      {false, "for (j of x) { const [foo] = [j] }", {1}},
+      {false, "for (j of x) { function foo() {return j} }", {1}},
 
-      {1, "for ({j} of x) { foo = j }", top},
-      {1, "for ({j} of x) { [foo] = [j] }", top},
-      {1, "for ({j} of x) { var foo = j }", top},
-      {1, "for ({j} of x) { var [foo] = [j] }", top},
-      {0, "for ({j} of x) { let foo = j }", {1}},
-      {0, "for ({j} of x) { let [foo] = [j] }", {1}},
-      {0, "for ({j} of x) { const foo = j }", {1}},
-      {0, "for ({j} of x) { const [foo] = [j] }", {1}},
-      {0, "for ({j} of x) { function foo() {return j} }", {1}},
+      {true, "for ({j} of x) { foo = j }", top},
+      {true, "for ({j} of x) { [foo] = [j] }", top},
+      {true, "for ({j} of x) { var foo = j }", top},
+      {true, "for ({j} of x) { var [foo] = [j] }", top},
+      {false, "for ({j} of x) { let foo = j }", {1}},
+      {false, "for ({j} of x) { let [foo] = [j] }", {1}},
+      {false, "for ({j} of x) { const foo = j }", {1}},
+      {false, "for ({j} of x) { const [foo] = [j] }", {1}},
+      {false, "for ({j} of x) { function foo() {return j} }", {1}},
 
-      {1, "for (var j of x) { foo = j }", top},
-      {1, "for (var j of x) { [foo] = [j] }", top},
-      {1, "for (var j of x) { var foo = j }", top},
-      {1, "for (var j of x) { var [foo] = [j] }", top},
-      {0, "for (var j of x) { let foo = j }", {1}},
-      {0, "for (var j of x) { let [foo] = [j] }", {1}},
-      {0, "for (var j of x) { const foo = j }", {1}},
-      {0, "for (var j of x) { const [foo] = [j] }", {1}},
-      {0, "for (var j of x) { function foo() {return j} }", {1}},
+      {true, "for (var j of x) { foo = j }", top},
+      {true, "for (var j of x) { [foo] = [j] }", top},
+      {true, "for (var j of x) { var foo = j }", top},
+      {true, "for (var j of x) { var [foo] = [j] }", top},
+      {false, "for (var j of x) { let foo = j }", {1}},
+      {false, "for (var j of x) { let [foo] = [j] }", {1}},
+      {false, "for (var j of x) { const foo = j }", {1}},
+      {false, "for (var j of x) { const [foo] = [j] }", {1}},
+      {false, "for (var j of x) { function foo() {return j} }", {1}},
 
-      {1, "for (var {j} of x) { foo = j }", top},
-      {1, "for (var {j} of x) { [foo] = [j] }", top},
-      {1, "for (var {j} of x) { var foo = j }", top},
-      {1, "for (var {j} of x) { var [foo] = [j] }", top},
-      {0, "for (var {j} of x) { let foo = j }", {1}},
-      {0, "for (var {j} of x) { let [foo] = [j] }", {1}},
-      {0, "for (var {j} of x) { const foo = j }", {1}},
-      {0, "for (var {j} of x) { const [foo] = [j] }", {1}},
-      {0, "for (var {j} of x) { function foo() {return j} }", {1}},
+      {true, "for (var {j} of x) { foo = j }", top},
+      {true, "for (var {j} of x) { [foo] = [j] }", top},
+      {true, "for (var {j} of x) { var foo = j }", top},
+      {true, "for (var {j} of x) { var [foo] = [j] }", top},
+      {false, "for (var {j} of x) { let foo = j }", {1}},
+      {false, "for (var {j} of x) { let [foo] = [j] }", {1}},
+      {false, "for (var {j} of x) { const foo = j }", {1}},
+      {false, "for (var {j} of x) { const [foo] = [j] }", {1}},
+      {false, "for (var {j} of x) { function foo() {return j} }", {1}},
 
-      {1, "for (let j of x) { foo = j }", top},
-      {1, "for (let j of x) { [foo] = [j] }", top},
-      {1, "for (let j of x) { var foo = j }", top},
-      {1, "for (let j of x) { var [foo] = [j] }", top},
-      {0, "for (let j of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (let j of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let j of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (let j of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let j of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (let j of x) { foo = j }", top},
+      {true, "for (let j of x) { [foo] = [j] }", top},
+      {true, "for (let j of x) { var foo = j }", top},
+      {true, "for (let j of x) { var [foo] = [j] }", top},
+      {false, "for (let j of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (let j of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let j of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (let j of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let j of x) { function foo() {return j} }", {0, 1, 0}},
 
-      {1, "for (let {j} of x) { foo = j }", top},
-      {1, "for (let {j} of x) { [foo] = [j] }", top},
-      {1, "for (let {j} of x) { var foo = j }", top},
-      {1, "for (let {j} of x) { var [foo] = [j] }", top},
-      {0, "for (let {j} of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (let {j} of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let {j} of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (let {j} of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (let {j} of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (let {j} of x) { foo = j }", top},
+      {true, "for (let {j} of x) { [foo] = [j] }", top},
+      {true, "for (let {j} of x) { var foo = j }", top},
+      {true, "for (let {j} of x) { var [foo] = [j] }", top},
+      {false, "for (let {j} of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (let {j} of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let {j} of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (let {j} of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (let {j} of x) { function foo() {return j} }", {0, 1, 0}},
 
-      {1, "for (const j of x) { foo = j }", top},
-      {1, "for (const j of x) { [foo] = [j] }", top},
-      {1, "for (const j of x) { var foo = j }", top},
-      {1, "for (const j of x) { var [foo] = [j] }", top},
-      {0, "for (const j of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (const j of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const j of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (const j of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const j of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (const j of x) { foo = j }", top},
+      {true, "for (const j of x) { [foo] = [j] }", top},
+      {true, "for (const j of x) { var foo = j }", top},
+      {true, "for (const j of x) { var [foo] = [j] }", top},
+      {false, "for (const j of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (const j of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const j of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (const j of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const j of x) { function foo() {return j} }", {0, 1, 0}},
 
-      {1, "for (const {j} of x) { foo = j }", top},
-      {1, "for (const {j} of x) { [foo] = [j] }", top},
-      {1, "for (const {j} of x) { var foo = j }", top},
-      {1, "for (const {j} of x) { var [foo] = [j] }", top},
-      {0, "for (const {j} of x) { let foo = j }", {0, 1, 0}},
-      {0, "for (const {j} of x) { let [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const {j} of x) { const foo = j }", {0, 1, 0}},
-      {0, "for (const {j} of x) { const [foo] = [j] }", {0, 1, 0}},
-      {0, "for (const {j} of x) { function foo() {return j} }", {0, 1, 0}},
+      {true, "for (const {j} of x) { foo = j }", top},
+      {true, "for (const {j} of x) { [foo] = [j] }", top},
+      {true, "for (const {j} of x) { var foo = j }", top},
+      {true, "for (const {j} of x) { var [foo] = [j] }", top},
+      {false, "for (const {j} of x) { let foo = j }", {0, 1, 0}},
+      {false, "for (const {j} of x) { let [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const {j} of x) { const foo = j }", {0, 1, 0}},
+      {false, "for (const {j} of x) { const [foo] = [j] }", {0, 1, 0}},
+      {false, "for (const {j} of x) { function foo() {return j} }", {0, 1, 0}},
 
-      {1, "for (j in x) { foo = j }", top},
-      {1, "for (j in x) { [foo] = [j] }", top},
-      {1, "for (j in x) { var foo = j }", top},
-      {1, "for (j in x) { var [foo] = [j] }", top},
-      {0, "for (j in x) { let foo = j }", {0}},
-      {0, "for (j in x) { let [foo] = [j] }", {0}},
-      {0, "for (j in x) { const foo = j }", {0}},
-      {0, "for (j in x) { const [foo] = [j] }", {0}},
-      {0, "for (j in x) { function foo() {return j} }", {0}},
+      {true, "for (j in x) { foo = j }", top},
+      {true, "for (j in x) { [foo] = [j] }", top},
+      {true, "for (j in x) { var foo = j }", top},
+      {true, "for (j in x) { var [foo] = [j] }", top},
+      {false, "for (j in x) { let foo = j }", {0}},
+      {false, "for (j in x) { let [foo] = [j] }", {0}},
+      {false, "for (j in x) { const foo = j }", {0}},
+      {false, "for (j in x) { const [foo] = [j] }", {0}},
+      {false, "for (j in x) { function foo() {return j} }", {0}},
 
-      {1, "for ({j} in x) { foo = j }", top},
-      {1, "for ({j} in x) { [foo] = [j] }", top},
-      {1, "for ({j} in x) { var foo = j }", top},
-      {1, "for ({j} in x) { var [foo] = [j] }", top},
-      {0, "for ({j} in x) { let foo = j }", {0}},
-      {0, "for ({j} in x) { let [foo] = [j] }", {0}},
-      {0, "for ({j} in x) { const foo = j }", {0}},
-      {0, "for ({j} in x) { const [foo] = [j] }", {0}},
-      {0, "for ({j} in x) { function foo() {return j} }", {0}},
+      {true, "for ({j} in x) { foo = j }", top},
+      {true, "for ({j} in x) { [foo] = [j] }", top},
+      {true, "for ({j} in x) { var foo = j }", top},
+      {true, "for ({j} in x) { var [foo] = [j] }", top},
+      {false, "for ({j} in x) { let foo = j }", {0}},
+      {false, "for ({j} in x) { let [foo] = [j] }", {0}},
+      {false, "for ({j} in x) { const foo = j }", {0}},
+      {false, "for ({j} in x) { const [foo] = [j] }", {0}},
+      {false, "for ({j} in x) { function foo() {return j} }", {0}},
 
-      {1, "for (var j in x) { foo = j }", top},
-      {1, "for (var j in x) { [foo] = [j] }", top},
-      {1, "for (var j in x) { var foo = j }", top},
-      {1, "for (var j in x) { var [foo] = [j] }", top},
-      {0, "for (var j in x) { let foo = j }", {0}},
-      {0, "for (var j in x) { let [foo] = [j] }", {0}},
-      {0, "for (var j in x) { const foo = j }", {0}},
-      {0, "for (var j in x) { const [foo] = [j] }", {0}},
-      {0, "for (var j in x) { function foo() {return j} }", {0}},
+      {true, "for (var j in x) { foo = j }", top},
+      {true, "for (var j in x) { [foo] = [j] }", top},
+      {true, "for (var j in x) { var foo = j }", top},
+      {true, "for (var j in x) { var [foo] = [j] }", top},
+      {false, "for (var j in x) { let foo = j }", {0}},
+      {false, "for (var j in x) { let [foo] = [j] }", {0}},
+      {false, "for (var j in x) { const foo = j }", {0}},
+      {false, "for (var j in x) { const [foo] = [j] }", {0}},
+      {false, "for (var j in x) { function foo() {return j} }", {0}},
 
-      {1, "for (var {j} in x) { foo = j }", top},
-      {1, "for (var {j} in x) { [foo] = [j] }", top},
-      {1, "for (var {j} in x) { var foo = j }", top},
-      {1, "for (var {j} in x) { var [foo] = [j] }", top},
-      {0, "for (var {j} in x) { let foo = j }", {0}},
-      {0, "for (var {j} in x) { let [foo] = [j] }", {0}},
-      {0, "for (var {j} in x) { const foo = j }", {0}},
-      {0, "for (var {j} in x) { const [foo] = [j] }", {0}},
-      {0, "for (var {j} in x) { function foo() {return j} }", {0}},
+      {true, "for (var {j} in x) { foo = j }", top},
+      {true, "for (var {j} in x) { [foo] = [j] }", top},
+      {true, "for (var {j} in x) { var foo = j }", top},
+      {true, "for (var {j} in x) { var [foo] = [j] }", top},
+      {false, "for (var {j} in x) { let foo = j }", {0}},
+      {false, "for (var {j} in x) { let [foo] = [j] }", {0}},
+      {false, "for (var {j} in x) { const foo = j }", {0}},
+      {false, "for (var {j} in x) { const [foo] = [j] }", {0}},
+      {false, "for (var {j} in x) { function foo() {return j} }", {0}},
 
-      {1, "for (let j in x) { foo = j }", top},
-      {1, "for (let j in x) { [foo] = [j] }", top},
-      {1, "for (let j in x) { var foo = j }", top},
-      {1, "for (let j in x) { var [foo] = [j] }", top},
-      {0, "for (let j in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (let j in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (let j in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let j in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let j in x) { foo = j }", top},
+      {true, "for (let j in x) { [foo] = [j] }", top},
+      {true, "for (let j in x) { var foo = j }", top},
+      {true, "for (let j in x) { var [foo] = [j] }", top},
+      {false, "for (let j in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (let j in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let j in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (let j in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let j in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (let {j} in x) { foo = j }", top},
-      {1, "for (let {j} in x) { [foo] = [j] }", top},
-      {1, "for (let {j} in x) { var foo = j }", top},
-      {1, "for (let {j} in x) { var [foo] = [j] }", top},
-      {0, "for (let {j} in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (let {j} in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j} in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (let {j} in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (let {j} in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (let {j} in x) { foo = j }", top},
+      {true, "for (let {j} in x) { [foo] = [j] }", top},
+      {true, "for (let {j} in x) { var foo = j }", top},
+      {true, "for (let {j} in x) { var [foo] = [j] }", top},
+      {false, "for (let {j} in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (let {j} in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let {j} in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (let {j} in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (let {j} in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (const j in x) { foo = j }", top},
-      {1, "for (const j in x) { [foo] = [j] }", top},
-      {1, "for (const j in x) { var foo = j }", top},
-      {1, "for (const j in x) { var [foo] = [j] }", top},
-      {0, "for (const j in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (const j in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const j in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (const j in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const j in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const j in x) { foo = j }", top},
+      {true, "for (const j in x) { [foo] = [j] }", top},
+      {true, "for (const j in x) { var foo = j }", top},
+      {true, "for (const j in x) { var [foo] = [j] }", top},
+      {false, "for (const j in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (const j in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const j in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (const j in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const j in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "for (const {j} in x) { foo = j }", top},
-      {1, "for (const {j} in x) { [foo] = [j] }", top},
-      {1, "for (const {j} in x) { var foo = j }", top},
-      {1, "for (const {j} in x) { var [foo] = [j] }", top},
-      {0, "for (const {j} in x) { let foo = j }", {0, 0, 0}},
-      {0, "for (const {j} in x) { let [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const {j} in x) { const foo = j }", {0, 0, 0}},
-      {0, "for (const {j} in x) { const [foo] = [j] }", {0, 0, 0}},
-      {0, "for (const {j} in x) { function foo() {return j} }", {0, 0, 0}},
+      {true, "for (const {j} in x) { foo = j }", top},
+      {true, "for (const {j} in x) { [foo] = [j] }", top},
+      {true, "for (const {j} in x) { var foo = j }", top},
+      {true, "for (const {j} in x) { var [foo] = [j] }", top},
+      {false, "for (const {j} in x) { let foo = j }", {0, 0, 0}},
+      {false, "for (const {j} in x) { let [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const {j} in x) { const foo = j }", {0, 0, 0}},
+      {false, "for (const {j} in x) { const [foo] = [j] }", {0, 0, 0}},
+      {false, "for (const {j} in x) { function foo() {return j} }", {0, 0, 0}},
 
-      {1, "while (j) { foo = j }", top},
-      {1, "while (j) { [foo] = [j] }", top},
-      {1, "while (j) { var foo = j }", top},
-      {1, "while (j) { var [foo] = [j] }", top},
-      {0, "while (j) { let foo = j }", {0}},
-      {0, "while (j) { let [foo] = [j] }", {0}},
-      {0, "while (j) { const foo = j }", {0}},
-      {0, "while (j) { const [foo] = [j] }", {0}},
-      {0, "while (j) { function foo() {return j} }", {0}},
+      {true, "while (j) { foo = j }", top},
+      {true, "while (j) { [foo] = [j] }", top},
+      {true, "while (j) { var foo = j }", top},
+      {true, "while (j) { var [foo] = [j] }", top},
+      {false, "while (j) { let foo = j }", {0}},
+      {false, "while (j) { let [foo] = [j] }", {0}},
+      {false, "while (j) { const foo = j }", {0}},
+      {false, "while (j) { const [foo] = [j] }", {0}},
+      {false, "while (j) { function foo() {return j} }", {0}},
 
-      {1, "do { foo = j } while (j)", top},
-      {1, "do { [foo] = [j] } while (j)", top},
-      {1, "do { var foo = j } while (j)", top},
-      {1, "do { var [foo] = [j] } while (j)", top},
-      {0, "do { let foo = j } while (j)", {0}},
-      {0, "do { let [foo] = [j] } while (j)", {0}},
-      {0, "do { const foo = j } while (j)", {0}},
-      {0, "do { const [foo] = [j] } while (j)", {0}},
-      {0, "do { function foo() {return j} } while (j)", {0}},
+      {true, "do { foo = j } while (j)", top},
+      {true, "do { [foo] = [j] } while (j)", top},
+      {true, "do { var foo = j } while (j)", top},
+      {true, "do { var [foo] = [j] } while (j)", top},
+      {false, "do { let foo = j } while (j)", {0}},
+      {false, "do { let [foo] = [j] } while (j)", {0}},
+      {false, "do { const foo = j } while (j)", {0}},
+      {false, "do { const [foo] = [j] } while (j)", {0}},
+      {false, "do { function foo() {return j} } while (j)", {0}},
   };
 
   Input script_only_tests[] = {
-      {1, "for (j=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for ({j}=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (var j=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (let j=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (let {j}=x; j<10; ++j) { function foo() {return j} }", top},
-      {1, "for (j of x) { function foo() {return j} }", top},
-      {1, "for ({j} of x) { function foo() {return j} }", top},
-      {1, "for (var j of x) { function foo() {return j} }", top},
-      {1, "for (var {j} of x) { function foo() {return j} }", top},
-      {1, "for (let j of x) { function foo() {return j} }", top},
-      {1, "for (let {j} of x) { function foo() {return j} }", top},
-      {1, "for (const j of x) { function foo() {return j} }", top},
-      {1, "for (const {j} of x) { function foo() {return j} }", top},
-      {1, "for (j in x) { function foo() {return j} }", top},
-      {1, "for ({j} in x) { function foo() {return j} }", top},
-      {1, "for (var j in x) { function foo() {return j} }", top},
-      {1, "for (var {j} in x) { function foo() {return j} }", top},
-      {1, "for (let j in x) { function foo() {return j} }", top},
-      {1, "for (let {j} in x) { function foo() {return j} }", top},
-      {1, "for (const j in x) { function foo() {return j} }", top},
-      {1, "for (const {j} in x) { function foo() {return j} }", top},
-      {1, "while (j) { function foo() {return j} }", top},
-      {1, "do { function foo() {return j} } while (j)", top},
+      {true, "for (j=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for ({j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (var j=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (let j=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (let {j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {true, "for (j of x) { function foo() {return j} }", top},
+      {true, "for ({j} of x) { function foo() {return j} }", top},
+      {true, "for (var j of x) { function foo() {return j} }", top},
+      {true, "for (var {j} of x) { function foo() {return j} }", top},
+      {true, "for (let j of x) { function foo() {return j} }", top},
+      {true, "for (let {j} of x) { function foo() {return j} }", top},
+      {true, "for (const j of x) { function foo() {return j} }", top},
+      {true, "for (const {j} of x) { function foo() {return j} }", top},
+      {true, "for (j in x) { function foo() {return j} }", top},
+      {true, "for ({j} in x) { function foo() {return j} }", top},
+      {true, "for (var j in x) { function foo() {return j} }", top},
+      {true, "for (var {j} in x) { function foo() {return j} }", top},
+      {true, "for (let j in x) { function foo() {return j} }", top},
+      {true, "for (let {j} in x) { function foo() {return j} }", top},
+      {true, "for (const j in x) { function foo() {return j} }", top},
+      {true, "for (const {j} in x) { function foo() {return j} }", top},
+      {true, "while (j) { function foo() {return j} }", top},
+      {true, "do { function foo() {return j} } while (j)", top},
   };
 
   for (unsigned i = 0; i < arraysize(module_and_script_tests); ++i) {

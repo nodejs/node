@@ -50,11 +50,10 @@ void IC::update_receiver_map(Handle<Object> receiver) {
 bool IC::IsHandler(MaybeObject* object) {
   HeapObject* heap_object;
   return (object->IsSmi() && (object != nullptr)) ||
-         (object->ToWeakHeapObject(&heap_object) &&
+         (object->GetHeapObjectIfWeak(&heap_object) &&
           (heap_object->IsMap() || heap_object->IsPropertyCell())) ||
-         (object->ToStrongHeapObject(&heap_object) &&
-          (heap_object->IsDataHandler() ||
-           heap_object->IsCode()));
+         (object->GetHeapObjectIfStrong(&heap_object) &&
+          (heap_object->IsDataHandler() || heap_object->IsCode()));
 }
 
 bool IC::AddressIsDeoptimizedCode() const {

@@ -9,6 +9,7 @@
 
 #include "src/builtins/builtins-arguments-gen.h"
 #include "src/builtins/builtins-constructor-gen.h"
+#include "src/builtins/builtins-iterator-gen.h"
 #include "src/code-events.h"
 #include "src/code-factory.h"
 #include "src/debug/debug.h"
@@ -517,6 +518,18 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   }
 }
 
+// LdaPropertyNofeedback <object> <slot>
+//
+// Calls the GetProperty builtin for <object> and the key in the accumulator.
+IGNITION_HANDLER(LdaNamedPropertyNoFeedback, InterpreterAssembler) {
+  Node* object = LoadRegisterAtOperandIndex(0);
+  Node* name = LoadConstantPoolEntryAtOperandIndex(1);
+  Node* context = GetContext();
+  Node* result = CallBuiltin(Builtins::kGetProperty, context, object, name);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // KeyedLoadIC <object> <slot>
 //
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
@@ -580,6 +593,24 @@ IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
 IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
   Callable ic = CodeFactory::StoreOwnICInOptimizedCode(isolate());
   StaNamedProperty(ic);
+}
+
+// StaNamedPropertyNoFeedback <object> <name_index>
+//
+// Calls the SetPropertyBuiltin for <object> and the name in constant pool entry
+// <name_index> with the value in the accumulator.
+IGNITION_HANDLER(StaNamedPropertyNoFeedback,
+                 InterpreterStoreNamedPropertyAssembler) {
+  Node* object = LoadRegisterAtOperandIndex(0);
+  Node* name = LoadConstantPoolEntryAtOperandIndex(1);
+  Node* value = GetAccumulator();
+  Node* language_mode = SmiFromInt32(BytecodeOperandFlag(2));
+  Node* context = GetContext();
+
+  Node* result = CallRuntime(Runtime::kSetNamedProperty, context, object, name,
+                             value, language_mode);
+  SetAccumulator(result);
+  Dispatch();
 }
 
 // StaKeyedProperty <object> <key> <slot>
@@ -1122,7 +1153,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
                           OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  virtual ~UnaryNumericOpAssembler() {}
+  virtual ~UnaryNumericOpAssembler() = default;
 
   // Must return a tagged value.
   virtual TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
@@ -1273,7 +1304,7 @@ IGNITION_HANDLER(Negate, NegateAssemblerImpl) { UnaryOpWithFeedback(); }
 IGNITION_HANDLER(ToName, InterpreterAssembler) {
   Node* object = GetAccumulator();
   Node* context = GetContext();
-  Node* result = ToName(context, object);
+  Node* result = CallBuiltin(Builtins::kToName, context, object);
   StoreRegisterAtOperandIndex(result, 0);
   Dispatch();
 }
@@ -1501,6 +1532,16 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     CallJSAndDispatch(function, context, args, receiver_mode);
   }
 
+  // Generates code to perform a JS call without collecting feedback.
+  void JSCallNoFeedback(ConvertReceiverMode receiver_mode) {
+    Node* function = LoadRegisterAtOperandIndex(0);
+    RegListNodePair args = GetRegisterListAtOperandIndex(1);
+    Node* context = GetContext();
+
+    // Call the function and dispatch to the next handler.
+    CallJSAndDispatch(function, context, args, receiver_mode);
+  }
+
   // Generates code to perform a JS call with a known number of arguments that
   // collects type feedback.
   void JSCallN(int arg_count, ConvertReceiverMode receiver_mode) {
@@ -1588,6 +1629,10 @@ IGNITION_HANDLER(CallUndefinedReceiver1, InterpreterJSCallAssembler) {
 
 IGNITION_HANDLER(CallUndefinedReceiver2, InterpreterJSCallAssembler) {
   JSCallN(2, ConvertReceiverMode::kNullOrUndefined);
+}
+
+IGNITION_HANDLER(CallNoFeedback, InterpreterJSCallAssembler) {
+  JSCallNoFeedback(ConvertReceiverMode::kAny);
 }
 
 // CallRuntime <function_id> <first_arg> <arg_count>
@@ -2381,6 +2426,18 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
+// CreateArrayFromIterable
+//
+// Spread the given iterable from the accumulator into a new JSArray.
+IGNITION_HANDLER(CreateArrayFromIterable, InterpreterAssembler) {
+  Node* iterable = GetAccumulator();
+  Node* context = GetContext();
+  Node* result =
+      CallBuiltin(Builtins::kIterableToListWithSymbolLookup, context, iterable);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // CreateObjectLiteral <element_idx> <literal_idx> <flags>
 //
 // Creates an object literal for literal index <literal_idx> with
@@ -3128,7 +3185,8 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 
 Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
                                      OperandScale operand_scale,
-                                     int builtin_index) {
+                                     int builtin_index,
+                                     const AssemblerOptions& options) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   compiler::CodeAssemblerState state(
       isolate, &zone, InterpreterDispatchDescriptor{}, Code::BYTECODE_HANDLER,
@@ -3147,8 +3205,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
 #undef CALL_GENERATOR
   }
 
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      &state, AssemblerOptions::Default(isolate));
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state, options);
   PROFILE(isolate, CodeCreateEvent(
                        CodeEventListener::BYTECODE_HANDLER_TAG,
                        AbstractCode::cast(*code),
@@ -3195,7 +3252,9 @@ class DeserializeLazyAssembler : public InterpreterAssembler {
 }  // namespace
 
 Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
-                                            OperandScale operand_scale) {
+                                            OperandScale operand_scale,
+                                            int builtin_index,
+                                            const AssemblerOptions& options) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   std::string debug_name = std::string("DeserializeLazy");
@@ -3210,11 +3269,11 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
       debug_name.c_str(),
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
-          : PoisoningMitigationLevel::kDontPoison);
+          : PoisoningMitigationLevel::kDontPoison,
+      0, builtin_index);
 
   DeserializeLazyAssembler::Generate(&state, operand_scale);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      &state, AssemblerOptions::Default(isolate));
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state, options);
   PROFILE(isolate,
           CodeCreateEvent(CodeEventListener::BYTECODE_HANDLER_TAG,
                           AbstractCode::cast(*code), debug_name.c_str()));

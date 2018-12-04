@@ -13,15 +13,13 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dd6b994b32b498e9e766ce60c44da0aec3a2a188',
-  'v8/tools/gyp':
-    Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a7674eacc34947257c78fe6ba5cf0da17f60696c',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'aaf2cc09c6874e394c6c1e4692360cc400d6b388',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '71e3be7a50c21faeee91ed99a8d5addfb7594e7c',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a191af9d025859e8368b8b469120d78006e9f5f6',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'c52a2a250d6c5f5cbdd015dff36af7c5d0ae1150',
   'v8/third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'd8cf40c4592dcec7fb01fcbdf1f6d4958b3fbf11',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a90cbf3b4216430a437991fb53ede8e048dea454',
   'v8/buildtools':
     Var('chromium_url') + '/chromium/buildtools.git' + '@' + '2dff9c9c74e9d732e6fe57c84ef7fd044cc45d96',
   'v8/base/trace_event/common':
@@ -35,7 +33,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bc2c0a9307285fa36e03e7cdb6bf8623390ff855',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '9ec8468cfde0868ce5f3893e819087278c5af988',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -43,17 +41,15 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '3ec92c896bcbddc46e2a073ebfdd25aa1194656e',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '6e1868c9083769d489d3fc25657339d50c22b1d8',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'd5266326752f0a1dadbd310932d8f4fd8c3c5e7d',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '2e68926a9d4929e9289373cd49e40ddcb9a628f7',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
-  'v8/third_party/proguard':
-    Var('chromium_url') + '/chromium/src/third_party/proguard.git' + '@' + 'a3729bea473bb5ffc5eaf289f5733bc5e2861c07',
   'v8/tools/swarming_client':
     Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '486c9b53c4d54dd4b95bb6ce0e31160e600dfc11',
   'v8/test/benchmarks/data':
@@ -61,25 +57,35 @@ deps = {
   'v8/test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'v8/test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'a6c1d05ac4fed084fa047e4c52ab2a8c9c2a8aef',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '00cfe1628cc03164dcf03f01ba9c84376e9be735',
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
-  'v8/third_party/qemu': {
+  'v8/third_party/qemu-linux-x64': {
       'packages': [
           {
               'package': 'fuchsia/qemu/linux-amd64',
               'version': '9cc486c5b18a0be515c39a280ca9a309c54cf994'
           },
       ],
-      'condition': 'checkout_fuchsia',
+      'condition': 'host_os == "linux" and checkout_fuchsia',
+      'dep_type': 'cipd',
+  },
+  'v8/third_party/qemu-mac-x64': {
+      'packages': [
+          {
+              'package': 'fuchsia/qemu/mac-amd64',
+              'version': '2d3358ae9a569b2d4a474f498b32b202a152134f'
+          },
+      ],
+      'condition': 'host_os == "mac" and checkout_fuchsia',
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'bb4146fb8a9dde405b71914657bb461dc93912ab',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7792d28b069af6dd3a86d1ba83b7f5c4ede605dc',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
   'v8/test/wasm-js':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '240ea673de6e75d78ae472f66127301ecab22a99',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'db9cd40808a90ecc5f4a23e88fb375c8f60b8d52',
 }
 
 recursedeps = [
@@ -344,13 +350,6 @@ hooks = [
     'condition': 'checkout_win',
     'action': ['python', 'v8/build/vs_toolchain.py', 'update'],
   },
-  {
-    # Update the Mac toolchain if necessary.
-    'name': 'mac_toolchain',
-    'pattern': '.',
-    'condition': 'checkout_mac',
-    'action': ['python', 'v8/build/mac_toolchain.py'],
-  },
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
   # https://code.google.com/p/chromium/issues/detail?id=352046
@@ -386,6 +385,23 @@ hooks = [
       'python',
       'v8/build/fuchsia/update_sdk.py',
     ],
+  },
+  {
+    # Mac doesn't use lld so it's not included in the default clang bundle
+    # there. However, lld is need in Fuchsia cross builds, so
+    # download it there.
+    # Should run after the clang hook.
+    'name': 'lld/mac',
+    'pattern': '.',
+    'condition': 'host_os == "mac" and checkout_fuchsia',
+    'action': ['python', 'v8/tools/clang/scripts/download_lld_mac.py'],
+  },
+  {
+      # Mac does not have llvm-objdump, download it for cross builds in Fuchsia.
+    'name': 'llvm-objdump',
+    'pattern': '.',
+    'condition': 'host_os == "mac" and checkout_fuchsia',
+    'action': ['python', 'v8/tools/clang/scripts/download_objdump.py'],
   },
   {
     'name': 'mips_toolchain',

@@ -18,13 +18,17 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
+namespace U_ICU_NAMESPACE {
+class Collator;
+}  //  namespace U_ICU_NAMESPACE
+
 namespace v8 {
 namespace internal {
 
 class JSCollator : public JSObject {
  public:
   // ecma402/#sec-initializecollator
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> InitializeCollator(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> Initialize(
       Isolate* isolate, Handle<JSCollator> collator, Handle<Object> locales,
       Handle<Object> options);
 
@@ -36,22 +40,9 @@ class JSCollator : public JSObject {
   DECL_PRINTER(JSCollator)
   DECL_VERIFIER(JSCollator)
 
-  // [[Usage]] is one of the values "sort" or "search", identifying
-  // the collator usage.
-  enum class Usage {
-    SORT,
-    SEARCH,
-
-    COUNT
-  };
-  inline void set_usage(Usage usage);
-  inline Usage usage() const;
-  static const char* UsageToString(Usage usage);
-
 // Layout description.
 #define JS_COLLATOR_FIELDS(V)          \
   V(kICUCollatorOffset, kPointerSize)  \
-  V(kFlagsOffset, kPointerSize)        \
   V(kBoundCompareOffset, kPointerSize) \
   /* Total size. */                    \
   V(kSize, 0)
@@ -59,26 +50,8 @@ class JSCollator : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLATOR_FIELDS)
 #undef JS_COLLATOR_FIELDS
 
-  // ContextSlot defines the context structure for the bound
-  // Collator.prototype.compare function.
-  enum ContextSlot {
-    // The collator instance that the function holding this context is bound to.
-    kCollator = Context::MIN_CONTEXT_SLOTS,
-    kLength
-  };
-
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _) V(UsageBits, Usage, 1, _)
-
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
-
-  STATIC_ASSERT(Usage::SORT <= UsageBits::kMax);
-  STATIC_ASSERT(Usage::SEARCH <= UsageBits::kMax);
-
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
   DECL_ACCESSORS(bound_compare, Object);
-  DECL_INT_ACCESSORS(flags)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollator);

@@ -76,6 +76,10 @@ export interface Schedule {
   nodes: Array<any>;
 }
 
+export interface Sequence {
+  blocks: Array<any>;
+}
+
 export class SourceResolver {
   nodePositionMap: Array<AnyPosition>;
   sources: Array<Source>;
@@ -383,7 +387,10 @@ export class SourceResolver {
       if (phase.type == 'disassembly') {
         this.disassemblyPhase = phase;
       } else if (phase.type == 'schedule') {
-        this.phases.push(this.parseSchedule(phase))
+        this.phases.push(this.parseSchedule(phase));
+        this.phaseNames.set(phase.name, this.phases.length);
+      } else if (phase.type == 'sequence') {
+        this.phases.push(this.parseSequence(phase));
         this.phaseNames.set(phase.name, this.phases.length);
       } else if (phase.type == 'instructions') {
         if (phase.nodeIdToInstructionRange) {
@@ -523,6 +530,10 @@ export class SourceResolver {
       console.log("Warning: unmatched schedule line \"" + line + "\"");
     }
     phase.schedule = state;
+    return phase;
+  }
+  parseSequence(phase) {
+    phase.sequence = { blocks: phase.blocks };
     return phase;
   }
 }

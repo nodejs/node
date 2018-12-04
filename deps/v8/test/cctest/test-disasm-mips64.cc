@@ -1177,19 +1177,6 @@ TEST(Type3) {
   COMPARE_PC_REL_COMPACT(bgtz(a0, 32767), "1c807fff       bgtz    a0, 32767",
                          32767);
 
-  int64_t pc_region;
-  GET_PC_REGION(pc_region);
-
-  int64_t target = pc_region | 0x4;
-  COMPARE_PC_JUMP(j(target), "08000001       j      ", target);
-  target = pc_region | 0xFFFFFFC;
-  COMPARE_PC_JUMP(j(target), "0bffffff       j      ", target);
-
-  target = pc_region | 0x4;
-  COMPARE_PC_JUMP(jal(target), "0c000001       jal    ", target);
-  target = pc_region | 0xFFFFFFC;
-  COMPARE_PC_JUMP(jal(target), "0fffffff       jal    ", target);
-
   VERIFY_RUN();
 }
 

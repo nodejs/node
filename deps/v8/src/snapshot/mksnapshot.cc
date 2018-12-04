@@ -165,10 +165,10 @@ class SnapshotWriter {
     // present in the binary.
     // For now, the straight-forward solution seems to be to just emit a pure
     // .byte stream on OSX.
-    WriteBinaryContentsAsByteDirective(fp, blob->data(), blob->size());
+    WriteBinaryContentsAsInlineAssembly(fp, blob->data(), blob->size());
 #else
-    WriteBinaryContentsAsByteDirective(fp, blob->data(),
-                                       i::EmbeddedData::RawDataOffset());
+    WriteBinaryContentsAsInlineAssembly(fp, blob->data(),
+                                        i::EmbeddedData::RawDataOffset());
     WriteBuiltins(fp, blob, embedded_variant);
 #endif
     fprintf(fp, "extern \"C\" const uint8_t v8_%s_embedded_blob_[];\n",
@@ -197,7 +197,7 @@ class SnapshotWriter {
                 embedded_variant, i::Builtins::name(i));
       }
 
-      WriteBinaryContentsAsByteDirective(
+      WriteBinaryContentsAsInlineAssembly(
           fp,
           reinterpret_cast<const uint8_t*>(blob->InstructionStartOfBuiltin(i)),
           blob->PaddedInstructionSizeOfBuiltin(i));
@@ -205,34 +205,77 @@ class SnapshotWriter {
     fprintf(fp, "\n");
   }
 
-  static void WriteBinaryContentsAsByteDirective(FILE* fp, const uint8_t* data,
-                                                 uint32_t size) {
-    static const int kTextWidth = 80;
-    int current_line_length = 0;
+  static int WriteOcta(FILE* fp, int current_line_length, const uint8_t* data) {
+    const uint64_t* quad_ptr1 = reinterpret_cast<const uint64_t*>(data);
+    const uint64_t* quad_ptr2 = reinterpret_cast<const uint64_t*>(data + 8);
+
+#ifdef V8_TARGET_BIG_ENDIAN
+    uint64_t part1 = *quad_ptr1;
+    uint64_t part2 = *quad_ptr2;
+#else
+    uint64_t part1 = *quad_ptr2;
+    uint64_t part2 = *quad_ptr1;
+#endif  // V8_TARGET_BIG_ENDIAN
+
+    if (part1 != 0) {
+      current_line_length +=
+          fprintf(fp, "0x%" PRIx64 "%016" PRIx64, part1, part2);
+    } else {
+      current_line_length += fprintf(fp, "0x%" PRIx64, part2);
+    }
+    return current_line_length;
+  }
+
+  static int WriteDirectiveOrSeparator(FILE* fp, int current_line_length,
+                                       const char* directive) {
     int printed_chars;
+    if (current_line_length == 0) {
+      printed_chars = fprintf(fp, "  \"%s ", directive);
+      DCHECK_LT(0, printed_chars);
+    } else {
+      printed_chars = fprintf(fp, ",");
+      DCHECK_EQ(1, printed_chars);
+    }
+    return current_line_length + printed_chars;
+  }
+
+  static int WriteLineEndIfNeeded(FILE* fp, int current_line_length,
+                                  int write_size) {
+    static const int kTextWidth = 80;
+    // Check if adding ',0xFF...FF\n"' would force a line wrap. This doesn't use
+    // the actual size of the string to be written to determine this so it's
+    // more conservative than strictly needed.
+    if (current_line_length + strlen(",0x\\n\"") + write_size * 2 >
+        kTextWidth) {
+      fprintf(fp, "\\n\"\n");
+      return 0;
+    } else {
+      return current_line_length;
+    }
+  }
+
+  static void WriteBinaryContentsAsInlineAssembly(FILE* fp, const uint8_t* data,
+                                                  uint32_t size) {
+    int current_line_length = 0;
 
     fprintf(fp, "__asm__(\n");
-    for (uint32_t i = 0; i < size; i++) {
-      if (current_line_length == 0) {
-        printed_chars = fprintf(fp, "%s", "  \".byte ");
-        DCHECK_LT(0, printed_chars);
-        current_line_length += printed_chars;
-      } else {
-        printed_chars = fprintf(fp, ",");
-        DCHECK_EQ(1, printed_chars);
-        current_line_length += printed_chars;
-      }
-
-      printed_chars = fprintf(fp, "0x%02x", data[i]);
-      DCHECK_LT(0, printed_chars);
-      current_line_length += printed_chars;
-
-      if (current_line_length + strlen(",0xFF\\n\"") > kTextWidth) {
-        fprintf(fp, "\\n\"\n");
-        current_line_length = 0;
-      }
+    uint32_t i = 0;
+    const uint32_t size_of_octa = 16;
+    for (; i <= size - size_of_octa; i += size_of_octa) {
+      current_line_length =
+          WriteDirectiveOrSeparator(fp, current_line_length, ".octa");
+      current_line_length = WriteOcta(fp, current_line_length, data + i);
+      current_line_length =
+          WriteLineEndIfNeeded(fp, current_line_length, size_of_octa);
     }
-
+    if (current_line_length != 0) fprintf(fp, "\\n\"\n");
+    current_line_length = 0;
+    for (; i < size; i++) {
+      current_line_length =
+          WriteDirectiveOrSeparator(fp, current_line_length, ".byte");
+      current_line_length += fprintf(fp, "0x%x", data[i]);
+      current_line_length = WriteLineEndIfNeeded(fp, current_line_length, 1);
+    }
     if (current_line_length != 0) fprintf(fp, "\\n\"\n");
     fprintf(fp, ");\n");
   }
@@ -307,7 +350,7 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 }
 
 v8::StartupData CreateSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
-                                       const char* script_source = NULL) {
+                                       const char* script_source = nullptr) {
   // Create a new isolate and a new context from scratch, optionally run
   // a script to embed, and serialize to create a snapshot blob.
   v8::StartupData result = {nullptr, 0};

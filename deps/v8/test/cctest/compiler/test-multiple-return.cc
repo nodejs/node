@@ -190,11 +190,10 @@ void TestReturnMultipleValues(MachineType type) {
 
       std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->raw_instruction_size());
-      byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                             ->instructions()
-                             .start();
+      byte* code_start =
+          module->AddCodeForTesting(code)->instructions().start();
 
-      RawMachineAssemblerTester<int32_t> mt;
+      RawMachineAssemblerTester<int32_t> mt(Code::Kind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
       call_inputs[0] = mt.PointerConstant(code_start);
@@ -280,9 +279,7 @@ void ReturnLastValue(MachineType type) {
 
     std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
-    byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                           ->instructions()
-                           .start();
+    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.
     int expect = return_count - 1;
@@ -343,9 +340,7 @@ void ReturnSumOfReturns(MachineType type) {
 
     std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
-    byte* code_start = module->AddCodeCopy(code, wasm::WasmCode::kFunction, 0)
-                           ->instructions()
-                           .start();
+    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;

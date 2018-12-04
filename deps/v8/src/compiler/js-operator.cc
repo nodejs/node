@@ -266,7 +266,7 @@ NamedAccess const& NamedAccessOf(const Operator* op) {
 
 
 std::ostream& operator<<(std::ostream& os, PropertyAccess const& p) {
-  return os << p.language_mode();
+  return os << p.language_mode() << ", " << p.feedback();
 }
 
 
@@ -609,7 +609,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(Decrement, Operator::kNoProperties, 1, 1)                          \
   V(Increment, Operator::kNoProperties, 1, 1)                          \
   V(Negate, Operator::kNoProperties, 1, 1)                             \
-  V(ToInteger, Operator::kNoProperties, 1, 1)                          \
   V(ToLength, Operator::kNoProperties, 1, 1)                           \
   V(ToName, Operator::kNoProperties, 1, 1)                             \
   V(ToNumber, Operator::kNoProperties, 1, 1)                           \
@@ -1189,6 +1188,14 @@ const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(
       "JSCreateEmptyLiteralArray",                   // name
       0, 1, 1, 1, 1, 0,                              // counts
       parameters);                                   // parameter
+}
+
+const Operator* JSOperatorBuilder::CreateArrayFromIterable() {
+  return new (zone()) Operator(              // --
+      IrOpcode::kJSCreateArrayFromIterable,  // opcode
+      Operator::kNoProperties,               // properties
+      "JSCreateArrayFromIterable",           // name
+      1, 1, 1, 1, 1, 2);                     // counts
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralObject(

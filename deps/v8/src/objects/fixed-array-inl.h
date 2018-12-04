@@ -288,8 +288,8 @@ HeapObject* WeakArrayList::Iterator::Next() {
   if (array_ != nullptr) {
     while (index_ < array_->length()) {
       MaybeObject* item = array_->Get(index_++);
-      DCHECK(item->IsWeakHeapObject() || item->IsClearedWeakHeapObject());
-      if (!item->IsClearedWeakHeapObject()) return item->ToWeakHeapObject();
+      DCHECK(item->IsWeakOrCleared());
+      if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
     }
     array_ = nullptr;
   }

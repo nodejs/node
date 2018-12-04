@@ -92,7 +92,7 @@ struct V8_EXPORT_PRIVATE LoopInfo {
   ZoneVector<ResumeJumpTarget> resume_jump_targets_;
 };
 
-class V8_EXPORT_PRIVATE BytecodeAnalysis BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE BytecodeAnalysis {
  public:
   BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone,
                    bool do_liveness_analysis);

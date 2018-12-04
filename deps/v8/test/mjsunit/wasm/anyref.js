@@ -76,7 +76,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprRefNull])
       .exportFunc();
 
-
   const instance = builder.instantiate();
 
   assertEquals(null, instance.exports.main());
@@ -98,5 +97,17 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, instance.exports.main(undefined));
   assertEquals(1, instance.exports.main(null));
   assertEquals(0, instance.exports.main(print));
+})();
 
+(function testAnyRefLocalDefaultValue() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('main', kSig_r_v)
+      .addBody([kExprGetLocal, 0])
+      .addLocals({anyref_count: 1})
+      .exportFunc();
+
+  const instance = builder.instantiate();
+
+  assertEquals(null, instance.exports.main());
 })();

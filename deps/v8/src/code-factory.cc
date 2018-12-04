@@ -166,27 +166,15 @@ Callable CodeFactory::OrdinaryToPrimitive(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
-                                PretenureFlag pretenure_flag) {
-  if (pretenure_flag == NOT_TENURED) {
-    switch (flags) {
-      case STRING_ADD_CHECK_NONE:
-        return Builtins::CallableFor(isolate,
-                                     Builtins::kStringAdd_CheckNone_NotTenured);
-      case STRING_ADD_CONVERT_LEFT:
-        return Builtins::CallableFor(
-            isolate, Builtins::kStringAdd_ConvertLeft_NotTenured);
-      case STRING_ADD_CONVERT_RIGHT:
-        return Builtins::CallableFor(
-            isolate, Builtins::kStringAdd_ConvertRight_NotTenured);
-    }
-  } else {
-    CHECK_EQ(TENURED, pretenure_flag);
-    CHECK_EQ(STRING_ADD_CHECK_NONE, flags);
-    return Builtins::CallableFor(isolate,
-                                 Builtins::kStringAdd_CheckNone_Tenured);
+Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags) {
+  switch (flags) {
+    case STRING_ADD_CHECK_NONE:
+      return Builtins::CallableFor(isolate, Builtins::kStringAdd_CheckNone);
+    case STRING_ADD_CONVERT_LEFT:
+      return Builtins::CallableFor(isolate, Builtins::kStringAdd_ConvertLeft);
+    case STRING_ADD_CONVERT_RIGHT:
+      return Builtins::CallableFor(isolate, Builtins::kStringAdd_ConvertRight);
   }
-
   UNREACHABLE();
 }
 
@@ -218,7 +206,7 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 // static
 Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, ArgumentsAdaptorTrampoline),
-                  ArgumentAdaptorDescriptor{});
+                  ArgumentsAdaptorDescriptor{});
 }
 
 // static

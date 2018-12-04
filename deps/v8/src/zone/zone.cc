@@ -43,7 +43,6 @@ Zone::Zone(AccountingAllocator* allocator, const char* name,
 
 Zone::~Zone() {
   allocator_->ZoneDestruction(this);
-
   DeleteAll();
 
   DCHECK_EQ(segment_bytes_allocated_, 0);
@@ -75,6 +74,12 @@ void* Zone::New(size_t size) {
   DCHECK(IsAddressAligned(result, kAlignmentInBytes, 0));
   allocation_size_ += size;
   return reinterpret_cast<void*>(result);
+}
+
+void Zone::ReleaseMemory() {
+  allocator_->ZoneDestruction(this);
+  DeleteAll();
+  allocator_->ZoneCreation(this);
 }
 
 void Zone::DeleteAll() {

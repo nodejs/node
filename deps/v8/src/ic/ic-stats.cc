@@ -95,7 +95,7 @@ ICInfo::ICInfo()
       is_constructor(false),
       is_optimized(false),
       map(nullptr),
-      is_dictionary_map(0),
+      is_dictionary_map(false),
       number_of_own_descriptors(0) {}
 
 void ICInfo::Reset() {

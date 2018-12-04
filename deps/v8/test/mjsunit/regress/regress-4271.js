@@ -17,7 +17,7 @@ if (this.Worker) {
   });
 
   // Don't throw for real worker
-  var worker = new Worker('');
+  var worker = new Worker('', {type: 'string'});
   worker.getMessage();
   worker.postMessage({});
   worker.terminate();

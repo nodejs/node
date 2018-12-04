@@ -59,7 +59,7 @@ class ThreadVisitor {
   virtual void VisitThread(Isolate* isolate, ThreadLocalTop* top) = 0;
 
  protected:
-  virtual ~ThreadVisitor() {}
+  virtual ~ThreadVisitor() = default;
 };
 
 class ThreadManager {

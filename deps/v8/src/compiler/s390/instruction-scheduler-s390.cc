@@ -169,6 +169,46 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_StackClaim:
       return kHasSideEffect;
 
+    case kS390_Word64AtomicLoadUint8:
+    case kS390_Word64AtomicLoadUint16:
+    case kS390_Word64AtomicLoadUint32:
+    case kS390_Word64AtomicLoadUint64:
+      return kIsLoadOperation;
+
+    case kS390_Word64AtomicStoreUint8:
+    case kS390_Word64AtomicStoreUint16:
+    case kS390_Word64AtomicStoreUint32:
+    case kS390_Word64AtomicStoreUint64:
+    case kS390_Word64AtomicExchangeUint8:
+    case kS390_Word64AtomicExchangeUint16:
+    case kS390_Word64AtomicExchangeUint32:
+    case kS390_Word64AtomicExchangeUint64:
+    case kS390_Word64AtomicCompareExchangeUint8:
+    case kS390_Word64AtomicCompareExchangeUint16:
+    case kS390_Word64AtomicCompareExchangeUint32:
+    case kS390_Word64AtomicCompareExchangeUint64:
+    case kS390_Word64AtomicAddUint8:
+    case kS390_Word64AtomicAddUint16:
+    case kS390_Word64AtomicAddUint32:
+    case kS390_Word64AtomicAddUint64:
+    case kS390_Word64AtomicSubUint8:
+    case kS390_Word64AtomicSubUint16:
+    case kS390_Word64AtomicSubUint32:
+    case kS390_Word64AtomicSubUint64:
+    case kS390_Word64AtomicAndUint8:
+    case kS390_Word64AtomicAndUint16:
+    case kS390_Word64AtomicAndUint32:
+    case kS390_Word64AtomicAndUint64:
+    case kS390_Word64AtomicOrUint8:
+    case kS390_Word64AtomicOrUint16:
+    case kS390_Word64AtomicOrUint32:
+    case kS390_Word64AtomicOrUint64:
+    case kS390_Word64AtomicXorUint8:
+    case kS390_Word64AtomicXorUint16:
+    case kS390_Word64AtomicXorUint32:
+    case kS390_Word64AtomicXorUint64:
+      return kHasSideEffect;
+
 #define CASE(Name) case k##Name:
       COMMON_ARCH_OPCODE_LIST(CASE)
 #undef CASE

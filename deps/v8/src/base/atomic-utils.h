@@ -377,6 +377,22 @@ class AtomicElement {
   T value_;
 };
 
+template <typename T,
+          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+inline void CheckedIncrement(std::atomic<T>* number, T amount) {
+  const T old = number->fetch_add(amount);
+  DCHECK_GE(old + amount, old);
+  USE(old);
+}
+
+template <typename T,
+          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+inline void CheckedDecrement(std::atomic<T>* number, T amount) {
+  const T old = number->fetch_sub(amount);
+  DCHECK_GE(old, amount);
+  USE(old);
+}
+
 }  // namespace base
 }  // namespace v8
 

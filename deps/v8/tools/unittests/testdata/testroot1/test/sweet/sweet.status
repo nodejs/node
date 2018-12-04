@@ -6,6 +6,7 @@
 [ALWAYS, {
   'raspberries': FAIL,
   'strawberries': [PASS, ['mode == release', SLOW], ['mode == debug', NO_VARIANTS]],
+  'mangoes': [PASS, SLOW],
 
   # Both cherries and apples are to test how PASS an FAIL from different
   # sections are merged.

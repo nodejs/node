@@ -154,9 +154,11 @@ void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
+enum ExceptionType { kException, kPromiseRejection };
+
 class DebugDelegate {
  public:
-  virtual ~DebugDelegate() {}
+  virtual ~DebugDelegate() = default;
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
   // |inspector_break_points_hit| contains id of breakpoints installed with
@@ -166,8 +168,8 @@ class DebugDelegate {
       const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
-                               v8::Local<v8::Value> promise, bool is_uncaught) {
-  }
+                               v8::Local<v8::Value> promise, bool is_uncaught,
+                               ExceptionType exception_type) {}
   virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
                                     const debug::Location& start,
                                     const debug::Location& end) {
@@ -179,7 +181,7 @@ void SetDebugDelegate(Isolate* isolate, DebugDelegate* listener);
 
 class AsyncEventDelegate {
  public:
-  virtual ~AsyncEventDelegate() {}
+  virtual ~AsyncEventDelegate() = default;
   virtual void AsyncEventOccurred(debug::DebugAsyncActionType type, int id,
                                   bool is_blackboxed) = 0;
 };
@@ -502,6 +504,20 @@ class PostponeInterruptsScope {
   std::unique_ptr<i::PostponeInterruptsScope> scope_;
 };
 
+class WeakMap : public v8::Object {
+ public:
+  V8_WARN_UNUSED_RESULT v8::MaybeLocal<v8::Value> Get(
+      v8::Local<v8::Context> context, v8::Local<v8::Value> key);
+  V8_WARN_UNUSED_RESULT v8::MaybeLocal<WeakMap> Set(
+      v8::Local<v8::Context> context, v8::Local<v8::Value> key,
+      v8::Local<v8::Value> value);
+
+  static Local<WeakMap> New(v8::Isolate* isolate);
+  V8_INLINE static WeakMap* Cast(Value* obj);
+
+ private:
+  WeakMap();
+};
 }  // namespace debug
 }  // namespace v8
 

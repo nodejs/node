@@ -28,8 +28,8 @@ class InterpreterAssemblerTestState : public compiler::CodeAssemblerState {
 
 class InterpreterAssemblerTest : public TestWithIsolateAndZone {
  public:
-  InterpreterAssemblerTest() {}
-  ~InterpreterAssemblerTest() override {}
+  InterpreterAssemblerTest() = default;
+  ~InterpreterAssemblerTest() override = default;
 
   class InterpreterAssemblerForTest final : public InterpreterAssembler {
    public:

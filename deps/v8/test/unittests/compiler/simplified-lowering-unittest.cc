@@ -25,7 +25,7 @@ class SimplifiedLoweringTest : public GraphTest {
         simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
                  &machine_) {}
-  ~SimplifiedLoweringTest() override {}
+  ~SimplifiedLoweringTest() override = default;
 
   void LowerGraph(Node* node) {
     // Make sure we always start with an empty graph.
@@ -42,7 +42,7 @@ class SimplifiedLoweringTest : public GraphTest {
     {
       // Simplified lowering needs to run w/o the typer decorator so make sure
       // the object is not live at the same time.
-      Typer typer(isolate(), js_heap_broker(), Typer::kNoFlags, graph());
+      Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
       typer.Run();
     }
 

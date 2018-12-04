@@ -166,7 +166,7 @@ class TerminatorThread : public v8::base::Thread {
   explicit TerminatorThread(i::Isolate* isolate)
       : Thread(Options("TerminatorThread")),
         isolate_(reinterpret_cast<v8::Isolate*>(isolate)) {}
-  void Run() {
+  void Run() override {
     semaphore->Wait();
     CHECK(!isolate_->IsExecutionTerminating());
     isolate_->TerminateExecution();
@@ -800,7 +800,7 @@ class TerminatorSleeperThread : public v8::base::Thread {
       : Thread(Options("TerminatorSlepperThread")),
         isolate_(isolate),
         sleep_ms_(sleep_ms) {}
-  void Run() {
+  void Run() override {
     v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(sleep_ms_));
     CHECK(!isolate_->IsExecutionTerminating());
     isolate_->TerminateExecution();

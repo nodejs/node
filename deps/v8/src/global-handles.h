@@ -184,7 +184,6 @@ class GlobalHandles {
   class NodeBlock;
   class NodeIterator;
   class PendingPhantomCallback;
-  class PendingPhantomCallbacksSecondPassTask;
 
   explicit GlobalHandles(Isolate* isolate);
 

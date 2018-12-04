@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/torque/ast.h"
+#include "src/torque/cfg.h"
 #include "src/torque/file-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/types.h"
@@ -18,18 +19,95 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-struct LocationReference {
-  LocationReference(Value* value, VisitResult base, VisitResult index)
-      : value(value), base(base), index(index) {}
-  Value* value;
-  VisitResult base;
-  VisitResult index;
+// LocationReference is the representation of an l-value, so a value that might
+// allow for assignment. For uniformity, this class can also represent
+// unassignable temporaries. Assignable values fall in two categories:
+//   - stack ranges that represent mutable variables, including structs.
+//   - field or element access expressions that generate operator calls.
+class LocationReference {
+ public:
+  // An assignable stack range.
+  static LocationReference VariableAccess(VisitResult variable) {
+    DCHECK(variable.IsOnStack());
+    LocationReference result;
+    result.variable_ = std::move(variable);
+    return result;
+  }
+  // An unassignable value. {description} is only used for error messages.
+  static LocationReference Temporary(VisitResult temporary,
+                                     std::string description) {
+    LocationReference result;
+    result.temporary_ = std::move(temporary);
+    result.temporary_description_ = std::move(description);
+    return result;
+  }
+  static LocationReference ArrayAccess(VisitResult base, VisitResult offset) {
+    LocationReference result;
+    result.eval_function_ = std::string{"[]"};
+    result.assign_function_ = std::string{"[]="};
+    result.call_arguments_ = {base, offset};
+    return result;
+  }
+  static LocationReference FieldAccess(VisitResult object,
+                                       std::string fieldname) {
+    LocationReference result;
+    result.eval_function_ = "." + fieldname;
+    result.assign_function_ = "." + fieldname + "=";
+    result.call_arguments_ = {object};
+    return result;
+  }
+
+  bool IsConst() const { return temporary_.has_value(); }
+
+  bool IsVariableAccess() const { return variable_.has_value(); }
+  const VisitResult& variable() const {
+    DCHECK(IsVariableAccess());
+    return *variable_;
+  }
+  bool IsTemporary() const { return temporary_.has_value(); }
+  const VisitResult& temporary() const {
+    DCHECK(IsTemporary());
+    return *temporary_;
+  }
+  // For error reporting.
+  const std::string& temporary_description() const {
+    DCHECK(IsTemporary());
+    return *temporary_description_;
+  }
+
+  bool IsCallAccess() const {
+    bool is_call_access = eval_function_.has_value();
+    DCHECK_EQ(is_call_access, assign_function_.has_value());
+    return is_call_access;
+  }
+  const VisitResultVector& call_arguments() const {
+    DCHECK(IsCallAccess());
+    return call_arguments_;
+  }
+  const std::string& eval_function() const {
+    DCHECK(IsCallAccess());
+    return *eval_function_;
+  }
+  const std::string& assign_function() const {
+    DCHECK(IsCallAccess());
+    return *assign_function_;
+  }
+
+ private:
+  base::Optional<VisitResult> variable_;
+  base::Optional<VisitResult> temporary_;
+  base::Optional<std::string> temporary_description_;
+  base::Optional<std::string> eval_function_;
+  base::Optional<std::string> assign_function_;
+  VisitResultVector call_arguments_;
+
+  LocationReference() = default;
 };
 
 class ImplementationVisitor : public FileVisitor {
  public:
   explicit ImplementationVisitor(GlobalContext& global_context)
-      : FileVisitor(global_context), indent_(0), next_temp_(0) {}
+      : FileVisitor(global_context) {}
 
   void Visit(Ast* ast) { Visit(ast->default_module()); }
 
@@ -39,44 +117,23 @@ class ImplementationVisitor : public FileVisitor {
 
   VisitResult Visit(StructExpression* decl);
 
-  LocationReference GetLocationReference(LocationExpression* location);
-  LocationReference GetLocationReference(IdentifierExpression* expr) {
-    return LocationReference(declarations()->LookupValue(expr->name), {}, {});
-  }
+  LocationReference GetLocationReference(Expression* location);
+  LocationReference GetLocationReference(IdentifierExpression* expr);
   LocationReference GetLocationReference(FieldAccessExpression* expr);
-  LocationReference GetLocationReference(ElementAccessExpression* expr) {
-    return LocationReference({}, Visit(expr->array), Visit(expr->index));
-  }
+  LocationReference GetLocationReference(ElementAccessExpression* expr);
 
-  std::string RValueFlattenStructs(VisitResult result);
-
-  VisitResult GenerateFetchFromLocation(LocationReference reference) {
-    const Value* value = reference.value;
-    return VisitResult(value->type(), value);
-  }
-  VisitResult GenerateFetchFromLocation(LocationExpression* location,
-                                        LocationReference reference);
-  VisitResult GenerateFetchFromLocation(IdentifierExpression* expr,
-                                        LocationReference reference) {
-    return GenerateFetchFromLocation(reference);
-  }
-  VisitResult GenerateFetchFromLocation(FieldAccessExpression* expr,
-                                        LocationReference reference);
-  VisitResult GenerateFetchFromLocation(ElementAccessExpression* expr,
-                                        LocationReference reference) {
-    Arguments arguments;
-    arguments.parameters = {reference.base, reference.index};
-    return GenerateCall("[]", arguments);
-  }
+  VisitResult GenerateFetchFromLocation(const LocationReference& reference);
 
   VisitResult GetBuiltinCode(Builtin* builtin);
 
   VisitResult Visit(IdentifierExpression* expr);
   VisitResult Visit(FieldAccessExpression* expr) {
-    return GenerateFetchFromLocation(expr, GetLocationReference(expr));
+    StackScope scope(this);
+    return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
   }
   VisitResult Visit(ElementAccessExpression* expr) {
-    return GenerateFetchFromLocation(expr, GetLocationReference(expr));
+    StackScope scope(this);
+    return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
   }
 
   void Visit(ModuleDeclaration* decl);
@@ -120,8 +177,9 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(StringLiteralExpression* expr);
   VisitResult Visit(NumberLiteralExpression* expr);
   VisitResult Visit(AssumeTypeImpossibleExpression* expr);
+  VisitResult Visit(TryLabelExpression* expr);
+  VisitResult Visit(StatementExpression* expr);
 
-  const Type* Visit(TryLabelStatement* stmt);
   const Type* Visit(ReturnStatement* stmt);
   const Type* Visit(GotoStatement* stmt);
   const Type* Visit(IfStatement* stmt);
@@ -146,63 +204,70 @@ class ImplementationVisitor : public FileVisitor {
 
   std::string GetDSLAssemblerName(Module* module);
 
-  void GenerateIndent();
-
-  class ScopedIndent {
+  // {StackScope} records the stack height at creation time and reconstructs it
+  // when being destructed by emitting a {DeleteRangeInstruction}, except for
+  // the slots protected by {StackScope::Yield}. Calling {Yield(v)} deletes all
+  // slots above the initial stack height except for the slots of {v}, which are
+  // moved to form the only slots above the initial height and marks them to
+  // survive destruction of the {StackScope}. A typical pattern is the
+  // following:
+  //
+  // VisitResult result;
+  // {
+  //   StackScope stack_scope(this);
+  //   // ... create temporary slots ...
+  //   result = stack_scope.Yield(surviving_slots);
+  // }
+  class StackScope {
    public:
-    explicit ScopedIndent(ImplementationVisitor* visitor, bool new_lines = true)
-        : new_lines_(new_lines), visitor_(visitor) {
-      if (new_lines) visitor->GenerateIndent();
-      visitor->source_out() << "{";
-      if (new_lines) visitor->source_out() << "\n";
-      visitor->indent_++;
+    explicit StackScope(ImplementationVisitor* visitor) : visitor_(visitor) {
+      base_ = visitor_->assembler().CurrentStack().AboveTop();
     }
-    ~ScopedIndent() {
-      visitor_->indent_--;
-      visitor_->GenerateIndent();
-      visitor_->source_out() << "}";
-      if (new_lines_) visitor_->source_out() << "\n";
+    VisitResult Yield(VisitResult result) {
+      DCHECK(!yield_called_);
+      yield_called_ = true;
+      if (!result.IsOnStack()) {
+        if (!visitor_->assembler().CurrentBlockIsComplete()) {
+          visitor_->assembler().DropTo(base_);
+        }
+        return result;
+      }
+      DCHECK_LE(base_, result.stack_range().begin());
+      DCHECK_LE(result.stack_range().end(),
+                visitor_->assembler().CurrentStack().AboveTop());
+      visitor_->assembler().DropTo(result.stack_range().end());
+      visitor_->assembler().DeleteRange(
+          StackRange{base_, result.stack_range().begin()});
+      base_ = visitor_->assembler().CurrentStack().AboveTop();
+      return VisitResult(result.type(), visitor_->assembler().TopRange(
+                                            result.stack_range().Size()));
+    }
+
+    ~StackScope() {
+      if (yield_called_) {
+        DCHECK_IMPLIES(
+            !visitor_->assembler().CurrentBlockIsComplete(),
+            base_ == visitor_->assembler().CurrentStack().AboveTop());
+      } else if (!visitor_->assembler().CurrentBlockIsComplete()) {
+        visitor_->assembler().DropTo(base_);
+      }
     }
 
    private:
-    bool new_lines_;
     ImplementationVisitor* visitor_;
+    BottomOffset base_;
+    bool yield_called_ = false;
   };
 
   Callable* LookupCall(const std::string& name, const Arguments& arguments,
                        const TypeVector& specialization_types);
 
-  bool GenerateChangedVarFromControlSplit(const Variable* v, bool first = true);
-
-  void GetFlattenedStructsVars(const Variable* base,
-                               std::set<const Variable*>* vars);
-
-  void GenerateChangedVarsFromControlSplit(AstNode* node);
-
   const Type* GetCommonType(const Type* left, const Type* right);
 
   VisitResult GenerateCopy(const VisitResult& to_copy);
 
-  void GenerateAssignToVariable(Variable* var, VisitResult value);
-
-  void GenerateAssignToLocation(LocationExpression* location,
-                                const LocationReference& reference,
-                                VisitResult assignment_value);
-
-  void GenerateVariableDeclaration(const Variable* var);
-
-  Variable* GeneratePredeclaredVariableDeclaration(
-      const std::string& name,
-      const base::Optional<VisitResult>& initialization);
-
-  Variable* GenerateVariableDeclaration(
-      AstNode* node, const std::string& name, bool is_const,
-      const base::Optional<const Type*>& type,
-      const base::Optional<VisitResult>& initialization = {});
-
-  void GenerateParameter(const std::string& parameter_name);
-
-  void GenerateParameterList(const NameVector& list, size_t first = 0);
+  void GenerateAssignToLocation(const LocationReference& reference,
+                                const VisitResult& assignment_value);
 
   VisitResult GenerateCall(const std::string& callable_name,
                            Arguments parameters,
@@ -213,7 +278,7 @@ class ImplementationVisitor : public FileVisitor {
 
   bool GenerateLabeledStatementBlocks(
       const std::vector<Statement*>& blocks,
-      const std::vector<Label*>& statement_labels, Label* merge_label);
+      const std::vector<Label*>& statement_labels, Block* merge_block);
 
   void GenerateBranch(const VisitResult& condition, Label* true_label,
                       Label* false_label);
@@ -221,7 +286,7 @@ class ImplementationVisitor : public FileVisitor {
   bool GenerateExpressionBranch(Expression* expression,
                                 const std::vector<Label*>& statement_labels,
                                 const std::vector<Statement*>& statement_blocks,
-                                Label* merge_label);
+                                Block* merge_block);
 
   void GenerateMacroFunctionDeclaration(std::ostream& o,
                                         const std::string& macro_prefix,
@@ -242,25 +307,40 @@ class ImplementationVisitor : public FileVisitor {
     Visit(callable, MakeSignature(signature), body);
   }
 
-  std::string NewTempVariable();
-
-  std::string GenerateNewTempVariable(const Type* type);
-
-  void GenerateLabelDefinition(Label* label, AstNode* node = nullptr);
+  void CreateBlockForLabel(Label* label, Stack<const Type*> stack);
 
   void GenerateLabelBind(Label* label);
 
-  void GenerateLabelGoto(Label* label);
+  StackRange GenerateLabelGoto(Label* label,
+                               base::Optional<StackRange> arguments = {});
 
   std::vector<Label*> LabelsFromIdentifiers(
       const std::vector<std::string>& names);
+
+  StackRange LowerParameter(const Type* type, const std::string& parameter_name,
+                            Stack<std::string>* lowered_parameters);
+
+  std::string ExternalLabelParameterName(Label* label, size_t i);
 
   std::ostream& source_out() { return module_->source_stream(); }
 
   std::ostream& header_out() { return module_->header_stream(); }
 
-  size_t indent_;
-  int32_t next_temp_;
+  CfgAssembler& assembler() { return *assembler_; }
+
+  void SetReturnValue(VisitResult return_value) {
+    DCHECK_IMPLIES(return_value_, *return_value_ == return_value);
+    return_value_ = std::move(return_value);
+  }
+
+  VisitResult GetAndClearReturnValue() {
+    VisitResult return_value = *return_value_;
+    return_value_ = base::nullopt;
+    return return_value;
+  }
+
+  base::Optional<CfgAssembler> assembler_;
+  base::Optional<VisitResult> return_value_;
 };
 
 }  // namespace torque

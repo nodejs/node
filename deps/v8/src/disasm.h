@@ -16,7 +16,7 @@ typedef unsigned char byte;
 // specific.
 class NameConverter {
  public:
-  virtual ~NameConverter() {}
+  virtual ~NameConverter() = default;
   virtual const char* NameOfCPURegister(int reg) const;
   virtual const char* NameOfByteCPURegister(int reg) const;
   virtual const char* NameOfXMMRegister(int reg) const;

@@ -16,6 +16,9 @@ namespace internal {
 // Forward declarations.
 class Factory;
 class FeedbackNexus;
+class JSGlobalObject;
+class JSGlobalProxy;
+class StringConstantBase;
 
 namespace compiler {
 
@@ -36,7 +39,8 @@ class TypeCache;
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}
 // nodes.  And also specializes {LoadNamed} and {StoreNamed} nodes according
 // to type feedback (if available).
-class JSNativeContextSpecialization final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
+    : public AdvancedReducer {
  public:
   // Flags that control the mode of operation.
   enum Flag {
@@ -50,13 +54,19 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                 JSHeapBroker* js_heap_broker, Flags flags,
                                 Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
-                                Zone* zone);
+                                Zone* zone, Zone* shared_zone);
 
   const char* reducer_name() const override {
     return "JSNativeContextSpecialization";
   }
 
   Reduction Reduce(Node* node) final;
+
+  // Utility for folding string constant concatenation.
+  // Supports JSAdd nodes and nodes typed as string or number.
+  // Public for the sake of unit testing.
+  static base::Optional<size_t> GetMaxStringLength(JSHeapBroker* broker,
+                                                   Node* node);
 
  private:
   Reduction ReduceJSAdd(Node* node);
@@ -101,6 +111,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                Node* index = nullptr);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
+  Reduction ReduceJSToString(Node* node);
+
+  const StringConstantBase* CreateDelayedStringConstant(Node* node);
 
   // A triple of nodes that represents a continuation.
   class ValueEffectControl final {
@@ -230,6 +243,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   const NativeContextRef& native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
+  Zone* shared_zone() const { return shared_zone_; }
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const js_heap_broker_;
@@ -239,6 +253,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   NativeContextRef native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
+  Zone* const shared_zone_;
   TypeCache const& type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);

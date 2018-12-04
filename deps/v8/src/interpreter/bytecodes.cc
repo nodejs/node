@@ -107,14 +107,13 @@ const char* Bytecodes::ToString(Bytecode bytecode) {
 }
 
 // static
-std::string Bytecodes::ToString(Bytecode bytecode, OperandScale operand_scale) {
-  static const char kSeparator = '.';
-
+std::string Bytecodes::ToString(Bytecode bytecode, OperandScale operand_scale,
+                                const char* separator) {
   std::string value(ToString(bytecode));
   if (operand_scale > OperandScale::kSingle) {
     Bytecode prefix_bytecode = OperandScaleToPrefixBytecode(operand_scale);
     std::string suffix = ToString(prefix_bytecode);
-    return value.append(1, kSeparator).append(suffix);
+    return value.append(separator).append(suffix);
   } else {
     return value;
   }
@@ -284,6 +283,7 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kDec:
       case Bytecode::kTypeOf:
       case Bytecode::kCallAnyReceiver:
+      case Bytecode::kCallNoFeedback:
       case Bytecode::kCallProperty:
       case Bytecode::kCallProperty0:
       case Bytecode::kCallProperty1:

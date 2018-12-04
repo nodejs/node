@@ -67,6 +67,7 @@ class Isolate;
 class SCTableReference;
 class SourcePosition;
 class StatsCounter;
+class StringConstantBase;
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -97,8 +98,9 @@ class HeapObjectRequest {
  public:
   explicit HeapObjectRequest(double heap_number, int offset = -1);
   explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
+  explicit HeapObjectRequest(const StringConstantBase* string, int offset = -1);
 
-  enum Kind { kHeapNumber, kCodeStub };
+  enum Kind { kHeapNumber, kCodeStub, kStringConstant };
   Kind kind() const { return kind_; }
 
   double heap_number() const {
@@ -109,6 +111,11 @@ class HeapObjectRequest {
   CodeStub* code_stub() const {
     DCHECK_EQ(kind(), kCodeStub);
     return value_.code_stub;
+  }
+
+  const StringConstantBase* string() const {
+    DCHECK_EQ(kind(), kStringConstant);
+    return value_.string;
   }
 
   // The code buffer offset at the time of the request.
@@ -128,6 +135,7 @@ class HeapObjectRequest {
   union {
     double heap_number;
     CodeStub* code_stub;
+    const StringConstantBase* string;
   } value_;
 
   int offset_;
@@ -139,6 +147,9 @@ class HeapObjectRequest {
 enum class CodeObjectRequired { kNo, kYes };
 
 struct V8_EXPORT_PRIVATE AssemblerOptions {
+  // Prohibits using any V8-specific features of assembler like (isolates,
+  // heap objects, external references, etc.).
+  bool v8_agnostic_code = false;
   // Recording reloc info for external references and off-heap targets is
   // needed whenever code is serialized, e.g. into the snapshot or as a WASM
   // module. This flag allows this reloc info to be disabled for code that
@@ -167,6 +178,9 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // this flag, the code range must be small enough to fit all offsets into
   // the instruction immediates.
   bool use_pc_relative_calls_and_jumps = false;
+
+  // Constructs V8-agnostic set of options from current state.
+  AssemblerOptions EnableV8AgnosticCode() const;
 
   static AssemblerOptions Default(
       Isolate* isolate, bool explicitly_support_serialization = false);
@@ -268,12 +282,22 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  // {RequestHeapObject} records the need for a future heap number allocation or
-  // code stub generation. After code assembly, each platform's
-  // {Assembler::AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request).
+  // {RequestHeapObject} records the need for a future heap number allocation,
+  // code stub generation or string allocation. After code assembly, each
+  // platform's {Assembler::AllocateAndInstallRequestedHeapObjects} will
+  // allocate these objects and place them where they are expected (determined
+  // by the pc offset associated with each request).
   void RequestHeapObject(HeapObjectRequest request);
+
+  bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
+    DCHECK(!RelocInfo::IsNone(rmode));
+    if (options().disable_reloc_info_for_patching) return false;
+    if (RelocInfo::IsOnlyForSerializer(rmode) &&
+        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
+      return false;
+    }
+    return true;
+  }
 
  private:
   // Before we copy code into the code space, we sometimes cannot encode
@@ -301,7 +325,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 };
 
 // Avoids emitting debug code during the lifetime of this scope object.
-class DontEmitDebugCodeScope BASE_EMBEDDED {
+class DontEmitDebugCodeScope {
  public:
   explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
@@ -332,7 +356,7 @@ class PredictableCodeSizeScope {
 
 
 // Enable a specified feature within a scope.
-class CpuFeatureScope BASE_EMBEDDED {
+class CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,
@@ -350,11 +374,11 @@ class CpuFeatureScope BASE_EMBEDDED {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
-  // Define a destructor to avoid unused variable warnings.
-  ~CpuFeatureScope() {}
+  ~CpuFeatureScope() {  // NOLINT (modernize-use-equals-default)
+    // Define a destructor to avoid unused variable warnings.
+  }
 #endif
 };
-
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a CpuFeatureScope before use.
@@ -420,7 +444,7 @@ class CpuFeatures : public AllStatic {
 // Utility functions
 
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
-double power_helper(Isolate* isolate, double x, double y);
+double power_helper(double x, double y);
 double power_double_int(double x, int y);
 double power_double_double(double x, double y);
 
@@ -430,7 +454,7 @@ double power_double_double(double x, double y);
 
 class ConstantPoolEntry {
  public:
-  ConstantPoolEntry() {}
+  ConstantPoolEntry() = default;
   ConstantPoolEntry(int position, intptr_t value, bool sharing_ok,
                     RelocInfo::Mode rmode = RelocInfo::NONE)
       : position_(position),
@@ -447,7 +471,7 @@ class ConstantPoolEntry {
   int position() const { return position_; }
   bool sharing_ok() const { return merged_index_ != SHARING_PROHIBITED; }
   bool is_merged() const { return merged_index_ >= 0; }
-  int merged_index(void) const {
+  int merged_index() const {
     DCHECK(is_merged());
     return merged_index_;
   }
@@ -456,7 +480,7 @@ class ConstantPoolEntry {
     merged_index_ = index;
     DCHECK(is_merged());
   }
-  int offset(void) const {
+  int offset() const {
     DCHECK_GE(merged_index_, 0);
     return merged_index_;
   }
@@ -493,7 +517,7 @@ class ConstantPoolEntry {
 // -----------------------------------------------------------------------------
 // Embedded constant pool support
 
-class ConstantPoolBuilder BASE_EMBEDDED {
+class ConstantPoolBuilder {
  public:
   ConstantPoolBuilder(int ptr_reach_bits, int double_reach_bits);
 

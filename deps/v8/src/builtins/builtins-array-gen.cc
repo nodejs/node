@@ -212,7 +212,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         context(), original_array, length, method_name);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
-    CSA_ASSERT(this, SmiLessThanOrEqual(CAST(len_), LoadTypedArrayLength(a)));
+    CSA_ASSERT(this, SmiLessThanOrEqual(CAST(len_), LoadJSTypedArrayLength(a)));
     fast_typed_array_target_ =
         Word32Equal(LoadInstanceType(LoadElements(original_array)),
                     LoadInstanceType(LoadElements(a)));
@@ -530,10 +530,11 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     TNode<JSTypedArray> typed_array = CAST(receiver_);
     o_ = typed_array;
 
-    TNode<JSArrayBuffer> array_buffer = LoadArrayBufferViewBuffer(typed_array);
+    TNode<JSArrayBuffer> array_buffer =
+        LoadJSArrayBufferViewBuffer(typed_array);
     ThrowIfArrayBufferIsDetached(context_, array_buffer, name_);
 
-    len_ = LoadTypedArrayLength(typed_array);
+    len_ = LoadJSTypedArrayLength(typed_array);
 
     Label throw_not_callable(this, Label::kDeferred);
     Label distinguish_types(this);
@@ -964,8 +965,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
 
     // 3) Check that the elements backing store isn't copy-on-write.
     Node* elements = LoadElements(array_receiver);
-    GotoIf(WordEqual(LoadMap(elements),
-                     LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+    GotoIf(WordEqual(LoadMap(elements), LoadRoot(RootIndex::kFixedCOWArrayMap)),
            &runtime);
 
     Node* new_length = IntPtrSub(length, IntPtrConstant(1));
@@ -1378,8 +1378,8 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   Goto(&generic_length);
 
   BIND(&load_arguments_length);
-  Node* arguments_length =
-      LoadObjectField(array_receiver, JSArgumentsObject::kLengthOffset);
+  Node* arguments_length = LoadObjectField(
+      array_receiver, JSArgumentsObjectWithLength::kLengthOffset);
   GotoIf(TaggedIsNotSmi(arguments_length), &generic_length);
   o = CAST(receiver);
   len.Bind(arguments_length);
@@ -1524,19 +1524,23 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
   {
     TNode<JSArray> array_receiver = CAST(receiver);
     CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
+
+    // 2) Ensure that the length is writable.
+    //    This check needs to happen before the check for length zero.
+    //    The spec requires a "SetProperty(array, 'length', 0)" call when
+    //    the length is zero. This must throw an exception in the case of a
+    //    read-only length.
+    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
+
     Node* length =
         LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements_tagged(this),
         fast_elements_smi(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
-    // 2) Ensure that the length is writable.
-    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
-
     // 3) Check that the elements backing store isn't copy-on-write.
     Node* elements = LoadElements(array_receiver);
-    GotoIf(WordEqual(LoadMap(elements),
-                     LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+    GotoIf(WordEqual(LoadMap(elements), LoadRoot(RootIndex::kFixedCOWArrayMap)),
            &runtime);
 
     Node* new_length = IntPtrSub(length, IntPtrConstant(1));
@@ -1679,13 +1683,36 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
 
 TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  Node* array = Parameter(Descriptor::kSource);
+  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
-  CSA_ASSERT(this, IsJSArray(array));
-  CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
+  CSA_ASSERT(this,
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKind(
+                          LoadMapElementsKind(LoadMap(array)))),
+                      Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
   Return(CloneFastJSArray(context, array, mode));
+}
+
+// This builtin copies the backing store of fast arrays, while converting any
+// holes to undefined.
+// - If there are no holes in the source, its ElementsKind will be preserved. In
+// that case, this builtin should perform as fast as CloneFastJSArray. (In fact,
+// for fast packed arrays, the behavior is equivalent to CloneFastJSArray.)
+// - If there are holes in the source, the ElementsKind of the "copy" will be
+// PACKED_ELEMENTS (such that undefined can be stored).
+TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
+
+  CSA_ASSERT(this,
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKind(
+                          LoadMapElementsKind(LoadMap(array)))),
+                      Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
+
+  ParameterMode mode = OptimalParameterMode();
+  Return(CloneFastJSArray(context, array, mode, nullptr,
+                          HoleConversionMode::kConvertToUndefined));
 }
 
 TF_BUILTIN(ArrayFindLoopContinuation, ArrayBuiltinsAssembler) {
@@ -3582,6 +3609,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&if_hole);
     {
       GotoIf(IsNoElementsProtectorCellInvalid(), &if_generic);
+      GotoIfNot(IsPrototypeInitialArrayPrototype(context, array_map),
+                &if_generic);
       var_value.Bind(UndefinedConstant());
       Goto(&allocate_entry_if_needed);
     }
@@ -3654,7 +3683,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     // [[ArrayIteratorNextIndex]] anymore, since a JSTypedArray's
     // length cannot change anymore, so this {iterator} will never
     // produce values again anyways.
-    TNode<Smi> length = LoadTypedArrayLength(CAST(array));
+    TNode<Smi> length = LoadJSTypedArrayLength(CAST(array));
     GotoIfNot(SmiBelow(CAST(index), length), &allocate_iterator_result);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
                                    SmiInc(CAST(index)));
@@ -3700,8 +3729,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Return(result);
   }
 }
-
-namespace {
 
 class ArrayFlattenAssembler : public CodeStubAssembler {
  public:
@@ -3842,8 +3869,6 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
     return var_target_index.value();
   }
 };
-
-}  // namespace
 
 // https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
 TF_BUILTIN(FlattenIntoArray, ArrayFlattenAssembler) {

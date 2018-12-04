@@ -341,7 +341,7 @@ class RelocInfo {
 
 // RelocInfoWriter serializes a stream of relocation info. It writes towards
 // lower addresses.
-class RelocInfoWriter BASE_EMBEDDED {
+class RelocInfoWriter {
  public:
   RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
 
@@ -402,7 +402,6 @@ class RelocIterator : public Malloced {
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);
   RelocIterator(RelocIterator&&) = default;
-  RelocIterator& operator=(RelocIterator&&) = default;
 
   // Iteration
   bool done() const { return done_; }

@@ -59,8 +59,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                       OrdinaryToPrimitiveHint hint);
 
   static Callable StringAdd(Isolate* isolate,
-                            StringAddFlags flags = STRING_ADD_CHECK_NONE,
-                            PretenureFlag pretenure_flag = NOT_TENURED);
+                            StringAddFlags flags = STRING_ADD_CHECK_NONE);
 
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);

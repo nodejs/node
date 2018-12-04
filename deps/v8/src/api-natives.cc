@@ -114,9 +114,8 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   }
 #endif
 
-  MAYBE_RETURN_NULL(
-      Object::AddDataProperty(&it, value, attributes, kThrowOnError,
-                              Object::CERTAINLY_NOT_STORE_FROM_KEYED));
+  MAYBE_RETURN_NULL(Object::AddDataProperty(
+      &it, value, attributes, kThrowOnError, StoreOrigin::kNamed));
   return value;
 }
 
@@ -403,8 +402,10 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   }
 
   Handle<JSObject> object;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, object,
-                             JSObject::New(constructor, new_target), JSObject);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, object,
+      JSObject::New(constructor, new_target, Handle<AllocationSite>::null()),
+      JSObject);
 
   if (is_prototype) JSObject::OptimizeAsPrototype(object);
 
@@ -495,8 +496,15 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                   parent_prototype);
     }
   }
+  InstanceType function_type =
+      (!data->needs_access_check() &&
+       data->named_property_handler()->IsUndefined(isolate) &&
+       data->indexed_property_handler()->IsUndefined(isolate))
+          ? JS_API_OBJECT_TYPE
+          : JS_SPECIAL_API_OBJECT_TYPE;
+
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
-      isolate, data, prototype, ApiNatives::JavaScriptObjectType, maybe_name);
+      isolate, data, prototype, function_type, maybe_name);
   if (serial_number) {
     // Cache the function.
     CacheTemplateInstantiation(isolate, serial_number, CachingMode::kUnlimited,
@@ -625,8 +633,7 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
 
 Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<FunctionTemplateInfo> obj,
-    Handle<Object> prototype, ApiInstanceType instance_type,
-    MaybeHandle<Name> maybe_name) {
+    Handle<Object> prototype, InstanceType type, MaybeHandle<Name> maybe_name) {
   Handle<SharedFunctionInfo> shared =
       FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, obj,
                                                           maybe_name);
@@ -670,33 +677,10 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     immutable_proto = instance_template->immutable_proto();
   }
 
-  // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
-  // JSObject::GetHeaderSize.
-  int instance_size = kPointerSize * embedder_field_count;
-  InstanceType type;
-  switch (instance_type) {
-    case JavaScriptObjectType:
-      if (!obj->needs_access_check() &&
-          obj->named_property_handler()->IsUndefined(isolate) &&
-          obj->indexed_property_handler()->IsUndefined(isolate)) {
-        type = JS_API_OBJECT_TYPE;
-      } else {
-        type = JS_SPECIAL_API_OBJECT_TYPE;
-      }
-      instance_size += JSObject::kHeaderSize;
-      break;
-    case GlobalObjectType:
-      type = JS_GLOBAL_OBJECT_TYPE;
-      instance_size += JSGlobalObject::kSize;
-      break;
-    case GlobalProxyType:
-      type = JS_GLOBAL_PROXY_TYPE;
-      instance_size += JSGlobalProxy::kSize;
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+  // JS_FUNCTION_TYPE requires information about the prototype slot.
+  DCHECK_NE(JS_FUNCTION_TYPE, type);
+  int instance_size =
+      JSObject::GetHeaderSize(type) + kPointerSize * embedder_field_count;
 
   Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
                                                TERMINAL_FAST_ELEMENTS_KIND);

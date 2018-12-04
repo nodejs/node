@@ -14,7 +14,7 @@ V8SchemaAgentImpl::V8SchemaAgentImpl(V8InspectorSessionImpl* session,
                                      protocol::DictionaryValue* state)
     : m_session(session), m_frontend(frontendChannel) {}
 
-V8SchemaAgentImpl::~V8SchemaAgentImpl() {}
+V8SchemaAgentImpl::~V8SchemaAgentImpl() = default;
 
 Response V8SchemaAgentImpl::getDomains(
     std::unique_ptr<protocol::Array<protocol::Schema::Domain>>* result) {

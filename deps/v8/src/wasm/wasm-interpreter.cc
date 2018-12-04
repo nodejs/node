@@ -641,6 +641,8 @@ const char* OpcodeName(uint32_t val) {
   return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
 }
 
+}  // namespace
+
 class SideTable;
 
 // Code and metadata needed to execute a function.
@@ -902,32 +904,6 @@ class SideTable : public ZoneObject {
   }
 };
 
-struct ExternalCallResult {
-  enum Type {
-    // The function should be executed inside this interpreter.
-    INTERNAL,
-    // For indirect calls: Table or function does not exist.
-    INVALID_FUNC,
-    // For indirect calls: Signature does not match expected signature.
-    SIGNATURE_MISMATCH,
-    // The function was executed and returned normally.
-    EXTERNAL_RETURNED,
-    // The function was executed, threw an exception, and the stack was unwound.
-    EXTERNAL_UNWOUND
-  };
-  Type type;
-  // If type is INTERNAL, this field holds the function to call internally.
-  InterpreterCode* interpreter_code;
-
-  ExternalCallResult(Type type) : type(type) {  // NOLINT
-    DCHECK_NE(INTERNAL, type);
-  }
-  ExternalCallResult(Type type, InterpreterCode* code)
-      : type(type), interpreter_code(code) {
-    DCHECK_EQ(INTERNAL, type);
-  }
-};
-
 // The main storage for interpreter code. It maps {WasmFunction} to the
 // metadata needed to execute each function.
 class CodeMap {
@@ -1037,6 +1013,34 @@ class CodeMap {
   }
 };
 
+namespace {
+
+struct ExternalCallResult {
+  enum Type {
+    // The function should be executed inside this interpreter.
+    INTERNAL,
+    // For indirect calls: Table or function does not exist.
+    INVALID_FUNC,
+    // For indirect calls: Signature does not match expected signature.
+    SIGNATURE_MISMATCH,
+    // The function was executed and returned normally.
+    EXTERNAL_RETURNED,
+    // The function was executed, threw an exception, and the stack was unwound.
+    EXTERNAL_UNWOUND
+  };
+  Type type;
+  // If type is INTERNAL, this field holds the function to call internally.
+  InterpreterCode* interpreter_code;
+
+  ExternalCallResult(Type type) : type(type) {  // NOLINT
+    DCHECK_NE(INTERNAL, type);
+  }
+  ExternalCallResult(Type type, InterpreterCode* code)
+      : type(type), interpreter_code(code) {
+    DCHECK_EQ(INTERNAL, type);
+  }
+};
+
 // Like a static_cast from src to dst, but specialized for boxed floats.
 template <typename dst, typename src>
 struct converter {
@@ -1072,6 +1076,8 @@ template <>
 V8_INLINE bool has_nondeterminism<double>(double val) {
   return std::isnan(val);
 }
+
+}  // namespace
 
 // Responsible for executing code directly.
 class ThreadImpl {
@@ -1426,7 +1432,7 @@ class ThreadImpl {
     Push(result);
     len = 1 + imm.length;
 
-    if (FLAG_wasm_trace_memory) {
+    if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, false, rep);
       TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
@@ -1452,7 +1458,7 @@ class ThreadImpl {
     WriteLittleEndianValue<mtype>(addr, converter<mtype, ctype>{}(val));
     len = 1 + imm.length;
 
-    if (FLAG_wasm_trace_memory) {
+    if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, true, rep);
       TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
@@ -2762,17 +2768,19 @@ class ThreadImpl {
       arg_buffer.resize(return_size);
     }
 
-    // Wrap the arg_buffer data pointer in a handle. As
-    // this is an aligned pointer, to the GC it will look like a Smi.
+    // Wrap the arg_buffer and the code target data pointers in handles. As
+    // these are aligned pointers, to the GC it will look like Smis.
     Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
                                   isolate);
     DCHECK(!arg_buffer_obj->IsHeapObject());
+    Handle<Object> code_entry_obj(
+        reinterpret_cast<Object*>(code->instruction_start()), isolate);
+    DCHECK(!code_entry_obj->IsHeapObject());
 
     static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
-    args[compiler::CWasmEntryParameters::kCodeObject] = Handle<Object>::cast(
-        isolate->factory()->NewForeign(code->instruction_start(), TENURED));
+    args[compiler::CWasmEntryParameters::kCodeEntry] = code_entry_obj;
     args[compiler::CWasmEntryParameters::kWasmInstance] = instance;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
@@ -2983,6 +2991,8 @@ class InterpretedFrameImpl {
   }
 };
 
+namespace {
+
 // Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
 // Thread* is the public interface, without knowledge of the object layout.
 // This cast is potentially risky, but as long as we always cast it back before
@@ -3090,20 +3100,21 @@ class WasmInterpreterInternals : public ZoneObject {
 };
 
 namespace {
-// TODO(wasm): a finalizer is only required to delete the global handle.
-void GlobalHandleDeleter(const v8::WeakCallbackInfo<void>& data) {
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(
-      reinterpret_cast<JSObject**>(data.GetParameter())));
+void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
+  Object** global_handle_location =
+      reinterpret_cast<Object**>(data.GetParameter());
+  GlobalHandles::Destroy(global_handle_location);
 }
 
 Handle<WasmInstanceObject> MakeWeak(
     Isolate* isolate, Handle<WasmInstanceObject> instance_object) {
-  Handle<Object> handle = isolate->global_handles()->Create(*instance_object);
-  // TODO(wasm): use a phantom handle in the WasmInterpreter.
-  GlobalHandles::MakeWeak(handle.location(), handle.location(),
-                          &GlobalHandleDeleter,
-                          v8::WeakCallbackType::kFinalizer);
-  return Handle<WasmInstanceObject>::cast(handle);
+  Handle<WasmInstanceObject> weak_instance =
+      isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
+  Object** global_handle_location =
+      Handle<Object>::cast(weak_instance).location();
+  GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
+                          &NopFinalizer, v8::WeakCallbackType::kParameter);
+  return weak_instance;
 }
 }  // namespace
 

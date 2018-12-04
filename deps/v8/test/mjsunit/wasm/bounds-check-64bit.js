@@ -6,7 +6,7 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(1, kV8MaxPages, false);
+builder.addMemory(1, undefined, false);
 builder.addFunction('load', kSig_i_ii)
     .addBody([
         kExprGetLocal, 0,

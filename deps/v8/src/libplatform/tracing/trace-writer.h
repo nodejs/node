@@ -15,7 +15,7 @@ class JSONTraceWriter : public TraceWriter {
  public:
   explicit JSONTraceWriter(std::ostream& stream);
   JSONTraceWriter(std::ostream& stream, const std::string& tag);
-  ~JSONTraceWriter();
+  ~JSONTraceWriter() override;
   void AppendTraceEvent(TraceObject* trace_event) override;
   void Flush() override;
 

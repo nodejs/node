@@ -211,7 +211,7 @@ class AndroidCommand(BaseCommand):
     """
     self.shell_name = os.path.basename(shell)
     self.shell_dir = os.path.dirname(shell)
-    self.files_to_push = resources_func()
+    self.files_to_push = (resources_func or (lambda: []))()
 
     # Make all paths in arguments relative and also prepare files from arguments
     # for pushing to the device.

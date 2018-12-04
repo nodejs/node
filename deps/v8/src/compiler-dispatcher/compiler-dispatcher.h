@@ -13,6 +13,7 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -27,6 +28,7 @@ enum class MemoryPressureLevel;
 
 namespace internal {
 
+class AstRawString;
 class AstValueFactory;
 class CancelableTaskManager;
 class CompilerDispatcherJob;
@@ -37,6 +39,8 @@ class FunctionLiteral;
 class Isolate;
 class ParseInfo;
 class SharedFunctionInfo;
+class TimedHistogram;
+class WorkerThreadRuntimeCallStats;
 class Zone;
 
 template <typename T>
@@ -79,23 +83,22 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Returns true if the compiler dispatcher is enabled.
   bool IsEnabled() const;
 
-  // Enqueue a job for parse and compile. Returns true if a job was enqueued.
-  bool Enqueue(Handle<SharedFunctionInfo> function);
+  base::Optional<JobId> Enqueue(const ParseInfo* outer_parse_info,
+                                const AstRawString* function_name,
+                                const FunctionLiteral* function_literal);
 
-  // Like Enqueue, but also advances the job so that it can potentially
-  // continue running on a background thread (if at all possible). Returns
-  // true if the job was enqueued.
-  bool EnqueueAndStep(Handle<SharedFunctionInfo> function);
+  // Registers the given |function| with the compilation job |job_id|.
+  void RegisterSharedFunctionInfo(JobId job_id, SharedFunctionInfo* function);
 
-  // Returns true if there is a pending job for the given function.
+  // Returns true if there is a pending job with the given id.
+  bool IsEnqueued(JobId job_id) const;
+
+  // Returns true if there is a pending job registered for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;
 
   // Blocks until the given function is compiled (and does so as fast as
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
-
-  // Blocks until all jobs are finished.
-  void FinishAllNow();
 
   // Aborts a given job. Blocks if requested.
   void Abort(Handle<SharedFunctionInfo> function, BlockingBehavior blocking);
@@ -124,15 +127,15 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
   typedef std::map<JobId, std::unique_ptr<CompilerDispatcherJob>> JobMap;
+  typedef std::map<JobId, Handle<SharedFunctionInfo>> JobIdToSharedMap;
   typedef IdentityMap<JobId, FreeStoreAllocationPolicy> SharedToJobIdMap;
   class AbortTask;
   class WorkerTask;
   class IdleTask;
 
+  bool CanEnqueue();
   void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
   void AbortInactiveJobs();
-  bool CanEnqueue();
-  bool CanEnqueue(Handle<SharedFunctionInfo> function);
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
   void ScheduleMoreWorkerTasksIfNeeded();
@@ -141,17 +144,18 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void ScheduleAbortTask();
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
-  JobId Enqueue(std::unique_ptr<CompilerDispatcherJob> job);
-  JobId EnqueueAndStep(std::unique_ptr<CompilerDispatcherJob> job);
   // Returns job if not removed otherwise iterator following the removed job.
   JobMap::const_iterator RemoveIfFinished(JobMap::const_iterator job);
   // Returns iterator to the inserted job.
   JobMap::const_iterator InsertJob(std::unique_ptr<CompilerDispatcherJob> job);
   // Returns iterator following the removed job.
   JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
-  bool FinishNow(CompilerDispatcherJob* job);
 
   Isolate* isolate_;
+  AccountingAllocator* allocator_;
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
+  TimedHistogram* background_compile_timer_;
+  std::shared_ptr<v8::TaskRunner> taskrunner_;
   Platform* platform_;
   size_t max_stack_size_;
 
@@ -167,6 +171,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   // Mapping from job_id to job.
   JobMap jobs_;
+
+  // Mapping from job_id to SharedFunctionInfo.
+  JobIdToSharedMap job_id_to_shared_;
 
   // Mapping from SharedFunctionInfo to the corresponding unoptimized
   // compilation's JobId;

@@ -27,7 +27,7 @@ class TypeCache;
 
 class V8_EXPORT_PRIVATE OperationTyper {
  public:
-  OperationTyper(Isolate* isolate, JSHeapBroker* js_heap_broker, Zone* zone);
+  OperationTyper(JSHeapBroker* js_heap_broker, Zone* zone);
 
   // Typing Phi.
   Type Merge(Type left, Type right);
@@ -58,6 +58,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type StrictEqual(Type lhs, Type rhs);
 
   // Check operators.
+  Type CheckBounds(Type index, Type length);
   Type CheckFloat64Hole(Type type);
   Type CheckNumber(Type type);
   Type ConvertTaggedHoleToUndefined(Type type);
@@ -76,9 +77,6 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
  private:
   typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
-
-  Type ToNumberOrNumeric(Object::Conversion mode, Type type);
-  base::Optional<Type> ToNumberCommon(Type type);
 
   ComparisonOutcome Invert(ComparisonOutcome);
   Type Invert(Type);

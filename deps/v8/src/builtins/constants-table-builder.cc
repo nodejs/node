@@ -19,14 +19,14 @@ BuiltinsConstantsTableBuilder::BuiltinsConstantsTableBuilder(Isolate* isolate)
   // as a constant, which means that codegen will load it using the root
   // register.
   DCHECK(isolate_->heap()->RootCanBeTreatedAsConstant(
-      Heap::kEmptyFixedArrayRootIndex));
+      RootIndex::kEmptyFixedArray));
 }
 
 uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
 #ifdef DEBUG
   // Roots must not be inserted into the constants table as they are already
   // accessibly from the root list.
-  Heap::RootListIndex root_list_index;
+  RootIndex root_list_index;
   DCHECK(!isolate_->heap()->IsRootHandle(object, &root_list_index));
 
   // Not yet finalized.
@@ -56,7 +56,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
 #ifdef DEBUG
   // Roots must not be inserted into the constants table as they are already
   // accessibly from the root list.
-  Heap::RootListIndex root_list_index;
+  RootIndex root_list_index;
   DCHECK(!isolate_->heap()->IsRootHandle(code_object, &root_list_index));
 
   // Not yet finalized.
