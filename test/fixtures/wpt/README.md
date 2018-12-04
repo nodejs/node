@@ -10,10 +10,11 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 
 Last update:
 
-- resources: https://github.com/web-platform-tests/wpt/tree/679a364421/resources
-- interfaces: https://github.com/web-platform-tests/wpt/tree/db7f86289e/interfaces
 - console: https://github.com/web-platform-tests/wpt/tree/9786a4b131/console
+- encoding: https://github.com/web-platform-tests/wpt/tree/a093a659ed/encoding
 - url: https://github.com/web-platform-tests/wpt/tree/75b0f336c5/url
+- resources: https://github.com/web-platform-tests/wpt/tree/679a364421/resources
+- interfaces: https://github.com/web-platform-tests/wpt/tree/712c9f275e/interfaces
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt

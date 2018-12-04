@@ -718,6 +718,9 @@ function exposed_in(globals) {
         self instanceof ServiceWorkerGlobalScope) {
         return globals.has("ServiceWorker");
     }
+    if ('NodeScope' in self) {
+        return true;
+    }
     throw new IdlHarnessError("Unexpected global object");
 }
 
