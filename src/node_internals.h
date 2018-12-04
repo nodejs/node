@@ -357,6 +357,7 @@ int ThreadPoolWork::CancelWork() {
 }
 
 tracing::AgentWriterHandle* GetTracingAgentWriter();
+void DisposePlatform();
 
 static inline const char* errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
