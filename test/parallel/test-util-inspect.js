@@ -1764,3 +1764,36 @@ assert.strictEqual(
   });
   assert.strictEqual(util.inspect(obj), '[Set: null prototype] { 1, 2 }');
 }
+
+// Check the getter option.
+{
+  let foo = 1;
+  const get = { get foo() { return foo; } };
+  const getset = {
+    get foo() { return foo; },
+    set foo(val) { foo = val; },
+    get inc() { return ++foo; }
+  };
+  const thrower = { get foo() { throw new Error('Oops'); } };
+  assert.strictEqual(
+    inspect(get, { getters: true, colors: true }),
+    '{ foo: \u001b[36m[Getter:\u001b[39m ' +
+      '\u001b[33m1\u001b[39m\u001b[36m]\u001b[39m }');
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (Oops)>] }');
+  assert.strictEqual(
+    inspect(getset, { getters: true }),
+    '{ foo: [Getter/Setter: 1], inc: [Getter: 2] }');
+  assert.strictEqual(
+    inspect(getset, { getters: 'get' }),
+    '{ foo: [Getter/Setter], inc: [Getter: 3] }');
+  assert.strictEqual(
+    inspect(getset, { getters: 'set' }),
+    '{ foo: [Getter/Setter: 3], inc: [Getter] }');
+  getset.foo = new Set([[{ a: true }, 2, {}], 'foobar', { x: 1 }]);
+  assert.strictEqual(
+    inspect(getset, { getters: true }),
+    '{ foo: [Getter/Setter] Set { [ [Object], 2, {} ], ' +
+      "'foobar', { x: 1 } },\n  inc: [Getter: NaN] }");
+}
