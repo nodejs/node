@@ -997,7 +997,7 @@ assert.throws(
   assert.deepStrictEqual(a, b);
 }
 
-// Verify that extra keys will be tested for when
+// Verify that extra keys will be tested for when using fake arrays.
 {
   const a = {
     0: 1,
