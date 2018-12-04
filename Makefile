@@ -851,10 +851,10 @@ BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 endif
 BINARYTAR=$(BINARYNAME).tar
 # OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
-HAS_XZ ?= $(shell which xz > /dev/null 2>&1; [[ $$? = 0 ]] && echo 1 || echo 0)
+HAS_XZ ?= $(shell which xz > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
 # Supply SKIP_XZ=1 to explicitly skip .tar.xz creation
 SKIP_XZ ?= 0
-XZ = $(shell [[ $(HAS_XZ) = 1 && $(SKIP_XZ) = 0 ]] && echo 1 || echo 0)
+XZ = $(shell [ $(HAS_XZ) -eq 1 -a $(SKIP_XZ) -eq 0 ] && echo 1 || echo 0)
 XZ_COMPRESSION ?= 9e
 PKG=$(TARNAME).pkg
 MACOSOUTDIR=out/macos
