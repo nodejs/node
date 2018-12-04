@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.14.1">8.14.1</a><br/>
 <a href="#8.14.0">8.14.0</a><br/>
 <a href="#8.13.0">8.13.0</a><br/>
 <a href="#8.12.0">8.12.0</a><br/>
@@ -62,6 +63,106 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.14.1"></a>
+## 2018-12-18, Version 8.14.1 'Carbon' (LTS), @MylesBorins prepared by @BethGriggs
+
+### Notable changes
+
+* **assert**:
+  - revert breaking change (Ruben Bridgewater) [#24786](https://github.com/nodejs/node/pull/24786)
+* **http2**:
+  - fix sequence of error/close events (Gerhard Stoebich) [#24789](https://github.com/nodejs/node/pull/24789)
+
+### Commits
+
+* [[`62fb5dbec5`](https://github.com/nodejs/node/commit/62fb5dbec5)] - **assert**: revert breaking change (Ruben Bridgewater) [#24786](https://github.com/nodejs/node/pull/24786)
+* [[`a8402fe1c8`](https://github.com/nodejs/node/commit/a8402fe1c8)] - **build**: only check REPLACEME & DEP...X for releases (Rod Vagg) [#24575](https://github.com/nodejs/node/pull/24575)
+* [[`26743369d3`](https://github.com/nodejs/node/commit/26743369d3)] - **build**: improve Travis CI settings (Timothy Gu) [#21459](https://github.com/nodejs/node/pull/21459)
+* [[`1da04c208d`](https://github.com/nodejs/node/commit/1da04c208d)] - **build**: install markdown linter for travis (Richard Lau) [#21215](https://github.com/nodejs/node/pull/21215)
+* [[`7612024939`](https://github.com/nodejs/node/commit/7612024939)] - **build**: initial .travis.yml implementation (Anna Henningsen) [#21059](https://github.com/nodejs/node/pull/21059)
+* [[`f70e79a7b2`](https://github.com/nodejs/node/commit/f70e79a7b2)] - **build**: allow for overwriting of use\_openssl\_def (Shelley Vohr) [#23763](https://github.com/nodejs/node/pull/23763)
+* [[`15d1f67c60`](https://github.com/nodejs/node/commit/15d1f67c60)] - **build,doc**: remove outdated `lint-md-build` (Michaël Zasso) [#22991](https://github.com/nodejs/node/pull/22991)
+* [[`85a6daeaef`](https://github.com/nodejs/node/commit/85a6daeaef)] - **build,meta**: switch to gcc-4.9 on travis (Refael Ackermann) [#23778](https://github.com/nodejs/node/pull/23778)
+* [[`313ef6fa73`](https://github.com/nodejs/node/commit/313ef6fa73)] - **build,tools**: tweak the travis config (Refael Ackermann) [#22417](https://github.com/nodejs/node/pull/22417)
+* [[`22b41495ea`](https://github.com/nodejs/node/commit/22b41495ea)] - **child_process**: handle undefined/null for fork() args (Shobhit Chittora) [#22416](https://github.com/nodejs/node/pull/22416)
+* [[`499605618b`](https://github.com/nodejs/node/commit/499605618b)] - **crypto**: add SET\_INTEGER\_CONSANT macro (Daniel Bevenius) [#23687](https://github.com/nodejs/node/pull/23687)
+* [[`34d91296df`](https://github.com/nodejs/node/commit/34d91296df)] - **deps**: icu: apply workaround patch (Steven R. Loomis) [#23764](https://github.com/nodejs/node/pull/23764)
+* [[`50347297a1`](https://github.com/nodejs/node/commit/50347297a1)] - **deps**: cherry-pick d2e0166 from V8 upstream (Vasili Skurydzin) [#23958](https://github.com/nodejs/node/pull/23958)
+* [[`9bedae5266`](https://github.com/nodejs/node/commit/9bedae5266)] - **deps**: cherry-pick 6bc4bfe from V8 upstream (Vasili Skurydzin) [#23958](https://github.com/nodejs/node/pull/23958)
+* [[`4f3c9e6aab`](https://github.com/nodejs/node/commit/4f3c9e6aab)] - **deps,v8**: fix gyp build on Aix platform (Vasili Skurydzin) [#23958](https://github.com/nodejs/node/pull/23958)
+* [[`74c1074d53`](https://github.com/nodejs/node/commit/74c1074d53)] - **doc**: add description for inspector-only console methods. (Benjamin Zaslavsky) [#17004](https://github.com/nodejs/node/pull/17004)
+* [[`692223182c`](https://github.com/nodejs/node/commit/692223182c)] - **doc**: fix api documentation of http.createServer (Ari Autio) [#24869](https://github.com/nodejs/node/pull/24869)
+* [[`6d8c65e574`](https://github.com/nodejs/node/commit/6d8c65e574)] - **doc**: update to adding listens on SIGUSR1 (willhayslett) [#19709](https://github.com/nodejs/node/pull/19709)
+* [[`33b7c50036`](https://github.com/nodejs/node/commit/33b7c50036)] - **doc**: remove "if provided" for optional arguments (Rich Trott) [#19690](https://github.com/nodejs/node/pull/19690)
+* [[`216e7da8c5`](https://github.com/nodejs/node/commit/216e7da8c5)] - **doc**: do not identify string as "JavaScript string" (Rich Trott) [#19689](https://github.com/nodejs/node/pull/19689)
+* [[`17e84217c7`](https://github.com/nodejs/node/commit/17e84217c7)] - **doc**: fix grammar error in process.md (Kenji Okamoto) [#19641](https://github.com/nodejs/node/pull/19641)
+* [[`06daf5276f`](https://github.com/nodejs/node/commit/06daf5276f)] - **doc**: remove use of "random port" re dgram send (Thomas Hunter II) [#19620](https://github.com/nodejs/node/pull/19620)
+* [[`bf95392e86`](https://github.com/nodejs/node/commit/bf95392e86)] - **doc**: improve assert legacy text (Rich Trott) [#19622](https://github.com/nodejs/node/pull/19622)
+* [[`e48cc3c403`](https://github.com/nodejs/node/commit/e48cc3c403)] - **doc**: remove confusing note about child process stdio (Anna Henningsen) [#19552](https://github.com/nodejs/node/pull/19552)
+* [[`9d249bf6d5`](https://github.com/nodejs/node/commit/9d249bf6d5)] - **doc**: add BethGriggs to collaborators (Beth Griggs) [#19610](https://github.com/nodejs/node/pull/19610)
+* [[`c3ecf05b01`](https://github.com/nodejs/node/commit/c3ecf05b01)] - **doc**: document `make docopen` (Ayush Gupta) [#19321](https://github.com/nodejs/node/pull/19321)
+* [[`8338700d05`](https://github.com/nodejs/node/commit/8338700d05)] - **doc**: add directory structure in writing-tests.md (juggernaut451) [#18802](https://github.com/nodejs/node/pull/18802)
+* [[`63d8632611`](https://github.com/nodejs/node/commit/63d8632611)] - **doc**: add types for some `process` properties (Vse Mozhet Byt) [#19571](https://github.com/nodejs/node/pull/19571)
+* [[`b2fc3b556c`](https://github.com/nodejs/node/commit/b2fc3b556c)] - **doc**: fix n-api example string (Steven R. Loomis) [#19205](https://github.com/nodejs/node/pull/19205)
+* [[`d79e7d6e89`](https://github.com/nodejs/node/commit/d79e7d6e89)] - **doc**: minor improvements to buffer.md (Rich Trott) [#19547](https://github.com/nodejs/node/pull/19547)
+* [[`06491482f8`](https://github.com/nodejs/node/commit/06491482f8)] - **doc**: update child\_process.md (Ari Leo Frankel) [#19075](https://github.com/nodejs/node/pull/19075)
+* [[`4db289ca17`](https://github.com/nodejs/node/commit/4db289ca17)] - **doc**: move StackOverflow to unofficial section (josephleon) [#19416](https://github.com/nodejs/node/pull/19416)
+* [[`f5683a9a6d`](https://github.com/nodejs/node/commit/f5683a9a6d)] - **doc**: correct async\_hooks resource names (Gerhard Stoebich) [#24684](https://github.com/nodejs/node/pull/24684)
+* [[`ffe1f8033c`](https://github.com/nodejs/node/commit/ffe1f8033c)] - **doc**: sort bottom-of-file markdown links (Sam Roberts) [#24682](https://github.com/nodejs/node/pull/24682)
+* [[`78d9a5e6e4`](https://github.com/nodejs/node/commit/78d9a5e6e4)] - **doc**: address bits of proof reading work (Jagannath Bhat) [#23978](https://github.com/nodejs/node/pull/23978)
+* [[`d1eebb2e43`](https://github.com/nodejs/node/commit/d1eebb2e43)] - **doc**: revise COLLABORATOR\_GUIDE.md (Rich Trott) [#23990](https://github.com/nodejs/node/pull/23990)
+* [[`003eb0c8e1`](https://github.com/nodejs/node/commit/003eb0c8e1)] - **doc**: simplify CODE\_OF\_CONDUCT.md (Rich Trott) [#23989](https://github.com/nodejs/node/pull/23989)
+* [[`c1723c8bca`](https://github.com/nodejs/node/commit/c1723c8bca)] - **doc**: add branding to style guide (Rich Trott) [#23967](https://github.com/nodejs/node/pull/23967)
+* [[`8bb67a1fb9`](https://github.com/nodejs/node/commit/8bb67a1fb9)] - **doc**: use Node.js instead of Node (Rich Trott) [#23967](https://github.com/nodejs/node/pull/23967)
+* [[`73e0bb1f52`](https://github.com/nodejs/node/commit/73e0bb1f52)] - **doc**: fix typographical issues (Denis McDonald) [#23970](https://github.com/nodejs/node/pull/23970)
+* [[`6d76f852a9`](https://github.com/nodejs/node/commit/6d76f852a9)] - **doc**: add documentation for http.IncomingMessage$complete (James M Snell) [#23914](https://github.com/nodejs/node/pull/23914)
+* [[`3025f351db`](https://github.com/nodejs/node/commit/3025f351db)] - **doc**: remove mailing list (Rich Trott) [#23932](https://github.com/nodejs/node/pull/23932)
+* [[`2459e150bb`](https://github.com/nodejs/node/commit/2459e150bb)] - **doc**: add note about ABI compatibility (Myles Borins) [#22237](https://github.com/nodejs/node/pull/22237)
+* [[`27b35833bd`](https://github.com/nodejs/node/commit/27b35833bd)] - **doc**: make example more clarified in cluster.md (ZYSzys) [#23931](https://github.com/nodejs/node/pull/23931)
+* [[`0d4de59967`](https://github.com/nodejs/node/commit/0d4de59967)] - **doc**: simplify valid security issue descriptions (Rich Trott) [#23881](https://github.com/nodejs/node/pull/23881)
+* [[`9afdc09f98`](https://github.com/nodejs/node/commit/9afdc09f98)] - **doc**: simplify path.basename() on POSIX and Windows (ZYSzys) [#23864](https://github.com/nodejs/node/pull/23864)
+* [[`3f2a01688d`](https://github.com/nodejs/node/commit/3f2a01688d)] - **doc**: add review suggestions to require() (erickwendel) [#23605](https://github.com/nodejs/node/pull/23605)
+* [[`f037942fe7`](https://github.com/nodejs/node/commit/f037942fe7)] - **doc**: move @phillipj to emeriti (Phillip Johnsen) [#23790](https://github.com/nodejs/node/pull/23790)
+* [[`e5f75cf82e`](https://github.com/nodejs/node/commit/e5f75cf82e)] - **doc**: add note about removeListener order (James M Snell) [#23762](https://github.com/nodejs/node/pull/23762)
+* [[`0ff88a3510`](https://github.com/nodejs/node/commit/0ff88a3510)] - **doc**: document ACL limitation for fs.access on Windows (James M Snell) [#23772](https://github.com/nodejs/node/pull/23772)
+* [[`32ae851710`](https://github.com/nodejs/node/commit/32ae851710)] - **doc**: document that addMembership must be called once in a cluster (James M Snell) [#23746](https://github.com/nodejs/node/pull/23746)
+* [[`e2d2ce6706`](https://github.com/nodejs/node/commit/e2d2ce6706)] - **doc**: remove reference to sslv3 in tls.md (James M Snell) [#23745](https://github.com/nodejs/node/pull/23745)
+* [[`4c24a82a65`](https://github.com/nodejs/node/commit/4c24a82a65)] - **http2**: fix sequence of error/close events (Gerhard Stoebich) [#24789](https://github.com/nodejs/node/pull/24789)
+* [[`8afbd5ce41`](https://github.com/nodejs/node/commit/8afbd5ce41)] - **lib**: fix a typo in lib/timers "read through" (wangzengdi) [#19666](https://github.com/nodejs/node/pull/19666)
+* [[`fa12532000`](https://github.com/nodejs/node/commit/fa12532000)] - **lib**: remove useless cwd in posix.resolve (ZYSzys) [#23902](https://github.com/nodejs/node/pull/23902)
+* [[`e8dbd09414`](https://github.com/nodejs/node/commit/e8dbd09414)] - **src**: use "constants" string instead of creating new one (Ouyang Yadong) [#23894](https://github.com/nodejs/node/pull/23894)
+* [[`394cb42962`](https://github.com/nodejs/node/commit/394cb42962)] - **test**: verify order of error in h2 server stream (Myles Borins) [#24685](https://github.com/nodejs/node/pull/24685)
+* [[`5e09a3d4ed`](https://github.com/nodejs/node/commit/5e09a3d4ed)] - **test**: test process.setuid for bad argument types (Divyanshu Singh) [#19703](https://github.com/nodejs/node/pull/19703)
+* [[`970164f3a8`](https://github.com/nodejs/node/commit/970164f3a8)] - **test**: improve assert message (fatahn) [#19629](https://github.com/nodejs/node/pull/19629)
+* [[`086570e4e1`](https://github.com/nodejs/node/commit/086570e4e1)] - **test**: remove third argument from call to assert.strictEqual() (Forrest Wolf) [#19659](https://github.com/nodejs/node/pull/19659)
+* [[`a7b3274af4`](https://github.com/nodejs/node/commit/a7b3274af4)] - **test**: fix flaky test-cluster-send-handle-twice (Rich Trott) [#19700](https://github.com/nodejs/node/pull/19700)
+* [[`1bda58289a`](https://github.com/nodejs/node/commit/1bda58289a)] - **test**: rename regression tests more expressively (Ujjwal Sharma) [#19668](https://github.com/nodejs/node/pull/19668)
+* [[`bd9cc92e8d`](https://github.com/nodejs/node/commit/bd9cc92e8d)] - **test**: remove 3rd argument from assert.strictEqual (Arian Santrach) [#19707](https://github.com/nodejs/node/pull/19707)
+* [[`3ca10faf00`](https://github.com/nodejs/node/commit/3ca10faf00)] - **test**: use createReadStream instead of ReadStream (Daniel Bevenius) [#19636](https://github.com/nodejs/node/pull/19636)
+* [[`8a546e822d`](https://github.com/nodejs/node/commit/8a546e822d)] - **test**: removed default message from assert.strictEqual (jaspal-yupana) [#19660](https://github.com/nodejs/node/pull/19660)
+* [[`a62df1b379`](https://github.com/nodejs/node/commit/a62df1b379)] - **test**: refactor test-net-dns-error (Luigi Pinca) [#19640](https://github.com/nodejs/node/pull/19640)
+* [[`8a0ecf4360`](https://github.com/nodejs/node/commit/8a0ecf4360)] - **test**: refactor test-http-expect-continue (Rich Trott) [#19625](https://github.com/nodejs/node/pull/19625)
+* [[`0cbe813e90`](https://github.com/nodejs/node/commit/0cbe813e90)] - **test**: update link according to NIST bibliography (Tobias Nießen) [#19593](https://github.com/nodejs/node/pull/19593)
+* [[`ea1fda6228`](https://github.com/nodejs/node/commit/ea1fda6228)] - **test**: remove third param from assert.strictEqual (davis.okoth@kemsa.co.ke) [#19536](https://github.com/nodejs/node/pull/19536)
+* [[`18c4e5e886`](https://github.com/nodejs/node/commit/18c4e5e886)] - **test**: remove message from assert.strictEqual() (willhayslett) [#19525](https://github.com/nodejs/node/pull/19525)
+* [[`146c488bf5`](https://github.com/nodejs/node/commit/146c488bf5)] - **test**: refactor parallel/test-tls-ca-concat.js (juggernaut451) [#19092](https://github.com/nodejs/node/pull/19092)
+* [[`8fa5bd3761`](https://github.com/nodejs/node/commit/8fa5bd3761)] - **test**: rename regression tests file names (Ujjwal Sharma) [#19332](https://github.com/nodejs/node/pull/19332)
+* [[`d34ade8755`](https://github.com/nodejs/node/commit/d34ade8755)] - **test**: fix strictEqual arguments order (Esteban Sotillo) [#23956](https://github.com/nodejs/node/pull/23956)
+* [[`6ae07a9248`](https://github.com/nodejs/node/commit/6ae07a9248)] - **test**: add property for RangeError in test-buffer-copy (mritunjaygoutam12) [#23968](https://github.com/nodejs/node/pull/23968)
+* [[`b1e6de80c1`](https://github.com/nodejs/node/commit/b1e6de80c1)] - **test**: fix regression when compiled with FIPS (Adam Majer) [#23871](https://github.com/nodejs/node/pull/23871)
+* [[`d0368b8245`](https://github.com/nodejs/node/commit/d0368b8245)] - **test**: fix strictEqual() argument order (Loic) [#23829](https://github.com/nodejs/node/pull/23829)
+* [[`3a864d716e`](https://github.com/nodejs/node/commit/3a864d716e)] - **test**: fix strictEqual() arguments order (Nolan Rigo) [#23800](https://github.com/nodejs/node/pull/23800)
+* [[`e7a573a9e2`](https://github.com/nodejs/node/commit/e7a573a9e2)] - **test**: fix test-require-symlink on Windows (Bartosz Sosnowski) [#23691](https://github.com/nodejs/node/pull/23691)
+* [[`ac91346776`](https://github.com/nodejs/node/commit/ac91346776)] - **test**: fix strictEqual() argument order (Romain Lanz) [#23768](https://github.com/nodejs/node/pull/23768)
+* [[`0f98c4926a`](https://github.com/nodejs/node/commit/0f98c4926a)] - **test**: fix strictEqual() arguments order (Thomas GENTILHOMME) [#23771](https://github.com/nodejs/node/pull/23771)
+* [[`73d19b1516`](https://github.com/nodejs/node/commit/73d19b1516)] - **test**: ensure openssl version prints correctly (Sam Roberts) [#23678](https://github.com/nodejs/node/pull/23678)
+* [[`544e64d68d`](https://github.com/nodejs/node/commit/544e64d68d)] - **test**: fix assertion arguments order (Elian Gutierrez) [#23787](https://github.com/nodejs/node/pull/23787)
+* [[`e84c01d1f3`](https://github.com/nodejs/node/commit/e84c01d1f3)] - **tools**: update alternative docs versions (Richard Lau) [#23980](https://github.com/nodejs/node/pull/23980)
+* [[`02209c5fa7`](https://github.com/nodejs/node/commit/02209c5fa7)] - **tools**: clarify commit message linting (Rich Trott) [#23742](https://github.com/nodejs/node/pull/23742)
+* [[`22043ccb84`](https://github.com/nodejs/node/commit/22043ccb84)] - **tools**: do not lint commit message if var undefined (Rich Trott) [#23725](https://github.com/nodejs/node/pull/23725)
+* [[`2a8a28c436`](https://github.com/nodejs/node/commit/2a8a28c436)] - **tools**: make Travis commit linting more robust (Rich Trott) [#23397](https://github.com/nodejs/node/pull/23397)
+* [[`c15d236545`](https://github.com/nodejs/node/commit/c15d236545)] - **tools**: apply linting to first commit in PRs (Rich Trott) [#22452](https://github.com/nodejs/node/pull/22452)
 
 <a id="8.14.0"></a>
 ## 2018-11-27, Version 8.14.0 'Carbon' (LTS), @rvagg

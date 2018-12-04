@@ -229,7 +229,7 @@ undefined
 <!-- YAML
 added: v8.0.0
 changes:
-  - version: v9.3.0
+  - version: v8.10.0
     pr-url: https://github.com/nodejs/node/pull/17033
     description: "`console.debug` is now an alias for `console.log`."
 -->
