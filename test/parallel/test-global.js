@@ -27,6 +27,41 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
+const { builtinModules } = require('module');
+
+// Load all modules to actually cover most code parts.
+builtinModules.forEach((moduleName) => {
+  if (!moduleName.includes('/')) {
+    try {
+      // This could throw for e.g., crypto if the binary is not compiled
+      // accordingly.
+      require(moduleName);
+    } catch {}
+  }
+});
+
+{
+  const expected = [
+    'global',
+    'clearImmediate',
+    'clearInterval',
+    'clearTimeout',
+    'setImmediate',
+    'setInterval',
+    'setTimeout'
+  ];
+  if (global.DTRACE_HTTP_SERVER_RESPONSE) {
+    expected.unshift(
+      'DTRACE_HTTP_SERVER_RESPONSE',
+      'DTRACE_HTTP_SERVER_REQUEST',
+      'DTRACE_HTTP_CLIENT_RESPONSE',
+      'DTRACE_HTTP_CLIENT_REQUEST',
+      'DTRACE_NET_STREAM_END',
+      'DTRACE_NET_SERVER_CONNECTION'
+    );
+  }
+  assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
+}
 
 common.allowGlobals('bar', 'foo');
 
