@@ -385,7 +385,7 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24326
     description: The `depth` default changed back to `2`.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22846
