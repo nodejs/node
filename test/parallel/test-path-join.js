@@ -90,7 +90,7 @@ joinTests.push([
       [['//', 'foo/bar'], '\\foo\\bar'],
       [['//', '/foo/bar'], '\\foo\\bar'],
       [['\\\\', '/', '/foo/bar'], '\\foo\\bar'],
-      [['//'], '/'],
+      [['//'], '\\'],
       // No UNC path expected (share name missing - questionable).
       [['//foo'], '\\foo'],
       [['//foo/'], '\\foo\\'],
