@@ -234,6 +234,8 @@ listeners for the event exist.
 added: v10.5.0
 -->
 
+* Extends: {EventEmitter}
+
 The `Worker` class represents an independent JavaScript execution thread.
 Most Node.js APIs are available inside of it.
 
