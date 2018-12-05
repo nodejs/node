@@ -36,8 +36,6 @@ const expected = 'ümlaut.';
 const constants = fs.constants;
 
 /* eslint-disable no-undef */
-common.allowGlobals(externalizeString, isOneByteString, x);
-
 {
   const expected = 'ümlaut eins';  // Must be a unique string.
   externalizeString(expected);

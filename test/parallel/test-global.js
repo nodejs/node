@@ -23,7 +23,7 @@
 // treated as a global without being declared with `var`/`let`/`const`.
 
 /* eslint-disable strict */
-const common = require('../common');
+require('../common');
 const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
@@ -53,8 +53,6 @@ builtinModules.forEach((moduleName) => {
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
 }
-
-common.allowGlobals('bar', 'foo');
 
 baseFoo = 'foo'; // eslint-disable-line no-undef
 global.baseBar = 'bar';

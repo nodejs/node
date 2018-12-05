@@ -29,7 +29,6 @@ if (!common.hasCrypto)
 const crypto = require('crypto');
 
 // Pollution of global is intentional as part of test.
-common.allowGlobals(require('domain'));
 // See https://github.com/nodejs/node/commit/d1eff9ab
 global.domain = require('domain');
 

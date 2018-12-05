@@ -262,49 +262,6 @@ function platformTimeout(ms) {
   return ms; // ARMv8+
 }
 
-let knownGlobals = [
-  clearImmediate,
-  clearInterval,
-  clearTimeout,
-  global,
-  setImmediate,
-  setInterval,
-  setTimeout,
-  queueMicrotask,
-];
-
-if (global.gc) {
-  knownGlobals.push(global.gc);
-}
-
-if (process.env.NODE_TEST_KNOWN_GLOBALS) {
-  const knownFromEnv = process.env.NODE_TEST_KNOWN_GLOBALS.split(',');
-  allowGlobals(...knownFromEnv);
-}
-
-function allowGlobals(...whitelist) {
-  knownGlobals = knownGlobals.concat(whitelist);
-}
-
-function leakedGlobals() {
-  const leaked = [];
-
-  for (const val in global) {
-    if (!knownGlobals.includes(global[val])) {
-      leaked.push(val);
-    }
-  }
-
-  return leaked;
-}
-
-process.on('exit', function() {
-  const leaked = leakedGlobals();
-  if (leaked.length > 0) {
-    assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
-  }
-});
-
 const mustCallChecks = [];
 
 function runCallChecks(exitCode) {
@@ -715,7 +672,6 @@ function runWithInvalidFD(func) {
 }
 
 module.exports = {
-  allowGlobals,
   buildType,
   busyLoop,
   canCreateSymLink,

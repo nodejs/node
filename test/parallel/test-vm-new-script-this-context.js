@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const Script = require('vm').Script;
 
@@ -58,11 +58,3 @@ global.f = function() { global.foo = 100; };
 script = new Script('f()');
 script.runInThisContext(script);
 assert.strictEqual(global.foo, 100);
-
-common.allowGlobals(
-  global.hello,
-  global.code,
-  global.foo,
-  global.obj,
-  global.f
-);

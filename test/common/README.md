@@ -33,12 +33,6 @@ The `benchmark` module is used by tests to run benchmarks.
 The `common` module is used by tests for consistency across repeated
 tasks.
 
-### allowGlobals(...whitelist)
-* `whitelist` [&lt;Array>] Array of Globals
-* return [&lt;Array>]
-
-Takes `whitelist` and concats that with predefined `knownGlobals`.
-
 ### busyLoop(time)
 * `time` [&lt;number>]
 

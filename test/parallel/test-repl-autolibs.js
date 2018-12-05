@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const util = require('util');
@@ -63,7 +63,6 @@ function test2() {
   };
   const val = {};
   global.url = val;
-  common.allowGlobals(val);
   assert(!gotWrite);
   putIn.run(['url']);
   assert(gotWrite);

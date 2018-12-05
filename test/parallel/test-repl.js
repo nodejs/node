@@ -770,7 +770,6 @@ const tcpTests = [
 
     socket.end();
   }
-  common.allowGlobals(...Object.values(global));
 })();
 
 function startTCPRepl() {

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* eslint-disable strict */
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
@@ -56,10 +56,3 @@ assert.strictEqual(global.foo, 1);
 global.f = function() { global.foo = 100; };
 vm.runInThisContext('f()');
 assert.strictEqual(global.foo, 100);
-
-common.allowGlobals(
-  global.hello,
-  global.foo,
-  global.obj,
-  global.f
-);
