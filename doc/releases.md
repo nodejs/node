@@ -140,7 +140,7 @@ $ git reset --hard upstream/v1.x-staging
 If the staging branch is not up to date relative to `master`, bring the
 appropriate PRs and commits into it.
 
-Go through PRs with the label `vN.x`. e.g. [PRs with the v8.x label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x).
+Go through PRs with the label `vN.x`. e.g. [PRs with the `v8.x` label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x).
 
 For each PR:
 - Run or check that there is a passing CI.
