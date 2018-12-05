@@ -73,7 +73,9 @@ const myURL =
 
 ### Class: URL
 <!-- YAML
-added: v7.0.0
+added:
+  - v7.0.0
+  - v6.13.0
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
@@ -525,7 +527,9 @@ console.log(JSON.stringify(myURLs));
 
 ### Class: URLSearchParams
 <!-- YAML
-added: v7.5.0
+added:
+  - v7.5.0
+  - v6.13.0
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18281
@@ -602,7 +606,9 @@ console.log(params.toString());
 
 #### Constructor: new URLSearchParams(obj)
 <!-- YAML
-added: v7.10.0
+added:
+  - v7.10.0
+  - v6.13.0
 -->
 
 * `obj` {Object} An object representing a collection of key-value pairs
@@ -627,7 +633,9 @@ console.log(params.toString());
 
 #### Constructor: new URLSearchParams(iterable)
 <!-- YAML
-added: v7.10.0
+added:
+  - v7.10.0
+  - v6.13.0
 -->
 
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
@@ -785,7 +793,9 @@ console.log(params.toString());
 
 #### urlSearchParams.sort()
 <!-- YAML
-added: v7.7.0
+added:
+  - v7.7.0
+  - v6.13.0
 -->
 
 Sort all existing name-value pairs in-place by their names. Sorting is done
@@ -836,7 +846,9 @@ for (const [name, value] of params) {
 
 ### url.domainToASCII(domain)
 <!-- YAML
-added: v7.4.0
+added:
+  - v7.4.0
+  - v6.13.0
 -->
 
 * `domain` {string}
@@ -859,7 +871,9 @@ console.log(url.domainToASCII('xn--iñvalid.com'));
 
 ### url.domainToUnicode(domain)
 <!-- YAML
-added: v7.4.0
+added:
+  - v7.4.0
+  - v6.13.0
 -->
 
 * `domain` {string}
@@ -881,6 +895,9 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 ```
 
 ### url.fileURLToPath(url)
+<!-- YAML
+added: v10.12.0
+-->
 
 * `url` {URL | string} The file URL string or URL object to convert to a path.
 * Returns: {string} The fully-resolved platform-specific Node.js file path.
@@ -942,6 +959,9 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 ```
 
 ### url.pathToFileURL(path)
+<!-- YAML
+added: v10.12.0
+-->
 
 * `path` {string} The path to convert to a File URL.
 * Returns: {URL} The file URL object.
