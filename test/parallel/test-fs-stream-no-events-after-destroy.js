@@ -14,6 +14,7 @@ const test = (stream) => {
   stream.on('close', common.mustCall());
   stream.on('error', common.mustCall((er) => {
     assert.strictEqual(err, er);
+    assert.strictEqual(stream.closed, false);
   }));
 }
 
