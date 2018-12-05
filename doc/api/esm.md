@@ -183,12 +183,12 @@ of these top-level routines.
 PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 > 1. Let _packageName_ be *undefined*.
 > 1. Let _packagePath_ be *undefined*.
+> 1. If _packageSpecifier_ is an empty string, then
+>    1. Throw an _Invalid Package Name_ error.
 > 1. If _packageSpecifier_ does not start with _"@"_, then
->    1. If _packageSpecifier_ is an empty string, then
->       1. Throw an _Invalid Package Name_ error.
 >    1. Set _packageName_ to the substring of _packageSpecifier_ until the
 >       first _"/"_ separator or the end of the string.
-> 1. If _packageSpecifier_ starts with _"@"_, then
+> 1. Otherwise,
 >    1. If _packageSpecifier_ does not contain a _"/"_ separator, then
 >       1. Throw an _Invalid Package Name_ error.
 >    1. Set _packageName_ to the substring of _packageSpecifier_
@@ -225,7 +225,7 @@ PACKAGE_MAIN_RESOLVE(_packageURL_)
      path _packageURL_.
 > 1. If the file at _pjsonURL_ exists, then
 >    1. Let _pjson_ be the result of **READ_JSON_FILE**(_pjsonURL_).
->    1. If **HAS_ESM_PROPERTIES**(_pjson_) is *true*, then
+>    1. If **HAS_ESM_PROPERTIES**(_pjson_) is *false*, then
 >       1. Let _mainURL_ be the result applying the legacy
 >          **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, returning
 >          *undefined* for no resolution.
@@ -250,7 +250,6 @@ PACKAGE_MAIN_RESOLVE(_packageURL_)
 >    1. If _url_ does not end in _".js"_ then,
 >       1. Throw an _Unknown Module Format_ error.
 >    1. Return _"cjs"_.
-
 > 1. If **HAS_ESM_PROPERTIES**(_pjson_) is *true*, then
 >    1. Return _"esm"_.
 > 1. Return _"cjs"_.
