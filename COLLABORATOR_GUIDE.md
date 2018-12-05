@@ -147,28 +147,30 @@ the TSC meeting agenda.
 
 ### Waiting for Approvals
 
-Before landing pull requests, sufficient time should be left for input
-from other Collaborators. In general, leave at least 48 hours to account for
-international time differences and work schedules. However, certain types of
-pull requests can be fast-tracked and may be landed after a shorter delay. For
-example:
+Before landing pull requests, allow 48 hours for input from other Collaborators.
+Certain types of pull requests can be fast-tracked and may land after a shorter
+delay. For example:
 
 * Focused changes that affect only documentation and/or the test suite:
-  * `code-and-learn` tasks typically fall into this category.
+  * `code-and-learn` tasks often fall into this category.
   * `good-first-issue` pull requests may also be suitable.
 * Changes that fix regressions:
   * Regressions that break the workflow (red CI or broken compilation).
   * Regressions that happen right before a release, or reported soon after.
 
-When a pull request is deemed suitable to be fast-tracked, label it with
-`fast-track` and add a comment that collaborators may upvote. Please mention any
-Collaborators that previously approved the pull request. If someone disagrees
-with the fast-tracking request, remove the label and leave a comment indicating
-why the pull request should not be fast-tracked. The pull request can be landed
-once two or more Collaborators approve both the pull request and the
-fast-tracking request, and the necessary CI testing is done. A request to
-fast-track a PR made by a different Collaborator than the pull-request author
-counts as a fast-track approval.
+To propose fast-tracking a pull request, apply the `fast-track` label. Then add
+a comment that Collaborators may upvote.
+
+If someone disagrees with the fast-tracking request, remove the label. Do not
+fast-track the pull request in that case.
+
+The pull request may be fast-tracked if two Collaborators approve the
+fast-tracking request. To land, the pull request itself still needs two
+Collaborator approvals and a passing CI.
+
+Collaborators may request fast-tracking of pull requests they did not author.
+In that case only, the request itself is also one fast-track approval. Upvote
+the comment anyway to avoid any doubt.
 
 ### Testing and CI
 
