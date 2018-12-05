@@ -651,7 +651,7 @@ certificate.
 #### Certificate Object
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24358
     description: Support Elliptic Curve public key info.
 -->
@@ -1054,7 +1054,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24405
     description: The `minVersion` and `maxVersion` can be used to restrict
                  the allowed TLS protocol versions.

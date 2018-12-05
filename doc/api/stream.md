@@ -465,7 +465,7 @@ See also: [`writable.cork()`][].
 
 ##### writable.writable
 <!-- YAML
-added: REPLACEME
+added: v11.4.0
 -->
 
 * {boolean}
@@ -1024,7 +1024,7 @@ been emitted will return `null`. No runtime error will be raised.
 
 ##### readable.readable
 <!-- YAML
-added: REPLACEME
+added: v11.4.0
 -->
 
 * {boolean}

@@ -311,7 +311,7 @@ The `rl.write()` method will write the data to the `readline` `Interface`'s
 
 ### rl\[Symbol.asyncIterator\]()
 <!-- YAML
-added: REPLACEME
+added: v11.4.0
 -->
 
 > Stability: 1 - Experimental

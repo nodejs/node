@@ -121,7 +121,7 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 
 ### `--http-parser=library`
 <!-- YAML
-added: REPLACEME
+added: v11.4.0
 -->
 
 Chooses an HTTP parser library. Available values are:
