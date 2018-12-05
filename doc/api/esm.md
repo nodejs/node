@@ -238,11 +238,8 @@ PACKAGE_MAIN_RESOLVE(_packageURL_)
 
 #### ESM_FORMAT(_url_)
 > 1. Assert: _url_ corresponds to an existing file.
-> 1. Let _pjsonURL_ be the result of **READ_PACKAGE_BOUNDARY**(_url_).
-> 1. Let _pjson_ be *undefined*.
-> 1. If _pjsonURL_ is not *null*, then
->    1. Set _pjson_ to the result of **READ_JSON_FILE**(_pjsonURL_).
-> 1. If _pjsonURL_ is *null* or **HAS_ESM_PROPERTIES**(_pjson_) is *true*, then
+> 1. Let _pjson_ be the result of **READ_PACKAGE_BOUNDARY**(_url_).
+> 1. If _pjson_ is *null* or **HAS_ESM_PROPERTIES**(_pjson_) is *true*, then
 >    1. If _url_ does not end in _".js"_ or _".mjs"_ then,
 >       1. Throw an _Unkonwn Module Format_ error.
 >    1. Return _"esm"_.
@@ -262,6 +259,8 @@ READ_PACKAGE_BOUNDARY(_url_)
 >       1. Return _boundaryURL_.
 >    1. Set _boundaryURL_ to the URL resolution of _"../package.json"_ relative
 >       to _boundaryURL_.
+>    1. Let _pjson_ be the result of **READ_JSON_FILE**(_boundaryURL_).
+>    1. Return _pjson_.
 > 1. Return *null*.
 
 READ_JSON_FILE(_url_)
