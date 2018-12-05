@@ -183,7 +183,7 @@ property take precedence over `--trace-deprecation` and
 <!-- YAML
 added: v0.5.3
 changes:
-  - version: REPLACEME
+  - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23708
     description: The `%d`, `%f` and `%i` specifiers now support Symbols
                  properly.
@@ -198,6 +198,9 @@ changes:
                  first argument. This change removes previously present quotes
                  from strings that were being output when the first argument
                  was not a string.
+  - version: v11.4.0
+    pr-url: https://github.com/nodejs/node/pull/24806
+    description: The `%o` specifier's `depth` has default depth of 4 again.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/17907
     description: The `%o` specifier's `depth` option will now fall back to the
@@ -386,7 +389,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24326
     description: The `depth` default changed back to `2`.
   - version: v11.0.0

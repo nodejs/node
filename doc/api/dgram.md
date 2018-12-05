@@ -601,7 +601,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/13623
     description: The `recvBufferSize` and `sendBufferSize` options are
                  supported now.
-  - version: REPLACEME
+  - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23798
     description: The `ipv6Only` option is supported.
 -->

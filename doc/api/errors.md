@@ -1874,7 +1874,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 ### HPE_HEADER_OVERFLOW
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v11.4.0
     pr-url: https://github.com/nodejs/node/commit/186035243fad247e3955f
     description: Max header size in `http_parser` was set to 8KB.
 -->
