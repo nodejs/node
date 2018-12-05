@@ -1,8 +1,6 @@
 #include "inspector_socket.h"
 
-#ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
 #define NODE_EXPERIMENTAL_HTTP
-#endif
 #include "http_parser_adaptor.h"
 
 #include "util-inl.h"
@@ -437,13 +435,8 @@ class HttpHandler : public ProtocolHandler {
   explicit HttpHandler(InspectorSocket* inspector, TcpHolder::Pointer tcp)
                        : ProtocolHandler(inspector, std::move(tcp)),
                          parsing_value_(false) {
-#ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
     llhttp_init(&parser_, HTTP_REQUEST, &parser_settings);
     llhttp_settings_init(&parser_settings);
-#else  /* !NODE_EXPERIMENTAL_HTTP_DEFAULT */
-    http_parser_init(&parser_, HTTP_REQUEST);
-    http_parser_settings_init(&parser_settings);
-#endif  /* NODE_EXPERIMENTAL_HTTP_DEFAULT */
     parser_settings.on_header_field = OnHeaderField;
     parser_settings.on_header_value = OnHeaderValue;
     parser_settings.on_message_complete = OnMessageComplete;
@@ -488,17 +481,12 @@ class HttpHandler : public ProtocolHandler {
 
   void OnData(std::vector<char>* data) override {
     parser_errno_t err;
-#ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
     err = llhttp_execute(&parser_, data->data(), data->size());
 
     if (err == HPE_PAUSED_UPGRADE) {
       err = HPE_OK;
       llhttp_resume_after_upgrade(&parser_);
     }
-#else  /* !NODE_EXPERIMENTAL_HTTP_DEFAULT */
-    http_parser_execute(&parser_, &parser_settings, data->data(), data->size());
-    err = HTTP_PARSER_ERRNO(&parser_);
-#endif  /* NODE_EXPERIMENTAL_HTTP_DEFAULT */
     data->clear();
     if (err != HPE_OK) {
       CancelHandshake();
