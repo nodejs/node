@@ -128,6 +128,9 @@ added: v0.3.4
     **Default:** `256`.
   * `timeout` {number} Socket timeout in milliseconds.
     This will set the timeout after the socket is connected.
+  * `options` in
+    [`socket.connect()`](net.html#net_socket_connect_options_connectlistener)
+    are also supported.
 
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
 of these values set to their respective defaults.
