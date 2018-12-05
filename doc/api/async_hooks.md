@@ -150,9 +150,9 @@ Because printing to the console is an asynchronous operation, `console.log()`
 will cause the AsyncHooks callbacks to be called. Using `console.log()` or
 similar asynchronous operations inside an AsyncHooks callback function will thus
 cause an infinite recursion. An easy solution to this when debugging is to use a
-synchronous logging operation such as `fs.writeSync(process.stdout.fd, msg)`.
-This will print to stdout and will not invoke AsyncHooks recursively because it
-is synchronous.
+synchronous logging operation such as `fs.writeFileSync(file, msg, flag)`.
+This will print to the file and will not invoke AsyncHooks recursively because
+it is synchronous.
 
 ```js
 const fs = require('fs');
@@ -160,7 +160,7 @@ const util = require('util');
 
 function debug(...args) {
   // use a function like this one when debugging inside an AsyncHooks callback
-  fs.writeSync(process.stdout.fd, `${util.format(...args)}\n`);
+  fs.writeFileSync('log.out', `${util.format(...args)}\n`, { flag: 'a' });
 }
 ```
 
@@ -329,17 +329,20 @@ async_hooks.createHook({
   },
   before(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(process.stdout.fd, `${indentStr}before:  ${asyncId}\n`);
+    fs.writeFileSync('log.out',
+                     `${indentStr}before:  ${asyncId}\n`, { flag: 'a' });
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(process.stdout.fd, `${indentStr}after:   ${asyncId}\n`);
+    fs.writeFileSync('log.out',
+                     `${indentStr}after:  ${asyncId}\n`, { flag: 'a' });
   },
   destroy(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeSync(process.stdout.fd, `${indentStr}destroy: ${asyncId}\n`);
+    fs.writeFileSync('log.out',
+                     `${indentStr}destroy:  ${asyncId}\n`, { flag: 'a' });
   },
 }).enable();
 

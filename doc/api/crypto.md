@@ -2204,7 +2204,9 @@ request.
 
 ### crypto.randomFillSync(buffer[, offset][, size])
 <!-- YAML
-added: v7.10.0
+added:
+  - v7.10.0
+  - v6.13.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15231
@@ -2248,7 +2250,9 @@ console.log(Buffer.from(crypto.randomFillSync(c).buffer,
 
 ### crypto.randomFill(buffer[, offset][, size], callback)
 <!-- YAML
-added: v7.10.0
+added:
+  - v7.10.0
+  - v6.13.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15231

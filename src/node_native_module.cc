@@ -317,7 +317,8 @@ MaybeLocal<Value> NativeModuleLoader::LookupAndCompile(
 
 void NativeModuleLoader::Initialize(Local<Object> target,
                                     Local<Value> unused,
-                                    Local<Context> context) {
+                                    Local<Context> context,
+                                    void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(

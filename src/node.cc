@@ -25,6 +25,7 @@
 #include "node_context_data.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "node_metadata.h"
 #include "node_native_module.h"
 #include "node_perf.h"
 #include "node_platform.h"
@@ -48,16 +49,9 @@
 #include "node_dtrace.h"
 #endif
 
-#include "ares.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
-#ifdef NODE_EXPERIMENTAL_HTTP
-# include "llhttp.h"
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-# include "http_parser.h"
-#endif  /* NODE_EXPERIMENTAL_HTTP */
-#include "nghttp2/nghttp2ver.h"
 #include "req_wrap-inl.h"
 #include "string_bytes.h"
 #include "tracing/agent.h"
@@ -68,7 +62,6 @@
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
 #include "v8-profiler.h"
-#include "zlib.h"
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
 #include "../deps/v8/src/third_party/vtune/v8-vtune.h"
@@ -116,7 +109,6 @@ typedef int mode_t;
 
 namespace node {
 
-using errors::TryCatchScope;
 using native_module::NativeModuleLoader;
 using options_parser::kAllowedInEnvironment;
 using options_parser::kDisallowedInEnvironment;
@@ -124,7 +116,6 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::DEFAULT;
-using v8::DontEnum;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
@@ -144,11 +135,8 @@ using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
 using v8::None;
 using v8::Nothing;
-using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::PropertyAttribute;
-using v8::ReadOnly;
 using v8::Script;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
@@ -160,22 +148,6 @@ using v8::V8;
 using v8::Value;
 
 static bool v8_is_profiling = false;
-
-#ifdef NODE_EXPERIMENTAL_HTTP
-static const char llhttp_version[] =
-    NODE_STRINGIFY(LLHTTP_VERSION_MAJOR)
-    "."
-    NODE_STRINGIFY(LLHTTP_VERSION_MINOR)
-    "."
-    NODE_STRINGIFY(LLHTTP_VERSION_PATCH);
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-static const char http_parser_version[] =
-    NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
-    "."
-    NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)
-    "."
-    NODE_STRINGIFY(HTTP_PARSER_VERSION_PATCH);
-#endif  /* NODE_EXPERIMENTAL_HTTP */
 
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
@@ -215,27 +187,12 @@ class NodeTraceStateObserver :
     auto trace_process = tracing::TracedValue::Create();
     trace_process->BeginDictionary("versions");
 
-#ifdef NODE_EXPERIMENTAL_HTTP
-    trace_process->SetString("llhttp", llhttp_version);
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-    trace_process->SetString("http_parser", http_parser_version);
-#endif  /* NODE_EXPERIMENTAL_HTTP */
+#define V(key)                                                                 \
+  trace_process->SetString(#key, per_process::metadata.versions.key.c_str());
 
-    const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
-    const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
+    NODE_VERSIONS_KEYS(V)
+#undef V
 
-    trace_process->SetString("node", NODE_VERSION_STRING);
-    trace_process->SetString("v8", V8::GetVersion());
-    trace_process->SetString("uv", uv_version_string());
-    trace_process->SetString("zlib", ZLIB_VERSION);
-    trace_process->SetString("ares", ARES_VERSION_STR);
-    trace_process->SetString("modules", node_modules_version);
-    trace_process->SetString("nghttp2", NGHTTP2_VERSION);
-    trace_process->SetString("napi", node_napi_version);
-
-#if HAVE_OPENSSL
-    trace_process->SetString("openssl", crypto::GetOpenSSLVersion());
-#endif
     trace_process->EndDictionary();
 
     trace_process->SetString("arch", NODE_ARCH);
@@ -741,41 +698,6 @@ Local<Value> MakeCallback(Isolate* isolate,
           .FromMaybe(Local<Value>()));
 }
 
-// Executes a str within the current v8 context.
-static MaybeLocal<Value> ExecuteString(Environment* env,
-                                       Local<String> source,
-                                       Local<String> filename) {
-  EscapableHandleScope scope(env->isolate());
-  TryCatchScope try_catch(env);
-
-  // try_catch must be nonverbose to disable FatalException() handler,
-  // we will handle exceptions ourself.
-  try_catch.SetVerbose(false);
-
-  ScriptOrigin origin(filename);
-
-  MaybeLocal<Script> script =
-      Script::Compile(env->context(), source, &origin);
-  if (script.IsEmpty()) {
-    ReportException(env, try_catch);
-    env->Exit(3);
-    return MaybeLocal<Value>();
-  }
-
-  MaybeLocal<Value> result = script.ToLocalChecked()->Run(env->context());
-  if (result.IsEmpty()) {
-    if (try_catch.HasTerminated()) {
-      env->isolate()->CancelTerminateExecution();
-      return MaybeLocal<Value>();
-    }
-    ReportException(env, try_catch);
-    env->Exit(4);
-    return MaybeLocal<Value>();
-  }
-
-  return scope.Escape(result.ToLocalChecked());
-}
-
 static void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
   if (env->inspector_agent()->IsActive()) {
@@ -954,31 +876,12 @@ static Local<Object> GetFeatures(Environment* env) {
 static void DebugProcess(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
-namespace {
-
-#define READONLY_PROPERTY(obj, str, var)                                      \
-  do {                                                                        \
-    obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
-                           var,                                               \
-                           ReadOnly).FromJust();                              \
-  } while (0)
-
-#define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
-  do {                                                                        \
-    obj->DefineOwnProperty(env->context(),                                    \
-                           OneByteString(env->isolate(), str),                \
-                           var,                                               \
-                           static_cast<PropertyAttribute>(ReadOnly|DontEnum)) \
-        .FromJust();                                                          \
-  } while (0)
-
-}  // anonymous namespace
-
 void SetupProcessObject(Environment* env,
                         const std::vector<std::string>& args,
                         const std::vector<std::string>& exec_args) {
-  HandleScope scope(env->isolate());
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env->context();
 
   Local<Object> process = env->process_object();
 
@@ -1002,53 +905,10 @@ void SetupProcessObject(Environment* env,
   Local<Object> versions = Object::New(env->isolate());
   READONLY_PROPERTY(process, "versions", versions);
 
-#ifdef NODE_EXPERIMENTAL_HTTP
-  READONLY_PROPERTY(versions,
-                    "llhttp",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), llhttp_version));
-#else  /* !NODE_EXPERIMENTAL_HTTP */
-  READONLY_PROPERTY(versions,
-                    "http_parser",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), http_parser_version));
-#endif  /* NODE_EXPERIMENTAL_HTTP */
-
-  // +1 to get rid of the leading 'v'
-  READONLY_PROPERTY(versions,
-                    "node",
-                    OneByteString(env->isolate(), NODE_VERSION + 1));
-  READONLY_PROPERTY(versions,
-                    "v8",
-                    OneByteString(env->isolate(), V8::GetVersion()));
-  READONLY_PROPERTY(versions,
-                    "uv",
-                    OneByteString(env->isolate(), uv_version_string()));
-  READONLY_PROPERTY(versions,
-                    "zlib",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
-  READONLY_PROPERTY(versions,
-                    "ares",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
-
-  const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
-  READONLY_PROPERTY(
-      versions,
-      "modules",
-      FIXED_ONE_BYTE_STRING(env->isolate(), node_modules_version));
-  READONLY_PROPERTY(versions,
-                    "nghttp2",
-                    FIXED_ONE_BYTE_STRING(env->isolate(), NGHTTP2_VERSION));
-  const char node_napi_version[] = NODE_STRINGIFY(NAPI_VERSION);
-  READONLY_PROPERTY(
-      versions,
-      "napi",
-      FIXED_ONE_BYTE_STRING(env->isolate(), node_napi_version));
-
-#if HAVE_OPENSSL
-  READONLY_PROPERTY(
-      versions,
-      "openssl",
-      OneByteString(env->isolate(), crypto::GetOpenSSLVersion().c_str()));
-#endif
+#define V(key)                                                                 \
+  READONLY_STRING_PROPERTY(versions, #key, per_process::metadata.versions.key);
+  NODE_VERSIONS_KEYS(V)
+#undef V
 
   // process.arch
   READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
@@ -1319,9 +1179,6 @@ void SetupProcessObject(Environment* env,
 }
 
 
-#undef READONLY_PROPERTY
-
-
 void SignalExit(int signo) {
   uv_tty_reset_mode();
 #ifdef __FreeBSD__
@@ -1334,39 +1191,13 @@ void SignalExit(int signo) {
   raise(signo);
 }
 
-
-static MaybeLocal<Function> GetBootstrapper(
+static MaybeLocal<Value> ExecuteBootstrapper(
     Environment* env,
-    Local<String> source,
-    Local<String> script_name) {
-  EscapableHandleScope scope(env->isolate());
-
-  TryCatchScope try_catch(env);
-
-  // Disable verbose mode to stop FatalException() handler from trying
-  // to handle the exception. Errors this early in the start-up phase
-  // are not safe to ignore.
-  try_catch.SetVerbose(false);
-
-  // Execute the bootstrapper javascript file
-  MaybeLocal<Value> bootstrapper_v = ExecuteString(env, source, script_name);
-  if (bootstrapper_v.IsEmpty())  // This happens when execution was interrupted.
-    return MaybeLocal<Function>();
-
-  if (try_catch.HasCaught())  {
-    ReportException(env, try_catch);
-    exit(10);
-  }
-
-  CHECK(bootstrapper_v.ToLocalChecked()->IsFunction());
-  return scope.Escape(bootstrapper_v.ToLocalChecked().As<Function>());
-}
-
-static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
-                                int argc, Local<Value> argv[],
-                                Local<Value>* out) {
-  bool ret = bootstrapper->Call(
-      env->context(), Null(env->isolate()), argc, argv).ToLocal(out);
+    const char* id,
+    std::vector<Local<String>>* parameters,
+    std::vector<Local<Value>>* arguments) {
+  MaybeLocal<Value> ret = per_process_loader.CompileAndCall(
+      env->context(), id, parameters, arguments, env);
 
   // If there was an error during bootstrap then it was either handled by the
   // FatalException handler or it's unrecoverable (e.g. max call stack
@@ -1375,123 +1206,86 @@ static bool ExecuteBootstrapper(Environment* env, Local<Function> bootstrapper,
   // There are only two ways to have a stack size > 1: 1) the user manually
   // called MakeCallback or 2) user awaited during bootstrap, which triggered
   // _tickCallback().
-  if (!ret) {
+  if (ret.IsEmpty()) {
     env->async_hooks()->clear_async_id_stack();
   }
 
   return ret;
 }
 
-
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
-
-  TryCatchScope try_catch(env);
-  // Disable verbose mode to stop FatalException() handler from trying
-  // to handle the exception. Errors this early in the start-up phase
-  // are not safe to ignore.
-  try_catch.SetVerbose(false);
-
-  // The bootstrapper scripts are lib/internal/bootstrap/loaders.js and
-  // lib/internal/bootstrap/node.js, each included as a static C string
-  // generated in node_javascript.cc by node_js2c.
-
-  // TODO(joyeecheung): use NativeModuleLoader::Compile
-  // We duplicate the string literals here since once we refactor the bootstrap
-  // compilation out to NativeModuleLoader none of this is going to matter
   Isolate* isolate = env->isolate();
-  Local<String> loaders_name =
-      FIXED_ONE_BYTE_STRING(isolate, "internal/bootstrap/loaders.js");
-  Local<String> loaders_source =
-      per_process_loader.GetSource(isolate, "internal/bootstrap/loaders");
-  MaybeLocal<Function> loaders_bootstrapper =
-      GetBootstrapper(env, loaders_source, loaders_name);
-  Local<String> node_name =
-      FIXED_ONE_BYTE_STRING(isolate, "internal/bootstrap/node.js");
-  Local<String> node_source =
-      per_process_loader.GetSource(isolate, "internal/bootstrap/node");
-  MaybeLocal<Function> node_bootstrapper =
-      GetBootstrapper(env, node_source, node_name);
-
-  if (loaders_bootstrapper.IsEmpty() || node_bootstrapper.IsEmpty()) {
-    // Execution was interrupted.
-    return;
-  }
+  Local<Context> context = env->context();
 
   // Add a reference to the global object
-  Local<Object> global = env->context()->Global();
+  Local<Object> global = context->Global();
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   InitDTrace(env, global);
 #endif
 
-  // Enable handling of uncaught exceptions
-  // (FatalException(), break on uncaught exception in debugger)
-  //
-  // This is not strictly necessary since it's almost impossible
-  // to attach the debugger fast enough to break on exception
-  // thrown during process startup.
-  try_catch.SetVerbose(true);
+  Local<Object> process = env->process_object();
 
-  env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
-
+  // Setting global properties for the bootstrappers to use:
+  // - global
+  // - process._rawDebug
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
-  global->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "global"),
-              global).FromJust();
+  global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
+      .FromJust();
+  env->SetMethod(process, "_rawDebug", RawDebug);
 
   // Create binding loaders
-  Local<Function> get_binding_fn = env->NewFunctionTemplate(binding::GetBinding)
-                                       ->GetFunction(env->context())
-                                       .ToLocalChecked();
-
-  Local<Function> get_linked_binding_fn =
+  std::vector<Local<String>> loaders_params = {
+      env->process_string(),
+      FIXED_ONE_BYTE_STRING(isolate, "getBinding"),
+      FIXED_ONE_BYTE_STRING(isolate, "getLinkedBinding"),
+      FIXED_ONE_BYTE_STRING(isolate, "getInternalBinding"),
+      FIXED_ONE_BYTE_STRING(isolate, "debugBreak")};
+  std::vector<Local<Value>> loaders_args = {
+      process,
+      env->NewFunctionTemplate(binding::GetBinding)
+          ->GetFunction(context)
+          .ToLocalChecked(),
       env->NewFunctionTemplate(binding::GetLinkedBinding)
-          ->GetFunction(env->context())
-          .ToLocalChecked();
-
-  Local<Function> get_internal_binding_fn =
+          ->GetFunction(context)
+          .ToLocalChecked(),
       env->NewFunctionTemplate(binding::GetInternalBinding)
-          ->GetFunction(env->context())
-          .ToLocalChecked();
+          ->GetFunction(context)
+          .ToLocalChecked(),
+      Boolean::New(isolate,
+                   env->options()->debug_options->break_node_first_line)};
 
-  Local<Value> loaders_bootstrapper_args[] = {
-    env->process_object(),
-    get_binding_fn,
-    get_linked_binding_fn,
-    get_internal_binding_fn,
-    Boolean::New(env->isolate(),
-                 env->options()->debug_options->break_node_first_line)
-  };
-
+  MaybeLocal<Value> loader_exports;
   // Bootstrap internal loaders
-  Local<Value> bootstrapped_loaders;
-  if (!ExecuteBootstrapper(env, loaders_bootstrapper.ToLocalChecked(),
-                           arraysize(loaders_bootstrapper_args),
-                           loaders_bootstrapper_args,
-                           &bootstrapped_loaders)) {
+  loader_exports = ExecuteBootstrapper(
+      env, "internal/bootstrap/loaders", &loaders_params, &loaders_args);
+  if (loader_exports.IsEmpty()) {
     return;
   }
-
-  Local<Function> trigger_fatal_exception =
-      env->NewFunctionTemplate(FatalException)->GetFunction(env->context())
-          .ToLocalChecked();
 
   // Bootstrap Node.js
   Local<Object> bootstrapper = Object::New(env->isolate());
   SetupBootstrapObject(env, bootstrapper);
-  Local<Value> bootstrapped_node;
-  Local<Value> node_bootstrapper_args[] = {
-    env->process_object(),
-    bootstrapper,
-    bootstrapped_loaders,
-    trigger_fatal_exception,
-  };
-  if (!ExecuteBootstrapper(env, node_bootstrapper.ToLocalChecked(),
-                           arraysize(node_bootstrapper_args),
-                           node_bootstrapper_args,
-                           &bootstrapped_node)) {
+
+  // process, bootstrappers, loaderExports, triggerFatalException
+  std::vector<Local<String>> node_params = {
+      env->process_string(),
+      FIXED_ONE_BYTE_STRING(isolate, "bootstrappers"),
+      FIXED_ONE_BYTE_STRING(isolate, "loaderExports"),
+      FIXED_ONE_BYTE_STRING(isolate, "triggerFatalException")};
+  std::vector<Local<Value>> node_args = {
+      process,
+      bootstrapper,
+      loader_exports.ToLocalChecked(),
+      env->NewFunctionTemplate(FatalException)
+          ->GetFunction(context)
+          .ToLocalChecked()};
+
+  if (ExecuteBootstrapper(
+          env, "internal/bootstrap/node", &node_params, &node_args)
+          .IsEmpty()) {
     return;
   }
 }

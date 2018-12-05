@@ -1795,20 +1795,6 @@ An attempt was made to load a module with an unknown or unsupported format.
 An invalid or unknown process signal was passed to an API expecting a valid
 signal (such as [`subprocess.kill()`][]).
 
-<a id="ERR_UNKNOWN_STDIN_TYPE"></a>
-### ERR_UNKNOWN_STDIN_TYPE
-
-An attempt was made to launch a Node.js process with an unknown `stdin` file
-type. This error is usually an indication of a bug within Node.js itself,
-although it is possible for user code to trigger it.
-
-<a id="ERR_UNKNOWN_STREAM_TYPE"></a>
-### ERR_UNKNOWN_STREAM_TYPE
-
-An attempt was made to launch a Node.js process with an unknown `stdout` or
-`stderr` file type. This error is usually an indication of a bug within Node.js
-itself, although it is possible for user code to trigger it.
-
 <a id="ERR_V8BREAKITERATOR"></a>
 ### ERR_V8BREAKITERATOR
 
@@ -2064,6 +2050,28 @@ The `'ERR_UNKNOWN_BUILTIN_MODULE'` error code is used to identify a specific
 kind of internal Node.js error that should not typically be triggered by user
 code. Instances of this error point to an internal bug within the Node.js
 binary itself.
+
+<a id="ERR_UNKNOWN_STDIN_TYPE"></a>
+### ERR_UNKNOWN_STDIN_TYPE
+<!-- YAML
+added: v8.0.0
+removed: REPLACEME
+-->
+
+An attempt was made to launch a Node.js process with an unknown `stdin` file
+type. This error is usually an indication of a bug within Node.js itself,
+although it is possible for user code to trigger it.
+
+<a id="ERR_UNKNOWN_STREAM_TYPE"></a>
+### ERR_UNKNOWN_STREAM_TYPE
+<!-- YAML
+added: v8.0.0
+removed: REPLACEME
+-->
+
+An attempt was made to launch a Node.js process with an unknown `stdout` or
+`stderr` file type. This error is usually an indication of a bug within Node.js
+itself, although it is possible for user code to trigger it.
 
 <a id="ERR_VALUE_OUT_OF_RANGE"></a>
 ### ERR_VALUE_OUT_OF_RANGE

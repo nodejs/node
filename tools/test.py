@@ -1499,7 +1499,8 @@ def PrintCrashed(code):
 # addons/ requires compilation.
 IGNORED_SUITES = [
   'addons',
-  'addons-napi',
+  'js-native-api',
+  'node-api',
   'benchmark',
   'doctool',
   'internet',

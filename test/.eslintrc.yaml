@@ -48,9 +48,8 @@ rules:
       message: "The first argument should be the `actual`, not the `expected` value."
     - selector: "CallExpression[callee.object.name='assert'][callee.property.name='deepStrictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression'])"
       message: "The first argument should be the `actual`, not the `expected` value."
-    # TODO: Activate the `strictEqual` rule as soon as it produces less churn.
-    # - selector: "CallExpression[callee.object.name='assert'][callee.property.name='strictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression'])"
-    #   message: "The first argument should be the `actual`, not the `expected` value."
+    - selector: "CallExpression[callee.object.name='assert'][callee.property.name='strictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression'])"
+      message: "The first argument should be the `actual`, not the `expected` value."
 # Global scoped methods and vars
 globals:
   WebAssembly: false

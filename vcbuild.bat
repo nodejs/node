@@ -44,13 +44,14 @@ set configure_flags=
 set build_addons=
 set dll=
 set enable_static=
-set build_addons_napi=
+set build_js_native_api_tests=
+set build_node_api_tests=
 set test_node_inspect=
 set test_check_deopts=
 set js_test_suites=default
 set v8_test_options=
 set v8_build_options=
-set "common_test_suites=%js_test_suites% doctool addons addons-napi&set build_addons=1&set build_addons_napi=1"
+set "common_test_suites=%js_test_suites% doctool addons js-native-api node-api&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
 set http2_debug=
 set nghttp2_debug=
 set link_module=
@@ -81,9 +82,11 @@ if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %common_test_suites%&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&goto arg-ok
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
-if /i "%1"=="build-addons-napi"   set build_addons_napi=1&goto arg-ok
+if /i "%1"=="build-js-native-api-tests"   set build_js_native_api_tests=1&goto arg-ok
+if /i "%1"=="build-node-api-tests"   set build_node_api_tests=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
-if /i "%1"=="test-addons-napi"   set test_args=%test_args% addons-napi&set build_addons_napi=1&goto arg-ok
+if /i "%1"=="test-js-native-api"   set test_args=%test_args% js-native-api&set build_js_native_api_tests=1&goto arg-ok
+if /i "%1"=="test-node-api"   set test_args=%test_args% node-api&set build_node_api_tests=1&goto arg-ok
 if /i "%1"=="test-benchmark" set test_args=%test_args% benchmark&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
@@ -475,10 +478,10 @@ for %%F in (%config%\doc\api\*.md) do (
 :run
 @rem Run tests if requested.
 
-if not defined build_addons goto build-addons-napi
+if not defined build_addons goto build-js-native-api-tests
 if not exist "%node_exe%" (
   echo Failed to find node.exe
-  goto build-addons-napi
+  goto build-js-native-api-tests
 )
 echo Building addons
 :: clear
@@ -495,21 +498,40 @@ set npm_config_nodedir=%~dp0
 if errorlevel 1 exit /b 1
 endlocal
 
-:build-addons-napi
-if not defined build_addons_napi goto run-tests
+:build-js-native-api-tests
+if not defined build_js_native_api_tests goto build-node-api-tests
+if not exist "%node_exe%" (
+  echo Failed to find node.exe
+  goto build-node-api-tests
+)
+echo Building js-native-api
+:: clear
+for /d %%F in (test\js-native-api\??_*) do (
+  rd /s /q %%F
+)
+:: building js-native-api
+setlocal
+set npm_config_nodedir=%~dp0
+"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\js-native-api"
+if errorlevel 1 exit /b 1
+endlocal
+goto build-node-api-tests
+
+:build-node-api-tests
+if not defined build_node_api_tests goto run-tests
 if not exist "%node_exe%" (
   echo Failed to find node.exe
   goto run-tests
 )
-echo Building addons-napi
+echo Building node-api
 :: clear
-for /d %%F in (test\addons-napi\??_*) do (
+for /d %%F in (test\node-api\??_*) do (
   rd /s /q %%F
 )
-:: building addons-napi
+:: building node-api
 setlocal
 set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons-napi"
+"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\node-api"
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
@@ -557,7 +579,7 @@ goto lint-cpp
 
 :lint-cpp
 if not defined lint_cpp goto lint-js
-call :run-lint-cpp src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\addons-napi\*.cc test\addons-napi\*.h test\cctest\*.cc test\cctest\*.h tools\icu\*.cc tools\icu\*.h
+call :run-lint-cpp src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\js-native-api\*.cc test\js-native-api\*.cc test\js-native-api\*.h test\node-api\*.cc test\node-api\*.cc test\node-api\*.h test\cctest\*.cc test\cctest\*.h tools\icu\*.cc tools\icu\*.h
 python tools/check-imports.py
 goto lint-js
 
@@ -594,7 +616,10 @@ if %errorlevel% equ 0 goto exit
 echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /c:"test\addons-napi\common.h" > nul 2>&1
+echo %1 | findstr /c:"test\js-native-api\common.h" > nul 2>&1
+if %errorlevel% equ 0 goto exit
+
+echo %1 | findstr /c:"test\node-api\common.h" > nul 2>&1
 if %errorlevel% equ 0 goto exit
 
 set "localcppfilelist=%localcppfilelist% %1"
@@ -643,7 +668,7 @@ del .used_configure_flags
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-addons-napi/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [nopch] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-ci/test-all/test-addons/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [nopch] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

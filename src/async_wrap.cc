@@ -440,7 +440,8 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
 
 void AsyncWrap::Initialize(Local<Object> target,
                            Local<Value> unused,
-                           Local<Context> context) {
+                           Local<Context> context,
+                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);

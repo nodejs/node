@@ -69,7 +69,8 @@ Local<Object> PipeWrap::Instantiate(Environment* env,
 
 void PipeWrap::Initialize(Local<Object> target,
                           Local<Value> unused,
-                          Local<Context> context) {
+                          Local<Context> context,
+                          void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
