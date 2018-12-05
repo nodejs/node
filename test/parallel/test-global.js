@@ -27,6 +27,31 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
+const { builtinModules } = require('module');
+
+// Load all modules to actually cover most code parts.
+builtinModules.forEach((moduleName) => {
+  if (!moduleName.includes('/')) {
+    try {
+      // This could throw for e.g., crypto if the binary is not compiled
+      // accordingly.
+      require(moduleName);
+    } catch {}
+  }
+});
+
+assert.deepStrictEqual(
+  Object.keys(global),
+  [
+    'global',
+    'clearImmediate',
+    'clearInterval',
+    'clearTimeout',
+    'setImmediate',
+    'setInterval',
+    'setTimeout'
+  ]
+);
 
 common.allowGlobals('bar', 'foo');
 

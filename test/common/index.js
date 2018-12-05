@@ -217,12 +217,10 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
-  Buffer,
   clearImmediate,
   clearInterval,
   clearTimeout,
   global,
-  process,
   setImmediate,
   setInterval,
   setTimeout
