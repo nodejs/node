@@ -168,7 +168,7 @@ The pull request may be fast-tracked if two Collaborators approve the
 fast-tracking request. To land, the pull request itself still needs two
 Collaborator approvals and a passing CI.
 
-Collaborator's may request fast-tracking of pull requests they did not author.
+Collaborators may request fast-tracking of pull requests they did not author.
 In that case only, the request itself is also one fast-track approval. Upvote
 the comment anyway to avoid any doubt.
 
