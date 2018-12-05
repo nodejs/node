@@ -187,7 +187,7 @@ parser.add_option('--openssl-system-ca-path',
 parser.add_option('--experimental-http-parser',
     action='store_true',
     dest='experimental_http_parser',
-    help='use llhttp instead of http_parser by default')
+    help='(no-op)')
 
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
@@ -1117,9 +1117,6 @@ def configure_node(o):
     o['variables']['node_target_type'] = 'static_library'
   else:
     o['variables']['node_target_type'] = 'executable'
-
-  o['variables']['node_experimental_http_parser'] = \
-      b(options.experimental_http_parser)
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib

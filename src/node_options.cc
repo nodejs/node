@@ -111,11 +111,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--expose-internals", "", &EnvironmentOptions::expose_internals);
   AddOption("--http-parser",
             "Select which HTTP parser to use; either 'legacy' or 'llhttp' "
-#ifdef NODE_EXPERIMENTAL_HTTP_DEFAULT
             "(default: llhttp).",
-#else
-            "(default: legacy).",
-#endif
             &EnvironmentOptions::http_parser,
             kAllowedInEnvironment);
   AddOption("--loader",
