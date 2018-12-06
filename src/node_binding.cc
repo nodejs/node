@@ -176,89 +176,90 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
   env->TryLoadAddon(*filename, flags, [&](DLib* dlib) {
-  const bool is_opened = dlib->Open();
+    const bool is_opened = dlib->Open();
 
-  // Objects containing v14 or later modules will have registered themselves
-  // on the pending list.  Activate all of them now.  At present, only one
-  // module per object is supported.
-  node_module* const mp =
-      static_cast<node_module*>(uv_key_get(&thread_local_modpending));
-  uv_key_set(&thread_local_modpending, nullptr);
+    // Objects containing v14 or later modules will have registered themselves
+    // on the pending list.  Activate all of them now.  At present, only one
+    // module per object is supported.
+    node_module* const mp =
+        static_cast<node_module*>(uv_key_get(&thread_local_modpending));
+    uv_key_set(&thread_local_modpending, nullptr);
 
-  if (!is_opened) {
-    Local<String> errmsg = OneByteString(env->isolate(), dlib->errmsg_.c_str());
-    dlib->Close();
-#ifdef _WIN32
-    // Windows needs to add the filename into the error message
-    errmsg = String::Concat(
-        env->isolate(), errmsg, args[1]->ToString(context).ToLocalChecked());
-#endif  // _WIN32
-    env->isolate()->ThrowException(Exception::Error(errmsg));
-    return false;
-  }
-
-  if (mp == nullptr) {
-    if (auto callback = GetInitializerCallback(dlib)) {
-      callback(exports, module, context);
-    } else if (auto napi_callback = GetNapiInitializerCallback(dlib)) {
-      napi_module_register_by_symbol(exports, module, context, napi_callback);
-    } else {
+    if (!is_opened) {
+      Local<String> errmsg =
+          OneByteString(env->isolate(), dlib->errmsg_.c_str());
       dlib->Close();
-      env->ThrowError("Module did not self-register.");
+#ifdef _WIN32
+      // Windows needs to add the filename into the error message
+      errmsg = String::Concat(
+          env->isolate(), errmsg, args[1]->ToString(context).ToLocalChecked());
+#endif  // _WIN32
+      env->isolate()->ThrowException(Exception::Error(errmsg));
       return false;
     }
-    return true;
-  }
 
-  // -1 is used for N-API modules
-  if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
-    // Even if the module did self-register, it may have done so with the wrong
-    // version. We must only give up after having checked to see if it has an
-    // appropriate initializer callback.
-    if (auto callback = GetInitializerCallback(dlib)) {
-      callback(exports, module, context);
+    if (mp == nullptr) {
+      if (auto callback = GetInitializerCallback(dlib)) {
+        callback(exports, module, context);
+      } else if (auto napi_callback = GetNapiInitializerCallback(dlib)) {
+        napi_module_register_by_symbol(exports, module, context, napi_callback);
+      } else {
+        dlib->Close();
+        env->ThrowError("Module did not self-register.");
+        return false;
+      }
       return true;
     }
-    char errmsg[1024];
-    snprintf(errmsg,
-             sizeof(errmsg),
-             "The module '%s'"
-             "\nwas compiled against a different Node.js version using"
-             "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
-             "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-             "re-installing\nthe module (for instance, using `npm rebuild` "
-             "or `npm install`).",
-             *filename,
-             mp->nm_version,
-             NODE_MODULE_VERSION);
 
-    // NOTE: `mp` is allocated inside of the shared library's memory, calling
-    // `dlclose` will deallocate it
-    dlib->Close();
-    env->ThrowError(errmsg);
-    return false;
-  }
-  if (mp->nm_flags & NM_F_BUILTIN) {
-    dlib->Close();
-    env->ThrowError("Built-in module self-registered.");
-    return false;
-  }
+    // -1 is used for N-API modules
+    if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
+      // Even if the module did self-register, it may have done so with the
+      // wrong version. We must only give up after having checked to see if it
+      // has an appropriate initializer callback.
+      if (auto callback = GetInitializerCallback(dlib)) {
+        callback(exports, module, context);
+        return true;
+      }
+      char errmsg[1024];
+      snprintf(errmsg,
+               sizeof(errmsg),
+               "The module '%s'"
+               "\nwas compiled against a different Node.js version using"
+               "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
+               "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
+               "re-installing\nthe module (for instance, using `npm rebuild` "
+               "or `npm install`).",
+               *filename,
+               mp->nm_version,
+               NODE_MODULE_VERSION);
 
-  mp->nm_dso_handle = dlib->handle_;
-  mp->nm_link = modlist_addon;
-  modlist_addon = mp;
+      // NOTE: `mp` is allocated inside of the shared library's memory, calling
+      // `dlclose` will deallocate it
+      dlib->Close();
+      env->ThrowError(errmsg);
+      return false;
+    }
+    if (mp->nm_flags & NM_F_BUILTIN) {
+      dlib->Close();
+      env->ThrowError("Built-in module self-registered.");
+      return false;
+    }
 
-  if (mp->nm_context_register_func != nullptr) {
-    mp->nm_context_register_func(exports, module, context, mp->nm_priv);
-  } else if (mp->nm_register_func != nullptr) {
-    mp->nm_register_func(exports, module, mp->nm_priv);
-  } else {
-    dlib->Close();
-    env->ThrowError("Module has no declared entry point.");
-    return false;
-  }
+    mp->nm_dso_handle = dlib->handle_;
+    mp->nm_link = modlist_addon;
+    modlist_addon = mp;
 
-  return true;
+    if (mp->nm_context_register_func != nullptr) {
+      mp->nm_context_register_func(exports, module, context, mp->nm_priv);
+    } else if (mp->nm_register_func != nullptr) {
+      mp->nm_register_func(exports, module, mp->nm_priv);
+    } else {
+      dlib->Close();
+      env->ThrowError("Module has no declared entry point.");
+      return false;
+    }
+
+    return true;
   });
 
   // Tell coverity that 'handle' should not be freed when we return.
