@@ -1023,7 +1023,7 @@ assert.throws(
   assertNotDeepOrStrict(err, err2, AssertionError);
 }
 
-// Check for non native errors.
+// Check for non-native errors.
 {
   const source = new Error('abc');
   const err = Object.create(
