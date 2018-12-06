@@ -3,11 +3,12 @@ SHJS - Syntax Highlighting in JavaScript
 Copyright (C) 2007, 2008 gnombat@users.sourceforge.net
 License: http://shjs.sourceforge.net/doc/gplv3.html
 */
+'use strict';
 
-if (! this.sh_languages) {
+if (!this.sh_languages) {
   this.sh_languages = {};
 }
-var sh_requests = {};
+const sh_requests = {};
 
 function sh_isEmailAddress(url) {
   if (/^mailto:/.test(url)) {
@@ -17,12 +18,14 @@ function sh_isEmailAddress(url) {
 }
 
 function sh_setHref(tags, numTags, inputString) {
-  var url = inputString.substring(tags[numTags - 2].pos, tags[numTags - 1].pos);
-  if (url.length >= 2 && url.charAt(0) === '<' && url.charAt(url.length - 1) === '>') {
+  let url = inputString.substring(tags[numTags - 2].pos, tags[numTags - 1].pos);
+  if (url.length >= 2 &&
+      url.charAt(0) === '<' &&
+      url.charAt(url.length - 1) === '>') {
     url = url.substr(1, url.length - 2);
   }
   if (sh_isEmailAddress(url)) {
-    url = 'mailto:' + url;
+    url = `mailto:${url}`;
   }
   tags[numTags - 2].node.href = url;
 }
@@ -43,7 +46,7 @@ of a line more than once:
   match = regex.exec(line2);  // fails
 */
 function sh_konquerorExec(s) {
-  var result = [''];
+  const result = [''];
   result.index = s.length;
   result.input = s;
   return result;
@@ -61,10 +64,10 @@ DOM element started by the tag. End tags do not have this property.
 */
 function sh_highlightString(inputString, language) {
   if (/Konqueror/.test(navigator.userAgent)) {
-    if (! language.konquered) {
-      for (var s = 0; s < language.length; s++) {
-        for (var p = 0; p < language[s].length; p++) {
-          var r = language[s][p][0];
+    if (!language.konquered) {
+      for (let s = 0; s < language.length; s++) {
+        for (let p = 0; p < language[s].length; p++) {
+          const r = language[s][p][0];
           if (r.source === '$') {
             r.exec = sh_konquerorExec;
           }
@@ -74,115 +77,118 @@ function sh_highlightString(inputString, language) {
     }
   }
 
-  var a = document.createElement('a');
-  var span = document.createElement('span');
+  const a = document.createElement('a');
+  const span = document.createElement('span');
 
   // the result
-  var tags = [];
-  var numTags = 0;
+  const tags = [];
+  let numTags = 0;
 
   // each element is a pattern object from language
-  var patternStack = [];
+  const patternStack = [];
 
   // the current position within inputString
-  var pos = 0;
+  let pos = 0;
 
   // the name of the current style, or null if there is no current style
-  var currentStyle = null;
+  let currentStyle = null;
 
-  var output = function(s, style) {
-    var length = s.length;
-    // this is more than just an optimization - we don't want to output empty <span></span> elements
+  const output = (s, style) => {
+    const length = s.length;
+    /*
+      this is more than just an optimization
+      we don't want to output empty <span></span> elements
+    */
     if (length === 0) {
       return;
     }
-    if (! style) {
-      var stackLength = patternStack.length;
+    if (!style) {
+      const stackLength = patternStack.length;
       if (stackLength !== 0) {
-        var pattern = patternStack[stackLength - 1];
+        const pattern = patternStack[stackLength - 1];
         // check whether this is a state or an environment
-        if (! pattern[3]) {
-          // it's not a state - it's an environment; use the style for this environment
+        if (!pattern[3]) {
+          /*
+            it's not a state - it's an environment;
+            use the style for this environment
+          */
           style = pattern[1];
         }
       }
     }
     if (currentStyle !== style) {
       if (currentStyle) {
-        tags[numTags++] = {pos: pos};
+        tags[numTags++] = { pos: pos };
         if (currentStyle === 'sh_url') {
           sh_setHref(tags, numTags, inputString);
         }
       }
       if (style) {
-        var clone;
+        let clone;
         if (style === 'sh_url') {
           clone = a.cloneNode(false);
-        }
-        else {
+        } else {
           clone = span.cloneNode(false);
         }
         clone.className = style;
-        tags[numTags++] = {node: clone, pos: pos};
+        tags[numTags++] = { node: clone, pos: pos };
       }
     }
     pos += length;
     currentStyle = style;
   };
 
-  var endOfLinePattern = /\r\n|\r|\n/g;
+  const endOfLinePattern = /\r\n|\r|\n/g;
   endOfLinePattern.lastIndex = 0;
-  var inputStringLength = inputString.length;
+  const inputStringLength = inputString.length;
   while (pos < inputStringLength) {
-    var start = pos;
-    var end;
-    var startOfNextLine;
-    var endOfLineMatch = endOfLinePattern.exec(inputString);
+    const start = pos;
+    let end;
+    let startOfNextLine;
+    const endOfLineMatch = endOfLinePattern.exec(inputString);
     if (endOfLineMatch === null) {
       end = inputStringLength;
       startOfNextLine = inputStringLength;
-    }
-    else {
+    } else {
       end = endOfLineMatch.index;
       startOfNextLine = endOfLinePattern.lastIndex;
     }
 
-    var line = inputString.substring(start, end);
+    const line = inputString.substring(start, end);
 
-    var matchCache = [];
+    const matchCache = [];
     for (;;) {
-      var posWithinLine = pos - start;
+      const posWithinLine = pos - start;
 
-      var stateIndex;
-      var stackLength = patternStack.length;
+      let stateIndex;
+      const stackLength = patternStack.length;
       if (stackLength === 0) {
         stateIndex = 0;
-      }
-      else {
+      } else {
         // get the next state
         stateIndex = patternStack[stackLength - 1][2];
       }
 
-      var state = language[stateIndex];
-      var numPatterns = state.length;
-      var mc = matchCache[stateIndex];
-      if (! mc) {
+      const state = language[stateIndex];
+      const numPatterns = state.length;
+      let mc = matchCache[stateIndex];
+      if (!mc) {
         mc = matchCache[stateIndex] = [];
       }
-      var bestMatch = null;
-      var bestPatternIndex = -1;
-      for (var i = 0; i < numPatterns; i++) {
-        var match;
+      let bestMatch = null;
+      let bestPatternIndex = -1;
+      for (let i = 0; i < numPatterns; i++) {
+        let match;
         if (i < mc.length && (mc[i] === null || posWithinLine <= mc[i].index)) {
           match = mc[i];
-        }
-        else {
-          var regex = state[i][0];
+        } else {
+          const regex = state[i][0];
           regex.lastIndex = posWithinLine;
           match = regex.exec(line);
           mc[i] = match;
         }
-        if (match !== null && (bestMatch === null || match.index < bestMatch.index)) {
+        if (match !== null &&
+           (bestMatch === null || match.index < bestMatch.index)) {
           bestMatch = match;
           bestPatternIndex = i;
           if (match.index === posWithinLine) {
@@ -194,51 +200,49 @@ function sh_highlightString(inputString, language) {
       if (bestMatch === null) {
         output(line.substring(posWithinLine), null);
         break;
-      }
-      else {
+      } else {
         // got a match
         if (bestMatch.index > posWithinLine) {
           output(line.substring(posWithinLine, bestMatch.index), null);
         }
 
-        var pattern = state[bestPatternIndex];
+        const pattern = state[bestPatternIndex];
 
-        var newStyle = pattern[1];
-        var matchedString;
+        const newStyle = pattern[1];
+        let matchedString;
         if (newStyle instanceof Array) {
-          for (var subexpression = 0; subexpression < newStyle.length; subexpression++) {
-            matchedString = bestMatch[subexpression + 1];
-            output(matchedString, newStyle[subexpression]);
+          for (let subexp = 0; subexp < newStyle.length; subexp++) {
+            matchedString = bestMatch[subexp + 1];
+            output(matchedString, newStyle[subexp]);
           }
-        }
-        else {
+        } else {
           matchedString = bestMatch[0];
           output(matchedString, newStyle);
         }
 
         switch (pattern[2]) {
-        case -1:
+          case -1:
           // do nothing
-          break;
-        case -2:
+            break;
+          case -2:
           // exit
-          patternStack.pop();
-          break;
-        case -3:
+            patternStack.pop();
+            break;
+          case -3:
           // exitall
-          patternStack.length = 0;
-          break;
-        default:
+            patternStack.length = 0;
+            break;
+          default:
           // this was the start of a delimited pattern or a state/environment
-          patternStack.push(pattern);
-          break;
+            patternStack.push(pattern);
+            break;
         }
       }
     }
 
     // end of the line
     if (currentStyle) {
-      tags[numTags++] = {pos: pos};
+      tags[numTags++] = { pos: pos };
       if (currentStyle === 'sh_url') {
         sh_setHref(tags, numTags, inputString);
       }
@@ -250,15 +254,15 @@ function sh_highlightString(inputString, language) {
   return tags;
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 // DOM-dependent functions
 
 function sh_getClasses(element) {
-  var result = [];
-  var htmlClass = element.className;
+  const result = [];
+  const htmlClass = element.className;
   if (htmlClass && htmlClass.length > 0) {
-    var htmlClasses = htmlClass.split(' ');
-    for (var i = 0; i < htmlClasses.length; i++) {
+    const htmlClasses = htmlClass.split(' ');
+    for (let i = 0; i < htmlClasses.length; i++) {
       if (htmlClasses[i].length > 0) {
         result.push(htmlClasses[i]);
       }
@@ -268,8 +272,8 @@ function sh_getClasses(element) {
 }
 
 function sh_addClass(element, name) {
-  var htmlClasses = sh_getClasses(element);
-  for (var i = 0; i < htmlClasses.length; i++) {
+  const htmlClasses = sh_getClasses(element);
+  for (let i = 0; i < htmlClasses.length; i++) {
     if (name.toLowerCase() === htmlClasses[i].toLowerCase()) {
       return;
     }
@@ -284,33 +288,31 @@ Extracts the tags from an HTML DOM NodeList.
 @param  result  an object with text, tags and pos properties
 */
 function sh_extractTagsFromNodeList(nodeList, result) {
-  var length = nodeList.length;
-  for (var i = 0; i < length; i++) {
-    var node = nodeList.item(i);
+  const length = nodeList.length;
+  for (let i = 0; i < length; i++) {
+    const node = nodeList.item(i);
     switch (node.nodeType) {
-    case 1:
-      if (node.nodeName.toLowerCase() === 'br') {
-        var terminator;
-        if (/MSIE/.test(navigator.userAgent)) {
-          terminator = '\r';
+      case 1:
+        if (node.nodeName.toLowerCase() === 'br') {
+          let terminator;
+          if (/MSIE/.test(navigator.userAgent)) {
+            terminator = '\r';
+          } else {
+            terminator = '\n';
+          }
+          result.text.push(terminator);
+          result.pos++;
+        } else {
+          result.tags.push({ node: node.cloneNode(false), pos: result.pos });
+          sh_extractTagsFromNodeList(node.childNodes, result);
+          result.tags.push({ pos: result.pos });
         }
-        else {
-          terminator = '\n';
-        }
-        result.text.push(terminator);
-        result.pos++;
-      }
-      else {
-        result.tags.push({node: node.cloneNode(false), pos: result.pos});
-        sh_extractTagsFromNodeList(node.childNodes, result);
-        result.tags.push({pos: result.pos});
-      }
-      break;
-    case 3:
-    case 4:
-      result.text.push(node.data);
-      result.pos += node.length;
-      break;
+        break;
+      case 3:
+      case 4:
+        result.text.push(node.data);
+        result.pos += node.length;
+        break;
     }
   }
 }
@@ -325,7 +327,7 @@ the tag objects.
 @see  sh_highlightString
 */
 function sh_extractTags(element, tags) {
-  var result = {};
+  const result = {};
   result.text = [];
   result.tags = tags;
   result.pos = 0;
@@ -340,41 +342,42 @@ Merges the original tags from an element with the tags produced by highlighting.
 @result  an array containing the merged tags
 */
 function sh_mergeTags(originalTags, highlightTags) {
-  var numOriginalTags = originalTags.length;
+  const numOriginalTags = originalTags.length;
   if (numOriginalTags === 0) {
     return highlightTags;
   }
 
-  var numHighlightTags = highlightTags.length;
+  const numHighlightTags = highlightTags.length;
   if (numHighlightTags === 0) {
     return originalTags;
   }
 
-  var result = [];
-  var originalIndex = 0;
-  var highlightIndex = 0;
+  const result = [];
+  let originalIndex = 0;
+  let highlightIndex = 0;
 
   while (originalIndex < numOriginalTags && highlightIndex < numHighlightTags) {
-    var originalTag = originalTags[originalIndex];
-    var highlightTag = highlightTags[highlightIndex];
+    const originalTag = originalTags[originalIndex];
+    const highlightTag = highlightTags[highlightIndex];
 
     if (originalTag.pos <= highlightTag.pos) {
       result.push(originalTag);
       originalIndex++;
-    }
-    else {
+    } else {
       result.push(highlightTag);
       if (highlightTags[highlightIndex + 1].pos <= originalTag.pos) {
         highlightIndex++;
         result.push(highlightTags[highlightIndex]);
         highlightIndex++;
-      }
-      else {
+      } else {
         // new end tag
-        result.push({pos: originalTag.pos});
+        result.push({ pos: originalTag.pos });
 
         // new start tag
-        highlightTags[highlightIndex] = {node: highlightTag.node.cloneNode(false), pos: originalTag.pos};
+        highlightTags[highlightIndex] = {
+          node: highlightTag.node.cloneNode(false),
+          pos: originalTag.pos
+        };
       }
     }
   }
@@ -399,24 +402,23 @@ Inserts tags into text.
 @return  a DOM DocumentFragment representing the resulting HTML
 */
 function sh_insertTags(tags, text) {
-  var doc = document;
+  const doc = document;
 
-  var result = document.createDocumentFragment();
-  var tagIndex = 0;
-  var numTags = tags.length;
-  var textPos = 0;
-  var textLength = text.length;
-  var currentNode = result;
+  const result = document.createDocumentFragment();
+  let tagIndex = 0;
+  const numTags = tags.length;
+  let textPos = 0;
+  const textLength = text.length;
+  let currentNode = result;
 
   // output one tag or text node every iteration
   while (textPos < textLength || tagIndex < numTags) {
-    var tag;
-    var tagPos;
+    let tag;
+    let tagPos;
     if (tagIndex < numTags) {
       tag = tags[tagIndex];
       tagPos = tag.pos;
-    }
-    else {
+    } else {
       tagPos = textLength;
     }
 
@@ -424,19 +426,18 @@ function sh_insertTags(tags, text) {
       // output the tag
       if (tag.node) {
         // start tag
-        var newNode = tag.node;
+        const newNode = tag.node;
         currentNode.appendChild(newNode);
         currentNode = newNode;
-      }
-      else {
+      } else {
         // end tag
         currentNode = currentNode.parentNode;
       }
       tagIndex++;
-    }
-    else {
+    } else {
       // output text
-      currentNode.appendChild(doc.createTextNode(text.substring(textPos, tagPos)));
+      currentNode.appendChild(doc.createTextNode(text.substring(textPos,
+                                                                tagPos)));
       textPos = tagPos;
     }
   }
@@ -452,11 +453,11 @@ the element will have been placed in the "sh_sourceCode" class.
 */
 function sh_highlightElement(element, language) {
   sh_addClass(element, 'sh_sourceCode');
-  var originalTags = [];
-  var inputString = sh_extractTags(element, originalTags);
-  var highlightTags = sh_highlightString(inputString, language);
-  var tags = sh_mergeTags(originalTags, highlightTags);
-  var documentFragment = sh_insertTags(tags, inputString);
+  const originalTags = [];
+  const inputString = sh_extractTags(element, originalTags);
+  const highlightTags = sh_highlightString(inputString, language);
+  const tags = sh_mergeTags(originalTags, highlightTags);
+  const documentFragment = sh_insertTags(tags, inputString);
   while (element.hasChildNodes()) {
     element.removeChild(element.firstChild);
   }
@@ -466,8 +467,7 @@ function sh_highlightElement(element, language) {
 function sh_getXMLHttpRequest() {
   if (window.ActiveXObject) {
     return new ActiveXObject('Msxml2.XMLHTTP');
-  }
-  else if (window.XMLHttpRequest) {
+  } else if (window.XMLHttpRequest) {
     return new XMLHttpRequest();
   }
   throw 'No XMLHttpRequest implementation available';
@@ -479,24 +479,22 @@ function sh_load(language, element, prefix, suffix) {
     return;
   }
   sh_requests[language] = [element];
-  var request = sh_getXMLHttpRequest();
-  var url = prefix + 'sh_' + language + suffix;
+  let request = sh_getXMLHttpRequest();
+  const url = `${prefix}sh_${language}${suffix}`;
   request.open('GET', url, true);
-  request.onreadystatechange = function () {
+  request.onreadystatechange = function() {
     if (request.readyState === 4) {
       try {
-        if (! request.status || request.status === 200) {
+        if (!request.status || request.status === 200) {
           eval(request.responseText);
-          var elements = sh_requests[language];
-          for (var i = 0; i < elements.length; i++) {
+          const elements = sh_requests[language];
+          for (let i = 0; i < elements.length; i++) {
             sh_highlightElement(elements[i], sh_languages[language]);
           }
+        } else {
+          throw `HTTP error: status ${request.status}`;
         }
-        else {
-          throw 'HTTP error: status ' + request.status;
-        }
-      }
-      finally {
+      } finally {
         request = null;
       }
     }
@@ -511,40 +509,37 @@ containing source code must be "pre" elements with a "class" attribute of
 identifies the element as containing "java" language source code.
 */
 function highlight(prefix, suffix, tag) {
-  var nodeList = document.getElementsByTagName(tag);
-  for (var i = 0; i < nodeList.length; i++) {
-    var element = nodeList.item(i);
-    var htmlClasses = sh_getClasses(element);
-    var highlighted = false;
-    var donthighlight = false;
-    for (var j = 0; j < htmlClasses.length; j++) {
-      var htmlClass = htmlClasses[j].toLowerCase();
+  const nodeList = document.getElementsByTagName(tag);
+  for (let i = 0; i < nodeList.length; i++) {
+    const element = nodeList.item(i);
+    const htmlClasses = sh_getClasses(element);
+    let highlighted = false;
+    let donthighlight = false;
+    for (let j = 0; j < htmlClasses.length; j++) {
+      const htmlClass = htmlClasses[j].toLowerCase();
       if (htmlClass === 'sh_none') {
-        donthighlight = true
+        donthighlight = true;
         continue;
       }
       if (htmlClass.substr(0, 3) === 'sh_') {
-        var language = htmlClass.substring(3);
+        const language = htmlClass.substring(3);
         if (language in sh_languages) {
           sh_highlightElement(element, sh_languages[language]);
           highlighted = true;
-        }
-        else if (typeof(prefix) === 'string' && typeof(suffix) === 'string') {
+        } else if (typeof (prefix) === 'string' &&
+                   typeof (suffix) === 'string') {
           sh_load(language, element, prefix, suffix);
-        }
-        else {
-          throw 'Found <' + tag + '> element with class="' + htmlClass + '", but no such language exists';
+        } else {
+          throw `Found <${tag}> element with class="${htmlClass}", but no such language exists`;
         }
         break;
       }
     }
-    if (highlighted === false && donthighlight == false) {
-      sh_highlightElement(element, sh_languages["javascript"]);
+    if (highlighted === false && donthighlight === false) {
+      sh_highlightElement(element, sh_languages.javascript);
     }
   }
 }
-
-
 
 function sh_highlightDocument(prefix, suffix) {
   highlight(prefix, suffix, 'tt');
