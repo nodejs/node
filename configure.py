@@ -655,8 +655,8 @@ def try_check_compiler(cc, lang):
 
   values = (proc.communicate()[0].split() + ['0'] * 7)[0:7]
   is_clang = values[0] == '1'
-  gcc_version = tuple(values[1:1+3])
-  clang_version = tuple(values[4:4+3])
+  gcc_version = tuple(map(int, values[1:1+3]))
+  clang_version = tuple(map(int, values[4:4+3])) if is_clang else None
 
   return (True, is_clang, clang_version, gcc_version)
 
@@ -921,8 +921,7 @@ def gcc_version_ge(version_checked):
   for compiler in [(CC, 'c'), (CXX, 'c++')]:
     ok, is_clang, clang_version, compiler_version = \
       try_check_compiler(compiler[0], compiler[1])
-    compiler_version_num = tuple(map(int, compiler_version))
-    if is_clang or compiler_version_num < version_checked:
+    if is_clang or compiler_version < version_checked:
       return False
   return True
 
