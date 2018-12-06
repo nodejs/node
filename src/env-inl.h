@@ -396,6 +396,16 @@ inline uv_loop_t* Environment::event_loop() const {
   return isolate_data()->event_loop();
 }
 
+inline void Environment::TryLoadAddon(
+    const char* filename,
+    int flags,
+    std::function<bool(binding::DLib*)> was_loaded) {
+  loaded_addons_.emplace_back(filename, flags);
+  if (!was_loaded(&loaded_addons_.back())) {
+    loaded_addons_.pop_back();
+  }
+}
+
 inline Environment::AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
 }
