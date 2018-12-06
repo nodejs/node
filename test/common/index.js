@@ -45,6 +45,44 @@ const isMainThread = (() => {
   }
 })();
 
+// Check for flags. Skip this for workers (both, the `cluster` module and
+// `worker_threads`) and child processes.
+if (process.argv.length === 2 &&
+    isMainThread &&
+    module.parent &&
+    require('cluster').isMaster) {
+  // The copyright notice is relatively big and the flags could come afterwards.
+  const bytesToRead = 1500;
+  const buffer = Buffer.allocUnsafe(bytesToRead);
+  const fd = fs.openSync(module.parent.filename, 'r');
+  fs.readSync(fd, buffer, 0, bytesToRead);
+  fs.closeSync(fd);
+  const source = buffer.toString();
+
+  const flagStart = source.indexOf('// Flags: --') + 10;
+  if (flagStart !== 9) {
+    let flagEnd = source.indexOf('\n', flagStart);
+    // Normalize different EOL.
+    if (source[flagEnd - 1] === '\r') {
+      flagEnd--;
+    }
+    const flags = source
+      .substring(flagStart, flagEnd)
+      .replace(/_/g, '-')
+      .split(' ');
+    const args = process.execArgv.map((arg) => arg.replace(/_/g, '-'));
+    for (const flag of flags) {
+      if (!args.includes(flag) &&
+          // If the binary is build without `intl` the inspect option is
+          // invalid. The test itself should handle this case.
+          (process.config.variables.v8_enable_inspector !== 0 ||
+            !flag.startsWith('--inspect'))) {
+        throw new Error(`Test has to be started with the flag: '${flag}'`);
+      }
+    }
+  }
+}
+
 const isWindows = process.platform === 'win32';
 const isAIX = process.platform === 'aix';
 const isLinuxPPCBE = (process.platform === 'linux') &&
