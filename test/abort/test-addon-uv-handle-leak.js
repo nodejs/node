@@ -18,6 +18,16 @@ if (!fs.existsSync(bindingPath))
   common.skip('binding not built yet');
 
 if (process.argv[2] === 'child') {
+
+  // The worker thread loads and then unloads `bindingPath`. Because of this the
+  // symbols in `bindingPath` are lost when the worker thread quits, but the
+  // number of open handles in the worker thread's event loop is assessed in the
+  // main thread afterwards, and the names of the callbacks associated with the
+  // open handles is retrieved at that time as well. Thus, we require
+  // `bindingPath` here so that the symbols and their names survive the life
+  // cycle of the worker thread.
+  require(bindingPath);
+
   new Worker(`
   const binding = require(${JSON.stringify(bindingPath)});
 

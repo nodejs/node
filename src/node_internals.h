@@ -26,7 +26,7 @@
 
 #include "env-inl.h"
 #include "node.h"
-#include "node_binding.h"
+#include "node_binding-inl.h"
 #include "node_mutex.h"
 #include "node_persistent.h"
 #include "tracing/trace_event.h"
