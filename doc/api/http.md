@@ -1912,6 +1912,16 @@ added: v0.5.9
 Global instance of `Agent` which is used as the default for all HTTP client
 requests.
 
+## http.maxHeaderSize
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+Read-only property specifying the maximum allowed size of HTTP headers in bytes.
+Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
+
 ## http.request(options[, callback])
 ## http.request(url[, options][, callback])
 <!-- YAML
@@ -2097,6 +2107,7 @@ will be emitted in the following order:
 Note that setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
 
+[`--max-http-header-size`]: cli.html#cli_max_http_header_size_size
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'request'`]: #http_event_request
 [`'response'`]: #http_event_response
