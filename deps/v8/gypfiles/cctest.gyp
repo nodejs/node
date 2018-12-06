@@ -130,6 +130,7 @@
       '../test/cctest/test-double.cc',
       '../test/cctest/test-dtoa.cc',
       '../test/cctest/test-elements-kind.cc',
+      '../test/cctest/test-factory.cc',
       '../test/cctest/test-fast-dtoa.cc',
       '../test/cctest/test-feedback-vector.cc',
       '../test/cctest/test-feedback-vector.h',
