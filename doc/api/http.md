@@ -1581,6 +1581,16 @@ added: v0.5.9
 Global instance of `Agent` which is used as the default for all HTTP client
 requests.
 
+## http.maxHeaderSize
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+Read-only property specifying the maximum allowed size of HTTP headers in bytes.
+Defaults to 8KB. Configurable using the [`--max-http-header-size`][] CLI option.
+
 ## http.request(options[, callback])
 <!-- YAML
 added: v0.3.6
@@ -1698,6 +1708,7 @@ There are a few special headers that should be noted.
 * Sending an Authorization header will override using the `auth` option
   to compute basic authentication.
 
+[`--max-http-header-size`]: cli.html#cli_max_http_header_size_size
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'listening'`]: net.html#net_event_listening
 [`'request'`]: #http_event_request
