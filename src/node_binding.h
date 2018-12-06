@@ -3,8 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#if defined(__POSIX__)
+#include <dlfcn.h>
+#endif
+
 #include "node.h"
+#define NAPI_EXPERIMENTAL
 #include "node_api.h"
+#include "util.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -46,6 +52,32 @@ extern bool node_is_initialized;
 
 namespace binding {
 
+class DLib {
+ public:
+#ifdef __POSIX__
+  static const int kDefaultFlags = RTLD_LAZY;
+#else
+  static const int kDefaultFlags = 0;
+#endif
+
+  DLib(const char* filename, int flags);
+
+  bool Open();
+  void Close();
+  void* GetSymbolAddress(const char* name);
+
+  const std::string filename_;
+  const int flags_;
+  std::string errmsg_;
+  void* handle_;
+#ifndef __POSIX__
+  uv_lib_t lib_;
+#endif
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(DLib);
+};
+
 // Call _register<module_name> functions for all of
 // the built-in modules. Because built-in modules don't
 // use the __attribute__((constructor)). Need to
@@ -59,6 +91,8 @@ void DLOpen(const v8::FunctionCallbackInfo<v8::Value>& args);
 }  // namespace binding
 
 }  // namespace node
+
+#include "node_binding.h"
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_NODE_BINDING_H_
