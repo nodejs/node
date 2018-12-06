@@ -23,5 +23,3 @@ test-http2-large-file: PASS, FLAKY
 [$system==aix]
 
 [$arch==arm]
-# https://github.com/nodejs/node/issues/20628
-test-http2-session-timeout: PASS,FLAKY
