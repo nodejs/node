@@ -30,6 +30,7 @@
 #endif
 #include "handle_wrap.h"
 #include "node.h"
+#include "node_binding.h"
 #include "node_http2_state.h"
 #include "node_options.h"
 #include "req_wrap.h"
@@ -37,11 +38,12 @@
 #include "uv.h"
 #include "v8.h"
 
-#include <list>
 #include <stdint.h>
-#include <vector>
+#include <functional>
+#include <list>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 struct nghttp2_rcbuf;
 
@@ -637,6 +639,9 @@ class Environment {
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
   inline uint32_t watched_providers() const;
+  inline void TryLoadAddon(const char* filename,
+                           int flags,
+                           std::function<bool(binding::DLib*)> was_loaded);
 
   static inline Environment* from_timer_handle(uv_timer_t* handle);
   inline uv_timer_t* timer_handle();
@@ -923,6 +928,7 @@ class Environment {
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
+  std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
   uv_timer_t timer_handle_;

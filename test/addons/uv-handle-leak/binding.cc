@@ -41,8 +41,7 @@ void LeakHandle(const FunctionCallbackInfo<Value>& args) {
   uv_unref(reinterpret_cast<uv_handle_t*>(leaked_timer));
 }
 
-void Initialize(v8::Local<v8::Object> exports) {
+// This module gets loaded multiple times in some tests so it must support that.
+NODE_MODULE_INIT(/*exports, module, context*/) {
   NODE_SET_METHOD(exports, "leakHandle", LeakHandle);
 }
-
-NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

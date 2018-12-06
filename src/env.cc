@@ -276,6 +276,11 @@ Environment::~Environment() {
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
+
+  // Dereference all addons that were loaded into this environment.
+  for (binding::DLib& addon : loaded_addons_) {
+    addon.Close();
+  }
 }
 
 void Environment::Start(const std::vector<std::string>& args,
