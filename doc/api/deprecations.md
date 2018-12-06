@@ -2254,12 +2254,15 @@ Please make sure to use [`util.getSystemErrorName()`][] instead.
 ### DEP0120: Windows Performance Counter Support
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24862
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22485
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Windows Performance Counter support has been removed from Node.js. The
 undocumented `COUNTER_NET_SERVER_CONNECTION()`,
