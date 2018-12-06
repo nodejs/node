@@ -257,6 +257,13 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
             "data, it supports ${rotation} and ${pid}.",
             &PerProcessOptions::trace_event_file_pattern,
             kAllowedInEnvironment);
+  AddOption("--trace-event-traces-per-file",
+            "The minimum number of trace events to be written to a single file "
+            "before rotating to the next file. "
+            "Defaults to 524288 (2^19) traces; minimum 65536 (2^16). "
+            "Specify 0 for unlimited (aka disable rotation).",
+            &PerProcessOptions::trace_event_traces_per_file,
+            kAllowedInEnvironment);
   AddAlias("--trace-events-enabled", {
     "--trace-event-categories", "v8,node,node.async_hooks" });
   AddOption("--max-http-header-size",

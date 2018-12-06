@@ -272,7 +272,8 @@ static struct {
           ParseCommaSeparatedSet(per_process_opts->trace_event_categories),
           std::unique_ptr<tracing::AsyncTraceWriter>(
               new tracing::NodeTraceWriter(
-                  per_process_opts->trace_event_file_pattern)),
+                  per_process_opts->trace_event_file_pattern,
+                  per_process_opts->trace_event_traces_per_file)),
           tracing::Agent::kUseDefaultCategories);
     }
   }

@@ -16,14 +16,13 @@ using v8::platform::tracing::TraceWriter;
 
 class NodeTraceWriter : public AsyncTraceWriter {
  public:
-  explicit NodeTraceWriter(const std::string& log_file_pattern);
+  explicit NodeTraceWriter(const std::string& log_file_pattern,
+                           int64_t min_traces_per_file);
   ~NodeTraceWriter();
 
   void InitializeOnThread(uv_loop_t* loop) override;
   void AppendTraceEvent(TraceObject* trace_event) override;
   void Flush(bool blocking) override;
-
-  static const int kTracesPerFile = 1 << 19;
 
  private:
   struct WriteRequest {
@@ -59,9 +58,14 @@ class NodeTraceWriter : public AsyncTraceWriter {
   std::queue<WriteRequest> write_req_queue_;
   int num_write_requests_ = 0;
   int highest_request_id_completed_ = 0;
-  int total_traces_ = 0;
   int file_num_ = 0;
   std::string log_file_pattern_;
+  // Keeps track of the total number of traces written to the currently open
+  // file.
+  int64_t total_traces_ = 0;
+  // The minimum number of traces to allow in a single file before closing it
+  // and rotating to a new file.
+  int64_t min_traces_per_file_;
   std::ostringstream stream_;
   std::unique_ptr<TraceWriter> json_trace_writer_;
   bool exited_ = false;

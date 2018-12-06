@@ -2,14 +2,17 @@
 
 #include <string.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 #include "util-inl.h"
 
 namespace node {
 namespace tracing {
 
-NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern)
-    : log_file_pattern_(log_file_pattern) {}
+NodeTraceWriter::NodeTraceWriter(const std::string& log_file_pattern,
+                                 int64_t min_traces_per_file)
+    : log_file_pattern_(log_file_pattern),
+      min_traces_per_file_(min_traces_per_file) {}
 
 void NodeTraceWriter::InitializeOnThread(uv_loop_t* loop) {
   CHECK_NULL(tracing_loop_);
@@ -37,7 +40,8 @@ void NodeTraceWriter::WriteSuffix() {
   {
     Mutex::ScopedLock scoped_lock(stream_mutex_);
     if (total_traces_ > 0) {
-      total_traces_ = kTracesPerFile;  // Act as if we reached the file limit.
+      // Act as if we reached the file limit.
+      total_traces_ = min_traces_per_file_;
       should_flush = true;
     }
   }
@@ -81,6 +85,8 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
   replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
 
   if (fd_ != -1) {
+    // If there is a pending write to this file, schedule it to be closed
+    // after it is written.
     CHECK_EQ(uv_fs_close(nullptr, &req, fd_, nullptr), 0);
     uv_fs_req_cleanup(&req);
   }
@@ -118,7 +124,7 @@ void NodeTraceWriter::FlushPrivate() {
   int highest_request_id;
   {
     Mutex::ScopedLock stream_scoped_lock(stream_mutex_);
-    if (total_traces_ >= kTracesPerFile) {
+    if (min_traces_per_file_ > 0 && total_traces_ >= min_traces_per_file_) {
       total_traces_ = 0;
       // Destroying the member JSONTraceWriter object appends "]}" to
       // stream_ - in other words, ending a JSON file.
@@ -160,9 +166,13 @@ void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
   uv_buf_t buf = uv_buf_init(nullptr, 0);
   {
     Mutex::ScopedLock lock(request_mutex_);
+    // Enqueue a new write request.
     write_req_queue_.emplace(WriteRequest {
       std::move(str), highest_request_id
     });
+    // If it's the first write request, populate buf to signal that it should
+    // be written right away. (Otherwise, it will be written after the first
+    // request has been completed, in AfterWrite.)
     if (write_req_queue_.size() == 1) {
       buf = uv_buf_init(
           const_cast<char*>(write_req_queue_.front().str.c_str()),
@@ -194,6 +204,7 @@ void NodeTraceWriter::AfterWrite() {
   uv_buf_t buf = uv_buf_init(nullptr, 0);
   {
     Mutex::ScopedLock scoped_lock(request_mutex_);
+    // Remove the just-completed request.
     int highest_request_id = write_req_queue_.front().highest_request_id;
     write_req_queue_.pop();
     highest_request_id_completed_ = highest_request_id;
