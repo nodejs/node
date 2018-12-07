@@ -72,8 +72,7 @@ issues and pull requests can always be re-opened if necessary.
 A pull request is _author ready_ when:
 
 * There is a CI run in progress or completed.
-* There are at least two Collaborator approvals, or at least one approval if the
-  pull request is older than 7 days.
+* There is at least one Collaborator approval.
 * There are no outstanding review comments.
 
 Please always add the `author ready` label to the pull request in that case.
