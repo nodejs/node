@@ -12,16 +12,25 @@
 #  Use "-h" to get help options.
 
 from __future__ import print_function
-import sys
-import shutil
-# for utf-8
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
+import json
 import optparse
 import os
-import json
 import re
+import shutil
+import sys
+
+try:
+    # for utf-8 on Python 2
+    reload(sys)
+    sys.setdefaultencoding("utf-8")
+except NameError:
+    pass  # Python 3 already defaults to utf-8
+
+try:
+    basestring        # Python 2
+except NameError:
+    basestring = str  # Python 3
 
 endian=sys.byteorder
 
@@ -214,7 +223,7 @@ def queueForRemoval(tree):
     if(options.verbose>0):
         print("* %s: %d items" % (tree, len(mytree["locs"])))
     # do varible substitution for this tree here
-    if type(config["trees"][tree]) == str or type(config["trees"][tree]) == unicode:
+    if isinstance(config["trees"][tree], basestring):
         treeStr = config["trees"][tree]
         if(options.verbose>5):
             print(" Substituting $%s for tree %s" % (treeStr, tree))
