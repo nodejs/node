@@ -236,6 +236,7 @@ added: v10.5.0
 
 The `Worker` class represents an independent JavaScript execution thread.
 Most Node.js APIs are available inside of it.
+Instances of the `Worker` class do inherit from [`EventEmitters`][`EventEmitter`].
 
 Notable differences inside a Worker environment are:
 
