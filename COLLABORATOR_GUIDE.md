@@ -174,20 +174,17 @@ the comment anyway to avoid any doubt.
 
 ### Testing and CI
 
-All bugfixes require a test case which demonstrates the defect. The
-test should *fail* before the change, and *pass* after the change.
+All fixes must have a test case which demonstrates the defect. The test should
+fail before the change, and pass after the change.
 
-All pull requests that modify executable code should also include a test case
-and must be subjected to continuous integration tests on the
-[project CI server](https://ci.nodejs.org/). The pull request should have a CI
-status indicator.
+All pull requests must pass continuous integration tests on the
+[project CI server](https://ci.nodejs.org/).
 
-Do not land any Pull Requests without passing (green or yellow) CI runs. If you
-believe any failed (red or grey) CI sub-tasks are unrelated to the change in the
-Pull Request, use "Resume Build" in the left navigation of the relevant
-`node-test-pull-request` job. It will create a new `node-test-pull-request` run
-that preserves all the green results from the current job but re-runs everything
-else.
+Do not land any Pull Requests without passing (green or yellow) CI runs. If
+there are CI failures unrelated to the change in the Pull Request, try "Resume
+Build". It is in the left navigation of the relevant `node-test-pull-request`
+job. It will preserve all the green results from the current job but re-run
+everything else.
 
 #### Useful CI Jobs
 
