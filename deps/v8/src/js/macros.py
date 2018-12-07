@@ -28,6 +28,8 @@
 # Dictionary that is passed as defines for js2c.py.
 # Used for defines that must be defined for all native JS files.
 
+# flake8: noqa
+
 define NONE        = 0;
 define READ_ONLY   = 1;
 define DONT_ENUM   = 2;
