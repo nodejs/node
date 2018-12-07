@@ -192,9 +192,8 @@ void SerializerContext::SetTreatArrayBufferViewsAsHostObjects(
   SerializerContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
-  Maybe<bool> value = args[0]->BooleanValue(ctx->env()->context());
-  if (value.IsNothing()) return;
-  ctx->serializer_.SetTreatArrayBufferViewsAsHostObjects(value.FromJust());
+  bool value = args[0]->BooleanValue(ctx->env()->isolate());
+  ctx->serializer_.SetTreatArrayBufferViewsAsHostObjects(value);
 }
 
 void SerializerContext::ReleaseBuffer(const FunctionCallbackInfo<Value>& args) {
