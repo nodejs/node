@@ -5,6 +5,12 @@ import struct
 import sys
 import zlib
 
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
+
+
 if __name__ == '__main__':
   fp = open(sys.argv[1])
   obj = json.load(fp)
