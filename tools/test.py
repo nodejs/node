@@ -44,21 +44,26 @@ import utils
 import multiprocessing
 import errno
 import copy
-import ast
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
 from Queue import Queue, Empty
 
 try:
-  reduce          # Python 2
+    cmp             # Python 2
+except NameError:
+    def cmp(x, y):  # Python 3
+        return (x > y) - (x < y)
+
+try:
+  reduce            # Python 2
 except NameError:   # Python 3
   from functools import reduce
 
 try:
-  xrange          # Python 2
+  xrange            # Python 2
 except NameError:
-  xrange = range  # Python 3
+  xrange = range    # Python 3
 
 logger = logging.getLogger('testrunner')
 skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
