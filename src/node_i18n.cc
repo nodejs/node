@@ -733,7 +733,7 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
   // optional arg
-  bool lenient = args[1]->BooleanValue(env->context()).FromJust();
+  bool lenient = args[1]->BooleanValue(env->isolate());
   enum idna_mode mode = lenient ? IDNA_LENIENT : IDNA_DEFAULT;
 
   MaybeStackBuffer<char> buf;

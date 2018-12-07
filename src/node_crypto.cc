@@ -5751,8 +5751,8 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   CHECK(!per_process_opts->force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
   const bool enabled = FIPS_mode();
-  bool enable;
-  if (!args[0]->BooleanValue(env->context()).To(&enable)) return;
+  bool enable = args[0]->BooleanValue(env->isolate());
+
   if (enable == enabled)
     return;  // No action needed.
   if (!FIPS_mode_set(enable)) {
