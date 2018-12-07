@@ -21,7 +21,6 @@
 
 /* eslint-disable node-core/required-modules, node-core/crypto-check */
 'use strict';
-const process = global.process;  // Some tests tamper with the process global.
 const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
@@ -217,12 +216,10 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
-  Buffer,
   clearImmediate,
   clearInterval,
   clearTimeout,
   global,
-  process,
   setImmediate,
   setInterval,
   setTimeout

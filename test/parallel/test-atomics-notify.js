@@ -12,8 +12,8 @@ assert.strictEqual(runInNewContext('typeof Atomics.wake'), 'function');
 assert.strictEqual(runInNewContext('typeof Atomics.notify'), 'function');
 
 expectWarning(
-  'Atomics',
-  'Atomics.wake will be removed in a future version, ' +
-  'use Atomics.notify instead.', noWarnCode);
+  'DeprecationWarning',
+  `'Atomics.wake' is deprecated, use 'Atomics.notify'`,
+  'DEPXXXZ');
 
 Atomics.wake(new Int32Array(new SharedArrayBuffer(4)), 0, 0);

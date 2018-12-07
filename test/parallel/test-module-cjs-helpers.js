@@ -7,5 +7,5 @@ const { builtinLibs } = require('internal/modules/cjs/helpers');
 
 const hasInspector = process.config.variables.v8_enable_inspector === 1;
 
-const expectedLibs = hasInspector ? 34 : 33;
+const expectedLibs = hasInspector ? 36 : 31;
 assert.strictEqual(builtinLibs.length, expectedLibs);
