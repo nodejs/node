@@ -1286,7 +1286,7 @@ ifneq ("","$(wildcard tools/pip/site-packages)")
 lint-py:
 	PYTHONPATH=tools/pip $(PYTHON) -m flake8 . \
 		--count --show-source --statistics --select=E901,E999,F821,F822,F823 \
-		--exclude=.git,deps,lib,src,tools/*_macros.py,tools/gyp,tools/jinja2,tools/pip
+		--exclude=.git,deps,lib,src,tools/*_macros.py,tools/gyp,tools/inspector_protocol,tools/jinja2,tools/markupsafe,tools/pip
 else
 lint-py:
 	@echo "Python linting with flake8 is not avalible"
