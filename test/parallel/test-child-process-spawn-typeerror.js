@@ -33,7 +33,7 @@ const invalidArgValueError =
   common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 14);
 
 const invalidArgTypeError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 13);
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
 
 assert.throws(function() {
   spawn(invalidcmd, 'this is not an array');
@@ -57,10 +57,6 @@ assert.throws(function() {
 assert.throws(function() {
   const file = { toString() { return null; } };
   spawn(file);
-}, invalidArgTypeError);
-
-assert.throws(function() {
-  spawn(cmd, null);
 }, invalidArgTypeError);
 
 assert.throws(function() {
@@ -103,9 +99,9 @@ spawn(cmd, o);
 
 // Variants of undefined as explicit 'no argument' at a position.
 spawn(cmd, u, o);
+spawn(cmd, n, o);
 spawn(cmd, a, u);
 
-assert.throws(function() { spawn(cmd, n, o); }, invalidArgTypeError);
 assert.throws(function() { spawn(cmd, a, n); }, invalidArgTypeError);
 
 assert.throws(function() { spawn(cmd, s); }, invalidArgTypeError);
