@@ -37,11 +37,9 @@ class PasswordPrompt extends Base {
     validation.success.forEach(this.onEnd.bind(this));
     validation.error.forEach(this.onError.bind(this));
 
-    if (this.opt.mask) {
-      events.keypress
-        .pipe(takeUntil(validation.success))
-        .forEach(this.onKeypress.bind(this));
-    }
+    events.keypress
+      .pipe(takeUntil(validation.success))
+      .forEach(this.onKeypress.bind(this));
 
     // Init
     this.render();

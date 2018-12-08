@@ -38,7 +38,7 @@ module.exports = {
 
         /**
          * Get the last element of an array, without modifying arr, like pop(), but non-destructive.
-         * @param {array} arr What to inspect
+         * @param {Array} arr What to inspect
          * @returns {*} The last element of arr
          * @private
          */

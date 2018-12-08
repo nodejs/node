@@ -37,9 +37,9 @@ function explodeArray(xs) {
  * For example:
  * combineArrays([a, [b, c]], [x, y]); // -> [[a, x], [a, y], [b, c, x], [b, c, y]]
  *
- * @param   {array} arr1 The first array to combine.
- * @param   {array} arr2 The second array to combine.
- * @returns {array}      A mixture of the elements of the first and second arrays.
+ * @param   {Array} arr1 The first array to combine.
+ * @param   {Array} arr2 The second array to combine.
+ * @returns {Array}      A mixture of the elements of the first and second arrays.
  */
 function combineArrays(arr1, arr2) {
     const res = [];
@@ -268,7 +268,7 @@ class RuleConfigSet {
 /**
  * Generate valid rule configurations based on a schema object
  * @param   {Object} schema  A rule's schema object
- * @returns {array[]}        Valid rule configurations
+ * @returns {Array[]}        Valid rule configurations
  */
 function generateConfigsFromSchema(schema) {
     const configSet = new RuleConfigSet();

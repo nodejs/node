@@ -300,7 +300,6 @@ module.exports = {
          * @param {int} gottenTabs Indentation tab count in the actual node/code
          * @param {Object=} loc Error line and column location
          * @param {boolean} isLastNodeCheck Is the error for last node check
-         * @param {int} lastNodeCheckEndOffset Number of charecters to skip from the end
          * @returns {void}
          */
         function report(node, needed, gottenSpaces, gottenTabs, loc, isLastNodeCheck) {
@@ -365,7 +364,6 @@ module.exports = {
          * Check indent for node
          * @param {ASTNode} node Node to check
          * @param {int} neededIndent needed indent
-         * @param {boolean} [excludeCommas=false] skip comma on start of line
          * @returns {void}
          */
         function checkNodeIndent(node, neededIndent) {
@@ -413,7 +411,6 @@ module.exports = {
          * Check indent for nodes list
          * @param {ASTNode[]} nodes list of node objects
          * @param {int} indent needed indent
-         * @param {boolean} [excludeCommas=false] skip comma on start of line
          * @returns {void}
          */
         function checkNodesIndent(nodes, indent) {

@@ -14,7 +14,7 @@ const lodash = require("lodash"),
     GlobSync = require("./glob"),
 
     pathUtils = require("./path-utils"),
-    IgnoredPaths = require("../ignored-paths");
+    IgnoredPaths = require("./ignored-paths");
 
 const debug = require("debug")("eslint:glob-utils");
 
