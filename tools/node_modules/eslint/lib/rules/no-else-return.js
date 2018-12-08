@@ -183,7 +183,6 @@ module.exports = {
          * code paths.
          *
          * @param {Node} node The consequent or body node
-         * @param {Node} alternate The alternate node
          * @returns {boolean} `true` if it is a Return/If node that always returns.
          */
         function checkForReturnOrIf(node) {

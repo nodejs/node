@@ -453,6 +453,10 @@ module.exports = {
             checkSpacingBefore(firstToken, PREV_TOKEN_M);
             checkSpacingAfter(firstToken, NEXT_TOKEN_M);
 
+            if (node.type === "ExportDefaultDeclaration") {
+                checkSpacingAround(sourceCode.getTokenAfter(firstToken));
+            }
+
             if (node.source) {
                 const fromToken = sourceCode.getTokenBefore(node.source);
 
@@ -554,7 +558,7 @@ module.exports = {
             // Statements - Declarations
             ClassDeclaration: checkSpacingForClass,
             ExportNamedDeclaration: checkSpacingForModuleDeclaration,
-            ExportDefaultDeclaration: checkSpacingAroundFirstToken,
+            ExportDefaultDeclaration: checkSpacingForModuleDeclaration,
             ExportAllDeclaration: checkSpacingForModuleDeclaration,
             FunctionDeclaration: checkSpacingForFunction,
             ImportDeclaration: checkSpacingForModuleDeclaration,

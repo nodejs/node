@@ -85,7 +85,7 @@ module.exports = {
         function getReplacedText(styleType, text) {
             switch (styleType) {
                 case "between":
-                    return `,${text.replace("\n", "")}`;
+                    return `,${text.replace(astUtils.LINEBREAK_MATCHER, "")}`;
 
                 case "first":
                     return `${text},`;
@@ -138,6 +138,11 @@ module.exports = {
             } else if (!astUtils.isTokenOnSameLine(commaToken, currentItemToken) &&
                     !astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
 
+                const comment = sourceCode.getCommentsAfter(commaToken)[0];
+                const styleType = comment && comment.type === "Block" && astUtils.isTokenOnSameLine(commaToken, comment)
+                    ? style
+                    : "between";
+
                 // lone comma
                 context.report({
                     node: reportItem,
@@ -146,7 +151,7 @@ module.exports = {
                         column: commaToken.loc.start.column
                     },
                     messageId: "unexpectedLineBeforeAndAfterComma",
-                    fix: getFixerFunction("between", previousItemToken, commaToken, currentItemToken)
+                    fix: getFixerFunction(styleType, previousItemToken, commaToken, currentItemToken)
                 });
 
             } else if (style === "first" && !astUtils.isTokenOnSameLine(commaToken, currentItemToken)) {

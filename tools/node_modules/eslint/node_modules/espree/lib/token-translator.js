@@ -18,7 +18,7 @@
 
 
 // Esprima Token Types
-var Token = {
+const Token = {
     Boolean: "Boolean",
     EOF: "<end>",
     Identifier: "Identifier",
@@ -41,10 +41,10 @@ var Token = {
  * @private
  */
 function convertTemplatePart(tokens, code) {
-    var firstToken = tokens[0],
+    const firstToken = tokens[0],
         lastTemplateToken = tokens[tokens.length - 1];
 
-    var token = {
+    const token = {
         type: Token.Template,
         value: code.slice(firstToken.start, lastTemplateToken.end)
     };
@@ -99,9 +99,9 @@ TokenTranslator.prototype = {
      * @param {Object} extra Espree extra object.
      * @returns {EsprimaToken} The Esprima version of the token.
      */
-    translate: function(token, extra) {
+    translate(token, extra) {
 
-        var type = token.type,
+        const type = token.type,
             tt = this._acornTokTypes;
 
         if (type === tt.name) {
@@ -157,12 +157,13 @@ TokenTranslator.prototype = {
             token.value = this._code.slice(token.start, token.end);
         } else if (type === tt.regexp) {
             token.type = Token.RegularExpression;
-            var value = token.value;
+            const value = token.value;
+
             token.regex = {
                 flags: value.flags,
                 pattern: value.pattern
             };
-            token.value = "/" + value.pattern + "/" + value.flags;
+            token.value = `/${value.pattern}/${value.flags}`;
         }
 
         return token;
@@ -174,9 +175,9 @@ TokenTranslator.prototype = {
      * @param {Object} extra The Espree extra object.
      * @returns {void}
      */
-    onToken: function(token, extra) {
+    onToken(token, extra) {
 
-        var that = this,
+        const that = this,
             tt = this._acornTokTypes,
             tokens = extra.tokens,
             templateTokens = this._tokens;
@@ -218,11 +219,13 @@ TokenTranslator.prototype = {
             }
 
             return;
-        } else if (token.type === tt.dollarBraceL) {
+        }
+        if (token.type === tt.dollarBraceL) {
             templateTokens.push(token);
             translateTemplateTokens();
             return;
-        } else if (token.type === tt.braceR) {
+        }
+        if (token.type === tt.braceR) {
 
             // if there's already a curly, it's not part of the template
             if (this._curlyBrace) {
@@ -232,7 +235,8 @@ TokenTranslator.prototype = {
             // store new curly for later
             this._curlyBrace = token;
             return;
-        } else if (token.type === tt.template || token.type === tt.invalidTemplate) {
+        }
+        if (token.type === tt.template || token.type === tt.invalidTemplate) {
             if (this._curlyBrace) {
                 templateTokens.push(this._curlyBrace);
                 this._curlyBrace = null;

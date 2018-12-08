@@ -172,7 +172,6 @@ module.exports = {
         /**
          * Reports a given node if it violated this rule.
          * @param {ASTNode} node - A node to check. This is an ObjectExpression, ObjectPattern, ImportDeclaration or ExportNamedDeclaration node.
-         * @param {{multiline: boolean, minProperties: number, consistent: boolean}} options - An option object.
          * @returns {void}
          */
         function check(node) {

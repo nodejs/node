@@ -173,7 +173,6 @@ module.exports = {
 
         /**
          * Reports when the set still contains stored constant conditions
-         * @param {ASTNode} node The AST node to check.
          * @returns {void}
          * @private
          */

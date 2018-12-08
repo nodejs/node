@@ -171,7 +171,6 @@ module.exports = {
              * invalid node.
              *
              * @param {CodePath} codePath - A code path which was ended.
-             * @param {ASTNode} node - The current node.
              * @returns {void}
              */
             onCodePathEnd(codePath) {
