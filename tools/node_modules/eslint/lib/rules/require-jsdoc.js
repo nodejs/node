@@ -43,7 +43,10 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        deprecated: true,
+        replacedBy: []
     },
 
     create(context) {

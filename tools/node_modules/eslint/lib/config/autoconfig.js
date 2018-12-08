@@ -102,7 +102,6 @@ class Registry {
      *
      * The length of the returned array will be <= MAX_CONFIG_COMBINATIONS.
      *
-     * @param   {Object}   registry The autoconfig registry
      * @returns {Object[]}          "rules" configurations to use for linting
      */
     buildRuleSets() {

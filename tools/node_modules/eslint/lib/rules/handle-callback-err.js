@@ -59,7 +59,7 @@ module.exports = {
         /**
          * Get the parameters of a given function scope.
          * @param {Object} scope The function scope.
-         * @returns {array} All parameters of the given scope.
+         * @returns {Array} All parameters of the given scope.
          */
         function getParameters(scope) {
             return scope.variables.filter(variable => variable.defs[0] && variable.defs[0].type === "Parameter");

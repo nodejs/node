@@ -132,9 +132,10 @@ module.exports = {
 
                 /*
                  * Leading and trailing underscores are commonly used to flag
-                 * private/protected identifiers, strip them
+                 * private/protected identifiers, strip them before checking if underscored
                  */
-                const name = node.name.replace(/^_+|_+$/g, ""),
+                const name = node.name,
+                    nameIsUnderscored = isUnderscored(name.replace(/^_+|_+$/g, "")),
                     effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 
                 // First, we ignore the node if it match the ignore list
@@ -151,11 +152,11 @@ module.exports = {
                     }
 
                     // Always report underscored object names
-                    if (node.parent.object.type === "Identifier" && node.parent.object.name === node.name && isUnderscored(name)) {
+                    if (node.parent.object.type === "Identifier" && node.parent.object.name === node.name && nameIsUnderscored) {
                         report(node);
 
                     // Report AssignmentExpressions only if they are the left side of the assignment
-                    } else if (effectiveParent.type === "AssignmentExpression" && isUnderscored(name) && (effectiveParent.right.type !== "MemberExpression" || effectiveParent.left.type === "MemberExpression" && effectiveParent.left.property.name === node.name)) {
+                    } else if (effectiveParent.type === "AssignmentExpression" && nameIsUnderscored && (effectiveParent.right.type !== "MemberExpression" || effectiveParent.left.type === "MemberExpression" && effectiveParent.left.property.name === node.name)) {
                         report(node);
                     }
 
@@ -167,7 +168,7 @@ module.exports = {
                 } else if (node.parent.type === "Property" || node.parent.type === "AssignmentPattern") {
 
                     if (node.parent.parent && node.parent.parent.type === "ObjectPattern") {
-                        if (node.parent.shorthand && node.parent.value.left && isUnderscored(name)) {
+                        if (node.parent.shorthand && node.parent.value.left && nameIsUnderscored) {
 
                             report(node);
                         }
@@ -179,7 +180,7 @@ module.exports = {
                             return;
                         }
 
-                        const valueIsUnderscored = node.parent.value.name && isUnderscored(name);
+                        const valueIsUnderscored = node.parent.value.name && nameIsUnderscored;
 
                         // ignore destructuring if the option is set, unless a new identifier is created
                         if (valueIsUnderscored && !(assignmentKeyEqualsValue && ignoreDestructuring)) {
@@ -193,7 +194,7 @@ module.exports = {
                     }
 
                     // don't check right hand side of AssignmentExpression to prevent duplicate warnings
-                    if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type) && !(node.parent.right === node)) {
+                    if (nameIsUnderscored && !ALLOWED_PARENT_TYPES.has(effectiveParent.type) && !(node.parent.right === node)) {
                         report(node);
                     }
 
@@ -201,12 +202,12 @@ module.exports = {
                 } else if (["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"].indexOf(node.parent.type) >= 0) {
 
                     // Report only if the local imported identifier is underscored
-                    if (node.parent.local && node.parent.local.name === node.name && isUnderscored(name)) {
+                    if (node.parent.local && node.parent.local.name === node.name && nameIsUnderscored) {
                         report(node);
                     }
 
                 // Report anything that is underscored that isn't a CallExpression
-                } else if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type)) {
+                } else if (nameIsUnderscored && !ALLOWED_PARENT_TYPES.has(effectiveParent.type)) {
                     report(node);
                 }
             }

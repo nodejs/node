@@ -61,7 +61,6 @@ module.exports = {
 
         /**
          * Produces an object with the opener and closer exception values
-         * @param {Object} opts The exception options
          * @returns {Object} `openers` and `closers` exception values
          * @private
          */

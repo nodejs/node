@@ -195,7 +195,7 @@ module.exports = {
         /**
          * Check if the given importNames are restricted given a list of restrictedImportNames.
          * @param {Set.<string>} importNames - Set of import names that are being imported
-         * @param {[string]} restrictedImportNames - array of import names that are restricted for this import
+         * @param {string[]} restrictedImportNames - array of import names that are restricted for this import
          * @returns {boolean} whether the objectName is restricted
          * @private
          */

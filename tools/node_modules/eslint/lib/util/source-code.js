@@ -87,7 +87,7 @@ class SourceCode extends TokenStore {
      * @param {string|Object} textOrConfig - The source code text or config object.
      * @param {string} textOrConfig.text - The source code text.
      * @param {ASTNode} textOrConfig.ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
-     * @param {Object|null} textOrConfig.parserServices - The parser srevices.
+     * @param {Object|null} textOrConfig.parserServices - The parser services.
      * @param {ScopeManager|null} textOrConfig.scopeManager - The scope of this source code.
      * @param {Object|null} textOrConfig.visitorKeys - The visitor keys to traverse AST.
      * @param {ASTNode} [astIfNoConfig] - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
@@ -316,6 +316,7 @@ class SourceCode extends TokenStore {
      * @returns {Token|null} The Block comment token containing the JSDoc comment
      *      for the given node or null if not found.
      * @public
+     * @deprecated
      */
     getJSDocComment(node) {
 

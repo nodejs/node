@@ -228,6 +228,34 @@ module.exports = {
             }
         }
 
+        /**
+         * Checks whether or not a given TemplateLiteral node is actually using any of the special features provided by template literal strings.
+         * @param {ASTNode} node - A TemplateLiteral node to check.
+         * @returns {boolean} Whether or not the TemplateLiteral node is using any of the special features provided by template literal strings.
+         * @private
+         */
+        function isUsingFeatureOfTemplateLiteral(node) {
+            const hasTag = node.parent.type === "TaggedTemplateExpression" && node === node.parent.quasi;
+
+            if (hasTag) {
+                return true;
+            }
+
+            const hasStringInterpolation = node.expressions.length > 0;
+
+            if (hasStringInterpolation) {
+                return true;
+            }
+
+            const isMultilineString = node.quasis.length >= 1 && UNESCAPED_LINEBREAK_PATTERN.test(node.quasis[0].value.raw);
+
+            if (isMultilineString) {
+                return true;
+            }
+
+            return false;
+        }
+
         return {
 
             Literal(node) {
@@ -260,39 +288,34 @@ module.exports = {
 
             TemplateLiteral(node) {
 
-                // If backticks are expected or it's a tagged template, then this shouldn't throw an errors
+                // Don't throw an error if backticks are expected or a template literal feature is in use.
                 if (
                     allowTemplateLiterals ||
                     quoteOption === "backtick" ||
-                    node.parent.type === "TaggedTemplateExpression" && node === node.parent.quasi
+                    isUsingFeatureOfTemplateLiteral(node)
                 ) {
                     return;
                 }
 
-                // A warning should be produced if the template literal only has one TemplateElement, and has no unescaped newlines.
-                const shouldWarn = node.quasis.length === 1 && !UNESCAPED_LINEBREAK_PATTERN.test(node.quasis[0].value.raw);
+                context.report({
+                    node,
+                    message: "Strings must use {{description}}.",
+                    data: {
+                        description: settings.description
+                    },
+                    fix(fixer) {
+                        if (isPartOfDirectivePrologue(node)) {
 
-                if (shouldWarn) {
-                    context.report({
-                        node,
-                        message: "Strings must use {{description}}.",
-                        data: {
-                            description: settings.description
-                        },
-                        fix(fixer) {
-                            if (isPartOfDirectivePrologue(node)) {
-
-                                /*
-                                 * TemplateLiterals in a directive prologue aren't actually directives, but if they're
-                                 * in the directive prologue, then fixing them might turn them into directives and change
-                                 * the behavior of the code.
-                                 */
-                                return null;
-                            }
-                            return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
+                            /*
+                             * TemplateLiterals in a directive prologue aren't actually directives, but if they're
+                             * in the directive prologue, then fixing them might turn them into directives and change
+                             * the behavior of the code.
+                             */
+                            return null;
                         }
-                    });
-                }
+                        return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
+                    }
+                });
             }
         };
 

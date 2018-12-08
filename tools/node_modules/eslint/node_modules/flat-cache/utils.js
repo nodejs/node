@@ -4,7 +4,7 @@ var circularJson = require( 'circular-json' );
 
 module.exports = {
 
-  tryParse: function ( filePath, defaultValue) {
+  tryParse: function ( filePath, defaultValue ) {
     var result;
     try {
       result = this.readJSON( filePath );
@@ -32,7 +32,7 @@ module.exports = {
    * @param  {String} filePath Json filepath
    * @param  {*} data Object to serialize
    */
-  writeJSON: function (filePath, data ) {
+  writeJSON: function ( filePath, data ) {
     write.sync( filePath, circularJson.stringify( data ) );
   }
 

@@ -15,8 +15,7 @@ const path = require("path"),
     ConfigFile = require("./config/config-file"),
     ConfigCache = require("./config/config-cache"),
     Plugins = require("./config/plugins"),
-    FileFinder = require("./util/file-finder"),
-    isResolvable = require("is-resolvable");
+    FileFinder = require("./util/file-finder");
 
 const debug = require("debug")("eslint:config");
 
@@ -39,6 +38,20 @@ const SUBCONFIG_SEP = ":";
  */
 function hasRules(options) {
     return options.rules && Object.keys(options.rules).length > 0;
+}
+
+/**
+ * Determines if a module is can be resolved.
+ * @param {string} moduleId The ID (name) of the module
+ * @returns {boolean} True if it is resolvable; False otherwise.
+ */
+function isResolvable(moduleId) {
+    try {
+        require.resolve(moduleId);
+        return true;
+    } catch (err) {
+        return false;
+    }
 }
 
 //------------------------------------------------------------------------------

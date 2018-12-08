@@ -37,6 +37,36 @@ function newKeywordTester(keyword) {
 }
 
 /**
+ * Creates tester which check if a node starts with specific keyword and spans a single line.
+ *
+ * @param {string} keyword The keyword to test.
+ * @returns {Object} the created tester.
+ * @private
+ */
+function newSinglelineKeywordTester(keyword) {
+    return {
+        test: (node, sourceCode) =>
+            node.loc.start.line === node.loc.end.line &&
+            sourceCode.getFirstToken(node).value === keyword
+    };
+}
+
+/**
+ * Creates tester which check if a node starts with specific keyword and spans multiple lines.
+ *
+ * @param {string} keyword The keyword to test.
+ * @returns {Object} the created tester.
+ * @private
+ */
+function newMultilineKeywordTester(keyword) {
+    return {
+        test: (node, sourceCode) =>
+            node.loc.start.line !== node.loc.end.line &&
+            sourceCode.getFirstToken(node).value === keyword
+    };
+}
+
+/**
  * Creates tester which check if a node is specific type.
  *
  * @param {string} type The node type to test.
@@ -367,6 +397,13 @@ const StatementTypes = {
             node.type === "ExpressionStatement" &&
             !isDirectivePrologue(node, sourceCode)
     },
+
+    "multiline-const": newMultilineKeywordTester("const"),
+    "multiline-let": newMultilineKeywordTester("let"),
+    "multiline-var": newMultilineKeywordTester("var"),
+    "singleline-const": newSinglelineKeywordTester("const"),
+    "singleline-let": newSinglelineKeywordTester("let"),
+    "singleline-var": newSinglelineKeywordTester("var"),
 
     block: newNodeTypeTester("BlockStatement"),
     empty: newNodeTypeTester("EmptyStatement"),

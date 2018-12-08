@@ -4,12 +4,12 @@ var stringify = require('unist-util-stringify-position')
 
 module.exports = VMessage
 
-/* Inherit from `Error#`. */
+// Inherit from `Error#`.
 function VMessagePrototype() {}
 VMessagePrototype.prototype = Error.prototype
 VMessage.prototype = new VMessagePrototype()
 
-/* Message properties. */
+// Message properties.
 var proto = VMessage.prototype
 
 proto.file = ''
@@ -21,11 +21,11 @@ proto.fatal = null
 proto.column = null
 proto.line = null
 
-/* Construct a new VMessage.
- *
- * Note: We cannot invoke `Error` on the created context,
- * as that adds readonly `line` and `column` attributes on
- * Safari 9, thus throwing and failing the data. */
+// Construct a new VMessage.
+//
+// Note: We cannot invoke `Error` on the created context, as that adds readonly
+// `line` and `column` attributes on Safari 9, thus throwing and failing the
+// data.
 function VMessage(reason, position, origin) {
   var parts
   var range
@@ -44,18 +44,18 @@ function VMessage(reason, position, origin) {
     end: {line: null, column: null}
   }
 
-  /* Node. */
+  // Node.
   if (position && position.position) {
     position = position.position
   }
 
   if (position) {
-    /* Position. */
+    // Position.
     if (position.start) {
       location = position
       position = position.start
     } else {
-      /* Point. */
+      // Point.
       location.start = position
     }
   }

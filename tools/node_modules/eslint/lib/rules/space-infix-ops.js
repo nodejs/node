@@ -69,7 +69,10 @@ module.exports = {
             context.report({
                 node: mainNode,
                 loc: culpritToken.loc.start,
-                message: "Infix operators must be spaced.",
+                message: "Operator '{{operator}}' must be spaced.",
+                data: {
+                    operator: culpritToken.value
+                },
                 fix(fixer) {
                     const previousToken = sourceCode.getTokenBefore(culpritToken);
                     const afterToken = sourceCode.getTokenAfter(culpritToken);

@@ -88,6 +88,7 @@ const parsers = {
             options.ecmaFeatures &&
             options.ecmaFeatures.jsx
         );
+
         return useJsx ? this.jsx : this.regular;
     }
 };
@@ -109,7 +110,7 @@ function tokenize(code, options) {
 
     // Ensure to collect tokens.
     if (!options || options.tokens !== true) {
-        options = Object.assign({}, options, { tokens: true });
+        options = Object.assign({}, options, { tokens: true }); // eslint-disable-line no-param-reassign
     }
 
     return new Parser(options, code).tokenize();
@@ -128,6 +129,7 @@ function tokenize(code, options) {
  */
 function parse(code, options) {
     const Parser = parsers.get(options);
+
     return new Parser(options, code).parse();
 }
 
@@ -144,7 +146,8 @@ exports.parse = parse;
 // Deep copy.
 /* istanbul ignore next */
 exports.Syntax = (function() {
-    var name, types = {};
+    let name,
+        types = {};
 
     if (typeof Object.create === "function") {
         types = Object.create(null);

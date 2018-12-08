@@ -67,6 +67,10 @@ class RawListPrompt extends Base {
     events.keypress
       .pipe(takeUntil(validation.success))
       .forEach(this.onKeypress.bind(this));
+    events.normalizedUpKey.pipe(takeUntil(events.line)).forEach(this.onUpKey.bind(this));
+    events.normalizedDownKey
+      .pipe(takeUntil(events.line))
+      .forEach(this.onDownKey.bind(this));
 
     // Init the prompt
     this.render();
@@ -145,6 +149,34 @@ class RawListPrompt extends Base {
     }
 
     this.render();
+  }
+
+  /**
+   * When user press up key
+   */
+
+  onUpKey() {
+    this.onArrowKey('up');
+  }
+
+  /**
+   * When user press down key
+   */
+
+  onDownKey() {
+    this.onArrowKey('down');
+  }
+
+  /**
+   * When user press up or down key
+   * @param {String} type Arrow type: up or down
+   */
+
+  onArrowKey(type) {
+    var index = this.rl.line.length ? Number(this.rl.line) - 1 : 0;
+    index += type === 'up' ? -1 : 1;
+    this.rl.line = String(index + 1);
+    this.onKeypress();
   }
 }
 

@@ -64,7 +64,10 @@ module.exports = {
             }
         ],
 
-        fixable: "code"
+        fixable: "code",
+
+        deprecated: true,
+        replacedBy: []
     },
 
     create(context) {

@@ -1,9 +1,7 @@
 'use strict'
 
-/* Expose. */
 module.exports = factory
 
-/* Factory. */
 function factory(file) {
   var contents = indices(String(file))
 
@@ -13,13 +11,12 @@ function factory(file) {
   }
 }
 
-/* Factory to get the line and column-based `position` for
- * `offset` in the bound indices. */
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
 function offsetToPositionFactory(indices) {
   return offsetToPosition
 
-  /* Get the line and column-based `position` for
-   * `offset` in the bound indices. */
+  // Get the line and column-based `position` for `offset` in the bound indices.
   function offsetToPosition(offset) {
     var index = -1
     var length = indices.length
@@ -42,13 +39,13 @@ function offsetToPositionFactory(indices) {
   }
 }
 
-/* Factory to get the `offset` for a line and column-based
- * `position` in the bound indices. */
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
 function positionToOffsetFactory(indices) {
   return positionToOffset
 
-  /* Get the `offset` for a line and column-based
-   * `position` in the bound indices. */
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
   function positionToOffset(position) {
     var line = position && position.line
     var column = position && position.column
@@ -61,7 +58,7 @@ function positionToOffsetFactory(indices) {
   }
 }
 
-/* Get indices of line-breaks in `value`. */
+// Get indices of line-breaks in `value`.
 function indices(value) {
   var result = []
   var index = value.indexOf('\n')

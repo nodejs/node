@@ -12,24 +12,24 @@ Espree started out as a fork of [Esprima](http://esprima.org) v1.2.2, the last s
 Install:
 
 ```
-npm i espree --save
+npm i espree
 ```
 
 And in your Node.js code:
 
 ```javascript
-var espree = require("espree");
+const espree = require("espree");
 
-var ast = espree.parse(code);
+const ast = espree.parse(code);
 ```
 
 There is a second argument to `parse()` that allows you to specify various options:
 
 ```javascript
-var espree = require("espree");
+const espree = require("espree");
 
 // Optional second options argument with the following default settings
-var ast = espree.parse(code, {
+const ast = espree.parse(code, {
 
     // attach range information to each node
     range: false,
@@ -39,9 +39,6 @@ var ast = espree.parse(code, {
 
     // create a top-level comments array containing all comments
     comment: false,
-
-    // attach comments to the closest relevant node as leadingComments and trailingComments
-    attachComment: false,
 
     // create a top-level tokens array containing all tokens
     tokens: false,

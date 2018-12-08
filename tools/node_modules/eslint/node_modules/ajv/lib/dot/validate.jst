@@ -100,6 +100,16 @@
   var $typeSchema = it.schema.type
     , $typeIsArray = Array.isArray($typeSchema);
 
+  if ($typeSchema && it.opts.nullable && it.schema.nullable === true) {
+    if ($typeIsArray) {
+      if ($typeSchema.indexOf('null') == -1)
+        $typeSchema = $typeSchema.concat('null');
+    } else if ($typeSchema != 'null') {
+      $typeSchema = [$typeSchema, 'null'];
+      $typeIsArray = true;
+    }
+  }
+
   if ($typeIsArray && $typeSchema.length == 1) {
     $typeSchema = $typeSchema[0];
     $typeIsArray = false;
