@@ -277,12 +277,6 @@ void Url(const FunctionCallbackInfo<Value>& args) {
 void Initialize(Local<Object> target, Local<Value> unused,
                 Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  {
-    auto obj = Object::New(env->isolate());
-    auto null = Null(env->isolate());
-    CHECK(obj->SetPrototype(context, null).FromJust());
-    env->set_inspector_console_api_object(obj);
-  }
 
   Agent* agent = env->inspector_agent();
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);

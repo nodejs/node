@@ -341,6 +341,13 @@ void Environment::Start(const std::vector<std::string>& args,
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
   uv_key_set(&thread_local_env, this);
+
+#if HAVE_INSPECTOR
+  // This needs to be set before we start the inspector
+  Local<Object> obj = Object::New(isolate());
+  CHECK(obj->SetPrototype(context(), Null(isolate())).FromJust());
+  set_inspector_console_api_object(obj);
+#endif  // HAVE_INSPECTOR
 }
 
 void Environment::RegisterHandleCleanups() {
