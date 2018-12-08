@@ -506,6 +506,7 @@ class NodeInspectorClient : public V8InspectorClient {
   void installAdditionalCommandLineAPI(Local<Context> context,
                                        Local<Object> target) override {
     Local<Object> console_api = env_->inspector_console_api_object();
+    CHECK(!console_api.IsEmpty());
 
     Local<Array> properties =
         console_api->GetOwnPropertyNames(context).ToLocalChecked();
