@@ -1229,9 +1229,13 @@ module.exports = {
                 }
 
                 const fromToken = sourceCode.getLastToken(node, token => token.type === "Identifier" && token.value === "from");
+                const sourceToken = sourceCode.getLastToken(node, token => token.type === "String");
+                const semiToken = sourceCode.getLastToken(node, token => token.type === "Punctuator" && token.value === ";");
 
                 if (fromToken) {
-                    offsets.setDesiredOffsets([fromToken.range[0], node.range[1]], sourceCode.getFirstToken(node), 1);
+                    const end = semiToken && semiToken.range[1] === sourceToken.range[1] ? node.range[1] : sourceToken.range[1];
+
+                    offsets.setDesiredOffsets([fromToken.range[0], end], sourceCode.getFirstToken(node), 1);
                 }
             },
 

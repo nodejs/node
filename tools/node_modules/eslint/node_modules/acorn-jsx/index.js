@@ -1,9 +1,18 @@
+'use strict';
+
 const XHTMLEntities = require('./xhtml');
 
 const hexNumber = /^[\da-fA-F]+$/;
 const decimalNumber = /^\d+$/;
 
-const {tokTypes: tt, TokContext, tokContexts, TokenType, isNewLine, isIdentifierStart, isIdentifierChar} = require("acorn");
+const acorn = require("acorn");
+const tt = acorn.tokTypes;
+const TokContext = acorn.TokContext;
+const tokContexts = acorn.tokContexts;
+const TokenType = acorn.TokenType;
+const isNewLine = acorn.isNewLine;
+const isIdentifierStart = acorn.isIdentifierStart;
+const isIdentifierChar = acorn.isIdentifierChar;
 
 const tc_oTag = new TokContext('<tag', false);
 const tc_cTag = new TokContext('</tag', false);
@@ -48,15 +57,16 @@ function getQualifiedJSXName(object) {
     getQualifiedJSXName(object.property);
 }
 
-module.exports = function(options = {}) {
+module.exports = function(options) {
+  options = options || {};
   return function(Parser) {
     return plugin({
       allowNamespaces: options.allowNamespaces !== false,
       allowNamespacedObjects: !!options.allowNamespacedObjects
     }, Parser);
   }
-}
-module.exports.tokTypes = tok
+};
+module.exports.tokTypes = tok;
 
 function plugin(options, Parser) {
   return class extends Parser {
@@ -115,7 +125,7 @@ function plugin(options, Parser) {
       }
 
       return out;
-    };
+    }
 
     jsx_readString(quote) {
       let out = '', chunkStart = ++this.pos;
@@ -428,4 +438,4 @@ function plugin(options, Parser) {
       }
     }
   };
-};
+}

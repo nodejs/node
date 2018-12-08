@@ -310,7 +310,6 @@ module.exports = {
         /**
          * Fixer to split a VariableDeclaration into individual declarations
          * @param   {VariableDeclaration}   declaration The `VariableDeclaration` to split
-         * @param   {?Function}             filter      Function to filter the declarations
          * @returns {Function}                          The fixer function
          */
         function splitDeclarations(declaration) {

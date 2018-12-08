@@ -36,7 +36,7 @@ module.exports = {
         /**
          * Tests whether node is preceded by supplied tokens
          * @param {ASTNode} node - node to check
-         * @param {array} testTokens - array of tokens to test against
+         * @param {Array} testTokens - array of tokens to test against
          * @returns {boolean} Whether or not the node is preceded by one of the supplied tokens
          * @private
          */

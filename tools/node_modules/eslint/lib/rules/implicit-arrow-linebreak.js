@@ -44,7 +44,6 @@ module.exports = {
         /**
          * Validates the location of an arrow function body
          * @param {ASTNode} node The arrow function body
-         * @param {string} keywordName The applicable keyword name for the arrow function body
          * @returns {void}
          */
         function validateExpression(node) {

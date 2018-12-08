@@ -119,7 +119,6 @@ module.exports = {
         /**
          * Gets the location (line and column) of the binary expression's operator
          * @param {ASTNode} node The binary expression node to check
-         * @param {string} operator The operator to find
          * @returns {Object} { line, column } location of operator
          * @private
          */

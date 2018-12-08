@@ -1029,6 +1029,7 @@ Defaults:
   jsonPointers:     false,
   uniqueItems:      true,
   unicode:          true,
+  nullable:         false,
   format:           'fast',
   formats:          {},
   unknownFormats:   true,
@@ -1075,6 +1076,7 @@ Defaults:
 - _jsonPointers_: set `dataPath` property of errors using [JSON Pointers](https://tools.ietf.org/html/rfc6901) instead of JavaScript property access notation.
 - _uniqueItems_: validate `uniqueItems` keyword (true by default).
 - _unicode_: calculate correct length of strings with unicode pairs (true by default). Pass `false` to use `.length` of strings that is faster, but gives "incorrect" lengths of strings with unicode pairs - each unicode pair is counted as two characters.
+- _nullable_: support keyword "nullable" from [Open API 3 specification](https://swagger.io/docs/specification/data-models/data-types/).
 - _format_: formats validation mode ('fast' by default). Pass 'full' for more correct and slow validation or `false` not to validate formats at all. E.g., 25:00:00 and 2015/14/33 will be invalid time and date in 'full' mode but it will be valid in 'fast' mode.
 - _formats_: an object with custom formats. Keys and values will be passed to `addFormat` method.
 - _unknownFormats_: handling of unknown formats. Option values:

@@ -83,7 +83,7 @@ function validateRuleSeverity(options) {
 /**
  * Validates the non-severity options passed to a rule, based on its schema.
  * @param {{create: Function}} rule The rule to validate
- * @param {array} localOptions The options for the rule, excluding severity
+ * @param {Array} localOptions The options for the rule, excluding severity
  * @returns {void}
  */
 function validateRuleSchema(rule, localOptions) {
@@ -111,7 +111,7 @@ function validateRuleSchema(rule, localOptions) {
  * Validates a rule's options against its schema.
  * @param {{create: Function}|null} rule The rule that the config is being validated for
  * @param {string} ruleId The rule's unique name.
- * @param {array|number} options The given options for the rule.
+ * @param {Array|number} options The given options for the rule.
  * @param {string|null} source The name of the configuration source to report in any errors. If null or undefined,
  * no source is prepended to the message.
  * @returns {void}

@@ -38,7 +38,7 @@ If you want to include ESLint as part of your project's build system, we recomme
 $ npm install eslint --save-dev
 ```
 
-You should then setup a configuration file:
+You should then set up a configuration file:
 
 ```
 $ ./node_modules/.bin/eslint --init
@@ -60,7 +60,7 @@ If you want to make ESLint available to tools that run across all of your projec
 $ npm install -g eslint
 ```
 
-You should then setup a configuration file:
+You should then set up a configuration file:
 
 ```
 $ eslint --init
