@@ -472,7 +472,7 @@ TEST(function test_lookup_failure(done) {
     .then(common.mustNotCall())
     .catch(common.expectsError({ errno: dns.NOTFOUND }));
 
-  const req = dns.lookup(addresses.INVALID_HOST, 4, (err, ip, family) => {
+  const req = dns.lookup(addresses.INVALID_HOST, 4, (err) => {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, dns.NOTFOUND);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -540,7 +540,7 @@ TEST(function test_lookup_ip_promise(done) {
 TEST(async function test_lookup_null_all(done) {
   assert.deepStrictEqual(await dnsPromises.lookup(null, { all: true }), []);
 
-  const req = dns.lookup(null, { all: true }, function(err, ips, family) {
+  const req = dns.lookup(null, { all: true }, (err, ips) => {
     assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.strictEqual(ips.length, 0);
@@ -586,7 +586,7 @@ TEST(function test_lookupservice_invalid(done) {
     .then(common.mustNotCall())
     .catch(common.expectsError({ code: 'ENOTFOUND' }));
 
-  const req = dns.lookupService('1.2.3.4', 80, function(err, host, service) {
+  const req = dns.lookupService('1.2.3.4', 80, (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
     assert.ok(/1\.2\.3\.4/.test(err.message));
