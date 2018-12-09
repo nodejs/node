@@ -255,8 +255,9 @@ void MainThreadInterface::Post(std::unique_ptr<Request> request) {
   if (needs_notify) {
     CHECK_EQ(0, uv_async_send(&main_thread_request_->first));
     if (isolate_ != nullptr && platform_ != nullptr) {
-      platform_->CallOnForegroundThread(isolate_,
-                                        new DispatchMessagesTask(this));
+      std::shared_ptr<v8::TaskRunner> taskrunner =
+        platform_->GetForegroundTaskRunner(isolate_);
+      taskrunner->PostTask(std::make_unique<DispatchMessagesTask>(this));
       isolate_->RequestInterrupt([](v8::Isolate* isolate, void* thread) {
         static_cast<MainThreadInterface*>(thread)->DispatchMessages();
       }, this);
