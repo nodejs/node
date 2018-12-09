@@ -11,10 +11,6 @@
 #define CHECK_TO_NUMBER(env, context, result, src) \
   CHECK_TO_TYPE((env), Number, (context), (result), (src), napi_number_expected)
 
-#define CHECK_TO_BOOL(env, context, result, src)            \
-  CHECK_TO_TYPE((env), Boolean, (context), (result), (src), \
-    napi_boolean_expected)
-
 // n-api defines NAPI_AUTO_LENGHTH as the indicator that a string
 // is null terminated. For V8 the equivalent is -1. The assert
 // validates that our cast of NAPI_AUTO_LENGTH results in -1 as
@@ -2155,11 +2151,9 @@ napi_status napi_coerce_to_bool(napi_env env,
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
-  v8::Local<v8::Context> context = env->context();
-  v8::Local<v8::Boolean> b;
-
-  CHECK_TO_BOOL(env, context, b, value);
-
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Boolean> b =
+    v8impl::V8LocalValueFromJsValue(value)->ToBoolean(isolate);
   *result = v8impl::JsValueFromV8LocalValue(b);
   return GET_RETURN_STATUS(env);
 }
