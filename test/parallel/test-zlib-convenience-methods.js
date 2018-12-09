@@ -119,3 +119,13 @@ for (const [type, expect] of [
     }
   }
 }
+
+common.expectsError(
+  () => zlib.gzip('abc'),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "callback" argument must be of type function. ' +
+             'Received type undefined'
+  }
+);
