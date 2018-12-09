@@ -83,8 +83,7 @@ TEST(async function test_resolve4_ttl(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
@@ -113,8 +112,7 @@ TEST(async function test_resolve6_ttl(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
@@ -143,8 +141,7 @@ TEST(async function test_resolveMx(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.ok(item.exchange);
@@ -185,8 +182,7 @@ TEST(async function test_resolveNs(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
 
       assert.ok(item);
       assert.strictEqual(typeof item, 'string');
@@ -225,8 +221,7 @@ TEST(async function test_resolveSrv(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'object');
 
@@ -271,8 +266,7 @@ TEST(async function test_resolvePtr(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'string');
     }
@@ -310,8 +304,7 @@ TEST(async function test_resolveNaptr(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.flags, 'string');
@@ -403,10 +396,9 @@ TEST(async function test_resolveCname(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const name = result[i];
-      assert.ok(name);
-      assert.strictEqual(typeof name, 'string');
+    for (const item of result) {
+      assert.ok(item);
+      assert.strictEqual(typeof item, 'string');
     }
   }
 
