@@ -204,7 +204,7 @@ Node.js ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/c
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
 can run a group of tests over and over on a specific platform. Use it to check
-that the test is reliable.
+that the tests are reliable.
 
 * [`node-test-commit-v8-linux`](https://ci.nodejs.org/job/node-test-commit-v8-linux/)
 runs the standard V8 tests. Run it when updating V8 in Node.js or floating new
