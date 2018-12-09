@@ -179,8 +179,8 @@ fail before the change, and pass after the change.
 All pull requests must pass continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
 
-Do not land any Pull Requests without passing (green or yellow) CI runs. If
-there are CI failures unrelated to the change in the Pull Request, try "Resume
+Do not land any pull requests without passing (green or yellow) CI runs. If
+there are CI failures unrelated to the change in the pull request, try "Resume
 Build". It is in the left navigation of the relevant `node-test-pull-request`
 job. It will preserve all the green results from the current job but re-run
 everything else.
@@ -188,13 +188,12 @@ everything else.
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
-is the standard CI run we do to check Pull Requests. It triggers
-`node-test-commit`, which runs the `build-ci` and `test-ci` targets on all
-supported platforms.
+is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
+targets on all supported platforms.
 
 * [`node-test-pull-request-lite-pipeline`](https://ci.nodejs.org/job/node-test-pull-request-lite-pipeline/)
-only runs the linter job, as well as the tests on LinuxONE, which is very fast.
-This is useful for changes that only affect comments or documentation.
+runs the linter job. It also runs the tests on a very fast host. This is useful
+for changes that only affect comments or documentation.
 
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run
@@ -203,20 +202,18 @@ useful to check whether a change will cause breakage in the ecosystem. To test
 Node.js ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
-is designed to allow one to run a group of tests over and over on a specific
-platform to confirm that the test is reliable.
+can run a group of tests over and over on a specific platform. Use it to check
+that the tests are reliable.
 
 * [`node-test-commit-v8-linux`](https://ci.nodejs.org/job/node-test-commit-v8-linux/)
-is designed to allow validation of changes to the copy of V8 in the Node.js
-tree by running the standard V8 tests. It should be run whenever the
-level of V8 within Node.js is updated or new patches are floated on V8.
+runs the standard V8 tests. Run it when updating V8 in Node.js or floating new
+patches on V8.
 
 * [`node-test-commit-custom-suites`](https://ci.nodejs.org/job/node-test-commit-custom-suites/)
-can be used to customize what tests are run and with what parameters. For
-example, it can be used to execute tests which are not executed in a typical
-`node-test-commit` run (such as tests in the `internet` or `pummel`
-directories). It can also be used to make sure tests pass when provided with a
-flag not typically used in other CI test runs (such as `--worker`).
+enables customization of test suites and parameters. It can execute test suites
+not used in other CI test runs (such as tests in the `internet` or `pummel`
+directories). It can also make sure tests pass when provided with a flag not
+used in other CI test runs (such as `--worker`).
 
 ### Internal vs. Public API
 
