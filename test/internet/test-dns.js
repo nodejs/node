@@ -83,9 +83,7 @@ TEST(async function test_resolve4_ttl(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      assert.ok(item);
+    for (const item of result) {
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
@@ -113,9 +111,7 @@ TEST(async function test_resolve6_ttl(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      assert.ok(item);
+    for (const item of result) {
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
@@ -143,9 +139,7 @@ TEST(async function test_resolveMx(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      assert.ok(item);
+    for (const item of result) {
       assert.strictEqual(typeof item, 'object');
       assert.ok(item.exchange);
       assert.strictEqual(typeof item.exchange, 'string');
@@ -185,9 +179,7 @@ TEST(async function test_resolveNs(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'string');
     }
@@ -225,14 +217,10 @@ TEST(async function test_resolveSrv(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      assert.ok(item);
+    for (const item of result) {
       assert.strictEqual(typeof item, 'object');
-
       assert.ok(item.name);
       assert.strictEqual(typeof item.name, 'string');
-
       assert.strictEqual(typeof item.port, 'number');
       assert.strictEqual(typeof item.priority, 'number');
       assert.strictEqual(typeof item.weight, 'number');
@@ -271,8 +259,7 @@ TEST(async function test_resolvePtr(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
+    for (const item of result) {
       assert.ok(item);
       assert.strictEqual(typeof item, 'string');
     }
@@ -310,9 +297,7 @@ TEST(async function test_resolveNaptr(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      assert.ok(item);
+    for (const item of result) {
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.flags, 'string');
       assert.strictEqual(typeof item.service, 'string');
@@ -353,7 +338,6 @@ TEST(function test_resolveNaptr_failure(done) {
 
 TEST(async function test_resolveSoa(done) {
   function validateResult(result) {
-    assert.ok(result);
     assert.strictEqual(typeof result, 'object');
     assert.strictEqual(typeof result.nsname, 'string');
     assert.ok(result.nsname.length > 0);
@@ -403,10 +387,9 @@ TEST(async function test_resolveCname(done) {
   function validateResult(result) {
     assert.ok(result.length > 0);
 
-    for (let i = 0; i < result.length; i++) {
-      const name = result[i];
-      assert.ok(name);
-      assert.strictEqual(typeof name, 'string');
+    for (const item of result) {
+      assert.ok(item);
+      assert.strictEqual(typeof item, 'string');
     }
   }
 
@@ -480,7 +463,7 @@ TEST(function test_lookup_failure(done) {
     .then(common.mustNotCall())
     .catch(common.expectsError({ errno: dns.NOTFOUND }));
 
-  const req = dns.lookup(addresses.INVALID_HOST, 4, (err, ip, family) => {
+  const req = dns.lookup(addresses.INVALID_HOST, 4, (err) => {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, dns.NOTFOUND);
     assert.strictEqual(err.errno, 'ENOTFOUND');
@@ -548,7 +531,7 @@ TEST(function test_lookup_ip_promise(done) {
 TEST(async function test_lookup_null_all(done) {
   assert.deepStrictEqual(await dnsPromises.lookup(null, { all: true }), []);
 
-  const req = dns.lookup(null, { all: true }, function(err, ips, family) {
+  const req = dns.lookup(null, { all: true }, (err, ips) => {
     assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.strictEqual(ips.length, 0);
@@ -594,7 +577,7 @@ TEST(function test_lookupservice_invalid(done) {
     .then(common.mustNotCall())
     .catch(common.expectsError({ code: 'ENOTFOUND' }));
 
-  const req = dns.lookupService('1.2.3.4', 80, function(err, host, service) {
+  const req = dns.lookupService('1.2.3.4', 80, (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');
     assert.ok(/1\.2\.3\.4/.test(err.message));
