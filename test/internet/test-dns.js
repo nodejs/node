@@ -84,7 +84,6 @@ TEST(async function test_resolve4_ttl(done) {
     assert.ok(result.length > 0);
 
     for (const item of result) {
-      assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
@@ -113,7 +112,6 @@ TEST(async function test_resolve6_ttl(done) {
     assert.ok(result.length > 0);
 
     for (const item of result) {
-      assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.ttl, 'number');
       assert.strictEqual(typeof item.address, 'string');
@@ -142,7 +140,6 @@ TEST(async function test_resolveMx(done) {
     assert.ok(result.length > 0);
 
     for (const item of result) {
-      assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.ok(item.exchange);
       assert.strictEqual(typeof item.exchange, 'string');
@@ -183,7 +180,6 @@ TEST(async function test_resolveNs(done) {
     assert.ok(result.length > 0);
 
     for (const item of result) {
-
       assert.ok(item);
       assert.strictEqual(typeof item, 'string');
     }
@@ -222,12 +218,9 @@ TEST(async function test_resolveSrv(done) {
     assert.ok(result.length > 0);
 
     for (const item of result) {
-      assert.ok(item);
       assert.strictEqual(typeof item, 'object');
-
       assert.ok(item.name);
       assert.strictEqual(typeof item.name, 'string');
-
       assert.strictEqual(typeof item.port, 'number');
       assert.strictEqual(typeof item.priority, 'number');
       assert.strictEqual(typeof item.weight, 'number');
@@ -305,7 +298,6 @@ TEST(async function test_resolveNaptr(done) {
     assert.ok(result.length > 0);
 
     for (const item of result) {
-      assert.ok(item);
       assert.strictEqual(typeof item, 'object');
       assert.strictEqual(typeof item.flags, 'string');
       assert.strictEqual(typeof item.service, 'string');
@@ -346,7 +338,6 @@ TEST(function test_resolveNaptr_failure(done) {
 
 TEST(async function test_resolveSoa(done) {
   function validateResult(result) {
-    assert.ok(result);
     assert.strictEqual(typeof result, 'object');
     assert.strictEqual(typeof result.nsname, 'string');
     assert.ok(result.nsname.length > 0);
