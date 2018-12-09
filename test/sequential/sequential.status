@@ -8,7 +8,10 @@ prefix sequential
 # https://github.com/nodejs/node/issues/22336
 test-gc-http-client: PASS,FLAKY
 # https://github.com/nodejs/node/issues/24403
-test-cli-syntax: PASS,FLAKY
+test-cli-syntax-bad: PASS,FLAKY
+test-cli-syntax-file-not-found: PASS,FLAKY
+test-cli-syntax-good: PASS,FLAKY
+test-cli-syntax-require: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/22327
