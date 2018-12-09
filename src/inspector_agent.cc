@@ -40,6 +40,8 @@ using v8::Local;
 using v8::Message;
 using v8::Object;
 using v8::String;
+using v8::Task;
+using v8::TaskRunner;
 using v8::Value;
 
 using v8_inspector::StringBuffer;
@@ -50,7 +52,7 @@ using v8_inspector::V8InspectorClient;
 static uv_sem_t start_io_thread_semaphore;
 static uv_async_t start_io_thread_async;
 
-class StartIoTask : public v8::Task {
+class StartIoTask : public Task {
  public:
   explicit StartIoTask(Agent* agent) : agent(agent) {}
 
@@ -861,7 +863,9 @@ void Agent::RequestIoThreadStart() {
   uv_async_send(&start_io_thread_async);
   Isolate* isolate = parent_env_->isolate();
   v8::Platform* platform = parent_env_->isolate_data()->platform();
-  platform->CallOnForegroundThread(isolate, new StartIoTask(this));
+  std::shared_ptr<TaskRunner> taskrunner =
+    platform->GetForegroundTaskRunner(isolate);
+  taskrunner->PostTask(std::make_unique<StartIoTask>(this));
   isolate->RequestInterrupt(StartIoInterrupt, this);
   uv_async_send(&start_io_thread_async);
 }
