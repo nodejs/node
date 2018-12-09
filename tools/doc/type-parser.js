@@ -38,6 +38,8 @@ const customTypesMap = {
   'AsyncHook': 'async_hooks.html#async_hooks_async_hooks_createhook_callbacks',
   'AsyncResource': 'async_hooks.html#async_hooks_class_asyncresource',
 
+  'brotli options': 'zlib.html#zlib_class_brotlioptions',
+
   'Buffer': 'buffer.html#buffer_class_buffer',
 
   'ChildProcess': 'child_process.html#child_process_class_childprocess',
