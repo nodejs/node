@@ -59,6 +59,8 @@ class AgentWriterHandle {
   inline void Enable(const std::set<std::string>& categories);
   inline void Disable(const std::set<std::string>& categories);
 
+  inline bool IsDefaultHandle();
+
   inline Agent* agent() { return agent_; }
 
   inline v8::TracingController* GetTracingController();
@@ -173,6 +175,10 @@ void AgentWriterHandle::Enable(const std::set<std::string>& categories) {
 
 void AgentWriterHandle::Disable(const std::set<std::string>& categories) {
   if (agent_ != nullptr) agent_->Disable(id_, categories);
+}
+
+bool AgentWriterHandle::IsDefaultHandle() {
+  return agent_ != nullptr && id_ == Agent::kDefaultHandleId;
 }
 
 inline v8::TracingController* AgentWriterHandle::GetTracingController() {
