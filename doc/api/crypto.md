@@ -1116,30 +1116,11 @@ different functions.
 Most applications should consider using the new `KeyObject` API instead of
 passing keys as strings or `Buffer`s due to improved security features.
 
-### keyObject.type
-<!-- YAML
-added: REPLACEME
--->
-* {string}
-
-Depending on the type of this `KeyObject`, this property is either
-`'secret'` for secret (symmetric) keys, `'public'` for public (asymmetric) keys
-or `'private'` for private (asymmetric) keys.
-
-### keyObject.symmetricSize
-<!-- YAML
-added: REPLACEME
--->
-* {number}
-
-For secret keys, this property represents the size of the key in bytes. This
-property is `undefined` for asymmetric keys.
-
 ### keyObject.asymmetricKeyType
 <!-- YAML
 added: REPLACEME
 -->
-* Returns: {string}
+* {string}
 
 For asymmetric keys, this property represents the type of the embedded key
 (`'rsa'`, `'dsa'` or `'ec'`). This property is `undefined` for symmetric keys.
@@ -1172,6 +1153,25 @@ For private keys, the following encoding options can be used:
    encryption.
 * `passphrase`: {string | Buffer} The passphrase to use for encryption, see
   `cipher`.
+
+### keyObject.symmetricSize
+<!-- YAML
+added: REPLACEME
+-->
+* {number}
+
+For secret keys, this property represents the size of the key in bytes. This
+property is `undefined` for asymmetric keys.
+
+### keyObject.type
+<!-- YAML
+added: REPLACEME
+-->
+* {string}
+
+Depending on the type of this `KeyObject`, this property is either
+`'secret'` for secret (symmetric) keys, `'public'` for public (asymmetric) keys
+or `'private'` for private (asymmetric) keys.
 
 ## Class: Sign
 <!-- YAML
@@ -1805,13 +1805,13 @@ added: REPLACEME
 -->
 * `key` {Object | string | Buffer}
   - `key`: {string | Buffer} The key material, either in PEM or DER format.
-  - `format`: {string} Must be `'pem'` or `'der'`. Default: `'pem'`.
+  - `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
   - `type`: {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
      required only if the `format` is `'der'` and ignored if it is `'pem'`.
   - `passphrase`: {string | Buffer} The passphrase to use for decryption.
 * Returns: {KeyObject}
 
-Creates and  returns a new key object containing a private key. If `key` is a
+Creates and returns a new key object containing a private key. If `key` is a
 string or `Buffer`, it is parsed as a PEM-encoded private key; otherwise, `key`
 must be an object with the properties described above.
 
@@ -1821,7 +1821,7 @@ added: REPLACEME
 -->
 * `key` {Object | string | Buffer}
   - `key`: {string | Buffer}
-  - `format`: {string} Must be `'pem'` or `'der'`. Default: `'pem'`.
+  - `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
   - `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is required
     only if the `format` is `'der'`.
 * Returns: {KeyObject}
