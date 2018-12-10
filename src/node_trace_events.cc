@@ -74,6 +74,9 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (!category_set->enabled_ && !categories.empty()) {
+    // Starts the Tracing Agent if it wasn't started already (e.g. through
+    // a command line flag.)
+    StartTracingAgent();
     GetTracingAgentWriter()->Enable(categories);
     category_set->enabled_ = true;
   }
