@@ -3,7 +3,13 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
-const { NodeInstance } = require('../common/inspector-helper.js');
+const {
+  NodeInstance,
+  getDebuggerStatementIndices,
+  firstBreakIndex: {
+    eval: evalDebugBreakIndex
+  }
+} = require('../common/inspector-helper.js');
 const assert = require('assert');
 
 const script = `
@@ -13,14 +19,16 @@ setTimeout(() => {
 }, 50);
 `;
 
+const [ breakIndex ] = getDebuggerStatementIndices(script, 'eval');
+
 async function skipBreakpointAtStart(session) {
-  await session.waitForBreakOnLine(3, '[eval]');
+  await session.waitForBreakOnLine(evalDebugBreakIndex, '[eval]');
   await session.send({ 'method': 'Debugger.resume' });
 }
 
 async function checkAsyncStackTrace(session) {
   console.error('[test]', 'Verify basic properties of asyncStackTrace');
-  const paused = await session.waitForBreakOnLine(4, '[eval]');
+  const paused = await session.waitForBreakOnLine(breakIndex, '[eval]');
   assert(paused.params.asyncStackTrace,
          `${Object.keys(paused.params)} contains "asyncStackTrace" property`);
   assert(paused.params.asyncStackTrace.description, 'Timeout');

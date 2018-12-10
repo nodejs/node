@@ -3,11 +3,19 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
-const { NodeInstance } = require('../common/inspector-helper');
+const {
+  NodeInstance,
+  getDebuggerStatementIndices,
+  firstBreakOffset: {
+    eval: evalDebugBreakOffset
+  },
+  firstBreakIndex: {
+    eval: evalDebugBreakIndex
+  }
+} = require('../common/inspector-helper.js');
 const assert = require('assert');
 
-const script = `runTest();
-function runTest() {
+const fn = `function runTest() {
   const p = Promise.resolve();
   p.then(function break1() { // lineNumber 3
     debugger;
@@ -17,6 +25,11 @@ function runTest() {
   });
 }
 `;
+const script = `${fn}\nrunTest();`;
+
+const fnBreaks = getDebuggerStatementIndices(fn);
+const scriptBreak1 = fnBreaks[0] + evalDebugBreakOffset;
+const scriptBreak2 = fnBreaks[1] + evalDebugBreakOffset;
 
 async function runTests() {
   const instance = new NodeInstance(undefined, script);
@@ -31,18 +44,18 @@ async function runTests() {
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
 
-  await session.waitForBreakOnLine(2, '[eval]');
+  await session.waitForBreakOnLine(evalDebugBreakIndex, '[eval]');
   await session.send({ 'method': 'Debugger.resume' });
 
   console.error('[test] Waiting for break1');
-  debuggerPausedAt(await session.waitForBreakOnLine(6, '[eval]'),
-                   'break1', 'runTest:5');
+  debuggerPausedAt(await session.waitForBreakOnLine(scriptBreak1, '[eval]'),
+                   'break1', `runTest:${fnBreaks[0]}`);
 
   await session.send({ 'method': 'Debugger.resume' });
 
   console.error('[test] Waiting for break2');
-  debuggerPausedAt(await session.waitForBreakOnLine(9, '[eval]'),
-                   'break2', 'runTest:8');
+  debuggerPausedAt(await session.waitForBreakOnLine(scriptBreak2, '[eval]'),
+                   'break2', `runTest:${fnBreaks[1]}`);
 
   await session.runToCompletion();
   assert.strictEqual((await instance.expectShutdown()).exitCode, 0);

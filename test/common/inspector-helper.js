@@ -503,6 +503,39 @@ function fires(promise, error, timeoutMs) {
   ]);
 }
 
+const firstBreakIndex = {
+  // -e will wrap the source with `debugger;\n${source}`
+  eval: 0,
+  // CJS module will be wrapped with `require('module').wrapper`
+  cjs: -1,
+  // The following are not wrapped
+  esm: -1,
+  vm: -1
+};
+
+const firstBreakOffset = {
+  eval: firstBreakIndex.eval + 1,
+  cjs: firstBreakIndex.cjs + 1,
+  esm: firstBreakIndex.esm + 1,
+  vm: firstBreakIndex.vm + 1,
+  none: 0
+};
+
+function getDebuggerStatementIndices(script, mode = 'none') {
+  const lines = script.split('\n');
+  const result = [];
+  for (let i = 0; i < lines.length; ++i) {
+    const line = lines[i];
+    if (/\bdebugger\b/.test(line)) {
+      result.push(firstBreakOffset[mode] + i);
+    }
+  }
+  return result;
+}
+
 module.exports = {
-  NodeInstance
+  NodeInstance,
+  getDebuggerStatementIndices,
+  firstBreakIndex,
+  firstBreakOffset
 };
