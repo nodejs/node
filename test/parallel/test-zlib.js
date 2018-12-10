@@ -32,7 +32,8 @@ let zlibPairs = [
   [zlib.Gzip, zlib.Gunzip],
   [zlib.Deflate, zlib.Unzip],
   [zlib.Gzip, zlib.Unzip],
-  [zlib.DeflateRaw, zlib.InflateRaw]
+  [zlib.DeflateRaw, zlib.InflateRaw],
+  [zlib.BrotliCompress, zlib.BrotliDecompress],
 ];
 
 // how fast to trickle through the slowstream
