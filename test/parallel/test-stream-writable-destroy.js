@@ -161,7 +161,7 @@ const { inherits } = require('util');
   write.destroyed = true;
   assert.strictEqual(write.destroyed, true);
 
-  // the internal destroy() mechanism should not be triggered
+  // The internal destroy() mechanism should not be triggered
   write.on('close', common.mustNotCall());
   write.destroy();
 }

@@ -48,7 +48,7 @@ let cntr = 0;
 }
 
 {
-  // copy longer buffer b to shorter c without targetStart
+  // Copy longer buffer b to shorter c without targetStart
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = b.copy(c);
@@ -73,7 +73,7 @@ let cntr = 0;
 }
 
 {
-  // try to copy 513 bytes, and check we don't overrun c
+  // Try to copy 513 bytes, and check we don't overrun c
   b.fill(++cntr);
   c.fill(++cntr);
   const copied = b.copy(c, 0, 0, 513);
@@ -94,7 +94,7 @@ let cntr = 0;
   }
 }
 
-// copy string longer than buffer length (failure will segfault)
+// Copy string longer than buffer length (failure will segfault)
 const bb = Buffer.allocUnsafe(10);
 bb.fill('hello crazy world');
 
@@ -121,7 +121,7 @@ common.expectsError(
 common.expectsError(
   () => b.copy(c, 0, -1), errorProperty);
 
-// when sourceStart is greater than sourceEnd, zero copied
+// When sourceStart is greater than sourceEnd, zero copied
 assert.strictEqual(b.copy(c, 0, 100, 10), 0);
 
 // when targetStart > targetLength, zero copied

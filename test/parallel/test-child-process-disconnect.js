@@ -48,7 +48,7 @@ if (process.argv[2] === 'child') {
       socket.end((process.connected).toString());
     });
 
-    // when the socket is closed, we will close the server
+    // When the socket is closed, we will close the server
     // allowing the process to self terminate
     socket.on('end', function() {
       server.close();
@@ -77,14 +77,14 @@ if (process.argv[2] === 'child') {
     parentFlag = child.connected;
   }));
 
-  // the process should also self terminate without using signals
+  // The process should also self terminate without using signals
   child.on('exit', common.mustCall());
 
   // when child is listening
   child.on('message', function(obj) {
     if (obj && obj.msg === 'ready') {
 
-      // connect to child using TCP to know if disconnect was emitted
+      // Connect to child using TCP to know if disconnect was emitted
       const socket = net.connect(obj.port);
 
       socket.on('data', function(data) {

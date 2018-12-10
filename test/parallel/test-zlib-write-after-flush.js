@@ -38,7 +38,7 @@ gunz.on('end', common.mustCall(() => {
   assert.strictEqual(gzip._nextFlush, -1);
 }));
 
-// make sure that flush/write doesn't trigger an assert failure
+// Make sure that flush/write doesn't trigger an assert failure
 gzip.flush();
 gzip.write(input);
 gzip.end();

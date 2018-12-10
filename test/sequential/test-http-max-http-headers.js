@@ -49,7 +49,7 @@ const timeout = common.platformTimeout(10);
 function writeHeaders(socket, headers) {
   const array = [];
 
-  // this is off from 1024 so that \r\n does not get split
+  // This is off from 1024 so that \r\n does not get split
   const chunkSize = 1000;
   let last = 0;
 

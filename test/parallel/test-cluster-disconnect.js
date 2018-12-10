@@ -68,7 +68,7 @@ if (cluster.isWorker) {
     }
   };
 
-  // start two workers and execute callback when both is listening
+  // Start two workers and execute callback when both is listening
   const startCluster = (cb) => {
     const workers = 8;
     let online = 0;

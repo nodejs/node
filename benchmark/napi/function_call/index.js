@@ -1,4 +1,4 @@
-// show the difference between calling a short js function
+// Show the difference between calling a short js function
 // relative to a comparable C++ function.
 // Reports n of calls per second.
 // Note that JS speed goes up, while cxx speed stays about the same.

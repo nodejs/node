@@ -238,7 +238,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
   assert.strictEqual(decipher.setAAD(aadbuf), decipher);
 }
 
-// error throwing in setAAD/setAuthTag/getAuthTag/setAutoPadding
+// Error throwing in setAAD/setAuthTag/getAuthTag/setAutoPadding
 {
   const key = '0123456789';
   const aadbuf = Buffer.from('aadbuf');

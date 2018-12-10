@@ -13,10 +13,10 @@ const spawn = require('child_process').spawnSync;
 tmpdir.refresh();
 const fakeModulePath = join(tmpdir.path, 'batman.js');
 const stderrOutputPath = join(tmpdir.path, 'stderr-output.txt');
-// we need to redirect stderr to a file to produce #11257
+// We need to redirect stderr to a file to produce #11257
 const stream = fs.createWriteStream(stderrOutputPath);
 
-// the error described in #11257 only happens when we require a
+// The error described in #11257 only happens when we require a
 // non-built-in module.
 fs.writeFileSync(fakeModulePath, '', 'utf8');
 

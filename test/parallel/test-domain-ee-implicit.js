@@ -23,6 +23,6 @@ d.run(common.mustCall(() => {
 }));
 
 setTimeout(common.mustCall(() => {
-  // escape from the domain, but implicit is still bound to it.
+  // Escape from the domain, but implicit is still bound to it.
   implicit.emit('error', new Error('foobar'));
 }), 1);

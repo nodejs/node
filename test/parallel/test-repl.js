@@ -53,7 +53,7 @@ async function runReplTests(socket, prompt, tests) {
     socket.write(`${send}\n`);
 
     for (let expectedLine of expectedLines) {
-      // special value: kSource refers to last sent source text
+      // Special value: kSource refers to last sent source text
       if (expectedLine === kSource)
         expectedLine = send;
 
@@ -233,7 +233,7 @@ const errorTests = [
     send: 'new RegExp("foo", "wrong modifier");',
     expect: [/^SyntaxError: /, '']
   },
-  // strict mode syntax errors should be caught (GH-5178)
+  // Strict mode syntax errors should be caught (GH-5178)
   {
     send: '(function() { "use strict"; return 0755; })()',
     expect: [
@@ -403,7 +403,7 @@ const errorTests = [
       ''
     ]
   },
-  // do not fail when a String is created with line continuation
+  // Do not fail when a String is created with line continuation
   {
     send: '\'the\\\nfourth\\\neye\'',
     expect: ['... ... \'thefourtheye\'']
@@ -416,7 +416,7 @@ const errorTests = [
     send: '  \t    .break  \t  ',
     expect: ''
   },
-  // multiline strings preserve whitespace characters in them
+  // Multiline strings preserve whitespace characters in them
   {
     send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
     expect: '... ... \'the    fourth\\t\\t  eye  \''

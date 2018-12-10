@@ -149,7 +149,7 @@ console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
 console.time('label');
 console.timeEnd('label');
 
-// verify that Object.prototype properties can be used as labels
+// Verify that Object.prototype properties can be used as labels
 console.time('__proto__');
 console.timeEnd('__proto__');
 console.time('constructor');
@@ -202,7 +202,7 @@ assert.strictEqual(errStrings.length, process.stderr.writeTimes);
 restoreStdout();
 restoreStderr();
 
-// verify that console.timeEnd() doesn't leave dead links
+// Verify that console.timeEnd() doesn't leave dead links
 const timesMapSize = console._times.size;
 console.time('label1');
 console.time('label2');
@@ -268,7 +268,7 @@ assert.strictEqual(strings.length, 0);
 assert.strictEqual(errStrings.shift().split('\n').shift(),
                    'Trace: This is a {"formatted":"trace"} 10 foo');
 
-// hijack stderr to catch `process.emitWarning` which is using
+// Hijack stderr to catch `process.emitWarning` which is using
 // `process.nextTick`
 hijackStderr(common.mustCall(function(data) {
   restoreStderr();

@@ -41,7 +41,7 @@ server.listen(
         res.on('error', (err) => assert.fail(err));
         res.socket.on('error', (err) => assert.fail(err));
         res.resume();
-        // drain the socket and wait for it to be free to reuse
+        // Drain the socket and wait for it to be free to reuse
         res.socket.once('free', () => {
           // This is the pain point. Internally the Agent will call
           // `socket._handle.asyncReset()` and if the _handle does not implement

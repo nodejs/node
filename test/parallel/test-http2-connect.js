@@ -63,7 +63,7 @@ const { connect: netConnect } = require('net');
   connect(authority).on('error', () => {});
 }
 
-// check for error for an invalid protocol (not http or https)
+// Check for error for an invalid protocol (not http or https)
 {
   const authority = 'ssh://localhost';
   expectsError(() => {

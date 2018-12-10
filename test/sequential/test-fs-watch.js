@@ -111,7 +111,7 @@ tmpdir.refresh();
   fs.watch(__filename, { persistent: false }, common.mustNotCall());
 }
 
-// whitebox test to ensure that wrapped FSEvent is safe
+// Whitebox test to ensure that wrapped FSEvent is safe
 // https://github.com/joyent/node/issues/6690
 {
   let oldhandle;

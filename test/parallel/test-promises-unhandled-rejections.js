@@ -286,7 +286,7 @@ asyncTest('While inside setImmediate, catching a rejected promise derived ' +
   onUnhandledFail(done);
 
   setImmediate(function() {
-    // reproduces on first tick and inside of setImmediate
+    // Reproduces on first tick and inside of setImmediate
     Promise
       .resolve('resolve')
       .then(function() {

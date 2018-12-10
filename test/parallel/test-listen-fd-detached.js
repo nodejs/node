@@ -64,7 +64,7 @@ function test() {
         s += c.toString();
       });
       res.on('end', function() {
-        // kill the subprocess before we start doing asserts.
+        // Kill the subprocess before we start doing asserts.
         // it's really annoying when tests leave orphans!
         process.kill(child.pid, 'SIGKILL');
         try {

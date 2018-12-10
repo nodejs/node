@@ -23,7 +23,7 @@
 require('../common');
 const assert = require('assert');
 
-// this test verifies that passing a huge number to read(size)
+// This test verifies that passing a huge number to read(size)
 // will push up the highWaterMark, and cause the stream to read
 // more data continuously, but without triggering a nextTick
 // warning or RangeError.
@@ -69,7 +69,7 @@ process.on('exit', function(code) {
   assert.strictEqual(reads, 2);
   // we pushed up the high water mark
   assert.strictEqual(stream.readableHighWaterMark, 8192);
-  // length is 0 right now, because we pulled it all out.
+  // Length is 0 right now, because we pulled it all out.
   assert.strictEqual(stream.readableLength, 0);
   assert(!code);
   assert.strictEqual(depth, 0);

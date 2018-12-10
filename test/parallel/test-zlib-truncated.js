@@ -1,5 +1,5 @@
 'use strict';
-// tests zlib streams with truncated compressed input
+// Tests zlib streams with truncated compressed input
 
 require('../common');
 const assert = require('assert');
@@ -50,11 +50,11 @@ const errMessage = /unexpected end of file/;
 
     const syncFlushOpt = { finishFlush: zlib.constants.Z_SYNC_FLUSH };
 
-    // sync truncated input test, finishFlush = Z_SYNC_FLUSH
+    // Sync truncated input test, finishFlush = Z_SYNC_FLUSH
     const result = toUTF8(zlib[methods.decompSync](truncated, syncFlushOpt));
     assert.strictEqual(result, inputString.substr(0, result.length));
 
-    // async truncated input test, finishFlush = Z_SYNC_FLUSH
+    // Async truncated input test, finishFlush = Z_SYNC_FLUSH
     zlib[methods.decomp](truncated, syncFlushOpt, function(err, decompressed) {
       assert.ifError(err);
       const result = toUTF8(decompressed);

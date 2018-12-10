@@ -242,7 +242,7 @@ export async function dynamicInstantiate(url) {
   return {
     exports: ['customExportName'],
     execute: (exports) => {
-      // get and set functions provided for pre-allocated export names
+      // Get and set functions provided for pre-allocated export names
       exports.customExportName.set('value');
     }
   };

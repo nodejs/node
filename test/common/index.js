@@ -78,7 +78,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   const async_wrap = internalBinding('async_wrap');
 
   process.on('exit', () => {
-    // iterate through handles to make sure nothing crashes
+    // Iterate through handles to make sure nothing crashes
     for (const k in initHandles)
       util.inspect(initHandles[k]);
   });
@@ -777,7 +777,7 @@ module.exports = {
       // use external command
       opensslCli = 'openssl';
     } else {
-      // use command built from sources included in Node.js repository
+      // Use command built from sources included in Node.js repository
       opensslCli = path.join(path.dirname(process.execPath), 'openssl-cli');
     }
 

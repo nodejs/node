@@ -69,7 +69,7 @@ function before(asyncId) { }
 // After is called just after the resource's callback has finished.
 function after(asyncId) { }
 
-// destroy is called when an AsyncWrap instance is destroyed.
+// Destroy is called when an AsyncWrap instance is destroyed.
 function destroy(asyncId) { }
 
 // promiseResolve is called only for promise resources, when the

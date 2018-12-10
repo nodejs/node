@@ -8,7 +8,7 @@ require('../common');
 const assert = require('assert');
 const agent = require('http').globalAgent;
 
-// small stub just so we can call addRequest directly
+// Small stub just so we can call addRequest directly
 const req = {
   getHeader: () => {}
 };

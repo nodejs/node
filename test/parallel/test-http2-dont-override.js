@@ -10,7 +10,7 @@ const options = {};
 
 const server = http2.createServer(options);
 
-// options are defaulted but the options are not modified
+// Options are defaulted but the options are not modified
 assert.deepStrictEqual(Object.keys(options), []);
 
 server.on('stream', common.mustCall((stream) => {

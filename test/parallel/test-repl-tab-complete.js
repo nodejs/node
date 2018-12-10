@@ -160,7 +160,7 @@ testMe.complete('inner.o', common.mustCall(function(error, data) {
 
 putIn.run(['.clear']);
 
-// currently does not work, but should not break, not the {
+// Currently does not work, but should not break, not the {
 putIn.run([
   'var top = function() {',
   'r = function test ()',
@@ -213,7 +213,7 @@ testMe.complete('toSt', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['toString'], 'toSt']);
 }));
 
-// own properties should shadow properties on the prototype
+// Own properties should shadow properties on the prototype
 putIn.run(['.clear']);
 putIn.run([
   'var x = Object.create(null);',

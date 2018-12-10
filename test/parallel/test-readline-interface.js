@@ -154,7 +154,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending a single character with no newline and then a newline
+  // Sending a single character with no newline and then a newline
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -368,7 +368,7 @@ function isWarned(emitter) {
     });
   }
 
-  // constructor throws if historySize is not a positive number
+  // Constructor throws if historySize is not a positive number
   {
     const fi = new FakeInput();
     common.expectsError(function() {
@@ -472,7 +472,7 @@ function isWarned(emitter) {
     rli.close();
   }
 
-  // sending a multi-byte utf8 char over multiple writes
+  // Sending a multi-byte utf8 char over multiple writes
   {
     const buf = Buffer.from('☮', 'utf8');
     const fi = new FakeInput();

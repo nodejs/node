@@ -56,7 +56,7 @@ require('../common');
   });
 }
 
-// assert immutability of process.allowedNodeEnvironmentFlags
+// Assert immutability of process.allowedNodeEnvironmentFlags
 {
   assert.strictEqual(Object.isFrozen(process.allowedNodeEnvironmentFlags),
                      true);

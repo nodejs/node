@@ -5,7 +5,7 @@ const { ServerResponse } = require('http');
 const { Writable } = require('stream');
 const assert = require('assert');
 
-// check that ServerResponse can be used without a proper Socket
+// Check that ServerResponse can be used without a proper Socket
 // Fixes: https://github.com/nodejs/node/issues/14386
 // Fixes: https://github.com/nodejs/node/issues/14381
 

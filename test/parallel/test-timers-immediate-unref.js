@@ -29,7 +29,7 @@ function secondStep() {
   const immA = setImmediate(() => {
     clearImmediate(immA);
     clearImmediate(immB);
-    // this should not keep the event loop open indefinitely
+    // This should not keep the event loop open indefinitely
     // or do anything else weird
     immA.ref();
     immB.ref();

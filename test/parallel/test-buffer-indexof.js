@@ -248,7 +248,7 @@ for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
 
 const longBufferString = Buffer.from(longString);
 
-// pattern of 15 chars, repeated every 16 chars in long
+// Pattern of 15 chars, repeated every 16 chars in long
 let pattern = 'ABACABADABACABA';
 for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const index = longBufferString.indexOf(pattern, i);

@@ -38,7 +38,7 @@ class CustomWarning extends Error {
   [testMsg, { type: testType, code: testCode }],
   [testMsg, { type: testType, code: testCode, detail: testDetail }],
   [new CustomWarning()],
-  // detail will be ignored for the following. No errors thrown
+  // Detail will be ignored for the following. No errors thrown
   [testMsg, { type: testType, code: testCode, detail: true }],
   [testMsg, { type: testType, code: testCode, detail: [] }],
   [testMsg, { type: testType, code: testCode, detail: null }],

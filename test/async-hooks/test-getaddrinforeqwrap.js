@@ -15,7 +15,7 @@ const hooks = initHooks();
 hooks.enable();
 dns.lookup('www.google.com', 4, common.mustCall(onlookup));
 function onlookup() {
-  // we don't care about the error here in order to allow
+  // We don't care about the error here in order to allow
   // tests to run offline (lookup will fail in that case and the err be set);
 
   const as = hooks.activitiesOfTypes('GETADDRINFOREQWRAP');

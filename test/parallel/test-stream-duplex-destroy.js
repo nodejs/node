@@ -177,7 +177,7 @@ const { inherits } = require('util');
   duplex.destroyed = true;
   assert.strictEqual(duplex.destroyed, true);
 
-  // the internal destroy() mechanism should not be triggered
+  // The internal destroy() mechanism should not be triggered
   duplex.on('finish', common.mustNotCall());
   duplex.on('end', common.mustNotCall());
   duplex.destroy();

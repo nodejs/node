@@ -19,7 +19,7 @@ let seenEnd = false;
 const w = new Writable();
 // lets arrange to store the chunks
 w._write = function(chunk, encoding, cb) {
-  // stream end event is not seen before the last write
+  // Stream end event is not seen before the last write
   assert.ok(!seenEnd);
   // default encoding given none was specified
   assert.strictEqual(encoding, 'buffer');

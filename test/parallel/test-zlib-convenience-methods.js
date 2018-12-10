@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// test convenience methods with and without options supplied
+// Test convenience methods with and without options supplied
 
 const common = require('../common');
 const assert = require('assert');

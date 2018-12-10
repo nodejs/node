@@ -32,7 +32,7 @@ const server = http.createServer(function(request, response) {
   response.removeHeader('transfer-encoding');
   response.removeHeader('content-length');
 
-  // make sure that removing and then setting still works:
+  // Make sure that removing and then setting still works:
   response.removeHeader('date');
   response.setHeader('date', 'coffee o clock');
 

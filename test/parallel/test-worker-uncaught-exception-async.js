@@ -18,7 +18,7 @@ if (!process.env.HAS_STARTED_WORKER) {
     assert.strictEqual(code, 1);
   }));
 } else {
-  // cannot use common.mustCall as it cannot catch this
+  // Cannot use common.mustCall as it cannot catch this
   let called = false;
   process.on('exit', (code) => {
     if (!called) {
