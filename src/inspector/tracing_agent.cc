@@ -31,7 +31,7 @@ class InspectorTraceWriter : public node::tracing::AsyncTraceWriter {
       return;
     json_writer_.reset();
     std::ostringstream result(
-        "{\"method\":\"NodeTracing.dataCollected\",\"data\":",
+        "{\"method\":\"NodeTracing.dataCollected\",\"params\":",
         std::ostringstream::ate);
     result << stream_.str();
     result << "}";
