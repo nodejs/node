@@ -2,6 +2,7 @@
 #include "ares.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
+#include "node_internals.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
