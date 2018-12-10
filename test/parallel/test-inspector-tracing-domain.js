@@ -60,7 +60,7 @@ async function test() {
     await generateTrace();
   JSON.stringify(await post('NodeTracing.stop', { traceConfig }));
   session.disconnect();
-  assert(traceNotification.data.value.length > 0);
+  assert(traceNotification.params.value.length > 0);
   assert(tracingComplete);
   clearInterval(interval);
   console.log('Success');
