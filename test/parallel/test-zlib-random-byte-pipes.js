@@ -141,14 +141,18 @@ class HashStream extends Stream {
   }
 }
 
+for (const [ createCompress, createDecompress ] of [
+  [ zlib.createGzip, zlib.createGunzip ],
+  [ zlib.createBrotliCompress, zlib.createBrotliDecompress ],
+]) {
+  const inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });
+  const out = new HashStream();
+  const gzip = createCompress();
+  const gunz = createDecompress();
 
-const inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });
-const out = new HashStream();
-const gzip = zlib.createGzip();
-const gunz = zlib.createGunzip();
+  inp.pipe(gzip).pipe(gunz).pipe(out);
 
-inp.pipe(gzip).pipe(gunz).pipe(out);
-
-out.on('data', common.mustCall((c) => {
-  assert.strictEqual(c, inp._hash, `Hash '${c}' equals '${inp._hash}'.`);
-}));
+  out.on('data', common.mustCall((c) => {
+    assert.strictEqual(c, inp._hash, `Hash '${c}' equals '${inp._hash}'.`);
+  }));
+}
