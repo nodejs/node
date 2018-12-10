@@ -35,7 +35,7 @@ while (Date.now() - now < 2000);
 // get a diff reading
 const diff = process.hrtime(start);
 
-// should be at least 1 second, at most 2 seconds later
+// Should be at least 1 second, at most 2 seconds later
 // (the while loop will usually exit a few nanoseconds before 2)
 assert(diff[0] >= 1);
 assert(diff[0] <= 2);

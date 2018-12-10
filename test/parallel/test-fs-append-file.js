@@ -68,7 +68,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appends data to a non-empty file (callback API)
+// Test that appends data to a non-empty file (callback API)
 {
   const filename = join(tmpdir.path, 'append-non-empty.txt');
   fs.writeFileSync(filename, currentFileData);
@@ -84,7 +84,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   }));
 }
 
-// test that appends data to a non-empty file (promise API)
+// Test that appends data to a non-empty file (promise API)
 {
   const filename = join(tmpdir.path, 'append-non-empty-promise.txt');
   fs.writeFileSync(filename, currentFileData);
@@ -98,7 +98,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appendFile accepts buffers (callback API)
+// Test that appendFile accepts buffers (callback API)
 {
   const filename = join(tmpdir.path, 'append-buffer.txt');
   fs.writeFileSync(filename, currentFileData);
@@ -115,7 +115,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   }));
 }
 
-// test that appendFile accepts buffers (promises API)
+// Test that appendFile accepts buffers (promises API)
 {
   const filename = join(tmpdir.path, 'append-buffer-promises.txt');
   fs.writeFileSync(filename, currentFileData);
@@ -130,7 +130,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appendFile accepts numbers (callback API)
+// Test that appendFile accepts numbers (callback API)
 {
   const filename = join(tmpdir.path, 'append-numbers.txt');
   fs.writeFileSync(filename, currentFileData);
@@ -153,7 +153,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   }));
 }
 
-// test that appendFile accepts numbers (promises API)
+// Test that appendFile accepts numbers (promises API)
 {
   const filename = join(tmpdir.path, 'append-numbers-promises.txt');
   fs.writeFileSync(filename, currentFileData);
@@ -176,7 +176,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
     .catch(throwNextTick);
 }
 
-// test that appendFile accepts file descriptors (callback API)
+// Test that appendFile accepts file descriptors (callback API)
 {
   const filename = join(tmpdir.path, 'append-descriptors.txt');
   fs.writeFileSync(filename, currentFileData);
@@ -200,7 +200,7 @@ const throwNextTick = (e) => { process.nextTick(() => { throw e; }); };
   }));
 }
 
-// test that appendFile accepts file descriptors (promises API)
+// Test that appendFile accepts file descriptors (promises API)
 {
   const filename = join(tmpdir.path, 'append-descriptors-promises.txt');
   fs.writeFileSync(filename, currentFileData);

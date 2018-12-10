@@ -44,7 +44,7 @@ function connectClient(server) {
     assert(netSocket);
     netSocket.setTimeout(1, common.mustCall(() => {
       assert(tlsSocket);
-      // this breaks if TLSSocket is already managing the socket:
+      // This breaks if TLSSocket is already managing the socket:
       netSocket.destroy();
       const interval = setInterval(() => {
         // Checking this way allows us to do the write at a time that causes a

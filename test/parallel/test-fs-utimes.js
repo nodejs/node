@@ -195,7 +195,7 @@ if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
 }
 
 if (common.isWindows) {
-  // this value would get converted to (double)1713037251359.9998
+  // This value would get converted to (double)1713037251359.9998
   const truncate_mtime = 1713037251360;
   fs.utimesSync(path, truncate_mtime / 1000, truncate_mtime / 1000);
   const truncate_stats = fs.statSync(path);

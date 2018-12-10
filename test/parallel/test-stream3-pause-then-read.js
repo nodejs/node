@@ -137,7 +137,7 @@ function read1234() {
 
 function resumePause() {
   console.error('resumePause');
-  // don't read anything, just resume and re-pause a whole bunch
+  // Don't read anything, just resume and re-pause a whole bunch
   r.resume();
   r.pause();
   r.resume();

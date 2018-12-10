@@ -25,7 +25,7 @@ const assert = require('assert');
 const net = require('net');
 const http = require('http');
 
-// wget sends an HTTP/1.0 request with Connection: Keep-Alive
+// `wget` sends an HTTP/1.0 request with Connection: Keep-Alive
 //
 // Sending back a chunked response to an HTTP/1.0 client would be wrong,
 // so what has to happen in this case is that the connection is closed

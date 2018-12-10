@@ -44,8 +44,8 @@ function main({ dur, len, type }) {
       fail(err, 'connect');
 
     clientHandle.onread = function(buffer) {
-      // we're not expecting to ever get an EOF from the client.
-      // just lots of data forever.
+      // We're not expecting to ever get an EOF from the client.
+      // Just lots of data forever.
       if (!buffer)
         fail('read');
 
@@ -105,7 +105,7 @@ function main({ dur, len, type }) {
     clientHandle.readStart();
 
     setTimeout(function() {
-      // multiply by 2 since we're sending it first one way
+      // Multiply by 2 since we're sending it first one way
       // then then back again.
       bench.end(2 * (bytes * 8) / (1024 * 1024 * 1024));
       process.exit(0);

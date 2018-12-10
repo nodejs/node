@@ -107,4 +107,4 @@ const { kStateSymbol } = require('internal/dgram');
 }
 
 
-// see also test/pseudo-tty/test-handle-wrap-isrefed-tty.js
+// See also test/pseudo-tty/test-handle-wrap-isrefed-tty.js

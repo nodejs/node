@@ -216,7 +216,7 @@ const formatTests = {
     pathname: '/'
   },
 
-  // more than 255 characters in hostname which exceeds the limit
+  // More than 255 characters in hostname which exceeds the limit
   [`http://${'a'.repeat(255)}.com/node`]: {
     href: 'http:///node',
     protocol: 'http:',
@@ -227,7 +227,7 @@ const formatTests = {
     path: '/node'
   },
 
-  // greater than or equal to 63 characters after `.` in hostname
+  // Greater than or equal to 63 characters after `.` in hostname
   [`http://www.${'z'.repeat(63)}example.com/node`]: {
     href: `http://www.${'z'.repeat(63)}example.com/node`,
     protocol: 'http:',

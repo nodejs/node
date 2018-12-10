@@ -84,7 +84,7 @@ const outOfRangeError = {
   type: RangeError
 };
 
-// try to write a 0-length string beyond the end of b
+// Try to write a 0-length string beyond the end of b
 common.expectsError(() => b.write('', 2048), outOfBoundsError);
 
 // throw when writing to negative offset
@@ -96,14 +96,14 @@ common.expectsError(() => b.write('a', 2048), outOfBoundsError);
 // throw when writing to negative offset
 common.expectsError(() => b.write('a', -1), outOfBoundsError);
 
-// try to copy 0 bytes worth of data into an empty buffer
+// Try to copy 0 bytes worth of data into an empty buffer
 b.copy(Buffer.alloc(0), 0, 0, 0);
 
-// try to copy 0 bytes past the end of the target buffer
+// Try to copy 0 bytes past the end of the target buffer
 b.copy(Buffer.alloc(0), 1, 1, 1);
 b.copy(Buffer.alloc(1), 1, 1, 1);
 
-// try to copy 0 bytes from past the end of the source buffer
+// Try to copy 0 bytes from past the end of the source buffer
 b.copy(Buffer.alloc(1), 0, 2048, 2048);
 
 // Testing for smart defaults and ability to pass string values as offset
@@ -183,7 +183,7 @@ Buffer.alloc(1).write('', 1, 0);
 }
 
 {
-  // make sure only top level parent propagates from allocPool
+  // Make sure only top level parent propagates from allocPool
   const b = Buffer.allocUnsafe(5);
   const c = b.slice(0, 4);
   const d = c.slice(0, 2);
@@ -331,13 +331,13 @@ assert.strictEqual((Buffer.from('Man')).toString('base64'), 'TWFu');
   assert.strictEqual(quote.length, bytesWritten);
   assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 
-  // check that the base64 decoder on the constructor works
+  // Check that the base64 decoder on the constructor works
   // even in the presence of whitespace.
   b = Buffer.from(expectedWhite, 'base64');
   assert.strictEqual(quote.length, b.length);
   assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 
-  // check that the base64 decoder ignores illegal chars
+  // Check that the base64 decoder ignores illegal chars
   const expectedIllegal = expected.slice(0, 60) + ' \x80' +
                           expected.slice(60, 120) + ' \xff' +
                           expected.slice(120, 180) + ' \x00' +
@@ -723,7 +723,7 @@ assert.strictEqual(x.inspect(), '<Buffer 81 a3 66 6f 6f a3 62 61 72>');
 }
 
 {
-  // test unmatched surrogates not producing invalid utf8 output
+  // Test unmatched surrogates not producing invalid utf8 output
   // ef bf bd = utf-8 representation of unicode replacement character
   // see https://codereview.chromium.org/121173009/
   const buf = Buffer.from('ab\ud800cd', 'utf8');

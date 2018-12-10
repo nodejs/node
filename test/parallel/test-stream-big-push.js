@@ -62,7 +62,7 @@ chunk = r.read();
 assert.strictEqual(chunk, null);
 
 r.once('readable', () => {
-  // this time, we'll get *all* the remaining data, because
+  // This time, we'll get *all* the remaining data, because
   // it's been added synchronously, as the read WOULD take
   // us below the hwm, and so it triggered a _read() again,
   // which synchronously added more, which we then return.

@@ -9,7 +9,7 @@ const http2 = require('http2');
 const fs = require('fs');
 const path = require('path');
 
-// piping should work as expected with createWriteStream
+// Piping should work as expected with createWriteStream
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();

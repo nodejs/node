@@ -51,10 +51,10 @@ class TestWritable extends Writable {
   }
 }
 
-// this one should not emit 'end' until we read() from it later.
+// This one should not emit 'end' until we read() from it later.
 const ender = new TestReadable();
 
-// what happens when you pipe() a Readable that's already ended?
+// What happens when you pipe() a Readable that's already ended?
 const piper = new TestReadable();
 // pushes EOF null, and length=0, so this will trigger 'end'
 piper.read();

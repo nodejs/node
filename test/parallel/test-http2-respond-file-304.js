@@ -20,7 +20,7 @@ server.on('stream', (stream) => {
     [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
   }, {
     statCheck(stat, headers) {
-      // abort the send and return a 304 Not Modified instead
+      // Abort the send and return a 304 Not Modified instead
       stream.respond({ [HTTP2_HEADER_STATUS]: 304 });
       return false;
     }

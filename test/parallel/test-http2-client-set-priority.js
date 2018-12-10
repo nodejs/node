@@ -36,9 +36,9 @@ checkWeight(1, 1);
 checkWeight(16, 16);
 checkWeight(256, 256);
 
-// when client weight is higher than 256, weight is 256
+// When client weight is higher than 256, weight is 256
 checkWeight(257, 256);
 checkWeight(512, 256);
 
-// when client weight is undefined, weight is default 16
+// When client weight is undefined, weight is default 16
 checkWeight(undefined, 16);

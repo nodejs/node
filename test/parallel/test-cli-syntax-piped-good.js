@@ -12,8 +12,8 @@ const syntaxArgs = [
   ['--check']
 ];
 
-// should not execute code piped from stdin with --check
-// loop each possible option, `-c` or `--check`
+// Should not execute code piped from stdin with --check.
+// Loop each possible option, `-c` or `--check`.
 syntaxArgs.forEach(function(args) {
   const stdin = 'throw new Error("should not get run");';
   const c = spawnSync(node, args, { encoding: 'utf8', input: stdin });

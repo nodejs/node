@@ -24,7 +24,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// changes in environment should be visible to child processes
+// Changes in environment should be visible to child processes
 if (process.argv[2] === 'you-are-the-child') {
   assert.strictEqual('NODE_PROCESS_ENV_DELETED' in process.env, false);
   assert.strictEqual(process.env.NODE_PROCESS_ENV, '42');

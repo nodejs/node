@@ -50,7 +50,7 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
   let str = '';
   output.on('data', (data) => (str += data));
 
-  // if useGlobal is false, then `let process` should work
+  // If useGlobal is false, then `let process` should work
   repl.write('let process;\n');
   repl.write('21 * 2;\n');
   repl.close();

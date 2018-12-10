@@ -30,7 +30,7 @@ const notFoundRE = /^Error: Cannot find module/m;
       // no stdout should be produced
       assert.strictEqual(stdout, '');
 
-      // stderr should have a module not found error message
+      // `stderr` should have a module not found error message.
       assert(notFoundRE.test(stderr), `${notFoundRE} === ${stderr}`);
 
       assert.strictEqual(err.code, 1,

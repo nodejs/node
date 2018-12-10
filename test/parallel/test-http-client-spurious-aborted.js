@@ -52,7 +52,7 @@ function download() {
     _handle._close = res.socket._handle.close;
     _handle.close = function(callback) {
       _handle._close();
-      // set readable to true even though request is complete
+      // Set readable to true even though request is complete
       if (res.complete) res.readable = true;
       callback();
     };

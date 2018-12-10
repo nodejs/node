@@ -100,7 +100,7 @@ replProc.on('close', function(code) {
   assert.strictEqual(replStdout, output);
 });
 
-// test that preload placement at other points in the cmdline
+// Test that preload placement at other points in the cmdline
 // also test that duplicated preload only gets loaded once
 childProcess.exec(
   `"${nodeBinary}" ${preloadOption([fixtureA])}-e "console.log('hello');" ${

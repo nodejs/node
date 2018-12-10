@@ -22,10 +22,10 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-// minimum string size to overflow into external string space
+// Minimum string size to overflow into external string space
 const EXTERN_APEX = 0xFBEE9;
 
-// manually controlled string for checking binary output
+// Manually controlled string for checking binary output
 let ucs2_control = 'a\u0000';
 let write_str = 'a';
 
@@ -56,7 +56,7 @@ for (let i = 0; i < b.length; i += 2) {
   assert.strictEqual(b[i + 1], 0);
 }
 
-// create another string to create an external string
+// Create another string to create an external string
 const b_ucs = b.toString('ucs2');
 
 // check control against external binary string

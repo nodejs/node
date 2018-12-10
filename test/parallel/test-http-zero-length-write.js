@@ -32,7 +32,7 @@ function getSrc() {
   // The Readable class prevents this behavior.
   const src = new Stream();
 
-  // start out paused, just so we don't miss anything yet.
+  // Start out paused, just so we don't miss anything yet.
   let paused = false;
   src.pause = function() {
     paused = true;

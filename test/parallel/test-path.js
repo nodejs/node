@@ -48,7 +48,7 @@ typeErrorTests.forEach((test) => {
     fail(namespace.basename, test);
     fail(namespace.extname, test);
 
-    // undefined is a valid value as the second argument to basename
+    // Undefined is a valid value as the second argument to basename
     if (test !== undefined) {
       fail(namespace.basename, 'foo', test);
     }

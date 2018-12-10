@@ -151,7 +151,7 @@ class TestWriter extends EE {
   // Verify unpipe
   const r = new TestReader(5);
 
-  // unpipe after 3 writes, then write to another stream instead.
+  // Unpipe after 3 writes, then write to another stream instead.
   let expect = [ 'xxxxx',
                  'xxxxx',
                  'xxxxx',
@@ -227,7 +227,7 @@ class TestWriter extends EE {
   // Verify multi-unpipe
   const r = new TestReader(5);
 
-  // unpipe after 3 writes, then write to another stream instead.
+  // Unpipe after 3 writes, then write to another stream instead.
   let expect = [ 'xxxxx',
                  'xxxxx',
                  'xxxxx',

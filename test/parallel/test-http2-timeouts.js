@@ -14,7 +14,7 @@ server.on('stream', common.mustCall((stream) => {
     stream.end('hello world');
   }));
 
-  // check that expected errors are thrown with wrong args
+  // Check that expected errors are thrown with wrong args
   common.expectsError(
     () => stream.setTimeout('100'),
     {

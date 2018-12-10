@@ -43,7 +43,7 @@ server.on('request', common.mustCall(function(request, response) {
   common.expectsError(() => request.socket.pause(), errMsg);
   common.expectsError(() => request.socket.resume(), errMsg);
 
-  // should have correct this context for socket methods & getters
+  // Should have correct this context for socket methods & getters
   assert.ok(request.socket.address() != null);
   assert.ok(request.socket.remotePort);
 
@@ -66,7 +66,7 @@ server.on('request', common.mustCall(function(request, response) {
   assert.ok(request.socket._server);
   assert.strictEqual(request.socket.connecting, false);
 
-  // socket events are bound and emitted on Http2Stream
+  // Socket events are bound and emitted on Http2Stream
   request.socket.on('close', common.mustCall());
   request.socket.once('close', common.mustCall());
   request.socket.on('testEvent', common.mustCall());

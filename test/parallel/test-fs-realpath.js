@@ -115,7 +115,7 @@ function test_simple_relative_symlink(realpath, realpathSync, callback) {
 function test_simple_absolute_symlink(realpath, realpathSync, callback) {
   console.log('test_simple_absolute_symlink');
 
-  // this one should still run, even if skipSymlinks is set,
+  // This one should still run, even if skipSymlinks is set,
   // because it uses a junction.
   const type = skipSymlinks ? 'junction' : 'dir';
 
@@ -418,7 +418,7 @@ function test_up_multiple(realpath, realpathSync, cb) {
 function test_abs_with_kids(realpath, realpathSync, cb) {
   console.log('test_abs_with_kids');
 
-  // this one should still run, even if skipSymlinks is set,
+  // This one should still run, even if skipSymlinks is set,
   // because it uses a junction.
   const type = skipSymlinks ? 'junction' : 'dir';
 

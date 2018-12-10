@@ -35,11 +35,11 @@ assert.strictEqual(require.main.id, '.');
 assert.strictEqual(require.main, module);
 assert.strictEqual(process.mainModule, module);
 
-// assert that it's *not* the main module in the required module.
+// Assert that it's *not* the main module in the required module.
 require('../fixtures/not-main-module.js');
 
 {
-  // require a file with a request that includes the extension
+  // Require a file with a request that includes the extension
   const a_js = require('../fixtures/a.js');
   assert.strictEqual(a_js.number, 42);
 }
@@ -126,7 +126,7 @@ require('../fixtures/node_modules/foo');
 
 {
   console.error('test name clashes');
-  // this one exists and should import the local module
+  // This one exists and should import the local module
   const my_path = require('../fixtures/path');
   assert.ok(my_path.path_func instanceof Function);
   // this one does not exist and should throw
@@ -235,7 +235,7 @@ try {
 
 
 {
-  // now verify that module.children contains all the different
+  // Now verify that module.children contains all the different
   // modules that we've required, and that all of them contain
   // the appropriate children, and so on.
 

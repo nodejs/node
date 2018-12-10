@@ -460,5 +460,5 @@ async function tests() {
   }
 }
 
-// to avoid missing some tests if a promise does not resolve
+// To avoid missing some tests if a promise does not resolve
 tests().then(common.mustCall());

@@ -133,7 +133,7 @@ t2.enable();
 // Prints 'node,node.perf,v8'
 console.log(trace_events.getEnabledCategories());
 
-t2.disable(); // will only disable emission of the 'node.perf' category
+t2.disable(); // Will only disable emission of the 'node.perf' category
 
 // Prints 'node,v8'
 console.log(trace_events.getEnabledCategories());

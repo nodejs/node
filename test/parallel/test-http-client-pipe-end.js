@@ -50,7 +50,7 @@ server.listen(common.PIPE, function() {
   sched(function() { req.end(); }, 5);
 });
 
-// schedule a callback after `ticks` event loop ticks
+// Schedule a callback after `ticks` event loop ticks
 function sched(cb, ticks) {
   function fn() {
     if (--ticks)

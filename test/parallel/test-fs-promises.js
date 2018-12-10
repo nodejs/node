@@ -106,7 +106,7 @@ async function getHandle(dest) {
       await handle.sync();
     }
 
-    // test fs.read promises when length to read is zero bytes
+    // Test fs.read promises when length to read is zero bytes
     {
       const dest = path.resolve(tmpDir, 'test1.js');
       const handle = await getHandle(dest);

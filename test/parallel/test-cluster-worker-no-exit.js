@@ -68,7 +68,7 @@ if (cluster.isMaster) {
   });
 } else {
   process.on('message', function(msg) {
-    // we shouldn't exit, not while a network connection exists
+    // We shouldn't exit, not while a network connection exists
     net.connect(msg.port);
   });
 }

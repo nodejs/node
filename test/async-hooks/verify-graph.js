@@ -14,7 +14,7 @@ function findInGraph(graph, type, n) {
 }
 
 function pruneTickObjects(activities) {
-  // remove one TickObject on each pass until none is left anymore
+  // Remove one TickObject on each pass until none is left anymore
   // not super efficient, but simplest especially to handle
   // multiple TickObjects in a row
   let foundTickObject = true;
@@ -31,7 +31,7 @@ function pruneTickObjects(activities) {
     if (tickObjectIdx >= 0) {
       foundTickObject = true;
 
-      // point all triggerAsyncIds that point to the tickObject
+      // Point all triggerAsyncIds that point to the tickObject
       // to its triggerAsyncId and finally remove it from the activities
       const tickObject = activities[tickObjectIdx];
       const newTriggerId = tickObject.triggerAsyncId;
@@ -48,7 +48,7 @@ function pruneTickObjects(activities) {
 module.exports = function verifyGraph(hooks, graph) {
   pruneTickObjects(hooks);
 
-  // map actual ids to standin ids defined in the graph
+  // Map actual ids to standin ids defined in the graph
   const idtouid = {};
   const uidtoid = {};
   const typeSeen = {};

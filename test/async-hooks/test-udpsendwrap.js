@@ -21,7 +21,7 @@ function onlistening() {
     Buffer.alloc(2), 0, 2, sock.address().port,
     undefined, common.mustCall(onsent));
 
-  // init not called synchronously because dns lookup always wraps
+  // Init not called synchronously because dns lookup always wraps
   // callback in a next tick even if no lookup is needed
   // TODO (trevnorris) submit patch to fix creation of tick objects and instead
   // create the send wrap synchronously.

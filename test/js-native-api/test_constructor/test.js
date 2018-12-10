@@ -44,7 +44,7 @@ assert.strictEqual(test_object.readonlyAccessor2, 2);
 assert.throws(() => { test_object.readonlyAccessor2 = 3; },
               /^TypeError: Cannot assign to read only property 'readonlyAccessor2' of object '#<MyObject>'$/);
 
-// validate that static properties are on the class as opposed
+// Validate that static properties are on the class as opposed
 // to the instance
 assert.strictEqual(TestConstructor.staticReadonlyAccessor1, 10);
 assert.strictEqual(test_object.staticReadonlyAccessor1, undefined);

@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const rangeBuffer = Buffer.from('abc');
 
-// if start >= buffer's length, empty string will be returned
+// If start >= buffer's length, empty string will be returned
 assert.strictEqual(rangeBuffer.toString('ascii', 3), '');
 assert.strictEqual(rangeBuffer.toString('ascii', +Infinity), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 3.14, 3), '');
@@ -25,7 +25,7 @@ assert.strictEqual(rangeBuffer.toString('ascii', '-1', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', '-1.99', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', '-Infinity', 3), 'abc');
 
-// if start is an invalid integer, start will be taken as zero
+// If start is an invalid integer, start will be taken as zero
 assert.strictEqual(rangeBuffer.toString('ascii', 'node.js', 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', {}, 3), 'abc');
 assert.strictEqual(rangeBuffer.toString('ascii', [], 3), 'abc');

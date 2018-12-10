@@ -88,7 +88,7 @@ server.on('session', common.mustCall((session) => {
     );
   });
 
-  // arguments + origin are too long for an ALTSVC frame
+  // Arguments + origin are too long for an ALTSVC frame
   assert.throws(
     () => {
       session.altsvc('h2=":8000"',

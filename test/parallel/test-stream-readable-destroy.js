@@ -148,7 +148,7 @@ const { inherits } = require('util');
   read.destroyed = true;
   assert.strictEqual(read.destroyed, true);
 
-  // the internal destroy() mechanism should not be triggered
+  // The internal destroy() mechanism should not be triggered
   read.on('end', common.mustNotCall());
   read.destroy();
 }

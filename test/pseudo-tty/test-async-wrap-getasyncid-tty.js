@@ -1,7 +1,7 @@
 // Flags: --expose-internals --no-warnings
 'use strict';
 
-// see also test/sequential/test-async-wrap-getasyncid.js
+// See also test/sequential/test-async-wrap-getasyncid.js
 
 const common = require('../common');
 const assert = require('assert');

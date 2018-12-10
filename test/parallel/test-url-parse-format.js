@@ -194,7 +194,7 @@ const parseTests = {
     path: ';a/b/c?d=e'
   },
 
-  // make sure that we don't accidentally lcast the path parts.
+  // Make sure that we don't accidentally lcast the path parts.
   'HtTp://x.y.cOm;A/b/c?d=e#f g<h>i': {
     href: 'http://x.y.com/;A/b/c?d=e#f%20g%3Ch%3Ei',
     protocol: 'http:',
