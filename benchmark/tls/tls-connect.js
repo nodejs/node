@@ -59,7 +59,7 @@ function makeConnection() {
 
 function done() {
   running = false;
-  // it's only an established connection if they both saw it.
+  // It's only an established connection if they both saw it.
   // because we destroy the server somewhat abruptly, these
   // don't always match.  Generally, serverConn will be
   // the smaller number, but take the min just to be sure.

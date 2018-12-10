@@ -8,7 +8,7 @@ const t = setInterval(() => {
   cntr++;
   if (cntr === 1) {
     common.busyLoop(100);
-    // ensure that the event loop passes before the second interval
+    // Ensure that the event loop passes before the second interval
     setImmediate(() => assert.strictEqual(cntr, 1));
     first = Date.now();
   } else if (cntr === 2) {

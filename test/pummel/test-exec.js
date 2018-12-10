@@ -95,7 +95,7 @@ const killMeTwice = exec(SLEEP3_COMMAND, { timeout: 1000 },
 
 process.nextTick(function() {
   console.log(`kill pid ${killMeTwice.pid}`);
-  // make sure there is no race condition in starting the process
+  // Make sure there is no race condition in starting the process
   // the PID SHOULD exist directly following the exec() call.
   assert.strictEqual(typeof killMeTwice._handle.pid, 'number');
   // Kill the process

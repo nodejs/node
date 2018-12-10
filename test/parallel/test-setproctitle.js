@@ -35,7 +35,7 @@ exec(cmd, common.mustCall((error, stdout, stderr) => {
   assert.ifError(error);
   assert.strictEqual(stderr, '');
 
-  // freebsd always add ' (procname)' to the process title
+  // Freebsd always add ' (procname)' to the process title
   if (common.isFreeBSD || common.isOpenBSD)
     title += ` (${path.basename(process.execPath)})`;
 

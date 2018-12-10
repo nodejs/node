@@ -331,7 +331,7 @@ const {
 } = require('perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
-  // called three times synchronously. list contains one item
+  // Called three times synchronously. list contains one item
 });
 obs.observe({ entryTypes: ['mark'] });
 

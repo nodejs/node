@@ -67,7 +67,7 @@ const net = require('net');
       client.resume();
       client.on('end', common.mustCall(function clientOnEnd() {
         setTimeout(function closeServer() {
-          // when allowHalfOpen is true, client must still be writable
+          // When allowHalfOpen is true, client must still be writable
           // after the server closes the connections, but not readable
           console.log(`client ${index} received FIN`);
           assert(!client.readable);

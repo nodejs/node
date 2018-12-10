@@ -1,5 +1,5 @@
 'use strict';
-// test unzipping a gzip file that has trailing garbage
+// Test unzipping a gzip file that has trailing garbage
 
 const common = require('../common');
 const assert = require('assert');

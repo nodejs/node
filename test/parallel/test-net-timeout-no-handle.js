@@ -13,5 +13,5 @@ socket.on('timeout', common.mustCall(() => {
 
 socket.on('connect', common.mustNotCall());
 
-// since the timeout is unrefed, the code will exit without this
+// Since the timeout is unrefed, the code will exit without this
 setTimeout(() => {}, common.platformTimeout(200));

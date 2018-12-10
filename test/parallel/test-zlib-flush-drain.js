@@ -12,7 +12,7 @@ const opts = {
 
 const deflater = zlib.createDeflate(opts);
 
-// shim deflater.flush so we can count times executed
+// Shim deflater.flush so we can count times executed
 let flushCount = 0;
 let drainCount = 0;
 

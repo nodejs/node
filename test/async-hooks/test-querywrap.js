@@ -11,7 +11,7 @@ const dns = require('dns');
 const hooks = initHooks();
 
 hooks.enable();
-// uses cares for queryA which in turn uses QUERYWRAP
+// Uses cares for queryA which in turn uses QUERYWRAP
 dns.resolve('localhost', common.mustCall(onresolved));
 
 function onresolved() {

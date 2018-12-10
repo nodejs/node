@@ -39,7 +39,7 @@ const data = '南越国是前203年至前111年存在于岭南地区的一个国
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// test that empty file will be created and have content added
+// Test that empty file will be created and have content added
 const filename = join(tmpdir.path, 'append-sync.txt');
 
 fs.appendFileSync(filename, data);

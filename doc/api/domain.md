@@ -248,7 +248,7 @@ const serverDomain = domain.create();
 serverDomain.run(() => {
   // server is created in the scope of serverDomain
   http.createServer((req, res) => {
-    // req and res are also created in the scope of serverDomain
+    // Req and res are also created in the scope of serverDomain
     // however, we'd prefer to have a separate domain for each request.
     // create it first thing, and add req and res to it.
     const reqd = domain.create();
@@ -316,7 +316,7 @@ const d = domain.create();
 
 function readSomeFile(filename, cb) {
   fs.readFile(filename, 'utf8', d.bind((er, data) => {
-    // if this throws, it will also be passed to the domain
+    // If this throws, it will also be passed to the domain
     return cb(er, data ? JSON.parse(data) : null);
   }));
 }

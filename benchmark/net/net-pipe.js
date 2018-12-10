@@ -48,7 +48,7 @@ function main({ dur, len, type }) {
       socket.pipe(writer);
 
       setTimeout(function() {
-        // multiply by 2 since we're sending it first one way
+        // Multiply by 2 since we're sending it first one way
         // then then back again.
         const bytes = writer.received * 2;
         const gbits = (bytes * 8) / (1024 * 1024 * 1024);

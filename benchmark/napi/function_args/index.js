@@ -1,4 +1,4 @@
-// show the difference between calling a V8 binding C++ function
+// Show the difference between calling a V8 binding C++ function
 // relative to a comparable N-API C++ function,
 // in various types/numbers of arguments.
 // Reports n of calls per second.

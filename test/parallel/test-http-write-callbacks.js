@@ -91,7 +91,7 @@ server.listen(0, function() {
     });
   });
   req.on('response', (res) => {
-    // this should not come until after the end is flushed out
+    // This should not come until after the end is flushed out
     assert(clientEndCb);
     res.setEncoding('ascii');
     res.on('data', (c) => {

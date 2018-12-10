@@ -216,7 +216,7 @@ function preprocessElements({ filename }) {
           const noLinking = filename.includes('documentation') &&
             heading !== null && heading.children[0].value === 'Stability Index';
 
-          // collapse blockquote and paragraph into a single node
+          // Collapse blockquote and paragraph into a single node
           node.type = 'paragraph';
           node.children.shift();
           node.children.unshift(...paragraph.children);

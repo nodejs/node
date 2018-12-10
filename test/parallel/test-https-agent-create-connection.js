@@ -89,7 +89,7 @@ function createServer() {
   }));
 }
 
-// use port and host and option does not have agentKey
+// Use port and host and option does not have agentKey
 {
   const server = createServer();
   server.listen(0, common.mustCall(() => {

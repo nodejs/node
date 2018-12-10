@@ -235,7 +235,7 @@ assert.throws(function() {
   //   Then open private_key.pem and change its header and footer.
   const sha1_privateKey = fixtures.readSync('test_bad_rsa_privkey.pem',
                                             'ascii');
-  // this would inject errors onto OpenSSL's error stack
+  // This would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
 }, (err) => {
   // Throws crypto error, so there is an opensslErrorStack property.

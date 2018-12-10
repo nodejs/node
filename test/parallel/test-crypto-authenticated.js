@@ -153,7 +153,7 @@ for (const test of TEST_CASES) {
         msg += decrypt.final(outputEncoding);
         assert.strictEqual(msg, test.plain);
       } else {
-        // assert that final throws if input data could not be verified!
+        // Assert that final throws if input data could not be verified!
         assert.throws(function() { decrypt.final('hex'); }, errMessages.auth);
       }
     }
@@ -192,7 +192,7 @@ for (const test of TEST_CASES) {
         msg += decrypt.final('ascii');
         assert.strictEqual(msg, test.plain);
       } else {
-        // assert that final throws if input data could not be verified!
+        // Assert that final throws if input data could not be verified!
         assert.throws(function() { decrypt.final('ascii'); }, errMessages.auth);
       }
     }

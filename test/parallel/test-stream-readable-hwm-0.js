@@ -10,7 +10,7 @@ const assert = require('assert');
 const { Readable } = require('stream');
 
 const r = new Readable({
-  // must be called only once upon setting 'readable' listener
+  // Must be called only once upon setting 'readable' listener
   read: common.mustCall(),
   highWaterMark: 0,
 });

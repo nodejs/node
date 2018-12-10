@@ -31,7 +31,7 @@ let testURL;
 function check(request) {
   // default method should still be get
   assert.strictEqual(request.method, 'GET');
-  // there are no URL params, so you should not see any
+  // There are no URL params, so you should not see any
   assert.strictEqual(request.url, '/');
   // the host header should use the url.parse.hostname
   assert.strictEqual(request.headers.host,

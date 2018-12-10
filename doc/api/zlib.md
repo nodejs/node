@@ -81,7 +81,7 @@ request.on('response', (response) => {
   const output = fs.createWriteStream('example.com_index.html');
 
   switch (response.headers['content-encoding']) {
-    // or, just use zlib.createUnzip() to handle both cases
+    // Or, just use zlib.createUnzip() to handle both cases
     case 'gzip':
       response.pipe(zlib.createGunzip()).pipe(output);
       break;

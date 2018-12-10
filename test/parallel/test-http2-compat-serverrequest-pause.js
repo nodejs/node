@@ -26,7 +26,7 @@ server.on('request', common.mustCall((req, res) => {
     res.end();
   }));
 
-  // shouldn't throw if underlying Http2Stream no longer exists
+  // Shouldn't throw if underlying Http2Stream no longer exists
   res.on('finish', common.mustCall(() => process.nextTick(() => {
     req.pause();
     req.resume();

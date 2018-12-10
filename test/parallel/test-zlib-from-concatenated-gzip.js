@@ -76,7 +76,7 @@ fs.createReadStream(pmmFileGz)
       );
     }));
 
-  // first write: write "abc" + the first bytes of "def"
+  // First write: write "abc" + the first bytes of "def"
   unzip.write(Buffer.concat([
     abcEncoded, defEncoded.slice(0, offset)
   ]));

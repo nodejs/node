@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
   const b = domain.create();
   a.add(b);
 
-  // treat these EE objects as if they are a part of the b domain
+  // Treat these EE objects as if they are a part of the b domain
   // so, an 'error' event on them propagates to the domain, rather
   // than being thrown.
   b.add(req);

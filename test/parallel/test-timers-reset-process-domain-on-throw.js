@@ -21,7 +21,7 @@ function err() {
   d.run(err2);
 
   function err2() {
-    // this function doesn't exist, and throws an error as a result.
+    // This function doesn't exist, and throws an error as a result.
     err3(); // eslint-disable-line no-undef
   }
 

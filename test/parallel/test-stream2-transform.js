@@ -210,7 +210,7 @@ const Transform = require('_stream_transform');
   // Verify asymmetric transform (compress)
   const pt = new Transform();
 
-  // each output is the first char of 3 consecutive chunks,
+  // Each output is the first char of 3 consecutive chunks,
   // or whatever's left.
   pt.state = '';
 
@@ -259,7 +259,7 @@ const Transform = require('_stream_transform');
   }));
 }
 
-// this tests for a stall when data is written to a full stream
+// This tests for a stall when data is written to a full stream
 // that has empty transforms.
 {
   // Verify complex transform behavior

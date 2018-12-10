@@ -35,7 +35,7 @@ const dftProtocol = {};
 }
 
 
-// validate that `createServer` can work with no arguments
+// Validate that `createServer` can work with no arguments
 {
   const server = https.createServer();
 

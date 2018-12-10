@@ -31,7 +31,7 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
-// outputs coverage when process.exit(1) exits process.
+// Outputs coverage when process.exit(1) exits process.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
@@ -96,7 +96,7 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage.functions[2].ranges[1].count, 0);
 }
 
-// does not output coverage if NODE_V8_COVERAGE is empty.
+// Does not output coverage if NODE_V8_COVERAGE is empty.
 {
   const coverageDirectory = path.join(tmpdir.path, nextdir());
   const output = spawnSync(process.execPath, [
@@ -122,7 +122,7 @@ function nextdir() {
   assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
 }
 
-// extracts the coverage object for a given fixture name.
+// Extracts the coverage object for a given fixture name.
 function getFixtureCoverage(fixtureFile, coverageDirectory) {
   const coverageFiles = fs.readdirSync(coverageDirectory);
   for (const coverageFile of coverageFiles) {

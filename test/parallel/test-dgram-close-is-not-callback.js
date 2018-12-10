@@ -13,7 +13,7 @@ const portGetter = dgram.createSocket('udp4')
                 portGetter.address().port,
                 portGetter.address().address);
 
-    // if close callback is not function, ignore the argument.
+    // If close callback is not function, ignore the argument.
     socket.close('bad argument');
     portGetter.close();
 

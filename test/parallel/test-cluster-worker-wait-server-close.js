@@ -39,7 +39,7 @@ if (cluster.isWorker) {
     socket.on('connect', function() {
       socket.on('data', function() {
         console.log('got data from client');
-        // socket definitely connected to worker if we got data
+        // Socket definitely connected to worker if we got data
         worker.disconnect();
         socket.end();
       });

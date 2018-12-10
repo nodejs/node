@@ -214,7 +214,7 @@ qsColonTestCases.forEach((testCase) => {
   check(qs.parse(testCase[0], ';', ':'), testCase[2], testCase[0]);
 });
 
-// test the weird objects, that they get parsed properly
+// Test the weird objects, that they get parsed properly
 qsWeirdObjects.forEach((testCase) => {
   check(qs.parse(testCase[1]), testCase[2], testCase[1]);
 });

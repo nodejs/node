@@ -80,7 +80,7 @@ assert.ok(!arg);
       assert.strictEqual(signal, null);
     } else {
       assert.strictEqual(code, null);
-      // most posix systems will show 'SIGABRT', but alpine34 does not
+      // Most posix systems will show 'SIGABRT', but alpine34 does not
       if (signal !== 'SIGABRT') {
         console.log(`parent received signal ${signal}\nchild's stderr:`);
         console.log(stderr);

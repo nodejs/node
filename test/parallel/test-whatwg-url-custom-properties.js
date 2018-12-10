@@ -28,7 +28,7 @@ const expected = ['toString',
 
 assert.deepStrictEqual(props, expected);
 
-// href is writable (not readonly) and is stringifier
+// `href` is writable (not readonly) and is stringifier
 assert.strictEqual(url.toString(), url.href);
 url.href = 'http://user:pass@foo.bar.com:21/aaa/zzz?l=25#test';
 assert.strictEqual(url.href,

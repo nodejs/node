@@ -322,7 +322,7 @@ if (cluster.isMaster) {
 
   process.on('message', (msg) => {
     if (msg === 'shutdown') {
-      // initiate graceful close of any connections to server
+      // Initiate graceful close of any connections to server
     }
   });
 }

@@ -49,7 +49,7 @@ let windowBits = [8, 9, 10, 11, 12, 13, 14, 15];
 let memLevel = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 let strategy = [0, 1, 2, 3, 4];
 
-// it's nice in theory to test every combination, but it
+// It's nice in theory to test every combination, but it
 // takes WAY too long.  Maybe a pummel test could do this?
 if (!process.env.PUMMEL) {
   trickle = [1024];
@@ -173,7 +173,7 @@ zlib.createDeflateRaw({ windowBits: 8 });
         () => assert(Buffer.concat(raw).equals(Buffer.concat(reinflated)))));
 }
 
-// for each of the files, make sure that compressing and
+// For each of the files, make sure that compressing and
 // decompressing results in the same data, for every combination
 // of the options set above.
 
@@ -196,7 +196,7 @@ testKeys.forEach(common.mustCall((file) => {
                 const ss = new SlowStream(trickle);
                 const buf = new BufferStream();
 
-                // verify that the same exact buffer comes out the other end.
+                // Verify that the same exact buffer comes out the other end.
                 buf.on('data', common.mustCall((c) => {
                   const msg = `${file} ${chunkSize} ${
                     JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;

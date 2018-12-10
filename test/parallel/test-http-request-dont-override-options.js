@@ -14,7 +14,7 @@ server.listen(0, function() {
   const agent = new http.Agent();
   agent.defaultPort = this.address().port;
 
-  // options marked as explicitly undefined for readability
+  // Options marked as explicitly undefined for readability
   // in this test, they should STAY undefined as options should not
   // be mutable / modified
   const options = {

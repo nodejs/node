@@ -397,7 +397,7 @@ const options = {
   flags: ['--zero-fill-buffers']
 };
 
-// main and configs are required, options is optional.
+// `main` and `configs` are required, `options` is optional.
 const bench = common.createBenchmark(main, configs, options);
 
 // Note that any code outside main will be run twice,

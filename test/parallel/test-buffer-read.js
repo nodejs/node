@@ -32,7 +32,7 @@ read(buf, 'readInt16LE', [1], 0x48fd);
 read(buf, 'readInt32BE', [1], -45552945);
 read(buf, 'readInt32LE', [1], -806729475);
 
-// testing basic functionality of readIntBE() and readIntLE()
+// Testing basic functionality of readIntBE() and readIntLE()
 read(buf, 'readIntBE', [1, 1], -3);
 read(buf, 'readIntLE', [2, 1], 0x48);
 
@@ -47,7 +47,7 @@ read(buf, 'readUInt16LE', [2], 0xea48);
 read(buf, 'readUInt32BE', [1], 0xfd48eacf);
 read(buf, 'readUInt32LE', [1], 0xcfea48fd);
 
-// testing basic functionality of readUIntBE() and readUIntLE()
+// Testing basic functionality of readUIntBE() and readUIntLE()
 read(buf, 'readUIntBE', [2, 2], 0x48ea);
 read(buf, 'readUIntLE', [2, 2], 0xea48);
 

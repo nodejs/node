@@ -45,7 +45,7 @@ const Readable = require('stream').Readable;
 }
 
 {
-  // second test, make sure that readable is re-emitted if there's
+  // Second test, make sure that readable is re-emitted if there's
   // already a length, while it IS reading.
 
   const r = new Readable({

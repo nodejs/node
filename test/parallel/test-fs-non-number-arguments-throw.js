@@ -10,7 +10,7 @@ const tempFile = path.join(tmpdir.path, 'fs-non-number-arguments-throw');
 tmpdir.refresh();
 fs.writeFileSync(tempFile, 'abc\ndef');
 
-// a sanity check when using numbers instead of strings
+// A sanity check when using numbers instead of strings
 const sanity = 'def';
 const saneEmitter = fs.createReadStream(tempFile, { start: 4, end: 6 });
 
