@@ -291,7 +291,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
 if (process.config.variables.v8_enable_inspector !== 0 &&
     common.isMainThread) {
-  const binding = process.binding('inspector');
+  const binding = internalBinding('inspector');
   const handle = new binding.Connection(() => {});
   testInitialized(handle, 'Connection');
   handle.disconnect();
