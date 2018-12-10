@@ -75,7 +75,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // Non-handlified iterator does not need a handle scope, but it disallows
   // allocation during its lifetime. This is useful if there is no handle
   // scope around.
-  explicit SourcePositionTableIterator(ByteArray* byte_array);
+  explicit SourcePositionTableIterator(ByteArray byte_array);
 
   // Handle-safe iterator based on an a vector located outside the garbage
   // collected heap, allows allocation during its lifetime.
@@ -111,7 +111,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   Handle<ByteArray> table_;
   int index_ = 0;
   PositionTableEntry current_;
-  DisallowHeapAllocation no_gc;
+  DISALLOW_HEAP_ALLOCATION(no_gc);
 };
 
 }  // namespace internal

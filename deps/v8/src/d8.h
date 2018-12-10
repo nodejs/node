@@ -186,7 +186,7 @@ class SerializationData {
   shared_array_buffer_contents() {
     return shared_array_buffer_contents_;
   }
-  const std::vector<WasmCompiledModule::TransferrableModule>&
+  const std::vector<WasmModuleObject::TransferrableModule>&
   transferrable_modules() {
     return transferrable_modules_;
   }
@@ -200,7 +200,7 @@ class SerializationData {
   size_t size_;
   std::vector<ArrayBuffer::Contents> array_buffer_contents_;
   std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
-  std::vector<WasmCompiledModule::TransferrableModule> transferrable_modules_;
+  std::vector<WasmModuleObject::TransferrableModule> transferrable_modules_;
 
  private:
   friend class Serializer;
@@ -386,6 +386,9 @@ class ShellOptions {
   bool enable_os_system = false;
   bool quiet_load = false;
   int thread_pool_size = 0;
+  bool stress_delay_tasks = false;
+  std::vector<const char*> arguments;
+  bool include_arguments = true;
 };
 
 class Shell : public i::AllStatic {

@@ -88,7 +88,7 @@ class ThreadManager {
   ThreadState* GetFreeThreadState();
 
  private:
-  ThreadManager();
+  explicit ThreadManager(Isolate* isolate);
   ~ThreadManager();
 
   void DeleteThreadStateList(ThreadState* anchor);

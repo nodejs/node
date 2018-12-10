@@ -1,0 +1,12 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace object {
+  macro AllocateEmptyJSObject(implicit context: Context)(): JSObject {
+    const objectFunction: JSFunction = GetObjectFunction();
+    const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
+        otherwise unreachable;
+    return AllocateJSObjectFromMap(map);
+  }
+}

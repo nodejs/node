@@ -23,6 +23,7 @@ import sys
 
 EXECUTABLE_FILES = [
   'd8',
+  'cctest',
 ]
 
 SUPPLEMENTARY_FILES = [

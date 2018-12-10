@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/api-inl.h"
+#include "src/counters.h"
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -50,9 +51,8 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
 }
 
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
-    Isolate* isolate, MessageTemplate::Template message,
-    const MessageLocation* location, Handle<Object> argument,
-    Handle<FixedArray> stack_frames) {
+    Isolate* isolate, MessageTemplate message, const MessageLocation* location,
+    Handle<Object> argument, Handle<FixedArray> stack_frames) {
   Factory* factory = isolate->factory();
 
   int start = -1;
@@ -147,7 +147,7 @@ void MessageHandler::ReportMessageNoExceptions(
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
       if (global_listeners->get(i)->IsUndefined(isolate)) continue;
-      FixedArray* listener = FixedArray::cast(global_listeners->get(i));
+      FixedArray listener = FixedArray::cast(global_listeners->get(i));
       Foreign* callback_obj = Foreign::cast(listener->get(0));
       int32_t message_levels =
           static_cast<int32_t>(Smi::ToInt(listener->get(2)));
@@ -158,6 +158,8 @@ void MessageHandler::ReportMessageNoExceptions(
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
       Handle<Object> callback_data(listener->get(1), isolate);
       {
+        RuntimeCallTimerScope timer(
+            isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
         callback(api_message_obj, callback_data->IsUndefined(isolate)
@@ -176,7 +178,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                                           Handle<Object> data) {
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
   Handle<Object> arg = Handle<Object>(message->argument(), isolate);
-  return MessageTemplate::FormatMessage(isolate, message->type(), arg);
+  return MessageFormatter::FormatMessage(isolate, message->type(), arg);
 }
 
 std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
@@ -188,8 +190,9 @@ std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
 namespace {
 
 Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
-  if (!script->has_eval_from_shared())
+  if (!script->has_eval_from_shared()) {
     return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   Handle<SharedFunctionInfo> shared(script->eval_from_shared(), isolate);
   // Find the name of the function calling eval.
@@ -201,8 +204,9 @@ Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
 }
 
 Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
-  if (!script->has_eval_from_shared())
+  if (!script->has_eval_from_shared()) {
     return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
                                               isolate);
@@ -306,6 +310,7 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
   is_async_ = (flags & FrameArray::kIsAsync) != 0;
+  is_promise_all_ = (flags & FrameArray::kIsPromiseAll) != 0;
 }
 
 JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
@@ -466,6 +471,10 @@ int JSStackFrame::GetColumnNumber() {
   return -1;
 }
 
+int JSStackFrame::GetPromiseIndex() const {
+  return is_promise_all_ ? offset_ : -1;
+}
+
 bool JSStackFrame::IsNative() {
   return HasScript() && GetScript()->type() == Script::TYPE_NATIVE;
 }
@@ -607,11 +616,22 @@ MaybeHandle<String> JSStackFrame::ToString() {
 
   const bool is_toplevel = IsToplevel();
   const bool is_async = IsAsync();
+  const bool is_promise_all = IsPromiseAll();
   const bool is_constructor = IsConstructor();
   const bool is_method_call = !(is_toplevel || is_constructor);
 
   if (is_async) {
     builder.AppendCString("async ");
+  }
+  if (is_promise_all) {
+    // For `Promise.all(iterable)` frames we interpret the {offset_}
+    // as the element index into `iterable` where the error occurred.
+    builder.AppendCString("Promise.all (index ");
+    Handle<String> index_string = isolate_->factory()->NumberToString(
+        handle(Smi::FromInt(offset_), isolate_), isolate_);
+    builder.AppendString(index_string);
+    builder.AppendCString(")");
+    return builder.Finish();
   }
   if (is_method_call) {
     AppendMethodCall(isolate_, this, &builder);
@@ -962,10 +982,15 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       DCHECK(!error_context.is_null() && error_context->IsNativeContext());
       PrepareStackTraceScope scope(isolate);
 
+      Handle<JSArray> sites;
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, sites, GetStackFrames(isolate, elems),
+                                 Object);
+
       Handle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, result,
-          isolate->RunPrepareStackTraceCallback(error_context, error), Object);
+          isolate->RunPrepareStackTraceCallback(error_context, error, sites),
+          Object);
       return result;
     } else {
       Handle<JSFunction> global_error = isolate->error_function();
@@ -1048,13 +1073,13 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   return builder.Finish();
 }
 
-Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
-                                              int template_index,
-                                              Handle<Object> arg) {
+Handle<String> MessageFormatter::FormatMessage(Isolate* isolate,
+                                               MessageTemplate index,
+                                               Handle<Object> arg) {
   Factory* factory = isolate->factory();
   Handle<String> result_string = Object::NoSideEffectsToString(isolate, arg);
-  MaybeHandle<String> maybe_result_string = MessageTemplate::FormatMessage(
-      isolate, template_index, result_string, factory->empty_string(),
+  MaybeHandle<String> maybe_result_string = MessageFormatter::FormatMessage(
+      isolate, index, result_string, factory->empty_string(),
       factory->empty_string());
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
@@ -1069,26 +1094,25 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
   return String::Flatten(isolate, result_string);
 }
 
-
-const char* MessageTemplate::TemplateString(int template_index) {
-  switch (template_index) {
-#define CASE(NAME, STRING) \
-  case k##NAME:            \
+const char* MessageFormatter::TemplateString(MessageTemplate index) {
+  switch (index) {
+#define CASE(NAME, STRING)       \
+  case MessageTemplate::k##NAME: \
     return STRING;
     MESSAGE_TEMPLATES(CASE)
 #undef CASE
-    case kLastMessage:
+    case MessageTemplate::kLastMessage:
     default:
       return nullptr;
   }
 }
 
-MaybeHandle<String> MessageTemplate::FormatMessage(Isolate* isolate,
-                                                   int template_index,
-                                                   Handle<String> arg0,
-                                                   Handle<String> arg1,
-                                                   Handle<String> arg2) {
-  const char* template_string = TemplateString(template_index);
+MaybeHandle<String> MessageFormatter::FormatMessage(Isolate* isolate,
+                                                    MessageTemplate index,
+                                                    Handle<String> arg0,
+                                                    Handle<String> arg1,
+                                                    Handle<String> arg2) {
+  const char* template_string = TemplateString(index);
   if (template_string == nullptr) {
     isolate->ThrowIllegalOperation();
     return MaybeHandle<String>();
@@ -1244,7 +1268,7 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
 
 namespace {
 
-Handle<String> FormatMessage(Isolate* isolate, int template_index,
+Handle<String> FormatMessage(Isolate* isolate, MessageTemplate index,
                              Handle<Object> arg0, Handle<Object> arg1,
                              Handle<Object> arg2) {
   Handle<String> arg0_str = Object::NoSideEffectsToString(isolate, arg0);
@@ -1254,8 +1278,8 @@ Handle<String> FormatMessage(Isolate* isolate, int template_index,
   isolate->native_context()->IncrementErrorsThrown();
 
   Handle<String> msg;
-  if (!MessageTemplate::FormatMessage(isolate, template_index, arg0_str,
-                                      arg1_str, arg2_str)
+  if (!MessageFormatter::FormatMessage(isolate, index, arg0_str, arg1_str,
+                                       arg2_str)
            .ToHandle(&msg)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
@@ -1270,21 +1294,20 @@ Handle<String> FormatMessage(Isolate* isolate, int template_index,
 
 // static
 MaybeHandle<Object> ErrorUtils::MakeGenericError(
-    Isolate* isolate, Handle<JSFunction> constructor, int template_index,
+    Isolate* isolate, Handle<JSFunction> constructor, MessageTemplate index,
     Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
     FrameSkipMode mode) {
   if (FLAG_clear_exceptions_on_js_entry) {
-    // This function used to be implemented in JavaScript, and JSEntryStub
-    // clears
-    // any pending exceptions - so whenever we'd call this from C++, pending
-    // exceptions would be cleared. Preserve this behavior.
+    // This function used to be implemented in JavaScript, and JSEntry
+    // clears any pending exceptions - so whenever we'd call this from C++,
+    // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
   }
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
   Handle<Object> no_caller;
-  Handle<String> msg = FormatMessage(isolate, template_index, arg0, arg1, arg2);
+  Handle<String> msg = FormatMessage(isolate, index, arg0, arg1, arg2);
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
                                no_caller, false);
 }

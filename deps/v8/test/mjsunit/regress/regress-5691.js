@@ -18,6 +18,6 @@ Promise.resolve(Promise.resolve()).then(() => log += "|fast-resolve");
 (class extends Promise {}).resolve(Promise.resolve()).then(() => log += "|slow-resolve");
 
 log += "|start";
-  %RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals("|start|turn1|fast-resolve|turn2|turn3|slow-resolve|turn4\n\
 |start|turn1|fast-resolve|turn2|turn3|slow-resolve|turn4", result);

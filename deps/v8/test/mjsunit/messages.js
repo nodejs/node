@@ -570,6 +570,10 @@ test(function() {
   "a".repeat(1 << 30);
 }, "Invalid string length", RangeError);
 
+test(function() {
+  new Array(1 << 30).join();
+}, "Invalid string length", RangeError);
+
 // kNormalizationForm
 test(function() {
   "".normalize("ABC");

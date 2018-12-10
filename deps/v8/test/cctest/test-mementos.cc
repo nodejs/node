@@ -45,7 +45,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   // Allocate a string, the GC may suspect a memento behind the string.
   Handle<SeqOneByteString> string =
       isolate->factory()->NewRawOneByteString(12).ToHandleChecked();
-  CHECK(*string);
+  CHECK(!string->is_null());
 
   // Create an allocation memento behind the string with a garbage allocation
   // site pointer.

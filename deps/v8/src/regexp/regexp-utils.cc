@@ -131,21 +131,29 @@ Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
                             isolate->factory()->match_symbol()),
       Nothing<bool>());
 
-  if (!match->IsUndefined(isolate)) return Just(match->BooleanValue(isolate));
+  if (!match->IsUndefined(isolate)) {
+    const bool match_as_boolean = match->BooleanValue(isolate);
+
+    if (match_as_boolean && !object->IsJSRegExp()) {
+      isolate->CountUsage(v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp);
+    } else if (!match_as_boolean && object->IsJSRegExp()) {
+      isolate->CountUsage(v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp);
+    }
+
+    return Just(match_as_boolean);
+  }
+
   return Just(object->IsJSRegExp());
 }
 
 bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
-  // TODO(ishell): Update this check once map changes for constant field
-  // tracking are landing.
-
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
   if (isolate->force_slow_path()) return false;
 #endif
 
   if (!obj->IsJSReceiver()) return false;
 
-  JSReceiver* recv = JSReceiver::cast(*obj);
+  JSReceiver recv = JSReceiver::cast(*obj);
 
   // Check the receiver's map.
   Handle<JSFunction> regexp_function = isolate->regexp_function();
@@ -156,9 +164,26 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   if (!proto->IsJSReceiver()) return false;
 
   Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
-  if (JSReceiver::cast(proto)->map() != *initial_proto_initial_map) {
+  Map proto_map = JSReceiver::cast(proto)->map();
+  if (proto_map != *initial_proto_initial_map) {
     return false;
   }
+
+  // Check that the "exec" method is unmodified.
+  if (FLAG_track_constant_fields) {
+    // Check that the index refers to "exec" method (this has to be consistent
+    // with the init order in the bootstrapper).
+    DCHECK_EQ(*(isolate->factory()->exec_string()),
+              proto_map->instance_descriptors()->GetKey(
+                  JSRegExp::kExecFunctionDescriptorIndex));
+    if (proto_map->instance_descriptors()
+            ->GetDetails(JSRegExp::kExecFunctionDescriptorIndex)
+            .constness() != PropertyConstness::kConst) {
+      return false;
+    }
+  }
+
+  if (!isolate->IsRegExpSpeciesLookupChainIntact()) return false;
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.

@@ -1257,7 +1257,7 @@ let testFailure;
   testFailure = error;
 });
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 if (testFailed) {
   throw testFailure;

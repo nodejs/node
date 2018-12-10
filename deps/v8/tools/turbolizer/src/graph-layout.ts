@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 
-import {MAX_RANK_SENTINEL} from "./constants.js"
-import {MINIMUM_EDGE_SEPARATION} from "./edge.js"
-import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS} from "./node.js"
+import {MAX_RANK_SENTINEL} from "../src/constants"
+import {MINIMUM_EDGE_SEPARATION} from "../src/edge"
+import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS} from "../src/node"
 
 
 const DEFAULT_NODE_ROW_SEPARATION = 130

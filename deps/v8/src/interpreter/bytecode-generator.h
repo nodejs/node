@@ -32,7 +32,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   explicit BytecodeGenerator(
       UnoptimizedCompilationInfo* info,
       const AstStringConstants* ast_string_constants,
-      ZoneVector<FunctionLiteral*>* eager_inner_literals);
+      std::vector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,
@@ -44,7 +44,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visiting function for declarations list and statements are overridden.
   void VisitDeclarations(Declaration::List* declarations);
-  void VisitStatements(ZonePtrList<Statement>* statments);
+  void VisitStatements(const ZonePtrList<Statement>* statments);
 
  private:
   class ContextScope;
@@ -101,7 +101,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visit the arguments expressions in |args| and store them in |args_regs|,
   // growing |args_regs| for each argument visited.
-  void VisitArguments(ZonePtrList<Expression>* args, RegisterList* arg_regs);
+  void VisitArguments(const ZonePtrList<Expression>* args,
+                      RegisterList* arg_regs);
 
   // Visit a keyed super property load. The optional
   // |opt_receiver_out| register will have the receiver stored to it
@@ -186,18 +187,19 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // Create Array literals. |expr| can be nullptr, but if provided,
   // a boilerplate will be used to create an initial array for elements
   // before the first spread.
-  void BuildCreateArrayLiteral(ZonePtrList<Expression>* elements,
+  void BuildCreateArrayLiteral(const ZonePtrList<Expression>* elements,
                                ArrayLiteral* expr);
   void BuildCreateObjectLiteral(Register literal, uint8_t flags, size_t entry);
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void BuildClassLiteral(ClassLiteral* expr);
+  void BuildClassLiteral(ClassLiteral* expr, Register name);
+  void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
-  void BuildInstanceFieldInitialization(Register constructor,
-                                        Register instance);
+  void BuildInstanceMemberInitialization(Register constructor,
+                                         Register instance);
   void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitSetHomeObject(Register value, Register home_object,
@@ -351,7 +353,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Scope* current_scope_;
 
   // External vector of literals to be eagerly compiled.
-  ZoneVector<FunctionLiteral*>* eager_inner_literals_;
+  std::vector<FunctionLiteral*>* eager_inner_literals_;
 
   FeedbackSlotCache* feedback_slot_cache_;
 

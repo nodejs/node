@@ -6,31 +6,30 @@
 #define V8_CONTEXTS_INL_H_
 
 #include "src/contexts.h"
-#include "src/heap/heap.h"
+
+#include "src/heap/heap-write-barrier.h"
 #include "src/objects-inl.h"
-#include "src/objects/dictionary.h"
+#include "src/objects/dictionary-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/shared-function-info-inl.h"
-#include "src/objects/template-objects.h"
+#include "src/objects/shared-function-info.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
 
-
-// static
-ScriptContextTable* ScriptContextTable::cast(Object* context) {
-  DCHECK(context->IsScriptContextTable());
-  return reinterpret_cast<ScriptContextTable*>(context);
-}
+OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArray)
+CAST_ACCESSOR2(ScriptContextTable)
 
 int ScriptContextTable::used() const { return Smi::ToInt(get(kUsedSlotIndex)); }
 
 void ScriptContextTable::set_used(int used) {
   set(kUsedSlotIndex, Smi::FromInt(used));
 }
-
 
 // static
 Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
@@ -41,27 +40,45 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
       FixedArray::get(*table, i + kFirstContextSlotIndex, isolate));
 }
 
-// static
-Context* Context::cast(Object* context) {
-  DCHECK(context->IsContext());
-  return reinterpret_cast<Context*>(context);
+OBJECT_CONSTRUCTORS_IMPL(Context, HeapObjectPtr)
+NEVER_READ_ONLY_SPACE_IMPL(Context)
+CAST_ACCESSOR2(Context)
+SMI_ACCESSORS(Context, length, kLengthOffset)
+
+CAST_ACCESSOR2(NativeContext)
+
+Object* Context::get(int index) const {
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  return RELAXED_READ_FIELD(this, OffsetOfElementAt(index));
 }
 
-NativeContext* NativeContext::cast(Object* context) {
-  DCHECK(context->IsNativeContext());
-  return reinterpret_cast<NativeContext*>(context);
+void Context::set(int index, Object* value) {
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  WRITE_BARRIER(this, offset, value);
 }
 
-void Context::set_scope_info(ScopeInfo* scope_info) {
+void Context::set(int index, Object* value, WriteBarrierMode mode) {
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
+}
+
+void Context::set_scope_info(ScopeInfo scope_info) {
   set(SCOPE_INFO_INDEX, scope_info);
 }
 
-Context* Context::previous() {
+Context Context::previous() {
   Object* result = get(PREVIOUS_INDEX);
-  DCHECK(IsBootstrappingOrValidParentContext(result, this));
-  return reinterpret_cast<Context*>(result);
+  DCHECK(IsBootstrappingOrValidParentContext(result, *this));
+  return Context::unchecked_cast(result);
 }
-void Context::set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
+void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
 
 Object* Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
@@ -73,13 +90,13 @@ void Context::set_extension(HeapObject* object) {
   set(EXTENSION_INDEX, object);
 }
 
-NativeContext* Context::native_context() const {
+NativeContext Context::native_context() const {
   Object* result = get(NATIVE_CONTEXT_INDEX);
   DCHECK(IsBootstrappingOrNativeContext(this->GetIsolate(), result));
-  return reinterpret_cast<NativeContext*>(result);
+  return NativeContext::unchecked_cast(result);
 }
 
-void Context::set_native_context(NativeContext* context) {
+void Context::set_native_context(NativeContext context) {
   set(NATIVE_CONTEXT_INDEX, context);
 }
 
@@ -119,21 +136,21 @@ bool Context::IsScriptContext() const {
   return map()->instance_type() == SCRIPT_CONTEXT_TYPE;
 }
 
-bool Context::HasSameSecurityTokenAs(Context* that) const {
+bool Context::HasSameSecurityTokenAs(Context that) const {
   return this->native_context()->security_token() ==
          that->native_context()->security_token();
 }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  void Context::set_##name(type* value) {                 \
+  void Context::set_##name(type##ArgType value) {         \
     DCHECK(IsNativeContext());                            \
     set(index, value);                                    \
   }                                                       \
-  bool Context::is_##name(type* value) const {            \
+  bool Context::is_##name(type##ArgType value) const {    \
     DCHECK(IsNativeContext());                            \
     return type::cast(get(index)) == value;               \
   }                                                       \
-  type* Context::name() const {                           \
+  type##ArgType Context::name() const {                   \
     DCHECK(IsNativeContext());                            \
     return type::cast(get(index));                        \
   }
@@ -208,16 +225,30 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 #undef CHECK_FOLLOWS2
 #undef CHECK_FOLLOWS4
 
-Map* Context::GetInitialJSArrayMap(ElementsKind kind) const {
+Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(IsNativeContext());
-  if (!IsFastElementsKind(kind)) return nullptr;
+  if (!IsFastElementsKind(kind)) return Map();
   DisallowHeapAllocation no_gc;
   Object* const initial_js_array_map = get(Context::ArrayMapIndex(kind));
   DCHECK(!initial_js_array_map->IsUndefined());
   return Map::cast(initial_js_array_map);
 }
 
+MicrotaskQueue* NativeContext::microtask_queue() const {
+  return reinterpret_cast<MicrotaskQueue*>(
+      READ_INTPTR_FIELD(this, kMicrotaskQueueOffset));
+}
+
+void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
+  WRITE_INTPTR_FIELD(this, kMicrotaskQueueOffset,
+                     reinterpret_cast<intptr_t>(microtask_queue));
+}
+
+OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)
+
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_CONTEXTS_INL_H_

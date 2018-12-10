@@ -25,17 +25,17 @@ ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
                 kPretenureCreateCountOffset)
-ACCESSORS(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS2(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
                   HasWeakNext())
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
 
-JSObject* AllocationSite::boilerplate() const {
+JSObject AllocationSite::boilerplate() const {
   DCHECK(PointsToLiteral());
   return JSObject::cast(transition_info_or_boilerplate());
 }
 
-void AllocationSite::set_boilerplate(JSObject* object, WriteBarrierMode mode) {
+void AllocationSite::set_boilerplate(JSObject object, WriteBarrierMode mode) {
   set_transition_info_or_boilerplate(object, mode);
 }
 
@@ -147,7 +147,7 @@ inline void AllocationSite::set_memento_found_count(int count) {
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
-          (Heap::kMinObjectSizeInWords * kPointerSize +
+          (Heap::kMinObjectSizeInTaggedWords * kTaggedSize +
            AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
   DCHECK_LT(count, MementoFoundCountBits::kMax);
   set_pretenure_data(MementoFoundCountBits::update(value, count));

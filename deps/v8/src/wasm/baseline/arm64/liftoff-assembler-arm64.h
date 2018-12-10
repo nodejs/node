@@ -372,6 +372,11 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     instruction(dst.S(), src.S());                                             \
   }
+#define FP32_UNOP_RETURN_TRUE(name, instruction)                               \
+  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    instruction(dst.S(), src.S());                                             \
+    return true;                                                               \
+  }
 #define FP64_BINOP(name, instruction)                                        \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
@@ -436,10 +441,10 @@ FP32_BINOP(f32_min, Fmin)
 FP32_BINOP(f32_max, Fmax)
 FP32_UNOP(f32_abs, Fabs)
 FP32_UNOP(f32_neg, Fneg)
-FP32_UNOP(f32_ceil, Frintp)
-FP32_UNOP(f32_floor, Frintm)
-FP32_UNOP(f32_trunc, Frintz)
-FP32_UNOP(f32_nearest_int, Frintn)
+FP32_UNOP_RETURN_TRUE(f32_ceil, Frintp)
+FP32_UNOP_RETURN_TRUE(f32_floor, Frintm)
+FP32_UNOP_RETURN_TRUE(f32_trunc, Frintz)
+FP32_UNOP_RETURN_TRUE(f32_nearest_int, Frintn)
 FP32_UNOP(f32_sqrt, Fsqrt)
 FP64_BINOP(f64_add, Fadd)
 FP64_BINOP(f64_sub, Fsub)
@@ -628,12 +633,24 @@ void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f32_copysign");
+  UseScratchRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireD();
+  Ushr(scratch.V2S(), rhs.V2S(), 31);
+  if (dst != lhs) {
+    Fmov(dst.S(), lhs.S());
+  }
+  Sli(dst.V2S(), scratch.V2S(), 31);
 }
 
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f64_copysign");
+  UseScratchRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireD();
+  Ushr(scratch.V1D(), rhs.V1D(), 63);
+  if (dst != lhs) {
+    Fmov(dst.D(), lhs.D());
+  }
+  Sli(dst.V1D(), scratch.V1D(), 63);
 }
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,

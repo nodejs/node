@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/objects.h"
+#include "src/objects/embedder-data-slot.h"
 #include "src/objects/property-array.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -14,13 +15,15 @@
 namespace v8 {
 namespace internal {
 
+enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
+class JSReceiver : public HeapObjectPtr {
  public:
+  NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
   inline bool HasFastProperties() const;
 
@@ -28,10 +31,10 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties
   // map.
-  inline PropertyArray* property_array() const;
+  inline PropertyArray property_array() const;
 
   // Gets slow properties for non-global objects.
-  inline NameDictionary* property_dictionary() const;
+  inline NameDictionary property_dictionary() const;
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -62,7 +65,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
 
-  DECL_CAST(JSReceiver)
+  DECL_CAST2(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(
@@ -186,7 +189,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
       Handle<JSReceiver> object);
 
   // Returns the class name ([[Class]] property in the specification).
-  V8_EXPORT_PRIVATE String* class_name();
+  V8_EXPORT_PRIVATE String class_name();
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
@@ -224,12 +227,12 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  Object* GetIdentityHash(Isolate* isolate);
+  Object* GetIdentityHash();
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  static Smi* CreateIdentityHash(Isolate* isolate, JSReceiver* key);
-  Smi* GetOrCreateIdentityHash(Isolate* isolate);
+  static Smi CreateIdentityHash(Isolate* isolate, JSReceiver key);
+  Smi GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -252,16 +255,20 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   static const int kHashMask = PropertyArray::HashField::kMask;
 
-  // Layout description.
-  static const int kPropertiesOrHashOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = HeapObject::kHeaderSize + kPointerSize;
+// Layout description.
+#define JS_RECEIVER_FIELDS(V)             \
+  V(kPropertiesOrHashOffset, kTaggedSize) \
+  /* Header size. */                      \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, JS_RECEIVER_FIELDS)
+#undef JS_RECEIVER_FIELDS
 
   bool HasProxyInPrototype(Isolate* isolate);
 
   bool HasComplexElements();
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
+  OBJECT_CONSTRUCTORS(JSReceiver, HeapObjectPtr);
 };
 
 // The JSObject describes real heap allocated JavaScript objects with
@@ -270,7 +277,7 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 // caching.
 class JSObject : public JSReceiver {
  public:
-  static bool IsUnmodifiedApiObject(Object** o);
+  static bool IsUnmodifiedApiObject(FullObjectSlot o);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
@@ -300,7 +307,7 @@ class JSObject : public JSReceiver {
   //
   // In the slow mode the elements is either a NumberDictionary, a
   // FixedArray parameter map for a (sloppy) arguments object.
-  DECL_ACCESSORS(elements, FixedArrayBase)
+  DECL_ACCESSORS2(elements, FixedArrayBase)
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
@@ -350,7 +357,7 @@ class JSObject : public JSReceiver {
   inline bool HasSlowStringWrapperElements();
   bool HasEnumerableElements();
 
-  inline NumberDictionary* element_dictionary();  // Gets slow elements.
+  inline NumberDictionary element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -440,8 +447,8 @@ class JSObject : public JSReceiver {
                                               Handle<Map> new_map,
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static Map* InvalidatePrototypeChains(Map* map);
-  static void InvalidatePrototypeValidityCell(JSGlobalObject* global);
+  static Map InvalidatePrototypeChains(Map map);
+  static void InvalidatePrototypeValidityCell(JSGlobalObject global);
 
   // Updates prototype chain tracking information when an object changes its
   // map from |old_map| to |new_map|.
@@ -449,7 +456,7 @@ class JSObject : public JSReceiver {
                               Isolate* isolate);
 
   // Utility used by many Array builtins and runtime functions
-  static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object);
+  static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject object);
 
   // To be passed to PrototypeUsers::Compact.
   static void PrototypeRegistryCompactionCallback(HeapObject* value,
@@ -488,14 +495,16 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       LookupIterator* it, bool* done);
 
-  static void ValidateElements(JSObject* object);
+  static void ValidateElements(JSObject object);
 
   // Makes sure that this object can contain HeapObject as elements.
   static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);
 
   // Makes sure that this object can contain the specified elements.
+  // TSlot here is either ObjectSlot or FullObjectSlot.
+  template <typename TSlot>
   static inline void EnsureCanContainElements(Handle<JSObject> object,
-                                              Object** elements, uint32_t count,
+                                              TSlot elements, uint32_t count,
                                               EnsureElementsMode mode);
   static inline void EnsureCanContainElements(Handle<JSObject> object,
                                               Handle<FixedArrayBase> elements,
@@ -543,15 +552,15 @@ class JSObject : public JSReceiver {
   // JSFunction objects.
   static int GetHeaderSize(InstanceType instance_type,
                            bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(const Map* map);
+  static inline int GetHeaderSize(const Map map);
   inline int GetHeaderSize() const;
 
-  static inline int GetEmbedderFieldCount(const Map* map);
+  static inline int GetEmbedderFieldCount(const Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object* GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object* value);
-  inline void SetEmbedderField(int index, Smi* value);
+  inline void SetEmbedderField(int index, Smi value);
 
   // Returns true when the object is potentially a wrapper that gets special
   // garbage collection treatment.
@@ -592,7 +601,7 @@ class JSObject : public JSReceiver {
   // NumberDictionary dictionary.  Returns the backing after conversion.
   static Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
 
-  void RequireSlowElements(NumberDictionary* dictionary);
+  void RequireSlowElements(NumberDictionary dictionary);
 
   // Transform slow named properties to fast variants.
   static void MigrateSlowToFast(Handle<JSObject> object,
@@ -634,7 +643,7 @@ class JSObject : public JSReceiver {
   // pre_allocated_value and the rest with filler_value.
   // Note: this call does not update write barrier, the caller is responsible
   // to ensure that |filler_value| can be collected without WB here.
-  inline void InitializeBody(Map* map, int start_offset,
+  inline void InitializeBody(Map map, int start_offset,
                              Object* pre_allocated_value, Object* filler_value);
 
   // Check whether this object references another object
@@ -648,7 +657,7 @@ class JSObject : public JSReceiver {
 
   static bool IsExtensible(Handle<JSObject> object);
 
-  DECL_CAST(JSObject)
+  DECL_CAST2(JSObject)
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -668,7 +677,7 @@ class JSObject : public JSReceiver {
                                       ElementsKind to_kind,
                                       Handle<FixedArrayBase> to_elements);
 
-  void PrintInstanceMigration(FILE* file, Map* original_map, Map* new_map);
+  void PrintInstanceMigration(FILE* file, Map original_map, Map new_map);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
@@ -724,7 +733,7 @@ class JSObject : public JSReceiver {
   // not to arbitrary other JSObject maps.
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
 
-  static const int kMaxInstanceSize = 255 * kPointerSize;
+  static const int kMaxInstanceSize = 255 * kTaggedSize;
 
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
@@ -733,18 +742,24 @@ class JSObject : public JSReceiver {
   STATIC_ASSERT(kMaxNumberOfDescriptors + kFieldsAdded <=
                 PropertyArray::kMaxLength);
 
-  // Layout description.
-  static const int kElementsOffset = JSReceiver::kHeaderSize;
-  static const int kHeaderSize = kElementsOffset + kPointerSize;
+// Layout description.
+#define JS_OBJECT_FIELDS(V)       \
+  V(kElementsOffset, kTaggedSize) \
+  /* Header size. */              \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_OBJECT_FIELDS)
+#undef JS_OBJECT_FIELDS
 
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
   static const int kMaxInObjectProperties =
-      (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
+      (kMaxInstanceSize - kHeaderSize) >> kTaggedSizeLog2;
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
   // TODO(cbruni): Revisit calculation of the max supported embedder fields.
   static const int kMaxEmbedderFields =
-      ((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
-      kPointerSizeLog2;
+      (((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
+       kTaggedSizeLog2) /
+      kEmbedderDataSlotSizeInTaggedSlots;
   STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
   class BodyDescriptor;
@@ -771,7 +786,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw);
 
-  bool ReferencesObjectFromElements(FixedArray* elements, ElementsKind kind,
+  bool ReferencesObjectFromElements(FixedArray elements, ElementsKind kind,
                                     Object* object);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
@@ -780,7 +795,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Handle<JSObject> object, ShouldThrow should_throw);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
+  OBJECT_CONSTRUCTORS(JSObject, JSReceiver);
 };
 
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
@@ -789,12 +804,19 @@ class JSObject : public JSReceiver {
 // FromPropertyDescriptor function for regular accessor properties.
 class JSAccessorPropertyDescriptor : public JSObject {
  public:
-  // Offsets of object fields.
-  static const int kGetOffset = JSObject::kHeaderSize;
-  static const int kSetOffset = kGetOffset + kPointerSize;
-  static const int kEnumerableOffset = kSetOffset + kPointerSize;
-  static const int kConfigurableOffset = kEnumerableOffset + kPointerSize;
-  static const int kSize = kConfigurableOffset + kPointerSize;
+  // Layout description.
+#define JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kGetOffset, kTaggedSize)                      \
+  V(kSetOffset, kTaggedSize)                      \
+  V(kEnumerableOffset, kTaggedSize)               \
+  V(kConfigurableOffset, kTaggedSize)             \
+  /* Total size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
+
   // Indices of in-object properties.
   static const int kGetIndex = 0;
   static const int kSetIndex = 1;
@@ -811,12 +833,19 @@ class JSAccessorPropertyDescriptor : public JSObject {
 // FromPropertyDescriptor function for regular data properties.
 class JSDataPropertyDescriptor : public JSObject {
  public:
-  // Offsets of object fields.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kWritableOffset = kValueOffset + kPointerSize;
-  static const int kEnumerableOffset = kWritableOffset + kPointerSize;
-  static const int kConfigurableOffset = kEnumerableOffset + kPointerSize;
-  static const int kSize = kConfigurableOffset + kPointerSize;
+  // Layout description.
+#define JS_DATA_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)                \
+  V(kWritableOffset, kTaggedSize)             \
+  V(kEnumerableOffset, kTaggedSize)           \
+  V(kConfigurableOffset, kTaggedSize)         \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
+
   // Indices of in-object properties.
   static const int kValueIndex = 0;
   static const int kWritableIndex = 1;
@@ -836,16 +865,24 @@ class JSIteratorResult : public JSObject {
 
   DECL_ACCESSORS(done, Object)
 
-  // Offsets of object fields.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kDoneOffset = kValueOffset + kPointerSize;
-  static const int kSize = kDoneOffset + kPointerSize;
+  // Layout description.
+#define JS_ITERATOR_RESULT_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)       \
+  V(kDoneOffset, kTaggedSize)        \
+  /* Total size. */                  \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ITERATOR_RESULT_FIELDS)
+#undef JS_ITERATOR_RESULT_FIELDS
+
   // Indices of in-object properties.
   static const int kValueIndex = 0;
   static const int kDoneIndex = 1;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIteratorResult);
+  DECL_CAST2(JSIteratorResult)
+
+  OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
 
 // JSBoundFunction describes a bound function exotic object.
@@ -853,7 +890,7 @@ class JSBoundFunction : public JSObject {
  public:
   // [bound_target_function]: The wrapped function object.
   inline Object* raw_bound_target_function() const;
-  DECL_ACCESSORS(bound_target_function, JSReceiver)
+  DECL_ACCESSORS2(bound_target_function, JSReceiver)
 
   // [bound_this]: The value that is always passed as the this value when
   // calling the wrapped function.
@@ -861,7 +898,7 @@ class JSBoundFunction : public JSObject {
 
   // [bound_arguments]: A list of values whose elements are used as the first
   // arguments to any call to the wrapped function.
-  DECL_ACCESSORS(bound_arguments, FixedArray)
+  DECL_ACCESSORS2(bound_arguments, FixedArray)
 
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
@@ -870,7 +907,7 @@ class JSBoundFunction : public JSObject {
   static MaybeHandle<Context> GetFunctionRealm(
       Handle<JSBoundFunction> function);
 
-  DECL_CAST(JSBoundFunction)
+  DECL_CAST2(JSBoundFunction)
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -881,13 +918,17 @@ class JSBoundFunction : public JSObject {
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
   // Layout description.
-  static const int kBoundTargetFunctionOffset = JSObject::kHeaderSize;
-  static const int kBoundThisOffset = kBoundTargetFunctionOffset + kPointerSize;
-  static const int kBoundArgumentsOffset = kBoundThisOffset + kPointerSize;
-  static const int kSize = kBoundArgumentsOffset + kPointerSize;
+#define JS_BOUND_FUNCTION_FIELDS(V)          \
+  V(kBoundTargetFunctionOffset, kTaggedSize) \
+  V(kBoundThisOffset, kTaggedSize)           \
+  V(kBoundArgumentsOffset, kTaggedSize)      \
+  /* Header size. */                         \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSBoundFunction);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_BOUND_FUNCTION_FIELDS)
+#undef JS_BOUND_FUNCTION_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSBoundFunction, JSObject);
 };
 
 // JSFunction describes JavaScript functions.
@@ -898,7 +939,7 @@ class JSFunction : public JSObject {
 
   // [shared]: The information about the function that
   // can be shared by instances.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
+  DECL_ACCESSORS2(shared, SharedFunctionInfo)
 
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
@@ -906,11 +947,11 @@ class JSFunction : public JSObject {
   static const int kMaybeHomeObjectDescriptorIndex = 2;
 
   // [context]: The context for this function.
-  inline Context* context();
+  inline Context context();
   inline bool has_context() const;
   inline void set_context(Object* context);
-  inline JSGlobalProxy* global_proxy();
-  inline Context* native_context();
+  inline JSGlobalProxy global_proxy();
+  inline Context native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
   static Maybe<int> GetLength(Isolate* isolate, Handle<JSFunction> function);
@@ -920,13 +961,13 @@ class JSFunction : public JSObject {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
-  inline Code* code();
-  inline void set_code(Code* code);
-  inline void set_code_no_write_barrier(Code* code);
+  inline Code code() const;
+  inline void set_code(Code code);
+  inline void set_code_no_write_barrier(Code code);
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  inline AbstractCode* abstract_code();
+  inline AbstractCode abstract_code();
 
   // Tells whether or not this function is interpreted.
   //
@@ -986,7 +1027,7 @@ class JSFunction : public JSObject {
   DECL_ACCESSORS(feedback_cell, FeedbackCell)
 
   // feedback_vector() can be used once the function is compiled.
-  inline FeedbackVector* feedback_vector() const;
+  inline FeedbackVector feedback_vector() const;
   inline bool has_feedback_vector() const;
   static void EnsureFeedbackVector(Handle<JSFunction> function);
 
@@ -996,7 +1037,7 @@ class JSFunction : public JSObject {
   inline bool has_prototype_slot() const;
 
   // The initial map for an object created by this constructor.
-  inline Map* initial_map();
+  inline Map initial_map();
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<Object> prototype);
   inline bool has_initial_map();
@@ -1032,7 +1073,7 @@ class JSFunction : public JSObject {
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);
 
-  DECL_CAST(JSFunction)
+  DECL_CAST2(JSFunction)
 
   // Calculate the instance size and in-object properties count.
   static bool CalculateInstanceSizeForDerivedClass(
@@ -1076,22 +1117,21 @@ class JSFunction : public JSObject {
 // Layout description.
 #define JS_FUNCTION_FIELDS(V)                              \
   /* Pointer fields. */                                    \
-  V(kSharedFunctionInfoOffset, kPointerSize)               \
-  V(kContextOffset, kPointerSize)                          \
-  V(kFeedbackCellOffset, kPointerSize)                     \
+  V(kSharedFunctionInfoOffset, kTaggedSize)                \
+  V(kContextOffset, kTaggedSize)                           \
+  V(kFeedbackCellOffset, kTaggedSize)                      \
   V(kEndOfStrongFieldsOffset, 0)                           \
-  V(kCodeOffset, kPointerSize)                             \
+  V(kCodeOffset, kTaggedSize)                              \
   /* Size of JSFunction object without prototype field. */ \
   V(kSizeWithoutPrototype, 0)                              \
-  V(kPrototypeOrInitialMapOffset, kPointerSize)            \
+  V(kPrototypeOrInitialMapOffset, kTaggedSize)             \
   /* Size of JSFunction object with prototype field. */    \
   V(kSizeWithPrototype, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_FUNCTION_FIELDS)
 #undef JS_FUNCTION_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
+  OBJECT_CONSTRUCTORS(JSFunction, JSObject);
 };
 
 // JSGlobalProxy's prototype must be a JSGlobalObject or null,
@@ -1108,9 +1148,9 @@ class JSGlobalProxy : public JSObject {
   // It is null value if this object is not used by any context.
   DECL_ACCESSORS(native_context, Object)
 
-  DECL_CAST(JSGlobalProxy)
+  DECL_CAST2(JSGlobalProxy)
 
-  inline bool IsDetachedFrom(JSGlobalObject* global) const;
+  inline bool IsDetachedFrom(JSGlobalObject global) const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -1119,25 +1159,29 @@ class JSGlobalProxy : public JSObject {
   DECL_VERIFIER(JSGlobalProxy)
 
   // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kNativeContextOffset + kPointerSize;
+#define JS_GLOBAL_PROXY_FIELDS(V)      \
+  V(kNativeContextOffset, kTaggedSize) \
+  /* Header size. */                   \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_PROXY_FIELDS)
+#undef JS_GLOBAL_PROXY_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSGlobalProxy, JSObject);
 };
 
 // JavaScript global object.
 class JSGlobalObject : public JSObject {
  public:
   // [native context]: the natives corresponding to this global object.
-  DECL_ACCESSORS(native_context, Context)
+  DECL_ACCESSORS2(native_context, Context)
 
   // [global proxy]: the global proxy object of the context
-  DECL_ACCESSORS(global_proxy, JSObject)
+  DECL_ACCESSORS2(global_proxy, JSObject)
 
   // Gets global object properties.
-  inline GlobalDictionary* global_dictionary();
-  inline void set_global_dictionary(GlobalDictionary* dictionary);
+  inline GlobalDictionary global_dictionary();
+  inline void set_global_dictionary(GlobalDictionary dictionary);
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
@@ -1146,7 +1190,7 @@ class JSGlobalObject : public JSObject {
       Handle<JSGlobalObject> global, Handle<Name> name,
       PropertyCellType cell_type, int* entry_out = nullptr);
 
-  DECL_CAST(JSGlobalObject)
+  DECL_CAST2(JSGlobalObject)
 
   inline bool IsDetached();
 
@@ -1155,13 +1199,17 @@ class JSGlobalObject : public JSObject {
   DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kGlobalProxyOffset = kNativeContextOffset + kPointerSize;
-  static const int kHeaderSize = kGlobalProxyOffset + kPointerSize;
-  static const int kSize = kHeaderSize;
+#define JS_GLOBAL_OBJECT_FIELDS(V)     \
+  V(kNativeContextOffset, kTaggedSize) \
+  V(kGlobalProxyOffset, kTaggedSize)   \
+  /* Header size. */                   \
+  V(kHeaderSize, 0)                    \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalObject);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_OBJECT_FIELDS)
+#undef JS_GLOBAL_OBJECT_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSGlobalObject, JSObject);
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
@@ -1170,18 +1218,22 @@ class JSValue : public JSObject {
   // [value]: the object being wrapped.
   DECL_ACCESSORS(value, Object)
 
-  DECL_CAST(JSValue)
+  DECL_CAST2(JSValue)
 
   // Dispatched behavior.
   DECL_PRINTER(JSValue)
   DECL_VERIFIER(JSValue)
 
   // Layout description.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
+#define JS_VALUE_FIELDS(V)     \
+  V(kValueOffset, kTaggedSize) \
+  /* Header size. */           \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_VALUE_FIELDS)
+#undef JS_VALUE_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSValue, JSObject);
 };
 
 class DateCache;
@@ -1213,14 +1265,15 @@ class JSDate : public JSObject {
   // moment when chached fields were cached.
   DECL_ACCESSORS(cache_stamp, Object)
 
-  DECL_CAST(JSDate)
+  DECL_CAST2(JSDate)
 
   // Returns the time value (UTC) identifying the current time.
   static double CurrentTimeValue(Isolate* isolate);
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static Object* GetField(Object* date, Smi* index);
+  // {smi_index} is a raw Address because this is called via ExternalReference.
+  static Object* GetField(Object* date, Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 
@@ -1260,16 +1313,21 @@ class JSDate : public JSObject {
   };
 
   // Layout description.
-  static const int kValueOffset = JSObject::kHeaderSize;
-  static const int kYearOffset = kValueOffset + kPointerSize;
-  static const int kMonthOffset = kYearOffset + kPointerSize;
-  static const int kDayOffset = kMonthOffset + kPointerSize;
-  static const int kWeekdayOffset = kDayOffset + kPointerSize;
-  static const int kHourOffset = kWeekdayOffset + kPointerSize;
-  static const int kMinOffset = kHourOffset + kPointerSize;
-  static const int kSecOffset = kMinOffset + kPointerSize;
-  static const int kCacheStampOffset = kSecOffset + kPointerSize;
-  static const int kSize = kCacheStampOffset + kPointerSize;
+#define JS_DATE_FIELDS(V)           \
+  V(kValueOffset, kTaggedSize)      \
+  V(kYearOffset, kTaggedSize)       \
+  V(kMonthOffset, kTaggedSize)      \
+  V(kDayOffset, kTaggedSize)        \
+  V(kWeekdayOffset, kTaggedSize)    \
+  V(kHourOffset, kTaggedSize)       \
+  V(kMinOffset, kTaggedSize)        \
+  V(kSecOffset, kTaggedSize)        \
+  V(kCacheStampOffset, kTaggedSize) \
+  /* Header size. */                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_DATE_FIELDS)
+#undef JS_DATE_FIELDS
 
  private:
   inline Object* DoGetField(FieldIndex index);
@@ -1279,7 +1337,7 @@ class JSDate : public JSObject {
   // Computes and caches the cacheable fields of the date.
   inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDate);
+  OBJECT_CONSTRUCTORS(JSDate, JSObject);
 };
 
 // Representation of message objects used for error reporting through
@@ -1291,8 +1349,8 @@ class JSDate : public JSObject {
 class JSMessageObject : public JSObject {
  public:
   // [type]: the type of error message.
-  inline int type() const;
-  inline void set_type(int value);
+  inline MessageTemplate type() const;
+  inline void set_type(MessageTemplate value);
 
   // [arguments]: the arguments for formatting the error message.
   DECL_ACCESSORS(argument, Object)
@@ -1325,25 +1383,36 @@ class JSMessageObject : public JSObject {
   inline int error_level() const;
   inline void set_error_level(int level);
 
-  DECL_CAST(JSMessageObject)
+  DECL_CAST2(JSMessageObject)
 
   // Dispatched behavior.
   DECL_PRINTER(JSMessageObject)
   DECL_VERIFIER(JSMessageObject)
 
   // Layout description.
-  static const int kTypeOffset = JSObject::kHeaderSize;
-  static const int kArgumentsOffset = kTypeOffset + kPointerSize;
-  static const int kScriptOffset = kArgumentsOffset + kPointerSize;
-  static const int kStackFramesOffset = kScriptOffset + kPointerSize;
-  static const int kStartPositionOffset = kStackFramesOffset + kPointerSize;
-  static const int kEndPositionOffset = kStartPositionOffset + kPointerSize;
-  static const int kErrorLevelOffset = kEndPositionOffset + kPointerSize;
-  static const int kSize = kErrorLevelOffset + kPointerSize;
+#define JS_MESSAGE_FIELDS(V)                         \
+  /* Tagged fields. */                               \
+  V(kTypeOffset, kTaggedSize)                        \
+  V(kArgumentsOffset, kTaggedSize)                   \
+  V(kScriptOffset, kTaggedSize)                      \
+  V(kStackFramesOffset, kTaggedSize)                 \
+  V(kPointerFieldsEndOffset, 0)                      \
+  /* Raw data fields. */                             \
+  /* TODO(ishell): store as int32 instead of Smi. */ \
+  V(kStartPositionOffset, kTaggedSize)               \
+  V(kEndPositionOffset, kTaggedSize)                 \
+  V(kErrorLevelOffset, kTaggedSize)                  \
+  /* Total size. */                                  \
+  V(kSize, 0)
 
-  typedef FixedBodyDescriptor<HeapObject::kMapOffset,
-                              kStackFramesOffset + kPointerSize, kSize>
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_MESSAGE_FIELDS)
+#undef JS_MESSAGE_FIELDS
+
+  typedef FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
+                              kSize>
       BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject)
 };
 
 // The [Async-from-Sync Iterator] object
@@ -1353,7 +1422,7 @@ class JSMessageObject : public JSObject {
 // (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
 class JSAsyncFromSyncIterator : public JSObject {
  public:
-  DECL_CAST(JSAsyncFromSyncIterator)
+  DECL_CAST2(JSAsyncFromSyncIterator)
   DECL_PRINTER(JSAsyncFromSyncIterator)
   DECL_VERIFIER(JSAsyncFromSyncIterator)
 
@@ -1362,19 +1431,24 @@ class JSAsyncFromSyncIterator : public JSObject {
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
   // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
-  DECL_ACCESSORS(sync_iterator, JSReceiver)
+  DECL_ACCESSORS2(sync_iterator, JSReceiver)
 
   // The "next" method is loaded during GetIterator, and is not reloaded for
   // subsequent "next" invocations.
   DECL_ACCESSORS(next, Object)
 
-  // Offsets of object fields.
-  static const int kSyncIteratorOffset = JSObject::kHeaderSize;
-  static const int kNextOffset = kSyncIteratorOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
+  // Layout description.
+#define JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS(V) \
+  V(kSyncIteratorOffset, kTaggedSize)         \
+  V(kNextOffset, kTaggedSize)                 \
+  /* Total size. */                           \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncFromSyncIterator);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS)
+#undef JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator, JSObject);
 };
 
 class JSStringIterator : public JSObject {
@@ -1383,21 +1457,27 @@ class JSStringIterator : public JSObject {
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  DECL_CAST(JSStringIterator)
+  DECL_CAST2(JSStringIterator)
 
   // [string]: the [[IteratedString]] inobject property.
-  DECL_ACCESSORS(string, String)
+  DECL_ACCESSORS2(string, String)
 
   // [index]: The [[StringIteratorNextIndex]] inobject property.
   inline int index() const;
   inline void set_index(int value);
 
-  static const int kStringOffset = JSObject::kHeaderSize;
-  static const int kNextIndexOffset = kStringOffset + kPointerSize;
-  static const int kSize = kNextIndexOffset + kPointerSize;
+  // Layout description.
+#define JS_STRING_ITERATOR_FIELDS(V) \
+  V(kStringOffset, kTaggedSize)      \
+  V(kNextIndexOffset, kTaggedSize)   \
+  /* Total size. */                  \
+  V(kSize, 0)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_STRING_ITERATOR_FIELDS)
+#undef JS_STRING_ITERATOR_FIELDS
+
+  OBJECT_CONSTRUCTORS(JSStringIterator, JSObject);
 };
 
 }  // namespace internal

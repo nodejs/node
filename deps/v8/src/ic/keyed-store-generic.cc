@@ -20,10 +20,13 @@ using Node = compiler::Node;
 template <class T>
 using TNode = compiler::TNode<T>;
 
+enum class StoreMode { kOrdinary, kInLiteral };
+
 class KeyedStoreGenericAssembler : public AccessorAssembler {
  public:
-  explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state)
-      : AccessorAssembler(state) {}
+  explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state,
+                                      StoreMode mode)
+      : AccessorAssembler(state), mode_(mode) {}
 
   void KeyedStoreGeneric();
 
@@ -43,19 +46,9 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                    TNode<Object> key, TNode<Object> value,
                    LanguageMode language_mode);
 
-  // Set an own property
-  void SetPropertyInLiteral(TNode<Context> context, TNode<JSObject> receiver,
-                            TNode<Map> map, TNode<Name> key,
-                            TNode<Object> value) {
-    Label done(this);
-    ExitPoint exit_point(this,
-                         [this, &done](Node* result) { this->Goto(&done); });
-    EmitGenericPropertyStoreInLiteral(context, receiver, map, key, value,
-                                      &exit_point);
-    BIND(&done);
-  }
-
  private:
+  StoreMode mode_;
+
   enum UpdateLength {
     kDontChangeLength,
     kIncrementLengthByOne,
@@ -89,12 +82,6 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
     EmitGenericPropertyStore(receiver, receiver_map, p, &direct_exit, slow,
                              Nothing<LanguageMode>());
   }
-
-  void EmitGenericPropertyStoreInLiteral(TNode<Context> context,
-                                         TNode<JSObject> receiver,
-                                         TNode<Map> map, TNode<Name> key,
-                                         TNode<Object> value,
-                                         ExitPoint* exit_point);
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
                                              Label* non_fast_elements,
@@ -133,16 +120,28 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   TNode<Map> FindCandidateStoreICTransitionMapHandler(TNode<Map> map,
                                                       TNode<Name> name,
                                                       Label* slow);
+
+  bool IsKeyedStore() const { return mode_ == StoreMode::kOrdinary; }
+  bool IsStoreInLiteral() const { return mode_ == StoreMode::kInLiteral; }
+
+  bool ShouldCheckPrototype() const { return IsKeyedStore(); }
+  bool ShouldReconfigureExisting() const { return IsStoreInLiteral(); }
+  bool ShouldCallSetter() const { return IsKeyedStore(); }
+  bool ShouldCheckPrototypeValidity() const {
+    // We don't do this for "in-literal" stores, because it is impossible for
+    // the target object to be a "prototype"
+    return !IsStoreInLiteral();
+  }
 };
 
 void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericAssembler assembler(state);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
   assembler.KeyedStoreGeneric();
 }
 
 void StoreICUninitializedGenerator::Generate(
     compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericAssembler assembler(state);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
   assembler.StoreIC_Uninitialized();
 }
 
@@ -150,7 +149,7 @@ void KeyedStoreGenericGenerator::SetProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
     TNode<JSReceiver> receiver, TNode<BoolT> is_simple_receiver,
     TNode<Name> name, TNode<Object> value, LanguageMode language_mode) {
-  KeyedStoreGenericAssembler assembler(state);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
   assembler.SetProperty(context, receiver, is_simple_receiver, name, value,
                         language_mode);
 }
@@ -159,16 +158,15 @@ void KeyedStoreGenericGenerator::SetProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
     TNode<Object> receiver, TNode<Object> key, TNode<Object> value,
     LanguageMode language_mode) {
-  KeyedStoreGenericAssembler assembler(state);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
   assembler.SetProperty(context, receiver, key, value, language_mode);
 }
 
 void KeyedStoreGenericGenerator::SetPropertyInLiteral(
     compiler::CodeAssemblerState* state, TNode<Context> context,
-    TNode<JSObject> receiver, TNode<Name> key, TNode<Object> value) {
-  KeyedStoreGenericAssembler assembler(state);
-  TNode<Map> map = assembler.LoadMap(receiver);
-  assembler.SetPropertyInLiteral(context, receiver, map, key, value);
+    TNode<JSObject> receiver, TNode<Object> key, TNode<Object> value) {
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kInLiteral);
+  assembler.SetProperty(context, receiver, key, value, LanguageMode::kStrict);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
@@ -314,8 +312,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // The length property is non-configurable, so it's guaranteed to always
     // be the first property.
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
-    TNode<Uint32T> details = LoadDetailsByKeyIndex(
-        descriptors, IntPtrConstant(DescriptorArray::ToKeyIndex(0)));
+    TNode<Uint32T> details = LoadDetailsByDescriptorEntry(descriptors, 0);
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
            slow);
   }
@@ -631,7 +628,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         // Accessor case.
-        // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
+        // TODO(jkummerow): Implement a trimmed-down
+        // LoadAccessorFromFastObject.
         VARIABLE(var_details, MachineRepresentation::kWord32);
         LoadPropertyFromFastObject(holder, holder_map, descriptors, name_index,
                                    &var_details, var_accessor_pair);
@@ -647,11 +645,15 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
             LoadDetailsByKeyIndex<NameDictionary>(dictionary, entry);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
-        // Accessor case.
-        var_accessor_pair->Bind(
-            LoadValueByKeyIndex<NameDictionary>(dictionary, entry));
-        var_accessor_holder->Bind(holder);
-        Goto(accessor);
+        if (accessor != nullptr) {
+          // Accessor case.
+          var_accessor_pair->Bind(
+              LoadValueByKeyIndex<NameDictionary>(dictionary, entry));
+          var_accessor_holder->Bind(holder);
+          Goto(accessor);
+        } else {
+          Goto(&ok_to_write);
+        }
       }
 
       BIND(&found_global);
@@ -667,10 +669,14 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
             property_cell, PropertyCell::kDetailsOffset);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
-        // Accessor case.
-        var_accessor_pair->Bind(value);
-        var_accessor_holder->Bind(holder);
-        Goto(accessor);
+        if (accessor != nullptr) {
+          // Accessor case.
+          var_accessor_pair->Bind(value);
+          var_accessor_holder->Bind(holder);
+          Goto(accessor);
+        } else {
+          Goto(&ok_to_write);
+        }
       }
     }
 
@@ -758,8 +764,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   CSA_ASSERT(this, IsSimpleObjectMap(receiver_map));
   VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
-  Label stub_cache(this), fast_properties(this), dictionary_properties(this),
-      accessor(this), readonly(this);
+  Label fast_properties(this), dictionary_properties(this), accessor(this),
+      readonly(this);
   Node* bitfield3 = LoadMapBitField3(receiver_map);
   Branch(IsSetWord32<Map::IsDictionaryMapBit>(bitfield3),
          &dictionary_properties, &fast_properties);
@@ -778,15 +784,21 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       TNode<IntPtrT> name_index = var_name_index.value();
       Node* details = LoadDetailsByKeyIndex(descriptors, name_index);
       Label data_property(this);
-      JumpIfDataProperty(details, &data_property, &readonly);
+      JumpIfDataProperty(details, &data_property,
+                         ShouldReconfigureExisting() ? nullptr : &readonly);
 
-      // Accessor case.
-      // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
-      VARIABLE(var_details, MachineRepresentation::kWord32);
-      LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
-                                 name_index, &var_details, &var_accessor_pair);
-      var_accessor_holder.Bind(receiver);
-      Goto(&accessor);
+      if (ShouldCallSetter()) {
+        // Accessor case.
+        // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
+        VARIABLE(var_details, MachineRepresentation::kWord32);
+        LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
+                                   name_index, &var_details,
+                                   &var_accessor_pair);
+        var_accessor_holder.Bind(receiver);
+        Goto(&accessor);
+      } else {
+        Goto(&data_property);
+      }
 
       BIND(&data_property);
       {
@@ -804,10 +816,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
           receiver_map, CAST(p->name), slow);
 
       // Validate the transition handler candidate and apply the transition.
-      HandleStoreICTransitionMapHandlerCase(
-          p, transition_map, slow,
-          StoreTransitionMapFlags(kCheckPrototypeValidity |
-                                  kValidateTransitionHandler));
+      StoreTransitionMapFlags flags = kValidateTransitionHandler;
+      if (ShouldCheckPrototypeValidity()) {
+        flags = StoreTransitionMapFlags(flags | kCheckPrototypeValidity);
+      }
+      HandleStoreICTransitionMapHandlerCase(p, transition_map, slow, flags);
       exit_point->Return(p->value);
     }
   }
@@ -829,13 +842,18 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       Label overwrite(this);
       TNode<Uint32T> details = LoadDetailsByKeyIndex<NameDictionary>(
           properties, var_name_index.value());
-      JumpIfDataProperty(details, &overwrite, &readonly);
+      JumpIfDataProperty(details, &overwrite,
+                         ShouldReconfigureExisting() ? nullptr : &readonly);
 
-      // Accessor case.
-      var_accessor_pair.Bind(LoadValueByKeyIndex<NameDictionary>(
-          properties, var_name_index.value()));
-      var_accessor_holder.Bind(receiver);
-      Goto(&accessor);
+      if (ShouldCallSetter()) {
+        // Accessor case.
+        var_accessor_pair.Bind(LoadValueByKeyIndex<NameDictionary>(
+            properties, var_name_index.value()));
+        var_accessor_holder.Bind(receiver);
+        Goto(&accessor);
+      } else {
+        Goto(&overwrite);
+      }
 
       BIND(&overwrite);
       {
@@ -855,9 +873,13 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       Branch(IsSetWord32<Map::IsExtensibleBit>(bitfield2), &extensible, slow);
 
       BIND(&extensible);
-      LookupPropertyOnPrototypeChain(receiver_map, p->name, &accessor,
-                                     &var_accessor_pair, &var_accessor_holder,
-                                     &readonly, slow);
+      if (ShouldCheckPrototype()) {
+        DCHECK(ShouldCallSetter());
+        LookupPropertyOnPrototypeChain(
+            receiver_map, p->name, &accessor, &var_accessor_pair,
+            &var_accessor_holder,
+            ShouldReconfigureExisting() ? nullptr : &readonly, slow);
+      }
       Label add_dictionary_property_slow(this);
       InvalidateValidityCellIfPrototype(receiver_map, bitfield2);
       Add<NameDictionary>(properties, CAST(p->name), p->value,
@@ -870,23 +892,56 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     }
   }
 
-  BIND(&accessor);
-  {
-    Label not_callable(this);
-    Node* accessor_pair = var_accessor_pair.value();
-    GotoIf(IsAccessorInfoMap(LoadMap(accessor_pair)), slow);
-    CSA_ASSERT(this, HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
-    Node* setter = LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
-    Node* setter_map = LoadMap(setter);
-    // FunctionTemplateInfo setters are not supported yet.
-    GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
-    GotoIfNot(IsCallableMap(setter_map), &not_callable);
+  if (ShouldCallSetter()) {
+    BIND(&accessor);
+    {
+      Label not_callable(this);
+      Node* accessor_pair = var_accessor_pair.value();
+      GotoIf(IsAccessorInfoMap(LoadMap(accessor_pair)), slow);
+      CSA_ASSERT(this, HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
+      Node* setter =
+          LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
+      Node* setter_map = LoadMap(setter);
+      // FunctionTemplateInfo setters are not supported yet.
+      GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
+      GotoIfNot(IsCallableMap(setter_map), &not_callable);
 
-    Callable callable = CodeFactory::Call(isolate());
-    CallJS(callable, p->context, setter, receiver, p->value);
-    exit_point->Return(p->value);
+      Callable callable = CodeFactory::Call(isolate());
+      CallJS(callable, p->context, setter, receiver, p->value);
+      exit_point->Return(p->value);
 
-    BIND(&not_callable);
+      BIND(&not_callable);
+      {
+        bool handle_strict = true;
+        Label strict(this);
+        LanguageMode language_mode;
+        if (maybe_language_mode.To(&language_mode)) {
+          if (language_mode == LanguageMode::kStrict) {
+            Goto(&strict);
+          } else {
+            handle_strict = false;
+            exit_point->Return(p->value);
+          }
+        } else {
+          BranchIfStrictMode(p->vector, p->slot, &strict);
+          exit_point->Return(p->value);
+        }
+
+        if (handle_strict) {
+          BIND(&strict);
+          {
+            exit_point->ReturnCallRuntime(
+                Runtime::kThrowTypeError, p->context,
+                SmiConstant(MessageTemplate::kNoSetterInCallback), p->name,
+                var_accessor_holder.value());
+          }
+        }
+      }
+    }
+  }
+
+  if (!ShouldReconfigureExisting()) {
+    BIND(&readonly);
     {
       bool handle_strict = true;
       Label strict(this);
@@ -902,39 +957,13 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         BranchIfStrictMode(p->vector, p->slot, &strict);
         exit_point->Return(p->value);
       }
-
       if (handle_strict) {
         BIND(&strict);
         {
-          ThrowTypeError(p->context, MessageTemplate::kNoSetterInCallback,
-                         p->name, var_accessor_holder.value());
+          Node* type = Typeof(p->receiver);
+          ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
+                         p->name, type, p->receiver);
         }
-      }
-    }
-  }
-
-  BIND(&readonly);
-  {
-    bool handle_strict = true;
-    Label strict(this);
-    LanguageMode language_mode;
-    if (maybe_language_mode.To(&language_mode)) {
-      if (language_mode == LanguageMode::kStrict) {
-        Goto(&strict);
-      } else {
-        handle_strict = false;
-        exit_point->Return(p->value);
-      }
-    } else {
-      BranchIfStrictMode(p->vector, p->slot, &strict);
-      exit_point->Return(p->value);
-    }
-    if (handle_strict) {
-      BIND(&strict);
-      {
-        Node* type = Typeof(p->receiver);
-        ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
-                       p->name, type, p->receiver);
       }
     }
   }
@@ -945,7 +974,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
     TNode<Context> context, TNode<Object> receiver, TNode<Object> key,
     TNode<Object> value, Maybe<LanguageMode> language_mode, TNode<Smi> slot,
     TNode<FeedbackVector> vector) {
-  TVARIABLE(WordT, var_index);
+  TVARIABLE(IntPtrT, var_index);
   TVARIABLE(Object, var_unique, key);
   Label if_index(this), if_unique_name(this), not_internalized(this),
       slow(this);
@@ -989,19 +1018,25 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 
   BIND(&slow);
   {
-    Comment("KeyedStoreGeneric_slow");
-    if (language_mode.IsJust()) {
-      TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key, value,
-                      SmiConstant(language_mode.FromJust()));
+    if (IsKeyedStore()) {
+      Comment("KeyedStoreGeneric_slow");
+      if (language_mode.IsJust()) {
+        TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
+                        value, SmiConstant(language_mode.FromJust()));
+      } else {
+        TVARIABLE(Smi, var_language_mode, SmiConstant(LanguageMode::kStrict));
+        Label call_runtime(this);
+        BranchIfStrictMode(vector, slot, &call_runtime);
+        var_language_mode = SmiConstant(LanguageMode::kSloppy);
+        Goto(&call_runtime);
+        BIND(&call_runtime);
+        TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
+                        value, var_language_mode.value());
+      }
     } else {
-      TVARIABLE(Smi, var_language_mode, SmiConstant(LanguageMode::kStrict));
-      Label call_runtime(this);
-      BranchIfStrictMode(vector, slot, &call_runtime);
-      var_language_mode = SmiConstant(LanguageMode::kSloppy);
-      Goto(&call_runtime);
-      BIND(&call_runtime);
-      TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key, value,
-                      var_language_mode.value());
+      DCHECK(IsStoreInLiteral());
+      TailCallRuntime(Runtime::kStoreDataPropertyInLiteral, context, receiver,
+                      key, value);
     }
   }
 }
@@ -1087,131 +1122,17 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
 
   BIND(&slow);
   {
-    CallRuntime(Runtime::kSetKeyedProperty, context, receiver, unique_name,
-                value, SmiConstant(language_mode));
+    if (IsStoreInLiteral()) {
+      CallRuntime(Runtime::kStoreDataPropertyInLiteral, context, receiver,
+                  unique_name, value);
+    } else {
+      CallRuntime(Runtime::kSetKeyedProperty, context, receiver, unique_name,
+                  value, SmiConstant(language_mode));
+    }
     Goto(&done);
   }
 
   BIND(&done);
-}
-
-// Sets data properties as in PropertyDefinitionEvaluation --- Does not invoke
-// own setters or traverse the prototype chain.
-void KeyedStoreGenericAssembler::EmitGenericPropertyStoreInLiteral(
-    TNode<Context> context, TNode<JSObject> receiver, TNode<Map> map,
-    TNode<Name> key, TNode<Object> value, ExitPoint* exit_point) {
-  CSA_ASSERT(this, IsSimpleObjectMap(map));
-
-  // This should only be used for storing data properties  in object literals.
-  CSA_ASSERT(this, HasInstanceType(receiver, JS_OBJECT_TYPE));
-
-  Label stub_cache(this), fast_properties(this), dictionary_properties(this),
-      accessor(this), call_runtime(this, Label::kDeferred), done(this);
-  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
-  Branch(IsSetWord32<Map::IsDictionaryMapBit>(bit_field3),
-         &dictionary_properties, &fast_properties);
-
-  BIND(&fast_properties);
-  {
-    Comment("fast property store");
-    TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-    Label descriptor_found(this), lookup_transition(this);
-
-    TVARIABLE(IntPtrT, var_name_index);
-    DescriptorLookup(key, descriptors, bit_field3, &descriptor_found,
-                     &var_name_index, &lookup_transition);
-
-    BIND(&descriptor_found);
-    {
-      TNode<IntPtrT> name_index = var_name_index.value();
-      TNode<Uint32T> details = LoadDetailsByKeyIndex(descriptors, name_index);
-      Label data_property(this);
-      JumpIfDataProperty(details, &data_property, nullptr);
-
-      // Reconfigure the accessor to a data property via runtime call.
-      // TODO(caitp): reconfigure the property details inlinr here.
-      Goto(&call_runtime);
-
-      BIND(&data_property);
-      {
-        // TODO(caitp): consider only checking for names associated with
-        // protectors that can apply to non-prototype JSObjects (currently, only
-        // [Symbol.isConcatSpreadable]), and request this behaviour with an
-        // enum parameter.
-        CheckForAssociatedProtector(key, &call_runtime);
-        OverwriteExistingFastDataProperty(receiver, map, descriptors,
-                                          name_index, details, value,
-                                          &call_runtime, false);
-        exit_point->Return(value);
-      }
-    }
-
-    BIND(&lookup_transition);
-    {
-      Comment("lookup transition");
-      TNode<Map> transition_map =
-          FindCandidateStoreICTransitionMapHandler(map, key, &call_runtime);
-
-      // Validate the transition handler candidate and apply the transition.
-      StoreICParameters p(context, receiver, key, value, nullptr, nullptr);
-      HandleStoreICTransitionMapHandlerCase(&p, transition_map, &call_runtime,
-                                            kValidateTransitionHandler);
-      exit_point->Return(value);
-    }
-  }
-
-  BIND(&dictionary_properties);
-  {
-    Comment("dictionary property store");
-    TVARIABLE(IntPtrT, var_name_index);
-    Label dictionary_found(this, &var_name_index), not_found(this);
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(receiver));
-    NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,
-                                         &var_name_index, &not_found);
-    BIND(&dictionary_found);
-    {
-      Label overwrite(this);
-      TNode<Uint32T> details = LoadDetailsByKeyIndex<NameDictionary>(
-          properties, var_name_index.value());
-      JumpIfDataProperty(details, &overwrite, nullptr);
-
-      // Reconfigure the accessor to a data property via runtime call.
-      Goto(&call_runtime);
-
-      BIND(&overwrite);
-      {
-        // See above TODO regarding non-pertinent checks
-        CheckForAssociatedProtector(key, &call_runtime);
-        StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
-                                             value);
-        exit_point->Return(value);
-      }
-    }
-
-    BIND(&not_found);
-    {
-      // See above TODO regarding non-pertinent checks
-      CheckForAssociatedProtector(key, &call_runtime);
-
-      // This method should always be invoked on a new JSObject literal ---
-      // it should be impossible for the object to be made non-extensible, or to
-      // be a prototype map/
-      CSA_ASSERT(this, IsExtensibleNonPrototypeMap(map));
-
-      Label add_dictionary_property_slow(this);
-      Add<NameDictionary>(properties, key, value,
-                          &add_dictionary_property_slow);
-      exit_point->Return(value);
-
-      BIND(&add_dictionary_property_slow);
-      exit_point->ReturnCallRuntime(Runtime::kAddDictionaryProperty, context,
-                                    receiver, key, value);
-    }
-  }
-
-  BIND(&call_runtime);
-  exit_point->ReturnCallRuntime(Runtime::kStoreDataPropertyInLiteral, context,
-                                receiver, key, value);
 }
 
 }  // namespace internal

@@ -8,7 +8,8 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function testHugeMemory() {
+(function testHugeMemory() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
 
   const num_pages = 49152;  // 3GB
@@ -30,10 +31,10 @@ function testHugeMemory() {
   assertEquals(0, geti(2500, 1 << 20));
   print("Out of bounds");
   assertTraps(kTrapMemOutOfBounds, () => geti(3500, 1 << 20));
-}
-testHugeMemory();
+})();
 
-function testHugeMemoryConstInBounds() {
+(function testHugeMemoryConstInBounds() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
 
   const num_pages = 49152;  // 3GB
@@ -51,10 +52,10 @@ function testHugeMemoryConstInBounds() {
 
   print("In bounds");
   assertEquals(0, geti());
-}
-testHugeMemoryConstInBounds();
+})();
 
-function testHugeMemoryConstOutOfBounds() {
+(function testHugeMemoryConstOutOfBounds() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
 
   const num_pages = 49152;  // 3GB
@@ -72,5 +73,11 @@ function testHugeMemoryConstOutOfBounds() {
 
   print("Out of bounds");
   assertTraps(kTrapMemOutOfBounds, geti);
-}
-testHugeMemoryConstOutOfBounds();
+})();
+
+(function testGrowHugeMemory() {
+  print(arguments.callee.name);
+
+  let mem = new WebAssembly.Memory({initial: 1});
+  mem.grow(49151);
+})();

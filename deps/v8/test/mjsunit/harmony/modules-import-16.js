@@ -12,7 +12,7 @@ var body = "import('modules-skip-1.js').then(ns => { x = ns.life();" +
 var func = new Function(body);
 func();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(42, x);
 assertTrue(ran);
 
@@ -21,7 +21,7 @@ var body = "import('modules-skip-1.js').then(ns => { x = ns.life();" +
     " ran = true;} ).catch(err => %AbortJS(err))"
 eval("var func = new Function(body); func();");
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(42, x);
 assertTrue(ran);
 
@@ -31,6 +31,6 @@ var body = "eval(import('modules-skip-1.js').then(ns => { x = ns.life();" +
 var func = new Function(body);
 func();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(42, x);
 assertTrue(ran);

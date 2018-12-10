@@ -4,6 +4,8 @@
 
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-buffer-inl.h"
+
+#include "src/counters.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {
@@ -89,6 +91,7 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   }
   array_buffer->set_byte_length(byte_length);
   array_buffer->set_bit_field(0);
+  array_buffer->clear_padding();
   array_buffer->set_is_external(is_external);
   array_buffer->set_is_neuterable(shared_flag == SharedFlag::kNotShared);
   array_buffer->set_is_shared(shared_flag == SharedFlag::kShared);
@@ -102,6 +105,11 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   if (data && !is_external) {
     isolate->heap()->RegisterNewArrayBuffer(*array_buffer);
   }
+}
+
+void JSArrayBuffer::SetupAsEmpty(Handle<JSArrayBuffer> array_buffer,
+                                 Isolate* isolate) {
+  Setup(array_buffer, isolate, false, nullptr, 0, SharedFlag::kNotShared);
 }
 
 bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
@@ -127,6 +135,7 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
     if (data == nullptr) {
       isolate->counters()->array_buffer_new_size_failures()->AddSample(
           ConvertToMb(allocated_length));
+      SetupAsEmpty(array_buffer, isolate);
       return false;
     }
   } else {
@@ -191,7 +200,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
                                        GetIsolate());
     return array_buffer;
   }
-  Handle<JSTypedArray> self(this, GetIsolate());
+  Handle<JSTypedArray> self(*this, GetIsolate());
   return MaterializeArrayBuffer(self);
 }
 

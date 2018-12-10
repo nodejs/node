@@ -33,6 +33,7 @@
 #include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
@@ -76,9 +77,9 @@ TEST(Smi) {
     bool is_in_range = number >= Smi::kMinValue && number <= Smi::kMaxValue;
     CHECK_EQ(is_in_range, is_valid);
     if (is_valid) {
-      Smi* smi_from_intptr = Smi::FromIntptr(number);
+      Smi smi_from_intptr = Smi::FromIntptr(number);
       if (static_cast<int>(number) == number) {  // Is a 32-bit int.
-        Smi* smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
+        Smi smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
         CHECK_EQ(smi_from_int, smi_from_intptr);
       }
       int64_t smi_value = smi_from_intptr->value();
@@ -87,11 +88,10 @@ TEST(Smi) {
   }
 }
 
-
-static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi* value) {
+static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, value);
-  __ Set(rdx, reinterpret_cast<intptr_t>(value));
+  __ Set(rdx, static_cast<intptr_t>(value.ptr()));
   __ cmpq(rcx, rdx);
   __ j(not_equal, exit);
 }
@@ -109,7 +109,7 @@ TEST(SmiMove) {
   EntryCode(masm);
   Label exit;
 
-  TestMoveSmi(masm, &exit, 1, Smi::kZero);
+  TestMoveSmi(masm, &exit, 1, Smi::zero());
   TestMoveSmi(masm, &exit, 2, Smi::FromInt(127));
   TestMoveSmi(masm, &exit, 3, Smi::FromInt(128));
   TestMoveSmi(masm, &exit, 4, Smi::FromInt(255));
@@ -245,35 +245,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::kZero));
+  __ Set(rdx, Smi::kZero.ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(2));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(1024)));
+  __ Set(rdx, Smi::FromInt(1024).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(3));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(-1)));
+  __ Set(rdx, Smi::FromInt(-1).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(4));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMaxValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(5));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(rcx, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMinValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmpq(rcx, rdx);
   __ j(not_equal, &exit);
 
@@ -282,35 +282,35 @@ TEST(SmiTag) {
   __ movq(rax, Immediate(6));  // Test number.
   __ movq(rcx, Immediate(0));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::kZero));
+  __ Set(rdx, Smi::zero().ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(7));  // Test number.
   __ movq(rcx, Immediate(1024));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(1024)));
+  __ Set(rdx, Smi::FromInt(1024).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(8));  // Test number.
   __ movq(rcx, Immediate(-1));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(-1)));
+  __ Set(rdx, Smi::FromInt(-1).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(9));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMaxValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(10));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
   __ SmiTag(r8, rcx);
-  __ Set(rdx, reinterpret_cast<intptr_t>(Smi::FromInt(Smi::kMinValue)));
+  __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmpq(r8, rdx);
   __ j(not_equal, &exit);
 
@@ -1112,6 +1112,22 @@ TEST(SIMDMacros) {
   auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
   int result = f.Call();
   CHECK_EQ(0, result);
+}
+
+TEST(AreAliased) {
+  DCHECK(!AreAliased(rax));
+  DCHECK(!AreAliased(rax, no_reg));
+  DCHECK(!AreAliased(no_reg, rax, no_reg));
+
+  DCHECK(AreAliased(rax, rax));
+  DCHECK(!AreAliased(no_reg, no_reg));
+
+  DCHECK(!AreAliased(rax, rbx, rcx, rdx, no_reg));
+  DCHECK(AreAliased(rax, rbx, rcx, rdx, rax, no_reg));
+
+  // no_regs are allowed in
+  DCHECK(!AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, no_reg));
+  DCHECK(AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, rax, no_reg));
 }
 
 #undef __

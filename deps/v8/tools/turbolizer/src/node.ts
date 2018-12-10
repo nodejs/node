@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {NodeOrigin} from "./source-resolver.js"
-import {MINIMUM_EDGE_SEPARATION} from "./edge.js"
+import {NodeOrigin} from "../src/source-resolver"
+import {MINIMUM_EDGE_SEPARATION} from "../src/edge"
 
 export const DEFAULT_NODE_BUBBLE_RADIUS = 12;
 export const NODE_INPUT_WIDTH = 50;

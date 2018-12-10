@@ -48,13 +48,13 @@ TEST(ProfileDiamond) {
 
   m.GenerateCode();
   {
-    uint32_t expected[] = {0, 0, 0, 0};
+    uint32_t expected[] = {0, 0, 0, 0, 0, 0};
     m.Expect(arraysize(expected), expected);
   }
 
   m.Call(0);
   {
-    uint32_t expected[] = {1, 1, 0, 1};
+    uint32_t expected[] = {1, 1, 1, 0, 0, 1};
     m.Expect(arraysize(expected), expected);
   }
 
@@ -62,13 +62,13 @@ TEST(ProfileDiamond) {
 
   m.Call(1);
   {
-    uint32_t expected[] = {1, 0, 1, 1};
+    uint32_t expected[] = {1, 0, 0, 1, 1, 1};
     m.Expect(arraysize(expected), expected);
   }
 
   m.Call(0);
   {
-    uint32_t expected[] = {2, 1, 1, 2};
+    uint32_t expected[] = {2, 1, 1, 1, 1, 2};
     m.Expect(arraysize(expected), expected);
   }
 }
@@ -94,7 +94,7 @@ TEST(ProfileLoop) {
 
   m.GenerateCode();
   {
-    uint32_t expected[] = {0, 0, 0, 0};
+    uint32_t expected[] = {0, 0, 0, 0, 0, 0};
     m.Expect(arraysize(expected), expected);
   }
 
@@ -102,7 +102,7 @@ TEST(ProfileLoop) {
   for (size_t i = 0; i < arraysize(runs); i++) {
     m.ResetCounts();
     CHECK_EQ(1, m.Call(static_cast<int>(runs[i])));
-    uint32_t expected[] = {1, runs[i] + 1, runs[i], 1};
+    uint32_t expected[] = {1, runs[i] + 1, runs[i], runs[i], 1, 1};
     m.Expect(arraysize(expected), expected);
   }
 }

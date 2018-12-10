@@ -94,7 +94,7 @@ function patch(fun, from, to) {
   assertPromiseValue("Cat", promise);
   assertTrue(patch_attempted);
 
-  %RunMicrotasks();
+  %PerformMicrotaskCheckpoint();
 
   // At this point one iterator is live, but closed, so the patch will succeed.
   patch(asyncfn, "'Cat'", "'Capybara'");
@@ -143,4 +143,4 @@ function patch(fun, from, to) {
                }));
 })();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();

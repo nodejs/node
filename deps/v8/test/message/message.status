@@ -49,4 +49,8 @@
   '*': [SKIP],
 }],  # variant == code_serializer
 
+['no_i18n == True', {
+  'fail/list-format*': [SKIP],
+}],  # no_i18n == True
+
 ]

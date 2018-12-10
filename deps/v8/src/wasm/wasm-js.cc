@@ -22,6 +22,7 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-serialization.h"
 
 using v8::internal::wasm::ErrorThrower;
 
@@ -58,6 +59,22 @@ class WasmStreaming::WasmStreamingImpl {
         Utils::OpenHandle(*exception.ToLocalChecked()));
   }
 
+  void SetModuleCompiledCallback(ModuleCompiledCallback callback,
+                                 intptr_t data) {
+    // Wrap the embedder callback here so we can also wrap the result as a
+    // Local<WasmModuleObject> here.
+    streaming_decoder_->SetModuleCompiledCallback(
+        [callback, data](i::Handle<i::WasmModuleObject> module_object) {
+          callback(data, Local<WasmModuleObject>::Cast(Utils::ToLocal(
+                             i::Handle<i::JSObject>::cast(module_object))));
+        });
+  }
+
+  bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+    if (!i::wasm::IsSupportedVersion({bytes, size})) return false;
+    return streaming_decoder_->SetCompiledModuleBytes({bytes, size});
+  }
+
  private:
   Isolate* isolate_ = nullptr;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
@@ -79,6 +96,15 @@ void WasmStreaming::Finish() { impl_->Finish(); }
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
   impl_->Abort(exception);
+}
+
+void WasmStreaming::SetModuleCompiledCallback(ModuleCompiledCallback callback,
+                                              intptr_t data) {
+  impl_->SetModuleCompiledCallback(callback, data);
+}
+
+bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+  return impl_->SetCompiledModuleBytes(bytes, size);
 }
 
 // static
@@ -213,7 +239,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~AsyncCompilationResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
@@ -249,7 +275,7 @@ class InstantiateModuleResultResolver
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
   ~InstantiateModuleResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -285,8 +311,8 @@ class InstantiateBytesResultResolver
         module_(isolate_->global_handles()->Create(*module)) {}
 
   ~InstantiateBytesResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(module_).location());
+    i::GlobalHandles::Destroy(promise_.location());
+    i::GlobalHandles::Destroy(module_.location());
   }
 
   void OnInstantiationSucceeded(
@@ -350,11 +376,9 @@ class AsyncInstantiateCompileResultResolver
                                  *maybe_imports.ToHandleChecked())) {}
 
   ~AsyncInstantiateCompileResultResolver() override {
-    i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
+    i::GlobalHandles::Destroy(promise_.location());
     if (!maybe_imports_.is_null()) {
-      i::GlobalHandles::Destroy(
-          i::Handle<i::Object>::cast(maybe_imports_.ToHandleChecked())
-              .location());
+      i::GlobalHandles::Destroy(maybe_imports_.ToHandleChecked().location());
     }
   }
 
@@ -389,7 +413,6 @@ class AsyncInstantiateCompileResultResolver
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
@@ -424,7 +447,6 @@ void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
   Local<Context> context = isolate->GetCurrentContext();
@@ -643,8 +665,6 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
-  MicrotasksScope does_not_run_microtasks(isolate,
-                                          MicrotasksScope::kDoNotRunMicrotasks);
 
   HandleScope scope(args.GetIsolate());
   if (i_isolate->wasm_instance_callback()(args)) return;
@@ -675,7 +695,6 @@ void WebAssemblyInstantiateStreaming(
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   ScheduledErrorThrower thrower(i_isolate,
@@ -754,7 +773,6 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
 
@@ -930,7 +948,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int64_t initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "initial"), &initial, 0,
-                          i::FLAG_wasm_max_mem_pages)) {
+                          i::wasm::max_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.
@@ -1250,9 +1268,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!args[0]->IntegerValue(context).To(&delta_size)) return;
 
   int64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 < 0 ||
-      max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_mem_pages)) {
-    max_size64 = i::FLAG_wasm_max_mem_pages;
+  if (max_size64 < 0 || max_size64 > int64_t{i::wasm::max_mem_pages()}) {
+    max_size64 = i::wasm::max_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
   if (!old_buffer->is_growable()) {
@@ -1417,13 +1434,20 @@ Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
 
 Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
                                const char* str, FunctionCallback func,
-                               int length = 0) {
+                               int length = 0,
+                               PropertyAttributes attributes = NONE) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function = CreateFunc(isolate, name, func);
   function->shared()->set_length(length);
-  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
+}
+
+Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
+                                         Handle<JSObject> object,
+                                         const char* str,
+                                         FunctionCallback func) {
+  return InstallFunc(isolate, object, str, func, 1, DONT_ENUM);
 }
 
 Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
@@ -1431,17 +1455,15 @@ Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
       .ToHandleChecked();
 }
 
-void InstallGetter(Isolate* isolate, Handle<JSObject> object,
-                   const char* str, FunctionCallback func) {
+void InstallGetter(Isolate* isolate, Handle<JSObject> object, const char* str,
+                   FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
       CreateFunc(isolate, GetterName(isolate, name), func);
 
-  v8::PropertyAttribute attributes =
-      static_cast<v8::PropertyAttribute>(v8::DontEnum);
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
-                                              Local<Function>(), attributes);
+                                              Local<Function>(), v8::None);
 }
 
 Handle<String> SetterName(Isolate* isolate, Handle<String> name) {
@@ -1459,8 +1481,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
       CreateFunc(isolate, SetterName(isolate, name), setter);
   setter_func->shared()->set_length(1);
 
-  v8::PropertyAttribute attributes =
-      static_cast<v8::PropertyAttribute>(v8::DontEnum);
+  v8::PropertyAttribute attributes = v8::None;
 
   Utils::ToLocal(object)->SetAccessorProperty(
       Utils::ToLocal(name), Utils::ToLocal(getter_func),
@@ -1473,9 +1494,12 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
 // object explicitly and ignore implicit receiver.
 void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
   Handle<ObjectTemplateInfo> instance_template = NewObjectTemplate(isolate);
-  fun->shared()->get_api_func_data()->set_instance_template(*instance_template);
+  FunctionTemplateInfo::SetInstanceTemplate(
+      isolate, handle(fun->shared()->get_api_func_data(), isolate),
+      instance_template);
 }
 
+// static
 void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);
@@ -1495,7 +1519,6 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSFunction> cons = factory->NewFunction(args);
   JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
-  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
 
   PropertyAttributes ro_attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
@@ -1514,12 +1537,12 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Expose the API on the global object if configured to do so.
   if (exposed_on_global_object) {
-    JSObject::AddProperty(isolate, global, name, webassembly, attributes);
+    JSObject::AddProperty(isolate, global, name, webassembly, DONT_ENUM);
   }
 
   // Setup Module
   Handle<JSFunction> module_constructor =
-      InstallFunc(isolate, webassembly, "Module", WebAssemblyModule, 1);
+      InstallConstructorFunc(isolate, webassembly, "Module", WebAssemblyModule);
   context->set_wasm_module_constructor(*module_constructor);
   SetDummyInstanceTemplate(isolate, module_constructor);
   JSFunction::EnsureHasInitialMap(module_constructor);
@@ -1538,8 +1561,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         v8_str(isolate, "WebAssembly.Module"), ro_attributes);
 
   // Setup Instance
-  Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
+  Handle<JSFunction> instance_constructor = InstallConstructorFunc(
+      isolate, webassembly, "Instance", WebAssemblyInstance);
   context->set_wasm_instance_constructor(*instance_constructor);
   SetDummyInstanceTemplate(isolate, instance_constructor);
   JSFunction::EnsureHasInitialMap(instance_constructor);
@@ -1556,7 +1579,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Table
   Handle<JSFunction> table_constructor =
-      InstallFunc(isolate, webassembly, "Table", WebAssemblyTable, 1);
+      InstallConstructorFunc(isolate, webassembly, "Table", WebAssemblyTable);
   context->set_wasm_table_constructor(*table_constructor);
   SetDummyInstanceTemplate(isolate, table_constructor);
   JSFunction::EnsureHasInitialMap(table_constructor);
@@ -1574,7 +1597,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Memory
   Handle<JSFunction> memory_constructor =
-      InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory, 1);
+      InstallConstructorFunc(isolate, webassembly, "Memory", WebAssemblyMemory);
   context->set_wasm_memory_constructor(*memory_constructor);
   SetDummyInstanceTemplate(isolate, memory_constructor);
   JSFunction::EnsureHasInitialMap(memory_constructor);
@@ -1594,8 +1617,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Global
   if (enabled_features.mut_global) {
-    Handle<JSFunction> global_constructor =
-        InstallFunc(isolate, webassembly, "Global", WebAssemblyGlobal, 1);
+    Handle<JSFunction> global_constructor = InstallConstructorFunc(
+        isolate, webassembly, "Global", WebAssemblyGlobal);
     context->set_wasm_global_constructor(*global_constructor);
     SetDummyInstanceTemplate(isolate, global_constructor);
     JSFunction::EnsureHasInitialMap(global_constructor);
@@ -1614,8 +1637,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Exception
   if (enabled_features.eh) {
-    Handle<JSFunction> exception_constructor =
-        InstallFunc(isolate, webassembly, "Exception", WebAssemblyException, 1);
+    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
+        isolate, webassembly, "Exception", WebAssemblyException);
     context->set_wasm_exception_constructor(*exception_constructor);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     JSFunction::EnsureHasInitialMap(exception_constructor);
@@ -1628,22 +1651,21 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   }
 
   // Setup errors
-  attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> compile_error(
       isolate->native_context()->wasm_compile_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->CompileError_string(),
-                        compile_error, attributes);
+                        compile_error, DONT_ENUM);
   Handle<JSFunction> link_error(
       isolate->native_context()->wasm_link_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->LinkError_string(), link_error,
-                        attributes);
+                        DONT_ENUM);
   Handle<JSFunction> runtime_error(
       isolate->native_context()->wasm_runtime_error_function(), isolate);
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->RuntimeError_string(),
-                        runtime_error, attributes);
+                        runtime_error, DONT_ENUM);
 }
 
 #undef ASSIGN

@@ -326,8 +326,12 @@ class Simulator : public SimulatorBase {
   inline uint32_t ReadWU(int64_t addr, Instruction* instr);
   inline int32_t ReadW(int64_t addr, Instruction* instr, TraceType t = WORD);
   inline void WriteW(int64_t addr, int32_t value, Instruction* instr);
+  void WriteConditionalW(int64_t addr, int32_t value, Instruction* instr,
+                         int32_t rt_reg);
   inline int64_t Read2W(int64_t addr, Instruction* instr);
   inline void Write2W(int64_t addr, int64_t value, Instruction* instr);
+  inline void WriteConditional2W(int64_t addr, int64_t value,
+                                 Instruction* instr, int32_t rt_reg);
 
   inline double ReadD(int64_t addr, Instruction* instr);
   inline void WriteD(int64_t addr, double value, Instruction* instr);
@@ -575,6 +579,95 @@ class Simulator : public SimulatorBase {
     char* desc;
   };
   StopCountAndDesc watched_stops_[kMaxStopCode + 1];
+
+  // Synchronization primitives.
+  enum class MonitorAccess {
+    Open,
+    RMW,
+  };
+
+  enum class TransactionSize {
+    None = 0,
+    Word = 4,
+    DoubleWord = 8,
+  };
+
+  // The least-significant bits of the address are ignored. The number of bits
+  // is implementation-defined, between 3 and minimum page size.
+  static const uintptr_t kExclusiveTaggedAddrMask = ~((1 << 3) - 1);
+
+  class LocalMonitor {
+   public:
+    LocalMonitor();
+
+    // These functions manage the state machine for the local monitor, but do
+    // not actually perform loads and stores. NotifyStoreConditional only
+    // returns true if the store conditional is allowed; the global monitor will
+    // still have to be checked to see whether the memory should be updated.
+    void NotifyLoad();
+    void NotifyLoadLinked(uintptr_t addr, TransactionSize size);
+    void NotifyStore();
+    bool NotifyStoreConditional(uintptr_t addr, TransactionSize size);
+
+   private:
+    void Clear();
+
+    MonitorAccess access_state_;
+    uintptr_t tagged_addr_;
+    TransactionSize size_;
+  };
+
+  class GlobalMonitor {
+   public:
+    GlobalMonitor();
+
+    class LinkedAddress {
+     public:
+      LinkedAddress();
+
+     private:
+      friend class GlobalMonitor;
+      // These functions manage the state machine for the global monitor, but do
+      // not actually perform loads and stores.
+      void Clear_Locked();
+      void NotifyLoadLinked_Locked(uintptr_t addr);
+      void NotifyStore_Locked();
+      bool NotifyStoreConditional_Locked(uintptr_t addr,
+                                         bool is_requesting_thread);
+
+      MonitorAccess access_state_;
+      uintptr_t tagged_addr_;
+      LinkedAddress* next_;
+      LinkedAddress* prev_;
+      // A scd can fail due to background cache evictions. Rather than
+      // simulating this, we'll just occasionally introduce cases where an
+      // store conditional fails. This will happen once after every
+      // kMaxFailureCounter exclusive stores.
+      static const int kMaxFailureCounter = 5;
+      int failure_counter_;
+    };
+
+    // Exposed so it can be accessed by Simulator::{Read,Write}Ex*.
+    base::Mutex mutex;
+
+    void NotifyLoadLinked_Locked(uintptr_t addr, LinkedAddress* linked_address);
+    void NotifyStore_Locked(LinkedAddress* linked_address);
+    bool NotifyStoreConditional_Locked(uintptr_t addr,
+                                       LinkedAddress* linked_address);
+
+    // Called when the simulator is destroyed.
+    void RemoveLinkedAddress(LinkedAddress* linked_address);
+
+   private:
+    bool IsProcessorInLinkedList_Locked(LinkedAddress* linked_address) const;
+    void PrependProcessor_Locked(LinkedAddress* linked_address);
+
+    LinkedAddress* head_;
+  };
+
+  LocalMonitor local_monitor_;
+  GlobalMonitor::LinkedAddress global_monitor_thread_;
+  static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 };
 
 }  // namespace internal

@@ -188,7 +188,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprNop:
       case kExprReturn:
       case kExprMemorySize:
-      case kExprGrowMemory:
+      case kExprMemoryGrow:
       case kExprDrop:
       case kExprSelect:
         os << WasmOpcodes::OpcodeName(opcode);

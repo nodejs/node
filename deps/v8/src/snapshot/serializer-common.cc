@@ -6,6 +6,7 @@
 
 #include "src/external-reference-table.h"
 #include "src/objects-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -22,8 +23,8 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = new AddressToIndexHashMap();
   isolate->set_external_reference_map(map_);
   // Add V8's external references.
-  ExternalReferenceTable* table = isolate->heap()->external_reference_table();
-  for (uint32_t i = 0; i < table->size(); ++i) {
+  ExternalReferenceTable* table = isolate->external_reference_table();
+  for (uint32_t i = 0; i < ExternalReferenceTable::kSize; ++i) {
     Address addr = table->address(i);
     // Ignore duplicate references.
     // This can happen due to ICF. See http://crbug.com/726896.
@@ -89,7 +90,7 @@ const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
   if (maybe_index.IsNothing()) return "<unknown>";
   Value value(maybe_index.FromJust());
   if (value.is_from_api()) return "<from api>";
-  return isolate->heap()->external_reference_table()->name(value.index());
+  return isolate->external_reference_table()->name(value.index());
 }
 
 void SerializedData::AllocateData(uint32_t size) {
@@ -101,9 +102,7 @@ void SerializedData::AllocateData(uint32_t size) {
 }
 
 // static
-uint32_t SerializedData::ComputeMagicNumber(Isolate* isolate) {
-  return ComputeMagicNumber(isolate->heap()->external_reference_table());
-}
+constexpr uint32_t SerializedData::kMagicNumber;
 
 // The partial snapshot cache is terminated by undefined. We visit the
 // partial snapshot...
@@ -119,7 +118,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                              &cache->at(i));
+                              FullObjectSlot(&cache->at(i)));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }

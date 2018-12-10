@@ -146,6 +146,10 @@ bool NewSpace::Contains(Object* o) {
   return o->IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
+bool NewSpace::Contains(HeapObjectPtr o) {
+  return MemoryChunk::FromHeapObject(o)->InNewSpace();
+}
+
 bool NewSpace::ContainsSlow(Address a) {
   return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
 }
@@ -154,21 +158,22 @@ bool NewSpace::ToSpaceContainsSlow(Address a) {
   return to_space_.ContainsSlow(a);
 }
 
-bool NewSpace::FromSpaceContainsSlow(Address a) {
-  return from_space_.ContainsSlow(a);
-}
-
 bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
 bool PagedSpace::Contains(Address addr) {
-  if (heap()->lo_space()->FindPage(addr)) return false;
+  if (heap()->IsWithinLargeObject(addr)) return false;
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 
 bool PagedSpace::Contains(Object* o) {
   if (!o->IsHeapObject()) return false;
   return Page::FromAddress(HeapObject::cast(o)->address())->owner() == this;
+}
+
+bool PagedSpace::Contains(ObjectPtr o) {
+  if (!o.IsHeapObject()) return false;
+  return Page::FromAddress(o.ptr())->owner() == this;
 }
 
 void PagedSpace::UnlinkFreeListCategories(Page* page) {
@@ -234,6 +239,10 @@ void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
                                        amount);
 }
 
+bool MemoryChunk::IsInNewLargeObjectSpace() const {
+  return owner()->identity() == NEW_LO_SPACE;
+}
+
 void Page::MarkNeverAllocateForTesting() {
   DCHECK(this->owner()->identity() != NEW_SPACE);
   DCHECK(!IsFlagSet(NEVER_ALLOCATE_ON_PAGE));
@@ -259,15 +268,16 @@ void Page::ClearEvacuationCandidate() {
   InitializeFreeListCategories();
 }
 
-MemoryChunkIterator::MemoryChunkIterator(Heap* heap)
+OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
     : heap_(heap),
       state_(kOldSpaceState),
       old_iterator_(heap->old_space()->begin()),
       code_iterator_(heap->code_space()->begin()),
       map_iterator_(heap->map_space()->begin()),
-      lo_iterator_(heap->lo_space()->begin()) {}
+      lo_iterator_(heap->lo_space()->begin()),
+      code_lo_iterator_(heap->code_lo_space()->begin()) {}
 
-MemoryChunk* MemoryChunkIterator::next() {
+MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
     case kOldSpaceState: {
       if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
@@ -287,6 +297,12 @@ MemoryChunk* MemoryChunkIterator::next() {
     }
     case kLargeObjectState: {
       if (lo_iterator_ != heap_->lo_space()->end()) return *(lo_iterator_++);
+      state_ = kCodeLargeObjectState;
+      V8_FALLTHROUGH;
+    }
+    case kCodeLargeObjectState: {
+      if (code_lo_iterator_ != heap_->code_lo_space()->end())
+        return *(code_lo_iterator_++);
       state_ = kFinishedState;
       V8_FALLTHROUGH;
     }
@@ -509,7 +525,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
 
 V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
     int size_in_bytes, AllocationAlignment alignment) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   return AllocateRaw(size_in_bytes, alignment);
 }
 

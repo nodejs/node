@@ -46,7 +46,10 @@ class GlobalHandles {
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
+  // TODO(3770): Drop Object* version.
   Handle<Object> Create(Object* value);
+  Handle<Object> Create(ObjectPtr value);
+  Handle<Object> Create(Address value);
 
   template <typename T>
   Handle<T> Create(T* value) {
@@ -55,12 +58,20 @@ class GlobalHandles {
     static_assert(!std::is_same<Object, T>::value, "compiler error");
     return Handle<T>::cast(Create(static_cast<Object*>(value)));
   }
+  template <typename T>
+  Handle<T> Create(T value) {
+    static_assert(std::is_base_of<ObjectPtr, T>::value,
+                  "static type violation");
+    // The compiler should only pick this method if T is not Object.
+    static_assert(!std::is_same<ObjectPtr, T>::value, "compiler error");
+    return Handle<T>::cast(Create(ObjectPtr(value)));
+  }
 
   // Copy a global handle
-  static Handle<Object> CopyGlobal(Object** location);
+  static Handle<Object> CopyGlobal(Address* location);
 
   // Destroy a global handle.
-  static void Destroy(Object** location);
+  static void Destroy(Address* location);
 
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
@@ -71,13 +82,13 @@ class GlobalHandles {
   // GC.  For a phantom weak handle the handle is cleared (set to a Smi)
   // before the callback is invoked, but the handle can still be identified
   // in the callback by using the location() of the handle.
-  static void MakeWeak(Object** location, void* parameter,
+  static void MakeWeak(Address* location, void* parameter,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);
 
-  static void MakeWeak(Object*** location_addr);
+  static void MakeWeak(Address** location_addr);
 
-  static void AnnotateStrongRetainer(Object** location, const char* label);
+  static void AnnotateStrongRetainer(Address* location, const char* label);
 
   void RecordStats(HeapStats* stats);
 
@@ -97,13 +108,15 @@ class GlobalHandles {
   size_t NumberOfNewSpaceNodes() { return new_space_nodes_.size(); }
 
   // Clear the weakness of a global handle.
-  static void* ClearWeakness(Object** location);
+  static void* ClearWeakness(Address* location);
 
   // Tells whether global handle is near death.
-  static bool IsNearDeath(Object** location);
+  static bool IsNearDeath(Address* location);
 
   // Tells whether global handle is weak.
-  static bool IsWeak(Object** location);
+  static bool IsWeak(Address* location);
+
+  int InvokeFirstPassWeakCallbacks();
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
@@ -190,15 +203,12 @@ class GlobalHandles {
   void InvokeSecondPassPhantomCallbacksFromTask();
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
-  int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
+  void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
   void UpdateListOfNewSpaceNodes();
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
 
   Isolate* isolate_;
-
-  // Field always containing the number of handles to global objects.
-  int number_of_global_handles_;
 
   // List of all allocated node blocks.
   NodeBlock* first_block_;
@@ -212,6 +222,9 @@ class GlobalHandles {
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> new_space_nodes_;
+
+  // Field always containing the number of handles to global objects.
+  int number_of_global_handles_;
 
   int post_gc_processing_count_;
 
@@ -254,12 +267,6 @@ class GlobalHandles::PendingPhantomCallback {
 
 class EternalHandles {
  public:
-  enum SingletonHandle {
-    DATE_CACHE_VERSION,
-
-    NUMBER_OF_SINGLETON_HANDLES
-  };
-
   EternalHandles();
   ~EternalHandles();
 
@@ -271,25 +278,6 @@ class EternalHandles {
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {
     return Handle<Object>(GetLocation(index));
-  }
-
-  // Grab the handle for an existing SingletonHandle.
-  inline Handle<Object> GetSingleton(SingletonHandle singleton) {
-    DCHECK(Exists(singleton));
-    return Get(singleton_handles_[singleton]);
-  }
-
-  // Checks whether a SingletonHandle has been assigned.
-  inline bool Exists(SingletonHandle singleton) {
-    return singleton_handles_[singleton] != kInvalidIndex;
-  }
-
-  // Assign a SingletonHandle to an empty slot and returns the handle.
-  Handle<Object> CreateSingleton(Isolate* isolate,
-                                 Object* object,
-                                 SingletonHandle singleton) {
-    Create(isolate, object, &singleton_handles_[singleton]);
-    return Get(singleton_handles_[singleton]);
   }
 
   // Iterates over all handles.
@@ -305,16 +293,16 @@ class EternalHandles {
   static const int kSize = 1 << kShift;
   static const int kMask = 0xff;
 
-  // Gets the slot for an index
-  inline Object** GetLocation(int index) {
+  // Gets the slot for an index. This returns an Address* rather than an
+  // ObjectSlot in order to avoid #including slots.h in this header file.
+  inline Address* GetLocation(int index) {
     DCHECK(index >= 0 && index < size_);
     return &blocks_[index >> kShift][index & kMask];
   }
 
   int size_;
-  std::vector<Object**> blocks_;
+  std::vector<Address*> blocks_;
   std::vector<int> new_space_indices_;
-  int singleton_handles_[NUMBER_OF_SINGLETON_HANDLES];
 
   DISALLOW_COPY_AND_ASSIGN(EternalHandles);
 };

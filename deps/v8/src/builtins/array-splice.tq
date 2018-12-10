@@ -2,19 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module array {
+namespace array {
   // Given {elements}, we want to create a non-zero length array of type
   // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
   // but the special case of wanting to have a FixedDoubleArray when given a
   // zero-length input FixedArray is handled here.
   macro Extract<FixedArrayType: type>(
       elements: FixedArrayBase, first: Smi, count: Smi,
-      capacity: Smi): FixedArrayType {
-    return UnsafeCast<FixedArrayType>(
+      capacity: Smi): FixedArrayType;
+
+  Extract<FixedArray>(implicit context: Context)(
+      elements: FixedArrayBase, first: Smi, count: Smi,
+      capacity: Smi): FixedArray {
+    return UnsafeCast<FixedArray>(
         ExtractFixedArray(elements, first, count, capacity));
   }
 
-  Extract<FixedDoubleArray>(
+  Extract<FixedDoubleArray>(implicit context: Context)(
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedDoubleArray {
     if (elements == kEmptyFixedArray) {
@@ -24,31 +28,73 @@ module array {
         ExtractFixedArray(elements, first, count, capacity));
   }
 
-  macro FastSplice<FixedArrayType: type, ElementType: type>(
+  macro DoMoveElements<FixedArrayType: type>(
+      elements: FixedArrayType, dstIndex: Smi, srcIndex: Smi,
+      count: Smi): void {
+    TorqueMoveElements(
+        elements, Convert<intptr>(dstIndex), Convert<intptr>(srcIndex),
+        Convert<intptr>(count));
+  }
+
+  macro StoreHoles<FixedArrayType: type>(
+      elements: FixedArrayType, holeStartIndex: Smi, holeEndIndex: Smi): void {
+    for (let i: Smi = holeStartIndex; i < holeEndIndex; i++) {
+      StoreArrayHole(elements, i);
+    }
+  }
+
+  macro DoCopyElements<FixedArrayType: type>(
+      dstElements: FixedArrayType, dstIndex: Smi, srcElements: FixedArrayType,
+      srcIndex: Smi, count: Smi): void {
+    TorqueCopyElements(
+        dstElements, Convert<intptr>(dstIndex), srcElements,
+        Convert<intptr>(srcIndex), Convert<intptr>(count));
+  }
+
+  macro FastSplice<FixedArrayType: type, ElementType: type>(implicit context:
+                                                                  Context)(
       args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
-      actualDeleteCount: Smi): void
-      labels Bailout {
-    const elements: FixedArrayBase = a.elements;
-    const elementsMap: Map = elements.map;
+      actualDeleteCount: Smi): void labels Bailout {
+    // Make sure elements are writable.
+    EnsureWriteableFastElements(a);
 
-    // If the spliced array is larger then the
-    // source array, then allocate a new FixedArrayType to hold the result.
-    let newElements: FixedArrayBase = elements;
-    if (elementsMap == kCOWMap || lengthDelta > 0) {
-      newElements =
-          Extract<FixedArrayType>(elements, 0, actualStart, newLength);
-      if (elementsMap == kCOWMap) {
-        newElements.map = elementsMap;
+    if (insertCount != actualDeleteCount) {
+      const elements: FixedArrayBase = a.elements;
+      const dstIndex: Smi = actualStart + insertCount;
+      const srcIndex: Smi = actualStart + actualDeleteCount;
+      const count: Smi = length - actualDeleteCount - actualStart;
+      if (insertCount < actualDeleteCount) {
+        // Shrink.
+        DoMoveElements<FixedArrayType>(
+            UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
+        StoreHoles<FixedArrayType>(
+            UnsafeCast<FixedArrayType>(elements), newLength, length);
+      } else if (insertCount > actualDeleteCount) {
+        // If the backing store is big enough, then moving elements is enough.
+        if (newLength <= elements.length) {
+          DoMoveElements<FixedArrayType>(
+              UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
+        } else {
+          // Grow.
+          let capacity: Smi = CalculateNewElementsCapacity(newLength);
+          const newElements: FixedArrayType =
+              Extract<FixedArrayType>(elements, 0, actualStart, capacity);
+          a.elements = newElements;
+          if (elements.length > 0) {
+            DoCopyElements<FixedArrayType>(
+                newElements, dstIndex, UnsafeCast<FixedArrayType>(elements),
+                srcIndex, count);
+          }
+        }
       }
-      a.elements = newElements;
     }
 
-    // Copy over inserted elements.
+    // Copy arguments.
     let k: Smi = actualStart;
     if (insertCount > 0) {
       const typedNewElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(newElements);
+          UnsafeCast<FixedArrayType>(a.elements);
       for (let e: Object of args [2: ]) {
         // The argument elements were already validated to be an appropriate
         // {ElementType} to store in {FixedArrayType}.
@@ -56,36 +102,11 @@ module array {
       }
     }
 
-    // Copy over elements after deleted elements.
-    let count: Smi = length - actualStart - actualDeleteCount;
-    while (count > 0) {
-      const typedElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(elements);
-      const typedNewElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(newElements);
-      CopyArrayElement(typedElements, typedNewElements, k - lengthDelta, k);
-      k++;
-      count--;
-    }
-
-    // Fill rest of spliced FixedArray with the hole, but only if the
-    // destination FixedArray is the original array's, since otherwise the array
-    // is pre-filled with holes.
-    if (elements == newElements) {
-      const typedNewElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(newElements);
-      const limit: Smi = elements.length;
-      while (k < limit) {
-        StoreArrayHole(typedNewElements, k);
-        k++;
-      }
-    }
-
     // Update the array's length after all the FixedArray shuffling is done.
     a.length = newLength;
   }
 
-  macro FastArraySplice(
+  transitioning macro FastArraySplice(
       context: Context, args: constexpr Arguments, o: JSReceiver,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
       actualDeleteCountNumber: Number): Object
@@ -101,7 +122,7 @@ module array {
     const a: JSArray = Cast<JSArray>(o) otherwise Bailout;
 
     const map: Map = a.map;
-    if (!IsPrototypeInitialArrayPrototype(context, map)) goto Bailout;
+    if (!IsPrototypeInitialArrayPrototype(map)) goto Bailout;
     if (IsNoElementsProtectorCellInvalid()) goto Bailout;
     if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
 
@@ -156,7 +177,7 @@ module array {
     return deletedResult;
   }
 
-  macro FillDeletedElementsArray(
+  transitioning macro FillDeletedElementsArray(
       context: Context, o: JSReceiver, actualStart: Number,
       actualDeleteCount: Number, a: JSReceiver): Object {
     // 10. Let k be 0.
@@ -168,28 +189,28 @@ module array {
       const from: Number = actualStart + k;
 
       // b. Let fromPresent be ? HasProperty(O, from).
-      const fromPresent: Boolean = HasProperty(context, o, from);
+      const fromPresent: Boolean = HasProperty(o, from);
 
       // c. If fromPresent is true, then
       if (fromPresent == True) {
         // i. Let fromValue be ? Get(O, from).
-        const fromValue: Object = GetProperty(context, o, from);
+        const fromValue: Object = GetProperty(o, from);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
-        CreateDataProperty(context, a, k, fromValue);
+        CreateDataProperty(a, k, fromValue);
       }
 
       // d. Increment k by 1.
       k++;
     }
     // 12. Perform ? Set(A, "length", actualDeleteCount, true).
-    SetProperty(context, a, kLengthString, actualDeleteCount);
+    SetProperty(a, kLengthString, actualDeleteCount);
     return a;
   }
 
   // HandleForwardCase implements step 15. "If itemCount < actualDeleteCount,
   // then...""
-  macro HandleForwardCase(
+  transitioning macro HandleForwardCase(
       context: Context, o: JSReceiver, len: Number, itemCount: Number,
       actualStart: Number, actualDeleteCount: Number): void {
     // 15. If itemCount < actualDeleteCount, then
@@ -204,20 +225,20 @@ module array {
       const to: Number = k + itemCount;
 
       // iii. Let fromPresent be ? HasProperty(O, from).
-      const fromPresent: Boolean = HasProperty(context, o, from);
+      const fromPresent: Boolean = HasProperty(o, from);
 
       // iv. If fromPresent is true, then
       if (fromPresent == True) {
         // 1. Let fromValue be ? Get(O, from).
-        const fromValue: Object = GetProperty(context, o, from);
+        const fromValue: Object = GetProperty(o, from);
 
         // 2. Perform ? Set(O, to, fromValue, true).
-        SetProperty(context, o, to, fromValue);
+        SetProperty(o, to, fromValue);
 
         // v. Else fromPresent is false,
       } else {
         // 1. Perform ? DeletePropertyOrThrow(O, to).
-        DeleteProperty(context, o, to, kStrict);
+        DeleteProperty(o, to, kStrict);
       }
       // vi. Increase k by 1.
       k++;
@@ -229,7 +250,7 @@ module array {
     // d. Repeat, while k > (len - actualDeleteCount + itemCount)
     while (k > (len - actualDeleteCount + itemCount)) {
       // i. Perform ? DeletePropertyOrThrow(O, ! ToString(k - 1)).
-      DeleteProperty(context, o, k - 1, kStrict);
+      DeleteProperty(o, k - 1, kStrict);
       // ii. Decrease k by 1.
       k--;
     }
@@ -237,7 +258,7 @@ module array {
 
   // HandleBackwardCase implements step 16. "Else if itemCount >
   // actualDeleteCount, then..."
-  macro HandleBackwardCase(
+  transitioning macro HandleBackwardCase(
       context: Context, o: JSReceiver, len: Number, itemCount: Number,
       actualStart: Number, actualDeleteCount: Number): void {
     // 16. Else if itemCount > actualDeleteCount, then
@@ -253,20 +274,20 @@ module array {
       const to: Number = k + itemCount - 1;
 
       // iii. Let fromPresent be ? HasProperty(O, from).
-      const fromPresent: Boolean = HasProperty(context, o, from);
+      const fromPresent: Boolean = HasProperty(o, from);
 
       // iv. If fromPresent is true, then
       if (fromPresent == True) {
         // 1. Let fromValue be ? Get(O, from).
-        const fromValue: Object = GetProperty(context, o, from);
+        const fromValue: Object = GetProperty(o, from);
 
         // 2. Perform ? Set(O, to, fromValue, true).
-        SetProperty(context, o, to, fromValue);
+        SetProperty(o, to, fromValue);
 
         // v. Else fromPresent is false,
       } else {
         // 1. Perform ? DeletePropertyOrThrow(O, to).
-        DeleteProperty(context, o, to, kStrict);
+        DeleteProperty(o, to, kStrict);
       }
 
       // vi. Decrease k by 1.
@@ -274,7 +295,7 @@ module array {
     }
   }
 
-  macro SlowSplice(
+  transitioning macro SlowSplice(
       context: Context, arguments: constexpr Arguments, o: JSReceiver,
       len: Number, actualStart: Number, insertCount: Smi,
       actualDeleteCount: Number): Object {
@@ -313,7 +334,7 @@ module array {
     if (arguments.length > 2) {
       for (let e: Object of arguments [2: ]) {
         // b. Perform ? Set(O, ! ToString(k), E, true).
-        SetProperty(context, o, k, e);
+        SetProperty(o, k, e);
 
         // c. Increase k by 1.
         k = k + 1;
@@ -322,19 +343,20 @@ module array {
 
     // 19. Perform ? Set(O, "length", len - actualDeleteCount + itemCount,
     // true).
-    SetProperty(context, o, kLengthString, len - actualDeleteCount + itemCount);
+    SetProperty(o, kLengthString, len - actualDeleteCount + itemCount);
 
     return a;
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
-  javascript builtin ArraySplice(
-      context: Context, receiver: Object, ...arguments): Object {
+  transitioning javascript builtin
+  ArrayPrototypeSplice(context: Context, receiver: Object, ...arguments):
+      Object {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
-    const len: Number = GetLengthProperty(context, o);
+    const len: Number = GetLengthProperty(o);
 
     // 3. Let relativeStart be ? ToInteger(start).
     const start: Object = arguments[0];

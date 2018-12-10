@@ -50,6 +50,32 @@ class JSRegExp : public JSObject {
 
   static constexpr int FlagCount() { return 6; }
 
+  static int FlagShiftBits(Flag flag) {
+    switch (flag) {
+      case kGlobal:
+        STATIC_ASSERT(kGlobal == (1 << 0));
+        return 0;
+      case kIgnoreCase:
+        STATIC_ASSERT(kIgnoreCase == (1 << 1));
+        return 1;
+      case kMultiline:
+        STATIC_ASSERT(kMultiline == (1 << 2));
+        return 2;
+      case kSticky:
+        STATIC_ASSERT(kSticky == (1 << 3));
+        return 3;
+      case kUnicode:
+        STATIC_ASSERT(kUnicode == (1 << 4));
+        return 4;
+      case kDotAll:
+        STATIC_ASSERT(kDotAll == (1 << 5));
+        return 5;
+      default:
+        STATIC_ASSERT(FlagCount() == 6);
+        UNREACHABLE();
+    }
+  }
+
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)
   DECL_ACCESSORS(last_index, Object)
@@ -70,7 +96,7 @@ class JSRegExp : public JSObject {
   // Number of captures (without the match itself).
   inline int CaptureCount();
   inline Flags GetFlags();
-  inline String* Pattern();
+  inline String Pattern();
   inline Object* CaptureNameMap();
   inline Object* DataAt(int index);
   // Set implementation data after the object has been prepared.
@@ -84,17 +110,24 @@ class JSRegExp : public JSObject {
     }
   }
 
-  DECL_CAST(JSRegExp)
+  DECL_CAST2(JSRegExp)
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
   DECL_VERIFIER(JSRegExp)
 
-  static const int kDataOffset = JSObject::kHeaderSize;
-  static const int kSourceOffset = kDataOffset + kPointerSize;
-  static const int kFlagsOffset = kSourceOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
-  static const int kLastIndexOffset = kSize;  // In-object field.
+// Layout description.
+#define JS_REGEXP_FIELDS(V)                 \
+  V(kDataOffset, kTaggedSize)               \
+  V(kSourceOffset, kTaggedSize)             \
+  V(kFlagsOffset, kTaggedSize)              \
+  /* Total size. */                         \
+  V(kSize, 0)                               \
+  /* This is already an in-object field. */ \
+  V(kLastIndexOffset, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_REGEXP_FIELDS)
+#undef JS_REGEXP_FIELDS
 
   // Indices in the data array.
   static const int kTagIndex = 0;
@@ -131,8 +164,18 @@ class JSRegExp : public JSObject {
   static const int kLastIndexFieldIndex = 0;
   static const int kInObjectFieldCount = 1;
 
+  // Descriptor array index to important methods in the prototype.
+  static const int kExecFunctionDescriptorIndex = 1;
+  static const int kSymbolMatchFunctionDescriptorIndex = 13;
+  static const int kSymbolReplaceFunctionDescriptorIndex = 14;
+  static const int kSymbolSearchFunctionDescriptorIndex = 15;
+  static const int kSymbolSplitFunctionDescriptorIndex = 16;
+  static const int kSymbolMatchAllFunctionDescriptorIndex = 17;
+
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
+
+  OBJECT_CONSTRUCTORS(JSRegExp, JSObject)
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
@@ -145,10 +188,12 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 // After creation the result must be treated as a JSArray in all regards.
 class JSRegExpResult : public JSArray {
  public:
+// Layout description.
 #define REG_EXP_RESULT_FIELDS(V) \
-  V(kIndexOffset, kPointerSize)  \
-  V(kInputOffset, kPointerSize)  \
-  V(kGroupsOffset, kPointerSize) \
+  V(kIndexOffset, kTaggedSize)   \
+  V(kInputOffset, kTaggedSize)   \
+  V(kGroupsOffset, kTaggedSize)  \
+  /* Total size. */              \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize, REG_EXP_RESULT_FIELDS)

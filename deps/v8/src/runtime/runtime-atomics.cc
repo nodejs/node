@@ -6,6 +6,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -97,6 +98,10 @@ inline T XorSeqCst(T* p, T value) {
 #define InterlockedOr32 _InterlockedOr
 #define InterlockedXor32 _InterlockedXor
 
+#if defined(V8_HOST_ARCH_ARM64)
+#define InterlockedExchange8 _InterlockedExchange8
+#endif
+
 #define ATOMIC_OPS(type, suffix, vctype)                                    \
   inline type ExchangeSeqCst(type* p, type value) {                         \
     return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),        \
@@ -159,6 +164,10 @@ inline void StoreSeqCst(T* p, T value) {
 #undef InterlockedOr64
 #undef InterlockedOr32
 #undef InterlockedXor32
+
+#if defined(V8_HOST_ARCH_ARM64)
+#undef InterlockedExchange8
+#endif
 
 #else
 

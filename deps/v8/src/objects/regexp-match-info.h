@@ -33,8 +33,8 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   inline void SetNumberOfCaptureRegisters(int value);
 
   // Returns the subject string of the last match.
-  inline String* LastSubject();
-  inline void SetLastSubject(String* value);
+  inline String LastSubject();
+  inline void SetLastSubject(String value);
 
   // Like LastSubject, but modifiable by the user.
   inline Object* LastInput();
@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   static Handle<RegExpMatchInfo> ReserveCaptures(
       Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count);
 
-  DECL_CAST(RegExpMatchInfo)
+  DECL_CAST2(RegExpMatchInfo)
 
   static const int kNumberOfCapturesIndex = 0;
   static const int kLastSubjectIndex = 1;
@@ -57,16 +57,21 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   static const int kFirstCaptureIndex = 3;
   static const int kLastMatchOverhead = kFirstCaptureIndex;
 
-  static const int kNumberOfCapturesOffset = FixedArray::kHeaderSize;
-  static const int kLastSubjectOffset = kNumberOfCapturesOffset + kPointerSize;
-  static const int kLastInputOffset = kLastSubjectOffset + kPointerSize;
-  static const int kFirstCaptureOffset = kLastInputOffset + kPointerSize;
+// Layout description.
+#define REG_EXP_MATCH_INFO_FIELDS(V)      \
+  V(kNumberOfCapturesOffset, kTaggedSize) \
+  V(kLastSubjectOffset, kTaggedSize)      \
+  V(kLastInputOffset, kTaggedSize)        \
+  V(kFirstCaptureOffset, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArray::kHeaderSize,
+                                REG_EXP_MATCH_INFO_FIELDS)
+#undef REG_EXP_MATCH_INFO_FIELDS
 
   // Every match info is guaranteed to have enough space to store two captures.
   static const int kInitialCaptureIndices = 2;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMatchInfo);
+  OBJECT_CONSTRUCTORS(RegExpMatchInfo, FixedArray);
 };
 
 }  // namespace internal

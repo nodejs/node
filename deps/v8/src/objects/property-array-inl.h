@@ -8,6 +8,8 @@
 #include "src/objects/property-array.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,34 +17,33 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(PropertyArray)
+OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObjectPtr)
+CAST_ACCESSOR2(PropertyArray)
 
 Object* PropertyArray::get(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LE(index, this->length());
-  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  return RELAXED_READ_FIELD(this, OffsetOfElementAt(index));
 }
 
 void PropertyArray::set(int index, Object* value) {
   DCHECK(IsPropertyArray());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(this, offset, value);
 }
 
 void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-Object** PropertyArray::data_start() {
-  return HeapObject::RawField(this, kHeaderSize);
-}
+ObjectSlot PropertyArray::data_start() { return RawField(kHeaderSize); }
 
 int PropertyArray::length() const {
   Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
@@ -51,8 +52,8 @@ int PropertyArray::length() const {
 }
 
 void PropertyArray::initialize_length(int len) {
-  SLOW_DCHECK(len >= 0);
-  SLOW_DCHECK(len < LengthField::kMax);
+  DCHECK_LT(static_cast<unsigned>(len),
+            static_cast<unsigned>(LengthField::kMax));
   WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(len));
 }
 

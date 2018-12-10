@@ -7,24 +7,23 @@
 
 #include <type_traits>
 
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/parsing/scanner.h"
 
 namespace v8 {
 namespace internal {
 
-class DuplicateFinder;
+template <typename T>
+class ZoneList;
 
 #define ERROR_CODES(T)                       \
   T(ExpressionProduction, 0)                 \
   T(FormalParameterInitializerProduction, 1) \
-  T(BindingPatternProduction, 2)             \
-  T(AssignmentPatternProduction, 3)          \
-  T(DistinctFormalParametersProduction, 4)   \
-  T(StrictModeFormalParametersProduction, 5) \
-  T(ArrowFormalParametersProduction, 6)      \
-  T(LetPatternProduction, 7)                 \
-  T(AsyncArrowFormalParametersProduction, 8)
+  T(PatternProduction, 2)                    \
+  T(BindingPatternProduction, 3)             \
+  T(StrictModeFormalParametersProduction, 4) \
+  T(LetPatternProduction, 5)                 \
+  T(AsyncArrowFormalParametersProduction, 6)
 
 // Expression classifiers serve two purposes:
 //
@@ -85,18 +84,22 @@ class ExpressionClassifierBase {
   struct Error {
     V8_INLINE Error()
         : location(Scanner::Location::invalid()),
-          message(MessageTemplate::kNone),
-          kind(kUnusedError),
-          arg(nullptr) {}
-    V8_INLINE explicit Error(Scanner::Location loc,
-                             MessageTemplate::Template msg, ErrorKind k,
-                             const char* a = nullptr)
-        : location(loc), message(msg), kind(k), arg(a) {}
+          message_(static_cast<int>(MessageTemplate::kNone)),
+          kind(kUnusedError) {}
+    V8_INLINE explicit Error(Scanner::Location loc, MessageTemplate msg,
+                             ErrorKind k, const char* a = nullptr)
+        : location(loc), message_(static_cast<int>(msg)), kind(k) {}
 
     Scanner::Location location;
-    MessageTemplate::Template message : 28;
+    // GCC doesn't like storing the enum class directly in 28 bits, so we
+    // have to wrap it in a getter.
+    MessageTemplate message() const {
+      STATIC_ASSERT(static_cast<int>(MessageTemplate::kLastMessage) <
+                    (1 << 28));
+      return static_cast<MessageTemplate>(message_);
+    }
+    int message_ : 28;
     unsigned kind : 4;
-    const char* arg;
   };
 
   // clang-format off
@@ -111,10 +114,8 @@ class ExpressionClassifierBase {
   };
   // clang-format on
 
-  explicit ExpressionClassifierBase(typename Types::Base* base,
-                                    DuplicateFinder* duplicate_finder = nullptr)
+  explicit ExpressionClassifierBase(typename Types::Base* base)
       : base_(base),
-        duplicate_finder_(duplicate_finder),
         invalid_productions_(0),
         is_non_simple_parameter_list_(0) {}
 
@@ -122,10 +123,6 @@ class ExpressionClassifierBase {
 
   V8_INLINE bool is_valid(unsigned productions) const {
     return (invalid_productions_ & productions) == 0;
-  }
-
-  V8_INLINE DuplicateFinder* duplicate_finder() const {
-    return duplicate_finder_;
   }
 
   V8_INLINE bool is_valid_expression() const {
@@ -136,20 +133,12 @@ class ExpressionClassifierBase {
     return is_valid(FormalParameterInitializerProduction);
   }
 
+  V8_INLINE bool is_valid_pattern() const {
+    return is_valid(PatternProduction);
+  }
+
   V8_INLINE bool is_valid_binding_pattern() const {
     return is_valid(BindingPatternProduction);
-  }
-
-  V8_INLINE bool is_valid_assignment_pattern() const {
-    return is_valid(AssignmentPatternProduction);
-  }
-
-  V8_INLINE bool is_valid_arrow_formal_parameters() const {
-    return is_valid(ArrowFormalParametersProduction);
-  }
-
-  V8_INLINE bool is_valid_formal_parameter_list_without_duplicates() const {
-    return is_valid(DistinctFormalParametersProduction);
   }
 
   // Note: callers should also check
@@ -181,37 +170,15 @@ class ExpressionClassifierBase {
 #endif
     // Propagate errors from inner, but don't overwrite already recorded
     // errors.
-    unsigned non_arrow_inner_invalid_productions =
-        inner->invalid_productions_ & ~ArrowFormalParametersProduction;
-    if (non_arrow_inner_invalid_productions) {
-      unsigned errors = non_arrow_inner_invalid_productions & productions &
-                        ~this->invalid_productions_;
-      // The result will continue to be a valid arrow formal parameters if the
-      // inner expression is a valid binding pattern.
-      bool copy_BP_to_AFP = false;
-      if (productions & ArrowFormalParametersProduction &&
-          this->is_valid_arrow_formal_parameters()) {
-        // Also whether we've seen any non-simple parameters
-        // if expecting an arrow function parameter.
-        this->is_non_simple_parameter_list_ |=
-            inner->is_non_simple_parameter_list_;
-        if (!inner->is_valid_binding_pattern()) {
-          copy_BP_to_AFP = true;
-          this->invalid_productions_ |= ArrowFormalParametersProduction;
-        }
-      }
-      if (errors != 0 || copy_BP_to_AFP) {
-        this->invalid_productions_ |= errors;
-        static_cast<ErrorTracker*>(this)->AccumulateErrorImpl(
-            inner, productions, errors, copy_BP_to_AFP);
-      }
-    }
-    static_cast<ErrorTracker*>(this)->RewindErrors(inner);
+    unsigned filter = productions & ~this->invalid_productions_;
+    unsigned errors = inner->invalid_productions_ & filter;
+    static_cast<ErrorTracker*>(this)->AccumulateErrorImpl(inner, productions,
+                                                          errors);
+    this->invalid_productions_ |= errors;
   }
 
  protected:
   typename Types::Base* base_;
-  DuplicateFinder* duplicate_finder_;
   unsigned invalid_productions_ : kUnusedError;
   STATIC_ASSERT(kUnusedError <= 15);
   unsigned is_non_simple_parameter_list_ : 1;
@@ -228,16 +195,13 @@ class ExpressionClassifierErrorTracker
   using typename BaseClassType::ErrorKind;
   using TP = typename BaseClassType::TargetProduction;
 
-  ExpressionClassifierErrorTracker(typename Types::Base* base,
-                                   DuplicateFinder* duplicate_finder)
-      : BaseClassType(base, duplicate_finder),
+  explicit ExpressionClassifierErrorTracker(typename Types::Base* base)
+      : BaseClassType(base),
         reported_errors_(base->impl()->GetReportedErrorList()) {
     reported_errors_begin_ = reported_errors_end_ = reported_errors_->length();
   }
 
-  ~ExpressionClassifierErrorTracker() override { Discard(); }
-
-  V8_INLINE void Discard() {
+  ~ExpressionClassifierErrorTracker() override {
     if (reported_errors_end_ == reported_errors_->length()) {
       reported_errors_->Rewind(reported_errors_begin_);
       reported_errors_end_ = reported_errors_begin_;
@@ -247,7 +211,7 @@ class ExpressionClassifierErrorTracker
 
  protected:
   V8_INLINE const Error& reported_error(ErrorKind kind) const {
-    if (this->invalid_productions_ & (1 << kind)) {
+    if (!this->is_valid(1 << kind)) {
       for (int i = reported_errors_begin_; i < reported_errors_end_; i++) {
         if (reported_errors_->at(i).kind == kind)
           return reported_errors_->at(i);
@@ -266,7 +230,9 @@ class ExpressionClassifierErrorTracker
 
   // Adds e to the end of the list of reported errors for this classifier.
   // It is expected that this classifier is the last one in the stack.
-  V8_INLINE void Add(const Error& e) {
+  V8_INLINE void Add(TP production, const Error& e) {
+    if (!this->is_valid(production)) return;
+    this->invalid_productions_ |= production;
     DCHECK_EQ(reported_errors_end_, reported_errors_->length());
     reported_errors_->Add(e, this->base_->impl()->zone());
     reported_errors_end_++;
@@ -300,43 +266,18 @@ class ExpressionClassifierErrorTracker
   }
 
   void AccumulateErrorImpl(ExpressionClassifier<Types>* const inner,
-                           unsigned productions, unsigned errors,
-                           bool copy_BP_to_AFP) {
+                           unsigned productions, unsigned errors) {
     // Traverse the list of errors reported by the inner classifier
     // to copy what's necessary.
-    int binding_pattern_index = inner->reported_errors_end_;
-    for (int i = inner->reported_errors_begin_; i < inner->reported_errors_end_;
-         i++) {
-      int k = this->reported_errors_->at(i).kind;
-      if (errors & (1 << k)) this->Copy(i);
-      // Check if it's a BP error that has to be copied to an AFP error.
-      if (k == ErrorKind::kBindingPatternProduction && copy_BP_to_AFP) {
-        if (this->reported_errors_end_ <= i) {
-          // If the BP error itself has not already been copied,
-          // copy it now and change it to an AFP error.
-          this->Copy(i);
-          this->reported_errors_->at(this->reported_errors_end_ - 1).kind =
-              ErrorKind::kArrowFormalParametersProduction;
-        } else {
-          // Otherwise, if the BP error was already copied, keep its
-          // position and wait until the end of the traversal.
-          DCHECK_EQ(this->reported_errors_end_, i + 1);
-          binding_pattern_index = i;
-        }
+    for (int i = inner->reported_errors_begin_; errors != 0; i++) {
+      int mask = 1 << this->reported_errors_->at(i).kind;
+      if ((errors & mask) != 0) {
+        errors ^= mask;
+        this->Copy(i);
       }
     }
-    // Do we still have to copy the BP error to an AFP error?
-    if (binding_pattern_index < inner->reported_errors_end_) {
-      // If there's still unused space in the list of the inner
-      // classifier, copy it there, otherwise add it to the end
-      // of the list.
-      if (this->reported_errors_end_ < inner->reported_errors_end_)
-        this->Copy(binding_pattern_index);
-      else
-        Add(this->reported_errors_->at(binding_pattern_index));
-      this->reported_errors_->at(this->reported_errors_end_ - 1).kind =
-          ErrorKind::kArrowFormalParametersProduction;
-    }
+
+    RewindErrors(inner);
   }
 
  private:
@@ -366,11 +307,8 @@ class ExpressionClassifierEmptyErrorTracker
   using typename BaseClassType::ErrorKind;
   using TP = typename BaseClassType::TargetProduction;
 
-  ExpressionClassifierEmptyErrorTracker(typename Types::Base* base,
-                                        DuplicateFinder* duplicate_finder)
-      : BaseClassType(base, duplicate_finder) {}
-
-  V8_INLINE void Discard() {}
+  explicit ExpressionClassifierEmptyErrorTracker(typename Types::Base* base)
+      : BaseClassType(base) {}
 
  protected:
   V8_INLINE const Error& reported_error(ErrorKind kind) const {
@@ -378,17 +316,17 @@ class ExpressionClassifierEmptyErrorTracker
     return none;
   }
 
-  V8_INLINE void Add(const Error& e) {}
+  V8_INLINE void Add(TP production, const Error& e) {
+    this->invalid_productions_ |= production;
+  }
 
  private:
 #ifdef DEBUG
   V8_INLINE void CheckErrorPositions(ExpressionClassifier<Types>* const inner) {
   }
 #endif
-  V8_INLINE void RewindErrors(ExpressionClassifier<Types>* const inner) {}
   V8_INLINE void AccumulateErrorImpl(ExpressionClassifier<Types>* const inner,
-                                     unsigned productions, unsigned errors,
-                                     bool copy_BP_to_AFP) {}
+                                     unsigned productions, unsigned errors) {}
 
   friend BaseClassType;
 };
@@ -411,12 +349,11 @@ class ExpressionClassifier
   using typename BaseClassType::ErrorKind;
   using TP = typename BaseClassType::TargetProduction;
 
-  explicit ExpressionClassifier(typename Types::Base* base,
-                                DuplicateFinder* duplicate_finder = nullptr)
-      : std::conditional<Types::ExpressionClassifierReportErrors,
-                         ExpressionClassifierErrorTracker<Types>,
-                         ExpressionClassifierEmptyErrorTracker<Types>>::
-            type(base, duplicate_finder),
+  explicit ExpressionClassifier(typename Types::Base* base)
+      : std::conditional<
+            Types::ExpressionClassifierReportErrors,
+            ExpressionClassifierErrorTracker<Types>,
+            ExpressionClassifierEmptyErrorTracker<Types>>::type(base),
         previous_(base->classifier_) {
     base->classifier_ = this;
   }
@@ -434,20 +371,12 @@ class ExpressionClassifier
         ErrorKind::kFormalParameterInitializerProduction);
   }
 
+  V8_INLINE const Error& pattern_error() const {
+    return this->reported_error(ErrorKind::kPatternProduction);
+  }
+
   V8_INLINE const Error& binding_pattern_error() const {
     return this->reported_error(ErrorKind::kBindingPatternProduction);
-  }
-
-  V8_INLINE const Error& assignment_pattern_error() const {
-    return this->reported_error(ErrorKind::kAssignmentPatternProduction);
-  }
-
-  V8_INLINE const Error& arrow_formal_parameters_error() const {
-    return this->reported_error(ErrorKind::kArrowFormalParametersProduction);
-  }
-
-  V8_INLINE const Error& duplicate_formal_parameter_error() const {
-    return this->reported_error(ErrorKind::kDistinctFormalParametersProduction);
   }
 
   V8_INLINE const Error& strict_mode_formal_parameter_error() const {
@@ -467,89 +396,51 @@ class ExpressionClassifier
   V8_INLINE bool does_error_reporting() { return ReportErrors; }
 
   void RecordExpressionError(const Scanner::Location& loc,
-                             MessageTemplate::Template message,
-                             const char* arg = nullptr) {
-    if (!this->is_valid_expression()) return;
-    this->invalid_productions_ |= TP::ExpressionProduction;
-    this->Add(Error(loc, message, ErrorKind::kExpressionProduction, arg));
+                             MessageTemplate message) {
+    this->Add(TP::ExpressionProduction,
+              Error(loc, message, ErrorKind::kExpressionProduction));
   }
 
   void RecordFormalParameterInitializerError(const Scanner::Location& loc,
-                                             MessageTemplate::Template message,
-                                             const char* arg = nullptr) {
-    if (!this->is_valid_formal_parameter_initializer()) return;
-    this->invalid_productions_ |= TP::FormalParameterInitializerProduction;
-    this->Add(Error(loc, message,
-                    ErrorKind::kFormalParameterInitializerProduction, arg));
-  }
-
-  void RecordBindingPatternError(const Scanner::Location& loc,
-                                 MessageTemplate::Template message,
-                                 const char* arg = nullptr) {
-    if (!this->is_valid_binding_pattern()) return;
-    this->invalid_productions_ |= TP::BindingPatternProduction;
-    this->Add(Error(loc, message, ErrorKind::kBindingPatternProduction, arg));
-  }
-
-  void RecordAssignmentPatternError(const Scanner::Location& loc,
-                                    MessageTemplate::Template message,
-                                    const char* arg = nullptr) {
-    if (!this->is_valid_assignment_pattern()) return;
-    this->invalid_productions_ |= TP::AssignmentPatternProduction;
+                                             MessageTemplate message) {
     this->Add(
-        Error(loc, message, ErrorKind::kAssignmentPatternProduction, arg));
+        TP::FormalParameterInitializerProduction,
+        Error(loc, message, ErrorKind::kFormalParameterInitializerProduction));
   }
 
   void RecordPatternError(const Scanner::Location& loc,
-                          MessageTemplate::Template message,
-                          const char* arg = nullptr) {
-    RecordBindingPatternError(loc, message, arg);
-    RecordAssignmentPatternError(loc, message, arg);
+                          MessageTemplate message) {
+    this->Add(TP::PatternProduction,
+              Error(loc, message, ErrorKind::kPatternProduction));
   }
 
-  void RecordArrowFormalParametersError(const Scanner::Location& loc,
-                                        MessageTemplate::Template message,
-                                        const char* arg = nullptr) {
-    if (!this->is_valid_arrow_formal_parameters()) return;
-    this->invalid_productions_ |= TP::ArrowFormalParametersProduction;
-    this->Add(
-        Error(loc, message, ErrorKind::kArrowFormalParametersProduction, arg));
+  void RecordBindingPatternError(const Scanner::Location& loc,
+                                 MessageTemplate message) {
+    this->Add(TP::BindingPatternProduction,
+              Error(loc, message, ErrorKind::kBindingPatternProduction));
   }
 
   void RecordAsyncArrowFormalParametersError(const Scanner::Location& loc,
-                                             MessageTemplate::Template message,
-                                             const char* arg = nullptr) {
-    if (!this->is_valid_async_arrow_formal_parameters()) return;
-    this->invalid_productions_ |= TP::AsyncArrowFormalParametersProduction;
-    this->Add(Error(loc, message,
-                    ErrorKind::kAsyncArrowFormalParametersProduction, arg));
-  }
-
-  void RecordDuplicateFormalParameterError(const Scanner::Location& loc) {
-    if (!this->is_valid_formal_parameter_list_without_duplicates()) return;
-    this->invalid_productions_ |= TP::DistinctFormalParametersProduction;
-    this->Add(Error(loc, MessageTemplate::kParamDupe,
-                    ErrorKind::kDistinctFormalParametersProduction));
+                                             MessageTemplate message) {
+    this->Add(
+        TP::AsyncArrowFormalParametersProduction,
+        Error(loc, message, ErrorKind::kAsyncArrowFormalParametersProduction));
   }
 
   // Record a binding that would be invalid in strict mode.  Confusingly this
   // is not the same as StrictFormalParameterList, which simply forbids
   // duplicate bindings.
   void RecordStrictModeFormalParameterError(const Scanner::Location& loc,
-                                            MessageTemplate::Template message,
-                                            const char* arg = nullptr) {
-    if (!this->is_valid_strict_mode_formal_parameters()) return;
-    this->invalid_productions_ |= TP::StrictModeFormalParametersProduction;
-    this->Add(Error(loc, message,
-                    ErrorKind::kStrictModeFormalParametersProduction, arg));
+                                            MessageTemplate message) {
+    this->Add(
+        TP::StrictModeFormalParametersProduction,
+        Error(loc, message, ErrorKind::kStrictModeFormalParametersProduction));
   }
 
   void RecordLetPatternError(const Scanner::Location& loc,
-                             MessageTemplate::Template message,
-                             const char* arg = nullptr) {
-    if (!this->is_valid_let_pattern()) return;
-    this->invalid_productions_ |= TP::LetPatternProduction;
-    this->Add(Error(loc, message, ErrorKind::kLetPatternProduction, arg));
+                             MessageTemplate message) {
+    this->Add(TP::LetPatternProduction,
+              Error(loc, message, ErrorKind::kLetPatternProduction));
   }
 
   ExpressionClassifier* previous() const { return previous_; }

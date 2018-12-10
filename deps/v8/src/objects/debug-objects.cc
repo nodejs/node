@@ -3,8 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/objects/debug-objects.h"
+
 #include "src/debug/debug-evaluate.h"
+#include "src/handles-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -30,6 +33,7 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
     // array.
     shared()->SetDebugBytecodeArray(OriginalBytecodeArray());
     set_original_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
+    set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
@@ -297,7 +301,7 @@ bool BreakPointInfo::HasBreakPoint(Isolate* isolate,
                    *break_point);
   }
   // Multiple break points.
-  FixedArray* array = FixedArray::cast(break_point_info->break_points());
+  FixedArray array = FixedArray::cast(break_point_info->break_points());
   for (int i = 0; i < array->length(); i++) {
     if (IsEqual(BreakPoint::cast(array->get(i)), *break_point)) {
       return true;
@@ -375,7 +379,7 @@ void CoverageInfo::Print(std::unique_ptr<char[]> function_name) {
 
   for (int i = 0; i < SlotCount(); i++) {
     os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
-       << ": " << BlockCount(i) << std::endl;
+       << std::endl;
   }
 }
 

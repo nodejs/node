@@ -18,7 +18,10 @@ Handle<S> Arguments::at(int index) {
   return Handle<S>::cast(at<Object>(index));
 }
 
-int Arguments::smi_at(int index) { return Smi::ToInt((*this)[index]); }
+int Arguments::smi_at(int index) {
+  // TODO(3770): Clean this up when Smi::ToInt supports ObjectPtr inputs.
+  return Smi::ToInt(reinterpret_cast<Object*>(*address_of_arg_at(index)));
+}
 
 double Arguments::number_at(int index) { return (*this)[index]->Number(); }
 

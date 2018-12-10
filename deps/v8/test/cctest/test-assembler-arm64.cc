@@ -209,8 +209,7 @@ static void InitializeVM() {
   __ Ret();                     \
   __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN() \
-  CHECK(v8::internal::FreePages(GetPlatformPageAllocator(), buf, allocated));
+#define TEARDOWN() FreeAssemblerBuffer(buf, allocated);
 
 #endif  // ifdef USE_SIMULATOR.
 
@@ -354,9 +353,9 @@ TEST(mov) {
 
   __ Mov(x0, 0x0123456789ABCDEFL);
 
-  __ movz(x1, 0xABCDL << 16);
-  __ movk(x2, 0xABCDL << 32);
-  __ movn(x3, 0xABCDL << 48);
+  __ movz(x1, 0xABCDLL << 16);
+  __ movk(x2, 0xABCDLL << 32);
+  __ movn(x3, 0xABCDLL << 48);
 
   __ Mov(x4, 0x0123456789ABCDEFL);
   __ Mov(x5, x4);
@@ -6769,7 +6768,11 @@ static void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
   // can be handled by this test.
   CHECK_LE(code_size, range);
 
-  auto PoolSizeAt = [pool_entries](int pc_offset) {
+#if defined(_M_ARM64) && !defined(__clang__)
+  auto PoolSizeAt = [pool_entries, kEntrySize](int pc_offset) {
+#else
+  auto PoolSizeAt = [](int pc_offset) {
+#endif
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
     size_t prologue_size = 2 * kInstrSize + kInstrSize;
@@ -6947,7 +6950,7 @@ TEST(add_sub_wide_imm) {
   CHECK_EQUAL_32(kWMinInt, w18);
   CHECK_EQUAL_32(kWMinInt, w19);
 
-  CHECK_EQUAL_64(-0x1234567890ABCDEFUL, x20);
+  CHECK_EQUAL_64(-0x1234567890ABCDEFLL, x20);
   CHECK_EQUAL_32(-0x12345678, w21);
 
   TEARDOWN();
@@ -7724,7 +7727,7 @@ TEST(adc_sbc_shift) {
   RUN();
 
   CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL, x5);
-  CHECK_EQUAL_64(1L << 60, x6);
+  CHECK_EQUAL_64(1LL << 60, x6);
   CHECK_EQUAL_64(0xF0123456789ABCDDL, x7);
   CHECK_EQUAL_64(0x0111111111111110L, x8);
   CHECK_EQUAL_64(0x1222222222222221L, x9);
@@ -7735,13 +7738,13 @@ TEST(adc_sbc_shift) {
   CHECK_EQUAL_32(0x91111110, w13);
   CHECK_EQUAL_32(0x9A222221, w14);
 
-  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL + 1, x18);
-  CHECK_EQUAL_64((1L << 60) + 1, x19);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFLL + 1, x18);
+  CHECK_EQUAL_64((1LL << 60) + 1, x19);
   CHECK_EQUAL_64(0xF0123456789ABCDDL + 1, x20);
   CHECK_EQUAL_64(0x0111111111111110L + 1, x21);
   CHECK_EQUAL_64(0x1222222222222221L + 1, x22);
 
-  CHECK_EQUAL_32(0xFFFFFFFF + 1, w23);
+  CHECK_EQUAL_32(0xFFFFFFFFULL + 1, w23);
   CHECK_EQUAL_32((1 << 30) + 1, w24);
   CHECK_EQUAL_32(0xF89ABCDD + 1, w25);
   CHECK_EQUAL_32(0x91111110 + 1, w26);
@@ -12008,19 +12011,19 @@ TEST(register_bit) {
   // teardown.
 
   // Simple tests.
-  CHECK(x0.bit() == (1UL << 0));
-  CHECK(x1.bit() == (1UL << 1));
-  CHECK(x10.bit() == (1UL << 10));
+  CHECK(x0.bit() == (1ULL << 0));
+  CHECK(x1.bit() == (1ULL << 1));
+  CHECK(x10.bit() == (1ULL << 10));
 
   // AAPCS64 definitions.
-  CHECK(fp.bit() == (1UL << kFramePointerRegCode));
-  CHECK(lr.bit() == (1UL << kLinkRegCode));
+  CHECK(fp.bit() == (1ULL << kFramePointerRegCode));
+  CHECK(lr.bit() == (1ULL << kLinkRegCode));
 
   // Fixed (hardware) definitions.
-  CHECK(xzr.bit() == (1UL << kZeroRegCode));
+  CHECK(xzr.bit() == (1ULL << kZeroRegCode));
 
   // Internal ABI definitions.
-  CHECK(sp.bit() == (1UL << kSPRegInternalCode));
+  CHECK(sp.bit() == (1ULL << kSPRegInternalCode));
   CHECK(sp.bit() != xzr.bit());
 
   // xn.bit() == wn.bit() at all times, for the same n.

@@ -46,6 +46,7 @@
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
 #include "src/boxed-float.h"
+#include "src/constant-pool.h"
 #include "src/double.h"
 
 namespace v8 {
@@ -401,7 +402,7 @@ class Operand {
   V8_INLINE static Operand Zero();
   V8_INLINE explicit Operand(const ExternalReference& f);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi* value);
+  V8_INLINE explicit Operand(Smi value);
 
   // rm
   V8_INLINE explicit Operand(Register rm);
@@ -424,7 +425,6 @@ class Operand {
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedCode(CodeStub* stub);
   static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
@@ -624,6 +624,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~Assembler();
 
+  virtual void AbortedCodeGeneration() {
+    pending_32_bit_constants_.clear();
+  }
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
@@ -678,7 +682,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Code* code, Address target);
+      Address constant_pool_entry, Code code, Address target);
 
   // Get the size of the special target encoded at 'location'.
   inline static int deserialization_special_target_size(Address location);
@@ -736,6 +740,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void eor(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
+  void eor(Register dst, Register src1, Register src2, SBit s = LeaveCC,
+           Condition cond = al);
 
   void sub(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -1500,13 +1506,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // PC-relative loads, thereby defining a maximum distance between the
   // instruction and the accessed constant.
   static constexpr int kMaxDistToIntPool = 4 * KB;
-  static constexpr int kMaxDistToFPPool = 1 * KB;
   // All relocations could be integer, it therefore acts as the limit.
   static constexpr int kMinNumPendingConstants = 4;
   static constexpr int kMaxNumPending32Constants =
       kMaxDistToIntPool / kInstrSize;
-  static constexpr int kMaxNumPending64Constants =
-      kMaxDistToFPPool / kInstrSize;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1519,13 +1522,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     if (pc_offset() >= next_buffer_check_) {
       CheckConstPool(false, true);
     }
-  }
-
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
   }
 
   // Move a 32-bit immediate into a register, potentially via the constant pool.
@@ -1564,11 +1560,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
       DCHECK(pending_32_bit_constants_.empty() ||
-             (start + pending_64_bit_constants_.size() * kDoubleSize <
-              static_cast<size_t>(first_const_pool_32_use_ +
-                                  kMaxDistToIntPool)));
-      DCHECK(pending_64_bit_constants_.empty() ||
-             (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
+             (start < first_const_pool_32_use_ + kMaxDistToIntPool));
 #endif
       // Two cases:
       //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
@@ -1619,7 +1611,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // The buffers of pending constant pool entries.
   std::vector<ConstantPoolEntry> pending_32_bit_constants_;
-  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
@@ -1655,7 +1646,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
   int first_const_pool_32_use_;
-  int first_const_pool_64_use_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -1706,6 +1696,7 @@ class PatchingAssembler : public Assembler {
   ~PatchingAssembler();
 
   void Emit(Address addr);
+  void PadWithNops();
 };
 
 // This scope utility allows scratch registers to be managed safely. The
@@ -1756,6 +1747,14 @@ class UseScratchRegisterScope {
   RegList old_available_;
   VfpRegList old_available_vfp_;
 };
+
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS);
+DEFINE_REGISTER_NAMES(SwVfpRegister, FLOAT_REGISTERS);
+DEFINE_REGISTER_NAMES(DwVfpRegister, DOUBLE_REGISTERS);
+DEFINE_REGISTER_NAMES(LowDwVfpRegister, LOW_DOUBLE_REGISTERS);
+DEFINE_REGISTER_NAMES(QwNeonRegister, SIMD128_REGISTERS);
+DEFINE_REGISTER_NAMES(CRegister, C_REGISTERS);
 
 }  // namespace internal
 }  // namespace v8

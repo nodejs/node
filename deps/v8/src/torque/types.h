@@ -6,6 +6,7 @@
 #define V8_TORQUE_TYPES_H_
 
 #include <algorithm>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -25,26 +26,34 @@ static const char* const VOID_TYPE_STRING = "void";
 static const char* const ARGUMENTS_TYPE_STRING = "constexpr Arguments";
 static const char* const CONTEXT_TYPE_STRING = "Context";
 static const char* const OBJECT_TYPE_STRING = "Object";
+static const char* const SMI_TYPE_STRING = "Smi";
+static const char* const TAGGED_TYPE_STRING = "Tagged";
+static const char* const RAWPTR_TYPE_STRING = "RawPtr";
 static const char* const CONST_STRING_TYPE_STRING = "constexpr string";
+static const char* const STRING_TYPE_STRING = "String";
+static const char* const NUMBER_TYPE_STRING = "Number";
 static const char* const CODE_TYPE_STRING = "Code";
 static const char* const INTPTR_TYPE_STRING = "intptr";
+static const char* const UINTPTR_TYPE_STRING = "uintptr";
+static const char* const INT32_TYPE_STRING = "int32";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
-class Label;
 class Value;
-class Module;
+class Namespace;
 
 class TypeBase {
  public:
   enum class Kind {
+    kTopType,
     kAbstractType,
     kFunctionPointerType,
     kUnionType,
     kStructType
   };
   virtual ~TypeBase() = default;
+  bool IsTopType() const { return kind() == Kind::kTopType; }
   bool IsAbstractType() const { return kind() == Kind::kAbstractType; }
   bool IsFunctionPointerType() const {
     return kind() == Kind::kFunctionPointerType;
@@ -96,6 +105,7 @@ class Type : public TypeBase {
   virtual std::string GetGeneratedTypeName() const = 0;
   virtual std::string GetGeneratedTNodeTypeName() const = 0;
   virtual bool IsConstexpr() const = 0;
+  virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const = 0;
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
@@ -118,6 +128,14 @@ class Type : public TypeBase {
 
 using TypeVector = std::vector<const Type*>;
 
+inline size_t hash_value(const TypeVector& types) {
+  size_t hash = 0;
+  for (const Type* t : types) {
+    hash = base::hash_combine(hash, t);
+  }
+  return hash;
+}
+
 struct NameAndType {
   std::string name;
   const Type* type;
@@ -125,13 +143,49 @@ struct NameAndType {
 
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
 
+class TopType final : public Type {
+ public:
+  DECLARE_TYPE_BOILERPLATE(TopType);
+  virtual std::string MangledName() const { return "top"; }
+  virtual std::string GetGeneratedTypeName() const { UNREACHABLE(); }
+  virtual std::string GetGeneratedTNodeTypeName() const {
+    return source_type_->GetGeneratedTNodeTypeName();
+  }
+  virtual bool IsConstexpr() const { return false; }
+  virtual const Type* NonConstexprVersion() const { return nullptr; }
+  virtual std::string ToExplicitString() const {
+    std::stringstream s;
+    s << "inaccessible " + source_type_->ToString();
+    return s.str();
+  }
+
+  const Type* source_type() const { return source_type_; }
+  const std::string reason() const { return reason_; }
+
+ private:
+  friend class TypeOracle;
+  explicit TopType(std::string reason, const Type* source_type)
+      : Type(Kind::kTopType, nullptr),
+        reason_(std::move(reason)),
+        source_type_(source_type) {}
+  std::string reason_;
+  const Type* source_type_;
+};
+
 class AbstractType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(AbstractType);
   const std::string& name() const { return name_; }
   std::string ToExplicitString() const override { return name(); }
-  std::string MangledName() const override { return "AT" + name(); }
-  std::string GetGeneratedTypeName() const override { return generated_type_; }
+  std::string MangledName() const override {
+    std::string str(name());
+    std::replace(str.begin(), str.end(), ' ', '_');
+    return "AT" + str;
+  }
+  std::string GetGeneratedTypeName() const override {
+    return IsConstexpr() ? generated_type_
+                         : "compiler::TNode<" + generated_type_ + ">";
+  }
   std::string GetGeneratedTNodeTypeName() const override;
   bool IsConstexpr() const override {
     return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
@@ -144,10 +198,11 @@ class AbstractType final : public Type {
 
  private:
   friend class TypeOracle;
-  AbstractType(const Type* parent, const std::string& name,
+  AbstractType(const Type* parent, bool transient, const std::string& name,
                const std::string& generated_type,
                base::Optional<const AbstractType*> non_constexpr_version)
       : Type(Kind::kAbstractType, parent),
+        transient_(transient),
         name_(name),
         generated_type_(generated_type),
         non_constexpr_version_(non_constexpr_version) {
@@ -155,6 +210,9 @@ class AbstractType final : public Type {
     if (parent) DCHECK(parent->IsConstexpr() == IsConstexpr());
   }
 
+  bool IsTransient() const override { return transient_; }
+
+  bool transient_;
   const std::string name_;
   const std::string generated_type_;
   base::Optional<const AbstractType*> non_constexpr_version_;
@@ -193,17 +251,20 @@ class FunctionPointerType final : public Type {
     return parameter_types_ == other.parameter_types_ &&
            return_type_ == other.return_type_;
   }
+  size_t function_pointer_type_id() const { return function_pointer_type_id_; }
 
  private:
   friend class TypeOracle;
   FunctionPointerType(const Type* parent, TypeVector parameter_types,
-                      const Type* return_type)
+                      const Type* return_type, size_t function_pointer_type_id)
       : Type(Kind::kFunctionPointerType, parent),
         parameter_types_(parameter_types),
-        return_type_(return_type) {}
+        return_type_(return_type),
+        function_pointer_type_id_(function_pointer_type_id) {}
 
   const TypeVector parameter_types_;
   const Type* const return_type_;
+  const size_t function_pointer_type_id_;
 };
 
 bool operator<(const Type& a, const Type& b);
@@ -219,7 +280,7 @@ class UnionType final : public Type {
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
   std::string GetGeneratedTypeName() const override {
-    return "TNode<" + GetGeneratedTNodeTypeName() + ">";
+    return "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
   std::string GetGeneratedTNodeTypeName() const override;
 
@@ -264,6 +325,15 @@ class UnionType final : public Type {
     return false;
   }
 
+  bool IsTransient() const override {
+    for (const Type* member : types_) {
+      if (member->IsTransient()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void Extend(const Type* t) {
     if (const UnionType* union_type = UnionType::DynamicCast(t)) {
       for (const Type* member : union_type->types_) {
@@ -302,7 +372,7 @@ class StructType final : public Type {
   DECLARE_TYPE_BOILERPLATE(StructType);
   std::string ToExplicitString() const override;
   std::string MangledName() const override { return name_; }
-  std::string GetGeneratedTypeName() const override { return GetStructName(); }
+  std::string GetGeneratedTypeName() const override;
   std::string GetGeneratedTNodeTypeName() const override { UNREACHABLE(); }
   const Type* NonConstexprVersion() const override { return this; }
 
@@ -319,20 +389,20 @@ class StructType final : public Type {
     ReportError(s.str());
   }
   const std::string& name() const { return name_; }
-  Module* module() const { return module_; }
+  Namespace* nspace() const { return namespace_; }
 
  private:
   friend class TypeOracle;
-  StructType(Module* module, const std::string& name,
+  StructType(Namespace* nspace, const std::string& name,
              const std::vector<NameAndType>& fields)
       : Type(Kind::kStructType, nullptr),
-        module_(module),
+        namespace_(nspace),
         name_(name),
         fields_(fields) {}
 
   const std::string& GetStructName() const { return name_; }
 
-  Module* module_;
+  Namespace* namespace_;
   std::string name_;
   std::vector<NameAndType> fields_;
 };
@@ -412,26 +482,43 @@ struct ParameterTypes {
 
 std::ostream& operator<<(std::ostream& os, const ParameterTypes& parameters);
 
+enum class ParameterMode { kProcessImplicit, kIgnoreImplicit };
+
 struct Signature {
+  Signature(NameVector n, base::Optional<std::string> arguments_variable,
+            ParameterTypes p, size_t i, const Type* r, LabelDeclarationVector l)
+      : parameter_names(std::move(n)),
+        arguments_variable(arguments_variable),
+        parameter_types(std::move(p)),
+        implicit_count(i),
+        return_type(r),
+        labels(std::move(l)) {}
+  Signature() : implicit_count(0), return_type(nullptr) {}
   const TypeVector& types() const { return parameter_types.types; }
   NameVector parameter_names;
+  base::Optional<std::string> arguments_variable;
   ParameterTypes parameter_types;
+  size_t implicit_count;
   const Type* return_type;
   LabelDeclarationVector labels;
-  bool HasSameTypesAs(const Signature& other) const;
-};
-
-struct Arguments {
-  VisitResultVector parameters;
-  std::vector<Label*> labels;
+  bool HasSameTypesAs(
+      const Signature& other,
+      ParameterMode mode = ParameterMode::kProcessImplicit) const;
+  const TypeVector& GetTypes() const { return parameter_types.types; }
+  TypeVector GetImplicitTypes() const {
+    return TypeVector(parameter_types.types.begin(),
+                      parameter_types.types.begin() + implicit_count);
+  }
+  TypeVector GetExplicitTypes() const {
+    return TypeVector(parameter_types.types.begin() + implicit_count,
+                      parameter_types.types.end());
+  }
 };
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names);
 std::ostream& operator<<(std::ostream& os, const Signature& sig);
 
 bool IsAssignableFrom(const Type* to, const Type* from);
-bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Label*>& labels);
 
 TypeVector LowerType(const Type* type);
 size_t LoweredSlotCount(const Type* type);

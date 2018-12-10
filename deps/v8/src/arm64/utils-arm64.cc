@@ -123,7 +123,7 @@ int HighestSetBitPosition(uint64_t value) {
 
 
 uint64_t LargestPowerOf2Divisor(uint64_t value) {
-  return value & -value;
+  return value & (-(int64_t)value);
 }
 
 

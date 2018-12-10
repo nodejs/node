@@ -80,7 +80,7 @@ var testAsync;
     }
 
     drainMicrotasks() {
-      %RunMicrotasks();
+      %PerformMicrotaskCheckpoint();
     }
 
     done_() {
@@ -111,7 +111,7 @@ var testAsync;
   testAsync = function(test, name) {
     let assert = new AsyncAssertion(test, name);
     test(assert);
-    %RunMicrotasks();
+    %PerformMicrotaskCheckpoint();
     assert.done_();
   }
 })();

@@ -1144,7 +1144,7 @@ TEST(14) {
   // Create a function that makes the four basic operations.
   Assembler assm(AssemblerOptions{}, nullptr, 0);
 
-  // Ensure FPSCR state (as JSEntryStub does).
+  // Ensure FPSCR state (as JSEntry does).
   Label fpscr_done;
   __ vmrs(r1);
   __ tst(r1, Operand(kVFPDefaultNaNModeControlBit));

@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -123,6 +124,8 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
                                    uint32_t size) {
     return (last + number) & (size - 1);
   }
+
+  OBJECT_CONSTRUCTORS(HashTableBase, FixedArray)
 };
 
 template <typename Derived, typename Shape>
@@ -136,8 +139,6 @@ class HashTable : public HashTableBase {
       Isolate* isolate, int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
-
-  DECL_CAST(HashTable)
 
   // Garbage collection support.
   void IteratePrefix(ObjectVisitor* visitor);
@@ -164,7 +165,7 @@ class HashTable : public HashTableBase {
   STATIC_ASSERT(kEntrySize > 0);
   static const int kEntryKeyIndex = 0;
   static const int kElementsStartOffset =
-      kHeaderSize + kElementsStartIndex * kPointerSize;
+      kHeaderSize + kElementsStartIndex * kTaggedSize;
   // Maximal capacity of HashTable. Based on maximal length of underlying
   // FixedArray. Staying below kMaxCapacity also ensures that EntryToIndex
   // cannot overflow.
@@ -175,7 +176,12 @@ class HashTable : public HashTableBase {
   static const int kMinShrinkCapacity = 16;
 
   // Maximum length to create a regular HashTable (aka. non large object).
+#if V8_HOST_ARCH_PPC
+  // Reduced kMaxRegularCapacity due to reduced kMaxRegularHeapObjectSize
+  static const int kMaxRegularCapacity = 16384 / 2;
+#else
   static const int kMaxRegularCapacity = 16384;
+#endif
 
   // Returns the index for an entry (of the key)
   static constexpr inline int EntryToIndex(int entry) {
@@ -232,7 +238,9 @@ class HashTable : public HashTableBase {
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Isolate* isolate, Derived* new_table);
+  void Rehash(Isolate* isolate, Derived new_table);
+
+  OBJECT_CONSTRUCTORS(HashTable, HashTableBase)
 };
 
 // HashTableKey is an abstract superclass for virtual key behavior.
@@ -308,6 +316,8 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
  protected:
   void AddEntry(int entry, Object* key, Object* value);
   void RemoveEntry(int entry);
+
+  OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>)
 };
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
@@ -315,8 +325,12 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
 class ObjectHashTable
     : public ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape> {
  public:
-  DECL_CAST(ObjectHashTable)
+  DECL_CAST2(ObjectHashTable)
   DECL_PRINTER(ObjectHashTable)
+
+  OBJECT_CONSTRUCTORS(
+      ObjectHashTable,
+      ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>)
 };
 
 class EphemeronHashTableShape : public ObjectHashTableShape {
@@ -331,11 +345,15 @@ class EphemeronHashTableShape : public ObjectHashTableShape {
 class EphemeronHashTable
     : public ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape> {
  public:
-  DECL_CAST(EphemeronHashTable)
+  DECL_CAST2(EphemeronHashTable)
   DECL_PRINTER(EphemeronHashTable)
 
  protected:
   friend class MarkCompactCollector;
+
+  OBJECT_CONSTRUCTORS(
+      EphemeronHashTable,
+      ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>)
 };
 
 class ObjectHashSetShape : public ObjectHashTableShape {
@@ -352,7 +370,10 @@ class ObjectHashSet : public HashTable<ObjectHashSet, ObjectHashSetShape> {
   inline bool Has(Isolate* isolate, Handle<Object> key, int32_t hash);
   inline bool Has(Isolate* isolate, Handle<Object> key);
 
-  DECL_CAST(ObjectHashSet)
+  DECL_CAST2(ObjectHashSet)
+
+  OBJECT_CONSTRUCTORS(ObjectHashSet,
+                      HashTable<ObjectHashSet, ObjectHashSetShape>)
 };
 
 }  // namespace internal

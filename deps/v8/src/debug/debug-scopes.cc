@@ -46,7 +46,7 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 
   if (!context_->IsNativeContext()) {
     DisallowHeapAllocation no_gc;
-    ScopeInfo* closure_info = context_->closure_context()->scope_info();
+    ScopeInfo closure_info = context_->closure_context()->scope_info();
     Handle<String> debug_name(closure_info->FunctionDebugName(), isolate_);
     if (debug_name->length() > 0) return debug_name;
   }
@@ -54,13 +54,12 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 }
 
 ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
-    : isolate_(isolate),
-      context_(function->context(), isolate),
-      script_(Script::cast(function->shared()->script()), isolate) {
+    : isolate_(isolate), context_(function->context(), isolate) {
   if (!function->shared()->IsSubjectToDebugging()) {
     context_ = Handle<Context>();
     return;
   }
+  script_ = handle(Script::cast(function->shared()->script()), isolate);
   UnwrapEvaluationContext();
 }
 
@@ -71,10 +70,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       function_(generator->function(), isolate),
       context_(generator->context(), isolate),
       script_(Script::cast(function_->shared()->script()), isolate) {
-  if (!function_->shared()->IsSubjectToDebugging()) {
-    context_ = Handle<Context>();
-    return;
-  }
+  CHECK(function_->shared()->IsSubjectToDebugging());
   TryParseAndRetrieveScopes(DEFAULT);
 }
 
@@ -94,6 +90,16 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   if (shared_info->script()->IsUndefined(isolate_)) {
     current_scope_ = closure_scope_ = nullptr;
     context_ = handle(function_->context(), isolate_);
+    function_ = Handle<JSFunction>();
+    return;
+  }
+
+  // Class fields initializer functions don't have any scope
+  // information. We short circuit the parsing of the class literal
+  // and return an empty context here.
+  if (IsClassMembersInitializerFunction(shared_info->kind())) {
+    current_scope_ = closure_scope_ = nullptr;
+    context_ = Handle<Context>();
     function_ = Handle<JSFunction>();
     return;
   }
@@ -177,13 +183,13 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
 
 void ScopeIterator::UnwrapEvaluationContext() {
   if (!context_->IsDebugEvaluateContext()) return;
-  Context* current = *context_;
+  Context current = *context_;
   do {
     Object* wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
     if (wrapped->IsContext()) {
       current = Context::cast(wrapped);
     } else {
-      DCHECK_NOT_NULL(current->previous());
+      DCHECK(!current->previous().is_null());
       current = current->previous();
     }
   } while (current->IsDebugEvaluateContext());
@@ -277,7 +283,7 @@ void ScopeIterator::Next() {
     DCHECK_NOT_NULL(current_scope_);
     do {
       if (current_scope_->NeedsContext()) {
-        DCHECK_NOT_NULL(context_->previous());
+        DCHECK(!context_->previous().is_null());
         context_ = handle(context_->previous(), isolate_);
       }
       DCHECK_IMPLIES(InInnerScope(), current_scope_->outer_scope() != nullptr);
@@ -568,7 +574,7 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
     int index;
     Handle<String> name;
     {
-      String* raw_name;
+      String raw_name;
       scope_info->ModuleVariable(i, &raw_name, &index);
       CHECK(!ScopeInfo::VariableIsSynthetic(raw_name));
       name = handle(raw_name, isolate_);
@@ -625,7 +631,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
           if (var->is_this()) {
             value = handle(generator_->receiver(), isolate_);
           } else {
-            FixedArray* parameters_and_registers =
+            FixedArray parameters_and_registers =
                 generator_->parameters_and_registers();
             DCHECK_LT(index, parameters_and_registers->length());
             value = handle(parameters_and_registers->get(index), isolate_);
@@ -647,7 +653,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
         if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
-          FixedArray* parameters_and_registers =
+          FixedArray parameters_and_registers =
               generator_->parameters_and_registers();
           int parameter_count =
               function_->shared()->scope_info()->ParameterCount();
@@ -750,7 +756,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
     DCHECK(!context_->IsNativeContext());
     DCHECK(!context_->IsWithContext());
     if (!context_->scope_info()->CallsSloppyEval()) return;
-    if (context_->extension_object() == nullptr) return;
+    if (context_->extension_object().is_null()) return;
     Handle<JSObject> extension(context_->extension_object(), isolate_);
     Handle<FixedArray> keys =
         KeyAccumulator::GetKeys(extension, KeyCollectionMode::kOwnOnly,

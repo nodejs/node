@@ -51,6 +51,7 @@ TEST_MAP = {
     "inspector",
     "webkit",
     "mkgrokdump",
+    "wasm-js",
     "fuzzer",
     "message",
     "preparser",
@@ -65,6 +66,7 @@ TEST_MAP = {
     "wasm-spec-tests",
     "inspector",
     "mkgrokdump",
+    "wasm-js",
     "fuzzer",
     "message",
     "preparser",
@@ -183,6 +185,9 @@ class BuildConfig(object):
     self.predictable = build_config['v8_enable_verify_predictable']
     self.tsan = build_config['is_tsan']
     self.ubsan_vptr = build_config['is_ubsan_vptr']
+    self.embedded_builtins = build_config['v8_enable_embedded_builtins']
+    self.verify_csa = build_config['v8_enable_verify_csa']
+    self.lite_mode = build_config['v8_enable_lite_mode']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
       self.mips_arch_variant = build_config['mips_arch_variant']
@@ -211,6 +216,12 @@ class BuildConfig(object):
       detected_options.append('tsan')
     if self.ubsan_vptr:
       detected_options.append('ubsan_vptr')
+    if self.embedded_builtins:
+      detected_options.append('embedded_builtins')
+    if self.verify_csa:
+      detected_options.append('verify_csa')
+    if self.lite_mode:
+      detected_options.append('lite_mode')
 
     return '\n'.join(detected_options)
 
@@ -334,6 +345,8 @@ class BaseTestRunner(object):
                       help="Run without test harness of a given suite")
     parser.add_option("--random-seed", default=0, type=int,
                       help="Default seed for initializing random generator")
+    parser.add_option("--run-skipped", help="Also run skipped tests.",
+                      default=False, action="store_true")
     parser.add_option("-t", "--timeout", default=60, type=int,
                       help="Timeout for single test in seconds")
     parser.add_option("-v", "--verbose", default=False, action="store_true",
@@ -624,7 +637,6 @@ class BaseTestRunner(object):
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant)
 
-    # TODO(all): Combine "simulator" and "simulator_run".
     # TODO(machenbach): In GN we can derive simulator run from
     # target_arch != v8_target_arch in the dumped build config.
     return {
@@ -645,13 +657,16 @@ class BaseTestRunner(object):
       "no_i18n": self.build_config.no_i18n,
       "no_snap": self.build_config.no_snap,
       "novfp3": False,
+      "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,
       "simd_mips": simd_mips,
-      "simulator": utils.UseSimulator(self.build_config.arch),
       "simulator_run": False,
       "system": self.target_os,
       "tsan": self.build_config.tsan,
       "ubsan_vptr": self.build_config.ubsan_vptr,
+      "embedded_builtins": self.build_config.embedded_builtins,
+      "verify_csa": self.build_config.verify_csa,
+      "lite_mode": self.build_config.lite_mode,
     }
 
   def _create_test_config(self, options):
@@ -664,6 +679,7 @@ class BaseTestRunner(object):
         no_harness=options.no_harness,
         noi18n=self.build_config.no_i18n,
         random_seed=options.random_seed,
+        run_skipped=options.run_skipped,
         shell_dir=self.outdir,
         timeout=timeout,
         verbose=options.verbose,

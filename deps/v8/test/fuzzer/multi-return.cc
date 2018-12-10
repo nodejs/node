@@ -5,8 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
@@ -138,16 +138,12 @@ std::unique_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
                                                          size_t code_size) {
   std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule);
   module->num_declared_functions = 1;
-  wasm::ModuleEnv env(
-      module.get(), wasm::UseTrapHandler::kNoTrapHandler,
-      wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
 
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   return isolate->wasm_engine()->code_manager()->NewNativeModule(
-      isolate, i::wasm::kAllWasmFeatures, code_size, false, std::move(module),
-      env);
+      isolate, i::wasm::kAllWasmFeatures, code_size, false, std::move(module));
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

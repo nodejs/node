@@ -387,6 +387,8 @@ Matcher<Node*> IsInt32Add(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt32Div(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32Mul(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32MulHigh(const Matcher<Node*>& lhs_matcher,
@@ -402,6 +404,8 @@ Matcher<Node*> IsInt64Add(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsInt64Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt64Mul(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt64Div(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSAdd(const Matcher<Node*>& lhs_matcher,
                        const Matcher<Node*>& rhs_matcher);
@@ -515,6 +519,12 @@ static inline Matcher<Node*> IsIntPtrMul(const Matcher<Node*>& lhs_matcher,
                                          const Matcher<Node*>& rhs_matcher) {
   return kPointerSize == 8 ? IsInt64Mul(lhs_matcher, rhs_matcher)
                            : IsInt32Mul(lhs_matcher, rhs_matcher);
+}
+
+static inline Matcher<Node*> IsIntPtrDiv(const Matcher<Node*>& lhs_matcher,
+                                         const Matcher<Node*>& rhs_matcher) {
+  return kPointerSize == 8 ? IsInt64Div(lhs_matcher, rhs_matcher)
+                           : IsInt32Div(lhs_matcher, rhs_matcher);
 }
 
 static inline Matcher<Node*> IsWordShl(const Matcher<Node*>& lhs_matcher,

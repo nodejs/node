@@ -20,6 +20,10 @@ struct ThreadedListTestNode {
   ThreadedListTestNode* next_;
 
   struct OtherTraits {
+    static ThreadedListTestNode** start(ThreadedListTestNode** h) { return h; }
+    static ThreadedListTestNode* const* start(ThreadedListTestNode* const* h) {
+      return h;
+    }
     static ThreadedListTestNode** next(ThreadedListTestNode* t) {
       return t->other_next();
     }
@@ -134,16 +138,6 @@ TEST_F(ThreadedListTest, AddFront) {
   CHECK_EQ(list.first(), &new_node);
 }
 
-TEST_F(ThreadedListTest, ReinitializeHead) {
-  CHECK_EQ(list.LengthForTest(), 5);
-  CHECK_NE(extra_test_list.first(), list.first());
-  list.ReinitializeHead(&extra_test_node_0);
-  list.Verify();
-  CHECK_EQ(extra_test_list.first(), list.first());
-  CHECK_EQ(extra_test_list.end(), list.end());
-  CHECK_EQ(extra_test_list.LengthForTest(), 3);
-}
-
 TEST_F(ThreadedListTest, DropHead) {
   CHECK_EQ(extra_test_list.LengthForTest(), 3);
   CHECK_EQ(extra_test_list.first(), &extra_test_node_0);
@@ -164,6 +158,23 @@ TEST_F(ThreadedListTest, Append) {
   CHECK_EQ(list.AtForTest(4), &nodes[4]);
   CHECK_EQ(list.AtForTest(5), &extra_test_node_0);
   CHECK_EQ(list.end(), initial_extra_list_end);
+}
+
+TEST_F(ThreadedListTest, AppendOutOfScope) {
+  ThreadedListTestNode local_extra_test_node_0;
+  CHECK_EQ(list.LengthForTest(), 5);
+  {
+    ThreadedList<ThreadedListTestNode, ThreadedListTestNode::OtherTraits>
+        scoped_extra_test_list;
+
+    list.Append(std::move(scoped_extra_test_list));
+  }
+  list.Add(&local_extra_test_node_0);
+
+  list.Verify();
+  CHECK_EQ(list.LengthForTest(), 6);
+  CHECK_EQ(list.AtForTest(4), &nodes[4]);
+  CHECK_EQ(list.AtForTest(5), &local_extra_test_node_0);
 }
 
 TEST_F(ThreadedListTest, Prepend) {

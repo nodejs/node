@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/handles.h"
+#include "src/objects/heap-object.h"
 #include "src/vector.h"
 
 namespace v8 {
@@ -73,6 +74,9 @@ class StringStream final {
     FmtElm(Object* value) : FmtElm(OBJ) {  // NOLINT
       data_.u_obj_ = value;
     }
+    FmtElm(ObjectPtr value) : FmtElm(OBJ) {  // NOLINT
+      data_.u_obj_ = reinterpret_cast<Object*>(value.ptr());
+    }
     FmtElm(Handle<Object> value) : FmtElm(HANDLE) {  // NOLINT
       data_.u_handle_ = value.location();
     }
@@ -97,7 +101,7 @@ class StringStream final {
       const char* u_c_str_;
       const Vector<const uc16>* u_lc_str_;
       Object* u_obj_;
-      Object** u_handle_;
+      Address* u_handle_;
       void* u_pointer_;
     } data_;
   };
@@ -115,8 +119,8 @@ class StringStream final {
   }
 
   bool Put(char c);
-  bool Put(String* str);
-  bool Put(String* str, int start, int end);
+  bool Put(String str);
+  bool Put(String str, int start, int end);
   void Add(const char* format) { Add(CStrVector(format)); }
   void Add(Vector<const char> format) { Add(format, Vector<FmtElm>()); }
 
@@ -141,13 +145,13 @@ class StringStream final {
 
   // Object printing support.
   void PrintName(Object* o);
-  void PrintFixedArray(FixedArray* array, unsigned int limit);
-  void PrintByteArray(ByteArray* ba);
-  void PrintUsingMap(JSObject* js_object);
-  void PrintPrototype(JSFunction* fun, Object* receiver);
-  void PrintSecurityTokenIfChanged(JSFunction* function);
+  void PrintFixedArray(FixedArray array, unsigned int limit);
+  void PrintByteArray(ByteArray ba);
+  void PrintUsingMap(JSObject js_object);
+  void PrintPrototype(JSFunction fun, Object* receiver);
+  void PrintSecurityTokenIfChanged(JSFunction function);
   // NOTE: Returns the code in the output parameter.
-  void PrintFunction(JSFunction* function, Object* receiver, Code** code);
+  void PrintFunction(JSFunction function, Object* receiver, Code* code);
 
   // Reset the stream.
   void Reset() {

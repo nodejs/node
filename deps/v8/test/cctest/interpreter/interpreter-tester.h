@@ -42,7 +42,7 @@ class InterpreterCallable {
     return CallInterpreter(isolate_, function_, args...);
   }
 
-  FeedbackVector* vector() const { return function_->feedback_vector(); }
+  FeedbackVector vector() const { return function_->feedback_vector(); }
 
  private:
   Isolate* isolate_;

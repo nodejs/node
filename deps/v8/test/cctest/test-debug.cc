@@ -2818,6 +2818,21 @@ TEST(DebugBreakInWrappedScript) {
   CheckDebuggerUnloaded();
 }
 
+static void EmptyHandler(const v8::FunctionCallbackInfo<v8::Value>& args) {}
+
+TEST(DebugScopeIteratorWithFunctionTemplate) {
+  LocalContext env;
+  v8::HandleScope handle_scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  EnableDebugger(isolate);
+  v8::Local<v8::Function> func =
+      v8::Function::New(env.local(), EmptyHandler).ToLocalChecked();
+  std::unique_ptr<v8::debug::ScopeIterator> iterator =
+      v8::debug::ScopeIterator::CreateForFunction(isolate, func);
+  CHECK(iterator->Done());
+  DisableDebugger(isolate);
+}
+
 TEST(DebugBreakWithoutJS) {
   i::FLAG_stress_compaction = false;
 #ifdef VERIFY_HEAP
@@ -3039,7 +3054,7 @@ TEST(DebugScriptLineEndsAreAscending) {
         v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(script);
-    v8::internal::FixedArray* ends =
+    v8::internal::FixedArray ends =
         v8::internal::FixedArray::cast(script->line_ends());
     CHECK_GT(ends->length(), 0);
 
@@ -4163,12 +4178,10 @@ TEST(BuiltinsExceptionPrediction) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::New(isolate);
 
-  i::Snapshot::EnsureAllBuiltinsAreDeserialized(iisolate);
-
   i::Builtins* builtins = iisolate->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
-    i::Code* builtin = builtins->builtin(i);
+    i::Code builtin = builtins->builtin(i);
     if (builtin->kind() != i::Code::BUILTIN) continue;
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);
@@ -4215,7 +4228,7 @@ TEST(DebugEvaluateNoSideEffect) {
     i::HeapIterator iterator(isolate->heap());
     while (i::HeapObject* obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
-      i::JSFunction* fun = i::JSFunction::cast(obj);
+      i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
   }

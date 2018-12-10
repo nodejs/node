@@ -9,6 +9,7 @@
 #include "src/objects.h"
 #include "src/objects/builtin-function-id.h"
 #include "src/objects/script.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,88 +17,89 @@
 namespace v8 {
 namespace internal {
 
+class AsmWasmData;
 class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
+class IsCompiledScope;
 class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
-class PreParsedScopeData : public HeapObject {
+class PreParsedScopeData : public HeapObjectPtr {
  public:
-  DECL_ACCESSORS(scope_data, PodArray<uint8_t>)
+  DECL_ACCESSORS2(scope_data, PodArray<uint8_t>)
   DECL_INT_ACCESSORS(length)
 
   inline Object* child_data(int index) const;
   inline void set_child_data(int index, Object* value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Object** child_data_start() const;
+  inline ObjectSlot child_data_start() const;
 
   // Clear uninitialized padding space.
   inline void clear_padding();
 
-  DECL_CAST(PreParsedScopeData)
+  DECL_CAST2(PreParsedScopeData)
   DECL_PRINTER(PreParsedScopeData)
   DECL_VERIFIER(PreParsedScopeData)
 
-#define PRE_PARSED_SCOPE_DATA_FIELDS(V) \
-  V(kScopeDataOffset, kPointerSize)     \
-  V(kLengthOffset, kIntSize)            \
-  V(kUnalignedChildDataStartOffset, 0)
+// Layout description.
+#define PRE_PARSED_SCOPE_DATA_FIELDS(V)                                   \
+  V(kScopeDataOffset, kTaggedSize)                                        \
+  V(kLengthOffset, kIntSize)                                              \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
+  /* Header size. */                                                      \
+  V(kChildDataStartOffset, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 PRE_PARSED_SCOPE_DATA_FIELDS)
 #undef PRE_PARSED_SCOPE_DATA_FIELDS
 
-  static const int kChildDataStartOffset =
-      POINTER_SIZE_ALIGN(kUnalignedChildDataStartOffset);
-
   class BodyDescriptor;
 
   static constexpr int SizeFor(int length) {
-    return kChildDataStartOffset + length * kPointerSize;
+    return kChildDataStartOffset + length * kTaggedSize;
   }
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PreParsedScopeData);
+  OBJECT_CONSTRUCTORS(PreParsedScopeData, HeapObjectPtr);
 };
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
-class UncompiledData : public HeapObject {
+class UncompiledData : public HeapObjectPtr {
  public:
-  DECL_ACCESSORS(inferred_name, String)
+  DECL_ACCESSORS2(inferred_name, String)
   DECL_INT32_ACCESSORS(start_position)
   DECL_INT32_ACCESSORS(end_position)
   DECL_INT32_ACCESSORS(function_literal_id)
 
-  DECL_CAST(UncompiledData)
+  DECL_CAST2(UncompiledData)
 
-#define UNCOMPILED_DATA_FIELDS(V)         \
-  V(kStartOfPointerFieldsOffset, 0)       \
-  V(kInferredNameOffset, kPointerSize)    \
-  V(kEndOfPointerFieldsOffset, 0)         \
-  V(kStartPositionOffset, kInt32Size)     \
-  V(kEndPositionOffset, kInt32Size)       \
-  V(kFunctionLiteralIdOffset, kInt32Size) \
-  /* Total size. */                       \
-  V(kUnalignedSize, 0)
+// Layout description.
+#define UNCOMPILED_DATA_FIELDS(V)                                         \
+  V(kStartOfPointerFieldsOffset, 0)                                       \
+  V(kInferredNameOffset, kTaggedSize)                                     \
+  V(kEndOfTaggedFieldsOffset, 0)                                          \
+  /* Raw data fields. */                                                  \
+  V(kStartPositionOffset, kInt32Size)                                     \
+  V(kEndPositionOffset, kInt32Size)                                       \
+  V(kFunctionLiteralIdOffset, kInt32Size)                                 \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
+  /* Header size. */                                                      \
+  V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, UNCOMPILED_DATA_FIELDS)
 #undef UNCOMPILED_DATA_FIELDS
 
-  static const int kSize = POINTER_SIZE_ALIGN(kUnalignedSize);
-
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfPointerFieldsOffset, kSize>
+                              kEndOfTaggedFieldsOffset, kSize>
       BodyDescriptor;
 
   // Clear uninitialized padding space.
   inline void clear_padding();
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledData);
+  OBJECT_CONSTRUCTORS(UncompiledData, HeapObjectPtr);
 };
 
 // Class representing data for an uncompiled function that does not have any
@@ -105,7 +107,7 @@ class UncompiledData : public HeapObject {
 // pre-parser bailed out.
 class UncompiledDataWithoutPreParsedScope : public UncompiledData {
  public:
-  DECL_CAST(UncompiledDataWithoutPreParsedScope)
+  DECL_CAST2(UncompiledDataWithoutPreParsedScope)
   DECL_PRINTER(UncompiledDataWithoutPreParsedScope)
   DECL_VERIFIER(UncompiledDataWithoutPreParsedScope)
 
@@ -114,24 +116,24 @@ class UncompiledDataWithoutPreParsedScope : public UncompiledData {
   // No extra fields compared to UncompiledData.
   typedef UncompiledData::BodyDescriptor BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope);
+  OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope, UncompiledData);
 };
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
 class UncompiledDataWithPreParsedScope : public UncompiledData {
  public:
-  DECL_ACCESSORS(pre_parsed_scope_data, PreParsedScopeData)
+  DECL_ACCESSORS2(pre_parsed_scope_data, PreParsedScopeData)
 
-  DECL_CAST(UncompiledDataWithPreParsedScope)
+  DECL_CAST2(UncompiledDataWithPreParsedScope)
   DECL_PRINTER(UncompiledDataWithPreParsedScope)
   DECL_VERIFIER(UncompiledDataWithPreParsedScope)
 
+// Layout description.
 #define UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS(V) \
   V(kStartOfPointerFieldsOffset, 0)                     \
-  V(kPreParsedScopeDataOffset, kPointerSize)            \
-  V(kEndOfPointerFieldsOffset, 0)                       \
+  V(kPreParsedScopeDataOffset, kTaggedSize)             \
+  V(kEndOfTaggedFieldsOffset, 0)                        \
   /* Total size. */                                     \
   V(kSize, 0)
 
@@ -144,23 +146,27 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
 
   typedef SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,
-      FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                          kEndOfPointerFieldsOffset, kSize>>
+      FixedBodyDescriptor<kStartOfPointerFieldsOffset, kEndOfTaggedFieldsOffset,
+                          kSize>>
       BodyDescriptor;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithPreParsedScope);
+  OBJECT_CONSTRUCTORS(UncompiledDataWithPreParsedScope, UncompiledData);
 };
 
 class InterpreterData : public Struct {
  public:
-  DECL_ACCESSORS(bytecode_array, BytecodeArray)
-  DECL_ACCESSORS(interpreter_trampoline, Code)
+  DECL_ACCESSORS2(bytecode_array, BytecodeArray)
+  DECL_ACCESSORS2(interpreter_trampoline, Code)
 
-  static const int kBytecodeArrayOffset = Struct::kHeaderSize;
-  static const int kInterpreterTrampolineOffset =
-      kBytecodeArrayOffset + kPointerSize;
-  static const int kSize = kInterpreterTrampolineOffset + kPointerSize;
+// Layout description.
+#define INTERPRETER_DATA_FIELDS(V)             \
+  V(kBytecodeArrayOffset, kTaggedSize)         \
+  V(kInterpreterTrampolineOffset, kTaggedSize) \
+  /* Total size. */                            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, INTERPRETER_DATA_FIELDS)
+#undef INTERPRETER_DATA_FIELDS
 
   DECL_CAST(InterpreterData)
   DECL_PRINTER(InterpreterData)
@@ -172,20 +178,21 @@ class InterpreterData : public Struct {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
+class SharedFunctionInfo : public HeapObjectPtr {
  public:
-  static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
+  NEVER_READ_ONLY_SPACE
+  static constexpr ObjectPtr const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
-  inline String* Name() const;
-  inline void SetName(String* name);
+  inline String Name() const;
+  inline void SetName(String name);
 
   // Get the code object which represents the execution of this function.
-  Code* GetCode() const;
+  Code GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
-  inline AbstractCode* abstract_code();
+  inline AbstractCode abstract_code();
 
   // Tells whether or not this shared function info is interpreted.
   //
@@ -210,16 +217,8 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kNotFound = -1;
   static const uint16_t kInvalidLength = static_cast<uint16_t>(-1);
 
-  // Helpers for assembly code that does a backwards walk of the optimized code
-  // map.
-  static const int kOffsetToPreviousContext =
-      FixedArray::kHeaderSize + kPointerSize * (kContextOffset - kEntryLength);
-  static const int kOffsetToPreviousCachedCode =
-      FixedArray::kHeaderSize +
-      kPointerSize * (kCachedCodeOffset - kEntryLength);
-
   // [scope_info]: Scope info.
-  DECL_ACCESSORS(scope_info, ScopeInfo)
+  DECL_ACCESSORS2(scope_info, ScopeInfo)
 
   // End position of this function in the script source.
   V8_EXPORT_PRIVATE int EndPosition() const;
@@ -233,19 +232,27 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
-  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, HeapObject)
+  DECL_ACCESSORS2(raw_outer_scope_info_or_feedback_metadata, HeapObjectPtr)
 
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
-  inline ScopeInfo* GetOuterScopeInfo() const;
+  inline ScopeInfo GetOuterScopeInfo() const;
 
   // [feedback metadata] Metadata template for feedback vectors of instances of
   // this function.
   inline bool HasFeedbackMetadata() const;
-  DECL_ACCESSORS(feedback_metadata, FeedbackMetadata)
+  DECL_ACCESSORS2(feedback_metadata, FeedbackMetadata)
 
-  // Returns if this function has been compiled to native code yet.
+  // Returns if this function has been compiled yet. Note: with bytecode
+  // flushing, any GC after this call is made could cause the function
+  // to become uncompiled. If you need to ensure the function remains compiled
+  // for some period of time, use IsCompiledScope instead.
   inline bool is_compiled() const;
+
+  // Returns an IsCompiledScope which reports whether the function is compiled,
+  // and if compiled, will avoid the function becoming uncompiled while it is
+  // held.
+  inline IsCompiledScope is_compiled_scope() const;
 
   // [length]: The function length - usually the number of declared parameters.
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
@@ -280,7 +287,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   //  - a InterpreterData with the BytecodeArray and a copy of the
   //    interpreter trampoline [HasInterpreterData()]
-  //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
+  //  - an AsmWasmData with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasBuiltinId()]
   //  - a UncompiledDataWithoutPreParsedScope for lazy compilation
   //    [HasUncompiledDataWithoutPreParsedScope()]
@@ -293,17 +300,17 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline FunctionTemplateInfo* get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBytecodeArray() const;
-  inline BytecodeArray* GetBytecodeArray() const;
-  inline void set_bytecode_array(BytecodeArray* bytecode);
-  inline Code* InterpreterTrampoline() const;
+  inline BytecodeArray GetBytecodeArray() const;
+  inline void set_bytecode_array(BytecodeArray bytecode);
+  inline Code InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
   inline InterpreterData* interpreter_data() const;
   inline void set_interpreter_data(InterpreterData* interpreter_data);
-  inline BytecodeArray* GetDebugBytecodeArray() const;
-  inline void SetDebugBytecodeArray(BytecodeArray* bytecode);
+  inline BytecodeArray GetDebugBytecodeArray() const;
+  inline void SetDebugBytecodeArray(BytecodeArray bytecode);
   inline bool HasAsmWasmData() const;
-  inline FixedArray* asm_wasm_data() const;
-  inline void set_asm_wasm_data(FixedArray* data);
+  inline AsmWasmData* asm_wasm_data() const;
+  inline void set_asm_wasm_data(AsmWasmData* data);
 
   // A brief note to clear up possible confusion:
   // builtin_id corresponds to the auto-generated
@@ -314,13 +321,13 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline int builtin_id() const;
   inline void set_builtin_id(int builtin_id);
   inline bool HasUncompiledData() const;
-  inline UncompiledData* uncompiled_data() const;
-  inline void set_uncompiled_data(UncompiledData* data);
+  inline UncompiledData uncompiled_data() const;
+  inline void set_uncompiled_data(UncompiledData data);
   inline bool HasUncompiledDataWithPreParsedScope() const;
-  inline UncompiledDataWithPreParsedScope*
+  inline UncompiledDataWithPreParsedScope
   uncompiled_data_with_pre_parsed_scope() const;
   inline void set_uncompiled_data_with_pre_parsed_scope(
-      UncompiledDataWithPreParsedScope* data);
+      UncompiledDataWithPreParsedScope data);
   inline bool HasUncompiledDataWithoutPreParsedScope() const;
   inline bool HasWasmExportedFunctionData() const;
   WasmExportedFunctionData* wasm_exported_function_data() const;
@@ -347,7 +354,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // code written in OO style, where almost all functions are anonymous but are
   // assigned to object properties.
   inline bool HasInferredName();
-  inline String* inferred_name();
+  inline String inferred_name();
 
   // Get the function literal id associated with this function, for parsing.
   V8_EXPORT_PRIVATE int FunctionLiteralId(Isolate* isolate) const;
@@ -360,10 +367,10 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // Coverage infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
   bool HasCoverageInfo() const;
-  CoverageInfo* GetCoverageInfo() const;
+  CoverageInfo GetCoverageInfo() const;
 
   // The function's name if it is non-empty, otherwise the inferred name.
-  String* DebugName();
+  String DebugName();
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
@@ -474,7 +481,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // initializer. This flag is set when creating the
   // SharedFunctionInfo as a reminder to emit the initializer call
   // when generating code later.
-  DECL_BOOLEAN_ACCESSORS(requires_instance_fields_initializer)
+  DECL_BOOLEAN_ACCESSORS(requires_instance_members_initializer)
 
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
@@ -545,7 +552,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
     ScriptIterator(Isolate* isolate, Script* script);
     ScriptIterator(Isolate* isolate,
                    Handle<WeakFixedArray> shared_function_infos);
-    SharedFunctionInfo* Next();
+    SharedFunctionInfo Next();
     int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
@@ -562,17 +569,17 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   class GlobalIterator {
    public:
     explicit GlobalIterator(Isolate* isolate);
-    SharedFunctionInfo* Next();
+    SharedFunctionInfo Next();
 
    private:
     Script::Iterator script_iterator_;
     WeakArrayList::Iterator noscript_sfi_iterator_;
     SharedFunctionInfo::ScriptIterator sfi_iterator_;
-    DisallowHeapAllocation no_gc_;
+    DISALLOW_HEAP_ALLOCATION(no_gc_);
     DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
   };
 
-  DECL_CAST(SharedFunctionInfo)
+  DECL_CAST2(SharedFunctionInfo)
 
   // Constants.
   static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
@@ -589,23 +596,23 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 #endif
 
 // Layout description.
-#define SHARED_FUNCTION_INFO_FIELDS(V)                     \
-  /* Pointer fields. */                                    \
-  V(kStartOfPointerFieldsOffset, 0)                        \
-  V(kFunctionDataOffset, kPointerSize)                     \
-  V(kNameOrScopeInfoOffset, kPointerSize)                  \
-  V(kOuterScopeInfoOrFeedbackMetadataOffset, kPointerSize) \
-  V(kScriptOrDebugInfoOffset, kPointerSize)                \
-  V(kEndOfPointerFieldsOffset, 0)                          \
-  /* Raw data fields. */                                   \
-  V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
-  V(kLengthOffset, kUInt16Size)                            \
-  V(kFormalParameterCountOffset, kUInt16Size)              \
-  V(kExpectedNofPropertiesOffset, kUInt8Size)              \
-  V(kBuiltinFunctionId, kUInt8Size)                        \
-  V(kFunctionTokenOffsetOffset, kUInt16Size)               \
-  V(kFlagsOffset, kInt32Size)                              \
-  /* Total size. */                                        \
+#define SHARED_FUNCTION_INFO_FIELDS(V)                    \
+  /* Pointer fields. */                                   \
+  V(kStartOfPointerFieldsOffset, 0)                       \
+  V(kFunctionDataOffset, kTaggedSize)                     \
+  V(kNameOrScopeInfoOffset, kTaggedSize)                  \
+  V(kOuterScopeInfoOrFeedbackMetadataOffset, kTaggedSize) \
+  V(kScriptOrDebugInfoOffset, kTaggedSize)                \
+  V(kEndOfTaggedFieldsOffset, 0)                          \
+  /* Raw data fields. */                                  \
+  V(kUniqueIdOffset, kUniqueIdFieldSize)                  \
+  V(kLengthOffset, kUInt16Size)                           \
+  V(kFormalParameterCountOffset, kUInt16Size)             \
+  V(kExpectedNofPropertiesOffset, kUInt8Size)             \
+  V(kBuiltinFunctionId, kUInt8Size)                       \
+  V(kFunctionTokenOffsetOffset, kUInt16Size)              \
+  V(kFlagsOffset, kInt32Size)                             \
+  /* Total size. */                                       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -615,7 +622,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfPointerFieldsOffset, kAlignedSize>
+                              kEndOfTaggedFieldsOffset, kAlignedSize>
       BodyDescriptor;
 
 // Bit positions in |flags|.
@@ -633,7 +640,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   V(IsAsmWasmBrokenBit, bool, 1, _)                      \
   V(FunctionMapIndexBits, int, 5, _)                     \
   V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
-  V(RequiresInstanceFieldsInitializer, bool, 1, _)       \
+  V(RequiresInstanceMembersInitializer, bool, 1, _)      \
   V(ConstructAsBuiltinBit, bool, 1, _)                   \
   V(IsAnonymousExpressionBit, bool, 1, _)                \
   V(NameShouldPrintAsAnonymousBit, bool, 1, _)           \
@@ -662,7 +669,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
-  DECL_ACCESSORS(outer_scope_info, HeapObject)
+  DECL_ACCESSORS2(outer_scope_info, HeapObjectPtr)
 
   inline void set_kind(FunctionKind kind);
 
@@ -678,15 +685,30 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // FunctionLiteralId.
   int FindIndexInScript(Isolate* isolate) const;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
+  OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObjectPtr);
 };
 
 // Printing support.
 struct SourceCodeOf {
-  explicit SourceCodeOf(SharedFunctionInfo* v, int max = -1)
+  explicit SourceCodeOf(SharedFunctionInfo v, int max = -1)
       : value(v), max_length(max) {}
-  const SharedFunctionInfo* value;
+  const SharedFunctionInfo value;
   int max_length;
+};
+
+// IsCompiledScope enables a caller to check if a function is compiled, and
+// ensure it remains compiled (i.e., doesn't have it's bytecode flushed) while
+// the scope is retained.
+class IsCompiledScope {
+ public:
+  inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
+  inline IsCompiledScope() : retain_bytecode_(), is_compiled_(false) {}
+
+  inline bool is_compiled() const { return is_compiled_; }
+
+ private:
+  MaybeHandle<BytecodeArray> retain_bytecode_;
+  bool is_compiled_;
 };
 
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);

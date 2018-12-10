@@ -17,9 +17,6 @@
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
-// TODO(mathias): Remove this when we no longer need to check
-// `U_ICU_VERSION_MAJOR_NUM`.
-#include "unicode/uvernum.h"
 #endif  // V8_INTL_SUPPORT
 
 namespace v8 {
@@ -83,7 +80,7 @@ void RegExpParser::Advance() {
         FATAL("Aborting on stack overflow");
       }
       ReportError(CStrVector(
-          MessageTemplate::TemplateString(MessageTemplate::kStackOverflow)));
+          MessageFormatter::TemplateString(MessageTemplate::kStackOverflow)));
     } else if (zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
@@ -855,7 +852,7 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
     }
 
     if (at_start) {
-      if (!IdentifierStart::Is(c)) {
+      if (!IsIdentifierStart(c)) {
         ReportError(CStrVector("Invalid capture group name"));
         return nullptr;
       }
@@ -864,7 +861,7 @@ const ZoneVector<uc16>* RegExpParser::ParseCaptureGroupName() {
     } else {
       if (c == '>') {
         break;
-      } else if (IdentifierPart::Is(c)) {
+      } else if (IsIdentifierPart(c)) {
         push_code_unit(name, c);
       } else {
         ReportError(CStrVector("Invalid capture group name"));
@@ -1296,15 +1293,11 @@ bool IsSupportedBinaryProperty(UProperty property) {
     case UCHAR_DEPRECATED:
     case UCHAR_DIACRITIC:
     case UCHAR_EMOJI:
-#if U_ICU_VERSION_MAJOR_NUM >= 60
     case UCHAR_EMOJI_COMPONENT:
-#endif
     case UCHAR_EMOJI_MODIFIER_BASE:
     case UCHAR_EMOJI_MODIFIER:
     case UCHAR_EMOJI_PRESENTATION:
-#if U_ICU_VERSION_MAJOR_NUM >= 62
     case UCHAR_EXTENDED_PICTOGRAPHIC:
-#endif
     case UCHAR_EXTENDER:
     case UCHAR_GRAPHEME_BASE:
     case UCHAR_GRAPHEME_EXTEND:
@@ -1323,9 +1316,7 @@ bool IsSupportedBinaryProperty(UProperty property) {
     case UCHAR_PATTERN_WHITE_SPACE:
     case UCHAR_QUOTATION_MARK:
     case UCHAR_RADICAL:
-#if U_ICU_VERSION_MAJOR_NUM >= 60
     case UCHAR_REGIONAL_INDICATOR:
-#endif
     case UCHAR_S_TERM:
     case UCHAR_SOFT_DOTTED:
     case UCHAR_TERMINAL_PUNCTUATION:

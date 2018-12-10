@@ -6,7 +6,8 @@
 
 #include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
-#include "src/heap/heap-inl.h"
+#include "src/isolate-data.h"
+#include "src/isolate-inl.h"
 #include "src/lsan.h"
 #include "src/snapshot/serializer-common.h"
 
@@ -33,7 +34,7 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
 
   int builtin_index;
   RootIndex root_index;
-  if (isolate()->heap()->IsRootHandle(object, &root_index)) {
+  if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
     // Roots are loaded relative to the root register.
     LoadRoot(destination, root_index);
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin_index)) {
@@ -71,36 +72,41 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
     LoadRootRegisterOffset(destination, offset);
   } else {
     // Otherwise, do a memory load from the external reference table.
-
-    // Encode as an index into the external reference table stored on the
-    // isolate.
-    ExternalReferenceEncoder encoder(isolate());
-    ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
-    CHECK(!v.is_from_api());
-
-    LoadRootRelative(destination,
-                     RootRegisterOffsetForExternalReferenceIndex(v.index()));
+    LoadRootRelative(
+        destination,
+        RootRegisterOffsetForExternalReferenceTableEntry(isolate(), reference));
   }
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffset(RootIndex root_index) {
-  return (static_cast<int32_t>(root_index) << kPointerSizeLog2) -
-         kRootRegisterBias;
+int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
+    RootIndex root_index) {
+  return IsolateData::root_slot_offset(root_index);
 }
 
 // static
-int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceIndex(
-    int reference_index) {
-  return Heap::roots_to_external_reference_table_offset() - kRootRegisterBias +
-         ExternalReferenceTable::OffsetOfEntry(reference_index);
+int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
+    int builtin_index) {
+  return IsolateData::builtin_slot_offset(builtin_index);
 }
 
 // static
 intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
     Isolate* isolate, const ExternalReference& reference) {
-  return static_cast<intptr_t>(reference.address()) - kRootRegisterBias -
-         reinterpret_cast<intptr_t>(isolate->heap()->roots_array_start());
+  return static_cast<intptr_t>(reference.address() - isolate->isolate_root());
+}
+
+// static
+int32_t TurboAssemblerBase::RootRegisterOffsetForExternalReferenceTableEntry(
+    Isolate* isolate, const ExternalReference& reference) {
+  // Encode as an index into the external reference table stored on the
+  // isolate.
+  ExternalReferenceEncoder encoder(isolate);
+  ExternalReferenceEncoder::Value v = encoder.Encode(reference.address());
+  CHECK(!v.is_from_api());
+
+  return IsolateData::external_reference_table_offset() +
+         ExternalReferenceTable::OffsetOfEntry(v.index());
 }
 
 // static
@@ -108,13 +114,6 @@ bool TurboAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
   Address address = reference.address();
   return isolate->root_register_addressable_region().contains(address);
-}
-
-// static
-int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltinIndex(
-    int builtin_index) {
-  return Heap::roots_to_builtins_offset() - kRootRegisterBias +
-         builtin_index * kPointerSize;
 }
 
 void TurboAssemblerBase::RecordCommentForOffHeapTrampoline(int builtin_index) {

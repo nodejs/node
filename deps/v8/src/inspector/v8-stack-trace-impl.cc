@@ -268,9 +268,15 @@ StringView V8StackTraceImpl::topFunctionName() const {
 
 std::unique_ptr<protocol::Runtime::StackTrace>
 V8StackTraceImpl::buildInspectorObjectImpl(V8Debugger* debugger) const {
+  return buildInspectorObjectImpl(debugger, m_maxAsyncDepth);
+}
+
+std::unique_ptr<protocol::Runtime::StackTrace>
+V8StackTraceImpl::buildInspectorObjectImpl(V8Debugger* debugger,
+                                           int maxAsyncDepth) const {
   return buildInspectorObjectCommon(debugger, m_frames, String16(),
                                     m_asyncParent.lock(), m_externalParent,
-                                    m_maxAsyncDepth);
+                                    maxAsyncDepth);
 }
 
 std::unique_ptr<protocol::Runtime::API::StackTrace>

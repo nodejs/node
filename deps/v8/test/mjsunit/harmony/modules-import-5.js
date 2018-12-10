@@ -9,5 +9,5 @@ let x = 'modules-skip-1.js';
 import(x).then(namespace => life = namespace.life());
 x = 'modules-skip-2.js';
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(42, life);

@@ -410,15 +410,18 @@ MachineRepresentation DeadValueRepresentationOf(Operator const*)
 
 class IfValueParameters final {
  public:
-  IfValueParameters(int32_t value, int32_t comparison_order)
-      : value_(value), comparison_order_(comparison_order) {}
+  IfValueParameters(int32_t value, int32_t comparison_order,
+                    BranchHint hint = BranchHint::kNone)
+      : value_(value), comparison_order_(comparison_order), hint_(hint) {}
 
   int32_t value() const { return value_; }
   int32_t comparison_order() const { return comparison_order_; }
+  BranchHint hint() const { return hint_; }
 
  private:
   int32_t value_;
   int32_t comparison_order_;
+  BranchHint hint_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(IfValueParameters const&,
@@ -458,8 +461,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* IfSuccess();
   const Operator* IfException();
   const Operator* Switch(size_t control_output_count);
-  const Operator* IfValue(int32_t value, int32_t order = 0);
-  const Operator* IfDefault();
+  const Operator* IfValue(int32_t value, int32_t order = 0,
+                          BranchHint hint = BranchHint::kNone);
+  const Operator* IfDefault(BranchHint hint = BranchHint::kNone);
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                              VectorSlotPair const& feedback);

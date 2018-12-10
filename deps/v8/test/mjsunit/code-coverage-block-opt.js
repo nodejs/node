@@ -5,6 +5,11 @@
 // Flags: --allow-natives-syntax --no-always-opt --opt
 // Files: test/mjsunit/code-coverage-utils.js
 
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  quit(0);
+}
+
 %DebugToggleBlockCoverage(true);
 
 TestCoverage(

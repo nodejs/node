@@ -43,6 +43,8 @@
 #include "src/ia32/constants-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
+#include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -62,7 +64,6 @@ namespace internal {
   V(eax)                                 \
   V(ecx)                                 \
   V(edx)                                 \
-  V(ebx)                                 \
   V(esi)                                 \
   V(edi)
 
@@ -218,11 +219,10 @@ class Immediate {
       : Immediate(ext.address(), RelocInfo::EXTERNAL_REFERENCE) {}
   inline explicit Immediate(Handle<HeapObject> handle)
       : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
-  inline explicit Immediate(Smi* value)
-      : Immediate(reinterpret_cast<intptr_t>(value)) {}
+  inline explicit Immediate(Smi value)
+      : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Immediate EmbeddedCode(CodeStub* code);
   static Immediate EmbeddedStringConstant(const StringConstantBase* str);
 
   static Immediate CodeRelativeOffset(Label* label) {
@@ -244,6 +244,14 @@ class Immediate {
   int immediate() const {
     DCHECK(!is_heap_object_request());
     return value_.immediate;
+  }
+
+  bool is_embedded_object() const {
+    return !is_heap_object_request() && rmode() == RelocInfo::EMBEDDED_OBJECT;
+  }
+
+  Handle<HeapObject> embedded_object() const {
+    return Handle<HeapObject>(reinterpret_cast<Address*>(immediate()));
   }
 
   bool is_external_reference() const {
@@ -361,17 +369,10 @@ class V8_EXPORT_PRIVATE Operand {
   // register.
   Register reg() const;
 
-#ifdef DEBUG
-  bool UsesEbx() const { return uses_ebx_; }
-#endif  // DEBUG
-
  private:
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
   inline void set_modrm(int mod, Register rm) {
-#ifdef DEBUG
-    AddUsedRegister(rm);
-#endif
     DCHECK_EQ(mod & -4, 0);
     buf_[0] = mod << 6 | rm.code();
     len_ = 1;
@@ -398,23 +399,12 @@ class V8_EXPORT_PRIVATE Operand {
   // Only valid if len_ > 4.
   RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
-#ifdef DEBUG
-  // TODO(v8:6666): Remove once kRootRegister support is complete.
-  bool uses_ebx_ = false;
-  void AddUsedRegister(Register reg) {
-    if (reg == ebx) uses_ebx_ = true;
-  }
-#endif  // DEBUG
-
   // TODO(clemensh): Get rid of this friendship, or make Operand immutable.
   friend class Assembler;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
-// TODO(v8:6666): Re-enable globally once kRootRegister support is complete.
-#ifndef DEBUG
 static_assert(sizeof(Operand) <= 2 * kPointerSize,
               "Operand must be small enough to pass it by value");
-#endif
 
 // -----------------------------------------------------------------------------
 // A Displacement describes the 32bit immediate field of an instruction which
@@ -515,7 +505,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target);
+      Address instruction_payload, Code code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -531,8 +521,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Distance between the address of the code target in the call instruction
   // and the return address
   static constexpr int kCallTargetAddressOffset = kPointerSize;
-
-  static constexpr int kCallInstructionLength = 5;
 
   // One byte opcode for test al, 0xXX.
   static constexpr byte kTestAlByte = 0xA8;
@@ -851,7 +839,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Register reg) { call(Operand(reg)); }
   void call(Operand adr);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
-  void call(CodeStub* stub);
   void wasm_call(Address address, RelocInfo::Mode rmode);
 
   // Jumps
@@ -1771,37 +1758,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
-
-  // Temporary helper data structures while adding kRootRegister support to ia32
-  // builtins. The SupportsRootRegisterScope is intended to mark each builtin
-  // and helper that fully supports the root register, i.e. that does not
-  // clobber ebx. The AllowExplicitEbxAccessScope marks regions that are allowed
-  // to clobber ebx, e.g. when ebx is spilled and restored.
-  // TODO(v8:6666): Remove once kRootRegister is fully supported.
-  template <bool new_value>
-  class SetRootRegisterSupportScope final {
-   public:
-    explicit SetRootRegisterSupportScope(Assembler* assembler)
-        : assembler_(assembler), old_value_(assembler->is_ebx_addressable_) {
-      assembler_->is_ebx_addressable_ = new_value;
-    }
-    ~SetRootRegisterSupportScope() {
-      assembler_->is_ebx_addressable_ = old_value_;
-    }
-
-   private:
-    Assembler* assembler_;
-    const bool old_value_;
-  };
-  typedef SetRootRegisterSupportScope<false> SupportsRootRegisterScope;
-  typedef SetRootRegisterSupportScope<true> AllowExplicitEbxAccessScope;
-
  protected:
   void emit_sse_operand(XMMRegister reg, Operand adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
@@ -1809,17 +1765,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_sse_operand(XMMRegister dst, Register src);
 
   byte* addr_at(int pos) { return buffer_ + pos; }
-
-#ifdef DEBUG
-  // TODO(v8:6666): Remove once kRootRegister is fully supported.
-  void AssertIsAddressable(const Register& reg);
-  void AssertIsAddressable(const Operand& operand);
-#else
-  // An empty inline definition to avoid slowing down release builds.
-  void AssertIsAddressable(const Register&) {}
-  void AssertIsAddressable(const Operand&) {}
-#endif  // DEBUG
-  bool is_ebx_addressable_ = true;
 
  private:
   uint32_t long_at(int pos)  {
@@ -1945,6 +1890,10 @@ class EnsureSpace {
   int space_before_;
 #endif
 };
+
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
 
 }  // namespace internal
 }  // namespace v8

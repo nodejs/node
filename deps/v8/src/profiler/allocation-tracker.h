@@ -120,7 +120,7 @@ class AllocationTracker {
   AddressToTraceMap* address_to_trace() { return &address_to_trace_; }
 
  private:
-  unsigned AddFunctionInfo(SharedFunctionInfo* info, SnapshotObjectId id);
+  unsigned AddFunctionInfo(SharedFunctionInfo info, SnapshotObjectId id);
   unsigned functionInfoIndexForVMState(StateTag state);
 
   class UnresolvedLocation {

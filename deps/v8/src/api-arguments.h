@@ -8,6 +8,7 @@
 #include "src/api.h"
 #include "src/debug/debug.h"
 #include "src/isolate.h"
+#include "src/objects/slots.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -26,14 +27,11 @@ class CustomArguments : public CustomArgumentsBase {
  public:
   static const int kReturnValueOffset = T::kReturnValueIndex;
 
-  ~CustomArguments() override {
-    this->begin()[kReturnValueOffset] =
-        reinterpret_cast<Object*>(kHandleZapValue);
-  }
+  ~CustomArguments() override;
 
   inline void IterateInstance(RootVisitor* v) override {
-    v->VisitRootPointers(Root::kRelocatable, nullptr, values_,
-                         values_ + T::kArgsLength);
+    v->VisitRootPointers(Root::kRelocatable, nullptr, slot_at(0),
+                         slot_at(T::kArgsLength));
   }
 
  protected:
@@ -44,11 +42,17 @@ class CustomArguments : public CustomArgumentsBase {
   Handle<V> GetReturnValue(Isolate* isolate);
 
   inline Isolate* isolate() {
-    return reinterpret_cast<Isolate*>(this->begin()[T::kIsolateIndex]);
+    return reinterpret_cast<Isolate*>(*slot_at(T::kIsolateIndex));
   }
 
-  inline Object** begin() { return values_; }
-  Object* values_[T::kArgsLength];
+  inline FullObjectSlot slot_at(int index) {
+    // This allows index == T::kArgsLength so "one past the end" slots
+    // can be retrieved for iterating purposes.
+    DCHECK_LE(static_cast<unsigned>(index),
+              static_cast<unsigned>(T::kArgsLength));
+    return FullObjectSlot(values_ + index);
+  }
+  Address values_[T::kArgsLength];
 };
 
 // Note: Calling args.Call() sets the return value on args. For multiple
@@ -68,7 +72,7 @@ class PropertyCallbackArguments
   static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
   PropertyCallbackArguments(Isolate* isolate, Object* data, Object* self,
-                            JSObject* holder, ShouldThrow should_throw);
+                            JSObject holder, ShouldThrow should_throw);
 
   // -------------------------------------------------------------------------
   // Accessor Callbacks
@@ -135,7 +139,7 @@ class PropertyCallbackArguments
       GenericNamedPropertyGetterCallback f, Handle<Name> name,
       Handle<Object> info, Handle<Object> receiver = Handle<Object>());
 
-  inline JSObject* holder();
+  inline JSObject holder();
   inline Object* receiver();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
@@ -160,7 +164,7 @@ class FunctionCallbackArguments
                             internal::HeapObject* callee,
                             internal::Object* holder,
                             internal::HeapObject* new_target,
-                            internal::Object** argv, int argc);
+                            internal::Address* argv, int argc);
 
   /*
    * The following Call function wraps the calling of all callbacks to handle
@@ -173,9 +177,9 @@ class FunctionCallbackArguments
   inline Handle<Object> Call(CallHandlerInfo* handler);
 
  private:
-  inline JSObject* holder();
+  inline JSObject holder();
 
-  internal::Object** argv_;
+  internal::Address* argv_;
   int argc_;
 };
 

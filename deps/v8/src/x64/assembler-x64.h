@@ -38,10 +38,12 @@
 #define V8_X64_ASSEMBLER_X64_H_
 
 #include <deque>
-#include <forward_list>
+#include <map>
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/label.h"
+#include "src/objects/smi.h"
 #include "src/x64/constants-x64.h"
 #include "src/x64/sse-instr.h"
 
@@ -282,8 +284,8 @@ class Immediate {
   explicit constexpr Immediate(int32_t value) : value_(value) {}
   explicit constexpr Immediate(int32_t value, RelocInfo::Mode rmode)
       : value_(value), rmode_(rmode) {}
-  explicit Immediate(Smi* value)
-      : value_(static_cast<int32_t>(reinterpret_cast<intptr_t>(value))) {
+  explicit Immediate(Smi value)
+      : value_(static_cast<int32_t>(static_cast<intptr_t>(value.ptr()))) {
     DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
   }
 
@@ -309,7 +311,7 @@ enum ScaleFactor : int8_t {
   times_pointer_size = (kPointerSize == 8) ? times_8 : times_4
 };
 
-class Operand {
+class V8_EXPORT_PRIVATE Operand {
  public:
   struct Data {
     byte rex = 0;
@@ -514,7 +516,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target);
+      Address instruction_payload, Code code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -535,8 +537,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kCallTargetAddressOffset = 4;  // 32-bit displacement.
   // The length of call(kScratchRegister).
   static constexpr int kCallScratchRegisterInstructionLength = 3;
-  // The length of call(Immediate32).
-  static constexpr int kShortCallInstructionLength = 5;
   // The length of movq(kScratchRegister, address).
   static constexpr int kMoveAddressIntoScratchRegisterInstructionLength =
       2 + kPointerSize;
@@ -911,7 +911,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Address entry, RelocInfo::Mode rmode);
   void near_call(Address entry, RelocInfo::Mode rmode);
   void near_jmp(Address entry, RelocInfo::Mode rmode);
-  void call(CodeStub* stub);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
@@ -1923,12 +1922,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
                          int id);
 
-  void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
-                                          ConstantPoolEntry::Access access,
-                                          ConstantPoolEntry::Type type) {
-    // No embedded constant pool support.
-    UNREACHABLE();
-  }
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
@@ -2458,6 +2451,10 @@ class EnsureSpace {
   int space_before_;
 #endif
 };
+
+// Define {RegisterName} methods for the register types.
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
 
 }  // namespace internal
 }  // namespace v8

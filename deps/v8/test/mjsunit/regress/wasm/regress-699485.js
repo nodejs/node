@@ -15,7 +15,7 @@ builder.addFunction("regression_699485", kSig_i_v)
   .addBody([
       kExprI32Const, 0x04,
       kExprNop,
-      kExprGrowMemory, 0x00,
+      kExprMemoryGrow, 0x00,
       ]).exportFunc();
 let module = builder.instantiate();
 assertEquals(0, module.exports.regression_699485());

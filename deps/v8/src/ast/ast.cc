@@ -12,7 +12,6 @@
 #include "src/base/hashmap.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/double.h"
@@ -142,10 +141,6 @@ bool Expression::ToBooleanIsFalse() const {
 }
 
 bool Expression::IsValidReferenceExpression() const {
-  // We don't want expressions wrapped inside RewritableExpression to be
-  // considered as valid reference expressions, as they will be rewritten
-  // to something (most probably involving a do expression).
-  if (IsRewritableExpression()) return false;
   return IsProperty() ||
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
 }
@@ -326,17 +321,19 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
 }
 
 bool LiteralProperty::NeedsSetFunctionName() const {
-  return is_computed_name_ && (value_->IsAnonymousFunctionDefinition() ||
-                               value_->IsConciseMethodDefinition() ||
-                               value_->IsAccessorFunctionDefinition());
+  return is_computed_name() && (value_->IsAnonymousFunctionDefinition() ||
+                                value_->IsConciseMethodDefinition() ||
+                                value_->IsAccessorFunctionDefinition());
 }
 
 ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
                                            Kind kind, bool is_static,
-                                           bool is_computed_name)
+                                           bool is_computed_name,
+                                           bool is_private)
     : LiteralProperty(key, value, is_computed_name),
       kind_(kind),
       is_static_(is_static),
+      is_private_(is_private),
       private_or_computed_name_var_(nullptr) {}
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
@@ -644,7 +641,7 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
 
 bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
-         values()->length() <=
+         values_.length() <=
              ConstructorBuiltins::kMaximumClonedShallowArrayElements;
 }
 
@@ -742,7 +739,7 @@ static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
 
 // Check for the pattern: x + 1.
 static bool MatchSmiLiteralOperation(Expression* left, Expression* right,
-                                     Expression** expr, Smi** literal) {
+                                     Expression** expr, Smi* literal) {
   if (right->IsSmiLiteral()) {
     *expr = left;
     *literal = right->AsLiteral()->AsSmiLiteral();
@@ -752,7 +749,7 @@ static bool MatchSmiLiteralOperation(Expression* left, Expression* right,
 }
 
 bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
-                                            Smi** literal) {
+                                            Smi* literal) {
   return MatchSmiLiteralOperation(left_, right_, subexpr, literal) ||
          (IsCommutativeOperationWithSmiLiteral(op()) &&
           MatchSmiLiteralOperation(right_, left_, subexpr, literal));
@@ -860,8 +857,11 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-CaseClause::CaseClause(Expression* label, ZonePtrList<Statement>* statements)
-    : label_(label), statements_(statements) {}
+CaseClause::CaseClause(Zone* zone, Expression* label,
+                       const ScopedPtrList<Statement>& statements)
+    : label_(label), statements_(0, nullptr) {
+  statements.CopyTo(&statements_, zone);
+}
 
 bool Literal::IsPropertyName() const {
   if (type() != kString) return false;

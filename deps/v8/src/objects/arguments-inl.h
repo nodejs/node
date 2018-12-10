@@ -18,21 +18,24 @@
 namespace v8 {
 namespace internal {
 
+OBJECT_CONSTRUCTORS_IMPL(SloppyArgumentsElements, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(JSArgumentsObject, JSObject)
+
 CAST_ACCESSOR(AliasedArgumentsEntry)
-CAST_ACCESSOR(JSArgumentsObject)
-CAST_ACCESSOR(SloppyArgumentsElements)
+CAST_ACCESSOR2(SloppyArgumentsElements)
+CAST_ACCESSOR2(JSArgumentsObject)
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 
-Context* SloppyArgumentsElements::context() {
+Context SloppyArgumentsElements::context() {
   return Context::cast(get(kContextIndex));
 }
 
-FixedArray* SloppyArgumentsElements::arguments() {
+FixedArray SloppyArgumentsElements::arguments() {
   return FixedArray::cast(get(kArgumentsIndex));
 }
 
-void SloppyArgumentsElements::set_arguments(FixedArray* arguments) {
+void SloppyArgumentsElements::set_arguments(FixedArray arguments) {
   set(kArgumentsIndex, arguments);
 }
 
@@ -55,8 +58,8 @@ void SloppyArgumentsElements::set_mapped_entry(uint32_t entry, Object* object) {
 bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
                                                        Handle<JSObject> object,
                                                        int* out) {
-  Context* context = *isolate->native_context();
-  Map* map = object->map();
+  Context context = *isolate->native_context();
+  Map map = object->map();
   if (map != context->sloppy_arguments_map() &&
       map != context->strict_arguments_map() &&
       map != context->fast_aliased_arguments_map()) {
@@ -68,9 +71,9 @@ bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::ToInt(len_obj));
 
-  FixedArray* parameters = FixedArray::cast(object->elements());
+  FixedArray parameters = FixedArray::cast(object->elements());
   if (object->HasSloppyArgumentsElements()) {
-    FixedArray* arguments = FixedArray::cast(parameters->get(1));
+    FixedArray arguments = FixedArray::cast(parameters->get(1));
     return *out <= arguments->length();
   }
   return *out <= parameters->length();

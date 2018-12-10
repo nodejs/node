@@ -145,8 +145,7 @@ const uint32_t kLeastSignificantByteInInt32Offset = 3;
 namespace v8 {
 namespace internal {
 
-// TODO(sigurds): Change this value once we use relative jumps.
-constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 4096;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
@@ -1685,9 +1684,10 @@ class Instruction : public InstructionGetters<InstructionBase> {
 // C/C++ argument slots size.
 const int kCArgSlotCount = 4;
 const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize;
-const int kInvalidStackOffset = -1;
+
 // JS argument slots size.
 const int kJSArgsSlotsSize = 0 * kInstrSize;
+
 // Assembly builtins argument slots size.
 const int kBArgsSlotsSize = 0 * kInstrSize;
 

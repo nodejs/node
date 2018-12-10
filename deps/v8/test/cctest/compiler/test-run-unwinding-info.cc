@@ -9,7 +9,6 @@
 #include "src/flags.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
-#include "src/unicode-cache.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {

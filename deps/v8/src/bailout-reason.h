@@ -18,9 +18,6 @@ namespace internal {
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
   V(kAllocatingNonEmptyPackedArray, "Allocating non-empty packed array")       \
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
-  V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
-  V(kExpectedAllocationSite, "Expected allocation site")                       \
-  V(kExpectedFeedbackVector, "Expected feedback vector")                       \
   V(kExpectedOptimizationSentinel,                                             \
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
@@ -35,7 +32,6 @@ namespace internal {
   V(kInvalidJumpTableIndex, "Invalid jump table index")                        \
   V(kInvalidParametersAndRegistersInGenerator,                                 \
     "invalid parameters and registers in generator")                           \
-  V(kInvalidSharedFunctionInfoData, "Invalid SharedFunctionInfo data")         \
   V(kMissingBytecodeArray, "Missing bytecode array from function")             \
   V(kObjectNotTagged, "The object is not tagged")                              \
   V(kObjectTagged, "The object is tagged")                                     \
@@ -45,7 +41,6 @@ namespace internal {
     "Operand is a smi and not a bound function")                               \
   V(kOperandIsASmiAndNotAConstructor,                                          \
     "Operand is a smi and not a constructor")                                  \
-  V(kOperandIsASmiAndNotAFixedArray, "Operand is a smi and not a fixed array") \
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
   V(kOperandIsASmiAndNotAGeneratorObject,                                      \
     "Operand is a smi and not a generator object")                             \
@@ -63,8 +58,6 @@ namespace internal {
     "Should not directly enter OSR-compiled function")                         \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
-  V(kTheStackWasCorruptedByMacroAssemblerCall,                                 \
-    "The stack was corrupted by MacroAssembler::Call()")                       \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \
   V(kUnexpectedElementsKindInArrayConstructor,                                 \
     "Unexpected ElementsKind in array constructor")                            \
@@ -73,10 +66,6 @@ namespace internal {
     "Unexpected runtime function id for the InvokeIntrinsic bytecode")         \
   V(kUnexpectedInitialMapForArrayFunction,                                     \
     "Unexpected initial map for Array function")                               \
-  V(kUnexpectedInitialMapForArrayFunction1,                                    \
-    "Unexpected initial map for Array function (1)")                           \
-  V(kUnexpectedInitialMapForArrayFunction2,                                    \
-    "Unexpected initial map for Array function (2)")                           \
   V(kUnexpectedInitialMapForInternalArrayFunction,                             \
     "Unexpected initial map for InternalArray function")                       \
   V(kUnexpectedLevelAfterReturnFromApiCall,                                    \

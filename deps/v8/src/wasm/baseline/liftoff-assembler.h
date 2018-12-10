@@ -127,7 +127,7 @@ class LiftoffAssembler : public TurboAssembler {
     bool has_unused_register(RegClass rc, LiftoffRegList pinned = {}) const {
       if (kNeedI64RegPair && rc == kGpRegPair) {
         LiftoffRegList available_regs =
-            kGpCacheRegList & ~used_registers & ~pinned;
+            kGpCacheRegList.MaskOut(used_registers).MaskOut(pinned);
         return available_regs.GetNumRegsSet() >= 2;
       }
       DCHECK(rc == kGpReg || rc == kFpReg);
@@ -137,7 +137,8 @@ class LiftoffAssembler : public TurboAssembler {
 
     bool has_unused_register(LiftoffRegList candidates,
                              LiftoffRegList pinned = {}) const {
-      LiftoffRegList available_regs = candidates & ~used_registers & ~pinned;
+      LiftoffRegList available_regs =
+          candidates.MaskOut(used_registers).MaskOut(pinned);
       return !available_regs.is_empty();
     }
 
@@ -155,7 +156,8 @@ class LiftoffAssembler : public TurboAssembler {
 
     LiftoffRegister unused_register(LiftoffRegList candidates,
                                     LiftoffRegList pinned = {}) const {
-      LiftoffRegList available_regs = candidates & ~used_registers & ~pinned;
+      LiftoffRegList available_regs =
+          candidates.MaskOut(used_registers).MaskOut(pinned);
       return available_regs.GetFirstRegSet();
     }
 
@@ -316,7 +318,7 @@ class LiftoffAssembler : public TurboAssembler {
   // register, or {no_reg} if target was spilled to the stack.
   void PrepareCall(FunctionSig*, compiler::CallDescriptor*,
                    Register* target = nullptr,
-                   LiftoffRegister* target_instance = nullptr);
+                   Register* target_instance = nullptr);
   // Process return values of the call.
   void FinishCall(FunctionSig*, compiler::CallDescriptor*);
 
@@ -330,11 +332,18 @@ class LiftoffAssembler : public TurboAssembler {
     LiftoffRegister dst;
     LiftoffRegister src;
     ValueType type;
+    template <typename Dst, typename Src>
+    ParallelRegisterMoveTuple(Dst dst, Src src, ValueType type)
+        : dst(dst), src(src), type(type) {}
   };
-  void ParallelRegisterMove(std::initializer_list<ParallelRegisterMoveTuple>);
+  void ParallelRegisterMove(Vector<ParallelRegisterMoveTuple>);
 
+  void MoveToReturnRegisters(FunctionSig*);
+
+#ifdef ENABLE_SLOW_DCHECKS
   // Validate that the register use counts reflect the state of the cache.
   bool ValidateCacheState() const;
+#endif
 
   ////////////////////////////////////
   // Platform-specific part.        //
@@ -490,10 +499,10 @@ class LiftoffAssembler : public TurboAssembler {
   // f32 unops.
   inline void emit_f32_abs(DoubleRegister dst, DoubleRegister src);
   inline void emit_f32_neg(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_ceil(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_floor(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_trunc(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_nearest_int(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_ceil(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_floor(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_trunc(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_nearest_int(DoubleRegister dst, DoubleRegister src);
   inline void emit_f32_sqrt(DoubleRegister dst, DoubleRegister src);
 
   // f64 binops.

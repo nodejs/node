@@ -19,6 +19,6 @@ async function test() {
 
 test();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertTrue(ran);

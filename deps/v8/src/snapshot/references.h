@@ -156,7 +156,7 @@ class SerializerReferenceMap
  public:
   typedef base::TemplateHashMapEntry<uintptr_t, SerializerReference> Entry;
 
-  SerializerReferenceMap() : no_allocation_(), attached_reference_index_(0) {}
+  SerializerReferenceMap() : attached_reference_index_(0) {}
 
   SerializerReference LookupReference(void* value) const {
     uintptr_t key = Key(value);
@@ -186,7 +186,7 @@ class SerializerReferenceMap
 
   static uint32_t Hash(uintptr_t key) { return static_cast<uint32_t>(key); }
 
-  DisallowHeapAllocation no_allocation_;
+  DISALLOW_HEAP_ALLOCATION(no_allocation_);
   int attached_reference_index_;
   DISALLOW_COPY_AND_ASSIGN(SerializerReferenceMap);
 };

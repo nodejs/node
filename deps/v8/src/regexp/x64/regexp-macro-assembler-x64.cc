@@ -36,7 +36,7 @@ namespace internal {
  * - rsp : Points to tip of C stack.
  * - rcx : Points to tip of backtrack stack.  The backtrack stack contains
  *         only 32-bit values.  Most are offsets from some base (e.g., character
- *         positions from end of string or code location from Code* pointer).
+ *         positions from end of string or code location from Code pointer).
  * - r8  : Code object pointer.  Used to convert between absolute and
  *         code-object-relative addresses.
  *
@@ -60,7 +60,7 @@ namespace internal {
  *    - end of input         (address of end of string)
  *    - start of input       (address of first character in string)
  *    - start index          (character index of start)
- *    - String* input_string (input string)
+ *    - String input_string  (input string)
  *    - return address
  *    - backup of callee save registers (rbx, possibly rsi and rdi).
  *    - success counter      (only useful for global regexp to count matches)
@@ -80,7 +80,7 @@ namespace internal {
  * The first seven values must be provided by the calling code by
  * calling the code's entry address cast to a function pointer with the
  * following signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -149,7 +149,7 @@ void RegExpMacroAssemblerX64::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerX64::Backtrack() {
   CheckPreemption();
-  // Pop Code* offset from backtrack stack, add Code* and jump to location.
+  // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(rbx);
   __ addp(rbx, code_object_pointer());
   __ jmp(rbx);
@@ -1183,7 +1183,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   static const int num_arguments = 3;
   __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
-  // Second argument: Code* of self. (Do this before overwriting r8).
+  // Second argument: Code of self. (Do this before overwriting r8).
   __ movp(rdx, code_object_pointer());
   // Third argument: RegExp code frame pointer.
   __ movp(r8, rbp);
@@ -1193,7 +1193,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
 #else
   // Third argument: RegExp code frame pointer.
   __ movp(rdx, rbp);
-  // Second argument: Code* of self.
+  // Second argument: Code of self.
   __ movp(rsi, code_object_pointer());
   // First argument: Next address on the stack (will be address of
   // return address).
@@ -1217,15 +1217,15 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
   return reinterpret_cast<T*>(re_frame + frame_offset);
 }
 
-
 int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
-                                                  Code* re_code,
+                                                  Address raw_code,
                                                   Address re_frame) {
+  Code re_code = Code::cast(ObjectPtr(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),
       frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
-      frame_entry_address<String*>(re_frame, kInputString),
+      frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }

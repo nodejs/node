@@ -6,8 +6,9 @@
 
 #include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"
@@ -38,8 +39,8 @@ uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
 
 // Looks up the capture of the given name. Returns the (1-based) numbered
 // capture index or -1 on failure.
-int LookupNamedCapture(const std::function<bool(String*)>& name_matches,
-                       FixedArray* capture_name_map) {
+int LookupNamedCapture(const std::function<bool(String)>& name_matches,
+                       FixedArray capture_name_map) {
   // TODO(jgruber): Sort capture_name_map and do binary search via
   // internalized strings.
 
@@ -51,7 +52,7 @@ int LookupNamedCapture(const std::function<bool(String*)>& name_matches,
     const int name_ix = j * 2;
     const int index_ix = j * 2 + 1;
 
-    String* capture_name = String::cast(capture_name_map->get(name_ix));
+    String capture_name = String::cast(capture_name_map->get(name_ix));
     if (!name_matches(capture_name)) continue;
 
     maybe_capture_index = Smi::ToInt(capture_name_map->get(index_ix));
@@ -143,7 +144,7 @@ class CompiledReplacement {
   template <typename Char>
   bool ParseReplacementPattern(ZoneChunkList<ReplacementPart>* parts,
                                Vector<Char> characters,
-                               FixedArray* capture_name_map, int capture_count,
+                               FixedArray capture_name_map, int capture_count,
                                int subject_length) {
     // Equivalent to String::GetSubstitution, except that this method converts
     // the replacement string into an internal representation that avoids
@@ -235,7 +236,7 @@ class CompiledReplacement {
             break;
           }
           case '<': {
-            if (capture_name_map == nullptr) {
+            if (capture_name_map.is_null()) {
               i = next_index;
               break;
             }
@@ -265,7 +266,7 @@ class CompiledReplacement {
             // Let capture be ? Get(namedCaptures, groupName).
 
             const int capture_index = LookupNamedCapture(
-                [=](String* capture_name) {
+                [=](String capture_name) {
                   return capture_name->IsEqualTo(requested_name);
                 },
                 capture_name_map);
@@ -315,10 +316,10 @@ bool CompiledReplacement::Compile(Isolate* isolate, Handle<JSRegExp> regexp,
                                   int subject_length) {
   {
     DisallowHeapAllocation no_gc;
-    String::FlatContent content = replacement->GetFlatContent();
+    String::FlatContent content = replacement->GetFlatContent(no_gc);
     DCHECK(content.IsFlat());
 
-    FixedArray* capture_name_map = nullptr;
+    FixedArray capture_name_map;
     if (capture_count > 0) {
       DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
       Object* maybe_capture_name_map = regexp->CaptureNameMap();
@@ -449,13 +450,12 @@ void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
   }
 }
 
-void FindStringIndicesDispatch(Isolate* isolate, String* subject,
-                               String* pattern, std::vector<int>* indices,
-                               unsigned int limit) {
+void FindStringIndicesDispatch(Isolate* isolate, String subject, String pattern,
+                               std::vector<int>* indices, unsigned int limit) {
   {
     DisallowHeapAllocation no_gc;
-    String::FlatContent subject_content = subject->GetFlatContent();
-    String::FlatContent pattern_content = pattern->GetFlatContent();
+    String::FlatContent subject_content = subject->GetFlatContent(no_gc);
+    String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
     DCHECK(subject_content.IsFlat());
     DCHECK(pattern_content.IsFlat());
     if (subject_content.IsOneByte()) {
@@ -530,7 +530,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   std::vector<int>* indices = GetRewoundRegexpIndicesList(isolate);
 
   DCHECK_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
-  String* pattern =
+  String pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int subject_len = subject->length();
   int pattern_len = pattern->length();
@@ -569,17 +569,18 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, untyped_res, maybe_res);
   Handle<ResultSeqString> result = Handle<ResultSeqString>::cast(untyped_res);
 
+  DisallowHeapAllocation no_gc;
   for (int index : *indices) {
     // Copy non-matched subject content.
     if (subject_pos < index) {
-      String::WriteToFlat(*subject, result->GetChars() + result_pos,
+      String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
                           subject_pos, index);
       result_pos += index - subject_pos;
     }
 
     // Replace match.
     if (replacement_len > 0) {
-      String::WriteToFlat(*replacement, result->GetChars() + result_pos, 0,
+      String::WriteToFlat(*replacement, result->GetChars(no_gc) + result_pos, 0,
                           replacement_len);
       result_pos += replacement_len;
     }
@@ -588,8 +589,8 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   }
   // Add remaining subject content at the end.
   if (subject_pos < subject_len) {
-    String::WriteToFlat(*subject, result->GetChars() + result_pos, subject_pos,
-                        subject_len);
+    String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
+                        subject_pos, subject_len);
   }
 
   int32_t match_indices[] = {indices->back(), indices->back() + pattern_len};
@@ -738,12 +739,14 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   int prev = 0;
   int position = 0;
 
+  DisallowHeapAllocation no_gc;
   do {
     start = current_match[0];
     end = current_match[1];
     if (prev < start) {
       // Add substring subject[prev;start] to answer string.
-      String::WriteToFlat(*subject, answer->GetChars() + position, prev, start);
+      String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
+                          start);
       position += start - prev;
     }
     prev = end;
@@ -758,7 +761,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
 
   if (prev < subject_length) {
     // Add substring subject[prev;length] to answer string.
-    String::WriteToFlat(*subject, answer->GetChars() + position, prev,
+    String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
                         subject_length);
     position += subject_length - prev;
   }
@@ -782,7 +785,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   // needed.
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
-  if (!heap->lo_space()->Contains(*answer)) {
+  if (!heap->IsLargeObject(*answer)) {
     heap->CreateFillerObjectAt(end_of_string, delta, ClearRecordedSlots::kNo);
   }
   return *answer;
@@ -828,7 +831,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   CHECK_LT(0, pattern_length);
 
   if (limit == 0xFFFFFFFFu) {
-    FixedArray* last_match_cache_unused;
+    FixedArray last_match_cache_unused;
     Handle<Object> cached_answer(
         RegExpResultsCache::Lookup(isolate->heap(), *subject, *pattern,
                                    &last_match_cache_unused,
@@ -979,7 +982,7 @@ class MatchInfoBackedMatch : public String::Match {
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
     const int capture_index = LookupNamedCapture(
-        [=](String* capture_name) { return capture_name->Equals(*name); },
+        [=](String capture_name) { return capture_name->Equals(*name); },
         *capture_name_map_);
 
     if (capture_index == -1) {
@@ -1136,7 +1139,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   static const int kMinLengthToCache = 0x1000;
 
   if (subject_length > kMinLengthToCache) {
-    FixedArray* last_match_cache;
+    FixedArray last_match_cache;
     Object* cached_answer = RegExpResultsCache::Lookup(
         isolate->heap(), *subject, regexp->data(), &last_match_cache,
         RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
@@ -1572,8 +1575,6 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
-  DCHECK(args[1]->IsString());
-
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, recv, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, limit_obj, 2);
@@ -1736,15 +1737,19 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
   string = String::Flatten(isolate, string);
 
-  // Fast-path for unmodified JSRegExps.
+  const bool functional_replace = replace_obj->IsCallable();
+
+  // Fast-path for unmodified JSRegExps (and non-functional replace).
   if (RegExpUtils::IsUnmodifiedRegExp(isolate, recv)) {
+    // We should never get here with functional replace because unmodified
+    // regexp and functional replace should be fully handled in CSA code.
+    CHECK(!functional_replace);
     RETURN_RESULT_OR_FAILURE(
         isolate, RegExpReplace(isolate, Handle<JSRegExp>::cast(recv), string,
                                replace_obj));
   }
 
   const uint32_t length = string->length();
-  const bool functional_replace = replace_obj->IsCallable();
 
   Handle<String> replace;
   if (!functional_replace) {
@@ -1891,7 +1896,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
       DCHECK(!functional_replace);
       if (!groups_obj->IsUndefined(isolate)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, groups_obj, JSReceiver::ToObject(isolate, groups_obj));
+            isolate, groups_obj, Object::ToObject(isolate, groups_obj));
       }
       VectorBackedMatch m(isolate, string, match, position, &captures,
                           groups_obj);

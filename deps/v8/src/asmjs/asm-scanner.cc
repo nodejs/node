@@ -8,7 +8,6 @@
 #include "src/conversions.h"
 #include "src/flags.h"
 #include "src/parsing/scanner.h"
-#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -308,11 +307,8 @@ void AsmJsScanner::ConsumeNumber(uc32 ch) {
     return;
   }
   // Decode numbers.
-  UnicodeCache cache;
   double_value_ = StringToDouble(
-      &cache,
-      Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(number.data()),
-                            static_cast<int>(number.size())),
+      Vector<const uint8_t>::cast(VectorOf(number)),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL);
   if (std::isnan(double_value_)) {
     // Check if string to number conversion didn't consume all the characters.

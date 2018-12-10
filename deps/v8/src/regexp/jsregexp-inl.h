@@ -75,6 +75,10 @@ int32_t* RegExpImpl::GlobalCache::LastSuccessfulMatch() {
   return &register_array_[index];
 }
 
+RegExpEngine::CompilationResult::CompilationResult(Isolate* isolate,
+                                                   const char* error_message)
+    : error_message(error_message),
+      code(ReadOnlyRoots(isolate).the_hole_value()) {}
 
 }  // namespace internal
 }  // namespace v8

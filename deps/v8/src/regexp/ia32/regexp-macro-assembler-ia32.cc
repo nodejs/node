@@ -45,7 +45,7 @@ namespace internal {
  *       - end of input         (address of end of string)
  *       - start of input       (address of first character in string)
  *       - start index          (character index of start)
- *       - String* input_string (location of a handle containing the string)
+ *       - String input_string  (location of a handle containing the string)
  *       --- frame alignment (if applicable) ---
  *       - return address
  * ebp-> - old ebp
@@ -66,7 +66,7 @@ namespace internal {
  *
  * The data up to the return address must be placed there by the calling
  * code, by calling the code entry as cast to a function with the signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -93,6 +93,9 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone,
       success_label_(),
       backtrack_label_(),
       exit_label_() {
+  // Irregexp code clobbers ebx and spills/restores it at all boundaries.
+  masm_->set_root_array_available(false);
+
   DCHECK_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code later.
   __ bind(&start_label_);  // And then continue from here.
@@ -135,7 +138,7 @@ void RegExpMacroAssemblerIA32::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerIA32::Backtrack() {
   CheckPreemption();
-  // Pop Code* offset from backtrack stack, add Code* and jump to location.
+  // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(ebx);
   __ add(ebx, Immediate(masm_->CodeObject()));
   __ jmp(ebx);
@@ -585,7 +588,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     ExternalReference word_map =
         ExternalReference::re_word_character_map(isolate());
     __ test_b(current_character(),
-              masm_->StaticArray(current_character(), times_1, word_map));
+              Operand(current_character(), times_1, word_map.address(),
+                      RelocInfo::EXTERNAL_REFERENCE));
     BranchOrBacktrack(zero, on_no_match);
     return true;
   }
@@ -600,7 +604,8 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     ExternalReference word_map =
         ExternalReference::re_word_character_map(isolate());
     __ test_b(current_character(),
-              masm_->StaticArray(current_character(), times_1, word_map));
+              Operand(current_character(), times_1, word_map.address(),
+                      RelocInfo::EXTERNAL_REFERENCE));
     BranchOrBacktrack(not_zero, on_no_match);
     if (mode_ != LATIN1) {
       __ bind(&done);
@@ -681,7 +686,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
   __ mov(ecx, esp);
-  __ sub(ecx, masm_->StaticVariable(stack_limit));
+  __ sub(ecx, StaticVariable(stack_limit));
   // Handle it if the stack pointer is already below the stack limit.
   __ j(below_equal, &stack_limit_hit);
   // Check if there is room for the variable number of registers above
@@ -1094,7 +1099,7 @@ void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ mov(Operand(esp, 2 * kPointerSize), ebp);
-  // Code* of self.
+  // Code of self.
   __ mov(Operand(esp, 1 * kPointerSize), Immediate(masm_->CodeObject()));
   // Next address on the stack (will be address of return address).
   __ lea(eax, Operand(esp, -kPointerSize));
@@ -1104,6 +1109,9 @@ void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
   __ CallCFunction(check_stack_guard, num_arguments);
 }
 
+Operand RegExpMacroAssemblerIA32::StaticVariable(const ExternalReference& ext) {
+  return Operand(ext.address(), RelocInfo::EXTERNAL_REFERENCE);
+}
 
 // Helper function for reading a value out of a stack frame.
 template <typename T>
@@ -1117,15 +1125,15 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
   return reinterpret_cast<T*>(re_frame + frame_offset);
 }
 
-
 int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
-                                                   Code* re_code,
+                                                   Address raw_code,
                                                    Address re_frame) {
+  Code re_code = Code::cast(ObjectPtr(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),
       frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
-      frame_entry_address<String*>(re_frame, kInputString),
+      frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }
@@ -1219,7 +1227,7 @@ void RegExpMacroAssemblerIA32::CheckPreemption() {
   Label no_preempt;
   ExternalReference stack_limit =
       ExternalReference::address_of_stack_limit(isolate());
-  __ cmp(esp, masm_->StaticVariable(stack_limit));
+  __ cmp(esp, StaticVariable(stack_limit));
   __ j(above, &no_preempt);
 
   SafeCall(&check_preempt_label_);
@@ -1232,7 +1240,7 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
   Label no_stack_overflow;
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit(isolate());
-  __ cmp(backtrack_stackpointer(), masm_->StaticVariable(stack_limit));
+  __ cmp(backtrack_stackpointer(), StaticVariable(stack_limit));
   __ j(above, &no_stack_overflow);
 
   SafeCall(&stack_overflow_label_);

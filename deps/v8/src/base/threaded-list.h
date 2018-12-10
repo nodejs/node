@@ -16,6 +16,8 @@ namespace base {
 template <typename T>
 struct ThreadedListTraits {
   static T** next(T* t) { return t->next(); }
+  static T** start(T** t) { return t; }
+  static T* const* start(T* const* t) { return t; }
 };
 
 // Represents a linked list that threads through the nodes in the linked list.
@@ -44,21 +46,6 @@ class ThreadedListBase final : public BaseClass {
     head_ = v;
   }
 
-  // Reinitializing the head to a new node, this costs O(n).
-  void ReinitializeHead(T* v) {
-    head_ = v;
-    T* current = v;
-    if (current != nullptr) {  // Find tail
-      T* tmp;
-      while ((tmp = *TLTraits::next(current))) {
-        current = tmp;
-      }
-      tail_ = TLTraits::next(current);
-    } else {
-      tail_ = &head_;
-    }
-  }
-
   void DropHead() {
     DCHECK_NOT_NULL(head_);
 
@@ -68,7 +55,16 @@ class ThreadedListBase final : public BaseClass {
     *TLTraits::next(old_head) = nullptr;
   }
 
+  bool Contains(T* v) {
+    for (Iterator it = begin(); it != end(); ++it) {
+      if (*it == v) return true;
+    }
+    return false;
+  }
+
   void Append(ThreadedListBase&& list) {
+    if (list.is_empty()) return;
+
     *tail_ = list.head_;
     tail_ = list.tail_;
     list.Clear();
@@ -150,7 +146,7 @@ class ThreadedListBase final : public BaseClass {
     bool operator!=(const Iterator& other) const {
       return entry_ != other.entry_;
     }
-    T* operator*() { return *entry_; }
+    T*& operator*() { return *entry_; }
     T* operator->() { return *entry_; }
     Iterator& operator=(T* entry) {
       T* next = *TLTraits::next(*entry_);
@@ -158,6 +154,8 @@ class ThreadedListBase final : public BaseClass {
       *entry_ = entry;
       return *this;
     }
+
+    Iterator() : entry_(nullptr) {}
 
    private:
     explicit Iterator(T** entry) : entry_(entry) {}
@@ -196,10 +194,10 @@ class ThreadedListBase final : public BaseClass {
     friend class ThreadedListBase;
   };
 
-  Iterator begin() { return Iterator(&head_); }
+  Iterator begin() { return Iterator(TLTraits::start(&head_)); }
   Iterator end() { return Iterator(tail_); }
 
-  ConstIterator begin() const { return ConstIterator(&head_); }
+  ConstIterator begin() const { return ConstIterator(TLTraits::start(&head_)); }
   ConstIterator end() const { return ConstIterator(tail_); }
 
   // Rewinds the list's tail to the reset point, i.e., cutting of the rest of

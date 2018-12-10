@@ -218,10 +218,12 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_INTL_NUMBER_FORMAT_TYPE:
     case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_INTL_SEGMENT_ITERATOR_TYPE:
     case JS_INTL_SEGMENTER_TYPE:
 #endif  // V8_INTL_SUPPORT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
@@ -239,7 +241,11 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+    case JS_WEAK_CELL_TYPE:
+    case JS_WEAK_FACTORY_TYPE:
+    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
+    case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_EXCEPTION_TYPE:
@@ -266,11 +272,14 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
+    case FUNCTION_TEMPLATE_RARE_DATA_TYPE:
     case ACCESSOR_PAIR_TYPE:
+    case EMBEDDER_DATA_ARRAY_TYPE:
     case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
+    case ORDERED_NAME_DICTIONARY_TYPE:
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
@@ -308,7 +317,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
-    case MICROTASK_QUEUE_TYPE:
     case CELL_TYPE:
     case PRE_PARSED_SCOPE_DATA_TYPE:
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
@@ -326,6 +334,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 #undef FIXED_TYPED_ARRAY_CASE
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
+    case ASM_WASM_DATA_TYPE:
     case CALL_HANDLER_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
@@ -337,11 +346,13 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case STACK_FRAME_INFO_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case WASM_DEBUG_INFO_TYPE:
+    case WASM_EXCEPTION_TAG_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
@@ -352,6 +363,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case PROMISE_FULFILL_REACTION_JOB_TASK_TYPE:
     case PROMISE_REJECT_REACTION_JOB_TASK_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE:
+    case WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -478,7 +490,7 @@ HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
     : TypeBase(kHeapConstant), bitset_(bitset), heap_ref_(heap_ref) {}
 
 Handle<HeapObject> HeapConstantType::Value() const {
-  return heap_ref_.object<HeapObject>();
+  return heap_ref_.object();
 }
 
 // -----------------------------------------------------------------------------
@@ -835,9 +847,9 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+Type Type::NewConstant(JSHeapBroker* broker, Handle<i::Object> value,
                        Zone* zone) {
-  ObjectRef ref(js_heap_broker, value);
+  ObjectRef ref(broker, value);
   if (ref.IsSmi()) {
     return NewConstant(static_cast<double>(ref.AsSmi()), zone);
   }
@@ -1075,10 +1087,10 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+Type Type::HeapConstant(JSHeapBroker* broker, Handle<i::Object> value,
                         Zone* zone) {
   return FromTypeBase(
-      HeapConstantType::New(HeapObjectRef(js_heap_broker, value), zone));
+      HeapConstantType::New(HeapObjectRef(broker, value), zone));
 }
 
 // static

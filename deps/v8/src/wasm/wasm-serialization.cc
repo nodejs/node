@@ -119,9 +119,8 @@ class Reader {
 
 constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
-void WriteVersion(Isolate* isolate, Writer* writer) {
-  writer->Write(SerializedData::ComputeMagicNumber(
-      isolate->heap()->external_reference_table()));
+void WriteVersion(Writer* writer) {
+  writer->Write(SerializedData::kMagicNumber);
   writer->Write(Version::Hash());
   writer->Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer->Write(FlagList::Hash());
@@ -198,13 +197,68 @@ constexpr size_t kCodeHeaderSize =
     sizeof(size_t) +         // protected instructions size
     sizeof(WasmCode::Tier);  // tier
 
+// A List of all isolate-independent external references. This is used to create
+// a tag from the Address of an external reference and vice versa.
+class ExternalReferenceList {
+ public:
+  uint32_t tag_from_address(Address ext_ref_address) const {
+    auto tag_addr_less_than = [this](uint32_t tag, Address searched_addr) {
+      return external_reference_by_tag_[tag] < searched_addr;
+    };
+    auto it = std::lower_bound(std::begin(tags_ordered_by_address_),
+                               std::end(tags_ordered_by_address_),
+                               ext_ref_address, tag_addr_less_than);
+    DCHECK_NE(std::end(tags_ordered_by_address_), it);
+    uint32_t tag = *it;
+    DCHECK_EQ(address_from_tag(tag), ext_ref_address);
+    return tag;
+  }
+
+  Address address_from_tag(uint32_t tag) const {
+    DCHECK_GT(kNumExternalReferences, tag);
+    return external_reference_by_tag_[tag];
+  }
+
+  static const ExternalReferenceList& Get() {
+    static ExternalReferenceList list;  // Lazily initialized.
+    return list;
+  }
+
+ private:
+  // Private constructor. There will only be a single instance of this object.
+  ExternalReferenceList() {
+    for (uint32_t i = 0; i < kNumExternalReferences; ++i) {
+      tags_ordered_by_address_[i] = i;
+    }
+    auto addr_by_tag_less_than = [this](uint32_t a, uint32_t b) {
+      return external_reference_by_tag_[a] < external_reference_by_tag_[b];
+    };
+    std::sort(std::begin(tags_ordered_by_address_),
+              std::end(tags_ordered_by_address_), addr_by_tag_less_than);
+  }
+
+#define COUNT_EXTERNAL_REFERENCE(name, desc) +1
+  static constexpr uint32_t kNumExternalReferences =
+      EXTERNAL_REFERENCE_LIST(COUNT_EXTERNAL_REFERENCE);
+#undef COUNT_EXTERNAL_REFERENCE
+
+#define EXT_REF_ADDR(name, desc) ExternalReference::name().address(),
+  Address external_reference_by_tag_[kNumExternalReferences] = {
+      EXTERNAL_REFERENCE_LIST(EXT_REF_ADDR)};
+#undef EXT_REF_ADDR
+  uint32_t tags_ordered_by_address_[kNumExternalReferences];
+  DISALLOW_COPY_AND_ASSIGN(ExternalReferenceList);
+};
+
+static_assert(std::is_trivially_destructible<ExternalReferenceList>::value,
+              "static destructors not allowed");
+
 }  // namespace
 
 class V8_EXPORT_PRIVATE NativeModuleSerializer {
  public:
   NativeModuleSerializer() = delete;
-  NativeModuleSerializer(Isolate*, const NativeModule*,
-                         Vector<WasmCode* const>);
+  NativeModuleSerializer(const NativeModule*, Vector<WasmCode* const>);
 
   size_t Measure() const;
   bool Write(Writer* writer);
@@ -214,26 +268,19 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   void WriteHeader(Writer* writer);
   void WriteCode(const WasmCode*, Writer* writer);
 
-  Isolate* const isolate_;
   const NativeModule* const native_module_;
   Vector<WasmCode* const> code_table_;
   bool write_called_;
 
   // Reverse lookup tables for embedded addresses.
   std::map<Address, uint32_t> wasm_stub_targets_lookup_;
-  std::map<Address, uint32_t> reference_table_lookup_;
 
   DISALLOW_COPY_AND_ASSIGN(NativeModuleSerializer);
 };
 
 NativeModuleSerializer::NativeModuleSerializer(
-    Isolate* isolate, const NativeModule* module,
-    Vector<WasmCode* const> code_table)
-    : isolate_(isolate),
-      native_module_(module),
-      code_table_(code_table),
-      write_called_(false) {
-  DCHECK_NOT_NULL(isolate_);
+    const NativeModule* module, Vector<WasmCode* const> code_table)
+    : native_module_(module), code_table_(code_table), write_called_(false) {
   DCHECK_NOT_NULL(native_module_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
@@ -242,11 +289,6 @@ NativeModuleSerializer::NativeModuleSerializer(
         native_module_->runtime_stub(static_cast<WasmCode::RuntimeStubId>(i))
             ->instruction_start();
     wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
-  }
-  ExternalReferenceTable* table = isolate_->heap()->external_reference_table();
-  for (uint32_t i = 0; i < table->size(); ++i) {
-    Address addr = table->address(i);
-    reference_table_lookup_.insert(std::make_pair(addr, i));
   }
 }
 
@@ -268,6 +310,9 @@ size_t NativeModuleSerializer::Measure() const {
 }
 
 void NativeModuleSerializer::WriteHeader(Writer* writer) {
+  // TODO(eholk): We need to properly preserve the flag whether the trap
+  // handler was used or not when serializing.
+
   writer->Write(native_module_->num_functions());
   writer->Write(native_module_->num_imported_functions());
 }
@@ -340,10 +385,9 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
         Address orig_target = orig_iter.rinfo()->target_external_reference();
-        auto ref_iter = reference_table_lookup_.find(orig_target);
-        DCHECK(ref_iter != reference_table_lookup_.end());
-        uint32_t tag = ref_iter->second;
-        SetWasmCalleeTag(iter.rinfo(), tag);
+        uint32_t ext_ref_tag =
+            ExternalReferenceList::Get().tag_from_address(orig_target);
+        SetWasmCalleeTag(iter.rinfo(), ext_ref_tag);
       } break;
       case RelocInfo::INTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
@@ -374,25 +418,22 @@ bool NativeModuleSerializer::Write(Writer* writer) {
   return true;
 }
 
-WasmSerializer::WasmSerializer(Isolate* isolate, NativeModule* native_module)
-    : isolate_(isolate),
-      native_module_(native_module),
+WasmSerializer::WasmSerializer(NativeModule* native_module)
+    : native_module_(native_module),
       code_table_(native_module->SnapshotCodeTable()) {}
 
 size_t WasmSerializer::GetSerializedNativeModuleSize() const {
-  Vector<WasmCode* const> code_table(code_table_.data(), code_table_.size());
-  NativeModuleSerializer serializer(isolate_, native_module_, code_table);
+  NativeModuleSerializer serializer(native_module_, VectorOf(code_table_));
   return kVersionSize + serializer.Measure();
 }
 
 bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
-  Vector<WasmCode* const> code_table(code_table_.data(), code_table_.size());
-  NativeModuleSerializer serializer(isolate_, native_module_, code_table);
+  NativeModuleSerializer serializer(native_module_, VectorOf(code_table_));
   size_t measured_size = kVersionSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
   Writer writer(buffer);
-  WriteVersion(isolate_, &writer);
+  WriteVersion(&writer);
 
   if (!serializer.Write(&writer)) return false;
   DCHECK_EQ(measured_size, writer.bytes_written());
@@ -402,7 +443,7 @@ bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
 class V8_EXPORT_PRIVATE NativeModuleDeserializer {
  public:
   NativeModuleDeserializer() = delete;
-  NativeModuleDeserializer(Isolate*, NativeModule*);
+  explicit NativeModuleDeserializer(NativeModule*);
 
   bool Read(Reader* reader);
 
@@ -410,16 +451,14 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   bool ReadHeader(Reader* reader);
   bool ReadCode(uint32_t fn_index, Reader* reader);
 
-  Isolate* const isolate_;
   NativeModule* const native_module_;
   bool read_called_;
 
   DISALLOW_COPY_AND_ASSIGN(NativeModuleDeserializer);
 };
 
-NativeModuleDeserializer::NativeModuleDeserializer(Isolate* isolate,
-                                                   NativeModule* native_module)
-    : isolate_(isolate), native_module_(native_module), read_called_(false) {}
+NativeModuleDeserializer::NativeModuleDeserializer(NativeModule* native_module)
+    : native_module_(native_module), read_called_(false) {}
 
 bool NativeModuleDeserializer::Read(Reader* reader) {
   DCHECK(!read_called_);
@@ -501,8 +540,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       }
       case RelocInfo::EXTERNAL_REFERENCE: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        Address address =
-            isolate_->heap()->external_reference_table()->address(tag);
+        Address address = ExternalReferenceList::Get().address_from_tag(tag);
         iter.rinfo()->set_target_external_reference(address, SKIP_ICACHE_FLUSH);
         break;
       }
@@ -529,60 +567,47 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   return true;
 }
 
-bool IsSupportedVersion(Isolate* isolate, Vector<const byte> version) {
+bool IsSupportedVersion(Vector<const byte> version) {
   if (version.size() < kVersionSize) return false;
   byte current_version[kVersionSize];
   Writer writer({current_version, kVersionSize});
-  WriteVersion(isolate, &writer);
+  WriteVersion(&writer);
   return memcmp(version.start(), current_version, kVersionSize) == 0;
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
-  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
-    return {};
-  }
-  if (!IsSupportedVersion(isolate, data)) {
-    return {};
-  }
+  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
+  if (!IsSupportedVersion(data)) return {};
+
   // TODO(titzer): module features should be part of the serialization format.
   WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), false,
       i::wasm::kWasmOrigin, isolate->counters(), isolate->allocator());
-  if (!decode_result.ok()) return {};
-  CHECK_NOT_NULL(decode_result.val);
-  WasmModule* module = decode_result.val.get();
+  if (decode_result.failed()) return {};
+  CHECK_NOT_NULL(decode_result.value());
+  WasmModule* module = decode_result.value().get();
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);
-
-  // TODO(eholk): We need to properly preserve the flag whether the trap
-  // handler was used or not when serializing.
-  UseTrapHandler use_trap_handler =
-      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
-  ModuleEnv env(module, use_trap_handler,
-                RuntimeExceptionSupport::kRuntimeExceptionSupport);
 
   OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, enabled_features, std::move(decode_result.val), env,
+      isolate, enabled_features, std::move(decode_result).value(),
       std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 
   if (FLAG_wasm_lazy_compilation) {
     native_module->SetLazyBuiltin(BUILTIN_CODE(isolate, WasmCompileLazy));
   }
-  NativeModuleDeserializer deserializer(isolate, native_module);
+  NativeModuleDeserializer deserializer(native_module);
 
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};
 
-  // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}. This
-  // requires unlocking the code space here. This should eventually be moved
-  // into the allocator.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  CompileJsToWasmWrappers(isolate, module_object);
+  CompileJsToWasmWrappers(isolate, native_module->module(),
+                          handle(module_object->export_wrappers(), isolate));
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);

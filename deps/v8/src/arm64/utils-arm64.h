@@ -44,7 +44,7 @@ int MaskToBit(uint64_t mask);
 template <typename T>
 T ReverseBytes(T value, int block_bytes_log2) {
   DCHECK((sizeof(value) == 4) || (sizeof(value) == 8));
-  DCHECK((1U << block_bytes_log2) <= sizeof(value));
+  DCHECK((1ULL << block_bytes_log2) <= sizeof(value));
   // Split the 64-bit value into an 8-bit array, where b[0] is the least
   // significant byte, and b[7] is the most significant.
   uint8_t bytes[8];

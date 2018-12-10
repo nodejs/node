@@ -7,9 +7,10 @@
 #include "src/api-inl.h"
 #include "src/isolate-inl.h"
 #include "src/lookup.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/property-cell.h"
 #include "src/objects/templates.h"
 
 namespace v8 {
@@ -348,11 +349,11 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
 }
 
 bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo* info,
-                           JSReceiver* new_target) {
+                           JSReceiver new_target) {
   DisallowHeapAllocation no_gc;
 
   if (!new_target->IsJSFunction()) return false;
-  JSFunction* fun = JSFunction::cast(new_target);
+  JSFunction fun = JSFunction::cast(new_target);
   if (fun->shared()->function_data() != info->constructor()) return false;
   if (info->immutable_proto()) return false;
   return fun->context()->native_context() == isolate->raw_native_context();
@@ -467,9 +468,9 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   }
   Handle<Object> prototype;
   if (!data->remove_prototype()) {
-    Object* prototype_templ = data->prototype_template();
+    Object* prototype_templ = data->GetPrototypeTemplate();
     if (prototype_templ->IsUndefined(isolate)) {
-      Object* protoype_provider_templ = data->prototype_provider_template();
+      Object* protoype_provider_templ = data->GetPrototypeProviderTemplate();
       if (protoype_provider_templ->IsUndefined(isolate)) {
         prototype = isolate->factory()->NewJSObject(isolate->object_function());
       } else {
@@ -486,7 +487,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
               Handle<JSReceiver>(), data->hidden_prototype(), true),
           JSFunction);
     }
-    Object* parent = data->parent_template();
+    Object* parent = data->GetParentTemplate();
     if (!parent->IsUndefined(isolate)) {
       Handle<Object> parent_prototype;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
@@ -498,8 +499,8 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   }
   InstanceType function_type =
       (!data->needs_access_check() &&
-       data->named_property_handler()->IsUndefined(isolate) &&
-       data->indexed_property_handler()->IsUndefined(isolate))
+       data->GetNamedPropertyHandler()->IsUndefined(isolate) &&
+       data->GetIndexedPropertyHandler()->IsUndefined(isolate))
           ? JS_API_OBJECT_TYPE
           : JS_SPECIAL_API_OBJECT_TYPE;
 
@@ -570,7 +571,8 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
       FunctionTemplateInfo::cast(data->constructor()), isolate);
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
-      JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
+      JSObject::kHeaderSize +
+          data->embedder_field_count() * kEmbedderDataSlotSize,
       TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
@@ -662,7 +664,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (prototype->IsTheHole(isolate)) {
     prototype = isolate->factory()->NewFunctionPrototype(result);
-  } else if (obj->prototype_provider_template()->IsUndefined(isolate)) {
+  } else if (obj->GetPrototypeProviderTemplate()->IsUndefined(isolate)) {
     JSObject::AddProperty(isolate, Handle<JSObject>::cast(prototype),
                           isolate->factory()->constructor_string(), result,
                           DONT_ENUM);
@@ -670,17 +672,17 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   int embedder_field_count = 0;
   bool immutable_proto = false;
-  if (!obj->instance_template()->IsUndefined(isolate)) {
-    Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
-        ObjectTemplateInfo::cast(obj->instance_template()), isolate);
-    embedder_field_count = instance_template->embedder_field_count();
-    immutable_proto = instance_template->immutable_proto();
+  if (!obj->GetInstanceTemplate()->IsUndefined(isolate)) {
+    Handle<ObjectTemplateInfo> GetInstanceTemplate = Handle<ObjectTemplateInfo>(
+        ObjectTemplateInfo::cast(obj->GetInstanceTemplate()), isolate);
+    embedder_field_count = GetInstanceTemplate->embedder_field_count();
+    immutable_proto = GetInstanceTemplate->immutable_proto();
   }
 
   // JS_FUNCTION_TYPE requires information about the prototype slot.
   DCHECK_NE(JS_FUNCTION_TYPE, type);
-  int instance_size =
-      JSObject::GetHeaderSize(type) + kPointerSize * embedder_field_count;
+  int instance_size = JSObject::GetHeaderSize(type) +
+                      kEmbedderDataSlotSize * embedder_field_count;
 
   Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
                                                TERMINAL_FAST_ELEMENTS_KIND);
@@ -693,7 +695,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     // undetectable and callable. If we ever see the need to have an object
     // that is undetectable but not callable, we need to update the types.h
     // to allow encoding this.
-    CHECK(!obj->instance_call_handler()->IsUndefined(isolate));
+    CHECK(!obj->GetInstanceCallHandler()->IsUndefined(isolate));
     map->set_is_undetectable(true);
   }
 
@@ -704,17 +706,18 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   }
 
   // Set interceptor information in the map.
-  if (!obj->named_property_handler()->IsUndefined(isolate)) {
+  if (!obj->GetNamedPropertyHandler()->IsUndefined(isolate)) {
     map->set_has_named_interceptor(true);
     map->set_may_have_interesting_symbols(true);
   }
-  if (!obj->indexed_property_handler()->IsUndefined(isolate)) {
+  if (!obj->GetIndexedPropertyHandler()->IsUndefined(isolate)) {
     map->set_has_indexed_interceptor(true);
   }
 
   // Mark instance as callable in the map.
-  if (!obj->instance_call_handler()->IsUndefined(isolate)) {
+  if (!obj->GetInstanceCallHandler()->IsUndefined(isolate)) {
     map->set_is_callable(true);
+    map->set_is_constructor(!obj->undetectable());
   }
 
   if (immutable_proto) map->set_is_immutable_proto(true);

@@ -37,7 +37,7 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   DECL_INT_ACCESSORS(flags)
 
   // The shared function info for the source being debugged.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
+  DECL_ACCESSORS2(shared, SharedFunctionInfo)
 
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)
@@ -64,8 +64,8 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   // and DebugBytecodeArray returns the instrumented bytecode.
   inline bool HasInstrumentedBytecodeArray();
 
-  inline BytecodeArray* OriginalBytecodeArray();
-  inline BytecodeArray* DebugBytecodeArray();
+  inline BytecodeArray OriginalBytecodeArray();
+  inline BytecodeArray DebugBytecodeArray();
 
   // --- Break points ---
   // --------------------
@@ -85,8 +85,12 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   // points - the instrumented bytecode is held in the shared function info.
   DECL_ACCESSORS(original_bytecode_array, Object)
 
+  // The debug instrumented bytecode array for functions with break points
+  // - also pointed to by the shared function info.
+  DECL_ACCESSORS(debug_bytecode_array, Object)
+
   // Fixed array holding status information for each active break point.
-  DECL_ACCESSORS(break_points, FixedArray)
+  DECL_ACCESSORS2(break_points, FixedArray)
 
   // Check if there is a break point at a source position.
   bool HasBreakPoint(Isolate* isolate, int source_position);
@@ -162,16 +166,21 @@ class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
   DECL_PRINTER(DebugInfo)
   DECL_VERIFIER(DebugInfo)
 
-  static const int kSharedFunctionInfoOffset = Struct::kHeaderSize;
-  static const int kDebuggerHintsOffset =
-      kSharedFunctionInfoOffset + kPointerSize;
-  static const int kScriptOffset = kDebuggerHintsOffset + kPointerSize;
-  static const int kOriginalBytecodeArrayOffset = kScriptOffset + kPointerSize;
-  static const int kBreakPointsStateOffset =
-      kOriginalBytecodeArrayOffset + kPointerSize;
-  static const int kFlagsOffset = kBreakPointsStateOffset + kPointerSize;
-  static const int kCoverageInfoOffset = kFlagsOffset + kPointerSize;
-  static const int kSize = kCoverageInfoOffset + kPointerSize;
+// Layout description.
+#define DEBUG_INFO_FIELDS(V)                   \
+  V(kSharedFunctionInfoOffset, kTaggedSize)    \
+  V(kDebuggerHintsOffset, kTaggedSize)         \
+  V(kScriptOffset, kTaggedSize)                \
+  V(kOriginalBytecodeArrayOffset, kTaggedSize) \
+  V(kDebugBytecodeArrayOffset, kTaggedSize)    \
+  V(kBreakPointsStateOffset, kTaggedSize)      \
+  V(kFlagsOffset, kTaggedSize)                 \
+  V(kCoverageInfoOffset, kTaggedSize)          \
+  /* Total size. */                            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, DEBUG_INFO_FIELDS)
+#undef DEBUG_INFO_FIELDS
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
@@ -232,7 +241,7 @@ class CoverageInfo : public FixedArray {
     return slot_count * kSlotIndexCount + kFirstSlotIndex;
   }
 
-  DECL_CAST(CoverageInfo)
+  DECL_CAST2(CoverageInfo)
 
   // Print debug info.
   void Print(std::unique_ptr<char[]> function_name);
@@ -251,14 +260,14 @@ class CoverageInfo : public FixedArray {
   static const int kSlotBlockCountIndex = 2;
   static const int kSlotIndexCount = 3;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CoverageInfo);
+  OBJECT_CONSTRUCTORS(CoverageInfo, FixedArray);
 };
 
 // Holds breakpoint related information. This object is used by inspector.
 class BreakPoint : public Tuple2 {
  public:
   DECL_INT_ACCESSORS(id)
-  DECL_ACCESSORS(condition, String)
+  DECL_ACCESSORS2(condition, String)
 
   DECL_CAST(BreakPoint)
 

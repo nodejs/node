@@ -18,31 +18,18 @@ class Isolate;
 // step and posts another task until the marking is completed.
 class IncrementalMarkingJob {
  public:
-  class Task : public CancelableTask {
-   public:
-    explicit Task(Isolate* isolate, IncrementalMarkingJob* job)
-        : CancelableTask(isolate), isolate_(isolate), job_(job) {}
-    static void Step(Heap* heap);
-    // CancelableTask overrides.
-    void RunInternal() override;
+  IncrementalMarkingJob() = default;
 
-    Isolate* isolate() { return isolate_; }
-
-   private:
-    Isolate* isolate_;
-    IncrementalMarkingJob* job_;
-  };
-
-  IncrementalMarkingJob() : task_pending_(false) {}
-
-  bool TaskPending() { return task_pending_; }
+  bool TaskPending() const { return task_pending_; }
 
   void Start(Heap* heap);
 
   void ScheduleTask(Heap* heap);
 
  private:
-  bool task_pending_;
+  class Task;
+
+  bool task_pending_ = false;
 };
 }  // namespace internal
 }  // namespace v8

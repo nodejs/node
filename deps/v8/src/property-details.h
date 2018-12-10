@@ -288,8 +288,8 @@ class PropertyDetails {
   }
 
   // Conversion for storing details as Object*.
-  explicit inline PropertyDetails(Smi* smi);
-  inline Smi* AsSmi() const;
+  explicit inline PropertyDetails(Smi smi);
+  inline Smi AsSmi() const;
 
   static uint8_t EncodeRepresentation(Representation representation) {
     return representation.kind();
@@ -305,6 +305,11 @@ class PropertyDetails {
 
   PropertyAttributes attributes() const {
     return AttributesField::decode(value_);
+  }
+
+  bool HasKindAndAttributes(PropertyKind kind, PropertyAttributes attributes) {
+    return (value_ & (KindField::kMask | AttributesField::kMask)) ==
+           (KindField::encode(kind) | AttributesField::encode(attributes));
   }
 
   int dictionary_index() const {

@@ -14,6 +14,33 @@
 namespace v8 {
 namespace internal {
 
+class InnerPointerToCodeCache {
+ public:
+  struct InnerPointerToCodeCacheEntry {
+    Address inner_pointer;
+    Code code;
+    SafepointEntry safepoint_entry;
+  };
+
+  explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
+    Flush();
+  }
+
+  void Flush() { memset(static_cast<void*>(&cache_[0]), 0, sizeof(cache_)); }
+
+  InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
+
+ private:
+  InnerPointerToCodeCacheEntry* cache(int index) { return &cache_[index]; }
+
+  Isolate* isolate_;
+
+  static const int kInnerPointerToCodeCacheSize = 1024;
+  InnerPointerToCodeCacheEntry cache_[kInnerPointerToCodeCacheSize];
+
+  DISALLOW_COPY_AND_ASSIGN(InnerPointerToCodeCache);
+};
+
 inline Address StackHandler::address() const {
   return reinterpret_cast<Address>(const_cast<StackHandler*>(this));
 }

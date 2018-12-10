@@ -72,7 +72,7 @@ static uint64_t RotateRight(uint64_t value,
                             unsigned int width) {
   DCHECK_LE(width, 64);
   rotate &= 63;
-  return ((value & ((1UL << rotate) - 1UL)) << (width - rotate)) |
+  return ((value & ((1ULL << rotate) - 1ULL)) << (width - rotate)) |
          (value >> rotate);
 }
 
@@ -83,7 +83,7 @@ static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
   DCHECK((width == 2) || (width == 4) || (width == 8) || (width == 16) ||
          (width == 32));
   DCHECK((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
-  uint64_t result = value & ((1UL << width) - 1UL);
+  uint64_t result = value & ((1ULL << width) - 1ULL);
   for (unsigned i = width; i < reg_size; i *= 2) {
     result |= (result << i);
   }
@@ -121,7 +121,7 @@ uint64_t Instruction::ImmLogical() {
     if (imm_s == 0x3F) {
       return 0;
     }
-    uint64_t bits = (1UL << (imm_s + 1)) - 1;
+    uint64_t bits = (1ULL << (imm_s + 1)) - 1;
     return RotateRight(bits, imm_r, 64);
   } else {
     if ((imm_s >> 1) == 0x1F) {
@@ -133,7 +133,7 @@ uint64_t Instruction::ImmLogical() {
         if ((imm_s & mask) == mask) {
           return 0;
         }
-        uint64_t bits = (1UL << ((imm_s & mask) + 1)) - 1;
+        uint64_t bits = (1ULL << ((imm_s & mask) + 1)) - 1;
         return RepeatBitsAcrossReg(reg_size,
                                    RotateRight(bits, imm_r & mask, width),
                                    width);

@@ -12,15 +12,13 @@
 namespace v8 {
 namespace internal {
 
-inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding,
-                                                const Map* map) {
-  DCHECK(map == nullptr || offset < map->instance_size());
+inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding) {
   DCHECK(encoding == kWord32 ? (offset % kInt32Size) == 0
                              : (offset % kPointerSize) == 0);
   return FieldIndex(true, offset, encoding, 0, 0);
 }
 
-inline FieldIndex FieldIndex::ForPropertyIndex(const Map* map,
+inline FieldIndex FieldIndex::ForPropertyIndex(const Map map,
                                                int property_index,
                                                Representation representation) {
   DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
@@ -62,7 +60,7 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
-inline FieldIndex FieldIndex::ForDescriptor(const Map* map,
+inline FieldIndex FieldIndex::ForDescriptor(const Map map,
                                             int descriptor_index) {
   PropertyDetails details =
       map->instance_descriptors()->GetDetails(descriptor_index);

@@ -84,17 +84,17 @@ class WasmSerializationTest {
     *slot = 0u;
   }
 
-  v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {
+  v8::MaybeLocal<v8::WasmModuleObject> Deserialize() {
     ErrorThrower thrower(current_isolate(), "");
-    v8::MaybeLocal<v8::WasmCompiledModule> deserialized =
-        v8::WasmCompiledModule::DeserializeOrCompile(
+    v8::MaybeLocal<v8::WasmModuleObject> deserialized =
+        v8::WasmModuleObject::DeserializeOrCompile(
             current_isolate_v8(), serialized_bytes_, wire_bytes_);
     return deserialized;
   }
 
   void DeserializeAndRun() {
     ErrorThrower thrower(current_isolate(), "");
-    v8::Local<v8::WasmCompiledModule> deserialized_module;
+    v8::Local<v8::WasmModuleObject> deserialized_module;
     CHECK(Deserialize().ToLocal(&deserialized_module));
     Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
         v8::Utils::OpenHandle(*deserialized_module));
@@ -159,9 +159,9 @@ class WasmSerializationTest {
           v8::Utils::ToLocal(Handle<JSObject>::cast(module_object));
       CHECK(v8_module_obj->IsWebAssemblyCompiledModule());
 
-      v8::Local<v8::WasmCompiledModule> v8_compiled_module =
-          v8_module_obj.As<v8::WasmCompiledModule>();
-      v8::WasmCompiledModule::BufferReference uncompiled_bytes =
+      v8::Local<v8::WasmModuleObject> v8_compiled_module =
+          v8_module_obj.As<v8::WasmModuleObject>();
+      v8::WasmModuleObject::BufferReference uncompiled_bytes =
           v8_compiled_module->GetWasmWireBytesRef();
       uint8_t* bytes_copy = zone()->NewArray<uint8_t>(uncompiled_bytes.size);
       memcpy(bytes_copy, uncompiled_bytes.start, uncompiled_bytes.size);
@@ -191,9 +191,9 @@ class WasmSerializationTest {
 
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;
-  v8::WasmCompiledModule::SerializedModule data_;
-  v8::WasmCompiledModule::BufferReference wire_bytes_ = {nullptr, 0};
-  v8::WasmCompiledModule::BufferReference serialized_bytes_ = {nullptr, 0};
+  v8::WasmModuleObject::SerializedModule data_;
+  v8::WasmModuleObject::BufferReference wire_bytes_ = {nullptr, 0};
+  v8::WasmModuleObject::BufferReference serialized_bytes_ = {nullptr, 0};
   v8::Isolate* current_isolate_v8_;
 };
 
@@ -263,7 +263,7 @@ TEST(BlockWasmCodeGenAtDeserialization) {
   {
     HandleScope scope(test.current_isolate());
     test.current_isolate_v8()->SetAllowCodeGenerationFromStringsCallback(False);
-    v8::MaybeLocal<v8::WasmCompiledModule> nothing = test.Deserialize();
+    v8::MaybeLocal<v8::WasmModuleObject> nothing = test.Deserialize();
     CHECK(nothing.IsEmpty());
   }
   Cleanup(test.current_isolate());
@@ -283,7 +283,7 @@ void TestTransferrableWasmModules(bool should_share) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* from_isolate = v8::Isolate::New(create_params);
-  std::vector<v8::WasmCompiledModule::TransferrableModule> store;
+  std::vector<v8::WasmModuleObject::TransferrableModule> store;
   std::shared_ptr<NativeModule> original_native_module;
   {
     v8::HandleScope scope(from_isolate);
@@ -299,8 +299,8 @@ void TestTransferrableWasmModules(bool should_share) {
             ModuleWireBytes(buffer.begin(), buffer.end()));
     Handle<WasmModuleObject> module_object =
         maybe_module_object.ToHandleChecked();
-    v8::Local<v8::WasmCompiledModule> v8_module =
-        v8::Local<v8::WasmCompiledModule>::Cast(
+    v8::Local<v8::WasmModuleObject> v8_module =
+        v8::Local<v8::WasmModuleObject>::Cast(
             v8::Utils::ToLocal(Handle<JSObject>::cast(module_object)));
     store.push_back(v8_module->GetTransferrableModule());
     original_native_module = module_object->managed_native_module()->get();
@@ -312,8 +312,8 @@ void TestTransferrableWasmModules(bool should_share) {
       v8::HandleScope scope(to_isolate);
       LocalContext env(to_isolate);
 
-      v8::MaybeLocal<v8::WasmCompiledModule> transferred_module =
-          v8::WasmCompiledModule::FromTransferrableModule(to_isolate, store[0]);
+      v8::MaybeLocal<v8::WasmModuleObject> transferred_module =
+          v8::WasmModuleObject::FromTransferrableModule(to_isolate, store[0]);
       CHECK(!transferred_module.IsEmpty());
       Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
           v8::Utils::OpenHandle(*transferred_module.ToLocalChecked()));

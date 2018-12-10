@@ -15,8 +15,6 @@ namespace internal {
 
 namespace wasm {
 
-using FunctionSig = Signature<ValueType>;
-
 // A signature map canonicalizes signatures into a range of indices so that
 // two different {FunctionSig} instances with the same contents map to the
 // same index.
@@ -37,7 +35,6 @@ class V8_EXPORT_PRIVATE SignatureMap {
   void Freeze() { frozen_ = true; }
 
  private:
-  uint32_t next_ = 0;
   bool frozen_ = false;
   std::unordered_map<FunctionSig, uint32_t, base::hash<FunctionSig>> map_;
 };

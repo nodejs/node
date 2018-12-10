@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Schedule,SourceResolver} from "./source-resolver.js"
-import {isIterable} from "./util.js"
-import {PhaseView} from "./view.js"
-import {TextView} from "./text-view.js"
+import {Schedule,SourceResolver} from "../src/source-resolver"
+import {isIterable} from "../src/util"
+import {PhaseView} from "../src/view"
+import {TextView} from "../src/text-view"
 
 export class ScheduleView extends TextView implements PhaseView {
   schedule: Schedule;
@@ -52,13 +52,9 @@ export class ScheduleView extends TextView implements PhaseView {
 
   elementForBlock(block) {
     const view = this;
-    function createElement(tag: string, cls: string | Array<string>, content?: string) {
+    function createElement(tag: string, cls: string, content?: string) {
       const el = document.createElement(tag);
-      if (isIterable(cls)) {
-        for (const c of cls) el.classList.add(c);
-      } else {
-        el.classList.add(cls);
-      }
+      el.className = cls
       if (content != undefined) el.innerHTML = content;
       return el;
     }
@@ -92,22 +88,22 @@ export class ScheduleView extends TextView implements PhaseView {
 
       const [start, end] = view.sourceResolver.getInstruction(node.id);
       const [marker, tooltip] = getMarker(start, end);
-      const instrMarker = createElement("div", ["instr-marker", "com"], marker);
+      const instrMarker = createElement("div", "instr-marker com", marker);
       instrMarker.setAttribute("title", tooltip);
       instrMarker.onclick = mkNodeLinkHandler(node.id);
       nodeEl.appendChild(instrMarker);
 
 
-      const node_id = createElement("div", ["node-id", "tag", "clickable"], node.id);
+      const node_id = createElement("div", "node-id tag clickable", node.id);
       node_id.onclick = mkNodeLinkHandler(node.id);
       view.addHtmlElementForNodeId(node.id, node_id);
       nodeEl.appendChild(node_id);
       const node_label = createElement("div", "node-label", node.label);
       nodeEl.appendChild(node_label);
       if (node.inputs.length > 0) {
-        const node_parameters = createElement("div", ["parameter-list", "comma-sep-list"]);
+        const node_parameters = createElement("div", "parameter-list comma-sep-list");
         for (const param of node.inputs) {
-          const paramEl = createElement("div", ["parameter", "tag", "clickable"], param);
+          const paramEl = createElement("div", "parameter tag clickable", param);
           node_parameters.appendChild(paramEl);
           paramEl.onclick = mkNodeLinkHandler(param);
           view.addHtmlElementForNodeId(param, paramEl);
@@ -131,17 +127,17 @@ export class ScheduleView extends TextView implements PhaseView {
     const schedule_block = createElement("div", "schedule-block");
 
     const [start, end] = view.sourceResolver.getInstructionRangeForBlock(block.id);
-    const instrMarker = createElement("div", ["instr-marker", "com"], "&#8857;");
+    const instrMarker = createElement("div", "instr-marker com", "&#8857;");
     instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`)
     instrMarker.onclick = mkBlockLinkHandler(block.id);
     schedule_block.appendChild(instrMarker);
 
-    const block_id = createElement("div", ["block-id", "com", "clickable"], block.id);
+    const block_id = createElement("div", "block-id com clickable", block.id);
     block_id.onclick = mkBlockLinkHandler(block.id);
     schedule_block.appendChild(block_id);
-    const block_pred = createElement("div", ["predecessor-list", "block-list", "comma-sep-list"]);
+    const block_pred = createElement("div", "predecessor-list block-list comma-sep-list");
     for (const pred of block.pred) {
-      const predEl = createElement("div", ["block-id", "com", "clickable"], pred);
+      const predEl = createElement("div", "block-id com clickable", pred);
       predEl.onclick = mkBlockLinkHandler(pred);
       block_pred.appendChild(predEl);
     }
@@ -151,9 +147,9 @@ export class ScheduleView extends TextView implements PhaseView {
       nodes.appendChild(createElementForNode(node));
     }
     schedule_block.appendChild(nodes);
-    const block_succ = createElement("div", ["successor-list", "block-list", "comma-sep-list"]);
+    const block_succ = createElement("div", "successor-list block-list comma-sep-list");
     for (const succ of block.succ) {
-      const succEl = createElement("div", ["block-id", "com", "clickable"], succ);
+      const succEl = createElement("div", "block-id com clickable", succ);
       succEl.onclick = mkBlockLinkHandler(succ);
       block_succ.appendChild(succEl);
     }

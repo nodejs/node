@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-module typed_array {
+#include 'src/builtins/builtins-typed-array-gen.h'
+
+namespace typed_array {
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
-  extern macro ValidateTypedArray(
+  extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, Object, constexpr string): JSTypedArray;
 
   extern macro LoadFixedTypedArrayElementAsTagged(
@@ -15,6 +17,18 @@ module typed_array {
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
   type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
+
+  // These UnsafeCast specializations are necessary becuase there is no
+  // way to definitively test whether an Object is a Torque function
+  // with a specific signature, and the default UnsafeCast implementation
+  // would try to check this through an assert(Is<>), so the test
+  // is bypassed in this specialization.
+  UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
+    return %RawObjectCast<LoadFn>(o);
+  }
+  UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
+    return %RawObjectCast<StoreFn>(o);
+  }
 
   macro KindForArrayType<T: type>(): constexpr ElementsKind;
   KindForArrayType<FixedUint8Array>(): constexpr ElementsKind {
@@ -67,7 +81,7 @@ module typed_array {
     return Undefined;
   }
 
-  macro CallCompareWithDetachedCheck(
+  transitioning macro CallCompareWithDetachedCheck(
       context: Context, array: JSTypedArray, comparefn: Callable, a: Object,
       b: Object): Number
       labels Detached {
@@ -86,10 +100,10 @@ module typed_array {
   }
 
   // InsertionSort is used for smaller arrays.
-  macro TypedArrayInsertionSort(
+  transitioning macro TypedArrayInsertionSort(
       context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn)
-  labels Detached {
+      labels Detached {
     let from: Smi = fromArg;
     let to: Smi = toArg;
 
@@ -112,10 +126,10 @@ module typed_array {
     }
   }
 
-  macro TypedArrayQuickSortImpl(
+  transitioning macro TypedArrayQuickSortImpl(
       context: Context, array: JSTypedArray, fromArg: Smi, toArg: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn)
-  labels Detached {
+      labels Detached {
     let from: Smi = fromArg;
     let to: Smi = toArg;
 
@@ -132,7 +146,7 @@ module typed_array {
 
       // TODO(szuend): Check if a more involved thirdIndex calculation is
       //               worth it for very large arrays.
-      const thirdIndex: Smi = from + ((to - from) >>> 1);
+      const thirdIndex: Smi = from + ((to - from) >> 1);
 
       if (IsDetachedBuffer(array.buffer)) goto Detached;
 
@@ -241,7 +255,7 @@ module typed_array {
     }
   }
 
-  builtin TypedArrayQuickSort(
+  transitioning builtin TypedArrayQuickSort(
       context: Context, array: JSTypedArray, from: Smi, to: Smi,
       comparefn: Callable, load: LoadFn, store: StoreFn): JSTypedArray {
     try {
@@ -256,7 +270,7 @@ module typed_array {
   }
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
-  javascript builtin TypedArrayPrototypeSort(
+  transitioning javascript builtin TypedArrayPrototypeSort(
       context: Context, receiver: Object, ...arguments): JSTypedArray {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.

@@ -7,12 +7,12 @@
 #include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
 
 #include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -23,7 +23,7 @@ namespace internal {
  * This assembler uses the following register assignment convention:
  * - w19     : Used to temporarely store a value before a call to C code.
  *             See CheckNotBackReferenceIgnoreCase.
- * - x20     : Pointer to the current code object (Code*),
+ * - x20     : Pointer to the current Code object,
  *             it includes the heap object tag.
  * - w21     : Current position in input, as negative offset from
  *             the end of the string. Please notice that this is
@@ -86,7 +86,7 @@ namespace internal {
  * The data up to the return address must be placed there by the calling
  * code and the remaining arguments are passed in registers, e.g. by calling the
  * code entry as cast to a function with the signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -695,7 +695,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Bind(&entry_label_);
 
   // Arguments on entry:
-  // x0:  String*  input
+  // x0:  String   input
   // x1:  int      start_offset
   // x2:  byte*    input_start
   // x3:  byte*    input_end
@@ -1326,14 +1326,14 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
   return reinterpret_cast<T*>(re_frame + frame_offset);
 }
 
-
 int RegExpMacroAssemblerARM64::CheckStackGuardState(
-    Address* return_address, Code* re_code, Address re_frame, int start_index,
-    const byte** input_start, const byte** input_end) {
+    Address* return_address, Address raw_code, Address re_frame,
+    int start_index, const byte** input_start, const byte** input_end) {
+  Code re_code = Code::cast(ObjectPtr(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate), start_index,
       frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
-      frame_entry_address<String*>(re_frame, kInput), input_start, input_end);
+      frame_entry_address<Address>(re_frame, kInput), input_start, input_end);
 }
 
 
@@ -1353,6 +1353,9 @@ void RegExpMacroAssemblerARM64::CheckPosition(int cp_offset,
 // Private methods:
 
 void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!masm_->options().isolate_independent_code);
+
   // Allocate space on the stack to store the return address. The
   // CheckStackGuardState C++ function will override it if the code
   // moved. Allocate extra space for 2 arguments passed by pointers.
@@ -1373,19 +1376,34 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
   __ Mov(w3, start_offset());
   // RegExp code frame pointer.
   __ Mov(x2, frame_pointer());
-  // Code* of self.
+  // Code of self.
   __ Mov(x1, Operand(masm_->CodeObject()));
 
   // We need to pass a pointer to the return address as first argument.
-  // The DirectCEntry stub will place the return address on the stack before
-  // calling so the stack pointer will point to it.
+  // DirectCEntry will place the return address on the stack before calling so
+  // the stack pointer will point to it.
   __ Mov(x0, sp);
 
+  DCHECK_EQ(scratch, x10);
   ExternalReference check_stack_guard_state =
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm_, scratch);
+
+  if (FLAG_embedded_builtins) {
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.AcquireX();
+
+    EmbeddedData d = EmbeddedData::FromBlob();
+    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
+    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+
+    __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    __ Call(scratch);
+  } else {
+    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
+    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
+    __ Call(code, RelocInfo::CODE_TARGET);
+  }
 
   // The input string may have been moved in memory, we need to reload it.
   __ Peek(input_start(), kPointerSize);

@@ -8,7 +8,6 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
 #include "src/globals.h"
-#include "src/signature.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -18,17 +17,10 @@ namespace internal {
 
 class BitVector;  // forward declaration
 
-namespace compiler {  // external declarations from compiler.
-class NodeOriginTable;
-class WasmGraphBuilder;
-}
-
 namespace wasm {
 
 struct WasmModule;  // forward declaration of module interface.
 struct WasmFeatures;
-
-typedef compiler::WasmGraphBuilder TFBuilder;
 
 // A wrapper around the signature and bytes of a function.
 struct FunctionBody {
@@ -48,11 +40,6 @@ V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               WasmFeatures* detected,
                                               FunctionBody& body);
 
-DecodeResult BuildTFGraph(AccountingAllocator* allocator,
-                          const WasmFeatures& enabled, const WasmModule* module,
-                          TFBuilder* builder, WasmFeatures* detected,
-                          FunctionBody& body,
-                          compiler::NodeOriginTable* node_origins);
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,

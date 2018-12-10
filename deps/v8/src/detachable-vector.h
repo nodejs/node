@@ -5,65 +5,96 @@
 #ifndef V8_DETACHABLE_VECTOR_H_
 #define V8_DETACHABLE_VECTOR_H_
 
-#include <vector>
+#include <stddef.h>
+
+#include <algorithm>
+
+#include "src/base/logging.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
 
-// This class wraps a std::vector and provides a few of the common member
-// functions for accessing the data. It acts as a lazy wrapper of the vector,
-// not initiliazing the backing store until push_back() is first called. Two
-// extra methods are also provided: free() and detach(), which allow for manual
-// control of the backing store. This is currently required for use in the
-// HandleScopeImplementer. Any other class should just use a std::vector
-// directly.
-template <typename T>
-class DetachableVector {
+class V8_EXPORT_PRIVATE DetachableVectorBase {
  public:
-  DetachableVector() : vector_(nullptr) {}
+  // Clear our reference to the backing store. Does not delete it!
+  void detach() {
+    data_ = nullptr;
+    capacity_ = 0;
+    size_ = 0;
+  }
 
-  ~DetachableVector() { delete vector_; }
+  void pop_back() { --size_; }
+  size_t capacity() const { return capacity_; }
+  size_t size() const { return size_; }
+  bool empty() const { return size_ == 0; }
+
+  static const size_t kMinimumCapacity;
+  static const size_t kDataOffset;
+  static const size_t kCapacityOffset;
+  static const size_t kSizeOffset;
+
+ protected:
+  void* data_ = nullptr;
+  size_t capacity_ = 0;
+  size_t size_ = 0;
+};
+
+// This class wraps an array and provides a few of the common member
+// functions for accessing the data. Two extra methods are also provided: free()
+// and detach(), which allow for manual control of the backing store. This is
+// currently required for use in the HandleScopeImplementer. Any other class
+// should just use a std::vector.
+template <typename T>
+class DetachableVector : public DetachableVectorBase {
+ public:
+  DetachableVector() = default;
+  ~DetachableVector() { delete[] data(); }
 
   void push_back(const T& value) {
-    ensureAttached();
-    vector_->push_back(value);
+    if (size_ == capacity_) {
+      size_t new_capacity = std::max(kMinimumCapacity, 2 * capacity_);
+      Resize(new_capacity);
+    }
+
+    data()[size_] = value;
+    ++size_;
   }
 
   // Free the backing store and clear our reference to it.
   void free() {
-    delete vector_;
-    vector_ = nullptr;
+    delete[] data();
+    data_ = nullptr;
+    capacity_ = 0;
+    size_ = 0;
   }
 
-  // Clear our reference to the backing store. Does not delete it!
-  void detach() { vector_ = nullptr; }
-
-  T& at(typename std::vector<T>::size_type i) const { return vector_->at(i); }
-
-  T& back() const { return vector_->back(); }
-
-  T& front() const { return vector_->front(); }
-
-  void pop_back() { vector_->pop_back(); }
-
-  typename std::vector<T>::size_type size() const {
-    if (vector_) return vector_->size();
-    return 0;
+  T& at(size_t i) const {
+    DCHECK_LT(i, size_);
+    return data()[i];
   }
+  T& back() const { return at(size_ - 1); }
+  T& front() const { return at(0); }
 
-  bool empty() const {
-    if (vector_) return vector_->empty();
-    return true;
+  void shrink_to_fit() {
+    size_t new_capacity = std::max(size_, kMinimumCapacity);
+    if (new_capacity < capacity_ / 2) {
+      Resize(new_capacity);
+    }
   }
 
  private:
-  std::vector<T>* vector_;
+  T* data() const { return static_cast<T*>(data_); }
 
-  // Attach a vector backing store if not present.
-  void ensureAttached() {
-    if (vector_ == nullptr) {
-      vector_ = new std::vector<T>();
-    }
+  void Resize(size_t new_capacity) {
+    DCHECK_LE(size_, new_capacity);
+    T* new_data_ = new T[new_capacity];
+
+    std::copy(data(), data() + size_, new_data_);
+    delete[] data();
+
+    data_ = new_data_;
+    capacity_ = new_capacity;
   }
 };
 

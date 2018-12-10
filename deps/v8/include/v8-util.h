@@ -25,13 +25,11 @@ enum PersistentContainerCallbackType {
   kNotWeak,
   // These correspond to v8::WeakCallbackType
   kWeakWithParameter,
-  kWeakWithInternalFields,
-  kWeak = kWeakWithParameter  // For backwards compatibility.  Deprecate.
+  kWeakWithInternalFields
 };
 
-
 /**
- * A default trait implemenation for PersistentValueMap which uses std::map
+ * A default trait implementation for PersistentValueMap which uses std::map
  * as a backing map.
  *
  * Users will have to implement their own weak callbacks & dispose traits.
@@ -203,7 +201,7 @@ class PersistentValueMapBase {
   void RegisterExternallyReferencedObject(K& key) {
     assert(Contains(key));
     V8::RegisterExternallyReferencedObject(
-        reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))),
+        reinterpret_cast<internal::Address*>(FromVal(Traits::Get(&impl_, key))),
         reinterpret_cast<internal::Isolate*>(GetIsolate()));
   }
 
@@ -340,7 +338,7 @@ class PersistentValueMapBase {
     bool hasValue = value != kPersistentContainerNotFound;
     if (hasValue) {
       returnValue->SetInternal(
-          *reinterpret_cast<internal::Object**>(FromVal(value)));
+          *reinterpret_cast<internal::Address*>(FromVal(value)));
     }
     return hasValue;
   }

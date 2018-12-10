@@ -4,4 +4,4 @@ Running test: testMaxConsoleMessagesCount
 Messages reported: 1000
 
 Running test: testMaxConsoleMessagesV8Size
-Messages reported: 3
+Messages reported: 5

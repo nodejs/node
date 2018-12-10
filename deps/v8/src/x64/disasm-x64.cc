@@ -580,7 +580,7 @@ int DisassemblerX64::PrintRightOperandHelper(
                        disp < 0 ? -disp : disp);
         if (rm == i::kRootRegister.code()) {
           // For root-relative accesses, try to append a description.
-          TryAppendRootRelativeName(i::kRootRegisterBias + disp);
+          TryAppendRootRelativeName(disp);
         }
         return (mod == 2) ? 5 : 2;
       }

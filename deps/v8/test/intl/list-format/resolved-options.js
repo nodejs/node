@@ -22,16 +22,6 @@ assertEquals(
         .resolvedOptions().type);
 
 assertEquals(
-    'narrow',
-    (new Intl.ListFormat(['sr'], {style: 'narrow'}))
-        .resolvedOptions().style);
-
-assertEquals(
-    'conjunction',
-    (new Intl.ListFormat(['sr'], {style: 'narrow'}))
-        .resolvedOptions().type);
-
-assertEquals(
     'long',
     (new Intl.ListFormat(['sr'], {style: 'long'}))
         .resolvedOptions().style);
@@ -72,6 +62,26 @@ assertEquals(
         .resolvedOptions().style);
 
 assertEquals(
+    'conjunction',
+    (new Intl.ListFormat(['sr'], {style: 'long', type: 'conjunction'}))
+        .resolvedOptions().type);
+
+assertEquals(
+    'long',
+    (new Intl.ListFormat(['sr'], {style: 'long', type: 'conjunction'}))
+        .resolvedOptions().style);
+
+assertEquals(
+    'conjunction',
+    (new Intl.ListFormat(['sr'], {style: 'short', type: 'conjunction'}))
+        .resolvedOptions().type);
+
+assertEquals(
+    'short',
+    (new Intl.ListFormat(['sr'], {style: 'short', type: 'conjunction'}))
+        .resolvedOptions().style);
+
+assertEquals(
     'disjunction',
     (new Intl.ListFormat(['sr'], {style: 'long', type: 'disjunction'}))
         .resolvedOptions().type);
@@ -89,16 +99,6 @@ assertEquals(
 assertEquals(
     'short',
     (new Intl.ListFormat(['sr'], {style: 'short', type: 'disjunction'}))
-        .resolvedOptions().style);
-
-assertEquals(
-    'disjunction',
-    (new Intl.ListFormat(['sr'], {style: 'narrow', type: 'disjunction'}))
-        .resolvedOptions().type);
-
-assertEquals(
-    'narrow',
-    (new Intl.ListFormat(['sr'], {style: 'narrow', type: 'disjunction'}))
         .resolvedOptions().style);
 
 assertEquals(
@@ -147,9 +147,6 @@ assertEquals(
     'ar',
     (new Intl.ListFormat(['xyz', 'ar'])).resolvedOptions().locale);
 
-// The following is not working yet because it depend on the getAvailableLocales
-// work in another path set.
-// TODO(ftang): uncomment the following once that patchset is checked in.
-// assertEquals(
-//     'ar',
-//     (new Intl.ListFormat(['i-default', 'ar'])).resolvedOptions().locale);
+assertEquals(
+    'ar',
+    (new Intl.ListFormat(['i-default', 'ar'])).resolvedOptions().locale);

@@ -27,7 +27,7 @@ inline MaybeHandle<FixedArray> ElementsAccessor::PrependElementIndices(
                                keys, convert, filter);
 }
 
-inline bool ElementsAccessor::HasElement(JSObject* holder, uint32_t index,
+inline bool ElementsAccessor::HasElement(JSObject holder, uint32_t index,
                                          PropertyFilter filter) {
   return HasElement(holder, index, holder->elements(), filter);
 }

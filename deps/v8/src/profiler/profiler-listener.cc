@@ -5,10 +5,10 @@
 #include "src/profiler/profiler-listener.h"
 
 #include "src/deoptimizer.h"
-#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -21,7 +21,7 @@ ProfilerListener::ProfilerListener(Isolate* isolate,
 
 ProfilerListener::~ProfilerListener() = default;
 
-void ProfilerListener::CallbackEvent(Name* name, Address entry_point) {
+void ProfilerListener::CallbackEvent(Name name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
@@ -31,7 +31,7 @@ void ProfilerListener::CallbackEvent(Name* name, Address entry_point) {
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code, const char* name) {
+                                       AbstractCode code, const char* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -45,7 +45,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code, Name* name) {
+                                       AbstractCode code, Name name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -59,9 +59,9 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code,
-                                       SharedFunctionInfo* shared,
-                                       Name* script_name) {
+                                       AbstractCode code,
+                                       SharedFunctionInfo shared,
+                                       Name script_name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -77,10 +77,9 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* abstract_code,
-                                       SharedFunctionInfo* shared,
-                                       Name* script_name, int line,
-                                       int column) {
+                                       AbstractCode abstract_code,
+                                       SharedFunctionInfo shared,
+                                       Name script_name, int line, int column) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = abstract_code->InstructionStart();
@@ -123,7 +122,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
+void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
   rec->from_instruction_start = from->InstructionStart();
@@ -131,8 +130,8 @@ void ProfilerListener::CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDisableOptEvent(AbstractCode* code,
-                                           SharedFunctionInfo* shared) {
+void ProfilerListener::CodeDisableOptEvent(AbstractCode code,
+                                           SharedFunctionInfo shared) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -140,7 +139,7 @@ void ProfilerListener::CodeDisableOptEvent(AbstractCode* code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Code* code, DeoptimizeKind kind,
+void ProfilerListener::CodeDeoptEvent(Code code, DeoptimizeKind kind,
                                       Address pc, int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
@@ -157,7 +156,7 @@ void ProfilerListener::CodeDeoptEvent(Code* code, DeoptimizeKind kind,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::GetterCallbackEvent(Name* name, Address entry_point) {
+void ProfilerListener::GetterCallbackEvent(Name name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
@@ -167,8 +166,7 @@ void ProfilerListener::GetterCallbackEvent(Name* name, Address entry_point) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
-                                             String* source) {
+void ProfilerListener::RegExpCodeCreateEvent(AbstractCode code, String source) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
@@ -180,7 +178,7 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::SetterCallbackEvent(Name* name, Address entry_point) {
+void ProfilerListener::SetterCallbackEvent(Name name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
@@ -190,7 +188,7 @@ void ProfilerListener::SetterCallbackEvent(Name* name, Address entry_point) {
   DispatchCodeEvent(evt_rec);
 }
 
-Name* ProfilerListener::InferScriptName(Name* name, SharedFunctionInfo* info) {
+Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
   if (name->IsString() && String::cast(name)->length()) return name;
   if (!info->script()->IsScript()) return name;
   Object* source_url = Script::cast(info->script())->source_url();
@@ -198,11 +196,11 @@ Name* ProfilerListener::InferScriptName(Name* name, SharedFunctionInfo* info) {
 }
 
 void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
-                                          AbstractCode* abstract_code) {
+                                          AbstractCode abstract_code) {
   if (!abstract_code->IsCode()) return;
-  Code* code = abstract_code->GetCode();
+  Code code = abstract_code->GetCode();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
-  DeoptimizationData* deopt_input_data =
+  DeoptimizationData deopt_input_data =
       DeoptimizationData::cast(code->deoptimization_data());
   int deopt_count = deopt_input_data->DeoptCount();
   for (int i = 0; i < deopt_count; i++) {
@@ -226,7 +224,9 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
       it.Next();  // Skip ast_id
       int shared_info_id = it.Next();
       it.Next();  // Skip height
-      SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
+      it.Next();  // Skip return value offset
+      it.Next();  // Skip return value count
+      SharedFunctionInfo shared_info = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
       if (!depth++) continue;  // Skip the current function itself.
 
@@ -250,7 +250,7 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
   }
 }
 
-void ProfilerListener::AttachDeoptInlinedFrames(Code* code,
+void ProfilerListener::AttachDeoptInlinedFrames(Code code,
                                                 CodeDeoptEventRecord* rec) {
   int deopt_id = rec->deopt_id;
   SourcePosition last_position = SourcePosition::Unknown();

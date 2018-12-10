@@ -29,27 +29,27 @@
 
 // Check for correct execution of available hooks and asyncIds
 (function() {
-  let inited = false, resolved = false, before = false, after = false;
-  let storedAsyncId;
+  let calledHooks = [];
+  let rootAsyncId = 0;
+
   let ah = async_hooks.createHook({
-    init(asyncId, type, triggerAsyncId, resource) {
+    init: function init(asyncId, type, triggerAsyncId, resource) {
       if (type !== 'PROMISE') {
         return;
       }
-      inited = true;
-      storedAsyncId = asyncId;
+      if (triggerAsyncId === 0) {
+        rootAsyncId = asyncId;
+      }
+      calledHooks.push(['init', asyncId]);
     },
-    promiseResolve(asyncId) {
-      assertEquals(asyncId, storedAsyncId, 'AsyncId mismatch in resolve hook');
-      resolved = true;
+    promiseResolve: function promiseResolve(asyncId) {
+      calledHooks.push(['resolve', asyncId]);
     },
-    before(asyncId) {
-      assertEquals(asyncId, storedAsyncId, 'AsyncId mismatch in before hook');
-      before = true;
+    before: function before(asyncId) {
+      calledHooks.push(['before', asyncId]);
     },
-    after(asyncId) {
-      assertEquals(asyncId, storedAsyncId, 'AsyncId mismatch in after hook');
-      after = true;
+    after: function after(asyncId) {
+      calledHooks.push(['after', asyncId]);
     },
   });
   ah.enable();
@@ -57,9 +57,21 @@
   new Promise(function(resolve) {
     resolve(42);
   }).then(function() {
-    assertTrue(inited, "Didn't call init hook");
-    assertTrue(resolved, "Didn't call resolve hook");
-    assertTrue(before, "Didn't call before hook before the callback");
-    assertFalse(after, "Called after hook before the callback");
+    // [hook type, async Id]
+    const expectedHooks = [
+      ['init', rootAsyncId],  // the promise that we create initially
+      ['resolve', rootAsyncId],
+      ['init', rootAsyncId + 1],  // the chained promise with the assertions
+      ['init', rootAsyncId + 2],  // the chained promise from the catch block
+      ['before', rootAsyncId + 1],
+      // ['after', rootAsyncId + 1] will get called after the assertions
+    ];
+
+    assertArrayEquals(expectedHooks, calledHooks,
+      'Mismatch in async hooks execution order');
+  }).catch((err) => {
+    setTimeout(() => {
+      throw err;
+    }, 0);
   });
 })();

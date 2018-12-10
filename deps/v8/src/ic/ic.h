@@ -11,10 +11,10 @@
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -59,15 +59,15 @@ class IC {
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
   }
 
-  static inline bool IsHandler(MaybeObject* object);
+  static inline bool IsHandler(MaybeObject object);
 
   // Nofity the IC system that a feedback has changed.
-  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
-                                FeedbackSlot slot, JSFunction* host_function,
+  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
+                                FeedbackSlot slot, JSFunction host_function,
                                 const char* reason);
 
   static void OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
-                                JSFunction* host_function, const char* reason);
+                                JSFunction host_function, const char* reason);
 
  protected:
   Address fp() const { return fp_; }
@@ -78,18 +78,14 @@ class IC {
   Isolate* isolate() const { return isolate_; }
 
   // Get the caller function object.
-  JSFunction* GetHostFunction() const;
+  JSFunction GetHostFunction() const;
 
   inline bool AddressIsDeoptimizedCode() const;
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
                                               Address address);
 
   bool is_vector_set() { return vector_set_; }
-  bool vector_needs_update() {
-    return (!vector_set_ &&
-            (state() != MEGAMORPHIC ||
-             Smi::ToInt(nexus()->GetFeedbackExtra()->cast<Smi>()) != ELEMENT));
-  }
+  inline bool vector_needs_update();
 
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, Handle<Object> key);
@@ -109,8 +105,8 @@ class IC {
   void TraceIC(const char* type, Handle<Object> name, State old_state,
                State new_state);
 
-  MaybeHandle<Object> TypeError(MessageTemplate::Template,
-                                Handle<Object> object, Handle<Object> key);
+  MaybeHandle<Object> TypeError(MessageTemplate, Handle<Object> object,
+                                Handle<Object> key);
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
@@ -123,7 +119,7 @@ class IC {
   StubCache* stub_cache();
 
   void CopyICToMegamorphicCache(Handle<Name> name);
-  bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
+  bool IsTransitionOfMonomorphicTarget(Map source_map, Map target_map);
   void PatchCache(Handle<Name> name, Handle<Object> handler);
   void PatchCache(Handle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
@@ -151,9 +147,9 @@ class IC {
     }
   }
 
-  Map* FirstTargetMap() {
+  Map FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : nullptr;
+    return !target_maps_.empty() ? *target_maps_[0] : Map();
   }
 
   State saved_state() const {

@@ -43,8 +43,7 @@ class TestSuite(testsuite.TestSuite):
       files.sort()
       for filename in files:
         if (filename.endswith(".js") and filename != "assert.js" and
-            filename != "utils.js" and filename != "regexp-assert.js" and
-            filename != "regexp-prepare.js"):
+            filename != "utils.js"):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
@@ -80,9 +79,7 @@ class TestCase(testcase.D8TestCase):
     files = map(lambda f: os.path.join(self.suite.root, f), [
         'assert.js',
         'utils.js',
-        'regexp-prepare.js',
         self.path + self._get_suffix(),
-        'regexp-assert.js',
     ])
 
     if self._test_config.isolates:

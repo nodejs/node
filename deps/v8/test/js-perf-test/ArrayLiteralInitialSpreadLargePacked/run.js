@@ -5,8 +5,7 @@
 // Comparing different copy schemes against spread initial literals.
 // Benchmarks for large packed arrays.
 
-const largeHoleyArray = new Array(1e5);
-const largeArray = Array.from(largeHoleyArray.keys());
+const largeArray = Array.from(Array(1e5).keys());
 
 // ----------------------------------------------------------------------------
 // Benchmark: Spread

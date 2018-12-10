@@ -8,6 +8,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/scope-info.h"
@@ -99,6 +100,42 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       NameRef(broker(), p.name());
       break;
     }
+    case IrOpcode::kStoreField:
+    case IrOpcode::kLoadField: {
+      FieldAccess access = FieldAccessOf(node->op());
+      Handle<Map> map_handle;
+      if (access.map.ToHandle(&map_handle)) {
+        MapRef(broker(), map_handle);
+      }
+      Handle<Name> name_handle;
+      if (access.name.ToHandle(&name_handle)) {
+        NameRef(broker(), name_handle);
+      }
+      break;
+    }
+    case IrOpcode::kMapGuard: {
+      ZoneHandleSet<Map> const maps = MapGuardMapsOf(node->op()).maps();
+      for (Handle<Map> map : maps) {
+        MapRef(broker(), map);
+      }
+      break;
+    }
+    case IrOpcode::kCheckMaps: {
+      ZoneHandleSet<Map> const maps = CheckMapsParametersOf(node->op()).maps();
+      for (Handle<Map> map : maps) {
+        MapRef(broker(), map);
+      }
+      break;
+    }
+    case IrOpcode::kCompareMaps: {
+      ZoneHandleSet<Map> const maps =
+          CompareMapsParametersOf(node->op()).maps();
+      for (Handle<Map> map : maps) {
+        MapRef(broker(), map);
+      }
+      break;
+    }
+
     default:
       break;
   }

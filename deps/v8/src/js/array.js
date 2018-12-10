@@ -29,11 +29,12 @@ function ArraySpeciesCreate(array, length) {
   return new constructor(length);
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function KeySortCompare(a, b) {
   return a - b;
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function GetSortedArrayKeys(array, indices) {
   if (IS_NUMBER(indices)) {
     // It's an interval
@@ -50,7 +51,7 @@ function GetSortedArrayKeys(array, indices) {
   return InnerArraySort(indices, indices.length, KeySortCompare);
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function SparseJoinWithSeparatorJS(
     array, keys, length, use_locale, separator, locales, options) {
   var keys_length = keys.length;
@@ -64,7 +65,7 @@ function SparseJoinWithSeparatorJS(
   return %SparseJoinWithSeparator(elements, length, separator);
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 // Optimized for sparse arrays if separator is ''.
 function SparseJoin(array, keys, use_locale, locales, options) {
   var keys_length = keys.length;
@@ -75,7 +76,7 @@ function SparseJoin(array, keys, use_locale, locales, options) {
   return %StringBuilderConcat(elements, keys_length, '');
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function UseSparseVariant(array, length, is_array, touched) {
   // Only use the sparse variant on arrays that are likely to be sparse and the
   // number of elements touched in the operation is relatively small compared to
@@ -92,6 +93,7 @@ function UseSparseVariant(array, length, is_array, touched) {
     (touched > estimated_elements * 4);
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function Stack() {
   this.length = 0;
   this.values = new InternalArray();
@@ -123,6 +125,7 @@ function StackHas(stack, v) {
 // join invocations.
 var visited_arrays = new Stack();
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function DoJoin(
     array, length, is_array, separator, use_locale, locales, options) {
   if (UseSparseVariant(array, length, is_array, length)) {
@@ -155,6 +158,7 @@ function DoJoin(
   }
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function Join(array, length, separator, use_locale, locales, options) {
   if (length === 0) return '';
 
@@ -178,7 +182,7 @@ function Join(array, length, separator, use_locale, locales, options) {
   }
 }
 
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function ConvertToString(use_locale, x, locales, options) {
   if (IS_NULL_OR_UNDEFINED(x)) return '';
   if (use_locale) {
@@ -196,48 +200,13 @@ function ConvertToString(use_locale, x, locales, options) {
 
 // -------------------------------------------------------------------
 
-var ArrayJoin;
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  toString() {
-    var array;
-    var func;
-    if (IS_ARRAY(this)) {
-      func = this.join;
-      if (func === ArrayJoin) {
-        return Join(this, this.length, ',', false);
-      }
-      array = this;
-    } else {
-      array = TO_OBJECT(this);
-      func = array.join;
-    }
-    if (!IS_CALLABLE(func)) {
-      return %_Call(ObjectToString, array);
-    }
-    return %_Call(func, array);
-  }
-);
-
 // ecma402 #sup-array.prototype.tolocalestring
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function InnerArrayToLocaleString(array, length, locales, options) {
   return Join(array, TO_LENGTH(length), ',', true, locales, options);
 }
 
-
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  // ecma402 #sup-array.prototype.tolocalestring
-  toLocaleString() {
-    var array = TO_OBJECT(this);
-    var arrayLen = array.length;
-    var locales = arguments[0];
-    var options = arguments[1];
-    return InnerArrayToLocaleString(array, arrayLen, locales, options);
-  }
-);
-
-
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function InnerArrayJoin(separator, array, length) {
   if (IS_UNDEFINED(separator)) {
     separator = ',';
@@ -256,15 +225,6 @@ function InnerArrayJoin(separator, array, length) {
 }
 
 
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  join(separator) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-
-    return InnerArrayJoin(separator, array, length);
-  }
-);
 
 
 // Oh the humanity... don't remove the following function because js2c for some
@@ -275,6 +235,7 @@ function ArraySliceFallback(start, end) {
   return null;
 }
 
+// TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
 function InnerArraySort(array, length, comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 10) arrays, insertion sort is used for efficiency.
@@ -501,7 +462,9 @@ utils.Export(function(to) {
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
   to.ArrayValues = ArrayValues;
+  // TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
   to.InnerArrayJoin = InnerArrayJoin;
+  // TODO(pwong): Remove once TypedArray.prototype.join() is ported to Torque.
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
 });
 

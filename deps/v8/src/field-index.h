@@ -24,11 +24,10 @@ class FieldIndex final {
   FieldIndex() : bit_field_(0) {}
 
   static FieldIndex ForPropertyIndex(
-      const Map* map, int index,
+      const Map map, int index,
       Representation representation = Representation::Tagged());
-  static FieldIndex ForInObjectOffset(int offset, Encoding encoding,
-                                      const Map* map = nullptr);
-  static FieldIndex ForDescriptor(const Map* map, int descriptor_index);
+  static FieldIndex ForInObjectOffset(int offset, Encoding encoding);
+  static FieldIndex ForDescriptor(const Map map, int descriptor_index);
 
   int GetLoadByFieldIndex() const;
 

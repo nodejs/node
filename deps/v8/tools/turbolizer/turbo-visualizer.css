@@ -319,6 +319,10 @@ span.linkable-text:hover {
     background-color: #FFFFFF;
 }
 
+.multiview {
+    width: 100%;
+}
+
 
 #disassembly-collapse {
     right: 0;
@@ -339,13 +343,14 @@ span.linkable-text:hover {
 
 #graph-toolbox {
     position: relative;
-    top: 1em;
-    left: 25px;
-    border: 2px solid #eee8d5;
-    border-radius: 5px;
-    padding: 0.7em;
+    border-bottom: 2px solid #eee8d5;
+    padding-bottom: 3px;
     z-index: 5;
     background: rgba(100%, 100%, 100%, 0.7);
+    padding-top: 3px;
+    box-sizing: border-box;
+    margin-left: 4px;
+    margin-right: 4px;
 }
 
 #disassembly-toolbox {
@@ -391,7 +396,7 @@ text {
     dominant-baseline: text-before-edge;
 }
 
-.resizer-left {
+.resizer {
     position:absolute;
     width: 4px;
     height:100%;
@@ -399,35 +404,18 @@ text {
     cursor: pointer;
 }
 
-.resizer-left.snapped {
+.resizer.snapped {
     width: 12px;
 }
 
-.resizer-left:hover {
-    background: orange;
-}
-
-.resizer-left.dragged {
-    background: orange;
-}
-
-.resizer-right {
-    position:absolute;
-    width: 4px;
-    height:100%;
-    background: #a0a0a0;
-    cursor: pointer;
-}
-
-.resizer-right.snapped {
+.resizer.snapped:hover {
     width: 12px;
+    margin-left: 0px;
 }
 
-.resizer-right:hover {
-    background: orange;
-}
-
-.resizer-right.dragged {
+.resizer:hover, .resizer.dragged {
+    width: 10px;
+    margin-left: -4px;
     background: orange;
 }
 
@@ -452,11 +440,11 @@ text {
 .source-position .marker {
     content: "";
     display: inline-block;
-    position: relative;
     bottom: -1ex;
     width: 0px;
     margin-left: -4px;
     margin-right: -4px;
+    margin-bottom: -1ex;
     border-width: 5px;
     border-style: solid;
     border-color: transparent transparent #555 transparent;

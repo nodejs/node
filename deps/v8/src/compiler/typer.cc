@@ -34,13 +34,13 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(JSHeapBroker* js_heap_broker, Flags flags, Graph* graph)
+Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph)
     : flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
-      js_heap_broker_(js_heap_broker),
-      operation_typer_(js_heap_broker, zone()) {
+      broker_(broker),
+      operation_typer_(broker, zone()) {
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
@@ -290,6 +290,7 @@ class Typer::Visitor : public Reducer {
   static Type ObjectIsConstructor(Type, Typer*);
   static Type ObjectIsDetectableCallable(Type, Typer*);
   static Type ObjectIsMinusZero(Type, Typer*);
+  static Type NumberIsMinusZero(Type, Typer*);
   static Type ObjectIsNaN(Type, Typer*);
   static Type NumberIsNaN(Type, Typer*);
   static Type ObjectIsNonCallable(Type, Typer*);
@@ -327,7 +328,14 @@ class Typer::Visitor : public Reducer {
         current = Weaken(node, current, previous);
       }
 
-      CHECK(previous.Is(current));
+      if (V8_UNLIKELY(!previous.Is(current))) {
+        std::ostringstream ostream;
+        previous.PrintTo(ostream);
+        ostream << " -> ";
+        current.PrintTo(ostream);
+        FATAL("UpdateType error for operator %s:\n%s\n",
+              IrOpcode::Mnemonic(node->opcode()), ostream.str().c_str());
+      }
 
       NodeProperties::SetType(node, current);
       if (!current.Is(previous)) {
@@ -406,10 +414,12 @@ Type Typer::Visitor::BinaryNumberOpTyper(Type lhs, Type rhs, Typer* t,
   if (lhs_is_number && rhs_is_number) {
     return f(lhs, rhs, t);
   }
-  if (lhs_is_number || rhs_is_number) {
+  // In order to maintain monotonicity, the following two conditions are
+  // intentionally asymmetric.
+  if (lhs_is_number) {
     return Type::Number();
   }
-  if (lhs.Is(Type::BigInt()) || rhs.Is(Type::BigInt())) {
+  if (lhs.Is(Type::BigInt())) {
     return Type::BigInt();
   }
   return Type::Numeric();
@@ -597,6 +607,12 @@ Type Typer::Visitor::ObjectIsMinusZero(Type type, Typer* t) {
   return Type::Boolean();
 }
 
+Type Typer::Visitor::NumberIsMinusZero(Type type, Typer* t) {
+  if (type.Is(Type::MinusZero())) return t->singleton_true_;
+  if (!type.Maybe(Type::MinusZero())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
 Type Typer::Visitor::ObjectIsNaN(Type type, Typer* t) {
   if (type.Is(Type::NaN())) return t->singleton_true_;
   if (!type.Maybe(Type::NaN())) return t->singleton_false_;
@@ -684,7 +700,7 @@ Type Typer::Visitor::TypeParameter(Node* node) {
       return Type::Union(Type::Receiver(), Type::Undefined(), typer_->zone());
     }
   } else if (index == Linkage::GetJSCallArgCountParamIndex(parameter_count)) {
-    return Type::Range(0.0, Code::kMaxArguments, typer_->zone());
+    return Type::Range(0.0, FixedArray::kMaxLength, typer_->zone());
   } else if (index == Linkage::GetJSCallContextParamIndex(parameter_count)) {
     return Type::OtherInternal();
   }
@@ -1163,6 +1179,10 @@ Type Typer::Visitor::TypeJSCreateArrayIterator(Node* node) {
   return Type::OtherObject();
 }
 
+Type Typer::Visitor::TypeJSCreateAsyncFunctionObject(Node* node) {
+  return Type::OtherObject();
+}
+
 Type Typer::Visitor::TypeJSCreateCollectionIterator(Node* node) {
   return Type::OtherObject();
 }
@@ -1622,6 +1642,17 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     case BuiltinFunctionId::kObjectToString:
       return Type::String();
 
+    case BuiltinFunctionId::kPromiseAll:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromisePrototypeThen:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromiseRace:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromiseReject:
+      return Type::Receiver();
+    case BuiltinFunctionId::kPromiseResolve:
+      return Type::Receiver();
+
     // RegExp functions.
     case BuiltinFunctionId::kRegExpCompile:
       return Type::OtherObject();
@@ -1788,6 +1819,18 @@ Type Typer::Visitor::TypeJSGeneratorRestoreInputOrDebugPos(Node* node) {
 Type Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
+
+Type Typer::Visitor::TypeJSAsyncFunctionEnter(Node* node) {
+  return Type::OtherObject();
+}
+
+Type Typer::Visitor::TypeJSAsyncFunctionReject(Node* node) {
+  return Type::OtherObject();
+}
+
+Type Typer::Visitor::TypeJSAsyncFunctionResolve(Node* node) {
+  return Type::OtherObject();
+}
 
 Type Typer::Visitor::TypeJSFulfillPromise(Node* node) {
   return Type::Undefined();
@@ -1977,6 +2020,11 @@ Type Typer::Visitor::TypeCheckReceiver(Node* node) {
   return Type::Intersect(arg, Type::Receiver(), zone());
 }
 
+Type Typer::Visitor::TypeCheckReceiverOrNullOrUndefined(Node* node) {
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::ReceiverOrNullOrUndefined(), zone());
+}
+
 Type Typer::Visitor::TypeCheckSmi(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::SignedSmall(), zone());
@@ -2104,6 +2152,10 @@ Type Typer::Visitor::TypeObjectIsMinusZero(Node* node) {
   return TypeUnaryOp(node, ObjectIsMinusZero);
 }
 
+Type Typer::Visitor::TypeNumberIsMinusZero(Node* node) {
+  return TypeUnaryOp(node, NumberIsMinusZero);
+}
+
 Type Typer::Visitor::TypeNumberIsFloat64Hole(Node* node) {
   return Type::Boolean();
 }
@@ -2199,7 +2251,7 @@ Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 // Heap constants.
 
 Type Typer::Visitor::TypeConstant(Handle<Object> value) {
-  return Type::NewConstant(typer_->js_heap_broker(), value, zone());
+  return Type::NewConstant(typer_->broker(), value, zone());
 }
 
 }  // namespace compiler

@@ -62,18 +62,23 @@ class JSPromise : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(
       Handle<JSPromise> promise, Handle<Object> resolution);
 
-  DECL_CAST(JSPromise)
+  DECL_CAST2(JSPromise)
 
   // Dispatched behavior.
   DECL_PRINTER(JSPromise)
   DECL_VERIFIER(JSPromise)
 
-  // Layout description.
-  static const int kReactionsOrResultOffset = JSObject::kHeaderSize;
-  static const int kFlagsOffset = kReactionsOrResultOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_PROMISE_FIELDS(V)               \
+  V(kReactionsOrResultOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)             \
+  /* Header size. */                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PROMISE_FIELDS)
+#undef JS_PROMISE_FIELDS
+
   static const int kSizeWithEmbedderFields =
-      kSize + v8::Promise::kEmbedderFieldCount * kPointerSize;
+      kSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
   // Flags layout.
   // The first two bits store the v8::Promise::PromiseState.
@@ -94,6 +99,8 @@ class JSPromise : public JSObject {
                                                 Handle<Object> reactions,
                                                 Handle<Object> argument,
                                                 PromiseReaction::Type type);
+
+  OBJECT_CONSTRUCTORS(JSPromise, JSObject)
 };
 
 }  // namespace internal

@@ -113,8 +113,10 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
   BIND(&allocate_js_array);
   // Allocate the result JSArray.
   Node* native_context = LoadNativeContext(context);
-  Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-  Node* array = AllocateUninitializedJSArrayWithoutElements(array_map, length);
+  TNode<Map> array_map =
+      LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
+  TNode<JSArray> array =
+      AllocateUninitializedJSArrayWithoutElements(array_map, length);
   StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset,
                                  elements.value());
 

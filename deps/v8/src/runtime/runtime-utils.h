@@ -17,7 +17,7 @@ namespace internal {
 // expected type we crash safely.
 #define CONVERT_ARG_CHECKED(Type, name, index) \
   CHECK(args[index]->Is##Type());              \
-  Type* name = Type::cast(args[index]);
+  Type##ArgType name = Type::cast(args[index]);
 
 #define CONVERT_ARG_HANDLE_CHECKED(Type, name, index) \
   CHECK(args[index]->Is##Type());                     \

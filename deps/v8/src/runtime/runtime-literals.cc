@@ -5,8 +5,10 @@
 #include "src/allocation-site-scopes-inl.h"
 #include "src/arguments-inl.h"
 #include "src/ast/ast.h"
+#include "src/counters.h"
 #include "src/isolate-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -492,9 +494,15 @@ MaybeHandle<JSObject> CreateLiteralWithoutAllocationSite(
 
 template <typename LiteralHelper>
 MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
-                                    Handle<FeedbackVector> vector,
+                                    MaybeHandle<FeedbackVector> maybe_vector,
                                     int literals_index,
                                     Handle<HeapObject> description, int flags) {
+  if (maybe_vector.is_null()) {
+    return CreateLiteralWithoutAllocationSite<LiteralHelper>(
+        isolate, description, flags);
+  }
+
+  Handle<FeedbackVector> vector = maybe_vector.ToHandleChecked();
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->length());
   Handle<Object> literal_site(vector->Get(literals_slot)->cast<Object>(),
@@ -546,10 +554,15 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+  }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectLiteralHelper>(
                    isolate, vector, literals_index, description, flags));
@@ -578,10 +591,15 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralWithoutAllocationSite) {
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+  }
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ArrayLiteralHelper>(
                    isolate, vector, literals_index, elements, flags));
@@ -590,17 +608,27 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+  }
+  Handle<Object> boilerplate;
+  if (vector.is_null()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, boilerplate,
+        JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
+    return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+  }
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
                               isolate);
-  Handle<Object> boilerplate;
   if (!HasBoilerplate(literal_site)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, boilerplate,

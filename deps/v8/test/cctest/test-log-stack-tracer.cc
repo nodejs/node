@@ -31,7 +31,6 @@
 
 #include "include/v8-profiler.h"
 #include "src/api-inl.h"
-#include "src/code-stubs.h"
 #include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/log.h"
@@ -44,8 +43,8 @@
 namespace v8 {
 namespace internal {
 
-static bool IsAddressWithinFuncCode(JSFunction* function, void* addr) {
-  i::AbstractCode* code = function->abstract_code();
+static bool IsAddressWithinFuncCode(JSFunction function, void* addr) {
+  i::AbstractCode code = function->abstract_code();
   return code->contains(reinterpret_cast<Address>(addr));
 }
 
@@ -54,7 +53,7 @@ static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
   v8::Local<v8::Value> func =
       context->Global()->Get(context, v8_str(func_name)).ToLocalChecked();
   CHECK(func->IsFunction());
-  JSFunction* js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
+  JSFunction js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
   return IsAddressWithinFuncCode(js_func, addr);
 }
 

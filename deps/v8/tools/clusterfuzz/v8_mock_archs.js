@@ -40,6 +40,8 @@
   Uint16Array = mock(Uint16Array);
   Int32Array = mock(Int32Array);
   Uint32Array = mock(Uint32Array);
+  BigInt64Array = mock(BigInt64Array);
+  BigUint64Array = mock(BigUint64Array);
   Float32Array = mock(Float32Array);
   Float64Array = mock(Float64Array);
 })();
@@ -54,6 +56,8 @@
     Uint16Array,
     Int32Array,
     Uint32Array,
+    BigInt64Array,
+    BigUint64Array,
     Float32Array,
     Float64Array,
   ];

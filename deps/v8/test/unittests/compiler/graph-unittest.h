@@ -24,8 +24,7 @@ namespace compiler {
 
 using ::testing::Matcher;
 
-class GraphTest : public virtual TestWithNativeContext,
-                  public virtual TestWithIsolateAndZone {
+class GraphTest : public TestWithNativeContextAndZone {
  public:
   explicit GraphTest(int num_parameters = 1);
   ~GraphTest() override;
@@ -62,13 +61,13 @@ class GraphTest : public virtual TestWithNativeContext,
   Graph* graph() { return &graph_; }
   SourcePositionTable* source_positions() { return &source_positions_; }
   NodeOriginTable* node_origins() { return &node_origins_; }
-  JSHeapBroker* js_heap_broker() { return &js_heap_broker_; }
+  JSHeapBroker* broker() { return &broker_; }
 
  private:
   CanonicalHandleScope canonical_;
   CommonOperatorBuilder common_;
   Graph graph_;
-  JSHeapBroker js_heap_broker_;
+  JSHeapBroker broker_;
   SourcePositionTable source_positions_;
   NodeOriginTable node_origins_;
 };

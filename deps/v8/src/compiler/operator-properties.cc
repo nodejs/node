@@ -87,7 +87,11 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSStoreProperty:
       return true;
 
+    case IrOpcode::kJSAsyncFunctionEnter:
+    case IrOpcode::kJSAsyncFunctionReject:
+    case IrOpcode::kJSAsyncFunctionResolve:
     case IrOpcode::kJSCreateArrayIterator:
+    case IrOpcode::kJSCreateAsyncFunctionObject:
     case IrOpcode::kJSCreateBoundFunction:
     case IrOpcode::kJSCreateCollectionIterator:
     case IrOpcode::kJSCreateIterResultObject:
@@ -215,6 +219,9 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCallWithSpread:
 
     // Misc operations
+    case IrOpcode::kJSAsyncFunctionEnter:
+    case IrOpcode::kJSAsyncFunctionReject:
+    case IrOpcode::kJSAsyncFunctionResolve:
     case IrOpcode::kJSForInEnumerate:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSStackCheck:

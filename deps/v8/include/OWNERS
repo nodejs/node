@@ -5,6 +5,7 @@ danno@chromium.org
 ulan@chromium.org
 yangguo@chromium.org
 
+per-file v8-internal.h=file://OWNERS
 per-file v8-inspector.h=dgozman@chromium.org
 per-file v8-inspector.h=pfeldman@chromium.org
 per-file v8-inspector.h=kozyatinskiy@chromium.org

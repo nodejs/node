@@ -5,16 +5,16 @@
 #ifndef V8_ISOLATE_INL_H_
 #define V8_ISOLATE_INL_H_
 
+#include "src/heap/heap-inl.h"  // Need MemoryChunk from heap/spaces.h
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/regexp-match-info.h"
 
 namespace v8 {
 namespace internal {
 
-base::AddressRegion Isolate::root_register_addressable_region() {
-  Address start = reinterpret_cast<Address>(this);
-  Address end = heap_.root_register_addressable_end();
-  return base::AddressRegion(start, end - start);
+IsolateAllocationMode Isolate::isolate_allocation_mode() {
+  return isolate_allocator_->mode();
 }
 
 bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
@@ -27,8 +27,8 @@ bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
   return true;
 }
 
-void Isolate::set_context(Context* context) {
-  DCHECK(context == nullptr || context->IsContext());
+void Isolate::set_context(Context context) {
+  DCHECK(context.is_null() || context->IsContext());
   thread_local_top_.context_ = context;
 }
 
@@ -36,7 +36,7 @@ Handle<NativeContext> Isolate::native_context() {
   return handle(context()->native_context(), this);
 }
 
-NativeContext* Isolate::raw_native_context() {
+NativeContext Isolate::raw_native_context() {
   return context()->native_context();
 }
 
@@ -129,7 +129,7 @@ Isolate::ExceptionScope::~ExceptionScope() {
   Handle<type> Isolate::name() {                             \
     return Handle<type>(raw_native_context()->name(), this); \
   }                                                          \
-  bool Isolate::is_##name(type* value) {                     \
+  bool Isolate::is_##name(type##ArgType value) {             \
     return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
@@ -164,6 +164,12 @@ bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
          Smi::ToInt(species_cell->value()) == kProtectorValid;
 }
 
+bool Isolate::IsRegExpSpeciesLookupChainIntact() {
+  PropertyCell* species_cell = heap()->regexp_species_protector();
+  return species_cell->value()->IsSmi() &&
+         Smi::ToInt(species_cell->value()) == kProtectorValid;
+}
+
 bool Isolate::IsPromiseSpeciesLookupChainIntact() {
   PropertyCell* species_cell = heap()->promise_species_protector();
   return species_cell->value()->IsSmi() &&
@@ -183,6 +189,16 @@ bool Isolate::IsArrayBufferNeuteringIntact() {
 bool Isolate::IsArrayIteratorLookupChainIntact() {
   PropertyCell* array_iterator_cell = heap()->array_iterator_protector();
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
+bool Isolate::IsMapIteratorLookupChainIntact() {
+  PropertyCell* map_iterator_cell = heap()->map_iterator_protector();
+  return map_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
+bool Isolate::IsSetIteratorLookupChainIntact() {
+  PropertyCell* set_iterator_cell = heap()->set_iterator_protector();
+  return set_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsStringIteratorLookupChainIntact() {

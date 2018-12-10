@@ -42,6 +42,7 @@
 #include "src/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
@@ -105,7 +106,7 @@ HeapObject* RelocInfo::target_object() {
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT) {
-    return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+    return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   }
   DCHECK(IsRelativeCodeTarget(rmode_));
@@ -213,8 +214,8 @@ Operand::Operand(const ExternalReference& f)
   value_.immediate = static_cast<int32_t>(f.address());
 }
 
-Operand::Operand(Smi* value) : rmode_(RelocInfo::NONE) {
-  value_.immediate = reinterpret_cast<intptr_t>(value);
+Operand::Operand(Smi value) : rmode_(RelocInfo::NONE) {
+  value_.immediate = static_cast<intptr_t>(value.ptr());
 }
 
 Operand::Operand(Register rm) : rm_(rm), shift_op_(LSL), shift_imm_(0) {}
@@ -297,7 +298,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, Code* code, Address target) {
+    Address constant_pool_entry, Code code, Address target) {
   Memory<Address>(constant_pool_entry) = target;
 }
 

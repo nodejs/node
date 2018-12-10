@@ -10,10 +10,11 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
@@ -92,19 +93,18 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
 }
 
-#define THROW_ERROR(isolate, args, call)                              \
-  HandleScope scope(isolate);                                         \
-  DCHECK_LE(1, args.length());                                        \
-  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);                         \
-                                                                      \
-  Handle<Object> undefined = isolate->factory()->undefined_value();   \
-  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined; \
-  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined; \
-  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined; \
-                                                                      \
-  MessageTemplate::Template message_id =                              \
-      static_cast<MessageTemplate::Template>(message_id_smi);         \
-                                                                      \
+#define THROW_ERROR(isolate, args, call)                               \
+  HandleScope scope(isolate);                                          \
+  DCHECK_LE(1, args.length());                                         \
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);                          \
+                                                                       \
+  Handle<Object> undefined = isolate->factory()->undefined_value();    \
+  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined;  \
+  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined;  \
+  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined;  \
+                                                                       \
+  MessageTemplate message_id = MessageTemplateFromInt(message_id_smi); \
+                                                                       \
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
 RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
@@ -182,8 +182,7 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
   DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
-  auto message_template =
-      static_cast<MessageTemplate::Template>(template_index);
+  MessageTemplate message_template = MessageTemplateFromInt(template_index);
   return *isolate->factory()->NewTypeError(message_template, arg0);
 }
 
@@ -192,8 +191,7 @@ RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
-  auto message_template =
-      static_cast<MessageTemplate::Template>(template_index);
+  MessageTemplate message_template = MessageTemplateFromInt(template_index);
   return *isolate->factory()->NewReferenceError(message_template, arg0);
 }
 
@@ -202,8 +200,7 @@ RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
-  auto message_template =
-      static_cast<MessageTemplate::Template>(template_index);
+  MessageTemplate message_template = MessageTemplateFromInt(template_index);
   return *isolate->factory()->NewSyntaxError(message_template, arg0);
 }
 
@@ -316,10 +313,6 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_IS_VAR) {
-  UNREACHABLE();  // implemented as macro in the parser
-}
-
 namespace {
 
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
@@ -387,8 +380,8 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   return BuildDefaultCallSite(isolate, object);
 }
 
-MessageTemplate::Template UpdateErrorTemplate(
-    CallPrinter::ErrorHint hint, MessageTemplate::Template default_id) {
+MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
+                                    MessageTemplate default_id) {
   switch (hint) {
     case CallPrinter::ErrorHint::kNormalIterator:
       return MessageTemplate::kNotIterable;
@@ -414,7 +407,7 @@ MaybeHandle<Object> Runtime::ThrowIteratorError(Isolate* isolate,
                                                 Handle<Object> object) {
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
-  MessageTemplate::Template id = MessageTemplate::kNotIterableNoSymbolLoad;
+  MessageTemplate id = MessageTemplate::kNotIterableNoSymbolLoad;
 
   if (hint == CallPrinter::kNone) {
     Handle<Symbol> iterator_symbol = isolate->factory()->iterator_symbol();
@@ -440,7 +433,7 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
-  MessageTemplate::Template id = MessageTemplate::kCalledNonCallable;
+  MessageTemplate id = MessageTemplate::kCalledNonCallable;
   id = UpdateErrorTemplate(hint, id);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
 }
@@ -451,7 +444,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
-  MessageTemplate::Template id = MessageTemplate::kNotConstructor;
+  MessageTemplate id = MessageTemplate::kNotConstructor;
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
 }
 
@@ -471,33 +464,6 @@ RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   RETURN_RESULT_OR_FAILURE(isolate, Object::CreateListFromArrayLike(
                                         isolate, object, ElementTypes::kAll));
-}
-
-RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  DCHECK(FLAG_lazy_deserialization);
-
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-
-#ifdef DEBUG
-  int builtin_id = shared->builtin_id();
-  // At this point, the builtins table should definitely have DeserializeLazy
-  // set at the position of the target builtin.
-  CHECK_EQ(Builtins::kDeserializeLazy,
-           isolate->builtins()->builtin(builtin_id)->builtin_index());
-  // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
-  // works with JS-linkage.
-  CHECK(Builtins::IsLazy(builtin_id));
-  CHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
-#endif  // DEBUG
-
-  Code* code = Snapshot::EnsureBuiltinIsDeserialized(isolate, shared);
-
-  function->set_code(code);
-  return code;
 }
 
 RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
@@ -531,7 +497,8 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     if (args[0]->IsString()) {
       // With a string argument, the results are appended to that file.
       CONVERT_ARG_HANDLE_CHECKED(String, arg0, 0);
-      String::FlatContent flat = arg0->GetFlatContent();
+      DisallowHeapAllocation no_gc;
+      String::FlatContent flat = arg0->GetFlatContent(no_gc);
       const char* filename =
           reinterpret_cast<const char*>(&(flat.ToOneByteVector()[0]));
       f = std::fopen(filename, "a");

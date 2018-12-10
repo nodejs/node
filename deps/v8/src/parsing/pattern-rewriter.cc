@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parser.h"
@@ -29,7 +29,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
       Parser* parser, Block* block,
       const DeclarationDescriptor* declaration_descriptor,
       const Parser::DeclarationParsingResult::Declaration* declaration,
-      ZonePtrList<const AstRawString>* names, bool* ok);
+      ZonePtrList<const AstRawString>* names);
 
   static Expression* RewriteDestructuringAssignment(Parser* parser,
                                                     Assignment* to_rewrite,
@@ -50,7 +50,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
         descriptor_(descriptor),
         names_(names),
         current_value_(nullptr),
-        ok_(nullptr),
         initializer_position_(initializer_position),
         value_beg_position_(value_beg_position),
         context_(context),
@@ -75,6 +74,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   }
 
   Expression* Rewrite(Assignment* assign) {
+    if (parser_->has_error()) return parser_->FailureExpression();
     DCHECK_EQ(Token::ASSIGN, assign->op());
 
     int pos = assign->position();
@@ -110,6 +110,9 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   AstValueFactory* ast_value_factory() const {
     return parser_->ast_value_factory();
   }
+
+  std::vector<void*>* pointer_buffer() { return parser_->pointer_buffer(); }
+
   Zone* zone() const { return parser_->zone(); }
   Scope* scope() const { return scope_; }
 
@@ -119,7 +122,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   const DeclarationDescriptor* descriptor_;
   ZonePtrList<const AstRawString>* names_;
   Expression* current_value_;
-  bool* ok_;
   const int initializer_position_;
   const int value_beg_position_;
   PatternContext context_;
@@ -132,9 +134,10 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 void Parser::DeclareAndInitializeVariables(
     Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names) {
+  if (has_error()) return;
   PatternRewriter::DeclareAndInitializeVariables(
-      this, block, declaration_descriptor, declaration, names, ok);
+      this, block, declaration_descriptor, declaration, names);
 }
 
 void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite) {
@@ -156,7 +159,7 @@ void PatternRewriter::DeclareAndInitializeVariables(
     Parser* parser, Block* block,
     const DeclarationDescriptor* declaration_descriptor,
     const Parser::DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names) {
   DCHECK(block->ignore_completion_value());
 
   Scope* scope = declaration_descriptor->scope;
@@ -167,7 +170,6 @@ void PatternRewriter::DeclareAndInitializeVariables(
                                    DeclarationDescriptor::PARAMETER &&
                                scope->is_block_scope());
   rewriter.block_ = block;
-  rewriter.ok_ = ok;
 
   rewriter.RecurseIntoSubpattern(declaration->pattern,
                                  declaration->initializer);
@@ -196,18 +198,14 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
   DCHECK_NOT_NULL(block_);
   DCHECK_NOT_NULL(descriptor_);
-  DCHECK_NOT_NULL(ok_);
 
   Scope* outer_function_scope = nullptr;
-  bool success;
   if (declares_parameter_containing_sloppy_eval_) {
     outer_function_scope = scope()->outer_scope();
-    success = outer_function_scope->RemoveUnresolved(pattern);
+    outer_function_scope->DeleteUnresolved(pattern);
   } else {
-    success = scope()->RemoveUnresolved(pattern);
+    scope()->DeleteUnresolved(pattern);
   }
-  USE(success);
-  DCHECK(success);
 
   // Declare variable.
   // Note that we *always* must treat the initial value via a separate init
@@ -236,9 +234,9 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // scope which will be used for the initializer expression.
   Variable* var = parser_->Declare(
       declaration, descriptor_->declaration_kind, descriptor_->mode,
-      Variable::DefaultInitializationFlag(descriptor_->mode), ok_,
+      Variable::DefaultInitializationFlag(descriptor_->mode),
       outer_function_scope);
-  if (!*ok_) return;
+  if (parser_->has_error()) return;
   DCHECK_NOT_NULL(var);
   DCHECK(proxy->is_resolved());
   DCHECK_NE(initializer_position_, kNoSourcePosition);
@@ -251,7 +249,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
                                         : scope()->GetDeclarationScope());
   if (declaration_scope->num_var() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
-    *ok_ = false;
     return;
   }
   if (names_) {
@@ -336,15 +333,9 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
                                          Variable** temp_var) {
   auto temp = *temp_var = CreateTempVar(current_value_);
 
-  ZonePtrList<Expression>* rest_runtime_callargs = nullptr;
+  ScopedPtrList<Expression> rest_runtime_callargs(pointer_buffer());
   if (pattern->has_rest_property()) {
-    // non_rest_properties_count = pattern->properties()->length - 1;
-    // args_length = 1 + non_rest_properties_count because we need to
-    // pass temp as well to the runtime function.
-    int args_length = pattern->properties()->length();
-    rest_runtime_callargs =
-        new (zone()) ZonePtrList<Expression>(args_length, zone());
-    rest_runtime_callargs->Add(factory()->NewVariableProxy(temp), zone());
+    rest_runtime_callargs.Add(factory()->NewVariableProxy(temp));
   }
 
   block_->statements()->Add(parser_->BuildAssertIsCoercible(temp, pattern),
@@ -378,8 +369,8 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
 
         if (property->is_computed_name()) {
           DCHECK(!key->IsPropertyName() || !key->IsNumberLiteral());
-          auto args = new (zone()) ZonePtrList<Expression>(1, zone());
-          args->Add(key, zone());
+          ScopedPtrList<Expression> args(pointer_buffer());
+          args.Add(key);
           auto to_name_key = CreateTempVar(factory()->NewCallRuntime(
               Runtime::kToName, args, kNoSourcePosition));
           key = factory()->NewVariableProxy(to_name_key);
@@ -388,8 +379,7 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
           DCHECK(key->IsPropertyName() || key->IsNumberLiteral());
         }
 
-        DCHECK_NOT_NULL(rest_runtime_callargs);
-        rest_runtime_callargs->Add(excluded_property, zone());
+        rest_runtime_callargs.Add(excluded_property);
       }
 
       value = factory()->NewProperty(factory()->NewVariableProxy(temp), key,
@@ -508,8 +498,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
       if_not_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(
               Token::NOT, factory()->NewVariableProxy(done), kNoSourcePosition),
-          next_block, factory()->NewEmptyStatement(kNoSourcePosition),
-          kNoSourcePosition);
+          next_block, factory()->EmptyStatement(), kNoSourcePosition);
     }
     block_->statements()->Add(if_not_done, zone());
 
@@ -557,7 +546,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // let array = [];
     Variable* array;
     {
-      auto empty_exprs = new (zone()) ZonePtrList<Expression>(0, zone());
+      ScopedPtrList<Expression> empty_exprs(pointer_buffer());
       array = CreateTempVar(
           factory()->NewArrayLiteral(empty_exprs, kNoSourcePosition));
     }
@@ -617,7 +606,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
       maybe_store_and_unset_done = factory()->NewIfStatement(
           factory()->NewUnaryOperation(Token::NOT, result_done, nopos), then,
-          factory()->NewEmptyStatement(nopos), nopos);
+          factory()->EmptyStatement(), nopos);
     }
 
     // index++;
@@ -761,7 +750,7 @@ NOT_A_PATTERN(WithStatement)
 NOT_A_PATTERN(Yield)
 NOT_A_PATTERN(YieldStar)
 NOT_A_PATTERN(Await)
-NOT_A_PATTERN(InitializeClassFieldsStatement)
+NOT_A_PATTERN(InitializeClassMembersStatement)
 
 #undef NOT_A_PATTERN
 }  // namespace internal

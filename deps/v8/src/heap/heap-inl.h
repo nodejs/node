@@ -15,12 +15,12 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
-#include "src/counters-inl.h"
 #include "src/feedback-vector.h"
 
 // TODO(mstarzinger): There is one more include to remove in order to no longer
 // leak heap internals to users of this interface!
 #include "src/heap/spaces-inl.h"
+#include "src/isolate-data.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/msan.h"
@@ -28,8 +28,8 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
-#include "src/objects/literal-objects.h"
-#include "src/objects/microtask-queue-inl.h"
+#include "src/objects/literal-objects-inl.h"
+#include "src/objects/property-cell.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/script-inl.h"
 #include "src/profiler/heap-profiler.h"
@@ -55,27 +55,79 @@ HeapObject* AllocationResult::ToObjectChecked() {
   return HeapObject::cast(object_);
 }
 
-#define ROOT_ACCESSOR(type, name, CamelName) \
-  type* Heap::name() { return type::cast(roots_[RootIndex::k##CamelName]); }
+Isolate* Heap::isolate() {
+  return reinterpret_cast<Isolate*>(
+      reinterpret_cast<intptr_t>(this) -
+      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
+}
+
+int64_t Heap::external_memory() {
+  return isolate()->isolate_data()->external_memory_;
+}
+
+void Heap::update_external_memory(int64_t delta) {
+  isolate()->isolate_data()->external_memory_ += delta;
+}
+
+void Heap::update_external_memory_concurrently_freed(intptr_t freed) {
+  external_memory_concurrently_freed_ += freed;
+}
+
+void Heap::account_external_memory_concurrently_freed() {
+  isolate()->isolate_data()->external_memory_ -=
+      external_memory_concurrently_freed_;
+  external_memory_concurrently_freed_ = 0;
+}
+
+RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
+
+// TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
+#define ROOT_ACCESSOR(Type, name, CamelName)      \
+  Type Heap::name() {                             \
+    return std::remove_pointer<Type>::type::cast( \
+        roots_table()[RootIndex::k##CamelName]);  \
+  }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
-  void Heap::set_##name(type* value) {                                         \
+  void Heap::set_##name(type value) {                                          \
     /* The deserializer makes use of the fact that these common roots are */   \
     /* never in new space and never on a page that is being compacted.    */   \
-    DCHECK(!deserialization_complete() ||                                      \
-           RootCanBeWrittenAfterInitialization(RootIndex::k##CamelName));      \
-    DCHECK_IMPLIES(static_cast<int>(RootIndex::k##CamelName) < kOldSpaceRoots, \
-                   !InNewSpace(value));                                        \
-    roots_[RootIndex::k##CamelName] = value;                                   \
+    DCHECK_IMPLIES(deserialization_complete(),                                 \
+                   !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
+    DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
+                   IsImmovable(HeapObject::cast(value)));                      \
+    roots_table()[RootIndex::k##CamelName] = value;                            \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+void Heap::SetRootMaterializedObjects(FixedArray objects) {
+  roots_table()[RootIndex::kMaterializedObjects] = objects;
+}
+
+void Heap::SetRootScriptList(Object* value) {
+  roots_table()[RootIndex::kScriptList] = value;
+}
+
+void Heap::SetRootStringTable(StringTable value) {
+  roots_table()[RootIndex::kStringTable] = value;
+}
+
+void Heap::SetRootNoScriptSharedFunctionInfos(Object* value) {
+  roots_table()[RootIndex::kNoScriptSharedFunctionInfos] = value;
+}
+
+void Heap::SetMessageListeners(TemplateList value) {
+  roots_table()[RootIndex::kMessageListeners] = value;
+}
+
 PagedSpace* Heap::paged_space(int idx) {
   DCHECK_NE(idx, LO_SPACE);
   DCHECK_NE(idx, NEW_SPACE);
+  DCHECK_NE(idx, CODE_LO_SPACE);
+  DCHECK_NE(idx, NEW_LO_SPACE);
   return static_cast<PagedSpace*>(space_[idx]);
 }
 
@@ -118,24 +170,19 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   }
 #endif
 #ifdef DEBUG
-  isolate_->counters()->objs_since_last_full()->Increment();
-  isolate_->counters()->objs_since_last_young()->Increment();
+  IncrementObjectCounters();
 #endif
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
-  bool new_large_object = FLAG_young_generation_large_objects &&
-                          size_in_bytes > kMaxNewSpaceHeapObjectSize;
+
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
     if (large_object) {
-      space = LO_SPACE;
+      // TODO(hpayer): Implement a LO tenuring strategy.
+      space = FLAG_young_generation_large_objects ? NEW_LO_SPACE : LO_SPACE;
     } else {
-      if (new_large_object) {
-        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
-      }
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -146,19 +193,25 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   // Here we only allocate in the old generation.
   if (OLD_SPACE == space) {
     if (large_object) {
-      allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+      allocation = lo_space_->AllocateRaw(size_in_bytes);
     } else {
       allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
     }
   } else if (CODE_SPACE == space) {
-    if (size_in_bytes <= code_space()->AreaSize()) {
+    if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
       allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
-      allocation = lo_space_->AllocateRaw(size_in_bytes, EXECUTABLE);
+      allocation = code_lo_space_->AllocateRaw(size_in_bytes);
     }
   } else if (LO_SPACE == space) {
     DCHECK(large_object);
-    allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+    allocation = lo_space_->AllocateRaw(size_in_bytes);
+  } else if (NEW_LO_SPACE == space) {
+    DCHECK(FLAG_young_generation_large_objects);
+    allocation = new_lo_space_->AllocateRaw(size_in_bytes);
+  } else if (CODE_LO_SPACE == space) {
+    DCHECK(large_object);
+    allocation = code_lo_space_->AllocateRaw(size_in_bytes);
   } else if (MAP_SPACE == space) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   } else if (RO_SPACE == space) {
@@ -274,14 +327,13 @@ void Heap::UpdateAllocationsHash(uint32_t value) {
       StringHasher::AddCharacterCore(raw_allocations_hash_, c2);
 }
 
-
-void Heap::RegisterExternalString(String* string) {
+void Heap::RegisterExternalString(String string) {
   DCHECK(string->IsExternalString());
   DCHECK(!string->IsThinString());
   external_string_table_.AddString(string);
 }
 
-void Heap::UpdateExternalString(String* string, size_t old_payload,
+void Heap::UpdateExternalString(String string, size_t old_payload,
                                 size_t new_payload) {
   DCHECK(string->IsExternalString());
   Page* page = Page::FromHeapObject(string);
@@ -294,10 +346,10 @@ void Heap::UpdateExternalString(String* string, size_t old_payload,
         ExternalBackingStoreType::kExternalString, new_payload - old_payload);
 }
 
-void Heap::FinalizeExternalString(String* string) {
+void Heap::FinalizeExternalString(String string) {
   DCHECK(string->IsExternalString());
   Page* page = Page::FromHeapObject(string);
-  ExternalString* ext_string = ExternalString::cast(string);
+  ExternalString ext_string = ExternalString::cast(string);
 
   page->DecrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kExternalString,
@@ -305,8 +357,7 @@ void Heap::FinalizeExternalString(String* string) {
 
   v8::String::ExternalStringResourceBase** resource_addr =
       reinterpret_cast<v8::String::ExternalStringResourceBase**>(
-          reinterpret_cast<byte*>(string) + ExternalString::kResourceOffset -
-          kHeapObjectTag);
+          string->address() + ExternalString::kResourceOffset);
 
   // Dispose of the C++ object if it has not already been disposed.
   if (*resource_addr != nullptr) {
@@ -324,7 +375,7 @@ bool Heap::InNewSpace(Object* object) {
 }
 
 // static
-bool Heap::InNewSpace(MaybeObject* object) {
+bool Heap::InNewSpace(MaybeObject object) {
   HeapObject* heap_object;
   return object->GetHeapObject(&heap_object) && InNewSpace(heap_object);
 }
@@ -346,13 +397,28 @@ bool Heap::InNewSpace(HeapObject* heap_object) {
 }
 
 // static
+bool Heap::InNewSpace(HeapObjectPtr heap_object) {
+  bool result = MemoryChunk::FromHeapObject(heap_object)->InNewSpace();
+#ifdef DEBUG
+  // If in NEW_SPACE, then check we're either not in the middle of GC or the
+  // object is in to-space.
+  if (result) {
+    // If the object is in NEW_SPACE, then it's not in RO_SPACE so this is safe.
+    Heap* heap = Heap::FromWritableHeapObject(&heap_object);
+    DCHECK(heap->gc_state_ != NOT_IN_GC || InToSpace(heap_object));
+  }
+#endif
+  return result;
+}
+
+// static
 bool Heap::InFromSpace(Object* object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InFromSpace(HeapObject::cast(object));
 }
 
 // static
-bool Heap::InFromSpace(MaybeObject* object) {
+bool Heap::InFromSpace(MaybeObject object) {
   HeapObject* heap_object;
   return object->GetHeapObject(&heap_object) && InFromSpace(heap_object);
 }
@@ -370,7 +436,7 @@ bool Heap::InToSpace(Object* object) {
 }
 
 // static
-bool Heap::InToSpace(MaybeObject* object) {
+bool Heap::InToSpace(MaybeObject object) {
   HeapObject* heap_object;
   return object->GetHeapObject(&heap_object) && InToSpace(heap_object);
 }
@@ -380,23 +446,33 @@ bool Heap::InToSpace(HeapObject* heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
 }
 
+// static
+bool Heap::InToSpace(HeapObjectPtr heap_object) {
+  return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
+}
+
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
 bool Heap::InReadOnlySpace(Object* object) {
   return read_only_space_->Contains(object);
 }
 
-bool Heap::InNewSpaceSlow(Address address) {
-  return new_space_->ContainsSlow(address);
-}
-
-bool Heap::InOldSpaceSlow(Address address) {
-  return old_space_->ContainsSlow(address);
-}
-
 // static
 Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
+  // find a heap. The exception is when the ReadOnlySpace is writeable, during
+  // bootstrapping, so explicitly allow this case.
+  SLOW_DCHECK(chunk->owner()->identity() != RO_SPACE ||
+              static_cast<ReadOnlySpace*>(chunk->owner())->writable());
+  Heap* heap = chunk->heap();
+  SLOW_DCHECK(heap != nullptr);
+  return heap;
+}
+
+// static
+Heap* Heap::FromWritableHeapObject(const HeapObjectPtr* obj) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
   // bootstrapping, so explicitly allow this case.
@@ -415,12 +491,11 @@ bool Heap::ShouldBePromoted(Address old_address) {
 }
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
-  CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
-            static_cast<size_t>(byte_size / kPointerSize));
+  CopyWords(dst, src, static_cast<size_t>(byte_size / kPointerSize));
 }
 
 template <Heap::FindMementoMode mode>
-AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
+AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
   Address object_address = object->address();
   Address memento_address = object_address + object->SizeFromMap(map);
   Address last_memento_word_address = memento_address + kPointerSize;
@@ -429,12 +504,13 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
     return nullptr;
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  Map* candidate_map = candidate->map();
+  MapWordSlot candidate_map_slot = candidate->map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
-  MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != ReadOnlyRoots(this).allocation_memento_map()) {
+  MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
+  if (!candidate_map_slot.contains_value(
+          ReadOnlyRoots(this).allocation_memento_map().ptr())) {
     return nullptr;
   }
 
@@ -480,7 +556,7 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
   UNREACHABLE();
 }
 
-void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
+void Heap::UpdateAllocationSite(Map map, HeapObject* object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
   DCHECK(
@@ -503,13 +579,7 @@ void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
   (*pretenuring_feedback)[reinterpret_cast<AllocationSite*>(key)]++;
 }
 
-Isolate* Heap::isolate() {
-  return reinterpret_cast<Isolate*>(
-      reinterpret_cast<intptr_t>(this) -
-      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
-}
-
-void Heap::ExternalStringTable::AddString(String* string) {
+void Heap::ExternalStringTable::AddString(String string) {
   DCHECK(string->IsExternalString());
   DCHECK(!Contains(string));
 
@@ -527,7 +597,8 @@ Oddball* Heap::ToBoolean(bool condition) {
 
 uint64_t Heap::HashSeed() {
   uint64_t seed;
-  hash_seed()->copy_out(0, reinterpret_cast<byte*>(&seed), kInt64Size);
+  ReadOnlyRoots(this).hash_seed()->copy_out(0, reinterpret_cast<byte*>(&seed),
+                                            kInt64Size);
   DCHECK(FLAG_randomize_hashes || seed == 0);
   return seed;
 }
@@ -576,6 +647,13 @@ void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
   // trigger garbage collections.
 }
 
+bool Heap::IsWithinLargeObject(Address address) {
+  if (new_lo_space()->FindPage(address) || lo_space()->FindPage(address) ||
+      code_lo_space()->FindPage(address))
+    return true;
+  return false;
+}
+
 void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                               size_t amount) {
   base::CheckedDecrement(&backing_store_bytes_, amount);
@@ -595,12 +673,11 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndWritable();
-    LargePage* page = heap_->lo_space()->first_page();
+    LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndWritable();
-      }
+      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndWritable();
       page = page->next_page();
     }
   }
@@ -610,12 +687,11 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndExecutable();
-    LargePage* page = heap_->lo_space()->first_page();
+    LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndExecutable();
-      }
+      DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndExecutable();
       page = page->next_page();
     }
   }
@@ -646,8 +722,7 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
-           (chunk_->owner()->identity() == LO_SPACE &&
-            chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
+           (chunk_->owner()->identity() == CODE_LO_SPACE));
     chunk_->SetReadAndWritable();
   }
 }

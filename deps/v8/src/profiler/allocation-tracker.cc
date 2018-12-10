@@ -213,7 +213,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
   JavaScriptFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
-    SharedFunctionInfo* shared = frame->function()->shared();
+    SharedFunctionInfo shared = frame->function()->shared();
     SnapshotObjectId id = ids_->FindOrAddEntry(
         shared->address(), shared->Size(), false);
     allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id);
@@ -237,8 +237,7 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
   return ComputeUnseededHash(static_cast<uint32_t>(id));
 }
 
-
-unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
+unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
                                             SnapshotObjectId id) {
   base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
@@ -249,7 +248,7 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
     if (shared->script()->IsScript()) {
       Script* script = Script::cast(shared->script());
       if (script->name()->IsName()) {
-        Name* name = Name::cast(script->name());
+        Name name = Name::cast(script->name());
         info->script_name = names_->GetName(name);
       }
       info->script_id = script->id();
@@ -263,7 +262,6 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
   }
   return static_cast<unsigned>(reinterpret_cast<intptr_t>((entry->value)));
 }
-
 
 unsigned AllocationTracker::functionInfoIndexForVMState(StateTag state) {
   if (state != OTHER) return 0;
@@ -283,14 +281,14 @@ AllocationTracker::UnresolvedLocation::UnresolvedLocation(
     : start_position_(start),
       info_(info) {
   script_ = script->GetIsolate()->global_handles()->Create(script);
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()), this,
-                          &HandleWeakScript, v8::WeakCallbackType::kParameter);
+  GlobalHandles::MakeWeak(script_.location(), this, &HandleWeakScript,
+                          v8::WeakCallbackType::kParameter);
 }
 
 
 AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
   if (!script_.is_null()) {
-    GlobalHandles::Destroy(reinterpret_cast<Object**>(script_.location()));
+    GlobalHandles::Destroy(script_.location());
   }
 }
 
@@ -306,7 +304,7 @@ void AllocationTracker::UnresolvedLocation::HandleWeakScript(
     const v8::WeakCallbackInfo<void>& data) {
   UnresolvedLocation* loc =
       reinterpret_cast<UnresolvedLocation*>(data.GetParameter());
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(loc->script_.location()));
+  GlobalHandles::Destroy(loc->script_.location());
   loc->script_ = Handle<Script>::null();
 }
 

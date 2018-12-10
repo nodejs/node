@@ -18,13 +18,25 @@ class EntryFrameConstants : public AllStatic {
   static constexpr int kXMMRegisterSize = 16;
   static constexpr int kXMMRegistersBlockSize =
       kXMMRegisterSize * kCalleeSaveXMMRegisters;
+
+  // This is the offset to where JSEntry pushes the current value of
+  // Isolate::c_entry_fp onto the stack.
+  // On x64, there are 7 pushq() and 3 Push() calls between setting up rbp and
+  // pushing the c_entry_fp, plus we manually allocate kXMMRegistersBlockSize
+  // bytes on the stack.
   static constexpr int kCallerFPOffset =
       -3 * kPointerSize + -7 * kRegisterSize - kXMMRegistersBlockSize;
+
+  // Stack offsets for arguments passed to JSEntry.
+  static constexpr int kArgvOffset = 6 * kPointerSize;
+  static constexpr int kRootRegisterValueOffset = 7 * kPointerSize;
 #else
-  // We have 3 Push and 5 pushq in the JSEntryStub::GenerateBody.
+  // This is the offset to where JSEntry pushes the current value of
+  // Isolate::c_entry_fp onto the stack.
+  // On x64, there are 5 pushq() and 3 Push() calls between setting up rbp and
+  // pushing the c_entry_fp.
   static constexpr int kCallerFPOffset = -3 * kPointerSize + -5 * kRegisterSize;
 #endif
-  static constexpr int kArgvOffset = 6 * kPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {

@@ -3,14 +3,13 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
-#include "src/code-stubs.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
-#include "src/messages.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -126,8 +125,8 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
       // bet set to 'undefined'. If we delete the element now and later set it
       // to undefined, the set operation would throw an exception.
       RETURN_FAILURE_ON_EXCEPTION(
-          isolate, JSReceiver::SetElement(isolate, receiver, current_pos,
-                                          element, LanguageMode::kStrict));
+          isolate, Object::SetElement(isolate, receiver, current_pos, element,
+                                      LanguageMode::kStrict));
       ++current_pos;
     }
   }
@@ -136,9 +135,9 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
   uint32_t result = current_pos;
   for (uint32_t i = 0; i < num_undefined; ++i) {
     RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSReceiver::SetElement(isolate, receiver, current_pos++,
-                                        isolate->factory()->undefined_value(),
-                                        LanguageMode::kStrict));
+        isolate, Object::SetElement(isolate, receiver, current_pos++,
+                                    isolate->factory()->undefined_value(),
+                                    LanguageMode::kStrict));
   }
   // TODO(szuend): Re-enable when we also copy from the prototype chain for
   //               JSArrays. Then we can use HasOwnProperty instead of
@@ -231,7 +230,7 @@ Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
 
   uint32_t result = 0;
   if (elements_base->map() == ReadOnlyRoots(isolate).fixed_double_array_map()) {
-    FixedDoubleArray* elements = FixedDoubleArray::cast(*elements_base);
+    FixedDoubleArray elements = FixedDoubleArray::cast(*elements_base);
     // Split elements into defined and the_hole, in that order.
     unsigned int holes = limit;
     // Assume most arrays contain no holes and undefined values, so minimize the
@@ -258,7 +257,7 @@ Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
       holes++;
     }
   } else {
-    FixedArray* elements = FixedArray::cast(*elements_base);
+    FixedArray elements = FixedArray::cast(*elements_base);
     DisallowHeapAllocation no_gc;
 
     // Split elements into defined, undefined and the_hole, in that order.  Only
@@ -329,8 +328,8 @@ Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
   Handle<Object> set_result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, set_result,
-      JSReceiver::SetElement(isolate, target, index, source_element,
-                             LanguageMode::kStrict),
+      Object::SetElement(isolate, target, index, source_element,
+                         LanguageMode::kStrict),
       Nothing<bool>());
 
   return Just(true);
@@ -389,7 +388,7 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   // Array.prototype.
   if (object->IsJSArray() &&
       !Handle<JSArray>::cast(object)->HasFastPackedElements()) {
-    JSObject* initial_array_proto = JSObject::cast(
+    JSObject initial_array_proto = JSObject::cast(
         isolate->native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
     if (!isolate->IsNoElementsProtectorIntact() ||
         object->map()->prototype() != initial_array_proto) {
@@ -405,36 +404,13 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   return RemoveArrayHoles(isolate, object, length);
 }
 
-// Move contents of argument 0 (an array) to argument 1 (an array)
-RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, from, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, to, 1);
-  JSObject::ValidateElements(*from);
-  JSObject::ValidateElements(*to);
-
-  Handle<FixedArrayBase> new_elements(from->elements(), isolate);
-  ElementsKind from_kind = from->GetElementsKind();
-  Handle<Map> new_map = JSObject::GetElementsTransitionMap(to, from_kind);
-  JSObject::SetMapAndElements(to, new_map, new_elements);
-  to->set_length(from->length());
-
-  from->initialize_elements();
-  from->set_length(Smi::kZero);
-
-  JSObject::ValidateElements(*to);
-  return *to;
-}
-
-
 // How many elements does this object/array have?
 RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
   DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSArray, array, 0);
-  FixedArrayBase* elements = array->elements();
+  FixedArrayBase elements = array->elements();
   SealHandleScope shs(isolate);
   if (elements->IsNumberDictionary()) {
     int result = NumberDictionary::cast(elements)->NumberOfElements();
@@ -561,7 +537,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   DCHECK_LE(3, args.length());
   int const argc = args.length() - 3;
   // TODO(bmeurer): Remove this Arguments nonsense.
-  Arguments argv(argc, args.arguments() - 1);
+  Arguments argv(argc, args.address_of_arg_at(1));
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, argc + 1);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, type_info, argc + 2);
@@ -741,7 +717,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   // Let O be ? ToObject(this value).
   Handle<JSReceiver> object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, object, Object::ToObject(isolate, handle(args[0], isolate)));
+      isolate, object,
+      Object::ToObject(isolate, Handle<Object>(args[0], isolate)));
 
   // Let len be ? ToLength(? Get(O, "length")).
   int64_t len;
@@ -834,7 +811,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 }
 
 RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
-  HandleScope shs(isolate);
+  HandleScope hs(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, search_element, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, from_index, 2);
@@ -897,9 +874,9 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     }
   }
 
-  // If the receiver is not a special receiver type, and the length is a valid
-  // element index, perform fast operation tailored to specific ElementsKinds.
-  if (!object->map()->IsSpecialReceiverMap() && len < kMaxUInt32 &&
+  // If the receiver is not a special receiver type, and the length fits
+  // uint32_t, perform fast operation tailored to specific ElementsKinds.
+  if (!object->map()->IsSpecialReceiverMap() && len <= kMaxUInt32 &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
@@ -912,6 +889,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
 
   // Otherwise, perform slow lookups for special receiver types
   for (; index < len; ++index) {
+    HandleScope iteration_hs(isolate);
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {

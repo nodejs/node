@@ -76,7 +76,7 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 }
 
 void SourcePosition::Print(std::ostream& out,
-                           SharedFunctionInfo* function) const {
+                           SharedFunctionInfo function) const {
   Script::PositionInfo pos;
   Object* source_name = nullptr;
   if (function->script()->IsScript()) {
@@ -100,11 +100,11 @@ void SourcePosition::PrintJson(std::ostream& out) const {
       << "  \"inliningId\" : " << InliningId() << "}";
 }
 
-void SourcePosition::Print(std::ostream& out, Code* code) const {
-  DeoptimizationData* deopt_data =
+void SourcePosition::Print(std::ostream& out, Code code) const {
+  DeoptimizationData deopt_data =
       DeoptimizationData::cast(code->deoptimization_data());
   if (!isInlined()) {
-    SharedFunctionInfo* function(
+    SharedFunctionInfo function(
         SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()));
     Print(out, function);
   } else {
@@ -112,7 +112,7 @@ void SourcePosition::Print(std::ostream& out, Code* code) const {
     if (inl.inlined_function_id == -1) {
       out << *this;
     } else {
-      SharedFunctionInfo* function =
+      SharedFunctionInfo function =
           deopt_data->GetInlinedFunction(inl.inlined_function_id);
       Print(out, function);
     }

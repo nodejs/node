@@ -42,7 +42,7 @@ class ScriptData {
   DISALLOW_COPY_AND_ASSIGN(ScriptData);
 };
 
-class CodeSerializer : public Serializer<> {
+class CodeSerializer : public Serializer {
  public:
   static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info);
 
@@ -52,15 +52,13 @@ class CodeSerializer : public Serializer<> {
       Isolate* isolate, ScriptData* cached_data, Handle<String> source,
       ScriptOriginOptions origin_options);
 
-  const std::vector<uint32_t>* stub_keys() const { return &stub_keys_; }
-
   uint32_t source_hash() const { return source_hash_; }
 
  protected:
   CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
+  virtual void SerializeCodeObject(Code code_object, HowToCode how_to_code,
                                    WhereToPoint where_to_point) {
     UNREACHABLE();
   }
@@ -73,15 +71,11 @@ class CodeSerializer : public Serializer<> {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
-                         WhereToPoint where_to_point);
-
   bool SerializeReadOnlyObject(HeapObject* obj, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip);
 
-  DisallowHeapAllocation no_gc_;
+  DISALLOW_HEAP_ALLOCATION(no_gc_);
   uint32_t source_hash_;
-  std::vector<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
@@ -102,16 +96,15 @@ class SerializedCodeData : public SerializedData {
 
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and (internally provided) external reference count
-  // [1] extra (API-provided) external reference count
-  // [2] version hash
-  // [3] source hash
-  // [4] cpu features
-  // [5] flag hash
+  // [1] version hash
+  // [2] source hash
+  // [3] cpu features
+  // [4] flag hash
+  // [5] number of reservation size entries
   // [6] number of code stub keys
-  // [7] number of reservation size entries
-  // [8] payload length
-  // [9] payload checksum part A
-  // [10] payload checksum part B
+  // [7] payload length
+  // [8] payload checksum part A
+  // [9] payload checksum part B
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload

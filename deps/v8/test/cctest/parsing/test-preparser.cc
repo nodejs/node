@@ -34,9 +34,6 @@ enum class Bailout { BAILOUT_IF_OUTER_SLOPPY, NO };
 }  // namespace
 
 TEST(PreParserScopeAnalysis) {
-  i::FLAG_lazy_inner_functions = true;
-  i::FLAG_preparser_scope_analysis = true;
-  i::FLAG_aggressive_lazy_inner_functions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   LocalContext env;
@@ -793,7 +790,6 @@ TEST(PreParserScopeAnalysis) {
 // https://bugs.chromium.org/p/chromium/issues/detail?id=753896. Should not
 // crash.
 TEST(Regress753896) {
-  i::FLAG_preparser_scope_analysis = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -849,7 +845,7 @@ TEST(ProducingAndConsumingByteData) {
     i::ZoneConsumedPreParsedScopeData::ByteData bytes_for_reading;
     i::ZoneVectorWrapper wrapper(zone_serialized.byte_data());
     i::ZoneConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
-        &bytes_for_reading, &wrapper);
+        &bytes_for_reading, wrapper);
 
 #ifdef DEBUG
     CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);

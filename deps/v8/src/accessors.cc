@@ -6,6 +6,7 @@
 
 #include "src/api-inl.h"
 #include "src/contexts.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
@@ -156,7 +157,7 @@ void Accessors::ArrayLengthGetter(
                               RuntimeCallCounterId::kArrayLengthGetter);
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  JSArray* holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
+  JSArray holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
   Object* result = holder->length();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
@@ -235,7 +236,7 @@ void Accessors::ModuleNamespaceEntryGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  JSModuleNamespace* holder =
+  JSModuleNamespace holder =
       JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!holder
@@ -560,12 +561,10 @@ Handle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(Isolate* isolate) {
 // Accessors::FunctionCaller
 //
 
-
-static inline bool AllowAccessToFunction(Context* current_context,
-                                         JSFunction* function) {
+static inline bool AllowAccessToFunction(Context current_context,
+                                         JSFunction function) {
   return current_context->HasSameSecurityTokenAs(function->context());
 }
-
 
 class FrameFunctionIterator {
  public:
@@ -795,7 +794,7 @@ MaybeHandle<JSReceiver> ClearInternalStackTrace(Isolate* isolate,
                                                 Handle<JSObject> error) {
   RETURN_ON_EXCEPTION(
       isolate,
-      JSReceiver::SetProperty(
+      Object::SetProperty(
           isolate, error, isolate->factory()->stack_trace_symbol(),
           isolate->factory()->undefined_value(), LanguageMode::kStrict),
       JSReceiver);

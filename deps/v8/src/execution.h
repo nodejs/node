@@ -67,6 +67,8 @@ class InterruptsScope;
 // invocation.
 class V8_EXPORT_PRIVATE StackGuard final {
  public:
+  StackGuard(Isolate* isolate) : isolate_(isolate) {}
+
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
   void SetStackLimit(uintptr_t limit);
@@ -136,8 +138,6 @@ class V8_EXPORT_PRIVATE StackGuard final {
   Object* HandleInterrupts();
 
  private:
-  StackGuard();
-
   bool CheckInterrupt(InterruptFlag flag);
   void RequestInterrupt(InterruptFlag flag);
   void ClearInterrupt(InterruptFlag flag);

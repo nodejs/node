@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <atomic>
 
 #if !V8_OS_QNX && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
@@ -175,16 +176,15 @@ namespace {
 #if defined(USE_SIGNALS)
 typedef std::vector<Sampler*> SamplerList;
 typedef SamplerList::iterator SamplerListIterator;
-typedef base::AtomicValue<bool> AtomicMutex;
+typedef std::atomic_bool AtomicMutex;
 
 class AtomicGuard {
  public:
   explicit AtomicGuard(AtomicMutex* atomic, bool is_blocking = true)
       : atomic_(atomic), is_success_(false) {
     do {
-      // Use Acquire_Load to gain mutual exclusion.
-      USE(atomic_->Value());
-      is_success_ = atomic_->TrySetValue(false, true);
+      bool expected = false;
+      is_success_ = atomic->compare_exchange_weak(expected, true);
     } while (is_blocking && !is_success_);
   }
 
@@ -192,7 +192,7 @@ class AtomicGuard {
 
   ~AtomicGuard() {
     if (!is_success_) return;
-    atomic_->SetValue(false);
+    atomic_->store(false);
   }
 
  private:
@@ -385,17 +385,17 @@ class SignalHandler {
   }
 
   static void IncreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     if (++client_count_ == 1) Install();
   }
 
   static void DecreaseSamplerCount() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     if (--client_count_ == 0) Restore();
   }
 
   static bool Installed() {
-    base::LockGuard<base::Mutex> lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_);
     return signal_handler_installed_;
   }
 
@@ -615,13 +615,18 @@ Sampler::Sampler(Isolate* isolate)
   data_ = new PlatformData;
 }
 
-Sampler::~Sampler() {
-  DCHECK(!IsActive());
+void Sampler::UnregisterIfRegistered() {
 #if defined(USE_SIGNALS)
   if (IsRegistered()) {
     SamplerManager::instance()->RemoveSampler(this);
+    SetRegistered(false);
   }
 #endif
+}
+
+Sampler::~Sampler() {
+  DCHECK(!IsActive());
+  DCHECK(!IsRegistered());
   delete data_;
 }
 
@@ -690,6 +695,10 @@ void Sampler::DoSample() {
     state.pc = reinterpret_cast<void*>(context.Rip);
     state.sp = reinterpret_cast<void*>(context.Rsp);
     state.fp = reinterpret_cast<void*>(context.Rbp);
+#elif V8_HOST_ARCH_ARM64
+    state.pc = reinterpret_cast<void*>(context.Pc);
+    state.sp = reinterpret_cast<void*>(context.Sp);
+    state.fp = reinterpret_cast<void*>(context.Fp);
 #else
     state.pc = reinterpret_cast<void*>(context.Eip);
     state.sp = reinterpret_cast<void*>(context.Esp);

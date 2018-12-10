@@ -56,14 +56,15 @@ FEATURE_FLAGS = {
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
   'well-formed-json-stringify': '--harmony-json-stringify',
+  'export-star-as-namespace-from-module': '--harmony-namespace-exports',
+  'Object.fromEntries': '--harmony-object-from-entries',
 }
 
-SKIPPED_FEATURES = set(['Object.fromEntries',
-                        'export-star-as-namespace-from-module',
-                        'class-fields-private',
+SKIPPED_FEATURES = set(['class-fields-private',
                         'class-static-fields-private',
                         'class-methods-private',
-                        'class-static-methods-private'])
+                        'class-static-methods-private',
+                        'Intl.NumberFormat-unified'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
@@ -173,6 +174,8 @@ class TestCase(testcase.D8TestCase):
         list(self.suite.harness) +
         ([os.path.join(self.suite.root, "harness-agent.js")]
          if self.path.startswith('built-ins/Atomics') else []) +
+        ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
+         if self.fail_phase_only else []) +
         self._get_includes() +
         (["--module"] if "module" in self.test_record else []) +
         [self._get_source_path()]
@@ -185,7 +188,8 @@ class TestCase(testcase.D8TestCase):
          if "detachArrayBuffer.js" in self.test_record.get("includes", [])
          else []) +
         [flag for (feature, flag) in FEATURE_FLAGS.items()
-          if feature in self.test_record.get("features", [])]
+          if feature in self.test_record.get("features", [])] +
+        ["--no-arguments"]  # disable top-level arguments in d8
     )
 
   def _get_includes(self):

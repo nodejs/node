@@ -13,9 +13,9 @@
 #include "src/base/platform/mutex.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
@@ -28,11 +28,12 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
-#include "src/messages.h"
+#include "src/message-template.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -49,7 +50,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
 
   void MoveEvent(Address from, Address to, int) override {
     if (from == to) return;
-    base::LockGuard<base::Mutex> guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     auto it = objects_.find(from);
     if (it == objects_.end()) {
       // If temporary object was collected we can get MoveEvent which moves
@@ -131,7 +132,7 @@ void BreakLocation::AllAtCurrentStatement(
   }
 }
 
-JSGeneratorObject* BreakLocation::GetGeneratorObjectForSuspendedFrame(
+JSGeneratorObject BreakLocation::GetGeneratorObjectForSuspendedFrame(
     JavaScriptFrame* frame) const {
   DCHECK(IsSuspend());
   DCHECK_GE(generator_obj_reg_index_, 0);
@@ -247,7 +248,7 @@ void BreakIterator::Next() {
 }
 
 DebugBreakType BreakIterator::GetDebugBreakType() {
-  BytecodeArray* bytecode_array = debug_info_->OriginalBytecodeArray();
+  BytecodeArray bytecode_array = debug_info_->OriginalBytecodeArray();
   interpreter::Bytecode bytecode =
       interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
 
@@ -292,8 +293,8 @@ void BreakIterator::ClearDebugBreak() {
   DebugBreakType debug_break_type = GetDebugBreakType();
   if (debug_break_type == DEBUGGER_STATEMENT) return;
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
-  BytecodeArray* bytecode_array = debug_info_->DebugBytecodeArray();
-  BytecodeArray* original = debug_info_->OriginalBytecodeArray();
+  BytecodeArray bytecode_array = debug_info_->DebugBytecodeArray();
+  BytecodeArray original = debug_info_->OriginalBytecodeArray();
   bytecode_array->set(code_offset(), original->get(code_offset()));
 }
 
@@ -308,7 +309,7 @@ BreakLocation BreakIterator::GetBreakLocation() {
     // index that holds the generator object by reading it directly off the
     // bytecode array, and we'll read the actual generator object off the
     // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
-    BytecodeArray* bytecode_array = debug_info_->OriginalBytecodeArray();
+    BytecodeArray bytecode_array = debug_info_->OriginalBytecodeArray();
     interpreter::BytecodeArrayAccessor accessor(
         handle(bytecode_array, isolate()), code_offset());
 
@@ -380,11 +381,13 @@ char* Debug::RestoreDebug(char* storage) {
 int Debug::ArchiveSpacePerThread() { return sizeof(ThreadLocal); }
 
 void Debug::Iterate(RootVisitor* v) {
-  v->VisitRootPointer(Root::kDebug, nullptr, &thread_local_.return_value_);
   v->VisitRootPointer(Root::kDebug, nullptr,
-                      &thread_local_.suspended_generator_);
+                      FullObjectSlot(&thread_local_.return_value_));
   v->VisitRootPointer(Root::kDebug, nullptr,
-                      &thread_local_.ignore_step_into_function_);
+                      FullObjectSlot(&thread_local_.suspended_generator_));
+  v->VisitRootPointer(
+      Root::kDebug, nullptr,
+      FullObjectSlot(&thread_local_.ignore_step_into_function_));
 }
 
 DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info)
@@ -397,7 +400,7 @@ DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo* debug_info)
 
 DebugInfoListNode::~DebugInfoListNode() {
   if (debug_info_ == nullptr) return;
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_));
+  GlobalHandles::Destroy(debug_info_);
   debug_info_ = nullptr;
 }
 
@@ -682,7 +685,7 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
     debug_info->SetBreakAtEntry();
   } else {
     if (!debug_info->HasInstrumentedBytecodeArray()) return;
-    FixedArray* break_points = debug_info->break_points();
+    FixedArray break_points = debug_info->break_points();
     for (int i = 0; i < break_points->length(); i++) {
       if (break_points->get(i)->IsUndefined(isolate_)) continue;
       BreakPointInfo* info = BreakPointInfo::cast(break_points->get(i));
@@ -892,7 +895,7 @@ void Debug::PrepareStepOnThrow() {
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
-    std::vector<SharedFunctionInfo*> infos;
+    std::vector<SharedFunctionInfo> infos;
     frame->GetFunctions(&infos);
     current_frame_count -= infos.size();
     it.Advance();
@@ -1135,7 +1138,7 @@ void Debug::ClearOneShot() {
 
 class RedirectActiveFunctions : public ThreadVisitor {
  public:
-  explicit RedirectActiveFunctions(SharedFunctionInfo* shared)
+  explicit RedirectActiveFunctions(SharedFunctionInfo shared)
       : shared_(shared) {
     DCHECK(shared->HasBytecodeArray());
   }
@@ -1143,18 +1146,18 @@ class RedirectActiveFunctions : public ThreadVisitor {
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
-      JSFunction* function = frame->function();
+      JSFunction function = frame->function();
       if (!frame->is_interpreted()) continue;
       if (function->shared() != shared_) continue;
       InterpretedFrame* interpreted_frame =
           reinterpret_cast<InterpretedFrame*>(frame);
-      BytecodeArray* debug_copy = shared_->GetDebugInfo()->DebugBytecodeArray();
+      BytecodeArray debug_copy = shared_->GetDebugInfo()->DebugBytecodeArray();
       interpreted_frame->PatchBytecodeArray(debug_copy);
     }
   }
 
  private:
-  SharedFunctionInfo* shared_;
+  SharedFunctionInfo shared_;
   DisallowHeapAllocation no_gc_;
 };
 
@@ -1169,12 +1172,14 @@ void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
 
   bool found_something = false;
   Code::OptimizedCodeIterator iterator(isolate_);
-  while (Code* code = iterator.Next()) {
+  do {
+    Code code = iterator.Next();
+    if (code.is_null()) break;
     if (code->Inlines(*shared)) {
       code->set_marked_for_deoptimization(true);
       found_something = true;
     }
-  }
+  } while (true);
 
   if (found_something) {
     // Only go through with the deoptimization if something was found.
@@ -1200,6 +1205,7 @@ void Debug::PrepareFunctionForDebugExecution(
         handle(shared->GetBytecodeArray(), isolate_);
     Handle<BytecodeArray> debug_bytecode_array =
         isolate_->factory()->CopyBytecodeArray(original_bytecode_array);
+    debug_info->set_debug_bytecode_array(*debug_bytecode_array);
     shared->SetDebugBytecodeArray(*debug_bytecode_array);
     maybe_original_bytecode_array = original_bytecode_array;
   }
@@ -1251,8 +1257,8 @@ void Debug::InstallDebugBreakTrampoline() {
         FeedbackVector::cast(obj)->ClearSlots(isolate_);
         continue;
       } else if (obj->IsJSFunction()) {
-        JSFunction* fun = JSFunction::cast(obj);
-        SharedFunctionInfo* shared = fun->shared();
+        JSFunction fun = JSFunction::cast(obj);
+        SharedFunctionInfo shared = fun->shared();
         if (!shared->HasDebugInfo()) continue;
         if (!shared->GetDebugInfo()->CanBreakAtEntry()) continue;
         if (!fun->is_compiled()) {
@@ -1266,7 +1272,9 @@ void Debug::InstallDebugBreakTrampoline() {
   // By overwriting the function code with DebugBreakTrampoline, which tailcalls
   // to shared code, we bypass CompileLazy. Perform CompileLazy here instead.
   for (Handle<JSFunction> fun : needs_compile) {
-    Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION);
+    IsCompiledScope is_compiled_scope;
+    Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
+    DCHECK(is_compiled_scope.is_compiled());
     fun->set_code(*trampoline);
   }
 }
@@ -1314,8 +1322,9 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
   while (true) {
     HandleScope scope(isolate_);
     std::vector<Handle<SharedFunctionInfo>> candidates;
+    std::vector<IsCompiledScope> compiled_scopes;
     SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-    for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
+    for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
          info = iterator.Next()) {
       if (info->EndPosition() < start_position ||
           info->StartPosition() >= end_position) {
@@ -1330,13 +1339,17 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     for (const auto& candidate : candidates) {
       // Code that cannot be compiled lazily are internal and not debuggable.
       DCHECK(candidate->allows_lazy_compilation());
-      if (!candidate->is_compiled()) {
-        if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION)) {
+      IsCompiledScope is_compiled_scope(candidate->is_compiled_scope());
+      if (!is_compiled_scope.is_compiled()) {
+        if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION,
+                               &is_compiled_scope)) {
           return false;
         } else {
           was_compiled = true;
         }
       }
+      DCHECK(is_compiled_scope.is_compiled());
+      compiled_scopes.push_back(is_compiled_scope);
       if (!EnsureBreakInfo(candidate)) return false;
       PrepareFunctionForDebugExecution(candidate);
     }
@@ -1356,12 +1369,11 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
 class SharedFunctionInfoFinder {
  public:
   explicit SharedFunctionInfoFinder(int target_position)
-      : current_candidate_(nullptr),
-        current_candidate_closure_(nullptr),
-        current_start_position_(kNoSourcePosition),
+      : current_start_position_(kNoSourcePosition),
         target_position_(target_position) {}
 
-  void NewCandidate(SharedFunctionInfo* shared, JSFunction* closure = nullptr) {
+  void NewCandidate(SharedFunctionInfo shared,
+                    JSFunction closure = JSFunction()) {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
     if (start_position == kNoSourcePosition) {
@@ -1371,11 +1383,11 @@ class SharedFunctionInfoFinder {
     if (start_position > target_position_) return;
     if (target_position_ > shared->EndPosition()) return;
 
-    if (current_candidate_ != nullptr) {
+    if (!current_candidate_.is_null()) {
       if (current_start_position_ == start_position &&
           shared->EndPosition() == current_candidate_->EndPosition()) {
         // If we already have a matching closure, do not throw it away.
-        if (current_candidate_closure_ != nullptr && closure == nullptr) return;
+        if (!current_candidate_closure_.is_null() && closure.is_null()) return;
         // If a top-level function contains only one function
         // declaration the source for the top-level and the function
         // is the same. In that case prefer the non top-level function.
@@ -1391,13 +1403,13 @@ class SharedFunctionInfoFinder {
     current_candidate_closure_ = closure;
   }
 
-  SharedFunctionInfo* Result() { return current_candidate_; }
+  SharedFunctionInfo Result() { return current_candidate_; }
 
-  JSFunction* ResultClosure() { return current_candidate_closure_; }
+  JSFunction ResultClosure() { return current_candidate_closure_; }
 
  private:
-  SharedFunctionInfo* current_candidate_;
-  JSFunction* current_candidate_closure_;
+  SharedFunctionInfo current_candidate_;
+  JSFunction current_candidate_closure_;
   int current_start_position_;
   int target_position_;
   DisallowHeapAllocation no_gc_;
@@ -1418,18 +1430,20 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     // If there is no shared function info for this script at all, there is
     // no point in looking for it by walking the heap.
 
-    SharedFunctionInfo* shared;
+    SharedFunctionInfo shared;
+    IsCompiledScope is_compiled_scope;
     {
       SharedFunctionInfoFinder finder(position);
       SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-      for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
+      for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
            info = iterator.Next()) {
         finder.NewCandidate(info);
       }
       shared = finder.Result();
-      if (shared == nullptr) break;
+      if (shared.is_null()) break;
       // We found it if it's already compiled.
-      if (shared->is_compiled()) {
+      is_compiled_scope = shared->is_compiled_scope();
+      if (is_compiled_scope.is_compiled()) {
         Handle<SharedFunctionInfo> shared_handle(shared, isolate_);
         // If the iteration count is larger than 1, we had to compile the outer
         // function in order to create this shared function info. So there can
@@ -1446,8 +1460,10 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
     HandleScope scope(isolate_);
     // Code that cannot be compiled lazily are internal and not debuggable.
     DCHECK(shared->allows_lazy_compilation());
-    if (!Compiler::Compile(handle(shared, isolate_), Compiler::CLEAR_EXCEPTION))
+    if (!Compiler::Compile(handle(shared, isolate_), Compiler::CLEAR_EXCEPTION,
+                           &is_compiled_scope)) {
       break;
+    }
   }
   return isolate_->factory()->undefined_value();
 }
@@ -1460,13 +1476,11 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   if (!shared->IsSubjectToDebugging() && !CanBreakAtEntry(shared)) {
     return false;
   }
-  if (!shared->is_compiled() &&
-      !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION)) {
+  IsCompiledScope is_compiled_scope = shared->is_compiled_scope();
+  if (!is_compiled_scope.is_compiled() &&
+      !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION,
+                         &is_compiled_scope)) {
     return false;
-  }
-  if (shared->GetCode() ==
-      isolate_->builtins()->builtin(Builtins::kDeserializeLazy)) {
-    Snapshot::EnsureBuiltinIsDeserialized(isolate_, shared);
   }
   CreateBreakInfo(shared);
   return true;
@@ -1711,7 +1725,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
     // Mark the promise as already having triggered a message.
     Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
-    JSObject::SetProperty(isolate_, jspromise, key, key, LanguageMode::kStrict)
+    Object::SetProperty(isolate_, jspromise, key, key, LanguageMode::kStrict)
         .Assert();
     // Check whether the promise reject is considered an uncaught exception.
     uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(jspromise);
@@ -1820,6 +1834,7 @@ bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
 bool Debug::AllFramesOnStackAreBlackboxed() {
   HandleScope scope(isolate_);
   for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
+    if (!it.is_javascript()) continue;
     if (!IsFrameBlackboxed(it.javascript_frame())) return false;
   }
   return true;
@@ -1883,7 +1898,7 @@ int Debug::CurrentFrameCount() {
   int counter = 0;
   while (!it.done()) {
     if (it.frame()->is_optimized()) {
-      std::vector<SharedFunctionInfo*> infos;
+      std::vector<SharedFunctionInfo> infos;
       OptimizedFrame::cast(it.frame())->GetFunctions(&infos);
       counter += infos.size();
     } else {
@@ -1913,9 +1928,7 @@ void Debug::UpdateState() {
     Unload();
   }
   is_active_ = is_active;
-  if (is_active && isolate_->IsPromiseHookProtectorIntact()) {
-    isolate_->InvalidatePromiseHookProtector();
-  }
+  isolate_->PromiseHookStateUpdated();
 }
 
 void Debug::UpdateHookOnFunctionCall() {
@@ -1991,7 +2004,7 @@ void Debug::PrintBreakLocation() {
     int line_start = line == 0 ? 0 : Smi::ToInt(line_ends->get(line - 1)) + 1;
     int line_end = Smi::ToInt(line_ends->get(line));
     DisallowHeapAllocation no_gc;
-    String::FlatContent content = source->GetFlatContent();
+    String::FlatContent content = source->GetFlatContent(no_gc);
     if (content.IsOneByte()) {
       PrintF("[debug] %.*s\n", line_end - line_start,
              content.ToOneByteVector().start() + line_start);
@@ -2137,10 +2150,13 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
                                    Handle<Object> receiver) {
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   DisallowJavascriptExecution no_js(isolate_);
+  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
   if (!function->is_compiled() &&
-      !Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
+      !Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+                         &is_compiled_scope)) {
     return false;
   }
+  DCHECK(is_compiled_scope.is_compiled());
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
   DebugInfo::SideEffectState side_effect_state =
@@ -2162,10 +2178,6 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
       // If function has bytecode array then prepare function for debug
       // execution to perform runtime side effect checks.
       DCHECK(shared->is_compiled());
-      if (shared->GetCode() ==
-          isolate_->builtins()->builtin(Builtins::kDeserializeLazy)) {
-        Snapshot::EnsureBuiltinIsDeserialized(isolate_, shared);
-      }
       PrepareFunctionForDebugExecution(shared);
       ApplySideEffectChecks(debug_info);
       return true;
@@ -2245,8 +2257,8 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   using interpreter::Bytecode;
 
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
-  SharedFunctionInfo* shared = frame->function()->shared();
-  BytecodeArray* bytecode_array = shared->GetBytecodeArray();
+  SharedFunctionInfo shared = frame->function()->shared();
+  BytecodeArray bytecode_array = shared->GetBytecodeArray();
   int offset = frame->GetBytecodeOffset();
   interpreter::BytecodeArrayAccessor bytecode_accessor(
       handle(bytecode_array, isolate_), offset);

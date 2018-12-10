@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/interface-descriptors.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -71,12 +72,6 @@ void TypeofDescriptor::InitializePlatformSpecific(
 
 // static
 const Register TypeConversionDescriptor::ArgumentRegister() { return rax; }
-
-void CallFunctionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {rdi};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
 
 void CallTrampolineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -209,10 +204,9 @@ void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      JavaScriptFrame::context_register(),  // callee context
-      rbx,                                  // call_data
-      rcx,                                  // holder
-      rdx,                                  // api_function_address
+      JavaScriptFrame::context_register(),  // kTargetContext
+      rdx,                                  // kApiFunctionAddress
+      rcx,                                  // kArgc
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

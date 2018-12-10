@@ -11,6 +11,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/macro-assembler-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -449,7 +450,7 @@ void LiftoffAssembler::SpillAllRegisters() {
 void LiftoffAssembler::PrepareCall(FunctionSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
                                    Register* target,
-                                   LiftoffRegister* target_instance) {
+                                   Register* target_instance) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
   // Input 0 is the call target.
   constexpr size_t kInputShift = 1;
@@ -472,10 +473,12 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
   compiler::LinkageLocation instance_loc =
       call_descriptor->GetInputLocation(kInputShift);
   DCHECK(instance_loc.IsRegister() && !instance_loc.IsAnyRegister());
-  LiftoffRegister instance_reg(Register::from_code(instance_loc.AsRegister()));
+  Register instance_reg = Register::from_code(instance_loc.AsRegister());
   param_regs.set(instance_reg);
   if (target_instance && *target_instance != instance_reg) {
-    stack_transfers.MoveRegister(instance_reg, *target_instance, kWasmIntPtr);
+    stack_transfers.MoveRegister(LiftoffRegister(instance_reg),
+                                 LiftoffRegister(*target_instance),
+                                 kWasmIntPtr);
   }
 
   // Now move all parameter values into the right slot for the call.
@@ -504,7 +507,18 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
       if (loc.IsRegister()) {
         DCHECK(!loc.IsAnyRegister());
         RegClass rc = is_pair ? kGpReg : reg_class_for(type);
-        LiftoffRegister reg = LiftoffRegister::from_code(rc, loc.AsRegister());
+        int reg_code = loc.AsRegister();
+#if V8_TARGET_ARCH_ARM
+        // Liftoff assumes a one-to-one mapping between float registers and
+        // double registers, and so does not distinguish between f32 and f64
+        // registers. The f32 register code must therefore be halved in order to
+        // pass the f64 code to Liftoff.
+        DCHECK_IMPLIES(type == kWasmF32, (reg_code % 2) == 0);
+        LiftoffRegister reg = LiftoffRegister::from_code(
+            rc, (type == kWasmF32) ? (reg_code / 2) : reg_code);
+#else
+        LiftoffRegister reg = LiftoffRegister::from_code(rc, reg_code);
+#endif
         param_regs.set(reg);
         if (is_pair) {
           stack_transfers.LoadI64HalfIntoRegister(reg, slot, stack_idx, half);
@@ -551,7 +565,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
 
   // Reload the instance from the stack.
   if (!target_instance) {
-    FillInstanceInto(instance_reg.gp());
+    FillInstanceInto(instance_reg);
   }
 }
 
@@ -564,6 +578,11 @@ void LiftoffAssembler::FinishCall(FunctionSig* sig,
     const bool need_pair = kNeedI64RegPair && return_type == kWasmI64;
     DCHECK_EQ(need_pair ? 2 : 1, call_descriptor->ReturnCount());
     RegClass rc = need_pair ? kGpReg : reg_class_for(return_type);
+#if V8_TARGET_ARCH_ARM
+    // If the return register was not d0 for f32, the code value would have to
+    // be halved as is done for the parameter registers.
+    DCHECK_EQ(call_descriptor->GetReturnLocation(0).AsRegister(), 0);
+#endif
     LiftoffRegister return_reg = LiftoffRegister::from_code(
         rc, call_descriptor->GetReturnLocation(0).AsRegister());
     DCHECK(GetCacheRegList(rc).has(return_reg));
@@ -594,7 +613,7 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::ParallelRegisterMove(
-    std::initializer_list<ParallelRegisterMoveTuple> tuples) {
+    Vector<ParallelRegisterMoveTuple> tuples) {
   StackTransferRecipe stack_transfers(this);
   for (auto tuple : tuples) {
     if (tuple.dst == tuple.src) continue;
@@ -602,6 +621,23 @@ void LiftoffAssembler::ParallelRegisterMove(
   }
 }
 
+void LiftoffAssembler::MoveToReturnRegisters(FunctionSig* sig) {
+  // We do not support multi-value yet.
+  DCHECK_EQ(1, sig->return_count());
+  ValueType return_type = sig->GetReturn(0);
+  StackTransferRecipe stack_transfers(this);
+  LiftoffRegister return_reg =
+      needs_reg_pair(return_type)
+          ? LiftoffRegister::ForPair(kGpReturnRegisters[0],
+                                     kGpReturnRegisters[1])
+          : reg_class_for(return_type) == kGpReg
+                ? LiftoffRegister(kGpReturnRegisters[0])
+                : LiftoffRegister(kFpReturnRegisters[0]);
+  stack_transfers.LoadIntoRegister(return_reg, cache_state_.stack_state.back(),
+                                   cache_state_.stack_height() - 1);
+}
+
+#ifdef ENABLE_SLOW_DCHECKS
 bool LiftoffAssembler::ValidateCacheState() const {
   uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
   LiftoffRegList used_regs;
@@ -629,6 +665,7 @@ bool LiftoffAssembler::ValidateCacheState() const {
   os << "Use --trace-liftoff to debug.";
   FATAL("%s", os.str().c_str());
 }
+#endif
 
 LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
                                                    LiftoffRegList pinned) {
