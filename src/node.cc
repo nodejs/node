@@ -2145,5 +2145,5 @@ int Start(int argc, char** argv) {
 #if !HAVE_INSPECTOR
 void Initialize() {}
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector, Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(inspector, Initialize)
 #endif  // !HAVE_INSPECTOR
