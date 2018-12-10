@@ -17,3 +17,4 @@ assert(process.binding('spawn_sync'));
 assert(process.binding('js_stream'));
 assert(process.binding('buffer'));
 assert(process.binding('fs'));
+assert(process.binding('inspector'));
