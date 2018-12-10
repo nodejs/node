@@ -52,12 +52,12 @@ builtinModules.forEach((moduleName) => {
   ];
   if (global.DTRACE_HTTP_SERVER_RESPONSE) {
     expected.unshift(
-      DTRACE_HTTP_SERVER_RESPONSE,
-      DTRACE_HTTP_SERVER_REQUEST,
-      DTRACE_HTTP_CLIENT_RESPONSE,
-      DTRACE_HTTP_CLIENT_REQUEST,
-      DTRACE_NET_STREAM_END,
-      DTRACE_NET_SERVER_CONNECTION
+      'DTRACE_HTTP_SERVER_RESPONSE',
+      'DTRACE_HTTP_SERVER_REQUEST',
+      'DTRACE_HTTP_CLIENT_RESPONSE',
+      'DTRACE_HTTP_CLIENT_REQUEST',
+      'DTRACE_NET_STREAM_END',
+      'DTRACE_NET_SERVER_CONNECTION'
     );
   }
   assert.deepStrictEqual(Object.keys(global), expected);
