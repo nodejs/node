@@ -38,7 +38,8 @@ const unzips = [
   zlib.Unzip(),
   zlib.Gunzip(),
   zlib.Inflate(),
-  zlib.InflateRaw()
+  zlib.InflateRaw(),
+  zlib.BrotliDecompress()
 ];
 
 nonStringInputs.forEach(common.mustCall((input) => {
