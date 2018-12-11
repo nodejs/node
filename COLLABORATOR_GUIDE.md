@@ -217,52 +217,28 @@ used in other CI test runs (such as `--worker`).
 
 ### Internal vs. Public API
 
-Due to the nature of the JavaScript language, it can often be difficult to
-establish a clear distinction between which parts of the Node.js implementation
-represent the public API Node.js users should assume to be stable and which
-are part of the internal implementation details of Node.js itself. A rule of
-thumb is to base the determination off what functionality is actually
-documented in the official Node.js API documentation. However, it has been
-repeatedly demonstrated that either the documentation does not completely cover
-implemented behavior or that Node.js users have come to rely heavily on
-undocumented aspects of the Node.js implementation.
+All functionality in the official Node.js documentation is part of the public
+API. Any undocumented object, property, method, argument, behavior, or event is
+internal. There are exceptions to this rule. Node.js users have come to rely on
+some undocumented behaviors. Collaborators treat many of those undocumented
+behaviors as public.
 
-The following general rules should be followed to determine which aspects of the
-Node.js API are internal:
+All undocumented functionality exposed via  `process.binding(...)` is internal.
 
-- All functionality exposed via `process.binding(...)` is internal.
-- All functionality implemented in `lib/internal/**/*.js` is internal unless it
-  is re-exported by code in `lib/*.js` or documented as part of the Node.js
-  Public API.
-- Any object property or method whose key is a non-exported `Symbol` is an
-  internal property.
-- Any object property or method whose key begins with the underscore `_` prefix
-  is internal unless it is documented as part of the Node.js Public API.
-- Any object, property, method, argument, behavior, or event not documented in
-  the Node.js documentation is internal.
-- Any native C/C++ APIs/ABIs exported by the Node.js `*.h` header files that
-  are hidden behind the `NODE_WANT_INTERNALS` flag are internal.
+All undocumented functionality in `lib/internal/**/*.js` is internal. It is
+public, though, if it is re-exported by code in `lib/*.js`.
 
-Exceptions can be made if use or behavior of a given internal API can be
-demonstrated to be sufficiently relied upon by the Node.js ecosystem such that
-any changes would cause too much breakage. The threshold for what qualifies as
-too much breakage is to be decided on a case-by-case basis by the TSC.
+Non-exported `Symbol` properties and methods are internal.
 
-If it is determined that a currently undocumented object, property, method,
-argument, or event *should* be documented, then a pull request adding the
-documentation is required in order for it to be considered part of the public
-API.
+Any undocumented object property or method that begins with `_` is internal.
 
-Making a determination about whether something *should* be documented can be
-difficult and will need to be handled on a case-by-case basis. For instance, if
-one documented API cannot be used successfully without the use of a second
-*currently undocumented* API, then the second API *should* be documented. If
-using an API in a manner currently undocumented achieves a particular useful
-result, a decision will need to be made whether or not that falls within the
-supported scope of that API; and if it does, it should be documented.
+Any native C/C++ APIs/ABIs requiring the `NODE_WANT_INTERNALS` flag are
+internal.
 
-See [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
-on how to handle those types of changes.
+Sometimes, there is disagreement about whether functionality is internal or
+public. In those cases, the TSC makes a determination.
+
+For undocumented APIs that are public, open a pull request documenting the API.
 
 ### Breaking Changes
 
