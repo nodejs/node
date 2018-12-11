@@ -1738,19 +1738,34 @@ assert.strictEqual(
   );
 }
 
-// Manipulate the prototype to one that we can not handle.
+// Manipulate the prototype in weird ways.
 {
   let obj = { a: true };
   let value = (function() { return function() {}; })();
   Object.setPrototypeOf(value, null);
   Object.setPrototypeOf(obj, value);
-  assert.strictEqual(util.inspect(obj), '{ a: true }');
+  assert.strictEqual(util.inspect(obj), '<[Function]> { a: true }');
+  assert.strictEqual(
+    util.inspect(obj, { colors: true }),
+    '<\u001b[36m[Function]\u001b[39m> { a: \u001b[33mtrue\u001b[39m }'
+  );
 
   obj = { a: true };
   value = [];
   Object.setPrototypeOf(value, null);
   Object.setPrototypeOf(obj, value);
-  assert.strictEqual(util.inspect(obj), '{ a: true }');
+  assert.strictEqual(
+    util.inspect(obj),
+    '<[Array: null prototype] []> { a: true }'
+  );
+
+  function StorageObject() {}
+  StorageObject.prototype = Object.create(null);
+  assert.strictEqual(
+    util.inspect(new StorageObject()),
+    '<[Object: null prototype] {}> {}'
+  );
+
 }
 
 // Check that the fallback always works.
