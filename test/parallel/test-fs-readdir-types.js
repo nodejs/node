@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -6,11 +7,12 @@ const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
-const binding = process.binding('fs');
+const { internalBinding } = require('internal/test/binding');
+const binding = internalBinding('fs');
 
 const readdirDir = tmpdir.path;
 const files = ['empty', 'files', 'for', 'just', 'testing'];
-const constants = process.binding('constants').fs;
+const constants = require('fs').constants;
 const types = {
   isDirectory: constants.UV_DIRENT_DIR,
   isFile: constants.UV_DIRENT_FILE,
