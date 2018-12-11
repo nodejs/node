@@ -8,7 +8,7 @@ const assert = require('assert');
 const dgram = require('dgram');
 const { internalBinding } = require('internal/test/binding');
 const { UDP } = internalBinding('udp_wrap');
-const { UV_UDP_REUSEADDR } = process.binding('constants').os;
+const { UV_UDP_REUSEADDR } = require('os').constants;
 
 const BUFFER_SIZE = 4096;
 
