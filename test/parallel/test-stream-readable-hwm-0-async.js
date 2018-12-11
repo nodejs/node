@@ -2,9 +2,9 @@
 
 const common = require('../common');
 
-// This test ensures that Readable stream will call _read() for streams
-// with highWaterMark === 0 upon .read(0) instead of just trying to
-// emit 'readable' event.
+// This test ensures that Readable stream will continue to call _read
+// for streams with highWaterMark === 0 once the stream returns data
+// by calling push() asynchronously.
 
 const { Readable } = require('stream');
 
