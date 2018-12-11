@@ -3,7 +3,7 @@
 #define NAPI_EXPERIMENTAL
 #include "js_native_api_v8.h"
 #include "node_api.h"
-#include "node_binding-inl.h"
+#include "node_binding.h"
 #include "node_errors.h"
 #include "node_internals.h"
 

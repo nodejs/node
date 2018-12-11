@@ -30,7 +30,7 @@
 #endif
 #include "handle_wrap.h"
 #include "node.h"
-#include "node_binding-inl.h"
+#include "node_binding.h"
 #include "node_http2_state.h"
 #include "node_options.h"
 #include "req_wrap.h"

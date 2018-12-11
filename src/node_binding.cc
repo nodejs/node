@@ -1,4 +1,4 @@
-#include "node_binding-inl.h"
+#include "node_binding.h"
 #include "node_internals.h"
 #include "node_native_module.h"
 
@@ -121,6 +121,51 @@ extern "C" void node_module_register(void* m) {
 }
 
 namespace binding {
+
+DLib::DLib(const char* filename, int flags)
+    : filename_(filename), flags_(flags), handle_(nullptr) {}
+
+#ifdef __POSIX__
+bool DLib::Open() {
+  handle_ = dlopen(filename_.c_str(), flags_);
+  if (handle_ != nullptr) return true;
+  errmsg_ = dlerror();
+  return false;
+}
+
+void DLib::Close() {
+  if (handle_ == nullptr) return;
+  dlclose(handle_);
+  handle_ = nullptr;
+}
+
+void* DLib::GetSymbolAddress(const char* name) {
+  return dlsym(handle_, name);
+}
+#else   // !__POSIX__
+bool DLib::Open() {
+  int ret = uv_dlopen(filename_.c_str(), &lib_);
+  if (ret == 0) {
+    handle_ = static_cast<void*>(lib_.handle);
+    return true;
+  }
+  errmsg_ = uv_dlerror(&lib_);
+  uv_dlclose(&lib_);
+  return false;
+}
+
+void DLib::Close() {
+  if (handle_ == nullptr) return;
+  uv_dlclose(&lib_);
+  handle_ = nullptr;
+}
+
+void* DLib::GetSymbolAddress(const char* name) {
+  void* address;
+  if (0 == uv_dlsym(&lib_, name, &address)) return address;
+  return nullptr;
+}
+#endif  // !__POSIX__
 
 using InitializerCallback = void (*)(Local<Object> exports,
                                      Local<Value> module,

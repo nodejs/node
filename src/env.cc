@@ -269,7 +269,7 @@ Environment::~Environment() {
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
 
   // Dereference all addons that were loaded into this environment.
-  for (auto& addon : loaded_addons_) {
+  for (binding::DLib& addon : loaded_addons_) {
     addon.Close();
   }
 }

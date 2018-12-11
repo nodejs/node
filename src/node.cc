@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_binding-inl.h"
+#include "node_binding.h"
 #include "node_buffer.h"
 #include "node_constants.h"
 #include "node_context_data.h"
