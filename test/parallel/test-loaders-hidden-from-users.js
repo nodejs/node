@@ -16,7 +16,8 @@ common.expectsError(
 common.expectsError(
   () => {
     const source = 'module.exports = require("internal/bootstrap/loaders")';
-    process.binding('natives').owo = source;
+    const { internalBinding } = require('internal/test/binding');
+    internalBinding('natives').owo = source;
     require('owo');
   }, {
     code: 'MODULE_NOT_FOUND',
