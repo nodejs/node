@@ -77,9 +77,6 @@ static void Initialize(Local<Object> target,
   if (env->options()->experimental_repl_await)
     READONLY_TRUE_PROPERTY(target, "experimentalREPLAwait");
 
-  if (env->options()->pending_deprecation)
-    READONLY_TRUE_PROPERTY(target, "pendingDeprecation");
-
   if (env->options()->expose_internals)
     READONLY_TRUE_PROPERTY(target, "exposeInternals");
 
