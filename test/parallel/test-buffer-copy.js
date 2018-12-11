@@ -9,7 +9,8 @@ const c = Buffer.allocUnsafe(512);
 const errorProperty = {
   code: 'ERR_OUT_OF_RANGE',
   type: RangeError,
-  message: 'Index out of range'
+  message: 'The value of "sourceStart" is out of range. ' +
+    'It must be >= 0. Received -1'
 };
 
 let cntr = 0;

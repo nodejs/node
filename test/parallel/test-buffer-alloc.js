@@ -964,7 +964,8 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'argument must be a buffer'
+    message: 'The "target" argument must be one of type Buffer or ' +
+    'Uint8Array. Received type undefined'
   });
 
 assert.throws(() => Buffer.from(), {
@@ -1008,13 +1009,6 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
   });
   assert.throws(() => Buffer.from(new ArrayBuffer(0), -1 >>> 0), errMsg);
 }
-
-// ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
-common.expectsError(() => {
-  const a = Buffer.alloc(1);
-  const b = Buffer.alloc(1);
-  a.copy(b, 0, 0x100000000, 0x100000001);
-}, outOfRangeError);
 
 // Unpooled buffer (replaces SlowBuffer)
 {
