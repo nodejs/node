@@ -134,7 +134,7 @@ if (common.hasIntl) {
 // Test TextDecoder inspect with negative depth
 {
   const dec = new TextDecoder();
-  assert.strictEqual(util.inspect(dec, { depth: -1 }), '[Object]');
+  assert.strictEqual(util.inspect(dec, { depth: -1 }), '[TextDecoder]');
 }
 
 {
