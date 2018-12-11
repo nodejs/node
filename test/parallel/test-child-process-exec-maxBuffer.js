@@ -3,12 +3,11 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 
-function checkFactory(streamName) {
-  return common.mustCall((err) => {
-    assert.strictEqual(err.message, `${streamName} maxBuffer length exceeded`);
-    assert(err instanceof RangeError);
-    assert.strictEqual(err.code, 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
-  });
+function runChecks(err, stdio, streamName, expected) {
+  assert.strictEqual(err.message, `${streamName} maxBuffer length exceeded`);
+  assert(err instanceof RangeError);
+  assert.strictEqual(err.code, 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER');
+  assert.deepStrictEqual(stdio[streamName], expected);
 }
 
 {
@@ -25,7 +24,13 @@ function checkFactory(streamName) {
 {
   const cmd = 'echo "hello world"';
 
-  cp.exec(cmd, { maxBuffer: 5 }, checkFactory('stdout'));
+  cp.exec(
+    cmd,
+    { maxBuffer: 5 },
+    common.mustCall((err, stdout, stderr) => {
+      runChecks(err, { stdout, stderr }, 'stdout', '');
+    })
+  );
 }
 
 const unicode = '中文测试'; // length = 4, byte length = 12
@@ -33,13 +38,25 @@ const unicode = '中文测试'; // length = 4, byte length = 12
 {
   const cmd = `"${process.execPath}" -e "console.log('${unicode}');"`;
 
-  cp.exec(cmd, { maxBuffer: 10 }, checkFactory('stdout'));
+  cp.exec(
+    cmd,
+    { maxBuffer: 10 },
+    common.mustCall((err, stdout, stderr) => {
+      runChecks(err, { stdout, stderr }, 'stdout', '');
+    })
+  );
 }
 
 {
   const cmd = `"${process.execPath}" -e "console.error('${unicode}');"`;
 
-  cp.exec(cmd, { maxBuffer: 10 }, checkFactory('stderr'));
+  cp.exec(
+    cmd,
+    { maxBuffer: 3 },
+    common.mustCall((err, stdout, stderr) => {
+      runChecks(err, { stdout, stderr }, 'stderr', '');
+    })
+  );
 }
 
 {
@@ -48,7 +65,10 @@ const unicode = '中文测试'; // length = 4, byte length = 12
   const child = cp.exec(
     cmd,
     { encoding: null, maxBuffer: 10 },
-    checkFactory('stdout'));
+    common.mustCall((err, stdout, stderr) => {
+      runChecks(err, { stdout, stderr }, 'stdout', '');
+    })
+  );
 
   child.stdout.setEncoding('utf-8');
 }
@@ -58,8 +78,11 @@ const unicode = '中文测试'; // length = 4, byte length = 12
 
   const child = cp.exec(
     cmd,
-    { encoding: null, maxBuffer: 10 },
-    checkFactory('stderr'));
+    { encoding: null, maxBuffer: 3 },
+    common.mustCall((err, stdout, stderr) => {
+      runChecks(err, { stdout, stderr }, 'stderr', '');
+    })
+  );
 
   child.stderr.setEncoding('utf-8');
 }
