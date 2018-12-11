@@ -22,13 +22,13 @@ function runChecks(err, stdio, streamName, expected) {
 }
 
 {
-  const cmd = 'echo "hello world"';
+  const cmd = 'echo hello world';
 
   cp.exec(
     cmd,
     { maxBuffer: 5 },
     common.mustCall((err, stdout, stderr) => {
-      runChecks(err, { stdout, stderr }, 'stdout', '');
+      runChecks(err, { stdout, stderr }, 'stdout', 'hello');
     })
   );
 }
@@ -42,7 +42,7 @@ const unicode = '中文测试'; // length = 4, byte length = 12
     cmd,
     { maxBuffer: 10 },
     common.mustCall((err, stdout, stderr) => {
-      runChecks(err, { stdout, stderr }, 'stdout', '');
+      runChecks(err, { stdout, stderr }, 'stdout', '中文测试\n');
     })
   );
 }
@@ -54,7 +54,7 @@ const unicode = '中文测试'; // length = 4, byte length = 12
     cmd,
     { maxBuffer: 3 },
     common.mustCall((err, stdout, stderr) => {
-      runChecks(err, { stdout, stderr }, 'stderr', '');
+      runChecks(err, { stdout, stderr }, 'stderr', '中文测');
     })
   );
 }
@@ -66,7 +66,7 @@ const unicode = '中文测试'; // length = 4, byte length = 12
     cmd,
     { encoding: null, maxBuffer: 10 },
     common.mustCall((err, stdout, stderr) => {
-      runChecks(err, { stdout, stderr }, 'stdout', '');
+      runChecks(err, { stdout, stderr }, 'stdout', '中文测试\n');
     })
   );
 
@@ -80,9 +80,22 @@ const unicode = '中文测试'; // length = 4, byte length = 12
     cmd,
     { encoding: null, maxBuffer: 3 },
     common.mustCall((err, stdout, stderr) => {
-      runChecks(err, { stdout, stderr }, 'stderr', '');
+      runChecks(err, { stdout, stderr }, 'stderr', '中文测');
     })
   );
 
   child.stderr.setEncoding('utf-8');
+}
+
+{
+  const cmd = `"${process.execPath}" -e "console.error('${unicode}');"`;
+
+  cp.exec(
+    cmd,
+    { encoding: null, maxBuffer: 5 },
+    common.mustCall((err, stdout, stderr) => {
+      const buf = Buffer.from(unicode).slice(0, 5);
+      runChecks(err, { stdout, stderr }, 'stderr', buf);
+    })
+  );
 }
