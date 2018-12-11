@@ -17,7 +17,7 @@ changes can be reviewed and landed via the normal consensus seeking process.
 ## Step 1: Clone npm
 
 ```console
-$ git clone https://github.com/npm/npm.git
+$ git clone https://github.com/npm/cli.git npm
 $ cd npm
 ```
 
