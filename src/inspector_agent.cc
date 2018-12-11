@@ -865,7 +865,7 @@ void Agent::RequestIoThreadStart() {
   v8::Platform* platform = parent_env_->isolate_data()->platform();
   std::shared_ptr<TaskRunner> taskrunner =
     platform->GetForegroundTaskRunner(isolate);
-  taskrunner->PostTask(std::unique_ptr<Task>(new StartIoTask(this)));
+  taskrunner->PostTask(std::make_unique<StartIoTask>(this));
   isolate->RequestInterrupt(StartIoInterrupt, this);
   uv_async_send(&start_io_thread_async);
 }
