@@ -7,6 +7,8 @@ prefix sequential
 [true] # This section applies to all platforms
 # https://github.com/nodejs/node/issues/22336
 test-gc-http-client: PASS,FLAKY
+# https://github.com/nodejs/node/issues/24403
+test-cli-syntax: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/22327
