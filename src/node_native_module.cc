@@ -112,6 +112,7 @@ NativeModuleLoader::NativeModuleLoader() : config_(GetConfig()) {
 void NativeModuleLoader::GetCodeCache(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
+  CHECK(env->is_main_thread());
 
   CHECK(args[0]->IsString());
   node::Utf8Value id_v(isolate, args[0].As<String>());
@@ -133,14 +134,12 @@ MaybeLocal<Uint8Array> NativeModuleLoader::GetCodeCache(Isolate* isolate,
 
   ScriptCompiler::CachedData* cached_data = nullptr;
   const auto it = code_cache_.find(id);
-  if (it != code_cache_.end()) {
-    cached_data = it->second.get();
-  }
-
-  // The module has not been compiled before.
-  if (cached_data == nullptr) {
+  if (it == code_cache_.end()) {
+    // The module has not been compiled before.
     return MaybeLocal<Uint8Array>();
   }
+
+  cached_data = it->second.get();
 
   MallocedBuffer<uint8_t> copied(cached_data->length);
   memcpy(copied.data, cached_data->data, cached_data->length);
@@ -257,7 +256,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   Local<Function> fun = maybe_fun.ToLocalChecked();
   // XXX(joyeecheung): this bookkeeping is not exactly accurate because
   // it only starts after the Environment is created, so the per_context.js
-  // will never be any of these two sets, but the two sets are only for
+  // will never be in any of these two sets, but the two sets are only for
   // testing anyway.
   if (use_cache) {
     if (optional_env != nullptr) {
@@ -276,12 +275,12 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   }
 
   // Generate new cache for next compilation
-  ScriptCompiler::CachedData* new_cached_data =
-      ScriptCompiler::CreateCodeCacheForFunction(fun);
+  std::unique_ptr<ScriptCompiler::CachedData> new_cached_data(
+      ScriptCompiler::CreateCodeCacheForFunction(fun));
   CHECK_NE(new_cached_data, nullptr);
 
   // The old entry should've been erased by now so we can just emplace
-  code_cache_.emplace(id, new_cached_data);
+  code_cache_.emplace(id, std::move(new_cached_data));
 
   return scope.Escape(fun);
 }

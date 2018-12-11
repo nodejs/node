@@ -58,7 +58,7 @@ function getInitalizer(key, cache) {
   const defName = `${key.replace(/\//g, '_').replace(/-/g, '_')}_raw`;
   const definition = `static const uint8_t ${defName}[] = {\n` +
                      `${cache.join(',')}\n};`;
-  const dataDef = 'new v8::ScriptCompiler::CachedData(' +
+  const dataDef = 'std::make_unique<v8::ScriptCompiler::CachedData>(' +
                   `${defName}, static_cast<int>(arraysize(${defName})), ` +
                   'policy)';
   const initializer =
