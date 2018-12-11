@@ -775,9 +775,21 @@ util.inspect({ hasOwnProperty: null });
 
   assert.strictEqual(util.inspect(subject), "{ foo: 'bar' }");
 
-  subject[util.inspect.custom] = (depth, opts) => {
-    assert.strictEqual(opts.customInspectOptions, true);
-  };
+  subject[util.inspect.custom] = common.mustCall((depth, opts) => {
+    const clone = { ...opts };
+    // This might change at some point but for now we keep the stylize function.
+    // The function should either be documented or an alternative should be
+    // implemented.
+    assert.strictEqual(typeof opts.stylize, 'function');
+    assert.strictEqual(opts.seen, undefined);
+    assert.strictEqual(opts.budget, undefined);
+    assert.strictEqual(opts.indentationLvl, undefined);
+    assert.strictEqual(opts.showHidden, false);
+    opts.showHidden = true;
+    return { [util.inspect.custom]: common.mustCall((depth, opts2) => {
+      assert.deepStrictEqual(clone, opts2);
+    }) };
+  });
 
   util.inspect(subject, { customInspectOptions: true });
 
@@ -1593,7 +1605,7 @@ util.inspect(process);
   );
   const longList = util.inspect(list, { depth: Infinity });
   const match = longList.match(/next/g);
-  assert(match.length > 1000 && match.length < 10000);
+  assert(match.length > 500 && match.length < 10000);
   assert(longList.includes('[Object: Inspection interrupted ' +
     'prematurely. Maximum call stack size exceeded.]'));
 }
