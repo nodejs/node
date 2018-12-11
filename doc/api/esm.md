@@ -712,7 +712,7 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >    module, then
 >    1. Return the string _"node:"_ concatenated with _packageSpecifier_.
 > 1. While _parentURL_ is not the file system root,
->    1. Let _packageURL_ be the URL resolution of "node_modules/"
+>    1. Let _packageURL_ be the URL resolution of _"node_modules/"_
 >       concatenated with _packageSpecifier_, relative to _parentURL_.
 >    1. Set _parentURL_ to the parent folder URL of _parentURL_.
 >    1. If the folder at _packageURL_ does not exist, then
@@ -723,7 +723,12 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 >       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_,
 >          _pjson_).
 >    1. Otherwise,
->       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
+>       1. If _pjson_ is not **null** and _pjson_ has an _"exports"_ key, then
+>          1. Let _exports_ be _pjson.exports_.
+>          1. If _exports_ is not **null** or **undefined**, then
+>             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
+>                _packagePath_, _pjson.exports_).
+>       1. Return the URL resolution of _packagePath_ in _packageURL_.
 > 1. Throw a _Module Not Found_ error.
 
 **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_)
@@ -742,6 +747,26 @@ _isMain_ is **true** when resolving the Node.js application entry point.
 > 1. If _legacyMainURL_ does not end in _".js"_ then,
 >    1. Throw an _Unsupported File Extension_ error.
 > 1. Return _legacyMainURL_.
+
+**PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packagePath_, _exports_)
+> 1. If _exports_ is an Object, then
+>    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
+>    1. If _packagePath_ is a key of _exports_, then
+>       1. Let _target_ be the value of _exports[packagePath]_.
+>       1. If _target_ is not a String, continue the loop.
+>       1. Return the URL resolution of the concatenation of _packageURL_ and
+>          _target_.
+>    1. Let _directoryKeys_ be the list of keys of _exports_ ending in
+>       _"/"_, sorted by length descending.
+>    1. For each key _directory_ in _directoryKeys_, do
+>       1. If _packagePath_ starts with _directory_, then
+>          1. Let _target_ be the value of _exports[directory]_.
+>          1. If _target_ is not a String, continue the loop.
+>          1. Let _subpath_ be the substring of _target_ starting at the index
+>             of the length of _directory_.
+>          1. Return the URL resolution of the concatenation of _packageURL_,
+>             _target_ and _subpath_.
+> 1. Throw a _Module Not Found_ error.
 
 **ESM_FORMAT**(_url_, _isMain_)
 > 1. Assert: _url_ corresponds to an existing file.
