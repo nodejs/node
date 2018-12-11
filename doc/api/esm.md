@@ -219,7 +219,10 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 >       1. Return the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_,
 >          _pjson_).
 >    1. Otherwise,
->       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
+>       1. If **HAS_ESM_PROPERTIES**(_pjson_) is *true*, then
+>          1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packagePath_,
+>             _pjson_).
+>       1. Return the URL resolution of _packagePath_ in _packageURL_.
 > 1. Throw a _Module Not Found_ error.
 
 PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
@@ -230,8 +233,57 @@ PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
 >       **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, throwing a
 >       _Module Not Found_ error for no resolution.
 >    1. Return _mainURL_.
-> 1. TODO: ESM main handling.
+> 1. If _pjson.exports_ is a String, then
+>    1. Return the URL of _pjson.exports_ within the parent path _packageURL_.
+> 1. Assert: _pjson.exports_ is an Object.
+> 1. If _pjson.exports["."]_ is a String, then
+>    1. Let _target_ be _pjson.exports["."]_.
+>    1. If **IS_VALID_EXPORTS_TARGET**(_target_) is **false**, then
+>       1. Emit an _"Invalid Exports Target"_ warning.
+>    1. Otherwise,
+>       1. Return the URL of _pjson.exports.default_ within the parent path
+>          _packageURL_.
+> 1. Return **null**.
+
+PACKAGE_EXPORTS_RESOLVE(_packageURL_, _packagePath_, _pjson_)
+> 1. Assert: _pjson_ is not **null**.
+> 1. If _pjson.exports_ is a String, then
+>    1. Throw a _Module Not Found_ error.
+> 1. Assert: _pjson.exports_ is an Object.
+> 1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
+> 1. If _packagePath_ is a key of _pjson.exports_, then
+>    1. Let _target_ be the value of _pjson.exports[packagePath]_.
+>    1. If **IS_VALID_EXPORTS_TARGET**(_target_) is **false**, then
+>       1. Emit an _"Invalid Exports Target"_ warning.
+>       1. Throw a _Module Not Found_ error.
+>    1. Return the URL resolution of the concatenation of _packageURL_ and
+>       _target_.
+> 1. Let _directoryKeys_ be the list of keys of _pjson.exports_ ending in
+>    _"/"_, sorted by length descending.
+> 1. For each key _directory_ in _directoryKeys_, do
+>    1. If _packagePath_ starts with _directory_, then
+>       1. Let _target_ be the value of _pjson.exports[directory]_.
+>       1. If **IS_VALID_EXPORTS_TARGET**(_target_) is **false** or _target_
+>          does not end in _"/"_, then
+>          1. Emit an _"Invalid Exports Target"_ warning.
+>          1. Continue the loop.
+>       1. Let _subpath_ be the substring of _target_ starting at the index of
+>          the length of _directory_.
+>       1. Return the URL resolution of the concatenation of _packageURL_,
+>          _target_ and _subpath_.
 > 1. Throw a _Module Not Found_ error.
+
+IS_VALID_EXPORTS_TARGET(_target_)
+> 1. If _target_ is not a valid String, then
+>    1. Return **false**.
+> 1. If _target_ does not start with _"./"_, then
+>    1. Return **false**.
+> 1. If _target_ contains any _".."_ or _"."_ path segments, then
+>    1. Return **false**.
+> 1. If _target_ contains any percent-encoded characters for _"/"_ or _"\"_,
+>    then
+>    1. Return **false**.
+> 1. Return **true**.
 
 **ESM_FORMAT(_url_, _isMain_)**
 > 1. Assert: _url_ corresponds to an existing file.
@@ -266,7 +318,9 @@ READ_PACKAGE_JSON(_packageURL_)
 > 1. Return the parsed JSON source of the file at _url_.
 
 HAS_ESM_PROPERTIES(_pjson_)
-> Note: To be specified.
+> 1. If _pjson_ is not **null** and _pjson.exports_ is a String or Object, then
+>    1. Return *true*.
+> 1. Return *false*.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [`module.createRequireFromPath()`]: modules.html#modules_module_createrequirefrompath_filename
