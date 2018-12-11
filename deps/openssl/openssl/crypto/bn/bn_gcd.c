@@ -23,7 +23,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
     BN_CTX_start(ctx);
     a = BN_CTX_get(ctx);
     b = BN_CTX_get(ctx);
-    if (a == NULL || b == NULL)
+    if (b == NULL)
         goto err;
 
     if (BN_copy(a, in_a) == NULL)
@@ -48,7 +48,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
  err:
     BN_CTX_end(ctx);
     bn_check_top(r);
-    return (ret);
+    return ret;
 }
 
 static BIGNUM *euclid(BIGNUM *a, BIGNUM *b)
@@ -111,9 +111,9 @@ static BIGNUM *euclid(BIGNUM *a, BIGNUM *b)
             goto err;
     }
     bn_check_top(a);
-    return (a);
+    return a;
  err:
-    return (NULL);
+    return NULL;
 }
 
 /* solves ax == 1 (mod n) */
@@ -448,7 +448,7 @@ BIGNUM *int_bn_mod_inverse(BIGNUM *in,
         BN_free(R);
     BN_CTX_end(ctx);
     bn_check_top(ret);
-    return (ret);
+    return ret;
 }
 
 /*
@@ -619,5 +619,5 @@ static BIGNUM *BN_mod_inverse_no_branch(BIGNUM *in,
         BN_free(R);
     BN_CTX_end(ctx);
     bn_check_top(ret);
-    return (ret);
+    return ret;
 }

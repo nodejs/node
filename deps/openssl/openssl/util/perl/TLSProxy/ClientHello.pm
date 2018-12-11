@@ -114,6 +114,24 @@ sub process_extensions
     }
 }
 
+sub extension_contents
+{
+    my $self = shift;
+    my $key = shift;
+    my $extension = "";
+
+    my $extdata = ${$self->extension_data}{$key};
+    $extension .= pack("n", $key);
+    $extension .= pack("n", length($extdata));
+    $extension .= $extdata;
+    if ($key == TLSProxy::Message::EXT_DUPLICATE_EXTENSION) {
+        $extension .= pack("n", $key);
+        $extension .= pack("n", length($extdata));
+        $extension .= $extdata;
+    }
+    return $extension;
+}
+
 #Reconstruct the on-the-wire message data following changes
 sub set_message_contents
 {
@@ -131,15 +149,16 @@ sub set_message_contents
     $data .= pack("C*", @{$self->comp_meths});
 
     foreach my $key (keys %{$self->extension_data}) {
-        my $extdata = ${$self->extension_data}{$key};
-        $extensions .= pack("n", $key);
-        $extensions .= pack("n", length($extdata));
-        $extensions .= $extdata;
-        if ($key == TLSProxy::Message::EXT_DUPLICATE_EXTENSION) {
-          $extensions .= pack("n", $key);
-          $extensions .= pack("n", length($extdata));
-          $extensions .= $extdata;
-        }
+        next if ($key == TLSProxy::Message::EXT_PSK);
+        $extensions .= $self->extension_contents($key);
+    }
+    #PSK extension always goes last...
+    if (defined ${$self->extension_data}{TLSProxy::Message::EXT_PSK}) {
+        $extensions .= $self->extension_contents(TLSProxy::Message::EXT_PSK);
+    }
+    #unless we have EXT_FORCE_LAST
+    if (defined ${$self->extension_data}{TLSProxy::Message::EXT_FORCE_LAST}) {
+        $extensions .= $self->extension_contents(TLSProxy::Message::EXT_FORCE_LAST);
     }
 
     $data .= pack('n', length($extensions));

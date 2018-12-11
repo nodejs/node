@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,7 @@
 
 UI *UI_new(void)
 {
-    return (UI_new_method(NULL));
+    return UI_new_method(NULL);
 }
 
 UI *UI_new_method(const UI_METHOD *method)
@@ -37,9 +37,10 @@ UI *UI_new_method(const UI_METHOD *method)
     }
 
     if (method == NULL)
-        ret->meth = UI_get_default_method();
-    else
-        ret->meth = method;
+        method = UI_get_default_method();
+    if (method == NULL)
+        method = UI_null();
+    ret->meth = method;
 
     if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_UI, ret, &ret->ex_data)) {
         OPENSSL_free(ret);
@@ -58,7 +59,11 @@ static void free_string(UI_STRING *uis)
             OPENSSL_free((char *)uis->_.boolean_data.ok_chars);
             OPENSSL_free((char *)uis->_.boolean_data.cancel_chars);
             break;
-        default:
+        case UIT_NONE:
+        case UIT_PROMPT:
+        case UIT_VERIFY:
+        case UIT_ERROR:
+        case UIT_INFO:
             break;
         }
     }
@@ -69,6 +74,9 @@ void UI_free(UI *ui)
 {
     if (ui == NULL)
         return;
+    if ((ui->flags & UI_FLAG_DUPL_DATA) != 0) {
+        ui->meth->ui_destroy_data(ui, ui->user_data);
+    }
     sk_UI_STRING_pop_free(ui->strings, free_string);
     CRYPTO_free_ex_data(CRYPTO_EX_INDEX_UI, ui, &ui->ex_data);
     CRYPTO_THREAD_lock_free(ui->lock);
@@ -366,9 +374,10 @@ char *UI_construct_prompt(UI *ui, const char *object_desc,
             len += sizeof(prompt2) - 1 + strlen(object_name);
         len += sizeof(prompt3) - 1;
 
-        prompt = OPENSSL_malloc(len + 1);
-        if (prompt == NULL)
+        if ((prompt = OPENSSL_malloc(len + 1)) == NULL) {
+            UIerr(UI_F_UI_CONSTRUCT_PROMPT, ERR_R_MALLOC_FAILURE);
             return NULL;
+        }
         OPENSSL_strlcpy(prompt, prompt1, len + 1);
         OPENSSL_strlcat(prompt, object_desc, len + 1);
         if (object_name != NULL) {
@@ -383,8 +392,36 @@ char *UI_construct_prompt(UI *ui, const char *object_desc,
 void *UI_add_user_data(UI *ui, void *user_data)
 {
     void *old_data = ui->user_data;
+
+    if ((ui->flags & UI_FLAG_DUPL_DATA) != 0) {
+        ui->meth->ui_destroy_data(ui, old_data);
+        old_data = NULL;
+    }
     ui->user_data = user_data;
+    ui->flags &= ~UI_FLAG_DUPL_DATA;
     return old_data;
+}
+
+int UI_dup_user_data(UI *ui, void *user_data)
+{
+    void *duplicate = NULL;
+
+    if (ui->meth->ui_duplicate_data == NULL
+        || ui->meth->ui_destroy_data == NULL) {
+        UIerr(UI_F_UI_DUP_USER_DATA, UI_R_USER_DATA_DUPLICATION_UNSUPPORTED);
+        return -1;
+    }
+
+    duplicate = ui->meth->ui_duplicate_data(ui, user_data);
+    if (duplicate == NULL) {
+        UIerr(UI_F_UI_DUP_USER_DATA, ERR_R_MALLOC_FAILURE);
+        return -1;
+    }
+
+    (void)UI_add_user_data(ui, duplicate);
+    ui->flags |= UI_FLAG_DUPL_DATA;
+
+    return 0;
 }
 
 void *UI_get0_user_data(UI *ui)
@@ -403,6 +440,19 @@ const char *UI_get0_result(UI *ui, int i)
         return NULL;
     }
     return UI_get0_result_string(sk_UI_STRING_value(ui->strings, i));
+}
+
+int UI_get_result_length(UI *ui, int i)
+{
+    if (i < 0) {
+        UIerr(UI_F_UI_GET_RESULT_LENGTH, UI_R_INDEX_TOO_SMALL);
+        return -1;
+    }
+    if (i >= sk_UI_STRING_num(ui->strings)) {
+        UIerr(UI_F_UI_GET_RESULT_LENGTH, UI_R_INDEX_TOO_LARGE);
+        return -1;
+    }
+    return UI_get_result_string_length(sk_UI_STRING_value(ui->strings, i));
 }
 
 static int print_error(const char *str, size_t len, UI *ui)
@@ -523,12 +573,12 @@ int UI_ctrl(UI *ui, int cmd, long i, void *p, void (*f) (void))
 
 int UI_set_ex_data(UI *r, int idx, void *arg)
 {
-    return (CRYPTO_set_ex_data(&r->ex_data, idx, arg));
+    return CRYPTO_set_ex_data(&r->ex_data, idx, arg);
 }
 
 void *UI_get_ex_data(UI *r, int idx)
 {
-    return (CRYPTO_get_ex_data(&r->ex_data, idx));
+    return CRYPTO_get_ex_data(&r->ex_data, idx);
 }
 
 const UI_METHOD *UI_get_method(UI *ui)
@@ -544,15 +594,17 @@ const UI_METHOD *UI_set_method(UI *ui, const UI_METHOD *meth)
 
 UI_METHOD *UI_create_method(const char *name)
 {
-    UI_METHOD *ui_method = OPENSSL_zalloc(sizeof(*ui_method));
+    UI_METHOD *ui_method = NULL;
 
-    if (ui_method != NULL) {
-        ui_method->name = OPENSSL_strdup(name);
-        if (ui_method->name == NULL) {
-            OPENSSL_free(ui_method);
-            UIerr(UI_F_UI_CREATE_METHOD, ERR_R_MALLOC_FAILURE);
-            return NULL;
-        }
+    if ((ui_method = OPENSSL_zalloc(sizeof(*ui_method))) == NULL
+        || (ui_method->name = OPENSSL_strdup(name)) == NULL
+        || !CRYPTO_new_ex_data(CRYPTO_EX_INDEX_UI_METHOD, ui_method,
+                               &ui_method->ex_data)) {
+        if (ui_method)
+            OPENSSL_free(ui_method->name);
+        OPENSSL_free(ui_method);
+        UIerr(UI_F_UI_CREATE_METHOD, ERR_R_MALLOC_FAILURE);
+        return NULL;
     }
     return ui_method;
 }
@@ -564,6 +616,10 @@ UI_METHOD *UI_create_method(const char *name)
  */
 void UI_destroy_method(UI_METHOD *ui_method)
 {
+    if (ui_method == NULL)
+        return;
+    CRYPTO_free_ex_data(CRYPTO_EX_INDEX_UI_METHOD, ui_method,
+                        &ui_method->ex_data);
     OPENSSL_free(ui_method->name);
     ui_method->name = NULL;
     OPENSSL_free(ui_method);
@@ -616,6 +672,18 @@ int UI_method_set_closer(UI_METHOD *method, int (*closer) (UI *ui))
     return -1;
 }
 
+int UI_method_set_data_duplicator(UI_METHOD *method,
+                                  void *(*duplicator) (UI *ui, void *ui_data),
+                                  void (*destructor)(UI *ui, void *ui_data))
+{
+    if (method != NULL) {
+        method->ui_duplicate_data = duplicator;
+        method->ui_destroy_data = destructor;
+        return 0;
+    }
+    return -1;
+}
+
 int UI_method_set_prompt_constructor(UI_METHOD *method,
                                      char *(*prompt_constructor) (UI *ui,
                                                                   const char
@@ -630,48 +698,71 @@ int UI_method_set_prompt_constructor(UI_METHOD *method,
     return -1;
 }
 
-int (*UI_method_get_opener(UI_METHOD *method)) (UI *)
+int UI_method_set_ex_data(UI_METHOD *method, int idx, void *data)
+{
+    return CRYPTO_set_ex_data(&method->ex_data, idx, data);
+}
+
+int (*UI_method_get_opener(const UI_METHOD *method)) (UI *)
 {
     if (method != NULL)
         return method->ui_open_session;
     return NULL;
 }
 
-int (*UI_method_get_writer(UI_METHOD *method)) (UI *, UI_STRING *)
+int (*UI_method_get_writer(const UI_METHOD *method)) (UI *, UI_STRING *)
 {
     if (method != NULL)
         return method->ui_write_string;
     return NULL;
 }
 
-int (*UI_method_get_flusher(UI_METHOD *method)) (UI *)
+int (*UI_method_get_flusher(const UI_METHOD *method)) (UI *)
 {
     if (method != NULL)
         return method->ui_flush;
     return NULL;
 }
 
-int (*UI_method_get_reader(UI_METHOD *method)) (UI *, UI_STRING *)
+int (*UI_method_get_reader(const UI_METHOD *method)) (UI *, UI_STRING *)
 {
     if (method != NULL)
         return method->ui_read_string;
     return NULL;
 }
 
-int (*UI_method_get_closer(UI_METHOD *method)) (UI *)
+int (*UI_method_get_closer(const UI_METHOD *method)) (UI *)
 {
     if (method != NULL)
         return method->ui_close_session;
     return NULL;
 }
 
-char *(*UI_method_get_prompt_constructor(UI_METHOD *method)) (UI *,
-                                                              const char *,
-                                                              const char *)
+char *(*UI_method_get_prompt_constructor(const UI_METHOD *method))
+    (UI *, const char *, const char *)
 {
     if (method != NULL)
         return method->ui_construct_prompt;
     return NULL;
+}
+
+void *(*UI_method_get_data_duplicator(const UI_METHOD *method)) (UI *, void *)
+{
+    if (method != NULL)
+        return method->ui_duplicate_data;
+    return NULL;
+}
+
+void (*UI_method_get_data_destructor(const UI_METHOD *method)) (UI *, void *)
+{
+    if (method != NULL)
+        return method->ui_destroy_data;
+    return NULL;
+}
+
+const void *UI_method_get_ex_data(const UI_METHOD *method, int idx)
+{
+    return CRYPTO_get_ex_data(&method->ex_data, idx);
 }
 
 enum UI_string_types UI_get_string_type(UI_STRING *uis)
@@ -694,9 +785,14 @@ const char *UI_get0_action_string(UI_STRING *uis)
     switch (uis->type) {
     case UIT_BOOLEAN:
         return uis->_.boolean_data.action_desc;
-    default:
-        return NULL;
+    case UIT_PROMPT:
+    case UIT_NONE:
+    case UIT_VERIFY:
+    case UIT_INFO:
+    case UIT_ERROR:
+        break;
     }
+    return NULL;
 }
 
 const char *UI_get0_result_string(UI_STRING *uis)
@@ -705,9 +801,28 @@ const char *UI_get0_result_string(UI_STRING *uis)
     case UIT_PROMPT:
     case UIT_VERIFY:
         return uis->result_buf;
-    default:
-        return NULL;
+    case UIT_NONE:
+    case UIT_BOOLEAN:
+    case UIT_INFO:
+    case UIT_ERROR:
+        break;
     }
+    return NULL;
+}
+
+int UI_get_result_string_length(UI_STRING *uis)
+{
+    switch (uis->type) {
+    case UIT_PROMPT:
+    case UIT_VERIFY:
+        return uis->result_len;
+    case UIT_NONE:
+    case UIT_BOOLEAN:
+    case UIT_INFO:
+    case UIT_ERROR:
+        break;
+    }
+    return -1;
 }
 
 const char *UI_get0_test_string(UI_STRING *uis)
@@ -715,9 +830,14 @@ const char *UI_get0_test_string(UI_STRING *uis)
     switch (uis->type) {
     case UIT_VERIFY:
         return uis->_.string_data.test_buf;
-    default:
-        return NULL;
+    case UIT_NONE:
+    case UIT_BOOLEAN:
+    case UIT_INFO:
+    case UIT_ERROR:
+    case UIT_PROMPT:
+        break;
     }
+    return NULL;
 }
 
 int UI_get_result_minsize(UI_STRING *uis)
@@ -726,9 +846,13 @@ int UI_get_result_minsize(UI_STRING *uis)
     case UIT_PROMPT:
     case UIT_VERIFY:
         return uis->_.string_data.result_minsize;
-    default:
-        return -1;
+    case UIT_NONE:
+    case UIT_INFO:
+    case UIT_ERROR:
+    case UIT_BOOLEAN:
+        break;
     }
+    return -1;
 }
 
 int UI_get_result_maxsize(UI_STRING *uis)
@@ -737,15 +861,29 @@ int UI_get_result_maxsize(UI_STRING *uis)
     case UIT_PROMPT:
     case UIT_VERIFY:
         return uis->_.string_data.result_maxsize;
-    default:
-        return -1;
+    case UIT_NONE:
+    case UIT_INFO:
+    case UIT_ERROR:
+    case UIT_BOOLEAN:
+        break;
     }
+    return -1;
 }
 
 int UI_set_result(UI *ui, UI_STRING *uis, const char *result)
 {
-    int l = strlen(result);
+#if 0
+    /*
+     * This is placed here solely to preserve UI_F_UI_SET_RESULT
+     * To be removed for OpenSSL 1.2.0
+     */
+    UIerr(UI_F_UI_SET_RESULT, ERR_R_DISABLED);
+#endif
+    return UI_set_result_ex(ui, uis, result, strlen(result));
+}
 
+int UI_set_result_ex(UI *ui, UI_STRING *uis, const char *result, int len)
+{
     ui->flags &= ~UI_FLAG_REDOABLE;
 
     switch (uis->type) {
@@ -760,16 +898,16 @@ int UI_set_result(UI *ui, UI_STRING *uis, const char *result)
             BIO_snprintf(number2, sizeof(number2), "%d",
                          uis->_.string_data.result_maxsize);
 
-            if (l < uis->_.string_data.result_minsize) {
+            if (len < uis->_.string_data.result_minsize) {
                 ui->flags |= UI_FLAG_REDOABLE;
-                UIerr(UI_F_UI_SET_RESULT, UI_R_RESULT_TOO_SMALL);
+                UIerr(UI_F_UI_SET_RESULT_EX, UI_R_RESULT_TOO_SMALL);
                 ERR_add_error_data(5, "You must type in ",
                                    number1, " to ", number2, " characters");
                 return -1;
             }
-            if (l > uis->_.string_data.result_maxsize) {
+            if (len > uis->_.string_data.result_maxsize) {
                 ui->flags |= UI_FLAG_REDOABLE;
-                UIerr(UI_F_UI_SET_RESULT, UI_R_RESULT_TOO_LARGE);
+                UIerr(UI_F_UI_SET_RESULT_EX, UI_R_RESULT_TOO_LARGE);
                 ERR_add_error_data(5, "You must type in ",
                                    number1, " to ", number2, " characters");
                 return -1;
@@ -777,19 +915,21 @@ int UI_set_result(UI *ui, UI_STRING *uis, const char *result)
         }
 
         if (uis->result_buf == NULL) {
-            UIerr(UI_F_UI_SET_RESULT, UI_R_NO_RESULT_BUFFER);
+            UIerr(UI_F_UI_SET_RESULT_EX, UI_R_NO_RESULT_BUFFER);
             return -1;
         }
 
-        OPENSSL_strlcpy(uis->result_buf, result,
-                    uis->_.string_data.result_maxsize + 1);
+        memcpy(uis->result_buf, result, len);
+        if (len <= uis->_.string_data.result_maxsize)
+            uis->result_buf[len] = '\0';
+        uis->result_len = len;
         break;
     case UIT_BOOLEAN:
         {
             const char *p;
 
             if (uis->result_buf == NULL) {
-                UIerr(UI_F_UI_SET_RESULT, UI_R_NO_RESULT_BUFFER);
+                UIerr(UI_F_UI_SET_RESULT_EX, UI_R_NO_RESULT_BUFFER);
                 return -1;
             }
 
@@ -805,7 +945,9 @@ int UI_set_result(UI *ui, UI_STRING *uis, const char *result)
                 }
             }
         }
-    default:
+    case UIT_NONE:
+    case UIT_INFO:
+    case UIT_ERROR:
         break;
     }
     return 0;

@@ -233,7 +233,7 @@ __ecp_nistz256_add:
 	@ if a+b >= modulus, subtract modulus.
 	@
 	@ But since comparison implies subtraction, we subtract
-	@ modulus and then add it back if subraction borrowed.
+	@ modulus and then add it back if subtraction borrowed.
 
 	subs	$a0,$a0,#-1
 	sbcs	$a1,$a1,#-1
@@ -1222,7 +1222,7 @@ __ecp_nistz256_add_self:
 	@ if a+b >= modulus, subtract modulus.
 	@
 	@ But since comparison implies subtraction, we subtract
-	@ modulus and then add it back if subraction borrowed.
+	@ modulus and then add it back if subtraction borrowed.
 
 	subs	$a0,$a0,#-1
 	sbcs	$a1,$a1,#-1

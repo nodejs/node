@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2010-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -60,16 +60,16 @@ $flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
 	$PTR_LA="dla";
-	$PTR_ADD="dadd";	# incidentally works even on n32
-	$PTR_SUB="dsub";	# incidentally works even on n32
+	$PTR_ADD="daddu";	# incidentally works even on n32
+	$PTR_SUB="dsubu";	# incidentally works even on n32
 	$REG_S="sd";
 	$REG_L="ld";
 	$PTR_SLL="dsll";	# incidentally works even on n32
 	$SZREG=8;
 } else {
 	$PTR_LA="la";
-	$PTR_ADD="add";
-	$PTR_SUB="sub";
+	$PTR_ADD="addu";
+	$PTR_SUB="subu";
 	$REG_S="sw";
 	$REG_L="lw";
 	$PTR_SLL="sll";
@@ -81,7 +81,7 @@ $pf = ($flavour =~ /nubi/i) ? $t0 : $t2;
 #
 ######################################################################
 
-$big_endian=(`echo MIPSEL | $ENV{CC} -E -`=~/MIPSEL/)?1:0 if ($ENV{CC});
+$big_endian=(`echo MIPSEB | $ENV{CC} -E -`=~/MIPSEB/)?0:1 if ($ENV{CC});
 
 for (@ARGV) {	$output=$_ if (/\w[\w\-]*\.\w+$/);	}
 open STDOUT,">$output";
@@ -135,8 +135,12 @@ my ($i,$a,$b,$c,$d,$e,$f,$g,$h)=@_;
 my ($T1,$tmp0,$tmp1,$tmp2)=(@X[4],@X[5],@X[6],@X[7]);
 
 $code.=<<___ if ($i<15);
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	${LD}	@X[1],`($i+1)*$SZ`($inp)
+#else
 	${LD}l	@X[1],`($i+1)*$SZ+$MSB`($inp)
 	${LD}r	@X[1],`($i+1)*$SZ+$LSB`($inp)
+#endif
 ___
 $code.=<<___	if (!$big_endian && $i<16 && $SZ==4);
 #if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS64R2)
@@ -298,13 +302,7 @@ $FRAMESIZE=16*$SZ+16*$SZREG;
 $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? "0xc0fff008" : "0xc0ff0000";
 
 $code.=<<___;
-#ifdef OPENSSL_FIPSCANISTER
-# include <openssl/fipssyms.h>
-#endif
-
-#if defined(__mips_smartmips) && !defined(_MIPS_ARCH_MIPS32R2)
-#define _MIPS_ARCH_MIPS32R2
-#endif
+#include "mips_arch.h"
 
 .text
 .set	noat
@@ -369,8 +367,12 @@ $code.=<<___;
 
 .align	5
 .Loop:
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	${LD}	@X[0],($inp)
+#else
 	${LD}l	@X[0],$MSB($inp)
 	${LD}r	@X[0],$LSB($inp)
+#endif
 ___
 for ($i=0;$i<16;$i++)
 { &BODY_00_15($i,@V); unshift(@V,pop(@V)); push(@X,shift(@X)); }

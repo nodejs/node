@@ -1,16 +1,10 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
- */
-
-/*-
- * 03-Dec-1997  rdenny@dc3.com  Fix bug preventing use of stdin/stdout
- *              with binary data (e.g. asn1parse -inform DER < xxx) under
- *              Windows
  */
 
 #ifndef HEADER_BSS_FILE_C
@@ -51,7 +45,11 @@ static int file_free(BIO *data);
 static const BIO_METHOD methods_filep = {
     BIO_TYPE_FILE,
     "FILE pointer",
+    /* TODO: Convert to new style write function */
+    bwrite_conv,
     file_write,
+    /* TODO: Convert to new style read function */
+    bread_conv,
     file_read,
     file_puts,
     file_gets,
@@ -81,17 +79,17 @@ BIO *BIO_new_file(const char *filename, const char *mode)
             BIOerr(BIO_F_BIO_NEW_FILE, BIO_R_NO_SUCH_FILE);
         else
             BIOerr(BIO_F_BIO_NEW_FILE, ERR_R_SYS_LIB);
-        return (NULL);
+        return NULL;
     }
     if ((ret = BIO_new(BIO_s_file())) == NULL) {
         fclose(file);
-        return (NULL);
+        return NULL;
     }
 
     BIO_clear_flags(ret, BIO_FLAGS_UPLINK); /* we did fopen -> we disengage
                                              * UPLINK */
     BIO_set_fp(ret, file, fp_flags);
-    return (ret);
+    return ret;
 }
 
 BIO *BIO_new_fp(FILE *stream, int close_flag)
@@ -99,17 +97,17 @@ BIO *BIO_new_fp(FILE *stream, int close_flag)
     BIO *ret;
 
     if ((ret = BIO_new(BIO_s_file())) == NULL)
-        return (NULL);
+        return NULL;
 
     /* redundant flag, left for documentation purposes */
     BIO_set_flags(ret, BIO_FLAGS_UPLINK);
     BIO_set_fp(ret, stream, close_flag);
-    return (ret);
+    return ret;
 }
 
 const BIO_METHOD *BIO_s_file(void)
 {
-    return (&methods_filep);
+    return &methods_filep;
 }
 
 static int file_new(BIO *bi)
@@ -118,13 +116,13 @@ static int file_new(BIO *bi)
     bi->num = 0;
     bi->ptr = NULL;
     bi->flags = BIO_FLAGS_UPLINK; /* default to UPLINK */
-    return (1);
+    return 1;
 }
 
 static int file_free(BIO *a)
 {
     if (a == NULL)
-        return (0);
+        return 0;
     if (a->shutdown) {
         if ((a->init) && (a->ptr != NULL)) {
             if (a->flags & BIO_FLAGS_UPLINK)
@@ -136,7 +134,7 @@ static int file_free(BIO *a)
         }
         a->init = 0;
     }
-    return (1);
+    return 1;
 }
 
 static int file_read(BIO *b, char *out, int outl)
@@ -156,7 +154,7 @@ static int file_read(BIO *b, char *out, int outl)
             ret = -1;
         }
     }
-    return (ret);
+    return ret;
 }
 
 static int file_write(BIO *b, const char *in, int inl)
@@ -172,12 +170,12 @@ static int file_write(BIO *b, const char *in, int inl)
             ret = inl;
         /* ret=fwrite(in,1,(int)inl,(FILE *)b->ptr); */
         /*
-         * according to Tim Hudson <tjh@cryptsoft.com>, the commented out
+         * according to Tim Hudson <tjh@openssl.org>, the commented out
          * version above can cause 'inl' write calls under some stupid stdio
          * implementations (VMS)
          */
     }
-    return (ret);
+    return ret;
 }
 
 static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
@@ -283,9 +281,9 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
         }
 #  if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32_CYGWIN)
         if (!(num & BIO_FP_TEXT))
-            strcat(p, "b");
+            OPENSSL_strlcat(p, "b", sizeof(p));
         else
-            strcat(p, "t");
+            OPENSSL_strlcat(p, "t", sizeof(p));
 #  endif
         fp = openssl_fopen(ptr, p);
         if (fp == NULL) {
@@ -335,7 +333,7 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = 0;
         break;
     }
-    return (ret);
+    return ret;
 }
 
 static int file_gets(BIO *bp, char *buf, int size)
@@ -353,7 +351,7 @@ static int file_gets(BIO *bp, char *buf, int size)
     if (buf[0] != '\0')
         ret = strlen(buf);
  err:
-    return (ret);
+    return ret;
 }
 
 static int file_puts(BIO *bp, const char *str)
@@ -362,7 +360,7 @@ static int file_puts(BIO *bp, const char *str)
 
     n = strlen(str);
     ret = file_write(bp, str, n);
-    return (ret);
+    return ret;
 }
 
 #else
@@ -399,7 +397,11 @@ static int file_free(BIO *a)
 static const BIO_METHOD methods_filep = {
     BIO_TYPE_FILE,
     "FILE pointer",
+    /* TODO: Convert to new style write function */
+    bwrite_conv,
     file_write,
+    /* TODO: Convert to new style read function */
+    bread_conv,
     file_read,
     file_puts,
     file_gets,
@@ -411,7 +413,7 @@ static const BIO_METHOD methods_filep = {
 
 const BIO_METHOD *BIO_s_file(void)
 {
-    return (&methods_filep);
+    return &methods_filep;
 }
 
 BIO *BIO_new_file(const char *filename, const char *mode)

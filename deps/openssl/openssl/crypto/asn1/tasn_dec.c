@@ -17,6 +17,7 @@
 #include "internal/numbers.h"
 #include "asn1_locl.h"
 
+
 /*
  * Constructed types with a recursive definition (such as can be found in PKCS7)
  * could eventually exceed the stack given malicious input with excessive
@@ -554,7 +555,7 @@ static int asn1_template_noexp_d2i(ASN1_VALUE **val,
         } else if (ret == -1)
             return -1;
         if (!*val)
-            *val = (ASN1_VALUE *)OPENSSL_sk_new_null();
+            *val = (ASN1_VALUE *)sk_ASN1_VALUE_new_null();
         else {
             /*
              * We've got a valid STACK: free up any items present

@@ -111,7 +111,7 @@ do
 	    # the process-comments options and then undo that marking, and then 
 	    # finally re-run indent without process-comments so the marked-to-
 	    # be-ignored comments we did automatically end up getting moved 
-	    # into the right possition within the code as indent leaves marked 
+	    # into the right position within the code as indent leaves marked 
 	    # comments entirely untouched - we appear to have no way to avoid 
 	    # the double processing and get the desired output
 	    cat "$j" | \

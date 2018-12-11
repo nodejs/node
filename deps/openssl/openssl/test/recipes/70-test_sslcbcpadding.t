@@ -7,6 +7,8 @@
 # https://www.openssl.org/source/license.html
 
 use strict;
+use feature 'state';
+
 use OpenSSL::Test qw/:DEFAULT cmdstr srctop_file bldtop_dir/;
 use OpenSSL::Test::Utils;
 use TLSProxy::Proxy;
@@ -40,25 +42,32 @@ my @test_offsets = (0, 128, 254, 255);
 
 # Test that maximally-padded records are accepted.
 my $bad_padding_offset = -1;
+$proxy->serverflags("-tls1_2");
+$proxy->serverconnects(1 + scalar(@test_offsets));
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
 plan tests => 1 + scalar(@test_offsets);
 ok(TLSProxy::Message->success(), "Maximally-padded record test");
 
 # Test that invalid padding is rejected.
+my $fatal_alert;    # set by add_maximal_padding_filter on client's fatal alert
+
 foreach my $offset (@test_offsets) {
-    $proxy->clear();
     $bad_padding_offset = $offset;
-    $proxy->start();
-    ok(TLSProxy::Message->fail(), "Invalid padding byte $bad_padding_offset");
+    $fatal_alert = 0;
+    $proxy->clearClient();
+    $proxy->clientstart();
+    ok($fatal_alert, "Invalid padding byte $bad_padding_offset");
 }
 
 sub add_maximal_padding_filter
 {
     my $proxy = shift;
+    my $messages = $proxy->message_list;
+    state $sent_corrupted_payload;
 
     if ($proxy->flight == 0) {
         # Disable Encrypt-then-MAC.
-        foreach my $message (@{$proxy->message_list}) {
+        foreach my $message (@{$messages}) {
             if ($message->mt != TLSProxy::Message::MT_CLIENT_HELLO) {
                 next;
             }
@@ -67,9 +76,16 @@ sub add_maximal_padding_filter
             $message->process_extensions();
             $message->repack();
         }
+        $sent_corrupted_payload = 0;
+        return;
     }
 
-    if ($proxy->flight == 3) {
+    my $last_message = @{$messages}[-1];
+    if (defined($last_message)
+        && $last_message->server
+        && $last_message->mt == TLSProxy::Message::MT_FINISHED
+        && !@{$last_message->records}[0]->{sent}) {
+
         # Insert a maximally-padded record. Assume a block size of 16 (AES) and
         # a MAC length of 20 (SHA-1).
         my $block_size = 16;
@@ -86,6 +102,7 @@ sub add_maximal_padding_filter
         # Add padding.
         for (my $i = 0; $i < 256; $i++) {
             if ($i == $bad_padding_offset) {
+                $sent_corrupted_payload = 1;
                 $data .= "\xfe";
             } else {
                 $data .= "\xff";
@@ -106,5 +123,9 @@ sub add_maximal_padding_filter
 
         # Send the record immediately after the server Finished.
         push @{$proxy->record_list}, $record;
+    } elsif ($sent_corrupted_payload) {
+        # Check for bad_record_mac from client
+        my $last_record = @{$proxy->record_list}[-1];
+        $fatal_alert = 1 if $last_record->is_fatal_alert(0) == 20;
     }
 }

@@ -1,4 +1,3 @@
-
  OPENSSL INSTALLATION
  --------------------
 
@@ -23,6 +22,7 @@
   * NOTES.VMS (OpenVMS)
   * NOTES.WIN (any supported Windows)
   * NOTES.DJGPP (DOS platform with DJGPP)
+  * NOTES.ANDROID (obviously Android [NDK])
 
  Notational conventions in this document
  ---------------------------------------
@@ -145,8 +145,8 @@
                    put together one-size-fits-all instructions. You might
                    have to pass more flags or set up environment variables
                    to actually make it work. Android and iOS cases are
-                   discussed in corresponding Configurations/10-main.cf
-                   sections. But there are cases when this option alone is
+                   discussed in corresponding Configurations/15-*.conf
+                   files. But there are cases when this option alone is
                    sufficient. For example to build the mingw64 target on
                    Linux "--cross-compile-prefix=x86_64-w64-mingw32-"
                    works. Naturally provided that mingw packages are
@@ -157,10 +157,12 @@
                    "--cross-compile-prefix=mipsel-linux-gnu-" suffices
                    in such case. Needless to mention that you have to
                    invoke ./Configure, not ./config, and pass your target
-                   name explicitly.
+                   name explicitly. Also, note that --openssldir refers
+                   to target's file system, not one you are building on.
 
   --debug
-                   Build OpenSSL with debugging symbols.
+                   Build OpenSSL with debugging symbols and zero optimization
+                   level.
 
   --libdir=DIR
                    The name of the directory under the top of the installation
@@ -209,11 +211,40 @@
                    without a path). This flag must be provided if the
                    zlib-dynamic option is not also used. If zlib-dynamic is used
                    then this flag is optional and a default value ("ZLIB1") is
-                   used if not provided. 
+                   used if not provided.
                    On VMS: this is the filename of the zlib library (with or
                    without a path). This flag is optional and if not provided
                    then "GNV$LIBZSHR", "GNV$LIBZSHR32" or "GNV$LIBZSHR64" is
                    used by default depending on the pointer size chosen.
+
+
+  --with-rand-seed=seed1[,seed2,...]
+                   A comma separated list of seeding methods which will be tried
+                   by OpenSSL in order to obtain random input (a.k.a "entropy")
+                   for seeding its cryptographically secure random number
+                   generator (CSPRNG). The current seeding methods are:
+
+                   os:         Use a trusted operating system entropy source.
+                               This is the default method if such an entropy
+                               source exists.
+                   getrandom:  Use the L<getrandom(2)> or equivalent system
+                               call.
+                   devrandom:  Use the the first device from the DEVRANDOM list
+                               which can be opened to read random bytes. The
+                               DEVRANDOM preprocessor constant expands to
+                               "/dev/urandom","/dev/random","/dev/srandom" on
+                               most unix-ish operating systems.
+                   egd:        Check for an entropy generating daemon.
+                   rdcpu:      Use the RDSEED or RDRAND command if provided by
+                               the CPU.
+                   librandom:  Use librandom (not implemented yet).
+                   none:       Disable automatic seeding. This is the default
+                               on some operating systems where no suitable
+                               entropy source exists, or no support for it is
+                               implemented yet.
+
+                   For more information, see the section 'Note on random number
+                   generation' at the end of this document.
 
   no-afalgeng
                    Don't build the AFALG engine. This option will be forced if
@@ -227,8 +258,10 @@
                    no-shared option.
 
   no-asm
-                   Do not use assembler code. On some platforms a small amount
-                   of assembler code may still be used.
+                   Do not use assembler code. This should be viewed as
+                   debugging/trouble-shooting option rather than production.
+                   On some platforms a small amount of assembler code may
+                   still be used even with this option.
 
   no-async
                    Do not build support for async operations.
@@ -249,6 +282,10 @@
                    error strings. For a statically linked application this may
                    be undesirable if small executable size is an objective.
 
+  no-autoload-config
+                   Don't automatically load the default openssl.cnf file.
+                   Typically OpenSSL will automatically load a system config
+                   file which configures default ssl options.
 
   no-capieng
                    Don't build the CAPI engine. This option will be forced if
@@ -304,8 +341,13 @@
 
   enable-ec_nistp_64_gcc_128
                    Enable support for optimised implementations of some commonly
-                   used NIST elliptic curves. This is only supported on some
-                   platforms.
+                   used NIST elliptic curves.
+                   This is only supported on platforms:
+                   - with little-endian storage of non-byte types
+                   - that tolerate misaligned memory references
+                   - where the compiler:
+                     - supports the non-standard type __uint128_t
+                     - defines the built-in macro __SIZEOF_INT128__
 
   enable-egd
                    Build support for gathering entropy from EGD (Entropy
@@ -316,6 +358,13 @@
 
   no-err
                    Don't compile in any error strings.
+
+  enable-external-tests
+                   Enable building of integration with external test suites.
+                   This is a developer option and may not work on all platforms.
+                   The only supported external test suite at the current time is
+                   the BoringSSL test suite. See the file test/README.external
+                   for further details.
 
   no-filenames
                    Don't compile in filename and line number information (e.g.
@@ -332,9 +381,6 @@
                    if this feature is enabled then GOST ciphersuites are only
                    available if the GOST algorithms are also available through
                    loading an externally supplied engine.
-
-  enable-heartbeats
-                   Build support for DTLS heartbeats.
 
   no-hw-padlock
                    Don't build the padlock engine.
@@ -416,6 +462,9 @@
                    the OpenSSL tests also use the command line applications the
                    tests will also be skipped.
 
+  no-tests
+                   Don't build test programs or run any test.
+
   no-threads
                    Don't try to build with support for multi-threaded
                    applications.
@@ -468,18 +517,22 @@
 
   no-<prot>
                    Don't build support for negotiating the specified SSL/TLS
-                   protocol (one of ssl, ssl3, tls, tls1, tls1_1, tls1_2, dtls,
-                   dtls1 or dtls1_2). If "no-tls" is selected then all of tls1,
-                   tls1_1 and tls1_2 are disabled. Similarly "no-dtls" will
-                   disable dtls1 and dtls1_2. The "no-ssl" option is synonymous
-                   with "no-ssl3". Note this only affects version negotiation.
-                   OpenSSL will still provide the methods for applications to
-                   explicitly select the individual protocol versions.
+                   protocol (one of ssl, ssl3, tls, tls1, tls1_1, tls1_2,
+                   tls1_3, dtls, dtls1 or dtls1_2). If "no-tls" is selected then
+                   all of tls1, tls1_1, tls1_2 and tls1_3 are disabled.
+                   Similarly "no-dtls" will disable dtls1 and dtls1_2. The
+                   "no-ssl" option is synonymous with "no-ssl3". Note this only
+                   affects version negotiation. OpenSSL will still provide the
+                   methods for applications to explicitly select the individual
+                   protocol versions.
 
   no-<prot>-method
                    As for no-<prot> but in addition do not build the methods for
                    applications to explicitly select individual protocol
-                   versions.
+                   versions. Note that there is no "no-tls1_3-method" option
+                   because there is no application method for TLSv1.3. Using
+                   individual protocol methods directly is deprecated.
+                   Applications should use TLS_method() instead.
 
   enable-<alg>
                    Build with support for the specified algorithm, where <alg>
@@ -487,13 +540,14 @@
 
   no-<alg>
                    Build without support for the specified algorithm, where
-                   <alg> is one of: bf, blake2, camellia, cast, chacha, cmac,
-                   des, dh, dsa, ecdh, ecdsa, idea, md4, mdc2, ocb, poly1305,
-                   rc2, rc4, rmd160, scrypt, seed or whirlpool. The "ripemd"
-                   algorithm is deprecated and if used is synonymous with rmd160.
+                   <alg> is one of: aria, bf, blake2, camellia, cast, chacha,
+                   cmac, des, dh, dsa, ecdh, ecdsa, idea, md4, mdc2, ocb,
+                   poly1305, rc2, rc4, rmd160, scrypt, seed, siphash, sm2, sm3,
+                   sm4 or whirlpool.  The "ripemd" algorithm is deprecated and
+                   if used is synonymous with rmd160.
 
-  -Dxxx, lxxx, -Lxxx, -Wl, -rpath, -R, -framework, -static
-                   These system specific options will be recocognised and
+  -Dxxx, -Ixxx, -Wp, -lxxx, -Lxxx, -Wl, -rpath, -R, -framework, -static
+                   These system specific options will be recognised and
                    passed through to the compiler to allow you to define
                    preprocessor symbols, specify additional libraries, library
                    directories or other compiler options. It might be worth
@@ -503,11 +557,123 @@
                    unsuitable for execution on other, typically older,
                    processor. Consult your compiler documentation.
 
+                   Take note of the VAR=value documentation below and how
+                   these flags interact with those variables.
+
   -xxx, +xxx
                    Additional options that are not otherwise recognised are
                    passed through as they are to the compiler as well.  Again,
                    consult your compiler documentation.
 
+                   Take note of the VAR=value documentation below and how
+                   these flags interact with those variables.
+
+  VAR=value
+                   Assignment of environment variable for Configure.  These
+                   work just like normal environment variable assignments,
+                   but are supported on all platforms and are confined to
+                   the configuration scripts only.  These assignments override
+                   the corresponding value in the inherited environment, if
+                   there is one.
+
+                   The following variables are used as "make variables" and
+                   can be used as an alternative to giving preprocessor,
+                   compiler and linker options directly as configuration.
+                   The following variables are supported:
+
+                   AR              The static library archiver.
+                   ARFLAGS         Flags for the static library archiver.
+                   AS              The assembler compiler.
+                   ASFLAGS         Flags for the assembler compiler.
+                   CC              The C compiler.
+                   CFLAGS          Flags for the C compiler.
+                   CXX             The C++ compiler.
+                   CXXFLAGS        Flags for the C++ compiler.
+                   CPP             The C/C++ preprocessor.
+                   CPPFLAGS        Flags for the C/C++ preprocessor.
+                   CPPDEFINES      List of CPP macro definitions, separated
+                                   by a platform specific character (':' or
+                                   space for Unix, ';' for Windows, ',' for
+                                   VMS).  This can be used instead of using
+                                   -D (or what corresponds to that on your
+                                   compiler) in CPPFLAGS.
+                   CPPINCLUDES     List of CPP inclusion directories, separated
+                                   the same way as for CPPDEFINES.  This can
+                                   be used instead of -I (or what corresponds
+                                   to that on your compiler) in CPPFLAGS.
+                   HASHBANGPERL    Perl invocation to be inserted after '#!'
+                                   in public perl scripts (only relevant on
+                                   Unix).
+                   LD              The program linker (not used on Unix, $(CC)
+                                   is used there).
+                   LDFLAGS         Flags for the shared library, DSO and
+                                   program linker.
+                   LDLIBS          Extra libraries to use when linking.
+                                   Takes the form of a space separated list
+                                   of library specifications on Unix and
+                                   Windows, and as a comma separated list of
+                                   libraries on VMS.
+                   RANLIB          The library archive indexer.
+                   RC              The Windows resource compiler.
+                   RCFLAGS         Flags for the Windows resource compiler.
+                   RM              The command to remove files and directories.
+
+                   These cannot be mixed with compiling / linking flags given
+                   on the command line.  In other words, something like this
+                   isn't permitted.
+
+                       ./config -DFOO CPPFLAGS=-DBAR -DCOOKIE
+
+                   Backward compatibility note:
+
+                   To be compatible with older configuration scripts, the
+                   environment variables are ignored if compiling / linking
+                   flags are given on the command line, except for these:
+
+                   AR, CC, CXX, CROSS_COMPILE, HASHBANGPERL, PERL, RANLIB, RC
+                   and WINDRES
+
+                   For example, the following command will not see -DBAR:
+
+                        CPPFLAGS=-DBAR ./config -DCOOKIE
+
+                   However, the following will see both set variables:
+
+                        CC=gcc CROSS_COMPILE=x86_64-w64-mingw32- \
+                        ./config -DCOOKIE
+
+  reconf
+  reconfigure
+                   Reconfigure from earlier data.  This fetches the previous
+                   command line options and environment from data saved in
+                   "configdata.pm", and runs the configuration process again,
+                   using these options and environment.
+                   Note: NO other option is permitted together with "reconf".
+                   This means that you also MUST use "./Configure" (or
+                   what corresponds to that on non-Unix platforms) directly
+                   to invoke this option.
+                   Note: The original configuration saves away values for ALL
+                   environment variables that were used, and if they weren't
+                   defined, they are still saved away with information that
+                   they weren't originally defined.  This information takes
+                   precedence over environment variables that are defined
+                   when reconfiguring.
+
+ Displaying configuration data
+ -----------------------------
+
+ The configuration script itself will say very little, and finishes by
+ creating "configdata.pm".  This perl module can be loaded by other scripts
+ to find all the configuration data, and it can also be used as a script to
+ display all sorts of configuration data in a human readable form.
+
+ For more information, please do:
+
+       $ ./configdata.pm --help                         # Unix
+
+       or
+
+       $ perl configdata.pm --help                      # Windows and VMS
 
  Installation in Detail
  ----------------------
@@ -620,21 +786,33 @@
      ("openssl"). The libraries will be built in the top-level directory,
      and the binary will be in the "apps" subdirectory.
 
+     Troubleshooting:
+
      If the build fails, look at the output.  There may be reasons
      for the failure that aren't problems in OpenSSL itself (like
-     missing standard headers).  If you are having problems you can
-     get help by sending an email to the openssl-users email list (see
+     missing standard headers).
+
+     If the build succeeded previously, but fails after a source or
+     configuration change, it might be helpful to clean the build tree
+     before attempting another build. Use this command:
+
+       $ make clean                                     # Unix
+       $ mms clean                                      ! (or mmk) OpenVMS
+       $ nmake clean                                    # Windows
+
+     Assembler error messages can sometimes be sidestepped by using the
+     "no-asm" configuration option.
+
+     Compiling parts of OpenSSL with gcc and others with the system
+     compiler will result in unresolved symbols on some systems.
+
+     If you are still having problems you can get help by sending an email
+     to the openssl-users email list (see
      https://www.openssl.org/community/mailinglists.html for details). If
      it is a bug with OpenSSL itself, please open an issue on GitHub, at
      https://github.com/openssl/openssl/issues. Please review the existing
      ones first; maybe the bug was already reported or has already been
      fixed.
-
-     (If you encounter assembler error messages, try the "no-asm"
-     configuration option as an immediate fix.)
-
-     Compiling parts of OpenSSL with gcc and others with the system
-     compiler will result in unresolved symbols on some systems.
 
   3. After a successful build, the libraries should be tested. Run:
 
@@ -664,7 +842,7 @@
        $ nmake TESTS='test_rsa test_dsa' test           # Windows
 
      And of course, you can combine (Unix example shown):
-       
+
        $ make VERBOSE=1 TESTS='test_rsa test_dsa' test
 
      You can find the list of available tests like this:
@@ -682,6 +860,9 @@
 
      To report a bug please open an issue on GitHub, at
      https://github.com/openssl/openssl/issues.
+
+     For more details on how the make variables TESTS can be used,
+     see section TESTS in Detail below.
 
   4. If everything tests ok, install OpenSSL with
 
@@ -734,7 +915,7 @@
                         command symbols.
          [.SYSTEST]     Contains the installation verification procedure.
          [.HTML]        Contains the HTML rendition of the manual pages.
-                        
+
 
      Additionally, install will add the following directories under
      OPENSSLDIR (the directory given with --openssldir or its default)
@@ -788,7 +969,7 @@
 
  BUILDFILE
                 Use a different build file name than the platform default
-                ("Makefile" on Unixly platforms, "makefile" on native Windows,
+                ("Makefile" on Unix-like platforms, "makefile" on native Windows,
                 "descrip.mms" on OpenVMS).  This requires that there is a
                 corresponding build file template.  See Configurations/README
                 for further information.
@@ -820,11 +1001,14 @@
                 possible to create your own ".conf" and ".tmpl" files and store
                 them locally, outside the OpenSSL source tree. This environment
                 variable can be set to the directory where these files are held
-                and will have Configure to consider them in addition to the
-                standard ones.
+                and will be considered by Configure before it looks in the
+                standard directories.
 
  PERL
                 The name of the Perl executable to use when building OpenSSL.
+                This variable is used in config script only. Configure on the
+                other hand imposes the interpreter by which it itself was
+                executed on the whole build procedure.
 
  HASHBANGPERL
                 The command string for the Perl executable to insert in the
@@ -889,11 +1073,67 @@
  uninstall
                 Uninstall all OpenSSL components.
 
+ reconfigure
+ reconf
+                Re-run the configuration process, as exactly as the last time
+                as possible.
+
  update
                 This is a developer option. If you are developing a patch for
                 OpenSSL you may need to use this if you want to update
                 automatically generated files; add new error codes or add new
                 (or change the visibility of) public API functions. (Unix only).
+
+ TESTS in Detail
+ ---------------
+
+ The make variable TESTS supports a versatile set of space separated tokens
+ with which you can specify a set of tests to be performed.  With a "current
+ set of tests" in mind, initially being empty, here are the possible tokens:
+
+ alltests       The current set of tests becomes the whole set of available
+                tests (as listed when you do 'make list-tests' or similar).
+ xxx            Adds the test 'xxx' to the current set of tests.
+ -xxx           Removes 'xxx' from the current set of tests.  If this is the
+                first token in the list, the current set of tests is first
+                assigned the whole set of available tests, effectively making
+                this token equivalent to TESTS="alltests -xxx".
+ nn             Adds the test group 'nn' (which is a number) to the current
+                set of tests.
+ -nn            Removes the test group 'nn' from the current set of tests.
+                If this is the first token in the list, the current set of
+                tests is first assigned the whole set of available tests,
+                effectively making this token equivalent to
+                TESTS="alltests -xxx".
+
+ Also, all tokens except for "alltests" may have wildcards, such as *.
+ (on Unix and Windows, BSD style wildcards are supported, while on VMS,
+ it's VMS style wildcards)
+
+ Example: All tests except for the fuzz tests:
+
+ $ make TESTS=-test_fuzz test
+
+ or (if you want to be explicit)
+
+ $ make TESTS='alltests -test_fuzz' test
+
+ Example: All tests that have a name starting with "test_ssl" but not those
+ starting with "test_ssl_":
+
+ $ make TESTS='test_ssl* -test_ssl_*' test
+
+ Example: Only test group 10:
+
+ $ make TESTS='10'
+
+ Example: All tests except the slow group (group 99):
+
+ $ make TESTS='-99'
+
+ Example: All tests in test groups 80 to 99 except for tests in group 90:
+
+ $ make TESTS='[89]? -90'
 
  Note on multi-threading
  -----------------------
@@ -931,7 +1171,7 @@
  part of the file name, i.e. for OpenSSL 1.1.x, 1.1 is somehow part of
  the name.
 
- On most POSIXly platforms, shared libraries are named libcrypto.so.1.1
+ On most POSIX platforms, shared libraries are named libcrypto.so.1.1
  and libssl.so.1.1.
 
  on Cygwin, shared libraries are named cygcrypto-1.1.dll and cygssl-1.1.dll
@@ -956,10 +1196,22 @@
 
  Availability of cryptographically secure random numbers is required for
  secret key generation. OpenSSL provides several options to seed the
- internal PRNG. If not properly seeded, the internal PRNG will refuse
+ internal CSPRNG. If not properly seeded, the internal CSPRNG will refuse
  to deliver random bytes and a "PRNG not seeded error" will occur.
- On systems without /dev/urandom (or similar) device, it may be necessary
- to install additional support software to obtain a random seed.
- Please check out the manual pages for RAND_add(), RAND_bytes(), RAND_egd(),
- and the FAQ for more information.
 
+ The seeding method can be configured using the --with-rand-seed option,
+ which can be used to specify a comma separated list of seed methods.
+ However in most cases OpenSSL will choose a suitable default method,
+ so it is not necessary to explicitly provide this option. Note also
+ that not all methods are available on all platforms.
+
+ I) On operating systems which provide a suitable randomness source (in
+ form  of a system call or system device), OpenSSL will use the optimal
+ available  method to seed the CSPRNG from the operating system's
+ randomness sources. This corresponds to the option --with-rand-seed=os.
+
+ II) On systems without such a suitable randomness source, automatic seeding
+ and reseeding is disabled (--with-rand-seed=none) and it may be necessary
+ to install additional support software to obtain a random seed and reseed
+ the CSPRNG manually.  Please check out the manual pages for RAND_add(),
+ RAND_bytes(), RAND_egd(), and the FAQ for more information.

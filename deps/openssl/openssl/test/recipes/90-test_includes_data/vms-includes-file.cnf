@@ -1,0 +1,5 @@
+#
+# Example configuration file using includes.
+#
+
+.include vms-includes.cnf

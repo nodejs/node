@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
  */
 
 #include <stdio.h>
-#include <ctype.h>
+#include "internal/ctype.h"
 #include <limits.h>
 #include "internal/cryptlib.h"
 #include <openssl/buffer.h>
@@ -32,27 +32,27 @@ char *BN_bn2hex(const BIGNUM *a)
     }
     p = buf;
     if (a->neg)
-        *(p++) = '-';
+        *p++ = '-';
     for (i = a->top - 1; i >= 0; i--) {
         for (j = BN_BITS2 - 8; j >= 0; j -= 8) {
             /* strip leading zeros */
-            v = ((int)(a->d[i] >> (long)j)) & 0xff;
-            if (z || (v != 0)) {
-                *(p++) = Hex[v >> 4];
-                *(p++) = Hex[v & 0x0f];
+            v = (int)((a->d[i] >> j) & 0xff);
+            if (z || v != 0) {
+                *p++ = Hex[v >> 4];
+                *p++ = Hex[v & 0x0f];
                 z = 1;
             }
         }
     }
     *p = '\0';
  err:
-    return (buf);
+    return buf;
 }
 
 /* Must 'OPENSSL_free' the returned data */
 char *BN_bn2dec(const BIGNUM *a)
 {
-    int i = 0, num, ok = 0;
+    int i = 0, num, ok = 0, n, tbytes;
     char *buf = NULL;
     char *p;
     BIGNUM *t = NULL;
@@ -67,22 +67,22 @@ char *BN_bn2dec(const BIGNUM *a)
      */
     i = BN_num_bits(a) * 3;
     num = (i / 10 + i / 1000 + 1) + 1;
+    tbytes = num + 3;   /* negative and terminator and one spare? */
     bn_data_num = num / BN_DEC_NUM + 1;
     bn_data = OPENSSL_malloc(bn_data_num * sizeof(BN_ULONG));
-    buf = OPENSSL_malloc(num + 3);
-    if ((buf == NULL) || (bn_data == NULL)) {
+    buf = OPENSSL_malloc(tbytes);
+    if (buf == NULL || bn_data == NULL) {
         BNerr(BN_F_BN_BN2DEC, ERR_R_MALLOC_FAILURE);
         goto err;
     }
     if ((t = BN_dup(a)) == NULL)
         goto err;
 
-#define BUF_REMAIN (num+3 - (size_t)(p - buf))
     p = buf;
     lp = bn_data;
     if (BN_is_zero(t)) {
-        *(p++) = '0';
-        *(p++) = '\0';
+        *p++ = '0';
+        *p++ = '\0';
     } else {
         if (BN_is_negative(t))
             *p++ = '-';
@@ -101,14 +101,16 @@ char *BN_bn2dec(const BIGNUM *a)
          * the last one needs truncation. The blocks need to be reversed in
          * order.
          */
-        BIO_snprintf(p, BUF_REMAIN, BN_DEC_FMT1, *lp);
-        while (*p)
-            p++;
+        n = BIO_snprintf(p, tbytes - (size_t)(p - buf), BN_DEC_FMT1, *lp);
+        if (n < 0)
+            goto err;
+        p += n;
         while (lp != bn_data) {
             lp--;
-            BIO_snprintf(p, BUF_REMAIN, BN_DEC_FMT2, *lp);
-            while (*p)
-                p++;
+            n = BIO_snprintf(p, tbytes - (size_t)(p - buf), BN_DEC_FMT2, *lp);
+            if (n < 0)
+                goto err;
+            p += n;
         }
     }
     ok = 1;
@@ -128,28 +130,28 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
     int neg = 0, h, m, i, j, k, c;
     int num;
 
-    if ((a == NULL) || (*a == '\0'))
-        return (0);
+    if (a == NULL || *a == '\0')
+        return 0;
 
     if (*a == '-') {
         neg = 1;
         a++;
     }
 
-    for (i = 0; i <= (INT_MAX/4) && isxdigit((unsigned char)a[i]); i++)
+    for (i = 0; i <= INT_MAX / 4 && ossl_isxdigit(a[i]); i++)
         continue;
 
-    if (i == 0 || i > INT_MAX/4)
+    if (i == 0 || i > INT_MAX / 4)
         goto err;
 
     num = i + neg;
     if (bn == NULL)
-        return (num);
+        return num;
 
     /* a is the start of the hex digits, and it is 'i' long */
     if (*bn == NULL) {
         if ((ret = BN_new()) == NULL)
-            return (0);
+            return 0;
     } else {
         ret = *bn;
         BN_zero(ret);
@@ -163,7 +165,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
     m = 0;
     h = 0;
     while (j > 0) {
-        m = ((BN_BYTES * 2) <= j) ? (BN_BYTES * 2) : j;
+        m = (BN_BYTES * 2 <= j) ? BN_BYTES * 2 : j;
         l = 0;
         for (;;) {
             c = a[j - m];
@@ -177,7 +179,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
                 break;
             }
         }
-        j -= (BN_BYTES * 2);
+        j -= BN_BYTES * 2;
     }
     ret->top = h;
     bn_correct_top(ret);
@@ -187,11 +189,11 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
     /* Don't set the negative flag if it's zero. */
     if (ret->top != 0)
         ret->neg = neg;
-    return (num);
+    return num;
  err:
     if (*bn == NULL)
         BN_free(ret);
-    return (0);
+    return 0;
 }
 
 int BN_dec2bn(BIGNUM **bn, const char *a)
@@ -201,22 +203,22 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
     int neg = 0, i, j;
     int num;
 
-    if ((a == NULL) || (*a == '\0'))
-        return (0);
+    if (a == NULL || *a == '\0')
+        return 0;
     if (*a == '-') {
         neg = 1;
         a++;
     }
 
-    for (i = 0; i <= (INT_MAX/4) && isdigit((unsigned char)a[i]); i++)
+    for (i = 0; i <= INT_MAX / 4 && ossl_isdigit(a[i]); i++)
         continue;
 
-    if (i == 0 || i > INT_MAX/4)
+    if (i == 0 || i > INT_MAX / 4)
         goto err;
 
     num = i + neg;
     if (bn == NULL)
-        return (num);
+        return num;
 
     /*
      * a is the start of the digits, and it is 'i' long. We chop it into
@@ -224,7 +226,7 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
      */
     if (*bn == NULL) {
         if ((ret = BN_new()) == NULL)
-            return (0);
+            return 0;
     } else {
         ret = *bn;
         BN_zero(ret);
@@ -234,7 +236,7 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
     if (bn_expand(ret, i * 4) == NULL)
         goto err;
 
-    j = BN_DEC_NUM - (i % BN_DEC_NUM);
+    j = BN_DEC_NUM - i % BN_DEC_NUM;
     if (j == BN_DEC_NUM)
         j = 0;
     l = 0;
@@ -257,11 +259,11 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
     /* Don't set the negative flag if it's zero. */
     if (ret->top != 0)
         ret->neg = neg;
-    return (num);
+    return num;
  err:
     if (*bn == NULL)
         BN_free(ret);
-    return (0);
+    return 0;
 }
 
 int BN_asc2bn(BIGNUM **bn, const char *a)
@@ -291,11 +293,11 @@ int BN_print_fp(FILE *fp, const BIGNUM *a)
     int ret;
 
     if ((b = BIO_new(BIO_s_file())) == NULL)
-        return (0);
+        return 0;
     BIO_set_fp(b, fp, BIO_NOCLOSE);
     ret = BN_print(b, a);
     BIO_free(b);
-    return (ret);
+    return ret;
 }
 # endif
 
@@ -304,16 +306,16 @@ int BN_print(BIO *bp, const BIGNUM *a)
     int i, j, v, z = 0;
     int ret = 0;
 
-    if ((a->neg) && (BIO_write(bp, "-", 1) != 1))
+    if ((a->neg) && BIO_write(bp, "-", 1) != 1)
         goto end;
-    if (BN_is_zero(a) && (BIO_write(bp, "0", 1) != 1))
+    if (BN_is_zero(a) && BIO_write(bp, "0", 1) != 1)
         goto end;
     for (i = a->top - 1; i >= 0; i--) {
         for (j = BN_BITS2 - 4; j >= 0; j -= 4) {
             /* strip leading zeros */
-            v = ((int)(a->d[i] >> (long)j)) & 0x0f;
-            if (z || (v != 0)) {
-                if (BIO_write(bp, &(Hex[v]), 1) != 1)
+            v = (int)((a->d[i] >> j) & 0x0f);
+            if (z || v != 0) {
+                if (BIO_write(bp, &Hex[v], 1) != 1)
                     goto end;
                 z = 1;
             }
@@ -321,7 +323,7 @@ int BN_print(BIO *bp, const BIGNUM *a)
     }
     ret = 1;
  end:
-    return (ret);
+    return ret;
 }
 
 char *BN_options(void)
@@ -332,12 +334,12 @@ char *BN_options(void)
     if (!init) {
         init++;
 #ifdef BN_LLONG
-        BIO_snprintf(data, sizeof(data), "bn(%d,%d)",
-                     (int)sizeof(BN_ULLONG) * 8, (int)sizeof(BN_ULONG) * 8);
+        BIO_snprintf(data, sizeof(data), "bn(%zu,%zu)",
+                     sizeof(BN_ULLONG) * 8, sizeof(BN_ULONG) * 8);
 #else
-        BIO_snprintf(data, sizeof(data), "bn(%d,%d)",
-                     (int)sizeof(BN_ULONG) * 8, (int)sizeof(BN_ULONG) * 8);
+        BIO_snprintf(data, sizeof(data), "bn(%zu,%zu)",
+                     sizeof(BN_ULONG) * 8, sizeof(BN_ULONG) * 8);
 #endif
     }
-    return (data);
+    return data;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -146,25 +146,17 @@ PKCS12_SAFEBAG *PKCS12_SAFEBAG_create_pkcs8_encrypt(int pbe_nid,
     X509_SIG *p8;
 
     pbe_ciph = EVP_get_cipherbynid(pbe_nid);
-
     if (pbe_ciph)
         pbe_nid = -1;
 
     p8 = PKCS8_encrypt(pbe_nid, pbe_ciph, pass, passlen, salt, saltlen, iter,
                        p8inf);
-
-    if (p8 == NULL) {
-        PKCS12err(PKCS12_F_PKCS12_SAFEBAG_CREATE_PKCS8_ENCRYPT, ERR_R_MALLOC_FAILURE);
+    if (p8 == NULL)
         return NULL;
-    }
 
     bag = PKCS12_SAFEBAG_create0_pkcs8(p8);
-
-    if (bag == NULL) {
-        PKCS12err(PKCS12_F_PKCS12_SAFEBAG_CREATE_PKCS8_ENCRYPT, ERR_R_MALLOC_FAILURE);
+    if (bag == NULL)
         X509_SIG_free(p8);
-        return NULL;
-    }
 
     return bag;
 }

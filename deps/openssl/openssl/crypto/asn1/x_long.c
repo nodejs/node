@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,12 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1t.h>
+
+#if !(OPENSSL_API_COMPAT < 0x10200000L)
+NON_EMPTY_TRANSLATION_UNIT
+#else
+
+#define COPY_SIZE(a, b) (sizeof(a) < sizeof(b) ? sizeof(a) : sizeof(b))
 
 /*
  * Custom primitive type for long handling. This converts between an
@@ -46,13 +52,13 @@ ASN1_ITEM_end(ZLONG)
 
 static int long_new(ASN1_VALUE **pval, const ASN1_ITEM *it)
 {
-    *(long *)pval = it->size;
+    memcpy(pval, &it->size, COPY_SIZE(*pval, it->size));
     return 1;
 }
 
 static void long_free(ASN1_VALUE **pval, const ASN1_ITEM *it)
 {
-    *(long *)pval = it->size;
+    memcpy(pval, &it->size, COPY_SIZE(*pval, it->size));
 }
 
 /*
@@ -86,12 +92,8 @@ static int long_i2c(ASN1_VALUE **pval, unsigned char *cont, int *putype,
     long ltmp;
     unsigned long utmp, sign;
     int clen, pad, i;
-    /* this exists to bypass broken gcc optimization */
-    char *cp = (char *)pval;
 
-    /* use memcpy, because we may not be long aligned */
-    memcpy(&ltmp, cp, sizeof(long));
-
+    memcpy(&ltmp, pval, COPY_SIZE(*pval, ltmp));
     if (ltmp == it->size)
         return -1;
     /*
@@ -133,7 +135,6 @@ static int long_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
     int i;
     long ltmp;
     unsigned long utmp = 0, sign = 0x100;
-    char *cp = (char *)pval;
 
     if (len > 1) {
         /*
@@ -185,12 +186,16 @@ static int long_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
         ASN1err(ASN1_F_LONG_C2I, ASN1_R_INTEGER_TOO_LARGE_FOR_LONG);
         return 0;
     }
-    memcpy(cp, &ltmp, sizeof(long));
+    memcpy(pval, &ltmp, COPY_SIZE(*pval, ltmp));
     return 1;
 }
 
 static int long_print(BIO *out, ASN1_VALUE **pval, const ASN1_ITEM *it,
                       int indent, const ASN1_PCTX *pctx)
 {
-    return BIO_printf(out, "%ld\n", *(long *)pval);
+    long l;
+
+    memcpy(&l, pval, COPY_SIZE(*pval, l));
+    return BIO_printf(out, "%ld\n", l);
 }
+#endif

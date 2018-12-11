@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -21,7 +21,7 @@ plan tests => 6;
 require_ok(srctop_file('test','recipes','tconversion.pl'));
 
 ok(run(test(["dsatest"])), "running dsatest");
-ok(run(test(["dsatest", "-app2_1"])), "running dsatest -app2_1");
+ok(run(test(["dsa_no_digest_size_test"])), "running dsa_no_digest_size_test");
 
  SKIP: {
      skip "Skipping dsa conversion test", 3

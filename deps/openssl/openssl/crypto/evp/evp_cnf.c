@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,6 @@
  */
 
 #include <stdio.h>
-#include <ctype.h>
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
 #include <openssl/conf.h>
@@ -38,16 +37,8 @@ static int alg_module_init(CONF_IMODULE *md, const CONF *cnf)
                 return 0;
             }
             if (m > 0) {
-#ifdef OPENSSL_FIPS
-                if (!FIPS_mode() && !FIPS_mode_set(1)) {
-                    EVPerr(EVP_F_ALG_MODULE_INIT,
-                           EVP_R_ERROR_SETTING_FIPS_MODE);
-                    return 0;
-                }
-#else
                 EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_FIPS_MODE_NOT_SUPPORTED);
                 return 0;
-#endif
             }
         } else {
             EVPerr(EVP_F_ALG_MODULE_INIT, EVP_R_UNKNOWN_OPTION);

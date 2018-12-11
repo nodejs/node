@@ -67,6 +67,8 @@ $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? "0x0003f000" : "0x00030000";
 ($in0,$in1,$tmp0,$tmp1,$tmp2,$tmp3,$tmp4) = ($a4,$a5,$a6,$a7,$at,$t0,$t1);
 
 $code.=<<___;
+#include "mips_arch.h"
+
 #ifdef MIPSEB
 # define MSB 0
 # define LSB 7
@@ -92,10 +94,15 @@ poly1305_init:
 
 	beqz	$inp,.Lno_key
 
+#if defined(_MIPS_ARCH_MIPS64R6)
+	ld	$in0,0($inp)
+	ld	$in1,8($inp)
+#else
 	ldl	$in0,0+MSB($inp)
 	ldl	$in1,8+MSB($inp)
 	ldr	$in0,0+LSB($inp)
 	ldr	$in1,8+LSB($inp)
+#endif
 #ifdef	MIPSEB
 # if defined(_MIPS_ARCH_MIPS64R2)
 	dsbh	$in0,$in0		# byte swap
@@ -182,7 +189,7 @@ poly1305_blocks_internal:
 	.frame	$sp,6*8,$ra
 	.mask	$SAVED_REGS_MASK,-8
 	.set	noreorder
-	dsub	$sp,6*8
+	dsubu	$sp,6*8
 	sd	$s5,40($sp)
 	sd	$s4,32($sp)
 ___
@@ -204,11 +211,16 @@ $code.=<<___;
 	ld	$s1,40($ctx)
 
 .Loop:
+#if defined(_MIPS_ARCH_MIPS64R6)
+	ld	$in0,0($inp)		# load input
+	ld	$in1,8($inp)
+#else
 	ldl	$in0,0+MSB($inp)	# load input
 	ldl	$in1,8+MSB($inp)
 	ldr	$in0,0+LSB($inp)
-	daddiu	$len,-1
 	ldr	$in1,8+LSB($inp)
+#endif
+	daddiu	$len,-1
 	daddiu	$inp,16
 #ifdef	MIPSEB
 # if defined(_MIPS_ARCH_MIPS64R2)
@@ -258,42 +270,42 @@ $code.=<<___;
 	sltu	$tmp1,$h1,$in1
 	daddu	$h1,$tmp0
 
-	dmultu	$r0,$h0			# h0*r0
+	dmultu	($r0,$h0)		# h0*r0
 	 daddu	$h2,$padbit
 	 sltu	$tmp0,$h1,$tmp0
-	mflo	$d0
-	mfhi	$d1
+	mflo	($d0,$r0,$h0)
+	mfhi	($d1,$r0,$h0)
 
-	dmultu	$s1,$h1			# h1*5*r1
+	dmultu	($s1,$h1)		# h1*5*r1
 	 daddu	$tmp0,$tmp1
 	 daddu	$h2,$tmp0
-	mflo	$tmp0
-	mfhi	$tmp1
+	mflo	($tmp0,$s1,$h1)
+	mfhi	($tmp1,$s1,$h1)
 
-	dmultu	$r1,$h0			# h0*r1
+	dmultu	($r1,$h0)		# h0*r1
 	 daddu	$d0,$tmp0
 	 daddu	$d1,$tmp1
-	mflo	$tmp2
-	mfhi	$d2
+	mflo	($tmp2,$r1,$h0)
+	mfhi	($d2,$r1,$h0)
 	 sltu	$tmp0,$d0,$tmp0
 	 daddu	$d1,$tmp0
 
-	dmultu	$r0,$h1			# h1*r0
+	dmultu	($r0,$h1)		# h1*r0
 	 daddu	$d1,$tmp2
 	 sltu	$tmp2,$d1,$tmp2
-	mflo	$tmp0
-	mfhi	$tmp1
+	mflo	($tmp0,$r0,$h1)
+	mfhi	($tmp1,$r0,$h1)
 	 daddu	$d2,$tmp2
 
-	dmultu	$s1,$h2			# h2*5*r1
+	dmultu	($s1,$h2)		# h2*5*r1
 	 daddu	$d1,$tmp0
 	 daddu	$d2,$tmp1
-	mflo	$tmp2
+	mflo	($tmp2,$s1,$h2)
 
-	dmultu	$r0,$h2			# h2*r0
+	dmultu	($r0,$h2)		# h2*r0
 	 sltu	$tmp0,$d1,$tmp0
 	 daddu	$d2,$tmp0
-	mflo	$tmp3
+	mflo	($tmp3,$r0,$h2)
 
 	daddu	$d1,$tmp2
 	daddu	$d2,$tmp3
@@ -329,7 +341,7 @@ $code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi epilogue
 ___
 $code.=<<___;
 	jr	$ra
-	dadd	$sp,6*8
+	daddu	$sp,6*8
 .end	poly1305_blocks_internal
 ___
 }

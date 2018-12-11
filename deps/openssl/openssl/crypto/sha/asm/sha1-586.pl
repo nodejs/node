@@ -35,10 +35,9 @@
 # P4		+85%(!)			+45%
 #
 # As you can see Pentium came out as looser:-( Yet I reckoned that
-# improvement on P4 outweights the loss and incorporate this
+# improvement on P4 outweighs the loss and incorporate this
 # re-tuned code to 0.9.7 and later.
 # ----------------------------------------------------------------
-#					<appro@fy.chalmers.se>
 
 # August 2009.
 #
@@ -104,10 +103,12 @@
 # Sandy Bridge	8.8		6.2/+40%	5.1(**)/+73%
 # Ivy Bridge	7.2		4.8/+51%	4.7(**)/+53%
 # Haswell	6.5		4.3/+51%	4.1(**)/+58%
+# Skylake	6.4		4.1/+55%	4.1(**)/+55%
 # Bulldozer	11.6		6.0/+92%
 # VIA Nano	10.6		7.5/+41%
 # Atom		12.5		9.3(*)/+35%
 # Silvermont	14.5		9.9(*)/+46%
+# Goldmont	8.8		6.7/+30%	1.7(***)/+415%
 #
 # (*)	Loop is 1056 instructions long and expected result is ~8.25.
 #	The discrepancy is because of front-end limitations, so
@@ -115,6 +116,8 @@
 #	limited parallelism.
 #
 # (**)	As per above comment, the result is for AVX *plus* sh[rl]d.
+#
+# (***)	SHAEXT result
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
@@ -123,7 +126,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"sha1-586.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $xmm=$ymm=0;
 for (@ARGV) { $xmm=1 if (/-DOPENSSL_IA32_SSE2/); }
@@ -133,7 +136,7 @@ $ymm=1 if ($xmm &&
 			=~ /GNU assembler version ([2-9]\.[0-9]+)/ &&
 		$1>=2.19);	# first version supporting AVX
 
-$ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32n" && 
+$ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32n" &&
 		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/ &&
 		$1>=2.03);	# first version supporting AVX
 
@@ -546,7 +549,7 @@ for($i=0;$i<20-4;$i+=2) {
 # being implemented in SSSE3). Once 8 quadruples or 32 elements are
 # collected, it switches to routine proposed by Max Locktyukhin.
 #
-# Calculations inevitably require temporary reqisters, and there are
+# Calculations inevitably require temporary registers, and there are
 # no %xmm registers left to spare. For this reason part of the ring
 # buffer, X[2..4] to be specific, is offloaded to 3 quadriples ring
 # buffer on the stack. Keep in mind that X[2] is alias X[-6], X[3] -

@@ -80,7 +80,6 @@ PKCS8_PRIV_KEY_INFO *EVP_PKEY2PKCS8(EVP_PKEY *pkey)
         EVPerr(EVP_F_EVP_PKEY2PKCS8, EVP_R_UNSUPPORTED_PRIVATE_KEY_ALGORITHM);
         goto error;
     }
-    RAND_add(p8->pkey->data, p8->pkey->length, 0.0);
     return p8;
  error:
     PKCS8_PRIV_KEY_INFO_free(p8);

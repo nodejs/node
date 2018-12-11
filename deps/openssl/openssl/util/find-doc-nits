@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -24,7 +24,6 @@ our($opt_h);
 our($opt_l);
 our($opt_n);
 our($opt_p);
-our($opt_s);
 our($opt_u);
 our($opt_c);
 
@@ -35,7 +34,6 @@ Find small errors (nits) in documentation.  Options:
     -d Detailed list of undocumented (implies -u)
     -l Print bogus links
     -n Print nits in POD pages
-    -s Also print missing sections in POD pages (implies -n)
     -p Warn if non-public name documented (implies -n)
     -u List undocumented functions
     -h Print this help message
@@ -154,14 +152,9 @@ sub check()
 
     my $id = "${filename}:1:";
 
-    # Find what section this page is in; assume 3.
-    my $section = 3;
-    $section = 1 if $dirname eq 'apps';
-    $section = $1 if ( $contents =~ /=for comment openssl_manual_section:(\d)/);
-
     &name_synopsis($id, $filename, $contents)
         unless $contents =~ /=for comment generic/
-            or $section != 3;
+            or $filename =~ m@man[157]/@;
 
     print "$id doesn't start with =pod\n"
         if $contents !~ /^=pod/;
@@ -190,7 +183,7 @@ sub check()
 
     if ( $contents !~ /=for comment multiple includes/ ) {
         # Look for multiple consecutive openssl #include lines
-        # (non-consecutive lines are okay; see crypto/MD5.pod).
+        # (non-consecutive lines are okay; see man3/MD5.pod).
         if ( $contents =~ /=head1 SYNOPSIS(.*)=head1 DESCRIPTION/ms ) {
             my $count = 0;
             foreach my $line ( split /\n+/, $1 ) {
@@ -216,9 +209,12 @@ sub check()
     close $OUT;
     unlink $temp || warn "Can't remove $temp, $!";
 
+    # Find what section this page is in; assume 3.
+    my $section = 3;
+    $section = $1 if $dirname =~ /man([1-9])/;
+
     foreach ((@{$mandatory_sections{'*'}}, @{$mandatory_sections{$section}})) {
         # Skip "return values" if not -s
-        next if $_ eq 'RETURN VALUES' and not $opt_s;
         print "$id: missing $_ head1 section\n"
             if $contents !~ /^=head1\s+${_}\s*$/m;
     }
@@ -375,7 +371,7 @@ sub collectnames {
                               # then remove 'something'.  Note that 'something'
                               # may contain POD codes as well...
                               (?:(?:[^\|]|<[^>]*>)*\|)?
-                              # we're only interested in referenses that have
+                              # we're only interested in references that have
                               # a one digit section number
                               ([^\/>\(]+\(\d\))
                              /gx;
@@ -437,7 +433,7 @@ sub checkflags() {
     close CFH;
 
     # Get the list of flags from the synopsis
-    open CFH, "<doc/apps/$cmd.pod"
+    open CFH, "<doc/man1/$cmd.pod"
         || die "Can't open $cmd.pod, $!";
     while ( <CFH> ) {
         chop;
@@ -455,7 +451,7 @@ sub checkflags() {
     if ( scalar @undocced > 0 ) {
         $ok = 0;
         foreach ( @undocced ) {
-            print "doc/apps/$cmd.pod: Missing -$_\n";
+            print "doc/man1/$cmd.pod: Missing -$_\n";
         }
     }
 
@@ -468,20 +464,20 @@ sub checkflags() {
         $ok = 0;
         foreach ( @unimpl ) {
             next if defined $skips{$_};
-            print "doc/apps/$cmd.pod: Not implemented -$_\n";
+            print "doc/man1/$cmd.pod: Not implemented -$_\n";
         }
     }
 
     return $ok;
 }
 
-getopts('cdlnsphu');
+getopts('cdlnphu');
 
 &help() if $opt_h;
-$opt_n = 1 if $opt_s or $opt_p;
+$opt_n = 1 if $opt_p;
 $opt_u = 1 if $opt_d;
 
-die "Need one of -[cdlnspu] flags.\n"
+die "Need one of -[cdlnpu] flags.\n"
     unless $opt_c or $opt_l or $opt_n or $opt_u;
 
 if ( $opt_c ) {
@@ -500,8 +496,8 @@ if ( $opt_c ) {
     # See if each has a manpage.
     foreach ( @commands ) {
         next if $_ eq 'help' || $_ eq 'exit';
-        if ( ! -f "doc/apps/$_.pod" ) {
-            print "doc/apps/$_.pod does not exist\n";
+        if ( ! -f "doc/man1/$_.pod" ) {
+            print "doc/man1/$_.pod does not exist\n";
             $ok = 0;
         } else {
             $ok = 0 if not &checkflags($_);
@@ -537,7 +533,7 @@ if ( $opt_n ) {
 }
 
 if ( $opt_u ) {
-    my %temp = &getdocced('doc/crypto');
+    my %temp = &getdocced('doc/man3');
     foreach ( keys %temp ) {
         $docced{$_} = $temp{$_};
     }

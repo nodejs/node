@@ -8,7 +8,7 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -160,6 +160,8 @@ ___
 }
 
 $code.=<<___;
+#include "s390x_arch.h"
+
 .text
 .align	64
 .type	Ktable,\@object
@@ -172,7 +174,7 @@ sha1_block_data_order:
 ___
 $code.=<<___ if ($kimdfunc);
 	larl	%r1,OPENSSL_s390xcap_P
-	lg	%r0,16(%r1)	# check kimd capabilities
+	lg	%r0,S390X_KIMD(%r1)	# check kimd capabilities
 	tmhh	%r0,`0x8000>>$kimdfunc`
 	jz	.Lsoftware
 	lghi	%r0,$kimdfunc

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,33 +7,66 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "internal/constant_time_locl.h"
-#include "e_os.h"
-
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "internal/nelem.h"
+#include "internal/constant_time_locl.h"
+#include "testutil.h"
+#include "internal/numbers.h"
 
 static const unsigned int CONSTTIME_TRUE = (unsigned)(~0);
 static const unsigned int CONSTTIME_FALSE = 0;
 static const unsigned char CONSTTIME_TRUE_8 = 0xff;
 static const unsigned char CONSTTIME_FALSE_8 = 0;
+static const size_t CONSTTIME_TRUE_S = ~((size_t)0);
+static const size_t CONSTTIME_FALSE_S = 0;
+static uint32_t CONSTTIME_TRUE_32 = (uint32_t)(~(uint32_t)0);
+static uint32_t CONSTTIME_FALSE_32 = 0;
+static uint64_t CONSTTIME_TRUE_64 = (uint64_t)(~(uint64_t)0);
+static uint64_t CONSTTIME_FALSE_64 = 0;
+
+static unsigned int test_values[] = {
+    0, 1, 1024, 12345, 32000, UINT_MAX / 2 - 1,
+    UINT_MAX / 2, UINT_MAX / 2 + 1, UINT_MAX - 1,
+    UINT_MAX
+};
+
+static unsigned char test_values_8[] = {
+    0, 1, 2, 20, 32, 127, 128, 129, 255
+};
+
+static int signed_test_values[] = {
+    0, 1, -1, 1024, -1024, 12345, -12345,
+    32000, -32000, INT_MAX, INT_MIN, INT_MAX - 1,
+    INT_MIN + 1
+};
+
+static size_t test_values_s[] = {
+    0, 1, 1024, 12345, 32000, SIZE_MAX / 2 - 1,
+    SIZE_MAX / 2, SIZE_MAX / 2 + 1, SIZE_MAX - 1,
+    SIZE_MAX
+};
+
+static uint32_t test_values_32[] = {
+    0, 1, 1024, 12345, 32000, UINT32_MAX / 2, UINT32_MAX / 2 + 1,
+    UINT32_MAX - 1, UINT32_MAX
+};
+
+static uint64_t test_values_64[] = {
+    0, 1, 1024, 12345, 32000, 32000000, 32000000001, UINT64_MAX / 2,
+    UINT64_MAX / 2 + 1, UINT64_MAX - 1, UINT64_MAX
+};
 
 static int test_binary_op(unsigned int (*op) (unsigned int a, unsigned int b),
                           const char *op_name, unsigned int a, unsigned int b,
                           int is_true)
 {
-    unsigned c = op(a, b);
-    if (is_true && c != CONSTTIME_TRUE) {
-        fprintf(stderr, "Test failed for %s(%du, %du): expected %du "
-                "(TRUE), got %du\n", op_name, a, b, CONSTTIME_TRUE, c);
-        return 1;
-    } else if (!is_true && c != CONSTTIME_FALSE) {
-        fprintf(stderr, "Test failed for  %s(%du, %du): expected %du "
-                "(FALSE), got %du\n", op_name, a, b, CONSTTIME_FALSE, c);
-        return 1;
-    }
-    return 0;
+    if (is_true && !TEST_uint_eq(op(a, b), CONSTTIME_TRUE))
+        return 0;
+    if (!is_true && !TEST_uint_eq(op(a, b), CONSTTIME_FALSE))
+        return 0;
+    return 1;
 }
 
 static int test_binary_op_8(unsigned
@@ -41,228 +74,341 @@ static int test_binary_op_8(unsigned
                             const char *op_name, unsigned int a,
                             unsigned int b, int is_true)
 {
-    unsigned char c = op(a, b);
-    if (is_true && c != CONSTTIME_TRUE_8) {
-        fprintf(stderr, "Test failed for %s(%du, %du): expected %u "
-                "(TRUE), got %u\n", op_name, a, b, CONSTTIME_TRUE_8, c);
-        return 1;
-    } else if (!is_true && c != CONSTTIME_FALSE_8) {
-        fprintf(stderr, "Test failed for  %s(%du, %du): expected %u "
-                "(FALSE), got %u\n", op_name, a, b, CONSTTIME_FALSE_8, c);
-        return 1;
-    }
-    return 0;
+    if (is_true && !TEST_uint_eq(op(a, b), CONSTTIME_TRUE_8))
+        return 0;
+    if (!is_true && !TEST_uint_eq(op(a, b), CONSTTIME_FALSE_8))
+        return 0;
+    return 1;
 }
 
-static int test_is_zero(unsigned int a)
+static int test_binary_op_s(size_t (*op) (size_t a, size_t b),
+                            const char *op_name, size_t a, size_t b,
+                            int is_true)
 {
-    unsigned int c = constant_time_is_zero(a);
-    if (a == 0 && c != CONSTTIME_TRUE) {
-        fprintf(stderr, "Test failed for constant_time_is_zero(%du): "
-                "expected %du (TRUE), got %du\n", a, CONSTTIME_TRUE, c);
-        return 1;
-    } else if (a != 0 && c != CONSTTIME_FALSE) {
-        fprintf(stderr, "Test failed for constant_time_is_zero(%du): "
-                "expected %du (FALSE), got %du\n", a, CONSTTIME_FALSE, c);
-        return 1;
-    }
-    return 0;
+    if (is_true && !TEST_size_t_eq(op(a,b), CONSTTIME_TRUE_S))
+        return 0;
+    if (!is_true && !TEST_uint_eq(op(a,b), CONSTTIME_FALSE_S))
+        return 0;
+    return 1;
 }
 
-static int test_is_zero_8(unsigned int a)
+static int test_binary_op_64(uint64_t (*op)(uint64_t a, uint64_t b),
+                             const char *op_name, uint64_t a, uint64_t b,
+                             int is_true)
 {
-    unsigned char c = constant_time_is_zero_8(a);
-    if (a == 0 && c != CONSTTIME_TRUE_8) {
-        fprintf(stderr, "Test failed for constant_time_is_zero(%du): "
-                "expected %u (TRUE), got %u\n", a, CONSTTIME_TRUE_8, c);
-        return 1;
-    } else if (a != 0 && c != CONSTTIME_FALSE) {
-        fprintf(stderr, "Test failed for constant_time_is_zero(%du): "
-                "expected %u (FALSE), got %u\n", a, CONSTTIME_FALSE_8, c);
-        return 1;
+    uint64_t c = op(a, b);
+
+    if (is_true && c != CONSTTIME_TRUE_64) {
+        TEST_error("TRUE %s op failed", op_name);
+        BIO_printf(bio_err, "a=%jx b=%jx\n", a, b);
+        return 0;
+    } else if (!is_true && c != CONSTTIME_FALSE_64) {
+        TEST_error("FALSE %s op failed", op_name);
+        BIO_printf(bio_err, "a=%jx b=%jx\n", a, b);
+        return 0;
     }
-    return 0;
+    return 1;
+}
+
+static int test_is_zero(int i)
+{
+    unsigned int a = test_values[i];
+
+    if (a == 0 && !TEST_uint_eq(constant_time_is_zero(a), CONSTTIME_TRUE))
+        return 0;
+    if (a != 0 && !TEST_uint_eq(constant_time_is_zero(a), CONSTTIME_FALSE))
+        return 0;
+    return 1;
+}
+
+static int test_is_zero_8(int i)
+{
+    unsigned int a = test_values_8[i];
+
+    if (a == 0 && !TEST_uint_eq(constant_time_is_zero_8(a), CONSTTIME_TRUE_8))
+        return 0;
+    if (a != 0 && !TEST_uint_eq(constant_time_is_zero_8(a), CONSTTIME_FALSE_8))
+        return 0;
+    return 1;
+}
+
+static int test_is_zero_32(int i)
+{
+    uint32_t a = test_values_32[i];
+
+    if (a == 0 && !TEST_true(constant_time_is_zero_32(a) == CONSTTIME_TRUE_32))
+        return 0;
+    if (a != 0 && !TEST_true(constant_time_is_zero_32(a) == CONSTTIME_FALSE_32))
+        return 0;
+    return 1;
+}
+
+static int test_is_zero_s(int i)
+{
+    size_t a = test_values_s[i];
+
+    if (a == 0 && !TEST_size_t_eq(constant_time_is_zero_s(a), CONSTTIME_TRUE_S))
+        return 0;
+    if (a != 0 && !TEST_uint_eq(constant_time_is_zero_s(a), CONSTTIME_FALSE_S))
+        return 0;
+    return 1;
 }
 
 static int test_select(unsigned int a, unsigned int b)
 {
-    unsigned int selected = constant_time_select(CONSTTIME_TRUE, a, b);
-    if (selected != a) {
-        fprintf(stderr, "Test failed for constant_time_select(%du, %du,"
-                "%du): expected %du(first value), got %du\n",
-                CONSTTIME_TRUE, a, b, a, selected);
-        return 1;
-    }
-    selected = constant_time_select(CONSTTIME_FALSE, a, b);
-    if (selected != b) {
-        fprintf(stderr, "Test failed for constant_time_select(%du, %du,"
-                "%du): expected %du(second value), got %du\n",
-                CONSTTIME_FALSE, a, b, b, selected);
-        return 1;
-    }
-    return 0;
+    if (!TEST_uint_eq(constant_time_select(CONSTTIME_TRUE, a, b), a))
+        return 0;
+    if (!TEST_uint_eq(constant_time_select(CONSTTIME_FALSE, a, b), b))
+        return 0;
+    return 1;
 }
 
 static int test_select_8(unsigned char a, unsigned char b)
 {
-    unsigned char selected = constant_time_select_8(CONSTTIME_TRUE_8, a, b);
+    if (!TEST_uint_eq(constant_time_select_8(CONSTTIME_TRUE_8, a, b), a))
+        return 0;
+    if (!TEST_uint_eq(constant_time_select_8(CONSTTIME_FALSE_8, a, b), b))
+        return 0;
+    return 1;
+}
+
+static int test_select_32(uint32_t a, uint32_t b)
+{
+    if (!TEST_true(constant_time_select_32(CONSTTIME_TRUE_32, a, b) == a))
+        return 0;
+    if (!TEST_true(constant_time_select_32(CONSTTIME_FALSE_32, a, b) == b))
+        return 0;
+    return 1;
+}
+
+static int test_select_s(size_t a, size_t b)
+{
+    if (!TEST_uint_eq(constant_time_select_s(CONSTTIME_TRUE_S, a, b), a))
+        return 0;
+    if (!TEST_uint_eq(constant_time_select_s(CONSTTIME_FALSE_S, a, b), b))
+        return 0;
+    return 1;
+}
+
+static int test_select_64(uint64_t a, uint64_t b)
+{
+    uint64_t selected = constant_time_select_64(CONSTTIME_TRUE_64, a, b);
+
     if (selected != a) {
-        fprintf(stderr, "Test failed for constant_time_select(%u, %u,"
-                "%u): expected %u(first value), got %u\n",
-                CONSTTIME_TRUE, a, b, a, selected);
-        return 1;
+        TEST_error("test_select_64 TRUE failed");
+        BIO_printf(bio_err, "a=%jx b=%jx got %jx wanted a\n", a, b, selected);
+        return 0;
     }
-    selected = constant_time_select_8(CONSTTIME_FALSE_8, a, b);
+    selected = constant_time_select_64(CONSTTIME_FALSE_64, a, b);
     if (selected != b) {
-        fprintf(stderr, "Test failed for constant_time_select(%u, %u,"
-                "%u): expected %u(second value), got %u\n",
-                CONSTTIME_FALSE, a, b, b, selected);
-        return 1;
+        BIO_printf(bio_err, "a=%jx b=%jx got %jx wanted b\n", a, b, selected);
+        return 0;
     }
-    return 0;
+    return 1;
 }
 
 static int test_select_int(int a, int b)
 {
-    int selected = constant_time_select_int(CONSTTIME_TRUE, a, b);
-    if (selected != a) {
-        fprintf(stderr, "Test failed for constant_time_select(%du, %d,"
-                "%d): expected %d(first value), got %d\n",
-                CONSTTIME_TRUE, a, b, a, selected);
-        return 1;
-    }
-    selected = constant_time_select_int(CONSTTIME_FALSE, a, b);
-    if (selected != b) {
-        fprintf(stderr, "Test failed for constant_time_select(%du, %d,"
-                "%d): expected %d(second value), got %d\n",
-                CONSTTIME_FALSE, a, b, b, selected);
-        return 1;
-    }
-    return 0;
-}
-
-static int test_eq_int(int a, int b)
-{
-    unsigned int equal = constant_time_eq_int(a, b);
-    if (a == b && equal != CONSTTIME_TRUE) {
-        fprintf(stderr, "Test failed for constant_time_eq_int(%d, %d): "
-                "expected %du(TRUE), got %du\n", a, b, CONSTTIME_TRUE, equal);
-        return 1;
-    } else if (a != b && equal != CONSTTIME_FALSE) {
-        fprintf(stderr, "Test failed for constant_time_eq_int(%d, %d): "
-                "expected %du(FALSE), got %du\n",
-                a, b, CONSTTIME_FALSE, equal);
-        return 1;
-    }
-    return 0;
+    if (!TEST_int_eq(constant_time_select_int(CONSTTIME_TRUE, a, b), a))
+        return 0;
+    if (!TEST_int_eq(constant_time_select_int(CONSTTIME_FALSE, a, b), b))
+        return 0;
+    return 1;
 }
 
 static int test_eq_int_8(int a, int b)
 {
-    unsigned char equal = constant_time_eq_int_8(a, b);
-    if (a == b && equal != CONSTTIME_TRUE_8) {
-        fprintf(stderr, "Test failed for constant_time_eq_int_8(%d, %d): "
-                "expected %u(TRUE), got %u\n", a, b, CONSTTIME_TRUE_8, equal);
-        return 1;
-    } else if (a != b && equal != CONSTTIME_FALSE_8) {
-        fprintf(stderr, "Test failed for constant_time_eq_int_8(%d, %d): "
-                "expected %u(FALSE), got %u\n",
-                a, b, CONSTTIME_FALSE_8, equal);
-        return 1;
-    }
-    return 0;
+    if (a == b && !TEST_int_eq(constant_time_eq_int_8(a, b), CONSTTIME_TRUE_8))
+        return 0;
+    if (a != b && !TEST_int_eq(constant_time_eq_int_8(a, b), CONSTTIME_FALSE_8))
+        return 0;
+    return 1;
 }
 
-static unsigned int test_values[] =
-    { 0, 1, 1024, 12345, 32000, UINT_MAX / 2 - 1,
-    UINT_MAX / 2, UINT_MAX / 2 + 1, UINT_MAX - 1,
-    UINT_MAX
-};
-
-static unsigned char test_values_8[] =
-    { 0, 1, 2, 20, 32, 127, 128, 129, 255 };
-
-static int signed_test_values[] = { 0, 1, -1, 1024, -1024, 12345, -12345,
-    32000, -32000, INT_MAX, INT_MIN, INT_MAX - 1,
-    INT_MIN + 1
-};
-
-int main(int argc, char *argv[])
+static int test_eq_s(size_t a, size_t b)
 {
-    unsigned int a, b, i, j;
-    int c, d;
-    unsigned char e, f;
-    int num_failed = 0, num_all = 0;
-    fprintf(stdout, "Testing constant time operations...\n");
+    if (a == b && !TEST_size_t_eq(constant_time_eq_s(a, b), CONSTTIME_TRUE_S))
+        return 0;
+    if (a != b && !TEST_int_eq(constant_time_eq_s(a, b), CONSTTIME_FALSE_S))
+        return 0;
+    return 1;
+}
 
-    for (i = 0; i < OSSL_NELEM(test_values); ++i) {
-        a = test_values[i];
-        num_failed += test_is_zero(a);
-        num_failed += test_is_zero_8(a);
-        num_all += 2;
-        for (j = 0; j < OSSL_NELEM(test_values); ++j) {
-            b = test_values[j];
-            num_failed += test_binary_op(&constant_time_lt,
-                                         "constant_time_lt", a, b, a < b);
-            num_failed += test_binary_op_8(&constant_time_lt_8,
-                                           "constant_time_lt_8", a, b, a < b);
-            num_failed += test_binary_op(&constant_time_lt,
-                                         "constant_time_lt_8", b, a, b < a);
-            num_failed += test_binary_op_8(&constant_time_lt_8,
-                                           "constant_time_lt_8", b, a, b < a);
-            num_failed += test_binary_op(&constant_time_ge,
-                                         "constant_time_ge", a, b, a >= b);
-            num_failed += test_binary_op_8(&constant_time_ge_8,
-                                           "constant_time_ge_8", a, b,
-                                           a >= b);
-            num_failed +=
-                test_binary_op(&constant_time_ge, "constant_time_ge", b, a,
-                               b >= a);
-            num_failed +=
-                test_binary_op_8(&constant_time_ge_8, "constant_time_ge_8", b,
-                                 a, b >= a);
-            num_failed +=
-                test_binary_op(&constant_time_eq, "constant_time_eq", a, b,
-                               a == b);
-            num_failed +=
-                test_binary_op_8(&constant_time_eq_8, "constant_time_eq_8", a,
-                                 b, a == b);
-            num_failed +=
-                test_binary_op(&constant_time_eq, "constant_time_eq", b, a,
-                               b == a);
-            num_failed +=
-                test_binary_op_8(&constant_time_eq_8, "constant_time_eq_8", b,
-                                 a, b == a);
-            num_failed += test_select(a, b);
-            num_all += 13;
+static int test_eq_int(int a, int b)
+{
+    if (a == b && !TEST_uint_eq(constant_time_eq_int(a, b), CONSTTIME_TRUE))
+        return 0;
+    if (a != b && !TEST_uint_eq(constant_time_eq_int(a, b), CONSTTIME_FALSE))
+        return 0;
+    return 1;
+}
+
+static int test_sizeofs(void)
+{
+    if (!TEST_uint_eq(OSSL_NELEM(test_values), OSSL_NELEM(test_values_s)))
+        return 0;
+    return 1;
+}
+
+static int test_binops(int i)
+{
+    unsigned int a = test_values[i];
+    int j;
+    int ret = 1;
+
+    for (j = 0; j < (int)OSSL_NELEM(test_values); ++j) {
+        unsigned int b = test_values[j];
+
+        if (!test_select(a, b)
+                || !test_binary_op(&constant_time_lt, "ct_lt",
+                                   a, b, a < b)
+                || !test_binary_op(&constant_time_lt, "constant_time_lt",
+                                   b, a, b < a)
+                || !test_binary_op(&constant_time_ge, "constant_time_ge",
+                                   a, b, a >= b)
+                || !test_binary_op(&constant_time_ge, "constant_time_ge",
+                                   b, a, b >= a)
+                || !test_binary_op(&constant_time_eq, "constant_time_eq",
+                                   a, b, a == b)
+                || !test_binary_op(&constant_time_eq, "constant_time_eq",
+                                   b, a, b == a))
+            ret = 0;
+    }
+    return ret;
+}
+
+static int test_binops_8(int i)
+{
+    unsigned int a = test_values_8[i];
+    int j;
+    int ret = 1;
+
+    for (j = 0; j < (int)OSSL_NELEM(test_values_8); ++j) {
+        unsigned int b = test_values_8[j];
+
+        if (!test_binary_op_8(&constant_time_lt_8, "constant_time_lt_8",
+                                     a, b, a < b)
+                || !test_binary_op_8(&constant_time_lt_8, "constant_time_lt_8",
+                                     b, a, b < a)
+                || !test_binary_op_8(&constant_time_ge_8, "constant_time_ge_8",
+                                     a, b, a >= b)
+                || !test_binary_op_8(&constant_time_ge_8, "constant_time_ge_8",
+                                     b, a, b >= a)
+                || !test_binary_op_8(&constant_time_eq_8, "constant_time_eq_8",
+                                     a, b, a == b)
+                || !test_binary_op_8(&constant_time_eq_8, "constant_time_eq_8",
+                                     b, a, b == a))
+            ret = 0;
+    }
+    return ret;
+}
+
+static int test_binops_s(int i)
+{
+    size_t a = test_values_s[i];
+    int j;
+    int ret = 1;
+
+    for (j = 0; j < (int)OSSL_NELEM(test_values_s); ++j) {
+        size_t b = test_values_s[j];
+
+        if (!test_select_s(a, b)
+                || !test_eq_s(a, b)
+                || !test_binary_op_s(&constant_time_lt_s, "constant_time_lt_s",
+                                     a, b, a < b)
+                || !test_binary_op_s(&constant_time_lt_s, "constant_time_lt_s",
+                                     b, a, b < a)
+                || !test_binary_op_s(&constant_time_ge_s, "constant_time_ge_s",
+                                     a, b, a >= b)
+                || !test_binary_op_s(&constant_time_ge_s, "constant_time_ge_s",
+                                     b, a, b >= a)
+                || !test_binary_op_s(&constant_time_eq_s, "constant_time_eq_s",
+                                     a, b, a == b)
+                || !test_binary_op_s(&constant_time_eq_s, "constant_time_eq_s",
+                                     b, a, b == a))
+            ret = 0;
+    }
+    return ret;
+}
+
+static int test_signed(int i)
+{
+    int c = signed_test_values[i];
+    unsigned int j;
+    int ret = 1;
+
+    for (j = 0; j < OSSL_NELEM(signed_test_values); ++j) {
+        int d = signed_test_values[j];
+
+        if (!test_select_int(c, d)
+                || !test_eq_int(c, d)
+                || !test_eq_int_8(c, d))
+            ret = 0;
+    }
+    return ret;
+}
+
+static int test_8values(int i)
+{
+    unsigned char e = test_values_8[i];
+    unsigned int j;
+    int ret = 1;
+
+    for (j = 0; j < sizeof(test_values_8); ++j) {
+        unsigned char f = test_values_8[j];
+
+        if (!test_select_8(e, f))
+            ret = 0;
+    }
+    return ret;
+}
+
+static int test_32values(int i)
+{
+    uint32_t e = test_values_32[i];
+    size_t j;
+    int ret = 1;
+
+    for (j = 0; j < OSSL_NELEM(test_values_32); j++) {
+        uint32_t f = test_values_32[j];
+
+        if (!test_select_32(e, f))
+            ret = 0;
+    }
+    return ret;
+}
+
+static int test_64values(int i)
+{
+    uint64_t g = test_values_64[i];
+    int j, ret = 1;
+
+    for (j = i + 1; j < (int)OSSL_NELEM(test_values_64); j++) {
+        uint64_t h = test_values_64[j];
+
+        if (!test_binary_op_64(&constant_time_lt_64, "constant_time_lt_64",
+                               g, h, g < h)
+                || !test_select_64(g, h)) {
+            TEST_info("test_64values failed i=%d j=%d", i, j);
+            ret = 0;
         }
     }
+    return ret;
+}
 
-    for (i = 0; i < OSSL_NELEM(signed_test_values); ++i) {
-        c = signed_test_values[i];
-        for (j = 0; j < OSSL_NELEM(signed_test_values); ++j) {
-            d = signed_test_values[j];
-            num_failed += test_select_int(c, d);
-            num_failed += test_eq_int(c, d);
-            num_failed += test_eq_int_8(c, d);
-            num_all += 3;
-        }
-    }
-
-    for (i = 0; i < sizeof(test_values_8); ++i) {
-        e = test_values_8[i];
-        for (j = 0; j < sizeof(test_values_8); ++j) {
-            f = test_values_8[j];
-            num_failed += test_select_8(e, f);
-            num_all += 1;
-        }
-    }
-
-    if (!num_failed) {
-        fprintf(stdout, "success (ran %d tests)\n", num_all);
-        return EXIT_SUCCESS;
-    } else {
-        fprintf(stdout, "%d of %d tests failed!\n", num_failed, num_all);
-        return EXIT_FAILURE;
-    }
+int setup_tests(void)
+{
+    ADD_TEST(test_sizeofs);
+    ADD_ALL_TESTS(test_is_zero, OSSL_NELEM(test_values));
+    ADD_ALL_TESTS(test_is_zero_8, OSSL_NELEM(test_values_8));
+    ADD_ALL_TESTS(test_is_zero_32, OSSL_NELEM(test_values_32));
+    ADD_ALL_TESTS(test_is_zero_s, OSSL_NELEM(test_values_s));
+    ADD_ALL_TESTS(test_binops, OSSL_NELEM(test_values));
+    ADD_ALL_TESTS(test_binops_8, OSSL_NELEM(test_values_8));
+    ADD_ALL_TESTS(test_binops_s, OSSL_NELEM(test_values_s));
+    ADD_ALL_TESTS(test_signed, OSSL_NELEM(signed_test_values));
+    ADD_ALL_TESTS(test_8values, OSSL_NELEM(test_values_8));
+    ADD_ALL_TESTS(test_32values, OSSL_NELEM(test_values_32));
+    ADD_ALL_TESTS(test_64values, OSSL_NELEM(test_values_64));
+    return 1;
 }

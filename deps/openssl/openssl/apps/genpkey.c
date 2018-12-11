@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "apps.h"
+#include "progs.h"
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -26,7 +27,7 @@ typedef enum OPTION_choice {
     OPT_ALGORITHM, OPT_PKEYOPT, OPT_GENPARAM, OPT_TEXT, OPT_CIPHER
 } OPTION_CHOICE;
 
-OPTIONS genpkey_options[] = {
+const OPTIONS genpkey_options[] = {
     {"help", OPT_HELP, '-', "Display this summary"},
     {"out", OPT_OUT, '>', "Output file"},
     {"outform", OPT_OUTFORM, 'F', "output format (DER or PEM)"},
@@ -119,6 +120,13 @@ int genpkey_main(int argc, char **argv)
             if (!opt_cipher(opt_unknown(), &cipher)
                 || do_param == 1)
                 goto opthelp;
+            if (EVP_CIPHER_mode(cipher) == EVP_CIPH_GCM_MODE ||
+                EVP_CIPHER_mode(cipher) == EVP_CIPH_CCM_MODE ||
+                EVP_CIPHER_mode(cipher) == EVP_CIPH_XTS_MODE ||
+                EVP_CIPHER_mode(cipher) == EVP_CIPH_OCB_MODE) {
+                BIO_printf(bio_err, "%s: cipher mode not supported\n", prog);
+                goto end;
+            }
         }
     }
     argc = opt_num_rest();
@@ -156,9 +164,9 @@ int genpkey_main(int argc, char **argv)
         }
     }
 
-    if (do_param)
+    if (do_param) {
         rv = PEM_write_bio_Parameters(out, pkey);
-    else if (outformat == FORMAT_PEM) {
+    } else if (outformat == FORMAT_PEM) {
         assert(private);
         rv = PEM_write_bio_PrivateKey(out, pkey, cipher, NULL, 0, NULL, pass);
     } else if (outformat == FORMAT_ASN1) {

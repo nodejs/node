@@ -750,7 +750,7 @@ int CMS_RecipientInfo_decrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri)
 
     default:
         CMSerr(CMS_F_CMS_RECIPIENTINFO_DECRYPT,
-               CMS_R_UNSUPPORTED_RECPIENTINFO_TYPE);
+               CMS_R_UNSUPPORTED_RECIPIENTINFO_TYPE);
         return 0;
     }
 }

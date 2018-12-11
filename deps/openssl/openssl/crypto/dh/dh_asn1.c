@@ -34,7 +34,7 @@ static int dh_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 ASN1_SEQUENCE_cb(DHparams, dh_cb) = {
         ASN1_SIMPLE(DH, p, BIGNUM),
         ASN1_SIMPLE(DH, g, BIGNUM),
-        ASN1_OPT(DH, length, ZLONG),
+        ASN1_OPT_EMBED(DH, length, ZINT32),
 } ASN1_SEQUENCE_END_cb(DH, DHparams)
 
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(DH, DHparams, DHparams)

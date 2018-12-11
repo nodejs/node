@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,9 +47,10 @@ int ASYNC_WAIT_CTX_set_wait_fd(ASYNC_WAIT_CTX *ctx, const void *key,
 {
     struct fd_lookup_st *fdlookup;
 
-    fdlookup = OPENSSL_zalloc(sizeof(*fdlookup));
-    if (fdlookup == NULL)
+    if ((fdlookup = OPENSSL_zalloc(sizeof(*fdlookup))) == NULL) {
+        ASYNCerr(ASYNC_F_ASYNC_WAIT_CTX_SET_WAIT_FD, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
 
     fdlookup->key = key;
     fdlookup->fd = fd;
@@ -145,6 +146,7 @@ int ASYNC_WAIT_CTX_clear_fd(ASYNC_WAIT_CTX *ctx, const void *key)
     while (curr != NULL) {
         if (curr->del == 1) {
             /* This one has been marked deleted already so do nothing */
+            prev = curr;
             curr = curr->next;
             continue;
         }

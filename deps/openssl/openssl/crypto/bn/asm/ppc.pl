@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -38,9 +38,9 @@
 #rsa 2048 bits   0.3036s   0.0085s      3.3    117.1
 #rsa 4096 bits   2.0040s   0.0299s      0.5     33.4
 #dsa  512 bits   0.0087s   0.0106s    114.3     94.5
-#dsa 1024 bits   0.0256s   0.0313s     39.0     32.0	
+#dsa 1024 bits   0.0256s   0.0313s     39.0     32.0
 #
-#	Same bechmark with this assembler code:
+#	Same benchmark with this assembler code:
 #
 #rsa  512 bits   0.0056s   0.0005s    178.6   2049.2
 #rsa 1024 bits   0.0283s   0.0015s     35.3    674.1
@@ -74,7 +74,7 @@
 #rsa 4096 bits   0.3700s   0.0058s      2.7    171.0
 #dsa  512 bits   0.0016s   0.0020s    610.7    507.1
 #dsa 1024 bits   0.0047s   0.0058s    212.5    173.2
-#	
+#
 #	Again, performance increases by at about 75%
 #
 #       Mac OS X, Apple G5 1.8GHz (Note this is 32 bit code)
@@ -101,10 +101,7 @@
 #dsa 2048 bits   0.0061s   0.0075s    163.5    132.8
 #
 #        Performance increase of ~60%
-#
-#	If you have comments or suggestions to improve code send
-#	me a note at schari@us.ibm.com
-#
+#        Based on submission from Suresh N. Chari of IBM
 
 $flavour = shift;
 
@@ -125,7 +122,7 @@ if ($flavour =~ /32/) {
 	$CNTLZ=	"cntlzw";	# count leading zeros
 	$SHL=	"slw";		# shift left
 	$SHR=	"srw";		# unsigned shift right
-	$SHRI=	"srwi";		# unsigned shift right by immediate	
+	$SHRI=	"srwi";		# unsigned shift right by immediate
 	$SHLI=	"slwi";		# shift left by immediate
 	$CLRU=	"clrlwi";	# clear upper bits
 	$INSR=	"insrwi";	# insert right
@@ -149,10 +146,10 @@ if ($flavour =~ /32/) {
 	$CNTLZ=	"cntlzd";	# count leading zeros
 	$SHL=	"sld";		# shift left
 	$SHR=	"srd";		# unsigned shift right
-	$SHRI=	"srdi";		# unsigned shift right by immediate	
+	$SHRI=	"srdi";		# unsigned shift right by immediate
 	$SHLI=	"sldi";		# shift left by immediate
 	$CLRU=	"clrldi";	# clear upper bits
-	$INSR=	"insrdi";	# insert right 
+	$INSR=	"insrdi";	# insert right
 	$ROTL=	"rotldi";	# rotate left by immediate
 	$TR=	"td";		# conditional trap
 } else { die "nonsense $flavour"; }
@@ -189,7 +186,7 @@ $data=<<EOF;
 #	   below.
 #				12/05/03		Suresh Chari
 #			(with lots of help from)        Andy Polyakov
-##	
+##
 #	1. Initial version	10/20/02		Suresh Chari
 #
 #
@@ -202,7 +199,7 @@ $data=<<EOF;
 #		be done in the build process.
 #
 #	Hand optimized assembly code for the following routines
-#	
+#
 #	bn_sqr_comba4
 #	bn_sqr_comba8
 #	bn_mul_comba4
@@ -225,10 +222,10 @@ $data=<<EOF;
 #--------------------------------------------------------------------------
 #
 #	Defines to be used in the assembly code.
-#	
+#
 #.set r0,0	# we use it as storage for value of 0
 #.set SP,1	# preserved
-#.set RTOC,2	# preserved 
+#.set RTOC,2	# preserved
 #.set r3,3	# 1st argument/return value
 #.set r4,4	# 2nd argument/volatile register
 #.set r5,5	# 3rd argument/volatile register
@@ -246,7 +243,7 @@ $data=<<EOF;
 #	        the first . i.e. for example change ".bn_sqr_comba4"
 #		to "bn_sqr_comba4". This should be automatically done
 #		in the build.
-	
+
 	.globl	.bn_sqr_comba4
 	.globl	.bn_sqr_comba8
 	.globl	.bn_mul_comba4
@@ -257,9 +254,9 @@ $data=<<EOF;
 	.globl	.bn_sqr_words
 	.globl	.bn_mul_words
 	.globl	.bn_mul_add_words
-	
+
 # .text section
-	
+
 	.machine	"any"
 
 #
@@ -278,8 +275,8 @@ $data=<<EOF;
 # r3 contains r
 # r4 contains a
 #
-# Freely use registers r5,r6,r7,r8,r9,r10,r11 as follows:	
-# 
+# Freely use registers r5,r6,r7,r8,r9,r10,r11 as follows:
+#
 # r5,r6 are the two BN_ULONGs being multiplied.
 # r7,r8 are the results of the 32x32 giving 64 bit multiply.
 # r9,r10, r11 are the equivalents of c1,c2, c3.
@@ -288,10 +285,10 @@ $data=<<EOF;
 #
 	xor		r0,r0,r0		# set r0 = 0. Used in the addze
 						# instructions below
-	
+
 						#sqr_add_c(a,0,c1,c2,c3)
-	$LD		r5,`0*$BNSZ`(r4)		
-	$UMULL		r9,r5,r5		
+	$LD		r5,`0*$BNSZ`(r4)
+	$UMULL		r9,r5,r5
 	$UMULH		r10,r5,r5		#in first iteration. No need
 						#to add since c1=c2=c3=0.
 						# Note c3(r11) is NOT set to 0
@@ -299,20 +296,20 @@ $data=<<EOF;
 
 	$ST		r9,`0*$BNSZ`(r3)	# r[0]=c1;
 						# sqr_add_c2(a,1,0,c2,c3,c1);
-	$LD		r6,`1*$BNSZ`(r4)		
+	$LD		r6,`1*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-					
+
 	addc		r7,r7,r7		# compute (r7,r8)=2*(r7,r8)
 	adde		r8,r8,r8
 	addze		r9,r0			# catch carry if any.
-						# r9= r0(=0) and carry 
-	
+						# r9= r0(=0) and carry
+
 	addc		r10,r7,r10		# now add to temp result.
-	addze		r11,r8                  # r8 added to r11 which is 0 
+	addze		r11,r8                  # r8 added to r11 which is 0
 	addze		r9,r9
-	
-	$ST		r10,`1*$BNSZ`(r3)	#r[1]=c2; 
+
+	$ST		r10,`1*$BNSZ`(r3)	#r[1]=c2;
 						#sqr_add_c(a,1,c3,c1,c2)
 	$UMULL		r7,r6,r6
 	$UMULH		r8,r6,r6
@@ -323,23 +320,23 @@ $data=<<EOF;
 	$LD		r6,`2*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r7,r7,r7
 	adde		r8,r8,r8
 	addze		r10,r10
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
-	$ST		r11,`2*$BNSZ`(r3)	#r[2]=c3 
+	$ST		r11,`2*$BNSZ`(r3)	#r[2]=c3
 						#sqr_add_c2(a,3,0,c1,c2,c3);
-	$LD		r6,`3*$BNSZ`(r4)		
+	$LD		r6,`3*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
 	addc		r7,r7,r7
 	adde		r8,r8,r8
 	addze		r11,r0
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
@@ -348,7 +345,7 @@ $data=<<EOF;
 	$LD		r6,`2*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r7,r7,r7
 	adde		r8,r8,r8
 	addze		r11,r11
@@ -363,31 +360,31 @@ $data=<<EOF;
 	adde		r11,r8,r11
 	addze		r9,r0
 						#sqr_add_c2(a,3,1,c2,c3,c1);
-	$LD		r6,`3*$BNSZ`(r4)		
+	$LD		r6,`3*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
 	addc		r7,r7,r7
 	adde		r8,r8,r8
 	addze		r9,r9
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r9
 	$ST		r10,`4*$BNSZ`(r3)	#r[4]=c2
 						#sqr_add_c2(a,3,2,c3,c1,c2);
-	$LD		r5,`2*$BNSZ`(r4)		
+	$LD		r5,`2*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
 	addc		r7,r7,r7
 	adde		r8,r8,r8
 	addze		r10,r0
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
 	$ST		r11,`5*$BNSZ`(r3)	#r[5] = c3
 						#sqr_add_c(a,3,c1,c2,c3);
-	$UMULL		r7,r6,r6		
+	$UMULL		r7,r6,r6
 	$UMULH		r8,r6,r6
 	addc		r9,r7,r9
 	adde		r10,r8,r10
@@ -406,7 +403,7 @@ $data=<<EOF;
 #		for the gcc compiler. This should be automatically
 #		done in the build
 #
-	
+
 .align	4
 .bn_sqr_comba8:
 #
@@ -418,15 +415,15 @@ $data=<<EOF;
 # r3 contains r
 # r4 contains a
 #
-# Freely use registers r5,r6,r7,r8,r9,r10,r11 as follows:	
-# 
+# Freely use registers r5,r6,r7,r8,r9,r10,r11 as follows:
+#
 # r5,r6 are the two BN_ULONGs being multiplied.
 # r7,r8 are the results of the 32x32 giving 64 bit multiply.
 # r9,r10, r11 are the equivalents of c1,c2, c3.
 #
 # Possible optimization of loading all 8 longs of a into registers
 # doesn't provide any speedup
-# 
+#
 
 	xor		r0,r0,r0		#set r0 = 0.Used in addze
 						#instructions below.
@@ -439,18 +436,18 @@ $data=<<EOF;
 						#sqr_add_c2(a,1,0,c2,c3,c1);
 	$LD		r6,`1*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
-	$UMULH		r8,r5,r6	
-	
+	$UMULH		r8,r5,r6
+
 	addc		r10,r7,r10		#add the two register number
 	adde		r11,r8,r0 		# (r8,r7) to the three register
 	addze		r9,r0			# number (r9,r11,r10).NOTE:r0=0
-	
+
 	addc		r10,r7,r10		#add the two register number
 	adde		r11,r8,r11 		# (r8,r7) to the three register
 	addze		r9,r9			# number (r9,r11,r10).
-	
+
 	$ST		r10,`1*$BNSZ`(r3)	# r[1]=c2
-				
+
 						#sqr_add_c(a,1,c3,c1,c2);
 	$UMULL		r7,r6,r6
 	$UMULH		r8,r6,r6
@@ -461,25 +458,25 @@ $data=<<EOF;
 	$LD		r6,`2*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
-	
+
 	$ST		r11,`2*$BNSZ`(r3)	#r[2]=c3
 						#sqr_add_c2(a,3,0,c1,c2,c3);
 	$LD		r6,`3*$BNSZ`(r4)	#r6 = a[3]. r5 is already a[0].
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r0
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
@@ -488,20 +485,20 @@ $data=<<EOF;
 	$LD		r6,`2*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
-	
+
 	$ST		r9,`3*$BNSZ`(r3)	#r[3]=c1;
 						#sqr_add_c(a,2,c2,c3,c1);
 	$UMULL		r7,r6,r6
 	$UMULH		r8,r6,r6
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r0
@@ -509,11 +506,11 @@ $data=<<EOF;
 	$LD		r6,`3*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r9
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r9
@@ -522,11 +519,11 @@ $data=<<EOF;
 	$LD		r6,`4*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r9
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r9
@@ -535,11 +532,11 @@ $data=<<EOF;
 	$LD		r6,`5*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r0
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
@@ -548,11 +545,11 @@ $data=<<EOF;
 	$LD		r6,`4*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
@@ -561,11 +558,11 @@ $data=<<EOF;
 	$LD		r6,`3*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
@@ -580,11 +577,11 @@ $data=<<EOF;
 	$LD		r6,`4*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
@@ -593,11 +590,11 @@ $data=<<EOF;
 	$LD		r6,`5*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r11
@@ -617,7 +614,7 @@ $data=<<EOF;
 	$LD		r6,`7*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r0
@@ -629,7 +626,7 @@ $data=<<EOF;
 	$LD		r6,`6*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r9
@@ -652,7 +649,7 @@ $data=<<EOF;
 	$LD		r6,`4*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r10,r7,r10
 	adde		r11,r8,r11
 	addze		r9,r9
@@ -684,7 +681,7 @@ $data=<<EOF;
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
-	
+
 	addc		r11,r7,r11
 	adde		r9,r8,r9
 	addze		r10,r10
@@ -704,7 +701,7 @@ $data=<<EOF;
 	$LD		r5,`2*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
 	$UMULH		r8,r5,r6
-	
+
 	addc		r9,r7,r9
 	adde		r10,r8,r10
 	addze		r11,r0
@@ -801,7 +798,7 @@ $data=<<EOF;
 	adde		r10,r8,r10
 	addze		r11,r11
 	$ST		r9,`12*$BNSZ`(r3)	#r[12]=c1;
-	
+
 						#sqr_add_c2(a,7,6,c2,c3,c1)
 	$LD		r5,`6*$BNSZ`(r4)
 	$UMULL		r7,r5,r6
@@ -850,21 +847,21 @@ $data=<<EOF;
 #
 	xor	r0,r0,r0		#r0=0. Used in addze below.
 					#mul_add_c(a[0],b[0],c1,c2,c3);
-	$LD	r6,`0*$BNSZ`(r4)		
-	$LD	r7,`0*$BNSZ`(r5)		
-	$UMULL	r10,r6,r7		
-	$UMULH	r11,r6,r7		
+	$LD	r6,`0*$BNSZ`(r4)
+	$LD	r7,`0*$BNSZ`(r5)
+	$UMULL	r10,r6,r7
+	$UMULH	r11,r6,r7
 	$ST	r10,`0*$BNSZ`(r3)	#r[0]=c1
 					#mul_add_c(a[0],b[1],c2,c3,c1);
-	$LD	r7,`1*$BNSZ`(r5)		
+	$LD	r7,`1*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r11,r8,r11
 	adde	r12,r9,r0
 	addze	r10,r0
 					#mul_add_c(a[1],b[0],c2,c3,c1);
-	$LD	r6, `1*$BNSZ`(r4)		
-	$LD	r7, `0*$BNSZ`(r5)		
+	$LD	r6, `1*$BNSZ`(r4)
+	$LD	r7, `0*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r11,r8,r11
@@ -872,23 +869,23 @@ $data=<<EOF;
 	addze	r10,r10
 	$ST	r11,`1*$BNSZ`(r3)	#r[1]=c2
 					#mul_add_c(a[2],b[0],c3,c1,c2);
-	$LD	r6,`2*$BNSZ`(r4)		
+	$LD	r6,`2*$BNSZ`(r4)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r12,r8,r12
 	adde	r10,r9,r10
 	addze	r11,r0
 					#mul_add_c(a[1],b[1],c3,c1,c2);
-	$LD	r6,`1*$BNSZ`(r4)		
-	$LD	r7,`1*$BNSZ`(r5)		
+	$LD	r6,`1*$BNSZ`(r4)
+	$LD	r7,`1*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r12,r8,r12
 	adde	r10,r9,r10
 	addze	r11,r11
 					#mul_add_c(a[0],b[2],c3,c1,c2);
-	$LD	r6,`0*$BNSZ`(r4)		
-	$LD	r7,`2*$BNSZ`(r5)		
+	$LD	r6,`0*$BNSZ`(r4)
+	$LD	r7,`2*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r12,r8,r12
@@ -896,7 +893,7 @@ $data=<<EOF;
 	addze	r11,r11
 	$ST	r12,`2*$BNSZ`(r3)	#r[2]=c3
 					#mul_add_c(a[0],b[3],c1,c2,c3);
-	$LD	r7,`3*$BNSZ`(r5)		
+	$LD	r7,`3*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r10,r8,r10
@@ -928,7 +925,7 @@ $data=<<EOF;
 	addze	r12,r12
 	$ST	r10,`3*$BNSZ`(r3)	#r[3]=c1
 					#mul_add_c(a[3],b[1],c2,c3,c1);
-	$LD	r7,`1*$BNSZ`(r5)		
+	$LD	r7,`1*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r11,r8,r11
@@ -952,7 +949,7 @@ $data=<<EOF;
 	addze	r10,r10
 	$ST	r11,`4*$BNSZ`(r3)	#r[4]=c2
 					#mul_add_c(a[2],b[3],c3,c1,c2);
-	$LD	r6,`2*$BNSZ`(r4)		
+	$LD	r6,`2*$BNSZ`(r4)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r12,r8,r12
@@ -968,7 +965,7 @@ $data=<<EOF;
 	addze	r11,r11
 	$ST	r12,`5*$BNSZ`(r3)	#r[5]=c3
 					#mul_add_c(a[3],b[3],c1,c2,c3);
-	$LD	r7,`3*$BNSZ`(r5)		
+	$LD	r7,`3*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r10,r8,r10
@@ -988,7 +985,7 @@ $data=<<EOF;
 #		for the gcc compiler. This should be automatically
 #		done in the build
 #
-	
+
 .align	4
 .bn_mul_comba8:
 #
@@ -1003,7 +1000,7 @@ $data=<<EOF;
 # r10, r11, r12 are the equivalents of c1, c2, and c3.
 #
 	xor	r0,r0,r0		#r0=0. Used in addze below.
-	
+
 					#mul_add_c(a[0],b[0],c1,c2,c3);
 	$LD	r6,`0*$BNSZ`(r4)	#a[0]
 	$LD	r7,`0*$BNSZ`(r5)	#b[0]
@@ -1065,7 +1062,7 @@ $data=<<EOF;
 	addc	r10,r10,r8
 	adde	r11,r11,r9
 	addze	r12,r12
-		
+
 					#mul_add_c(a[2],b[1],c1,c2,c3);
 	$LD	r6,`2*$BNSZ`(r4)
 	$LD	r7,`1*$BNSZ`(r5)
@@ -1131,7 +1128,7 @@ $data=<<EOF;
 	adde	r10,r10,r9
 	addze	r11,r0
 					#mul_add_c(a[1],b[4],c3,c1,c2);
-	$LD	r6,`1*$BNSZ`(r4)		
+	$LD	r6,`1*$BNSZ`(r4)
 	$LD	r7,`4*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
@@ -1139,7 +1136,7 @@ $data=<<EOF;
 	adde	r10,r10,r9
 	addze	r11,r11
 					#mul_add_c(a[2],b[3],c3,c1,c2);
-	$LD	r6,`2*$BNSZ`(r4)		
+	$LD	r6,`2*$BNSZ`(r4)
 	$LD	r7,`3*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
@@ -1147,7 +1144,7 @@ $data=<<EOF;
 	adde	r10,r10,r9
 	addze	r11,r11
 					#mul_add_c(a[3],b[2],c3,c1,c2);
-	$LD	r6,`3*$BNSZ`(r4)		
+	$LD	r6,`3*$BNSZ`(r4)
 	$LD	r7,`2*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
@@ -1155,7 +1152,7 @@ $data=<<EOF;
 	adde	r10,r10,r9
 	addze	r11,r11
 					#mul_add_c(a[4],b[1],c3,c1,c2);
-	$LD	r6,`4*$BNSZ`(r4)		
+	$LD	r6,`4*$BNSZ`(r4)
 	$LD	r7,`1*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
@@ -1163,7 +1160,7 @@ $data=<<EOF;
 	adde	r10,r10,r9
 	addze	r11,r11
 					#mul_add_c(a[5],b[0],c3,c1,c2);
-	$LD	r6,`5*$BNSZ`(r4)		
+	$LD	r6,`5*$BNSZ`(r4)
 	$LD	r7,`0*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
@@ -1555,7 +1552,7 @@ $data=<<EOF;
 	addi	r3,r3,-$BNSZ
 	addi	r5,r5,-$BNSZ
 	mtctr	r6
-Lppcasm_sub_mainloop:	
+Lppcasm_sub_mainloop:
 	$LDU	r7,$BNSZ(r4)
 	$LDU	r8,$BNSZ(r5)
 	subfe	r6,r8,r7	# r6 = r7+carry bit + onescomplement(r8)
@@ -1563,7 +1560,7 @@ Lppcasm_sub_mainloop:
 				# is r7-r8 -1 as we need.
 	$STU	r6,$BNSZ(r3)
 	bdnz	Lppcasm_sub_mainloop
-Lppcasm_sub_adios:	
+Lppcasm_sub_adios:
 	subfze	r3,r0		# if carry bit is set then r3 = 0 else -1
 	andi.	r3,r3,1         # keep only last bit.
 	blr
@@ -1604,13 +1601,13 @@ Lppcasm_sub_adios:
 	addi	r3,r3,-$BNSZ
 	addi	r5,r5,-$BNSZ
 	mtctr	r6
-Lppcasm_add_mainloop:	
+Lppcasm_add_mainloop:
 	$LDU	r7,$BNSZ(r4)
 	$LDU	r8,$BNSZ(r5)
 	adde	r8,r7,r8
 	$STU	r8,$BNSZ(r3)
 	bdnz	Lppcasm_add_mainloop
-Lppcasm_add_adios:	
+Lppcasm_add_adios:
 	addze	r3,r0			#return carry bit.
 	blr
 	.long	0
@@ -1633,11 +1630,11 @@ Lppcasm_add_adios:
 #	the PPC instruction to count leading zeros instead
 #	of call to num_bits_word. Since this was compiled
 #	only at level -O2 we can possibly squeeze it more?
-#	
+#
 #	r3 = h
 #	r4 = l
 #	r5 = d
-	
+
 	$UCMPI	0,r5,0			# compare r5 and 0
 	bne	Lppcasm_div1		# proceed if d!=0
 	li	r3,-1			# d=0 return -1
@@ -1653,7 +1650,7 @@ Lppcasm_div1:
 Lppcasm_div2:
 	$UCMP	0,r3,r5			#h>=d?
 	blt	Lppcasm_div3		#goto Lppcasm_div3 if not
-	subf	r3,r5,r3		#h-=d ; 
+	subf	r3,r5,r3		#h-=d ;
 Lppcasm_div3:				#r7 = BN_BITS2-i. so r7=i
 	cmpi	0,0,r7,0		# is (i == 0)?
 	beq	Lppcasm_div4
@@ -1668,7 +1665,7 @@ Lppcasm_div4:
 					# as it saves registers.
 	li	r6,2			#r6=2
 	mtctr	r6			#counter will be in count.
-Lppcasm_divouterloop: 
+Lppcasm_divouterloop:
 	$SHRI	r8,r3,`$BITS/2`		#r8 = (h>>BN_BITS4)
 	$SHRI	r11,r4,`$BITS/2`	#r11= (l&BN_MASK2h)>>BN_BITS4
 					# compute here for innerloop.
@@ -1676,7 +1673,7 @@ Lppcasm_divouterloop:
 	bne	Lppcasm_div5		# goto Lppcasm_div5 if not
 
 	li	r8,-1
-	$CLRU	r8,r8,`$BITS/2`		#q = BN_MASK2l 
+	$CLRU	r8,r8,`$BITS/2`		#q = BN_MASK2l
 	b	Lppcasm_div6
 Lppcasm_div5:
 	$UDIV	r8,r3,r9		#q = h/dh
@@ -1684,7 +1681,7 @@ Lppcasm_div6:
 	$UMULL	r12,r9,r8		#th = q*dh
 	$CLRU	r10,r5,`$BITS/2`	#r10=dl
 	$UMULL	r6,r8,r10		#tl = q*dl
-	
+
 Lppcasm_divinnerloop:
 	subf	r10,r12,r3		#t = h -th
 	$SHRI	r7,r10,`$BITS/2`	#r7= (t &BN_MASK2H), sort of...
@@ -1761,7 +1758,7 @@ Lppcasm_div9:
 	addi	r4,r4,-$BNSZ
 	addi	r3,r3,-$BNSZ
 	mtctr	r5
-Lppcasm_sqr_mainloop:	
+Lppcasm_sqr_mainloop:
 					#sqr(r[0],r[1],a[0]);
 	$LDU	r6,$BNSZ(r4)
 	$UMULL	r7,r6,r6
@@ -1769,7 +1766,7 @@ Lppcasm_sqr_mainloop:
 	$STU	r7,$BNSZ(r3)
 	$STU	r8,$BNSZ(r3)
 	bdnz	Lppcasm_sqr_mainloop
-Lppcasm_sqr_adios:	
+Lppcasm_sqr_adios:
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,3,0
@@ -1783,7 +1780,7 @@ Lppcasm_sqr_adios:
 #		done in the build
 #
 
-.align	4	
+.align	4
 .bn_mul_words:
 #
 # BN_ULONG bn_mul_words(BN_ULONG *rp, BN_ULONG *ap, int num, BN_ULONG w)
@@ -1797,7 +1794,7 @@ Lppcasm_sqr_adios:
 	rlwinm.	r7,r5,30,2,31		# num >> 2
 	beq	Lppcasm_mw_REM
 	mtctr	r7
-Lppcasm_mw_LOOP:	
+Lppcasm_mw_LOOP:
 					#mul(rp[0],ap[0],w,c1);
 	$LD	r8,`0*$BNSZ`(r4)
 	$UMULL	r9,r6,r8
@@ -1809,7 +1806,7 @@ Lppcasm_mw_LOOP:
 					#using adde.
 	$ST	r9,`0*$BNSZ`(r3)
 					#mul(rp[1],ap[1],w,c1);
-	$LD	r8,`1*$BNSZ`(r4)	
+	$LD	r8,`1*$BNSZ`(r4)
 	$UMULL	r11,r6,r8
 	$UMULH  r12,r6,r8
 	adde	r11,r11,r10
@@ -1830,7 +1827,7 @@ Lppcasm_mw_LOOP:
 	addze	r12,r12			#this spin we collect carry into
 					#r12
 	$ST	r11,`3*$BNSZ`(r3)
-	
+
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
 	bdnz	Lppcasm_mw_LOOP
@@ -1846,25 +1843,25 @@ Lppcasm_mw_REM:
 	addze	r10,r10
 	$ST	r9,`0*$BNSZ`(r3)
 	addi	r12,r10,0
-	
+
 	addi	r5,r5,-1
 	cmpli	0,0,r5,0
 	beq	Lppcasm_mw_OVER
 
-	
+
 					#mul(rp[1],ap[1],w,c1);
-	$LD	r8,`1*$BNSZ`(r4)	
+	$LD	r8,`1*$BNSZ`(r4)
 	$UMULL	r9,r6,r8
 	$UMULH  r10,r6,r8
 	addc	r9,r9,r12
 	addze	r10,r10
 	$ST	r9,`1*$BNSZ`(r3)
 	addi	r12,r10,0
-	
+
 	addi	r5,r5,-1
 	cmpli	0,0,r5,0
 	beq	Lppcasm_mw_OVER
-	
+
 					#mul_add(rp[2],ap[2],w,c1);
 	$LD	r8,`2*$BNSZ`(r4)
 	$UMULL	r9,r6,r8
@@ -1873,14 +1870,14 @@ Lppcasm_mw_REM:
 	addze	r10,r10
 	$ST	r9,`2*$BNSZ`(r3)
 	addi	r12,r10,0
-		
-Lppcasm_mw_OVER:	
+
+Lppcasm_mw_OVER:
 	addi	r3,r12,0
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,4,0
 	.long	0
-.size	bn_mul_words,.-bn_mul_words
+.size	.bn_mul_words,.-.bn_mul_words
 
 #
 #	NOTE:	The following label name should be changed to
@@ -1902,11 +1899,11 @@ Lppcasm_mw_OVER:
 # empirical evidence suggests that unrolled version performs best!!
 #
 	xor	r0,r0,r0		#r0 = 0
-	xor	r12,r12,r12  		#r12 = 0 . used for carry		
+	xor	r12,r12,r12  		#r12 = 0 . used for carry
 	rlwinm.	r7,r5,30,2,31		# num >> 2
 	beq	Lppcasm_maw_leftover	# if (num < 4) go LPPCASM_maw_leftover
 	mtctr	r7
-Lppcasm_maw_mainloop:	
+Lppcasm_maw_mainloop:
 					#mul_add(rp[0],ap[0],w,c1);
 	$LD	r8,`0*$BNSZ`(r4)
 	$LD	r11,`0*$BNSZ`(r3)
@@ -1922,9 +1919,9 @@ Lppcasm_maw_mainloop:
 					#by multiply and will be collected
 					#in the next spin
 	$ST	r9,`0*$BNSZ`(r3)
-	
+
 					#mul_add(rp[1],ap[1],w,c1);
-	$LD	r8,`1*$BNSZ`(r4)	
+	$LD	r8,`1*$BNSZ`(r4)
 	$LD	r9,`1*$BNSZ`(r3)
 	$UMULL	r11,r6,r8
 	$UMULH  r12,r6,r8
@@ -1933,7 +1930,7 @@ Lppcasm_maw_mainloop:
 	addc	r11,r11,r9
 	#addze	r12,r12
 	$ST	r11,`1*$BNSZ`(r3)
-	
+
 					#mul_add(rp[2],ap[2],w,c1);
 	$LD	r8,`2*$BNSZ`(r4)
 	$UMULL	r9,r6,r8
@@ -1944,7 +1941,7 @@ Lppcasm_maw_mainloop:
 	addc	r9,r9,r11
 	#addze	r10,r10
 	$ST	r9,`2*$BNSZ`(r3)
-	
+
 					#mul_add(rp[3],ap[3],w,c1);
 	$LD	r8,`3*$BNSZ`(r4)
 	$UMULL	r11,r6,r8
@@ -1958,7 +1955,7 @@ Lppcasm_maw_mainloop:
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
 	bdnz	Lppcasm_maw_mainloop
-	
+
 Lppcasm_maw_leftover:
 	andi.	r5,r5,0x3
 	beq	Lppcasm_maw_adios
@@ -1975,10 +1972,10 @@ Lppcasm_maw_leftover:
 	addc	r9,r9,r12
 	addze	r12,r10
 	$ST	r9,0(r3)
-	
+
 	bdz	Lppcasm_maw_adios
 					#mul_add(rp[1],ap[1],w,c1);
-	$LDU	r8,$BNSZ(r4)	
+	$LDU	r8,$BNSZ(r4)
 	$UMULL	r9,r6,r8
 	$UMULH  r10,r6,r8
 	$LDU	r11,$BNSZ(r3)
@@ -1987,7 +1984,7 @@ Lppcasm_maw_leftover:
 	addc	r9,r9,r12
 	addze	r12,r10
 	$ST	r9,0(r3)
-	
+
 	bdz	Lppcasm_maw_adios
 					#mul_add(rp[2],ap[2],w,c1);
 	$LDU	r8,$BNSZ(r4)
@@ -1999,8 +1996,8 @@ Lppcasm_maw_leftover:
 	addc	r9,r9,r12
 	addze	r12,r10
 	$ST	r9,0(r3)
-		
-Lppcasm_maw_adios:	
+
+Lppcasm_maw_adios:
 	addi	r3,r12,0
 	blr
 	.long	0

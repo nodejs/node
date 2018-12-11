@@ -7,58 +7,19 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <stdio.h>
+#include "e_os.h"               /* for strncasecmp */
 #include "internal/cryptlib.h"
+#include <stdio.h>
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/engine.h>
 #include "internal/asn1_int.h"
 #include "internal/evp_int.h"
 
-/* Keep this sorted in type order !! */
-static const EVP_PKEY_ASN1_METHOD *standard_methods[] = {
-#ifndef OPENSSL_NO_RSA
-    &rsa_asn1_meths[0],
-    &rsa_asn1_meths[1],
-#endif
-#ifndef OPENSSL_NO_DH
-    &dh_asn1_meth,
-#endif
-#ifndef OPENSSL_NO_DSA
-    &dsa_asn1_meths[0],
-    &dsa_asn1_meths[1],
-    &dsa_asn1_meths[2],
-    &dsa_asn1_meths[3],
-    &dsa_asn1_meths[4],
-#endif
-#ifndef OPENSSL_NO_EC
-    &eckey_asn1_meth,
-#endif
-    &hmac_asn1_meth,
-#ifndef OPENSSL_NO_CMAC
-    &cmac_asn1_meth,
-#endif
-#ifndef OPENSSL_NO_DH
-    &dhx_asn1_meth,
-#endif
-#ifndef OPENSSL_NO_EC
-    &ecx25519_asn1_meth
-#endif
-};
+#include "standard_methods.h"
 
 typedef int sk_cmp_fn_type(const char *const *a, const char *const *b);
 static STACK_OF(EVP_PKEY_ASN1_METHOD) *app_methods = NULL;
-
-#ifdef TEST
-void main()
-{
-    int i;
-    for (i = 0; i < OSSL_NELEM(standard_methods); i++)
-        fprintf(stderr, "Number %d id=%d (%s)\n", i,
-                standard_methods[i]->pkey_id,
-                OBJ_nid2sn(standard_methods[i]->pkey_id));
-}
-#endif
 
 DECLARE_OBJ_BSEARCH_CMP_FN(const EVP_PKEY_ASN1_METHOD *,
                            const EVP_PKEY_ASN1_METHOD *, ameth);
@@ -313,6 +274,10 @@ void EVP_PKEY_asn1_copy(EVP_PKEY_ASN1_METHOD *dst,
     dst->item_sign = src->item_sign;
     dst->item_verify = src->item_verify;
 
+    dst->siginf_set = src->siginf_set;
+
+    dst->pkey_check = src->pkey_check;
+
 }
 
 void EVP_PKEY_asn1_free(EVP_PKEY_ASN1_METHOD *ameth)
@@ -420,4 +385,63 @@ void EVP_PKEY_asn1_set_item(EVP_PKEY_ASN1_METHOD *ameth,
 {
     ameth->item_sign = item_sign;
     ameth->item_verify = item_verify;
+}
+
+void EVP_PKEY_asn1_set_siginf(EVP_PKEY_ASN1_METHOD *ameth,
+                              int (*siginf_set) (X509_SIG_INFO *siginf,
+                                                 const X509_ALGOR *alg,
+                                                 const ASN1_STRING *sig))
+{
+    ameth->siginf_set = siginf_set;
+}
+
+void EVP_PKEY_asn1_set_check(EVP_PKEY_ASN1_METHOD *ameth,
+                             int (*pkey_check) (const EVP_PKEY *pk))
+{
+    ameth->pkey_check = pkey_check;
+}
+
+void EVP_PKEY_asn1_set_public_check(EVP_PKEY_ASN1_METHOD *ameth,
+                                    int (*pkey_pub_check) (const EVP_PKEY *pk))
+{
+    ameth->pkey_public_check = pkey_pub_check;
+}
+
+void EVP_PKEY_asn1_set_param_check(EVP_PKEY_ASN1_METHOD *ameth,
+                                   int (*pkey_param_check) (const EVP_PKEY *pk))
+{
+    ameth->pkey_param_check = pkey_param_check;
+}
+
+void EVP_PKEY_asn1_set_set_priv_key(EVP_PKEY_ASN1_METHOD *ameth,
+                                    int (*set_priv_key) (EVP_PKEY *pk,
+                                                         const unsigned char
+                                                            *priv,
+                                                         size_t len))
+{
+    ameth->set_priv_key = set_priv_key;
+}
+
+void EVP_PKEY_asn1_set_set_pub_key(EVP_PKEY_ASN1_METHOD *ameth,
+                                   int (*set_pub_key) (EVP_PKEY *pk,
+                                                       const unsigned char *pub,
+                                                       size_t len))
+{
+    ameth->set_pub_key = set_pub_key;
+}
+
+void EVP_PKEY_asn1_set_get_priv_key(EVP_PKEY_ASN1_METHOD *ameth,
+                                    int (*get_priv_key) (const EVP_PKEY *pk,
+                                                         unsigned char *priv,
+                                                         size_t *len))
+{
+    ameth->get_priv_key = get_priv_key;
+}
+
+void EVP_PKEY_asn1_set_get_pub_key(EVP_PKEY_ASN1_METHOD *ameth,
+                                   int (*get_pub_key) (const EVP_PKEY *pk,
+                                                       unsigned char *pub,
+                                                       size_t *len))
+{
+    ameth->get_pub_key = get_pub_key;
 }

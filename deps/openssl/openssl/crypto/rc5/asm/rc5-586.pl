@@ -15,7 +15,7 @@ require "cbc.pl";
 $output = pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"rc5-586.pl");
+&asm_init($ARGV[0]);
 
 $RC5_MAX_ROUNDS=16;
 $RC5_32_OFF=($RC5_MAX_ROUNDS+2)*4;

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,6 @@
  */
 
 #include <stdio.h>
-#include <ctype.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
 #include <openssl/objects.h>
@@ -50,6 +49,7 @@ int ASN1_STRING_set_default_mask_asc(const char *p)
 {
     unsigned long mask;
     char *end;
+
     if (strncmp(p, "MASK:", 5) == 0) {
         if (!p[5])
             return 0;
@@ -84,19 +84,20 @@ ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out,
     ASN1_STRING *str = NULL;
     unsigned long mask;
     int ret;
-    if (!out)
+
+    if (out == NULL)
         out = &str;
     tbl = ASN1_STRING_TABLE_get(nid);
-    if (tbl) {
+    if (tbl != NULL) {
         mask = tbl->mask;
         if (!(tbl->flags & STABLE_NO_MASK))
             mask &= global_mask;
         ret = ASN1_mbstring_ncopy(out, in, inlen, inform, mask,
                                   tbl->minsize, tbl->maxsize);
-    } else
-        ret =
-            ASN1_mbstring_copy(out, in, inlen, inform,
-                               DIRSTRING_TYPE & global_mask);
+    } else {
+        ret = ASN1_mbstring_copy(out, in, inlen, inform,
+                                 DIRSTRING_TYPE & global_mask);
+    }
     if (ret <= 0)
         return NULL;
     return *out;
@@ -106,54 +107,7 @@ ASN1_STRING *ASN1_STRING_set_by_NID(ASN1_STRING **out,
  * Now the tables and helper functions for the string table:
  */
 
-/* size limits: this stuff is taken straight from RFC3280 */
-
-#define ub_name                         32768
-#define ub_common_name                  64
-#define ub_locality_name                128
-#define ub_state_name                   128
-#define ub_organization_name            64
-#define ub_organization_unit_name       64
-#define ub_title                        64
-#define ub_email_address                128
-#define ub_serial_number                64
-
-/* From RFC4524 */
-
-#define ub_rfc822_mailbox               256
-
-/* This table must be kept in NID order */
-
-static const ASN1_STRING_TABLE tbl_standard[] = {
-    {NID_commonName, 1, ub_common_name, DIRSTRING_TYPE, 0},
-    {NID_countryName, 2, 2, B_ASN1_PRINTABLESTRING, STABLE_NO_MASK},
-    {NID_localityName, 1, ub_locality_name, DIRSTRING_TYPE, 0},
-    {NID_stateOrProvinceName, 1, ub_state_name, DIRSTRING_TYPE, 0},
-    {NID_organizationName, 1, ub_organization_name, DIRSTRING_TYPE, 0},
-    {NID_organizationalUnitName, 1, ub_organization_unit_name, DIRSTRING_TYPE,
-     0},
-    {NID_pkcs9_emailAddress, 1, ub_email_address, B_ASN1_IA5STRING,
-     STABLE_NO_MASK},
-    {NID_pkcs9_unstructuredName, 1, -1, PKCS9STRING_TYPE, 0},
-    {NID_pkcs9_challengePassword, 1, -1, PKCS9STRING_TYPE, 0},
-    {NID_pkcs9_unstructuredAddress, 1, -1, DIRSTRING_TYPE, 0},
-    {NID_givenName, 1, ub_name, DIRSTRING_TYPE, 0},
-    {NID_surname, 1, ub_name, DIRSTRING_TYPE, 0},
-    {NID_initials, 1, ub_name, DIRSTRING_TYPE, 0},
-    {NID_serialNumber, 1, ub_serial_number, B_ASN1_PRINTABLESTRING,
-     STABLE_NO_MASK},
-    {NID_friendlyName, -1, -1, B_ASN1_BMPSTRING, STABLE_NO_MASK},
-    {NID_name, 1, ub_name, DIRSTRING_TYPE, 0},
-    {NID_dnQualifier, -1, -1, B_ASN1_PRINTABLESTRING, STABLE_NO_MASK},
-    {NID_domainComponent, 1, -1, B_ASN1_IA5STRING, STABLE_NO_MASK},
-    {NID_ms_csp_name, -1, -1, B_ASN1_BMPSTRING, STABLE_NO_MASK},
-    {NID_rfc822Mailbox, 1, ub_rfc822_mailbox, B_ASN1_IA5STRING,
-     STABLE_NO_MASK},
-    {NID_jurisdictionCountryName, 2, 2, B_ASN1_PRINTABLESTRING, STABLE_NO_MASK},
-    {NID_INN, 1, 12, B_ASN1_NUMERICSTRING, STABLE_NO_MASK},
-    {NID_OGRN, 1, 13, B_ASN1_NUMERICSTRING, STABLE_NO_MASK},
-    {NID_SNILS, 1, 11, B_ASN1_NUMERICSTRING, STABLE_NO_MASK}
-};
+#include "tbl_standard.h"
 
 static int sk_table_cmp(const ASN1_STRING_TABLE *const *a,
                         const ASN1_STRING_TABLE *const *b)
@@ -174,6 +128,7 @@ ASN1_STRING_TABLE *ASN1_STRING_TABLE_get(int nid)
 {
     int idx;
     ASN1_STRING_TABLE fnd;
+
     fnd.nid = nid;
     if (stable) {
         idx = sk_ASN1_STRING_TABLE_find(stable, &fnd);
@@ -191,6 +146,7 @@ ASN1_STRING_TABLE *ASN1_STRING_TABLE_get(int nid)
 static ASN1_STRING_TABLE *stable_get(int nid)
 {
     ASN1_STRING_TABLE *tmp, *rv;
+
     /* Always need a string table so allocate one if NULL */
     if (stable == NULL) {
         stable = sk_ASN1_STRING_TABLE_new(sk_table_cmp);
@@ -198,16 +154,17 @@ static ASN1_STRING_TABLE *stable_get(int nid)
             return NULL;
     }
     tmp = ASN1_STRING_TABLE_get(nid);
-    if (tmp && tmp->flags & STABLE_FLAGS_MALLOC)
+    if (tmp != NULL && tmp->flags & STABLE_FLAGS_MALLOC)
         return tmp;
-    rv = OPENSSL_zalloc(sizeof(*rv));
-    if (rv == NULL)
+    if ((rv = OPENSSL_zalloc(sizeof(*rv))) == NULL) {
+        ASN1err(ASN1_F_STABLE_GET, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
     if (!sk_ASN1_STRING_TABLE_push(stable, rv)) {
         OPENSSL_free(rv);
         return NULL;
     }
-    if (tmp) {
+    if (tmp != NULL) {
         rv->nid = tmp->nid;
         rv->minsize = tmp->minsize;
         rv->maxsize = tmp->maxsize;
@@ -227,8 +184,9 @@ int ASN1_STRING_TABLE_add(int nid,
                           unsigned long flags)
 {
     ASN1_STRING_TABLE *tmp;
+
     tmp = stable_get(nid);
-    if (!tmp) {
+    if (tmp == NULL) {
         ASN1err(ASN1_F_ASN1_STRING_TABLE_ADD, ERR_R_MALLOC_FAILURE);
         return 0;
     }
@@ -246,8 +204,9 @@ int ASN1_STRING_TABLE_add(int nid,
 void ASN1_STRING_TABLE_cleanup(void)
 {
     STACK_OF(ASN1_STRING_TABLE) *tmp;
+
     tmp = stable;
-    if (!tmp)
+    if (tmp == NULL)
         return;
     stable = NULL;
     sk_ASN1_STRING_TABLE_pop_free(tmp, st_free);
@@ -258,32 +217,3 @@ static void st_free(ASN1_STRING_TABLE *tbl)
     if (tbl->flags & STABLE_FLAGS_MALLOC)
         OPENSSL_free(tbl);
 }
-
-
-#ifdef STRING_TABLE_TEST
-
-main()
-{
-    ASN1_STRING_TABLE *tmp;
-    int i, last_nid = -1;
-
-    for (tmp = tbl_standard, i = 0; i < OSSL_NELEM(tbl_standard); i++, tmp++) {
-        if (tmp->nid < last_nid) {
-            last_nid = 0;
-            break;
-        }
-        last_nid = tmp->nid;
-    }
-
-    if (last_nid != 0) {
-        printf("Table order OK\n");
-        exit(0);
-    }
-
-    for (tmp = tbl_standard, i = 0; i < OSSL_NELEM(tbl_standard); i++, tmp++)
-        printf("Index %d, NID %d, Name=%s\n", i, tmp->nid,
-               OBJ_nid2ln(tmp->nid));
-
-}
-
-#endif

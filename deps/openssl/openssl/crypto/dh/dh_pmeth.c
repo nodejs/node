@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,9 +26,11 @@ typedef struct {
     int generator;
     int use_dsa;
     int subprime_len;
+    int pad;
     /* message digest used for parameter generation */
     const EVP_MD *md;
     int rfc5114_param;
+    int param_nid;
     /* Keygen callback info */
     int gentmp[2];
     /* KDF (if any) to use for DH */
@@ -48,9 +50,10 @@ static int pkey_dh_init(EVP_PKEY_CTX *ctx)
 {
     DH_PKEY_CTX *dctx;
 
-    dctx = OPENSSL_zalloc(sizeof(*dctx));
-    if (dctx == NULL)
+    if ((dctx = OPENSSL_zalloc(sizeof(*dctx))) == NULL) {
+        DHerr(DH_F_PKEY_DH_INIT, ERR_R_MALLOC_FAILURE);
         return 0;
+    }
     dctx->prime_len = 1024;
     dctx->subprime_len = -1;
     dctx->generator = 2;
@@ -85,8 +88,10 @@ static int pkey_dh_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src)
     dctx->subprime_len = sctx->subprime_len;
     dctx->generator = sctx->generator;
     dctx->use_dsa = sctx->use_dsa;
+    dctx->pad = sctx->pad;
     dctx->md = sctx->md;
     dctx->rfc5114_param = sctx->rfc5114_param;
+    dctx->param_nid = sctx->param_nid;
 
     dctx->kdf_type = sctx->kdf_type;
     dctx->kdf_oid = OBJ_dup(sctx->kdf_oid);
@@ -119,6 +124,10 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         dctx->subprime_len = p1;
         return 1;
 
+    case EVP_PKEY_CTRL_DH_PAD:
+        dctx->pad = p1;
+        return 1;
+
     case EVP_PKEY_CTRL_DH_PARAMGEN_GENERATOR:
         if (dctx->use_dsa)
             return -2;
@@ -137,9 +146,15 @@ static int pkey_dh_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
         return 1;
 
     case EVP_PKEY_CTRL_DH_RFC5114:
-        if (p1 < 1 || p1 > 3)
+        if (p1 < 1 || p1 > 3 || dctx->param_nid != NID_undef)
             return -2;
         dctx->rfc5114_param = p1;
+        return 1;
+
+    case EVP_PKEY_CTRL_DH_NID:
+        if (p1 <= 0 || dctx->rfc5114_param != 0)
+            return -2;
+        dctx->param_nid = p1;
         return 1;
 
     case EVP_PKEY_CTRL_PEER_KEY:
@@ -221,6 +236,17 @@ static int pkey_dh_ctrl_str(EVP_PKEY_CTX *ctx,
         dctx->rfc5114_param = len;
         return 1;
     }
+    if (strcmp(type, "dh_param") == 0) {
+        DH_PKEY_CTX *dctx = ctx->data;
+        int nid = OBJ_sn2nid(value);
+
+        if (nid == NID_undef) {
+            DHerr(DH_F_PKEY_DH_CTRL_STR, DH_R_INVALID_PARAMETER_NAME);
+            return -2;
+        }
+        dctx->param_nid = nid;
+        return 1;
+    }
     if (strcmp(type, "dh_paramgen_generator") == 0) {
         int len;
         len = atoi(value);
@@ -235,6 +261,11 @@ static int pkey_dh_ctrl_str(EVP_PKEY_CTX *ctx,
         int typ;
         typ = atoi(value);
         return EVP_PKEY_CTX_set_dh_paramgen_type(ctx, typ);
+    }
+    if (strcmp(type, "dh_pad") == 0) {
+        int pad;
+        pad = atoi(value);
+        return EVP_PKEY_CTX_set_dh_pad(ctx, pad);
     }
     return -2;
 }
@@ -320,6 +351,13 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
         return 1;
     }
 
+    if (dctx->param_nid != 0) {
+        if ((dh = DH_new_by_nid(dctx->param_nid)) == NULL)
+            return 0;
+        EVP_PKEY_assign(pkey, EVP_PKEY_DH, dh);
+        return 1;
+    }
+
     if (ctx->pkey_gencb) {
         pcb = BN_GENCB_new();
         if (pcb == NULL)
@@ -359,17 +397,22 @@ static int pkey_dh_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 
 static int pkey_dh_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 {
+    DH_PKEY_CTX *dctx = ctx->data;
     DH *dh = NULL;
-    if (ctx->pkey == NULL) {
+
+    if (ctx->pkey == NULL && dctx->param_nid == 0) {
         DHerr(DH_F_PKEY_DH_KEYGEN, DH_R_NO_PARAMETERS_SET);
         return 0;
     }
-    dh = DH_new();
+    if (dctx->param_nid != 0)
+        dh = DH_new_by_nid(dctx->param_nid);
+    else
+        dh = DH_new();
     if (dh == NULL)
         return 0;
     EVP_PKEY_assign(pkey, ctx->pmeth->pkey_id, dh);
     /* Note: if error return, pkey is freed by parent routine */
-    if (!EVP_PKEY_copy_parameters(pkey, ctx->pkey))
+    if (ctx->pkey != NULL && !EVP_PKEY_copy_parameters(pkey, ctx->pkey))
         return 0;
     return DH_generate_key(pkey->pkey.dh);
 }
@@ -392,7 +435,10 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
             *keylen = DH_size(dh);
             return 1;
         }
-        ret = DH_compute_key(key, dhpub, dh);
+        if (dctx->pad)
+            ret = DH_compute_key_padded(key, dhpub, dh);
+        else
+            ret = DH_compute_key(key, dhpub, dh);
         if (ret < 0)
             return ret;
         *keylen = ret;

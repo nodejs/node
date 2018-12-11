@@ -13,6 +13,7 @@ use strict;
 use warnings;
 
 package ssltests;
+use OpenSSL::Test::Utils;
 
 our @tests = (
     {
@@ -109,4 +110,60 @@ our @tests = (
             "ExpectedServerAlert" => "UnrecognizedName"
         },
     },
+    {
+        name => "SNI-bad-clienthello-sni-ignore-mismatch",
+        server => {
+            extra => {
+                "ServerNameCallback" => "ClientHelloIgnoreMismatch",
+            },
+        },
+        client => {
+            extra => {
+                "ServerName" => "invalid",
+            },
+        },
+        test   => {
+            "ExpectedServerName" => "server1",
+            "ExpectedResult" => "Success"
+        },
+    },
+    {
+        name => "SNI-bad-clienthello-sni-reject-mismatch",
+        server => {
+            extra => {
+                "ServerNameCallback" => "ClientHelloRejectMismatch",
+            },
+        },
+        client => {
+            extra => {
+                "ServerName" => "invalid",
+            },
+        },
+        test   => {
+            "ExpectedResult" => "ServerFail",
+            "ExpectedServerAlert" => "UnrecognizedName"
+        },
+    },
 );
+
+our @tests_tls_1_1 = (
+    {
+        name => "SNI-clienthello-disable-v12",
+        server => {
+            extra => {
+                "ServerNameCallback" => "ClientHelloNoV12",
+            },
+        },
+        client => {
+            extra => {
+                "ServerName" => "server2",
+            },
+        },
+        test   => {
+            "ExpectedProtocol" => "TLSv1.1",
+            "ExpectedServerName" => "server2",
+        },
+    },
+);
+
+push @tests, @tests_tls_1_1 unless disabled("tls1_1");

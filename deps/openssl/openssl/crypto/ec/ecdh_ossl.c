@@ -1,25 +1,11 @@
 /*
- * Copyright 2002-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
- */
-
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- *
- * The Elliptic Curve Public-Key Crypto Library (ECC Code) included
- * herein is developed by SUN MICROSYSTEMS, INC., and is contributed
- * to the OpenSSL project.
- *
- * The ECC Code is licensed pursuant to the OpenSSL open source
- * license provided below.
- *
- * The ECDH software is originally written by Douglas Stebila of
- * Sun Microsystems Laboratories.
- *
  */
 
 #include <string.h>
@@ -54,7 +40,7 @@ int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
 {
     BN_CTX *ctx;
     EC_POINT *tmp = NULL;
-    BIGNUM *x = NULL, *y = NULL;
+    BIGNUM *x = NULL;
     const BIGNUM *priv_key;
     const EC_GROUP *group;
     int ret = 0;
@@ -65,8 +51,7 @@ int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
         goto err;
     BN_CTX_start(ctx);
     x = BN_CTX_get(ctx);
-    y = BN_CTX_get(ctx);
-    if (y == NULL) {
+    if (x == NULL) {
         ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -98,21 +83,10 @@ int ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
         goto err;
     }
 
-    if (EC_METHOD_get_field_type(EC_GROUP_method_of(group)) ==
-        NID_X9_62_prime_field) {
-        if (!EC_POINT_get_affine_coordinates_GFp(group, tmp, x, y, ctx)) {
-            ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, EC_R_POINT_ARITHMETIC_FAILURE);
-            goto err;
-        }
+    if (!EC_POINT_get_affine_coordinates(group, tmp, x, NULL, ctx)) {
+        ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, EC_R_POINT_ARITHMETIC_FAILURE);
+        goto err;
     }
-#ifndef OPENSSL_NO_EC2M
-    else {
-        if (!EC_POINT_get_affine_coordinates_GF2m(group, tmp, x, y, ctx)) {
-            ECerr(EC_F_ECDH_SIMPLE_COMPUTE_KEY, EC_R_POINT_ARITHMETIC_FAILURE);
-            goto err;
-        }
-    }
-#endif
 
     buflen = (EC_GROUP_get_degree(group) + 7) / 8;
     len = BN_num_bytes(x);

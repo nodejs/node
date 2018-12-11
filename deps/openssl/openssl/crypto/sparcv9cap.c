@@ -15,6 +15,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <openssl/bn.h>
+#include "internal/cryptlib.h"
 
 #include "sparc_arch.h"
 
@@ -98,7 +99,7 @@ unsigned long _sparcv9_random(void);
 size_t _sparcv9_vis1_instrument_bus(unsigned int *, size_t);
 size_t _sparcv9_vis1_instrument_bus2(unsigned int *, size_t, size_t);
 
-unsigned long OPENSSL_rdtsc(void)
+uint32_t OPENSSL_rdtsc(void)
 {
     if (OPENSSL_sparcv9cap_P[0] & SPARCV9_TICK_PRIVILEGED)
 #if defined(__sun) && defined(__SVR4)

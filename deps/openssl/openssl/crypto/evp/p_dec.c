@@ -32,5 +32,5 @@ int EVP_PKEY_decrypt_old(unsigned char *key, const unsigned char *ek, int ekl,
                             RSA_PKCS1_PADDING);
  err:
 #endif
-    return (ret);
+    return ret;
 }

@@ -2,7 +2,7 @@
 ;;;
 ;;; This definition is for the "CC mode" package, which is the default
 ;;; mode for editing C source files in Emacs 20, not for the older
-;;; c-mode.el (which was the default in less recent release of Emacs 19).
+;;; c-mode.el (which was the default in less recent releases of Emacs 19).
 ;;;
 ;;; Recommended use is to add this line in your .emacs:
 ;;;

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,8 +16,8 @@
 #include <openssl/err.h>
 #include "ssl_locl.h"
 
-static int ssl_write(BIO *h, const char *buf, int num);
-static int ssl_read(BIO *h, char *buf, int size);
+static int ssl_write(BIO *h, const char *buf, size_t size, size_t *written);
+static int ssl_read(BIO *b, char *buf, size_t size, size_t *readbytes);
 static int ssl_puts(BIO *h, const char *str);
 static long ssl_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int ssl_new(BIO *h);
@@ -28,7 +28,7 @@ typedef struct bio_ssl_st {
     /* re-negotiate every time the total number of bytes is this size */
     int num_renegotiates;
     unsigned long renegotiate_count;
-    unsigned long byte_count;
+    size_t byte_count;
     unsigned long renegotiate_timeout;
     unsigned long last_time;
 } BIO_SSL;
@@ -37,7 +37,9 @@ static const BIO_METHOD methods_sslp = {
     BIO_TYPE_SSL,
     "ssl",
     ssl_write,
+    NULL,                       /* ssl_write_old, */
     ssl_read,
+    NULL,                       /* ssl_read_old,  */
     ssl_puts,
     NULL,                       /* ssl_gets,      */
     ssl_ctrl,
@@ -48,7 +50,7 @@ static const BIO_METHOD methods_sslp = {
 
 const BIO_METHOD *BIO_f_ssl(void)
 {
-    return (&methods_sslp);
+    return &methods_sslp;
 }
 
 static int ssl_new(BIO *bi)
@@ -57,7 +59,7 @@ static int ssl_new(BIO *bi)
 
     if (bs == NULL) {
         BIOerr(BIO_F_SSL_NEW, ERR_R_MALLOC_FAILURE);
-        return (0);
+        return 0;
     }
     BIO_set_init(bi, 0);
     BIO_set_data(bi, bs);
@@ -72,7 +74,7 @@ static int ssl_free(BIO *a)
     BIO_SSL *bs;
 
     if (a == NULL)
-        return (0);
+        return 0;
     bs = BIO_get_data(a);
     if (bs->ssl != NULL)
         SSL_shutdown(bs->ssl);
@@ -87,7 +89,7 @@ static int ssl_free(BIO *a)
     return 1;
 }
 
-static int ssl_read(BIO *b, char *out, int outl)
+static int ssl_read(BIO *b, char *buf, size_t size, size_t *readbytes)
 {
     int ret = 1;
     BIO_SSL *sb;
@@ -95,21 +97,19 @@ static int ssl_read(BIO *b, char *out, int outl)
     int retry_reason = 0;
     int r = 0;
 
-    if (out == NULL)
-        return (0);
+    if (buf == NULL)
+        return 0;
     sb = BIO_get_data(b);
     ssl = sb->ssl;
 
     BIO_clear_retry_flags(b);
 
-    ret = SSL_read(ssl, out, outl);
+    ret = ssl_read_internal(ssl, buf, size, readbytes);
 
     switch (SSL_get_error(ssl, ret)) {
     case SSL_ERROR_NONE:
-        if (ret <= 0)
-            break;
         if (sb->renegotiate_count > 0) {
-            sb->byte_count += ret;
+            sb->byte_count += *readbytes;
             if (sb->byte_count > sb->renegotiate_count) {
                 sb->byte_count = 0;
                 sb->num_renegotiates++;
@@ -155,34 +155,30 @@ static int ssl_read(BIO *b, char *out, int outl)
     }
 
     BIO_set_retry_reason(b, retry_reason);
-    return (ret);
+
+    return ret;
 }
 
-static int ssl_write(BIO *b, const char *out, int outl)
+static int ssl_write(BIO *b, const char *buf, size_t size, size_t *written)
 {
     int ret, r = 0;
     int retry_reason = 0;
     SSL *ssl;
     BIO_SSL *bs;
 
-    if (out == NULL)
-        return (0);
+    if (buf == NULL)
+        return 0;
     bs = BIO_get_data(b);
     ssl = bs->ssl;
 
     BIO_clear_retry_flags(b);
 
-    /*
-     * ret=SSL_do_handshake(ssl); if (ret > 0)
-     */
-    ret = SSL_write(ssl, out, outl);
+    ret = ssl_write_internal(ssl, buf, size, written);
 
     switch (SSL_get_error(ssl, ret)) {
     case SSL_ERROR_NONE:
-        if (ret <= 0)
-            break;
         if (bs->renegotiate_count > 0) {
-            bs->byte_count += ret;
+            bs->byte_count += *written;
             if (bs->byte_count > bs->renegotiate_count) {
                 bs->byte_count = 0;
                 bs->num_renegotiates++;
@@ -221,6 +217,7 @@ static int ssl_write(BIO *b, const char *out, int outl)
     }
 
     BIO_set_retry_reason(b, retry_reason);
+
     return ret;
 }
 
@@ -236,7 +233,7 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
     next = BIO_next(b);
     ssl = bs->ssl;
     if ((ssl == NULL) && (cmd != BIO_C_SET_SSL))
-        return (0);
+        return 0;
     switch (cmd) {
     case BIO_CTRL_RESET:
         SSL_shutdown(ssl);
@@ -384,21 +381,13 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = BIO_ctrl(ssl->rbio, cmd, num, ptr);
         break;
     case BIO_CTRL_SET_CALLBACK:
-        {
-#if 0                           /* FIXME: Should this be used? -- Richard
-                                 * Levitte */
-            SSLerr(SSL_F_SSL_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-            ret = -1;
-#else
-            ret = 0;
-#endif
-        }
+        ret = 0; /* use callback ctrl */
         break;
     default:
         ret = BIO_ctrl(ssl->rbio, cmd, num, ptr);
         break;
     }
-    return (ret);
+    return ret;
 }
 
 static long ssl_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
@@ -417,7 +406,7 @@ static long ssl_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
         ret = 0;
         break;
     }
-    return (ret);
+    return ret;
 }
 
 static int ssl_puts(BIO *bp, const char *str)
@@ -426,7 +415,7 @@ static int ssl_puts(BIO *bp, const char *str)
 
     n = strlen(str);
     ret = BIO_write(bp, str, n);
-    return (ret);
+    return ret;
 }
 
 BIO *BIO_new_buffer_ssl_connect(SSL_CTX *ctx)
@@ -435,17 +424,17 @@ BIO *BIO_new_buffer_ssl_connect(SSL_CTX *ctx)
     BIO *ret = NULL, *buf = NULL, *ssl = NULL;
 
     if ((buf = BIO_new(BIO_f_buffer())) == NULL)
-        return (NULL);
+        return NULL;
     if ((ssl = BIO_new_ssl_connect(ctx)) == NULL)
         goto err;
     if ((ret = BIO_push(buf, ssl)) == NULL)
         goto err;
-    return (ret);
+    return ret;
  err:
     BIO_free(buf);
     BIO_free(ssl);
 #endif
-    return (NULL);
+    return NULL;
 }
 
 BIO *BIO_new_ssl_connect(SSL_CTX *ctx)
@@ -454,16 +443,16 @@ BIO *BIO_new_ssl_connect(SSL_CTX *ctx)
     BIO *ret = NULL, *con = NULL, *ssl = NULL;
 
     if ((con = BIO_new(BIO_s_connect())) == NULL)
-        return (NULL);
+        return NULL;
     if ((ssl = BIO_new_ssl(ctx, 1)) == NULL)
         goto err;
     if ((ret = BIO_push(ssl, con)) == NULL)
         goto err;
-    return (ret);
+    return ret;
  err:
     BIO_free(con);
 #endif
-    return (NULL);
+    return NULL;
 }
 
 BIO *BIO_new_ssl(SSL_CTX *ctx, int client)
@@ -472,10 +461,10 @@ BIO *BIO_new_ssl(SSL_CTX *ctx, int client)
     SSL *ssl;
 
     if ((ret = BIO_new(BIO_f_ssl())) == NULL)
-        return (NULL);
+        return NULL;
     if ((ssl = SSL_new(ctx)) == NULL) {
         BIO_free(ret);
-        return (NULL);
+        return NULL;
     }
     if (client)
         SSL_set_connect_state(ssl);
@@ -483,7 +472,7 @@ BIO *BIO_new_ssl(SSL_CTX *ctx, int client)
         SSL_set_accept_state(ssl);
 
     BIO_set_ssl(ret, ssl, BIO_CLOSE);
-    return (ret);
+    return ret;
 }
 
 int BIO_ssl_copy_session_id(BIO *t, BIO *f)
@@ -496,10 +485,10 @@ int BIO_ssl_copy_session_id(BIO *t, BIO *f)
     tdata = BIO_get_data(t);
     fdata = BIO_get_data(f);
     if ((tdata->ssl == NULL) || (fdata->ssl == NULL))
-        return (0);
+        return 0;
     if (!SSL_copy_session_id(tdata->ssl, (fdata->ssl)))
         return 0;
-    return (1);
+    return 1;
 }
 
 void BIO_ssl_shutdown(BIO *b)

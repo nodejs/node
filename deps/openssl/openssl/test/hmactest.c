@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../e_os.h"
+#include "internal/nelem.h"
 
 # include <openssl/hmac.h>
 # include <openssl/sha.h>
@@ -22,6 +22,8 @@
 # ifdef CHARSET_EBCDIC
 #  include <openssl/ebcdic.h>
 # endif
+
+#include "testutil.h"
 
 # ifndef OPENSSL_NO_MD5
 static struct test_st {
@@ -79,21 +81,11 @@ static struct test_st {
 
 static char *pt(unsigned char *md, unsigned int len);
 
-int main(int argc, char *argv[])
-{
+
 # ifndef OPENSSL_NO_MD5
-    int i;
+static int test_hmac_md5(int idx)
+{
     char *p;
-# endif
-    int err = 0;
-    HMAC_CTX *ctx = NULL, *ctx2 = NULL;
-    unsigned char buf[EVP_MAX_MD_SIZE];
-    unsigned int len;
-
-# ifdef OPENSSL_NO_MD5
-    printf("test skipped: MD5 disabled\n");
-# else
-
 #  ifdef CHARSET_EBCDIC
     ebcdic2ascii(test[0].data, test[0].data, test[0].data_len);
     ebcdic2ascii(test[1].data, test[1].data, test[1].data_len);
@@ -101,202 +93,135 @@ int main(int argc, char *argv[])
     ebcdic2ascii(test[2].data, test[2].data, test[2].data_len);
 #  endif
 
-    for (i = 0; i < 4; i++) {
-        p = pt(HMAC(EVP_md5(),
-                    test[i].key, test[i].key_len,
-                    test[i].data, test[i].data_len, NULL, NULL),
-                    MD5_DIGEST_LENGTH);
+    p = pt(HMAC(EVP_md5(),
+                test[idx].key, test[idx].key_len,
+                test[idx].data, test[idx].data_len, NULL, NULL),
+                MD5_DIGEST_LENGTH);
 
-        if (strcmp(p, (char *)test[i].digest) != 0) {
-            printf("Error calculating HMAC on %d entry'\n", i);
-            printf("got %s instead of %s\n", p, test[i].digest);
-            err++;
-        } else
-            printf("test %d ok\n", i);
-    }
-# endif                         /* OPENSSL_NO_MD5 */
+    if (!TEST_str_eq(p, (char *)test[idx].digest))
+      return 0;
 
-/* test4 */
+    return 1;
+}
+# endif
+
+static int test_hmac_bad(void)
+{
+    HMAC_CTX *ctx = NULL;
+    int ret = 0;
+
     ctx = HMAC_CTX_new();
-    if (ctx == NULL) {
-        printf("HMAC malloc failure (test 4)\n");
-        err++;
-        goto end;
-    }
-    if (HMAC_CTX_get_md(ctx) != NULL) {
-        printf("Message digest not NULL for HMAC (test 4)\n");
-        err++;
-        goto test5;
-    }
-    if (HMAC_Init_ex(ctx, NULL, 0, NULL, NULL)) {
-        printf("Should fail to initialise HMAC with empty MD and key (test 4)\n");
-        err++;
-        goto test5;
-    }
-    if (HMAC_Update(ctx, test[4].data, test[4].data_len)) {
-        printf("Should fail HMAC_Update with ctx not set up (test 4)\n");
-        err++;
-        goto test5;
-    }
-    if (HMAC_Init_ex(ctx, NULL, 0, EVP_sha1(), NULL)) {
-        printf("Should fail to initialise HMAC with empty key (test 4)\n");
-        err++;
-        goto test5;
-    }
-    if (HMAC_Update(ctx, test[4].data, test[4].data_len)) {
-        printf("Should fail HMAC_Update with ctx not set up (test 4)\n");
-        err++;
-        goto test5;
-    }
-    printf("test 4 ok\n");
-test5:
-    /* Test 5 has empty key; test that single-shot accepts a NULL key. */
+    if (!TEST_ptr(ctx)
+        || !TEST_ptr_null(HMAC_CTX_get_md(ctx))
+        || !TEST_false(HMAC_Init_ex(ctx, NULL, 0, NULL, NULL))
+        || !TEST_false(HMAC_Update(ctx, test[4].data, test[4].data_len))
+        || !TEST_false(HMAC_Init_ex(ctx, NULL, 0, EVP_sha1(), NULL))
+        || !TEST_false(HMAC_Update(ctx, test[4].data, test[4].data_len)))
+        goto err;
+
+    ret = 1;
+err:
+    HMAC_CTX_free(ctx);
+    return ret;
+}
+
+static int test_hmac_run(void)
+{
+    char *p;
+    HMAC_CTX *ctx = NULL;
+    unsigned char buf[EVP_MAX_MD_SIZE];
+    unsigned int len;
+    int ret = 0;
+
+    ctx = HMAC_CTX_new();
+    HMAC_CTX_reset(ctx);
+
+    if (!TEST_ptr(ctx)
+        || !TEST_ptr_null(HMAC_CTX_get_md(ctx))
+        || !TEST_false(HMAC_Init_ex(ctx, NULL, 0, NULL, NULL))
+        || !TEST_false(HMAC_Update(ctx, test[4].data, test[4].data_len))
+        || !TEST_false(HMAC_Init_ex(ctx, test[4].key, -1, EVP_sha1(), NULL)))
+        goto err;
+
+    if (!TEST_true(HMAC_Init_ex(ctx, test[4].key, test[4].key_len, EVP_sha1(), NULL))
+        || !TEST_true(HMAC_Update(ctx, test[4].data, test[4].data_len))
+        || !TEST_true(HMAC_Final(ctx, buf, &len)))
+        goto err;
+
+    p = pt(buf, len);
+    if (!TEST_str_eq(p, (char *)test[4].digest))
+        goto err;
+
+    if (!TEST_false(HMAC_Init_ex(ctx, NULL, 0, EVP_sha256(), NULL)))
+        goto err;
+
+    if (!TEST_true(HMAC_Init_ex(ctx, test[5].key, test[5].key_len, EVP_sha256(), NULL))
+        || !TEST_ptr_eq(HMAC_CTX_get_md(ctx), EVP_sha256())
+        || !TEST_true(HMAC_Update(ctx, test[5].data, test[5].data_len))
+        || !TEST_true(HMAC_Final(ctx, buf, &len)))
+        goto err;
+
+    p = pt(buf, len);
+    if (!TEST_str_eq(p, (char *)test[5].digest))
+        goto err;
+
+    if (!TEST_true(HMAC_Init_ex(ctx, test[6].key, test[6].key_len, NULL, NULL))
+        || !TEST_true(HMAC_Update(ctx, test[6].data, test[6].data_len))
+        || !TEST_true(HMAC_Final(ctx, buf, &len)))
+        goto err;
+    p = pt(buf, len);
+    if (!TEST_str_eq(p, (char *)test[6].digest))
+        goto err;
+
+    ret = 1;
+err:
+    HMAC_CTX_free(ctx);
+    return ret;
+}
+
+
+static int test_hmac_single_shot(void)
+{
+    char *p;
+
+    /* Test single-shot with an empty key. */
     p = pt(HMAC(EVP_sha1(), NULL, 0, test[4].data, test[4].data_len,
                 NULL, NULL), SHA_DIGEST_LENGTH);
-    if (strcmp(p, (char *)test[4].digest) != 0) {
-        printf("Error calculating HMAC on %d entry'\n", i);
-        printf("got %s instead of %s\n", p, test[4].digest);
-        err++;
-    }
+    if (!TEST_str_eq(p, (char *)test[4].digest))
+        return 0;
 
-    HMAC_CTX_reset(ctx);
-    if (HMAC_CTX_get_md(ctx) != NULL) {
-        printf("Message digest not NULL for HMAC (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (HMAC_Init_ex(ctx, test[4].key, test[4].key_len, NULL, NULL)) {
-        printf("Should fail to initialise HMAC with empty MD (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (HMAC_Update(ctx, test[4].data, test[4].data_len)) {
-        printf("Should fail HMAC_Update with ctx not set up (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (HMAC_Init_ex(ctx, test[4].key, -1, EVP_sha1(), NULL)) {
-        printf("Should fail to initialise HMAC with invalid key len(test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Init_ex(ctx, test[4].key, test[4].key_len, EVP_sha1(), NULL)) {
-        printf("Failed to initialise HMAC (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Update(ctx, test[4].data, test[4].data_len)) {
-        printf("Error updating HMAC with data (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Final(ctx, buf, &len)) {
-        printf("Error finalising data (test 5)\n");
-        err++;
-        goto test6;
-    }
-    p = pt(buf, len);
-    if (strcmp(p, (char *)test[4].digest) != 0) {
-        printf("Error calculating interim HMAC on test 5\n");
-        printf("got %s instead of %s\n", p, test[4].digest);
-        err++;
-        goto test6;
-    }
-    if (HMAC_Init_ex(ctx, NULL, 0, EVP_sha256(), NULL)) {
-        printf("Should disallow changing MD without a new key (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Init_ex(ctx, test[5].key, test[5].key_len, EVP_sha256(), NULL)) {
-        printf("Failed to reinitialise HMAC (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (HMAC_CTX_get_md(ctx) != EVP_sha256()) {
-        printf("Unexpected message digest for HMAC (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Update(ctx, test[5].data, test[5].data_len)) {
-        printf("Error updating HMAC with data (sha256) (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Final(ctx, buf, &len)) {
-        printf("Error finalising data (sha256) (test 5)\n");
-        err++;
-        goto test6;
-    }
-    p = pt(buf, len);
-    if (strcmp(p, (char *)test[5].digest) != 0) {
-        printf("Error calculating 2nd interim HMAC on test 5\n");
-        printf("got %s instead of %s\n", p, test[5].digest);
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Init_ex(ctx, test[6].key, test[6].key_len, NULL, NULL)) {
-        printf("Failed to reinitialise HMAC with key (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Update(ctx, test[6].data, test[6].data_len)) {
-        printf("Error updating HMAC with data (new key) (test 5)\n");
-        err++;
-        goto test6;
-    }
-    if (!HMAC_Final(ctx, buf, &len)) {
-        printf("Error finalising data (new key) (test 5)\n");
-        err++;
-        goto test6;
-    }
-    p = pt(buf, len);
-    if (strcmp(p, (char *)test[6].digest) != 0) {
-        printf("error calculating HMAC on test 5\n");
-        printf("got %s instead of %s\n", p, test[6].digest);
-        err++;
-    } else {
-        printf("test 5 ok\n");
-    }
-test6:
-    HMAC_CTX_reset(ctx);
+    return 1;
+}
+
+
+static int test_hmac_copy(void)
+{
+    char *p;
+    HMAC_CTX *ctx = NULL, *ctx2 = NULL;
+    unsigned char buf[EVP_MAX_MD_SIZE];
+    unsigned int len;
+    int ret = 0;
+
+    ctx = HMAC_CTX_new();
     ctx2 = HMAC_CTX_new();
-    if (ctx2 == NULL) {
-        printf("HMAC malloc failure (test 6)\n");
-        err++;
-        goto end;
-    }
-    if (!HMAC_Init_ex(ctx, test[7].key, test[7].key_len, EVP_sha1(), NULL)) {
-        printf("Failed to initialise HMAC (test 6)\n");
-        err++;
-        goto end;
-    }
-    if (!HMAC_Update(ctx, test[7].data, test[7].data_len)) {
-        printf("Error updating HMAC with data (test 6)\n");
-        err++;
-        goto end;
-    }
-    if (!HMAC_CTX_copy(ctx2, ctx)) {
-        printf("Failed to copy HMAC_CTX (test 6)\n");
-        err++;
-        goto end;
-    }
-    if (!HMAC_Final(ctx2, buf, &len)) {
-        printf("Error finalising data (test 6)\n");
-        err++;
-        goto end;
-    }
+    if (!TEST_ptr(ctx) || !TEST_ptr(ctx2))
+        goto err;
+
+    if (!TEST_true(HMAC_Init_ex(ctx, test[7].key, test[7].key_len, EVP_sha1(), NULL))
+        || !TEST_true(HMAC_Update(ctx, test[7].data, test[7].data_len))
+        || !TEST_true(HMAC_CTX_copy(ctx2, ctx))
+        || !TEST_true(HMAC_Final(ctx2, buf, &len)))
+        goto err;
+
     p = pt(buf, len);
-    if (strcmp(p, (char *)test[7].digest) != 0) {
-        printf("Error calculating HMAC on test 6\n");
-        printf("got %s instead of %s\n", p, test[7].digest);
-        err++;
-    } else {
-        printf("test 6 ok\n");
-    }
-end:
+    if (!TEST_str_eq(p, (char *)test[7].digest))
+        goto err;
+
+    ret = 1;
+err:
     HMAC_CTX_free(ctx2);
     HMAC_CTX_free(ctx);
-    EXIT(err);
+    return ret;
 }
 
 # ifndef OPENSSL_NO_MD5
@@ -307,6 +232,17 @@ static char *pt(unsigned char *md, unsigned int len)
 
     for (i = 0; i < len; i++)
         sprintf(&(buf[i * 2]), "%02x", md[i]);
-    return (buf);
+    return buf;
 }
 # endif
+
+int setup_tests(void)
+{
+    ADD_ALL_TESTS(test_hmac_md5, 4);
+    ADD_TEST(test_hmac_single_shot);
+    ADD_TEST(test_hmac_bad);
+    ADD_TEST(test_hmac_run);
+    ADD_TEST(test_hmac_copy);
+    return 1;
+}
+

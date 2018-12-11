@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,20 +10,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
 #include <openssl/opensslconf.h> /* To see if OPENSSL_NO_CAST is defined */
+#include "internal/nelem.h"
+#include "testutil.h"
 
-#include "../e_os.h"
-
-#ifdef OPENSSL_NO_CAST
-int main(int argc, char *argv[])
-{
-    printf("No CAST support\n");
-    return (0);
-}
-#else
+#ifndef OPENSSL_NO_CAST
 # include <openssl/cast.h>
-
-# define FULL_TEST
 
 static unsigned char k[16] = {
     0x01, 0x23, 0x45, 0x67, 0x12, 0x34, 0x56, 0x78,
@@ -40,8 +33,6 @@ static unsigned char c[3][8] = {
     {0xEB, 0x6A, 0x71, 0x1A, 0x2C, 0x02, 0x27, 0x1B},
     {0x7A, 0xC8, 0x16, 0xD1, 0x6E, 0x9B, 0x30, 0x2E},
 };
-
-static unsigned char out[80];
 
 static unsigned char in_a[16] = {
     0x01, 0x23, 0x45, 0x67, 0x12, 0x34, 0x56, 0x78,
@@ -63,101 +54,59 @@ static unsigned char c_b[16] = {
     0x80, 0xAC, 0x05, 0xB8, 0xE8, 0x3D, 0x69, 0x6E
 };
 
-int main(int argc, char *argv[])
+static int cast_test_vector(int z)
 {
-# ifdef FULL_TEST
-    long l;
-    CAST_KEY key_b;
-# endif
-    int i, z, err = 0;
+    int testresult = 1;
     CAST_KEY key;
+    unsigned char out[80];
 
-    for (z = 0; z < 3; z++) {
-        CAST_set_key(&key, k_len[z], k);
-
-        CAST_ecb_encrypt(in, out, &key, CAST_ENCRYPT);
-        if (memcmp(out, &(c[z][0]), 8) != 0) {
-            printf("ecb cast error encrypting for keysize %d\n",
-                   k_len[z] * 8);
-            printf("got     :");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", out[i]);
-            printf("\n");
-            printf("expected:");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", c[z][i]);
-            err = 20;
-            printf("\n");
-        }
-
-        CAST_ecb_encrypt(out, out, &key, CAST_DECRYPT);
-        if (memcmp(out, in, 8) != 0) {
-            printf("ecb cast error decrypting for keysize %d\n",
-                   k_len[z] * 8);
-            printf("got     :");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", out[i]);
-            printf("\n");
-            printf("expected:");
-            for (i = 0; i < 8; i++)
-                printf("%02X ", in[i]);
-            printf("\n");
-            err = 3;
-        }
+    CAST_set_key(&key, k_len[z], k);
+    CAST_ecb_encrypt(in, out, &key, CAST_ENCRYPT);
+    if (!TEST_mem_eq(out, sizeof(c[z]), c[z], sizeof(c[z]))) {
+        TEST_info("CAST_ENCRYPT iteration %d failed (len=%d)", z, k_len[z]);
+        testresult = 0;
     }
-    if (err == 0)
-        printf("ecb cast5 ok\n");
 
-# ifdef FULL_TEST
-    {
-        unsigned char out_a[16], out_b[16];
-        static char *hex = "0123456789ABCDEF";
-
-        printf("This test will take some time....");
-        fflush(stdout);
-        memcpy(out_a, in_a, sizeof(in_a));
-        memcpy(out_b, in_b, sizeof(in_b));
-        i = 1;
-
-        for (l = 0; l < 1000000L; l++) {
-            CAST_set_key(&key_b, 16, out_b);
-            CAST_ecb_encrypt(&(out_a[0]), &(out_a[0]), &key_b, CAST_ENCRYPT);
-            CAST_ecb_encrypt(&(out_a[8]), &(out_a[8]), &key_b, CAST_ENCRYPT);
-            CAST_set_key(&key, 16, out_a);
-            CAST_ecb_encrypt(&(out_b[0]), &(out_b[0]), &key, CAST_ENCRYPT);
-            CAST_ecb_encrypt(&(out_b[8]), &(out_b[8]), &key, CAST_ENCRYPT);
-            if ((l & 0xffff) == 0xffff) {
-                printf("%c", hex[i & 0x0f]);
-                fflush(stdout);
-                i++;
-            }
-        }
-
-        if ((memcmp(out_a, c_a, sizeof(c_a)) != 0) ||
-            (memcmp(out_b, c_b, sizeof(c_b)) != 0)) {
-            printf("\n");
-            printf("Error\n");
-
-            printf("A out =");
-            for (i = 0; i < 16; i++)
-                printf("%02X ", out_a[i]);
-            printf("\nactual=");
-            for (i = 0; i < 16; i++)
-                printf("%02X ", c_a[i]);
-            printf("\n");
-
-            printf("B out =");
-            for (i = 0; i < 16; i++)
-                printf("%02X ", out_b[i]);
-            printf("\nactual=");
-            for (i = 0; i < 16; i++)
-                printf("%02X ", c_b[i]);
-            printf("\n");
-        } else
-            printf(" ok\n");
+    CAST_ecb_encrypt(out, out, &key, CAST_DECRYPT);
+    if (!TEST_mem_eq(out, sizeof(in), in, sizeof(in))) {
+        TEST_info("CAST_DECRYPT iteration %d failed (len=%d)", z, k_len[z]);
+        testresult = 0;
     }
-# endif
+    return testresult;
+}
 
-    EXIT(err);
+static int cast_test_iterations(void)
+{
+    long l;
+    int testresult = 1;
+    CAST_KEY key, key_b;
+    unsigned char out_a[16], out_b[16];
+
+    memcpy(out_a, in_a, sizeof(in_a));
+    memcpy(out_b, in_b, sizeof(in_b));
+
+    for (l = 0; l < 1000000L; l++) {
+        CAST_set_key(&key_b, 16, out_b);
+        CAST_ecb_encrypt(&(out_a[0]), &(out_a[0]), &key_b, CAST_ENCRYPT);
+        CAST_ecb_encrypt(&(out_a[8]), &(out_a[8]), &key_b, CAST_ENCRYPT);
+        CAST_set_key(&key, 16, out_a);
+        CAST_ecb_encrypt(&(out_b[0]), &(out_b[0]), &key, CAST_ENCRYPT);
+        CAST_ecb_encrypt(&(out_b[8]), &(out_b[8]), &key, CAST_ENCRYPT);
+    }
+
+    if (!TEST_mem_eq(out_a, sizeof(c_a), c_a, sizeof(c_a))
+            || !TEST_mem_eq(out_b, sizeof(c_b), c_b, sizeof(c_b)))
+        testresult = 0;
+
+    return testresult;
 }
 #endif
+
+int setup_tests(void)
+{
+#ifndef OPENSSL_NO_CAST
+    ADD_ALL_TESTS(cast_test_vector, OSSL_NELEM(k_len));
+    ADD_TEST(cast_test_iterations);
+#endif
+    return 1;
+}

@@ -132,7 +132,7 @@ int DSA_meth_set_sign_setup(DSA_METHOD *dsam,
 }
 
 int (*DSA_meth_get_verify(const DSA_METHOD *dsam))
-        (const unsigned char *, int , DSA_SIG *, DSA *)
+        (const unsigned char *, int, DSA_SIG *, DSA *)
 {
     return dsam->dsa_do_verify;
 }

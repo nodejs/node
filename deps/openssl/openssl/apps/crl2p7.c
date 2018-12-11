@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include "apps.h"
+#include "progs.h"
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
@@ -25,7 +26,7 @@ typedef enum OPTION_choice {
     OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_NOCRL, OPT_CERTFILE
 } OPTION_CHOICE;
 
-OPTIONS crl2pkcs7_options[] = {
+const OPTIONS crl2pkcs7_options[] = {
     {"help", OPT_HELP, '-', "Display this summary"},
     {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
     {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
@@ -131,7 +132,7 @@ int crl2pkcs7_main(int argc, char **argv)
         goto end;
     p7s->cert = cert_stack;
 
-    if (certflst)
+    if (certflst != NULL)
         for (i = 0; i < sk_OPENSSL_STRING_num(certflst); i++) {
             certfile = sk_OPENSSL_STRING_value(certflst, i);
             if (add_certs_from_file(cert_stack, certfile) < 0) {
@@ -162,7 +163,7 @@ int crl2pkcs7_main(int argc, char **argv)
     PKCS7_free(p7);
     X509_CRL_free(crl);
 
-    return (ret);
+    return ret;
 }
 
 /*-
@@ -212,5 +213,5 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile)
     /* never need to OPENSSL_free x */
     BIO_free(in);
     sk_X509_INFO_free(sk);
-    return (ret);
+    return ret;
 }

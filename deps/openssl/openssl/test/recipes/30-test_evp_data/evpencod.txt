@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2017 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -12,7 +12,7 @@
 # and continue until a blank line.  Lines starting with a pound sign,
 # like this prolog, are ignored.
 
-# Base64 tests
+Title = Base64 tests
 
 Encoding = canonical
 Input = ""
@@ -190,3 +190,5 @@ Output = "T3BlblNTTE9wZW5TU0wK\n-abcd"
 Encoding = valid
 Input = "OpenSSLOpenSSL\n"
 Output = "T3BlblNTTE9wZW5TU0wK-abcd"
+
+

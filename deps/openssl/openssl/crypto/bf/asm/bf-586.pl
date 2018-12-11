@@ -15,7 +15,7 @@ require "cbc.pl";
 $output = pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"bf-586.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $BF_ROUNDS=16;
 $BF_OFF=($BF_ROUNDS+2)*4;

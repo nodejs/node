@@ -13,7 +13,6 @@
 /*-
  * RC4 as implemented from a posting from
  * Newsgroups: sci.crypt
- * From: sterndark@netcom.com (David Sterndark)
  * Subject: RC4 Algorithm revealed.
  * Message-ID: <sternCvKL4B.Hyy@netcom.com>
  * Date: Wed, 14 Sep 1994 06:35:31 GMT

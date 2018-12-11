@@ -76,6 +76,7 @@ static int ssl_module_init(CONF_IMODULE *md, const CONF *cnf)
         goto err;
     }
     cnt = sk_CONF_VALUE_num(cmd_lists);
+    ssl_module_free(md);
     ssl_names = OPENSSL_zalloc(sizeof(*ssl_names) * cnt);
     ssl_names_count = cnt;
     for (i = 0; i < ssl_names_count; i++) {

@@ -156,7 +156,7 @@ $code.=<<___;
 ___
 
 ######################################################################
-# "528B" (well, "512B" actualy) streamed GHASH
+# "528B" (well, "512B" actually) streamed GHASH
 #
 $Xip="in0";
 $Htbl="in1";

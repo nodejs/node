@@ -20,7 +20,7 @@
 # include <windows.h>
 #endif
 
-#include <internal/async.h>
+#include "internal/async.h"
 #include <openssl/crypto.h>
 
 typedef struct async_ctx_st async_ctx;

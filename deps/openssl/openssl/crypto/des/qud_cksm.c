@@ -15,7 +15,6 @@
  */
 #include "des_locl.h"
 
-/* bug fix for dos - 7/6/91 - Larry hughes@logos.ucs.indiana.edu */
 #define Q_B0(a) (((DES_LONG)(a)))
 #define Q_B1(a) (((DES_LONG)(a))<<8)
 #define Q_B2(a) (((DES_LONG)(a))<<16)
@@ -73,5 +72,5 @@ DES_LONG DES_quad_cksum(const unsigned char *input, DES_cblock output[],
             *lp++ = z1;
         }
     }
-    return (z0);
+    return z0;
 }

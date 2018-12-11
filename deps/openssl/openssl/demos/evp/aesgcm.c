@@ -102,7 +102,7 @@ void aes_gcm_decrypt(void)
     printf("Plaintext:\n");
     BIO_dump_fp(stdout, outbuf, outlen);
     /* Set expected tag value. */
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, sizeof(gcm_tag), 
+    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, sizeof(gcm_tag),
                         (void *)gcm_tag);
     /* Finalise: note get no output for GCM */
     rv = EVP_DecryptFinal_ex(ctx, outbuf, &outlen);

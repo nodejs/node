@@ -1,4 +1,4 @@
-! Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+! Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
 !
 ! Licensed under the OpenSSL license (the "License").  You may not use
 ! this file except in compliance with the License.  You can obtain a copy
@@ -30,10 +30,6 @@
 .file  "des_enc-sparc.S"
 
 #include <openssl/opensslconf.h>
-
-#ifdef OPENSSL_FIPSCANISTER
-#include <openssl/fipssyms.h>
-#endif
 
 #if defined(__SUNPRO_C) && defined(__sparcv9)
 # define ABI64  /* They've said -xarch=v9 at command line */
@@ -116,7 +112,7 @@ changequote({,})
 !
 ! Loads key first round from address in parameter 5 to out0, out1.
 !
-! After the the original LibDES initial permutation, the resulting left
+! After the original LibDES initial permutation, the resulting left
 ! is in the variable initially used for right and vice versa. The macro
 ! implements the possibility to keep the halfs in the original registers.
 !
@@ -532,8 +528,8 @@ $4:
 !  parameter 3   1 for optional store to [in0]
 !  parameter 4   1 for load input/output address to local5/7
 !
-!  The final permutation logic switches the halfes, meaning that
-!  left and right ends up the the registers originally used.
+!  The final permutation logic switches the halves, meaning that
+!  left and right ends up the registers originally used.
 
 define(fp_macro, {
 
@@ -735,7 +731,7 @@ define(fp_ip_macro, {
 	sll	$4, 3, local2
 	xor	local4, temp2, $2
 
-	! reload since used as temporar:
+	! reload since used as temporary:
 
 	ld	[out2+280], out4          ! loop counter
 
@@ -757,7 +753,7 @@ define(fp_ip_macro, {
 ! parameter 1  address
 ! parameter 2  destination left
 ! parameter 3  destination right
-! parameter 4  temporar
+! parameter 4  temporary
 ! parameter 5  label
 
 define(load_little_endian, {
@@ -806,7 +802,7 @@ $5a:
 ! parameter 1  address
 ! parameter 2  destination left
 ! parameter 3  destination right
-! parameter 4  temporar
+! parameter 4  temporary
 ! parameter 4  label
 !
 ! adds 8 to address
@@ -931,7 +927,7 @@ $7.jmp.table:
 ! parameter 1  address
 ! parameter 2  source left
 ! parameter 3  source right
-! parameter 4  temporar
+! parameter 4  temporary
 
 define(store_little_endian, {
 
@@ -1521,7 +1517,7 @@ DES_ncbc_encrypt:
 	! parameter 7  1 for mov in1 to in3
 	! parameter 8  1 for mov in3 to in4
 
-	ip_macro(in5, out5, out5, in5, in4, 2, 0, 1) ! include decryprion  ks in4
+	ip_macro(in5, out5, out5, in5, in4, 2, 0, 1) ! include decryption  ks in4
 
 	fp_macro(out5, in5, 0, 1) ! 1 for input and output address to local5/7
 
@@ -1567,7 +1563,7 @@ DES_ncbc_encrypt:
 	.size	 DES_ncbc_encrypt, .DES_ncbc_encrypt.end-DES_ncbc_encrypt
 
 
-! void DES_ede3_cbc_encrypt(input, output, lenght, ks1, ks2, ks3, ivec, enc)
+! void DES_ede3_cbc_encrypt(input, output, length, ks1, ks2, ks3, ivec, enc)
 ! **************************************************************************
 
 
@@ -1815,7 +1811,7 @@ DES_ede3_cbc_encrypt:
 	.byte  240, 240, 240, 240, 244, 244, 244, 244
 	.byte  248, 248, 248, 248, 252, 252, 252, 252
 
-	! 5 numbers for initil/final permutation
+	! 5 numbers for initial/final permutation
 
 	.word   0x0f0f0f0f                ! offset 256
 	.word	0x0000ffff                ! 260

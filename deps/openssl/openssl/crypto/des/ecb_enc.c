@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,19 +15,16 @@
 const char *DES_options(void)
 {
     static int init = 1;
-    static char buf[32];
+    static char buf[12];
 
     if (init) {
-        const char *size;
-
         if (sizeof(DES_LONG) != sizeof(long))
-            size = "int";
+            OPENSSL_strlcpy(buf, "des(int)", sizeof(buf));
         else
-            size = "long";
-        BIO_snprintf(buf, sizeof(buf), "des(%s)", size);
+            OPENSSL_strlcpy(buf, "des(long)", sizeof(buf));
         init = 0;
     }
-    return (buf);
+    return buf;
 }
 
 void DES_ecb_encrypt(const_DES_cblock *input, DES_cblock *output,

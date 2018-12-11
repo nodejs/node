@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,22 +21,23 @@ BN_RECP_CTX *BN_RECP_CTX_new(void)
 {
     BN_RECP_CTX *ret;
 
-    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL)
-        return (NULL);
+    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL) {
+        BNerr(BN_F_BN_RECP_CTX_NEW, ERR_R_MALLOC_FAILURE);
+        return NULL;
+    }
 
     bn_init(&(ret->N));
     bn_init(&(ret->Nr));
     ret->flags = BN_FLG_MALLOCED;
-    return (ret);
+    return ret;
 }
 
 void BN_RECP_CTX_free(BN_RECP_CTX *recp)
 {
     if (recp == NULL)
         return;
-
-    BN_free(&(recp->N));
-    BN_free(&(recp->Nr));
+    BN_free(&recp->N);
+    BN_free(&recp->Nr);
     if (recp->flags & BN_FLG_MALLOCED)
         OPENSSL_free(recp);
 }
@@ -48,7 +49,7 @@ int BN_RECP_CTX_set(BN_RECP_CTX *recp, const BIGNUM *d, BN_CTX *ctx)
     BN_zero(&(recp->Nr));
     recp->num_bits = BN_num_bits(d);
     recp->shift = 0;
-    return (1);
+    return 1;
 }
 
 int BN_mod_mul_reciprocal(BIGNUM *r, const BIGNUM *x, const BIGNUM *y,
@@ -77,7 +78,7 @@ int BN_mod_mul_reciprocal(BIGNUM *r, const BIGNUM *x, const BIGNUM *y,
  err:
     BN_CTX_end(ctx);
     bn_check_top(r);
-    return (ret);
+    return ret;
 }
 
 int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
@@ -87,17 +88,11 @@ int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
     BIGNUM *a, *b, *d, *r;
 
     BN_CTX_start(ctx);
+    d = (dv != NULL) ? dv : BN_CTX_get(ctx);
+    r = (rem != NULL) ? rem : BN_CTX_get(ctx);
     a = BN_CTX_get(ctx);
     b = BN_CTX_get(ctx);
-    if (dv != NULL)
-        d = dv;
-    else
-        d = BN_CTX_get(ctx);
-    if (rem != NULL)
-        r = rem;
-    else
-        r = BN_CTX_get(ctx);
-    if (a == NULL || b == NULL || d == NULL || r == NULL)
+    if (b == NULL)
         goto err;
 
     if (BN_ucmp(m, &(recp->N)) < 0) {
@@ -107,7 +102,7 @@ int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
             return 0;
         }
         BN_CTX_end(ctx);
-        return (1);
+        return 1;
     }
 
     /*
@@ -167,7 +162,7 @@ int BN_div_recp(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m,
     BN_CTX_end(ctx);
     bn_check_top(dv);
     bn_check_top(rem);
-    return (ret);
+    return ret;
 }
 
 /*
@@ -195,5 +190,5 @@ int BN_reciprocal(BIGNUM *r, const BIGNUM *m, int len, BN_CTX *ctx)
  err:
     bn_check_top(r);
     BN_CTX_end(ctx);
-    return (ret);
+    return ret;
 }

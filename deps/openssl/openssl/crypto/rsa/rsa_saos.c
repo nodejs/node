@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,12 +32,12 @@ int RSA_sign_ASN1_OCTET_STRING(int type,
     if (i > (j - RSA_PKCS1_PADDING_SIZE)) {
         RSAerr(RSA_F_RSA_SIGN_ASN1_OCTET_STRING,
                RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY);
-        return (0);
+        return 0;
     }
     s = OPENSSL_malloc((unsigned int)j + 1);
     if (s == NULL) {
         RSAerr(RSA_F_RSA_SIGN_ASN1_OCTET_STRING, ERR_R_MALLOC_FAILURE);
-        return (0);
+        return 0;
     }
     p = s;
     i2d_ASN1_OCTET_STRING(&sig, &p);
@@ -48,7 +48,7 @@ int RSA_sign_ASN1_OCTET_STRING(int type,
         *siglen = i;
 
     OPENSSL_clear_free(s, (unsigned int)j + 1);
-    return (ret);
+    return ret;
 }
 
 int RSA_verify_ASN1_OCTET_STRING(int dtype,
@@ -64,7 +64,7 @@ int RSA_verify_ASN1_OCTET_STRING(int dtype,
     if (siglen != (unsigned int)RSA_size(rsa)) {
         RSAerr(RSA_F_RSA_VERIFY_ASN1_OCTET_STRING,
                RSA_R_WRONG_SIGNATURE_LENGTH);
-        return (0);
+        return 0;
     }
 
     s = OPENSSL_malloc((unsigned int)siglen);
@@ -85,10 +85,11 @@ int RSA_verify_ASN1_OCTET_STRING(int dtype,
     if (((unsigned int)sig->length != m_len) ||
         (memcmp(m, sig->data, m_len) != 0)) {
         RSAerr(RSA_F_RSA_VERIFY_ASN1_OCTET_STRING, RSA_R_BAD_SIGNATURE);
-    } else
+    } else {
         ret = 1;
+    }
  err:
     ASN1_OCTET_STRING_free(sig);
     OPENSSL_clear_free(s, (unsigned int)siglen);
-    return (ret);
+    return ret;
 }

@@ -23,7 +23,7 @@
 # [depending on key length, less for longer keys] on ARM920T, and
 # +115-80% on Intel IXP425. This is compared to pre-bn_mul_mont code
 # base and compiler generated code with in-lined umull and even umlal
-# instructions. The latter means that this code didn't really have an 
+# instructions. The latter means that this code didn't really have an
 # "advantage" of utilizing some "secret" instruction.
 #
 # The code is interoperable with Thumb ISA and is rather compact, less

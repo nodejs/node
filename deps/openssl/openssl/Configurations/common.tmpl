@@ -9,15 +9,23 @@
  # there are no duplicate dependencies and that they are in the
  # right order.  This is especially used to sort the list of
  # libraries that a build depends on.
+ sub extensionlesslib {
+     my @result = map { $_ =~ /(\.a)?$/; $` } @_;
+     return @result if wantarray;
+     return $result[0];
+ }
  sub resolvedepends {
      my $thing = shift;
+     my $extensionlessthing = extensionlesslib($thing);
      my @listsofar = @_;    # to check if we're looping
-     my @list = @{$unified_info{depends}->{$thing}};
+     my @list = @{$unified_info{depends}->{$thing} //
+                      $unified_info{depends}->{$extensionlessthing}};
      my @newlist = ();
      if (scalar @list) {
          foreach my $item (@list) {
+             my $extensionlessitem = extensionlesslib($item);
              # It's time to break off when the dependency list starts looping
-             next if grep { $_ eq $item } @listsofar;
+             next if grep { extensionlesslib($_) eq $extensionlessitem } @listsofar;
              push @newlist, $item, resolvedepends($item, @listsofar, $item);
          }
      }
@@ -26,12 +34,34 @@
  sub reducedepends {
      my @list = @_;
      my @newlist = ();
+     my %replace = ();
      while (@list) {
          my $item = shift @list;
-         push @newlist, $item
-             unless grep { $item eq $_ } @list;
+         my $extensionlessitem = extensionlesslib($item);
+         if (grep { $extensionlessitem eq extensionlesslib($_) } @list) {
+             if ($item ne $extensionlessitem) {
+                 # If this instance of the library is explicitly static, we
+                 # prefer that to any shared library name, since it must have
+                 # been done on purpose.
+                 $replace{$extensionlessitem} = $item;
+             }
+         } else {
+             push @newlist, $item;
+         }
      }
-     @newlist;
+     map { $replace{$_} // $_; } @newlist;
+ }
+
+ # is_installed checks if a given file will be installed (i.e. they are
+ # not defined _NO_INST in build.info)
+ sub is_installed {
+     my $product = shift;
+     if (grep { $product eq $_ }
+         map { (@{$unified_info{install}->{$_}}) }
+         keys %{$unified_info{install}}) {
+         return 1;
+     }
+     return 0;
  }
 
  # dogenerate is responsible for producing all the recipes that build
@@ -66,11 +96,11 @@
  sub doobj {
      my $obj = shift;
      return "" if $cache{$obj};
-     (my $obj_no_o = $obj) =~ s|\.o$||;
      my $bin = shift;
      my %opts = @_;
      if (@{$unified_info{sources}->{$obj}}) {
-         $OUT .= src2obj(obj => $obj_no_o,
+         $OUT .= src2obj(obj => $obj,
+                         product => $bin,
                          srcs => $unified_info{sources}->{$obj},
                          deps => $unified_info{depends}->{$obj},
                          incs => $unified_info{includes}->{$obj},
@@ -90,26 +120,28 @@
  sub dolib {
      my $lib = shift;
      return "" if $cache{$lib};
-     unless ($disabled{shared}) {
-         my %ordinals =
-             $unified_info{ordinals}->{$lib}
-             ? (ordinals => $unified_info{ordinals}->{$lib}) : ();
+     unless ($disabled{shared} || $lib =~ /\.a$/) {
          $OUT .= libobj2shlib(shlib => $unified_info{sharednames}->{$lib},
                               lib => $lib,
-                              objs => [ map { (my $x = $_) =~ s|\.o$||; $x }
-                                        (@{$unified_info{sources}->{$lib}},
-                                         @{$unified_info{shared_sources}->{$lib}}) ],
+                              objs => [ @{$unified_info{shared_sources}->{$lib}},
+                                        @{$unified_info{sources}->{$lib}} ],
                               deps => [ reducedepends(resolvedepends($lib)) ],
-                              %ordinals);
-         foreach (@{$unified_info{shared_sources}->{$lib}}) {
-             doobj($_, $lib, intent => "lib");
+                              installed => is_installed($lib));
+         foreach ((@{$unified_info{shared_sources}->{$lib}},
+                   @{$unified_info{sources}->{$lib}})) {
+             # If this is somehow a compiled object, take care of it that way
+             # Otherwise, it might simply be generated
+             if (defined $unified_info{sources}->{$_}) {
+                 doobj($_, $lib, intent => "lib", installed => is_installed($lib));
+             } else {
+                 dogenerate($_, undef, undef, intent => "lib");
+             }
          }
      }
      $OUT .= obj2lib(lib => $lib,
-                     objs => [ map { (my $x = $_) =~ s|\.o$||; $x }
-                               @{$unified_info{sources}->{$lib}} ]);
+                     objs => [ @{$unified_info{sources}->{$lib}} ]);
      foreach (@{$unified_info{sources}->{$lib}}) {
-         doobj($_, $lib, intent => "lib");
+         doobj($_, $lib, intent => "lib", installed => is_installed($lib));
      }
      $cache{$lib} = 1;
  }
@@ -121,13 +153,13 @@
      my $lib = shift;
      return "" if $cache{$lib};
      $OUT .= obj2dso(lib => $lib,
-                     objs => [ map { (my $x = $_) =~ s|\.o$||; $x }
-                               (@{$unified_info{sources}->{$lib}},
-                                @{$unified_info{shared_sources}->{$lib}}) ],
-                     deps => [ resolvedepends($lib) ]);
+                     objs => [ @{$unified_info{sources}->{$lib}},
+                               @{$unified_info{shared_sources}->{$lib}} ],
+                     deps => [ resolvedepends($lib) ],
+                     installed => is_installed($lib));
      foreach ((@{$unified_info{sources}->{$lib}},
                @{$unified_info{shared_sources}->{$lib}})) {
-         doobj($_, $lib, intent => "dso");
+         doobj($_, $lib, intent => "dso", installed => is_installed($lib));
      }
      $cache{$lib} = 1;
  }
@@ -139,11 +171,11 @@
      return "" if $cache{$bin};
      my $deps = [ reducedepends(resolvedepends($bin)) ];
      $OUT .= obj2bin(bin => $bin,
-                     objs => [ map { (my $x = $_) =~ s|\.o$||; $x }
-                               @{$unified_info{sources}->{$bin}} ],
-                     deps => $deps);
+                     objs => [ @{$unified_info{sources}->{$bin}} ],
+                     deps => $deps,
+                     installed => is_installed($bin));
      foreach (@{$unified_info{sources}->{$bin}}) {
-         doobj($_, $bin, intent => "bin");
+         doobj($_, $bin, intent => "bin", installed => is_installed($bin));
      }
      $cache{$bin} = 1;
  }
@@ -154,7 +186,8 @@
      my $script = shift;
      return "" if $cache{$script};
      $OUT .= in2script(script => $script,
-                       sources => $unified_info{sources}->{$script});
+                       sources => $unified_info{sources}->{$script},
+                       installed => is_installed($script));
      $cache{$script} = 1;
  }
 
@@ -169,47 +202,6 @@
 
  # Start with populating the cache with all the overrides
  %cache = map { $_ => 1 } @{$unified_info{overrides}};
-
- # For convenience collect information regarding directories where
- # files are generated, those generated files and the end product
- # they end up in where applicable.  Then, add build rules for those
- # directories
- if (exists &generatedir) {
-     my %loopinfo = ( "dso" => [ @{$unified_info{engines}} ],
-                      "lib" => [ @{$unified_info{libraries}} ],
-                      "bin" => [ @{$unified_info{programs}} ],
-                      "script" => [ @{$unified_info{scripts}} ] );
-     foreach my $type (keys %loopinfo) {
-         foreach my $product (@{$loopinfo{$type}}) {
-             my %dirs = ();
-             my $pd = dirname($product);
-
-             # We already have a "test" target, and the current directory
-             # is just silly to make a target for
-             $dirs{$pd} = 1 unless $pd eq "test" || $pd eq ".";
-
-             foreach (@{$unified_info{sources}->{$product}}) {
-                 my $d = dirname($_);
-
-                 # We don't want to create targets for source directories
-                 # when building out of source
-                 next if ($config{sourcedir} ne $config{builddir}
-                          && $d =~ m|^\Q$config{sourcedir}\E|);
-                 # We already have a "test" target, and the current directory
-                 # is just silly to make a target for
-                 next if $d eq "test" || $d eq ".";
-
-                 $dirs{$d} = 1;
-                 push @{$unified_info{dirinfo}->{$d}->{deps}}, $_
-                     if $d ne $pd;
-             }
-             foreach (keys %dirs) {
-                 push @{$unified_info{dirinfo}->{$_}->{products}->{$type}},
-                 $product;
-             }
-         }
-     }
- }
 
  # Build mandatory generated headers
  foreach (@{$unified_info{depends}->{""}}) { dogenerate($_); }

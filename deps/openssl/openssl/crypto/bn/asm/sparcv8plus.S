@@ -1,5 +1,5 @@
 .ident	"sparcv8plus.s, Version 1.4"
-.ident	"SPARC v9 ISA artwork by Andy Polyakov <appro@fy.chalmers.se>"
+.ident	"SPARC v9 ISA artwork by Andy Polyakov <appro@openssl.org>"
 
 /*
  * ====================================================================
@@ -13,7 +13,7 @@
  */
 
 /*
- * This is my modest contributon to OpenSSL project (see
+ * This is my modest contribution to OpenSSL project (see
  * http://www.openssl.org/ for more information about it) and is
  * a drop-in UltraSPARC ISA replacement for crypto/bn/bn_asm.c
  * module. For updates see http://fy.chalmers.se/~appro/hpe/.
@@ -143,10 +143,6 @@
  *		op(p+3); return;
  *	    }
  */
-
-#ifdef OPENSSL_FIPSCANISTER
-#include <openssl/fipssyms.h>
-#endif
 
 #if defined(__SUNPRO_C) && defined(__sparcv9)
   /* They've said -xarch=v9 at command line */
@@ -282,7 +278,7 @@ bn_mul_add_words:
  */
 bn_mul_words:
 	sra	%o2,%g0,%o2	! signx %o2
-	brgz,a	%o2,.L_bn_mul_words_proceeed
+	brgz,a	%o2,.L_bn_mul_words_proceed
 	lduw	[%o1],%g2
 	retl
 	clr	%o0
@@ -290,7 +286,7 @@ bn_mul_words:
 	nop
 	nop
 
-.L_bn_mul_words_proceeed:
+.L_bn_mul_words_proceed:
 	srl	%o3,%g0,%o3	! clruw	%o3
 	andcc	%o2,-4,%g0
 	bz,pn	%icc,.L_bn_mul_words_tail
@@ -370,7 +366,7 @@ bn_mul_words:
  */
 bn_sqr_words:
 	sra	%o2,%g0,%o2	! signx %o2
-	brgz,a	%o2,.L_bn_sqr_words_proceeed
+	brgz,a	%o2,.L_bn_sqr_words_proceed
 	lduw	[%o1],%g2
 	retl
 	clr	%o0
@@ -378,7 +374,7 @@ bn_sqr_words:
 	nop
 	nop
 
-.L_bn_sqr_words_proceeed:
+.L_bn_sqr_words_proceed:
 	andcc	%o2,-4,%g0
 	nop
 	bz,pn	%icc,.L_bn_sqr_words_tail

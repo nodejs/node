@@ -1,5 +1,6 @@
 /*
- * Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,22 +8,13 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- * ECDH support in OpenSSL originally developed by
- * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
- */
-
 #ifndef HEADER_ENGINE_INT_H
 # define HEADER_ENGINE_INT_H
 
 # include "internal/cryptlib.h"
-# include <internal/engine.h>
-# include <internal/thread_once.h>
-
-#ifdef  __cplusplus
-extern "C" {
-#endif
+# include "internal/engine.h"
+# include "internal/thread_once.h"
+# include "internal/refcount.h"
 
 extern CRYPTO_RWLOCK *global_engine_lock;
 
@@ -103,7 +95,7 @@ void engine_table_doall(ENGINE_TABLE *table, engine_table_doall_cb *cb,
  */
 int engine_unlocked_init(ENGINE *e);
 int engine_unlocked_finish(ENGINE *e, int unlock_for_handlers);
-int engine_free_util(ENGINE *e, int locked);
+int engine_free_util(ENGINE *e, int not_locked);
 
 /*
  * This function will reset all "set"able values in an ENGINE to NULL. This
@@ -156,7 +148,7 @@ struct engine_st {
     const ENGINE_CMD_DEFN *cmd_defns;
     int flags;
     /* reference count on the structure itself */
-    int struct_ref;
+    CRYPTO_REF_COUNT struct_ref;
     /*
      * reference count on usability of the engine type. NB: This controls the
      * loading and initialisation of any functionality required by this
@@ -175,9 +167,5 @@ struct engine_st {
 typedef struct st_engine_pile ENGINE_PILE;
 
 DEFINE_LHASH_OF(ENGINE_PILE);
-
-#ifdef  __cplusplus
-}
-#endif
 
 #endif                          /* HEADER_ENGINE_INT_H */

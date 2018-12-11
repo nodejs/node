@@ -19,23 +19,29 @@
 # June 2014
 #
 # Initial version was developed in tight cooperation with Ard
-# Biesheuvel <ard.biesheuvel@linaro.org> from bits-n-pieces from
-# other assembly modules. Just like aesv8-armx.pl this module
-# supports both AArch32 and AArch64 execution modes.
+# Biesheuvel of Linaro from bits-n-pieces from other assembly modules.
+# Just like aesv8-armx.pl this module supports both AArch32 and
+# AArch64 execution modes.
 #
 # July 2014
 #
 # Implement 2x aggregated reduction [see ghash-x86.pl for background
 # information].
 #
+# November 2017
+#
+# AArch64 register bank to "accommodate" 4x aggregated reduction and
+# improve performance by 20-70% depending on processor.
+#
 # Current performance in cycles per processed byte:
 #
-#		PMULL[2]	32-bit NEON(*)
-# Apple A7	0.92		5.62
-# Cortex-A53	1.01		8.39
-# Cortex-A57	1.17		7.61
-# Denver	0.71		6.02
-# Mongoose	1.10		8.06
+#		64-bit PMULL	32-bit PMULL	32-bit NEON(*)
+# Apple A7	0.58		0.92		5.62
+# Cortex-A53	0.85		1.01		8.39
+# Cortex-A57	0.73		1.17		7.61
+# Denver	0.51		0.65		6.02
+# Mongoose	0.65		1.10		8.06
+# Kryo		0.76		1.16		8.00
 #
 # (*)	presented for reference/comparison purposes;
 
@@ -131,8 +137,56 @@ gcm_init_v8:
 	vext.8		$t1,$H2,$H2,#8		@ Karatsuba pre-processing
 	veor		$t1,$t1,$H2
 	vext.8		$Hhl,$t0,$t1,#8		@ pack Karatsuba pre-processed
-	vst1.64		{$Hhl-$H2},[x0]		@ store Htable[1..2]
+	vst1.64		{$Hhl-$H2},[x0],#32	@ store Htable[1..2]
+___
+if ($flavour =~ /64/) {
+my ($t3,$Yl,$Ym,$Yh) = map("q$_",(4..7));
 
+$code.=<<___;
+	@ calculate H^3 and H^4
+	vpmull.p64	$Xl,$H, $H2
+	 vpmull.p64	$Yl,$H2,$H2
+	vpmull2.p64	$Xh,$H, $H2
+	 vpmull2.p64	$Yh,$H2,$H2
+	vpmull.p64	$Xm,$t0,$t1
+	 vpmull.p64	$Ym,$t1,$t1
+
+	vext.8		$t0,$Xl,$Xh,#8		@ Karatsuba post-processing
+	 vext.8		$t1,$Yl,$Yh,#8
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t0
+	 veor		$t3,$Yl,$Yh
+	 veor		$Ym,$Ym,$t1
+	veor		$Xm,$Xm,$t2
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase
+	 veor		$Ym,$Ym,$t3
+	 vpmull.p64	$t3,$Yl,$xC2
+
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	 vmov		$Yh#lo,$Ym#hi
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	 vmov		$Ym#hi,$Yl#lo
+	veor		$Xl,$Xm,$t2
+	 veor		$Yl,$Ym,$t3
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase
+	 vext.8		$t3,$Yl,$Yl,#8
+	vpmull.p64	$Xl,$Xl,$xC2
+	 vpmull.p64	$Yl,$Yl,$xC2
+	veor		$t2,$t2,$Xh
+	 veor		$t3,$t3,$Yh
+	veor		$H, $Xl,$t2		@ H^3
+	 veor		$H2,$Yl,$t3		@ H^4
+
+	vext.8		$t0,$H, $H,#8		@ Karatsuba pre-processing
+	 vext.8		$t1,$H2,$H2,#8
+	veor		$t0,$t0,$H
+	 veor		$t1,$t1,$H2
+	vext.8		$Hhl,$t0,$t1,#8		@ pack Karatsuba pre-processed
+	vst1.64		{$H-$H2},[x0]		@ store Htable[3..5]
+___
+}
+$code.=<<___;
 	ret
 .size	gcm_init_v8,.-gcm_init_v8
 ___
@@ -201,6 +255,10 @@ $code.=<<___;
 .align	4
 gcm_ghash_v8:
 ___
+$code.=<<___	if ($flavour =~ /64/);
+	cmp		$len,#64
+	b.hs		.Lgcm_ghash_v8_4x
+___
 $code.=<<___		if ($flavour !~ /64/);
 	vstmdb		sp!,{d8-d15}		@ 32-bit ABI says so
 ___
@@ -210,13 +268,13 @@ $code.=<<___;
 						@ loaded value would have
 						@ to be rotated in order to
 						@ make it appear as in
-						@ alorithm specification
+						@ algorithm specification
 	subs		$len,$len,#32		@ see if $len is 32 or larger
 	mov		$inc,#16		@ $inc is used as post-
 						@ increment for input pointer;
 						@ as loop is modulo-scheduled
 						@ $inc is zeroed just in time
-						@ to preclude oversteping
+						@ to preclude overstepping
 						@ inp[len], which means that
 						@ last block[s] are actually
 						@ loaded twice, but last
@@ -348,7 +406,297 @@ $code.=<<___;
 	ret
 .size	gcm_ghash_v8,.-gcm_ghash_v8
 ___
+
+if ($flavour =~ /64/) {				# 4x subroutine
+my ($I0,$j1,$j2,$j3,
+    $I1,$I2,$I3,$H3,$H34,$H4,$Yl,$Ym,$Yh) = map("q$_",(4..7,15..23));
+
+$code.=<<___;
+.type	gcm_ghash_v8_4x,%function
+.align	4
+gcm_ghash_v8_4x:
+.Lgcm_ghash_v8_4x:
+	vld1.64		{$Xl},[$Xi]		@ load [rotated] Xi
+	vld1.64		{$H-$H2},[$Htbl],#48	@ load twisted H, ..., H^2
+	vmov.i8		$xC2,#0xe1
+	vld1.64		{$H3-$H4},[$Htbl]	@ load twisted H^3, ..., H^4
+	vshl.u64	$xC2,$xC2,#57		@ compose 0xc2.0 constant
+
+	vld1.64		{$I0-$j3},[$inp],#64
+#ifndef __ARMEB__
+	vrev64.8	$Xl,$Xl
+	vrev64.8	$j1,$j1
+	vrev64.8	$j2,$j2
+	vrev64.8	$j3,$j3
+	vrev64.8	$I0,$I0
+#endif
+	vext.8		$I3,$j3,$j3,#8
+	vext.8		$I2,$j2,$j2,#8
+	vext.8		$I1,$j1,$j1,#8
+
+	vpmull.p64	$Yl,$H,$I3		@ H·Ii+3
+	veor		$j3,$j3,$I3
+	vpmull2.p64	$Yh,$H,$I3
+	vpmull.p64	$Ym,$Hhl,$j3
+
+	vpmull.p64	$t0,$H2,$I2		@ H^2·Ii+2
+	veor		$j2,$j2,$I2
+	vpmull2.p64	$I2,$H2,$I2
+	vpmull2.p64	$j2,$Hhl,$j2
+
+	veor		$Yl,$Yl,$t0
+	veor		$Yh,$Yh,$I2
+	veor		$Ym,$Ym,$j2
+
+	vpmull.p64	$j3,$H3,$I1		@ H^3·Ii+1
+	veor		$j1,$j1,$I1
+	vpmull2.p64	$I1,$H3,$I1
+	vpmull.p64	$j1,$H34,$j1
+
+	veor		$Yl,$Yl,$j3
+	veor		$Yh,$Yh,$I1
+	veor		$Ym,$Ym,$j1
+
+	subs		$len,$len,#128
+	b.lo		.Ltail4x
+
+	b		.Loop4x
+
+.align	4
+.Loop4x:
+	veor		$t0,$I0,$Xl
+	 vld1.64	{$I0-$j3},[$inp],#64
+	vext.8		$IN,$t0,$t0,#8
+#ifndef __ARMEB__
+	 vrev64.8	$j1,$j1
+	 vrev64.8	$j2,$j2
+	 vrev64.8	$j3,$j3
+	 vrev64.8	$I0,$I0
+#endif
+
+	vpmull.p64	$Xl,$H4,$IN		@ H^4·(Xi+Ii)
+	veor		$t0,$t0,$IN
+	vpmull2.p64	$Xh,$H4,$IN
+	 vext.8		$I3,$j3,$j3,#8
+	vpmull2.p64	$Xm,$H34,$t0
+
+	veor		$Xl,$Xl,$Yl
+	veor		$Xh,$Xh,$Yh
+	 vext.8		$I2,$j2,$j2,#8
+	veor		$Xm,$Xm,$Ym
+	 vext.8		$I1,$j1,$j1,#8
+
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	 vpmull.p64	$Yl,$H,$I3		@ H·Ii+3
+	 veor		$j3,$j3,$I3
+	veor		$Xm,$Xm,$t1
+	 vpmull2.p64	$Yh,$H,$I3
+	veor		$Xm,$Xm,$t2
+	 vpmull.p64	$Ym,$Hhl,$j3
+
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	 vpmull.p64	$t0,$H2,$I2		@ H^2·Ii+2
+	 veor		$j2,$j2,$I2
+	 vpmull2.p64	$I2,$H2,$I2
+	veor		$Xl,$Xm,$t2
+	 vpmull2.p64	$j2,$Hhl,$j2
+
+	 veor		$Yl,$Yl,$t0
+	 veor		$Yh,$Yh,$I2
+	 veor		$Ym,$Ym,$j2
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
+	 vpmull.p64	$j3,$H3,$I1		@ H^3·Ii+1
+	 veor		$j1,$j1,$I1
+	veor		$t2,$t2,$Xh
+	 vpmull2.p64	$I1,$H3,$I1
+	 vpmull.p64	$j1,$H34,$j1
+
+	veor		$Xl,$Xl,$t2
+	 veor		$Yl,$Yl,$j3
+	 veor		$Yh,$Yh,$I1
+	vext.8		$Xl,$Xl,$Xl,#8
+	 veor		$Ym,$Ym,$j1
+
+	subs		$len,$len,#64
+	b.hs		.Loop4x
+
+.Ltail4x:
+	veor		$t0,$I0,$Xl
+	vext.8		$IN,$t0,$t0,#8
+
+	vpmull.p64	$Xl,$H4,$IN		@ H^4·(Xi+Ii)
+	veor		$t0,$t0,$IN
+	vpmull2.p64	$Xh,$H4,$IN
+	vpmull2.p64	$Xm,$H34,$t0
+
+	veor		$Xl,$Xl,$Yl
+	veor		$Xh,$Xh,$Yh
+	veor		$Xm,$Xm,$Ym
+
+	adds		$len,$len,#64
+	b.eq		.Ldone4x
+
+	cmp		$len,#32
+	b.lo		.Lone
+	b.eq		.Ltwo
+.Lthree:
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t1
+	 vld1.64	{$I0-$j2},[$inp]
+	veor		$Xm,$Xm,$t2
+#ifndef	__ARMEB__
+	 vrev64.8	$j1,$j1
+	 vrev64.8	$j2,$j2
+	 vrev64.8	$I0,$I0
+#endif
+
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	 vext.8		$I2,$j2,$j2,#8
+	 vext.8		$I1,$j1,$j1,#8
+	veor		$Xl,$Xm,$t2
+
+	 vpmull.p64	$Yl,$H,$I2		@ H·Ii+2
+	 veor		$j2,$j2,$I2
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
+	veor		$t2,$t2,$Xh
+	 vpmull2.p64	$Yh,$H,$I2
+	 vpmull.p64	$Ym,$Hhl,$j2
+	veor		$Xl,$Xl,$t2
+	 vpmull.p64	$j3,$H2,$I1		@ H^2·Ii+1
+	 veor		$j1,$j1,$I1
+	vext.8		$Xl,$Xl,$Xl,#8
+
+	 vpmull2.p64	$I1,$H2,$I1
+	veor		$t0,$I0,$Xl
+	 vpmull2.p64	$j1,$Hhl,$j1
+	vext.8		$IN,$t0,$t0,#8
+
+	 veor		$Yl,$Yl,$j3
+	 veor		$Yh,$Yh,$I1
+	 veor		$Ym,$Ym,$j1
+
+	vpmull.p64	$Xl,$H3,$IN		@ H^3·(Xi+Ii)
+	veor		$t0,$t0,$IN
+	vpmull2.p64	$Xh,$H3,$IN
+	vpmull.p64	$Xm,$H34,$t0
+
+	veor		$Xl,$Xl,$Yl
+	veor		$Xh,$Xh,$Yh
+	veor		$Xm,$Xm,$Ym
+	b		.Ldone4x
+
+.align	4
+.Ltwo:
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t1
+	 vld1.64	{$I0-$j1},[$inp]
+	veor		$Xm,$Xm,$t2
+#ifndef	__ARMEB__
+	 vrev64.8	$j1,$j1
+	 vrev64.8	$I0,$I0
+#endif
+
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	 vext.8		$I1,$j1,$j1,#8
+	veor		$Xl,$Xm,$t2
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
+	veor		$t2,$t2,$Xh
+	veor		$Xl,$Xl,$t2
+	vext.8		$Xl,$Xl,$Xl,#8
+
+	 vpmull.p64	$Yl,$H,$I1		@ H·Ii+1
+	 veor		$j1,$j1,$I1
+
+	veor		$t0,$I0,$Xl
+	vext.8		$IN,$t0,$t0,#8
+
+	 vpmull2.p64	$Yh,$H,$I1
+	 vpmull.p64	$Ym,$Hhl,$j1
+
+	vpmull.p64	$Xl,$H2,$IN		@ H^2·(Xi+Ii)
+	veor		$t0,$t0,$IN
+	vpmull2.p64	$Xh,$H2,$IN
+	vpmull2.p64	$Xm,$Hhl,$t0
+
+	veor		$Xl,$Xl,$Yl
+	veor		$Xh,$Xh,$Yh
+	veor		$Xm,$Xm,$Ym
+	b		.Ldone4x
+
+.align	4
+.Lone:
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t1
+	 vld1.64	{$I0},[$inp]
+	veor		$Xm,$Xm,$t2
+#ifndef	__ARMEB__
+	 vrev64.8	$I0,$I0
+#endif
+
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	veor		$Xl,$Xm,$t2
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
+	veor		$t2,$t2,$Xh
+	veor		$Xl,$Xl,$t2
+	vext.8		$Xl,$Xl,$Xl,#8
+
+	veor		$t0,$I0,$Xl
+	vext.8		$IN,$t0,$t0,#8
+
+	vpmull.p64	$Xl,$H,$IN
+	veor		$t0,$t0,$IN
+	vpmull2.p64	$Xh,$H,$IN
+	vpmull.p64	$Xm,$Hhl,$t0
+
+.Ldone4x:
+	vext.8		$t1,$Xl,$Xh,#8		@ Karatsuba post-processing
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t1
+	veor		$Xm,$Xm,$t2
+
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase of reduction
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	veor		$Xl,$Xm,$t2
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase of reduction
+	vpmull.p64	$Xl,$Xl,$xC2
+	veor		$t2,$t2,$Xh
+	veor		$Xl,$Xl,$t2
+	vext.8		$Xl,$Xl,$Xl,#8
+
+#ifndef __ARMEB__
+	vrev64.8	$Xl,$Xl
+#endif
+	vst1.64		{$Xl},[$Xi]		@ write out Xi
+
+	ret
+.size	gcm_ghash_v8_4x,.-gcm_ghash_v8_4x
+___
+
 }
+}
+
 $code.=<<___;
 .asciz  "GHASH for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align  2
@@ -360,7 +708,8 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	my $arg=shift;
 
 	$arg =~ m/q([0-9]+)#(lo|hi),\s*q([0-9]+)#(lo|hi)/o &&
-	sprintf	"ins	v%d.d[%d],v%d.d[%d]",$1,($2 eq "lo")?0:1,$3,($4 eq "lo")?0:1;
+	sprintf	"ins	v%d.d[%d],v%d.d[%d]",$1<8?$1:$1+8,($2 eq "lo")?0:1,
+					     $3<8?$3:$3+8,($4 eq "lo")?0:1;
     }
     foreach(split("\n",$code)) {
 	s/cclr\s+([wx])([^,]+),\s*([a-z]+)/csel	$1$2,$1zr,$1$2,$3/o	or
@@ -375,7 +724,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/\bq([0-9]+)\b/"v".($1<8?$1:$1+8).".16b"/geo;	# old->new registers
 	s/@\s/\/\//o;				# old->new style commentary
 
-	# fix up remainig legacy suffixes
+	# fix up remaining legacy suffixes
 	s/\.[ui]?8(\s)/$1/o;
 	s/\.[uis]?32//o and s/\.16b/\.4s/go;
 	m/\.p64/o and s/\.16b/\.1q/o;		# 1st pmull argument
@@ -415,7 +764,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/\bv([0-9])\.[12468]+[bsd]\b/q$1/go;	# new->old registers
 	s/\/\/\s?/@ /o;				# new->old style commentary
 
-	# fix up remainig new-style suffixes
+	# fix up remaining new-style suffixes
 	s/\],#[0-9]+/]!/o;
 
 	s/cclr\s+([^,]+),\s*([a-z]+)/mov$2	$1,#0/o			or
