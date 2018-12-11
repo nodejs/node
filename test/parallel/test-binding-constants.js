@@ -1,7 +1,9 @@
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
-const constants = process.binding('constants');
+const { internalBinding } = require('internal/test/binding');
+const constants = internalBinding('constants');
 const assert = require('assert');
 
 assert.deepStrictEqual(

@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
-const JSStream = process.binding('js_stream').JSStream;
+const JSStream = internalBinding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
 const { previewEntries } = internalBinding('util');

@@ -1,7 +1,9 @@
+// Flags: --expose_internals
 'use strict';
 
 require('../common');
-const binding = process.binding('constants');
+const { internalBinding } = require('internal/test/binding');
+const binding = internalBinding('constants');
 const constants = require('constants');
 const assert = require('assert');
 

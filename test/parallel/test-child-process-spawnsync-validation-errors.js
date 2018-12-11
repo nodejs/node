@@ -1,8 +1,10 @@
+// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
-const signals = process.binding('constants').os.signals;
+const { internalBinding } = require('internal/test/binding');
+const signals = internalBinding('constants').os.signals;
 const rootUser = common.isWindows ? false : process.getuid() === 0;
 
 const invalidArgTypeError = common.expectsError(

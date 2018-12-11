@@ -6,7 +6,7 @@ const { internalBinding } = require('internal/test/binding');
 
 assert.throws(
   function() {
-    process.binding('test');
+    internalBinding('test');
   },
   /No such module: test/
 );

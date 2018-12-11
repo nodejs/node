@@ -1,8 +1,10 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 const assert = require('assert');
-const constants = process.binding('constants');
+const { internalBinding } = require('internal/test/binding');
+const constants = internalBinding('constants');
 
 if (common.isLinux) {
   assert('O_NOATIME' in constants.fs);
