@@ -214,8 +214,13 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 >          implementation.
 >       1. Set _parentURL_ to the parent URL path of _parentURL_.
 >       1. Continue the next loop iteration.
+>    1. Let _pjsonURL_ be the URL of the file _"package.json"_ within the parent
+>       path _packageURL_.
+>    1. Let _pjson_ be **null**.
+>    1. If the file at _pjsonURL_ exists, then
+>       1. Set _pjson_ to the result of **READ_JSON_FILE**(_pjsonURL_).
 >    1. If _packagePath_ is empty, then
->       1. Let _url_ be the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_).
+>       1. Let _url_ be the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_).
 >       1. If _url_ is **null**, then
 >          1. Throw a _Module Not Found_ error.
 >       1. Return _url_.
@@ -223,17 +228,17 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 >       1. Return the URL resolution of _packagePath_ in _packageURL_.
 > 1. Throw a _Module Not Found_ error.
 
-PACKAGE_MAIN_RESOLVE(_packageURL_)
+PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
+> 1. If _pjson_ is **null**, then
+>    1. Return **null**.
 > 1. Let _pjsonURL_ be the URL of the file _"package.json"_ within the parent
 >    path _packageURL_.
-> 1. If the file at _pjsonURL_ exists, then
->    1. Let _pjson_ be the result of **READ_JSON_FILE**(_pjsonURL_).
->    1. If **HAS_ESM_PROPERTIES**(_pjson_) is **false**, then
->       1. Let _mainURL_ be the result applying the legacy
->          **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, returning
->          *undefined* for no resolution.
->       1. Return _mainURL_.
-> 1. _Note: ESM main yet to be implemented here._
+> 1. If **HAS_ESM_PROPERTIES**(_pjson_) is **false**, then
+>    1. Let _mainURL_ be the result applying the legacy
+>       **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, returning
+>       *undefined* for no resolution.
+>    1. Return _mainURL_.
+> 1. TODO: ESM main handling.
 > 1. Return **null**.
 
 #### ESM_FORMAT(_url_, _isMain_)
@@ -253,11 +258,10 @@ READ_PACKAGE_BOUNDARY(_url_)
 >    _url_.
 > 1. While _boundaryURL_ is not the file system root,
 >    1. If the file at _boundaryURL_ exists, then
->       1. Return _boundaryURL_.
+>       1. Let _pjson_ be the result of **READ_JSON_FILE**(_boundaryURL_).
+>       1. Return _pjson_.
 >    1. Set _boundaryURL_ to the URL resolution of _"../package.json"_ relative
 >       to _boundaryURL_.
->    1. Let _pjson_ be the result of **READ_JSON_FILE**(_boundaryURL_).
->    1. Return _pjson_.
 > 1. Return **null**.
 
 READ_JSON_FILE(_url_)
@@ -267,12 +271,7 @@ READ_JSON_FILE(_url_)
 > 1. Return _pjson_.
 
 HAS_ESM_PROPERTIES(_pjson_)
-> 1. Note: To be specified.
-
-_ESM properties_ in a package.json file are yet to be specified.
-The current possible specifications for this are the
-[_"exports"_](https://github.com/jkrems/proposal-pkg-exports)
-or [_"mode"_](https://github.com/nodejs/node/pull/18392) flag.
+> Note: To be specified.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [`module.createRequireFromPath()`]: modules.html#modules_module_createrequirefrompath_filename
