@@ -140,11 +140,17 @@ $code .= <<EOF;
 .globl md5_block_asm_data_order
 .type md5_block_asm_data_order,\@function,3
 md5_block_asm_data_order:
+.cfi_startproc
 	push	%rbp
+.cfi_push	%rbp
 	push	%rbx
+.cfi_push	%rbx
 	push	%r12
+.cfi_push	%r12
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lprologue:
 
 	# rdi = arg #1 (ctx, MD5_CTX pointer)
@@ -261,13 +267,20 @@ $code .= <<EOF;
 	mov	%edx,		3*4(%rbp)	# ctx->D = D
 
 	mov	(%rsp),%r15
+.cfi_restore	%r15
 	mov	8(%rsp),%r14
+.cfi_restore	%r14
 	mov	16(%rsp),%r12
+.cfi_restore	%r12
 	mov	24(%rsp),%rbx
+.cfi_restore	%rbx
 	mov	32(%rsp),%rbp
+.cfi_restore	%rbp
 	add	\$40,%rsp
+.cfi_adjust_cfa_offset	-40
 .Lepilogue:
 	ret
+.cfi_endproc
 .size md5_block_asm_data_order,.-md5_block_asm_data_order
 EOF
 

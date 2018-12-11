@@ -34,7 +34,7 @@ sub DES_encrypt3
 	&IP_new($L,$R,"edx",0);
 
 	# put them back
-	
+
 	if ($enc)
 		{
 		&mov(&DWP(4,"ebx","",0),$R);

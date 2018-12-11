@@ -39,7 +39,7 @@ void *_malloc32(__size_t);
 #  endif                        /* __INITIAL_POINTER_SIZE == 64 */
 # endif                         /* __INITIAL_POINTER_SIZE && defined
                                  * _ANSI_C_SOURCE */
-#elif defined(OPENSSL_SYS_NETWARE)
+#elif defined(__DJGPP__) && defined(OPENSSL_NO_SOCK)
 # define NO_SYSLOG
 #elif (!defined(MSDOS) || defined(WATT32)) && !defined(OPENSSL_SYS_VXWORKS) && !defined(NO_SYSLOG)
 # include <syslog.h>
@@ -87,10 +87,13 @@ static void xcloselog(BIO *bp);
 static const BIO_METHOD methods_slg = {
     BIO_TYPE_MEM,
     "syslog",
+    /* TODO: Convert to new style write function */
+    bwrite_conv,
     slg_write,
+    NULL,                      /* slg_write_old,    */
     NULL,                      /* slg_read,         */
     slg_puts,
-    NULL,                      /* slg_gets,         */
+    NULL,
     slg_ctrl,
     slg_new,
     slg_free,
@@ -99,7 +102,7 @@ static const BIO_METHOD methods_slg = {
 
 const BIO_METHOD *BIO_s_log(void)
 {
-    return (&methods_slg);
+    return &methods_slg;
 }
 
 static int slg_new(BIO *bi)
@@ -108,15 +111,15 @@ static int slg_new(BIO *bi)
     bi->num = 0;
     bi->ptr = NULL;
     xopenlog(bi, "application", LOG_DAEMON);
-    return (1);
+    return 1;
 }
 
 static int slg_free(BIO *a)
 {
     if (a == NULL)
-        return (0);
+        return 0;
     xcloselog(a);
-    return (1);
+    return 1;
 }
 
 static int slg_write(BIO *b, const char *in, int inl)
@@ -194,7 +197,8 @@ static int slg_write(BIO *b, const char *in, int inl)
     };
 
     if ((buf = OPENSSL_malloc(inl + 1)) == NULL) {
-        return (0);
+        BIOerr(BIO_F_SLG_WRITE, ERR_R_MALLOC_FAILURE);
+        return 0;
     }
     memcpy(buf, in, inl);
     buf[inl] = '\0';
@@ -208,7 +212,7 @@ static int slg_write(BIO *b, const char *in, int inl)
     xsyslog(b, priority, pp);
 
     OPENSSL_free(buf);
-    return (ret);
+    return ret;
 }
 
 static long slg_ctrl(BIO *b, int cmd, long num, void *ptr)
@@ -221,7 +225,7 @@ static long slg_ctrl(BIO *b, int cmd, long num, void *ptr)
     default:
         break;
     }
-    return (0);
+    return 0;
 }
 
 static int slg_puts(BIO *bp, const char *str)
@@ -230,7 +234,7 @@ static int slg_puts(BIO *bp, const char *str)
 
     n = strlen(str);
     ret = slg_write(bp, str, n);
-    return (ret);
+    return ret;
 }
 
 # if defined(OPENSSL_SYS_WIN32)

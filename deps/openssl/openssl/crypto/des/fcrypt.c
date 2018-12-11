@@ -23,7 +23,7 @@
 
 /*
  * Added more values to handle illegal salt values the way normal crypt()
- * implementations do.  The patch was sent by Bjorn Gronvall <bg@sics.se>
+ * implementations do.
  */
 static unsigned const char con_salt[128] = {
     0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9,
@@ -60,7 +60,7 @@ char *DES_crypt(const char *buf, const char *salt)
     static char buff[14];
 
 #ifndef CHARSET_EBCDIC
-    return (DES_fcrypt(buf, salt, buff));
+    return DES_fcrypt(buf, salt, buff);
 #else
     char e_salt[2 + 1];
     char e_buf[32 + 1];         /* replace 32 by 8 ? */
@@ -145,5 +145,5 @@ char *DES_fcrypt(const char *buf, const char *salt, char *ret)
         ret[i] = cov_2char[c];
     }
     ret[13] = '\0';
-    return (ret);
+    return ret;
 }

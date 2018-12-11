@@ -342,7 +342,8 @@ static int range_should_be_prefix(const unsigned char *min,
     unsigned char mask;
     int i, j;
 
-    OPENSSL_assert(memcmp(min, max, length) <= 0);
+    if (memcmp(min, max, length) <= 0)
+        return -1;
     for (i = 0; i < length && min[i] == max[i]; i++) ;
     for (j = length - 1; j >= 0 && min[j] == 0x00 && max[j] == 0xFF; j--) ;
     if (i < j)
@@ -431,7 +432,6 @@ static int make_addressRange(IPAddressOrRange **result,
     if ((aor = IPAddressOrRange_new()) == NULL)
         return 0;
     aor->type = IPAddressOrRange_addressRange;
-    OPENSSL_assert(aor->u.addressRange == NULL);
     if ((aor->u.addressRange = IPAddressRange_new()) == NULL)
         goto err;
     if (aor->u.addressRange->min == NULL &&
@@ -498,7 +498,6 @@ static IPAddressFamily *make_IPAddressFamily(IPAddrBlocks *addr,
 
     for (i = 0; i < sk_IPAddressFamily_num(addr); i++) {
         f = sk_IPAddressFamily_value(addr, i);
-        OPENSSL_assert(f->addressFamily->data != NULL);
         if (f->addressFamily->length == keylen &&
             !memcmp(f->addressFamily->data, key, keylen))
             return f;
@@ -877,7 +876,8 @@ int X509v3_addr_canonize(IPAddrBlocks *addr)
     }
     (void)sk_IPAddressFamily_set_cmp_func(addr, IPAddressFamily_cmp);
     sk_IPAddressFamily_sort(addr);
-    OPENSSL_assert(X509v3_addr_is_canonical(addr));
+    if (!ossl_assert(X509v3_addr_is_canonical(addr)))
+        return 0;
     return 1;
 }
 
@@ -1182,9 +1182,13 @@ static int addr_validate_path_internal(X509_STORE_CTX *ctx,
     int i, j, ret = 1;
     X509 *x;
 
-    OPENSSL_assert(chain != NULL && sk_X509_num(chain) > 0);
-    OPENSSL_assert(ctx != NULL || ext != NULL);
-    OPENSSL_assert(ctx == NULL || ctx->verify_cb != NULL);
+    if (!ossl_assert(chain != NULL && sk_X509_num(chain) > 0)
+            || !ossl_assert(ctx != NULL || ext != NULL)
+            || !ossl_assert(ctx == NULL || ctx->verify_cb != NULL)) {
+        if (ctx != NULL)
+            ctx->error = X509_V_ERR_UNSPECIFIED;
+        return 0;
+    }
 
     /*
      * Figure out where to start.  If we don't have an extension to
@@ -1197,7 +1201,6 @@ static int addr_validate_path_internal(X509_STORE_CTX *ctx,
     } else {
         i = 0;
         x = sk_X509_value(chain, i);
-        OPENSSL_assert(x != NULL);
         if ((ext = x->rfc3779_addr) == NULL)
             goto done;
     }
@@ -1207,7 +1210,8 @@ static int addr_validate_path_internal(X509_STORE_CTX *ctx,
     if ((child = sk_IPAddressFamily_dup(ext)) == NULL) {
         X509V3err(X509V3_F_ADDR_VALIDATE_PATH_INTERNAL,
                   ERR_R_MALLOC_FAILURE);
-        ctx->error = X509_V_ERR_OUT_OF_MEM;
+        if (ctx != NULL)
+            ctx->error = X509_V_ERR_OUT_OF_MEM;
         ret = 0;
         goto done;
     }
@@ -1218,7 +1222,6 @@ static int addr_validate_path_internal(X509_STORE_CTX *ctx,
      */
     for (i++; i < sk_X509_num(chain); i++) {
         x = sk_X509_value(chain, i);
-        OPENSSL_assert(x != NULL);
         if (!X509v3_addr_is_canonical(x->rfc3779_addr))
             validation_err(X509_V_ERR_INVALID_EXTENSION);
         if (x->rfc3779_addr == NULL) {
@@ -1262,7 +1265,6 @@ static int addr_validate_path_internal(X509_STORE_CTX *ctx,
     /*
      * Trust anchor can't inherit.
      */
-    OPENSSL_assert(x != NULL);
     if (x->rfc3779_addr != NULL) {
         for (j = 0; j < sk_IPAddressFamily_num(x->rfc3779_addr); j++) {
             IPAddressFamily *fp =
@@ -1285,6 +1287,12 @@ static int addr_validate_path_internal(X509_STORE_CTX *ctx,
  */
 int X509v3_addr_validate_path(X509_STORE_CTX *ctx)
 {
+    if (ctx->chain == NULL
+            || sk_X509_num(ctx->chain) == 0
+            || ctx->verify_cb == NULL) {
+        ctx->error = X509_V_ERR_UNSPECIFIED;
+        return 0;
+    }
     return addr_validate_path_internal(ctx, ctx->chain, NULL);
 }
 

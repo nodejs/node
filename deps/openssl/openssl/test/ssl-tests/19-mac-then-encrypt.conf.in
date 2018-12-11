@@ -11,6 +11,8 @@
 
 package ssltests;
 
+use OpenSSL::Test::Utils;
+
 our @tests = (
     {
         name => "disable-encrypt-then-mac-server-sha",
@@ -19,6 +21,7 @@ our @tests = (
         },
         client => {
           "CipherString" => "AES128-SHA",
+          "MaxProtocol" => "TLSv1.2"
         },
         test   => {
           "ExpectedResult" => "Success",
@@ -31,6 +34,7 @@ our @tests = (
         client => {
           "CipherString" => "AES128-SHA",
           "Options" => "-EncryptThenMac",
+          "MaxProtocol" => "TLSv1.2"
         },
         test   => {
           "ExpectedResult" => "Success",
@@ -44,11 +48,15 @@ our @tests = (
         client => {
           "CipherString" => "AES128-SHA",
           "Options" => "-EncryptThenMac",
+          "MaxProtocol" => "TLSv1.2"
         },
         test   => {
           "ExpectedResult" => "Success",
         },
     },
+);
+
+my @tests_tls1_2 = (
     {
         name => "disable-encrypt-then-mac-server-sha2",
         server => {
@@ -56,6 +64,7 @@ our @tests = (
         },
         client => {
           "CipherString" => "AES128-SHA256",
+          "MaxProtocol" => "TLSv1.2"
         },
         test   => {
           "ExpectedResult" => "Success",
@@ -68,6 +77,7 @@ our @tests = (
         client => {
           "CipherString" => "AES128-SHA256",
           "Options" => "-EncryptThenMac",
+          "MaxProtocol" => "TLSv1.2"
         },
         test   => {
           "ExpectedResult" => "Success",
@@ -81,9 +91,12 @@ our @tests = (
         client => {
           "CipherString" => "AES128-SHA256",
           "Options" => "-EncryptThenMac",
+          "MaxProtocol" => "TLSv1.2"
         },
         test   => {
           "ExpectedResult" => "Success",
         },
     },
 );
+
+push @tests, @tests_tls1_2 unless disabled("tls1_2");

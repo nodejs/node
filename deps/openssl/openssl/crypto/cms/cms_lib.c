@@ -292,7 +292,7 @@ BIO *cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm)
     digest = EVP_get_digestbyobj(digestoid);
     if (!digest) {
         CMSerr(CMS_F_CMS_DIGESTALGORITHM_INIT_BIO,
-               CMS_R_UNKNOWN_DIGEST_ALGORIHM);
+               CMS_R_UNKNOWN_DIGEST_ALGORITHM);
         goto err;
     }
     mdbio = BIO_new(BIO_f_md());

@@ -8,7 +8,7 @@
 
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -865,7 +865,7 @@ $fname:
 	restore
 .type   $fname,#function
 .size	$fname,(.-$fname)
-.asciz	"Montgomery Multipltication for UltraSPARC, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"Montgomery Multiplication for UltraSPARC, CRYPTOGAMS by <appro\@openssl.org>"
 .align	32
 ___
 

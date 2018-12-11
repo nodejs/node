@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,30 +20,30 @@
  * for x86_64 code. And since we are at it, just for sense of it,
  * large-block performance in cycles per processed byte for *this* code
  * is:
- *			gcc-4.8		icc-15.0	clang-3.4(*)
+ *                      gcc-4.8         icc-15.0        clang-3.4(*)
  *
- * Westmere		4.96		5.09		4.37
- * Sandy Bridge		4.95		4.90		4.17
- * Haswell		4.92		4.87		3.78
- * Bulldozer		4.67		4.49		4.68
- * VIA Nano		7.07		7.05		5.98
- * Silvermont		10.6		9.61		12.6
+ * Westmere             4.96            5.09            4.37
+ * Sandy Bridge         4.95            4.90            4.17
+ * Haswell              4.92            4.87            3.78
+ * Bulldozer            4.67            4.49            4.68
+ * VIA Nano             7.07            7.05            5.98
+ * Silvermont           10.6            9.61            12.6
  *
- * (*)	clang managed to discover parallelism and deployed SIMD;
+ * (*)  clang managed to discover parallelism and deployed SIMD;
  *
  * And for range of other platforms with unspecified gcc versions:
  *
- * Freescale e300	12.5
- * PPC74x0		10.8
- * POWER6		4.92
- * POWER7		4.50
- * POWER8		4.10
+ * Freescale e300       12.5
+ * PPC74x0              10.8
+ * POWER6               4.92
+ * POWER7               4.50
+ * POWER8               4.10
  *
- * z10			11.2
- * z196+		7.30
+ * z10                  11.2
+ * z196+                7.30
  *
- * UltraSPARC III	16.0
- * SPARC T4		16.1
+ * UltraSPARC III       16.0
+ * SPARC T4             16.1
  */
 
 #if !(defined(__GNUC__) && __GNUC__>=2)
@@ -57,33 +57,33 @@ typedef unsigned int u32;
 typedef unsigned long long u64;
 typedef union { double d; u64 u; } elem64;
 
-#define TWO(p)		((double)(1ULL<<(p)))
-#define TWO0		TWO(0)
-#define TWO32		TWO(32)
-#define TWO64		(TWO32*TWO(32))
-#define TWO96		(TWO64*TWO(32))
-#define TWO130		(TWO96*TWO(34))
+#define TWO(p)          ((double)(1ULL<<(p)))
+#define TWO0            TWO(0)
+#define TWO32           TWO(32)
+#define TWO64           (TWO32*TWO(32))
+#define TWO96           (TWO64*TWO(32))
+#define TWO130          (TWO96*TWO(34))
 
-#define EXP(p)		((1023ULL+(p))<<52)
+#define EXP(p)          ((1023ULL+(p))<<52)
 
 #if defined(__x86_64__) || (defined(__PPC__) && defined(__LITTLE_ENDIAN__))
-# define U8TOU32(p)	(*(const u32 *)(p))
-# define U32TO8(p,v)	(*(u32 *)(p) = (v))
+# define U8TOU32(p)     (*(const u32 *)(p))
+# define U32TO8(p,v)    (*(u32 *)(p) = (v))
 #elif defined(__PPC__)
-# define U8TOU32(p)	({u32 ret; asm ("lwbrx	%0,0,%1":"=r"(ret):"b"(p)); ret; })
-# define U32TO8(p,v)	asm ("stwbrx %0,0,%1"::"r"(v),"b"(p):"memory")
+# define U8TOU32(p)     ({u32 ret; asm ("lwbrx	%0,0,%1":"=r"(ret):"b"(p)); ret; })
+# define U32TO8(p,v)    asm ("stwbrx %0,0,%1"::"r"(v),"b"(p):"memory")
 #elif defined(__s390x__)
-# define U8TOU32(p)	({u32 ret; asm ("lrv	%0,%1":"=d"(ret):"m"(*(u32 *)(p))); ret; })
-# define U32TO8(p,v)	asm ("strv	%1,%0":"=m"(*(u32 *)(p)):"d"(v))
+# define U8TOU32(p)     ({u32 ret; asm ("lrv	%0,%1":"=d"(ret):"m"(*(u32 *)(p))); ret; })
+# define U32TO8(p,v)    asm ("strv	%1,%0":"=m"(*(u32 *)(p)):"d"(v))
 #endif
 
 #ifndef U8TOU32
-# define U8TOU32(p)	((u32)(p)[0]     | (u32)(p)[1]<<8 | \
-			 (u32)(p)[2]<<16 | (u32)(p)[3]<<24  )
+# define U8TOU32(p)     ((u32)(p)[0]     | (u32)(p)[1]<<8 |     \
+                         (u32)(p)[2]<<16 | (u32)(p)[3]<<24  )
 #endif
 #ifndef U32TO8
-# define U32TO8(p,v)	((p)[0] = (u8)(v),       (p)[1] = (u8)((v)>>8), \
-			 (p)[2] = (u8)((v)>>16), (p)[3] = (u8)((v)>>24) )
+# define U32TO8(p,v)    ((p)[0] = (u8)(v),       (p)[1] = (u8)((v)>>8), \
+                         (p)[2] = (u8)((v)>>16), (p)[3] = (u8)((v)>>24) )
 #endif
 
 typedef struct {
@@ -101,6 +101,8 @@ static const u64 one = 1;
 static const u32 fpc = 1;
 #elif defined(__sparc__)
 static const u64 fsr = 1ULL<<30;
+#elif defined(__mips__)
+static const u32 fcsr = 1;
 #else
 #error "unrecognized platform"
 #endif
@@ -147,6 +149,11 @@ int poly1305_init(void *ctx, const unsigned char key[16])
 
         asm volatile ("stx	%%fsr,%0":"=m"(fsr_orig));
         asm volatile ("ldx	%0,%%fsr"::"m"(fsr));
+#elif defined(__mips__)
+        u32 fcsr_orig;
+
+        asm volatile ("cfc1	%0,$31":"=r"(fcsr_orig));
+        asm volatile ("ctc1	%0,$31"::"r"(fcsr));
 #endif
 
         /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
@@ -206,6 +213,8 @@ int poly1305_init(void *ctx, const unsigned char key[16])
         asm volatile ("lfpc	%0"::"m"(fpc_orig));
 #elif defined(__sparc__)
         asm volatile ("ldx	%0,%%fsr"::"m"(fsr_orig));
+#elif defined(__mips__)
+        asm volatile ("ctc1	%0,$31"::"r"(fcsr_orig));
 #endif
     }
 
@@ -262,6 +271,11 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
 
     asm volatile ("stx		%%fsr,%0":"=m"(fsr_orig));
     asm volatile ("ldx		%0,%%fsr"::"m"(fsr));
+#elif defined(__mips__)
+    u32 fcsr_orig;
+
+    asm volatile ("cfc1		%0,$31":"=r"(fcsr_orig));
+    asm volatile ("ctc1		%0,$31"::"r"(fcsr));
 #endif
 
     /*
@@ -345,9 +359,9 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
 #ifndef __clang__
     fast_entry:
 #endif
-	/*
-	 * base 2^32 * base 2^16 = base 2^48
-	 */
+        /*
+         * base 2^32 * base 2^16 = base 2^48
+         */
         h0lo = s3lo * x1 + s2lo * x2 + s1lo * x3 + r0lo * x0;
         h1lo = r0lo * x1 + s3lo * x2 + s2lo * x3 + r1lo * x0;
         h2lo = r1lo * x1 + r0lo * x2 + s3lo * x3 + r2lo * x0;
@@ -408,6 +422,8 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
     asm volatile ("lfpc		%0"::"m"(fpc_orig));
 #elif defined(__sparc__)
     asm volatile ("ldx		%0,%%fsr"::"m"(fsr_orig));
+#elif defined(__mips__)
+    asm volatile ("ctc1		%0,$31"::"r"(fcsr_orig));
 #endif
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,7 @@
  */
 
 #include "dso_locl.h"
+#include "internal/refcount.h"
 
 static DSO_METHOD *default_DSO_meth = NULL;
 
@@ -26,14 +27,14 @@ static DSO *DSO_new_method(DSO_METHOD *meth)
     ret = OPENSSL_zalloc(sizeof(*ret));
     if (ret == NULL) {
         DSOerr(DSO_F_DSO_NEW_METHOD, ERR_R_MALLOC_FAILURE);
-        return (NULL);
+        return NULL;
     }
     ret->meth_data = sk_void_new_null();
     if (ret->meth_data == NULL) {
         /* sk_new doesn't generate any errors so we do */
         DSOerr(DSO_F_DSO_NEW_METHOD, ERR_R_MALLOC_FAILURE);
         OPENSSL_free(ret);
-        return (NULL);
+        return NULL;
     }
     ret->meth = default_DSO_meth;
     ret->references = 1;
@@ -63,9 +64,9 @@ int DSO_free(DSO *dso)
     int i;
 
     if (dso == NULL)
-        return (1);
+        return 1;
 
-    if (CRYPTO_atomic_add(&dso->references, -1, &i, dso->lock) <= 0)
+    if (CRYPTO_DOWN_REF(&dso->references, &i, dso->lock) <= 0)
         return 0;
 
     REF_PRINT_COUNT("DSO", dso);
@@ -107,7 +108,7 @@ int DSO_up_ref(DSO *dso)
         return 0;
     }
 
-    if (CRYPTO_atomic_add(&dso->references, 1, &i, dso->lock) <= 0)
+    if (CRYPTO_UP_REF(&dso->references, &i, dso->lock) <= 0)
         return 0;
 
     REF_PRINT_COUNT("DSO", r);
@@ -162,11 +163,11 @@ DSO *DSO_load(DSO *dso, const char *filename, DSO_METHOD *meth, int flags)
         goto err;
     }
     /* Load succeeded */
-    return (ret);
+    return ret;
  err:
     if (allocated)
         DSO_free(ret);
-    return (NULL);
+    return NULL;
 }
 
 DSO_FUNC_TYPE DSO_bind_func(DSO *dso, const char *symname)
@@ -175,18 +176,18 @@ DSO_FUNC_TYPE DSO_bind_func(DSO *dso, const char *symname)
 
     if ((dso == NULL) || (symname == NULL)) {
         DSOerr(DSO_F_DSO_BIND_FUNC, ERR_R_PASSED_NULL_PARAMETER);
-        return (NULL);
+        return NULL;
     }
     if (dso->meth->dso_bind_func == NULL) {
         DSOerr(DSO_F_DSO_BIND_FUNC, DSO_R_UNSUPPORTED);
-        return (NULL);
+        return NULL;
     }
     if ((ret = dso->meth->dso_bind_func(dso, symname)) == NULL) {
         DSOerr(DSO_F_DSO_BIND_FUNC, DSO_R_SYM_FAILURE);
-        return (NULL);
+        return NULL;
     }
     /* Success */
-    return (ret);
+    return ret;
 }
 
 /*
@@ -202,7 +203,7 @@ long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg)
 {
     if (dso == NULL) {
         DSOerr(DSO_F_DSO_CTRL, ERR_R_PASSED_NULL_PARAMETER);
-        return (-1);
+        return -1;
     }
     /*
      * We should intercept certain generic commands and only pass control to
@@ -213,27 +214,27 @@ long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg)
         return dso->flags;
     case DSO_CTRL_SET_FLAGS:
         dso->flags = (int)larg;
-        return (0);
+        return 0;
     case DSO_CTRL_OR_FLAGS:
         dso->flags |= (int)larg;
-        return (0);
+        return 0;
     default:
         break;
     }
     if ((dso->meth == NULL) || (dso->meth->dso_ctrl == NULL)) {
         DSOerr(DSO_F_DSO_CTRL, DSO_R_UNSUPPORTED);
-        return (-1);
+        return -1;
     }
-    return (dso->meth->dso_ctrl(dso, cmd, larg, parg));
+    return dso->meth->dso_ctrl(dso, cmd, larg, parg);
 }
 
 const char *DSO_get_filename(DSO *dso)
 {
     if (dso == NULL) {
         DSOerr(DSO_F_DSO_GET_FILENAME, ERR_R_PASSED_NULL_PARAMETER);
-        return (NULL);
+        return NULL;
     }
-    return (dso->filename);
+    return dso->filename;
 }
 
 int DSO_set_filename(DSO *dso, const char *filename)
@@ -242,21 +243,21 @@ int DSO_set_filename(DSO *dso, const char *filename)
 
     if ((dso == NULL) || (filename == NULL)) {
         DSOerr(DSO_F_DSO_SET_FILENAME, ERR_R_PASSED_NULL_PARAMETER);
-        return (0);
+        return 0;
     }
     if (dso->loaded_filename) {
         DSOerr(DSO_F_DSO_SET_FILENAME, DSO_R_DSO_ALREADY_LOADED);
-        return (0);
+        return 0;
     }
     /* We'll duplicate filename */
     copied = OPENSSL_strdup(filename);
     if (copied == NULL) {
         DSOerr(DSO_F_DSO_SET_FILENAME, ERR_R_MALLOC_FAILURE);
-        return (0);
+        return 0;
     }
     OPENSSL_free(dso->filename);
     dso->filename = copied;
-    return (1);
+    return 1;
 }
 
 char *DSO_merge(DSO *dso, const char *filespec1, const char *filespec2)
@@ -265,7 +266,7 @@ char *DSO_merge(DSO *dso, const char *filespec1, const char *filespec2)
 
     if (dso == NULL || filespec1 == NULL) {
         DSOerr(DSO_F_DSO_MERGE, ERR_R_PASSED_NULL_PARAMETER);
-        return (NULL);
+        return NULL;
     }
     if ((dso->flags & DSO_FLAG_NO_NAME_TRANSLATION) == 0) {
         if (dso->merger != NULL)
@@ -273,7 +274,7 @@ char *DSO_merge(DSO *dso, const char *filespec1, const char *filespec2)
         else if (dso->meth->dso_merger != NULL)
             result = dso->meth->dso_merger(dso, filespec1, filespec2);
     }
-    return (result);
+    return result;
 }
 
 char *DSO_convert_filename(DSO *dso, const char *filename)
@@ -282,13 +283,13 @@ char *DSO_convert_filename(DSO *dso, const char *filename)
 
     if (dso == NULL) {
         DSOerr(DSO_F_DSO_CONVERT_FILENAME, ERR_R_PASSED_NULL_PARAMETER);
-        return (NULL);
+        return NULL;
     }
     if (filename == NULL)
         filename = dso->filename;
     if (filename == NULL) {
         DSOerr(DSO_F_DSO_CONVERT_FILENAME, DSO_R_NO_FILENAME);
-        return (NULL);
+        return NULL;
     }
     if ((dso->flags & DSO_FLAG_NO_NAME_TRANSLATION) == 0) {
         if (dso->name_converter != NULL)
@@ -300,10 +301,10 @@ char *DSO_convert_filename(DSO *dso, const char *filename)
         result = OPENSSL_strdup(filename);
         if (result == NULL) {
             DSOerr(DSO_F_DSO_CONVERT_FILENAME, ERR_R_MALLOC_FAILURE);
-            return (NULL);
+            return NULL;
         }
     }
-    return (result);
+    return result;
 }
 
 int DSO_pathbyaddr(void *addr, char *path, int sz)

@@ -24,8 +24,7 @@ void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
      * Things have been modified so that the initial rotate is done outside
      * the loop.  This required the DES_SPtrans values in sp.h to be rotated
      * 1 bit to the right. One perl script later and things have a 5% speed
-     * up on a sparc2. Thanks to Richard Outerbridge
-     * <71755.204@CompuServe.COM> for pointing this out.
+     * up on a sparc2. Thanks to Richard Outerbridge for pointing this out.
      */
     /* clear the top bits on machines with 8byte longs */
     /* shift left by 2 */
@@ -95,8 +94,7 @@ void DES_encrypt2(DES_LONG *data, DES_key_schedule *ks, int enc)
      * Things have been modified so that the initial rotate is done outside
      * the loop.  This required the DES_SPtrans values in sp.h to be rotated
      * 1 bit to the right. One perl script later and things have a 5% speed
-     * up on a sparc2. Thanks to Richard Outerbridge
-     * <71755.204@CompuServe.COM> for pointing this out.
+     * up on a sparc2. Thanks to Richard Outerbridge for pointing this out.
      */
     /* clear the top bits on machines with 8byte longs */
     r = ROTATE(r, 29) & 0xffffffffL;

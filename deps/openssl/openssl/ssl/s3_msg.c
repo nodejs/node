@@ -7,7 +7,6 @@
  * https://www.openssl.org/source/license.html
  */
 
-#define USE_SOCKETS
 #include "ssl_locl.h"
 
 int ssl3_do_change_cipher_spec(SSL *s)
@@ -23,16 +22,16 @@ int ssl3_do_change_cipher_spec(SSL *s)
         if (s->session == NULL || s->session->master_key_length == 0) {
             /* might happen if dtls1_read_bytes() calls this */
             SSLerr(SSL_F_SSL3_DO_CHANGE_CIPHER_SPEC, SSL_R_CCS_RECEIVED_EARLY);
-            return (0);
+            return 0;
         }
 
         s->session->cipher = s->s3->tmp.new_cipher;
         if (!s->method->ssl3_enc->setup_key_block(s))
-            return (0);
+            return 0;
     }
 
     if (!s->method->ssl3_enc->change_cipher_state(s, i))
-        return (0);
+        return 0;
 
     return 1;
 }
@@ -40,7 +39,10 @@ int ssl3_do_change_cipher_spec(SSL *s)
 int ssl3_send_alert(SSL *s, int level, int desc)
 {
     /* Map tls/ssl alert value to correct one */
-    desc = s->method->ssl3_enc->alert_value(desc);
+    if (SSL_TREAT_AS_TLS13(s))
+        desc = tls13_alert_code(desc);
+    else
+        desc = s->method->ssl3_enc->alert_value(desc);
     if (s->version == SSL3_VERSION && desc == SSL_AD_PROTOCOL_VERSION)
         desc = SSL_AD_HANDSHAKE_FAILURE; /* SSL 3.0 does not have
                                           * protocol_version alerts */
@@ -67,22 +69,22 @@ int ssl3_send_alert(SSL *s, int level, int desc)
 int ssl3_dispatch_alert(SSL *s)
 {
     int i, j;
-    unsigned int alertlen;
+    size_t alertlen;
     void (*cb) (const SSL *ssl, int type, int val) = NULL;
+    size_t written;
 
     s->s3->alert_dispatch = 0;
     alertlen = 2;
-    i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3->send_alert[0], &alertlen, 1, 0);
+    i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3->send_alert[0], &alertlen, 1, 0,
+                      &written);
     if (i <= 0) {
         s->s3->alert_dispatch = 1;
     } else {
         /*
-         * Alert sent to BIO.  If it is important, flush it now. If the
-         * message does not get sent due to non-blocking IO, we will not
-         * worry too much.
+         * Alert sent to BIO - now flush. If the message does not get sent due
+         * to non-blocking IO, we will not worry too much.
          */
-        if (s->s3->send_alert[0] == SSL3_AL_FATAL)
-            (void)BIO_flush(s->wbio);
+        (void)BIO_flush(s->wbio);
 
         if (s->msg_callback)
             s->msg_callback(1, s->version, SSL3_RT_ALERT, s->s3->send_alert,
@@ -98,5 +100,5 @@ int ssl3_dispatch_alert(SSL *s)
             cb(s, SSL_CB_WRITE_ALERT, j);
         }
     }
-    return (i);
+    return i;
 }

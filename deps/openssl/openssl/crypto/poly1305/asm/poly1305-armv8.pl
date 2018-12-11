@@ -28,6 +28,7 @@
 # Denver	1.64/+50%	1.18(*)
 # X-Gene	2.13/+68%	2.27
 # Mongoose	1.77/+75%	1.12
+# Kryo		2.70/+55%	1.13
 #
 # (*)	estimate based on resources availability is less than 1.0,
 #	i.e. measured result is worse than expected, presumably binary

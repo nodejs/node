@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,8 +22,10 @@ unsigned char *OPENSSL_asc2uni(const char *asc, int asclen,
     if (asclen == -1)
         asclen = strlen(asc);
     ulen = asclen * 2 + 2;
-    if ((unitmp = OPENSSL_malloc(ulen)) == NULL)
+    if ((unitmp = OPENSSL_malloc(ulen)) == NULL) {
+        PKCS12err(PKCS12_F_OPENSSL_ASC2UNI, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
     for (i = 0; i < ulen - 2; i += 2) {
         unitmp[i] = 0;
         unitmp[i + 1] = asc[i >> 1];
@@ -50,8 +52,10 @@ char *OPENSSL_uni2asc(const unsigned char *uni, int unilen)
     if (!unilen || uni[unilen - 1])
         asclen++;
     uni++;
-    if ((asctmp = OPENSSL_malloc(asclen)) == NULL)
+    if ((asctmp = OPENSSL_malloc(asclen)) == NULL) {
+        PKCS12err(PKCS12_F_OPENSSL_UNI2ASC, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
     for (i = 0; i < unilen; i += 2)
         asctmp[i >> 1] = uni[i];
     asctmp[asclen - 1] = 0;
@@ -97,10 +101,10 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
          * decoding failure...
          */
         if (j < 0)
-	    return OPENSSL_asc2uni(asc, asclen, uni, unilen);
+            return OPENSSL_asc2uni(asc, asclen, uni, unilen);
 
         if (utf32chr > 0x10FFFF)        /* UTF-16 cap */
-	    return NULL;
+            return NULL;
 
         if (utf32chr >= 0x10000)        /* pair of UTF-16 characters */
             ulen += 2*2;
@@ -110,9 +114,10 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
 
     ulen += 2;  /* for trailing UTF16 zero */
 
-    if ((ret = OPENSSL_malloc(ulen)) == NULL)
+    if ((ret = OPENSSL_malloc(ulen)) == NULL) {
+        PKCS12err(PKCS12_F_OPENSSL_UTF82UNI, ERR_R_MALLOC_FAILURE);
         return NULL;
-
+    }
     /* re-run the loop writing down UTF-16 characters in big-endian order */
     for (unitmp = ret, i = 0; i < asclen; i += j) {
         j = UTF8_getc((const unsigned char *)asc+i, asclen-i, &utf32chr);
@@ -194,8 +199,10 @@ char *OPENSSL_uni2utf8(const unsigned char *uni, int unilen)
     if (!unilen || (uni[unilen-2]||uni[unilen - 1]))
         asclen++;
 
-    if ((asctmp = OPENSSL_malloc(asclen)) == NULL)
+    if ((asctmp = OPENSSL_malloc(asclen)) == NULL) {
+        PKCS12err(PKCS12_F_OPENSSL_UNI2UTF8, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
 
     /* re-run the loop emitting UTF-8 string */
     for (asclen = 0, i = 0; i < unilen; ) {

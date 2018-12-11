@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -50,20 +50,20 @@ static int asn1_print_info(BIO *bp, int tag, int xclass, int constructed,
 
     if (BIO_printf(bp, fmt, p) <= 0)
         goto err;
-    return (1);
+    return 1;
  err:
-    return (0);
+    return 0;
 }
 
 int ASN1_parse(BIO *bp, const unsigned char *pp, long len, int indent)
 {
-    return (asn1_parse2(bp, &pp, len, 0, 0, indent, 0));
+    return asn1_parse2(bp, &pp, len, 0, 0, indent, 0);
 }
 
 int ASN1_parse_dump(BIO *bp, const unsigned char *pp, long len, int indent,
                     int dump)
 {
-    return (asn1_parse2(bp, &pp, len, 0, 0, indent, dump));
+    return asn1_parse2(bp, &pp, len, 0, 0, indent, dump);
 }
 
 static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
@@ -342,7 +342,7 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
     ASN1_OBJECT_free(o);
     ASN1_OCTET_STRING_free(os);
     *pp = p;
-    return (ret);
+    return ret;
 }
 
 const char *ASN1_tag2str(int tag)

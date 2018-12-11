@@ -12,8 +12,10 @@
 struct bio_method_st {
     int type;
     char *name;
-    int (*bwrite) (BIO *, const char *, int);
-    int (*bread) (BIO *, char *, int);
+    int (*bwrite) (BIO *, const char *, size_t, size_t *);
+    int (*bwrite_old) (BIO *, const char *, int);
+    int (*bread) (BIO *, char *, size_t, size_t *);
+    int (*bread_old) (BIO *, char *, int);
     int (*bputs) (BIO *, const char *);
     int (*bgets) (BIO *, char *, int);
     long (*ctrl) (BIO *, int, long, void *);
@@ -24,3 +26,8 @@ struct bio_method_st {
 
 void bio_free_ex_data(BIO *bio);
 void bio_cleanup(void);
+
+
+/* Old style to new style BIO_METHOD conversion functions */
+int bwrite_conv(BIO *bio, const char *data, size_t datal, size_t *written);
+int bread_conv(BIO *bio, char *data, size_t datal, size_t *read);

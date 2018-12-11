@@ -28,6 +28,7 @@
 # Westmere	9.50/+45%	3.35
 # Sandy Bridge	10.5/+47%	3.20
 # Haswell	8.15/+50%	2.83
+# Skylake	7.53/+22%	2.75
 # Silvermont	17.4/+36%	8.35
 # Goldmont	13.4/+40%	4.36
 # Sledgehammer	10.2/+54%
@@ -42,7 +43,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"chacha-x86.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $xmm=$ymm=0;
 for (@ARGV) { $xmm=1 if (/-DOPENSSL_IA32_SSE2/); }

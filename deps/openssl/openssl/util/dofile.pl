@@ -92,7 +92,7 @@ package main;
 # Helper functions for the templates #################################
 
 # It might be practical to quotify some strings and have them protected
-# from possible harm.  These functions primarly quote things that might
+# from possible harm.  These functions primarily quote things that might
 # be interpreted wrongly by a perl eval.
 
 # quotify1 STRING
@@ -106,7 +106,7 @@ sub quotify1 {
 
 # quotify_l LIST
 # For each defined element in LIST (i.e. elements that aren't undef), have
-# it quotified with 'quotofy1'
+# it quotified with 'quotify1'
 sub quotify_l {
     map {
         if (!defined($_)) {

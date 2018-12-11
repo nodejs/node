@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,43 +9,39 @@
 
 #include <stdio.h>
 #include "internal/err_int.h"
-#include <openssl/asn1.h>
-#include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/buffer.h>
-#include <openssl/bio.h>
-#include <openssl/comp.h>
-#include <openssl/rsa.h>
-#include <openssl/dh.h>
-#include <openssl/dsa.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/pem2.h>
-#include <openssl/x509.h>
-#include <openssl/x509v3.h>
-#include <openssl/conf.h>
-#include <openssl/pkcs12.h>
-#include <openssl/rand.h>
+#include <openssl/asn1err.h>
+#include <openssl/bnerr.h>
+#include <openssl/ecerr.h>
+#include <openssl/buffererr.h>
+#include <openssl/bioerr.h>
+#include <openssl/comperr.h>
+#include <openssl/rsaerr.h>
+#include <openssl/dherr.h>
+#include <openssl/dsaerr.h>
+#include <openssl/evperr.h>
+#include <openssl/objectserr.h>
+#include <openssl/pemerr.h>
+#include <openssl/pkcs7err.h>
+#include <openssl/x509err.h>
+#include <openssl/x509v3err.h>
+#include <openssl/conferr.h>
+#include <openssl/pkcs12err.h>
+#include <openssl/randerr.h>
 #include "internal/dso.h"
-#include <openssl/engine.h>
-#include <openssl/ui.h>
-#include <openssl/ocsp.h>
+#include <openssl/engineerr.h>
+#include <openssl/uierr.h>
+#include <openssl/ocsperr.h>
 #include <openssl/err.h>
-#ifdef OPENSSL_FIPS
-# include <openssl/fips.h>
-#endif
-#include <openssl/ts.h>
-#include <openssl/cms.h>
-#include <openssl/ct.h>
-#include <openssl/async.h>
-#include <openssl/kdf.h>
+#include <openssl/tserr.h>
+#include <openssl/cmserr.h>
+#include <openssl/cterr.h>
+#include <openssl/asyncerr.h>
+#include <openssl/kdferr.h>
+#include <openssl/storeerr.h>
 
 int err_load_crypto_strings_int(void)
 {
     if (
-#ifdef OPENSSL_FIPS
-        FIPS_set_error_callbacks(ERR_put_error, ERR_add_error_vdata) == 0 ||
-#endif
 #ifndef OPENSSL_NO_ERR
         ERR_load_ERR_strings() == 0 ||    /* include error strings for SYSerr */
         ERR_load_BN_strings() == 0 ||
@@ -88,12 +84,7 @@ int err_load_crypto_strings_int(void)
 # ifndef OPENSSL_NO_OCSP
         ERR_load_OCSP_strings() == 0 ||
 # endif
-#ifndef OPENSSL_NO_UI
         ERR_load_UI_strings() == 0 ||
-#endif
-# ifdef OPENSSL_FIPS
-        ERR_load_FIPS_strings() == 0 ||
-# endif
 # ifndef OPENSSL_NO_CMS
         ERR_load_CMS_strings() == 0 ||
 # endif
@@ -102,7 +93,8 @@ int err_load_crypto_strings_int(void)
 # endif
         ERR_load_ASYNC_strings() == 0 ||
 #endif
-        ERR_load_KDF_strings() == 0)
+        ERR_load_KDF_strings() == 0 ||
+        ERR_load_OSSL_STORE_strings() == 0)
         return 0;
 
     return 1;

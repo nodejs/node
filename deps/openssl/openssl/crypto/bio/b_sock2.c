@@ -76,7 +76,7 @@ int BIO_socket(int domain, int socktype, int protocol, int options)
  */
 int BIO_connect(int sock, const BIO_ADDR *addr, int options)
 {
-    int on = 1;
+    const int on = 1;
 
     if (sock == -1) {
         BIOerr(BIO_F_BIO_CONNECT, BIO_R_INVALID_SOCKET);
@@ -87,7 +87,8 @@ int BIO_connect(int sock, const BIO_ADDR *addr, int options)
         return 0;
 
     if (options & BIO_SOCK_KEEPALIVE) {
-        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) != 0) {
+        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+                       (const void *)&on, sizeof(on)) != 0) {
             SYSerr(SYS_F_SETSOCKOPT, get_last_socket_error());
             BIOerr(BIO_F_BIO_CONNECT, BIO_R_UNABLE_TO_KEEPALIVE);
             return 0;
@@ -95,7 +96,8 @@ int BIO_connect(int sock, const BIO_ADDR *addr, int options)
     }
 
     if (options & BIO_SOCK_NODELAY) {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) != 0) {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+                       (const void *)&on, sizeof(on)) != 0) {
             SYSerr(SYS_F_SETSOCKOPT, get_last_socket_error());
             BIOerr(BIO_F_BIO_CONNECT, BIO_R_UNABLE_TO_NODELAY);
             return 0;
@@ -110,6 +112,57 @@ int BIO_connect(int sock, const BIO_ADDR *addr, int options)
         }
         return 0;
     }
+    return 1;
+}
+
+/*-
+ * BIO_bind - bind socket to address
+ * @sock: the socket to set
+ * @addr: local address to bind to
+ * @options: BIO socket options
+ *
+ * Binds to the address using the given socket and options.
+ *
+ * Options can be a combination of the following:
+ * - BIO_SOCK_REUSEADDR: Try to reuse the address and port combination
+ *   for a recently closed port.
+ *
+ * When restarting the program it could be that the port is still in use.  If
+ * you set to BIO_SOCK_REUSEADDR option it will try to reuse the port anyway.
+ * It's recommended that you use this.
+ */
+int BIO_bind(int sock, const BIO_ADDR *addr, int options)
+{
+# ifndef OPENSSL_SYS_WINDOWS
+    int on = 1;
+# endif
+
+    if (sock == -1) {
+        BIOerr(BIO_F_BIO_BIND, BIO_R_INVALID_SOCKET);
+        return 0;
+    }
+
+# ifndef OPENSSL_SYS_WINDOWS
+    /*
+     * SO_REUSEADDR has different behavior on Windows than on
+     * other operating systems, don't set it there.
+     */
+    if (options & BIO_SOCK_REUSEADDR) {
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+                       (const void *)&on, sizeof(on)) != 0) {
+            SYSerr(SYS_F_SETSOCKOPT, get_last_socket_error());
+            BIOerr(BIO_F_BIO_BIND, BIO_R_UNABLE_TO_REUSEADDR);
+            return 0;
+        }
+    }
+# endif
+
+    if (bind(sock, BIO_ADDR_sockaddr(addr), BIO_ADDR_sockaddr_size(addr)) != 0) {
+        SYSerr(SYS_F_BIND, get_last_socket_error());
+        BIOerr(BIO_F_BIO_BIND, BIO_R_UNABLE_TO_BIND_SOCKET);
+        return 0;
+    }
+
     return 1;
 }
 
@@ -161,7 +214,8 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
         return 0;
     }
 
-    if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &socktype, &socktype_len) != 0
+    if (getsockopt(sock, SOL_SOCKET, SO_TYPE,
+                   (void *)&socktype, &socktype_len) != 0
         || socktype_len != sizeof(socktype)) {
         SYSerr(SYS_F_GETSOCKOPT, get_last_socket_error());
         BIOerr(BIO_F_BIO_LISTEN, BIO_R_GETTING_SOCKTYPE);
@@ -171,22 +225,9 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
     if (!BIO_socket_nbio(sock, (options & BIO_SOCK_NONBLOCK) != 0))
         return 0;
 
-# ifndef OPENSSL_SYS_WINDOWS
-    /*
-     * SO_REUSEADDR has different behavior on Windows than on
-     * other operating systems, don't set it there.
-     */
-    if (options & BIO_SOCK_REUSEADDR) {
-        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
-            SYSerr(SYS_F_SETSOCKOPT, get_last_socket_error());
-            BIOerr(BIO_F_BIO_LISTEN, BIO_R_UNABLE_TO_REUSEADDR);
-            return 0;
-        }
-    }
-# endif
-
     if (options & BIO_SOCK_KEEPALIVE) {
-        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) != 0) {
+        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+                       (const void *)&on, sizeof(on)) != 0) {
             SYSerr(SYS_F_SETSOCKOPT, get_last_socket_error());
             BIOerr(BIO_F_BIO_LISTEN, BIO_R_UNABLE_TO_KEEPALIVE);
             return 0;
@@ -194,7 +235,8 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
     }
 
     if (options & BIO_SOCK_NODELAY) {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) != 0) {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+                       (const void *)&on, sizeof(on)) != 0) {
             SYSerr(SYS_F_SETSOCKOPT, get_last_socket_error());
             BIOerr(BIO_F_BIO_LISTEN, BIO_R_UNABLE_TO_NODELAY);
             return 0;
@@ -208,7 +250,8 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
          * Therefore we always have to use setsockopt here.
          */
         on = options & BIO_SOCK_V6_ONLY ? 1 : 0;
-        if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) != 0) {
+        if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+                       (const void *)&on, sizeof(on)) != 0) {
             SYSerr(SYS_F_SETSOCKOPT, get_last_socket_error());
             BIOerr(BIO_F_BIO_LISTEN, BIO_R_LISTEN_V6_ONLY);
             return 0;
@@ -216,11 +259,8 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
     }
 # endif
 
-    if (bind(sock, BIO_ADDR_sockaddr(addr), BIO_ADDR_sockaddr_size(addr)) != 0) {
-        SYSerr(SYS_F_BIND, get_last_socket_error());
-        BIOerr(BIO_F_BIO_LISTEN, BIO_R_UNABLE_TO_BIND_SOCKET);
+    if (!BIO_bind(sock, addr, options))
         return 0;
-    }
 
     if (socktype != SOCK_DGRAM && listen(sock, MAX_LISTEN) == -1) {
         SYSerr(SYS_F_LISTEN, get_last_socket_error());

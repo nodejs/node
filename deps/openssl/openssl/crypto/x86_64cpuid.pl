@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -63,10 +63,12 @@ OPENSSL_rdtsc:
 .type	OPENSSL_ia32_cpuid,\@function,1
 .align	16
 OPENSSL_ia32_cpuid:
+.cfi_startproc
 	mov	%rbx,%r8		# save %rbx
+.cfi_register	%rbx,%r8
 
 	xor	%eax,%eax
-	mov	%eax,8(%rdi)		# clear extended feature flags
+	mov	%rax,8(%rdi)		# clear extended feature flags
 	cpuid
 	mov	%eax,%r11d		# max value for standard query level
 
@@ -137,6 +139,7 @@ OPENSSL_ia32_cpuid:
 .Lnocacheinfo:
 	mov	\$1,%eax
 	cpuid
+	movd	%eax,%xmm0		# put aside processor id
 	and	\$0xbfefffff,%edx	# force reserved bits to 0
 	cmp	\$0,%r9d
 	jne	.Lnotintel
@@ -184,26 +187,45 @@ OPENSSL_ia32_cpuid:
 	jc	.Lnotknights
 	and	\$0xfff7ffff,%ebx	# clear ADCX/ADOX flag
 .Lnotknights:
+	movd	%xmm0,%eax		# restore processor id
+	and	\$0x0fff0ff0,%eax
+	cmp	\$0x00050650,%eax	# Skylake-X
+	jne	.Lnotskylakex
+	and	\$0xfffeffff,%ebx	# ~(1<<16)
+					# suppress AVX512F flag on Skylake-X
+.Lnotskylakex:
 	mov	%ebx,8(%rdi)		# save extended feature flags
+	mov	%ecx,12(%rdi)
 .Lno_extended_info:
 
 	bt	\$27,%r9d		# check OSXSAVE bit
 	jnc	.Lclear_avx
 	xor	%ecx,%ecx		# XCR0
 	.byte	0x0f,0x01,0xd0		# xgetbv
+	and	\$0xe6,%eax		# isolate XMM, YMM and ZMM state support
+	cmp	\$0xe6,%eax
+	je	.Ldone
+	andl	\$0x3fdeffff,8(%rdi)	# ~(1<<31|1<<30|1<<21|1<<16)
+					# clear AVX512F+BW+VL+FIMA, all of
+					# them are EVEX-encoded, which requires
+					# ZMM state support even if one uses
+					# only XMM and YMM :-(
 	and	\$6,%eax		# isolate XMM and YMM state support
 	cmp	\$6,%eax
 	je	.Ldone
 .Lclear_avx:
 	mov	\$0xefffe7ff,%eax	# ~(1<<28|1<<12|1<<11)
 	and	%eax,%r9d		# clear AVX, FMA and AMD XOP bits
-	andl	\$0xffffffdf,8(%rdi)	# clear AVX2, ~(1<<5)
+	mov	\$0x3fdeffdf,%eax	# ~(1<<31|1<<30|1<<21|1<<16|1<<5)
+	and	%eax,8(%rdi)		# clear AVX2 and AVX512* bits
 .Ldone:
 	shl	\$32,%r9
 	mov	%r10d,%eax
 	mov	%r8,%rbx		# restore %rbx
+.cfi_restore	%rbx
 	or	%r9,%rax
 	ret
+.cfi_endproc
 .size	OPENSSL_ia32_cpuid,.-OPENSSL_ia32_cpuid
 
 .globl  OPENSSL_cleanse
@@ -249,6 +271,18 @@ CRYPTO_memcmp:
 	xor	%r10,%r10
 	cmp	\$0,$arg3
 	je	.Lno_data
+	cmp	\$16,$arg3
+	jne	.Loop_cmp
+	mov	($arg1),%r10
+	mov	8($arg1),%r11
+	mov	\$1,$arg3
+	xor	($arg2),%r10
+	xor	8($arg2),%r11
+	or	%r11,%r10
+	cmovnz	$arg3,%rax
+	ret
+
+.align	16
 .Loop_cmp:
 	mov	($arg1),%r10b
 	lea	1($arg1),$arg1
@@ -412,21 +446,6 @@ ___
 sub gen_random {
 my $rdop = shift;
 print<<___;
-.globl	OPENSSL_ia32_${rdop}
-.type	OPENSSL_ia32_${rdop},\@abi-omnipotent
-.align	16
-OPENSSL_ia32_${rdop}:
-	mov	\$8,%ecx
-.Loop_${rdop}:
-	${rdop}	%rax
-	jc	.Lbreak_${rdop}
-	loop	.Loop_${rdop}
-.Lbreak_${rdop}:
-	cmp	\$0,%rax
-	cmove	%rcx,%rax
-	ret
-.size	OPENSSL_ia32_${rdop},.-OPENSSL_ia32_${rdop}
-
 .globl	OPENSSL_ia32_${rdop}_bytes
 .type	OPENSSL_ia32_${rdop}_bytes,\@abi-omnipotent
 .align	16
@@ -460,11 +479,12 @@ OPENSSL_ia32_${rdop}_bytes:
 	mov	%r10b,($arg1)
 	lea	1($arg1),$arg1
 	inc	%rax
-	shr	\$8,%r8
+	shr	\$8,%r10
 	dec	$arg2
 	jnz	.Ltail_${rdop}_bytes
 
 .Ldone_${rdop}_bytes:
+	xor	%r10,%r10	# Clear sensitive data from register
 	ret
 .size	OPENSSL_ia32_${rdop}_bytes,.-OPENSSL_ia32_${rdop}_bytes
 ___

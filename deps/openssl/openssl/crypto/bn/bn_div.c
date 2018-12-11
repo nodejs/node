@@ -24,17 +24,17 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
     bn_check_top(d);
     if (BN_is_zero(d)) {
         BNerr(BN_F_BN_DIV, BN_R_DIV_BY_ZERO);
-        return (0);
+        return 0;
     }
 
     if (BN_ucmp(m, d) < 0) {
         if (rem != NULL) {
             if (BN_copy(rem, m) == NULL)
-                return (0);
+                return 0;
         }
         if (dv != NULL)
             BN_zero(dv);
-        return (1);
+        return 1;
     }
 
     BN_CTX_start(ctx);
@@ -81,7 +81,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
     ret = 1;
  end:
     BN_CTX_end(ctx);
-    return (ret);
+    return ret;
 }
 
 #else
@@ -97,8 +97,6 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
     *   understand why...);
     * - divl doesn't only calculate quotient, but also leaves
     *   remainder in %edx which we can definitely use here:-)
-    *
-    *                                   <appro@fy.chalmers.se>
     */
 #    undef bn_div_words
 #    define bn_div_words(n0,n1,d0)                \
@@ -113,7 +111,6 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
 #   elif defined(__x86_64) && defined(SIXTY_FOUR_BIT_LONG)
    /*
     * Same story here, but it's 128-bit by 64-bit division. Wow!
-    *                                   <appro@fy.chalmers.se>
     */
 #    undef bn_div_words
 #    define bn_div_words(n0,n1,d0)                \
@@ -177,28 +174,25 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 
     if (BN_is_zero(divisor)) {
         BNerr(BN_F_BN_DIV, BN_R_DIV_BY_ZERO);
-        return (0);
+        return 0;
     }
 
     if (!no_branch && BN_ucmp(num, divisor) < 0) {
         if (rm != NULL) {
             if (BN_copy(rm, num) == NULL)
-                return (0);
+                return 0;
         }
         if (dv != NULL)
             BN_zero(dv);
-        return (1);
+        return 1;
     }
 
     BN_CTX_start(ctx);
+    res = (dv == NULL) ? BN_CTX_get(ctx) : dv;
     tmp = BN_CTX_get(ctx);
     snum = BN_CTX_get(ctx);
     sdiv = BN_CTX_get(ctx);
-    if (dv == NULL)
-        res = BN_CTX_get(ctx);
-    else
-        res = dv;
-    if (sdiv == NULL || res == NULL || tmp == NULL || snum == NULL)
+    if (sdiv == NULL)
         goto err;
 
     /* First we normalise the numbers */
@@ -415,10 +409,10 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
     if (no_branch)
         bn_correct_top(res);
     BN_CTX_end(ctx);
-    return (1);
+    return 1;
  err:
     bn_check_top(rm);
     BN_CTX_end(ctx);
-    return (0);
+    return 0;
 }
 #endif

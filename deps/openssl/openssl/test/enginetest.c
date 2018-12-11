@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,41 +9,172 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <openssl/e_os2.h>
 
-#ifdef OPENSSL_NO_ENGINE
-int main(int argc, char *argv[])
-{
-    printf("No ENGINE support\n");
-    return (0);
-}
-#else
+# include "testutil.h"
+
+#ifndef OPENSSL_NO_ENGINE
 # include <openssl/buffer.h>
 # include <openssl/crypto.h>
 # include <openssl/engine.h>
-# include <openssl/err.h>
 # include <openssl/rsa.h>
-# include <openssl/bn.h>
+# include <openssl/err.h>
 
 static void display_engine_list(void)
 {
     ENGINE *h;
     int loop;
 
-    h = ENGINE_get_first();
     loop = 0;
-    printf("listing available engine types\n");
-    while (h) {
-        printf("engine %i, id = \"%s\", name = \"%s\"\n",
+    for (h = ENGINE_get_first(); h != NULL; h = ENGINE_get_next(h)) {
+        TEST_info("#%d: id = \"%s\", name = \"%s\"",
                loop++, ENGINE_get_id(h), ENGINE_get_name(h));
-        h = ENGINE_get_next(h);
     }
-    printf("end of list\n");
+
     /*
      * ENGINE_get_first() increases the struct_ref counter, so we must call
      * ENGINE_free() to decrease it again
      */
     ENGINE_free(h);
+}
+
+#define NUMTOADD 512
+
+static int test_engines(void)
+{
+    ENGINE *block[NUMTOADD];
+    char buf[256];
+    const char *id, *name;
+    ENGINE *ptr;
+    int loop;
+    int to_return = 0;
+    ENGINE *new_h1 = NULL;
+    ENGINE *new_h2 = NULL;
+    ENGINE *new_h3 = NULL;
+    ENGINE *new_h4 = NULL;
+
+    memset(block, 0, sizeof(block));
+    if (!TEST_ptr(new_h1 = ENGINE_new())
+            || !TEST_true(ENGINE_set_id(new_h1, "test_id0"))
+            || !TEST_true(ENGINE_set_name(new_h1, "First test item"))
+            || !TEST_ptr(new_h2 = ENGINE_new())
+            || !TEST_true(ENGINE_set_id(new_h2, "test_id1"))
+            || !TEST_true(ENGINE_set_name(new_h2, "Second test item"))
+            || !TEST_ptr(new_h3 = ENGINE_new())
+            || !TEST_true(ENGINE_set_id(new_h3, "test_id2"))
+            || !TEST_true(ENGINE_set_name(new_h3, "Third test item"))
+            || !TEST_ptr(new_h4 = ENGINE_new())
+            || !TEST_true(ENGINE_set_id(new_h4, "test_id3"))
+            || !TEST_true(ENGINE_set_name(new_h4, "Fourth test item")))
+        goto end;
+    TEST_info("Engines:");
+    display_engine_list();
+
+    if (!TEST_true(ENGINE_add(new_h1)))
+        goto end;
+    TEST_info("Engines:");
+    display_engine_list();
+
+    ptr = ENGINE_get_first();
+    if (!TEST_true(ENGINE_remove(ptr)))
+        goto end;
+    ENGINE_free(ptr);
+    TEST_info("Engines:");
+    display_engine_list();
+
+    if (!TEST_true(ENGINE_add(new_h3))
+            || !TEST_true(ENGINE_add(new_h2)))
+        goto end;
+    TEST_info("Engines:");
+    display_engine_list();
+
+    if (!TEST_true(ENGINE_remove(new_h2)))
+        goto end;
+    TEST_info("Engines:");
+    display_engine_list();
+
+    if (!TEST_true(ENGINE_add(new_h4)))
+        goto end;
+    TEST_info("Engines:");
+    display_engine_list();
+
+    /* Should fail. */
+    if (!TEST_false(ENGINE_add(new_h3)))
+        goto end;
+    ERR_clear_error();
+
+    /* Should fail. */
+    if (!TEST_false(ENGINE_remove(new_h2)))
+        goto end;
+    ERR_clear_error();
+
+    if (!TEST_true(ENGINE_remove(new_h3)))
+        goto end;
+    TEST_info("Engines:");
+    display_engine_list();
+
+    if (!TEST_true(ENGINE_remove(new_h4)))
+        goto end;
+    TEST_info("Engines:");
+    display_engine_list();
+
+    /*
+     * Depending on whether there's any hardware support compiled in, this
+     * remove may be destined to fail.
+     */
+    if ((ptr = ENGINE_get_first()) != NULL) {
+        if (!ENGINE_remove(ptr))
+            TEST_info("Remove failed - probably no hardware support present");
+    }
+    ENGINE_free(ptr);
+    TEST_info("Engines:");
+    display_engine_list();
+
+    if (!TEST_true(ENGINE_add(new_h1))
+            || !TEST_true(ENGINE_remove(new_h1)))
+        goto end;
+
+    TEST_info("About to beef up the engine-type list");
+    for (loop = 0; loop < NUMTOADD; loop++) {
+        sprintf(buf, "id%d", loop);
+        id = OPENSSL_strdup(buf);
+        sprintf(buf, "Fake engine type %d", loop);
+        name = OPENSSL_strdup(buf);
+        if (!TEST_ptr(block[loop] = ENGINE_new())
+                || !TEST_true(ENGINE_set_id(block[loop], id))
+                || !TEST_true(ENGINE_set_name(block[loop], name)))
+            goto end;
+    }
+    for (loop = 0; loop < NUMTOADD; loop++) {
+        if (!TEST_true(ENGINE_add(block[loop]))) {
+            test_note("Adding stopped at %d, (%s,%s)",
+                      loop, ENGINE_get_id(block[loop]),
+                      ENGINE_get_name(block[loop]));
+            goto cleanup_loop;
+        }
+    }
+ cleanup_loop:
+    TEST_info("About to empty the engine-type list");
+    while ((ptr = ENGINE_get_first()) != NULL) {
+        if (!TEST_true(ENGINE_remove(ptr)))
+            goto end;
+        ENGINE_free(ptr);
+    }
+    for (loop = 0; loop < NUMTOADD; loop++) {
+        OPENSSL_free((void *)ENGINE_get_id(block[loop]));
+        OPENSSL_free((void *)ENGINE_get_name(block[loop]));
+    }
+    to_return = 1;
+
+ end:
+    ENGINE_free(new_h1);
+    ENGINE_free(new_h2);
+    ENGINE_free(new_h3);
+    ENGINE_free(new_h4);
+    for (loop = 0; loop < NUMTOADD; loop++)
+        ENGINE_free(block[loop]);
+    return to_return;
 }
 
 /* Test EVP_PKEY method */
@@ -118,123 +249,91 @@ static int test_redirect(void)
 
     int to_return = 0;
 
-    printf("\nRedirection test\n");
-
-    if ((pkey = get_test_pkey()) == NULL) {
-        printf("Get test key failed\n");
+    if (!TEST_ptr(pkey = get_test_pkey()))
         goto err;
-    }
 
     len = EVP_PKEY_size(pkey);
-    if ((tmp = OPENSSL_malloc(len)) == NULL) {
-        printf("Buffer alloc failed\n");
+    if (!TEST_ptr(tmp = OPENSSL_malloc(len)))
         goto err;
-    }
 
-    if ((ctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL) {
-        printf("Key context allocation failure\n");
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, NULL)))
         goto err;
-    }
-    printf("EVP_PKEY_encrypt test: no redirection\n");
+    TEST_info("EVP_PKEY_encrypt test: no redirection");
     /* Encrypt some data: should succeed but not be redirected */
-    if (EVP_PKEY_encrypt_init(ctx) <= 0
-            || EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)) <= 0
-            || called_encrypt) {
-        printf("Test encryption failure\n");
+    if (!TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
+            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+            || !TEST_false(called_encrypt))
         goto err;
-    }
     EVP_PKEY_CTX_free(ctx);
     ctx = NULL;
 
     /* Create a test ENGINE */
-    if ((e = ENGINE_new()) == NULL
-            || !ENGINE_set_id(e, "Test redirect engine")
-            || !ENGINE_set_name(e, "Test redirect engine")) {
-        printf("Redirection engine setup failure\n");
+    if (!TEST_ptr(e = ENGINE_new())
+            || !TEST_true(ENGINE_set_id(e, "Test redirect engine"))
+            || !TEST_true(ENGINE_set_name(e, "Test redirect engine")))
         goto err;
-    }
 
     /*
      * Try to create a context for this engine and test key.
      * Try setting test key engine. Both should fail because the
      * engine has no public key methods.
      */
-    if (EVP_PKEY_CTX_new(pkey, e) != NULL
-            || EVP_PKEY_set1_engine(pkey, e) > 0) {
-        printf("Unexpected redirection success\n");
+    if (!TEST_ptr_null(EVP_PKEY_CTX_new(pkey, e))
+            || !TEST_int_le(EVP_PKEY_set1_engine(pkey, e), 0))
         goto err;
-    }
 
     /* Setup an empty test EVP_PKEY_METHOD and set callback to return it */
-    if ((test_rsa = EVP_PKEY_meth_new(EVP_PKEY_RSA, 0)) == NULL) {
-        printf("Test RSA algorithm setup failure\n");
+    if (!TEST_ptr(test_rsa = EVP_PKEY_meth_new(EVP_PKEY_RSA, 0)))
         goto err;
-    }
     ENGINE_set_pkey_meths(e, test_pkey_meths);
 
     /* Getting a context for test ENGINE should now succeed */
-    if ((ctx = EVP_PKEY_CTX_new(pkey, e)) == NULL) {
-        printf("Redirected context allocation failed\n");
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, e)))
         goto err;
-    }
     /* Encrypt should fail because operation is not supported */
-    if (EVP_PKEY_encrypt_init(ctx) > 0) {
-        printf("Encryption redirect unexpected success\n");
+    if (!TEST_int_le(EVP_PKEY_encrypt_init(ctx), 0))
         goto err;
-    }
     EVP_PKEY_CTX_free(ctx);
     ctx = NULL;
 
     /* Add test encrypt operation to method */
     EVP_PKEY_meth_set_encrypt(test_rsa, 0, test_encrypt);
 
-    printf("EVP_PKEY_encrypt test: redirection via EVP_PKEY_CTX_new()\n");
-    if ((ctx = EVP_PKEY_CTX_new(pkey, e)) == NULL) {
-        printf("Redirected context allocation failed\n");
+    TEST_info("EVP_PKEY_encrypt test: redirection via EVP_PKEY_CTX_new()");
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, e)))
         goto err;
-    }
     /* Encrypt some data: should succeed and be redirected */
-    if (EVP_PKEY_encrypt_init(ctx) <= 0
-            || EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)) <= 0
-            || !called_encrypt) {
-        printf("Redirected key context encryption failed\n");
+    if (!TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
+            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+            || !TEST_true(called_encrypt))
         goto err;
-    }
 
     EVP_PKEY_CTX_free(ctx);
     ctx = NULL;
     called_encrypt = 0;
 
-    printf("EVP_PKEY_encrypt test: check default operation not redirected\n");
-
     /* Create context with default engine: should not be redirected */
-    if ((ctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL
-            || EVP_PKEY_encrypt_init(ctx) <= 0
-            || EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)) <= 0
-            || called_encrypt) {
-        printf("Unredirected key context encryption failed\n");
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, NULL))
+            || !TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
+            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+            || !TEST_false(called_encrypt))
         goto err;
-    }
 
     EVP_PKEY_CTX_free(ctx);
     ctx = NULL;
 
     /* Set engine explicitly for test key */
-    if (!EVP_PKEY_set1_engine(pkey, e)) {
-        printf("Key engine set failed\n");
+    if (!TEST_true(EVP_PKEY_set1_engine(pkey, e)))
         goto err;
-    }
 
-    printf("EVP_PKEY_encrypt test: redirection via EVP_PKEY_set1_engine()\n");
+    TEST_info("EVP_PKEY_encrypt test: redirection via EVP_PKEY_set1_engine()");
 
     /* Create context with default engine: should be redirected now */
-    if ((ctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL
-            || EVP_PKEY_encrypt_init(ctx) <= 0
-            || EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)) <= 0
-            || !called_encrypt) {
-        printf("Key redirection failure\n");
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new(pkey, NULL))
+            || !TEST_int_gt(EVP_PKEY_encrypt_init(ctx), 0)
+            || !TEST_int_gt(EVP_PKEY_encrypt(ctx, tmp, &len, pt, sizeof(pt)), 0)
+            || !TEST_true(called_encrypt))
         goto err;
-    }
 
     to_return = 1;
 
@@ -245,164 +344,15 @@ static int test_redirect(void)
     OPENSSL_free(tmp);
     return to_return;
 }
+#endif
 
-int main(int argc, char *argv[])
+int setup_tests(void)
 {
-    ENGINE *block[512];
-    char buf[256];
-    const char *id, *name, *p;
-    ENGINE *ptr;
-    int loop;
-    int to_return = 1;
-    ENGINE *new_h1 = NULL;
-    ENGINE *new_h2 = NULL;
-    ENGINE *new_h3 = NULL;
-    ENGINE *new_h4 = NULL;
-
-    p = getenv("OPENSSL_DEBUG_MEMORY");
-    if (p != NULL && strcmp(p, "on") == 0)
-        CRYPTO_set_mem_debug(1);
-
-    memset(block, 0, sizeof(block));
-    if (((new_h1 = ENGINE_new()) == NULL) ||
-        !ENGINE_set_id(new_h1, "test_id0") ||
-        !ENGINE_set_name(new_h1, "First test item") ||
-        ((new_h2 = ENGINE_new()) == NULL) ||
-        !ENGINE_set_id(new_h2, "test_id1") ||
-        !ENGINE_set_name(new_h2, "Second test item") ||
-        ((new_h3 = ENGINE_new()) == NULL) ||
-        !ENGINE_set_id(new_h3, "test_id2") ||
-        !ENGINE_set_name(new_h3, "Third test item") ||
-        ((new_h4 = ENGINE_new()) == NULL) ||
-        !ENGINE_set_id(new_h4, "test_id3") ||
-        !ENGINE_set_name(new_h4, "Fourth test item")) {
-        printf("Couldn't set up test ENGINE structures\n");
-        goto end;
-    }
-    printf("\nenginetest beginning\n\n");
-    display_engine_list();
-    if (!ENGINE_add(new_h1)) {
-        printf("Add failed!\n");
-        goto end;
-    }
-    display_engine_list();
-    ptr = ENGINE_get_first();
-    if (!ENGINE_remove(ptr)) {
-        printf("Remove failed!\n");
-        goto end;
-    }
-    ENGINE_free(ptr);
-    display_engine_list();
-    if (!ENGINE_add(new_h3) || !ENGINE_add(new_h2)) {
-        printf("Add failed!\n");
-        goto end;
-    }
-    display_engine_list();
-    if (!ENGINE_remove(new_h2)) {
-        printf("Remove failed!\n");
-        goto end;
-    }
-    display_engine_list();
-    if (!ENGINE_add(new_h4)) {
-        printf("Add failed!\n");
-        goto end;
-    }
-    display_engine_list();
-    if (ENGINE_add(new_h3)) {
-        printf("Add *should* have failed but didn't!\n");
-        goto end;
-    } else
-        printf("Add that should fail did.\n");
-    ERR_clear_error();
-    if (ENGINE_remove(new_h2)) {
-        printf("Remove *should* have failed but didn't!\n");
-        goto end;
-    } else
-        printf("Remove that should fail did.\n");
-    ERR_clear_error();
-    if (!ENGINE_remove(new_h3)) {
-        printf("Remove failed!\n");
-        goto end;
-    }
-    display_engine_list();
-    if (!ENGINE_remove(new_h4)) {
-        printf("Remove failed!\n");
-        goto end;
-    }
-    display_engine_list();
-    /*
-     * Depending on whether there's any hardware support compiled in, this
-     * remove may be destined to fail.
-     */
-    ptr = ENGINE_get_first();
-    if (ptr)
-        if (!ENGINE_remove(ptr))
-            printf("Remove failed!i - probably no hardware "
-                   "support present.\n");
-    ENGINE_free(ptr);
-    display_engine_list();
-    if (!ENGINE_add(new_h1) || !ENGINE_remove(new_h1)) {
-        printf("Couldn't add and remove to an empty list!\n");
-        goto end;
-    } else
-        printf("Successfully added and removed to an empty list!\n");
-    printf("About to beef up the engine-type list\n");
-    for (loop = 0; loop < 512; loop++) {
-        sprintf(buf, "id%i", loop);
-        id = OPENSSL_strdup(buf);
-        sprintf(buf, "Fake engine type %i", loop);
-        name = OPENSSL_strdup(buf);
-        if (((block[loop] = ENGINE_new()) == NULL) ||
-            !ENGINE_set_id(block[loop], id) ||
-            !ENGINE_set_name(block[loop], name)) {
-            printf("Couldn't create block of ENGINE structures.\n"
-                   "I'll probably also core-dump now, damn.\n");
-            goto end;
-        }
-    }
-    for (loop = 0; loop < 512; loop++) {
-        if (!ENGINE_add(block[loop])) {
-            printf("\nAdding stopped at %i, (%s,%s)\n",
-                   loop, ENGINE_get_id(block[loop]),
-                   ENGINE_get_name(block[loop]));
-            goto cleanup_loop;
-        } else
-            printf(".");
-        fflush(stdout);
-    }
- cleanup_loop:
-    printf("\nAbout to empty the engine-type list\n");
-    while ((ptr = ENGINE_get_first()) != NULL) {
-        if (!ENGINE_remove(ptr)) {
-            printf("\nRemove failed!\n");
-            goto end;
-        }
-        ENGINE_free(ptr);
-        printf(".");
-        fflush(stdout);
-    }
-    for (loop = 0; loop < 512; loop++) {
-        OPENSSL_free((void *)ENGINE_get_id(block[loop]));
-        OPENSSL_free((void *)ENGINE_get_name(block[loop]));
-    }
-    if (!test_redirect())
-        goto end;
-    printf("\nTests completed happily\n");
-    to_return = 0;
- end:
-    if (to_return)
-        ERR_print_errors_fp(stderr);
-    ENGINE_free(new_h1);
-    ENGINE_free(new_h2);
-    ENGINE_free(new_h3);
-    ENGINE_free(new_h4);
-    for (loop = 0; loop < 512; loop++)
-        ENGINE_free(block[loop]);
-
-#ifndef OPENSSL_NO_CRYPTO_MDEBUG
-    if (CRYPTO_mem_leaks_fp(stderr) <= 0)
-        to_return = 1;
+#ifdef OPENSSL_NO_ENGINE
+    TEST_note("No ENGINE support");
+#else
+    ADD_TEST(test_engines);
+    ADD_TEST(test_redirect);
 #endif
-    return to_return;
+    return 1;
 }
-#endif

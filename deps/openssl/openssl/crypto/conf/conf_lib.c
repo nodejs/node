@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,15 +7,16 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include "e_os.h"
 #include <stdio.h>
 #include <string.h>
-#include <internal/conf.h>
+#include "internal/conf.h"
+#include "internal/ctype.h"
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include <openssl/conf_api.h>
 #include <openssl/lhash.h>
-#include "e_os.h"
 
 static CONF_METHOD *default_CONF_method = NULL;
 
@@ -123,6 +124,7 @@ long CONF_get_number(LHASH_OF(CONF_VALUE) *conf, const char *group,
     int status;
     long result = 0;
 
+    ERR_set_mark();
     if (conf == NULL) {
         status = NCONF_get_number_e(NULL, group, name, &result);
     } else {
@@ -130,12 +132,8 @@ long CONF_get_number(LHASH_OF(CONF_VALUE) *conf, const char *group,
         CONF_set_nconf(&ctmp, conf);
         status = NCONF_get_number_e(&ctmp, group, name, &result);
     }
-
-    if (status == 0) {
-        /* This function does not believe in errors... */
-        ERR_clear_error();
-    }
-    return result;
+    ERR_pop_to_mark();
+    return status == 0 ? 0L : result;
 }
 
 void CONF_free(LHASH_OF(CONF_VALUE) *conf)
@@ -186,7 +184,7 @@ CONF *NCONF_new(CONF_METHOD *meth)
     ret = meth->create(meth);
     if (ret == NULL) {
         CONFerr(CONF_F_NCONF_NEW, ERR_R_MALLOC_FAILURE);
-        return (NULL);
+        return NULL;
     }
 
     return ret;
@@ -277,10 +275,23 @@ char *NCONF_get_string(const CONF *conf, const char *group, const char *name)
     return NULL;
 }
 
+static int default_is_number(const CONF *conf, char c)
+{
+    return ossl_isdigit(c);
+}
+
+static int default_to_int(const CONF *conf, char c)
+{
+    return (int)(c - '0');
+}
+
 int NCONF_get_number_e(const CONF *conf, const char *group, const char *name,
                        long *result)
 {
     char *str;
+    long res;
+    int (*is_number)(const CONF *, char) = &default_is_number;
+    int (*to_int)(const CONF *, char) = &default_to_int;
 
     if (result == NULL) {
         CONFerr(CONF_F_NCONF_GET_NUMBER_E, ERR_R_PASSED_NULL_PARAMETER);
@@ -292,11 +303,23 @@ int NCONF_get_number_e(const CONF *conf, const char *group, const char *name,
     if (str == NULL)
         return 0;
 
-    for (*result = 0; conf->meth->is_number(conf, *str);) {
-        *result = (*result) * 10 + conf->meth->to_int(conf, *str);
-        str++;
+    if (conf != NULL) {
+        if (conf->meth->is_number != NULL)
+            is_number = conf->meth->is_number;
+        if (conf->meth->to_int != NULL)
+            to_int = conf->meth->to_int;
+    }
+    for (res = 0; is_number(conf, *str); str++) {
+        const int d = to_int(conf, *str);
+
+        if (res > (LONG_MAX - d) / 10L) {
+            CONFerr(CONF_F_NCONF_GET_NUMBER_E, CONF_R_NUMBER_TOO_LARGE);
+            return 0;
+        }
+        res = res * 10 + d;
     }
 
+    *result = res;
     return 1;
 }
 

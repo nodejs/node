@@ -18,7 +18,7 @@ rights to some other entity (a computer process, typically, or sometimes to the
 user itself).  This allows the entity to perform operations on behalf of the
 owner of the EE certificate.
 
-See http://www.ietf.org/rfc/rfc3820.txt for more information.
+See https://www.ietf.org/rfc/rfc3820.txt for more information.
 
 
 2. A warning about proxy certificates

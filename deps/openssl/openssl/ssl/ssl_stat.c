@@ -1,37 +1,11 @@
 /*
  * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
- */
-
-/* ====================================================================
- * Copyright 2005 Nokia. All rights reserved.
- *
- * The portions of the attached software ("Contribution") is developed by
- * Nokia Corporation and is licensed pursuant to the OpenSSL open source
- * license.
- *
- * The Contribution, originally written by Mika Kousa and Pasi Eronen of
- * Nokia Corporation, consists of the "PSK" (Pre-Shared Key) ciphersuites
- * support (see RFC 4279) to OpenSSL.
- *
- * No patent licenses or other rights except those expressly stated in
- * the OpenSSL open source license shall be deemed granted or received
- * expressly, by implication, estoppel, or otherwise.
- *
- * No assurances are provided by Nokia that the Contribution does not
- * infringe the patent or other intellectual property rights of any third
- * party or that the license provides you with all the necessary rights
- * to make use of the Contribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. IN
- * ADDITION TO THE DISCLAIMERS INCLUDED IN THE LICENSE, NOKIA
- * SPECIFICALLY DISCLAIMS ANY LIABILITY FOR CLAIMS BROUGHT BY YOU OR ANY
- * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
- * OTHERWISE.
  */
 
 #include <stdio.h>
@@ -113,6 +87,32 @@ const char *SSL_state_string_long(const SSL *s)
         return "DTLS1 read hello verify request";
     case DTLS_ST_SW_HELLO_VERIFY_REQUEST:
         return "DTLS1 write hello verify request";
+    case TLS_ST_SW_ENCRYPTED_EXTENSIONS:
+        return "TLSv1.3 write encrypted extensions";
+    case TLS_ST_CR_ENCRYPTED_EXTENSIONS:
+        return "TLSv1.3 read encrypted extensions";
+    case TLS_ST_CR_CERT_VRFY:
+        return "TLSv1.3 read server certificate verify";
+    case TLS_ST_SW_CERT_VRFY:
+        return "TLSv1.3 write server certificate verify";
+    case TLS_ST_CR_HELLO_REQ:
+        return "SSLv3/TLS read hello request";
+    case TLS_ST_SW_KEY_UPDATE:
+        return "TLSv1.3 write server key update";
+    case TLS_ST_CW_KEY_UPDATE:
+        return "TLSv1.3 write client key update";
+    case TLS_ST_SR_KEY_UPDATE:
+        return "TLSv1.3 read client key update";
+    case TLS_ST_CR_KEY_UPDATE:
+        return "TLSv1.3 read server key update";
+    case TLS_ST_EARLY_DATA:
+        return "TLSv1.3 early data";
+    case TLS_ST_PENDING_EARLY_DATA_END:
+        return "TLSv1.3 pending early data end";
+    case TLS_ST_CW_END_OF_EARLY_DATA:
+        return "TLSv1.3 write end of early data";
+    case TLS_ST_SR_END_OF_EARLY_DATA:
+        return "TLSv1.3 read end of early data";
     default:
         return "unknown state";
     }
@@ -194,6 +194,32 @@ const char *SSL_state_string(const SSL *s)
         return "DRCHV";
     case DTLS_ST_SW_HELLO_VERIFY_REQUEST:
         return "DWCHV";
+    case TLS_ST_SW_ENCRYPTED_EXTENSIONS:
+        return "TWEE";
+    case TLS_ST_CR_ENCRYPTED_EXTENSIONS:
+        return "TREE";
+    case TLS_ST_CR_CERT_VRFY:
+        return "TRSCV";
+    case TLS_ST_SW_CERT_VRFY:
+        return "TRSCV";
+    case TLS_ST_CR_HELLO_REQ:
+        return "TRHR";
+    case TLS_ST_SW_KEY_UPDATE:
+        return "TWSKU";
+    case TLS_ST_CW_KEY_UPDATE:
+        return "TWCKU";
+    case TLS_ST_SR_KEY_UPDATE:
+        return "TRCKU";
+    case TLS_ST_CR_KEY_UPDATE:
+        return "TRSKU";
+    case TLS_ST_EARLY_DATA:
+        return "TED";
+    case TLS_ST_PENDING_EARLY_DATA_END:
+        return "TPEDE";
+    case TLS_ST_CW_END_OF_EARLY_DATA:
+        return "TWEOED";
+    case TLS_ST_SR_END_OF_EARLY_DATA:
+        return "TWEOED";
     default:
         return "UNKWN ";
     }

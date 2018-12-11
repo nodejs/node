@@ -42,7 +42,7 @@ int bn_sqr_fixed_top(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx)
     BN_CTX_start(ctx);
     rr = (a != r) ? r : BN_CTX_get(ctx);
     tmp = BN_CTX_get(ctx);
-    if (!rr || !tmp)
+    if (rr == NULL || tmp == NULL)
         goto err;
 
     max = 2 * al;               /* Non-zero (from above) */
@@ -102,7 +102,7 @@ int bn_sqr_fixed_top(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx)
     bn_check_top(rr);
     bn_check_top(tmp);
     BN_CTX_end(ctx);
-    return (ret);
+    return ret;
 }
 
 /* tmp must have 2*n words */

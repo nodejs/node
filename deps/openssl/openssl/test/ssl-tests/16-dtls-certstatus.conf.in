@@ -13,7 +13,7 @@ use strict;
 use warnings;
 
 package ssltests;
-
+use OpenSSL::Test::Utils;
 
 our @tests = (
     {
@@ -41,5 +41,38 @@ our @tests = (
             "Method" => "DTLS",
             "ExpectedResult" => "ClientFail"
         }
+    }
+);
+
+our @tests_sctp = (
+    {
+        name => "certstatus-good",
+        server => {
+            extra => {
+                "CertStatus" => "GoodResponse",
+            },
+        },
+        client => {},
+        test => {
+            "Method" => "DTLS",
+            "UseSCTP" => "Yes",
+            "ExpectedResult" => "Success"
+        }
+    },
+    {
+        name => "certstatus-bad",
+        server => {
+            extra => {
+                "CertStatus" => "BadResponse",
+            },
+        },
+        client => {},
+        test => {
+            "Method" => "DTLS",
+            "UseSCTP" => "Yes",
+            "ExpectedResult" => "ClientFail"
+        }
     },
 );
+
+push @tests, @tests_sctp unless disabled("sctp") || disabled("sock");

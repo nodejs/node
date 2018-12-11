@@ -16,6 +16,7 @@
 
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
+#include <openssl/rand_drbg.h>
 #include <openssl/buffer.h>
 
 #ifdef OPENSSL_SYS_VMS
@@ -25,6 +26,18 @@
 #ifndef OPENSSL_NO_POSIX_IO
 # include <sys/stat.h>
 # include <fcntl.h>
+# ifdef _WIN32
+#  include <windows.h>
+#  include <io.h>
+#  define stat    _stat
+#  define chmod   _chmod
+#  define open    _open
+#  define fdopen  _fdopen
+#  define fstat   _fstat
+#  define fileno  _fileno
+# endif
+#endif
+
 /*
  * Following should not be needed, and we could have been stricter
  * and demand S_IS*. But some systems just don't comply... Formally
@@ -32,183 +45,150 @@
  * would look like ((m) & MASK == TYPE), but since MASK availability
  * is as questionable, we settle for this poor-man fallback...
  */
-# if !defined(S_ISBLK)
-#  if defined(_S_IFBLK)
-#   define S_ISBLK(m) ((m) & _S_IFBLK)
-#  elif defined(S_IFBLK)
-#   define S_ISBLK(m) ((m) & S_IFBLK)
-#  elif defined(_WIN32)
-#   define S_ISBLK(m) 0 /* no concept of block devices on Windows */
-#  endif
+# if !defined(S_ISREG)
+#   define S_ISREG(m) ((m) & S_IFREG)
 # endif
-# if !defined(S_ISCHR)
-#  if defined(_S_IFCHR)
-#   define S_ISCHR(m) ((m) & _S_IFCHR)
-#  elif defined(S_IFCHR)
-#   define S_ISCHR(m) ((m) & S_IFCHR)
-#  endif
-# endif
-#endif
 
-#ifdef _WIN32
-# define stat    _stat
-# define chmod   _chmod
-# define open    _open
-# define fdopen  _fdopen
-# define fstat   _fstat
-# define fileno  _fileno
-#endif
-
-#undef BUFSIZE
-#define BUFSIZE 1024
-#define RAND_DATA 1024
+#define RAND_BUF_SIZE 1024
+#define RFILE ".rnd"
 
 #ifdef OPENSSL_SYS_VMS
 /*
- * Misc hacks needed for specific cases.
- *
  * __FILE_ptr32 is a type provided by DEC C headers (types.h specifically)
  * to make sure the FILE* is a 32-bit pointer no matter what.  We know that
- * stdio function return this type (a study of stdio.h proves it).
- * Additionally, we create a similar char pointer type for the sake of
- * vms_setbuf below.
- */
-# if __INITIAL_POINTER_SIZE == 64
-#  pragma pointer_size save
-#  pragma pointer_size 32
-typedef char *char_ptr32;
-#  pragma pointer_size restore
-/*
- * On VMS, setbuf() will only take 32-bit pointers, and a compilation
- * with /POINTER_SIZE=64 will give off a MAYLOSEDATA2 warning here.
- * Since we know that the FILE* really is a 32-bit pointer expanded to
- * 64 bits, we also know it's safe to convert it back to a 32-bit pointer.
- * As for the buffer parameter, we only use NULL here, so that passes as
- * well...
- */
-#  define setbuf(fp,buf) (setbuf)((__FILE_ptr32)(fp), (char_ptr32)(buf))
-# endif
-
-/*
+ * stdio functions return this type (a study of stdio.h proves it).
+ *
  * This declaration is a nasty hack to get around vms' extension to fopen for
  * passing in sharing options being disabled by /STANDARD=ANSI89
  */
 static __FILE_ptr32 (*const vms_fopen)(const char *, const char *, ...) =
-      (__FILE_ptr32 (*)(const char *, const char *, ...))fopen;
-# define VMS_OPEN_ATTRS "shr=get,put,upd,del","ctx=bin,stm","rfm=stm","rat=none","mrs=0"
-
-# define openssl_fopen(fname,mode) vms_fopen((fname), (mode), VMS_OPEN_ATTRS)
+        (__FILE_ptr32 (*)(const char *, const char *, ...))fopen;
+# define VMS_OPEN_ATTRS \
+        "shr=get,put,upd,del","ctx=bin,stm","rfm=stm","rat=none","mrs=0"
+# define openssl_fopen(fname, mode) vms_fopen((fname), (mode), VMS_OPEN_ATTRS)
 #endif
-
-#define RFILE ".rnd"
 
 /*
  * Note that these functions are intended for seed files only. Entropy
- * devices and EGD sockets are handled in rand_unix.c
+ * devices and EGD sockets are handled in rand_unix.c  If |bytes| is
+ * -1 read the complete file; otherwise read the specified amount.
  */
-
 int RAND_load_file(const char *file, long bytes)
 {
-    /*-
-     * If bytes >= 0, read up to 'bytes' bytes.
-     * if bytes == -1, read complete file.
+    /*
+     * The load buffer size exceeds the chunk size by the comfortable amount
+     * of 'RAND_DRBG_STRENGTH' bytes (not bits!). This is done on purpose
+     * to avoid calling RAND_add() with a small final chunk. Instead, such
+     * a small final chunk will be added together with the previous chunk
+     * (unless it's the only one).
      */
+#define RAND_LOAD_BUF_SIZE (RAND_BUF_SIZE + RAND_DRBG_STRENGTH)
+    unsigned char buf[RAND_LOAD_BUF_SIZE];
 
-    unsigned char buf[BUFSIZE];
 #ifndef OPENSSL_NO_POSIX_IO
     struct stat sb;
 #endif
-    int i, ret = 0, n;
-    FILE *in = NULL;
-
-    if (file == NULL)
-        return 0;
+    int i, n, ret = 0;
+    FILE *in;
 
     if (bytes == 0)
-        return ret;
+        return 0;
 
-    in = openssl_fopen(file, "rb");
-    if (in == NULL)
-        goto err;
+    if ((in = openssl_fopen(file, "rb")) == NULL) {
+        RANDerr(RAND_F_RAND_LOAD_FILE, RAND_R_CANNOT_OPEN_FILE);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
+    }
 
 #ifndef OPENSSL_NO_POSIX_IO
-    /*
-     * struct stat can have padding and unused fields that may not be
-     * initialized in the call to stat(). We need to clear the entire
-     * structure before calling RAND_add() to avoid complaints from
-     * applications such as Valgrind.
-     */
-    memset(&sb, 0, sizeof(sb));
-    if (fstat(fileno(in), &sb) < 0)
-        goto err;
-    RAND_add(&sb, sizeof(sb), 0.0);
-
-# if defined(S_ISBLK) && defined(S_ISCHR)
-    if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
-        /*
-         * this file is a device. we don't want read an infinite number of
-         * bytes from a random device, nor do we want to use buffered I/O
-         * because we will waste system entropy.
-         */
-        bytes = (bytes == -1) ? 2048 : bytes; /* ok, is 2048 enough? */
-        setbuf(in, NULL); /* don't do buffered reads */
+    if (fstat(fileno(in), &sb) < 0) {
+        RANDerr(RAND_F_RAND_LOAD_FILE, RAND_R_INTERNAL_ERROR);
+        ERR_add_error_data(2, "Filename=", file);
+        fclose(in);
+        return -1;
     }
-# endif
-#endif
-    for (;;) {
-        if (bytes > 0)
-            n = (bytes < BUFSIZE) ? (int)bytes : BUFSIZE;
+
+    if (bytes < 0) {
+        if (S_ISREG(sb.st_mode))
+            bytes = sb.st_size;
         else
-            n = BUFSIZE;
+            bytes = RAND_DRBG_STRENGTH;
+    }
+#endif
+    /*
+     * On VMS, setbuf() will only take 32-bit pointers, and a compilation
+     * with /POINTER_SIZE=64 will give off a MAYLOSEDATA2 warning here.
+     * However, we trust that the C RTL will never give us a FILE pointer
+     * above the first 4 GB of memory, so we simply turn off the warning
+     * temporarily.
+     */
+#if defined(OPENSSL_SYS_VMS) && defined(__DECC)
+# pragma environment save
+# pragma message disable maylosedata2
+#endif
+    /*
+     * Don't buffer, because even if |file| is regular file, we have
+     * no control over the buffer, so why would we want a copy of its
+     * contents lying around?
+     */
+    setbuf(in, NULL);
+#if defined(OPENSSL_SYS_VMS) && defined(__DECC)
+# pragma environment restore
+#endif
+
+    for ( ; ; ) {
+        if (bytes > 0)
+            n = (bytes <= RAND_LOAD_BUF_SIZE) ? (int)bytes : RAND_BUF_SIZE;
+        else
+            n = RAND_LOAD_BUF_SIZE;
         i = fread(buf, 1, n, in);
-        if (i <= 0)
+#ifdef EINTR
+        if (ferror(in) && errno == EINTR){
+            clearerr(in);
+            if (i == 0)
+                continue;
+        }
+#endif
+        if (i == 0)
             break;
 
         RAND_add(buf, i, (double)i);
         ret += i;
-        if (bytes > 0) {
-            bytes -= n;
-            if (bytes <= 0)
-                break;
-        }
+
+        /* If given a bytecount, and we did it, break. */
+        if (bytes > 0 && (bytes -= i) <= 0)
+            break;
     }
-    OPENSSL_cleanse(buf, BUFSIZE);
- err:
-    if (in != NULL)
-        fclose(in);
+
+    OPENSSL_cleanse(buf, sizeof(buf));
+    fclose(in);
+    if (!RAND_status()) {
+        RANDerr(RAND_F_RAND_LOAD_FILE, RAND_R_RESEED_ERROR);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
+    }
+
     return ret;
 }
 
 int RAND_write_file(const char *file)
 {
-    unsigned char buf[BUFSIZE];
-    int i, ret = 0, rand_err = 0;
+    unsigned char buf[RAND_BUF_SIZE];
+    int ret = -1;
     FILE *out = NULL;
-    int n;
 #ifndef OPENSSL_NO_POSIX_IO
     struct stat sb;
 
-# if defined(S_ISBLK) && defined(S_ISCHR)
-# ifdef _WIN32
-    /*
-     * Check for |file| being a driver as "ASCII-safe" on Windows,
-     * because driver paths are always ASCII.
-     */
-# endif
-    i = stat(file, &sb);
-    if (i != -1) {
-        if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
-            /*
-             * this file is a device. we don't write back to it. we
-             * "succeed" on the assumption this is some sort of random
-             * device. Otherwise attempting to write to and chmod the device
-             * causes problems.
-             */
-            return 1;
-        }
+    if (stat(file, &sb) >= 0 && !S_ISREG(sb.st_mode)) {
+        RANDerr(RAND_F_RAND_WRITE_FILE, RAND_R_NOT_A_REGULAR_FILE);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
     }
-# endif
 #endif
+
+    /* Collect enough random data. */
+    if (RAND_priv_bytes(buf, (int)sizeof(buf)) != 1)
+        return  -1;
 
 #if defined(O_CREAT) && !defined(OPENSSL_NO_POSIX_IO) && \
     !defined(OPENSSL_SYS_VMS) && !defined(OPENSSL_SYS_WINDOWS)
@@ -244,69 +224,57 @@ int RAND_write_file(const char *file)
      * application level. Also consider whether or not you NEED a persistent
      * rand file in a concurrent use situation.
      */
-
     out = openssl_fopen(file, "rb+");
 #endif
+
     if (out == NULL)
         out = openssl_fopen(file, "wb");
-    if (out == NULL)
-        goto err;
-
-#if !defined(NO_CHMOD) && !defined(OPENSSL_NO_POSIX_IO)
-    chmod(file, 0600);
-#endif
-    n = RAND_DATA;
-    for (;;) {
-        i = (n > BUFSIZE) ? BUFSIZE : n;
-        n -= BUFSIZE;
-        if (RAND_bytes(buf, i) <= 0)
-            rand_err = 1;
-        i = fwrite(buf, 1, i, out);
-        if (i <= 0) {
-            ret = 0;
-            break;
-        }
-        ret += i;
-        if (n <= 0)
-            break;
+    if (out == NULL) {
+        RANDerr(RAND_F_RAND_WRITE_FILE, RAND_R_CANNOT_OPEN_FILE);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
     }
 
+#if !defined(NO_CHMOD) && !defined(OPENSSL_NO_POSIX_IO)
+    /*
+     * Yes it's late to do this (see above comment), but better than nothing.
+     */
+    chmod(file, 0600);
+#endif
+
+    ret = fwrite(buf, 1, RAND_BUF_SIZE, out);
     fclose(out);
-    OPENSSL_cleanse(buf, BUFSIZE);
- err:
-    return (rand_err ? -1 : ret);
+    OPENSSL_cleanse(buf, RAND_BUF_SIZE);
+    return ret;
 }
 
 const char *RAND_file_name(char *buf, size_t size)
 {
     char *s = NULL;
+    size_t len;
     int use_randfile = 1;
-#ifdef __OpenBSD__
-    struct stat sb;
-#endif
 
 #if defined(_WIN32) && defined(CP_UTF8)
-    DWORD len;
-    WCHAR *var, *val;
+    DWORD envlen;
+    WCHAR *var;
 
-    if ((var = L"RANDFILE",
-         len = GetEnvironmentVariableW(var, NULL, 0)) == 0
-        && (var = L"HOME", use_randfile = 0,
-            len = GetEnvironmentVariableW(var, NULL, 0)) == 0
-        && (var = L"USERPROFILE",
-            len = GetEnvironmentVariableW(var, NULL, 0)) == 0) {
-        var = L"SYSTEMROOT",
-        len = GetEnvironmentVariableW(var, NULL, 0);
+    /* Look up various environment variables. */
+    if ((envlen = GetEnvironmentVariableW(var = L"RANDFILE", NULL, 0)) == 0) {
+        use_randfile = 0;
+        if ((envlen = GetEnvironmentVariableW(var = L"HOME", NULL, 0)) == 0
+                && (envlen = GetEnvironmentVariableW(var = L"USERPROFILE",
+                                                  NULL, 0)) == 0)
+            envlen = GetEnvironmentVariableW(var = L"SYSTEMROOT", NULL, 0);
     }
 
-    if (len != 0) {
+    /* If we got a value, allocate space to hold it and then get it. */
+    if (envlen != 0) {
         int sz;
+        WCHAR *val = _alloca(envlen * sizeof(WCHAR));
 
-        val = _alloca(len * sizeof(WCHAR));
-
-        if (GetEnvironmentVariableW(var, val, len) < len
-            && (sz = WideCharToMultiByte(CP_UTF8, 0, val, -1, NULL, 0,
-                                         NULL, NULL)) != 0) {
+        if (GetEnvironmentVariableW(var, val, envlen) < envlen
+                && (sz = WideCharToMultiByte(CP_UTF8, 0, val, -1, NULL, 0,
+                                             NULL, NULL)) != 0) {
             s = _alloca(sz);
             if (WideCharToMultiByte(CP_UTF8, 0, val, -1, s, sz,
                                     NULL, NULL) == 0)
@@ -319,41 +287,28 @@ const char *RAND_file_name(char *buf, size_t size)
         s = ossl_safe_getenv("HOME");
     }
 #endif
+
 #ifdef DEFAULT_HOME
-    if (!use_randfile && s == NULL) {
+    if (!use_randfile && s == NULL)
         s = DEFAULT_HOME;
-    }
 #endif
-    if (s != NULL && *s) {
-        size_t len = strlen(s);
+    if (s == NULL || *s == '\0')
+        return NULL;
 
-        if (use_randfile && len + 1 < size) {
-            if (OPENSSL_strlcpy(buf, s, size) >= size)
-                return NULL;
-        } else if (len + strlen(RFILE) + 2 < size) {
-            OPENSSL_strlcpy(buf, s, size);
-#ifndef OPENSSL_SYS_VMS
-            OPENSSL_strlcat(buf, "/", size);
-#endif
-            OPENSSL_strlcat(buf, RFILE, size);
-        }
-    } else {
-        buf[0] = '\0';      /* no file name */
-    }
-
-#ifdef __OpenBSD__
-    /*
-     * given that all random loads just fail if the file can't be seen on a
-     * stat, we stat the file we're returning, if it fails, use /dev/arandom
-     * instead. this allows the user to use their own source for good random
-     * data, but defaults to something hopefully decent if that isn't
-     * available.
-     */
-
-    if (!buf[0] || stat(buf, &sb) == -1)
-        if (OPENSSL_strlcpy(buf, "/dev/arandom", size) >= size) {
+    len = strlen(s);
+    if (use_randfile) {
+        if (len + 1 >= size)
             return NULL;
-        }
+        strcpy(buf, s);
+    } else {
+        if (len + 1 + strlen(RFILE) + 1 >= size)
+            return NULL;
+        strcpy(buf, s);
+#ifndef OPENSSL_SYS_VMS
+        strcat(buf, "/");
 #endif
-    return buf[0] ? buf : NULL;
+        strcat(buf, RFILE);
+    }
+
+    return buf;
 }

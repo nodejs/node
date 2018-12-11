@@ -90,7 +90,7 @@ Your key most definitely is if you have followed the examples above.
 However, some (most?) certificate authorities will encode them with
 things like PKCS7 or PKCS12, or something else.  Depending on your
 applications, this may be perfectly OK, it all depends on what they
-know how to decode.  If not, There are a number of OpenSSL tools to
+know how to decode.  If not, there are a number of OpenSSL tools to
 convert between some (most?) formats.
 
 So, depending on your application, you may have to convert your

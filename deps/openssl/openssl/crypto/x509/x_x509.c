@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -89,12 +89,12 @@ IMPLEMENT_ASN1_DUP_FUNCTION(X509)
 
 int X509_set_ex_data(X509 *r, int idx, void *arg)
 {
-    return (CRYPTO_set_ex_data(&r->ex_data, idx, arg));
+    return CRYPTO_set_ex_data(&r->ex_data, idx, arg);
 }
 
 void *X509_get_ex_data(X509 *r, int idx)
 {
-    return (CRYPTO_get_ex_data(&r->ex_data, idx));
+    return CRYPTO_get_ex_data(&r->ex_data, idx);
 }
 
 /*
@@ -145,8 +145,6 @@ static int i2d_x509_aux_internal(X509 *a, unsigned char **pp)
     int length, tmplen;
     unsigned char *start = pp != NULL ? *pp : NULL;
 
-    OPENSSL_assert(pp == NULL || *pp != NULL);
-
     /*
      * This might perturb *pp on error, but fixing that belongs in i2d_X509()
      * not here.  It should be that if a == NULL length is zero, but we check
@@ -191,8 +189,10 @@ int i2d_X509_AUX(X509 *a, unsigned char **pp)
 
     /* Allocate requisite combined storage */
     *pp = tmp = OPENSSL_malloc(length);
-    if (tmp == NULL)
-        return -1; /* Push error onto error stack? */
+    if (tmp == NULL) {
+        X509err(X509_F_I2D_X509_AUX, ERR_R_MALLOC_FAILURE);
+        return -1;
+    }
 
     /* Encode, but keep *pp at the originally malloced pointer */
     length = i2d_x509_aux_internal(a, &tmp);

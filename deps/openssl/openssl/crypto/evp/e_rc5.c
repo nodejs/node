@@ -13,7 +13,7 @@
 #ifndef OPENSSL_NO_RC5
 
 # include <openssl/evp.h>
-# include <internal/evp_int.h>
+# include "internal/evp_int.h"
 # include <openssl/objects.h>
 # include "evp_locl.h"
 # include <openssl/rc5.h>

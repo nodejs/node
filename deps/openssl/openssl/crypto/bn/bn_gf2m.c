@@ -1,21 +1,11 @@
 /*
  * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
- */
-
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- *
- * The Elliptic Curve Public-Key Crypto Library (ECC Code) included
- * herein is developed by SUN MICROSYSTEMS, INC., and is contributed
- * to the OpenSSL project.
- *
- * The ECC Code is licensed pursuant to the OpenSSL open source
- * license provided below.
  */
 
 #include <assert.h>
@@ -559,7 +549,8 @@ int BN_GF2m_mod_sqr(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
  * Hernandez, J.L., and Menezes, A.  "Software Implementation of Elliptic
  * Curve Cryptography Over Binary Fields".
  */
-int BN_GF2m_mod_inv(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
+static int BN_GF2m_mod_inv_vartime(BIGNUM *r, const BIGNUM *a,
+                                   const BIGNUM *p, BN_CTX *ctx)
 {
     BIGNUM *b, *c = NULL, *u = NULL, *v = NULL, *tmp;
     int ret = 0;
@@ -569,13 +560,11 @@ int BN_GF2m_mod_inv(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
 
     BN_CTX_start(ctx);
 
-    if ((b = BN_CTX_get(ctx)) == NULL)
-        goto err;
-    if ((c = BN_CTX_get(ctx)) == NULL)
-        goto err;
-    if ((u = BN_CTX_get(ctx)) == NULL)
-        goto err;
-    if ((v = BN_CTX_get(ctx)) == NULL)
+    b = BN_CTX_get(ctx);
+    c = BN_CTX_get(ctx);
+    u = BN_CTX_get(ctx);
+    v = BN_CTX_get(ctx);
+    if (v == NULL)
         goto err;
 
     if (!BN_GF2m_mod(u, a, p))
@@ -727,6 +716,46 @@ int BN_GF2m_mod_inv(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
     return ret;
 }
 
+/*-
+ * Wrapper for BN_GF2m_mod_inv_vartime that blinds the input before calling.
+ * This is not constant time.
+ * But it does eliminate first order deduction on the input.
+ */
+int BN_GF2m_mod_inv(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
+{
+    BIGNUM *b = NULL;
+    int ret = 0;
+
+    BN_CTX_start(ctx);
+    if ((b = BN_CTX_get(ctx)) == NULL)
+        goto err;
+
+    /* generate blinding value */
+    do {
+        if (!BN_priv_rand(b, BN_num_bits(p) - 1,
+                          BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY))
+            goto err;
+    } while (BN_is_zero(b));
+
+    /* r := a * b */
+    if (!BN_GF2m_mod_mul(r, a, b, p, ctx))
+        goto err;
+
+    /* r := 1/(a * b) */
+    if (!BN_GF2m_mod_inv_vartime(r, r, p, ctx))
+        goto err;
+
+    /* r := b/(a * b) = 1/a */
+    if (!BN_GF2m_mod_mul(r, r, b, p, ctx))
+        goto err;
+
+    ret = 1;
+
+ err:
+    BN_CTX_end(ctx);
+    return ret;
+}
+
 /*
  * Invert xx, reduce modulo p, and store the result in r. r could be xx.
  * This function calls down to the BN_GF2m_mod_inv implementation; this
@@ -754,7 +783,6 @@ int BN_GF2m_mod_inv_arr(BIGNUM *r, const BIGNUM *xx, const int p[],
     return ret;
 }
 
-# ifndef OPENSSL_SUN_GF2M_DIV
 /*
  * Divide y by x, reduce modulo p, and store the result in r. r could be x
  * or y, x could equal y.
@@ -785,94 +813,6 @@ int BN_GF2m_mod_div(BIGNUM *r, const BIGNUM *y, const BIGNUM *x,
     BN_CTX_end(ctx);
     return ret;
 }
-# else
-/*
- * Divide y by x, reduce modulo p, and store the result in r. r could be x
- * or y, x could equal y. Uses algorithm Modular_Division_GF(2^m) from
- * Chang-Shantz, S.  "From Euclid's GCD to Montgomery Multiplication to the
- * Great Divide".
- */
-int BN_GF2m_mod_div(BIGNUM *r, const BIGNUM *y, const BIGNUM *x,
-                    const BIGNUM *p, BN_CTX *ctx)
-{
-    BIGNUM *a, *b, *u, *v;
-    int ret = 0;
-
-    bn_check_top(y);
-    bn_check_top(x);
-    bn_check_top(p);
-
-    BN_CTX_start(ctx);
-
-    a = BN_CTX_get(ctx);
-    b = BN_CTX_get(ctx);
-    u = BN_CTX_get(ctx);
-    v = BN_CTX_get(ctx);
-    if (v == NULL)
-        goto err;
-
-    /* reduce x and y mod p */
-    if (!BN_GF2m_mod(u, y, p))
-        goto err;
-    if (!BN_GF2m_mod(a, x, p))
-        goto err;
-    if (!BN_copy(b, p))
-        goto err;
-
-    while (!BN_is_odd(a)) {
-        if (!BN_rshift1(a, a))
-            goto err;
-        if (BN_is_odd(u))
-            if (!BN_GF2m_add(u, u, p))
-                goto err;
-        if (!BN_rshift1(u, u))
-            goto err;
-    }
-
-    do {
-        if (BN_GF2m_cmp(b, a) > 0) {
-            if (!BN_GF2m_add(b, b, a))
-                goto err;
-            if (!BN_GF2m_add(v, v, u))
-                goto err;
-            do {
-                if (!BN_rshift1(b, b))
-                    goto err;
-                if (BN_is_odd(v))
-                    if (!BN_GF2m_add(v, v, p))
-                        goto err;
-                if (!BN_rshift1(v, v))
-                    goto err;
-            } while (!BN_is_odd(b));
-        } else if (BN_abs_is_word(a, 1))
-            break;
-        else {
-            if (!BN_GF2m_add(a, a, b))
-                goto err;
-            if (!BN_GF2m_add(u, u, v))
-                goto err;
-            do {
-                if (!BN_rshift1(a, a))
-                    goto err;
-                if (BN_is_odd(u))
-                    if (!BN_GF2m_add(u, u, p))
-                        goto err;
-                if (!BN_rshift1(u, u))
-                    goto err;
-            } while (!BN_is_odd(a));
-        }
-    } while (1);
-
-    if (!BN_copy(r, u))
-        goto err;
-    bn_check_top(r);
-    ret = 1;
-
- err:
-    BN_CTX_end(ctx);
-    return ret;
-}
-# endif
 
 /*
  * Divide yy by xx, reduce modulo p, and store the result in r. r could be xx
@@ -918,7 +858,7 @@ int BN_GF2m_mod_exp_arr(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
     bn_check_top(b);
 
     if (BN_is_zero(b))
-        return (BN_one(r));
+        return BN_one(r);
 
     if (BN_abs_is_word(b, 1))
         return (BN_copy(r, a) != NULL);
@@ -1091,7 +1031,7 @@ int BN_GF2m_mod_solve_quad_arr(BIGNUM *r, const BIGNUM *a_, const int p[],
         if (tmp == NULL)
             goto err;
         do {
-            if (!BN_rand(rho, p[0], BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
+            if (!BN_priv_rand(rho, p[0], BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ANY))
                 goto err;
             if (!BN_GF2m_mod_arr(rho, rho, p))
                 goto err;

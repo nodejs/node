@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -84,7 +84,7 @@ typedef struct err_state_st {
 # define ERR_LIB_COMP            41
 # define ERR_LIB_ECDSA           42
 # define ERR_LIB_ECDH            43
-# define ERR_LIB_STORE           44
+# define ERR_LIB_OSSL_STORE      44
 # define ERR_LIB_FIPS            45
 # define ERR_LIB_CMS             46
 # define ERR_LIB_TS              47
@@ -93,6 +93,7 @@ typedef struct err_state_st {
 # define ERR_LIB_CT              50
 # define ERR_LIB_ASYNC           51
 # define ERR_LIB_KDF             52
+# define ERR_LIB_SM2             53
 
 # define ERR_LIB_USER            128
 
@@ -123,7 +124,7 @@ typedef struct err_state_st {
 # define COMPerr(f,r) ERR_PUT_error(ERR_LIB_COMP,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define ECDSAerr(f,r)  ERR_PUT_error(ERR_LIB_ECDSA,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define ECDHerr(f,r)  ERR_PUT_error(ERR_LIB_ECDH,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
-# define STOREerr(f,r) ERR_PUT_error(ERR_LIB_STORE,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# define OSSL_STOREerr(f,r) ERR_PUT_error(ERR_LIB_OSSL_STORE,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define FIPSerr(f,r) ERR_PUT_error(ERR_LIB_FIPS,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define CMSerr(f,r) ERR_PUT_error(ERR_LIB_CMS,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define TSerr(f,r) ERR_PUT_error(ERR_LIB_TS,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
@@ -131,6 +132,7 @@ typedef struct err_state_st {
 # define CTerr(f,r) ERR_PUT_error(ERR_LIB_CT,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define ASYNCerr(f,r) ERR_PUT_error(ERR_LIB_ASYNC,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 # define KDFerr(f,r) ERR_PUT_error(ERR_LIB_KDF,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
+# define SM2err(f,r) ERR_PUT_error(ERR_LIB_SM2,(f),(r),OPENSSL_FILE,OPENSSL_LINE)
 
 # define ERR_PACK(l,f,r) ( \
         (((unsigned int)(l) & 0x0FF) << 24L) | \
@@ -160,6 +162,12 @@ typedef struct err_state_st {
 # define SYS_F_GETSOCKNAME       16
 # define SYS_F_GETHOSTBYNAME     17
 # define SYS_F_FFLUSH            18
+# define SYS_F_OPEN              19
+# define SYS_F_CLOSE             20
+# define SYS_F_IOCTL             21
+# define SYS_F_STAT              22
+# define SYS_F_FCNTL             23
+# define SYS_F_FSTAT             24
 
 /* reasons */
 # define ERR_R_SYS_LIB   ERR_LIB_SYS/* 2 */
@@ -178,7 +186,9 @@ typedef struct err_state_st {
 # define ERR_R_PKCS7_LIB ERR_LIB_PKCS7/* 33 */
 # define ERR_R_X509V3_LIB ERR_LIB_X509V3/* 34 */
 # define ERR_R_ENGINE_LIB ERR_LIB_ENGINE/* 38 */
+# define ERR_R_UI_LIB    ERR_LIB_UI/* 40 */
 # define ERR_R_ECDSA_LIB ERR_LIB_ECDSA/* 42 */
+# define ERR_R_OSSL_STORE_LIB ERR_LIB_OSSL_STORE/* 44 */
 
 # define ERR_R_NESTED_ASN1_ERROR                 58
 # define ERR_R_MISSING_ASN1_EOS                  63
@@ -192,6 +202,7 @@ typedef struct err_state_st {
 # define ERR_R_DISABLED                          (5|ERR_R_FATAL)
 # define ERR_R_INIT_FAIL                         (6|ERR_R_FATAL)
 # define ERR_R_PASSED_INVALID_ARGUMENT           (7)
+# define ERR_R_OPERATION_FAIL                    (8|ERR_R_FATAL)
 
 /*
  * 99 is the maximum possible ERR_R_... code, higher values are reserved for
@@ -234,8 +245,9 @@ void ERR_print_errors_fp(FILE *fp);
 void ERR_print_errors(BIO *bp);
 void ERR_add_error_data(int num, ...);
 void ERR_add_error_vdata(int num, va_list args);
-int ERR_load_strings(int lib, ERR_STRING_DATA str[]);
-int ERR_unload_strings(int lib, ERR_STRING_DATA str[]);
+int ERR_load_strings(int lib, ERR_STRING_DATA *str);
+int ERR_load_strings_const(const ERR_STRING_DATA *str);
+int ERR_unload_strings(int lib, ERR_STRING_DATA *str);
 int ERR_load_ERR_strings(void);
 
 #if OPENSSL_API_COMPAT < 0x10100000L
@@ -252,6 +264,7 @@ int ERR_get_next_error_library(void);
 
 int ERR_set_mark(void);
 int ERR_pop_to_mark(void);
+int ERR_clear_last_mark(void);
 
 #ifdef  __cplusplus
 }

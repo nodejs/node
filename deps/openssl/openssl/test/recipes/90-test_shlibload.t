@@ -18,6 +18,7 @@ use lib bldtop_dir('.');
 use configdata;
 
 plan skip_all => "Test only supported in a shared build" if disabled("shared");
+plan skip_all => "Test is disabled on AIX" if config('target') =~ m|^aix|;
 
 plan tests => 4;
 
@@ -45,7 +46,7 @@ sub shlib {
     $lib = $unified_info{sharednames}->{$lib}
         . ($target{shlib_variant} || "")
         . ($target{shared_extension} || ".so");
-    $lib =~ s|\.\$\(SHLIB_MAJOR\)\.\$\(SHLIB_MINOR\)
+    $lib =~ s|\.\$\(SHLIB_VERSION_NUMBER\)
              |.$config{shlib_version_number}|x;
     return $lib;
 }

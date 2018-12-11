@@ -93,8 +93,10 @@ $code=<<___;
 .type	bn_mul_mont_gather5,\@function,6
 .align	64
 bn_mul_mont_gather5:
+.cfi_startproc
 	mov	${num}d,${num}d
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	test	\$7,${num}d
 	jnz	.Lmul_enter
 ___
@@ -108,11 +110,17 @@ $code.=<<___;
 .Lmul_enter:
 	movd	`($win64?56:8)`(%rsp),%xmm5	# load 7th argument
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	neg	$num
 	mov	%rsp,%r11
@@ -145,6 +153,7 @@ $code.=<<___;
 
 	lea	.Linc(%rip),%r10
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
+.cfi_cfa_expression	%rsp+8,$num,8,mul,plus,deref,+8
 .Lmul_body:
 
 	lea	128($bp),%r12		# reassign $bp (+size optimization)
@@ -410,7 +419,7 @@ $code.=<<___;
 	mov	%rax,($rp,$i,8)		# rp[i]=tp[i]-np[i]
 	mov	8($ap,$i,8),%rax	# tp[i+1]
 	lea	1($i),$i		# i++
-	dec	$j			# doesnn't affect CF!
+	dec	$j			# doesn't affect CF!
 	jnz	.Lsub
 
 	sbb	\$0,%rax		# handle upmost overflow bit
@@ -432,17 +441,26 @@ $code.=<<___;
 	jnz	.Lcopy
 
 	mov	8(%rsp,$num,8),%rsi	# restore %rsp
+.cfi_def_cfa	%rsi,8
 	mov	\$1,%rax
 
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_epilogue:
 	ret
+.cfi_endproc
 .size	bn_mul_mont_gather5,.-bn_mul_mont_gather5
 ___
 {{{
@@ -452,8 +470,10 @@ $code.=<<___;
 .type	bn_mul4x_mont_gather5,\@function,6
 .align	32
 bn_mul4x_mont_gather5:
+.cfi_startproc
 	.byte	0x67
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 .Lmul4x_enter:
 ___
 $code.=<<___ if ($addx);
@@ -463,11 +483,17 @@ $code.=<<___ if ($addx);
 ___
 $code.=<<___;
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lmul4x_prologue:
 
 	.byte	0x67
@@ -523,22 +549,32 @@ $code.=<<___;
 	neg	$num
 
 	mov	%rax,40(%rsp)
+.cfi_cfa_expression	%rsp+40,deref,+8
 .Lmul4x_body:
 
 	call	mul4x_internal
 
 	mov	40(%rsp),%rsi		# restore %rsp
+.cfi_def_cfa	%rsi,8
 	mov	\$1,%rax
 
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lmul4x_epilogue:
 	ret
+.cfi_endproc
 .size	bn_mul4x_mont_gather5,.-bn_mul4x_mont_gather5
 
 .type	mul4x_internal,\@abi-omnipotent
@@ -1050,7 +1086,7 @@ my $bptr="%rdx";	# const void *table,
 my $nptr="%rcx";	# const BN_ULONG *nptr,
 my $n0  ="%r8";		# const BN_ULONG *n0);
 my $num ="%r9";		# int num, has to be divisible by 8
-			# int pwr 
+			# int pwr
 
 my ($i,$j,$tptr)=("%rbp","%rcx",$rptr);
 my @A0=("%r10","%r11");
@@ -1062,7 +1098,9 @@ $code.=<<___;
 .type	bn_power5,\@function,6
 .align	32
 bn_power5:
+.cfi_startproc
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 ___
 $code.=<<___ if ($addx);
 	mov	OPENSSL_ia32cap_P+8(%rip),%r11d
@@ -1072,11 +1110,17 @@ $code.=<<___ if ($addx);
 ___
 $code.=<<___;
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lpower5_prologue:
 
 	shl	\$3,${num}d		# convert $num to bytes
@@ -1127,7 +1171,7 @@ $code.=<<___;
 	ja	.Lpwr_page_walk
 .Lpwr_page_walk_done:
 
-	mov	$num,%r10	
+	mov	$num,%r10
 	neg	$num
 
 	##############################################################
@@ -1141,6 +1185,7 @@ $code.=<<___;
 	#
 	mov	$n0,  32(%rsp)
 	mov	%rax, 40(%rsp)		# save original %rsp
+.cfi_cfa_expression	%rsp+40,deref,+8
 .Lpower5_body:
 	movq	$rptr,%xmm1		# save $rptr, used in sqr8x
 	movq	$nptr,%xmm2		# save $nptr
@@ -1167,16 +1212,25 @@ $code.=<<___;
 	call	mul4x_internal
 
 	mov	40(%rsp),%rsi		# restore %rsp
+.cfi_def_cfa	%rsi,8
 	mov	\$1,%rax
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lpower5_epilogue:
 	ret
+.cfi_endproc
 .size	bn_power5,.-bn_power5
 
 .globl	bn_sqr8x_internal
@@ -2036,7 +2090,7 @@ __bn_post4x_internal:
 	jnz	.Lsqr4x_sub
 
 	mov	$num,%r10		# prepare for back-to-back call
-	neg	$num			# restore $num	
+	neg	$num			# restore $num
 	ret
 .size	__bn_post4x_internal,.-__bn_post4x_internal
 ___
@@ -2056,14 +2110,22 @@ bn_from_montgomery:
 .type	bn_from_mont8x,\@function,6
 .align	32
 bn_from_mont8x:
+.cfi_startproc
 	.byte	0x67
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lfrom_prologue:
 
 	shl	\$3,${num}d		# convert $num to bytes
@@ -2128,6 +2190,7 @@ bn_from_mont8x:
 	#
 	mov	$n0,  32(%rsp)
 	mov	%rax, 40(%rsp)		# save original %rsp
+.cfi_cfa_expression	%rsp+40,deref,+8
 .Lfrom_body:
 	mov	$num,%r11
 	lea	48(%rsp),%rax
@@ -2171,7 +2234,6 @@ $code.=<<___ if ($addx);
 
 	pxor	%xmm0,%xmm0
 	lea	48(%rsp),%rax
-	mov	40(%rsp),%rsi		# restore %rsp
 	jmp	.Lfrom_mont_zero
 
 .align	32
@@ -2183,11 +2245,12 @@ $code.=<<___;
 
 	pxor	%xmm0,%xmm0
 	lea	48(%rsp),%rax
-	mov	40(%rsp),%rsi		# restore %rsp
 	jmp	.Lfrom_mont_zero
 
 .align	32
 .Lfrom_mont_zero:
+	mov	40(%rsp),%rsi		# restore %rsp
+.cfi_def_cfa	%rsi,8
 	movdqa	%xmm0,16*0(%rax)
 	movdqa	%xmm0,16*1(%rax)
 	movdqa	%xmm0,16*2(%rax)
@@ -2198,14 +2261,22 @@ $code.=<<___;
 
 	mov	\$1,%rax
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lfrom_epilogue:
 	ret
+.cfi_endproc
 .size	bn_from_mont8x,.-bn_from_mont8x
 ___
 }
@@ -2218,14 +2289,22 @@ $code.=<<___;
 .type	bn_mulx4x_mont_gather5,\@function,6
 .align	32
 bn_mulx4x_mont_gather5:
+.cfi_startproc
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 .Lmulx4x_enter:
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lmulx4x_prologue:
 
 	shl	\$3,${num}d		# convert $num to bytes
@@ -2259,7 +2338,7 @@ bn_mulx4x_mont_gather5:
 	mov	\$0,%r10
 	cmovc	%r10,%r11
 	sub	%r11,%rbp
-.Lmulx4xsp_done:	
+.Lmulx4xsp_done:
 	and	\$-64,%rbp		# ensure alignment
 	mov	%rsp,%r11
 	sub	%rbp,%r11
@@ -2291,21 +2370,31 @@ bn_mulx4x_mont_gather5:
 	#
 	mov	$n0, 32(%rsp)		# save *n0
 	mov	%rax,40(%rsp)		# save original %rsp
+.cfi_cfa_expression	%rsp+40,deref,+8
 .Lmulx4x_body:
 	call	mulx4x_internal
 
 	mov	40(%rsp),%rsi		# restore %rsp
+.cfi_def_cfa	%rsi,8
 	mov	\$1,%rax
 
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lmulx4x_epilogue:
 	ret
+.cfi_endproc
 .size	bn_mulx4x_mont_gather5,.-bn_mulx4x_mont_gather5
 
 .type	mulx4x_internal,\@abi-omnipotent
@@ -2333,7 +2422,7 @@ my $N=$STRIDE/4;		# should match cache line size
 $code.=<<___;
 	movdqa	0(%rax),%xmm0		# 00000001000000010000000000000000
 	movdqa	16(%rax),%xmm1		# 00000002000000020000000200000002
-	lea	88-112(%rsp,%r10),%r10	# place the mask after tp[num+1] (+ICache optimizaton)
+	lea	88-112(%rsp,%r10),%r10	# place the mask after tp[num+1] (+ICache optimization)
 	lea	128($bp),$bptr		# size optimization
 
 	pshufd	\$0,%xmm5,%xmm5		# broadcast index
@@ -2683,14 +2772,22 @@ $code.=<<___;
 .type	bn_powerx5,\@function,6
 .align	32
 bn_powerx5:
+.cfi_startproc
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 .Lpowerx5_enter:
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lpowerx5_prologue:
 
 	shl	\$3,${num}d		# convert $num to bytes
@@ -2741,7 +2838,7 @@ bn_powerx5:
 	ja	.Lpwrx_page_walk
 .Lpwrx_page_walk_done:
 
-	mov	$num,%r10	
+	mov	$num,%r10
 	neg	$num
 
 	##############################################################
@@ -2762,6 +2859,7 @@ bn_powerx5:
 	movq	$bptr,%xmm4
 	mov	$n0,  32(%rsp)
 	mov	%rax, 40(%rsp)		# save original %rsp
+.cfi_cfa_expression	%rsp+40,deref,+8
 .Lpowerx5_body:
 
 	call	__bn_sqrx8x_internal
@@ -2784,17 +2882,26 @@ bn_powerx5:
 	call	mulx4x_internal
 
 	mov	40(%rsp),%rsi		# restore %rsp
+.cfi_def_cfa	%rsi,8
 	mov	\$1,%rax
 
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lpowerx5_epilogue:
 	ret
+.cfi_endproc
 .size	bn_powerx5,.-bn_powerx5
 
 .globl	bn_sqrx8x_internal
@@ -3678,8 +3785,8 @@ mul_handler:
 	jb	.Lcommon_seh_tail
 
 	mov	4(%r11),%r10d		# HandlerData[1]
-	lea	(%rsi,%r10),%r10	# epilogue label
-	cmp	%r10,%rbx		# context->Rip>=epilogue label
+	lea	(%rsi,%r10),%r10	# beginning of body label
+	cmp	%r10,%rbx		# context->Rip<body label
 	jb	.Lcommon_pop_regs
 
 	mov	152($context),%rax	# pull context->Rsp

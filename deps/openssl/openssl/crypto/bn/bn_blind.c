@@ -82,7 +82,6 @@ void BN_BLINDING_free(BN_BLINDING *r)
 {
     if (r == NULL)
         return;
-
     BN_free(r->A);
     BN_free(r->Ai);
     BN_free(r->e);
@@ -124,7 +123,7 @@ int BN_BLINDING_update(BN_BLINDING *b, BN_CTX *ctx)
  err:
     if (b->counter == BN_BLINDING_COUNTER)
         b->counter = 0;
-    return (ret);
+    return ret;
 }
 
 int BN_BLINDING_convert(BIGNUM *n, BN_BLINDING *b, BN_CTX *ctx)
@@ -140,14 +139,14 @@ int BN_BLINDING_convert_ex(BIGNUM *n, BIGNUM *r, BN_BLINDING *b, BN_CTX *ctx)
 
     if ((b->A == NULL) || (b->Ai == NULL)) {
         BNerr(BN_F_BN_BLINDING_CONVERT_EX, BN_R_NOT_INITIALIZED);
-        return (0);
+        return 0;
     }
 
     if (b->counter == -1)
         /* Fresh blinding, doesn't need updating. */
         b->counter = 0;
     else if (!BN_BLINDING_update(b, ctx))
-        return (0);
+        return 0;
 
     if (r != NULL && (BN_copy(r, b->Ai) == NULL))
         return 0;
@@ -198,7 +197,7 @@ int BN_BLINDING_invert_ex(BIGNUM *n, const BIGNUM *r, BN_BLINDING *b,
     }
 
     bn_check_top(n);
-    return (ret);
+    return ret;
 }
 
 int BN_BLINDING_is_current_thread(BN_BLINDING *b)
@@ -271,7 +270,7 @@ BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,
 
     do {
         int rv;
-        if (!BN_rand_range(ret->A, ret->mod))
+        if (!BN_priv_rand_range(ret->A, ret->mod))
             goto err;
         if (int_bn_mod_inverse(ret->Ai, ret->A, ret->mod, ctx, &rv))
             break;

@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
-#include <openssl/lhash.h>
+#include "internal/refcount.h"
 #include <openssl/x509.h>
 #include "internal/x509_int.h"
 #include <openssl/x509v3.h>
@@ -17,14 +17,15 @@
 
 X509_LOOKUP *X509_LOOKUP_new(X509_LOOKUP_METHOD *method)
 {
-    X509_LOOKUP *ret;
+    X509_LOOKUP *ret = OPENSSL_zalloc(sizeof(*ret));
 
-    ret = OPENSSL_zalloc(sizeof(*ret));
-    if (ret == NULL)
+    if (ret == NULL) {
+        X509err(X509_F_X509_LOOKUP_NEW, ERR_R_MALLOC_FAILURE);
         return NULL;
+    }
 
     ret->method = method;
-    if ((method->new_item != NULL) && !method->new_item(ret)) {
+    if (method->new_item != NULL && method->new_item(ret) == 0) {
         OPENSSL_free(ret);
         return NULL;
     }
@@ -149,7 +150,7 @@ static int x509_object_cmp(const X509_OBJECT *const *a,
     case X509_LU_CRL:
         ret = X509_CRL_cmp((*a)->data.crl, (*b)->data.crl);
         break;
-    default:
+    case X509_LU_NONE:
         /* abort(); */
         return 0;
     }
@@ -158,25 +159,36 @@ static int x509_object_cmp(const X509_OBJECT *const *a,
 
 X509_STORE *X509_STORE_new(void)
 {
-    X509_STORE *ret;
+    X509_STORE *ret = OPENSSL_zalloc(sizeof(*ret));
 
-    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL)
+    if (ret == NULL) {
+        X509err(X509_F_X509_STORE_NEW, ERR_R_MALLOC_FAILURE);
         return NULL;
-    if ((ret->objs = sk_X509_OBJECT_new(x509_object_cmp)) == NULL)
+    }
+    if ((ret->objs = sk_X509_OBJECT_new(x509_object_cmp)) == NULL) {
+        X509err(X509_F_X509_STORE_NEW, ERR_R_MALLOC_FAILURE);
         goto err;
+    }
     ret->cache = 1;
-    if ((ret->get_cert_methods = sk_X509_LOOKUP_new_null()) == NULL)
+    if ((ret->get_cert_methods = sk_X509_LOOKUP_new_null()) == NULL) {
+        X509err(X509_F_X509_STORE_NEW, ERR_R_MALLOC_FAILURE);
         goto err;
+    }
 
-    if ((ret->param = X509_VERIFY_PARAM_new()) == NULL)
+    if ((ret->param = X509_VERIFY_PARAM_new()) == NULL) {
+        X509err(X509_F_X509_STORE_NEW, ERR_R_MALLOC_FAILURE);
         goto err;
-
-    if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE, ret, &ret->ex_data))
+    }
+    if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE, ret, &ret->ex_data)) {
+        X509err(X509_F_X509_STORE_NEW, ERR_R_MALLOC_FAILURE);
         goto err;
+    }
 
     ret->lock = CRYPTO_THREAD_lock_new();
-    if (ret->lock == NULL)
+    if (ret->lock == NULL) {
+        X509err(X509_F_X509_STORE_NEW, ERR_R_MALLOC_FAILURE);
         goto err;
+    }
 
     ret->references = 1;
     return ret;
@@ -197,8 +209,7 @@ void X509_STORE_free(X509_STORE *vfy)
 
     if (vfy == NULL)
         return;
-
-    CRYPTO_atomic_add(&vfy->references, -1, &i, vfy->lock);
+    CRYPTO_DOWN_REF(&vfy->references, &i, vfy->lock);
     REF_PRINT_COUNT("X509_STORE", vfy);
     if (i > 0)
         return;
@@ -223,7 +234,7 @@ int X509_STORE_up_ref(X509_STORE *vfy)
 {
     int i;
 
-    if (CRYPTO_atomic_add(&vfy->references, 1, &i, vfy->lock) <= 0)
+    if (CRYPTO_UP_REF(&vfy->references, &i, vfy->lock) <= 0)
         return 0;
 
     REF_PRINT_COUNT("X509_STORE", a);
@@ -246,17 +257,18 @@ X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *v, X509_LOOKUP_METHOD *m)
     }
     /* a new one */
     lu = X509_LOOKUP_new(m);
-    if (lu == NULL)
+    if (lu == NULL) {
+        X509err(X509_F_X509_STORE_ADD_LOOKUP, ERR_R_MALLOC_FAILURE);
         return NULL;
-    else {
-        lu->store_ctx = v;
-        if (sk_X509_LOOKUP_push(v->get_cert_methods, lu))
-            return lu;
-        else {
-            X509_LOOKUP_free(lu);
-            return NULL;
-        }
     }
+
+    lu->store_ctx = v;
+    if (sk_X509_LOOKUP_push(v->get_cert_methods, lu))
+        return lu;
+    /* malloc failed */
+    X509err(X509_F_X509_STORE_ADD_LOOKUP, ERR_R_MALLOC_FAILURE);
+    X509_LOOKUP_free(lu);
+    return NULL;
 }
 
 X509_OBJECT *X509_STORE_CTX_get_obj_by_subject(X509_STORE_CTX *vs,
@@ -310,8 +322,7 @@ int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, X509_LOOKUP_TYPE type,
     return 1;
 }
 
-static int x509_store_add(X509_STORE *ctx, void *x, int crl)
-{
+static int x509_store_add(X509_STORE *ctx, void *x, int crl) {
     X509_OBJECT *obj;
     int ret = 0, added = 0;
 
@@ -349,7 +360,7 @@ static int x509_store_add(X509_STORE *ctx, void *x, int crl)
 
 int X509_STORE_add_cert(X509_STORE *ctx, X509 *x)
 {
-   if (!x509_store_add(ctx, x, 0)) {
+    if (!x509_store_add(ctx, x, 0)) {
         X509err(X509_F_X509_STORE_ADD_CERT, ERR_R_MALLOC_FAILURE);
         return 0;
     }
@@ -368,7 +379,7 @@ int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x)
 int X509_OBJECT_up_ref_count(X509_OBJECT *a)
 {
     switch (a->type) {
-    default:
+    case X509_LU_NONE:
         break;
     case X509_LU_X509:
         return X509_up_ref(a->data.x509);
@@ -397,7 +408,7 @@ X509_LOOKUP_TYPE X509_OBJECT_get_type(const X509_OBJECT *a)
     return a->type;
 }
 
-X509_OBJECT *X509_OBJECT_new()
+X509_OBJECT *X509_OBJECT_new(void)
 {
     X509_OBJECT *ret = OPENSSL_zalloc(sizeof(*ret));
 
@@ -414,7 +425,7 @@ static void x509_object_free_internal(X509_OBJECT *a)
     if (a == NULL)
         return;
     switch (a->type) {
-    default:
+    case X509_LU_NONE:
         break;
     case X509_LU_X509:
         X509_free(a->data.x509);
@@ -471,7 +482,7 @@ static int x509_object_idx_cnt(STACK_OF(X509_OBJECT) *h, X509_LOOKUP_TYPE type,
         stmp.data.crl = &crl_s;
         crl_s.crl.issuer = name;
         break;
-    default:
+    case X509_LU_NONE:
         /* abort(); */
         return -1;
     }
@@ -608,17 +619,18 @@ STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(X509_STORE_CTX *ctx, X509_NAME *nm)
 X509_OBJECT *X509_OBJECT_retrieve_match(STACK_OF(X509_OBJECT) *h,
                                         X509_OBJECT *x)
 {
-    int idx, i;
+    int idx, i, num;
     X509_OBJECT *obj;
+
     idx = sk_X509_OBJECT_find(h, x);
-    if (idx == -1)
+    if (idx < 0)
         return NULL;
     if ((x->type != X509_LU_X509) && (x->type != X509_LU_CRL))
         return sk_X509_OBJECT_value(h, idx);
-    for (i = idx; i < sk_X509_OBJECT_num(h); i++) {
+    for (i = idx, num = sk_X509_OBJECT_num(h); i < num; i++) {
         obj = sk_X509_OBJECT_value(h, i);
-        if (x509_object_cmp
-            ((const X509_OBJECT **)&obj, (const X509_OBJECT **)&x))
+        if (x509_object_cmp((const X509_OBJECT **)&obj,
+                            (const X509_OBJECT **)&x))
             return NULL;
         if (x->type == X509_LU_X509) {
             if (!X509_cmp(obj->data.x509, x->data.x509))

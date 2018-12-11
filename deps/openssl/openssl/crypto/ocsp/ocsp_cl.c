@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "internal/cryptlib.h"
+#include <openssl/asn1.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
@@ -209,9 +210,9 @@ const STACK_OF(X509) *OCSP_resp_get0_certs(const OCSP_BASICRESP *bs)
 int OCSP_resp_get0_id(const OCSP_BASICRESP *bs,
                       const ASN1_OCTET_STRING **pid,
                       const X509_NAME **pname)
-
 {
     const OCSP_RESPID *rid = &bs->tbsResponseData.responderId;
+
     if (rid->type == V_OCSP_RESPID_NAME) {
         *pname = rid->value.byName;
         *pid = NULL;
@@ -221,6 +222,26 @@ int OCSP_resp_get0_id(const OCSP_BASICRESP *bs,
     } else {
         return 0;
     }
+    return 1;
+}
+
+int OCSP_resp_get1_id(const OCSP_BASICRESP *bs,
+                      ASN1_OCTET_STRING **pid,
+                      X509_NAME **pname)
+{
+    const OCSP_RESPID *rid = &bs->tbsResponseData.responderId;
+
+    if (rid->type == V_OCSP_RESPID_NAME) {
+        *pname = X509_NAME_dup(rid->value.byName);
+        *pid = NULL;
+    } else if (rid->type == V_OCSP_RESPID_KEY) {
+        *pid = ASN1_OCTET_STRING_dup(rid->value.byKey);
+        *pname = NULL;
+    } else {
+        return 0;
+    }
+    if (*pname == NULL && *pid == NULL)
+        return 0;
     return 1;
 }
 

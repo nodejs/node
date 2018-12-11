@@ -18,7 +18,7 @@
 #
 # Performance improvement over compiler generated code varies from
 # 10% to 40% [see below]. Not very impressive on some µ-archs, but
-# it's 5 times smaller and optimizies amount of writes.
+# it's 5 times smaller and optimizes amount of writes.
 #
 # May 2012.
 #
@@ -47,7 +47,7 @@
 #
 # Performance in clock cycles per processed byte (less is better):
 #
-#		gcc	icc	x86 asm(*)	SIMD	x86_64 asm(**)	
+#		gcc	icc	x86 asm(*)	SIMD	x86_64 asm(**)
 # Pentium	46	57	40/38		-	-
 # PIII		36	33	27/24		-	-
 # P4		41	38	28		-	17.3
@@ -57,14 +57,17 @@
 # Sandy Bridge	25	-	15.9		12.4	11.6
 # Ivy Bridge	24	-	15.0		11.4	10.3
 # Haswell	22	-	13.9		9.46	7.80
+# Skylake	20	-	14.9		9.50	7.70
 # Bulldozer	36	-	27/22		17.0	13.6
 # VIA Nano	36	-	25/22		16.8	16.5
 # Atom		50	-	30/25		21.9	18.9
 # Silvermont	40	-	34/31		22.9	20.6
+# Goldmont	29	-	20		16.3(***)
 #
 # (*)	numbers after slash are for unrolled loop, where applicable;
 # (**)	x86_64 assembly performance is presented for reference
 #	purposes, results are best-available;
+# (***)	SHAEXT result is 4.1, strangely enough better than 64-bit one;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
@@ -73,7 +76,7 @@ require "x86asm.pl";
 $output=pop;
 open STDOUT,">$output";
 
-&asm_init($ARGV[0],"sha512-586.pl",$ARGV[$#ARGV] eq "386");
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 $xmm=$avx=0;
 for (@ARGV) { $xmm=1 if (/-DOPENSSL_IA32_SSE2/); }
@@ -276,7 +279,7 @@ my $suffix=shift;
 	&mov	($Coff,"ecx");
 	&mov	($Doff,"edi");
 	&mov	(&DWP(0,"esp"),"ebx");	# magic
-	&mov	($E,&DWP(16,"esi"));	
+	&mov	($E,&DWP(16,"esi"));
 	&mov	("ebx",&DWP(20,"esi"));
 	&mov	("ecx",&DWP(24,"esi"));
 	&mov	("edi",&DWP(28,"esi"));
@@ -385,7 +388,7 @@ my @AH=($A,$K256);
 	&xor	($AH[1],"ecx");		# magic
 	&mov	(&DWP(8,"esp"),"ecx");
 	&mov	(&DWP(12,"esp"),"ebx");
-	&mov	($E,&DWP(16,"esi"));	
+	&mov	($E,&DWP(16,"esi"));
 	&mov	("ebx",&DWP(20,"esi"));
 	&mov	("ecx",&DWP(24,"esi"));
 	&mov	("esi",&DWP(28,"esi"));

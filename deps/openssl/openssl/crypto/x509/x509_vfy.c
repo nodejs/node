@@ -7,23 +7,22 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <ctype.h>
 #include <stdio.h>
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
 
+#include "internal/ctype.h"
 #include "internal/cryptlib.h"
 #include <openssl/crypto.h>
-#include <openssl/lhash.h>
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
 #include <openssl/asn1.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/objects.h>
-#include <internal/dane.h>
-#include <internal/x509_int.h>
+#include "internal/dane.h"
+#include "internal/x509_int.h"
 #include "x509_lcl.h"
 
 /* CRL score values */
@@ -367,6 +366,7 @@ static STACK_OF(X509) *lookup_certs_sk(X509_STORE_CTX *ctx, X509_NAME *nm)
     STACK_OF(X509) *sk = NULL;
     X509 *x;
     int i;
+
     for (i = 0; i < sk_X509_num(ctx->other_ctx); i++) {
         x = sk_X509_value(ctx->other_ctx, i);
         if (X509_NAME_cmp(nm, X509_get_subject_name(x)) == 0) {
@@ -374,6 +374,8 @@ static STACK_OF(X509) *lookup_certs_sk(X509_STORE_CTX *ctx, X509_NAME *nm)
                 sk = sk_X509_new_null();
             if (sk == NULL || sk_X509_push(sk, x) == 0) {
                 sk_X509_pop_free(sk, X509_free);
+                X509err(X509_F_LOOKUP_CERTS_SK, ERR_R_MALLOC_FAILURE);
+                ctx->error = X509_V_ERR_OUT_OF_MEM;
                 return NULL;
             }
             X509_up_ref(x);
@@ -1817,7 +1819,7 @@ int X509_cmp_time(const ASN1_TIME *ctm, time_t *cmp_time)
      * Digit and date ranges will be verified in the conversion methods.
      */
     for (i = 0; i < ctm->length - 1; i++) {
-        if (!isdigit(ctm->data[i]))
+        if (!ossl_isdigit(ctm->data[i]))
             return 0;
     }
     if (ctm->data[ctm->length - 1] != 'Z')
@@ -2870,7 +2872,11 @@ static int build_chain(X509_STORE_CTX *ctx)
     int i;
 
     /* Our chain starts with a single untrusted element. */
-    OPENSSL_assert(num == 1 && ctx->num_untrusted == num);
+    if (!ossl_assert(num == 1 && ctx->num_untrusted == num))  {
+        X509err(X509_F_BUILD_CHAIN, ERR_R_INTERNAL_ERROR);
+        ctx->error = X509_V_ERR_UNSPECIFIED;
+        return 0;
+    }
 
 #define S_DOUNTRUSTED      (1 << 0)     /* Search untrusted chain */
 #define S_DOTRUSTED        (1 << 1)     /* Search trusted store */
@@ -3007,7 +3013,14 @@ static int build_chain(X509_STORE_CTX *ctx)
                  * certificate among the ones from the trust store.
                  */
                 if ((search & S_DOALTERNATE) != 0) {
-                    OPENSSL_assert(num > i && i > 0 && ss == 0);
+                    if (!ossl_assert(num > i && i > 0 && ss == 0)) {
+                        X509err(X509_F_BUILD_CHAIN, ERR_R_INTERNAL_ERROR);
+                        X509_free(xtmp);
+                        trust = X509_TRUST_REJECTED;
+                        ctx->error = X509_V_ERR_UNSPECIFIED;
+                        search = 0;
+                        continue;
+                    }
                     search &= ~S_DOALTERNATE;
                     for (; num > i; --num)
                         X509_free(sk_X509_pop(ctx->chain));
@@ -3070,7 +3083,13 @@ static int build_chain(X509_STORE_CTX *ctx)
                  * certificate with ctx->num_untrusted <= num.
                  */
                 if (ok) {
-                    OPENSSL_assert(ctx->num_untrusted <= num);
+                    if (!ossl_assert(ctx->num_untrusted <= num)) {
+                        X509err(X509_F_BUILD_CHAIN, ERR_R_INTERNAL_ERROR);
+                        trust = X509_TRUST_REJECTED;
+                        ctx->error = X509_V_ERR_UNSPECIFIED;
+                        search = 0;
+                        continue;
+                    }
                     search &= ~S_DOUNTRUSTED;
                     switch (trust = check_trust(ctx, num)) {
                     case X509_TRUST_TRUSTED:
@@ -3109,7 +3128,13 @@ static int build_chain(X509_STORE_CTX *ctx)
          */
         if ((search & S_DOUNTRUSTED) != 0) {
             num = sk_X509_num(ctx->chain);
-            OPENSSL_assert(num == ctx->num_untrusted);
+            if (!ossl_assert(num == ctx->num_untrusted)) {
+                X509err(X509_F_BUILD_CHAIN, ERR_R_INTERNAL_ERROR);
+                trust = X509_TRUST_REJECTED;
+                ctx->error = X509_V_ERR_UNSPECIFIED;
+                search = 0;
+                continue;
+            }
             x = sk_X509_value(ctx->chain, num-1);
 
             /*
@@ -3228,8 +3253,6 @@ static int check_key_level(X509_STORE_CTX *ctx, X509 *cert)
  */
 static int check_sig_level(X509_STORE_CTX *ctx, X509 *cert)
 {
-    int nid = X509_get_signature_nid(cert);
-    int mdnid = NID_undef;
     int secbits = -1;
     int level = ctx->param->auth_level;
 
@@ -3238,18 +3261,8 @@ static int check_sig_level(X509_STORE_CTX *ctx, X509 *cert)
     if (level > NUM_AUTH_LEVELS)
         level = NUM_AUTH_LEVELS;
 
-    /* We are not able to look up the CA MD for RSA PSS in this version */
-    if (nid == NID_rsassaPss)
-        return 1;
-
-    /* Lookup signature algorithm digest */
-    if (nid && OBJ_find_sigid_algs(nid, &mdnid, NULL)) {
-        const EVP_MD *md;
-
-        /* Assume 4 bits of collision resistance for each hash octet */
-        if (mdnid != NID_undef && (md = EVP_get_digestbynid(mdnid)) != NULL)
-            secbits = EVP_MD_size(md) * 4;
-    }
+    if (!X509_get_signature_info(cert, NULL, NULL, &secbits, NULL))
+        return 0;
 
     return secbits >= minbits_table[level - 1];
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include "e_os.h"
 #include "internal/cryptlib_int.h"
 
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -30,21 +31,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     switch (fdwReason) {
     case DLL_PROCESS_ATTACH:
         OPENSSL_cpuid_setup();
-# if defined(_WIN32_WINNT)
-        {
-            IMAGE_DOS_HEADER *dos_header = (IMAGE_DOS_HEADER *) hinstDLL;
-            IMAGE_NT_HEADERS *nt_headers;
-
-            if (dos_header->e_magic == IMAGE_DOS_SIGNATURE) {
-                nt_headers = (IMAGE_NT_HEADERS *) ((char *)dos_header
-                                                   + dos_header->e_lfanew);
-                if (nt_headers->Signature == IMAGE_NT_SIGNATURE &&
-                    hinstDLL !=
-                    (HINSTANCE) (nt_headers->OptionalHeader.ImageBase))
-                    OPENSSL_NONPIC_relocated = 1;
-            }
-        }
-# endif
         break;
     case DLL_THREAD_ATTACH:
         break;
@@ -54,7 +40,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     case DLL_PROCESS_DETACH:
         break;
     }
-    return (TRUE);
+    return TRUE;
 }
 #endif
 

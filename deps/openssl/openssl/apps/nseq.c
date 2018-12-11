@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "apps.h"
+#include "progs.h"
 #include <openssl/pem.h>
 #include <openssl/err.h>
 
@@ -18,7 +19,7 @@ typedef enum OPTION_choice {
     OPT_TOSEQ, OPT_IN, OPT_OUT
 } OPTION_CHOICE;
 
-OPTIONS nseq_options[] = {
+const OPTIONS nseq_options[] = {
     {"help", OPT_HELP, '-', "Display this summary"},
     {"toseq", OPT_TOSEQ, '-', "Output NS Sequence file"},
     {"in", OPT_IN, '<', "Input file"},
@@ -109,5 +110,5 @@ int nseq_main(int argc, char **argv)
     BIO_free_all(out);
     NETSCAPE_CERT_SEQUENCE_free(seq);
 
-    return (ret);
+    return ret;
 }

@@ -7,11 +7,6 @@
  * https://www.openssl.org/source/license.html
  */
 
-/*
- * The new form of this macro (check if the a*b == 0) was suggested by Colin
- * Plumb <colin@nyx10.cs.du.edu>
- */
-/* Removal of the inner if from from Wei Dai 24/4/96 */
 #define idea_mul(r,a,b,ul) \
 ul=(unsigned long)a*b; \
 if (ul != 0) \
@@ -21,16 +16,6 @@ if (ul != 0) \
         } \
 else \
         r=(-(int)a-b+1);        /* assuming a or b is 0 and in range */
-
-/*
- * 7/12/95 - Many thanks to Rhys Weatherley <rweather@us.oracle.com> for
- * pointing out that I was assuming little endian byte order for all
- * quantities what idea actually used bigendian.  No where in the spec does
- * it mention this, it is all in terms of 16 bit numbers and even the example
- * does not use byte streams for the input example :-(. If you byte swap each
- * pair of input, keys and iv, the functions would produce the output as the
- * old version :-(.
- */
 
 /* NOTE - c is not incremented as per n2l */
 #define n2ln(c,l1,l2,n) { \

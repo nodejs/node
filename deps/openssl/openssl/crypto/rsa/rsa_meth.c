@@ -271,3 +271,17 @@ int RSA_meth_set_keygen(RSA_METHOD *meth,
     return 1;
 }
 
+int (*RSA_meth_get_multi_prime_keygen(const RSA_METHOD *meth))
+    (RSA *rsa, int bits, int primes, BIGNUM *e, BN_GENCB *cb)
+{
+    return meth->rsa_multi_prime_keygen;
+}
+
+int RSA_meth_set_multi_prime_keygen(RSA_METHOD *meth,
+                                    int (*keygen) (RSA *rsa, int bits,
+                                                   int primes, BIGNUM *e,
+                                                   BN_GENCB *cb))
+{
+    meth->rsa_multi_prime_keygen = keygen;
+    return 1;
+}

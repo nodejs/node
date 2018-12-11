@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -23,13 +23,14 @@
 # Relative comparison is therefore more informative. This initial
 # version is ~2.1x slower than hardware-assisted AES-128-CTR, ~12x
 # faster than "4-bit" integer-only compiler-generated 64-bit code.
-# "Initial version" means that there is room for futher improvement.
+# "Initial version" means that there is room for further improvement.
 
 # May 2016
 #
 # 2x aggregated reduction improves performance by 50% (resulting
 # performance on POWER8 is 1 cycle per processed byte), and 4x
 # aggregated reduction - by 170% or 2.7x (resulting in 0.55 cpb).
+# POWER9 delivers 0.51 cpb.
 
 $flavour=shift;
 $output =shift;

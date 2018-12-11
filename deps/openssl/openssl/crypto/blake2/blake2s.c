@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,6 @@
 #include <assert.h>
 #include <string.h>
 #include <openssl/crypto.h>
-#include "e_os.h"
 
 #include "blake2_locl.h"
 #include "blake2_impl.h"
@@ -219,7 +218,7 @@ int BLAKE2s_Update(BLAKE2S_CTX *c, const void *data, size_t datalen)
             in += fill;
             datalen -= fill;
         }
-        if (datalen > BLAKE2S_BLOCKBYTES)  {
+        if (datalen > BLAKE2S_BLOCKBYTES) {
             size_t stashlen = datalen % BLAKE2S_BLOCKBYTES;
             /*
              * If |datalen| is a multiple of the blocksize, stash

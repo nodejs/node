@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -61,7 +61,7 @@ int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey)
     X509_PUBKEY *pk = NULL;
 
     if (x == NULL)
-        return (0);
+        return 0;
 
     if ((pk = X509_PUBKEY_new()) == NULL)
         goto error;
@@ -101,7 +101,7 @@ int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey)
 
 
 static int x509_pubkey_decode(EVP_PKEY **ppkey, X509_PUBKEY *key)
-    {
+{
     EVP_PKEY *pkey = EVP_PKEY_new();
 
     if (pkey == NULL) {
@@ -206,7 +206,7 @@ int i2d_PUBKEY(EVP_PKEY *a, unsigned char **pp)
     if (!a)
         return 0;
     if (!X509_PUBKEY_set(&xpk, a))
-        return 0;
+        return -1;
     ret = i2d_X509_PUBKEY(xpk, pp);
     X509_PUBKEY_free(xpk);
     return ret;
@@ -246,7 +246,7 @@ int i2d_RSA_PUBKEY(RSA *a, unsigned char **pp)
     pktmp = EVP_PKEY_new();
     if (pktmp == NULL) {
         ASN1err(ASN1_F_I2D_RSA_PUBKEY, ERR_R_MALLOC_FAILURE);
-        return 0;
+        return -1;
     }
     EVP_PKEY_set1_RSA(pktmp, a);
     ret = i2d_PUBKEY(pktmp, pp);
@@ -286,7 +286,7 @@ int i2d_DSA_PUBKEY(DSA *a, unsigned char **pp)
     pktmp = EVP_PKEY_new();
     if (pktmp == NULL) {
         ASN1err(ASN1_F_I2D_DSA_PUBKEY, ERR_R_MALLOC_FAILURE);
-        return 0;
+        return -1;
     }
     EVP_PKEY_set1_DSA(pktmp, a);
     ret = i2d_PUBKEY(pktmp, pp);
@@ -304,17 +304,17 @@ EC_KEY *d2i_EC_PUBKEY(EC_KEY **a, const unsigned char **pp, long length)
     q = *pp;
     pkey = d2i_PUBKEY(NULL, &q, length);
     if (!pkey)
-        return (NULL);
+        return NULL;
     key = EVP_PKEY_get1_EC_KEY(pkey);
     EVP_PKEY_free(pkey);
     if (!key)
-        return (NULL);
+        return NULL;
     *pp = q;
     if (a) {
         EC_KEY_free(*a);
         *a = key;
     }
-    return (key);
+    return key;
 }
 
 int i2d_EC_PUBKEY(EC_KEY *a, unsigned char **pp)
@@ -322,15 +322,15 @@ int i2d_EC_PUBKEY(EC_KEY *a, unsigned char **pp)
     EVP_PKEY *pktmp;
     int ret;
     if (!a)
-        return (0);
+        return 0;
     if ((pktmp = EVP_PKEY_new()) == NULL) {
         ASN1err(ASN1_F_I2D_EC_PUBKEY, ERR_R_MALLOC_FAILURE);
-        return (0);
+        return -1;
     }
     EVP_PKEY_set1_EC_KEY(pktmp, a);
     ret = i2d_PUBKEY(pktmp, pp);
     EVP_PKEY_free(pktmp);
-    return (ret);
+    return ret;
 }
 #endif
 

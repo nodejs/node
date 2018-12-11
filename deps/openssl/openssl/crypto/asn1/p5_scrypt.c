@@ -18,24 +18,15 @@
 #ifndef OPENSSL_NO_SCRYPT
 /* PKCS#5 scrypt password based encryption structures */
 
-typedef struct {
-    ASN1_OCTET_STRING *salt;
-    ASN1_INTEGER *costParameter;
-    ASN1_INTEGER *blockSize;
-    ASN1_INTEGER *parallelizationParameter;
-    ASN1_INTEGER *keyLength;
-} SCRYPT_PARAMS;
-
 ASN1_SEQUENCE(SCRYPT_PARAMS) = {
         ASN1_SIMPLE(SCRYPT_PARAMS, salt, ASN1_OCTET_STRING),
         ASN1_SIMPLE(SCRYPT_PARAMS, costParameter, ASN1_INTEGER),
         ASN1_SIMPLE(SCRYPT_PARAMS, blockSize, ASN1_INTEGER),
         ASN1_SIMPLE(SCRYPT_PARAMS, parallelizationParameter, ASN1_INTEGER),
         ASN1_OPT(SCRYPT_PARAMS, keyLength, ASN1_INTEGER),
-} static_ASN1_SEQUENCE_END(SCRYPT_PARAMS)
+} ASN1_SEQUENCE_END(SCRYPT_PARAMS)
 
-DECLARE_ASN1_ALLOC_FUNCTIONS(SCRYPT_PARAMS)
-IMPLEMENT_ASN1_ALLOC_FUNCTIONS(SCRYPT_PARAMS)
+IMPLEMENT_ASN1_FUNCTIONS(SCRYPT_PARAMS)
 
 static X509_ALGOR *pkcs5_scrypt_set(const unsigned char *salt, size_t saltlen,
                                     size_t keylen, uint64_t N, uint64_t r,
@@ -102,7 +93,7 @@ X509_ALGOR *PKCS5_pbe2_set_scrypt(const EVP_CIPHER *cipher,
     /* Dummy cipherinit to just setup the IV */
     if (EVP_CipherInit_ex(ctx, cipher, NULL, NULL, iv, 0) == 0)
         goto err;
-    if (EVP_CIPHER_param_to_asn1(ctx, scheme->parameter) < 0) {
+    if (EVP_CIPHER_param_to_asn1(ctx, scheme->parameter) <= 0) {
         ASN1err(ASN1_F_PKCS5_PBE2_SET_SCRYPT,
                 ASN1_R_ERROR_SETTING_CIPHER_PARAMS);
         goto err;

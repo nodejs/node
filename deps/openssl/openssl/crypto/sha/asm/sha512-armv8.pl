@@ -1,17 +1,18 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
-#
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
+#
+# Permission to use under GPLv2 terms is granted.
 # ====================================================================
 #
 # SHA256/512 for ARMv8.
@@ -26,7 +27,8 @@
 # Denver	2.01		10.5 (+26%)	6.70 (+8%)
 # X-Gene			20.0 (+100%)	12.8 (+300%(***))
 # Mongoose	2.36		13.0 (+50%)	8.36 (+33%)
-# 
+# Kryo		1.92		17.4 (+30%)	11.2 (+8%)
+#
 # (*)	Software SHA256 results are of lesser relevance, presented
 #	mostly for informational purposes.
 # (**)	The result is a trade-off: it's possible to improve it by
@@ -34,19 +36,37 @@
 #	on Cortex-A53 (or by 4 cycles per round).
 # (***)	Super-impressive coefficients over gcc-generated code are
 #	indication of some compiler "pathology", most notably code
-#	generated with -mgeneral-regs-only is significanty faster
+#	generated with -mgeneral-regs-only is significantly faster
 #	and the gap is only 40-90%.
+#
+# October 2016.
+#
+# Originally it was reckoned that it makes no sense to implement NEON
+# version of SHA256 for 64-bit processors. This is because performance
+# improvement on most wide-spread Cortex-A5x processors was observed
+# to be marginal, same on Cortex-A53 and ~10% on A57. But then it was
+# observed that 32-bit NEON SHA256 performs significantly better than
+# 64-bit scalar version on *some* of the more recent processors. As
+# result 64-bit NEON version of SHA256 was added to provide best
+# all-round performance. For example it executes ~30% faster on X-Gene
+# and Mongoose. [For reference, NEON version of SHA512 is bound to
+# deliver much less improvement, likely *negative* on Cortex-A5x.
+# Which is why NEON support is limited to SHA256.]
 
-$flavour=shift;
-$output=shift;
+$output=pop;
+$flavour=pop;
 
-$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
-( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
-( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
-die "can't locate arm-xlate.pl";
+if ($flavour && $flavour ne "void") {
+    $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+    ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+    ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+    die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
-*STDOUT=*OUT;
+    open OUT,"| \"$^X\" $xlate $flavour $output";
+    *STDOUT=*OUT;
+} else {
+    open STDOUT,">$output";
+}
 
 if ($output =~ /512/) {
 	$BITS=512;
@@ -83,7 +103,7 @@ my ($T0,$T1,$T2)=(@X[($i-8)&15],@X[($i-9)&15],@X[($i-10)&15]);
    $T0=@X[$i+3] if ($i<11);
 
 $code.=<<___	if ($i<16);
-#ifndef	__ARMEB__
+#ifndef	__AARCH64EB__
 	rev	@X[$i],@X[$i]			// $i
 #endif
 ___
@@ -166,7 +186,9 @@ ___
 }
 
 $code.=<<___;
-#include "arm_arch.h"
+#ifndef	__KERNEL__
+# include "arm_arch.h"
+#endif
 
 .text
 
@@ -175,20 +197,28 @@ $code.=<<___;
 .type	$func,%function
 .align	6
 $func:
-___
-$code.=<<___	if ($SZ==4);
-#ifdef	__ILP32__
+#ifndef	__KERNEL__
+# ifdef	__ILP32__
 	ldrsw	x16,.LOPENSSL_armcap_P
-#else
+# else
 	ldr	x16,.LOPENSSL_armcap_P
-#endif
+# endif
 	adr	x17,.LOPENSSL_armcap_P
 	add	x16,x16,x17
 	ldr	w16,[x16]
+___
+$code.=<<___	if ($SZ==4);
 	tst	w16,#ARMV8_SHA256
+	b.ne	.Lv8_entry
+	tst	w16,#ARMV7_NEON
+	b.ne	.Lneon_entry
+___
+$code.=<<___	if ($SZ==8);
+	tst	w16,#ARMV8_SHA512
 	b.ne	.Lv8_entry
 ___
 $code.=<<___;
+#endif
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 
@@ -321,12 +351,14 @@ $code.=<<___ if ($SZ==4);
 ___
 $code.=<<___;
 .size	.LK$BITS,.-.LK$BITS
+#ifndef	__KERNEL__
 .align	3
 .LOPENSSL_armcap_P:
-#ifdef	__ILP32__
+# ifdef	__ILP32__
 	.long	OPENSSL_armcap_P-.
-#else
+# else
 	.quad	OPENSSL_armcap_P-.
+# endif
 #endif
 .asciz	"SHA$BITS block transform for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2
@@ -341,6 +373,7 @@ my ($W0,$W1)=("v16.4s","v17.4s");
 my ($ABCD_SAVE,$EFGH_SAVE)=("v18.16b","v19.16b");
 
 $code.=<<___;
+#ifndef	__KERNEL__
 .type	sha256_block_armv8,%function
 .align	6
 sha256_block_armv8:
@@ -409,11 +442,406 @@ $code.=<<___;
 	ldr		x29,[sp],#16
 	ret
 .size	sha256_block_armv8,.-sha256_block_armv8
+#endif
+___
+}
+
+if ($SZ==4) {	######################################### NEON stuff #
+# You'll surely note a lot of similarities with sha256-armv4 module,
+# and of course it's not a coincidence. sha256-armv4 was used as
+# initial template, but was adapted for ARMv8 instruction set and
+# extensively re-tuned for all-round performance.
+
+my @V = ($A,$B,$C,$D,$E,$F,$G,$H) = map("w$_",(3..10));
+my ($t0,$t1,$t2,$t3,$t4) = map("w$_",(11..15));
+my $Ktbl="x16";
+my $Xfer="x17";
+my @X = map("q$_",(0..3));
+my ($T0,$T1,$T2,$T3,$T4,$T5,$T6,$T7) = map("q$_",(4..7,16..19));
+my $j=0;
+
+sub AUTOLOAD()          # thunk [simplified] x86-style perlasm
+{ my $opcode = $AUTOLOAD; $opcode =~ s/.*:://; $opcode =~ s/_/\./;
+  my $arg = pop;
+    $arg = "#$arg" if ($arg*1 eq $arg);
+    $code .= "\t$opcode\t".join(',',@_,$arg)."\n";
+}
+
+sub Dscalar { shift =~ m|[qv]([0-9]+)|?"d$1":""; }
+sub Dlo     { shift =~ m|[qv]([0-9]+)|?"v$1.d[0]":""; }
+sub Dhi     { shift =~ m|[qv]([0-9]+)|?"v$1.d[1]":""; }
+
+sub Xupdate()
+{ use integer;
+  my $body = shift;
+  my @insns = (&$body,&$body,&$body,&$body);
+  my ($a,$b,$c,$d,$e,$f,$g,$h);
+
+	&ext_8		($T0,@X[0],@X[1],4);	# X[1..4]
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&ext_8		($T3,@X[2],@X[3],4);	# X[9..12]
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&mov		(&Dscalar($T7),&Dhi(@X[3]));	# X[14..15]
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&ushr_32	($T2,$T0,$sigma0[0]);
+	 eval(shift(@insns));
+	&ushr_32	($T1,$T0,$sigma0[2]);
+	 eval(shift(@insns));
+	&add_32 	(@X[0],@X[0],$T3);	# X[0..3] += X[9..12]
+	 eval(shift(@insns));
+	&sli_32		($T2,$T0,32-$sigma0[0]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&ushr_32	($T3,$T0,$sigma0[1]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&eor_8		($T1,$T1,$T2);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&sli_32		($T3,$T0,32-$sigma0[1]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &ushr_32	($T4,$T7,$sigma1[0]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&eor_8		($T1,$T1,$T3);		# sigma0(X[1..4])
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &sli_32	($T4,$T7,32-$sigma1[0]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &ushr_32	($T5,$T7,$sigma1[2]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &ushr_32	($T3,$T7,$sigma1[1]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&add_32		(@X[0],@X[0],$T1);	# X[0..3] += sigma0(X[1..4])
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &sli_u32	($T3,$T7,32-$sigma1[1]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &eor_8	($T5,$T5,$T4);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &eor_8	($T5,$T5,$T3);		# sigma1(X[14..15])
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&add_32		(@X[0],@X[0],$T5);	# X[0..1] += sigma1(X[14..15])
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &ushr_32	($T6,@X[0],$sigma1[0]);
+	 eval(shift(@insns));
+	  &ushr_32	($T7,@X[0],$sigma1[2]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &sli_32	($T6,@X[0],32-$sigma1[0]);
+	 eval(shift(@insns));
+	  &ushr_32	($T5,@X[0],$sigma1[1]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &eor_8	($T7,$T7,$T6);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	  &sli_32	($T5,@X[0],32-$sigma1[1]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&ld1_32		("{$T0}","[$Ktbl], #16");
+	 eval(shift(@insns));
+	  &eor_8	($T7,$T7,$T5);		# sigma1(X[16..17])
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&eor_8		($T5,$T5,$T5);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&mov		(&Dhi($T5), &Dlo($T7));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&add_32		(@X[0],@X[0],$T5);	# X[2..3] += sigma1(X[16..17])
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&add_32		($T0,$T0,@X[0]);
+	 while($#insns>=1) { eval(shift(@insns)); }
+	&st1_32		("{$T0}","[$Xfer], #16");
+	 eval(shift(@insns));
+
+	push(@X,shift(@X));		# "rotate" X[]
+}
+
+sub Xpreload()
+{ use integer;
+  my $body = shift;
+  my @insns = (&$body,&$body,&$body,&$body);
+  my ($a,$b,$c,$d,$e,$f,$g,$h);
+
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&ld1_8		("{@X[0]}","[$inp],#16");
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&ld1_32		("{$T0}","[$Ktbl],#16");
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&rev32		(@X[0],@X[0]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	&add_32		($T0,$T0,@X[0]);
+	 foreach (@insns) { eval; }	# remaining instructions
+	&st1_32		("{$T0}","[$Xfer], #16");
+
+	push(@X,shift(@X));		# "rotate" X[]
+}
+
+sub body_00_15 () {
+	(
+	'($a,$b,$c,$d,$e,$f,$g,$h)=@V;'.
+	'&add	($h,$h,$t1)',			# h+=X[i]+K[i]
+	'&add	($a,$a,$t4);'.			# h+=Sigma0(a) from the past
+	'&and	($t1,$f,$e)',
+	'&bic	($t4,$g,$e)',
+	'&eor	($t0,$e,$e,"ror#".($Sigma1[1]-$Sigma1[0]))',
+	'&add	($a,$a,$t2)',			# h+=Maj(a,b,c) from the past
+	'&orr	($t1,$t1,$t4)',			# Ch(e,f,g)
+	'&eor	($t0,$t0,$e,"ror#".($Sigma1[2]-$Sigma1[0]))',	# Sigma1(e)
+	'&eor	($t4,$a,$a,"ror#".($Sigma0[1]-$Sigma0[0]))',
+	'&add	($h,$h,$t1)',			# h+=Ch(e,f,g)
+	'&ror	($t0,$t0,"#$Sigma1[0]")',
+	'&eor	($t2,$a,$b)',			# a^b, b^c in next round
+	'&eor	($t4,$t4,$a,"ror#".($Sigma0[2]-$Sigma0[0]))',	# Sigma0(a)
+	'&add	($h,$h,$t0)',			# h+=Sigma1(e)
+	'&ldr	($t1,sprintf "[sp,#%d]",4*(($j+1)&15))	if (($j&15)!=15);'.
+	'&ldr	($t1,"[$Ktbl]")				if ($j==15);'.
+	'&and	($t3,$t3,$t2)',			# (b^c)&=(a^b)
+	'&ror	($t4,$t4,"#$Sigma0[0]")',
+	'&add	($d,$d,$h)',			# d+=h
+	'&eor	($t3,$t3,$b)',			# Maj(a,b,c)
+	'$j++;	unshift(@V,pop(@V)); ($t2,$t3)=($t3,$t2);'
+	)
+}
+
+$code.=<<___;
+#ifdef	__KERNEL__
+.globl	sha256_block_neon
+#endif
+.type	sha256_block_neon,%function
+.align	4
+sha256_block_neon:
+.Lneon_entry:
+	stp	x29, x30, [sp, #-16]!
+	mov	x29, sp
+	sub	sp,sp,#16*4
+
+	adr	$Ktbl,.LK256
+	add	$num,$inp,$num,lsl#6	// len to point at the end of inp
+
+	ld1.8	{@X[0]},[$inp], #16
+	ld1.8	{@X[1]},[$inp], #16
+	ld1.8	{@X[2]},[$inp], #16
+	ld1.8	{@X[3]},[$inp], #16
+	ld1.32	{$T0},[$Ktbl], #16
+	ld1.32	{$T1},[$Ktbl], #16
+	ld1.32	{$T2},[$Ktbl], #16
+	ld1.32	{$T3},[$Ktbl], #16
+	rev32	@X[0],@X[0]		// yes, even on
+	rev32	@X[1],@X[1]		// big-endian
+	rev32	@X[2],@X[2]
+	rev32	@X[3],@X[3]
+	mov	$Xfer,sp
+	add.32	$T0,$T0,@X[0]
+	add.32	$T1,$T1,@X[1]
+	add.32	$T2,$T2,@X[2]
+	st1.32	{$T0-$T1},[$Xfer], #32
+	add.32	$T3,$T3,@X[3]
+	st1.32	{$T2-$T3},[$Xfer]
+	sub	$Xfer,$Xfer,#32
+
+	ldp	$A,$B,[$ctx]
+	ldp	$C,$D,[$ctx,#8]
+	ldp	$E,$F,[$ctx,#16]
+	ldp	$G,$H,[$ctx,#24]
+	ldr	$t1,[sp,#0]
+	mov	$t2,wzr
+	eor	$t3,$B,$C
+	mov	$t4,wzr
+	b	.L_00_48
+
+.align	4
+.L_00_48:
+___
+	&Xupdate(\&body_00_15);
+	&Xupdate(\&body_00_15);
+	&Xupdate(\&body_00_15);
+	&Xupdate(\&body_00_15);
+$code.=<<___;
+	cmp	$t1,#0				// check for K256 terminator
+	ldr	$t1,[sp,#0]
+	sub	$Xfer,$Xfer,#64
+	bne	.L_00_48
+
+	sub	$Ktbl,$Ktbl,#256		// rewind $Ktbl
+	cmp	$inp,$num
+	mov	$Xfer, #64
+	csel	$Xfer, $Xfer, xzr, eq
+	sub	$inp,$inp,$Xfer			// avoid SEGV
+	mov	$Xfer,sp
+___
+	&Xpreload(\&body_00_15);
+	&Xpreload(\&body_00_15);
+	&Xpreload(\&body_00_15);
+	&Xpreload(\&body_00_15);
+$code.=<<___;
+	add	$A,$A,$t4			// h+=Sigma0(a) from the past
+	ldp	$t0,$t1,[$ctx,#0]
+	add	$A,$A,$t2			// h+=Maj(a,b,c) from the past
+	ldp	$t2,$t3,[$ctx,#8]
+	add	$A,$A,$t0			// accumulate
+	add	$B,$B,$t1
+	ldp	$t0,$t1,[$ctx,#16]
+	add	$C,$C,$t2
+	add	$D,$D,$t3
+	ldp	$t2,$t3,[$ctx,#24]
+	add	$E,$E,$t0
+	add	$F,$F,$t1
+	 ldr	$t1,[sp,#0]
+	stp	$A,$B,[$ctx,#0]
+	add	$G,$G,$t2
+	 mov	$t2,wzr
+	stp	$C,$D,[$ctx,#8]
+	add	$H,$H,$t3
+	stp	$E,$F,[$ctx,#16]
+	 eor	$t3,$B,$C
+	stp	$G,$H,[$ctx,#24]
+	 mov	$t4,wzr
+	 mov	$Xfer,sp
+	b.ne	.L_00_48
+
+	ldr	x29,[x29]
+	add	sp,sp,#16*4+16
+	ret
+.size	sha256_block_neon,.-sha256_block_neon
+___
+}
+
+if ($SZ==8) {
+my $Ktbl="x3";
+
+my @H = map("v$_.16b",(0..4));
+my ($fg,$de,$m9_10)=map("v$_.16b",(5..7));
+my @MSG=map("v$_.16b",(16..23));
+my ($W0,$W1)=("v24.2d","v25.2d");
+my ($AB,$CD,$EF,$GH)=map("v$_.16b",(26..29));
+
+$code.=<<___;
+#ifndef	__KERNEL__
+.type	sha512_block_armv8,%function
+.align	6
+sha512_block_armv8:
+.Lv8_entry:
+	stp		x29,x30,[sp,#-16]!
+	add		x29,sp,#0
+
+	ld1		{@MSG[0]-@MSG[3]},[$inp],#64	// load input
+	ld1		{@MSG[4]-@MSG[7]},[$inp],#64
+
+	ld1.64		{@H[0]-@H[3]},[$ctx]		// load context
+	adr		$Ktbl,.LK512
+
+	rev64		@MSG[0],@MSG[0]
+	rev64		@MSG[1],@MSG[1]
+	rev64		@MSG[2],@MSG[2]
+	rev64		@MSG[3],@MSG[3]
+	rev64		@MSG[4],@MSG[4]
+	rev64		@MSG[5],@MSG[5]
+	rev64		@MSG[6],@MSG[6]
+	rev64		@MSG[7],@MSG[7]
+	b		.Loop_hw
+
+.align	4
+.Loop_hw:
+	ld1.64		{$W0},[$Ktbl],#16
+	subs		$num,$num,#1
+	sub		x4,$inp,#128
+	orr		$AB,@H[0],@H[0]			// offload
+	orr		$CD,@H[1],@H[1]
+	orr		$EF,@H[2],@H[2]
+	orr		$GH,@H[3],@H[3]
+	csel		$inp,$inp,x4,ne			// conditional rewind
+___
+for($i=0;$i<32;$i++) {
+$code.=<<___;
+	add.i64		$W0,$W0,@MSG[0]
+	ld1.64		{$W1},[$Ktbl],#16
+	ext		$W0,$W0,$W0,#8
+	ext		$fg,@H[2],@H[3],#8
+	ext		$de,@H[1],@H[2],#8
+	add.i64		@H[3],@H[3],$W0			// "T1 + H + K512[i]"
+	 sha512su0	@MSG[0],@MSG[1]
+	 ext		$m9_10,@MSG[4],@MSG[5],#8
+	sha512h		@H[3],$fg,$de
+	 sha512su1	@MSG[0],@MSG[7],$m9_10
+	add.i64		@H[4],@H[1],@H[3]		// "D + T1"
+	sha512h2	@H[3],$H[1],@H[0]
+___
+	($W0,$W1)=($W1,$W0);	push(@MSG,shift(@MSG));
+	@H = (@H[3],@H[0],@H[4],@H[2],@H[1]);
+}
+for(;$i<40;$i++) {
+$code.=<<___	if ($i<39);
+	ld1.64		{$W1},[$Ktbl],#16
+___
+$code.=<<___	if ($i==39);
+	sub		$Ktbl,$Ktbl,#$rounds*$SZ	// rewind
+___
+$code.=<<___;
+	add.i64		$W0,$W0,@MSG[0]
+	 ld1		{@MSG[0]},[$inp],#16		// load next input
+	ext		$W0,$W0,$W0,#8
+	ext		$fg,@H[2],@H[3],#8
+	ext		$de,@H[1],@H[2],#8
+	add.i64		@H[3],@H[3],$W0			// "T1 + H + K512[i]"
+	sha512h		@H[3],$fg,$de
+	 rev64		@MSG[0],@MSG[0]
+	add.i64		@H[4],@H[1],@H[3]		// "D + T1"
+	sha512h2	@H[3],$H[1],@H[0]
+___
+	($W0,$W1)=($W1,$W0);	push(@MSG,shift(@MSG));
+	@H = (@H[3],@H[0],@H[4],@H[2],@H[1]);
+}
+$code.=<<___;
+	add.i64		@H[0],@H[0],$AB			// accumulate
+	add.i64		@H[1],@H[1],$CD
+	add.i64		@H[2],@H[2],$EF
+	add.i64		@H[3],@H[3],$GH
+
+	cbnz		$num,.Loop_hw
+
+	st1.64		{@H[0]-@H[3]},[$ctx]		// store context
+
+	ldr		x29,[sp],#16
+	ret
+.size	sha512_block_armv8,.-sha512_block_armv8
+#endif
 ___
 }
 
 $code.=<<___;
+#ifndef	__KERNEL__
 .comm	OPENSSL_armcap_P,4,4
+#endif
 ___
 
 {   my  %opcode = (
@@ -431,14 +859,43 @@ ___
     }
 }
 
+{   my  %opcode = (
+	"sha512h"	=> 0xce608000,	"sha512h2"	=> 0xce608400,
+	"sha512su0"	=> 0xcec08000,	"sha512su1"	=> 0xce608800	);
+
+    sub unsha512 {
+	my ($mnemonic,$arg)=@_;
+
+	$arg =~ m/[qv]([0-9]+)[^,]*,\s*[qv]([0-9]+)[^,]*(?:,\s*[qv]([0-9]+))?/o
+	&&
+	sprintf ".inst\t0x%08x\t//%s %s",
+			$opcode{$mnemonic}|$1|($2<<5)|($3<<16),
+			$mnemonic,$arg;
+    }
+}
+
+open SELF,$0;
+while(<SELF>) {
+        next if (/^#!/);
+        last if (!s/^#/\/\// and !/^$/);
+        print;
+}
+close SELF;
+
 foreach(split("\n",$code)) {
 
-	s/\`([^\`]*)\`/eval($1)/geo;
+	s/\`([^\`]*)\`/eval($1)/ge;
 
-	s/\b(sha256\w+)\s+([qv].*)/unsha256($1,$2)/geo;
+	s/\b(sha512\w+)\s+([qv].*)/unsha512($1,$2)/ge	or
+	s/\b(sha256\w+)\s+([qv].*)/unsha256($1,$2)/ge;
 
-	s/\.\w?32\b//o		and s/\.16b/\.4s/go;
-	m/(ld|st)1[^\[]+\[0\]/o	and s/\.4s/\.s/go;
+	s/\bq([0-9]+)\b/v$1.16b/g;		# old->new registers
+
+	s/\.[ui]?8(\s)/$1/;
+	s/\.\w?64\b//		and s/\.16b/\.2d/g	or
+	s/\.\w?32\b//		and s/\.16b/\.4s/g;
+	m/\bext\b/		and s/\.2d/\.16b/g	or
+	m/(ld|st)1[^\[]+\[0\]/	and s/\.4s/\.s/g;
 
 	print $_,"\n";
 }

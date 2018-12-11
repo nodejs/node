@@ -7,7 +7,7 @@
 # https://www.openssl.org/source/license.html
 
 
-## Test CT support
+## Test version negotiation
 
 use strict;
 use warnings;

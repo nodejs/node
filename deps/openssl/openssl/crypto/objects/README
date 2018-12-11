@@ -16,7 +16,7 @@ The basic syntax for adding an object is as follows:
 		create the C macros SN_base, LN_base, NID_base and OBJ_base.
 
 		Note that if the base name contains spaces, dashes or periods,
-		those will be converte to underscore.
+		those will be converted to underscore.
 
 Then there are some extra commands:
 

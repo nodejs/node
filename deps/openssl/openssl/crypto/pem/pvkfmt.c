@@ -444,9 +444,10 @@ static int do_i2b(unsigned char **out, EVP_PKEY *pk, int ispub)
     if (*out)
         p = *out;
     else {
-        p = OPENSSL_malloc(outlen);
-        if (p == NULL)
+        if ((p = OPENSSL_malloc(outlen)) == NULL) {
+            PEMerr(PEM_F_DO_I2B, ERR_R_MALLOC_FAILURE);
             return -1;
+        }
         *out = p;
         noinc = 1;
     }
