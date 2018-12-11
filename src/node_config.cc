@@ -90,11 +90,6 @@ static void Initialize(Local<Object> target,
                     "bits",
                     Number::New(env->isolate(), 8 * sizeof(intptr_t)));
 
-  const std::string& warning_file = env->options()->redirect_warnings;
-  if (!warning_file.empty()) {
-    READONLY_STRING_PROPERTY(target, "warningFile", warning_file);
-  }
-
   Local<Object> debug_options_obj = Object::New(isolate);
   READONLY_PROPERTY(target, "debugOptions", debug_options_obj);
 
