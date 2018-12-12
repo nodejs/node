@@ -271,6 +271,14 @@
               }],
             ],
           }],
+          ['target_arch=="arm64"', {
+            'TargetMachine' : 0, # /MACHINE:ARM64 is inferred from the input files.
+            'target_conditions': [
+              ['_type=="executable"', {
+                'AdditionalOptions': [ '/SubSystem:Console' ],
+              }],
+            ],
+          }],
         ],
         'GenerateDebugInformation': 'true',
         'SuppressStartupBanner': 'true',
@@ -295,6 +303,9 @@
     'conditions': [
       [ 'target_arch=="x64"', {
         'msvs_configuration_platform': 'x64',
+      }],
+      [ 'target_arch=="arm64"', {
+        'msvs_configuration_platform': 'arm64',
       }],
       ['asan == 1 and OS != "mac"', {
         'cflags+': [
