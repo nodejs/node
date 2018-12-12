@@ -1108,10 +1108,10 @@ added: REPLACEME
 
 Node.js uses an internal `KeyObject` class which should not be accessed
 directly. Instead, factory functions exist to create instances of this class
-in a secure manner, see [`crypto.createSecretKey`][],
-[`crypto.createPublicKey`][] and [`crypto.createPrivateKey`][]. A `KeyObject`
-can represent a symmetric or asymmetric key, and each kind of key exposes
-different functions.
+in a secure manner, see [`crypto.createSecretKey()`][],
+[`crypto.createPublicKey()`][] and [`crypto.createPrivateKey()`][]. A
+`KeyObject` can represent a symmetric or asymmetric key, and each kind of key
+exposes different functions.
 
 Most applications should consider using the new `KeyObject` API instead of
 passing keys as strings or `Buffer`s due to improved security features.
@@ -3085,6 +3085,9 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`crypto.createECDH()`]: #crypto_crypto_createecdh_curvename
 [`crypto.createHash()`]: #crypto_crypto_createhash_algorithm_options
 [`crypto.createHmac()`]: #crypto_crypto_createhmac_algorithm_key_options
+[`crypto.createPrivateKey()`]: #crypto_crypto_createprivatekey_key
+[`crypto.createPublicKey()`]: #crypto_crypto_createpublickey_key
+[`crypto.createSecretKey()`]: #crypto_crypto_createsecretkey_key
 [`crypto.createSign()`]: #crypto_crypto_createsign_algorithm_options
 [`crypto.createVerify()`]: #crypto_crypto_createverify_algorithm_options
 [`crypto.getCurves()`]: #crypto_crypto_getcurves
