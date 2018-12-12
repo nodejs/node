@@ -141,12 +141,13 @@ class Scavenger {
 
   // Potentially scavenges an object referenced from |slot| if it is
   // indeed a HeapObject and resides in from space.
-  inline SlotCallbackResult CheckAndScavengeObject(Heap* heap,
-                                                   MaybeObjectSlot slot);
+  template <typename TSlot>
+  inline SlotCallbackResult CheckAndScavengeObject(Heap* heap, TSlot slot);
 
   // Scavenges an object |object| referenced from slot |p|. |object| is required
   // to be in from space.
-  inline SlotCallbackResult ScavengeObject(HeapObjectSlot p,
+  template <typename THeapObjectSlot>
+  inline SlotCallbackResult ScavengeObject(THeapObjectSlot p,
                                            HeapObject* object);
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
@@ -156,34 +157,40 @@ class Scavenger {
   V8_INLINE SlotCallbackResult
   RememberedSetEntryNeeded(CopyAndForwardResult result);
 
+  template <typename THeapObjectSlot>
   V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(Map map,
-                                                     HeapObjectSlot slot,
+                                                     THeapObjectSlot slot,
                                                      HeapObject* object,
                                                      int object_size);
 
-  V8_INLINE CopyAndForwardResult PromoteObject(Map map, HeapObjectSlot slot,
+  template <typename THeapObjectSlot>
+  V8_INLINE CopyAndForwardResult PromoteObject(Map map, THeapObjectSlot slot,
                                                HeapObject* object,
                                                int object_size);
 
-  V8_INLINE SlotCallbackResult EvacuateObject(HeapObjectSlot slot, Map map,
+  template <typename THeapObjectSlot>
+  V8_INLINE SlotCallbackResult EvacuateObject(THeapObjectSlot slot, Map map,
                                               HeapObject* source);
 
   V8_INLINE bool HandleLargeObject(Map map, HeapObject* object,
                                    int object_size);
 
   // Different cases for object evacuation.
+  template <typename THeapObjectSlot>
   V8_INLINE SlotCallbackResult EvacuateObjectDefault(Map map,
-                                                     HeapObjectSlot slot,
+                                                     THeapObjectSlot slot,
                                                      HeapObject* object,
                                                      int object_size);
 
-  inline SlotCallbackResult EvacuateThinString(Map map, HeapObjectSlot slot,
-                                               ThinString* object,
+  template <typename THeapObjectSlot>
+  inline SlotCallbackResult EvacuateThinString(Map map, THeapObjectSlot slot,
+                                               ThinString object,
                                                int object_size);
 
+  template <typename THeapObjectSlot>
   inline SlotCallbackResult EvacuateShortcutCandidate(Map map,
-                                                      HeapObjectSlot slot,
-                                                      ConsString* object,
+                                                      THeapObjectSlot slot,
+                                                      ConsString object,
                                                       int object_size);
 
   void IterateAndScavengePromotedObject(HeapObject* target, Map map, int size);
@@ -214,12 +221,13 @@ class RootScavengeVisitor final : public RootVisitor {
  public:
   explicit RootScavengeVisitor(Scavenger* scavenger);
 
-  void VisitRootPointer(Root root, const char* description, ObjectSlot p) final;
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) final;
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) final;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final;
 
  private:
-  void ScavengePointer(ObjectSlot p);
+  void ScavengePointer(FullObjectSlot p);
 
   Scavenger* const scavenger_;
 };
@@ -230,10 +238,20 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 
   V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
                                ObjectSlot end) final;
+
   V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final;
 
+  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
+
  private:
+  template <typename TSlot>
+  V8_INLINE void VisitHeapObjectImpl(TSlot slot, HeapObject* heap_object);
+
+  template <typename TSlot>
+  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end);
+
   Scavenger* const scavenger_;
 };
 

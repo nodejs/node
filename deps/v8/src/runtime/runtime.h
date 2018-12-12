@@ -198,10 +198,8 @@ namespace internal {
 
 #ifdef V8_INTL_SUPPORT
 #define FOR_EACH_INTRINSIC_INTL(F, I) \
-  F(CanonicalizeLanguageTag, 1, 1)    \
   F(FormatList, 2, 1)                 \
   F(FormatListToParts, 2, 1)          \
-  F(GetDefaultICULocale, 0, 1)        \
   F(StringToLowerCaseIntl, 1, 1)      \
   F(StringToUpperCaseIntl, 1, 1)  // End of macro.
 #else
@@ -231,7 +229,7 @@ namespace internal {
   F(ReportMessage, 1, 1)                           \
   F(ReThrow, 1, 1)                                 \
   F(RunMicrotaskCallback, 2, 1)                    \
-  F(RunMicrotasks, 0, 1)                           \
+  F(PerformMicrotaskCheckpoint, 0, 1)              \
   F(StackGuard, 0, 1)                              \
   F(Throw, 1, 1)                                   \
   F(ThrowApplyNonFunction, 1, 1)                   \
@@ -492,6 +490,7 @@ namespace internal {
   F(IsLiftoffFunction, 1, 1)                  \
   F(IsWasmCode, 1, 1)                         \
   F(IsWasmTrapHandlerEnabled, 0, 1)           \
+  F(IsThreadInWasm, 0, 1)                     \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
@@ -519,8 +518,8 @@ namespace internal {
   F(SetWasmThreadsEnabled, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I) \
-  F(ArrayBufferNeuter, 1, 1)                \
-  F(ArrayBufferViewWasNeutered, 1, 1)       \
+  F(ArrayBufferDetach, 1, 1)                \
+  F(ArrayBufferViewWasDetached, 1, 1)       \
   I(IsTypedArray, 1, 1)                     \
   F(TypedArrayCopyElements, 3, 1)           \
   F(TypedArrayGetBuffer, 1, 1)              \
@@ -532,6 +531,7 @@ namespace internal {
   F(ThrowWasmError, 1, 1)             \
   F(ThrowWasmStackOverflow, 0, 1)     \
   F(WasmI32AtomicWait, 4, 1)          \
+  F(WasmI64AtomicWait, 5, 1)          \
   F(WasmAtomicWake, 3, 1)             \
   F(WasmExceptionGetValues, 1, 1)     \
   F(WasmExceptionGetTag, 1, 1)        \

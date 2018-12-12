@@ -3,8 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/objects/debug-objects.h"
+
 #include "src/debug/debug-evaluate.h"
+#include "src/handles-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -298,7 +301,7 @@ bool BreakPointInfo::HasBreakPoint(Isolate* isolate,
                    *break_point);
   }
   // Multiple break points.
-  FixedArray* array = FixedArray::cast(break_point_info->break_points());
+  FixedArray array = FixedArray::cast(break_point_info->break_points());
   for (int i = 0; i < array->length(); i++) {
     if (IsEqual(BreakPoint::cast(array->get(i)), *break_point)) {
       return true;

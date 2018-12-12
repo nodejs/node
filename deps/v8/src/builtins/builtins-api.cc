@@ -21,27 +21,27 @@ namespace {
 // Returns the holder JSObject if the function can legally be called with this
 // receiver.  Returns nullptr if the call is illegal.
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
-JSReceiver* GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo* info,
-                                  JSReceiver* receiver) {
+JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo* info,
+                                 JSReceiver receiver) {
   Object* recv_type = info->signature();
   // No signature, return holder.
   if (!recv_type->IsFunctionTemplateInfo()) return receiver;
   // A Proxy cannot have been created from the signature template.
-  if (!receiver->IsJSObject()) return nullptr;
+  if (!receiver->IsJSObject()) return JSReceiver();
 
-  JSObject* js_obj_receiver = JSObject::cast(receiver);
+  JSObject js_obj_receiver = JSObject::cast(receiver);
   FunctionTemplateInfo* signature = FunctionTemplateInfo::cast(recv_type);
 
   // Check the receiver. Fast path for receivers with no hidden prototypes.
   if (signature->IsTemplateFor(js_obj_receiver)) return receiver;
-  if (!js_obj_receiver->map()->has_hidden_prototype()) return nullptr;
+  if (!js_obj_receiver->map()->has_hidden_prototype()) return JSReceiver();
   for (PrototypeIterator iter(isolate, js_obj_receiver, kStartAtPrototype,
                               PrototypeIterator::END_AT_NON_HIDDEN);
        !iter.IsAtEnd(); iter.Advance()) {
-    JSObject* current = iter.GetCurrent<JSObject>();
+    JSObject current = iter.GetCurrent<JSObject>();
     if (signature->IsTemplateFor(current)) return current;
   }
-  return nullptr;
+  return JSReceiver();
 }
 
 template <bool is_construct>
@@ -50,17 +50,18 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Handle<HeapObject> new_target, Handle<FunctionTemplateInfo> fun_data,
     Handle<Object> receiver, BuiltinArguments args) {
   Handle<JSReceiver> js_receiver;
-  JSReceiver* raw_holder;
+  JSReceiver raw_holder;
   if (is_construct) {
     DCHECK(args.receiver()->IsTheHole(isolate));
-    if (fun_data->instance_template()->IsUndefined(isolate)) {
+    if (fun_data->GetInstanceTemplate()->IsUndefined(isolate)) {
       v8::Local<ObjectTemplate> templ =
           ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate),
                               ToApiHandle<v8::FunctionTemplate>(fun_data));
-      fun_data->set_instance_template(*Utils::OpenHandle(*templ));
+      FunctionTemplateInfo::SetInstanceTemplate(isolate, fun_data,
+                                                Utils::OpenHandle(*templ));
     }
     Handle<ObjectTemplateInfo> instance_template(
-        ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
+        ObjectTemplateInfo::cast(fun_data->GetInstanceTemplate()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
         ApiNatives::InstantiateObject(isolate, instance_template,
@@ -89,7 +90,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
     raw_holder = GetCompatibleReceiver(isolate, *fun_data, *js_receiver);
 
-    if (raw_holder == nullptr) {
+    if (raw_holder.is_null()) {
       // This function cannot be called with the given receiver.  Abort!
       THROW_NEW_ERROR(
           isolate, NewTypeError(MessageTemplate::kIllegalInvocation), Object);
@@ -166,6 +167,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
                                                 Handle<Object> receiver,
                                                 int argc, Handle<Object> args[],
                                                 Handle<HeapObject> new_target) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kInvokeApiFunction);
   DCHECK(function->IsFunctionTemplateInfo() ||
          (function->IsJSFunction() &&
           JSFunction::cast(*function)->shared()->IsApiFunction()));
@@ -249,7 +252,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   Handle<Object> receiver = args.receiver();
 
   // Get the object called.
-  JSObject* obj = JSObject::cast(*receiver);
+  JSObject obj = JSObject::cast(*receiver);
 
   // Set the new target.
   HeapObject* new_target;
@@ -266,11 +269,10 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
   DCHECK(obj->map()->is_callable());
-  JSFunction* constructor = JSFunction::cast(obj->map()->GetConstructor());
-  // TODO(ishell): turn this back to a DCHECK.
-  CHECK(constructor->shared()->IsApiFunction());
+  JSFunction constructor = JSFunction::cast(obj->map()->GetConstructor());
+  DCHECK(constructor->shared()->IsApiFunction());
   Object* handler =
-      constructor->shared()->get_api_func_data()->instance_call_handler();
+      constructor->shared()->get_api_func_data()->GetInstanceCallHandler();
   DCHECK(!handler->IsUndefined(isolate));
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);
 

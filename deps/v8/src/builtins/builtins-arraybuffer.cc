@@ -23,7 +23,7 @@ namespace internal {
   }
 
 // -----------------------------------------------------------------------------
-// ES6 section 21.1 ArrayBuffer Objects
+// ES#sec-arraybuffer-objects
 
 namespace {
 
@@ -37,6 +37,7 @@ Object* ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
   size_t byte_length;
   if (!TryNumberToSize(*length, &byte_length) ||
       byte_length > JSArrayBuffer::kMaxByteLength) {
+    JSArrayBuffer::SetupAsEmpty(Handle<JSArrayBuffer>::cast(result), isolate);
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
@@ -136,7 +137,7 @@ static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
   CHECK_SHARED(is_shared, array_buffer, kMethodName);
 
   // * [AB] If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  if (!is_shared && array_buffer->was_neutered()) {
+  if (!is_shared && array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -222,7 +223,7 @@ static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
   CHECK_SHARED(is_shared, new_array_buffer, kMethodName);
 
   // * [AB] If IsDetachedBuffer(new) is true, throw a TypeError exception.
-  if (!is_shared && new_array_buffer->was_neutered()) {
+  if (!is_shared && new_array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -253,7 +254,7 @@ static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * [AB] NOTE: Side-effects of the above steps may have detached O.
   // * [AB] If IsDetachedBuffer(O) is true, throw a TypeError exception.
-  if (!is_shared && array_buffer->was_neutered()) {
+  if (!is_shared && array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(

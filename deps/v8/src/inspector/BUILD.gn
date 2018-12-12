@@ -137,3 +137,12 @@ v8_source_set("inspector") {
     "wasm-translation.h",
   ]
 }
+
+#Target to generate all .cc files.
+group("v8_generated_cc_files") {
+  testonly = true
+
+  deps = [
+    ":protocol_generated_sources",
+  ]
+}

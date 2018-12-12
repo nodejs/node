@@ -33,7 +33,6 @@
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/frame-constants.h"
 #include "src/register-configuration.h"
 #include "src/string-constants.h"
@@ -590,15 +589,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         Handle<HeapObject> object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         set_target_address_at(pc, 0 /* unused */, object.address());
-        break;
-      }
-      case HeapObjectRequest::kCodeStub: {
-        request.code_stub()->set_isolate(isolate);
-        Instruction* instr = reinterpret_cast<Instruction*>(pc);
-        DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-        DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
-        UpdateCodeTarget(instr->ImmPCOffset() >> kInstrSizeLog2,
-                         request.code_stub()->GetCode());
         break;
       }
       case HeapObjectRequest::kStringConstant: {
@@ -1713,13 +1703,6 @@ Operand Operand::EmbeddedNumber(double number) {
   }
   Operand result(0, RelocInfo::EMBEDDED_OBJECT);
   result.heap_object_request_.emplace(number);
-  DCHECK(result.IsHeapObjectRequest());
-  return result;
-}
-
-Operand Operand::EmbeddedCode(CodeStub* stub) {
-  Operand result(0, RelocInfo::CODE_TARGET);
-  result.heap_object_request_.emplace(stub);
   DCHECK(result.IsHeapObjectRequest());
   return result;
 }

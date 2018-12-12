@@ -116,6 +116,12 @@ struct MaybeBoolFlag {
 #define DEBUG_BOOL false
 #endif
 
+#ifdef V8_COMPRESS_POINTERS
+#define COMPRESS_POINTERS_BOOL true
+#else
+#define COMPRESS_POINTERS_BOOL false
+#endif
+
 // Supported ARM configurations are:
 //  "armv6":       ARMv6 + VFPv2
 //  "armv7":       ARMv7 + VFPv3-D32 + NEON
@@ -213,7 +219,8 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
 #define HARMONY_STAGED_BASE(V)                                             \
   V(harmony_private_fields, "harmony private fields in class literals")    \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")          \
+  V(harmony_object_from_entries, "harmony Object.fromEntries()")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                        \
@@ -274,6 +281,12 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #endif
 
+#ifdef V8_LITE_MODE
+#define V8_LITE_BOOL true
+#else
+#define V8_LITE_BOOL false
+#endif
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else
@@ -322,11 +335,6 @@ DEFINE_BOOL(enable_one_shot_optimization, true,
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
-
-// Flag to stress different interleavings of tasks.
-DEFINE_BOOL(
-    stress_delay_tasks, false,
-    "delay execution of tasks by 0-100ms randomly (based on --random-seed)")
 
 // Flags for Ignition for no-snapshot builds.
 #undef FLAG
@@ -612,6 +620,8 @@ DEFINE_BOOL(wasm_no_bounds_checks, false,
             "disable bounds checks (performance testing only)")
 DEFINE_BOOL(wasm_no_stack_checks, false,
             "disable stack checks (performance testing only)")
+DEFINE_BOOL(wasm_math_intrinsics, true,
+            "intrinsify some Math imports into wasm")
 
 DEFINE_BOOL(wasm_shared_engine, true,
             "shares one wasm engine between all isolates within a process")
@@ -699,7 +709,7 @@ DEFINE_BOOL(incremental_marking_wrappers, true,
 DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_ARM)
 #define V8_WRITE_PROTECT_CODE_MEMORY_BOOL false
 #else
 #define V8_WRITE_PROTECT_CODE_MEMORY_BOOL true
@@ -767,6 +777,10 @@ DEFINE_BOOL(always_compact, false, "Perform compaction on every full GC")
 DEFINE_BOOL(never_compact, false,
             "Never perform compaction on full GC - testing only")
 DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
+DEFINE_BOOL(flush_bytecode, V8_LITE_BOOL,
+            "flush of bytecode when it has not been executed recently")
+DEFINE_BOOL(stress_flush_bytecode, false, "stress bytecode flushing")
+DEFINE_IMPLICATION(stress_flush_bytecode, flush_bytecode)
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
@@ -877,6 +891,9 @@ DEFINE_BOOL(expose_async_hooks, false, "expose async_hooks object")
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")
 DEFINE_BOOL(force_slow_path, false, "always take the slow path for builtins")
+DEFINE_BOOL(test_small_max_function_context_stub_size, false,
+            "enable testing the function context size overflow path "
+            "by making the maximum size smaller")
 
 // builtins-ia32.cc
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
@@ -1142,10 +1159,8 @@ DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
 #undef FLAG
 #ifdef V8_LITE_MODE
 #define FLAG FLAG_READONLY
-#define V8_LITE_BOOL true
 #else
 #define FLAG FLAG_FULL
-#define V8_LITE_BOOL false
 #endif
 
 // Enable recompilation of function with optimized code.
@@ -1349,18 +1364,6 @@ DEFINE_BOOL(trace_elements_transitions, false, "trace elements transitions")
 DEFINE_BOOL(trace_creation_allocation_sites, false,
             "trace the creation of allocation sites")
 
-// code-stubs.cc
-DEFINE_BOOL(print_code_stubs, false, "print code stubs")
-DEFINE_BOOL(test_secondary_stub_cache, false,
-            "test secondary stub cache by disabling the primary one")
-
-DEFINE_BOOL(test_primary_stub_cache, false,
-            "test primary stub cache by disabling the secondary one")
-
-DEFINE_BOOL(test_small_max_function_context_stub_size, false,
-            "enable testing the function context size overflow path "
-            "by making the maximum size smaller")
-
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(print_code, false, "print generated code")
 DEFINE_BOOL(print_opt_code, false, "print optimized code")
@@ -1376,7 +1379,6 @@ DEFINE_BOOL(sodium, false,
             "print generated code output suitable for use with "
             "the Sodium code viewer")
 
-DEFINE_IMPLICATION(sodium, print_code_stubs)
 DEFINE_IMPLICATION(sodium, print_code)
 DEFINE_IMPLICATION(sodium, print_opt_code)
 DEFINE_IMPLICATION(sodium, code_comments)
@@ -1386,7 +1388,6 @@ DEFINE_IMPLICATION(print_all_code, print_code)
 DEFINE_IMPLICATION(print_all_code, print_opt_code)
 DEFINE_IMPLICATION(print_all_code, print_code_verbose)
 DEFINE_IMPLICATION(print_all_code, print_builtin_code)
-DEFINE_IMPLICATION(print_all_code, print_code_stubs)
 DEFINE_IMPLICATION(print_all_code, code_comments)
 #endif
 

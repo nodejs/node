@@ -10,13 +10,11 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
-#include "src/heap/heap-inl.h"
 #include "src/macro-assembler-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -36,17 +34,7 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 CPURegList TurboAssembler::DefaultTmpList() { return CPURegList(ip0, ip1); }
 
@@ -401,6 +389,10 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
     DCHECK(rd.IsSP());
     Assembler::mov(rd, dst);
   }
+}
+
+void TurboAssembler::Mov(const Register& rd, Smi smi) {
+  return Mov(rd, Operand(smi));
 }
 
 void TurboAssembler::Movi16bitHelper(const VRegister& vd, uint64_t imm) {
@@ -1712,32 +1704,6 @@ void TurboAssembler::AssertPositiveOrZero(Register value) {
   }
 }
 
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-  } else {
-    BlockPoolsScope scope(this);
-#ifdef DEBUG
-    Label start;
-    Bind(&start);
-#endif
-    Operand operand = Operand::EmbeddedCode(stub);
-    near_call(operand.heap_object_request());
-    DCHECK_EQ(kNearCallSize, SizeOfCodeGeneratedSince(&start));
-  }
-}
-
-void MacroAssembler::CallStub(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
 void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
                                            Register centry) {
   const Runtime::Function* f = Runtime::FunctionForId(fid);
@@ -1845,9 +1811,37 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
     DCHECK_LE(num_of_double_args + num_of_reg_args, 2);
   }
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Register scratch1 = x4;
+    Register scratch2 = x5;
+    Push(scratch1, scratch2);
+
+    Label get_pc;
+    Bind(&get_pc);
+    Adr(scratch2, &get_pc);
+
+    Mov(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    Str(scratch2, MemOperand(scratch1));
+    Mov(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    Str(fp, MemOperand(scratch1));
+
+    Pop(scratch2, scratch1);
+  }
+
   // Call directly. The function called cannot cause a GC, or allow preemption,
   // so the return address in the link register stays correct.
   Call(function);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register scratch = x4;
+    Push(scratch, xzr);
+    Mov(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    Str(xzr, MemOperand(scratch));
+    Pop(xzr, scratch);
+  }
 
   if (num_of_reg_args > kRegisterPassedArguments) {
     // Drop the register passed arguments.
@@ -2035,6 +2029,34 @@ void TurboAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  UseScratchRegisterScope temps(this);
+  Register scratch1 = temps.AcquireX();
+
+  Label return_location;
+  Adr(scratch1, &return_location);
+  Poke(scratch1, 0);
+
+  if (emit_debug_code()) {
+    // Verify that the slot below fp[kSPOffset]-8 points to the return location.
+    Register scratch2 = temps.AcquireX();
+    Ldr(scratch2, MemOperand(fp, ExitFrameConstants::kSPOffset));
+    Ldr(scratch2, MemOperand(scratch2, -static_cast<int64_t>(kXRegSize)));
+    Cmp(scratch2, scratch1);
+    Check(eq, AbortReason::kReturnAddressNotFoundInFrame);
+  }
+
+  Blr(target);
+  Bind(&return_location);
+}
+
 void TurboAssembler::IndirectCall(Address target, RelocInfo::Mode rmode) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
@@ -2069,8 +2091,6 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
   offset = offset / static_cast<int>(kInstrSize);
   DCHECK(IsNearCallOffset(offset));
   near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
-
-  DCHECK_EQ(kNearCallSize + kInstrSize, SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::TryRepresentDoubleAsInt(Register as_int, VRegister value,
@@ -2713,10 +2733,6 @@ void MacroAssembler::TestAndSplit(const Register& reg,
     TestAndBranchIfAnySet(reg, bit_pattern, if_any_set);
     B(if_all_clear);
   }
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
 void MacroAssembler::PopSafepointRegisters() {

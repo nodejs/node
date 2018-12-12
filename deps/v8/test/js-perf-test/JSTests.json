@@ -745,6 +745,42 @@
           "test_flags": ["construct-all-typedarrays"]
         },
         {
+          "name": "JoinBigIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-bigint.js"],
+          "test_flags": ["join-bigint"]
+        },
+        {
+          "name": "JoinFloatTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-float.js"],
+          "test_flags": ["join-float"]
+        },
+        {
+          "name": "JoinIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-int.js"],
+          "test_flags": ["join-int"]
+        },
+        {
+          "name": "JoinWithSeparatorBigIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-sep-bigint.js"],
+          "test_flags": ["join-sep-bigint"]
+        },
+        {
+          "name": "JoinWithSeparatorFloatTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-sep-float.js"],
+          "test_flags": ["join-sep-float"]
+        },
+        {
+          "name": "JoinWithSeparatorIntTypes",
+          "main": "run.js",
+          "resources": ["base.js", "join.js", "join-sep-int.js"],
+          "test_flags": ["join-sep-int"]
+        },
+        {
           "name": "SetFromArrayLike",
           "main": "run.js",
           "resources": ["set-from-arraylike.js"],
@@ -771,37 +807,37 @@
         {
           "name": "SortIntTypes",
           "main": "run.js",
-          "resources": ["sort.js", "sort-int.js"],
+          "resources": ["base.js", "sort.js", "sort-int.js"],
           "test_flags": ["sort-int"]
         },
         {
           "name": "SortBigIntTypes",
           "main": "run.js",
-          "resources": ["sort.js", "sort-bigint.js"],
+          "resources": ["base.js", "sort.js", "sort-bigint.js"],
           "test_flags": ["sort-bigint"]
         },
         {
           "name": "SortFloatTypes",
           "main": "run.js",
-          "resources": ["sort.js", "sort-float.js"],
+          "resources": ["base.js", "sort.js", "sort-float.js"],
           "test_flags": ["sort-float"]
         },
         {
           "name": "SortCustomCompareFnIntTypes",
           "main": "run.js",
-          "resources": ["sort.js", "sort-cmpfn-int.js"],
+          "resources": ["base.js", "sort.js", "sort-cmpfn-int.js"],
           "test_flags": ["sort-cmpfn-int"]
         },
         {
           "name": "SortCustomCompareFnBigIntTypes",
           "main": "run.js",
-          "resources": ["sort.js", "sort-cmpfn-bigint.js"],
+          "resources": ["base.js", "sort.js", "sort-cmpfn-bigint.js"],
           "test_flags": ["sort-cmpfn-bigint"]
         },
         {
           "name": "SortCustomCompareFnFloatTypes",
           "main": "run.js",
-          "resources": ["sort.js", "sort-cmpfn-float.js"],
+          "resources": ["base.js", "sort.js", "sort-cmpfn-float.js"],
           "test_flags": ["sort-cmpfn-float"]
         },
         {

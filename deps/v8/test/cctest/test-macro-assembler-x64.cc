@@ -1114,6 +1114,22 @@ TEST(SIMDMacros) {
   CHECK_EQ(0, result);
 }
 
+TEST(AreAliased) {
+  DCHECK(!AreAliased(rax));
+  DCHECK(!AreAliased(rax, no_reg));
+  DCHECK(!AreAliased(no_reg, rax, no_reg));
+
+  DCHECK(AreAliased(rax, rax));
+  DCHECK(!AreAliased(no_reg, no_reg));
+
+  DCHECK(!AreAliased(rax, rbx, rcx, rdx, no_reg));
+  DCHECK(AreAliased(rax, rbx, rcx, rdx, rax, no_reg));
+
+  // no_regs are allowed in
+  DCHECK(!AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, no_reg));
+  DCHECK(AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, rax, no_reg));
+}
+
 #undef __
 
 }  // namespace test_macro_assembler_x64

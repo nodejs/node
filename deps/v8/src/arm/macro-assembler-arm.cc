@@ -13,7 +13,6 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/double.h"
@@ -39,17 +38,7 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
@@ -300,6 +289,23 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   }
   // 'code' is always generated ARM code, never THUMB code
   Call(code.address(), rmode, cond, mode);
+}
+
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  // Compute the return address in lr to return to after the jump below. The pc
+  // is already at '+ 8' from the current instruction; but return is after three
+  // instructions, so add another 4 to pc to get the return address.
+  Assembler::BlockConstPoolScope block_const_pool(this);
+  add(lr, pc, Operand(4));
+  str(lr, MemOperand(sp));
+  Call(target);
 }
 
 void TurboAssembler::Ret(Condition cond) { bx(lr, cond); }
@@ -1626,8 +1632,8 @@ void MacroAssembler::PushStackHandler() {
 
   Push(Smi::zero());  // Padding.
   // Link the current handler as the next handler.
-  mov(r6, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                            isolate())));
+  Move(r6,
+       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
   ldr(r5, MemOperand(r6));
   push(r5);
   // Set this new handler as the current one.
@@ -1640,8 +1646,8 @@ void MacroAssembler::PopStackHandler() {
   Register scratch = temps.Acquire();
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r1);
-  mov(scratch, Operand(ExternalReference::Create(
-                   IsolateAddressId::kHandlerAddress, isolate())));
+  Move(scratch,
+       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
   str(r1, MemOperand(scratch));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
 }
@@ -1672,54 +1678,6 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   DCHECK(obj != scratch);
   LoadRoot(scratch, index);
   cmp(obj, scratch);
-}
-
-void MacroAssembler::CallStub(CodeStub* stub,
-                              Condition cond) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, CAN_INLINE_TARGET_ADDRESS,
-       false);
-}
-
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET, al, CAN_INLINE_TARGET_ADDRESS,
-         false);
-  } else {
-    // Block constant pool for the call instruction sequence.
-    BlockConstPoolScope block_const_pool(this);
-
-#ifdef DEBUG
-    Label start;
-    bind(&start);
-#endif
-
-    // Call sequence on V7 or later may be :
-    //  movw  ip, #... @ call address low 16
-    //  movt  ip, #... @ call address high 16
-    //  blx   ip
-    //                      @ return address
-    // Or for pre-V7 or values that may be back-patched
-    // to avoid ICache flushes:
-    //  ldr   ip, [pc, #...] @ call address
-    //  blx   ip
-    //                      @ return address
-
-    mov(ip, Operand::EmbeddedCode(stub));
-    blx(ip, al);
-
-    DCHECK_EQ(kCallStubSize, SizeOfCodeGeneratedSince(&start));
-  }
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
@@ -1882,6 +1840,10 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 void TurboAssembler::Assert(Condition cond, AbortReason reason) {
   if (emit_debug_code())
     Check(cond, reason);
+}
+
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (emit_debug_code()) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason) {
@@ -2373,10 +2335,37 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   }
 #endif
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Register scratch = r4;
+    Push(scratch);
+
+    Move(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    str(pc, MemOperand(scratch));
+    Move(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    str(fp, MemOperand(scratch));
+    Pop(scratch);
+  }
+
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
   Call(function);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register scratch1 = r4;
+    Register scratch2 = r5;
+    Push(scratch1);
+    Push(scratch2);
+    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    mov(scratch2, Operand::Zero());
+    str(scratch2, MemOperand(scratch1));
+    Pop(scratch2);
+    Pop(scratch1);
+  }
+
   int stack_passed_arguments = CalculateStackPassedWords(
       num_reg_arguments, num_double_arguments);
   if (ActivationFrameAlignment() > kPointerSize) {

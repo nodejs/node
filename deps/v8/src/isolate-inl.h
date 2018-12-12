@@ -5,6 +5,7 @@
 #ifndef V8_ISOLATE_INL_H_
 #define V8_ISOLATE_INL_H_
 
+#include "src/heap/heap-inl.h"  // Need MemoryChunk from heap/spaces.h
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/regexp-match-info.h"
@@ -26,8 +27,8 @@ bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
   return true;
 }
 
-void Isolate::set_context(Context* context) {
-  DCHECK(context == nullptr || context->IsContext());
+void Isolate::set_context(Context context) {
+  DCHECK(context.is_null() || context->IsContext());
   thread_local_top_.context_ = context;
 }
 
@@ -35,7 +36,7 @@ Handle<NativeContext> Isolate::native_context() {
   return handle(context()->native_context(), this);
 }
 
-NativeContext* Isolate::raw_native_context() {
+NativeContext Isolate::raw_native_context() {
   return context()->native_context();
 }
 
@@ -180,9 +181,9 @@ bool Isolate::IsStringLengthOverflowIntact() {
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsArrayBufferNeuteringIntact() {
-  PropertyCell* buffer_neutering = heap()->array_buffer_neutering_protector();
-  return buffer_neutering->value() == Smi::FromInt(kProtectorValid);
+bool Isolate::IsArrayBufferDetachingIntact() {
+  PropertyCell* buffer_detaching = heap()->array_buffer_detaching_protector();
+  return buffer_detaching->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayIteratorLookupChainIntact() {

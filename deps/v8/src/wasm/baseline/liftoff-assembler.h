@@ -338,8 +338,12 @@ class LiftoffAssembler : public TurboAssembler {
   };
   void ParallelRegisterMove(Vector<ParallelRegisterMoveTuple>);
 
+  void MoveToReturnRegisters(FunctionSig*);
+
+#ifdef ENABLE_SLOW_DCHECKS
   // Validate that the register use counts reflect the state of the cache.
   bool ValidateCacheState() const;
+#endif
 
   ////////////////////////////////////
   // Platform-specific part.        //
@@ -495,10 +499,10 @@ class LiftoffAssembler : public TurboAssembler {
   // f32 unops.
   inline void emit_f32_abs(DoubleRegister dst, DoubleRegister src);
   inline void emit_f32_neg(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_ceil(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_floor(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_trunc(DoubleRegister dst, DoubleRegister src);
-  inline void emit_f32_nearest_int(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_ceil(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_floor(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_trunc(DoubleRegister dst, DoubleRegister src);
+  inline bool emit_f32_nearest_int(DoubleRegister dst, DoubleRegister src);
   inline void emit_f32_sqrt(DoubleRegister dst, DoubleRegister src);
 
   // f64 binops.

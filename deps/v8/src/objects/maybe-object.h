@@ -158,7 +158,8 @@ class HeapObjectReference : public MaybeObject {
 
   V8_INLINE static HeapObjectReference ClearedValue(Isolate* isolate);
 
-  V8_INLINE static void Update(HeapObjectSlot slot, HeapObject* value);
+  template <typename THeapObjectSlot>
+  V8_INLINE static void Update(THeapObjectSlot slot, HeapObject* value);
 };
 
 }  // namespace internal

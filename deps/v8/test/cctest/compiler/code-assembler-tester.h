@@ -46,7 +46,7 @@ class CodeAssemblerTester {
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
         state_(isolate, &zone_, call_descriptor, Code::STUB, name,
-               PoisoningMitigationLevel::kDontPoison, 0, -1) {}
+               PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
 
   CodeAssemblerState* state() { return &state_; }
 

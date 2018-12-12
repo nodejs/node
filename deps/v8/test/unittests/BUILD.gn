@@ -54,7 +54,6 @@ v8_source_set("unittests_sources") {
     "api/v8-object-unittest.cc",
     "asmjs/asm-scanner-unittest.cc",
     "asmjs/asm-types-unittest.cc",
-    "asmjs/switch-logic-unittest.cc",
     "background-compile-task-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
@@ -184,8 +183,8 @@ v8_source_set("unittests_sources") {
     "libplatform/task-queue-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
     "locked-queue-unittest.cc",
+    "microtask-queue-unittest.cc",
     "object-unittest.cc",
-    "objects/microtask-queue-unittest.cc",
     "parser/ast-value-unittest.cc",
     "parser/preparser-unittest.cc",
     "register-configuration-unittest.cc",
@@ -209,9 +208,11 @@ v8_source_set("unittests_sources") {
     "wasm/module-decoder-unittest.cc",
     "wasm/streaming-decoder-unittest.cc",
     "wasm/wasm-code-manager-unittest.cc",
+    "wasm/wasm-compiler-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",
+    "zone/segmentpool-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
@@ -255,6 +256,7 @@ v8_source_set("unittests_sources") {
     sources += [
       "assembler/turbo-assembler-x64-unittest.cc",
       "compiler/x64/instruction-selector-x64-unittest.cc",
+      "wasm/trap-handler-x64-unittest.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [

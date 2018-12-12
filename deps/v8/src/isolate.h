@@ -20,7 +20,6 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts.h"
-#include "src/date.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution.h"
 #include "src/futex-emulation.h"
@@ -84,6 +83,7 @@ class InnerPointerToCodeCache;
 class Logger;
 class MaterializedObjectStore;
 class Microtask;
+class MicrotaskQueue;
 class OptimizingCompileDispatcher;
 class PromiseOnStack;
 class RegExpStack;
@@ -376,12 +376,17 @@ class ThreadLocalTop {
   Isolate* isolate_ = nullptr;
   // The context where the current execution method is created and for variable
   // lookups.
-  Context* context_ = nullptr;
+  // TODO(3770): This field is read/written from generated code, so it would
+  // be cleaner to make it an "Address raw_context_", and construct a Context
+  // object in the getter. Same for {pending_handler_context_} below. In the
+  // meantime, assert that the memory layout is the same.
+  STATIC_ASSERT(sizeof(Context) == kPointerSize);
+  Context context_;
   ThreadId thread_id_ = ThreadId::Invalid();
   Object* pending_exception_ = nullptr;
 
   // Communication channel between Isolate::FindHandler and the CEntry.
-  Context* pending_handler_context_ = nullptr;
+  Context pending_handler_context_;
   Address pending_handler_entrypoint_ = kNullAddress;
   Address pending_handler_constant_pool_ = kNullAddress;
   Address pending_handler_fp_ = kNullAddress;
@@ -472,6 +477,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
+  V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(CodeTracer*, code_tracer, nullptr)                                        \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
@@ -670,9 +676,9 @@ class Isolate final : private HiddenFactory {
   Address get_address_from_id(IsolateAddressId id);
 
   // Access to top context (where the current function object was created).
-  Context* context() { return thread_local_top_.context_; }
-  inline void set_context(Context* context);
-  Context** context_address() { return &thread_local_top_.context_; }
+  Context context() { return thread_local_top_.context_; }
+  inline void set_context(Context context);
+  Context* context_address() { return &thread_local_top_.context_; }
 
   THREAD_LOCAL_TOP_ACCESSOR(SaveContext*, save_context)
 
@@ -690,7 +696,7 @@ class Isolate final : private HiddenFactory {
 
   inline bool has_pending_exception();
 
-  THREAD_LOCAL_TOP_ADDRESS(Context*, pending_handler_context)
+  THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_constant_pool)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_fp)
@@ -758,7 +764,7 @@ class Isolate final : private HiddenFactory {
   // exceptions.  If an exception was thrown and not handled by an external
   // handler the exception is scheduled to be rethrown when we return to running
   // JavaScript code.  If an exception is scheduled true is returned.
-  V8_EXPORT_PRIVATE bool OptionalRescheduleException(bool is_bottom_call);
+  V8_EXPORT_PRIVATE bool OptionalRescheduleException(bool clear_exception);
 
   // Push and pop a promise and the current try-catch handler.
   void PushPromise(Handle<JSObject> promise);
@@ -918,7 +924,7 @@ class Isolate final : private HiddenFactory {
 
   // Returns the current native context.
   inline Handle<NativeContext> native_context();
-  inline NativeContext* raw_native_context();
+  inline NativeContext raw_native_context();
 
   Handle<Context> GetIncumbentContext();
 
@@ -1024,6 +1030,18 @@ class Isolate final : private HiddenFactory {
     deoptimizer_lazy_throw_ = value;
   }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
+
+  static uint32_t thread_in_wasm_flag_address_offset() {
+    // For WebAssembly trap handlers there is a flag in thread-local storage
+    // which indicates that the executing thread executes WebAssembly code. To
+    // access this flag directly from generated code, we store a pointer to the
+    // flag in ThreadLocalTop in thread_in_wasm_flag_address_. This function
+    // here returns the offset of that member from {isolate_root()}.
+    return static_cast<uint32_t>(
+        OFFSET_OF(Isolate, thread_local_top_.thread_in_wasm_flag_address_) -
+        isolate_root_bias());
+  }
+
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
   }
@@ -1182,12 +1200,7 @@ class Isolate final : private HiddenFactory {
     return date_cache_;
   }
 
-  void set_date_cache(DateCache* date_cache) {
-    if (date_cache != date_cache_) {
-      delete date_cache_;
-    }
-    date_cache_ = date_cache;
-  }
+  void set_date_cache(DateCache* date_cache);
 
 #ifdef V8_INTL_SUPPORT
 
@@ -1218,7 +1231,7 @@ class Isolate final : private HiddenFactory {
   // The version with an explicit context parameter can be used when
   // Isolate::context is not set up, e.g. when calling directly into C++ from
   // CSA.
-  bool IsNoElementsProtectorIntact(Context* context);
+  bool IsNoElementsProtectorIntact(Context context);
   bool IsNoElementsProtectorIntact();
 
   bool IsArrayOrObjectOrStringPrototype(Object* object);
@@ -1228,7 +1241,7 @@ class Isolate final : private HiddenFactory {
   inline bool IsRegExpSpeciesLookupChainIntact();
   inline bool IsPromiseSpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
-  bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
+  bool IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver);
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
 
@@ -1268,8 +1281,8 @@ class Isolate final : private HiddenFactory {
   // non-configurable and non-writable.
   inline bool IsStringIteratorLookupChainIntact();
 
-  // Make sure we do check for neutered array buffers.
-  inline bool IsArrayBufferNeuteringIntact();
+  // Make sure we do check for detached array buffers.
+  inline bool IsArrayBufferDetachingIntact();
 
   // Disable promise optimizations if promise (debug) hooks have ever been
   // active.
@@ -1312,7 +1325,7 @@ class Isolate final : private HiddenFactory {
   void InvalidateMapIteratorProtector();
   void InvalidateSetIteratorProtector();
   void InvalidateStringIteratorProtector();
-  void InvalidateArrayBufferNeuteringProtector();
+  void InvalidateArrayBufferDetachingProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
   void InvalidatePromiseResolveProtector();
   void InvalidatePromiseThenProtector();
@@ -1348,11 +1361,6 @@ class Isolate final : private HiddenFactory {
   CodeTracer* GetCodeTracer();
 
   void DumpAndResetStats();
-
-  FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
-  void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
-    function_entry_hook_ = function_entry_hook;
-  }
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
@@ -1430,6 +1438,10 @@ class Isolate final : private HiddenFactory {
     return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
   }
 
+  Address default_microtask_queue_address() {
+    return reinterpret_cast<Address>(&default_microtask_queue_);
+  }
+
   Address promise_hook_or_debug_is_active_or_async_event_delegate_address() {
     return reinterpret_cast<Address>(
         &promise_hook_or_debug_is_active_or_async_event_delegate_);
@@ -1443,7 +1455,7 @@ class Isolate final : private HiddenFactory {
                               void* data);
   void RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
                               Handle<JSArrayBuffer> array_buffer,
-                              size_t offset_in_bytes, int32_t value,
+                              size_t offset_in_bytes, int64_t value,
                               double timeout_in_ms,
                               AtomicsWaitWakeHandle* stop_handle);
 
@@ -1789,7 +1801,6 @@ class Isolate final : private HiddenFactory {
   Debug* debug_ = nullptr;
   HeapProfiler* heap_profiler_ = nullptr;
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
-  FunctionEntryHook function_entry_hook_ = nullptr;
 
   const AstStringConstants* ast_string_constants_ = nullptr;
 
@@ -1818,7 +1829,7 @@ class Isolate final : private HiddenFactory {
   // preprocessor defines. Make sure the offsets of these fields agree
   // between compilation units.
 #define ISOLATE_FIELD_OFFSET(type, name, ignored) \
-  static const intptr_t name##_debug_offset_;
+  V8_EXPORT_PRIVATE static const intptr_t name##_debug_offset_;
   ISOLATE_INIT_LIST(ISOLATE_FIELD_OFFSET)
   ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET

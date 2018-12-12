@@ -72,6 +72,17 @@ class SigUnmaskStack {
 };
 
 bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
+  // Ensure the faulting thread was actually running Wasm code. This should be
+  // the first check in the trap handler to guarantee that the IsThreadInWasm
+  // flag is only set in wasm code. Otherwise a later signal handler is executed
+  // with the flag set.
+  if (!IsThreadInWasm()) {
+    return false;
+  }
+
+  // Clear g_thread_in_wasm_code, primarily to protect against nested faults.
+  g_thread_in_wasm_code = false;
+
   // Bail out early in case we got called for the wrong kind of signal.
 
   if (signum != kOobSignal) {
@@ -82,14 +93,6 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
   if (!IsKernelGeneratedSignal(info)) {
     return false;
   }
-
-  // Ensure the faulting thread was actually running Wasm code.
-  if (!IsThreadInWasm()) {
-    return false;
-  }
-
-  // Clear g_thread_in_wasm_code, primarily to protect against nested faults.
-  g_thread_in_wasm_code = false;
 
   // Begin signal mask scope. We need to be sure to restore the signal mask
   // before we restore the g_thread_in_wasm_code flag.

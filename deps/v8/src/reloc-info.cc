@@ -6,7 +6,6 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-reference.h"
-#include "src/code-stubs.h"
 #include "src/deoptimize-reason.h"
 #include "src/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -281,9 +280,13 @@ void RelocIterator::next() {
 }
 
 RelocIterator::RelocIterator(Code code, int mode_mask)
+    : RelocIterator(code, code->unchecked_relocation_info(), mode_mask) {}
+
+RelocIterator::RelocIterator(Code code, ByteArray relocation_info,
+                             int mode_mask)
     : RelocIterator(code, code->raw_instruction_start(), code->constant_pool(),
-                    code->relocation_end(), code->relocation_start(),
-                    mode_mask) {}
+                    relocation_info->GetDataEndAddress(),
+                    relocation_info->GetDataStartAddress(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
     : RelocIterator(Code(), code_reference.instruction_start(),
@@ -460,8 +463,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     os << " (" << Code::Kind2String(code->kind());
     if (Builtins::IsBuiltin(code)) {
       os << " " << Builtins::name(code->builtin_index());
-    } else if (code->kind() == Code::STUB) {
-      os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
     }
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
@@ -510,7 +511,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();
       CHECK_NE(addr, kNullAddress);
-      CHECK_NOT_NULL(InstructionStream::TryLookupCode(isolate, addr));
+      CHECK(!InstructionStream::TryLookupCode(isolate, addr).is_null());
       break;
     }
     case RUNTIME_ENTRY:

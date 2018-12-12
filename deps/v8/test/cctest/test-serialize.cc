@@ -492,7 +492,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
       v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
 
-    i::Context* raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
+    i::Context raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
@@ -598,7 +598,9 @@ static void PartiallySerializeCustomContext(
           "var r = Math.random();"
           "var c = Math.sin(0) + Math.cos(0);"
           "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
-          "var s = parseInt('12345');");
+          "var s = parseInt('12345');"
+          "var p = 0;"
+          "(async ()=>{ p = await 42; })();");
 
       Vector<const uint8_t> source = ConstructSource(
           STATIC_CHAR_VECTOR("function g() { return [,"),
@@ -620,7 +622,7 @@ static void PartiallySerializeCustomContext(
       v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
 
-    i::Context* raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
+    i::Context raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
@@ -728,6 +730,11 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
                                     .ToLocalChecked();
       CHECK(s->Equals(v8_isolate->GetCurrentContext(), v8_str("12345"))
                 .FromJust());
+      v8::Local<v8::String> p = CompileRun("p")
+                                    ->ToString(v8_isolate->GetCurrentContext())
+                                    .ToLocalChecked();
+      CHECK(
+          p->Equals(v8_isolate->GetCurrentContext(), v8_str("42")).FromJust());
       int a = CompileRun("a.length")
                   ->ToNumber(v8_isolate->GetCurrentContext())
                   .ToLocalChecked()
@@ -769,6 +776,42 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob1) {
         CompileRun("f()")->Int32Value(isolate1->GetCurrentContext());
     CHECK_EQ(42, result.FromJust());
     CHECK(CompileRun("this.g")->IsUndefined());
+  }
+  isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
+}
+
+UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
+  DisableAlwaysOpt();
+  const char* source1 =
+      R"javascript(
+      // String would be internalized if it came from a literal so create "A"
+      // via a function call.
+      var global = String.fromCharCode(65);
+      function f() { return global; }
+      )javascript";
+
+  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestSerializer::NewIsolate(params1);
+  {
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope c_scope(context);
+    v8::Local<v8::Value> result = CompileRun("f()").As<v8::Value>();
+    CHECK(result->IsString());
+    i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
+    CHECK_EQ(std::string(str->ToCString().get()), "A");
+    CHECK(!str.IsInternalizedString());
+    CHECK(
+        !reinterpret_cast<i::Isolate*>(isolate1)->heap()->InReadOnlySpace(str));
   }
   isolate1->Dispose();
   delete[] data1.data;  // We can dispose of the snapshot blob now.
@@ -958,10 +1001,10 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDataView) {
   TypedArrayTestHelper(code, expectations);
 }
 
-UNINITIALIZED_TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
+UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
   const char* code =
       "var x = new Int16Array([12, 24, 48]);"
-      "%ArrayBufferNeuter(x.buffer);";
+      "%ArrayBufferDetach(x.buffer);";
   Int32Expectations expectations = {std::make_tuple("x.buffer.byteLength", 0),
                                     std::make_tuple("x.length", 0)};
 
@@ -1006,7 +1049,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
     CHECK(x->IsTypedArray());
     i::Handle<i::JSTypedArray> array =
         i::Handle<i::JSTypedArray>::cast(v8::Utils::OpenHandle(*x));
-    CHECK(array->WasNeutered());
+    CHECK(array->WasDetached());
     CHECK_NULL(
         FixedTypedArrayBase::cast(array->elements())->external_pointer());
   }
@@ -1826,11 +1869,20 @@ TEST(CodeSerializerThreeBigStrings) {
   result_str = CompileRun("b")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
+#if V8_HOST_ARCH_PPC
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
+#else
   CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
+#endif
+
   result_str = CompileRun("c")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
+#if V8_HOST_ARCH_PPC
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
+#else
   CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
+#endif
 
   delete cache;
   source_a.Dispose();
@@ -2117,7 +2169,8 @@ void CheckDeserializedFlag(v8::Local<v8::UnboundScript> script) {
   i::Handle<i::SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
   i::SharedFunctionInfo::ScriptIterator iterator(sfi->GetIsolate(),
                                                  Script::cast(sfi->script()));
-  while (SharedFunctionInfo* next = iterator.Next()) {
+  for (SharedFunctionInfo next = iterator.Next(); !next.is_null();
+       next = iterator.Next()) {
     CHECK_EQ(next->is_compiled(), next->deserialized());
   }
 }
@@ -2244,7 +2297,7 @@ TEST(CodeSerializerAfterExecute) {
 
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
-    BytecodeArray* bytecode = sfi->GetBytecodeArray();
+    BytecodeArray bytecode = sfi->GetBytecodeArray();
     CHECK_EQ(bytecode->interrupt_budget(),
              interpreter::Interpreter::InterruptBudget());
     CHECK_EQ(bytecode->osr_loop_nesting_level(), 0);
@@ -3608,7 +3661,7 @@ TEST(SerializationStats) {
   }
 }
 
-void CheckSFIsAreWeak(WeakFixedArray* sfis, Isolate* isolate) {
+void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
   CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
   for (int i = 0; i < sfis->length(); ++i) {
@@ -3667,7 +3720,7 @@ TEST(WeakArraySerializizationInSnapshot) {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*x));
 
     // Verify that the pointers in shared_function_infos are weak.
-    WeakFixedArray* sfis =
+    WeakFixedArray sfis =
         Script::cast(function->shared()->script())->shared_function_infos();
     CheckSFIsAreWeak(sfis, CcTest::i_isolate());
   }
@@ -3697,7 +3750,7 @@ TEST(WeakArraySerializationInCodeCache) {
       isolate, src, src, cache, v8::ScriptCompiler::kConsumeCodeCache);
 
   // Verify that the pointers in shared_function_infos are weak.
-  WeakFixedArray* sfis = Script::cast(copy->script())->shared_function_infos();
+  WeakFixedArray sfis = Script::cast(copy->script())->shared_function_infos();
   CheckSFIsAreWeak(sfis, isolate);
 
   delete cache;

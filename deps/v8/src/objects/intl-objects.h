@@ -51,6 +51,8 @@ class Intl {
   static std::set<std::string> BuildLocaleSet(
       const icu::Locale* icu_available_locales, int32_t count);
 
+  static std::string ToLanguageTag(const icu::Locale& locale);
+
   // Get the name of the numbering system from locale.
   // ICU doesn't expose numbering system in any way, so we have to assume that
   // for given locale NumberingSystem constructor produces the same digits as
@@ -61,8 +63,6 @@ class Intl {
       Isolate* isolate, const char* method,
       const std::set<std::string>& available_locales, Handle<Object> locales_in,
       Handle<Object> options_in);
-
-  static std::string DefaultLocale(Isolate* isolate);
 
   // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
   // ecma402/#sec-getoption
@@ -261,7 +261,7 @@ class Intl {
 
   static const uint8_t* ToLatin1LowerTable();
 
-  static String* ConvertOneByteToLower(String* src, String* dst);
+  static String ConvertOneByteToLower(String src, String dst);
 };
 
 }  // namespace internal

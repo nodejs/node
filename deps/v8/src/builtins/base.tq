@@ -2,12 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-utils-gen.h'
+#include 'src/builtins/builtins.h'
+#include 'src/code-factory.h'
+#include 'src/elements-kind.h'
+#include 'src/heap/factory-inl.h'
+#include 'src/objects.h'
+#include 'src/objects/arguments.h'
+#include 'src/objects/bigint.h'
+
 type Arguments constexpr 'CodeStubArguments*';
 type void;
 type never;
 
-type Tagged generates 'TNode<Object>';
-type Smi extends Tagged generates 'TNode<Smi>';
+type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
+type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 type HeapObject extends Tagged generates 'TNode<HeapObject>';
 type Object = Smi | HeapObject;
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
@@ -41,10 +50,20 @@ type JSArgumentsObjectWithLength extends JSObject
     generates 'TNode<JSArgumentsObjectWithLength>';
 type JSArray extends JSArgumentsObjectWithLength
     generates 'TNode<JSArray>';
+
+// A HeapObject with a JSArray map, and either fast packed elements, or fast
+// holey elements when the global NoElementsProtector is not invalidated.
 transient type FastJSArray extends JSArray
     generates 'TNode<JSArray>';
+
+// A FastJSArray when the global ArraySpeciesProtector is not invalidated.
 transient type FastJSArrayForCopy extends FastJSArray
     generates 'TNode<JSArray>';
+
+// A FastJSArray when the global ArrayIteratorProtector is not invalidated.
+transient type FastJSArrayWithNoCustomIteration extends FastJSArray
+    generates 'TNode<JSArray>';
+
 type JSFunction extends JSObject generates 'TNode<JSFunction>';
 type JSBoundFunction extends JSObject generates 'TNode<JSBoundFunction>';
 type Callable = JSFunction | JSBoundFunction | JSProxy;
@@ -62,11 +81,20 @@ type SloppyArgumentsElements extends FixedArray
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
 
+// RawObjectCasts should *never* be used anywhere in Torque code except for
+// in Torque-based UnsafeCast operators preceeded by an appropriate
+// type assert()
+intrinsic %RawObjectCast<A: type>(o: Object): A;
+intrinsic %RawPointerCast<A: type>(p: RawPtr): A;
+intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
+
 type NativeContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
 const ARRAY_JOIN_STACK_INDEX: constexpr NativeContextSlot
     generates 'Context::ARRAY_JOIN_STACK_INDEX';
 const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
     generates 'Context::OBJECT_FUNCTION_INDEX';
+const ITERATOR_RESULT_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::ITERATOR_RESULT_MAP_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -84,7 +112,8 @@ type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
 type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
-type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
+type LanguageMode extends Tagged
+    generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags
     generates 'TNode<Smi>'
     constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
@@ -98,6 +127,8 @@ type MessageTemplate constexpr 'MessageTemplate';
 type ToIntegerTruncationMode
 constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
+
+const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
 
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
 
@@ -291,7 +322,6 @@ extern macro ThrowTypeError(
     Context, constexpr MessageTemplate, Object, Object, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
-extern macro InternalArrayCreate(Context, Number): JSArray;
 extern macro EnsureArrayPushable(Map): ElementsKind
     labels Bailout;
 extern macro EnsureArrayLengthWritable(Map) labels Bailout;
@@ -316,6 +346,10 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern transitioning runtime CreateDataProperty(implicit context: Context)(
     JSReceiver, Object, Object);
 
+extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
+extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
+extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
+
 extern macro LoadRoot(constexpr RootIndex): Object;
 extern macro StoreRoot(constexpr RootIndex, Object): Object;
 extern macro LoadAndUntagToWord32Root(constexpr RootIndex): int32;
@@ -328,10 +362,17 @@ extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 extern runtime ReThrow(Context, Object): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
+extern operator '==' macro WordEqual(RawPtr, RawPtr): bool;
+extern operator '!=' macro WordNotEqual(RawPtr, RawPtr): bool;
+
 extern operator '<' macro Int32LessThan(int32, int32): bool;
+extern operator '<' macro Uint32LessThan(uint32, uint32): bool;
 extern operator '>' macro Int32GreaterThan(int32, int32): bool;
+extern operator '>' macro Uint32GreaterThan(uint32, uint32): bool;
 extern operator '<=' macro Int32LessThanOrEqual(int32, int32): bool;
+extern operator '<=' macro Uint32LessThanOrEqual(uint32, uint32): bool;
 extern operator '>=' macro Int32GreaterThanOrEqual(int32, int32): bool;
+extern operator '>=' macro Uint32GreaterThanOrEqual(uint32, uint32): bool;
 
 extern operator '==' macro SmiEqual(Smi, Smi): bool;
 extern operator '!=' macro SmiNotEqual(Smi, Smi): bool;
@@ -400,21 +441,21 @@ extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;
 extern operator '&' macro SmiAnd(Smi, Smi): Smi;
 extern operator '|' macro SmiOr(Smi, Smi): Smi;
-extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
 extern operator '<<' macro SmiShl(Smi, constexpr int31): Smi;
+extern operator '>>' macro SmiSar(Smi, constexpr int31): Smi;
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '*' macro IntPtrMul(intptr, intptr): intptr;
 extern operator '/' macro IntPtrDiv(intptr, intptr): intptr;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
+extern operator '>>' macro WordSar(intptr, intptr): intptr;
 extern operator '&' macro WordAnd(intptr, intptr): intptr;
 extern operator '|' macro WordOr(intptr, intptr): intptr;
 
 extern operator '+' macro UintPtrAdd(uintptr, uintptr): uintptr;
 extern operator '-' macro UintPtrSub(uintptr, uintptr): uintptr;
 extern operator '>>>' macro WordShr(uintptr, uintptr): uintptr;
-extern operator '<<' macro WordShl(uintptr, uintptr): uintptr;
 extern operator '&' macro WordAnd(uintptr, uintptr): uintptr;
 extern operator '|' macro WordOr(uintptr, uintptr): uintptr;
 
@@ -454,6 +495,11 @@ macro Max(x: Number, y: Number): Number {
   return NumberMax(x, y);
 }
 
+extern operator '<<' macro ConstexprUintPtrShl(
+    constexpr uintptr, constexpr int31): constexpr uintptr;
+extern operator '>>>' macro ConstexprUintPtrShr(
+    constexpr uintptr, constexpr int31): constexpr uintptr;
+
 extern macro SmiMax(Smi, Smi): Smi;
 extern macro SmiMin(Smi, Smi): Smi;
 
@@ -478,6 +524,8 @@ extern macro TaggedIsPositiveSmi(Object): bool;
 extern macro IsValidPositiveSmi(intptr): bool;
 
 extern macro HeapObjectToJSDataView(HeapObject): JSDataView
+    labels CastError;
+extern macro HeapObjectToJSTypedArray(HeapObject): JSTypedArray
     labels CastError;
 extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
@@ -505,59 +553,173 @@ extern macro TaggedToNumber(Object): Number
 
 macro CastHeapObject<A: type>(o: HeapObject): A
     labels CastError;
+
 CastHeapObject<HeapObject>(o: HeapObject): HeapObject
     labels CastError {
   return o;
 }
+
 CastHeapObject<FixedArray>(o: HeapObject): FixedArray
     labels CastError {
   return HeapObjectToFixedArray(o) otherwise CastError;
 }
+
 CastHeapObject<FixedDoubleArray>(o: HeapObject): FixedDoubleArray
     labels CastError {
   return HeapObjectToFixedDoubleArray(o) otherwise CastError;
 }
+
 CastHeapObject<SloppyArgumentsElements>(o: HeapObject): SloppyArgumentsElements
     labels CastError {
   return HeapObjectToSloppyArgumentsElements(o) otherwise CastError;
 }
+
 CastHeapObject<JSDataView>(o: HeapObject): JSDataView
     labels CastError {
   return HeapObjectToJSDataView(o) otherwise CastError;
 }
+
+CastHeapObject<JSTypedArray>(o: HeapObject): JSTypedArray
+    labels CastError {
+  if (IsJSTypedArray(o)) return %RawObjectCast<JSTypedArray>(o);
+  goto CastError;
+}
+
 CastHeapObject<Callable>(o: HeapObject): Callable
     labels CastError {
   return HeapObjectToCallable(o) otherwise CastError;
 }
+
 CastHeapObject<JSArray>(o: HeapObject): JSArray
     labels CastError {
   return HeapObjectToJSArray(o) otherwise CastError;
 }
+
+CastHeapObject<Context>(o: HeapObject): Context
+    labels CastError {
+  if (IsContext(o)) return %RawObjectCast<Context>(o);
+  goto CastError;
+}
+
+CastHeapObject<JSObject>(o: HeapObject): JSObject
+    labels CastError {
+  if (IsJSObject(o)) return %RawObjectCast<JSObject>(o);
+  goto CastError;
+}
+
+CastHeapObject<NumberDictionary>(o: HeapObject): NumberDictionary
+    labels CastError {
+  if (IsNumberDictionary(o)) return %RawObjectCast<NumberDictionary>(o);
+  goto CastError;
+}
+
+CastHeapObject<FixedTypedArrayBase>(o: HeapObject): FixedTypedArrayBase
+    labels CastError {
+  if (IsFixedTypedArray(o)) return %RawObjectCast<FixedTypedArrayBase>(o);
+  goto CastError;
+}
+
 CastHeapObject<String>(o: HeapObject): String
     labels CastError {
   return HeapObjectToString(o) otherwise CastError;
 }
+
 CastHeapObject<Constructor>(o: HeapObject): Constructor
     labels CastError {
   return HeapObjectToConstructor(o) otherwise CastError;
 }
 
-macro Cast<A: type>(o: HeapObject): A
+CastHeapObject<HeapNumber>(o: HeapObject): HeapNumber
+    labels CastError {
+  if (IsHeapNumber(o)) return %RawObjectCast<HeapNumber>(o);
+  goto CastError;
+}
+
+CastHeapObject<Map>(implicit context: Context)(o: HeapObject): Map
+    labels CastError {
+  if (IsMap(o)) return %RawObjectCast<Map>(o);
+  goto CastError;
+}
+
+CastHeapObject<JSArgumentsObjectWithLength>(implicit context: Context)(
+    o: HeapObject): JSArgumentsObjectWithLength
+    labels CastError {
+  const map: Map = o.map;
+  try {
+    if (IsFastAliasedArgumentsMap(map)) goto True;
+    if (IsSloppyArgumentsMap(map)) goto True;
+    if (IsStrictArgumentsMap(map)) goto True;
+    if (IsSlowAliasedArgumentsMap(map)) goto True;
+    goto CastError;
+  }
+  label True {
+    return %RawObjectCast<JSArgumentsObjectWithLength>(o);
+  }
+}
+
+CastHeapObject<FastJSArray>(implicit context: Context)(o: HeapObject):
+    FastJSArray
+    labels CastError {
+  const map: Map = o.map;
+  if (!IsJSArrayMap(map)) goto CastError;
+
+  // Bailout if receiver has slow elements.
+  const elementsKind: ElementsKind = LoadMapElementsKind(map);
+  if (!IsFastElementsKind(elementsKind)) goto CastError;
+
+  // Verify that our prototype is the initial array prototype.
+  if (!IsPrototypeInitialArrayPrototype(map)) goto CastError;
+
+  if (IsNoElementsProtectorCellInvalid()) goto CastError;
+  return %RawObjectCast<FastJSArray>(o);
+}
+
+CastHeapObject<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
+    FastJSArrayForCopy
+    labels CastError {
+  if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
+  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawObjectCast<FastJSArrayForCopy>(o);
+}
+
+CastHeapObject<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
+    o: HeapObject): FastJSArrayWithNoCustomIteration
+    labels CastError {
+  if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
+  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawObjectCast<FastJSArrayWithNoCustomIteration>(o);
+}
+
+CastHeapObject<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
+    labels CastError {
+  if (IsJSReceiver(o)) return %RawObjectCast<JSReceiver>(o);
+  goto CastError;
+}
+
+CastHeapObject<JSFunction>(implicit context: Context)(o: HeapObject): JSFunction
+    labels CastError {
+  if (IsJSFunction(o)) return %RawObjectCast<JSFunction>(o);
+  goto CastError;
+}
+
+macro Cast<A: type>(implicit context: Context)(o: HeapObject): A
     labels CastError {
   return CastHeapObject<A>(o) otherwise CastError;
 }
 
 // CastHeapObject allows this default-implementation to be non-recursive.
 // Otherwise the generated CSA code might run into infinite recursion.
-macro Cast<A: type>(o: Object): A
+macro Cast<A: type>(implicit context: Context)(o: Object): A
     labels CastError {
   return CastHeapObject<A>(TaggedToHeapObject(o) otherwise CastError)
       otherwise CastError;
 }
+
 Cast<Smi>(o: Object): Smi
     labels CastError {
   return TaggedToSmi(o) otherwise CastError;
 }
+
 Cast<Number>(o: Object): Number
     labels CastError {
   return TaggedToNumber(o) otherwise CastError;
@@ -599,367 +761,203 @@ extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
 extern macro Float64Constant(constexpr int31): float64;
 extern macro SmiConstant(constexpr int31): Smi;
+extern macro SmiConstant(constexpr Smi): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
 extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
 extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 extern macro IntPtrConstant(constexpr NativeContextSlot): NativeContextSlot;
+extern macro IntPtrConstant(constexpr intptr): intptr;
 
-macro FromConstexpr<A: type>(o: constexpr int31): A;
-FromConstexpr<intptr>(i: constexpr int31): intptr {
-  return IntPtrConstant(i);
+extern macro BitcastWordToTaggedSigned(intptr): Smi;
+extern macro BitcastWordToTaggedSigned(uintptr): Smi;
+extern macro BitcastWordToTagged(intptr): Object;
+extern macro BitcastWordToTagged(uintptr): Object;
+extern macro BitcastTaggedToWord(Tagged): intptr;
+
+intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
+macro FromConstexpr<To: type, From: type>(o: From): To;
+FromConstexpr<int31, constexpr int31>(i: constexpr int31): int31 {
+  return %FromConstexpr<int31>(i);
 }
-FromConstexpr<int31>(i: constexpr int31): int31 {
-  return Int32Constant(i);
+FromConstexpr<int32, constexpr int31>(i: constexpr int31): int32 {
+  return %FromConstexpr<int32>(i);
 }
-FromConstexpr<int32>(i: constexpr int31): int32 {
-  return Int32Constant(i);
+FromConstexpr<int32, constexpr int32>(i: constexpr int32): int32 {
+  return %FromConstexpr<int32>(i);
 }
-FromConstexpr<uint32>(i: constexpr int31): uint32 {
+FromConstexpr<intptr, constexpr int31>(i: constexpr int31): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<intptr, constexpr int32>(i: constexpr int32): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<intptr, constexpr intptr>(i: constexpr intptr): intptr {
+  return %FromConstexpr<intptr>(i);
+}
+FromConstexpr<uintptr, constexpr uintptr>(i: constexpr uintptr): uintptr {
+  return %FromConstexpr<uintptr>(i);
+}
+FromConstexpr<Smi, constexpr int31>(i: constexpr int31): Smi {
+  return %FromConstexpr<Smi>(i);
+}
+FromConstexpr<String, constexpr string>(s: constexpr string): String {
+  return %FromConstexpr<String>(s);
+}
+FromConstexpr<Number, constexpr uint32>(i: constexpr uint32): Number {
+  return %FromConstexpr<Number>(i);
+}
+FromConstexpr<Number, constexpr int32>(i: constexpr int32): Number {
+  return %FromConstexpr<Number>(i);
+}
+FromConstexpr<Number, constexpr float64>(f: constexpr float64): Number {
+  return %FromConstexpr<Number>(f);
+}
+FromConstexpr<Number, constexpr int31>(i: constexpr int31): Number {
+  return %FromConstexpr<Number>(i);
+}
+FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
+  return SmiConstant(s);
+}
+FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
+  return SmiConstant(s);
+}
+FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
   return Unsigned(Int32Constant(i));
 }
-FromConstexpr<uintptr>(i: constexpr int31): uintptr {
+FromConstexpr<uintptr, constexpr int31>(i: constexpr int31): uintptr {
   return ChangeUint32ToWord(i);
 }
-FromConstexpr<Smi>(i: constexpr int31): Smi {
-  return SmiConstant(i);
-}
-FromConstexpr<Number>(i: constexpr int31): Number {
-  return SmiConstant(i);
-}
-FromConstexpr<float64>(i: constexpr int31): float64 {
+FromConstexpr<float64, constexpr int31>(i: constexpr int31): float64 {
   return Float64Constant(i);
 }
-macro FromConstexpr<A: type>(o: constexpr uint32): A;
-FromConstexpr<Number>(i: constexpr uint32): Number {
-  return NumberConstant(i);
-}
-macro FromConstexpr<A: type>(o: constexpr int32): A;
-FromConstexpr<intptr>(i: constexpr int32): intptr {
-  return IntPtrConstant(i);
-}
-FromConstexpr<int32>(i: constexpr int32): int32 {
-  return Int32Constant(i);
-}
-FromConstexpr<Number>(i: constexpr int32): Number {
-  return NumberConstant(i);
-}
-macro FromConstexpr<A: type>(o: constexpr float64): A;
-FromConstexpr<Number>(f: constexpr float64): Number {
-  return NumberConstant(f);
-}
-macro FromConstexpr<A: type>(b: constexpr bool): A;
-FromConstexpr<bool>(b: constexpr bool): bool {
+FromConstexpr<bool, constexpr bool>(b: constexpr bool): bool {
   return BoolConstant(b);
 }
-macro FromConstexpr<A: type>(l: constexpr LanguageMode): A;
-FromConstexpr<LanguageMode>(b: constexpr LanguageMode): LanguageMode {
-  return LanguageModeConstant(b);
+FromConstexpr<LanguageMode, constexpr LanguageMode>(m: constexpr LanguageMode):
+    LanguageMode {
+  return %RawObjectCast<LanguageMode>(%FromConstexpr<Smi>(m));
 }
-macro FromConstexpr<A: type>(e: constexpr ElementsKind): A;
-FromConstexpr<ElementsKind>(e: constexpr ElementsKind): ElementsKind {
+FromConstexpr<ElementsKind, constexpr ElementsKind>(e: constexpr ElementsKind):
+    ElementsKind {
   return Int32Constant(e);
 }
-macro FromConstexpr<A: type>(s: constexpr string): A;
-FromConstexpr<String>(s: constexpr string): String {
+FromConstexpr<Object, constexpr string>(s: constexpr string): Object {
   return StringConstant(s);
 }
-FromConstexpr<Object>(s: constexpr string): Object {
-  return StringConstant(s);
-}
-macro FromConstexpr<A: type>(e: constexpr NativeContextSlot): A;
-FromConstexpr<NativeContextSlot>(c: constexpr NativeContextSlot):
-    NativeContextSlot {
+FromConstexpr<NativeContextSlot, constexpr NativeContextSlot>(
+    c: constexpr NativeContextSlot): NativeContextSlot {
   return IntPtrConstant(c);
 }
 
-macro Convert<A: type>(i: constexpr int31): A {
+macro Convert<To: type, From: type>(i: From): To {
   return i;
 }
-extern macro ConvertElementsKindToInt(ElementsKind): int32;
 
-macro Convert<A: type>(elementsKind: ElementsKind): A;
-Convert<int32>(elementsKind: ElementsKind): int32 {
+extern macro ConvertElementsKindToInt(ElementsKind): int32;
+Convert<int32, ElementsKind>(elementsKind: ElementsKind): int32 {
   return ConvertElementsKindToInt(elementsKind);
 }
-
-macro Convert<A: type>(i: int32): A;
-Convert<Number>(i: int32): Number {
+Convert<Number, int32>(i: int32): Number {
   return ChangeInt32ToTagged(i);
 }
-Convert<intptr>(i: int32): intptr {
+Convert<intptr, int32>(i: int32): intptr {
   return ChangeInt32ToIntPtr(i);
 }
-Convert<Smi>(i: int32): Smi {
+Convert<Smi, int32>(i: int32): Smi {
   return SmiFromInt32(i);
 }
-macro Convert<A: type>(ui: uint32): A;
-Convert<Number>(ui: uint32): Number {
+Convert<Number, uint32>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
-Convert<Smi>(ui: uint32): Smi {
+Convert<Smi, uint32>(ui: uint32): Smi {
   return SmiFromInt32(Signed(ui));
 }
-Convert<uintptr>(ui: uint32): uintptr {
+Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
 }
-macro Convert<A: type>(i: intptr): A;
-Convert<int32>(i: intptr): int32 {
+Convert<int32, intptr>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
 }
-Convert<Smi>(i: intptr): Smi {
+Convert<Smi, intptr>(i: intptr): Smi {
   return SmiTag(i);
 }
-macro Convert<A: type>(ui: uintptr): A;
-Convert<uint32>(ui: uintptr): uint32 {
+Convert<uint32, uintptr>(ui: uintptr): uint32 {
   return Unsigned(TruncateIntPtrToInt32(Signed(ui)));
 }
-macro Convert<A: type>(s: Smi): A;
-Convert<intptr>(s: Smi): intptr {
+Convert<intptr, Smi>(s: Smi): intptr {
   return SmiUntag(s);
 }
-Convert<int32>(s: Smi): int32 {
+Convert<int32, Smi>(s: Smi): int32 {
   return SmiToInt32(s);
 }
-macro Convert<A: type>(h: HeapNumber): A;
-Convert<float64>(h: HeapNumber): float64 {
+Convert<float64, HeapNumber>(h: HeapNumber): float64 {
   return LoadHeapNumberValue(h);
 }
-macro Convert<A: type>(n: Number): A;
-Convert<float64>(n: Number): float64 {
+Convert<float64, Number>(n: Number): float64 {
   return ChangeNumberToFloat64(n);
 }
-Convert<uintptr>(n: Number): uintptr {
+Convert<uintptr, Number>(n: Number): uintptr {
   return ChangeNonnegativeNumberToUintPtr(n);
 }
-macro Convert<A: type>(f: float32): A;
-Convert<float64>(f: float32): float64 {
+Convert<float64, float32>(f: float32): float64 {
   return ChangeFloat32ToFloat64(f);
 }
-macro Convert<A: type>(d: float64): A;
-Convert<Number>(d: float64): Number {
+Convert<Number, float64>(d: float64): Number {
   return AllocateHeapNumberWithValue(d);
 }
-Convert<float64>(ui: uintptr): float64 {
+Convert<float64, uintptr>(ui: uintptr): float64 {
   return ChangeUintPtrToFloat64(ui);
 }
-Convert<Number>(ui: uintptr): Number {
+Convert<Number, uintptr>(ui: uintptr): Number {
   return ChangeUintPtrToTagged(ui);
 }
-Convert<uintptr>(d: float64): uintptr {
+Convert<uintptr, float64>(d: float64): uintptr {
   return ChangeFloat64ToUintPtr(d);
 }
-macro Convert<A: type>(r: RawPtr): A;
-Convert<uintptr>(r: RawPtr): uintptr {
+Convert<uintptr, intptr>(i: intptr): uintptr {
+  return Unsigned(i);
+}
+Convert<uintptr, RawPtr>(r: RawPtr): uintptr {
   return Unsigned(r);
 }
-Convert<intptr>(r: RawPtr): intptr {
+Convert<intptr, RawPtr>(r: RawPtr): intptr {
   return Signed(r);
 }
 
-extern macro UnsafeCastNumberToHeapNumber(Number): HeapNumber;
-extern macro UnsafeCastObjectToFixedArrayBase(Object): FixedArrayBase;
-extern macro UnsafeCastObjectToFixedArray(Object): FixedArray;
-extern macro UnsafeCastObjectToContext(Object): Context;
-extern macro UnsafeCastObjectToFixedDoubleArray(Object): FixedDoubleArray;
-extern macro UnsafeCastObjectToHeapNumber(Object): HeapNumber;
-extern macro UnsafeCastObjectToCallable(Object): Callable;
-extern macro UnsafeCastObjectToSmi(Object): Smi;
-extern macro UnsafeCastObjectToNumber(Object): Number;
-extern macro UnsafeCastObjectToHeapObject(Object): HeapObject;
-extern macro UnsafeCastObjectToJSArray(Object): JSArray;
-extern macro UnsafeCastObjectToFixedTypedArrayBase(Object): FixedTypedArrayBase;
-extern macro UnsafeCastObjectToNumberDictionary(Object): NumberDictionary;
-extern macro UnsafeCastObjectToJSReceiver(Object): JSReceiver;
-extern macro UnsafeCastObjectToJSObject(Object): JSObject;
-extern macro UnsafeCastObjectToMap(Object): Map;
-extern macro UnsafeCastObjectToString(Object): String;
-
-macro UnsafeCast<A: type>(n: Number): A;
-UnsafeCast<HeapNumber>(n: Number): HeapNumber {
-  return UnsafeCastNumberToHeapNumber(n);
-}
-UnsafeCast<Smi>(o: Number): Smi {
-  return UnsafeCastObjectToSmi(o);
-}
-macro UnsafeCast<A: type>(o: Object): A;
-UnsafeCast<Object>(o: Object): Object {
-  return o;
-}
-UnsafeCast<FixedArray>(o: Object): FixedArray {
-  return UnsafeCastObjectToFixedArray(o);
-}
-UnsafeCast<FixedDoubleArray>(o: Object): FixedDoubleArray {
-  return UnsafeCastObjectToFixedDoubleArray(o);
-}
-UnsafeCast<HeapNumber>(o: Object): HeapNumber {
-  return UnsafeCastObjectToHeapNumber(o);
-}
-UnsafeCast<Callable>(o: Object): Callable {
-  return UnsafeCastObjectToCallable(o);
-}
-UnsafeCast<Smi>(o: Object): Smi {
-  return UnsafeCastObjectToSmi(o);
-}
-UnsafeCast<Number>(o: Object): Number {
-  return UnsafeCastObjectToNumber(o);
-}
-UnsafeCast<HeapObject>(o: Object): HeapObject {
-  return UnsafeCastObjectToHeapObject(o);
-}
-UnsafeCast<JSArray>(o: Object): JSArray {
-  return UnsafeCastObjectToJSArray(o);
-}
-UnsafeCast<FixedTypedArrayBase>(o: Object): FixedTypedArrayBase {
-  return UnsafeCastObjectToFixedTypedArrayBase(o);
-}
-UnsafeCast<NumberDictionary>(o: Object): NumberDictionary {
-  return UnsafeCastObjectToNumberDictionary(o);
-}
-UnsafeCast<JSReceiver>(o: Object): JSReceiver {
-  return UnsafeCastObjectToJSReceiver(o);
-}
-UnsafeCast<JSObject>(o: Object): JSObject {
-  return UnsafeCastObjectToJSObject(o);
-}
-UnsafeCast<Map>(o: Object): Map {
-  return UnsafeCastObjectToMap(o);
-}
-UnsafeCast<FixedArrayBase>(o: Object): FixedArrayBase {
-  return UnsafeCastObjectToFixedArrayBase(o);
-}
-UnsafeCast<Context>(o: Object): Context {
-  return UnsafeCastObjectToContext(o);
-}
-UnsafeCast<String>(o: Object): String {
-  return UnsafeCastObjectToString(o);
-}
-
-// RawCasts should *never* be used anywhere in Torque code except for
-// in Torque-based UnsafeCast operators preceeded by an appropriate
-// type check().
-extern macro RawCastObjectToJSFunction(Object): JSFunction;
-extern macro RawCastObjectToJSArgumentsObjectWithLength(Object):
-    JSArgumentsObjectWithLength;
-extern macro RawCastObjectToFastJSArray(Object): FastJSArray;
-extern macro RawCastObjectToFastJSArrayForCopy(Object): FastJSArrayForCopy;
-
-macro BranchIfJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
-    never
+macro BranchIf<A: type, B: type>(implicit context: Context)(o: B): never
     labels True, False {
-  const heapObject: HeapObject = Cast<HeapObject>(o) otherwise False;
-  const map: Map = heapObject.map;
-  if (IsFastAliasedArgumentsMap(map)) goto True;
-  if (IsSloppyArgumentsMap(map)) goto True;
-  if (IsStrictArgumentsMap(map)) goto True;
-  if (!IsSlowAliasedArgumentsMap(map)) goto False;
+  Cast<A>(o) otherwise False;
   goto True;
 }
 
-UnsafeCast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
-    JSArgumentsObjectWithLength {
-  assert(BranchIfJSArgumentsObjectWithLength(o));
-  return RawCastObjectToJSArgumentsObjectWithLength(o);
+macro BranchIfNot<A: type, B: type>(implicit context: Context)(o: B): never
+    labels True, False {
+  Cast<A>(o) otherwise True;
+  goto False;
 }
 
-Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: Object):
-    JSArgumentsObjectWithLength
-    labels CastError {
-  if (BranchIfJSArgumentsObjectWithLength(o)) {
-    return UnsafeCast<JSArgumentsObjectWithLength>(o);
-  } else {
-    goto CastError;
-  }
+macro Is<A: type, B: type>(implicit context: Context)(o: B): bool {
+  return (BranchIf<A, B>(o)) ? true : false;
 }
 
-UnsafeCast<FastJSArray>(implicit context: Context)(o: Object): FastJSArray {
-  assert(BranchIfFastJSArray(o, context));
-  return RawCastObjectToFastJSArray(o);
+macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A {
+  assert(Is<A>(o));
+  return %RawObjectCast<A>(o);
 }
 
-Cast<FastJSArray>(implicit context: Context)(o: Object): FastJSArray
-    labels CastError {
-  if (BranchIfFastJSArray(o, context)) {
-    return UnsafeCast<FastJSArray>(o);
-  } else {
-    goto CastError;
-  }
+UnsafeCast<Object>(o: Object): Object {
+  return o;
 }
 
-Cast<FastJSArray>(implicit context: Context)(ho: HeapObject): FastJSArray
-    labels CastError {
-  if (BranchIfFastJSArray(ho, context)) {
-    return UnsafeCast<FastJSArray>(ho);
-  } else {
-    goto CastError;
-  }
-}
-
-UnsafeCast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
-    FastJSArrayForCopy {
-  assert(BranchIfFastJSArrayForCopy(o, context));
-  return RawCastObjectToFastJSArrayForCopy(o);
-}
-
-Cast<FastJSArrayForCopy>(implicit context: Context)(o: Object):
-    FastJSArrayForCopy
-    labels CastError {
-  if (BranchIfFastJSArrayForCopy(o, context)) {
-    return UnsafeCast<FastJSArrayForCopy>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-UnsafeCast<JSFunction>(implicit context: Context)(o: Object): JSFunction {
-  assert(IsJSFunction(Cast<HeapObject>(o) otherwise unreachable));
-  return RawCastObjectToJSFunction(o);
-}
-
-Cast<JSFunction>(implicit context: Context)(o: Object): JSFunction
-    labels CastError {
-  if (IsJSFunction(Cast<HeapObject>(o) otherwise CastError)) {
-    return UnsafeCast<JSFunction>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-Cast<Map>(o: Object): Map
-    labels CastError {
-  if (IsMap(Cast<HeapObject>(o) otherwise CastError)) {
-    return UnsafeCast<Map>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-Cast<JSReceiver>(o: Object): JSReceiver
-    labels CastError {
-  if (IsJSReceiver(Cast<HeapObject>(o) otherwise CastError)) {
-    return UnsafeCast<JSReceiver>(o);
-  } else {
-    goto CastError;
-  }
-}
-
-const kCOWMap: Map = UnsafeCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
+const kCOWMap: Map = %RawObjectCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
 const kEmptyFixedArray: FixedArrayBase =
-    UnsafeCast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
+    %RawObjectCast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
 
-extern macro BranchIfFastJSArray(Object, Context): never
-    labels Taken, NotTaken;
-extern macro BranchIfFastJSArrayForCopy(Object, Context): never
-    labels Taken, NotTaken;
-extern macro BranchIfNotFastJSArray(Object, Context): never
-    labels Taken, NotTaken;
-macro BranchIfNotFastJSArrayForCopy(implicit context: Context)(o: Object): never
-    labels Taken, NotTaken {
-  BranchIfFastJSArrayForCopy(o, context) otherwise NotTaken, Taken;
-}
-
-extern macro IsPrototypeInitialArrayPrototype(Context, Map): bool;
+extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
+    bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;
+extern macro IsArrayIteratorProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
@@ -1078,7 +1076,7 @@ extern macro CopyFixedArrayElements(
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 
-extern macro AllocateJSObjectFromMap(Map): HeapObject;
+extern macro AllocateJSObjectFromMap(Map): JSObject;
 
 extern operator '[]=' macro StoreFixedDoubleArrayElementSmi(
     FixedDoubleArray, Smi, float64): void;
@@ -1150,7 +1148,8 @@ macro TorqueCopyElements(
 transitioning macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
     labels IfHole;
 
-LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
+LoadElementNoHole<FixedArray>(implicit context: Context)(
+    a: JSArray, index: Smi): Object
     labels IfHole {
   try {
     let elements: FixedArray =
@@ -1166,7 +1165,8 @@ LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
   }
 }
 
-LoadElementNoHole<FixedDoubleArray>(a: JSArray, index: Smi): Object
+LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
+    a: JSArray, index: Smi): Object
     labels IfHole {
   try {
     let elements: FixedDoubleArray =
@@ -1186,17 +1186,23 @@ extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
+extern macro IsJSObject(HeapObject): bool;
+extern macro IsJSTypedArray(HeapObject): bool;
+extern macro IsNumberDictionary(HeapObject): bool;
+extern macro IsFixedTypedArray(HeapObject): bool;
+extern macro IsContext(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
 extern macro IsNumber(Object): bool;
+extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
-extern macro IsFastJSArray(Object, Context): bool;
+extern macro IsFastJSArrayWithNoCustomIteration(implicit context: Context)(
+    Object): bool;
 extern macro Typeof(Object): Object;
-extern macro LoadTargetFromFrame(): JSFunction;
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {
@@ -1211,6 +1217,7 @@ macro NumberIsNaN(number: Number): bool {
   }
 }
 
+extern macro GotoIfForceSlowPath() labels Taken;
 extern macro BranchIfToBooleanIsTrue(Object): never
     labels Taken, NotTaken;
 
@@ -1271,4 +1278,44 @@ extern builtin StringRepeat(Context, String, Number): String;
 struct KeyValuePair {
   key: Object;
   value: Object;
+}
+
+// Macro definitions for compatibility that expose functionality to the CSA
+// using "legacy" APIs. In Torque code, these should not be used.
+macro IsFastJSArray(o: Object, context: Context): bool {
+  try {
+    // Long-term, it's likely not a good idea to have this slow-path test here,
+    // since it fundamentally breaks the type system.
+    GotoIfForceSlowPath() otherwise ForceSlow;
+  }
+  label ForceSlow {
+    return false;
+  }
+
+  return Is<FastJSArray>(o);
+}
+
+macro BranchIfFastJSArray(o: Object, context: Context): never
+    labels True, False {
+  // Long-term, it's likely not a good idea to have this slow-path test here,
+  // since it fundamentally breaks the type system.
+  GotoIfForceSlowPath() otherwise False;
+  BranchIf<FastJSArray>(o) otherwise True, False;
+}
+
+macro BranchIfNotFastJSArray(o: Object, context: Context): never
+    labels True, False {
+  BranchIfNot<FastJSArray>(o) otherwise True, False;
+}
+
+macro BranchIfFastJSArrayForCopy(o: Object, context: Context): never
+    labels True, False {
+  // Long-term, it's likely not a good idea to have this slow-path test here,
+  // since it fundamentally breaks the type system.
+  GotoIfForceSlowPath() otherwise False;
+  BranchIf<FastJSArrayForCopy>(o) otherwise True, False;
+}
+
+macro IsFastJSArrayWithNoCustomIteration(context: Context, o: Object): bool {
+  return Is<FastJSArrayWithNoCustomIteration>(o);
 }

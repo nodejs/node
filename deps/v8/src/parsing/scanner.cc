@@ -987,7 +987,8 @@ uc32 Scanner::ScanUnicodeEscape() {
   return ScanHexNumber<capture_raw, unicode>(4);
 }
 
-Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped) {
+Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
+                                                       bool can_be_keyword) {
   while (true) {
     if (c0_ == '\\') {
       escaped = true;
@@ -999,16 +1000,18 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped) {
       if (c == '\\' || !IsIdentifierPart(c)) {
         return Token::ILLEGAL;
       }
+      can_be_keyword = can_be_keyword && CharCanBeKeyword(c);
       AddLiteralChar(c);
     } else if (IsIdentifierPart(c0_) ||
                (CombineSurrogatePair() && IsIdentifierPart(c0_))) {
+      can_be_keyword = can_be_keyword && CharCanBeKeyword(c0_);
       AddLiteralCharAdvance();
     } else {
       break;
     }
   }
 
-  if (next().literal_chars.is_one_byte()) {
+  if (can_be_keyword && next().literal_chars.is_one_byte()) {
     Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.start(), chars.length());

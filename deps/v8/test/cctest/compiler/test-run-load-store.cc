@@ -232,7 +232,7 @@ void RunLoadImmIndex(MachineType rep, TestAlignment t) {
     for (int i = 0; i < kNumElems; i++) {
       BufferedRawMachineAssemblerTester<CType> m;
       void* base_pointer = &buffer[0] - offset;
-#if V8_POINTER_COMPRESSION
+#ifdef V8_COMPRESS_POINTERS
       if (rep.IsTagged()) {
         // When pointer compression is enabled then we need to access only
         // the lower 32-bit of the tagged value while the buffer contains

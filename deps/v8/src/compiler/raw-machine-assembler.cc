@@ -326,9 +326,21 @@ void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
       case IrOpcode::kIfSuccess:
         control_node = NodeProperties::GetControlInput(control_node);
         continue;
-      case IrOpcode::kIfValue:
+      case IrOpcode::kIfValue: {
+        IfValueParameters parameters = IfValueParametersOf(control_node->op());
+        if (parameters.hint() != BranchHint::kFalse) {
+          NodeProperties::ChangeOp(
+              control_node, common()->IfValue(parameters.value(),
+                                              parameters.comparison_order(),
+                                              BranchHint::kFalse));
+        }
+        return;
+      }
       case IrOpcode::kIfDefault:
-        // Marking switch cases as deferred is currently impossible.
+        if (BranchHintOf(control_node->op()) != BranchHint::kFalse) {
+          NodeProperties::ChangeOp(control_node,
+                                   common()->IfDefault(BranchHint::kFalse));
+        }
         return;
       case IrOpcode::kIfTrue: {
         Node* branch = NodeProperties::GetControlInput(control_node);
@@ -389,7 +401,7 @@ Node* RawMachineAssembler::TargetParameter() {
 }
 
 Node* RawMachineAssembler::Parameter(size_t index) {
-  DCHECK(index < parameter_count());
+  DCHECK_LT(index, parameter_count());
   return parameters_[index];
 }
 

@@ -27,12 +27,12 @@ typedef BitField<int, kStringBuilderConcatHelperLengthBits,
     StringBuilderSubstringPosition;
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String* special, sinkchar* sink,
-                               FixedArray* fixed_array, int array_length);
+void StringBuilderConcatHelper(String special, sinkchar* sink,
+                               FixedArray fixed_array, int array_length);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
-int StringBuilderConcatLength(int special_length, FixedArray* fixed_array,
+int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
                               int array_length, bool* one_byte);
 
 class FixedArrayBuilder {
@@ -182,14 +182,15 @@ class IncrementalStringBuilder {
   template <typename DestChar>
   class NoExtend {
    public:
-    explicit NoExtend(Handle<String> string, int offset) {
+    NoExtend(Handle<String> string, int offset,
+             const DisallowHeapAllocation& no_gc) {
       DCHECK(string->IsSeqOneByteString() || string->IsSeqTwoByteString());
       if (sizeof(DestChar) == 1) {
         start_ = reinterpret_cast<DestChar*>(
-            Handle<SeqOneByteString>::cast(string)->GetChars() + offset);
+            Handle<SeqOneByteString>::cast(string)->GetChars(no_gc) + offset);
       } else {
         start_ = reinterpret_cast<DestChar*>(
-            Handle<SeqTwoByteString>::cast(string)->GetChars() + offset);
+            Handle<SeqTwoByteString>::cast(string)->GetChars(no_gc) + offset);
       }
       cursor_ = start_;
     }
@@ -231,8 +232,10 @@ class IncrementalStringBuilder {
   template <typename DestChar>
   class NoExtendBuilder : public NoExtend<DestChar> {
    public:
-    NoExtendBuilder(IncrementalStringBuilder* builder, int required_length)
-        : NoExtend<DestChar>(builder->current_part(), builder->current_index_),
+    NoExtendBuilder(IncrementalStringBuilder* builder, int required_length,
+                    const DisallowHeapAllocation& no_gc)
+        : NoExtend<DestChar>(builder->current_part(), builder->current_index_,
+                             no_gc),
           builder_(builder) {
       DCHECK(builder->CurrentPartCanFit(required_length));
     }

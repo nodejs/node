@@ -7,7 +7,6 @@
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"

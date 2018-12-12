@@ -4,7 +4,7 @@
 
 #include "src/snapshot/serializer-allocator.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer.h"
 #include "src/snapshot/snapshot-source-sink.h"

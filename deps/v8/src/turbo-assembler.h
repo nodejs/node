@@ -131,6 +131,13 @@ class HardAbortScope {
 enum class StubCallMode { kCallOnHeapBuiltin, kCallWasmRuntimeStub };
 
 #ifdef DEBUG
+struct CountIfValidRegisterFunctor {
+  template <typename RegType>
+  constexpr int operator()(int count, RegType reg) const {
+    return count + (reg.is_valid() ? 1 : 0);
+  }
+};
+
 template <typename RegType, typename... RegTypes,
           // All arguments must be either Register or DoubleRegister.
           typename = typename std::enable_if<
@@ -138,7 +145,8 @@ template <typename RegType, typename... RegTypes,
               base::is_same<DoubleRegister, RegType, RegTypes...>::value>::type>
 inline bool AreAliased(RegType first_reg, RegTypes... regs) {
   int num_different_regs = NumRegs(RegType::ListOf(first_reg, regs...));
-  int num_given_regs = sizeof...(regs) + 1;
+  int num_given_regs =
+      base::fold(CountIfValidRegisterFunctor{}, 0, first_reg, regs...);
   return num_different_regs < num_given_regs;
 }
 #endif

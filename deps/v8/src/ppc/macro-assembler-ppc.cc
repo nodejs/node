@@ -36,17 +36,7 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
@@ -1571,21 +1561,6 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-  } else {
-    // Block constant pool for the call instruction sequence.
-    ConstantPoolUnavailableScope constant_pool_unavailable(this);
-
-    mov(ip, Operand::EmbeddedCode(stub));
-    mtctr(ip);
-    bctrl();
-  }
-}
-
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
@@ -2026,6 +2001,23 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Register scratch1 = r7;
+    Register scratch2 = r8;
+    Push(scratch1, scratch2);
+
+    mflr(scratch2);
+    Move(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    LoadPC(r0);
+    StoreP(r0, MemOperand(scratch1));
+    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(fp, MemOperand(scratch1));
+    mtlr(scratch2);
+    Pop(scratch1, scratch2);
+  }
+
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
@@ -2042,6 +2034,17 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   }
 
   Call(dest);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register scratch1 = r7;
+    Register scratch2 = r8;
+    Push(scratch1, scratch2);
+    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    mov(scratch2, Operand::Zero());
+    StoreP(scratch2, MemOperand(scratch1));
+    Pop(scratch1, scratch2);
+  }
 
   // Remove frame bought in PrepareCallCFunction
   int stack_passed_arguments =
@@ -3029,6 +3032,25 @@ void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
 void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   Cmpi(x, Operand(y), r0);
   blt(dest);
+}
+
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  Label start_call;
+  static constexpr int after_call_offset = 5 * kInstrSize;
+  LoadPC(r7);
+  bind(&start_call);
+  addi(r7, r7, Operand(after_call_offset));
+  StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
+  Call(target);
+  DCHECK_EQ(after_call_offset - kInstrSize,
+            __ SizeOfCodeGeneratedSince(&start_call));
 }
 
 }  // namespace internal

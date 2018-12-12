@@ -4,7 +4,6 @@
 
 #include "src/snapshot/code-serializer.h"
 
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/log.h"
@@ -86,7 +85,8 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   DisallowHeapAllocation no_gc;
 
-  VisitRootPointer(Root::kHandleScope, nullptr, ObjectSlot(info.location()));
+  VisitRootPointer(Root::kHandleScope, nullptr,
+                   FullObjectSlot(info.location()));
   SerializeDeferredObjects();
   Pad();
 
@@ -141,11 +141,6 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
         break;                        // hit UNREACHABLE below.
       case Code::STUB:
-        if (code_object->builtin_index() == -1) {
-          return SerializeCodeStub(code_object, how_to_code, where_to_point);
-        } else {
-          return SerializeCodeObject(code_object, how_to_code, where_to_point);
-        }
       case Code::BUILTIN:
       default:
         return SerializeCodeObject(code_object, how_to_code, where_to_point);
@@ -172,7 +167,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
     // We don't want to serialize host options to avoid serializing unnecessary
     // object graph.
-    FixedArray* host_options = script_obj->host_defined_options();
+    FixedArray host_options = script_obj->host_defined_options();
     script_obj->set_host_defined_options(roots.empty_fixed_array());
     SerializeGeneric(obj, how_to_code, where_to_point);
     script_obj->set_host_defined_options(host_options);
@@ -181,13 +176,13 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   if (obj->IsSharedFunctionInfo()) {
-    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+    SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
     DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
 
     DebugInfo* debug_info = nullptr;
-    BytecodeArray* debug_bytecode_array = nullptr;
+    BytecodeArray debug_bytecode_array;
     if (sfi->HasDebugInfo()) {
       // Clear debug info.
       debug_info = sfi->GetDebugInfo();
@@ -208,7 +203,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // Restore debug info
     if (debug_info != nullptr) {
       sfi->set_script_or_debug_info(debug_info);
-      if (debug_bytecode_array != nullptr) {
+      if (!debug_bytecode_array.is_null()) {
         sfi->SetDebugBytecodeArray(debug_bytecode_array);
       }
     }
@@ -239,25 +234,6 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
   ObjectSerializer serializer(this, heap_object, &sink_, how_to_code,
                               where_to_point);
   serializer.Serialize();
-}
-
-void CodeSerializer::SerializeCodeStub(Code code_stub, HowToCode how_to_code,
-                                       WhereToPoint where_to_point) {
-  // We only arrive here if we have not encountered this code stub before.
-  DCHECK(!reference_map()->LookupReference(code_stub).is_valid());
-  uint32_t stub_key = code_stub->stub_key();
-  DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
-  DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
-  stub_keys_.push_back(stub_key);
-
-  SerializerReference reference =
-      reference_map()->AddAttachedReference(code_stub);
-  if (FLAG_trace_serializer) {
-    PrintF(" Encoding code stub %s as attached reference %d\n",
-           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)),
-           reference.attached_reference_index());
-  }
-  PutAttachedReference(reference, how_to_code, where_to_point);
 }
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
@@ -302,7 +278,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   bool log_code_creation = isolate->logger()->is_listening_to_code_events() ||
                            isolate->is_profiling();
   if (log_code_creation || FLAG_log_function_events) {
-    String* name = ReadOnlyRoots(isolate).empty_string();
+    String name = ReadOnlyRoots(isolate).empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());
@@ -330,13 +306,12 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
-  const std::vector<uint32_t>* stub_keys = cs->stub_keys();
   std::vector<Reservation> reservations = cs->EncodeReservations();
 
   // Calculate sizes.
   uint32_t reservation_size =
       static_cast<uint32_t>(reservations.size()) * kUInt32Size;
-  uint32_t num_stub_keys = static_cast<uint32_t>(stub_keys->size());
+  uint32_t num_stub_keys = 0;  // TODO(jgruber): Remove.
   uint32_t stub_keys_size = num_stub_keys * kUInt32Size;
   uint32_t payload_offset = kHeaderSize + reservation_size + stub_keys_size;
   uint32_t padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
@@ -351,7 +326,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   memset(data_, 0, padded_payload_offset);
 
   // Set header values.
-  SetMagicNumber(cs->isolate());
+  SetMagicNumber();
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kSourceHashOffset, cs->source_hash());
   SetHeaderValue(kCpuFeaturesOffset,
@@ -359,7 +334,6 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumReservationsOffset,
                  static_cast<uint32_t>(reservations.size()));
-  SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Zero out any padding in the header.
@@ -369,10 +343,6 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   CopyBytes(data_ + kHeaderSize,
             reinterpret_cast<const byte*>(reservations.data()),
             reservation_size);
-
-  // Copy code stub keys.
-  CopyBytes(data_ + kHeaderSize + reservation_size,
-            reinterpret_cast<const byte*>(stub_keys->data()), stub_keys_size);
 
   // Copy serialized data.
   CopyBytes(data_ + padded_payload_offset, payload->data(),
@@ -387,7 +357,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
     Isolate* isolate, uint32_t expected_source_hash) const {
   if (this->size_ < kHeaderSize) return INVALID_HEADER;
   uint32_t magic_number = GetMagicNumber();
-  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
+  if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
@@ -404,8 +374,7 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   uint32_t max_payload_length =
       this->size_ -
       POINTER_SIZE_ALIGN(kHeaderSize +
-                         GetHeaderValue(kNumReservationsOffset) * kInt32Size +
-                         GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size);
+                         GetHeaderValue(kNumReservationsOffset) * kInt32Size);
   if (payload_length > max_payload_length) return LENGTH_MISMATCH;
   if (!Checksum(ChecksummedContent()).Check(c1, c2)) return CHECKSUM_MISMATCH;
   return CHECK_SUCCESS;
@@ -443,21 +412,13 @@ std::vector<SerializedData::Reservation> SerializedCodeData::Reservations()
 
 Vector<const byte> SerializedCodeData::Payload() const {
   int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
-  int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
-  int payload_offset = kHeaderSize + reservations_size + code_stubs_size;
+  int payload_offset = kHeaderSize + reservations_size;
   int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
   const byte* payload = data_ + padded_payload_offset;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
   return Vector<const byte>(payload, length);
-}
-
-Vector<const uint32_t> SerializedCodeData::CodeStubKeys() const {
-  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
-  const byte* start = data_ + kHeaderSize + reservations_size;
-  return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
-                                GetHeaderValue(kNumCodeStubKeysOffset));
 }
 
 SerializedCodeData::SerializedCodeData(ScriptData* data)

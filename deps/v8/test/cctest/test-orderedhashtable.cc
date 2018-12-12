@@ -1682,6 +1682,54 @@ TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   CHECK_EQ(other.AsSmi(), found.AsSmi());
 }
 
+TEST(SmallOrderedNameDictionarySetAndMigrateHash) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<SmallOrderedNameDictionary> dict =
+      factory->NewSmallOrderedNameDictionary();
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  PropertyDetails details = PropertyDetails::Empty();
+
+  CHECK_EQ(PropertyArray::kNoHashSentinel, dict->Hash());
+  dict->SetHash(100);
+  CHECK_EQ(100, dict->Hash());
+
+  char buf[10];
+  for (int i = 0; i < SmallOrderedNameDictionary::kMaxCapacity; i++) {
+    CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", i));
+    Handle<String> key = isolate->factory()->InternalizeUtf8String(buf);
+    dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
+               .ToHandleChecked();
+    Verify(isolate, dict);
+    CHECK_EQ(100, dict->Hash());
+  }
+}
+
+TEST(OrderedNameDictionarySetAndMigrateHash) {
+  LocalContext context;
+  Isolate* isolate = GetIsolateFrom(&context);
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  PropertyDetails details = PropertyDetails::Empty();
+
+  CHECK_EQ(PropertyArray::kNoHashSentinel, dict->Hash());
+  dict->SetHash(100);
+  CHECK_EQ(100, dict->Hash());
+
+  char buf[10];
+  for (int i = 0; i <= 1024; i++) {
+    CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", i));
+    Handle<String> key = isolate->factory()->InternalizeUtf8String(buf);
+    dict = OrderedNameDictionary::Add(isolate, dict, key, value, details);
+    Verify(isolate, dict);
+    CHECK_EQ(100, dict->Hash());
+  }
+}
+
 }  // namespace test_orderedhashtable
 }  // namespace internal
 }  // namespace v8

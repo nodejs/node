@@ -25,41 +25,6 @@ namespace compiler {
     if (FLAG_trace_turbo_scheduler) PrintF(__VA_ARGS__); \
   } while (false)
 
-// This is a simple priority queue for nodes, with priority classes being
-// assigned by the heurisitcs in SchedulableNodesQueue::PriorityClass. The queue
-// is used in the schedule late phase, for nodes where all uses have been
-// scheduled already. The priorities only affect the ordering of nodes within a
-// basic block, with nodes with higher priority (i.e., smaller
-// {PriorityClass()}) being scheduled towards the end of the block (because
-// basic blocks are filled backwards).
-class SchedulableNodesQueue : public ZoneObject {
- public:
-  explicit SchedulableNodesQueue(Zone* zone)
-      : queues_{ZoneQueue<Node*>(zone), ZoneQueue<Node*>(zone)} {}
-
-  void push(Node* node) { queues_[PriorityClass(node)].push(node); }
-  Node* front() { return ActiveQueue().front(); }
-  void pop() { ActiveQueue().pop(); }
-  bool empty() const {
-    for (const ZoneQueue<Node*>& queue : queues_) {
-      if (!queue.empty()) return false;
-    }
-    return true;
-  }
-
- private:
-  ZoneQueue<Node*>& ActiveQueue() {
-    for (ZoneQueue<Node*>& queue : queues_) {
-      if (!queue.empty()) return queue;
-    }
-    UNREACHABLE();
-  }
-  int PriorityClass(Node* node);
-
-  static constexpr int kPriorityClasses = 2;
-  std::array<ZoneQueue<Node*>, kPriorityClasses> queues_;
-};
-
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
                      size_t node_count_hint)
     : zone_(zone),
@@ -68,7 +33,7 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
       flags_(flags),
       scheduled_nodes_(zone),
       schedule_root_nodes_(zone),
-      schedule_queue_(new (zone) SchedulableNodesQueue(zone)),
+      schedule_queue_(zone),
       node_data_(zone) {
   node_data_.reserve(node_count_hint);
   node_data_.resize(graph->NodeCount(), DefaultSchedulerData());
@@ -260,7 +225,7 @@ void Scheduler::DecrementUnscheduledUseCount(Node* node, int index,
   }
   if (GetData(node)->unscheduled_count_ == 0) {
     TRACE("    newly eligible #%d:%s\n", node->id(), node->op()->mnemonic());
-    schedule_queue_->push(node);
+    schedule_queue_.push(node);
   }
 }
 
@@ -551,6 +516,12 @@ class CFGBuilder : public ZoneObject {
         TraceConnect(sw, switch_block, successor_blocks[index]);
       }
       schedule_->AddSwitch(switch_block, sw, successor_blocks, successor_count);
+    }
+    for (size_t index = 0; index < successor_count; ++index) {
+      if (BranchHintOf(successor_blocks[index]->front()->op()) ==
+          BranchHint::kFalse) {
+        successor_blocks[index]->set_deferred(true);
+      }
     }
   }
 
@@ -1387,13 +1358,6 @@ void Scheduler::ScheduleEarly() {
 // -----------------------------------------------------------------------------
 // Phase 5: Schedule nodes late.
 
-// Deprioritize effect chain nodes. Since we schedule backwards,
-// this means that value nodes are scheduled before the latest effect
-// chain node possible.
-int SchedulableNodesQueue::PriorityClass(Node* node) {
-  if (node->op()->EffectOutputCount() > 0) return 1;
-  return 0;
-}
 
 class ScheduleLateNodeVisitor {
  public:
@@ -1407,20 +1371,13 @@ class ScheduleLateNodeVisitor {
   // Run the schedule late algorithm on a set of fixed root nodes.
   void Run(NodeVector* roots) {
     for (Node* const root : *roots) {
-      EnqueueRootInputs(root);
+      ProcessQueue(root);
     }
-    // Fixed point to drain the queue of schedulable nodes.
-    SchedulableNodesQueue* queue = scheduler_->schedule_queue_;
-    do {
-      Node* const node = queue->front();
-      queue->pop();
-      VisitNode(node);
-    } while (!queue->empty());
   }
 
  private:
-  void EnqueueRootInputs(Node* root) {
-    SchedulableNodesQueue* queue = scheduler_->schedule_queue_;
+  void ProcessQueue(Node* root) {
+    ZoneQueue<Node*>* queue = &(scheduler_->schedule_queue_);
     for (Node* node : root->inputs()) {
       // Don't schedule coupled nodes on their own.
       if (scheduler_->GetPlacement(node) == Scheduler::kCoupled) {
@@ -1431,6 +1388,11 @@ class ScheduleLateNodeVisitor {
       if (scheduler_->GetData(node)->unscheduled_count_ != 0) continue;
 
       queue->push(node);
+      do {
+        Node* const node = queue->front();
+        queue->pop();
+        VisitNode(node);
+      } while (!queue->empty());
     }
   }
 
@@ -1584,7 +1546,7 @@ class ScheduleLateNodeVisitor {
           use_node = CloneNode(node);
           TRACE("  cloning #%d:%s for id:%d\n", use_node->id(),
                 use_node->op()->mnemonic(), use_block->id().ToInt());
-          scheduler_->schedule_queue_->push(use_node);
+          scheduler_->schedule_queue_.push(use_node);
         }
       }
       edge.UpdateTo(use_node);

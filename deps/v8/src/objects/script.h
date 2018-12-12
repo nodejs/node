@@ -64,10 +64,10 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
 
   // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
-  DECL_ACCESSORS(eval_from_shared, SharedFunctionInfo)
+  DECL_ACCESSORS2(eval_from_shared, SharedFunctionInfo)
 
   // [wrapped_arguments]: for the list of arguments in a wrapped script.
-  DECL_ACCESSORS(wrapped_arguments, FixedArray)
+  DECL_ACCESSORS2(wrapped_arguments, FixedArray)
 
   // Whether the script is implicitly wrapped in a function.
   inline bool is_wrapped() const;
@@ -83,7 +83,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
 
   // [shared_function_infos]: weak fixed array containing all shared
   // function infos created from this script.
-  DECL_ACCESSORS(shared_function_infos, WeakFixedArray)
+  DECL_ACCESSORS2(shared_function_infos, WeakFixedArray)
 
   // [flags]: Holds an exciting bitfield.
   DECL_INT_ACCESSORS(flags)
@@ -99,7 +99,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   DECL_ACCESSORS(wasm_module_object, Object)
 
   // [host_defined_options]: Options defined by the embedder.
-  DECL_ACCESSORS(host_defined_options, FixedArray)
+  DECL_ACCESSORS2(host_defined_options, FixedArray)
 
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
@@ -187,26 +187,28 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
   DECL_PRINTER(Script)
   DECL_VERIFIER(Script)
 
-  static const int kSourceOffset = HeapObject::kHeaderSize;
-  static const int kNameOffset = kSourceOffset + kPointerSize;
-  static const int kLineOffsetOffset = kNameOffset + kPointerSize;
-  static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
-  static const int kContextOffset = kColumnOffsetOffset + kPointerSize;
-  static const int kTypeOffset = kContextOffset + kPointerSize;
-  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
-  static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kEvalFromSharedOrWrappedArgumentsOffset =
-      kIdOffset + kPointerSize;
-  static const int kEvalFromPositionOffset =
-      kEvalFromSharedOrWrappedArgumentsOffset + kPointerSize;
-  static const int kSharedFunctionInfosOffset =
-      kEvalFromPositionOffset + kPointerSize;
-  static const int kFlagsOffset = kSharedFunctionInfosOffset + kPointerSize;
-  static const int kSourceUrlOffset = kFlagsOffset + kPointerSize;
-  static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
-  static const int kHostDefinedOptionsOffset =
-      kSourceMappingUrlOffset + kPointerSize;
-  static const int kSize = kHostDefinedOptionsOffset + kPointerSize;
+// Layout description.
+#define SCRIPTS_FIELDS(V)                                 \
+  V(kSourceOffset, kTaggedSize)                           \
+  V(kNameOffset, kTaggedSize)                             \
+  V(kLineOffsetOffset, kTaggedSize)                       \
+  V(kColumnOffsetOffset, kTaggedSize)                     \
+  V(kContextOffset, kTaggedSize)                          \
+  V(kTypeOffset, kTaggedSize)                             \
+  V(kLineEndsOffset, kTaggedSize)                         \
+  V(kIdOffset, kTaggedSize)                               \
+  V(kEvalFromSharedOrWrappedArgumentsOffset, kTaggedSize) \
+  V(kEvalFromPositionOffset, kTaggedSize)                 \
+  V(kSharedFunctionInfosOffset, kTaggedSize)              \
+  V(kFlagsOffset, kTaggedSize)                            \
+  V(kSourceUrlOffset, kTaggedSize)                        \
+  V(kSourceMappingUrlOffset, kTaggedSize)                 \
+  V(kHostDefinedOptionsOffset, kTaggedSize)               \
+  /* Total size. */                                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SCRIPTS_FIELDS)
+#undef SCRIPTS_FIELDS
 
  private:
   // Bit positions in the flags field.

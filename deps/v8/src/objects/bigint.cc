@@ -34,8 +34,7 @@ namespace internal {
 // Many of the functions in this class use arguments of type {BigIntBase},
 // indicating that they will be used in a read-only capacity, and both
 // {BigInt} and {MutableBigInt} objects can be passed in.
-class MutableBigInt : public FreshlyAllocatedBigInt,
-                      public NeverReadOnlySpaceObject {
+class MutableBigInt : public FreshlyAllocatedBigInt {
  public:
   // Bottleneck for converting MutableBigInts to BigInts.
   static MaybeHandle<BigInt> MakeImmutable(MaybeHandle<MutableBigInt> maybe);
@@ -57,6 +56,9 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
   static Handle<MutableBigInt> Cast(Handle<FreshlyAllocatedBigInt> bigint) {
     SLOW_DCHECK(bigint->IsBigInt());
     return Handle<MutableBigInt>::cast(bigint);
+  }
+  static MutableBigInt unchecked_cast(ObjectPtr o) {
+    return MutableBigInt(o.ptr());
   }
 
   // Internal helpers.
@@ -82,7 +84,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
                                     Handle<BigInt> y, bool result_sign);
   static MaybeHandle<MutableBigInt> AbsoluteAddOne(
       Isolate* isolate, Handle<BigIntBase> x, bool sign,
-      MutableBigInt* result_storage = nullptr);
+      MutableBigInt result_storage = MutableBigInt());
   static Handle<MutableBigInt> AbsoluteSubOne(Isolate* isolate,
                                               Handle<BigIntBase> x);
   static MaybeHandle<MutableBigInt> AbsoluteSubOne(Isolate* isolate,
@@ -93,21 +95,21 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
   enum SymmetricOp { kSymmetric, kNotSymmetric };
   static inline Handle<MutableBigInt> AbsoluteBitwiseOp(
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-      MutableBigInt* result_storage, ExtraDigitsHandling extra_digits,
+      MutableBigInt result_storage, ExtraDigitsHandling extra_digits,
       SymmetricOp symmetric,
       const std::function<digit_t(digit_t, digit_t)>& op);
   static Handle<MutableBigInt> AbsoluteAnd(
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-      MutableBigInt* result_storage = nullptr);
+      MutableBigInt result_storage = MutableBigInt());
   static Handle<MutableBigInt> AbsoluteAndNot(
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-      MutableBigInt* result_storage = nullptr);
+      MutableBigInt result_storage = MutableBigInt());
   static Handle<MutableBigInt> AbsoluteOr(
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-      MutableBigInt* result_storage = nullptr);
+      MutableBigInt result_storage = MutableBigInt());
   static Handle<MutableBigInt> AbsoluteXor(
       Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-      MutableBigInt* result_storage = nullptr);
+      MutableBigInt result_storage = MutableBigInt());
 
   static int AbsoluteCompare(Handle<BigIntBase> x, Handle<BigIntBase> y);
 
@@ -115,9 +117,8 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
                                  digit_t multiplier,
                                  Handle<MutableBigInt> accumulator,
                                  int accumulator_index);
-  static void InternalMultiplyAdd(BigIntBase* source, digit_t factor,
-                                  digit_t summand, int n,
-                                  MutableBigInt* result);
+  static void InternalMultiplyAdd(BigIntBase source, digit_t factor,
+                                  digit_t summand, int n, MutableBigInt result);
   void InplaceMultiplyAdd(uintptr_t factor, uintptr_t summand);
 
   // Specialized helpers for Divide/Remainder.
@@ -167,7 +168,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
 
   // Returns the least significant 64 bits, simulating two's complement
   // representation.
-  static uint64_t GetRawBits(BigIntBase* x, bool* lossless);
+  static uint64_t GetRawBits(BigIntBase x, bool* lossless);
 
   // Digit arithmetic helpers.
   static inline digit_t digit_add(digit_t a, digit_t b, digit_t* carry);
@@ -183,28 +184,38 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
 // Internal field setters. Non-mutable BigInts don't have these.
 #include "src/objects/object-macros.h"
   inline void set_sign(bool new_sign) {
-    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
-    bitfield = SignBits::update(static_cast<uint32_t>(bitfield), new_sign);
-    RELAXED_WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    bitfield = SignBits::update(bitfield, new_sign);
+    RELAXED_WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
   }
   inline void synchronized_set_length(int new_length) {
-    intptr_t bitfield = RELAXED_READ_INTPTR_FIELD(this, kBitfieldOffset);
-    bitfield = LengthBits::update(static_cast<uint32_t>(bitfield), new_length);
-    RELEASE_WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    bitfield = LengthBits::update(bitfield, new_length);
+    RELEASE_WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
   }
   inline void initialize_bitfield(bool sign, int length) {
-    intptr_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
-    WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+    int32_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
+    WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
   }
   inline void set_digit(int n, digit_t value) {
     SLOW_DCHECK(0 <= n && n < length());
     Address address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
     (*reinterpret_cast<digit_t*>(address)) = value;
   }
-#include "src/objects/object-macros-undef.h"
 
   void set_64_bits(uint64_t bits);
+
+  bool IsMutableBigInt() const { return IsBigInt(); }
+
+  NEVER_READ_ONLY_SPACE
+
+  OBJECT_CONSTRUCTORS(MutableBigInt, FreshlyAllocatedBigInt)
 };
+
+OBJECT_CONSTRUCTORS_IMPL(MutableBigInt, FreshlyAllocatedBigInt)
+NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
+
+#include "src/objects/object-macros-undef.h"
 
 MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
                                               PretenureFlag pretenure) {
@@ -318,9 +329,8 @@ Handle<MutableBigInt> MutableBigInt::Copy(Isolate* isolate,
 }
 
 void MutableBigInt::InitializeDigits(int length, byte value) {
-  memset(reinterpret_cast<void*>(reinterpret_cast<Address>(this) +
-                                 kDigitsOffset - kHeapObjectTag),
-         value, length * kDigitSize);
+  memset(reinterpret_cast<void*>(ptr() + kDigitsOffset - kHeapObjectTag), value,
+         length * kDigitSize);
 }
 
 MaybeHandle<BigInt> MutableBigInt::MakeImmutable(
@@ -623,7 +633,7 @@ ComparisonResult BigInt::CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y) {
   return ComparisonResult::kEqual;
 }
 
-bool BigInt::EqualToBigInt(BigInt* x, BigInt* y) {
+bool BigInt::EqualToBigInt(BigInt x, BigInt y) {
   if (x->sign() != y->sign()) return false;
   if (x->length() != y->length()) return false;
   for (int i = 0; i < x->length(); i++) {
@@ -1173,7 +1183,7 @@ Handle<BigInt> MutableBigInt::AbsoluteSub(Isolate* isolate, Handle<BigInt> x,
 // modification.
 MaybeHandle<MutableBigInt> MutableBigInt::AbsoluteAddOne(
     Isolate* isolate, Handle<BigIntBase> x, bool sign,
-    MutableBigInt* result_storage) {
+    MutableBigInt result_storage) {
   int input_length = x->length();
   // The addition will overflow into a new digit if all existing digits are
   // at maximum.
@@ -1186,7 +1196,7 @@ MaybeHandle<MutableBigInt> MutableBigInt::AbsoluteAddOne(
   }
   int result_length = input_length + will_overflow;
   Handle<MutableBigInt> result(result_storage, isolate);
-  if (result_storage == nullptr) {
+  if (result_storage.is_null()) {
     if (!New(isolate, result_length).ToHandle(&result)) {
       return MaybeHandle<MutableBigInt>();
     }
@@ -1261,7 +1271,7 @@ MaybeHandle<MutableBigInt> MutableBigInt::AbsoluteSubOne(Isolate* isolate,
 // result_storage: [  0 ][ x3 ][ r2 ][ r1 ][ r0 ]
 inline Handle<MutableBigInt> MutableBigInt::AbsoluteBitwiseOp(
     Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-    MutableBigInt* result_storage, ExtraDigitsHandling extra_digits,
+    MutableBigInt result_storage, ExtraDigitsHandling extra_digits,
     SymmetricOp symmetric, const std::function<digit_t(digit_t, digit_t)>& op) {
   int x_length = x->length();
   int y_length = y->length();
@@ -1276,7 +1286,7 @@ inline Handle<MutableBigInt> MutableBigInt::AbsoluteBitwiseOp(
   DCHECK(num_pairs == Min(x_length, y_length));
   Handle<MutableBigInt> result(result_storage, isolate);
   int result_length = extra_digits == kCopy ? x_length : num_pairs;
-  if (result_storage == nullptr) {
+  if (result_storage.is_null()) {
     result = New(isolate, result_length).ToHandleChecked();
   } else {
     DCHECK(result_storage->length() >= result_length);
@@ -1300,9 +1310,10 @@ inline Handle<MutableBigInt> MutableBigInt::AbsoluteBitwiseOp(
 // If {result_storage} is non-nullptr, it will be used for the result,
 // otherwise a new BigInt of appropriate length will be allocated.
 // {result_storage} may alias {x} or {y} for in-place modification.
-Handle<MutableBigInt> MutableBigInt::AbsoluteAnd(
-    Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-    MutableBigInt* result_storage) {
+Handle<MutableBigInt> MutableBigInt::AbsoluteAnd(Isolate* isolate,
+                                                 Handle<BigIntBase> x,
+                                                 Handle<BigIntBase> y,
+                                                 MutableBigInt result_storage) {
   return AbsoluteBitwiseOp(isolate, x, y, result_storage, kSkip, kSymmetric,
                            [](digit_t a, digit_t b) { return a & b; });
 }
@@ -1312,7 +1323,7 @@ Handle<MutableBigInt> MutableBigInt::AbsoluteAnd(
 // {result_storage} may alias {x} or {y} for in-place modification.
 Handle<MutableBigInt> MutableBigInt::AbsoluteAndNot(
     Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-    MutableBigInt* result_storage) {
+    MutableBigInt result_storage) {
   return AbsoluteBitwiseOp(isolate, x, y, result_storage, kCopy, kNotSymmetric,
                            [](digit_t a, digit_t b) { return a & ~b; });
 }
@@ -1323,7 +1334,7 @@ Handle<MutableBigInt> MutableBigInt::AbsoluteAndNot(
 Handle<MutableBigInt> MutableBigInt::AbsoluteOr(Isolate* isolate,
                                                 Handle<BigIntBase> x,
                                                 Handle<BigIntBase> y,
-                                                MutableBigInt* result_storage) {
+                                                MutableBigInt result_storage) {
   return AbsoluteBitwiseOp(isolate, x, y, result_storage, kCopy, kSymmetric,
                            [](digit_t a, digit_t b) { return a | b; });
 }
@@ -1331,9 +1342,10 @@ Handle<MutableBigInt> MutableBigInt::AbsoluteOr(Isolate* isolate,
 // If {result_storage} is non-nullptr, it will be used for the result,
 // otherwise a new BigInt of appropriate length will be allocated.
 // {result_storage} may alias {x} or {y} for in-place modification.
-Handle<MutableBigInt> MutableBigInt::AbsoluteXor(
-    Isolate* isolate, Handle<BigIntBase> x, Handle<BigIntBase> y,
-    MutableBigInt* result_storage) {
+Handle<MutableBigInt> MutableBigInt::AbsoluteXor(Isolate* isolate,
+                                                 Handle<BigIntBase> x,
+                                                 Handle<BigIntBase> y,
+                                                 MutableBigInt result_storage) {
   return AbsoluteBitwiseOp(isolate, x, y, result_storage, kCopy, kSymmetric,
                            [](digit_t a, digit_t b) { return a ^ b; });
 }
@@ -1391,9 +1403,9 @@ void MutableBigInt::MultiplyAccumulate(Handle<BigIntBase> multiplicand,
 
 // Multiplies {source} with {factor} and adds {summand} to the result.
 // {result} and {source} may be the same BigInt for inplace modification.
-void MutableBigInt::InternalMultiplyAdd(BigIntBase* source, digit_t factor,
+void MutableBigInt::InternalMultiplyAdd(BigIntBase source, digit_t factor,
                                         digit_t summand, int n,
-                                        MutableBigInt* result) {
+                                        MutableBigInt result) {
   DCHECK(source->length() >= n);
   DCHECK(result->length() >= n);
   digit_t carry = summand;
@@ -1869,8 +1881,8 @@ int BigInt::DigitsByteLengthForBitfield(uint32_t bitfield) {
 // The serialization format MUST NOT CHANGE without updating the format
 // version in value-serializer.cc!
 void BigInt::SerializeDigits(uint8_t* storage) {
-  void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(this) +
-                                         kDigitsOffset - kHeapObjectTag);
+  void* digits =
+      reinterpret_cast<void*>(ptr() + kDigitsOffset - kHeapObjectTag);
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   int bytelength = length() * kDigitSize;
   memcpy(storage, digits, bytelength);
@@ -1897,8 +1909,8 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
   Handle<MutableBigInt> result =
       MutableBigInt::Cast(isolate->factory()->NewBigInt(length, pretenure));
   result->initialize_bitfield(sign, length);
-  void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(*result) +
-                                         kDigitsOffset - kHeapObjectTag);
+  void* digits =
+      reinterpret_cast<void*>(result->ptr() + kDigitsOffset - kHeapObjectTag);
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   memcpy(digits, digits_storage.start(), bytelength);
   void* padding_start =
@@ -1964,7 +1976,7 @@ MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(
           ->NewRawOneByteString(static_cast<int>(chars_required))
           .ToHandleChecked();
   DisallowHeapAllocation no_gc;
-  uint8_t* buffer = result->GetChars();
+  uint8_t* buffer = result->GetChars(no_gc);
   // Print the number into the string, starting from the last position.
   int pos = static_cast<int>(chars_required - 1);
   digit_t digit = 0;
@@ -2041,7 +2053,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
   // Zap the string first.
   {
     DisallowHeapAllocation no_gc;
-    uint8_t* chars = result->GetChars();
+    uint8_t* chars = result->GetChars(no_gc);
     for (int i = 0; i < static_cast<int>(chars_required); i++) chars[i] = '?';
   }
 #endif
@@ -2074,7 +2086,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
       DCHECK(!rest.is_null());
       dividend = reinterpret_cast<Handle<BigIntBase>*>(&rest);
       DisallowHeapAllocation no_gc;
-      uint8_t* chars = result->GetChars();
+      uint8_t* chars = result->GetChars(no_gc);
       for (int i = 0; i < chunk_chars; i++) {
         chars[pos++] = kConversionChars[chunk % radix];
         chunk /= radix;
@@ -2088,7 +2100,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
     last_digit = rest->digit(0);
   }
   DisallowHeapAllocation no_gc;
-  uint8_t* chars = result->GetChars();
+  uint8_t* chars = result->GetChars(no_gc);
   do {
     chars[pos++] = kConversionChars[last_digit % radix];
     last_digit /= radix;
@@ -2380,7 +2392,7 @@ void BigInt::ToWordsArray64(int* sign_bit, int* words64_count,
   }
 }
 
-uint64_t MutableBigInt::GetRawBits(BigIntBase* x, bool* lossless) {
+uint64_t MutableBigInt::GetRawBits(BigIntBase x, bool* lossless) {
   if (lossless != nullptr) *lossless = true;
   if (x->is_zero()) return 0;
   int len = x->length();
@@ -2395,14 +2407,14 @@ uint64_t MutableBigInt::GetRawBits(BigIntBase* x, bool* lossless) {
 }
 
 int64_t BigInt::AsInt64(bool* lossless) {
-  uint64_t raw = MutableBigInt::GetRawBits(this, lossless);
+  uint64_t raw = MutableBigInt::GetRawBits(*this, lossless);
   int64_t result = static_cast<int64_t>(raw);
   if (lossless != nullptr && (result < 0) != sign()) *lossless = false;
   return result;
 }
 
 uint64_t BigInt::AsUint64(bool* lossless) {
-  uint64_t result = MutableBigInt::GetRawBits(this, lossless);
+  uint64_t result = MutableBigInt::GetRawBits(*this, lossless);
   if (lossless != nullptr && sign()) *lossless = false;
   return result;
 }
@@ -2585,7 +2597,7 @@ void MutableBigInt::set_64_bits(uint64_t bits) {
 #ifdef OBJECT_PRINT
 void BigInt::BigIntPrint(std::ostream& os) {
   DisallowHeapAllocation no_gc;
-  HeapObject::PrintHeader(os, "BigInt");
+  PrintHeader(os, "BigInt");
   int len = length();
   os << "\n- length: " << len;
   os << "\n- sign: " << sign();

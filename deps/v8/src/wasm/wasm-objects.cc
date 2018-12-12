@@ -137,7 +137,7 @@ size_t EstimateNativeAllocationsSize(const WasmModule* module) {
 }
 
 WasmInstanceNativeAllocations* GetNativeAllocations(
-    WasmInstanceObject* instance) {
+    WasmInstanceObject instance) {
   return reinterpret_cast<Managed<WasmInstanceNativeAllocations>*>(
              instance->managed_native_allocations())
       ->raw();
@@ -521,7 +521,7 @@ v8::debug::WasmDisassembly WasmModuleObject::DisassembleFunction(
       static_cast<uint32_t>(func_index) >= module()->functions.size())
     return {};
 
-  Vector<const byte> wire_bytes = native_module()->wire_bytes();
+  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
 
   std::ostringstream disassembly_os;
   v8::debug::WasmDisassembly::OffsetTable offset_table;
@@ -748,7 +748,7 @@ bool WasmModuleObject::GetPositionInfo(uint32_t position,
 }
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
-                                             int64_t maximum,
+                                             uint32_t maximum,
                                              Handle<FixedArray>* js_functions) {
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor(), isolate);
@@ -761,8 +761,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
     (*js_functions)->set(i, null);
   }
   table_obj->set_functions(**js_functions);
-  DCHECK_EQ(maximum, static_cast<int>(maximum));
-  Handle<Object> max = isolate->factory()->NewNumber(maximum);
+  Handle<Object> max = isolate->factory()->NewNumberFromUint(maximum);
   table_obj->set_maximum_length(*max);
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
@@ -883,23 +882,10 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
 namespace {
 MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
                                             Handle<JSArrayBuffer> old_buffer,
-                                            uint32_t pages,
-                                            uint32_t maximum_pages) {
-  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
-  if (!old_buffer->is_growable()) return {};
-  void* old_mem_start = old_buffer->backing_store();
+                                            size_t new_size) {
+  CHECK_EQ(0, new_size % wasm::kWasmPageSize);
   size_t old_size = old_buffer->byte_length();
-  CHECK_EQ(0, old_size % wasm::kWasmPageSize);
-  size_t old_pages = old_size / wasm::kWasmPageSize;
-  CHECK_GE(wasm::max_mem_pages(), old_pages);
-
-  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
-      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
-    return {};
-  }
-  size_t new_size =
-      static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
-
+  void* old_mem_start = old_buffer->backing_store();
   // Reusing the backing store from externalized buffers causes problems with
   // Blink's array buffers. The connection between the two is lost, which can
   // lead to Blink not knowing about the other reference to the buffer and
@@ -914,8 +900,9 @@ MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
                              new_size, PageAllocator::kReadWrite)) {
         return {};
       }
+      DCHECK_GE(new_size, old_size);
       reinterpret_cast<v8::Isolate*>(isolate)
-          ->AdjustAmountOfExternalAllocatedMemory(pages * wasm::kWasmPageSize);
+          ->AdjustAmountOfExternalAllocatedMemory(new_size - old_size);
     }
     // NOTE: We must allocate a new array buffer here because the spec
     // assumes that ArrayBuffers do not change size.
@@ -976,7 +963,7 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 
 Handle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
-    int32_t maximum) {
+    uint32_t maximum) {
   // TODO(kschimpf): Do we need to add an argument that defines the
   // style of memory the user prefers (with/without trap handling), so
   // that the memory will match the style of the compiled wasm module.
@@ -995,11 +982,6 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
   memory_obj->set_maximum_pages(maximum);
 
   return memory_obj;
-}
-
-uint32_t WasmMemoryObject::current_pages() {
-  return static_cast<uint32_t>(array_buffer()->byte_length() /
-                               wasm::kWasmPageSize);
 }
 
 bool WasmMemoryObject::has_full_guard_region(Isolate* isolate) {
@@ -1041,13 +1023,6 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
   SetInstanceMemory(instance, buffer);
 }
 
-void WasmMemoryObject::RemoveInstance(Handle<WasmMemoryObject> memory,
-                                      Handle<WasmInstanceObject> instance) {
-  if (memory->has_instances()) {
-    memory->instances()->RemoveOne(MaybeObjectHandle::Weak(instance));
-  }
-}
-
 // static
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
@@ -1055,20 +1030,32 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
   if (!old_buffer->is_growable()) return -1;
-  size_t old_size = old_buffer->byte_length();
-  DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
-  Handle<JSArrayBuffer> new_buffer;
 
+  // Checks for maximum memory size, compute new size.
   uint32_t maximum_pages = wasm::max_mem_pages();
   if (memory_object->has_maximum_pages()) {
     maximum_pages = std::min(
         maximum_pages, static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  if (!MemoryGrowBuffer(isolate, old_buffer, pages, maximum_pages)
-           .ToHandle(&new_buffer)) {
+  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
+  size_t old_size = old_buffer->byte_length();
+  CHECK_EQ(0, old_size % wasm::kWasmPageSize);
+  size_t old_pages = old_size / wasm::kWasmPageSize;
+  CHECK_GE(wasm::max_mem_pages(), old_pages);
+  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
+      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
+    return -1;
+  }
+  size_t new_size =
+      static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
+
+  // Grow the buffer.
+  Handle<JSArrayBuffer> new_buffer;
+  if (!MemoryGrowBuffer(isolate, old_buffer, new_size).ToHandle(&new_buffer)) {
     return -1;
   }
 
+  // Update instances if any.
   if (memory_object->has_instances()) {
     Handle<WeakArrayList> instances(memory_object->instances(), isolate);
     for (int i = 0; i < instances->length(); i++) {
@@ -1136,7 +1123,8 @@ void IndirectFunctionTableEntry::Set(int sig_id,
   TRACE_IFT(
       "IFT entry %p[%d] = {sig_id=%d, target_instance=%p, "
       "target_func_index=%d}\n",
-      *instance_, index_, sig_id, *target_instance, target_func_index);
+      reinterpret_cast<void*>(instance_->ptr()), index_, sig_id,
+      reinterpret_cast<void*>(target_instance->ptr()), target_func_index);
 
   Object* ref = nullptr;
   Address call_target = 0;
@@ -1174,8 +1162,10 @@ Address IndirectFunctionTableEntry::target() {
 void ImportedFunctionEntry::SetWasmToJs(
     Isolate* isolate, Handle<JSReceiver> callable,
     const wasm::WasmCode* wasm_to_js_wrapper) {
-  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n", *instance_,
-            index_, *callable, wasm_to_js_wrapper->instructions().start());
+  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n",
+            reinterpret_cast<void*>(instance_->ptr()), index_,
+            reinterpret_cast<void*>(callable->ptr()),
+            wasm_to_js_wrapper->instructions().start());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
   Handle<Tuple2> tuple =
       isolate->factory()->NewTuple2(instance_, callable, TENURED);
@@ -1184,15 +1174,16 @@ void ImportedFunctionEntry::SetWasmToJs(
       wasm_to_js_wrapper->instruction_start();
 }
 
-void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject* instance,
+void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
                                           Address call_target) {
   TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%" PRIuPTR "}\n",
-            *instance_, index_, instance, call_target);
+            reinterpret_cast<void*>(instance_->ptr()), index_,
+            reinterpret_cast<void*>(instance->ptr()), call_target);
   instance_->imported_function_refs()->set(index_, instance);
   instance_->imported_function_targets()[index_] = call_target;
 }
 
-WasmInstanceObject* ImportedFunctionEntry::instance() {
+WasmInstanceObject ImportedFunctionEntry::instance() {
   // The imported reference entry is either a target instance or a tuple
   // of this instance and the target callable.
   Object* value = instance_->imported_function_refs()->get(index_);
@@ -1203,7 +1194,7 @@ WasmInstanceObject* ImportedFunctionEntry::instance() {
   return WasmInstanceObject::cast(tuple->value1());
 }
 
-JSReceiver* ImportedFunctionEntry::callable() {
+JSReceiver ImportedFunctionEntry::callable() {
   return JSReceiver::cast(Tuple2::cast(object_ref())->value2());
 }
 
@@ -1271,7 +1262,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->factory()->NewJSObject(instance_cons, TENURED);
 
   Handle<WasmInstanceObject> instance(
-      reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
+      WasmInstanceObject::cast(*instance_object), isolate);
 
   // Initialize the imported function arrays.
   auto module = module_object->module();
@@ -1368,18 +1359,13 @@ bool WasmExceptionObject::IsSignatureEqual(const wasm::FunctionSig* sig) {
 
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   if (!object->IsJSFunction()) return false;
-  JSFunction* js_function = JSFunction::cast(object);
+  JSFunction js_function = JSFunction::cast(object);
   if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;
   DCHECK(js_function->shared()->HasWasmExportedFunctionData());
   return true;
 }
 
-WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
-  DCHECK(IsWasmExportedFunction(object));
-  return reinterpret_cast<WasmExportedFunction*>(object);
-}
-
-WasmInstanceObject* WasmExportedFunction::instance() {
+WasmInstanceObject WasmExportedFunction::instance() {
   return shared()->wasm_exported_function_data()->instance();
 }
 
@@ -1434,6 +1420,13 @@ Address WasmExportedFunction::GetWasmCallTarget() {
 
 wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance()->module()->functions[function_index()].sig;
+}
+
+Handle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate, int index) {
+  Handle<WasmExceptionTag> result = Handle<WasmExceptionTag>::cast(
+      isolate->factory()->NewStruct(WASM_EXCEPTION_TAG_TYPE, TENURED));
+  result->set_index(index);
+  return result;
 }
 
 Handle<AsmWasmData> AsmWasmData::New(

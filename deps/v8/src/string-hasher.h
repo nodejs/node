@@ -71,13 +71,13 @@ class V8_EXPORT_PRIVATE StringHasher {
 
 class IteratingStringHasher : public StringHasher {
  public:
-  static inline uint32_t Hash(String* string, uint64_t seed);
+  static inline uint32_t Hash(String string, uint64_t seed);
   inline void VisitOneByteString(const uint8_t* chars, int length);
   inline void VisitTwoByteString(const uint16_t* chars, int length);
 
  private:
   inline IteratingStringHasher(int len, uint64_t seed);
-  void VisitConsString(ConsString* cons_string);
+  void VisitConsString(ConsString cons_string);
   DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
 };
 

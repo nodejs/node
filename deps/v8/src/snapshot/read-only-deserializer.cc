@@ -5,7 +5,7 @@
 #include "src/snapshot/read-only-deserializer.h"
 
 #include "src/api.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8threads.h"
@@ -44,7 +44,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
       // During deserialization, the visitor populates the read-only object
       // cache and eventually terminates the cache with undefined.
       VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
-                       ObjectSlot(&cache->at(i)));
+                       FullObjectSlot(&cache->at(i)));
       if (cache->at(i)->IsUndefined(isolate)) break;
     }
     DeserializeDeferredObjects();

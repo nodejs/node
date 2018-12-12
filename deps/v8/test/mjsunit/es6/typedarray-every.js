@@ -15,7 +15,7 @@ var typedArrayConstructors = [
   Float32Array,
   Float64Array];
 
-function CheckTypedArrayIsNeutered(array) {
+function CheckTypedArrayIsDetached(array) {
   assertEquals(0, array.byteLength);
   assertEquals(0, array.byteOffset);
   assertEquals(0, array.length);
@@ -81,21 +81,21 @@ function TestTypedArrayForEach(constructor) {
   CheckWrapping(3.14, Number);
   CheckWrapping({}, Object);
 
-  // Neutering the buffer backing the typed array mid-way should
+  // Detaching the buffer backing the typed array mid-way should
   // still make .forEach() finish, and the array should keep being
-  // empty after neutering it.
+  // empty after detaching it.
   count = 0;
   a = new constructor(3);
   result = a.every(function (n, index, array) {
-    assertFalse(array[index] === undefined);  // don't get here if neutered
-    if (count > 0) %ArrayBufferNeuter(array.buffer);
+    assertFalse(array[index] === undefined);  // don't get here if detached
+    if (count > 0) %ArrayBufferDetach(array.buffer);
     array[index] = n + 1;
     count++;
     return count > 1 ? array[index] === undefined : true;
   });
   assertEquals(2, count);
   assertEquals(true, result);
-  CheckTypedArrayIsNeutered(a);
+  CheckTypedArrayIsDetached(a);
   assertEquals(undefined, a[0]);
 
   // Calling array.buffer midway can change the backing store.
@@ -161,7 +161,7 @@ function TestTypedArrayForEach(constructor) {
 
   // Detached Operation
   var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  %ArrayBufferNeuter(array.buffer);
+  %ArrayBufferDetach(array.buffer);
   assertThrows(() => array.every(() => true), TypeError);
 }
 

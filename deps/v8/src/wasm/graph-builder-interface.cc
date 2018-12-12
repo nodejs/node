@@ -131,11 +131,7 @@ class WasmGraphBuildingInterface {
     builder_->InitInstanceCache(&ssa_env->instance_cache);
   }
 
-  void StartFunctionBody(FullDecoder* decoder, Control* block) {
-    SsaEnv* break_env = ssa_env_;
-    SetEnv(Steal(decoder->zone(), break_env));
-    block->end_env = break_env;
-  }
+  void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder*) { builder_->PatchInStackCheckIfNeeded(); }
 
@@ -144,7 +140,7 @@ class WasmGraphBuildingInterface {
   void NextInstruction(FullDecoder*, WasmOpcode) {}
 
   void Block(FullDecoder* decoder, Control* block) {
-    // The break environment is the outer environment.
+    // The branch environment is the outer environment.
     block->end_env = ssa_env_;
     SetEnv(Steal(decoder->zone(), ssa_env_));
   }
@@ -157,7 +153,7 @@ class WasmGraphBuildingInterface {
     ssa_env_->SetNotMerged();
     if (!decoder->ok()) return;
     // Wrap input merge into phis.
-    for (unsigned i = 0; i < block->start_merge.arity; ++i) {
+    for (uint32_t i = 0; i < block->start_merge.arity; ++i) {
       Value& val = block->start_merge[i];
       val.node = builder_->Phi(val.type, 1, &val.node, block->end_env->control);
     }
@@ -200,6 +196,11 @@ class WasmGraphBuildingInterface {
   }
 
   void PopControl(FullDecoder* decoder, Control* block) {
+    if (block->is_onearmed_if()) {
+      // Merge the else branch into the end merge.
+      SetEnv(block->false_env);
+      MergeValuesInto(decoder, block, &block->end_merge);
+    }
     if (!block->is_loop()) SetEnv(block->end_env);
   }
 
@@ -238,17 +239,9 @@ class WasmGraphBuildingInterface {
 
   void Drop(FullDecoder* decoder, const Value& value) {}
 
-  void DoReturn(FullDecoder* decoder, Vector<Value> values, bool implicit) {
-    if (implicit) {
-      DCHECK_EQ(1, decoder->control_depth());
-      SetEnv(decoder->control_at(0)->end_env);
-    }
-    size_t num_values = values.size();
-    TFNode** buffer = GetNodes(values);
-    for (size_t i = 0; i < num_values; ++i) {
-      buffer[i] = values[i].node;
-    }
-    BUILD(Return, static_cast<unsigned>(values.size()), buffer);
+  void DoReturn(FullDecoder* decoder, Vector<Value> values) {
+    TFNode** nodes = GetNodes(values);
+    BUILD(Return, static_cast<uint32_t>(values.size()), nodes);
   }
 
   void GetLocal(FullDecoder* decoder, Value* result,
@@ -295,18 +288,30 @@ class WasmGraphBuildingInterface {
     ssa_env_->control = merge;
   }
 
+  void BrOrRet(FullDecoder* decoder, uint32_t depth) {
+    if (depth == decoder->control_depth() - 1) {
+      uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
+      TFNode** values =
+          ret_count == 0 ? nullptr
+                         : GetNodes(decoder->stack_value(ret_count), ret_count);
+      BUILD(Return, ret_count, values);
+    } else {
+      Br(decoder, decoder->control_at(depth));
+    }
+  }
+
   void Br(FullDecoder* decoder, Control* target) {
     MergeValuesInto(decoder, target, target->br_merge());
   }
 
-  void BrIf(FullDecoder* decoder, const Value& cond, Control* target) {
+  void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
     SsaEnv* fenv = ssa_env_;
     SsaEnv* tenv = Split(decoder, fenv);
     fenv->SetNotMerged();
     BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
-    ssa_env_ = tenv;
-    Br(decoder, target);
-    ssa_env_ = fenv;
+    SetEnv(tenv);
+    BrOrRet(decoder, depth);
+    SetEnv(fenv);
   }
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate<validate>& imm,
@@ -314,30 +319,34 @@ class WasmGraphBuildingInterface {
     if (imm.table_count == 0) {
       // Only a default target. Do the equivalent of br.
       uint32_t target = BranchTableIterator<validate>(decoder, imm).next();
-      Br(decoder, decoder->control_at(target));
+      BrOrRet(decoder, target);
       return;
     }
 
-    SsaEnv* break_env = ssa_env_;
+    SsaEnv* branch_env = ssa_env_;
     // Build branches to the various blocks based on the table.
     TFNode* sw = BUILD(Switch, imm.table_count + 1, key.node);
 
-    SsaEnv* copy = Steal(decoder->zone(), break_env);
-    ssa_env_ = copy;
+    SsaEnv* copy = Steal(decoder->zone(), branch_env);
+    SetEnv(copy);
     BranchTableIterator<validate> iterator(decoder, imm);
     while (iterator.has_next()) {
       uint32_t i = iterator.cur_index();
       uint32_t target = iterator.next();
-      ssa_env_ = Split(decoder, copy);
+      SetEnv(Split(decoder, copy));
       ssa_env_->control =
           (i == imm.table_count) ? BUILD(IfDefault, sw) : BUILD(IfValue, i, sw);
-      Br(decoder, decoder->control_at(target));
+      BrOrRet(decoder, target);
     }
     DCHECK(decoder->ok());
-    ssa_env_ = break_env;
+    SetEnv(branch_env);
   }
 
   void Else(FullDecoder* decoder, Control* if_block) {
+    if (if_block->reachable()) {
+      // Merge the if branch into the end merge.
+      MergeValuesInto(decoder, if_block, &if_block->end_merge);
+    }
     SetEnv(if_block->false_env);
   }
 
@@ -507,14 +516,14 @@ class WasmGraphBuildingInterface {
     BUILD(Unreachable, decoder->position());
   }
   void MemoryCopy(FullDecoder* decoder,
-                  const MemoryIndexImmediate<validate>& imm,
-                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+                  const MemoryIndexImmediate<validate>& imm, const Value& dst,
+                  const Value& src, const Value& size) {
+    BUILD(MemoryCopy, dst.node, src.node, size.node, decoder->position());
   }
   void MemoryFill(FullDecoder* decoder,
-                  const MemoryIndexImmediate<validate>& imm,
-                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+                  const MemoryIndexImmediate<validate>& imm, const Value& dst,
+                  const Value& value, const Value& size) {
+    BUILD(MemoryFill, dst.node, value.node, size.node, decoder->position());
   }
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
@@ -649,12 +658,16 @@ class WasmGraphBuildingInterface {
     const bool first = target->state == SsaEnv::kUnreachable;
     Goto(decoder, ssa_env_, target);
 
+    if (merge->arity == 0) return;
+
     uint32_t avail =
         decoder->stack_size() - decoder->control_at(0)->stack_depth;
+    DCHECK_GE(avail, merge->arity);
     uint32_t start = avail >= merge->arity ? 0 : merge->arity - avail;
+    Value* stack_values = decoder->stack_value(merge->arity);
     for (uint32_t i = start; i < merge->arity; ++i) {
-      auto& val = decoder->GetMergeValueFromStack(c, merge, i);
-      auto& old = (*merge)[i];
+      Value& val = stack_values[i];
+      Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
       DCHECK(val.type == old.type || val.type == kWasmVar);
       old.node = first ? val.node

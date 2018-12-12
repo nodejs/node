@@ -6,8 +6,6 @@
 
 #include "src/api.h"
 #include "src/assembler-inl.h"
-#include "src/code-stubs.h"
-#include "src/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/snapshot.h"
@@ -47,7 +45,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
     // Flush the instruction cache for the entire code-space. Must happen after
     // builtins deserialization.
-    FlushICacheForNewIsolate();
+    FlushICache();
   }
 
   isolate->heap()->set_native_contexts_list(
@@ -59,16 +57,10 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
         ReadOnlyRoots(isolate).undefined_value());
   }
 
-  // Issue code events for newly deserialized code objects.
-  LOG_CODE_EVENT(isolate, LogCodeObjects());
-  LOG_CODE_EVENT(isolate, LogCompiledFunctions());
 
   isolate->builtins()->MarkInitialized();
 
-  // If needed, print the dissassembly of deserialized code objects.
-  // Needs to be called after the builtins are marked as initialized, in order
-  // to display the builtin names.
-  PrintDisassembledCodeObjects();
+  LogNewMapEvents();
 
   if (FLAG_rehash_snapshot && can_rehash()) {
     isolate->heap()->InitializeHashSeed();
@@ -77,38 +69,16 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   }
 }
 
-void StartupDeserializer::FlushICacheForNewIsolate() {
+void StartupDeserializer::LogNewMapEvents() {
+  if (FLAG_trace_maps) LOG(isolate_, LogAllMaps());
+}
+
+void StartupDeserializer::FlushICache() {
   DCHECK(!deserializing_user_code());
   // The entire isolate is newly deserialized. Simply flush all code pages.
   for (Page* p : *isolate()->heap()->code_space()) {
     Assembler::FlushICache(p->area_start(), p->area_end() - p->area_start());
   }
-}
-
-void StartupDeserializer::PrintDisassembledCodeObjects() {
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_builtin_code) {
-    Heap* heap = isolate()->heap();
-    HeapIterator iterator(heap);
-    DisallowHeapAllocation no_gc;
-
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-
-    for (HeapObject* obj = iterator.next(); obj != nullptr;
-         obj = iterator.next()) {
-      if (obj->IsCode()) {
-        Code code = Code::cast(obj);
-        // Printing of builtins and bytecode handlers is handled during their
-        // deserialization.
-        if (code->kind() != Code::BUILTIN &&
-            code->kind() != Code::BYTECODE_HANDLER) {
-          code->PrintBuiltinCode(isolate(), nullptr);
-        }
-      }
-    }
-  }
-#endif
 }
 
 }  // namespace internal

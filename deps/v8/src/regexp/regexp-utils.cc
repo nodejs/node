@@ -131,7 +131,18 @@ Maybe<bool> RegExpUtils::IsRegExp(Isolate* isolate, Handle<Object> object) {
                             isolate->factory()->match_symbol()),
       Nothing<bool>());
 
-  if (!match->IsUndefined(isolate)) return Just(match->BooleanValue(isolate));
+  if (!match->IsUndefined(isolate)) {
+    const bool match_as_boolean = match->BooleanValue(isolate);
+
+    if (match_as_boolean && !object->IsJSRegExp()) {
+      isolate->CountUsage(v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp);
+    } else if (!match_as_boolean && object->IsJSRegExp()) {
+      isolate->CountUsage(v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp);
+    }
+
+    return Just(match_as_boolean);
+  }
+
   return Just(object->IsJSRegExp());
 }
 
@@ -142,7 +153,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
 
   if (!obj->IsJSReceiver()) return false;
 
-  JSReceiver* recv = JSReceiver::cast(*obj);
+  JSReceiver recv = JSReceiver::cast(*obj);
 
   // Check the receiver's map.
   Handle<JSFunction> regexp_function = isolate->regexp_function();

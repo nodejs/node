@@ -56,12 +56,18 @@ class BodyDescriptorBase {
 
  protected:
   // Returns true for all header and embedder fields.
-  static inline bool IsValidSlotImpl(Map map, HeapObject* obj, int offset);
+  static inline bool IsValidJSObjectSlotImpl(Map map, HeapObject* obj,
+                                             int offset);
+
+  // Returns true for all header and embedder fields.
+  static inline bool IsValidEmbedderJSObjectSlotImpl(Map map, HeapObject* obj,
+                                                     int offset);
 
   // Treats all header and embedder fields in the range as tagged.
   template <typename ObjectVisitor>
-  static inline void IterateBodyImpl(Map map, HeapObject* obj, int start_offset,
-                                     int end_offset, ObjectVisitor* v);
+  static inline void IterateJSObjectBodyImpl(Map map, HeapObject* obj,
+                                             int start_offset, int end_offset,
+                                             ObjectVisitor* v);
 };
 
 
@@ -117,6 +123,24 @@ class FlexibleBodyDescriptor final : public BodyDescriptorBase {
 
 
 typedef FlexibleBodyDescriptor<HeapObject::kHeaderSize> StructBodyDescriptor;
+
+template <int start_offset>
+class FlexibleWeakBodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static const int kStartOffset = start_offset;
+
+  static bool IsValidSlot(Map map, HeapObject* obj, int offset) {
+    return (offset >= kStartOffset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IterateMaybeWeakPointers(obj, start_offset, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject* object);
+};
 
 // This class describes a body of an object which has a parent class that also
 // has a body descriptor. This represents a union of the parent's body

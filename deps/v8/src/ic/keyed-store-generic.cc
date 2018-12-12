@@ -312,8 +312,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // The length property is non-configurable, so it's guaranteed to always
     // be the first property.
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
-    TNode<Uint32T> details = LoadDetailsByKeyIndex(
-        descriptors, IntPtrConstant(DescriptorArray::ToKeyIndex(0)));
+    TNode<Uint32T> details = LoadDetailsByDescriptorEntry(descriptors, 0);
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
            slow);
   }

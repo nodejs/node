@@ -11,6 +11,9 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/roots-inl.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -118,19 +121,6 @@ bool BaseShape<KeyT>::IsLive(ReadOnlyRoots roots, Object* k) {
   return k != roots.the_hole_value() && k != roots.undefined_value();
 }
 
-template <typename Derived, typename Shape>
-HashTable<Derived, Shape>* HashTable<Derived, Shape>::cast(Object* obj) {
-  SLOW_DCHECK(obj->IsHashTable());
-  return reinterpret_cast<HashTable*>(obj);
-}
-
-template <typename Derived, typename Shape>
-const HashTable<Derived, Shape>* HashTable<Derived, Shape>::cast(
-    const Object* obj) {
-  SLOW_DCHECK(obj->IsHashTable());
-  return reinterpret_cast<const HashTable*>(obj);
-}
-
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
   return FindEntry(ReadOnlyRoots(isolate), key, hash) != kNotFound;
 }
@@ -141,7 +131,21 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
   return FindEntry(ReadOnlyRoots(isolate), key, Smi::ToInt(hash)) != kNotFound;
 }
 
+bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
+  return key->SameValue(other);
+}
+
+uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
+  return Smi::ToInt(key->GetHash());
+}
+
+uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
+  return Smi::ToInt(other->GetHash());
+}
+
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_HASH_TABLE_INL_H_

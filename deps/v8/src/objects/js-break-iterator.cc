@@ -164,8 +164,8 @@ Handle<Object> JSV8BreakIterator::Next(
       break_iterator->break_iterator()->raw()->next());
 }
 
-String* JSV8BreakIterator::BreakType(Isolate* isolate,
-                                     Handle<JSV8BreakIterator> break_iterator) {
+String JSV8BreakIterator::BreakType(Isolate* isolate,
+                                    Handle<JSV8BreakIterator> break_iterator) {
   int32_t status = break_iterator->break_iterator()->raw()->getRuleStatus();
   // Keep return values in sync with JavaScript BreakType enum.
   if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {

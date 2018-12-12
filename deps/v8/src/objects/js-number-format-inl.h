@@ -18,7 +18,9 @@
 namespace v8 {
 namespace internal {
 
-ACCESSORS(JSNumberFormat, locale, String, kLocaleOffset)
+OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat, JSObject)
+
+ACCESSORS2(JSNumberFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSNumberFormat, icu_number_format, Managed<icu::NumberFormat>,
           kICUNumberFormatOffset)
 ACCESSORS(JSNumberFormat, bound_format, Object, kBoundFormatOffset)
@@ -48,7 +50,7 @@ inline JSNumberFormat::CurrencyDisplay JSNumberFormat::currency_display()
   return CurrencyDisplayBits::decode(flags());
 }
 
-CAST_ACCESSOR(JSNumberFormat);
+CAST_ACCESSOR2(JSNumberFormat);
 
 }  // namespace internal
 }  // namespace v8

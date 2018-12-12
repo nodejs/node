@@ -100,8 +100,8 @@ void Serializer::SerializeDeferredObjects() {
 bool Serializer::MustBeDeferred(HeapObject* object) { return false; }
 
 void Serializer::VisitRootPointers(Root root, const char* description,
-                                   ObjectSlot start, ObjectSlot end) {
-  for (ObjectSlot current = start; current < end; ++current) {
+                                   FullObjectSlot start, FullObjectSlot end) {
+  for (FullObjectSlot current = start; current < end; ++current) {
     SerializeRootObject(*current);
   }
 }
@@ -309,7 +309,9 @@ Code Serializer::CopyCode(Code code) {
   code_buffer_.insert(code_buffer_.end(),
                       reinterpret_cast<byte*>(code->address()),
                       reinterpret_cast<byte*>(code->address() + size));
-  return Code::cast(HeapObject::FromAddress(
+  // When pointer compression is enabled the checked cast will try to
+  // decompress map field of off-heap Code object.
+  return Code::unchecked_cast(HeapObject::FromAddress(
       reinterpret_cast<Address>(&code_buffer_.front())));
 }
 
@@ -375,14 +377,14 @@ int32_t Serializer::ObjectSerializer::SerializeBackingStore(
 }
 
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
-  JSTypedArray* typed_array = JSTypedArray::cast(object_);
-  FixedTypedArrayBase* elements =
+  JSTypedArray typed_array = JSTypedArray::cast(object_);
+  FixedTypedArrayBase elements =
       FixedTypedArrayBase::cast(typed_array->elements());
 
-  if (!typed_array->WasNeutered()) {
+  if (!typed_array->WasDetached()) {
     if (!typed_array->is_on_heap()) {
       // Explicitly serialize the backing store now.
-      JSArrayBuffer* buffer = JSArrayBuffer::cast(typed_array->buffer());
+      JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array->buffer());
       CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
       CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
       int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
@@ -401,9 +403,9 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
       elements->set_external_pointer(Smi::FromInt(ref));
     }
   } else {
-    // When a JSArrayBuffer is neutered, the FixedTypedArray that points to the
+    // When a JSArrayBuffer is detached, the FixedTypedArray that points to the
     // same backing store does not know anything about it. This fixup step finds
-    // neutered TypedArrays and clears the values in the FixedTypedArray so that
+    // detached TypedArrays and clears the values in the FixedTypedArray so that
     // we don't try to serialize the now invalid backing store.
     elements->set_external_pointer(Smi::kZero);
     elements->set_length(0);
@@ -412,7 +414,7 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
 }
 
 void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
-  JSArrayBuffer* buffer = JSArrayBuffer::cast(object_);
+  JSArrayBuffer buffer = JSArrayBuffer::cast(object_);
   void* backing_store = buffer->backing_store();
   // We cannot store byte_length larger than Smi range in the snapshot.
   CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
@@ -435,7 +437,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   // with the native source id.
   // For the rest we serialize them to look like ordinary sequential strings.
   if (object_->map() != ReadOnlyRoots(heap).native_source_string_map()) {
-    ExternalString* string = ExternalString::cast(object_);
+    ExternalString string = ExternalString::cast(object_);
     Address resource = string->resource_as_address();
     ExternalReferenceEncoder::Value reference;
     if (serializer_->external_reference_encoder_.TryEncode(resource).To(
@@ -448,7 +450,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
       SerializeExternalStringAsSequentialString();
     }
   } else {
-    ExternalOneByteString* string = ExternalOneByteString::cast(object_);
+    ExternalOneByteString string = ExternalOneByteString::cast(object_);
     DCHECK(string->is_uncached());
     const NativesExternalStringResource* resource =
         reinterpret_cast<const NativesExternalStringResource*>(
@@ -467,7 +469,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   ReadOnlyRoots roots(serializer_->isolate());
   DCHECK(object_->IsExternalString());
   DCHECK(object_->map() != roots.native_source_string_map());
-  ExternalString* string = ExternalString::cast(object_);
+  ExternalString string = ExternalString::cast(object_);
   int length = string->length();
   Map map;
   int content_size;
@@ -926,10 +928,10 @@ int Serializer::ObjectSerializer::SkipTo(Address to) {
 
 void Serializer::ObjectSerializer::OutputCode(int size) {
   DCHECK_EQ(kPointerSize, bytes_processed_so_far_);
-  Code code = Code::cast(object_);
+  Code on_heap_code = Code::cast(object_);
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.
-  code = serializer_->CopyCode(code);
+  Code off_heap_code = serializer_->CopyCode(on_heap_code);
   int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
@@ -937,15 +939,20 @@ void Serializer::ObjectSerializer::OutputCode(int size) {
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                   RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-  for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+  // With enabled pointer compression normal accessors no longer work for
+  // off-heap objects, so we have to get the relocation info data via the
+  // on-heap code object.
+  ByteArray relocation_info = on_heap_code->unchecked_relocation_info();
+  for (RelocIterator it(off_heap_code, relocation_info, mode_mask); !it.done();
+       it.next()) {
     RelocInfo* rinfo = it.rinfo();
     rinfo->WipeOut();
   }
   // We need to wipe out the header fields *after* wiping out the
   // relocations, because some of these fields are needed for the latter.
-  code->WipeOutHeader();
+  off_heap_code->WipeOutHeader();
 
-  Address start = code->address() + Code::kDataStart;
+  Address start = off_heap_code->address() + Code::kDataStart;
   int bytes_to_output = size - Code::kDataStart;
 
   sink_->Put(kVariableRawCode, "VariableRawCode");

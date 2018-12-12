@@ -8,7 +8,6 @@
 #include <sstream>
 #include <string>
 
-#include "src/code-stubs.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -88,7 +87,8 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
       int len = shared->EndPosition() - start;
-      String::SubStringRange source(String::cast(script->source()), start, len);
+      SubStringRange source(String::cast(script->source()), no_allocation,
+                            start, len);
       for (const auto& c : source) {
         os << AsEscapedUC16ForJSON(c);
       }
@@ -191,7 +191,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
       info->shared_info()->script()->IsScript()) {
     Object* source_name = Script::cast(info->shared_info()->script())->name();
     if (source_name->IsString()) {
-      String* str = String::cast(source_name);
+      String str = String::cast(source_name);
       if (str->length() > 0) {
         SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.start(),
@@ -699,8 +699,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
-        os_ << j << " " << PrintableInstruction{instructions->InstructionAt(j)}
-            << " <|@\n";
+        os_ << j << " " << *instructions->InstructionAt(j) << " <|@\n";
       }
     }
   }

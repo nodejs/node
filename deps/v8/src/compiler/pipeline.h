@@ -72,7 +72,7 @@ class Pipeline : public AllStatic {
   static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule, Code::Kind kind, const char* debug_name,
-      uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+      int32_t builtin_index, JumpOptimizationInfo* jump_opt,
       PoisoningMitigationLevel poisoning_level,
       const AssemblerOptions& options);
 

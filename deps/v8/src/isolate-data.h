@@ -71,6 +71,12 @@ class IsolateData final {
     return kVirtualCallTargetRegisterOffset - kIsolateRootBias;
   }
 
+  // The FP and PC that are saved right before TurboAssembler::CallCFunction.
+  Address* fast_c_call_caller_fp_address() { return &fast_c_call_caller_fp_; }
+  Address* fast_c_call_caller_pc_address() { return &fast_c_call_caller_pc_; }
+  Address fast_c_call_caller_fp() { return fast_c_call_caller_fp_; }
+  Address fast_c_call_caller_pc() { return fast_c_call_caller_pc_; }
+
   // Returns true if this address points to data stored in this instance.
   // If it's the case then the value can be accessed indirectly through the
   // root register.
@@ -91,19 +97,21 @@ class IsolateData final {
 
  private:
 // Static layout definition.
-#define FIELDS(V)                                                         \
-  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)   \
-  V(kExternalMemoryOffset, kInt64Size)                                    \
-  V(kExternalMemoryLlimitOffset, kInt64Size)                              \
-  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                   \
-  V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)           \
-  V(kExternalReferenceTableOffset, ExternalReferenceTable::SizeInBytes()) \
-  V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)          \
-  V(kVirtualCallTargetRegisterOffset, kPointerSize)                       \
-  /* This padding aligns IsolateData size by 8 bytes. */                  \
-  V(kPaddingOffset,                                                       \
-    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)    \
-  /* Total size. */                                                       \
+#define FIELDS(V)                                                        \
+  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)  \
+  V(kExternalMemoryOffset, kInt64Size)                                   \
+  V(kExternalMemoryLlimitOffset, kInt64Size)                             \
+  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                  \
+  V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)          \
+  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes) \
+  V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)         \
+  V(kVirtualCallTargetRegisterOffset, kPointerSize)                      \
+  V(kFastCCallCallerFPOffset, kPointerSize)                              \
+  V(kFastCCallCallerPCOffset, kPointerSize)                              \
+  /* This padding aligns IsolateData size by 8 bytes. */                 \
+  V(kPaddingOffset,                                                      \
+    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)   \
+  /* Total size. */                                                      \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)
@@ -137,6 +145,13 @@ class IsolateData final {
   // TODO(v8:6666): Remove once wasm supports pc-relative jumps to builtins on
   // ia32 (otherwise the arguments adaptor call runs out of registers).
   void* virtual_call_target_register_ = nullptr;
+
+  // Stores the state of the caller for TurboAssembler::CallCFunction so that
+  // the sampling CPU profiler can iterate the stack during such calls. These
+  // are stored on IsolateData so that they can be stored to with only one move
+  // instruction in compiled code.
+  Address fast_c_call_caller_fp_ = kNullAddress;
+  Address fast_c_call_caller_pc_ = kNullAddress;
 
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with
@@ -177,6 +192,10 @@ void IsolateData::AssertPredictableLayout() {
                 kExternalMemoryLlimitOffset);
   STATIC_ASSERT(offsetof(IsolateData, external_memory_at_last_mark_compact_) ==
                 kExternalMemoryAtLastMarkCompactOffset);
+  STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_fp_) ==
+                kFastCCallCallerFPOffset);
+  STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_pc_) ==
+                kFastCCallCallerPCOffset);
   STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);
 }
 

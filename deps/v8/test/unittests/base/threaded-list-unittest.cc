@@ -20,6 +20,10 @@ struct ThreadedListTestNode {
   ThreadedListTestNode* next_;
 
   struct OtherTraits {
+    static ThreadedListTestNode** start(ThreadedListTestNode** h) { return h; }
+    static ThreadedListTestNode* const* start(ThreadedListTestNode* const* h) {
+      return h;
+    }
     static ThreadedListTestNode** next(ThreadedListTestNode* t) {
       return t->other_next();
     }
@@ -132,16 +136,6 @@ TEST_F(ThreadedListTest, AddFront) {
   list.Verify();
   CHECK_EQ(list.LengthForTest(), 1);
   CHECK_EQ(list.first(), &new_node);
-}
-
-TEST_F(ThreadedListTest, ReinitializeHead) {
-  CHECK_EQ(list.LengthForTest(), 5);
-  CHECK_NE(extra_test_list.first(), list.first());
-  list.ReinitializeHead(&extra_test_node_0);
-  list.Verify();
-  CHECK_EQ(extra_test_list.first(), list.first());
-  CHECK_EQ(extra_test_list.end(), list.end());
-  CHECK_EQ(extra_test_list.LengthForTest(), 3);
 }
 
 TEST_F(ThreadedListTest, DropHead) {

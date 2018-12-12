@@ -173,30 +173,30 @@ class Decoder {
     return true;
   }
 
-  void error(const char* msg) { errorf(pc_, "%s", msg); }
+  // Do not inline error methods. This has measurable impact on validation time,
+  // see https://crbug.com/910432.
+  void V8_NOINLINE error(const char* msg) { errorf(pc_offset(), "%s", msg); }
+  void V8_NOINLINE error(const uint8_t* pc, const char* msg) {
+    errorf(pc_offset(pc), "%s", msg);
+  }
+  void V8_NOINLINE error(uint32_t offset, const char* msg) {
+    errorf(offset, "%s", msg);
+  }
 
-  void error(const byte* pc, const char* msg) { errorf(pc, "%s", msg); }
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(uint32_t offset, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(offset, format, args);
+    va_end(args);
+  }
 
-  // Sets internal error state.
-  void PRINTF_FORMAT(3, 4) errorf(const byte* pc, const char* format, ...) {
-    // Only report the first error.
-    if (!ok()) return;
-#if DEBUG
-    if (FLAG_wasm_break_on_decoder_error) {
-      base::OS::DebugBreak();
-    }
-#endif
-    constexpr int kMaxErrorMsg = 256;
-    EmbeddedVector<char, kMaxErrorMsg> buffer;
-    va_list arguments;
-    va_start(arguments, format);
-    int len = VSNPrintF(buffer, format, arguments);
-    CHECK_LT(0, len);
-    va_end(arguments);
-    error_msg_.assign(buffer.start(), len);
-    DCHECK_GE(pc, start_);
-    error_offset_ = static_cast<uint32_t>(pc - start_) + buffer_offset_;
-    onFirstError();
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(const uint8_t* pc, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(pc_offset(pc), format, args);
+    va_end(args);
   }
 
   // Behavior triggered on first error, overridden in subclasses.
@@ -246,10 +246,16 @@ class Decoder {
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
-  uint32_t position() const { return static_cast<uint32_t>(pc_ - start_); }
-  uint32_t pc_offset() const {
-    return static_cast<uint32_t>(pc_ - start_) + buffer_offset_;
+  uint32_t V8_INLINE position() const {
+    return static_cast<uint32_t>(pc_ - start_);
   }
+  // This needs to be inlined for performance (see https://crbug.com/910432).
+  uint32_t V8_INLINE pc_offset(const uint8_t* pc) const {
+    DCHECK_LE(start_, pc);
+    DCHECK_GE(kMaxUInt32 - buffer_offset_, pc - start_);
+    return static_cast<uint32_t>(pc - start_) + buffer_offset_;
+  }
+  uint32_t pc_offset() const { return pc_offset(pc_); }
   uint32_t buffer_offset() const { return buffer_offset_; }
   // Takes an offset relative to the module start and returns an offset relative
   // to the current buffer of the decoder.
@@ -269,6 +275,23 @@ class Decoder {
   std::string error_msg_;
 
  private:
+  void verrorf(uint32_t offset, const char* format, va_list args) {
+    // Only report the first error.
+    if (!ok()) return;
+#if DEBUG
+    if (FLAG_wasm_break_on_decoder_error) {
+      base::OS::DebugBreak();
+    }
+#endif
+    constexpr int kMaxErrorMsg = 256;
+    EmbeddedVector<char, kMaxErrorMsg> buffer;
+    int len = VSNPrintF(buffer, format, args);
+    CHECK_LT(0, len);
+    error_msg_.assign(buffer.start(), len);
+    error_offset_ = offset;
+    onFirstError();
+  }
+
   template <typename IntType, bool validate>
   inline IntType read_little_endian(const byte* pc, const char* msg) {
     if (!validate) {

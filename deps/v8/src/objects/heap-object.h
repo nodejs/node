@@ -22,9 +22,12 @@ class ObjectPtr {
  public:
   constexpr ObjectPtr() : ptr_(kNullAddress) {}
   explicit constexpr ObjectPtr(Address ptr) : ptr_(ptr) {}
+  static ObjectPtr cast(Object* obj) { return ObjectPtr(obj->ptr()); }
 
   // Enable incremental transition.
   operator Object*() const { return reinterpret_cast<Object*>(ptr()); }
+  // Make clang on Linux catch what MSVC complains about on Windows:
+  operator bool() const = delete;
 
   bool operator==(const ObjectPtr other) const {
     return this->ptr() == other.ptr();
@@ -56,23 +59,78 @@ class ObjectPtr {
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
-
-  // TODO(3770): Drop these after migrating the respective classes:
-  inline bool IsFixedArrayBasePtr() const;
-  inline bool IsFixedArrayPtr() const;
+  inline bool IsHashTableBase() const;
+  V8_INLINE bool IsSmallOrderedHashTable() const;
 
   inline bool IsObject() const { return true; }
   inline double Number() const;
   inline bool ToInt32(int32_t* value) const;
   inline bool ToUint32(uint32_t* value) const;
 
+  // ECMA-262 9.2.
+  bool BooleanValue(Isolate* isolate);
+
+  inline bool FilterKey(PropertyFilter filter);
+
+  // Returns the permanent hash code associated with this object. May return
+  // undefined if not yet created.
+  inline Object* GetHash();
+
+  // Returns the permanent hash code associated with this object depending on
+  // the actual object type. May create and store a hash code if needed and none
+  // exists.
+  Smi GetOrCreateHash(Isolate* isolate);
+
+  // Checks whether this object has the same value as the given one.  This
+  // function is implemented according to ES5, section 9.12 and can be used
+  // to implement the Object.is function.
+  V8_EXPORT_PRIVATE bool SameValue(Object* other);
+
+  // Tries to convert an object to an array index. Returns true and sets the
+  // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
+  // allow kMaxUInt32.
+  V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
+
+  //
+  // The following GetHeapObjectXX methods mimic corresponding functionality
+  // in MaybeObject. Having them here allows us to unify code that processes
+  // ObjectSlots and MaybeObjectSlots.
+  //
+
+  // If this Object is a strong pointer to a HeapObject, returns true and
+  // sets *result. Otherwise returns false.
+  inline bool GetHeapObjectIfStrong(HeapObject** result) const;
+
+  // If this Object is a strong pointer to a HeapObject (weak pointers are not
+  // expected), returns true and sets *result. Otherwise returns false.
+  inline bool GetHeapObject(HeapObject** result) const;
+
+  // DCHECKs that this Object is a strong pointer to a HeapObject and returns
+  // the HeapObject.
+  inline HeapObject* GetHeapObject() const;
+
+  // Always returns false because Object is not expected to be a weak pointer
+  // to a HeapObject.
+  inline bool GetHeapObjectIfWeak(HeapObject** result) const {
+    DCHECK(!HasWeakHeapObjectTag(ptr()));
+    return false;
+  }
+  // Always returns false because Object is not expected to be a weak pointer
+  // to a HeapObject.
+  inline bool IsCleared() const { return false; }
+
 #ifdef VERIFY_HEAP
   void ObjectVerify(Isolate* isolate) {
     reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);
   }
+  // Verify a pointer is a valid object pointer.
+  static void VerifyPointer(Isolate* isolate, Object* p);
 #endif
 
+  inline void VerifyApiCallResultType();
+
   inline void ShortPrint(FILE* out = stdout);
+  void ShortPrint(std::ostream& os);  // NOLINT
   inline void Print();
   inline void Print(std::ostream& os);
 
@@ -84,7 +142,7 @@ class ObjectPtr {
   };
 
  private:
-  friend class ObjectSlot;
+  friend class FullObjectSlot;
   Address ptr_;
 };
 
@@ -99,10 +157,21 @@ bool ObjectPtr::IsHeapObject() const {
 class HeapObjectPtr : public ObjectPtr {
  public:
   inline Map map() const;
+  inline void set_map(Map value);
   inline void set_map_after_allocation(
       Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  // The no-write-barrier version.  This is OK if the object is white and in
+  // new space, or if the value is an immortal immutable object, like the maps
+  // of primitive (non-JS) objects like strings, heap numbers etc.
+  inline void set_map_no_write_barrier(Map value);
 
-  inline ObjectSlot map_slot();
+  inline MapWordSlot map_slot() const;
+  inline MapWord map_word() const;
+  inline void set_map_word(MapWord map_word);
+
+  // Set the map using release store
+  inline void synchronized_set_map(Map value);
+  inline void synchronized_set_map_word(MapWord map_word);
 
   inline WriteBarrierMode GetWriteBarrierMode(
       const DisallowHeapAllocation& promise);
@@ -115,14 +184,15 @@ class HeapObjectPtr : public ObjectPtr {
 
   bool is_null() const { return ptr() == kNullAddress; }
 
-  bool IsHeapObject() const { return true; }
-  bool IsHeapObjectPtr() const { return true; }
+  bool IsHeapObjectPtr() const { return IsHeapObject(); }
 
   inline ReadOnlyRoots GetReadOnlyRoots() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
+
+  V8_INLINE bool IsExternal(Isolate* isolate) const;
 
   // Untagged aligned address.
   inline Address address() const { return ptr() - kHeapObjectTag; }
@@ -137,8 +207,27 @@ class HeapObjectPtr : public ObjectPtr {
   void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
   void HeapObjectVerify(Isolate* isolate);
+#ifdef VERIFY_HEAP
+  inline void VerifyObjectField(Isolate* isolate, int offset);
+  inline void VerifySmiField(int offset);
+  inline void VerifyMaybeObjectField(Isolate* isolate, int offset);
+  static void VerifyHeapPointer(Isolate* isolate, Object* p);
+#endif
 
   static const int kMapOffset = HeapObject::kMapOffset;
+  static const int kHeaderSize = HeapObject::kHeaderSize;
+
+  inline Address GetFieldAddress(int field_offset) const;
+
+  DECL_CAST2(HeapObjectPtr)
+
+  inline bool NeedsRehashing() const;
+
+ protected:
+  // Special-purpose constructor for subclasses that have fast paths where
+  // their ptr() is a Smi.
+  enum class AllowInlineSmiStorage { kRequireHeapObjectTag, kAllowBeingASmi };
+  inline HeapObjectPtr(Address ptr, AllowInlineSmiStorage allow_smi);
 
   OBJECT_CONSTRUCTORS(HeapObjectPtr, ObjectPtr)
 };

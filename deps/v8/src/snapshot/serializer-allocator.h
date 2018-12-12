@@ -68,7 +68,7 @@ class SerializerAllocator final {
   // The current serializer.
   Serializer* const serializer_;
 
-  DISALLOW_COPY_AND_ASSIGN(SerializerAllocator)
+  DISALLOW_COPY_AND_ASSIGN(SerializerAllocator);
 };
 
 }  // namespace internal

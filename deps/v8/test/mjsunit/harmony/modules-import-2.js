@@ -12,7 +12,7 @@ import('modules-skip-2.js').catch(err => msg = err.message);
 assertEquals(undefined, life);
 assertEquals(undefined, msg);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(42, life);
 assertEquals('42 is not the answer', msg);

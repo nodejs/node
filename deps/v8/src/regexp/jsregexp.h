@@ -168,14 +168,14 @@ class RegExpImpl {
   };
 
   // For acting on the JSRegExp data FixedArray.
-  static int IrregexpMaxRegisterCount(FixedArray* re);
-  static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
-  static void SetIrregexpCaptureNameMap(FixedArray* re,
+  static int IrregexpMaxRegisterCount(FixedArray re);
+  static void SetIrregexpMaxRegisterCount(FixedArray re, int value);
+  static void SetIrregexpCaptureNameMap(FixedArray re,
                                         Handle<FixedArray> value);
-  static int IrregexpNumberOfCaptures(FixedArray* re);
-  static int IrregexpNumberOfRegisters(FixedArray* re);
-  static ByteArray* IrregexpByteCode(FixedArray* re, bool is_one_byte);
-  static Code IrregexpNativeCode(FixedArray* re, bool is_one_byte);
+  static int IrregexpNumberOfCaptures(FixedArray re);
+  static int IrregexpNumberOfRegisters(FixedArray re);
+  static ByteArray IrregexpByteCode(FixedArray re, bool is_one_byte);
+  static Code IrregexpNativeCode(FixedArray re, bool is_one_byte);
 
   // Limit the space regexps take up on the heap.  In order to limit this we
   // would like to keep track of the amount of regexp code on the heap.  This
@@ -1531,14 +1531,14 @@ class RegExpResultsCache : public AllStatic {
 
   // Attempt to retrieve a cached result.  On failure, 0 is returned as a Smi.
   // On success, the returned result is guaranteed to be a COW-array.
-  static Object* Lookup(Heap* heap, String* key_string, Object* key_pattern,
-                        FixedArray** last_match_out, ResultsCacheType type);
+  static Object* Lookup(Heap* heap, String key_string, Object* key_pattern,
+                        FixedArray* last_match_out, ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.
   static void Enter(Isolate* isolate, Handle<String> key_string,
                     Handle<Object> key_pattern, Handle<FixedArray> value_array,
                     Handle<FixedArray> last_match_cache, ResultsCacheType type);
-  static void Clear(FixedArray* cache);
+  static void Clear(FixedArray cache);
   static const int kRegExpResultsCacheSize = 0x100;
 
  private:

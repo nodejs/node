@@ -8,8 +8,8 @@
 #include <sys/types.h>
 #include <algorithm>
 #include "src/globals.h"
+#include "src/memcopy.h"
 #include "src/unicode.h"
-#include "src/utils.h"
 #include "src/vector.h"
 
 namespace unibrow {

@@ -25,7 +25,8 @@ class ObjectDeserializer final : public Deserializer {
   // Deserialize an object graph. Fail gracefully.
   MaybeHandle<HeapObject> Deserialize(Isolate* isolate);
 
-  void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
+  void FlushICache();
+  void LinkAllocationSites();
   void CommitPostProcessedObjects();
 };
 

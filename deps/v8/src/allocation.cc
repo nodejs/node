@@ -11,8 +11,9 @@
 #include "src/base/lsan-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
-#include "src/utils.h"
+#include "src/memcopy.h"
 #include "src/v8.h"
+#include "src/vector.h"
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT

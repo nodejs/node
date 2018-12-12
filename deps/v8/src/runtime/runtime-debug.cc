@@ -41,6 +41,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   HandleScope scope(isolate);
+
   // Return value can be changed by debugger. Last set value will be used as
   // return value.
   ReturnValueScope result_scope(isolate->debug());
@@ -53,12 +54,19 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                             handle(it.frame()->function(), isolate));
   }
 
+  // If we are dropping frames, there is no need to get a return value or
+  // bytecode, since we will be restarting execution at a different frame.
+  if (isolate->debug()->will_restart()) {
+    return MakePair(ReadOnlyRoots(isolate).undefined_value(),
+                    Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
+  }
+
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
   InterpretedFrame* interpreted_frame =
       reinterpret_cast<InterpretedFrame*>(it.frame());
-  SharedFunctionInfo* shared = interpreted_frame->function()->shared();
-  BytecodeArray* bytecode_array = shared->GetBytecodeArray();
+  SharedFunctionInfo shared = interpreted_frame->function()->shared();
+  BytecodeArray bytecode_array = shared->GetBytecodeArray();
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
 
@@ -480,7 +488,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 
   Script::InitLineEnds(script);
 
-  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
+  FixedArray line_ends_array = FixedArray::cast(script->line_ends());
   const int line_count = line_ends_array->length();
   DCHECK_LT(0, line_count);
 
@@ -738,9 +746,9 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
   // coverage collection mode, which triggers deletion of all coverage infos in
   // order to avoid memory leaks.
 
-  SharedFunctionInfo* shared = function->shared();
+  SharedFunctionInfo shared = function->shared();
   if (shared->HasCoverageInfo()) {
-    CoverageInfo* coverage_info = shared->GetCoverageInfo();
+    CoverageInfo coverage_info = shared->GetCoverageInfo();
     coverage_info->IncrementBlockCount(coverage_array_slot_index);
   }
 

@@ -52,28 +52,6 @@ RUNTIME_FUNCTION(Runtime_FormatListToParts) {
       isolate, JSListFormat::FormatListToParts(isolate, list_format, list));
 }
 
-// ECMA 402 6.2.3
-RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, locale, 0);
-
-  std::string canonicalized;
-  if (!Intl::CanonicalizeLanguageTag(isolate, locale).To(&canonicalized)) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return *isolate->factory()->NewStringFromAsciiChecked(canonicalized.c_str());
-}
-
-RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(0, args.length());
-  return *isolate->factory()->NewStringFromAsciiChecked(
-      Intl::DefaultLocale(isolate).c_str());
-}
-
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);

@@ -124,7 +124,7 @@ class TestSetup {
 
 }  // namespace
 
-i::AbstractCode* CreateCode(LocalContext* env) {
+i::AbstractCode CreateCode(LocalContext* env) {
   static int counter = 0;
   i::EmbeddedVector<char, 256> script;
   i::EmbeddedVector<char, 32> name;
@@ -154,10 +154,10 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::AbstractCode* aaa_code = CreateCode(&env);
-  i::AbstractCode* comment_code = CreateCode(&env);
-  i::AbstractCode* comment2_code = CreateCode(&env);
-  i::AbstractCode* moved_code = CreateCode(&env);
+  i::AbstractCode aaa_code = CreateCode(&env);
+  i::AbstractCode comment_code = CreateCode(&env);
+  i::AbstractCode comment2_code = CreateCode(&env);
+  i::AbstractCode moved_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
@@ -214,9 +214,9 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::AbstractCode* frame1_code = CreateCode(&env);
-  i::AbstractCode* frame2_code = CreateCode(&env);
-  i::AbstractCode* frame3_code = CreateCode(&env);
+  i::AbstractCode frame1_code = CreateCode(&env);
+  i::AbstractCode frame2_code = CreateCode(&env);
+  i::AbstractCode frame3_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
@@ -285,7 +285,7 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::AbstractCode* code = CreateCode(&env);
+  i::AbstractCode code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
@@ -1136,14 +1136,14 @@ static void TickLines(bool optimize) {
 
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
-  CHECK(func->shared());
-  CHECK(func->shared()->abstract_code());
+  CHECK(!func->shared().is_null());
+  CHECK(!func->shared()->abstract_code().is_null());
   CHECK(!optimize || func->IsOptimized() ||
         !CcTest::i_isolate()->use_optimizer());
-  i::AbstractCode* code = func->abstract_code();
-  CHECK(code);
+  i::AbstractCode code = func->abstract_code();
+  CHECK(!code.is_null());
   i::Address code_address = code->raw_instruction_start();
-  CHECK(code_address);
+  CHECK_NE(code_address, kNullAddress);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);

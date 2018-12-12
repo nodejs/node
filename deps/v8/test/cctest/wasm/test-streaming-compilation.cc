@@ -101,7 +101,7 @@ class TestResolver : public CompilationResultResolver {
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
     *state_ = CompilationState::kFinished;
     if (!module.is_null()) {
-      *native_module_ = module->managed_native_module()->get();
+      *native_module_ = module->shared_native_module();
     }
   }
 
@@ -212,8 +212,7 @@ ZoneBuffer GetValidCompiledModuleBytes(Zone* zone, ZoneBuffer wire_bytes) {
   // Serialize the NativeModule.
   std::shared_ptr<NativeModule> native_module = tester.native_module();
   CHECK(native_module);
-  i::wasm::WasmSerializer serializer(
-      reinterpret_cast<i::Isolate*>(CcTest::i_isolate()), native_module.get());
+  i::wasm::WasmSerializer serializer(native_module.get());
   size_t size = serializer.GetSerializedNativeModuleSize();
   std::vector<byte> buffer(size);
   CHECK(serializer.SerializeNativeModule({buffer.data(), size}));
@@ -1084,6 +1083,32 @@ STREAM_TEST(TestDeserializationFails) {
   tester.RunCompilerTasks();
 
   CHECK(tester.IsPromiseFulfilled());
+}
+
+// Test that a non-empty function section with a missing code section fails.
+STREAM_TEST(TestFunctionSectionWithoutCodeSection) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 3),                        // section size
+      U32V_1(3),                            // functions count
+      0,                                    // signature index
+      0,                                    // signature index
+      0,                                    // signature index
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseRejected());
 }
 
 #undef STREAM_TEST

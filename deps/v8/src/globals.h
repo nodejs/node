@@ -12,6 +12,7 @@
 #include <ostream>
 
 #include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
@@ -162,13 +163,13 @@ constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
 constexpr bool kRequiresCodeRange = true;
 #if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_ARM64
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #else
 constexpr size_t kMaximalCodeRangeSize = 128 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
 #if V8_OS_WIN
 constexpr size_t kMinimumCodeRangeSize = 4 * MB;
@@ -186,17 +187,17 @@ constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 constexpr bool kRequiresCodeRange = true;
 constexpr size_t kMaximalCodeRangeSize = 256 * MB;
 constexpr size_t kMinimumCodeRangeSize = 3 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
+constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #else
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
+constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #endif
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
@@ -206,6 +207,14 @@ STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
 constexpr int kTaggedSize = kSystemPointerSize;
 constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
+
+// These types define raw and atomic storage types for tagged values stored
+// on V8 heap.
+using Tagged_t = Address;
+using AtomicTagged_t = base::AtomicWord;
+using AsAtomicTagged = base::AsAtomicPointerImpl<AtomicTagged_t>;
+STATIC_ASSERT(sizeof(Tagged_t) == kTaggedSize);
+STATIC_ASSERT(sizeof(AtomicTagged_t) == kTaggedSize);
 
 // TODO(ishell): use kTaggedSize or kSystemPointerSize instead.
 constexpr int kPointerSize = kSystemPointerSize;
@@ -232,11 +241,12 @@ constexpr int kExternalAllocationSoftLimit =
 // account.
 //
 // Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
+#ifdef V8_HOST_ARCH_PPC
+// Reduced kMaxRegularHeapObjectSize due to larger page size(64k) on ppc64le
+constexpr int kMaxRegularHeapObjectSize = 327680;
+#else
 constexpr int kMaxRegularHeapObjectSize = 507136;
-
-// Objects smaller or equal kMaxNewSpaceHeapObjectSize are allocated in the
-// new large object space.
-constexpr int kMaxNewSpaceHeapObjectSize = 32 * KB;
+#endif
 
 constexpr int kBitsPerByte = 8;
 constexpr int kBitsPerByteLog2 = 3;
@@ -521,7 +531,6 @@ class Arguments;
 class Assembler;
 class Code;
 class CodeSpace;
-class CodeStub;
 class Context;
 class DeclarationScope;
 class Debug;
@@ -564,7 +573,9 @@ class NewSpace;
 class NewLargeObjectSpace;
 class NumberDictionary;
 class Object;
-class ObjectSlot;
+class FullObjectSlot;
+class FullMaybeObjectSlot;
+class FullHeapObjectSlot;
 class OldSpace;
 class ParameterCount;
 class ReadOnlySpace;
@@ -581,9 +592,50 @@ class Struct;
 class Symbol;
 class Variable;
 
-typedef bool (*WeakSlotCallback)(ObjectSlot pointer);
+enum class SlotLocation { kOnHeap, kOffHeap };
 
-typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, ObjectSlot pointer);
+template <SlotLocation slot_location>
+struct SlotTraits;
+
+// Off-heap slots are always full-pointer slots.
+template <>
+struct SlotTraits<SlotLocation::kOffHeap> {
+  using TObjectSlot = FullObjectSlot;
+  using TMapWordSlot = FullObjectSlot;
+  using TMaybeObjectSlot = FullMaybeObjectSlot;
+  using THeapObjectSlot = FullHeapObjectSlot;
+};
+
+// On-heap slots are either full-pointer slots or compressed slots depending
+// on whether the pointer compression is enabled or not.
+template <>
+struct SlotTraits<SlotLocation::kOnHeap> {
+  using TObjectSlot = FullObjectSlot;
+  using TMapWordSlot = FullObjectSlot;
+  using TMaybeObjectSlot = FullMaybeObjectSlot;
+  using THeapObjectSlot = FullHeapObjectSlot;
+};
+
+// An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
+// holding ObjectPtr value (smi or strong heap object).
+using ObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TObjectSlot;
+
+// An MapWordSlot instance describes a kTaggedSize-sized on-heap field ("slot")
+// holding HeapObjectPtr (strong heap object) value or a forwarding pointer.
+using MapWordSlot = SlotTraits<SlotLocation::kOnHeap>::TMapWordSlot;
+
+// A MaybeObjectSlot instance describes a kTaggedSize-sized on-heap field
+// ("slot") holding MaybeObject (smi or weak heap object or strong heap object).
+using MaybeObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TMaybeObjectSlot;
+
+// A HeapObjectSlot instance describes a kTaggedSize-sized field ("slot")
+// holding a weak or strong pointer to a heap object (think:
+// HeapObjectReference).
+using HeapObjectSlot = SlotTraits<SlotLocation::kOnHeap>::THeapObjectSlot;
+
+typedef bool (*WeakSlotCallback)(FullObjectSlot pointer);
+
+typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, FullObjectSlot pointer);
 
 // -----------------------------------------------------------------------------
 // Miscellaneous
@@ -828,13 +880,25 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 #define OBJECT_POINTER_ALIGN(value)                             \
   (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
 
-// POINTER_SIZE_ALIGN returns the value aligned as a pointer.
+// OBJECT_POINTER_PADDING returns the padding size required to align value
+// as a HeapObject pointer
+#define OBJECT_POINTER_PADDING(value) (OBJECT_POINTER_ALIGN(value) - (value))
+
+// POINTER_SIZE_ALIGN returns the value aligned as a system pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
+
+// POINTER_SIZE_PADDING returns the padding size required to align value
+// as a system pointer.
+#define POINTER_SIZE_PADDING(value) (POINTER_SIZE_ALIGN(value) - (value))
 
 // CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
 #define CODE_POINTER_ALIGN(value)                               \
   (((value) + kCodeAlignmentMask) & ~kCodeAlignmentMask)
+
+// CODE_POINTER_PADDING returns the padding size required to align value
+// as a generated code segment.
+#define CODE_POINTER_PADDING(value) (CODE_POINTER_ALIGN(value) - (value))
 
 // DOUBLE_POINTER_ALIGN returns the value algined for double pointers.
 #define DOUBLE_POINTER_ALIGN(value) \

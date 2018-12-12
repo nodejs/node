@@ -178,7 +178,7 @@
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
-  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F': [FAIL],
+  'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F': [FAIL_PHASE_ONLY],
   'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated': [FAIL],
   'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid': [FAIL],
   'built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid-negated': [FAIL],
@@ -562,9 +562,6 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7874
-  'built-ins/Reflect/ownKeys/return-on-corresponding-order-large-index': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6776
   'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
@@ -589,8 +586,7 @@
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7481
-  'intl402/NumberFormat/ignore-invalid-unicode-ext-values': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8469
   'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7482
@@ -607,7 +603,9 @@
   # https://crbug.com/v8/7808
   'intl402/String/prototype/localeCompare/returns-same-results-as-Collator': [SKIP],
   'intl402/Collator/prototype/compare/bound-to-collator-instance': [SKIP],
-  'intl402/Collator/ignore-invalid-unicode-ext-values': [SKIP],
+
+  # https://github.com/tc39/ecma402/issues/223
+  'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8260
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
@@ -651,9 +649,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7781
-  'built-ins/Date/parse/time-value-maximum-range': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -669,6 +664,16 @@
   'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
   'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6891
+  'intl402/Segmenter/iterator/following': [FAIL],
+  'intl402/Segmenter/iterator/granularity': [FAIL],
+  'intl402/Segmenter/iterator/preceding': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-sentence': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-word': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8021
+  'built-ins/Object/fromEntries/requires-argument': [FAIL],
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -729,6 +734,10 @@
   # Test against internals of harness; we plug in differently
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
+
+  # Test needs to be updated to spec changes.
+  # https://github.com/tc39/test262/pull/1990
+  'built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 

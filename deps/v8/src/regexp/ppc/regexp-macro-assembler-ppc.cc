@@ -13,6 +13,7 @@
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -76,7 +77,7 @@ namespace internal {
  * The data up to the return address must be placed there by the calling
  * code and the remaining arguments are passed in registers, e.g. by calling the
  * code entry as cast to a function with the signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -1091,6 +1092,9 @@ void RegExpMacroAssemblerPPC::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
+  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!masm_->options().isolate_independent_code);
+
   int frame_alignment = masm_->ActivationFrameAlignment();
   int stack_space = kNumRequiredStackFrameSlots;
   int stack_passed_arguments = 1;  // space for return address pointer
@@ -1125,8 +1129,7 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
   __ mov(ip, Operand(stack_guard_check));
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm_, ip);
+  __ StoreReturnAddressAndCall(ip);
 
   // Restore the stack pointer
   stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
@@ -1160,7 +1163,7 @@ int RegExpMacroAssemblerPPC::CheckStackGuardState(Address* return_address,
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<intptr_t>(re_frame, kStartIndex),
       frame_entry<intptr_t>(re_frame, kDirectCall) == 1, return_address,
-      re_code, frame_entry_address<String*>(re_frame, kInputString),
+      re_code, frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }

@@ -234,6 +234,8 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
+int* GetThreadInWasmThreadLocalAddress() { return &g_thread_in_wasm_code; }
+
 size_t GetRecoveredTrapCount() {
   return gRecoveredTrapCount.load(std::memory_order_relaxed);
 }

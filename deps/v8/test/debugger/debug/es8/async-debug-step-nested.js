@@ -51,6 +51,6 @@ f1();
 
 late_resolve(3);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(6, step_count);

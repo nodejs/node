@@ -11,7 +11,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/double.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/macro-assembler.h"
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -599,13 +599,13 @@ void AdjustStackPointerForTailCall(
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    tasm->sub(sp, sp, Operand(stack_slot_delta * kPointerSize));
+    tasm->sub(sp, sp, Operand(stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    tasm->add(sp, sp, Operand(-stack_slot_delta * kPointerSize));
+    tasm->add(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -837,9 +837,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
-      DCHECK_EQ(0, bytes % kPointerSize);
+      DCHECK(IsAligned(bytes, kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
-      frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+      frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       DCHECK(!caller_registers_saved_);
       caller_registers_saved_ = true;
       break;
@@ -850,7 +850,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
-      frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
+      frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
       caller_registers_saved_ = false;
@@ -883,7 +883,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         //   kArchRestoreCallerRegisters;
         int bytes =
             __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
-        frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       }
       break;
     }
@@ -1738,11 +1738,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             break;
           case MachineRepresentation::kFloat64:
             __ vpush(i.InputDoubleRegister(0));
-            frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+            frame_access_state()->IncreaseSPDelta(kDoubleSize /
+                                                  kSystemPointerSize);
             break;
           case MachineRepresentation::kSimd128: {
             __ vpush(i.InputSimd128Register(0));
-            frame_access_state()->IncreaseSPDelta(kSimd128Size / kPointerSize);
+            frame_access_state()->IncreaseSPDelta(kSimd128Size /
+                                                  kSystemPointerSize);
             break;
           }
           default:
@@ -1757,7 +1759,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmPoke: {
       int const slot = MiscField::decode(instr->opcode());
-      __ str(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
+      __ str(i.InputRegister(0), MemOperand(sp, slot * kSystemPointerSize));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -3008,7 +3010,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
     DCHECK_EQ((last - first + 1), base::bits::CountPopulation(saves_fp));
     frame->AllocateSavedCalleeRegisterSlots((last - first + 1) *
-                                            (kDoubleSize / kPointerSize));
+                                            (kDoubleSize / kSystemPointerSize));
   }
   const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
@@ -3080,14 +3082,14 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if ((shrink_slots * kPointerSize) < (FLAG_stack_size * 1024)) {
+      if ((shrink_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
         UseScratchRegisterScope temps(tasm());
         Register scratch = temps.Acquire();
         __ ldr(scratch, FieldMemOperand(
                             kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ ldr(scratch, MemOperand(scratch));
-        __ add(scratch, scratch, Operand(shrink_slots * kPointerSize));
+        __ add(scratch, scratch, Operand(shrink_slots * kSystemPointerSize));
         __ cmp(sp, scratch);
         __ b(cs, &done);
       }
@@ -3112,7 +3114,7 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= frame()->GetReturnSlotCount();
     shrink_slots -= 2 * base::bits::CountPopulation(saves_fp);
     if (shrink_slots > 0) {
-      __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
+      __ sub(sp, sp, Operand(shrink_slots * kSystemPointerSize));
     }
   }
 
@@ -3134,7 +3136,7 @@ void CodeGenerator::AssembleConstructFrame() {
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
     // Create space for returns.
-    __ sub(sp, sp, Operand(returns * kPointerSize));
+    __ sub(sp, sp, Operand(returns * kSystemPointerSize));
   }
 }
 
@@ -3145,7 +3147,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
     // Free space of returns.
-    __ add(sp, sp, Operand(returns * kPointerSize));
+    __ add(sp, sp, Operand(returns * kSystemPointerSize));
   }
 
   // Restore registers.

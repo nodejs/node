@@ -25,7 +25,7 @@ class DateParser : public AllStatic {
   // [7]: UTC offset in seconds, or null value if no timezone specified
   // If parsing fails, return false (content of output array is not defined).
   template <typename Char>
-  static bool Parse(Isolate* isolate, Vector<Char> str, FixedArray* output);
+  static bool Parse(Isolate* isolate, Vector<Char> str, FixedArray output);
 
   enum {
     YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, MILLISECOND, UTC_OFFSET, OUTPUT_SIZE
@@ -276,7 +276,7 @@ class DateParser : public AllStatic {
       return hour_ != kNone && minute_ == kNone && TimeComposer::IsMinute(n);
     }
     bool IsUTC() const { return hour_ == 0 && minute_ == 0; }
-    bool Write(FixedArray* output);
+    bool Write(FixedArray output);
     bool IsEmpty() { return hour_ == kNone; }
    private:
     int sign_;
@@ -302,7 +302,7 @@ class DateParser : public AllStatic {
       return true;
     }
     void SetHourOffset(int n) { hour_offset_ = n; }
-    bool Write(FixedArray* output);
+    bool Write(FixedArray output);
 
     static bool IsMinute(int x) { return Between(x, 0, 59); }
     static bool IsHour(int x) { return Between(x, 0, 23); }
@@ -331,7 +331,7 @@ class DateParser : public AllStatic {
       return false;
     }
     void SetNamedMonth(int n) { named_month_ = n; }
-    bool Write(FixedArray* output);
+    bool Write(FixedArray output);
     void set_iso_date() { is_iso_date_ = true; }
     static bool IsMonth(int x) { return Between(x, 1, 12); }
     static bool IsDay(int x) { return Between(x, 1, 31); }

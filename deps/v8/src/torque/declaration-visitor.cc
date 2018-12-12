@@ -142,6 +142,12 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
                              decl->transitioning, body, decl->op);
 }
 
+void DeclarationVisitor::Visit(IntrinsicDeclaration* decl,
+                               const Signature& signature,
+                               base::Optional<Statement*> body) {
+  Declarations::DeclareIntrinsic(decl->name, signature);
+}
+
 void DeclarationVisitor::Visit(ConstDeclaration* decl) {
   Declarations::DeclareNamespaceConstant(
       decl->name, Declarations::GetType(decl->type), decl->expression);
@@ -231,6 +237,10 @@ void DeclarationVisitor::Visit(StructDeclaration* decl) {
   Declarations::DeclareStruct(decl->name, fields);
 }
 
+void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
+  GlobalContext::AddCppInclude(decl->include_path);
+}
+
 void DeclarationVisitor::Visit(TypeDeclaration* decl) {
   std::string generates = decl->generates ? *decl->generates : std::string("");
   if (decl->generates) {
@@ -290,7 +300,9 @@ Signature DeclarationVisitor::MakeSpecializedSignature(
 }
 
 Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
-  if (!key.generic->declaration()->body) {
+  if (!key.generic->declaration()->body &&
+      IntrinsicDeclaration::DynamicCast(key.generic->declaration()->callable) ==
+          nullptr) {
     ReportError("missing specialization of ", key.generic->name(),
                 " with types <", key.specialized_types, "> declared at ",
                 key.generic->pos());
@@ -298,7 +310,7 @@ Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
   Callable* result =
       Specialize(key, key.generic->declaration()->callable, base::nullopt,
-                 *key.generic->declaration()->body);
+                 key.generic->declaration()->body);
   CurrentScope::Scope callable_scope(result);
   DeclareSpecializedTypes(key);
   return result;
@@ -306,7 +318,8 @@ Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
 
 Callable* DeclarationVisitor::Specialize(
     const SpecializationKey& key, CallableNode* declaration,
-    base::Optional<const CallableNodeSignature*> signature, Statement* body) {
+    base::Optional<const CallableNodeSignature*> signature,
+    base::Optional<Statement*> body) {
   // TODO(tebbi): The error should point to the source position where the
   // instantiation was requested.
   CurrentSourcePosition::Scope pos_scope(key.generic->declaration()->pos);
@@ -344,11 +357,13 @@ Callable* DeclarationVisitor::Specialize(
   if (MacroDeclaration::DynamicCast(declaration) != nullptr) {
     callable = Declarations::CreateMacro(generated_name, readable_name.str(),
                                          base::nullopt, type_signature,
-                                         declaration->transitioning, body);
+                                         declaration->transitioning, *body);
+  } else if (IntrinsicDeclaration::DynamicCast(declaration) != nullptr) {
+    callable = Declarations::CreateIntrinsic(declaration->name, type_signature);
   } else {
     BuiltinDeclaration* builtin = BuiltinDeclaration::cast(declaration);
     callable = CreateBuiltin(builtin, generated_name, readable_name.str(),
-                             type_signature, body);
+                             type_signature, *body);
   }
   key.generic->AddSpecialization(key.specialized_types, callable);
   return callable;

@@ -49,7 +49,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   if (FLAG_trace_turbo) {
     StdoutStream{} << "=== Code sequence after instruction selection ==="
                    << std::endl
-                   << PrintableInstructionSequence{&sequence};
+                   << sequence;
   }
   Stream s;
   s.virtual_registers_ = selector.GetVirtualRegistersForTesting();

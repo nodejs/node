@@ -50,7 +50,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/conversions-inl.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
@@ -67,13 +66,6 @@ Immediate Immediate::EmbeddedNumber(double value) {
   Immediate result(0, RelocInfo::EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(value);
-  return result;
-}
-
-Immediate Immediate::EmbeddedCode(CodeStub* stub) {
-  Immediate result(0, RelocInfo::CODE_TARGET);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(stub);
   return result;
 }
 
@@ -302,10 +294,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kHeapNumber:
         object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
-        break;
-      case HeapObjectRequest::kCodeStub:
-        request.code_stub()->set_isolate(isolate);
-        object = request.code_stub()->GetCode();
         break;
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
@@ -1641,12 +1629,6 @@ void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
   emit(code, rmode);
-}
-
-void Assembler::call(CodeStub* stub) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xE8);
-  emit(Immediate::EmbeddedCode(stub));
 }
 
 void Assembler::jmp_rel(int offset) {

@@ -60,7 +60,7 @@ namespace internal {
  *    - end of input         (address of end of string)
  *    - start of input       (address of first character in string)
  *    - start index          (character index of start)
- *    - String* input_string (input string)
+ *    - String input_string  (input string)
  *    - return address
  *    - backup of callee save registers (rbx, possibly rsi and rdi).
  *    - success counter      (only useful for global regexp to count matches)
@@ -80,7 +80,7 @@ namespace internal {
  * The first seven values must be provided by the calling code by
  * calling the code's entry address cast to a function pointer with the
  * following signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -1225,7 +1225,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),
       frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
-      frame_entry_address<String*>(re_frame, kInputString),
+      frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }

@@ -42,7 +42,7 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
-    CompilationCacheTable* table =
+    CompilationCacheTable table =
         CompilationCacheTable::cast(tables_[generation]);
     result = Handle<CompilationCacheTable>(table, isolate());
   }
@@ -69,8 +69,8 @@ void CompilationSubCache::Age() {
 
 void CompilationSubCache::Iterate(RootVisitor* v) {
   v->VisitRootPointers(Root::kCompilationCache, nullptr,
-                       ObjectSlot(&tables_[0]),
-                       ObjectSlot(&tables_[generations_]));
+                       FullObjectSlot(&tables_[0]),
+                       FullObjectSlot(&tables_[generations_]));
 }
 
 void CompilationSubCache::Clear() {

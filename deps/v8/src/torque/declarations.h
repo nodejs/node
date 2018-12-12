@@ -97,6 +97,12 @@ class Declarations {
       const Signature& signature, bool transitioning,
       base::Optional<Statement*> body, base::Optional<std::string> op = {});
 
+  static Intrinsic* CreateIntrinsic(const std::string& name,
+                                    const Signature& signature);
+
+  static Intrinsic* DeclareIntrinsic(const std::string& name,
+                                     const Signature& signature);
+
   static Builtin* CreateBuiltin(std::string external_name,
                                 std::string readable_name, Builtin::Kind kind,
                                 Signature signature, bool transitioning,

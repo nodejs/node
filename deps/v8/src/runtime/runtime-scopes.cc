@@ -348,7 +348,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  std::vector<SharedFunctionInfo*> functions;
+  std::vector<SharedFunctionInfo> functions;
   frame->GetFunctions(&functions);
   if (functions.size() > 1) {
     int inlined_jsframe_index = static_cast<int>(functions.size()) - 1;
@@ -488,7 +488,7 @@ class ParameterArguments {
  public:
   explicit ParameterArguments(Address parameters) : parameters_(parameters) {}
   Object* operator[](int index) {
-    return *ObjectSlot(parameters_ - (index + 1) * kPointerSize);
+    return *FullObjectSlot(parameters_ - (index + 1) * kPointerSize);
   }
 
  private:
@@ -553,7 +553,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowHeapAllocation no_gc;
-    FixedArray* elements = FixedArray::cast(result->elements());
+    FixedArray elements = FixedArray::cast(result->elements());
     WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
       elements->set(i, *arguments[i + start_index], mode);
@@ -935,7 +935,7 @@ MaybeHandle<Object> StoreLookupSlot(
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
     if (flag == kNeedsInitialization &&
-        Handle<Context>::cast(holder)->is_the_hole(isolate, index)) {
+        Handle<Context>::cast(holder)->get(index)->IsTheHole(isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),
                       Object);

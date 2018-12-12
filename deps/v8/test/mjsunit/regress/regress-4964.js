@@ -4,19 +4,19 @@
 
 // Flags: --allow-natives-syntax
 
-// Neutered source
+// Detached source
 var ab = new ArrayBuffer(10);
-ab.constructor = { get [Symbol.species]() { %ArrayBufferNeuter(ab); return ArrayBuffer; } };
+ab.constructor = { get [Symbol.species]() { %ArrayBufferDetach(ab); return ArrayBuffer; } };
 assertThrows(() => ab.slice(0), TypeError);
 
-// Neutered target
-class NeuteredArrayBuffer extends ArrayBuffer {
+// Detached target
+class DetachedArrayBuffer extends ArrayBuffer {
   constructor(...args) {
     super(...args);
-    %ArrayBufferNeuter(this);
+    %ArrayBufferDetach(this);
   }
 }
 
 var ab2 = new ArrayBuffer(10);
-ab2.constructor = NeuteredArrayBuffer;
+ab2.constructor = DetachedArrayBuffer;
 assertThrows(() => ab2.slice(0), TypeError);

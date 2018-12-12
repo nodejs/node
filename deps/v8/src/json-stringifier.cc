@@ -5,7 +5,6 @@
 #include "src/json-stringifier.h"
 
 #include "src/conversions.h"
-#include "src/heap/heap-inl.h"
 #include "src/lookup.h"
 #include "src/message-template.h"
 #include "src/objects-inl.h"
@@ -352,7 +351,7 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
                           initial_holder, NONE);
     return holder;
   } else {
-    FixedArray* elements = FixedArray::cast(stack_->elements());
+    FixedArray elements = FixedArray::cast(stack_->elements());
     return Handle<JSReceiver>(JSReceiver::cast(elements->get(length - 1)),
                               isolate_);
   }
@@ -368,7 +367,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object) {
   int length = Smi::ToInt(stack_->length());
   {
     DisallowHeapAllocation no_allocation;
-    FixedArray* elements = FixedArray::cast(stack_->elements());
+    FixedArray elements = FixedArray::cast(stack_->elements());
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;
@@ -810,9 +809,9 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   // part, or we might need to allocate.
   if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
     DisallowHeapAllocation no_gc;
-    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>();
+    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
-        &builder_, worst_case_length);
+        &builder_, worst_case_length, no_gc);
     SerializeStringUnchecked_(vector, &no_extend);
   } else {
     FlatStringReader reader(isolate_, string);
@@ -902,14 +901,14 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
 void JsonStringifier::SerializeString(Handle<String> object) {
   object = String::Flatten(isolate_, object);
   if (builder_.CurrentEncoding() == String::ONE_BYTE_ENCODING) {
-    if (object->IsOneByteRepresentationUnderneath()) {
+    if (String::IsOneByteRepresentationUnderneath(*object)) {
       SerializeString_<uint8_t, uint8_t>(object);
     } else {
       builder_.ChangeEncoding();
       SerializeString(object);
     }
   } else {
-    if (object->IsOneByteRepresentationUnderneath()) {
+    if (String::IsOneByteRepresentationUnderneath(*object)) {
       SerializeString_<uint8_t, uc16>(object);
     } else {
       SerializeString_<uc16, uc16>(object);

@@ -239,16 +239,16 @@ void CpuFeatures::PrintTarget() {
   s390_arch = "s390";
 #endif
 
-  printf("target %s\n", s390_arch);
+  PrintF("target %s\n", s390_arch);
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
-  printf("FPU_EXT=%d\n", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
-  printf("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
-  printf("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
-  printf("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
-  printf("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
+  PrintF("FPU=%d\n", CpuFeatures::IsSupported(FPU));
+  PrintF("FPU_EXT=%d\n", CpuFeatures::IsSupported(FLOATING_POINT_EXT));
+  PrintF("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
+  PrintF("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
+  PrintF("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
+  PrintF("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
 }
 
 Register ToRegister(int num) {

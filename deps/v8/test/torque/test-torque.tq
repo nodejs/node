@@ -174,7 +174,7 @@ namespace test {
     return x + 2;
   }
 
-  macro TestFunctionPointers(context: Context): Boolean {
+  macro TestFunctionPointers(implicit context: Context)(): Boolean {
     let fptr: builtin(Context, Smi) => Smi = TestHelperPlus1;
     check(fptr(context, 42) == 43);
     fptr = TestHelperPlus2;
@@ -182,7 +182,7 @@ namespace test {
     return True;
   }
 
-  macro TestVariableRedeclaration(context: Context): Boolean {
+  macro TestVariableRedeclaration(implicit context: Context)(): Boolean {
     let var1: int31 = FromConstexpr<bool>(42 == 0) ? 0 : 1;
     let var2: int31 = FromConstexpr<bool>(42 == 0) ? 1 : 0;
     return True;
@@ -208,11 +208,11 @@ namespace test {
     return x;
   }
 
-  macro TestUnsafeCast(c: Context, n: Number): Boolean {
+  macro TestUnsafeCast(implicit context: Context)(n: Number): Boolean {
     if (TaggedIsSmi(n)) {
       let m: Smi = UnsafeCast<Smi>(n);
 
-      check(TestHelperPlus1(c, m) == 11);
+      check(TestHelperPlus1(context, m) == 11);
       return True;
     }
     return False;
@@ -223,7 +223,7 @@ namespace test {
     check(Convert<intptr>(-0xffff) == -65535);
   }
 
-  macro TestLargeIntegerLiterals(c: Context) {
+  macro TestLargeIntegerLiterals(implicit c: Context)() {
     let x: int32 = 0x40000000;
     let y: int32 = 0x7fffffff;
   }
@@ -278,11 +278,11 @@ namespace test {
     return i.i;
   }
 
-  macro TestStruct2(): TestStructA {
+  macro TestStruct2(implicit context: Context)(): TestStructA {
     return TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31};
   }
 
-  macro TestStruct3(): TestStructA {
+  macro TestStruct3(implicit context: Context)(): TestStructA {
     let a: TestStructA =
     TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 13, 5};
     let b: TestStructA = a;
@@ -304,7 +304,7 @@ namespace test {
     y: TestStructA;
   }
 
-  macro TestStruct4(): TestStructC {
+  macro TestStruct4(implicit context: Context)(): TestStructC {
     return TestStructC{TestStruct2(), TestStruct2()};
   }
 
@@ -419,7 +419,9 @@ namespace test {
     }
   }
 
-  macro TypeswitchExample(x: Number | FixedArray): int32 {
+  type NumberOrFixedArray = Number | FixedArray;
+  macro TypeswitchExample(implicit context: Context)(x: NumberOrFixedArray):
+      int32 {
     let result: int32 = 0;
     typeswitch (IncrementIfSmi(x)) {
       case (x: FixedArray): {
@@ -447,7 +449,7 @@ namespace test {
     return result;
   }
 
-  macro TestTypeswitch() {
+  macro TestTypeswitch(implicit context: Context)() {
     check(TypeswitchExample(FromConstexpr<Smi>(5)) == 26);
     const a: FixedArray = AllocateZeroedFixedArray(3);
     check(TypeswitchExample(a) == 13);
@@ -461,7 +463,7 @@ namespace test {
     return o + 1;
   }
 
-  macro TestGenericOverload() {
+  macro TestGenericOverload(implicit context: Context)() {
     const xSmi: Smi = 5;
     const xObject: Object = xSmi;
     check(ExampleGenericOverload<Smi>(xSmi) == 6);
@@ -599,12 +601,12 @@ namespace test {
     }
   }
 
-  macro TestQualifiedAccess() {
+  macro TestQualifiedAccess(implicit context: Context)() {
     let s: Smi = 0;
     check(!array::IsJSArray(s));
   }
 
-  macro TestCatch1(context: Context): Smi {
+  macro TestCatch1(implicit context: Context)(): Smi {
     let r: Smi = 0;
     try {
       ThrowTypeError(context, kInvalidArrayLength);
@@ -614,29 +616,29 @@ namespace test {
     }
   }
 
-  macro TestCatch2Wrapper(context: Context): never {
+  macro TestCatch2Wrapper(implicit context: Context)(): never {
     ThrowTypeError(context, kInvalidArrayLength);
   }
 
-  macro TestCatch2(context: Context): Smi {
+  macro TestCatch2(implicit context: Context)(): Smi {
     let r: Smi = 0;
     try {
-      TestCatch2Wrapper(context);
+      TestCatch2Wrapper();
     } catch (e) {
       r = 2;
       return r;
     }
   }
 
-  macro TestCatch3WrapperWithLabel(context: Context): never
+  macro TestCatch3WrapperWithLabel(implicit context: Context)(): never
       labels Abort {
     ThrowTypeError(context, kInvalidArrayLength);
   }
 
-  macro TestCatch3(context: Context): Smi {
+  macro TestCatch3(implicit context: Context)(): Smi {
     let r: Smi = 0;
     try {
-      TestCatch3WrapperWithLabel(context) otherwise Abort;
+      TestCatch3WrapperWithLabel() otherwise Abort;
     }
     label Abort {
       return -1;
@@ -668,4 +670,23 @@ namespace test {
     }
     label Fail {}
   }
+
+  macro TestFrame1(implicit context: Context)() {
+    const f: Frame = LoadFramePointer();
+    const frameType: FrameType =
+        Cast<FrameType>(f.context_or_frame_type) otherwise unreachable;
+    assert(frameType == STUB_FRAME);
+    assert(f.caller == LoadParentFramePointer());
+    typeswitch (f) {
+      case (f: StandardFrame): {
+        unreachable;
+      }
+      case (f: ArgumentsAdapterFrame): {
+        unreachable;
+      }
+      case (f: StubFrame): {
+      }
+    }
+  }
+
 }

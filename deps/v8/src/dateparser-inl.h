@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 template <typename Char>
-bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray* out) {
+bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray out) {
   DCHECK(out->length() >= OUTPUT_SIZE);
   InputReader<Char> in(str);
   DateStringTokenizer<Char> scanner(&in);
@@ -180,7 +180,6 @@ bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray* out) {
 
   return success;
 }
-
 
 template<typename CharType>
 DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {

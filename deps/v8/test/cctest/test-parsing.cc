@@ -98,7 +98,6 @@ bool TokenIsAnyIdentifier(Token::Value token) {
     case Token::STATIC:
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::ENUM:
       return true;
     default:
       return false;
@@ -123,7 +122,6 @@ bool TokenIsCallable(Token::Value token) {
     case Token::STATIC:
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::ENUM:
       return true;
     default:
       return false;
@@ -137,8 +135,8 @@ TEST(CallableToken) {
   }
 }
 
-bool TokenIsIdentifier(Token::Value token, LanguageMode language_mode,
-                       bool is_generator, bool disallow_await) {
+bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
+                            bool is_generator, bool disallow_await) {
   switch (token) {
     case Token::IDENTIFIER:
     case Token::ASYNC:
@@ -158,7 +156,7 @@ bool TokenIsIdentifier(Token::Value token, LanguageMode language_mode,
   UNREACHABLE();
 }
 
-TEST(IsIdentifierToken) {
+TEST(IsValidIdentifierToken) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     for (size_t raw_language_mode = 0; raw_language_mode < LanguageModeSize;
@@ -167,8 +165,9 @@ TEST(IsIdentifierToken) {
       for (int is_generator = 0; is_generator < 2; is_generator++) {
         for (int disallow_await = 0; disallow_await < 2; disallow_await++) {
           CHECK_EQ(
-              TokenIsIdentifier(token, mode, is_generator, disallow_await),
-              Token::IsIdentifier(token, mode, is_generator, disallow_await));
+              TokenIsValidIdentifier(token, mode, is_generator, disallow_await),
+              Token::IsValidIdentifier(token, mode, is_generator,
+                                       disallow_await));
         }
       }
     }
@@ -178,6 +177,7 @@ TEST(IsIdentifierToken) {
 bool TokenIsStrictReservedWord(Token::Value token) {
   switch (token) {
     case Token::LET:
+    case Token::YIELD:
     case Token::STATIC:
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
@@ -398,7 +398,7 @@ TEST(IsPropertyOrCall) {
   }
 }
 
-bool TokenIsProperty(Token::Value token) {
+bool TokenIsMember(Token::Value token) {
   switch (token) {
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
@@ -407,6 +407,40 @@ bool TokenIsProperty(Token::Value token) {
       return true;
     default:
       return false;
+  }
+}
+
+bool TokenIsTemplate(Token::Value token) {
+  switch (token) {
+    case Token::TEMPLATE_SPAN:
+    case Token::TEMPLATE_TAIL:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool TokenIsProperty(Token::Value token) {
+  switch (token) {
+    case Token::PERIOD:
+    case Token::LBRACK:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsMember) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsMember(token), Token::IsMember(token));
+  }
+}
+
+TEST(IsTemplate) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsTemplate(token), Token::IsTemplate(token));
   }
 }
 
@@ -431,6 +465,14 @@ TEST(IsCountOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsCountOp(token), Token::IsCountOp(token));
+  }
+}
+
+TEST(IsUnaryOrCountOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsUnaryOp(token) || TokenIsCountOp(token),
+             Token::IsUnaryOrCountOp(token));
   }
 }
 
@@ -460,7 +502,7 @@ TEST(ScanKeywords) {
 
   static const KeywordToken keywords[] = {
 #define KEYWORD(t, s, d) { s, i::Token::t },
-      TOKEN_LIST(IGNORE_TOKEN, KEYWORD, IGNORE_TOKEN)
+      TOKEN_LIST(IGNORE_TOKEN, KEYWORD)
 #undef KEYWORD
           {nullptr, i::Token::IDENTIFIER}};
 
@@ -875,7 +917,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val = current_symbol->string();
   i::DisallowHeapAllocation no_alloc;
-  i::String::FlatContent content = val->GetFlatContent();
+  i::String::FlatContent content = val->GetFlatContent(no_alloc);
   CHECK(content.IsOneByte());
   i::Vector<const uint8_t> actual = content.ToOneByteVector();
   for (int i = 0; i < actual.length(); i++) {
@@ -3192,7 +3234,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context* context = f->context();
+  i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          isolate->heap()->HashSeed());
   const i::AstRawString* name = avf.GetOneByteString("result");
@@ -3242,7 +3284,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   v8::Local<v8::Value> v = CompileRun(src);
   i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
-  i::Context* context = f->context();
+  i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          isolate->heap()->HashSeed());
   const i::AstRawString* name_x = avf.GetOneByteString("x");

@@ -311,7 +311,7 @@ enum ScaleFactor : int8_t {
   times_pointer_size = (kPointerSize == 8) ? times_8 : times_4
 };
 
-class Operand {
+class V8_EXPORT_PRIVATE Operand {
  public:
   struct Data {
     byte rex = 0;
@@ -537,8 +537,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kCallTargetAddressOffset = 4;  // 32-bit displacement.
   // The length of call(kScratchRegister).
   static constexpr int kCallScratchRegisterInstructionLength = 3;
-  // The length of call(Immediate32).
-  static constexpr int kShortCallInstructionLength = 5;
   // The length of movq(kScratchRegister, address).
   static constexpr int kMoveAddressIntoScratchRegisterInstructionLength =
       2 + kPointerSize;
@@ -913,7 +911,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Address entry, RelocInfo::Mode rmode);
   void near_call(Address entry, RelocInfo::Mode rmode);
   void near_jmp(Address entry, RelocInfo::Mode rmode);
-  void call(CodeStub* stub);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 

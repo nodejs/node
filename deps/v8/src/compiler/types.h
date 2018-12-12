@@ -457,8 +457,8 @@ class V8_EXPORT_PRIVATE Type {
   friend UnionType;
   friend size_t hash_value(Type type);
 
-  Type(bitset bits) : payload_(bits | 1u) {}
-  Type(TypeBase* type_base)
+  explicit Type(bitset bits) : payload_(bits | 1u) {}
+  Type(TypeBase* type_base)  // NOLINT(runtime/explicit)
       : payload_(reinterpret_cast<uintptr_t>(type_base)) {}
 
   // Internal inspection.

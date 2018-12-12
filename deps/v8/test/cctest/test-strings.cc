@@ -277,7 +277,7 @@ class ConsStringGenerationData {
   int max_leaves_;
   // Cached data.
   Handle<String> building_blocks_[kNumberOfBuildingBlocks];
-  String* empty_string_;
+  String empty_string_;
   MyRandomNumberGenerator rng_;
   // Stats.
   ConsStringStats stats_;
@@ -318,8 +318,7 @@ void ConsStringGenerationData::Reset() {
   rng_.init();
 }
 
-
-void AccumulateStats(ConsString* cons_string, ConsStringStats* stats) {
+void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
   int left_length = cons_string->first()->length();
   int right_length = cons_string->second()->length();
   CHECK(cons_string->length() == left_length + right_length);
@@ -347,7 +346,6 @@ void AccumulateStats(ConsString* cons_string, ConsStringStats* stats) {
   }
 }
 
-
 void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
   DisallowHeapAllocation no_allocation;
   if (cons_string->IsConsString()) {
@@ -357,20 +355,18 @@ void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
   stats->chars_ += cons_string->length();
 }
 
-
-void AccumulateStatsWithOperator(
-    ConsString* cons_string, ConsStringStats* stats) {
+void AccumulateStatsWithOperator(ConsString cons_string,
+                                 ConsStringStats* stats) {
   ConsStringIterator iter(cons_string);
-  String* string;
   int offset;
-  while (nullptr != (string = iter.Next(&offset))) {
+  for (String string = iter.Next(&offset); !string.is_null();
+       string = iter.Next(&offset)) {
     // Accumulate stats.
     CHECK_EQ(0, offset);
     stats->leaves_++;
     stats->chars_ += string->length();
   }
 }
-
 
 void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
   // Verify basic data.
@@ -640,8 +636,7 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   CHECK_EQ(initial_length, flat->length());
 }
 
-static void VerifyCharacterStream(
-    String* flat_string, String* cons_string) {
+static void VerifyCharacterStream(String flat_string, String cons_string) {
   // Do not want to test ConString traversal on flat string.
   CHECK(flat_string->IsFlat() && !flat_string->IsConsString());
   CHECK(cons_string->IsConsString());
@@ -667,7 +662,6 @@ static void VerifyCharacterStream(
     CHECK(!cons_stream.HasMore());
   }
 }
-
 
 static inline void PrintStats(const ConsStringGenerationData& data) {
 #ifdef DEBUG
@@ -707,10 +701,9 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     cons_string_stats.VerifyEqual(flat_string_stats);
     cons_string_stats.VerifyEqual(data.stats_);
     VerifyConsString(cons_string, &data);
-    String* flat_string_ptr =
-        flat_string->IsConsString() ?
-        ConsString::cast(*flat_string)->first() :
-        *flat_string;
+    String flat_string_ptr = flat_string->IsConsString()
+                                 ? ConsString::cast(*flat_string)->first()
+                                 : *flat_string;
     VerifyCharacterStream(flat_string_ptr, *cons_string);
   }
 }
@@ -1310,8 +1303,8 @@ TEST(InternalizeExternal) {
     CHECK(!i::Heap::InNewSpace(*string));
     CHECK_EQ(
         isolate->factory()->string_table()->LookupStringIfExists_NoAllocate(
-            isolate, *string),
-        Smi::FromInt(ResultSentinel::kNotFound));
+            isolate, string->ptr()),
+        Smi::FromInt(ResultSentinel::kNotFound).ptr());
     factory->InternalizeName(string);
     CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
@@ -1819,7 +1812,8 @@ TEST(Regress876759) {
   {
     Handle<SeqTwoByteString> raw =
         factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    CopyChars(raw->GetChars(), two_byte_buf, kLength);
+    DisallowHeapAllocation no_gc;
+    CopyChars(raw->GetChars(no_gc), two_byte_buf, kLength);
     parent = raw;
   }
   CHECK(parent->IsTwoByteRepresentation());
@@ -1838,9 +1832,8 @@ TEST(Regress876759) {
   CHECK(grandparent->IsOneByteRepresentation());
   CHECK(parent->IsTwoByteRepresentation());
   CHECK(sliced->IsTwoByteRepresentation());
-  // The *Underneath versions return the correct representation.
-  CHECK(sliced->IsOneByteRepresentationUnderneath());
-  CHECK(!sliced->IsTwoByteRepresentationUnderneath());
+  // The *Underneath version returns the correct representation.
+  CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
 }
 
 }  // namespace test_strings

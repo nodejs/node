@@ -4,12 +4,6 @@ Running test: testObject
 {
     id : <messageId>
     result : {
-        internalProperties : [
-            [0] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-        ]
         result : [
             [0] : {
                 configurable : true
@@ -42,12 +36,6 @@ Running test: testObject
 {
     id : <messageId>
     result : {
-        internalProperties : [
-            [0] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-        ]
         result : [
             [0] : {
                 configurable : false

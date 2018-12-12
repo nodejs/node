@@ -73,7 +73,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
   StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteLengthOffset,
                                  byte_length,
                                  MachineType::PointerRepresentation());
-  for (int offset = JSTypedArray::kSize;
+  for (int offset = JSTypedArray::kHeaderSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kPointerSize) {
     StoreObjectField(holder, offset, SmiConstant(0));
   }
@@ -185,14 +185,18 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
                                    empty_fixed_array);
     // Setup the ArrayBuffer.
     //  - Set BitField to 0.
-    //  - Set IsExternal and IsNeuterable bits of BitFieldSlot.
+    //  - Set IsExternal and IsDetachable bits of BitFieldSlot.
     //  - Set the byte_length field to byte_length.
     //  - Set backing_store to null/Smi(0).
     //  - Set all embedder fields to Smi(0).
-    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldSlot,
-                                   SmiConstant(0));
+    if (FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset)) {
+      DCHECK_EQ(4, FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset));
+      StoreObjectFieldNoWriteBarrier(
+          buffer, JSArrayBuffer::kOptionalPaddingOffset, Int32Constant(0),
+          MachineRepresentation::kWord32);
+    }
     int32_t bitfield_value = (1 << JSArrayBuffer::IsExternalBit::kShift) |
-                             (1 << JSArrayBuffer::IsNeuterableBit::kShift);
+                             (1 << JSArrayBuffer::IsDetachableBit::kShift);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
                                    Int32Constant(bitfield_value),
                                    MachineRepresentation::kWord32);
@@ -202,7 +206,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
                                    MachineType::PointerRepresentation());
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
                                    SmiConstant(0));
-    for (int offset = JSArrayBuffer::kSize;
+    for (int offset = JSArrayBuffer::kHeaderSize;
          offset < JSArrayBuffer::kSizeWithEmbedderFields;
          offset += kTaggedSize) {
       StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
@@ -608,7 +612,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
     Node* source_data_ptr = LoadDataPtr(array_like);
 
     // Calculate the byte length. We shouldn't be trying to copy if the typed
-    // array was neutered.
+    // array was detached.
     CSA_ASSERT(this, SmiNotEqual(length, SmiConstant(0)));
     CSA_ASSERT(this, Word32Equal(IsDetachedBuffer(LoadObjectField(
                                      array_like, JSTypedArray::kBufferOffset)),
@@ -801,7 +805,7 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
-  // Default to zero if the {receiver}s buffer was neutered.
+  // Default to zero if the {receiver}s buffer was detached.
   TNode<JSArrayBuffer> receiver_buffer =
       LoadJSArrayBufferViewBuffer(CAST(receiver));
   TNode<UintPtrT> byte_length = Select<UintPtrT>(
@@ -819,7 +823,7 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
-  // Default to zero if the {receiver}s buffer was neutered.
+  // Default to zero if the {receiver}s buffer was detached.
   TNode<JSArrayBuffer> receiver_buffer =
       LoadJSArrayBufferViewBuffer(CAST(receiver));
   TNode<UintPtrT> byte_offset = Select<UintPtrT>(
@@ -837,7 +841,7 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   // Check if the {receiver} is actually a JSTypedArray.
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
-  // Default to zero if the {receiver}s buffer was neutered.
+  // Default to zero if the {receiver}s buffer was detached.
   TNode<JSArrayBuffer> receiver_buffer =
       LoadJSArrayBufferViewBuffer(CAST(receiver));
   TNode<Smi> length = Select<Smi>(
@@ -1256,7 +1260,7 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   GotoIfNot(TaggedIsPositiveSmi(offset_num), &if_offset_is_out_of_bounds);
   TNode<Smi> offset_smi = CAST(offset_num);
 
-  // Check the receiver is not neutered.
+  // Check the receiver is not detached.
   ThrowIfArrayBufferViewBufferIsDetached(context, CAST(receiver), method_name);
 
   // Check the source argument is valid and whether a fast path can be taken.
@@ -1270,7 +1274,7 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   // Fast path for a typed array source argument.
   BIND(&if_source_is_typed_array);
   {
-    // Check the source argument is not neutered.
+    // Check the source argument is not detached.
     ThrowIfArrayBufferViewBufferIsDetached(context, CAST(source), method_name);
 
     SetTypedArraySource(context, CAST(source), CAST(receiver),
@@ -1344,8 +1348,8 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   args.PopAndReturn(result_array);
 
   BIND(&if_count_is_not_zero);
-  // Check the source array is neutered or not. We don't need to check if the
-  // result array is neutered or not since TypedArraySpeciesCreate checked it.
+  // Check the source array is detached or not. We don't need to check if the
+  // result array is detached or not since TypedArraySpeciesCreate checked it.
   CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(LoadObjectField(
                        result_array, JSTypedArray::kBufferOffset))));
   TNode<JSArrayBuffer> receiver_buffer =
@@ -1535,7 +1539,7 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   GotoIf(TaggedIsSmi(receiver), &throw_bad_receiver);
   GotoIfNot(IsJSTypedArray(CAST(receiver)), &throw_bad_receiver);
 
-  // Check if the {receiver}'s JSArrayBuffer was neutered.
+  // Check if the {receiver}'s JSArrayBuffer was detached.
   ThrowIfArrayBufferViewBufferIsDetached(context, CAST(receiver), method_name);
 
   Return(CreateArrayIterator(context, receiver, kind));
@@ -1582,7 +1586,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
                          CodeStubArguments::ReceiverMode::kHasReceiver);
 
   Label if_not_constructor(this, Label::kDeferred),
-      if_neutered(this, Label::kDeferred);
+      if_detached(this, Label::kDeferred);
 
   // 3. Let C be the this value.
   // 4. If IsConstructor(C) is false, throw a TypeError exception.
@@ -1615,16 +1619,16 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
               if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
                 EmitBigTypedArrayElementStore(new_typed_array, elements,
                                               intptr_index, item, context,
-                                              &if_neutered);
+                                              &if_detached);
               } else {
                 Node* value =
                     PrepareValueForWriteToTypedArray(item, kind, context);
 
-                // ToNumber may execute JavaScript code, which could neuter
+                // ToNumber may execute JavaScript code, which could detach
                 // the array's buffer.
                 Node* buffer = LoadObjectField(new_typed_array,
                                                JSTypedArray::kBufferOffset);
-                GotoIf(IsDetachedBuffer(buffer), &if_neutered);
+                GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
                 // GC may move backing store in ToNumber, thus load backing
                 // store everytime in this loop.
@@ -1643,7 +1647,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   BIND(&if_not_constructor);
   ThrowTypeError(context, MessageTemplate::kNotConstructor, receiver);
 
-  BIND(&if_neutered);
+  BIND(&if_detached);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation,
                  "%TypedArray%.of");
 }
@@ -1657,7 +1661,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
       if_not_constructor(this, Label::kDeferred),
       if_map_fn_not_callable(this, Label::kDeferred),
       if_iterator_fn_not_callable(this, Label::kDeferred),
-      if_neutered(this, Label::kDeferred);
+      if_detached(this, Label::kDeferred);
 
   CodeStubArguments args(
       this,
@@ -1845,16 +1849,16 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
               if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
                 EmitBigTypedArrayElementStore(target_obj.value(), elements,
                                               intptr_index, mapped_value,
-                                              context, &if_neutered);
+                                              context, &if_detached);
               } else {
                 Node* const final_value = PrepareValueForWriteToTypedArray(
                     mapped_value, kind, context);
 
-                // ToNumber may execute JavaScript code, which could neuter
+                // ToNumber may execute JavaScript code, which could detach
                 // the array's buffer.
                 Node* buffer = LoadObjectField(target_obj.value(),
                                                JSTypedArray::kBufferOffset);
-                GotoIf(IsDetachedBuffer(buffer), &if_neutered);
+                GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
                 // GC may move backing store in map_fn, thus load backing
                 // store in each iteration of this loop.
@@ -1878,7 +1882,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   BIND(&if_iterator_fn_not_callable);
   ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
 
-  BIND(&if_neutered);
+  BIND(&if_detached);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation,
                  "%TypedArray%.from");
 }

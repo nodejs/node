@@ -76,7 +76,7 @@ class SourcePosition final {
   }
 
  private:
-  void Print(std::ostream& out, SharedFunctionInfo* function) const;
+  void Print(std::ostream& out, SharedFunctionInfo function) const;
 
   // InliningId is in the high bits for better compression in
   // SourcePositionTable.

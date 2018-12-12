@@ -32,6 +32,6 @@ async function f() {
 
 f();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(3, step_count);

@@ -60,7 +60,7 @@ class EmbedderDataArray : public HeapObjectPtr {
 
   class BodyDescriptor;
 
-  static const int kMaxSize = kMaxNewSpaceHeapObjectSize;
+  static const int kMaxSize = kMaxRegularHeapObjectSize;
   static constexpr int kMaxLength =
       (kMaxSize - kHeaderSize) / kEmbedderDataSlotSize;
 

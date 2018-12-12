@@ -153,24 +153,27 @@ bool OptimizedCompilationInfo::has_context() const {
   return !closure().is_null();
 }
 
-Context* OptimizedCompilationInfo::context() const {
-  return has_context() ? closure()->context() : nullptr;
+Context OptimizedCompilationInfo::context() const {
+  DCHECK(has_context());
+  return closure()->context();
 }
 
 bool OptimizedCompilationInfo::has_native_context() const {
-  return !closure().is_null() && (closure()->native_context() != nullptr);
+  return !closure().is_null() && !closure()->native_context().is_null();
 }
 
-Context* OptimizedCompilationInfo::native_context() const {
-  return has_native_context() ? closure()->native_context() : nullptr;
+Context OptimizedCompilationInfo::native_context() const {
+  DCHECK(has_native_context());
+  return closure()->native_context();
 }
 
 bool OptimizedCompilationInfo::has_global_object() const {
   return has_native_context();
 }
 
-JSGlobalObject* OptimizedCompilationInfo::global_object() const {
-  return has_global_object() ? native_context()->global_object() : nullptr;
+JSGlobalObject OptimizedCompilationInfo::global_object() const {
+  DCHECK(has_global_object());
+  return native_context()->global_object();
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(

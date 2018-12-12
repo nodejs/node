@@ -209,18 +209,20 @@ class StringToIntHelper {
 
   bool IsOneByte() const {
     return raw_one_byte_subject_ != nullptr ||
-           subject_->IsOneByteRepresentationUnderneath();
+           String::IsOneByteRepresentationUnderneath(*subject_);
   }
 
   Vector<const uint8_t> GetOneByteVector() {
     if (raw_one_byte_subject_ != nullptr) {
       return Vector<const uint8_t>(raw_one_byte_subject_, length_);
     }
-    return subject_->GetFlatContent().ToOneByteVector();
+    DisallowHeapAllocation no_gc;
+    return subject_->GetFlatContent(no_gc).ToOneByteVector();
   }
 
   Vector<const uc16> GetTwoByteVector() {
-    return subject_->GetFlatContent().ToUC16Vector();
+    DisallowHeapAllocation no_gc;
+    return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
 
   // Subclasses get access to internal state:
@@ -1311,7 +1313,7 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
   Handle<String> flattened = String::Flatten(isolate, string);
   {
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat = flattened->GetFlatContent();
+    String::FlatContent flat = flattened->GetFlatContent(no_gc);
     DCHECK(flat.IsFlat());
     if (flat.IsOneByte()) {
       return StringToDouble(flat.ToOneByteVector(), flags, empty_string_val);
@@ -1321,7 +1323,7 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
   }
 }
 
-bool IsSpecialIndex(String* string) {
+bool IsSpecialIndex(String string) {
   // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
   const int kBufferSize = 24;
   const int length = string->length();

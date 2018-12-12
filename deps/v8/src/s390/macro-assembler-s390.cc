@@ -37,17 +37,7 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
@@ -1550,16 +1540,6 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-  } else {
-    call(stub);
-  }
-}
-
 void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
@@ -1968,6 +1948,20 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Register scratch = r6;
+    push(scratch);
+
+    Move(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    LoadPC(r0);
+    StoreP(r0, MemOperand(scratch));
+    Move(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(fp, MemOperand(scratch));
+    pop(scratch);
+  }
+
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
@@ -1978,6 +1972,18 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   }
 
   Call(dest);
+
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register scratch1 = r6;
+    Register scratch2 = r7;
+    Push(scratch1, scratch2);
+    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    lghi(scratch2, Operand::Zero());
+    StoreP(scratch2, MemOperand(scratch1));
+    Pop(scratch1, scratch2);
+  }
 
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
@@ -4384,6 +4390,12 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   larl(dst, Operand(-pc_offset() / 2));
 }
 
+void TurboAssembler::LoadPC(Register dst) {
+  Label current_pc;
+  larl(dst, &current_pc);
+  bind(&current_pc);
+}
+
 void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
   Cmp32(x, Operand(y));
   beq(dest);
@@ -4392,6 +4404,24 @@ void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
 void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   Cmp32(x, Operand(y));
   blt(dest);
+}
+
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  Label return_label;
+  larl(r14, &return_label);  // Generate the return addr of call later.
+  StoreP(r14, MemOperand(sp, kStackFrameRASlot * kPointerSize));
+
+  // zLinux ABI requires caller's frame to have sufficient space for callee
+  // preserved regsiter save area.
+  b(target);
+  bind(&return_label);
 }
 
 }  // namespace internal

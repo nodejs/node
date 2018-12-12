@@ -146,6 +146,10 @@ bool NewSpace::Contains(Object* o) {
   return o->IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
+bool NewSpace::Contains(HeapObjectPtr o) {
+  return MemoryChunk::FromHeapObject(o)->InNewSpace();
+}
+
 bool NewSpace::ContainsSlow(Address a) {
   return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
 }
@@ -165,6 +169,11 @@ bool PagedSpace::Contains(Address addr) {
 bool PagedSpace::Contains(Object* o) {
   if (!o->IsHeapObject()) return false;
   return Page::FromAddress(HeapObject::cast(o)->address())->owner() == this;
+}
+
+bool PagedSpace::Contains(ObjectPtr o) {
+  if (!o.IsHeapObject()) return false;
+  return Page::FromAddress(o.ptr())->owner() == this;
 }
 
 void PagedSpace::UnlinkFreeListCategories(Page* page) {
@@ -228,6 +237,10 @@ void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
   base::CheckedIncrement(&(to->external_backing_store_bytes_[type]), amount);
   Space::MoveExternalBackingStoreBytes(type, from->owner(), to->owner(),
                                        amount);
+}
+
+bool MemoryChunk::IsInNewLargeObjectSpace() const {
+  return owner()->identity() == NEW_LO_SPACE;
 }
 
 void Page::MarkNeverAllocateForTesting() {

@@ -66,21 +66,27 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
  public:
   class ByteData : public PreParsedScopeByteDataConstants {
    public:
-    ByteData()
-        : data_(nullptr), index_(0), stored_quarters_(0), stored_byte_(0) {}
+    ByteData() {}
 
     // Reading from the ByteData is only allowed when a ReadingScope is on the
     // stack. This ensures that we have a DisallowHeapAllocation in place
     // whenever ByteData holds a raw pointer into the heap.
     class ReadingScope {
      public:
-      ReadingScope(ByteData* consumed_data, Data* data)
+      ReadingScope(ByteData* consumed_data, Data data)
           : consumed_data_(consumed_data) {
         consumed_data->data_ = data;
+#ifdef DEBUG
+        consumed_data->has_data_ = true;
+#endif
       }
       explicit ReadingScope(BaseConsumedPreParsedScopeData<Data>* parent)
           : ReadingScope(parent->scope_data_.get(), parent->GetScopeData()) {}
-      ~ReadingScope() { consumed_data_->data_ = nullptr; }
+      ~ReadingScope() {
+#ifdef DEBUG
+        consumed_data_->has_data_ = false;
+#endif
+      }
 
      private:
       ByteData* consumed_data_;
@@ -90,46 +96,40 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
     void SetPosition(int position) { index_ = position; }
 
     size_t RemainingBytes() const {
-      DCHECK_NOT_NULL(data_);
-      return data_->length() - index_;
+      DCHECK(has_data_);
+      return data_.length() - index_;
     }
 
     int32_t ReadUint32() {
-      DCHECK_NOT_NULL(data_);
+      DCHECK(has_data_);
       DCHECK_GE(RemainingBytes(), kUint32Size);
-#ifdef DEBUG
       // Check that there indeed is an integer following.
-      DCHECK_EQ(data_->get(index_++), kUint32Size);
-#endif
+      DCHECK_EQ(data_.get(index_++), kUint32Size);
       int32_t result = 0;
       byte* p = reinterpret_cast<byte*>(&result);
       for (int i = 0; i < 4; ++i) {
-        *p++ = data_->get(index_++);
+        *p++ = data_.get(index_++);
       }
       stored_quarters_ = 0;
       return result;
     }
 
     uint8_t ReadUint8() {
-      DCHECK_NOT_NULL(data_);
+      DCHECK(has_data_);
       DCHECK_GE(RemainingBytes(), kUint8Size);
-#ifdef DEBUG
       // Check that there indeed is a byte following.
-      DCHECK_EQ(data_->get(index_++), kUint8Size);
-#endif
+      DCHECK_EQ(data_.get(index_++), kUint8Size);
       stored_quarters_ = 0;
-      return data_->get(index_++);
+      return data_.get(index_++);
     }
 
     uint8_t ReadQuarter() {
-      DCHECK_NOT_NULL(data_);
+      DCHECK(has_data_);
       if (stored_quarters_ == 0) {
         DCHECK_GE(RemainingBytes(), kUint8Size);
-#ifdef DEBUG
         // Check that there indeed are quarters following.
-        DCHECK_EQ(data_->get(index_++), kQuarterMarker);
-#endif
-        stored_byte_ = data_->get(index_++);
+        DCHECK_EQ(data_.get(index_++), kQuarterMarker);
+        stored_byte_ = data_.get(index_++);
         stored_quarters_ = 4;
       }
       // Read the first 2 bits from stored_byte_.
@@ -141,16 +141,19 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
     }
 
    private:
-    Data* data_;
-    int index_;
-    uint8_t stored_quarters_;
-    uint8_t stored_byte_;
+    Data data_ = {};
+    int index_ = 0;
+    uint8_t stored_quarters_ = 0;
+    uint8_t stored_byte_ = 0;
+#ifdef DEBUG
+    bool has_data_ = false;
+#endif
   };
 
   BaseConsumedPreParsedScopeData()
       : scope_data_(new ByteData()), child_index_(0) {}
 
-  virtual Data* GetScopeData() = 0;
+  virtual Data GetScopeData() = 0;
 
   virtual ProducedPreParsedScopeData* GetChildData(Zone* zone,
                                                    int child_index) = 0;
@@ -167,7 +170,7 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
 #endif
 
  private:
-  void RestoreData(Scope* scope);
+  void RestoreDataForScope(Scope* scope);
   void RestoreDataForVariable(Variable* var);
   void RestoreDataForInnerScopes(Scope* scope);
 
@@ -186,7 +189,7 @@ class OnHeapConsumedPreParsedScopeData final
   OnHeapConsumedPreParsedScopeData(Isolate* isolate,
                                    Handle<PreParsedScopeData> data);
 
-  PodArray<uint8_t>* GetScopeData() final;
+  PodArray<uint8_t> GetScopeData() final;
   ProducedPreParsedScopeData* GetChildData(Zone* zone, int child_index) final;
 
  private:
@@ -198,6 +201,7 @@ class OnHeapConsumedPreParsedScopeData final
 // PodArray<uint8_t>.
 class ZoneVectorWrapper {
  public:
+  ZoneVectorWrapper() = default;
   explicit ZoneVectorWrapper(ZoneVector<uint8_t>* data) : data_(data) {}
 
   int length() const { return static_cast<int>(data_->size()); }
@@ -205,9 +209,7 @@ class ZoneVectorWrapper {
   uint8_t get(int index) const { return data_->at(index); }
 
  private:
-  ZoneVector<uint8_t>* data_;
-
-  DISALLOW_COPY_AND_ASSIGN(ZoneVectorWrapper);
+  ZoneVector<uint8_t>* data_ = nullptr;
 };
 
 // A serialized PreParsedScopeData in zone memory (as apposed to being on-heap).
@@ -244,7 +246,7 @@ class ZoneConsumedPreParsedScopeData final
  public:
   ZoneConsumedPreParsedScopeData(Zone* zone, ZonePreParsedScopeData* data);
 
-  ZoneVectorWrapper* GetScopeData() final;
+  ZoneVectorWrapper GetScopeData() final;
   ProducedPreParsedScopeData* GetChildData(Zone* zone, int child_index) final;
 
  private:

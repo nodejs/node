@@ -640,9 +640,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
                          DoubleRegister double_input, StubCallMode stub_mode);
 
-  // Call a code stub.
-  void CallStubDelayed(CodeStub* stub);
-
   void LoadConstantPoolPointerRegister();
 
   // Loads the constant pool pointer (kConstantPoolRegister).
@@ -654,6 +651,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     bind(ConstantPoolPosition());
 #endif
   }
+
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
 
   void ResetSpeculationPoisonRegister();
 
@@ -671,7 +673,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 };
 
 // MacroAssembler implements a collection of frequently used acros.
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
       : TurboAssembler(options, buffer, size) {}

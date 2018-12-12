@@ -6,6 +6,7 @@
 #define V8_PARSING_SCANNER_INL_H_
 
 #include "src/char-predicates-inl.h"
+#include "src/parsing/keywords-gen.h"
 #include "src/parsing/scanner.h"
 
 namespace v8 {
@@ -90,45 +91,28 @@ constexpr bool IsKeywordStart(char c) {
 V8_INLINE Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                                 int input_length) {
   DCHECK_GE(input_length, 1);
-  const int kMinLength = 2;
-  const int kMaxLength = 10;
-  if (!IsInRange(input_length, kMinLength, kMaxLength)) {
-    return Token::IDENTIFIER;
-  }
-  switch (input[0]) {
-    default:
-#define KEYWORD_GROUP_CASE(ch) \
-  break;                       \
-  case ch:
-#define KEYWORD(keyword, token)                                           \
-  {                                                                       \
-    /* 'keyword' is a char array, so sizeof(keyword) is */                \
-    /* strlen(keyword) plus 1 for the NUL char. */                        \
-    const int keyword_length = sizeof(keyword) - 1;                       \
-    STATIC_ASSERT(keyword_length >= kMinLength);                          \
-    STATIC_ASSERT(keyword_length <= kMaxLength);                          \
-    DCHECK_EQ(input[0], keyword[0]);                                      \
-    DCHECK(token == Token::FUTURE_STRICT_RESERVED_WORD ||                 \
-           0 == strncmp(keyword, Token::String(token), sizeof(keyword))); \
-    if (input_length == keyword_length && input[1] == keyword[1] &&       \
-        (keyword_length <= 2 || input[2] == keyword[2]) &&                \
-        (keyword_length <= 3 || input[3] == keyword[3]) &&                \
-        (keyword_length <= 4 || input[4] == keyword[4]) &&                \
-        (keyword_length <= 5 || input[5] == keyword[5]) &&                \
-        (keyword_length <= 6 || input[6] == keyword[6]) &&                \
-        (keyword_length <= 7 || input[7] == keyword[7]) &&                \
-        (keyword_length <= 8 || input[8] == keyword[8]) &&                \
-        (keyword_length <= 9 || input[9] == keyword[9]) &&                \
-        (keyword_length <= 10 || input[10] == keyword[10])) {             \
-      return token;                                                       \
-    }                                                                     \
-  }
+  return PerfectKeywordHash::GetToken(reinterpret_cast<const char*>(input),
+                                      input_length);
+}
+
+// Recursive constexpr template magic to check if a character is in a given
+// string.
+template <int N>
+constexpr bool IsInString(const char (&s)[N], char c, size_t i = 0) {
+  return i >= N ? false : s[i] == c ? true : IsInString(s, c, i + 1);
+}
+
+inline constexpr bool CanBeKeywordCharacter(char c) {
+  return IsInString(
+#define KEYWORD_GROUP_CASE(ch)  // Nothing
+#define KEYWORD(keyword, token) keyword
+      // Use C string literal concatenation ("a" "b" becomes "ab") to build one
+      // giant string containing all the keywords.
       KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
-  }
-  return Token::IDENTIFIER;
-#undef KEYWORDS
 #undef KEYWORD
 #undef KEYWORD_GROUP_CASE
+          ,
+      c);
 }
 
 // Make sure tokens are stored as a single byte.
@@ -189,6 +173,8 @@ static const constexpr Token::Value one_char_tokens[128] = {
 #undef CALL_GET_SCAN_FLAGS
 };
 
+#undef KEYWORDS
+
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeyword() {
   next().literal_chars.Start();
   return ScanIdentifierOrKeywordInner();
@@ -208,10 +194,8 @@ constexpr uint8_t GetScanFlags(char c) {
   return
       // Keywords are all lowercase and only contain letters.
       // Note that non-identifier characters do not set this flag, so
-      // that it plays well with kTerminatesLiteral
-      // TODO(leszeks): We could probably get an even tighter measure
-      // here if not all letters are present in keywords.
-      (IsAsciiIdentifier(c) && !IsInRange(c, 'a', 'z')
+      // that it plays well with kTerminatesLiteral.
+      (IsAsciiIdentifier(c) && !CanBeKeywordCharacter(c)
            ? static_cast<uint8_t>(ScanFlags::kCannotBeKeyword)
            : 0) |
       (IsKeywordStart(c)
@@ -250,9 +234,15 @@ static constexpr const uint8_t character_scan_flags[128] = {
 #undef CALL_GET_SCAN_FLAGS
 };
 
+inline bool CharCanBeKeyword(uc32 c) {
+  return static_cast<uint32_t>(c) < arraysize(character_scan_flags) &&
+         CanBeKeyword(character_scan_flags[c]);
+}
+
 V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
   DCHECK(IsIdentifierStart(c0_));
   bool escaped = false;
+  bool can_be_keyword = true;
 
   STATIC_ASSERT(arraysize(character_scan_flags) == kMaxAscii + 1);
   if (V8_LIKELY(static_cast<uint32_t>(c0_) <= kMaxAscii)) {
@@ -291,6 +281,8 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
         Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
         return KeywordOrIdentifierToken(chars.start(), chars.length());
       }
+
+      can_be_keyword = CanBeKeyword(scan_flags);
     } else {
       // Special case for escapes at the start of an identifier.
       escaped = true;
@@ -300,10 +292,11 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
         return Token::ILLEGAL;
       }
       AddLiteralChar(c);
+      can_be_keyword = CharCanBeKeyword(c);
     }
   }
 
-  return ScanIdentifierOrKeywordInnerSlow(escaped);
+  return ScanIdentifierOrKeywordInnerSlow(escaped, can_be_keyword);
 }
 
 V8_INLINE Token::Value Scanner::SkipWhiteSpace() {

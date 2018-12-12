@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/code-tracer.h"
+#include "src/contexts.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
@@ -86,7 +87,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         ReadOnlyRoots(isolate()).uninitialized_symbol());
   } else if (obj->IsSharedFunctionInfo()) {
     // Clear inferred name for native functions.
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+    SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
       shared->uncompiled_data()->set_inferred_name(
           ReadOnlyRoots(isolate()).empty_string());
@@ -108,7 +109,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                   ObjectSlot(&undefined));
+                   FullObjectSlot(&undefined));
   isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
   Pad();
@@ -131,8 +132,8 @@ void StartupSerializer::SerializeStrongReferences() {
   isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
 }
 
-SerializedHandleChecker::SerializedHandleChecker(
-    Isolate* isolate, std::vector<Context*>* contexts)
+SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
+                                                 std::vector<Context>* contexts)
     : isolate_(isolate) {
   AddToSet(isolate->heap()->serialized_objects());
   for (auto const& context : *contexts) {
@@ -158,16 +159,16 @@ void StartupSerializer::SerializeUsingPartialSnapshotCache(
   sink->PutInt(cache_index, "partial_snapshot_cache_index");
 }
 
-void SerializedHandleChecker::AddToSet(FixedArray* serialized) {
+void SerializedHandleChecker::AddToSet(FixedArray serialized) {
   int length = serialized->length();
   for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
 }
 
 void SerializedHandleChecker::VisitRootPointers(Root root,
                                                 const char* description,
-                                                ObjectSlot start,
-                                                ObjectSlot end) {
-  for (ObjectSlot p = start; p < end; ++p) {
+                                                FullObjectSlot start,
+                                                FullObjectSlot end) {
+  for (FullObjectSlot p = start; p < end; ++p) {
     if (serialized_.find(*p) != serialized_.end()) continue;
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");

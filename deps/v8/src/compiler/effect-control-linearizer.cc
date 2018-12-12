@@ -386,13 +386,6 @@ void EffectControlLinearizer::Run() {
     Node* effect = effect_phi;
     if (effect == nullptr) {
       // There was no effect phi.
-
-      // Since a loop should have at least a StackCheck, only loops in
-      // unreachable code can have no effect phi.
-      DCHECK_IMPLIES(
-          HasIncomingBackEdges(block),
-          block_effects.For(block->PredecessorAt(0), block)
-                  .current_effect->opcode() == IrOpcode::kUnreachable);
       if (block == schedule()->start()) {
         // Start block => effect is start.
         DCHECK_EQ(graph()->start(), control);
@@ -1297,9 +1290,9 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
   __ Bind(&if_bigint);
   {
     Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
-    Node* length_is_zero = __ WordEqual(
-        __ WordAnd(bitfield, __ IntPtrConstant(BigInt::LengthBits::kMask)),
-        __ IntPtrConstant(0));
+    Node* length_is_zero = __ Word32Equal(
+        __ Word32And(bitfield, __ Int32Constant(BigInt::LengthBits::kMask)),
+        __ Int32Constant(0));
     __ Goto(done, __ Word32Equal(length_is_zero, zero));
   }
 }
@@ -3926,6 +3919,9 @@ Node* EffectControlLinearizer::SmiMaxValueConstant() {
 }
 
 Node* EffectControlLinearizer::SmiShiftBitsConstant() {
+  if (machine()->Is64() && SmiValuesAre31Bits()) {
+    return __ Int32Constant(kSmiShiftSize + kSmiTagSize);
+  }
   return __ IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
@@ -5230,7 +5226,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
   Node* first_entry = ChangeSmiToIntPtr(__ Load(
       MachineType::TaggedSigned(), table,
       __ IntAdd(__ WordShl(hash, __ IntPtrConstant(kPointerSizeLog2)),
-                __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset -
+                __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                   kHeapObjectTag))));
 
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
@@ -5249,7 +5245,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     Node* candidate_key = __ Load(
         MachineType::AnyTagged(), table,
         __ IntAdd(__ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
-                  __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset -
+                  __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                     kHeapObjectTag)));
 
     auto if_match = __ MakeLabel();
@@ -5278,7 +5274,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
           MachineType::TaggedSigned(), table,
           __ IntAdd(
               __ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
-              __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset +
+              __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() +
                                 OrderedHashMap::kChainOffset * kPointerSize -
                                 kHeapObjectTag))));
       __ Goto(&loop, next_entry);

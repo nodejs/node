@@ -29,7 +29,7 @@ template <typename T>
 template <typename V>
 Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   // Check the ReturnValue.
-  ObjectSlot slot = slot_at(kReturnValueOffset);
+  FullObjectSlot slot = slot_at(kReturnValueOffset);
   // Nothing was set, return empty handle as per previous behaviour.
   if ((*slot)->IsTheHole(isolate)) return Handle<V>();
   Handle<V> result = Handle<V>::cast(Handle<Object>(slot.location()));
@@ -37,7 +37,7 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   return result;
 }
 
-inline JSObject* PropertyCallbackArguments::holder() {
+inline JSObject PropertyCallbackArguments::holder() {
   return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 
@@ -45,7 +45,7 @@ inline Object* PropertyCallbackArguments::receiver() {
   return Object::cast(*slot_at(T::kThisIndex));
 }
 
-inline JSObject* FunctionCallbackArguments::holder() {
+inline JSObject FunctionCallbackArguments::holder() {
   return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 

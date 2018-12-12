@@ -200,15 +200,12 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   DCHECK_NOT_NULL(descriptor_);
 
   Scope* outer_function_scope = nullptr;
-  bool success;
   if (declares_parameter_containing_sloppy_eval_) {
     outer_function_scope = scope()->outer_scope();
-    success = outer_function_scope->RemoveUnresolved(pattern);
+    outer_function_scope->DeleteUnresolved(pattern);
   } else {
-    success = scope()->RemoveUnresolved(pattern);
+    scope()->DeleteUnresolved(pattern);
   }
-  USE(success);
-  DCHECK(success);
 
   // Declare variable.
   // Note that we *always* must treat the initial value via a separate init

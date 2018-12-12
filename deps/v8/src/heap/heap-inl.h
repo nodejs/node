@@ -28,8 +28,8 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/descriptor-array.h"
-#include "src/objects/literal-objects.h"
-#include "src/objects/microtask-queue-inl.h"
+#include "src/objects/literal-objects-inl.h"
+#include "src/objects/property-cell.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/script-inl.h"
 #include "src/profiler/heap-profiler.h"
@@ -103,11 +103,7 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-void Heap::SetRootCodeStubs(SimpleNumberDictionary* value) {
-  roots_table()[RootIndex::kCodeStubs] = value;
-}
-
-void Heap::SetRootMaterializedObjects(FixedArray* objects) {
+void Heap::SetRootMaterializedObjects(FixedArray objects) {
   roots_table()[RootIndex::kMaterializedObjects] = objects;
 }
 
@@ -115,7 +111,7 @@ void Heap::SetRootScriptList(Object* value) {
   roots_table()[RootIndex::kScriptList] = value;
 }
 
-void Heap::SetRootStringTable(StringTable* value) {
+void Heap::SetRootStringTable(StringTable value) {
   roots_table()[RootIndex::kStringTable] = value;
 }
 
@@ -123,7 +119,7 @@ void Heap::SetRootNoScriptSharedFunctionInfos(Object* value) {
   roots_table()[RootIndex::kNoScriptSharedFunctionInfos] = value;
 }
 
-void Heap::SetMessageListeners(TemplateList* value) {
+void Heap::SetMessageListeners(TemplateList value) {
   roots_table()[RootIndex::kMessageListeners] = value;
 }
 
@@ -178,19 +174,15 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 #endif
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
-  bool new_large_object = FLAG_young_generation_large_objects &&
-                          size_in_bytes > kMaxNewSpaceHeapObjectSize;
+
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
     if (large_object) {
-      space = LO_SPACE;
+      // TODO(hpayer): Implement a LO tenuring strategy.
+      space = FLAG_young_generation_large_objects ? NEW_LO_SPACE : LO_SPACE;
     } else {
-      if (new_large_object) {
-        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
-      }
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -206,7 +198,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
       allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
     }
   } else if (CODE_SPACE == space) {
-    if (size_in_bytes <= code_space()->AreaSize()) {
+    if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
       allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
       allocation = code_lo_space_->AllocateRaw(size_in_bytes);
@@ -218,6 +210,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     DCHECK(FLAG_young_generation_large_objects);
     allocation = new_lo_space_->AllocateRaw(size_in_bytes);
   } else if (CODE_LO_SPACE == space) {
+    DCHECK(large_object);
     allocation = code_lo_space_->AllocateRaw(size_in_bytes);
   } else if (MAP_SPACE == space) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
@@ -334,14 +327,13 @@ void Heap::UpdateAllocationsHash(uint32_t value) {
       StringHasher::AddCharacterCore(raw_allocations_hash_, c2);
 }
 
-
-void Heap::RegisterExternalString(String* string) {
+void Heap::RegisterExternalString(String string) {
   DCHECK(string->IsExternalString());
   DCHECK(!string->IsThinString());
   external_string_table_.AddString(string);
 }
 
-void Heap::UpdateExternalString(String* string, size_t old_payload,
+void Heap::UpdateExternalString(String string, size_t old_payload,
                                 size_t new_payload) {
   DCHECK(string->IsExternalString());
   Page* page = Page::FromHeapObject(string);
@@ -354,10 +346,10 @@ void Heap::UpdateExternalString(String* string, size_t old_payload,
         ExternalBackingStoreType::kExternalString, new_payload - old_payload);
 }
 
-void Heap::FinalizeExternalString(String* string) {
+void Heap::FinalizeExternalString(String string) {
   DCHECK(string->IsExternalString());
   Page* page = Page::FromHeapObject(string);
-  ExternalString* ext_string = ExternalString::cast(string);
+  ExternalString ext_string = ExternalString::cast(string);
 
   page->DecrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kExternalString,
@@ -365,8 +357,7 @@ void Heap::FinalizeExternalString(String* string) {
 
   v8::String::ExternalStringResourceBase** resource_addr =
       reinterpret_cast<v8::String::ExternalStringResourceBase**>(
-          reinterpret_cast<byte*>(string) + ExternalString::kResourceOffset -
-          kHeapObjectTag);
+          string->address() + ExternalString::kResourceOffset);
 
   // Dispose of the C++ object if it has not already been disposed.
   if (*resource_addr != nullptr) {
@@ -513,12 +504,13 @@ AllocationMemento* Heap::FindAllocationMemento(Map map, HeapObject* object) {
     return nullptr;
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  Map candidate_map = candidate->map();
+  MapWordSlot candidate_map_slot = candidate->map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
-  MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != ReadOnlyRoots(this).allocation_memento_map()) {
+  MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
+  if (!candidate_map_slot.contains_value(
+          ReadOnlyRoots(this).allocation_memento_map().ptr())) {
     return nullptr;
   }
 
@@ -587,7 +579,7 @@ void Heap::UpdateAllocationSite(Map map, HeapObject* object,
   (*pretenuring_feedback)[reinterpret_cast<AllocationSite*>(key)]++;
 }
 
-void Heap::ExternalStringTable::AddString(String* string) {
+void Heap::ExternalStringTable::AddString(String string) {
   DCHECK(string->IsExternalString());
   DCHECK(!Contains(string));
 

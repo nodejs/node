@@ -307,6 +307,11 @@ class PropertyDetails {
     return AttributesField::decode(value_);
   }
 
+  bool HasKindAndAttributes(PropertyKind kind, PropertyAttributes attributes) {
+    return (value_ & (KindField::kMask | AttributesField::kMask)) ==
+           (KindField::encode(kind) | AttributesField::encode(attributes));
+  }
+
   int dictionary_index() const {
     return DictionaryStorageField::decode(value_);
   }

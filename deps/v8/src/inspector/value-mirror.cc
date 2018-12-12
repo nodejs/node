@@ -31,10 +31,12 @@ V8InspectorClient* clientFor(v8::Local<v8::Context> context) {
 V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
                                             v8::Local<v8::Value> value) {
   if (!value->IsObject()) return V8InternalValueType::kNone;
-  V8Debugger* debugger = static_cast<V8InspectorImpl*>(
-                             v8::debug::GetInspector(context->GetIsolate()))
-                             ->debugger();
-  return debugger->getInternalType(context, value.As<v8::Object>());
+  V8InspectorImpl* inspector = static_cast<V8InspectorImpl*>(
+      v8::debug::GetInspector(context->GetIsolate()));
+  int contextId = InspectedContext::contextId(context);
+  InspectedContext* inspectedContext = inspector->getContext(contextId);
+  if (!inspectedContext) return V8InternalValueType::kNone;
+  return inspectedContext->getInternalType(value.As<v8::Object>());
 }
 
 Response toProtocolValue(v8::Local<v8::Context> context,

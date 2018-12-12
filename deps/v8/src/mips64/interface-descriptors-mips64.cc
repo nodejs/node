@@ -71,12 +71,6 @@ void TypeofDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void CallFunctionDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {a1};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void CallTrampolineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // a1: target
@@ -209,10 +203,9 @@ void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
 void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      JavaScriptFrame::context_register(),  // callee context
-      a4,                                   // call_data
-      a2,                                   // holder
-      a1,                                   // api_function_address
+      JavaScriptFrame::context_register(),  // kTargetContext
+      a1,                                   // kApiFunctionAddress
+      a2,                                   // kArgc
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

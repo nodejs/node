@@ -71,9 +71,10 @@ base::Optional<const Type*> Generic::InferTypeArgument(
   const std::string type_name = declaration()->generic_parameters[i];
   const std::vector<TypeExpression*>& parameters =
       declaration()->callable->signature->parameters.types;
-  for (size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
+  size_t j = declaration()->callable->signature->parameters.implicit_count;
+  for (size_t i = 0; i < arguments.size() && j < parameters.size(); ++i, ++j) {
     BasicTypeExpression* basic =
-        BasicTypeExpression::DynamicCast(parameters[i]);
+        BasicTypeExpression::DynamicCast(parameters[j]);
     if (basic && basic->namespace_qualification.empty() &&
         !basic->is_constexpr && basic->name == type_name) {
       return arguments[i];

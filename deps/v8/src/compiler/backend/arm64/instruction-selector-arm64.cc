@@ -1665,7 +1665,7 @@ void InstructionSelector::EmitPrepareArguments(
   Arm64OperandGenerator g(this);
 
   // `arguments` includes alignment "holes". This means that slots bigger than
-  // kPointerSize, e.g. Simd128, will span across multiple arguments.
+  // kSystemPointerSize, e.g. Simd128, will span across multiple arguments.
   int claim_count = static_cast<int>(arguments->size());
   int slot = claim_count - 1;
   claim_count = RoundUp(claim_count, 2);
@@ -3009,7 +3009,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+  Emit(kArm64S128Zero, g.DefineAsRegister(node));
 }
 
 #define SIMD_VISIT_SPLAT(Type)                               \

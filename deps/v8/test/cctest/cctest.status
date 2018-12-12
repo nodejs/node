@@ -106,13 +106,6 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
-  # Bug(5784). StubCache tests need to be redesigned, as a) they don't work
-  # in the new (ignition + turbofan) pipeline environment, and b) they are
-  # stymied by a move of code stubs into builtins.
-  'test-api/PrimaryStubCache': [SKIP],
-  'test-api/SecondaryStubCache': [SKIP],
-  'test-api/AccessCheckInIC': [SKIP],
-
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
@@ -164,7 +157,7 @@
   'test-api/Threading*': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
-['arch == arm64 and mode == debug and simulator_run', {
+['arch == arm64 and (mode == debug or dcheck_always_on) and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
   'test-api/ExternalDoubleArray': [SKIP],
@@ -173,19 +166,21 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
-}],  # 'arch == arm64 and mode == debug and simulator_run'
-
-##############################################################################
-['arch == ia32', {
-  # Requires call to non-isolate-independent code target, unsupported by
-  # MacroAssembler::Call() on ia32.
-  'test-api/SetFunctionEntryHook': [SKIP],
-}],  # 'no_snap == False'
+  'test-api/Uint8Array': [SKIP],
+}],  # 'arch == arm64 and (mode == debug or dcheck_always_on) and simulator_run'
 
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'test-cpu-profiler/MultipleIsolates': [SKIP],
+
+  # Slow but tolarable tests.
+  'test-api/FixedFloat64Array': [PASS, SLOW],
+  'test-api/FixedUint16Array': [PASS, SLOW],
+  'test-api/Int8Array': [PASS, SLOW],
+  'test-api/SharedFloat64Array': [PASS, SLOW],
+  'test-api/SharedUint16Array': [PASS, SLOW],
+  'test-api/Uint16Array': [PASS, SLOW],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
@@ -197,9 +192,6 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
-
-  # BUG(v8:5193): Flaky.
-  'test-cpu-profiler/TickEvents': [SKIP],
 
   # BUG(v8:7587): Strange breakage on Mac.
   'test-log-stack-tracer/PureJSStackTrace': [SKIP],
@@ -213,8 +205,6 @@
 
 ##############################################################################
 ['tsan == True', {
-  # BUG(v8:6133).
-  'test-cpu-profiler/TickEvents': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'
@@ -233,10 +223,6 @@
   # https://crbug.com/v8/7763
   'test-lockers/ExtensionsRegistration': [SKIP],
 }],  # 'no_snap == True'
-['no_snap == False', {
-  # FunctionEntryHooks require bootstrapping from scratch.
-  'test-api/SetFunctionEntryHook': [SKIP],
-}],  # 'no_snap == False'
 
 ##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
@@ -269,9 +255,6 @@
 
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
-
-  # BUG(v8:8220). Flaky
-  'test-log/LogAll': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -468,5 +451,11 @@
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
+
+##############################################################################
+# The stack unwinder API is only supported on x64.
+['arch != x64', {
+  'test-unwinder/*': [SKIP]
+}],
 
 ]

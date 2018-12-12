@@ -113,7 +113,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       }
       case kExprBr:
       case kExprBrIf: {
-        BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.depth;
         break;
       }

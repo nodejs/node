@@ -737,7 +737,6 @@ class Operand {
                  unsigned shift_amount = 0);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedCode(CodeStub* stub);
   static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   inline bool IsHeapObjectRequest() const;
@@ -1027,17 +1026,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not exist separately in the code, so the serializer should not step
   // forwards in memory after a target is resolved and written.
   static constexpr int kSpecialTargetSize = 0;
-
-  // The sizes of the call sequences emitted by MacroAssembler::Call.
-  //
-  // A "near" call is encoded in a BL immediate instruction:
-  //  bl target
-  //
-  // whereas a "far" call will be encoded like this:
-  //  ldr temp, =target
-  //  blr temp
-  static constexpr int kNearCallSize = 1 * kInstrSize;
-  static constexpr int kFarCallSize = 2 * kInstrSize;
 
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {

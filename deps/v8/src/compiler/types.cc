@@ -272,6 +272,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
+    case FUNCTION_TEMPLATE_RARE_DATA_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case EMBEDDER_DATA_ARRAY_TYPE:
     case FIXED_ARRAY_TYPE:
@@ -316,7 +317,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
-    case MICROTASK_QUEUE_TYPE:
     case CELL_TYPE:
     case PRE_PARSED_SCOPE_DATA_TYPE:
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
@@ -352,6 +352,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case WASM_DEBUG_INFO_TYPE:
+    case WASM_EXCEPTION_TAG_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:

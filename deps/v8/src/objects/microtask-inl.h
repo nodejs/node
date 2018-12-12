@@ -19,8 +19,8 @@ CAST_ACCESSOR(Microtask)
 CAST_ACCESSOR(CallbackTask)
 CAST_ACCESSOR(CallableTask)
 
-ACCESSORS(CallableTask, callable, JSReceiver, kCallableOffset)
-ACCESSORS(CallableTask, context, Context, kContextOffset)
+ACCESSORS2(CallableTask, callable, JSReceiver, kCallableOffset)
+ACCESSORS2(CallableTask, context, Context, kContextOffset)
 
 ACCESSORS(CallbackTask, callback, Foreign, kCallbackOffset)
 ACCESSORS(CallbackTask, data, Foreign, kDataOffset)

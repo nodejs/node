@@ -52,8 +52,6 @@ class CodeSerializer : public Serializer {
       Isolate* isolate, ScriptData* cached_data, Handle<String> source,
       ScriptOriginOptions origin_options);
 
-  const std::vector<uint32_t>* stub_keys() const { return &stub_keys_; }
-
   uint32_t source_hash() const { return source_hash_; }
 
  protected:
@@ -73,15 +71,11 @@ class CodeSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  void SerializeCodeStub(Code code_stub, HowToCode how_to_code,
-                         WhereToPoint where_to_point);
-
   bool SerializeReadOnlyObject(HeapObject* obj, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip);
 
   DISALLOW_HEAP_ALLOCATION(no_gc_);
   uint32_t source_hash_;
-  std::vector<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
@@ -107,10 +101,9 @@ class SerializedCodeData : public SerializedData {
   // [3] cpu features
   // [4] flag hash
   // [5] number of reservation size entries
-  // [6] number of code stub keys
-  // [7] payload length
-  // [8] payload checksum part A
-  // [9] payload checksum part B
+  // [6] payload length
+  // [7] payload checksum part A
+  // [8] payload checksum part B
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
@@ -119,10 +112,8 @@ class SerializedCodeData : public SerializedData {
   static const uint32_t kCpuFeaturesOffset = kSourceHashOffset + kUInt32Size;
   static const uint32_t kFlagHashOffset = kCpuFeaturesOffset + kUInt32Size;
   static const uint32_t kNumReservationsOffset = kFlagHashOffset + kUInt32Size;
-  static const uint32_t kNumCodeStubKeysOffset =
-      kNumReservationsOffset + kUInt32Size;
   static const uint32_t kPayloadLengthOffset =
-      kNumCodeStubKeysOffset + kUInt32Size;
+      kNumReservationsOffset + kUInt32Size;
   static const uint32_t kChecksumPartAOffset =
       kPayloadLengthOffset + kUInt32Size;
   static const uint32_t kChecksumPartBOffset =
@@ -146,8 +137,6 @@ class SerializedCodeData : public SerializedData {
 
   std::vector<Reservation> Reservations() const;
   Vector<const byte> Payload() const;
-
-  Vector<const uint32_t> CodeStubKeys() const;
 
   static uint32_t SourceHash(Handle<String> source,
                              ScriptOriginOptions origin_options);

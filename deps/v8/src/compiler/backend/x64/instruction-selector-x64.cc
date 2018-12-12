@@ -396,7 +396,8 @@ void InstructionSelector::VisitStore(Node* node) {
         g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
     InstructionCode code =
         opcode | AddressingModeField::encode(addressing_mode);
-    if ((ElementSizeLog2Of(store_rep.representation()) < kPointerSizeLog2) &&
+    if ((ElementSizeLog2Of(store_rep.representation()) <
+         kSystemPointerSizeLog2) &&
         (value->opcode() == IrOpcode::kTruncateInt64ToInt32) &&
         CanCover(node, value)) {
       value = value->InputAt(0);
@@ -2627,7 +2628,7 @@ VISIT_ATOMIC_BINOP(Xor)
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64S128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+  Emit(kX64S128Zero, g.DefineAsRegister(node));
 }
 
 #define VISIT_SIMD_SPLAT(Type)                               \

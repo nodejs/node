@@ -1202,20 +1202,20 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 }
 
 // ES#sec-isregexp IsRegExp ( argument )
-Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
-                                        Node* const maybe_receiver) {
+TNode<BoolT> RegExpBuiltinsAssembler::IsRegExp(TNode<Context> context,
+                                               TNode<Object> maybe_receiver) {
   Label out(this), if_isregexp(this);
 
-  VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(0));
+  TVARIABLE(BoolT, var_result, Int32FalseConstant());
 
   GotoIf(TaggedIsSmi(maybe_receiver), &out);
-  GotoIfNot(IsJSReceiver(maybe_receiver), &out);
+  GotoIfNot(IsJSReceiver(CAST(maybe_receiver)), &out);
 
-  Node* const receiver = maybe_receiver;
+  TNode<JSReceiver> receiver = CAST(maybe_receiver);
 
   // Check @@match.
   {
-    Node* const value =
+    TNode<Object> value =
         GetProperty(context, receiver, isolate()->factory()->match_symbol());
 
     Label match_isundefined(this), match_isnotundefined(this);
@@ -1225,11 +1225,26 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
     Branch(IsJSRegExp(receiver), &if_isregexp, &out);
 
     BIND(&match_isnotundefined);
-    BranchIfToBooleanIsTrue(value, &if_isregexp, &out);
+    Label match_istrueish(this), match_isfalseish(this);
+    BranchIfToBooleanIsTrue(value, &match_istrueish, &match_isfalseish);
+
+    // The common path. Symbol.match exists, equals the RegExpPrototypeMatch
+    // function (and is thus trueish), and the receiver is a JSRegExp.
+    BIND(&match_istrueish);
+    GotoIf(IsJSRegExp(receiver), &if_isregexp);
+    CallRuntime(Runtime::kIncrementUseCounter, context,
+                SmiConstant(v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp));
+    Goto(&if_isregexp);
+
+    BIND(&match_isfalseish);
+    GotoIfNot(IsJSRegExp(receiver), &out);
+    CallRuntime(Runtime::kIncrementUseCounter, context,
+                SmiConstant(v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp));
+    Goto(&out);
   }
 
   BIND(&if_isregexp);
-  var_result.Bind(Int32Constant(1));
+  var_result = Int32TrueConstant();
   Goto(&out);
 
   BIND(&out);
@@ -1299,7 +1314,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
   Node* const regexp_function =
       LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
 
-  Node* const pattern_is_regexp = IsRegExp(context, pattern);
+  TNode<BoolT> pattern_is_regexp = IsRegExp(context, pattern);
 
   {
     Label next(this);

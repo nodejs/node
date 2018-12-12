@@ -104,13 +104,8 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
                            : call_desc;
 }
 
-// TODO(arm): Add support for F32 registers. Fix arm32 FP registers alias.
-#if V8_TARGET_ARCH_ARM
-constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF64};
-#else
 constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
                                             kWasmF64};
-#endif
 constexpr Vector<const ValueType> kSupportedTypes =
     ArrayVector(kSupportedTypesArr);
 
@@ -186,7 +181,8 @@ class LiftoffCompiler {
   void unsupported(FullDecoder* decoder, const char* reason) {
     ok_ = false;
     TRACE("unsupported: %s\n", reason);
-    decoder->errorf(decoder->pc(), "unsupported liftoff operation: %s", reason);
+    decoder->errorf(decoder->pc_offset(), "unsupported liftoff operation: %s",
+                    reason);
     BindUnboundLabels(decoder);
   }
 
@@ -257,6 +253,16 @@ class LiftoffCompiler {
       if (param_loc.IsRegister()) {
         DCHECK(!param_loc.IsAnyRegister());
         int reg_code = param_loc.AsRegister();
+#if V8_TARGET_ARCH_ARM
+        // Liftoff assumes a one-to-one mapping between float registers and
+        // double registers, and so does not distinguish between f32 and f64
+        // registers. The f32 register code must therefore be halved in order to
+        // pass the f64 code to Liftoff.
+        DCHECK_IMPLIES(type == kWasmF32, (reg_code % 2) == 0);
+        if (type == kWasmF32) {
+          reg_code /= 2;
+        }
+#endif
         RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
                                           : kLiftoffAssemblerFpCacheRegs;
         if (cache_regs & (1ULL << reg_code)) {
@@ -492,8 +498,10 @@ class LiftoffCompiler {
     if (c->end_merge.reached) {
       __ MergeFullStackWith(c->label_state);
     } else if (c->is_onearmed_if()) {
-      c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                               c->br_merge()->arity);
+      // Init the merge point from the else state, then merge the if state into
+      // that.
+      DCHECK_EQ(0, c->end_merge.arity);
+      c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0);
       __ MergeFullStackWith(c->label_state);
     } else {
       c->label_state.Split(*__ cache_state());
@@ -502,7 +510,22 @@ class LiftoffCompiler {
   }
 
   void PopControl(FullDecoder* decoder, Control* c) {
-    if (!c->is_loop() && c->end_merge.reached) {
+    if (c->is_onearmed_if()) {
+      if (c->end_merge.reached) {
+        // Generate the code to merge the else state into the end state.
+        // TODO(clemensh): Do this without switching to the else state first.
+        __ emit_jump(c->label.get());
+        __ bind(c->else_state->label.get());
+        __ cache_state()->Steal(c->else_state->state);
+        __ MergeFullStackWith(c->label_state);
+        __ cache_state()->Steal(c->label_state);
+      } else {
+        // There is no merge at the end of the if, so just continue with the
+        // else state.
+        __ bind(c->else_state->label.get());
+        __ cache_state()->Steal(c->else_state->state);
+      }
+    } else if (!c->is_loop() && c->end_merge.reached) {
       __ cache_state()->Steal(c->label_state);
     }
     if (!c->label.get()->is_bound()) {
@@ -655,10 +678,10 @@ class LiftoffCompiler {
       CASE_I32_UNOP(I32Ctz, i32_ctz)
       CASE_FLOAT_UNOP(F32Abs, F32, f32_abs)
       CASE_FLOAT_UNOP(F32Neg, F32, f32_neg)
-      CASE_FLOAT_UNOP(F32Ceil, F32, f32_ceil)
-      CASE_FLOAT_UNOP(F32Floor, F32, f32_floor)
-      CASE_FLOAT_UNOP(F32Trunc, F32, f32_trunc)
-      CASE_FLOAT_UNOP(F32NearestInt, F32, f32_nearest_int)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F32Ceil, F32, f32_ceil)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F32Floor, F32, f32_floor)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F32Trunc, F32, f32_trunc)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F32NearestInt, F32, f32_nearest_int)
       CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
       CASE_FLOAT_UNOP(F64Abs, F64, f64_abs)
       CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
@@ -1054,28 +1077,17 @@ class LiftoffCompiler {
     __ cache_state()->stack_state.pop_back();
   }
 
-  void DoReturn(FullDecoder* decoder, Vector<Value> values, bool implicit) {
-    if (implicit) {
-      DCHECK_EQ(1, decoder->control_depth());
-      Control* func_block = decoder->control_at(0);
-      __ bind(func_block->label.get());
-      __ cache_state()->Steal(func_block->label_state);
-    }
-    if (!values.is_empty()) {
-      if (values.size() > 1) return unsupported(decoder, "multi-return");
-      LiftoffRegister reg = __ PopToRegister();
-      LiftoffRegister return_reg =
-          kNeedI64RegPair && values[0].type == kWasmI64
-              ? LiftoffRegister::ForPair(kGpReturnRegisters[0],
-                                         kGpReturnRegisters[1])
-              : reg_class_for(values[0].type) == kGpReg
-                    ? LiftoffRegister(kGpReturnRegisters[0])
-                    : LiftoffRegister(kFpReturnRegisters[0]);
-      if (reg != return_reg) __ Move(return_reg, reg, values[0].type);
-    }
+  void ReturnImpl(FullDecoder* decoder) {
+    size_t num_returns = decoder->sig_->return_count();
+    if (num_returns > 1) return unsupported(decoder, "multi-return");
+    if (num_returns > 0) __ MoveToReturnRegisters(decoder->sig_);
     __ LeaveFrame(StackFrame::WASM_COMPILED);
     __ DropStackSlotsAndRet(
         static_cast<uint32_t>(descriptor_->StackParameterCount()));
+  }
+
+  void DoReturn(FullDecoder* decoder, Vector<Value> /*values*/) {
+    ReturnImpl(decoder);
   }
 
   void GetLocal(FullDecoder* decoder, Value* result,
@@ -1226,7 +1238,7 @@ class LiftoffCompiler {
     __ bind(&cont);
   }
 
-  void Br(Control* target) {
+  void BrImpl(Control* target) {
     if (!target->br_merge()->reached) {
       target->label_state.InitMerge(*__ cache_state(), __ num_locals(),
                                     target->br_merge()->arity);
@@ -1235,14 +1247,22 @@ class LiftoffCompiler {
     __ jmp(target->label.get());
   }
 
-  void Br(FullDecoder* decoder, Control* target) { Br(target); }
+  void Br(FullDecoder* decoder, Control* target) { BrImpl(target); }
 
-  void BrIf(FullDecoder* decoder, const Value& cond, Control* target) {
+  void BrOrRet(FullDecoder* decoder, uint32_t depth) {
+    if (depth == decoder->control_depth() - 1) {
+      ReturnImpl(decoder);
+    } else {
+      BrImpl(decoder->control_at(depth));
+    }
+  }
+
+  void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
     Label cont_false;
     Register value = __ PopToRegister().gp();
     __ emit_cond_jump(kEqual, &cont_false, kWasmI32, value);
 
-    Br(target);
+    BrOrRet(decoder, depth);
     __ bind(&cont_false);
   }
 
@@ -1255,7 +1275,7 @@ class LiftoffCompiler {
       __ jmp(label.get());
     } else {
       __ bind(label.get());
-      Br(decoder->control_at(br_depth));
+      BrOrRet(decoder, br_depth);
     }
   }
 
@@ -1312,10 +1332,17 @@ class LiftoffCompiler {
     DCHECK(!table_iterator.has_next());
   }
 
-  void Else(FullDecoder* decoder, Control* if_block) {
-    if (if_block->reachable()) __ emit_jump(if_block->label.get());
-    __ bind(if_block->else_state->label.get());
-    __ cache_state()->Steal(if_block->else_state->state);
+  void Else(FullDecoder* decoder, Control* c) {
+    if (c->reachable()) {
+      if (!c->end_merge.reached) {
+        c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
+                                 c->end_merge.arity);
+      }
+      __ MergeFullStackWith(c->label_state);
+      __ emit_jump(c->label.get());
+    }
+    __ bind(c->else_state->label.get());
+    __ cache_state()->Steal(c->else_state->state);
   }
 
   Label* AddOutOfLineTrap(WasmCodePosition position,
@@ -1827,13 +1854,13 @@ class LiftoffCompiler {
     unsupported(decoder, "memory.drop");
   }
   void MemoryCopy(FullDecoder* decoder,
-                  const MemoryIndexImmediate<validate>& imm,
-                  Vector<Value> args) {
+                  const MemoryIndexImmediate<validate>& imm, const Value& dst,
+                  const Value& src, const Value& size) {
     unsupported(decoder, "memory.copy");
   }
   void MemoryFill(FullDecoder* decoder,
-                  const MemoryIndexImmediate<validate>& imm,
-                  Vector<Value> args) {
+                  const MemoryIndexImmediate<validate>& imm, const Value& dst,
+                  const Value& value, const Value& size) {
     unsupported(decoder, "memory.fill");
   }
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,

@@ -28,6 +28,8 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
+    case Token::LET:
+      return PreParserIdentifier::Let();
     case Token::AWAIT:
       return PreParserIdentifier::Await();
     case Token::ASYNC:
@@ -44,6 +46,9 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
     return PreParserIdentifier::Name();
   }
   if (scanner->literal_contains_escapes()) {
+    if (string == avf->let_string()) {
+      return PreParserIdentifier::Let();
+    }
     return PreParserIdentifier::Default();
   }
   if (string == avf->eval_string()) {
@@ -197,7 +202,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
       // function, since the function can declare itself strict.
-      ValidateFormalParameters(language_mode(), allow_duplicate_parameters);
+      ValidateFormalParameters(language_mode(), formals,
+                               allow_duplicate_parameters);
       if (has_error()) {
         if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
           return kPreParseNotIdentifiableError;
@@ -414,7 +420,7 @@ void PreParser::DeclareAndInitializeVariables(
     ZonePtrList<const AstRawString>* names) {
   if (declaration->pattern.variables_ != nullptr) {
     for (auto variable : *(declaration->pattern.variables_)) {
-      declaration_descriptor->scope->RemoveUnresolved(variable);
+      declaration_descriptor->scope->DeleteUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
       MarkLoopVariableAsAssigned(declaration_descriptor->scope, var,

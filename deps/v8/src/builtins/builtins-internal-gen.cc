@@ -6,7 +6,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/macro-assembler.h"
@@ -756,34 +756,6 @@ void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit(
 void Builtins::Generate_CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
   Generate_CEntry(masm, 2, kSaveFPRegs, kArgvOnStack, true);
-}
-
-void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
-  // CallApiGetterStub only exists as a stub to avoid duplicating code between
-  // here and code-stubs-<arch>.cc. For example, see CallApiFunctionAndReturn.
-  // Here we abuse the instantiated stub to generate code.
-  CallApiGetterStub stub(masm->isolate());
-  stub.Generate(masm);
-}
-
-void Builtins::Generate_CallApiCallback_Argc0(MacroAssembler* masm) {
-  // The common variants of CallApiCallbackStub (i.e. all that are embedded into
-  // the snapshot) are generated as builtins. The rest remain available as code
-  // stubs. Here we abuse the instantiated stub to generate code and avoid
-  // duplication.
-  const int kArgc = 0;
-  CallApiCallbackStub stub(masm->isolate(), kArgc);
-  stub.Generate(masm);
-}
-
-void Builtins::Generate_CallApiCallback_Argc1(MacroAssembler* masm) {
-  // The common variants of CallApiCallbackStub (i.e. all that are embedded into
-  // the snapshot) are generated as builtins. The rest remain available as code
-  // stubs. Here we abuse the instantiated stub to generate code and avoid
-  // duplication.
-  const int kArgc = 1;
-  CallApiCallbackStub stub(masm->isolate(), kArgc);
-  stub.Generate(masm);
 }
 
 // ES6 [[Get]] operation.

@@ -27,5 +27,5 @@ function g() {
   let namespace = Promise.resolve().then(importUndefined);
 }
 g();
-  %RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(list, [1,2]);

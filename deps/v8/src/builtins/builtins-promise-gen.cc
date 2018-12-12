@@ -377,7 +377,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
     Node* microtask = AllocatePromiseReactionJobTask(
         var_map.value(), context, argument, var_handler.value(),
         result_promise_or_capability);
-    CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), microtask);
+    CallBuiltin(Builtins::kEnqueueMicrotask, context, microtask);
     Goto(&done);
   }
 
@@ -505,7 +505,8 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
       // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
       // and schedule that on the microtask queue. We try to minimize the number
       // of stores here to avoid screwing up the store buffer.
-      STATIC_ASSERT(PromiseReaction::kSize == PromiseReactionJobTask::kSize);
+      STATIC_ASSERT(static_cast<int>(PromiseReaction::kSize) ==
+                    static_cast<int>(PromiseReactionJobTask::kSize));
       if (type == PromiseReaction::kFulfill) {
         StoreMapNoWriteBarrier(current,
                                RootIndex::kPromiseFulfillReactionJobTaskMap);
@@ -513,10 +514,13 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          argument);
         StoreObjectField(current, PromiseReactionJobTask::kContextOffset,
                          context);
-        STATIC_ASSERT(PromiseReaction::kFulfillHandlerOffset ==
-                      PromiseReactionJobTask::kHandlerOffset);
-        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        STATIC_ASSERT(
+            static_cast<int>(PromiseReaction::kFulfillHandlerOffset) ==
+            static_cast<int>(PromiseReactionJobTask::kHandlerOffset));
+        STATIC_ASSERT(
+            static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+            static_cast<int>(
+                PromiseReactionJobTask::kPromiseOrCapabilityOffset));
       } else {
         Node* handler =
             LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
@@ -528,10 +532,12 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          context);
         StoreObjectField(current, PromiseReactionJobTask::kHandlerOffset,
                          handler);
-        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        STATIC_ASSERT(
+            static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
+            static_cast<int>(
+                PromiseReactionJobTask::kPromiseOrCapabilityOffset));
       }
-      CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), current);
+      CallBuiltin(Builtins::kEnqueueMicrotask, context, current);
       Goto(&loop);
     }
     BIND(&done_loop);
@@ -2146,8 +2152,9 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   // first time, in which case we make it point to the native context here
   // to mark this resolve element closure as done.
   GotoIf(IsNativeContext(context), &already_called);
-  CSA_ASSERT(this, SmiEqual(LoadFixedArrayBaseLength(context),
-                            SmiConstant(kPromiseAllResolveElementLength)));
+  CSA_ASSERT(this,
+             SmiEqual(LoadObjectField<Smi>(context, Context::kLengthOffset),
+                      SmiConstant(kPromiseAllResolveElementLength)));
   TNode<Context> native_context = LoadNativeContext(context);
   StoreObjectField(function, JSFunction::kContextOffset, native_context);
 

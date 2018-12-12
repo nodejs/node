@@ -61,7 +61,7 @@ class JSSegmentIterator : public JSObject {
                                                        int32_t start,
                                                        int32_t end) const;
 
-  DECL_CAST(JSSegmentIterator)
+  DECL_CAST2(JSSegmentIterator)
 
   // SegmentIterator accessors.
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
@@ -88,19 +88,18 @@ class JSSegmentIterator : public JSObject {
   DECL_INT_ACCESSORS(flags)
 
 // Layout description.
-#define SEGMENTER_FIELDS(V)                \
-  /* Pointer fields. */                    \
-  V(kICUBreakIteratorOffset, kPointerSize) \
-  V(kUnicodeStringOffset, kPointerSize)    \
-  V(kFlagsOffset, kPointerSize)            \
-  /* Total Size */                         \
+#define SEGMENTER_FIELDS(V)               \
+  /* Pointer fields. */                   \
+  V(kICUBreakIteratorOffset, kTaggedSize) \
+  V(kUnicodeStringOffset, kTaggedSize)    \
+  V(kFlagsOffset, kTaggedSize)            \
+  /* Total Size */                        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, SEGMENTER_FIELDS)
 #undef SEGMENTER_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSegmentIterator);
+  OBJECT_CONSTRUCTORS(JSSegmentIterator, JSObject);
 };
 
 }  // namespace internal

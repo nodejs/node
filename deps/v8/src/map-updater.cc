@@ -38,7 +38,7 @@ MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
               ->IsFunctionTemplateInfo());
 }
 
-Name* MapUpdater::GetKey(int descriptor) const {
+Name MapUpdater::GetKey(int descriptor) const {
   return old_descriptors_->GetKey(descriptor);
 }
 
@@ -375,7 +375,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   if (target_nof == old_nof_) {
 #ifdef DEBUG
     if (modified_descriptor_ >= 0) {
-      DescriptorArray* target_descriptors = target_map_->instance_descriptors();
+      DescriptorArray target_descriptors = target_map_->instance_descriptors();
       PropertyDetails details =
           target_descriptors->GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
@@ -442,11 +442,13 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   // descriptors, with minimally the exact same size as the old descriptor
   // array.
   int new_slack =
-      Max(old_nof_, old_descriptors_->number_of_descriptors()) - old_nof_;
+      std::max<int>(old_nof_, old_descriptors_->number_of_descriptors()) -
+      old_nof_;
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::Allocate(isolate_, old_nof_, new_slack);
-  DCHECK(new_descriptors->length() > target_descriptors->length() ||
-         new_descriptors->NumberOfSlackDescriptors() > 0 ||
+  DCHECK(new_descriptors->number_of_all_descriptors() >
+             target_descriptors->number_of_all_descriptors() ||
+         new_descriptors->number_of_slack_descriptors() > 0 ||
          new_descriptors->number_of_descriptors() ==
              old_descriptors_->number_of_descriptors());
   DCHECK(new_descriptors->number_of_descriptors() == old_nof_);
@@ -615,13 +617,13 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
   for (int i = root_nof; i < old_nof_; i++) {
-    Name* name = descriptors->GetKey(i);
+    Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
         TransitionsAccessor(isolate_, current, &no_allocation)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
-    DescriptorArray* next_descriptors = next->instance_descriptors();
+    DescriptorArray next_descriptors = next->instance_descriptors();
 
     PropertyDetails next_details = next_descriptors->GetDetails(i);
     DCHECK_EQ(details.kind(), next_details.kind());

@@ -49,7 +49,7 @@ class AllocationBuilder final {
   }
 
   // Compound allocation of a context.
-  inline void AllocateContext(int length, Handle<Map> map);
+  inline void AllocateContext(int variadic_part_length, Handle<Map> map);
 
   // Compound allocation of a FixedArray.
   inline void AllocateArray(int length, Handle<Map> map,

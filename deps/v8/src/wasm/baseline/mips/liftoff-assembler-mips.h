@@ -854,16 +854,21 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     instruction(dst, src);                                                     \
   }
+#define FP_UNOP_RETURN_TRUE(name, instruction)                                 \
+  bool LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    instruction(dst, src);                                                     \
+    return true;                                                               \
+  }
 
 FP_BINOP(f32_add, add_s)
 FP_BINOP(f32_sub, sub_s)
 FP_BINOP(f32_mul, mul_s)
 FP_BINOP(f32_div, div_s)
 FP_UNOP(f32_abs, abs_s)
-FP_UNOP(f32_ceil, Ceil_s_s)
-FP_UNOP(f32_floor, Floor_s_s)
-FP_UNOP(f32_trunc, Trunc_s_s)
-FP_UNOP(f32_nearest_int, Round_s_s)
+FP_UNOP_RETURN_TRUE(f32_ceil, Ceil_s_s)
+FP_UNOP_RETURN_TRUE(f32_floor, Floor_s_s)
+FP_UNOP_RETURN_TRUE(f32_trunc, Trunc_s_s)
+FP_UNOP_RETURN_TRUE(f32_nearest_int, Round_s_s)
 FP_UNOP(f32_sqrt, sqrt_s)
 FP_BINOP(f64_add, add_d)
 FP_BINOP(f64_sub, sub_d)

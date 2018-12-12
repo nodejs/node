@@ -322,12 +322,9 @@ class SerializedData {
   class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
   class IsLastChunkBits : public BitField<bool, 31, 1> {};
 
-  static uint32_t ComputeMagicNumber(ExternalReferenceTable* table) {
-    uint32_t external_refs = table->size();
-    return 0xC0DE0000 ^ external_refs;
-  }
-
-  static const uint32_t kMagicNumberOffset = 0;
+  static constexpr uint32_t kMagicNumberOffset = 0;
+  static constexpr uint32_t kMagicNumber =
+      0xC0DE0000 ^ ExternalReferenceTable::kSize;
 
  protected:
   void SetHeaderValue(uint32_t offset, uint32_t value) {
@@ -341,11 +338,7 @@ class SerializedData {
 
   void AllocateData(uint32_t size);
 
-  static uint32_t ComputeMagicNumber(Isolate* isolate);
-
-  void SetMagicNumber(Isolate* isolate) {
-    SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));
-  }
+  void SetMagicNumber() { SetHeaderValue(kMagicNumberOffset, kMagicNumber); }
 
   byte* data_;
   uint32_t size_;

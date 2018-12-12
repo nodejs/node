@@ -724,7 +724,7 @@ int AssertLatency() { return 1; }
 
 int PrepareCallCFunctionLatency() {
   int frame_alignment = TurboAssembler::ActivationFrameAlignment();
-  if (frame_alignment > kPointerSize) {
+  if (frame_alignment > kSystemPointerSize) {
     return 1 + DsubuLatency(false) + AndLatency(false) + 1;
   } else {
     return DsubuLatency(false);
@@ -887,7 +887,7 @@ int PopCallerSavedLatency(SaveFPRegsMode fp_mode) {
 int CallCFunctionHelperLatency() {
   // Estimated.
   int latency = AndLatency(false) + Latency::BRANCH + 2 + CallLatency();
-  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
+  if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
     latency++;
   } else {
     latency += DadduLatency(false);
@@ -944,6 +944,7 @@ int TryInlineTruncateDoubleToILatency() {
 int CallStubDelayedLatency() { return 1 + CallLatency(); }
 
 int TruncateDoubleToIDelayedLatency() {
+  // TODO(mips): This no longer reflects how TruncateDoubleToI is called.
   return TryInlineTruncateDoubleToILatency() + 1 + DsubuLatency(false) +
          Sdc1Latency() + CallStubDelayedLatency() + DadduLatency(false) + 1;
 }

@@ -8,6 +8,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -90,8 +91,7 @@ void Deserializer::Initialize(Isolate* isolate) {
     }
   }
 #endif  // DEBUG
-  CHECK_EQ(magic_number_,
-           SerializedData::ComputeMagicNumber(external_reference_table_));
+  CHECK_EQ(magic_number_, SerializedData::kMagicNumber);
 }
 
 void Deserializer::Rehash() {
@@ -113,10 +113,13 @@ Deserializer::~Deserializer() {
 // This is called on the roots.  It is the driver of the deserialization
 // process.  It is also called on the body of each function.
 void Deserializer::VisitRootPointers(Root root, const char* description,
-                                     ObjectSlot start, ObjectSlot end) {
+                                     FullObjectSlot start, FullObjectSlot end) {
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
-  ReadData(UnalignedSlot(start), UnalignedSlot(end), NEW_SPACE, kNullAddress);
+  // TODO(ishell): this will not work once we actually compress pointers.
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+  ReadData(UnalignedSlot(start.address()), UnalignedSlot(end.address()),
+           NEW_SPACE, kNullAddress);
 }
 
 void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
@@ -152,7 +155,35 @@ void Deserializer::DeserializeDeferredObjects() {
   }
 }
 
-StringTableInsertionKey::StringTableInsertionKey(String* string)
+void Deserializer::LogNewObjectEvents() {
+  {
+    // {new_maps_} and {new_code_objects_} are vectors containing raw
+    // pointers, hence there should be no GC happening.
+    DisallowHeapAllocation no_gc;
+    // Issue code events for newly deserialized code objects.
+    LOG_CODE_EVENT(isolate_, LogCodeObjects());
+  }
+  LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
+  LogNewMapEvents();
+}
+
+void Deserializer::LogNewMapEvents() {
+  DisallowHeapAllocation no_gc;
+  for (Map map : new_maps()) {
+    DCHECK(FLAG_trace_maps);
+    LOG(isolate_, MapCreate(map));
+    LOG(isolate_, MapDetails(map));
+  }
+}
+
+void Deserializer::LogScriptEvents(Script* script) {
+  DisallowHeapAllocation no_gc;
+  LOG(isolate_,
+      ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
+  LOG(isolate_, ScriptDetails(script));
+}
+
+StringTableInsertionKey::StringTableInsertionKey(String string)
     : StringTableKey(ComputeHashField(string)), string_(string) {
   DCHECK(string->IsInternalizedString());
 }
@@ -169,7 +200,7 @@ Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
   return handle(string_, isolate);
 }
 
-uint32_t StringTableInsertionKey::ComputeHashField(String* string) {
+uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   // Make sure hash_field() is computed.
   string->Hash();
   return string->hash_field();
@@ -179,7 +210,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj->IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
-      String* string = String::cast(obj);
+      String string = String::cast(obj);
       string->set_hash_field(String::kEmptyHashField);
     } else if (obj->NeedsRehashing()) {
       to_rehash_.push_back(obj);
@@ -188,43 +219,44 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
 
   if (deserializing_user_code()) {
     if (obj->IsString()) {
-      String* string = String::cast(obj);
+      String string = String::cast(obj);
       if (string->IsInternalizedString()) {
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
         StringTableInsertionKey key(string);
-        String* canonical =
+        String canonical =
             StringTable::ForwardStringIfExists(isolate_, &key, string);
 
-        if (canonical != nullptr) return canonical;
+        if (!canonical.is_null()) return canonical;
 
         new_internalized_strings_.push_back(handle(string, isolate_));
         return string;
       }
     } else if (obj->IsScript()) {
       new_scripts_.push_back(handle(Script::cast(obj), isolate_));
+    } else if (obj->IsAllocationSite()) {
+      // We should link new allocation sites, but we can't do this immediately
+      // because |AllocationSite::HasWeakNext()| internally accesses
+      // |Heap::roots_| that may not have been initialized yet. So defer this to
+      // |ObjectDeserializer::CommitPostProcessedObjects()|.
+      new_allocation_sites_.push_back(AllocationSite::cast(obj));
     } else {
       DCHECK(CanBeDeferred(obj));
     }
-  } else if (obj->IsScript()) {
-    LOG(isolate_, ScriptEvent(Logger::ScriptEventType::kDeserialize,
-                              Script::cast(obj)->id()));
-    LOG(isolate_, ScriptDetails(Script::cast(obj)));
   }
-
-  if (obj->IsAllocationSite()) {
-    // We should link new allocation sites, but we can't do this immediately
-    // because |AllocationSite::HasWeakNext()| internally accesses
-    // |Heap::roots_| that may not have been initialized yet. So defer this to
-    // |ObjectDeserializer::CommitPostProcessedObjects()|.
-    new_allocation_sites_.push_back(AllocationSite::cast(obj));
+  if (obj->IsScript()) {
+    LogScriptEvents(Script::cast(obj));
   } else if (obj->IsCode()) {
-    // We flush all code pages after deserializing the startup snapshot. In that
-    // case, we only need to remember code objects in the large object space.
-    // When deserializing user code, remember each individual code object.
+    // We flush all code pages after deserializing the startup snapshot.
+    // Hence we only remember each individual code object when deserializing
+    // user code.
     if (deserializing_user_code() || space == LO_SPACE) {
       new_code_objects_.push_back(Code::cast(obj));
     }
+  } else if (FLAG_trace_maps && obj->IsMap()) {
+    // Keep track of all seen Maps to log them later since they might be only
+    // partially initialized at this point.
+    new_maps_.push_back(Map::cast(obj));
   } else if (obj->IsAccessorInfo()) {
 #ifdef USE_SIMULATOR
     accessor_infos_.push_back(AccessorInfo::cast(obj));
@@ -235,13 +267,13 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
 #endif
   } else if (obj->IsExternalString()) {
     if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
-      ExternalOneByteString* string = ExternalOneByteString::cast(obj);
+      ExternalOneByteString string = ExternalOneByteString::cast(obj);
       DCHECK(string->is_uncached());
       string->SetResource(
           isolate_, NativesExternalStringResource::DecodeForDeserialization(
                         string->resource()));
     } else {
-      ExternalString* string = ExternalString::cast(obj);
+      ExternalString string = ExternalString::cast(obj);
       uint32_t index = string->resource_as_uint32();
       Address address =
           static_cast<Address>(isolate_->api_external_references()[index]);
@@ -251,11 +283,11 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
-    JSTypedArray* typed_array = JSTypedArray::cast(obj);
+    JSTypedArray typed_array = JSTypedArray::cast(obj);
     CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
     int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
     if (byte_offset > 0) {
-      FixedTypedArrayBase* elements =
+      FixedTypedArrayBase elements =
           FixedTypedArrayBase::cast(typed_array->elements());
       // Must be off-heap layout.
       DCHECK(!typed_array->is_on_heap());
@@ -266,7 +298,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       elements->set_external_pointer(pointer_with_offset);
     }
   } else if (obj->IsJSArrayBuffer()) {
-    JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
+    JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.
     if (buffer->backing_store() != nullptr) {
       Smi store_index(reinterpret_cast<Address>(buffer->backing_store()));
@@ -276,9 +308,9 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
       isolate_->heap()->RegisterNewArrayBuffer(buffer);
     }
   } else if (obj->IsFixedTypedArrayBase()) {
-    FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(obj);
+    FixedTypedArrayBase fta = FixedTypedArrayBase::cast(obj);
     // Only fixup for the off-heap case.
-    if (fta->base_pointer() == nullptr) {
+    if (fta->base_pointer() == Smi::kZero) {
       Smi store_index(reinterpret_cast<Address>(fta->external_pointer()));
       void* backing_store = off_heap_backing_stores_[store_index->value()];
       fta->set_external_pointer(backing_store);
@@ -286,7 +318,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   } else if (obj->IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
-    BytecodeArray* bytecode_array = BytecodeArray::cast(obj);
+    BytecodeArray bytecode_array = BytecodeArray::cast(obj);
     bytecode_array->set_interrupt_budget(
         interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);

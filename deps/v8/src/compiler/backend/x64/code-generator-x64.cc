@@ -10,7 +10,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/macro-assembler.h"
 #include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"
@@ -307,7 +307,8 @@ class WasmOutOfLineTrap : public OutOfLineCode {
                        0);
       __ LeaveFrame(StackFrame::WASM_COMPILED);
       auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
-      size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
+      size_t pop_size =
+          call_descriptor->StackParameterCount() * kSystemPointerSize;
       // Use rcx as a scratch register, we return anyways immediately.
       __ Ret(static_cast<int>(pop_size), rcx);
     } else {
@@ -583,10 +584,10 @@ void AdjustStackPointerForTailCall(Assembler* assembler,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    assembler->subq(rsp, Immediate(stack_slot_delta * kPointerSize));
+    assembler->subq(rsp, Immediate(stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
-    assembler->addq(rsp, Immediate(-stack_slot_delta * kPointerSize));
+    assembler->addq(rsp, Immediate(-stack_slot_delta * kSystemPointerSize));
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -824,9 +825,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
-      DCHECK_EQ(0, bytes % kPointerSize);
+      DCHECK(IsAligned(bytes, kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
-      frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+      frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       DCHECK(!caller_registers_saved_);
       caller_registers_saved_ = true;
       break;
@@ -837,7 +838,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
-      frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
+      frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
       caller_registers_saved_ = false;
@@ -870,7 +871,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         //   kArchRestoreCallerRegisters;
         int bytes =
             __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
-        frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       }
       // TODO(tebbi): Do we need an lfence here?
       break;
@@ -1331,10 +1332,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ andl(rax, Immediate(0xFF));
         __ pushq(rax);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
         __ popfq();
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         -kPointerSize);
+                                                         -kSystemPointerSize);
       }
       __ j(parity_even, &mod_loop);
       // Move output to stack and clean up.
@@ -2073,29 +2074,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ pushq(operand);
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ pushq(i.InputImmediate(0));
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
       } else if (instr->InputAt(0)->IsRegister()) {
         __ pushq(i.InputRegister(0));
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
       } else if (instr->InputAt(0)->IsFloatRegister() ||
                  instr->InputAt(0)->IsDoubleRegister()) {
         // TODO(titzer): use another machine instruction?
         __ subq(rsp, Immediate(kDoubleSize));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kDoubleSize);
         __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
       } else if (instr->InputAt(0)->IsSimd128Register()) {
         // TODO(titzer): use another machine instruction?
         __ subq(rsp, Immediate(kSimd128Size));
-        frame_access_state()->IncreaseSPDelta(kSimd128Size / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kSimd128Size /
+                                              kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kSimd128Size);
         __ Movups(Operand(rsp, 0), i.InputSimd128Register(0));
@@ -2105,13 +2107,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ pushq(i.InputOperand(0));
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
       } else {
         DCHECK(instr->InputAt(0)->IsSimd128StackSlot());
         __ Movups(kScratchDoubleReg, i.InputOperand(0));
         // TODO(titzer): use another machine instruction?
         __ subq(rsp, Immediate(kSimd128Size));
-        frame_access_state()->IncreaseSPDelta(kSimd128Size / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kSimd128Size /
+                                              kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kSimd128Size);
         __ Movups(Operand(rsp, 0), kScratchDoubleReg);
@@ -2120,9 +2123,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Poke: {
       int slot = MiscField::decode(instr->opcode());
       if (HasImmediateInput(instr, 0)) {
-        __ movq(Operand(rsp, slot * kPointerSize), i.InputImmediate(0));
+        __ movq(Operand(rsp, slot * kSystemPointerSize), i.InputImmediate(0));
       } else {
-        __ movq(Operand(rsp, slot * kPointerSize), i.InputRegister(0));
+        __ movq(Operand(rsp, slot * kSystemPointerSize), i.InputRegister(0));
       }
       break;
     }
@@ -3324,8 +3327,8 @@ void CodeGenerator::FinishFrame(Frame* frame) {
     frame->AlignSavedCalleeRegisterSlots();
     if (saves_fp != 0) {  // Save callee-saved XMM registers.
       const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
-      frame->AllocateSavedCalleeRegisterSlots(saves_fp_count *
-                                              (kQuadWordSize / kPointerSize));
+      frame->AllocateSavedCalleeRegisterSlots(
+          saves_fp_count * (kQuadWordSize / kSystemPointerSize));
     }
   }
   const RegList saves = call_descriptor->CalleeSavedRegisters();
@@ -3406,12 +3409,12 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
+      if (shrink_slots * kSystemPointerSize < FLAG_stack_size * 1024) {
         __ movq(kScratchRegister,
                 FieldOperand(kWasmInstanceRegister,
                              WasmInstanceObject::kRealStackLimitAddressOffset));
         __ movq(kScratchRegister, Operand(kScratchRegister, 0));
-        __ addq(kScratchRegister, Immediate(shrink_slots * kPointerSize));
+        __ addq(kScratchRegister, Immediate(shrink_slots * kSystemPointerSize));
         __ cmpq(rsp, kScratchRegister);
         __ j(above_equal, &done);
       }
@@ -3428,11 +3431,11 @@ void CodeGenerator::AssembleConstructFrame() {
 
     // Skip callee-saved and return slots, which are created below.
     shrink_slots -= base::bits::CountPopulation(saves);
-    shrink_slots -=
-        base::bits::CountPopulation(saves_fp) * (kQuadWordSize / kPointerSize);
+    shrink_slots -= base::bits::CountPopulation(saves_fp) *
+                    (kQuadWordSize / kSystemPointerSize);
     shrink_slots -= frame()->GetReturnSlotCount();
     if (shrink_slots > 0) {
-      __ subq(rsp, Immediate(shrink_slots * kPointerSize));
+      __ subq(rsp, Immediate(shrink_slots * kSystemPointerSize));
     }
   }
 
@@ -3460,7 +3463,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Allocate return slots (located after callee-saved).
   if (frame()->GetReturnSlotCount() > 0) {
-    __ subq(rsp, Immediate(frame()->GetReturnSlotCount() * kPointerSize));
+    __ subq(rsp, Immediate(frame()->GetReturnSlotCount() * kSystemPointerSize));
   }
 }
 
@@ -3472,7 +3475,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   if (saves != 0) {
     const int returns = frame()->GetReturnSlotCount();
     if (returns != 0) {
-      __ addq(rsp, Immediate(returns * kPointerSize));
+      __ addq(rsp, Immediate(returns * kSystemPointerSize));
     }
     for (int i = 0; i < Register::kNumRegisters; i++) {
       if (!((1 << i) & saves)) continue;
@@ -3501,7 +3504,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   // pop count.
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rcx.bit());
   DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rdx.bit());
-  size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
+  size_t pop_size = call_descriptor->StackParameterCount() * kSystemPointerSize;
   X64OperandConverter g(this, nullptr);
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
@@ -3521,7 +3524,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 
   if (pop->IsImmediate()) {
-    pop_size += g.ToConstant(pop).ToInt32() * kPointerSize;
+    pop_size += g.ToConstant(pop).ToInt32() * kSystemPointerSize;
     CHECK_LT(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
     __ Ret(static_cast<int>(pop_size), rcx);
   } else {
@@ -3740,12 +3743,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ pushq(src);
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
         __ movq(src, g.ToOperand(destination));
         frame_access_state()->IncreaseSPDelta(-1);
         __ popq(g.ToOperand(destination));
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         -kPointerSize);
+                                                         -kSystemPointerSize);
       } else {
         DCHECK(source->IsFPRegister());
         XMMRegister src = g.ToDoubleRegister(source);
@@ -3774,10 +3777,10 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ movq(tmp, dst);
         __ pushq(src);  // Then use stack to copy src to destination.
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
         __ popq(dst);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         -kPointerSize);
+                                                         -kSystemPointerSize);
         __ movq(src, tmp);
       } else {
         // Without AVX, misaligned reads and writes will trap. Move using the
@@ -3785,16 +3788,16 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ movups(kScratchDoubleReg, dst);  // Save dst in scratch register.
         __ pushq(src);  // Then use stack to copy src to destination.
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
+                                                         kSystemPointerSize);
         __ popq(dst);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         -kPointerSize);
-        __ pushq(g.ToOperand(source, kPointerSize));
+                                                         -kSystemPointerSize);
+        __ pushq(g.ToOperand(source, kSystemPointerSize));
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         kPointerSize);
-        __ popq(g.ToOperand(destination, kPointerSize));
+                                                         kSystemPointerSize);
+        __ popq(g.ToOperand(destination, kSystemPointerSize));
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                         -kPointerSize);
+                                                         -kSystemPointerSize);
         __ movups(src, kScratchDoubleReg);
       }
       return;

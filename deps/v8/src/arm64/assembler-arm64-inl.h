@@ -340,8 +340,6 @@ Operand Operand::ToExtendedRegister() const {
 Immediate Operand::immediate_for_heap_object_request() const {
   DCHECK((heap_object_request().kind() == HeapObjectRequest::kHeapNumber &&
           immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT) ||
-         (heap_object_request().kind() == HeapObjectRequest::kCodeStub &&
-          immediate_.rmode() == RelocInfo::CODE_TARGET) ||
          (heap_object_request().kind() == HeapObjectRequest::kStringConstant &&
           immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT));
   return immediate_;

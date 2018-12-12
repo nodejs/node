@@ -68,9 +68,10 @@ bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
   if (!module_or_bytes->IsWebAssemblyCompiledModule()) {
     return IsWasmCompileAllowed(isolate, module_or_bytes, is_async);
   }
-  v8::Local<v8::WasmCompiledModule> module =
-      v8::Local<v8::WasmCompiledModule>::Cast(module_or_bytes);
-  return static_cast<uint32_t>(module->GetWasmWireBytesRef().size) <=
+  v8::Local<v8::WasmModuleObject> module =
+      v8::Local<v8::WasmModuleObject>::Cast(module_or_bytes);
+  return static_cast<uint32_t>(
+             module->GetCompiledModule().GetWireBytesRef().size()) <=
          ctrls.MaxWasmBufferSize;
 }
 
@@ -225,8 +226,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
 
   // If function isn't compiled, compile it now.
-  if (!function->shared()->is_compiled() &&
-      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
+  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
+  if (!is_compiled_scope.is_compiled() &&
+      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
+                         &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -558,7 +561,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
     bool weak = maybe_object.IsWeak();
 
 #ifdef DEBUG
-    if (object->IsString() && isolate->context() != nullptr) {
+    if (object->IsString() && !isolate->context().is_null()) {
       DCHECK(!weak);
       // If we have a string, assume it's a code "marker"
       // and print some interesting cpu debugging info.
@@ -715,8 +718,9 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   DCHECK_EQ(1, args.length());
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
+  IsCompiledScope is_compiled_scope;
   if (!func->is_compiled() &&
-      !Compiler::Compile(func, Compiler::KEEP_EXCEPTION)) {
+      !Compiler::Compile(func, Compiler::KEEP_EXCEPTION, &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).exception();
   }
   StdoutStream os;
@@ -840,6 +844,12 @@ RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
   return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
 }
 
+RUNTIME_FUNCTION(Runtime_IsThreadInWasm) {
+  DisallowHeapAllocation no_gc;
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(trap_handler::IsThreadInWasm());
+}
+
 RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -956,7 +966,7 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
   wasm::NativeModule* native_module = module_obj->native_module();
-  wasm::WasmSerializer wasm_serializer(isolate, native_module);
+  wasm::WasmSerializer wasm_serializer(native_module);
   size_t compiled_size = wasm_serializer.GetSerializedNativeModuleSize();
   void* array_data = isolate->array_buffer_allocator()->Allocate(compiled_size);
   Handle<JSArrayBuffer> array_buffer = isolate->factory()->NewJSArrayBuffer();
@@ -1015,7 +1025,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
   int instance_count = 0;
-  WeakArrayList* weak_instance_list = module_obj->weak_instance_list();
+  WeakArrayList weak_instance_list = module_obj->weak_instance_list();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     if (weak_instance_list->Get(i)->IsWeak()) instance_count++;
   }

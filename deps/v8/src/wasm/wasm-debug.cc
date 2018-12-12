@@ -129,12 +129,12 @@ class InterpreterHandle {
     return {frame_base, frame_limit};
   }
 
-  static Vector<const byte> GetBytes(WasmDebugInfo* debug_info) {
+  static ModuleWireBytes GetBytes(WasmDebugInfo* debug_info) {
     // Return raw pointer into heap. The WasmInterpreter will make its own copy
     // of this data anyway, and there is no heap allocation in-between.
     NativeModule* native_module =
         debug_info->wasm_instance()->module_object()->native_module();
-    return native_module->wire_bytes();
+    return ModuleWireBytes{native_module->wire_bytes()};
   }
 
  public:

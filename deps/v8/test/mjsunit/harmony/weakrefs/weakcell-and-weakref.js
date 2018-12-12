@@ -34,12 +34,12 @@ gc();
   assertNotEquals(undefined, weak_ref.deref());
 })();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 gc();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 assertTrue(cleanup_called);

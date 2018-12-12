@@ -49,22 +49,13 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
   std::ostream& source = nspace->source_stream();
   std::ostream& header = nspace->header_stream();
 
-  source << "#include \"src/objects/arguments.h\"\n";
-  source << "#include \"src/builtins/builtins-utils-gen.h\"\n";
-  source << "#include \"src/builtins/builtins.h\"\n";
-  source << "#include \"src/code-factory.h\"\n";
-  source << "#include \"src/elements-kind.h\"\n";
-  source << "#include \"src/heap/factory-inl.h\"\n";
-  source << "#include \"src/objects.h\"\n";
-  source << "#include \"src/objects/bigint.h\"\n";
+  for (const std::string& include_path : GlobalContext::CppIncludes()) {
+    source << "#include " << StringLiteralQuote(include_path) << "\n";
+  }
 
   for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
     source << "#include \"torque-generated/builtins-" +
                   DashifyString(n->name()) + "-from-dsl-gen.h\"\n";
-    if (n != GlobalContext::GetDefaultNamespace()) {
-      source << "#include \"src/builtins/builtins-" + DashifyString(n->name()) +
-                    "-gen.h\"\n";
-    }
   }
   source << "\n";
 
@@ -1809,6 +1800,32 @@ VisitResult ImplementationVisitor::GenerateCall(
       // we should assert slot_count == 1 here.
       return VisitResult(return_type, assembler().TopRange(slot_count));
     }
+  } else if (auto* intrinsic = Intrinsic::DynamicCast(callable)) {
+    if (intrinsic->ExternalName() == "%RawConstexprCast") {
+      if (intrinsic->signature().parameter_types.types.size() != 1 ||
+          constexpr_arguments.size() != 1) {
+        ReportError(
+            "%RawConstexprCast must take a single parameter with constexpr "
+            "type");
+      }
+      if (!return_type->IsConstexpr()) {
+        std::stringstream s;
+        s << *return_type
+          << " return type for %RawConstexprCast is not constexpr";
+        ReportError(s.str());
+      }
+      std::stringstream result;
+      result << "static_cast<" << return_type->GetGeneratedTypeName() << ">(";
+      result << constexpr_arguments[0];
+      result << ")";
+      return VisitResult(return_type, result.str());
+    } else {
+      assembler().Emit(
+          CallIntrinsicInstruction{intrinsic, constexpr_arguments});
+      size_t return_slot_count =
+          LoweredSlotCount(intrinsic->signature().return_type);
+      return VisitResult(return_type, assembler().TopRange(return_slot_count));
+    }
   } else {
     UNREACHABLE();
   }
@@ -1835,6 +1852,16 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));
   }
+}
+
+VisitResult ImplementationVisitor::Visit(IntrinsicCallExpression* expr) {
+  StackScope scope(this);
+  Arguments arguments;
+  TypeVector specialization_types = GetTypeVector(expr->generic_arguments);
+  for (Expression* arg : expr->arguments)
+    arguments.parameters.push_back(Visit(arg));
+  return scope.Yield(
+      GenerateCall(expr->name, arguments, specialization_types, false));
 }
 
 void ImplementationVisitor::GenerateBranch(const VisitResult& condition,
@@ -1881,7 +1908,7 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
   if (TypeOracle::IsImplicitlyConvertableFrom(destination_type,
                                               source.type())) {
     return scope.Yield(GenerateCall(kFromConstexprMacroName, {{source}, {}},
-                                    {destination_type}, false));
+                                    {destination_type, source.type()}, false));
   } else if (IsAssignableFrom(destination_type, source.type())) {
     source.SetType(destination_type);
     return scope.Yield(GenerateCopy(source));
@@ -2013,6 +2040,7 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
     case Declarable::kNamespaceConstant:
       return Visit(NamespaceConstant::cast(declarable));
     case Declarable::kRuntimeFunction:
+    case Declarable::kIntrinsic:
     case Declarable::kExternConstant:
     case Declarable::kNamespace:
     case Declarable::kGeneric:

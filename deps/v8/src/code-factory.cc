@@ -12,17 +12,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
-// TODO(ishell): make it (const Stub& stub) once CodeStub::GetCode() is const.
-template <typename Stub>
-Callable make_callable(Stub& stub) {
-  typedef typename Stub::Descriptor Descriptor;
-  return Callable(stub.GetCode(), Descriptor{});
-}
-
-}  // namespace
-
 // static
 Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
   return CodeFactory::CEntry(isolate, result_size);
@@ -74,20 +63,9 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::CallApiCallback(Isolate* isolate, int argc) {
-  switch (argc) {
-    case 0:
-      return Callable(BUILTIN_CODE(isolate, CallApiCallback_Argc0),
-                      ApiCallbackDescriptor{});
-    case 1:
-      return Callable(BUILTIN_CODE(isolate, CallApiCallback_Argc1),
-                      ApiCallbackDescriptor{});
-    default: {
-      CallApiCallbackStub stub(isolate, argc);
-      return make_callable(stub);
-    }
-  }
-  UNREACHABLE();
+Callable CodeFactory::CallApiCallback(Isolate* isolate) {
+  return Callable(BUILTIN_CODE(isolate, CallApiCallback),
+                  ApiCallbackDescriptor{});
 }
 
 // static
@@ -185,6 +163,53 @@ Callable CodeFactory::StoreInArrayLiteralIC_Slow(Isolate* isolate,
     case STORE_NO_TRANSITION_HANDLE_COW:
       builtin_index =
           Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return isolate->builtins()->CallableFor(isolate, builtin_index);
+}
+
+Callable CodeFactory::ElementsTransitionAndStore(Isolate* isolate,
+                                                 KeyedAccessStoreMode mode) {
+  Builtins::Name builtin_index;
+  switch (mode) {
+    case STANDARD_STORE:
+      builtin_index = Builtins::kElementsTransitionAndStore_Standard;
+      break;
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
+      builtin_index =
+          Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW;
+      break;
+    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
+      builtin_index =
+          Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB;
+      break;
+    case STORE_NO_TRANSITION_HANDLE_COW:
+      builtin_index =
+          Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return isolate->builtins()->CallableFor(isolate, builtin_index);
+}
+
+Callable CodeFactory::StoreFastElementIC(Isolate* isolate,
+                                         KeyedAccessStoreMode mode) {
+  Builtins::Name builtin_index;
+  switch (mode) {
+    case STANDARD_STORE:
+      builtin_index = Builtins::kStoreFastElementIC_Standard;
+      break;
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
+      builtin_index = Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW;
+      break;
+    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
+      builtin_index = Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB;
+      break;
+    case STORE_NO_TRANSITION_HANDLE_COW:
+      builtin_index = Builtins::kStoreFastElementIC_NoTransitionHandleCOW;
       break;
     default:
       UNREACHABLE();

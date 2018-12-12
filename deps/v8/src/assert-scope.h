@@ -134,8 +134,10 @@ typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>
     DisallowHeapAllocation;
 #ifdef DEBUG
 #define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name
+#define DISALLOW_HEAP_ALLOCATION_REF(name) const DisallowHeapAllocation& name
 #else
 #define DISALLOW_HEAP_ALLOCATION(name)
+#define DISALLOW_HEAP_ALLOCATION_REF(name)
 #endif
 
 // Scope to introduce an exception to DisallowHeapAllocation.

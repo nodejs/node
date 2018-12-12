@@ -261,7 +261,7 @@ void V8RuntimeAgentImpl::evaluate(
   scope.allowCodeGenerationFromStrings();
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    V8InspectorImpl::EvaluateScope evaluateScope(m_inspector->isolate());
+    V8InspectorImpl::EvaluateScope evaluateScope(scope);
     if (timeout.isJust()) {
       response = evaluateScope.setTimeout(timeout.fromJust() / 1000.0);
       if (!response.isSuccess()) {

@@ -25,7 +25,7 @@ let weak_ref;
 })();
 
 // Clear the KeepDuringJob set.
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 weak_ref.deref();
 o = null;
@@ -37,7 +37,7 @@ gc();
 wf.cleanupSome();
 assertEquals(0, cleanup_count);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 // This GC detects the WeakRef as dirty.

@@ -142,11 +142,6 @@ void CodeGenerator::AssembleCode() {
     AssembleSourcePosition(start_source_position());
   }
 
-  // Place function entry hook if requested to do so.
-  if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    ProfileEntryHookStub::MaybeCallEntryHookDelayed(tasm(), zone());
-  }
-
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (FLAG_debug_code & (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
                          info->code_kind() == Code::BYTECODE_HANDLER)) {
@@ -154,9 +149,7 @@ void CodeGenerator::AssembleCode() {
     AssembleCodeStartRegisterCheck();
   }
 
-  // TODO(jupvfranco): This should be the first thing in the code, otherwise
-  // MaybeCallEntryHookDelayed may happen twice (for optimized and deoptimized
-  // code). We want to bailout only from JS functions, which are the only ones
+  // We want to bailout only from JS functions, which are the only ones
   // that are optimized.
   if (info->IsOptimizing()) {
     DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
@@ -296,7 +289,7 @@ void CodeGenerator::AssembleCode() {
 
   // Emit the jump tables.
   if (jump_tables_) {
-    tasm()->Align(kPointerSize);
+    tasm()->Align(kSystemPointerSize);
     for (JumpTable* table = jump_tables_; table; table = table->next()) {
       tasm()->bind(table->label());
       AssembleJumpTable(table->targets(), table->target_count());
@@ -406,7 +399,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   MaybeHandle<Code> maybe_code = isolate()->factory()->TryNewCode(
       desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
-      source_positions, deopt_data, kMovable, info()->stub_key(), true,
+      source_positions, deopt_data, kMovable, true,
       frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
       handler_table_offset_);
 
@@ -726,7 +719,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
                                              source_position, false);
   if (FLAG_code_comments) {
     OptimizedCompilationInfo* info = this->info();
-    if (info->IsStub()) return;
+    if (info->IsNotOptimizedFunctionOrWasmFunction()) return;
     std::ostringstream buffer;
     buffer << "-- ";
     // Turbolizer only needs the source position, as it can reconstruct
@@ -1143,7 +1136,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         if (type.representation() == MachineRepresentation::kTagged) {
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
-          DCHECK_EQ(4, kPointerSize);
+          DCHECK_EQ(4, kSystemPointerSize);
           Smi smi(static_cast<Address>(constant.ToInt32()));
           DCHECK(smi->IsSmi());
           literal = DeoptimizationLiteral(smi->value());
@@ -1171,7 +1164,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         }
         break;
       case Constant::kInt64:
-        DCHECK_EQ(8, kPointerSize);
+        DCHECK_EQ(8, kSystemPointerSize);
         if (type.representation() == MachineRepresentation::kWord64) {
           literal =
               DeoptimizationLiteral(static_cast<double>(constant.ToInt64()));

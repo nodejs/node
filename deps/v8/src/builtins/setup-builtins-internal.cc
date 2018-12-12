@@ -33,11 +33,6 @@ namespace {
 void PostBuildProfileAndTracing(Isolate* isolate, Code code, const char* name) {
   PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
                                    AbstractCode::cast(code), name));
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_builtin_code) {
-    code->PrintBuiltinCode(isolate, name);
-  }
-#endif
 }
 
 AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
@@ -101,10 +96,33 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   generator(&masm);
+
+  int handler_table_offset = 0;
+
+  // JSEntry builtins are a special case and need to generate a handler table.
+  DCHECK_EQ(Builtins::KindOf(Builtins::kJSEntry), Builtins::ASM);
+  DCHECK_EQ(Builtins::KindOf(Builtins::kJSConstructEntry), Builtins::ASM);
+  DCHECK_EQ(Builtins::KindOf(Builtins::kJSRunMicrotasksEntry), Builtins::ASM);
+  if (Builtins::IsJSEntryVariant(builtin_index)) {
+    static constexpr int kJSEntryHandlerCount = 1;
+    handler_table_offset =
+        HandlerTable::EmitReturnTableStart(&masm, kJSEntryHandlerCount);
+    HandlerTable::EmitReturnEntry(
+        &masm, 0, isolate->builtins()->js_entry_handler_offset());
+  }
+
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
+
+  static constexpr bool kIsNotTurbofanned = false;
+  static constexpr int kStackSlots = 0;
+  static constexpr int kSafepointTableOffset = 0;
+
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::BUILTIN, masm.CodeObject(), builtin_index);
+      desc, Code::BUILTIN, masm.CodeObject(), builtin_index,
+      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kMovable,
+      kIsNotTurbofanned, kStackSlots, kSafepointTableOffset,
+      handler_table_offset);
   PostBuildProfileAndTracing(isolate, *code, s_name);
   return *code;
 }
@@ -140,7 +158,10 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  SegmentSize segment_size = isolate->serializer_enabled()
+                                 ? SegmentSize::kLarge
+                                 : SegmentSize::kDefault;
+  Zone zone(isolate->allocator(), ZONE_NAME, segment_size);
   const int argc_with_recv =
       (argc == SharedFunctionInfo::kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
   compiler::CodeAssemblerState state(
@@ -162,7 +183,10 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  SegmentSize segment_size = isolate->serializer_enabled()
+                                 ? SegmentSize::kLarge
+                                 : SegmentSize::kDefault;
+  Zone zone(isolate->allocator(), ZONE_NAME, segment_size);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.
   CallInterfaceDescriptor descriptor(interface_descriptor);
@@ -171,7 +195,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BUILTIN, name,
-      PoisoningMitigationLevel::kDontPoison, 0, builtin_index);
+      PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin_index));

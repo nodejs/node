@@ -5,5 +5,5 @@
 // Flags: --allow-natives-syntax
 
 var ab = new ArrayBuffer(100);
-%ArrayBufferNeuter(ab);
-%ArrayBufferNeuter(ab);
+%ArrayBufferDetach(ab);
+%ArrayBufferDetach(ab);

@@ -546,11 +546,6 @@
                     "description": "Resumes JavaScript execution."
                 },
                 {
-                    "name": "scheduleStepIntoAsync",
-                    "description": "This method is deprecated - use Debugger.stepInto with breakOnAsyncCall and\nDebugger.pauseOnAsyncTask instead. Steps into next scheduled async task if any is scheduled\nbefore next pause. Returns success when async task is actually scheduled, returns error if no\ntask were scheduled or another scheduleStepIntoAsync was called.",
-                    "experimental": true
-                },
-                {
                     "name": "searchInContent",
                     "description": "Searches for given string in script content.",
                     "parameters": [

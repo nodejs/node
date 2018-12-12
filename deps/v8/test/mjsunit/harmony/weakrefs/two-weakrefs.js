@@ -38,7 +38,7 @@ gc();
   assertNotEquals(undefined, wr2.deref());
 })();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // New turn.
 
 assertEquals(0, cleanup_count);
@@ -47,7 +47,7 @@ wr1.deref();
 o1 = null;
 gc(); // deref makes sure we don't clean up wr1
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // New turn.
 
 assertEquals(0, cleanup_count);
@@ -56,7 +56,7 @@ wr2.deref();
 o2 = null;
 gc(); // deref makes sure we don't clean up wr2
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // New turn.
 
 assertEquals(1, cleanup_count);
@@ -64,7 +64,7 @@ assertEquals(wr1, cleared_cells1[0]);
 
 gc();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // New turn.
 
 assertEquals(2, cleanup_count);

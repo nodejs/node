@@ -7,10 +7,10 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/globals.h"
-#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects/arguments.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {
@@ -194,6 +194,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<Int32T> length = var_length.value();
     {
       Label normalize_done(this);
+      CSA_ASSERT(this, Int32LessThanOrEqual(
+                           length, Int32Constant(FixedArray::kMaxLength)));
       GotoIfNot(Word32Equal(length, Int32Constant(0)), &normalize_done);
       // Make sure we don't accidentally pass along the
       // empty_fixed_double_array since the tailed-called stubs cannot handle
@@ -239,6 +241,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
+  CSA_ASSERT(this, Int32LessThanOrEqual(length,
+                                        Int32Constant(FixedArray::kMaxLength)));
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
   CSA_ASSERT(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
@@ -329,6 +333,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   {
     TNode<FixedArrayBase> elements = var_elements.value();
     TNode<Int32T> length = var_length.value();
+    CSA_ASSERT(this, Int32LessThanOrEqual(
+                         length, Int32Constant(FixedArray::kMaxLength)));
 
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());

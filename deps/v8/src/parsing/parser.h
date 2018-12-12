@@ -113,9 +113,13 @@ struct ParserFormalParameters : FormalParametersBase {
     Parameter* const* next() const { return &next_parameter; }
   };
 
+  Scanner::Location duplicate_location() const { return duplicate_loc; }
+  bool has_duplicate() const { return duplicate_loc.IsValid(); }
+
   explicit ParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
   base::ThreadedList<Parameter> params;
+  Scanner::Location duplicate_loc = Scanner::Location::invalid();
 };
 
 template <>
@@ -124,30 +128,31 @@ struct ParserTypes<Parser> {
   typedef Parser Impl;
 
   // Return types for traversing functions.
-  typedef const AstRawString* Identifier;
-  typedef v8::internal::Expression* Expression;
-  typedef v8::internal::FunctionLiteral* FunctionLiteral;
-  typedef ObjectLiteral::Property* ObjectLiteralProperty;
-  typedef ClassLiteral::Property* ClassLiteralProperty;
-  typedef v8::internal::Suspend* Suspend;
-  typedef v8::internal::RewritableExpression* RewritableExpression;
-  typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
-  typedef ParserFormalParameters FormalParameters;
-  typedef v8::internal::Statement* Statement;
-  typedef ScopedPtrList<v8::internal::Statement> StatementList;
-  typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
-  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
   typedef v8::internal::Block* Block;
   typedef v8::internal::BreakableStatement* BreakableStatement;
+  typedef ClassLiteral::Property* ClassLiteralProperty;
+  typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
+  typedef v8::internal::Expression* Expression;
+  typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
+  typedef ParserFormalParameters FormalParameters;
   typedef v8::internal::ForStatement* ForStatement;
+  typedef v8::internal::FunctionLiteral* FunctionLiteral;
+  typedef const AstRawString* Identifier;
   typedef v8::internal::IterationStatement* IterationStatement;
-  typedef v8::internal::FuncNameInferrer FuncNameInferrer;
-  typedef v8::internal::SourceRange SourceRange;
-  typedef v8::internal::SourceRangeScope SourceRangeScope;
+  typedef ObjectLiteral::Property* ObjectLiteralProperty;
+  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
+  typedef v8::internal::RewritableExpression* RewritableExpression;
+  typedef v8::internal::Statement* Statement;
+  typedef ScopedPtrList<v8::internal::Statement> StatementList;
+  typedef v8::internal::Suspend* Suspend;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
 
+  // Other implementation-specific functions.
+  typedef v8::internal::FuncNameInferrer FuncNameInferrer;
+  typedef v8::internal::SourceRange SourceRange;
+  typedef v8::internal::SourceRangeScope SourceRangeScope;
   typedef ParserTarget Target;
   typedef ParserTargetScope TargetScope;
 
@@ -590,6 +595,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return identifier == ast_value_factory()->arguments_string();
   }
 
+  V8_INLINE bool IsLet(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->let_string();
+  }
+
   V8_INLINE bool IsEvalOrArguments(const AstRawString* identifier) const {
     return IsEval(identifier) || IsArguments(identifier);
   }
@@ -905,8 +914,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     parameters->params.Add(parameter);
   }
 
-  V8_INLINE void DeclareFormalParameters(
-      const ParserFormalParameters* parameters) {
+  V8_INLINE void DeclareFormalParameters(ParserFormalParameters* parameters) {
+    ValidateFormalParameterInitializer();
     bool is_simple = parameters->is_simple;
     DeclarationScope* scope = parameters->scope;
     if (!is_simple) scope->SetHasNonSimpleParameters();
@@ -916,10 +925,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // their names. If the parameter list is not simple, declare a temporary
       // for each parameter - the corresponding named variable is declared by
       // BuildParamerterInitializationBlock.
-      if (is_simple && scope->LookupLocal(parameter->name)) {
-        classifier()->RecordDuplicateFormalParameterError(
+      if (is_simple && !parameters->has_duplicate() &&
+          scope->LookupLocal(parameter->name)) {
+        parameters->duplicate_loc =
             Scanner::Location(parameter->position,
-                              parameter->position + parameter->name->length()));
+                              parameter->position + parameter->name->length());
       }
       scope->DeclareParameter(
           is_simple ? parameter->name : ast_value_factory()->empty_string(),

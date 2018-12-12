@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-typed-array-gen.h'
+
 namespace typed_array {
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
@@ -15,6 +17,18 @@ namespace typed_array {
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
   type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
+
+  // These UnsafeCast specializations are necessary becuase there is no
+  // way to definitively test whether an Object is a Torque function
+  // with a specific signature, and the default UnsafeCast implementation
+  // would try to check this through an assert(Is<>), so the test
+  // is bypassed in this specialization.
+  UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
+    return %RawObjectCast<LoadFn>(o);
+  }
+  UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
+    return %RawObjectCast<StoreFn>(o);
+  }
 
   macro KindForArrayType<T: type>(): constexpr ElementsKind;
   KindForArrayType<FixedUint8Array>(): constexpr ElementsKind {
@@ -132,7 +146,7 @@ namespace typed_array {
 
       // TODO(szuend): Check if a more involved thirdIndex calculation is
       //               worth it for very large arrays.
-      const thirdIndex: Smi = from + ((to - from) >>> 1);
+      const thirdIndex: Smi = from + ((to - from) >> 1);
 
       if (IsDetachedBuffer(array.buffer)) goto Detached;
 

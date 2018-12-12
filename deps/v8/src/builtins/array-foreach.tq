@@ -115,7 +115,7 @@ namespace array {
       const a: JSArray = Cast<JSArray>(o) otherwise Slow;
       const map: Map = a.map;
 
-      if (!IsPrototypeInitialArrayPrototype(context, map)) goto Slow;
+      if (!IsPrototypeInitialArrayPrototype(map)) goto Slow;
       const elementsKind: ElementsKind = map.elements_kind;
       if (!IsFastElementsKind(elementsKind)) goto Slow;
 

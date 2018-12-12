@@ -256,7 +256,7 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
 
   Label slow_path(this);
 
-  GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context), &slow_path);
+  GotoIfNot(IsFastJSArrayWithNoCustomIteration(context, iterable), &slow_path);
 
   // The fast path will copy holes to the new array.
   TailCallBuiltin(Builtins::kCloneFastJSArray, context, iterable);
@@ -270,7 +270,7 @@ void IteratorBuiltinsAssembler::FastIterableToList(
     TVariable<Object>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
 
-  GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context),
+  GotoIfNot(IsFastJSArrayWithNoCustomIteration(context, iterable),
             &check_string);
 
   // Fast path for fast JSArray.

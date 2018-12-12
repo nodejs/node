@@ -378,7 +378,7 @@ bool Scope::ContainsAsmModule() const {
 }
 
 Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                    ScopeInfo* scope_info,
+                                    ScopeInfo scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,
                                     DeserializationMode deserialization_mode) {
@@ -386,7 +386,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   Scope* current_scope = nullptr;
   Scope* innermost_scope = nullptr;
   Scope* outer_scope = nullptr;
-  while (scope_info) {
+  while (!scope_info.is_null()) {
     if (scope_info->scope_type() == WITH_SCOPE) {
       // For scope analysis, debug-evaluate is equivalent to a with scope.
       outer_scope =
@@ -430,7 +430,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       DCHECK_EQ(scope_info->ContextLocalCount(), 1);
       DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
       DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
-      String* name = scope_info->ContextLocalName(0);
+      String name = scope_info->ContextLocalName(0);
       MaybeAssignedFlag maybe_assigned =
           scope_info->ContextLocalMaybeAssignedFlag(0);
       outer_scope = new (zone)
@@ -446,7 +446,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
     scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
-                                                 : nullptr;
+                                                 : ScopeInfo();
   }
 
   if (deserialization_mode == DeserializationMode::kIncludingVariables &&
@@ -844,7 +844,7 @@ void DeclarationScope::AddLocal(Variable* var) {
   locals_.Add(var);
 }
 
-void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
+void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   DCHECK_EQ(new_parent, outer_scope_and_calls_eval_.GetPointer()->inner_scope_);
   DCHECK_EQ(new_parent->outer_scope_, outer_scope_and_calls_eval_.GetPointer());
   DCHECK_EQ(new_parent, new_parent->GetClosureScope());
@@ -873,22 +873,8 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   }
 
   Scope* outer_scope_ = outer_scope_and_calls_eval_.GetPointer();
-  if (outer_scope_->unresolved_list_.first() != top_unresolved_) {
-    // If the marked VariableProxy (snapshoted) is not the first, we need to
-    // find it and move all VariableProxys up to that point into the new_parent,
-    // then we restore the snapshoted state by reinitializing the outer_scope
-    // list.
-    {
-      auto iter = outer_scope_->unresolved_list_.begin();
-      while (*iter != top_unresolved_) {
-        ++iter;
-      }
-      outer_scope_->unresolved_list_.Rewind(iter);
-    }
-
-    new_parent->unresolved_list_ = std::move(outer_scope_->unresolved_list_);
-    outer_scope_->unresolved_list_.ReinitializeHead(top_unresolved_);
-  }
+  new_parent->unresolved_list_.MoveTail(&outer_scope_->unresolved_list_,
+                                        top_unresolved_);
 
   // Move temporaries allocated for complex parameter initializers.
   DeclarationScope* outer_closure = outer_scope_->GetClosureScope();
@@ -902,13 +888,12 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   outer_closure->locals_.Rewind(top_local_);
 
   // Move eval calls since Snapshot's creation into new_parent.
-  if (outer_scope_->scope_calls_eval_) {
+  if (outer_scope_and_calls_eval_.GetPayload()) {
     new_parent->scope_calls_eval_ = true;
     new_parent->inner_scope_calls_eval_ = true;
   }
-  // Reset the outer_scope's eval state. It will be restored to its
-  // original value as necessary in the destructor of this class.
-  outer_scope_->scope_calls_eval_ = false;
+
+  Clear();
 }
 
 void Scope::ReplaceOuterScope(Scope* outer) {
@@ -1183,7 +1168,7 @@ void Scope::DeclareCatchVariableName(const AstRawString* name) {
 void Scope::AddUnresolved(VariableProxy* proxy) {
   DCHECK(!already_resolved_);
   DCHECK(!proxy->is_resolved());
-  unresolved_list_.AddFront(proxy);
+  unresolved_list_.Add(proxy);
 }
 
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
@@ -1197,6 +1182,11 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
 
 bool Scope::RemoveUnresolved(VariableProxy* var) {
   return unresolved_list_.Remove(var);
+}
+
+void Scope::DeleteUnresolved(VariableProxy* var) {
+  DCHECK(unresolved_list_.Contains(var));
+  var->mark_removed_from_unresolved();
 }
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
@@ -1403,8 +1393,7 @@ void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
           ? outer_scope()
           : this;
 
-  for (VariableProxy* proxy = unresolved_list_.first(); proxy != nullptr;
-       proxy = proxy->next_unresolved()) {
+  for (VariableProxy* proxy : unresolved_list_) {
     DCHECK(!proxy->is_resolved());
     Variable* var =
         Lookup<kParsedScope>(proxy, lookup, max_outer_scope->outer_scope());
@@ -1427,9 +1416,9 @@ void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
   }
 }
 
-void Scope::AnalyzePartially(
-    DeclarationScope* max_outer_scope, AstNodeFactory* ast_node_factory,
-    base::ThreadedList<VariableProxy>* new_unresolved_list) {
+void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
+                             AstNodeFactory* ast_node_factory,
+                             UnresolvedList* new_unresolved_list) {
   DCHECK_IMPLIES(is_declaration_scope(),
                  !AsDeclarationScope()->was_lazily_parsed());
 
@@ -1445,7 +1434,7 @@ void Scope::AnalyzePartially(
       if (!max_outer_scope->outer_scope()->is_script_scope() ||
           proxy->is_private_name()) {
         VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
-        new_unresolved_list->AddFront(copy);
+        new_unresolved_list->Add(copy);
       }
     } else if (var != Scope::kDummyPreParserVariable &&
                var != Scope::kDummyPreParserLexicalVariable) {
@@ -1523,14 +1512,13 @@ void Scope::SavePreParsedScopeData() {
 }
 
 void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
-  if (preparsed_scope_data_builder_ != nullptr) {
-    preparsed_scope_data_builder_->SaveScopeAllocationData(this);
-  }
+  if (preparsed_scope_data_builder_ == nullptr) return;
+  preparsed_scope_data_builder_->SaveScopeAllocationData(this);
 }
 
 void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
-  base::ThreadedList<VariableProxy> new_unresolved_list;
+  UnresolvedList new_unresolved_list;
   if (!IsArrowFunction(function_kind_) &&
       (!outer_scope_->is_script_scope() ||
        (preparsed_scope_data_builder_ != nullptr &&

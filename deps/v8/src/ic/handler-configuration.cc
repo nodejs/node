@@ -4,7 +4,7 @@
 
 #include "src/ic/handler-configuration.h"
 
-#include "src/code-stubs.h"
+#include "src/code-factory.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/maybe-object.h"
@@ -182,11 +182,8 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode) {
-  ElementsKind elements_kind = receiver_map->elements_kind();
   Handle<Code> stub =
-      ElementsTransitionAndStoreStub(isolate, elements_kind,
-                                     transition->elements_kind(), store_mode)
-          .GetCode();
+      CodeFactory::ElementsTransitionAndStore(isolate, store_mode).code();
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);

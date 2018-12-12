@@ -149,7 +149,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::FindOrAddChildNode(
 SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   AllocationNode* node = &profile_root_;
 
-  std::vector<SharedFunctionInfo*> stack;
+  std::vector<SharedFunctionInfo> stack;
   JavaScriptFrameIterator it(isolate_);
   int frames_captured = 0;
   bool found_arguments_marker_frames = false;
@@ -161,7 +161,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     // in the top frames of the stack). The allocations made in this
     // sensitive moment belong to the formerly optimized frame anyway.
     if (frame->unchecked_function()->IsJSFunction()) {
-      SharedFunctionInfo* shared = frame->function()->shared();
+      SharedFunctionInfo shared = frame->function()->shared();
       stack.push_back(shared);
       frames_captured++;
     } else {
@@ -204,7 +204,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   // We need to process the stack in reverse order as the top of the stack is
   // the first element in the list.
   for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
-    SharedFunctionInfo* shared = *it;
+    SharedFunctionInfo shared = *it;
     const char* name = this->names()->GetName(shared->DebugName());
     int script_id = v8::UnboundScript::kNoScriptId;
     if (shared->script()->IsScript()) {
@@ -242,7 +242,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     Handle<Script> script = non_const_scripts[node->script_id_];
     if (!script.is_null()) {
       if (script->name()->IsName()) {
-        Name* name = Name::cast(script->name());
+        Name name = Name::cast(script->name());
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
       }

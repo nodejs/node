@@ -819,9 +819,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // ---------------------------------------------------------------------------
   // Runtime calls
 
-  // Call a code stub.
-  void CallStubDelayed(CodeStub* stub);
-
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
@@ -1009,6 +1006,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ResetSpeculationPoisonRegister();
   void ComputeCodeStartAddress(Register dst);
+  void LoadPC(Register dst);
+
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1027,7 +1030,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 };
 
 // MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
       : TurboAssembler(options, buffer, size) {}

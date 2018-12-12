@@ -296,8 +296,7 @@ bool JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (function->context()->native_context() !=
-        info_->context()->native_context()) {
+    if (function->native_context() != info_->native_context()) {
       return false;
     }
 
@@ -376,7 +375,7 @@ Reduction JSInliner::Reduce(Node* node) {
 }
 
 Handle<Context> JSInliner::native_context() const {
-  return handle(info_->context()->native_context(), isolate());
+  return handle(info_->native_context(), isolate());
 }
 
 Reduction JSInliner::ReduceJSCall(Node* node) {
@@ -453,8 +452,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  if (!shared_info->is_compiled() &&
-      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION)) {
+  IsCompiledScope is_compiled_scope(shared_info->is_compiled_scope());
+  if (!is_compiled_scope.is_compiled() &&
+      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION,
+                         &is_compiled_scope)) {
     TRACE("Not inlining %s into %s because bytecode generation failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());

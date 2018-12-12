@@ -637,11 +637,11 @@ class MemoryChunk {
 
   bool InLargeObjectSpace() const;
 
+  inline bool IsInNewLargeObjectSpace() const;
+
   Space* owner() const { return owner_; }
 
   void set_owner(Space* space) { owner_ = space; }
-
-  bool IsPagedSpace() const;
 
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::synchronized_heap() to simulate the barrier.
@@ -1177,7 +1177,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     }
 
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
-      if (chunk->IsPagedSpace() && chunk->executable() != EXECUTABLE) {
+      if (!heap_->IsLargeMemoryChunk(chunk) &&
+          chunk->executable() != EXECUTABLE) {
         AddMemoryChunkSafe<kRegular>(chunk);
       } else {
         AddMemoryChunkSafe<kNonRegular>(chunk);
@@ -2075,7 +2076,9 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
+  // TODO(3770): Drop Object* version.
   inline bool Contains(Object* o);
+  inline bool Contains(ObjectPtr o);
   bool ContainsSlow(Address addr);
 
   // Does the space need executable memory?
@@ -2570,6 +2573,7 @@ class NewSpace : public SpaceWithLinearArea {
   inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
   inline bool Contains(Object* o);
+  inline bool Contains(HeapObjectPtr o);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
@@ -3038,11 +3042,11 @@ class LargeObjectSpace : public Space {
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
                                                      Executability executable);
 
- private:
   size_t size_;          // allocated bytes
   int page_count_;       // number of chunks
   size_t objects_size_;  // size of objects
 
+ private:
   // The chunk_map_mutex_ has to be used when the chunk map is accessed
   // concurrently.
   base::Mutex chunk_map_mutex_;
@@ -3063,6 +3067,8 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   size_t Available() override;
 
   void Flip();
+
+  void FreeAllObjects();
 };
 
 class CodeLargeObjectSpace : public LargeObjectSpace {

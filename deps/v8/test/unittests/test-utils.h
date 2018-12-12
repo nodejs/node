@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "include/v8.h"
+#include "src/api-inl.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/handles.h"
@@ -310,6 +311,14 @@ class SaveFlags {
 
   DISALLOW_COPY_AND_ASSIGN(SaveFlags);
 };
+
+// For GTest.
+inline void PrintTo(ObjectPtr o, ::std::ostream* os) {
+  *os << reinterpret_cast<void*>(o.ptr());
+}
+inline void PrintTo(Smi o, ::std::ostream* os) {
+  *os << reinterpret_cast<void*>(o.ptr());
+}
 
 }  // namespace internal
 }  // namespace v8

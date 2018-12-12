@@ -188,6 +188,9 @@ TEST(HashSet) {
 
 class ObjectHashTableTest: public ObjectHashTable {
  public:
+  explicit ObjectHashTableTest(ObjectHashTable o) : ObjectHashTable(o) {}
+  ObjectHashTableTest* operator->() { return this; }
+
   void insert(int entry, int key, int value) {
     set(EntryToIndex(entry), Smi::FromInt(key));
     set(EntryToIndex(entry) + 1, Smi::FromInt(value));
@@ -211,7 +214,7 @@ TEST(HashTableRehash) {
   // Test almost filled table.
   {
     Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 100);
-    ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
+    ObjectHashTableTest t(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
@@ -224,7 +227,7 @@ TEST(HashTableRehash) {
   // Test half-filled table.
   {
     Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 100);
-    ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
+    ObjectHashTableTest t(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);

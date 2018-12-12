@@ -45,6 +45,9 @@ class PreParserIdentifier {
   static PreParserIdentifier Await() {
     return PreParserIdentifier(kAwaitIdentifier);
   }
+  static PreParserIdentifier Let() {
+    return PreParserIdentifier(kLetIdentifier);
+  }
   static PreParserIdentifier Async() {
     return PreParserIdentifier(kAsyncIdentifier);
   }
@@ -64,6 +67,7 @@ class PreParserIdentifier {
   }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
+  bool IsLet() const { return type_ == kLetIdentifier; }
   bool IsName() const { return type_ == kNameIdentifier; }
   bool IsPrivateName() const { return type_ == kPrivateNameIdentifier; }
 
@@ -75,6 +79,7 @@ class PreParserIdentifier {
     kArgumentsIdentifier,
     kConstructorIdentifier,
     kAwaitIdentifier,
+    kLetIdentifier,
     kAsyncIdentifier,
     kNameIdentifier,
     kPrivateNameIdentifier
@@ -239,7 +244,7 @@ class PreParserExpression {
     return TypeField::decode(code_) == kArrayLiteralExpression;
   }
 
-  bool IsValidPattern() const {
+  bool IsPattern() const {
     STATIC_ASSERT(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
     return IsInRange(TypeField::decode(code_), kObjectLiteralExpression,
                      kArrayLiteralExpression);
@@ -306,6 +311,12 @@ class PreParserExpression {
 
   bool IsSpread() const {
     return TypeField::decode(code_) == kSpreadExpression;
+  }
+
+  bool is_parenthesized() const { return IsParenthesizedField::decode(code_); }
+
+  void mark_parenthesized() {
+    code_ = IsParenthesizedField::update(code_, true);
   }
 
   PreParserExpression AsFunctionLiteral() { return *this; }
@@ -380,14 +391,16 @@ class PreParserExpression {
   // Expression nodes may be represented as multiple Types, not exclusively
   // through kExpression.
   // TODO(caitp, adamk): clean up PreParserExpression bitfields.
-  typedef BitField<bool, 31, 1> ParenthesizedField;
+  typedef BitField<bool, TypeField::kNext, 1> IsParenthesizedField;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  typedef BitField<ExpressionType, TypeField::kNext, 4> ExpressionTypeField;
-  typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 8>
+  typedef BitField<ExpressionType, IsParenthesizedField::kNext, 4>
+      ExpressionTypeField;
+  typedef BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>
       IdentifierTypeField;
-  typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
+  typedef BitField<bool, IsParenthesizedField::kNext, 1>
+      HasCoverInitializedNameField;
 
   uint32_t code_;
   // If the PreParser is used in the variable tracking mode, PreParserExpression
@@ -702,7 +715,9 @@ class PreParserFactory {
   }
 
   PreParserExpression NewEmptyParentheses(int pos) {
-    return PreParserExpression::Default();
+    PreParserExpression result = PreParserExpression::Default();
+    result.mark_parenthesized();
+    return result;
   }
 
   PreParserStatement EmptyStatement() { return PreParserStatement::Default(); }
@@ -817,12 +832,18 @@ class PreParserFactory {
   Zone* zone_;
 };
 
-
-struct PreParserFormalParameters : FormalParametersBase {
+class PreParserFormalParameters : public FormalParametersBase {
+ public:
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
-};
 
+  Scanner::Location duplicate_location() const { UNREACHABLE(); }
+  bool has_duplicate() const { return has_duplicate_; }
+  void set_has_duplicate() { has_duplicate_ = true; }
+
+ private:
+  bool has_duplicate_ = false;
+};
 
 class PreParser;
 
@@ -887,32 +908,34 @@ struct ParserTypes<PreParser> {
   typedef PreParser Impl;
 
   // Return types for traversing functions.
-  typedef PreParserIdentifier Identifier;
+  typedef PreParserExpression ClassLiteralProperty;
   typedef PreParserExpression Expression;
   typedef PreParserExpression FunctionLiteral;
   typedef PreParserExpression ObjectLiteralProperty;
-  typedef PreParserExpression ClassLiteralProperty;
-  typedef PreParserExpression Suspend;
   typedef PreParserExpression RewritableExpression;
-  typedef PreParserPropertyList ClassPropertyList;
-  typedef PreParserFormalParameters FormalParameters;
-  typedef PreParserStatement Statement;
-  typedef PreParserScopedStatementList StatementList;
+  typedef PreParserExpression Suspend;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList ObjectPropertyList;
+  typedef PreParserFormalParameters FormalParameters;
+  typedef PreParserIdentifier Identifier;
+  typedef PreParserPropertyList ClassPropertyList;
+  typedef PreParserScopedStatementList StatementList;
   typedef PreParserStatement Block;
   typedef PreParserStatement BreakableStatement;
-  typedef PreParserStatement IterationStatement;
   typedef PreParserStatement ForStatement;
+  typedef PreParserStatement IterationStatement;
+  typedef PreParserStatement Statement;
 
   // For constructing objects returned by the traversing functions.
   typedef PreParserFactory Factory;
 
-  typedef PreParserTarget Target;
-  typedef PreParserTargetScope TargetScope;
+  // Other implementation-specific tasks.
   typedef PreParserFuncNameInferrer FuncNameInferrer;
   typedef PreParserSourceRange SourceRange;
   typedef PreParserSourceRangeScope SourceRangeScope;
+  typedef PreParserTarget Target;
+  typedef PreParserTargetScope TargetScope;
+
   static constexpr bool ExpressionClassifierReportErrors = false;
 };
 
@@ -1283,6 +1306,10 @@ class PreParser : public ParserBase<PreParser> {
     return identifier.IsAwait();
   }
 
+  V8_INLINE bool IsLet(const PreParserIdentifier& identifier) const {
+    return identifier.IsLet();
+  }
+
   // Returns true if the expression is of type "this.foo".
   V8_INLINE static bool IsThisProperty(const PreParserExpression& expression) {
     return expression.IsThisProperty();
@@ -1630,16 +1657,16 @@ class PreParser : public ParserBase<PreParser> {
       // We declare the parameter name for all names, but only create a
       // parameter entry for the first one.
       auto it = pattern.variables_->begin();
-      if (scope->LookupLocal(it->raw_name()) != nullptr) {
-        classifier()->RecordDuplicateFormalParameterError(
-            Scanner::Location::invalid());
+      if (!parameters->has_duplicate() &&
+          scope->LookupLocal(it->raw_name()) != nullptr) {
+        parameters->set_has_duplicate();
       }
       scope->DeclareParameterName(it->raw_name(), is_rest, ast_value_factory(),
                                   true, true);
       for (++it; it != pattern.variables_->end(); ++it) {
-        if (scope->LookupLocal(it->raw_name()) != nullptr) {
-          classifier()->RecordDuplicateFormalParameterError(
-              Scanner::Location::invalid());
+        if (!parameters->has_duplicate() &&
+            scope->LookupLocal(it->raw_name()) != nullptr) {
+          parameters->set_has_duplicate();
         }
         scope->DeclareParameterName(it->raw_name(), is_rest,
                                     ast_value_factory(), true, false);
@@ -1650,18 +1677,20 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void DeclareFormalParameters(
       const PreParserFormalParameters* parameters) {
+    ValidateFormalParameterInitializer();
     if (!parameters->is_simple) parameters->scope->SetHasNonSimpleParameters();
   }
 
   V8_INLINE void DeclareArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters, const PreParserExpression& params,
       const Scanner::Location& params_loc) {
+    ValidateFormalParameterInitializer();
     if (params.variables_ != nullptr) {
       Scope* scope = parameters->scope;
       for (auto variable : *params.variables_) {
-        if (scope->LookupLocal(variable->raw_name())) {
-          classifier()->RecordDuplicateFormalParameterError(
-              Scanner::Location::invalid());
+        if (!parameters->has_duplicate() &&
+            scope->LookupLocal(variable->raw_name())) {
+          parameters->set_has_duplicate();
         }
         scope->DeclareVariableName(variable->raw_name(), VariableMode::kVar);
       }

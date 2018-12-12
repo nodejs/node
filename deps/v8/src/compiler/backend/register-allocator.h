@@ -412,6 +412,8 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   bool ShouldBeAllocatedBefore(const LiveRange* other) const;
   bool CanCover(LifetimePosition position) const;
   bool Covers(LifetimePosition position) const;
+  LifetimePosition NextStartAfter(LifetimePosition position) const;
+  LifetimePosition NextEndAfter(LifetimePosition position) const;
   LifetimePosition FirstIntersection(LiveRange* other) const;
 
   void VerifyChildStructure() const {
@@ -1047,11 +1049,13 @@ class LinearScanAllocator final : public RegisterAllocator {
   ZoneVector<LiveRange*>::iterator ActiveToHandled(
       ZoneVector<LiveRange*>::iterator it);
   ZoneVector<LiveRange*>::iterator ActiveToInactive(
-      ZoneVector<LiveRange*>::iterator it);
+      ZoneVector<LiveRange*>::iterator it, LifetimePosition position);
   ZoneVector<LiveRange*>::iterator InactiveToHandled(
       ZoneVector<LiveRange*>::iterator it);
   ZoneVector<LiveRange*>::iterator InactiveToActive(
-      ZoneVector<LiveRange*>::iterator it);
+      ZoneVector<LiveRange*>::iterator it, LifetimePosition position);
+
+  void ForwardStateTo(LifetimePosition position);
 
   // Helper methods for allocating registers.
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);
@@ -1085,6 +1089,11 @@ class LinearScanAllocator final : public RegisterAllocator {
   LiveRangeQueue unhandled_live_ranges_;
   ZoneVector<LiveRange*> active_live_ranges_;
   ZoneVector<LiveRange*> inactive_live_ranges_;
+
+  // Approximate at what position the set of ranges will change next.
+  // Used to avoid scanning for updates even if none are present.
+  LifetimePosition next_active_ranges_change_;
+  LifetimePosition next_inactive_ranges_change_;
 
 #ifdef DEBUG
   LifetimePosition allocation_finger_;

@@ -30,7 +30,6 @@
 
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
-#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -368,16 +367,15 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
     Handle<JSFunction> function = factory->NewFunctionForTest(name);
-    JSReceiver::SetProperty(isolate, global, name, function,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, global, name, function, LanguageMode::kSloppy)
         .Check();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(isolate, obj, prop_name, twenty_three,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name, twenty_three,
+                        LanguageMode::kSloppy)
         .Check();
-    JSReceiver::SetProperty(isolate, obj, prop_namex, twenty_four,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_namex, twenty_four,
+                        LanguageMode::kSloppy)
         .Check();
 
     CHECK_EQ(Smi::FromInt(23),
@@ -400,11 +398,10 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(isolate, global, obj_name, obj,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, global, obj_name, obj, LanguageMode::kSloppy)
         .Check();
-    JSReceiver::SetProperty(isolate, obj, prop_name, twenty_three,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name, twenty_three,
+                        LanguageMode::kSloppy)
         .Check();
   }
 
@@ -795,7 +792,7 @@ TEST(BytecodeArray) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
   }
 
-  FixedArray* old_constant_pool_address = *constant_pool;
+  FixedArray old_constant_pool_address = *constant_pool;
 
   // Perform a full garbage collection and force the constant pool to be on an
   // evacuation candidate.
@@ -945,14 +942,14 @@ TEST(FunctionAllocation) {
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
-  JSReceiver::SetProperty(isolate, obj, prop_name, twenty_three,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name, twenty_three,
+                      LanguageMode::kSloppy)
       .Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
   // Check that we can add properties to function objects.
-  JSReceiver::SetProperty(isolate, function, prop_name, twenty_four,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, function, prop_name, twenty_four,
+                      LanguageMode::kSloppy)
       .Check();
   CHECK_EQ(
       Smi::FromInt(24),
@@ -984,8 +981,7 @@ TEST(ObjectProperties) {
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
 
   // add first
-  JSReceiver::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
 
   // delete first
@@ -994,10 +990,8 @@ TEST(ObjectProperties) {
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
 
   // add first and then second
-  JSReceiver::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy)
-      .Check();
-  JSReceiver::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy).Check();
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
@@ -1011,10 +1005,8 @@ TEST(ObjectProperties) {
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
 
   // add first and then second
-  JSReceiver::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy)
-      .Check();
-  JSReceiver::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy).Check();
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
@@ -1030,14 +1022,14 @@ TEST(ObjectProperties) {
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
-  JSReceiver::SetProperty(isolate, obj, s1, one, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, s1, one, LanguageMode::kSloppy).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
-  JSReceiver::SetProperty(isolate, obj, s2_string, one, LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, s2_string, one, LanguageMode::kSloppy)
       .Check();
   Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s2));
@@ -1059,8 +1051,8 @@ TEST(JSObjectMaps) {
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  JSReceiver::SetProperty(isolate, obj, prop_name, twenty_three,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, obj, prop_name, twenty_three,
+                      LanguageMode::kSloppy)
       .Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
@@ -1096,8 +1088,7 @@ TEST(JSArray) {
   CHECK(array->HasSmiOrObjectElements());
 
   // array[length] = name.
-  JSReceiver::SetElement(isolate, array, 0, name, LanguageMode::kSloppy)
-      .Check();
+  Object::SetElement(isolate, array, 0, name, LanguageMode::kSloppy).Check();
   CHECK_EQ(Smi::FromInt(1), array->length());
   element = i::Object::GetElement(isolate, array, 0).ToHandleChecked();
   CHECK_EQ(*element, *name);
@@ -1111,8 +1102,7 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  JSReceiver::SetElement(isolate, array, int_length, name,
-                         LanguageMode::kSloppy)
+  Object::SetElement(isolate, array, int_length, name, LanguageMode::kSloppy)
       .Check();
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
@@ -1144,14 +1134,11 @@ TEST(JSObjectCopy) {
   Handle<Smi> one(Smi::FromInt(1), isolate);
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
-  JSReceiver::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy)
-      .Check();
-  JSReceiver::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy).Check();
 
-  JSReceiver::SetElement(isolate, obj, 0, first, LanguageMode::kSloppy).Check();
-  JSReceiver::SetElement(isolate, obj, 1, second, LanguageMode::kSloppy)
-      .Check();
+  Object::SetElement(isolate, obj, 0, first, LanguageMode::kSloppy).Check();
+  Object::SetElement(isolate, obj, 1, second, LanguageMode::kSloppy).Check();
 
   // Make the clone.
   Handle<Object> value1, value2;
@@ -1173,15 +1160,13 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*value1, *value2);
 
   // Flip the values.
-  JSReceiver::SetProperty(isolate, clone, first, two, LanguageMode::kSloppy)
+  Object::SetProperty(isolate, clone, first, two, LanguageMode::kSloppy)
       .Check();
-  JSReceiver::SetProperty(isolate, clone, second, one, LanguageMode::kSloppy)
+  Object::SetProperty(isolate, clone, second, one, LanguageMode::kSloppy)
       .Check();
 
-  JSReceiver::SetElement(isolate, clone, 0, second, LanguageMode::kSloppy)
-      .Check();
-  JSReceiver::SetElement(isolate, clone, 1, first, LanguageMode::kSloppy)
-      .Check();
+  Object::SetElement(isolate, clone, 0, second, LanguageMode::kSloppy).Check();
+  Object::SetElement(isolate, clone, 1, first, LanguageMode::kSloppy).Check();
 
   value1 = Object::GetElement(isolate, obj, 1).ToHandleChecked();
   value2 = Object::GetElement(isolate, clone, 0).ToHandleChecked();
@@ -1290,6 +1275,147 @@ TEST(Iteration) {
   CHECK_EQ(objs_count, next_objs_index);
   CHECK_EQ(objs_count, ObjectsFoundInHeap(CcTest::heap(), objs, objs_count));
 }
+
+TEST(TestBytecodeFlushing) {
+#ifndef V8_LITE_MODE
+  FLAG_opt = false;
+  FLAG_always_opt = false;
+  i::FLAG_optimize_for_size = false;
+#endif  // V8_LITE_MODE
+  i::FLAG_flush_bytecode = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  Factory* factory = i_isolate->factory();
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Context::New(isolate)->Enter();
+    const char* source =
+        "function foo() {"
+        "  var x = 42;"
+        "  var y = 42;"
+        "  var z = x + y;"
+        "};"
+        "foo()";
+    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+
+    // This compile will add the code to the compilation cache.
+    {
+      v8::HandleScope scope(isolate);
+      CompileRun(source);
+    }
+
+    // Check function is compiled.
+    Handle<Object> func_value =
+        Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
+            .ToHandleChecked();
+    CHECK(func_value->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    CHECK(function->shared()->is_compiled());
+
+    // The code will survive at least two GCs.
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
+    CHECK(function->shared()->is_compiled());
+
+    // Simulate several GCs that use full marking.
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      CcTest::CollectAllGarbage();
+    }
+
+    // foo should no longer be in the compilation cache
+    CHECK(!function->shared()->is_compiled());
+    CHECK(!function->is_compiled());
+    // Call foo to get it recompiled.
+    CompileRun("foo()");
+    CHECK(function->shared()->is_compiled());
+    CHECK(function->is_compiled());
+  }
+}
+
+#ifndef V8_LITE_MODE
+
+TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
+  FLAG_opt = true;
+  FLAG_always_opt = false;
+  i::FLAG_optimize_for_size = false;
+  i::FLAG_incremental_marking = true;
+  i::FLAG_flush_bytecode = true;
+  i::FLAG_allow_natives_syntax = true;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(CcTest::isolate());
+  const char* source =
+      "function foo() {"
+      "  var x = 42;"
+      "  var y = 42;"
+      "  var z = x + y;"
+      "};"
+      "foo()";
+  Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+
+  // This compile will add the code to the compilation cache.
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun(source);
+  }
+
+  // Check function is compiled.
+  Handle<Object> func_value =
+      Object::GetProperty(isolate, isolate->global_object(), foo_name)
+          .ToHandleChecked();
+  CHECK(func_value->IsJSFunction());
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+  CHECK(function->shared()->is_compiled());
+
+  // The code will survive at least two GCs.
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+  CHECK(function->shared()->is_compiled());
+
+  // Simulate several GCs that use incremental marking.
+  const int kAgingThreshold = 6;
+  for (int i = 0; i < kAgingThreshold; i++) {
+    heap::SimulateIncrementalMarking(CcTest::heap());
+    CcTest::CollectAllGarbage();
+  }
+  CHECK(!function->shared()->is_compiled());
+  CHECK(!function->is_compiled());
+
+  // This compile will compile the function again.
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("foo();");
+  }
+
+  // Simulate several GCs that use incremental marking but make sure
+  // the loop breaks once the function is enqueued as a candidate.
+  for (int i = 0; i < kAgingThreshold; i++) {
+    heap::SimulateIncrementalMarking(CcTest::heap());
+    if (function->shared()->GetBytecodeArray()->IsOld()) break;
+    CcTest::CollectAllGarbage();
+  }
+
+  // Force optimization while incremental marking is active and while
+  // the function is enqueued as a candidate.
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    CompileRun("%OptimizeFunctionOnNextCall(foo); foo();");
+  }
+
+  // Simulate one final GC and make sure the candidate wasn't flushed.
+  CcTest::CollectAllGarbage();
+  CHECK(function->shared()->is_compiled());
+  CHECK(function->is_compiled());
+}
+
+#endif  // V8_LITE_MODE
 
 TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   if (!FLAG_incremental_marking) return;
@@ -2498,8 +2624,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
     CHECK_EQ(1.1, o->RawFastDoublePropertyAt(idx2));
   }
 
-  JSObject* inner_object =
-      reinterpret_cast<JSObject*>(o->RawFastPropertyAt(idx1));
+  JSObject inner_object = JSObject::cast(o->RawFastPropertyAt(idx1));
   CHECK(CcTest::heap()->InOldSpace(inner_object));
   if (!inner_object->IsUnboxedDoubleField(idx1)) {
     CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx1)));
@@ -2863,8 +2988,8 @@ static void AddPropertyTo(
   FLAG_gc_global = true;
   FLAG_retain_maps_for_n_gc = 0;
   CcTest::heap()->set_allocation_timeout(gc_count);
-  JSReceiver::SetProperty(isolate, object, prop_name, twenty_three,
-                          LanguageMode::kSloppy)
+  Object::SetProperty(isolate, object, prop_name, twenty_three,
+                      LanguageMode::kSloppy)
       .Check();
 }
 
@@ -3464,7 +3589,7 @@ TEST(LargeObjectSlotRecording) {
   Handle<FixedArray> lit = isolate->factory()->NewFixedArray(4, TENURED);
   Page* evac_page = Page::FromAddress(lit->address());
   heap::ForceEvacuationCandidate(evac_page);
-  FixedArray* old_location = *lit;
+  FixedArray old_location = *lit;
 
   // Allocate a large object.
   int size = Max(1000000, kMaxRegularHeapObjectSize + KB);
@@ -3497,8 +3622,8 @@ TEST(LargeObjectSlotRecording) {
 
 class DummyVisitor : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override {}
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {}
 };
 
 
@@ -3641,7 +3766,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
                 .ToLocalChecked())));
 
     int dependency_group_count = 0;
-    DependentCode* dependency = site->dependent_code();
+    DependentCode dependency = site->dependent_code();
     while (dependency != ReadOnlyRoots(heap).empty_weak_fixed_array()) {
       CHECK(dependency->group() ==
                 DependentCode::kAllocationSiteTransitionChangedGroup ||
@@ -4393,7 +4518,7 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 void CheckIC(Handle<JSFunction> function, int slot_index,
              InlineCacheState state) {
-  FeedbackVector* vector = function->feedback_vector();
+  FeedbackVector vector = function->feedback_vector();
   FeedbackSlot slot(slot_index);
   FeedbackNexus nexus(vector, slot);
   CHECK_EQ(nexus.StateFromFeedback(), state);
@@ -4702,8 +4827,7 @@ TEST(Regress3631) {
   // Incrementally mark the backing store.
   Handle<JSReceiver> obj =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-  Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj),
-                                    isolate);
+  Handle<JSWeakCollection> weak_map(JSWeakCollection::cast(*obj), isolate);
   HeapObject* weak_map_table = HeapObject::cast(weak_map->table());
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   while (!marking_state->IsBlack(weak_map_table) && !marking->IsStopped()) {
@@ -4733,7 +4857,7 @@ TEST(Regress442710) {
   Handle<JSArray> array = factory->NewJSArray(2);
 
   Handle<String> name = factory->InternalizeUtf8String("testArray");
-  JSReceiver::SetProperty(isolate, global, name, array, LanguageMode::kSloppy)
+  Object::SetProperty(isolate, global, name, array, LanguageMode::kSloppy)
       .Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
   CcTest::CollectGarbage(OLD_SPACE);
@@ -5147,7 +5271,7 @@ TEST(SharedFunctionInfoIterator) {
 
   {
     SharedFunctionInfo::GlobalIterator iterator(isolate);
-    while (iterator.Next()) sfi_count--;
+    while (!iterator.Next().is_null()) sfi_count--;
   }
 
   CHECK_EQ(0, sfi_count);
@@ -5196,7 +5320,7 @@ HEAP_TEST(Regress587004) {
   heap::SimulateFullSpace(heap->old_space());
   heap->RightTrimFixedArray(*array, N - 1);
   heap->mark_compact_collector()->EnsureSweepingCompleted();
-  ByteArray* byte_array;
+  ByteArray byte_array;
   const int M = 256;
   // Don't allow old space expansion. The test works without this flag too,
   // but becomes very slow.
@@ -5227,7 +5351,7 @@ HEAP_TEST(Regress589413) {
   Factory* factory = isolate->factory();
   // Fill the new space with byte arrays with elements looking like pointers.
   const int M = 256;
-  ByteArray* byte_array;
+  ByteArray byte_array;
   while (AllocateByteArrayForTest(heap, M, NOT_TENURED).To(&byte_array)) {
     for (int j = 0; j < M; j++) {
       byte_array->set(j, 0x31);
@@ -5240,14 +5364,14 @@ HEAP_TEST(Regress589413) {
   // This number is close to large free list category threshold.
   const int N = 0x3EEE;
   {
-    std::vector<FixedArray*> arrays;
+    std::vector<FixedArray> arrays;
     std::set<Page*> pages;
-    FixedArray* array;
+    FixedArray array;
     // Fill all pages with fixed arrays.
     heap->set_force_oom(true);
     while (AllocateFixedArrayForTest(heap, N, TENURED).To(&array)) {
       arrays.push_back(array);
-      pages.insert(Page::FromAddress(array->address()));
+      pages.insert(Page::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
     }
@@ -5255,7 +5379,7 @@ HEAP_TEST(Regress589413) {
     heap->set_force_oom(false);
     while (AllocateFixedArrayForTest(heap, N, TENURED).To(&array)) {
       arrays.push_back(array);
-      pages.insert(Page::FromAddress(array->address()));
+      pages.insert(Page::FromHeapObject(array));
       // Add the array in root set.
       handle(array, isolate);
       // Do not expand anymore.
@@ -5307,7 +5431,7 @@ TEST(Regress598319) {
         // Temporary scope to avoid getting any other objects into the root set.
         v8::HandleScope scope(CcTest::isolate());
         Handle<FixedArray> tmp =
-            isolate->factory()->NewFixedArray(number_of_objects);
+            isolate->factory()->NewFixedArray(number_of_objects, TENURED);
         root->set(0, *tmp);
         for (int i = 0; i < get()->length(); i++) {
           tmp = isolate->factory()->NewFixedArray(100, TENURED);
@@ -5316,7 +5440,7 @@ TEST(Regress598319) {
       }
     }
 
-    FixedArray* get() { return FixedArray::cast(root->get(0)); }
+    FixedArray get() { return FixedArray::cast(root->get(0)); }
 
     Handle<FixedArray> root;
   } arr(isolate, kNumberOfObjects);
@@ -5571,7 +5695,7 @@ TEST(LeftTrimFixedArrayInBlackArea) {
   // Now left trim the allocated black area. A filler has to be installed
   // for the trimmed area and all mark bits of the trimmed area have to be
   // cleared.
-  FixedArrayBase* trimmed = heap->LeftTrimFixedArray(*array, 10);
+  FixedArrayBase trimmed = heap->LeftTrimFixedArray(*array, 10);
   CHECK(marking_state->IsBlack(trimmed));
 
   heap::GcAndSweep(heap, OLD_SPACE);
@@ -5616,8 +5740,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
       page->AddressToMarkbitIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
 
-  FixedArrayBase* previous = *array;
-  FixedArrayBase* trimmed;
+  FixedArrayBase previous = *array;
+  FixedArrayBase trimmed;
 
   // First trim in one word steps.
   for (int i = 0; i < 10; i++) {
@@ -5726,7 +5850,7 @@ TEST(Regress618958) {
          !heap->incremental_marking()->IsStopped()));
 }
 
-TEST(YoungGenerationLargeObjectAllocation) {
+TEST(YoungGenerationLargeObjectAllocationScavenge) {
   if (FLAG_minor_mc) return;
   FLAG_young_generation_large_objects = true;
   CcTest::InitializeVM();
@@ -5735,13 +5859,9 @@ TEST(YoungGenerationLargeObjectAllocation) {
   Isolate* isolate = heap->isolate();
   if (!isolate->serializer_enabled()) return;
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
-  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
-
-  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
-  chunk = MemoryChunk::FromAddress(array_small->address());
+  // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
+  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
   CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 
@@ -5759,13 +5879,70 @@ TEST(YoungGenerationLargeObjectAllocation) {
   CcTest::CollectAllAvailableGarbage();
 }
 
+TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
+  if (FLAG_minor_mc) return;
+  FLAG_young_generation_large_objects = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  if (!isolate->serializer_enabled()) return;
+
+  // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
+  Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
+  CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+  CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+
+  Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
+  array_small->set(0, *number);
+
+  CcTest::CollectGarbage(OLD_SPACE);
+
+  // After the first full GC array_small will be in the old generation
+  // large object space.
+  chunk = MemoryChunk::FromAddress(array_small->address());
+  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+
+  CcTest::CollectAllAvailableGarbage();
+}
+
+TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
+  if (FLAG_minor_mc) return;
+  FLAG_young_generation_large_objects = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  if (!isolate->serializer_enabled()) return;
+
+  {
+    HandleScope scope(isolate);
+    for (int i = 0; i < 10; i++) {
+      Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
+      MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
+      CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+      CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+    }
+  }
+
+  CcTest::CollectGarbage(NEW_SPACE);
+  CHECK(isolate->heap()->new_lo_space()->IsEmpty());
+  CHECK_EQ(0, isolate->heap()->new_lo_space()->Size());
+  CHECK_EQ(0, isolate->heap()->new_lo_space()->SizeOfObjects());
+  CHECK(isolate->heap()->lo_space()->IsEmpty());
+  CHECK_EQ(0, isolate->heap()->lo_space()->Size());
+  CHECK_EQ(0, isolate->heap()->lo_space()->SizeOfObjects());
+}
+
 TEST(UncommitUnusedLargeObjectMemory) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000, TENURED);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
   CHECK(chunk->owner()->identity() == LO_SPACE);
 
@@ -5788,8 +5965,8 @@ TEST(RememberedSetRemoveRange) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(Page::kPageSize /
-                                                              kPointerSize);
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(
+      Page::kPageSize / kPointerSize, TENURED);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
   CHECK(chunk->owner()->identity() == LO_SPACE);
   Address start = array->address();
@@ -5880,7 +6057,8 @@ HEAP_TEST(Regress670675) {
   for (size_t i = 0; i < n + 40; i++) {
     {
       HandleScope inner_scope(isolate);
-      isolate->factory()->NewFixedArray(static_cast<int>(array_length));
+      isolate->factory()->NewFixedArray(static_cast<int>(array_length),
+                                        TENURED);
     }
     if (marking->IsStopped()) break;
     double deadline = heap->MonotonicallyIncreasingTimeInMs() + 1;

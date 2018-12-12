@@ -1607,7 +1607,7 @@ void InstructionSelector::EmitPrepareArguments(
     int slot = kCArgSlotCount;
     for (PushParameter input : (*arguments)) {
       Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
-           g.TempImmediate(slot << kPointerSizeLog2));
+           g.TempImmediate(slot << kSystemPointerSizeLog2));
       ++slot;
     }
   } else {
@@ -1621,13 +1621,13 @@ void InstructionSelector::EmitPrepareArguments(
         }
       }
       Emit(kMips64StackClaim, g.NoOutput(),
-           g.TempImmediate(stack_size << kPointerSizeLog2));
+           g.TempImmediate(stack_size << kSystemPointerSizeLog2));
     }
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
       if (input.node) {
         Emit(kMips64StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
-             g.TempImmediate(static_cast<int>(n << kPointerSizeLog2)));
+             g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
       }
     }
   }

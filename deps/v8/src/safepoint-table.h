@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/utils.h"
 #include "src/v8memory.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone.h"

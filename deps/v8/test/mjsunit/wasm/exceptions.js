@@ -6,26 +6,7 @@
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
-
-function assertWasmThrows(instance, runtime_id, values, code) {
-  try {
-    if (typeof code === 'function') {
-      code();
-    } else {
-      eval(code);
-    }
-  } catch (e) {
-    assertInstanceof(e, WebAssembly.RuntimeError);
-    var e_runtime_id = %GetWasmExceptionId(e, instance);
-    assertTrue(Number.isInteger(e_runtime_id));
-    assertEquals(e_runtime_id, runtime_id);
-    var e_values = %GetWasmExceptionValues(e);
-    assertArrayEquals(values, e_values);
-    return;  // Success.
-  }
-  throw new MjsUnitAssertionError('Did not throw expected <' + runtime_id +
-                                  '> with values: ' + values);
-}
+load("test/mjsunit/wasm/exceptions-utils.js");
 
 // First we just test that "except_ref" local variables are allowed.
 (function TestLocalExceptRef() {

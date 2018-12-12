@@ -213,7 +213,7 @@ TestCoverage(
     nop();                                // 0100
   }                                       // 0150
 }();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
@@ -662,7 +662,7 @@ async function f() {                      // 0000
   await 42;                               // 0100
 };                                        // 0150
 f();                                      // 0200
-%RunMicrotasks();                         // 0250
+%PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":0,"end":151,"count":3},

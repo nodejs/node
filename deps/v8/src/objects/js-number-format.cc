@@ -90,9 +90,8 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   Handle<String> locale =
       Handle<String>(number_format_holder->locale(), isolate);
 
-  UErrorCode error = U_ZERO_ERROR;
-  icu::Locale icu_locale = number_format->getLocale(ULOC_VALID_LOCALE, error);
-  DCHECK(U_SUCCESS(error));
+  std::unique_ptr<char[]> locale_str = locale->ToCString();
+  icu::Locale icu_locale = Intl::CreateICULocale(locale_str.get());
 
   std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
 
@@ -264,26 +263,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
   number_format->set_locale(*locale_str);
 
-  icu::Locale icu_locale = r.icu_locale;
-  DCHECK(!icu_locale.isBogus());
-
-  std::map<std::string, std::string> extensions = r.extensions;
-
-  // The list that is the value of the "nu" field of any locale field of
-  // [[LocaleData]] must not include the values "native",  "traditio", or
-  // "finance".
-  //
-  // See https://tc39.github.io/ecma402/#sec-intl.numberformat-internal-slots
-  if (extensions.find("nu") != extensions.end()) {
-    const std::string value = extensions.at("nu");
-    if (value == "native" || value == "traditio" || value == "finance") {
-      // 10. Set numberFormat.[[NumberingSystem]] to r.[[nu]].
-      UErrorCode status = U_ZERO_ERROR;
-      icu_locale.setKeywordValue("nu", nullptr, status);
-      CHECK(U_SUCCESS(status));
-    }
-  }
-
   // 11. Let dataLocale be r.[[dataLocale]].
   //
   // 12. Let style be ? GetOption(options, "style", "string",  « "decimal",
@@ -357,20 +336,20 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   std::unique_ptr<icu::NumberFormat> icu_number_format;
   if (style == Style::DECIMAL) {
     icu_number_format.reset(
-        icu::NumberFormat::createInstance(icu_locale, status));
+        icu::NumberFormat::createInstance(r.icu_locale, status));
   } else if (style == Style::PERCENT) {
     icu_number_format.reset(
-        icu::NumberFormat::createPercentInstance(icu_locale, status));
+        icu::NumberFormat::createPercentInstance(r.icu_locale, status));
   } else {
     DCHECK_EQ(style, Style::CURRENCY);
     icu_number_format.reset(
-        icu::NumberFormat::createInstance(icu_locale, format_style, status));
+        icu::NumberFormat::createInstance(r.icu_locale, format_style, status));
   }
 
   if (U_FAILURE(status) || icu_number_format.get() == nullptr) {
     status = U_ZERO_ERROR;
     // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
+    icu::Locale no_extension_locale(r.icu_locale.getBaseName());
     icu_number_format.reset(
         icu::NumberFormat::createInstance(no_extension_locale, status));
 

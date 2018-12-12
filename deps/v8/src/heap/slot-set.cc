@@ -19,9 +19,8 @@ TypedSlots::~TypedSlots() {
   tail_ = nullptr;
 }
 
-void TypedSlots::Insert(SlotType type, uint32_t host_offset, uint32_t offset) {
-  TypedSlot slot = {TypeField::encode(type) | OffsetField::encode(offset),
-                    host_offset};
+void TypedSlots::Insert(SlotType type, uint32_t offset) {
+  TypedSlot slot = {TypeField::encode(type) | OffsetField::encode(offset)};
   Chunk* chunk = EnsureChunk();
   DCHECK_LT(chunk->count, chunk->capacity);
   chunk->buffer[chunk->count] = slot;
@@ -80,15 +79,15 @@ void TypedSlotSet::ClearInvalidSlots(
       TypedSlot slot = LoadTypedSlot(buffer + i);
       SlotType type = TypeField::decode(slot.type_and_offset);
       if (type == CLEARED_SLOT) continue;
-      uint32_t host_offset = slot.host_offset;
+      uint32_t offset = OffsetField::decode(slot.type_and_offset);
       std::map<uint32_t, uint32_t>::const_iterator upper_bound =
-          invalid_ranges.upper_bound(host_offset);
+          invalid_ranges.upper_bound(offset);
       if (upper_bound == invalid_ranges.begin()) continue;
       // upper_bounds points to the invalid range after the given slot. Hence,
       // we have to go to the previous element.
       upper_bound--;
-      DCHECK_LE(upper_bound->first, host_offset);
-      if (upper_bound->second > host_offset) {
+      DCHECK_LE(upper_bound->first, offset);
+      if (upper_bound->second > offset) {
         ClearTypedSlot(buffer + i);
       }
     }

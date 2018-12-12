@@ -48,7 +48,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     MaybeHandle<JSArrayBuffer> memory);
 
 V8_EXPORT_PRIVATE
-void CompileJsToWasmWrappers(Isolate* isolate, NativeModule* native_module,
+void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
@@ -118,9 +118,17 @@ class AsyncCompileJob {
 
   void StartBackgroundTask();
 
+  enum UseExistingForegroundTask : bool {
+    kUseExistingForegroundTask = true,
+    kAssertNoExistingForegroundTask = false
+  };
   // Switches to the compilation step {Step} and starts a foreground task to
-  // execute it.
-  template <typename Step, typename... Args>
+  // execute it. Most of the time we know that there cannot be a running
+  // foreground task. If there might be one, then pass
+  // kUseExistingForegroundTask to avoid spawning a second one.
+  template <typename Step,
+            UseExistingForegroundTask = kAssertNoExistingForegroundTask,
+            typename... Args>
   void DoSync(Args&&... args);
 
   // Switches to the compilation step {Step} and immediately executes that step.

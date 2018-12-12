@@ -73,8 +73,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   Code::Kind code_kind() const { return code_kind_; }
-  uint32_t stub_key() const { return stub_key_; }
-  void set_stub_key(uint32_t stub_key) { stub_key_ = stub_key; }
   int32_t builtin_index() const { return builtin_index_; }
   void set_builtin_index(int32_t index) { builtin_index_ = index; }
   BailoutId osr_offset() const { return osr_offset_; }
@@ -177,18 +175,18 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void SetCode(Handle<Code> code) { code_ = code; }
 
   bool has_context() const;
-  Context* context() const;
+  Context context() const;
 
   bool has_native_context() const;
-  Context* native_context() const;
+  Context native_context() const;
 
   bool has_global_object() const;
-  JSGlobalObject* global_object() const;
+  JSGlobalObject global_object() const;
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return code_kind() == Code::OPTIMIZED_FUNCTION; }
   bool IsWasm() const { return code_kind() == Code::WASM_FUNCTION; }
-  bool IsStub() const {
+  bool IsNotOptimizedFunctionOrWasmFunction() const {
     return code_kind() != Code::OPTIMIZED_FUNCTION &&
            code_kind() != Code::WASM_FUNCTION;
   }
@@ -280,7 +278,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
       PoisoningMitigationLevel::kDontPoison;
 
   Code::Kind code_kind_;
-  uint32_t stub_key_ = 0;
   int32_t builtin_index_ = -1;
 
   // We retain a reference the bytecode array specifically to ensure it doesn't

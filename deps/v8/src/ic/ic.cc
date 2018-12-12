@@ -127,7 +127,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   Object* maybe_function =
       Memory<Object*>(fp_ + JavaScriptFrameConstants::kFunctionOffset);
   DCHECK(maybe_function->IsJSFunction());
-  JSFunction* function = JSFunction::cast(maybe_function);
+  JSFunction function = JSFunction::cast(maybe_function);
   int code_offset = 0;
   if (function->IsInterpreted()) {
     code_offset = InterpretedFrame::GetBytecodeOffset(fp());
@@ -200,7 +200,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
   old_state_ = state_;
 }
 
-JSFunction* IC::GetHostFunction() const {
+JSFunction IC::GetHostFunction() const {
   // Compute the JavaScript frame for the frame pointer of this IC
   // structure. We need this to be able to find the function
   // corresponding to the frame.
@@ -273,7 +273,7 @@ bool IC::RecomputeHandlerForName(Handle<Object> name) {
   if (is_keyed()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
-    Name* stub_name = nexus()->FindFirstName();
+    Name stub_name = nexus()->FindFirstName();
     if (*name != stub_name) return false;
   }
 
@@ -310,15 +310,15 @@ MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
 
 // static
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
-                           JSFunction* host_function, const char* reason) {
-  FeedbackVector* vector = nexus->vector();
+                           JSFunction host_function, const char* reason) {
+  FeedbackVector vector = nexus->vector();
   FeedbackSlot slot = nexus->slot();
   OnFeedbackChanged(isolate, vector, slot, host_function, reason);
 }
 
 // static
-void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
-                           FeedbackSlot slot, JSFunction* host_function,
+void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
+                           FeedbackSlot slot, JSFunction host_function,
                            const char* reason) {
   if (FLAG_trace_opt_verbose) {
     // TODO(leszeks): The host function is only needed for this print, we could
@@ -491,10 +491,12 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
     ScriptContextTable::LookupResult lookup_result;
     if (ScriptContextTable::Lookup(isolate(), script_contexts, str_name,
                                    &lookup_result)) {
-      Handle<Object> result = FixedArray::get(
-          *ScriptContextTable::GetContext(isolate(), script_contexts,
-                                          lookup_result.context_index),
-          lookup_result.slot_index, isolate());
+      Handle<Context> script_context = ScriptContextTable::GetContext(
+          isolate(), script_contexts, lookup_result.context_index);
+
+      Handle<Object> result(script_context->get(lookup_result.slot_index),
+                            isolate());
+
       if (result->IsTheHole(isolate())) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
@@ -502,9 +504,8 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
       }
 
       if (FLAG_use_ic) {
-        if (nexus()->ConfigureLexicalVarMode(
-                lookup_result.context_index, lookup_result.slot_index,
-                lookup_result.mode == VariableMode::kConst)) {
+        if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
+                                             lookup_result.slot_index)) {
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_LoadScriptContextField);
         } else {
           // Given combination of indices can't be encoded, so use slow stub.
@@ -1352,8 +1353,8 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
 
-    Handle<Object> previous_value =
-        FixedArray::get(*script_context, lookup_result.slot_index, isolate());
+    Handle<Object> previous_value(script_context->get(lookup_result.slot_index),
+                                  isolate());
 
     if (previous_value->IsTheHole(isolate())) {
       // Do not install stubs and stay pre-monomorphic for
@@ -1362,9 +1363,8 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     }
 
     if (FLAG_use_ic) {
-      if (nexus()->ConfigureLexicalVarMode(
-              lookup_result.context_index, lookup_result.slot_index,
-              lookup_result.mode == VariableMode::kConst)) {
+      if (nexus()->ConfigureLexicalVarMode(lookup_result.context_index,
+                                           lookup_result.slot_index)) {
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_StoreScriptContextField);
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
@@ -1843,41 +1843,40 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   }
 
   // TODO(ishell): move to StoreHandler::StoreElement().
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  Handle<Code> stub;
+  Handle<Code> code;
   if (receiver_map->has_sloppy_arguments_elements()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
-    stub =
+    code =
         CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
-    stub = StoreFastElementStub(isolate(), elements_kind, store_mode).GetCode();
-    if (receiver_map->has_fixed_typed_array_elements()) return stub;
+    code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();
+    if (receiver_map->has_fixed_typed_array_elements()) return code;
   } else if (IsStoreInArrayLiteralICKind(kind())) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
-    stub =
+    code =
         CodeFactory::StoreInArrayLiteralIC_Slow(isolate(), store_mode).code();
   } else {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
-    DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
-    stub = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
+    DCHECK_EQ(DICTIONARY_ELEMENTS, receiver_map->elements_kind());
+    code = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
   }
 
-  if (IsStoreInArrayLiteralICKind(kind())) return stub;
+  if (IsStoreInArrayLiteralICKind(kind())) return code;
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell->IsSmi()) {
     // There's no prototype validity cell to check, so we can just use the stub.
-    return stub;
+    return code;
   }
   Handle<StoreHandler> handler = isolate()->factory()->NewStoreHandler(0);
   handler->set_validity_cell(*validity_cell);
-  handler->set_smi_handler(*stub);
+  handler->set_smi_handler(*code);
   return handler;
 }
 
@@ -2226,8 +2225,8 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate, script_contexts, lookup_result.context_index);
-    Handle<Object> result =
-        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
+    Handle<Object> result(script_context->get(lookup_result.slot_index),
+                          isolate);
     if (*result == ReadOnlyRoots(isolate).the_hole_value()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
@@ -2348,8 +2347,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }
 
-    Handle<Object> previous_value =
-        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
+    Handle<Object> previous_value(script_context->get(lookup_result.slot_index),
+                                  isolate);
 
     if (previous_value->IsTheHole(isolate)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
@@ -2467,10 +2466,10 @@ static bool CanFastCloneObject(Handle<Map> map) {
     return false;
   }
 
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors();
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    Name* key = descriptors->GetKey(i);
+    Name key = descriptors->GetKey(i);
     if (details.kind() != kData || !details.IsEnumerable() ||
         key->IsPrivateName()) {
       return false;
@@ -2524,7 +2523,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
       isolate, source_descriptors, size, slack);
   Handle<LayoutDescriptor> layout =
       LayoutDescriptor::New(isolate, map, descriptors, size);
-  map->InitializeDescriptors(*descriptors, *layout);
+  map->InitializeDescriptors(isolate, *descriptors, *layout);
   map->CopyUnusedPropertyFieldsAdjustedForInstanceSize(*source_map);
 
   // Update bitfields

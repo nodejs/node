@@ -230,11 +230,12 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   static Address GrowStack(Address stack_pointer, Address* stack_top,
                            Isolate* isolate);
 
-  static const byte* StringCharacterPosition(String* subject, int start_index);
+  static const byte* StringCharacterPosition(
+      String subject, int start_index, const DisallowHeapAllocation& no_gc);
 
   static int CheckStackGuardState(Isolate* isolate, int start_index,
                                   bool is_direct_call, Address* return_address,
-                                  Code re_code, String** subject,
+                                  Code re_code, Address* subject,
                                   const byte** input_start,
                                   const byte** input_end);
 
@@ -247,7 +248,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
     return reinterpret_cast<Address>(&word_character_map[0]);
   }
 
-  static Result Execute(Code code, String* input, int start_offset,
+  static Result Execute(Code code, String input, int start_offset,
                         const byte* input_start, const byte* input_end,
                         int* output, int output_size, Isolate* isolate);
 };

@@ -1262,7 +1262,7 @@ void InstructionSelector::EmitPrepareArguments(
     for (PushParameter input : (*arguments)) {
       if (input.node) {
         Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
-             g.TempImmediate(slot << kPointerSizeLog2));
+             g.TempImmediate(slot << kSystemPointerSizeLog2));
         ++slot;
       }
     }
@@ -1279,13 +1279,13 @@ void InstructionSelector::EmitPrepareArguments(
         }
       }
       Emit(kMipsStackClaim, g.NoOutput(),
-           g.TempImmediate(stack_size << kPointerSizeLog2));
+           g.TempImmediate(stack_size << kSystemPointerSizeLog2));
     }
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
       if (input.node) {
         Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
-             g.TempImmediate(n << kPointerSizeLog2));
+             g.TempImmediate(n << kSystemPointerSizeLog2));
       }
     }
   }

@@ -26,7 +26,7 @@ syn keyword torqueBranch break continue goto
 syn keyword torqueConditional if else typeswitch otherwise
 syn match torqueConstant /\v<[A-Z][A-Z0-9_]+>/
 syn match torqueConstant /\v<k[A-Z][A-Za-z0-9]*>/
-syn keyword torqueFunction macro builtin runtime
+syn keyword torqueFunction macro builtin runtime intrinsic
 syn keyword torqueKeyword cast convert from_constexpr min max unsafe_cast
 syn keyword torqueLabel case
 syn keyword torqueMatching try label catch

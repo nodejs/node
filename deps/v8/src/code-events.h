@@ -10,6 +10,9 @@
 #include "src/base/platform/mutex.h"
 #include "src/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/name.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/string.h"
 #include "src/vector.h"
 
 namespace v8 {
@@ -69,26 +72,26 @@ class CodeEventListener {
 
   virtual ~CodeEventListener() = default;
 
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                                const char* comment) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                               Name* name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                               SharedFunctionInfo* shared, Name* source) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                               SharedFunctionInfo* shared, Name* source,
-                               int line, int column) = 0;
+  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                               Name name) = 0;
+  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                               SharedFunctionInfo shared, Name source) = 0;
+  virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                               SharedFunctionInfo shared, Name source, int line,
+                               int column) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                                wasm::WasmName name) = 0;
-  virtual void CallbackEvent(Name* name, Address entry_point) = 0;
-  virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
-  virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
-  virtual void RegExpCodeCreateEvent(AbstractCode* code, String* source) = 0;
-  virtual void CodeMoveEvent(AbstractCode* from, AbstractCode* to) = 0;
+  virtual void CallbackEvent(Name name, Address entry_point) = 0;
+  virtual void GetterCallbackEvent(Name name, Address entry_point) = 0;
+  virtual void SetterCallbackEvent(Name name, Address entry_point) = 0;
+  virtual void RegExpCodeCreateEvent(AbstractCode code, String source) = 0;
+  virtual void CodeMoveEvent(AbstractCode from, AbstractCode to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
-  virtual void CodeDisableOptEvent(AbstractCode* code,
-                                   SharedFunctionInfo* shared) = 0;
+  virtual void CodeDisableOptEvent(AbstractCode code,
+                                   SharedFunctionInfo shared) = 0;
   virtual void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                               int fp_to_sp_delta) = 0;
 
@@ -122,19 +125,19 @@ class CodeEventDispatcher {
   base::MutexGuard guard(&mutex_); \
   for (auto it = listeners_.begin(); it != listeners_.end(); ++it) (*it)->code
 
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
                        const char* comment) {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, comment));
   }
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code, Name* name) {
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code, Name name) {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, name));
   }
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, Name* name) {
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                       SharedFunctionInfo shared, Name name) {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, shared, name));
   }
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, Name* source, int line,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                       SharedFunctionInfo shared, Name source, int line,
                        int column) {
     CODE_EVENT_DISPATCH(
         CodeCreateEvent(tag, code, shared, source, line, column));
@@ -143,26 +146,26 @@ class CodeEventDispatcher {
                        wasm::WasmName name) {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, name));
   }
-  void CallbackEvent(Name* name, Address entry_point) {
+  void CallbackEvent(Name name, Address entry_point) {
     CODE_EVENT_DISPATCH(CallbackEvent(name, entry_point));
   }
-  void GetterCallbackEvent(Name* name, Address entry_point) {
+  void GetterCallbackEvent(Name name, Address entry_point) {
     CODE_EVENT_DISPATCH(GetterCallbackEvent(name, entry_point));
   }
-  void SetterCallbackEvent(Name* name, Address entry_point) {
+  void SetterCallbackEvent(Name name, Address entry_point) {
     CODE_EVENT_DISPATCH(SetterCallbackEvent(name, entry_point));
   }
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) {
+  void RegExpCodeCreateEvent(AbstractCode code, String source) {
     CODE_EVENT_DISPATCH(RegExpCodeCreateEvent(code, source));
   }
-  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) {
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) {
     CODE_EVENT_DISPATCH(CodeMoveEvent(from, to));
   }
   void SharedFunctionInfoMoveEvent(Address from, Address to) {
     CODE_EVENT_DISPATCH(SharedFunctionInfoMoveEvent(from, to));
   }
   void CodeMovingGCEvent() { CODE_EVENT_DISPATCH(CodeMovingGCEvent()); }
-  void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared) {
+  void CodeDisableOptEvent(AbstractCode code, SharedFunctionInfo shared) {
     CODE_EVENT_DISPATCH(CodeDisableOptEvent(code, shared));
   }
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,

@@ -127,18 +127,20 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
 namespace internal {
 
-Handle<Context> HandleScopeImplementer::MicrotaskContext() {
-  if (microtask_context_) return Handle<Context>(microtask_context_, isolate_);
+Handle<Context> HandleScopeImplementer::LastEnteredContext() {
+  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
+
+  for (size_t i = 0; i < entered_contexts_.size(); ++i) {
+    size_t j = entered_contexts_.size() - i - 1;
+    if (!is_microtask_context_.at(j)) {
+      return Handle<Context>(entered_contexts_.at(j), isolate_);
+    }
+  }
+
   return Handle<Context>::null();
 }
 
-Handle<Context> HandleScopeImplementer::LastEnteredContext() {
-  if (entered_contexts_.empty()) return Handle<Context>::null();
-  return Handle<Context>(entered_contexts_.back(), isolate_);
-}
-
 Handle<Context> HandleScopeImplementer::LastEnteredOrMicrotaskContext() {
-  if (MicrotaskContextIsLastEnteredContext()) return MicrotaskContext();
   if (entered_contexts_.empty()) return Handle<Context>::null();
   return Handle<Context>(entered_contexts_.back(), isolate_);
 }

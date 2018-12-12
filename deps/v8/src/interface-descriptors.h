@@ -38,7 +38,6 @@ namespace internal {
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
   V(AsyncFunctionStackParameter)      \
-  V(CallFunction)                     \
   V(CallVarargs)                      \
   V(CallForwardVarargs)               \
   V(CallWithSpread)                   \
@@ -78,7 +77,10 @@ namespace internal {
   V(WasmThrow)                        \
   V(WasmAtomicWake)                   \
   V(WasmI32AtomicWait)                \
+  V(WasmI64AtomicWait)                \
   V(CloneObjectWithVector)            \
+  V(BigIntToWasmI64)                  \
+  V(BigIntToI64)                      \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -145,7 +147,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  private:
   bool IsInitializedPlatformSpecific() const {
     const bool initialized =
-        register_param_count_ >= 0 && register_params_ != nullptr;
+        (register_param_count_ == 0 && register_params_ == nullptr) ||
+        (register_param_count_ > 0 && register_params_ != nullptr);
     // Platform-specific initialization happens before platform-independent.
     return initialized;
   }
@@ -217,7 +220,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   CallInterfaceDescriptor() : data_(nullptr) {}
   virtual ~CallInterfaceDescriptor() = default;
 
-  CallInterfaceDescriptor(CallDescriptors::Key key)
+  explicit CallInterfaceDescriptor(CallDescriptors::Key key)
       : data_(CallDescriptors::call_descriptor_data(key)) {}
 
   Flags flags() const { return data()->flags(); }
@@ -808,13 +811,6 @@ class ConstructStubDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ConstructStubDescriptor, CallInterfaceDescriptor)
 };
 
-class CallFunctionDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kTarget)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())
-  DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
-};
-
 class AbortDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kMessageOrMessageId)
@@ -955,15 +951,18 @@ class CEntry1ArgvOnStackDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
-  // TODO(jgruber): This could be simplified to pass call data on the stack
-  // since this is what the CallApiCallbackStub anyways. This would free a
-  // register.
-  DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext, kCallData, kHolder,
-                               kApiFunctionAddress)
+  DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext,       // register argument
+                               kApiFunctionAddress,  // register argument
+                               kArgc,                // register argument
+                               kCallData,            // stack argument 1
+                               kHolder)              // stack argument 2
+  //                           receiver is implicit stack argument 3
+  //                           argv are implicit stack arguments [4, 4 + kArgc[
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTargetContext
+                         MachineType::Pointer(),    // kApiFunctionAddress
+                         MachineType::IntPtr(),     // kArgc
                          MachineType::AnyTagged(),  // kCallData
-                         MachineType::AnyTagged(),  // kHolder
-                         MachineType::Pointer())    // kApiFunctionAddress
+                         MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(ApiCallbackDescriptor, CallInterfaceDescriptor)
 };
 
@@ -1106,6 +1105,21 @@ class WasmThrowDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
 };
 
+class BigIntToWasmI64Descriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
+  DEFINE_PARAMETER_TYPES(MachineType::Int64())  // kArgument
+  DECLARE_DESCRIPTOR(BigIntToWasmI64Descriptor, CallInterfaceDescriptor)
+};
+
+class BigIntToI64Descriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kArgument)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int64(),      // result 1
+                                    MachineType::AnyTagged())  // kArgument
+  DECLARE_DESCRIPTOR(BigIntToI64Descriptor, CallInterfaceDescriptor)
+};
+
 class WasmAtomicWakeDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kCount)
@@ -1123,6 +1137,19 @@ class WasmI32AtomicWaitDescriptor final : public CallInterfaceDescriptor {
                                     MachineType::Int32(),    // kExpectedValue
                                     MachineType::Float64())  // kTimeout
   DECLARE_DESCRIPTOR(WasmI32AtomicWaitDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmI64AtomicWaitDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kExpectedValueHigh, kExpectedValueLow,
+                               kTimeout)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::Uint32(),   // result 1
+      MachineType::Uint32(),   // kAddress
+      MachineType::Uint32(),   // kExpectedValueHigh
+      MachineType::Uint32(),   // kExpectedValueLow
+      MachineType::Float64())  // kTimeout
+  DECLARE_DESCRIPTOR(WasmI64AtomicWaitDescriptor, CallInterfaceDescriptor)
 };
 
 class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {

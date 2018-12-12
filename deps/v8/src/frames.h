@@ -421,7 +421,7 @@ class BuiltinExitFrame : public ExitFrame {
     return static_cast<BuiltinExitFrame*>(frame);
   }
 
-  JSFunction* function() const;
+  JSFunction function() const;
   Object* receiver() const;
 
   bool IsConstructor() const;
@@ -475,7 +475,7 @@ class FrameSummary {
   class JavaScriptFrameSummary : public FrameSummaryBase {
    public:
     JavaScriptFrameSummary(Isolate* isolate, Object* receiver,
-                           JSFunction* function, AbstractCode* abstract_code,
+                           JSFunction function, AbstractCode abstract_code,
                            int code_offset, bool is_constructor);
 
     Handle<Object> receiver() const { return receiver_; }
@@ -678,7 +678,7 @@ class JavaScriptFrame : public StandardFrame {
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
   // Accessors.
-  virtual JSFunction* function() const;
+  virtual JSFunction function() const;
   Object* unchecked_function() const;
   Object* receiver() const override;
   Object* context() const override;
@@ -717,7 +717,7 @@ class JavaScriptFrame : public StandardFrame {
   Code unchecked_code() const override;
 
   // Return a list with {SharedFunctionInfo} objects of this frame.
-  virtual void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const;
+  virtual void GetFunctions(std::vector<SharedFunctionInfo>* functions) const;
 
   void GetFunctions(std::vector<Handle<SharedFunctionInfo>>* functions) const;
 
@@ -738,15 +738,15 @@ class JavaScriptFrame : public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintFunctionAndOffset(JSFunction* function, AbstractCode* code,
+  static void PrintFunctionAndOffset(JSFunction function, AbstractCode code,
                                      int code_offset, FILE* file,
                                      bool print_line_number);
 
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
-  static void CollectFunctionAndOffsetForICStats(JSFunction* function,
-                                                 AbstractCode* code,
+  static void CollectFunctionAndOffsetForICStats(JSFunction function,
+                                                 AbstractCode code,
                                                  int code_offset);
   static void CollectTopFrameForICStats(Isolate* isolate);
 
@@ -803,7 +803,7 @@ class OptimizedFrame : public JavaScriptFrame {
   // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
-  void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const override;
+  void GetFunctions(std::vector<SharedFunctionInfo>* functions) const override;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
@@ -811,7 +811,7 @@ class OptimizedFrame : public JavaScriptFrame {
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
-  DeoptimizationData* GetDeoptimizationData(int* deopt_index) const;
+  DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
   Object* receiver() const override;
 
@@ -848,11 +848,11 @@ class InterpretedFrame : public JavaScriptFrame {
   void PatchBytecodeOffset(int new_offset);
 
   // Returns the frame's current bytecode array.
-  BytecodeArray* GetBytecodeArray() const;
+  BytecodeArray GetBytecodeArray() const;
 
   // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
   // debugger to swap execution onto a BytecodeArray patched with breakpoints.
-  void PatchBytecodeArray(BytecodeArray* bytecode_array);
+  void PatchBytecodeArray(BytecodeArray bytecode_array);
 
   // Access to the interpreter register file for this frame.
   Object* ReadInterpreterRegister(int register_index) const;
@@ -946,7 +946,7 @@ class WasmCompiledFrame final : public StandardFrame {
   Code unchecked_code() const override;
 
   // Accessors.
-  WasmInstanceObject* wasm_instance() const;
+  WasmInstanceObject wasm_instance() const;
   wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script* script() const override;
@@ -967,7 +967,7 @@ class WasmCompiledFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
-  WasmModuleObject* module_object() const;
+  WasmModuleObject module_object() const;
 };
 
 class WasmInterpreterEntryFrame final : public StandardFrame {
@@ -988,7 +988,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
   // Accessors.
   WasmDebugInfo* debug_info() const;
-  WasmInstanceObject* wasm_instance() const;
+  WasmInstanceObject wasm_instance() const;
 
   Script* script() const override;
   int position() const override;
@@ -1006,7 +1006,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
  private:
   friend class StackFrameIteratorBase;
-  WasmModuleObject* module_object() const;
+  WasmModuleObject module_object() const;
 };
 
 class WasmToJsFrame : public StubFrame {
@@ -1047,8 +1047,8 @@ class WasmCompileLazyFrame : public StandardFrame {
   Type type() const override { return WASM_COMPILE_LAZY; }
 
   Code unchecked_code() const override;
-  WasmInstanceObject* wasm_instance() const;
-  ObjectSlot wasm_instance_slot() const;
+  WasmInstanceObject wasm_instance() const;
+  FullObjectSlot wasm_instance_slot() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;

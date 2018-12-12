@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 
+// TODO(913887): fix the use of 'neuter' in these error messages.
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \
@@ -77,7 +78,7 @@ namespace internal {
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
-  T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
+  T(DetachedOperation, "Cannot perform % on a neutered ArrayBuffer")           \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueNotConstructor,                                                \
     "Class extends value % is not a constructor or null")                      \
@@ -379,6 +380,7 @@ namespace internal {
   T(IntrinsicWithSpread, "Intrinsic calls do not support spread arguments")    \
   T(InvalidRestBindingPattern,                                                 \
     "`...` must be followed by an identifier in declaration contexts")         \
+  T(InvalidPropertyBindingPattern, "Illegal property in declaration context")  \
   T(InvalidRestAssignmentPattern,                                              \
     "`...` must be followed by an assignable reference in assignment "         \
     "contexts")                                                                \
@@ -517,7 +519,7 @@ namespace internal {
   /* DataCloneError messages */                                                \
   T(DataCloneError, "% could not be cloned.")                                  \
   T(DataCloneErrorOutOfMemory, "Data cannot be cloned, out of memory.")        \
-  T(DataCloneErrorNeuteredArrayBuffer,                                         \
+  T(DataCloneErrorDetachedArrayBuffer,                                         \
     "An ArrayBuffer is neutered and could not be cloned.")                     \
   T(DataCloneErrorSharedArrayBufferTransferred,                                \
     "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must not be "  \

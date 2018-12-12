@@ -65,11 +65,11 @@ class RootVisitor {
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
   virtual void VisitRootPointers(Root root, const char* description,
-                                 ObjectSlot start, ObjectSlot end) = 0;
+                                 FullObjectSlot start, FullObjectSlot end) = 0;
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitRootPointer(Root root, const char* description,
-                                ObjectSlot p) {
+                                FullObjectSlot p) {
     VisitRootPointers(root, description, p, p + 1);
   }
 
@@ -121,13 +121,13 @@ class ObjectVisitor {
   // a rich interface for iterating over Code objects ...
 
   // Visits a code target in the instruction stream.
-  virtual void VisitCodeTarget(Code host, RelocInfo* rinfo);
+  virtual void VisitCodeTarget(Code host, RelocInfo* rinfo) = 0;
+
+  // Visit pointer embedded into a code object.
+  virtual void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) = 0;
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(Code host, RelocInfo* rinfo) {}
-
-  // Visit pointer embedded into a code object.
-  virtual void VisitEmbeddedPointer(Code host, RelocInfo* rinfo);
 
   // Visits an external reference embedded into a code object.
   virtual void VisitExternalReference(Code host, RelocInfo* rinfo) {}

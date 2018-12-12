@@ -8,7 +8,6 @@
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"
@@ -2868,11 +2867,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Handle<FunctionTemplateInfo> function_template_info(
       FunctionTemplateInfo::cast(shared.object()->function_data()), isolate());
 
-  // CallApiCallbackStub expects the target in a register, so we count it out,
-  // and counts the receiver as an implicit argument, so we count the receiver
-  // out too.
-  if (argc > CallApiCallbackStub::kArgMax) return NoChange();
-
   // Infer the {receiver} maps, and check if we can inline the API function
   // callback based on those.
   ZoneHandleSet<Map> receiver_maps;
@@ -2930,7 +2924,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Handle<CallHandlerInfo> call_handler_info(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
   Handle<Object> data(call_handler_info->data(), isolate());
-  Callable call_api_callback = CodeFactory::CallApiCallback(isolate(), argc);
+  Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), cid,
@@ -2945,13 +2939,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(call_api_callback.code()));
   node->ReplaceInput(1, context);
-  node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(data));
-  node->InsertInput(graph()->zone(), 3, holder);
-  node->InsertInput(graph()->zone(), 4,
+  node->InsertInput(graph()->zone(), 2,
                     jsgraph()->ExternalConstant(function_reference));
-  node->ReplaceInput(5, receiver);
-  node->RemoveInput(6 + argc);           // Remove context input.
-  node->ReplaceInput(7 + argc, effect);  // Update effect input.
+  node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(argc));
+  node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(data));
+  node->InsertInput(graph()->zone(), 5, holder);
+  node->ReplaceInput(6, receiver);
+  node->RemoveInput(7 + argc);           // Remove context input.
+  node->ReplaceInput(8 + argc, effect);  // Update effect input.
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
@@ -3011,8 +3006,9 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         FieldAccess const& access = FieldAccessOf(user->op());
         if (access.offset == JSArray::kLengthOffset) {
           // Ignore uses for arguments#length.
-          STATIC_ASSERT(JSArray::kLengthOffset ==
-                        JSArgumentsObjectWithLength::kLengthOffset);
+          STATIC_ASSERT(
+              static_cast<int>(JSArray::kLengthOffset) ==
+              static_cast<int>(JSArgumentsObjectWithLength::kLengthOffset));
           continue;
         } else if (access.offset == JSObject::kElementsOffset) {
           // Ignore safe uses for arguments#elements.
@@ -3446,7 +3442,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kArrayPrototypeShift:
       return ReduceArrayPrototypeShift(node);
     case Builtins::kArrayPrototypeSlice:
-    case Builtins::kArraySlice:
       return ReduceArrayPrototypeSlice(node);
     case Builtins::kArrayPrototypeEntries:
       return ReduceArrayIterator(node, IterationKind::kEntries);
@@ -4319,7 +4314,7 @@ namespace {
 bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Handle<Name> length_string = isolate->factory()->length_string();
-  DescriptorArray* descriptors = jsarray_map->instance_descriptors();
+  DescriptorArray descriptors = jsarray_map->instance_descriptors();
   int number = descriptors->Search(*length_string, *jsarray_map);
   DCHECK_NE(DescriptorArray::kNotFound, number);
   return descriptors->GetDetails(number).IsReadOnly();
@@ -5014,14 +5009,14 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
       iterated_object, effect, control);
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    // See if we can skip the neutering check.
-    if (isolate()->IsArrayBufferNeuteringIntact()) {
+    // See if we can skip the detaching check.
+    if (isolate()->IsArrayBufferDetachingIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets neutered.
+      // gets detached.
       dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_neutering_protector()));
+          broker(), factory()->array_buffer_detaching_protector()));
     } else {
-      // Bail out if the {iterated_object}s JSArrayBuffer was neutered.
+      // Bail out if the {iterated_object}s JSArrayBuffer was detached.
       Node* buffer = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
           iterated_object, effect, control);
@@ -5032,10 +5027,10 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
           simplified()->NumberEqual(),
           graph()->NewNode(
               simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasNeuteredBit::kMask)),
+              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
           jsgraph()->ZeroConstant());
       effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
                                 p.feedback()),
           check, effect, control);
     }
@@ -6608,8 +6603,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
       Node* etrue0 = effect;
       {
         // Load the key of the entry.
-        STATIC_ASSERT(OrderedHashMap::kHashTableStartIndex ==
-                      OrderedHashSet::kHashTableStartIndex);
+        STATIC_ASSERT(OrderedHashMap::HashTableStartIndex() ==
+                      OrderedHashSet::HashTableStartIndex());
         Node* entry_start_position = graph()->NewNode(
             simplified()->NumberAdd(),
             graph()->NewNode(
@@ -6617,7 +6612,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
                 graph()->NewNode(simplified()->NumberMultiply(), index,
                                  jsgraph()->Constant(entry_size)),
                 number_of_buckets),
-            jsgraph()->Constant(OrderedHashMap::kHashTableStartIndex));
+            jsgraph()->Constant(OrderedHashMap::HashTableStartIndex()));
         Node* entry_key = etrue0 = graph()->NewNode(
             simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
             table, entry_start_position, etrue0, if_true0);
@@ -6742,14 +6737,14 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
                                             receiver, effect, control);
 
-    // See if we can skip the neutering check.
-    if (isolate()->IsArrayBufferNeuteringIntact()) {
+    // See if we can skip the detaching check.
+    if (isolate()->IsArrayBufferDetachingIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets neutered.
+      // gets detached.
       dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_neutering_protector()));
+          broker(), factory()->array_buffer_detaching_protector()));
     } else {
-      // Check whether {receiver}s JSArrayBuffer was neutered.
+      // Check whether {receiver}s JSArrayBuffer was detached.
       Node* buffer = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
           receiver, effect, control);
@@ -6760,11 +6755,11 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
           simplified()->NumberEqual(),
           graph()->NewNode(
               simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasNeuteredBit::kMask)),
+              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
           jsgraph()->ZeroConstant());
 
       // TODO(turbofan): Ideally we would bail out here if the {receiver}s
-      // JSArrayBuffer was neutered, but there's no way to guard against
+      // JSArrayBuffer was detached, but there's no way to guard against
       // deoptimization loops right now, since the JSCall {node} is usually
       // created from a LOAD_IC inlining, and so there's no CALL_IC slot
       // from which we could use the speculation bit.
@@ -6887,18 +6882,18 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
           value, effect, control);
     }
 
-    // Get the underlying buffer and check that it has not been neutered.
+    // Get the underlying buffer and check that it has not been detached.
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
 
-    if (isolate()->IsArrayBufferNeuteringIntact()) {
+    if (isolate()->IsArrayBufferDetachingIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets neutered.
+      // gets detached.
       dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_neutering_protector()));
+          broker(), factory()->array_buffer_detaching_protector()));
     } else {
-      // Bail out if the {buffer} was neutered.
+      // Bail out if the {buffer} was detached.
       Node* buffer_bit_field = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
           buffer, effect, control);
@@ -6906,10 +6901,10 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
           simplified()->NumberEqual(),
           graph()->NewNode(
               simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasNeuteredBit::kMask)),
+              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
           jsgraph()->ZeroConstant());
       effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
                                 p.feedback()),
           check, effect, control);
     }

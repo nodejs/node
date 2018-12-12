@@ -339,8 +339,8 @@
   'v8_linux_arm64_dbg': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
     ],
@@ -491,7 +491,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -636,7 +636,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 3},
     ],
   },
   'V8 Linux - gc stress': {
@@ -835,6 +835,13 @@
       {'name': 'v8testing', 'shards': 2},
     ],
   },
+  'V8 Linux64 - shared': {
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262'},
+      {'name': 'v8testing'},
+    ],
+  },
   'V8 Linux64 - verify csa': {
     'tests': [
       {'name': 'v8testing'},
@@ -896,7 +903,7 @@
   },
   'V8 Linux64 TSAN - isolates': {
     'tests': [
-      {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 5},
+      {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 7},
     ],
   },
   'V8 Linux64 UBSan': {
@@ -917,7 +924,7 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
@@ -928,7 +935,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -1201,7 +1208,7 @@
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 7},
+      {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       # Armv8-a.
       {
@@ -1218,7 +1225,7 @@
         'name': 'v8testing',
         'suffix': 'armv8-a',
         'test_args': ['--extra-flags', '--enable-armv8'],
-        'shards': 7
+        'shards': 8
       },
       # Novfp3.
       {
@@ -1238,7 +1245,7 @@
         'suffix': 'novfp3',
         'variant': 'default',
         'test_args': ['--novfp3'],
-        'shards': 7
+        'shards': 8
       },
     ],
   },
@@ -1262,10 +1269,14 @@
     ],
   },
   'V8 Linux - arm64 - sim - debug': {
+    # TODO(machenbach): Remove longer timeout when this builder scales better.
+    'swarming_task_attrs': {
+      'hard_timeout': 3600,
+    },
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
     ],

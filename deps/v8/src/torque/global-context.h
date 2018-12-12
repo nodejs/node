@@ -44,6 +44,13 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return result;
   }
 
+  static void AddCppInclude(std::string include_path) {
+    Get().cpp_includes_.push_back(std::move(include_path));
+  }
+  static const std::vector<std::string>& CppIncludes() {
+    return Get().cpp_includes_;
+  }
+
   static void SetVerbose() { Get().verbose_ = true; }
   static bool verbose() { return Get().verbose_; }
   static Ast* ast() { return &Get().ast_; }
@@ -53,6 +60,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
+  std::vector<std::string> cpp_includes_;
 };
 
 template <class T>

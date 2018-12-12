@@ -130,7 +130,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
             __ Int32Constant(0));
         for (int lane = 0; lane < 4; lane++) {
           TNode<Int32T> lane_value = __ LoadAndUntagToWord32FixedArrayElement(
-              element, __ IntPtrConstant(lane));
+              __ CAST(element), __ IntPtrConstant(lane));
           vector = tester.raw_assembler_for_testing()->AddNode(
               tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
                   lane),
@@ -257,7 +257,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       os << value->Number();
       break;
     case MachineRepresentation::kSimd128: {
-      FixedArray* vector = FixedArray::cast(*value);
+      FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
         os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();

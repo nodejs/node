@@ -10,11 +10,13 @@
 #include "src/bailout-reason.h"
 #include "src/base/macros.h"
 #include "src/compiler/code-assembler.h"
+#include "src/frames.h"
 #include "src/globals.h"
 #include "src/message-template.h"
 #include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/roots.h"
 
@@ -216,7 +218,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename T>
   using LazyNode = std::function<TNode<T>()>;
 
-  CodeStubAssembler(compiler::CodeAssemblerState* state);
+  explicit CodeStubAssembler(compiler::CodeAssemblerState* state);
 
   enum AllocationFlag : uint8_t {
     kNone = 0,
@@ -326,100 +328,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
-  TNode<HeapNumber> UnsafeCastNumberToHeapNumber(TNode<Number> p_n) {
-    return CAST(p_n);
-  }
-
-  TNode<FixedArrayBase> UnsafeCastObjectToFixedArrayBase(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<FixedArray> UnsafeCastObjectToFixedArray(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Context> UnsafeCastObjectToContext(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<FixedDoubleArray> UnsafeCastObjectToFixedDoubleArray(
-      TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<HeapNumber> UnsafeCastObjectToHeapNumber(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<HeapObject> UnsafeCastObjectToCallable(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Smi> UnsafeCastObjectToSmi(TNode<Object> p_o) { return CAST(p_o); }
-
-  TNode<Number> UnsafeCastObjectToNumber(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<HeapObject> UnsafeCastObjectToHeapObject(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSArray> UnsafeCastObjectToJSArray(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<FixedTypedArrayBase> UnsafeCastObjectToFixedTypedArrayBase(
-      TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Object> UnsafeCastObjectToCompareBuiltinFn(TNode<Object> p_o) {
-    return p_o;
-  }
-
-  TNode<Object> UnsafeCastObjectToLoadFn(TNode<Object> p_o) { return p_o; }
-  TNode<Object> UnsafeCastObjectToStoreFn(TNode<Object> p_o) { return p_o; }
-  TNode<Object> UnsafeCastObjectToCanUseSameAccessorFn(TNode<Object> p_o) {
-    return p_o;
-  }
-
-  TNode<NumberDictionary> UnsafeCastObjectToNumberDictionary(
-      TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSReceiver> UnsafeCastObjectToJSReceiver(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSObject> UnsafeCastObjectToJSObject(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<Map> UnsafeCastObjectToMap(TNode<Object> p_o) { return CAST(p_o); }
-
-  TNode<String> UnsafeCastObjectToString(TNode<Object> p_o) {
-    return CAST(p_o);
-  }
-
-  TNode<JSArgumentsObjectWithLength> RawCastObjectToJSArgumentsObjectWithLength(
-      TNode<Object> p_o) {
-    return TNode<JSArgumentsObjectWithLength>::UncheckedCast(p_o);
-  }
-
-  TNode<JSArray> RawCastObjectToFastJSArray(TNode<Object> p_o) {
-    return TNode<JSArray>::UncheckedCast(p_o);
-  }
-
-  TNode<JSArray> RawCastObjectToFastJSArrayForCopy(TNode<Object> p_o) {
-    return TNode<JSArray>::UncheckedCast(p_o);
-  }
-
-  TNode<JSFunction> RawCastObjectToJSFunction(TNode<Object> p_o) {
-    return TNode<JSFunction>::UncheckedCast(p_o);
-  }
-
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
 #define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
@@ -445,6 +353,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                   SmiAboveOrEqual)
 #undef PARAMETER_BINOP
 
+  uintptr_t ConstexprUintPtrShl(uintptr_t a, int32_t b) { return a << b; }
+  uintptr_t ConstexprUintPtrShr(uintptr_t a, int32_t b) { return a >> b; }
+
   TNode<Object> NoContextConstant();
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
@@ -468,9 +379,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #undef HEAP_CONSTANT_TEST
 
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
-  TNode<Smi> LanguageModeConstant(LanguageMode mode) {
-    return SmiConstant(static_cast<int>(mode));
-  }
 
   bool IsIntPtrOrSmiConstantZero(Node* test, ParameterMode mode);
   bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
@@ -553,6 +461,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> SmiShr(TNode<Smi> a, int shift) {
     return BitcastWordToTaggedSigned(
         WordAnd(WordShr(BitcastTaggedToWord(a), shift),
+                BitcastTaggedToWord(SmiConstant(-1))));
+  }
+
+  TNode<Smi> SmiSar(TNode<Smi> a, int shift) {
+    return BitcastWordToTaggedSigned(
+        WordAnd(WordSar(BitcastTaggedToWord(a), shift),
                 BitcastTaggedToWord(SmiConstant(-1))));
   }
 
@@ -799,15 +713,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
 
-  void BranchIfFastJSArray(Node* object, Node* context, Label* if_true,
-                           Label* if_false, bool iteration_only = false);
-  void BranchIfNotFastJSArray(Node* object, Node* context, Label* if_true,
-                              Label* if_false) {
-    BranchIfFastJSArray(object, context, if_false, if_true);
-  }
-  void BranchIfFastJSArrayForCopy(Node* object, Node* context, Label* if_true,
-                                  Label* if_false);
-
   // Branches to {if_true} when --force-slow-path flag has been passed.
   // It's used for testing to ensure that slow path implementation behave
   // equivalent to corresponding fast paths (where applicable).
@@ -818,23 +723,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Branches to {if_true} when Debug::ExecutionMode is DebugInfo::kSideEffect.
   void GotoIfDebugExecutionModeChecksSideEffects(Label* if_true);
 
-  // Load value from current frame by given offset in bytes.
-  Node* LoadFromFrame(int offset, MachineType rep = MachineType::AnyTagged());
   // Load value from current parent frame by given offset in bytes.
   Node* LoadFromParentFrame(int offset,
                             MachineType rep = MachineType::AnyTagged());
 
-  // Load target function from the current JS frame.
-  // This is an alternative way of getting the target function in addition to
-  // Parameter(Descriptor::kJSTarget). The latter should be used near the
-  // beginning of builtin code while the target value is still in the register
-  // and the former should be used in slow paths in order to reduce register
-  // pressure on the fast path.
-  TNode<JSFunction> LoadTargetFromFrame();
-
   // Load an object pointer from a buffer that isn't in the heap.
   Node* LoadBufferObject(Node* buffer, int offset,
                          MachineType rep = MachineType::AnyTagged());
+  TNode<RawPtrT> LoadBufferPointer(TNode<RawPtrT> buffer, int offset) {
+    return UncheckedCast<RawPtrT>(
+        LoadBufferObject(buffer, offset, MachineType::Pointer()));
+  }
+  TNode<Smi> LoadBufferSmi(TNode<RawPtrT> buffer, int offset) {
+    return CAST(LoadBufferObject(buffer, offset, MachineType::TaggedSigned()));
+  }
   // Load a field from an object on the heap.
   Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
                         MachineType rep);
@@ -922,6 +824,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(
       SloppyTNode<WeakFixedArray> array);
+  // Load the number of descriptors in DescriptorArray.
+  TNode<Int32T> LoadNumberOfDescriptors(TNode<DescriptorArray> array);
   // Load the bit field of a Map.
   TNode<Int32T> LoadMapBitField(SloppyTNode<Map> map);
   // Load bit field 2 of a map.
@@ -1031,14 +935,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              int additional_offset = 0,
                              ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  // Load an array element from a FixedArray / WeakFixedArray / PropertyArray.
+  // Array is any array-like type that has a fixed header followed by
+  // tagged elements.
+  template <typename Array>
+  TNode<IntPtrT> LoadArrayLength(TNode<Array> array);
+
+  // Array is any array-like type that has a fixed header followed by
+  // tagged elements.
+  template <typename Array>
   TNode<MaybeObject> LoadArrayElement(
-      SloppyTNode<HeapObject> object, int array_header_size, Node* index,
+      TNode<Array> array, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
-  // Load an array element from a FixedArray.
   TNode<Object> LoadFixedArrayElement(
       TNode<FixedArray> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
@@ -1070,24 +980,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadFixedArrayElement(object, index, 0, SMI_PARAMETERS);
   }
 
-  TNode<Object> LoadPropertyArrayElement(SloppyTNode<PropertyArray> object,
+  TNode<Object> LoadPropertyArrayElement(TNode<PropertyArray> object,
                                          SloppyTNode<IntPtrT> index);
   TNode<IntPtrT> LoadPropertyArrayLength(TNode<PropertyArray> object);
 
-  // Load an array element from a FixedArray / WeakFixedArray, untag it and
-  // return it as Word32.
+  // Load an element from an array and untag it and return it as Word32.
+  // Array is any array-like type that has a fixed header followed by
+  // tagged elements.
+  template <typename Array>
   TNode<Int32T> LoadAndUntagToWord32ArrayElement(
-      SloppyTNode<HeapObject> object, int array_header_size, Node* index,
+      TNode<Array> array, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   // Load an array element from a FixedArray, untag it and return it as Word32.
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      SloppyTNode<HeapObject> object, Node* index, int additional_offset = 0,
+      TNode<FixedArray> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   TNode<Int32T> LoadAndUntagToWord32FixedArrayElement(
-      SloppyTNode<HeapObject> object, int index, int additional_offset = 0) {
+      TNode<FixedArray> object, int index, int additional_offset = 0) {
     return LoadAndUntagToWord32FixedArrayElement(
         object, IntPtrConstant(index), additional_offset, INTPTR_PARAMETERS);
   }
@@ -1222,6 +1134,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadJSFunctionPrototypeOrInitialMap(
       TNode<JSFunction> function) {
     return LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
+  }
+
+  TNode<SharedFunctionInfo> LoadJSFunctionSharedFunctionInfo(
+      TNode<JSFunction> function) {
+    return CAST(
+        LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
+  }
+
+  TNode<Int32T> LoadSharedFunctionInfoFormalParameterCount(
+      TNode<SharedFunctionInfo> function) {
+    return TNode<Int32T>::UncheckedCast(LoadObjectField(
+        function, SharedFunctionInfo::kFormalParameterCountOffset,
+        MachineType::Uint16()));
   }
 
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
@@ -1381,10 +1306,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BigInt> AllocateBigInt(TNode<IntPtrT> length);
   // Like above, but allowing custom bitfield initialization.
   TNode<BigInt> AllocateRawBigInt(TNode<IntPtrT> length);
-  void StoreBigIntBitfield(TNode<BigInt> bigint, TNode<WordT> bitfield);
+  void StoreBigIntBitfield(TNode<BigInt> bigint, TNode<Word32T> bitfield);
   void StoreBigIntDigit(TNode<BigInt> bigint, int digit_index,
                         TNode<UintPtrT> digit);
-  TNode<WordT> LoadBigIntBitfield(TNode<BigInt> bigint);
+  TNode<Word32T> LoadBigIntBitfield(TNode<BigInt> bigint);
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, int digit_index);
 
   // Allocate a SeqOneByteString with the given length.
@@ -1591,8 +1516,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSReceiver> ArraySpeciesCreate(TNode<Context> context,
                                        TNode<Object> originalArray,
                                        TNode<Number> len);
-  TNode<JSReceiver> InternalArrayCreate(TNode<Context> context,
-                                        TNode<Number> len);
 
   void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
                                Node* to_index, RootIndex value_root_index,
@@ -2003,6 +1926,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsAllocationSite(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsAnyHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
+  TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsBigInt(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsBoolean(SloppyTNode<HeapObject> object);
@@ -2020,10 +1944,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
   TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
-                             SloppyTNode<Context> context);
-  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(TNode<Object> object,
-                                                  TNode<Context> context);
   TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFeedbackVector(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsContext(SloppyTNode<HeapObject> object);
@@ -2483,13 +2403,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadFixedArrayElement(CAST(container), key_index, kKeyToValueOffset);
   }
 
-  TNode<Uint32T> LoadDetailsByKeyIndex(TNode<DescriptorArray> container,
-                                       TNode<IntPtrT> key_index);
-  TNode<Object> LoadValueByKeyIndex(TNode<DescriptorArray> container,
-                                    TNode<IntPtrT> key_index);
-  TNode<MaybeObject> LoadFieldTypeByKeyIndex(TNode<DescriptorArray> container,
-                                             TNode<IntPtrT> key_index);
-
   // Stores the details for the entry with the given key_index.
   // |details| must be a Smi.
   template <class ContainerType>
@@ -2839,7 +2752,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      TNode<IntPtrT> intptr_key,
                                      TNode<Object> value,
                                      TNode<Context> context,
-                                     Label* opt_if_neutered);
+                                     Label* opt_if_detached);
   // Part of the above, refactored out to reuse in another place.
   void EmitBigTypedArrayElementStore(TNode<FixedTypedArrayBase> elements,
                                      TNode<RawPtrT> backing_store,
@@ -3218,13 +3131,40 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
                                            TNode<Uint32T> descriptor_number);
 
-  typedef std::function<void(TNode<UintPtrT> descriptor_key_index)>
+  typedef std::function<void(TNode<IntPtrT> descriptor_key_index)>
       ForEachDescriptorBodyFunction;
 
   void DescriptorArrayForEach(VariableList& variable_list,
                               TNode<Uint32T> start_descriptor,
                               TNode<Uint32T> end_descriptor,
                               const ForEachDescriptorBodyFunction& body);
+
+  // Descriptor array accessors based on key_index, which is equal to
+  // DescriptorArray::ToKeyIndex(descriptor).
+  TNode<Name> LoadKeyByKeyIndex(TNode<DescriptorArray> container,
+                                TNode<IntPtrT> key_index);
+  TNode<Uint32T> LoadDetailsByKeyIndex(TNode<DescriptorArray> container,
+                                       TNode<IntPtrT> key_index);
+  TNode<Object> LoadValueByKeyIndex(TNode<DescriptorArray> container,
+                                    TNode<IntPtrT> key_index);
+  TNode<MaybeObject> LoadFieldTypeByKeyIndex(TNode<DescriptorArray> container,
+                                             TNode<IntPtrT> key_index);
+
+  TNode<IntPtrT> DescriptorEntryToIndex(TNode<IntPtrT> descriptor);
+
+  // Descriptor array accessors based on descriptor.
+  TNode<Name> LoadKeyByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                       TNode<IntPtrT> descriptor);
+  TNode<Name> LoadKeyByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                       int descriptor);
+  TNode<Uint32T> LoadDetailsByDescriptorEntry(
+      TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);
+  TNode<Uint32T> LoadDetailsByDescriptorEntry(
+      TNode<DescriptorArray> descriptors, int descriptor);
+  TNode<Object> LoadValueByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                           int descriptor);
+  TNode<MaybeObject> LoadFieldTypeByDescriptorEntry(
+      TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);
 
   typedef std::function<void(TNode<Name> key, TNode<Object> value)>
       ForEachKeyValueFunction;
@@ -3336,6 +3276,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   Label* if_bigint = nullptr,
                                   Variable* var_bigint = nullptr,
                                   Variable* var_feedback = nullptr);
+
+ private:
+  // Low-level accessors for Descriptor arrays.
+  TNode<MaybeObject> LoadDescriptorArrayElement(TNode<DescriptorArray> object,
+                                                Node* index,
+                                                int additional_offset = 0);
 };
 
 class CodeStubArguments {

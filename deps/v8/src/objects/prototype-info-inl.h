@@ -41,7 +41,7 @@ SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
 BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
-void PrototypeUsers::MarkSlotEmpty(WeakArrayList* array, int index) {
+void PrototypeUsers::MarkSlotEmpty(WeakArrayList array, int index) {
   DCHECK_GT(index, 0);
   DCHECK_LT(index, array->length());
   // Chain the empty slots into a linked list (each empty slot contains the
@@ -50,11 +50,11 @@ void PrototypeUsers::MarkSlotEmpty(WeakArrayList* array, int index) {
   set_empty_slot_index(array, index);
 }
 
-Smi PrototypeUsers::empty_slot_index(WeakArrayList* array) {
+Smi PrototypeUsers::empty_slot_index(WeakArrayList array) {
   return array->Get(kEmptySlotIndex).ToSmi();
 }
 
-void PrototypeUsers::set_empty_slot_index(WeakArrayList* array, int index) {
+void PrototypeUsers::set_empty_slot_index(WeakArrayList array, int index) {
   array->Set(kEmptySlotIndex, MaybeObject::FromObject(Smi::FromInt(index)));
 }
 

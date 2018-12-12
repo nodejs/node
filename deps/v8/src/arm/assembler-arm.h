@@ -425,7 +425,6 @@ class Operand {
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedCode(CodeStub* stub);
   static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
@@ -741,6 +740,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void eor(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
+  void eor(Register dst, Register src1, Register src2, SBit s = LeaveCC,
+           Condition cond = al);
 
   void sub(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);

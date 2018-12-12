@@ -237,19 +237,19 @@ bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
 
 std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
     Handle<WasmModuleObject> module_object) {
-  return module_object->managed_native_module()->get();
+  return module_object->shared_native_module();
 }
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_module) {
-  Vector<const byte> wire_bytes = shared_module->wire_bytes();
+  ModuleWireBytes wire_bytes(shared_module->wire_bytes());
   const WasmModule* module = shared_module->module();
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);
   size_t code_size = shared_module->committed_code_space();
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, std::move(shared_module), script, code_size);
-  CompileJsToWasmWrappers(isolate, module_object->native_module(),
+  CompileJsToWasmWrappers(isolate, module_object->native_module()->module(),
                           handle(module_object->export_wrappers(), isolate));
   return module_object;
 }

@@ -122,7 +122,7 @@ inline void GenerationalBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
       value_heap_object);
 }
 
-inline void GenerationalBarrierForElements(Heap* heap, FixedArray* array,
+inline void GenerationalBarrierForElements(Heap* heap, FixedArray array,
                                            int offset, int length) {
   heap_internals::MemoryChunk* array_chunk =
       heap_internals::MemoryChunk::FromHeapObject(array);

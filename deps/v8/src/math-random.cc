@@ -25,15 +25,16 @@ void MathRandom::InitializeContext(Isolate* isolate,
   ResetContext(*native_context);
 }
 
-void MathRandom::ResetContext(Context* native_context) {
+void MathRandom::ResetContext(Context native_context) {
   native_context->set_math_random_index(Smi::zero());
   State state = {0, 0};
   PodArray<State>::cast(native_context->math_random_state())->set(0, state);
 }
 
-Address MathRandom::RefillCache(Isolate* isolate, Context* native_context) {
+Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
+  Context native_context = Context::cast(ObjectPtr(raw_native_context));
   DisallowHeapAllocation no_gc;
-  PodArray<State>* pod =
+  PodArray<State> pod =
       PodArray<State>::cast(native_context->math_random_state());
   State state = pod->get(0);
   // Initialize state if not yet initialized. If a fixed random seed was
@@ -52,7 +53,7 @@ Address MathRandom::RefillCache(Isolate* isolate, Context* native_context) {
     CHECK(state.s0 != 0 || state.s1 != 0);
   }
 
-  FixedDoubleArray* cache =
+  FixedDoubleArray cache =
       FixedDoubleArray::cast(native_context->math_random_cache());
   // Create random numbers.
   for (int i = 0; i < kCacheSize; i++) {

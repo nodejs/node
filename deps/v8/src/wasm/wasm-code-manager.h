@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
  private:
   std::list<base::AddressRegion> regions_;
 
-  DISALLOW_COPY_AND_ASSIGN(DisjointAllocationPool)
+  DISALLOW_COPY_AND_ASSIGN(DisjointAllocationPool);
 };
 
 class V8_EXPORT_PRIVATE WasmCode final {

@@ -128,6 +128,127 @@ void CSAGenerator::EmitInstruction(
   }
 }
 
+void CSAGenerator::ProcessArgumentsCommon(
+    const TypeVector& parameter_types, std::vector<std::string>* args,
+    std::vector<std::string>* constexpr_arguments, Stack<std::string>* stack) {
+  for (auto it = parameter_types.rbegin(); it != parameter_types.rend(); ++it) {
+    const Type* type = *it;
+    VisitResult arg;
+    if (type->IsConstexpr()) {
+      args->push_back(std::move(constexpr_arguments->back()));
+      constexpr_arguments->pop_back();
+    } else {
+      std::stringstream s;
+      size_t slot_count = LoweredSlotCount(type);
+      VisitResult arg = VisitResult(type, stack->TopRange(slot_count));
+      EmitCSAValue(arg, *stack, s);
+      args->push_back(s.str());
+      stack->PopMany(slot_count);
+    }
+  }
+  std::reverse(args->begin(), args->end());
+}
+
+void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  std::vector<std::string> constexpr_arguments =
+      instruction.constexpr_arguments;
+  std::vector<std::string> args;
+  TypeVector parameter_types =
+      instruction.intrinsic->signature().parameter_types.types;
+  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
+
+  Stack<std::string> pre_call_stack = *stack;
+  const Type* return_type = instruction.intrinsic->signature().return_type;
+  std::vector<std::string> results;
+  for (const Type* type : LowerType(return_type)) {
+    results.push_back(FreshNodeName());
+    stack->Push(results.back());
+    out_ << "    compiler::TNode<" << type->GetGeneratedTNodeTypeName() << "> "
+         << stack->Top() << ";\n";
+    out_ << "    USE(" << stack->Top() << ");\n";
+  }
+  out_ << "    ";
+
+  if (return_type->IsStructType()) {
+    out_ << "std::tie(";
+    PrintCommaSeparatedList(out_, results);
+    out_ << ") = ";
+  } else {
+    if (results.size() == 1) {
+      out_ << results[0] << " = ";
+    }
+  }
+
+  if (instruction.intrinsic->ExternalName() == "%RawObjectCast") {
+    if (parameter_types.size() != 1) {
+      ReportError("%RawObjectCast must take a single parameter");
+    }
+    if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      if (return_type->GetGeneratedTNodeTypeName() !=
+          parameter_types[0]->GetGeneratedTNodeTypeName()) {
+        out_ << "TORQUE_CAST";
+      }
+    } else {
+      std::stringstream s;
+      s << "%RawObjectCast must cast to subtype of Tagged (" << *return_type
+        << " is not)";
+      ReportError(s.str());
+    }
+  } else if (instruction.intrinsic->ExternalName() == "%RawPointerCast") {
+    if (parameter_types.size() != 1) {
+      ReportError("%RawPointerCast must take a single parameter");
+    }
+    if (!return_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
+      std::stringstream s;
+      s << "%RawObjectCast must cast to subtype of RawPtr (" << *return_type
+        << " is not)";
+      ReportError(s.str());
+    }
+  } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
+    if (parameter_types.size() != 1 || !parameter_types[0]->IsConstexpr()) {
+      ReportError(
+          "%FromConstexpr must take a single parameter with constexpr "
+          "type");
+    }
+    if (return_type->IsConstexpr()) {
+      ReportError("%FromConstexpr must return a non-constexpr type");
+    }
+    if (return_type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+      out_ << "ca_.SmiConstant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetNumberType())) {
+      out_ << "ca_.NumberConstant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetStringType())) {
+      out_ << "ca_.StringConstant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+      ReportError(
+          "%FromConstexpr cannot cast to subclass of HeapObject unless it's a "
+          "String or Number");
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetIntPtrType())) {
+      out_ << "ca_.IntPtrConstant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
+      out_ << "ca_.UintPtrConstant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
+      out_ << "ca_.Int32Constant";
+    } else {
+      std::stringstream s;
+      s << "%FromConstexpr does not support return type " << *return_type;
+      ReportError(s.str());
+    }
+  } else {
+    ReportError("no built in intrinsic with name " +
+                instruction.intrinsic->ExternalName());
+  }
+
+  out_ << "(";
+  PrintCommaSeparatedList(out_, args);
+  if (return_type->IsStructType()) {
+    out_ << ").Flatten();\n";
+  } else {
+    out_ << ");\n";
+  }
+}
+
 void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
                                    Stack<std::string>* stack) {
   std::vector<std::string> constexpr_arguments =
@@ -135,22 +256,7 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.macro->signature().parameter_types.types;
-  for (auto it = parameter_types.rbegin(); it != parameter_types.rend(); ++it) {
-    const Type* type = *it;
-    VisitResult arg;
-    if (type->IsConstexpr()) {
-      args.push_back(std::move(constexpr_arguments.back()));
-      constexpr_arguments.pop_back();
-    } else {
-      std::stringstream s;
-      size_t slot_count = LoweredSlotCount(type);
-      VisitResult arg = VisitResult(type, stack->TopRange(slot_count));
-      EmitCSAValue(arg, *stack, s);
-      args.push_back(s.str());
-      stack->PopMany(slot_count);
-    }
-  }
-  std::reverse(args.begin(), args.end());
+  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.macro->signature().return_type;
@@ -196,22 +302,7 @@ void CSAGenerator::EmitInstruction(
   std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.macro->signature().parameter_types.types;
-  for (auto it = parameter_types.rbegin(); it != parameter_types.rend(); ++it) {
-    const Type* type = *it;
-    VisitResult arg;
-    if (type->IsConstexpr()) {
-      args.push_back(std::move(constexpr_arguments.back()));
-      constexpr_arguments.pop_back();
-    } else {
-      std::stringstream s;
-      size_t slot_count = LoweredSlotCount(type);
-      VisitResult arg = VisitResult(type, stack->TopRange(slot_count));
-      EmitCSAValue(arg, *stack, s);
-      args.push_back(s.str());
-      stack->PopMany(slot_count);
-    }
-  }
-  std::reverse(args.begin(), args.end());
+  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   std::vector<std::string> results;
@@ -591,8 +682,8 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
     out << "}";
   } else {
     DCHECK_EQ(1, result.stack_range().Size());
-    out << "TNode<" << result.type()->GetGeneratedTNodeTypeName() << ">{"
-        << values.Peek(result.stack_range().begin()) << "}";
+    out << "compiler::TNode<" << result.type()->GetGeneratedTNodeTypeName()
+        << ">{" << values.Peek(result.stack_range().begin()) << "}";
   }
 }
 

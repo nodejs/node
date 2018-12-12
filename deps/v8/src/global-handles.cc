@@ -74,9 +74,9 @@ class GlobalHandles::Node {
     *first_free = this;
   }
 
-  void Acquire(Object* object) {
+  void Acquire(ObjectPtr object) {
     DCHECK(state() == FREE);
-    object_ = object->ptr();
+    object_ = object.ptr();
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_active(false);
@@ -106,7 +106,7 @@ class GlobalHandles::Node {
 
   // Object slot accessors.
   ObjectPtr object() const { return ObjectPtr(object_); }
-  ObjectSlot location() { return ObjectSlot(&object_); }
+  FullObjectSlot location() { return FullObjectSlot(&object_); }
   const char* label() { return state() == NORMAL ? data_.label : nullptr; }
   Handle<Object> handle() { return Handle<Object>(&object_); }
 
@@ -268,7 +268,7 @@ class GlobalHandles::Node {
     void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
     if (weakness_type() != PHANTOM_WEAK && object()->IsJSObject()) {
-      JSObject* jsobject = JSObject::cast(object());
+      JSObject jsobject = JSObject::cast(object());
       int field_count = jsobject->GetEmbedderFieldCount();
       for (int i = 0; i < v8::kEmbedderFieldsInWeakCallback; ++i) {
         if (field_count == i) break;
@@ -526,8 +526,7 @@ GlobalHandles::~GlobalHandles() {
   first_block_ = nullptr;
 }
 
-
-Handle<Object> GlobalHandles::Create(Object* value) {
+Handle<Object> GlobalHandles::Create(ObjectPtr value) {
   if (first_free_ == nullptr) {
     first_block_ = new NodeBlock(this, first_block_);
     first_block_->PutNodesOnFreeList(&first_free_);
@@ -544,8 +543,12 @@ Handle<Object> GlobalHandles::Create(Object* value) {
   return result->handle();
 }
 
+Handle<Object> GlobalHandles::Create(Object* value) {
+  return Create(ObjectPtr(reinterpret_cast<Address>(value)));
+}
+
 Handle<Object> GlobalHandles::Create(Address value) {
-  return Create(reinterpret_cast<Object*>(value));
+  return Create(ObjectPtr(value));
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -1092,8 +1095,8 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   for (Address* block : blocks_) {
     DCHECK_GT(limit, 0);
     visitor->VisitRootPointers(Root::kEternalHandles, nullptr,
-                               ObjectSlot(block),
-                               ObjectSlot(block + Min(limit, kSize)));
+                               FullObjectSlot(block),
+                               FullObjectSlot(block + Min(limit, kSize)));
     limit -= kSize;
   }
 }
@@ -1101,7 +1104,7 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
 void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
   for (int index : new_space_indices_) {
     visitor->VisitRootPointer(Root::kEternalHandles, nullptr,
-                              ObjectSlot(GetLocation(index)));
+                              FullObjectSlot(GetLocation(index)));
   }
 }
 
@@ -1127,7 +1130,7 @@ void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
   // Need to resize.
   if (offset == 0) {
     Address* next_block = new Address[kSize];
-    MemsetPointer(ObjectSlot(next_block), the_hole, kSize);
+    MemsetPointer(FullObjectSlot(next_block), the_hole, kSize);
     blocks_.push_back(next_block);
   }
   DCHECK_EQ(the_hole->ptr(), blocks_[block][offset]);

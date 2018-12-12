@@ -94,8 +94,6 @@ consts_misc = [
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
     { 'name': 'OddballException',       'value': 'Oddball::kException' },
 
-    { 'name': 'prop_idx_first',
-        'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_kind_Data',
         'value': 'kData' },
     { 'name': 'prop_kind_Accessor',
@@ -192,10 +190,10 @@ consts_misc = [
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
 
-    { 'name': 'jsarray_buffer_was_neutered_mask',
-        'value': 'JSArrayBuffer::WasNeuteredBit::kMask' },
-    { 'name': 'jsarray_buffer_was_neutered_shift',
-        'value': 'JSArrayBuffer::WasNeuteredBit::kShift' },
+    { 'name': 'jsarray_buffer_was_detached_mask',
+        'value': 'JSArrayBuffer::WasDetachedBit::kMask' },
+    { 'name': 'jsarray_buffer_was_detached_shift',
+        'value': 'JSArrayBuffer::WasDetachedBit::kShift' },
 
     { 'name': 'context_idx_scope_info',
         'value': 'Context::SCOPE_INFO_INDEX' },
@@ -207,8 +205,8 @@ consts_misc = [
         'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
-    { 'name': 'context_idx_embedder_data',
-        'value': 'Internals::kContextEmbedderDataIndex' },
+    { 'name': 'native_context_embedder_data_offset',
+        'value': 'Internals::kNativeContextEmbedderDataOffset' },
 
 
     { 'name': 'namedictionaryshape_prefix_size',

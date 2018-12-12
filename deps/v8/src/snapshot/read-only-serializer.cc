@@ -28,6 +28,7 @@ void ReadOnlySerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                          WhereToPoint where_to_point,
                                          int skip) {
   CHECK(isolate()->heap()->read_only_space()->Contains(obj));
+  CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
 
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
   if (IsRootAndHasBeenSerialized(obj) &&
@@ -60,7 +61,8 @@ void ReadOnlySerializer::FinalizeSerialization() {
   // add entries to the read-only object cache. Add one entry with 'undefined'
   // to terminate the read-only object cache.
   Object* undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kReadOnlyObjectCache, nullptr, ObjectSlot(&undefined));
+  VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
+                   FullObjectSlot(&undefined));
   SerializeDeferredObjects();
   Pad();
 }

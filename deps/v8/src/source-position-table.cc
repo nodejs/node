@@ -106,7 +106,7 @@ void DecodeEntry(Vector<const byte> bytes, int* index,
   entry->source_position = DecodeInt<int64_t>(bytes, index);
 }
 
-Vector<const byte> VectorFromByteArray(ByteArray* byte_array) {
+Vector<const byte> VectorFromByteArray(ByteArray byte_array) {
   return Vector<const byte>(byte_array->GetDataStartAddress(),
                             byte_array->length());
 }
@@ -189,7 +189,7 @@ OwnedVector<byte> SourcePositionTableBuilder::ToSourcePositionTableVector() {
   return table;
 }
 
-SourcePositionTableIterator::SourcePositionTableIterator(ByteArray* byte_array)
+SourcePositionTableIterator::SourcePositionTableIterator(ByteArray byte_array)
     : raw_table_(VectorFromByteArray(byte_array)) {
   Advance();
 }

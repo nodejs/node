@@ -31,13 +31,14 @@ class ConstructorBuiltins {
       NameDictionary::kMaxRegularCapacity / 3 * 2;
 
  private:
-  static const int kMaximumSlots = 0x8000;
+  static const int kMaximumSlots =
+      (kMaxRegularHeapObjectSize - Context::kTodoHeaderSize) / kTaggedSize - 1;
   static const int kSmallMaximumSlots = 10;
 
   // FastNewFunctionContext can only allocate closures which fit in the
   // new space.
-  STATIC_ASSERT(((kMaximumSlots + Context::MIN_CONTEXT_SLOTS) * kPointerSize +
-                 FixedArray::kHeaderSize) < kMaxRegularHeapObjectSize);
+  STATIC_ASSERT(Context::SizeFor(kMaximumSlots + Context::MIN_CONTEXT_SLOTS) <
+                kMaxRegularHeapObjectSize);
 };
 
 }  // namespace internal

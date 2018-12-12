@@ -81,7 +81,7 @@ class Private;
 class Uint32;
 class Utils;
 class Value;
-class WasmCompiledModule;
+class WasmModuleObject;
 template <class T> class Local;
 template <class T>
 class MaybeLocal;
@@ -1392,10 +1392,6 @@ class V8_EXPORT ScriptCompiler {
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     ~StreamedSource();
 
-    V8_DEPRECATED("No longer used", const CachedData* GetCachedData() const) {
-      return nullptr;
-    }
-
     internal::ScriptStreamingData* impl() const { return impl_.get(); }
 
     // Prevent copying.
@@ -1822,8 +1818,18 @@ struct SampleInfo {
 };
 
 struct MemoryRange {
-  const void* start;
-  size_t length_in_bytes;
+  const void* start = nullptr;
+  size_t length_in_bytes = 0;
+};
+
+struct JSEntryStub {
+  MemoryRange code;
+};
+
+struct UnwindState {
+  MemoryRange code_range;
+  MemoryRange embedded_code_range;
+  JSEntryStub js_entry_stub;
 };
 
 /**
@@ -1835,12 +1841,10 @@ class V8_EXPORT JSON {
    * Tries to parse the string |json_string| and returns it as value if
    * successful.
    *
+   * \param the context in which to parse and create the value.
    * \param json_string The string to parse.
    * \return The corresponding value if successfully parsed.
    */
-  static V8_DEPRECATED("Use the maybe version taking context",
-                       MaybeLocal<Value> Parse(Isolate* isolate,
-                                               Local<String> json_string));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Value> Parse(
       Local<Context> context, Local<String> json_string);
 
@@ -1898,7 +1902,7 @@ class V8_EXPORT ValueSerializer {
         Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer);
 
     virtual Maybe<uint32_t> GetWasmModuleTransferId(
-        Isolate* isolate, Local<WasmCompiledModule> module);
+        Isolate* isolate, Local<WasmModuleObject> module);
     /**
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
@@ -1937,12 +1941,6 @@ class V8_EXPORT ValueSerializer {
                                                Local<Value> value);
 
   /**
-   * Returns the stored data. This serializer should not be used once the buffer
-   * is released. The contents are undefined if a previous write has failed.
-   */
-  V8_DEPRECATED("Use Release()", std::vector<uint8_t> ReleaseBuffer());
-
-  /**
    * Returns the stored data (allocated using the delegate's
    * ReallocateBufferMemory) and its size. This serializer should not be used
    * once the buffer is released. The contents are undefined if a previous write
@@ -1958,13 +1956,6 @@ class V8_EXPORT ValueSerializer {
   void TransferArrayBuffer(uint32_t transfer_id,
                            Local<ArrayBuffer> array_buffer);
 
-  /**
-   * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
-   */
-  V8_DEPRECATED("Use Delegate::GetSharedArrayBufferId",
-                void TransferSharedArrayBuffer(
-                    uint32_t transfer_id,
-                    Local<SharedArrayBuffer> shared_array_buffer));
 
   /**
    * Indicate whether to treat ArrayBufferView objects as host objects,
@@ -2015,10 +2006,10 @@ class V8_EXPORT ValueDeserializer {
     virtual MaybeLocal<Object> ReadHostObject(Isolate* isolate);
 
     /**
-     * Get a WasmCompiledModule given a transfer_id previously provided
+     * Get a WasmModuleObject given a transfer_id previously provided
      * by ValueSerializer::GetWasmModuleTransferId
      */
-    virtual MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+    virtual MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
         Isolate* isolate, uint32_t transfer_id);
 
     /**
@@ -2626,8 +2617,7 @@ class V8_EXPORT String : public Name {
    public:
     virtual ~ExternalStringResourceBase() = default;
 
-    V8_DEPRECATE_SOON("Use IsCacheable().",
-                      virtual bool IsCompressible() const) {
+    V8_DEPRECATED("Use IsCacheable().", virtual bool IsCompressible() const) {
       return false;
     }
 
@@ -2636,16 +2626,7 @@ class V8_EXPORT String : public Name {
      * ExternalStringResource::data() may be cached, otherwise it is not
      * expected to be stable beyond the current top-level task.
      */
-    virtual bool IsCacheable() const {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-      return !IsCompressible();
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-    }
+    virtual bool IsCacheable() const { return true; }
 
    protected:
     ExternalStringResourceBase() = default;
@@ -2770,7 +2751,7 @@ class V8_EXPORT String : public Name {
   };
 
   /** Allocates a new string from UTF-8 data.*/
-  static V8_DEPRECATE_SOON(
+  static V8_DEPRECATED(
       "Use maybe version",
       Local<String> NewFromUtf8(Isolate* isolate, const char* data,
                                 NewStringType type = kNormalString,
@@ -3310,7 +3291,6 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> GetOwnPropertyDescriptor(
       Local<Context> context, Local<Name> key);
 
-  V8_DEPRECATED("Use maybe version", bool Has(Local<Value> key));
   /**
    * Object::Has() calls the abstract operation HasProperty(O, P) described
    * in ECMA-262, 7.3.10. Has() returns
@@ -3329,7 +3309,6 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Has(Local<Context> context,
                                         Local<Value> key);
 
-  V8_DEPRECATED("Use maybe version", bool Delete(Local<Value> key));
   V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
                                            Local<Value> key);
 
@@ -3512,8 +3491,8 @@ class V8_EXPORT Object : public Value {
                                                    Local<Name> key);
   V8_WARN_UNUSED_RESULT Maybe<bool> HasOwnProperty(Local<Context> context,
                                                    uint32_t index);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    bool HasRealNamedProperty(Local<String> key));
+  V8_DEPRECATED("Use maybe version",
+                bool HasRealNamedProperty(Local<String> key));
   /**
    * Use HasRealNamedProperty() if you want to check if an object has an own
    * property without causing side effects, i.e., without calling interceptors.
@@ -3529,12 +3508,12 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> HasRealNamedProperty(Local<Context> context,
                                                          Local<Name> key);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    bool HasRealIndexedProperty(uint32_t index));
+  V8_DEPRECATED("Use maybe version",
+                bool HasRealIndexedProperty(uint32_t index));
   V8_WARN_UNUSED_RESULT Maybe<bool> HasRealIndexedProperty(
       Local<Context> context, uint32_t index);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    bool HasRealNamedCallbackProperty(Local<String> key));
+  V8_DEPRECATED("Use maybe version",
+                bool HasRealNamedCallbackProperty(Local<String> key));
   V8_WARN_UNUSED_RESULT Maybe<bool> HasRealNamedCallbackProperty(
       Local<Context> context, Local<Name> key);
 
@@ -3775,8 +3754,8 @@ class ReturnValue {
   }
   // Local setters
   template <typename S>
-  V8_INLINE V8_DEPRECATE_SOON("Use Global<> instead",
-                              void Set(const Persistent<S>& handle));
+  V8_INLINE V8_DEPRECATED("Use Global<> instead",
+                          void Set(const Persistent<S>& handle));
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
   template <typename S>
@@ -4003,10 +3982,11 @@ class V8_EXPORT Function : public Object {
       Local<Value> data = Local<Value>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
-  static V8_DEPRECATE_SOON(
-      "Use maybe version",
-      Local<Function> New(Isolate* isolate, FunctionCallback callback,
-                          Local<Value> data = Local<Value>(), int length = 0));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Function> New(Isolate* isolate,
+                                           FunctionCallback callback,
+                                           Local<Value> data = Local<Value>(),
+                                           int length = 0));
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(
       Local<Context> context, int argc, Local<Value> argv[]) const;
@@ -4025,9 +4005,9 @@ class V8_EXPORT Function : public Object {
       Local<Context> context, int argc, Local<Value> argv[],
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect) const;
 
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Value> Call(Local<Value> recv, int argc,
-                                      Local<Value> argv[]));
+  V8_DEPRECATED("Use maybe version",
+                Local<Value> Call(Local<Value> recv, int argc,
+                                  Local<Value> argv[]));
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Call(Local<Context> context,
                                                Local<Value> recv, int argc,
                                                Local<Value> argv[]);
@@ -4208,8 +4188,16 @@ class V8_EXPORT PropertyDescriptor {
   // GenericDescriptor
   PropertyDescriptor();
 
+  // DataDescriptor (implicit / DEPRECATED)
+  // Templatized such that the explicit constructor is chosen first.
+  // TODO(clemensh): Remove after 7.3 branch.
+  template <std::nullptr_t = nullptr>
+  V8_DEPRECATED(
+      "Use explicit constructor",
+      PropertyDescriptor(Local<Value> value));  // NOLINT(runtime/explicit)
+
   // DataDescriptor
-  PropertyDescriptor(Local<Value> value);
+  explicit PropertyDescriptor(Local<Value> value);
 
   // DataDescriptor with writable property
   PropertyDescriptor(Local<Value> value, bool writable);
@@ -4248,6 +4236,11 @@ class V8_EXPORT PropertyDescriptor {
   PrivateData* private_;
 };
 
+// TODO(clemensh): Remove after 7.3 branch.
+template <std::nullptr_t>
+PropertyDescriptor::PropertyDescriptor(Local<Value> value)
+    : PropertyDescriptor(value) {}
+
 /**
  * An instance of the built-in Proxy constructor (ECMA-262, 6th Edition,
  * 26.2.1).
@@ -4273,25 +4266,97 @@ class V8_EXPORT Proxy : public Object {
   static void CheckCast(Value* obj);
 };
 
-// TODO(mtrofin): rename WasmCompiledModule to WasmModuleObject, for
-// consistency with internal APIs.
-class V8_EXPORT WasmCompiledModule : public Object {
+/**
+ * Points to an unowned continous buffer holding a known number of elements.
+ *
+ * This is similar to std::span (under consideration for C++20), but does not
+ * require advanced C++ support. In the (far) future, this may be replaced with
+ * or aliased to std::span.
+ *
+ * To facilitate future migration, this class exposes a subset of the interface
+ * implemented by std::span.
+ */
+template <typename T>
+class V8_EXPORT MemorySpan {
  public:
-  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
+  /** The default constructor creates an empty span. */
+  constexpr MemorySpan() = default;
+
+  constexpr MemorySpan(T* data, size_t size) : data_(data), size_(size) {}
+
+  /** Returns a pointer to the beginning of the buffer. */
+  constexpr T* data() const { return data_; }
+  /** Returns the number of elements that the buffer holds. */
+  constexpr size_t size() const { return size_; }
+
+ private:
+  T* data_ = nullptr;
+  size_t size_ = 0;
+};
+
+/**
+ * An owned byte buffer with associated size.
+ */
+struct OwnedBuffer {
+  std::unique_ptr<const uint8_t[]> buffer;
+  size_t size = 0;
+  OwnedBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t size)
+      : buffer(std::move(buffer)), size(size) {}
+  OwnedBuffer() = default;
+};
+
+// Wrapper around a compiled WebAssembly module, which is potentially shared by
+// different WasmModuleObjects.
+class V8_EXPORT CompiledWasmModule {
+ public:
+  /**
+   * Serialize the compiled module. The serialized data does not include the
+   * wire bytes.
+   */
+  OwnedBuffer Serialize();
+
+  /**
+   * Get the (wasm-encoded) wire bytes that were used to compile this module.
+   */
+  MemorySpan<const uint8_t> GetWireBytesRef();
+
+ private:
+  explicit CompiledWasmModule(std::shared_ptr<internal::wasm::NativeModule>);
+  friend class Utils;
+
+  const std::shared_ptr<internal::wasm::NativeModule> native_module_;
+};
+
+// An instance of WebAssembly.Module.
+class V8_EXPORT WasmModuleObject : public Object {
+ public:
+  // TODO(clemensh): Remove after 7.3 branch.
+  V8_DEPRECATE_SOON("Use OwnedBuffer", typedef)
+  std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
 
   /**
    * A unowned reference to a byte buffer.
+   * TODO(clemensh): Remove after 7.3 branch.
    */
-  struct BufferReference {
+  V8_DEPRECATE_SOON("Use MemorySpan<const uint8_t>", struct) BufferReference {
     const uint8_t* start;
     size_t size;
     BufferReference(const uint8_t* start, size_t size)
         : start(start), size(size) {}
+
+    // Implicit conversion to and from MemorySpan<const uint8_t>.
+    BufferReference(MemorySpan<const uint8_t> span)  // NOLINT(runtime/explicit)
+        : start(span.data()), size(span.size()) {}
+    operator MemorySpan<const uint8_t>() const {
+      return MemorySpan<const uint8_t>{start, size};
+    }
   };
 
   /**
    * An opaque, native heap object for transferring wasm modules. It
    * supports move semantics, and does not support copy semantics.
+   * TODO(wasm): Merge this with CompiledWasmModule once code sharing is always
+   * enabled.
    */
   class TransferrableModule final {
    public:
@@ -4303,8 +4368,7 @@ class V8_EXPORT WasmCompiledModule : public Object {
 
    private:
     typedef std::shared_ptr<internal::wasm::NativeModule> SharedModule;
-    typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> OwnedBuffer;
-    friend class WasmCompiledModule;
+    friend class WasmModuleObject;
     explicit TransferrableModule(SharedModule shared_module)
         : shared_module_(std::move(shared_module)) {}
     TransferrableModule(OwnedBuffer serialized, OwnedBuffer bytes)
@@ -4323,47 +4387,57 @@ class V8_EXPORT WasmCompiledModule : public Object {
   TransferrableModule GetTransferrableModule();
 
   /**
-   * Efficiently re-create a WasmCompiledModule, without recompiling, from
+   * Efficiently re-create a WasmModuleObject, without recompiling, from
    * a TransferrableModule.
    */
-  static MaybeLocal<WasmCompiledModule> FromTransferrableModule(
+  static MaybeLocal<WasmModuleObject> FromTransferrableModule(
       Isolate* isolate, const TransferrableModule&);
 
   /**
    * Get the wasm-encoded bytes that were used to compile this module.
    */
-  BufferReference GetWasmWireBytesRef();
+  V8_DEPRECATE_SOON("Use CompiledWasmModule::GetWireBytesRef()",
+                    BufferReference GetWasmWireBytesRef());
+
+  /**
+   * Get the compiled module for this module object. The compiled module can be
+   * shared by several module objects.
+   */
+  CompiledWasmModule GetCompiledModule();
 
   /**
    * Serialize the compiled module. The serialized data does not include the
    * uncompiled bytes.
    */
-  SerializedModule Serialize();
+  V8_DEPRECATE_SOON("Use CompiledWasmModule::Serialize()",
+                    SerializedModule Serialize());
 
   /**
    * If possible, deserialize the module, otherwise compile it from the provided
    * uncompiled bytes.
    */
-  static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
-      Isolate* isolate, BufferReference serialized_module,
-      BufferReference wire_bytes);
-  V8_INLINE static WasmCompiledModule* Cast(Value* obj);
+  static MaybeLocal<WasmModuleObject> DeserializeOrCompile(
+      Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
+      MemorySpan<const uint8_t> wire_bytes);
+  V8_INLINE static WasmModuleObject* Cast(Value* obj);
 
  private:
-  static MaybeLocal<WasmCompiledModule> Deserialize(
-      Isolate* isolate, BufferReference serialized_module,
-      BufferReference wire_bytes);
-  static MaybeLocal<WasmCompiledModule> Compile(Isolate* isolate,
-                                                const uint8_t* start,
-                                                size_t length);
-  static BufferReference AsReference(
-      const TransferrableModule::OwnedBuffer& buff) {
-    return {buff.first.get(), buff.second};
+  static MaybeLocal<WasmModuleObject> Deserialize(
+      Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
+      MemorySpan<const uint8_t> wire_bytes);
+  static MaybeLocal<WasmModuleObject> Compile(Isolate* isolate,
+                                              const uint8_t* start,
+                                              size_t length);
+  static MemorySpan<const uint8_t> AsReference(const OwnedBuffer& buff) {
+    return {buff.buffer.get(), buff.size};
   }
 
-  WasmCompiledModule();
+  WasmModuleObject();
   static void CheckCast(Value* obj);
 };
+
+V8_DEPRECATED("Use WasmModuleObject",
+              typedef WasmModuleObject WasmCompiledModule);
 
 /**
  * The V8 interface for WebAssembly streaming compilation. When streaming
@@ -4375,7 +4449,7 @@ class V8_EXPORT WasmStreaming final {
  public:
   class WasmStreamingImpl;
 
-  WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
+  explicit WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
 
   ~WasmStreaming();
 
@@ -4403,8 +4477,8 @@ class V8_EXPORT WasmStreaming final {
    * Callback for module compiled notifications. |data| is the identifier
    * passed to {SetModuleCompiledCallback}, |compiled_module| is the result.
    */
-  typedef void (*ModuleCompiledCallback)(
-      intptr_t data, Local<WasmCompiledModule> compiled_module);
+  typedef void (*ModuleCompiledCallback)(intptr_t data,
+                                         CompiledWasmModule compiled_module);
 
   /**
    * Sets a callback for when compilation of the Wasm module has been completed
@@ -4631,17 +4705,26 @@ class V8_EXPORT ArrayBuffer : public Object {
   bool IsExternal() const;
 
   /**
-   * Returns true if this ArrayBuffer may be neutered.
+   * Returns true if this ArrayBuffer may be detached.
    */
-  bool IsNeuterable() const;
+  bool IsDetachable() const;
+
+  // TODO(913887): fix the use of 'neuter' in the API.
+  V8_DEPRECATE_SOON("Use IsDetachable() instead.",
+                    inline bool IsNeuterable() const) {
+    return IsDetachable();
+  }
 
   /**
-   * Neuters this ArrayBuffer and all its views (typed arrays).
-   * Neutering sets the byte length of the buffer and all typed arrays to zero,
+   * Detaches this ArrayBuffer and all its views (typed arrays).
+   * Detaching sets the byte length of the buffer and all typed arrays to zero,
    * preventing JavaScript from ever accessing underlying backing store.
-   * ArrayBuffer should have been externalized and must be neuterable.
+   * ArrayBuffer should have been externalized and must be detachable.
    */
-  void Neuter();
+  void Detach();
+
+  // TODO(913887): fix the use of 'neuter' in the API.
+  V8_DEPRECATE_SOON("Use Detach() instead.", inline void Neuter()) { Detach(); }
 
   /**
    * Make this ArrayBuffer external. The pointer to underlying memory block
@@ -5088,8 +5171,6 @@ class V8_EXPORT SharedArrayBuffer : public Object {
  */
 class V8_EXPORT Date : public Object {
  public:
-  static V8_DEPRECATED("Use maybe version.",
-                       Local<Value> New(Isolate* isolate, double time));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Value> New(Local<Context> context,
                                                      double time);
 
@@ -5738,7 +5819,7 @@ class V8_EXPORT FunctionTemplate : public Template {
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 
   /** Returns the unique function instance in the current execution context.*/
-  V8_DEPRECATE_SOON("Use maybe version", Local<Function> GetFunction());
+  V8_DEPRECATED("Use maybe version", Local<Function> GetFunction());
   V8_WARN_UNUSED_RESULT MaybeLocal<Function> GetFunction(
       Local<Context> context);
 
@@ -6035,7 +6116,7 @@ class V8_EXPORT ObjectTemplate : public Template {
                                                  size_t index);
 
   /** Creates a new instance of this template.*/
-  V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance());
+  V8_DEPRECATED("Use maybe version", Local<Object> NewInstance());
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(Local<Context> context);
 
   /**
@@ -6255,7 +6336,7 @@ class V8_EXPORT AccessorSignature : public Data {
 
 
 // --- Extensions ---
-V8_DEPRECATE_SOON("Implementation detail", class)
+V8_DEPRECATED("Implementation detail", class)
 V8_EXPORT ExternalOneByteStringResourceImpl
     : public String::ExternalOneByteStringResource {
  public:
@@ -6349,18 +6430,6 @@ class V8_EXPORT ResourceConstraints {
   void ConfigureDefaults(uint64_t physical_memory,
                          uint64_t virtual_memory_limit);
 
-  // Returns the max semi-space size in MB.
-  V8_DEPRECATED("Use max_semi_space_size_in_kb()",
-                size_t max_semi_space_size()) {
-    return max_semi_space_size_in_kb_ / 1024;
-  }
-
-  // Sets the max semi-space size in MB.
-  V8_DEPRECATED("Use set_max_semi_space_size_in_kb(size_t limit_in_kb)",
-                void set_max_semi_space_size(size_t limit_in_mb)) {
-    max_semi_space_size_in_kb_ = limit_in_mb * 1024;
-  }
-
   // Returns the max semi-space size in KB.
   size_t max_semi_space_size_in_kb() const {
     return max_semi_space_size_in_kb_;
@@ -6374,14 +6443,6 @@ class V8_EXPORT ResourceConstraints {
   size_t max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(size_t limit_in_mb) {
     max_old_space_size_ = limit_in_mb;
-  }
-  V8_DEPRECATED("max_executable_size_ is subsumed by max_old_space_size_",
-                size_t max_executable_size() const) {
-    return max_executable_size_;
-  }
-  V8_DEPRECATED("max_executable_size_ is subsumed by max_old_space_size_",
-                void set_max_executable_size(size_t limit_in_mb)) {
-    max_executable_size_ = limit_in_mb;
   }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
@@ -6399,7 +6460,6 @@ class V8_EXPORT ResourceConstraints {
 
   // The remaining limits are in MB
   size_t max_old_space_size_;
-  size_t max_executable_size_;
   uint32_t* stack_limit_;
   size_t code_range_size_;
   size_t max_zone_pool_size_;
@@ -6806,21 +6866,6 @@ class V8_EXPORT HeapCodeStatistics {
 
 class RetainedObjectInfo;
 
-
-/**
- * FunctionEntryHook is the type of the profile entry hook called at entry to
- * any generated function when function-level profiling is enabled.
- *
- * \param function the address of the function that's being entered.
- * \param return_addr_location points to a location on stack where the machine
- *    return address resides. This can be used to identify the caller of
- *    \p function, and/or modified to divert execution when \p function exits.
- *
- * \note the entry hook must not cause garbage collection.
- */
-typedef void (*FunctionEntryHook)(uintptr_t function,
-                                  uintptr_t return_addr_location);
-
 /**
  * A JIT code event is issued each time code is added, moved or removed.
  *
@@ -7120,8 +7165,7 @@ class V8_EXPORT Isolate {
    */
   struct CreateParams {
     CreateParams()
-        : entry_hook(nullptr),
-          code_event_handler(nullptr),
+        : code_event_handler(nullptr),
           snapshot_blob(nullptr),
           counter_lookup_callback(nullptr),
           create_histogram_callback(nullptr),
@@ -7130,16 +7174,6 @@ class V8_EXPORT Isolate {
           external_references(nullptr),
           allow_atomics_wait(true),
           only_terminate_in_safe_scope(false) {}
-
-    /**
-     * The optional entry_hook allows the host application to provide the
-     * address of a function that's invoked on entry to every V8-generated
-     * function.  Note that entry_hook is invoked at the very start of each
-     * generated function.
-     * An entry_hook can only be provided in no-snapshot builds; in snapshot
-     * builds it must be nullptr.
-     */
-    FunctionEntryHook entry_hook;
 
     /**
      * Allows the host application to provide the address of a function that is
@@ -7387,6 +7421,8 @@ class V8_EXPORT Isolate {
     kAttemptOverrideReadOnlyOnPrototypeSloppy = 69,
     kAttemptOverrideReadOnlyOnPrototypeStrict = 70,
     kOptimizedFunctionWithOneShotBytecode = 71,
+    kRegExpMatchIsTrueishOnNonJSRegExp = 72,
+    kRegExpMatchIsFalseishOnJSRegExp = 73,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, UseCounterCallback.cpp, and enums.xml. V8 changes to
@@ -7662,7 +7698,8 @@ class V8_EXPORT Isolate {
   Local<Context> GetCurrentContext();
 
   /** Returns the last context entered through V8's C++ API. */
-  Local<Context> GetEnteredContext();
+  V8_DEPRECATED("Use GetEnteredOrMicrotaskContext().",
+                Local<Context> GetEnteredContext());
 
   /**
    * Returns either the last context entered through V8's C++ API, or the
@@ -7788,7 +7825,7 @@ class V8_EXPORT Isolate {
    */
   typedef void (*AtomicsWaitCallback)(AtomicsWaitEvent event,
                                       Local<SharedArrayBuffer> array_buffer,
-                                      size_t offset_in_bytes, int32_t value,
+                                      size_t offset_in_bytes, int64_t value,
                                       double timeout_in_ms,
                                       AtomicsWaitWakeHandle* stop_handle,
                                       void* data);
@@ -8137,13 +8174,9 @@ class V8_EXPORT Isolate {
   void GetCodeRange(void** start, size_t* length_in_bytes);
 
   /**
-   * Returns a memory range containing the code for V8's embedded functions
-   * (e.g. builtins) which are shared across isolates.
-   *
-   * If embedded builtins are disabled, then the memory range will be a null
-   * pointer with 0 length.
+   * Returns the UnwindState necessary for use with the Unwinder API.
    */
-  MemoryRange GetEmbeddedCodeRange();
+  UnwindState GetUnwindState();
 
   /** Set the callback to invoke in case of fatal errors. */
   void SetFatalErrorHandler(FatalErrorCallback that);
@@ -8189,7 +8222,9 @@ class V8_EXPORT Isolate {
   void SetWasmModuleCallback(ExtensionCallback callback);
   void SetWasmInstanceCallback(ExtensionCallback callback);
 
-  void SetWasmCompileStreamingCallback(ApiImplementationCallback callback);
+  V8_DEPRECATE_SOON(
+      "The callback set in SetWasmStreamingCallback is used now",
+      void SetWasmCompileStreamingCallback(ApiImplementationCallback callback));
 
   void SetWasmStreamingCallback(WasmStreamingCallback callback);
 
@@ -8492,8 +8527,8 @@ class V8_EXPORT V8 {
    * Enable the default signal handler rather than using one provided by the
    * embedder.
    */
-  V8_DEPRECATE_SOON("Use EnableWebAssemblyTrapHandler",
-                    static bool RegisterDefaultSignalHandler());
+  V8_DEPRECATED("Use EnableWebAssemblyTrapHandler",
+                static bool RegisterDefaultSignalHandler());
 
   /**
    * Activate trap-based bounds checking for WebAssembly.
@@ -9162,7 +9197,7 @@ class V8_EXPORT Context {
    * stack.
    * https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
    */
-  class V8_EXPORT BackupIncumbentScope {
+  class V8_EXPORT BackupIncumbentScope final {
    public:
     /**
      * |backup_incumbent_context| is pushed onto the backup incumbent settings
@@ -9171,10 +9206,20 @@ class V8_EXPORT Context {
     explicit BackupIncumbentScope(Local<Context> backup_incumbent_context);
     ~BackupIncumbentScope();
 
+    /**
+     * Returns address that is comparable with JS stack address.  Note that JS
+     * stack may be allocated separately from the native stack.  See also
+     * |TryCatch::JSStackComparableAddress| for details.
+     */
+    uintptr_t JSStackComparableAddress() const {
+      return js_stack_comparable_address_;
+    }
+
    private:
     friend class internal::Isolate;
 
     Local<Context> backup_incumbent_context_;
+    uintptr_t js_stack_comparable_address_ = 0;
     const BackupIncumbentScope* prev_ = nullptr;
   };
 
@@ -9313,6 +9358,55 @@ class V8_EXPORT Locker {
   internal::Isolate* isolate_;
 };
 
+/**
+ * Various helpers for skipping over V8 frames in a given stack.
+ *
+ * The unwinder API is only supported on the x64 architecture.
+ */
+class V8_EXPORT Unwinder {
+ public:
+  /**
+   * Attempt to unwind the stack to the most recent C++ frame. This function is
+   * signal-safe and does not access any V8 state and thus doesn't require an
+   * Isolate.
+   *
+   * The unwinder needs to know the location of the JS Entry Stub (a piece of
+   * code that is run when C++ code calls into generated JS code). This is used
+   * for edge cases where the current frame is being constructed or torn down
+   * when the stack sample occurs.
+   *
+   * The unwinder also needs the virtual memory range of all possible V8 code
+   * objects. There are two ranges required - the heap code range and the range
+   * for code embedded in the binary. The V8 API provides all required inputs
+   * via an UnwindState object through the Isolate::GetUnwindState() API. These
+   * values will not change after Isolate initialization, so the same
+   * |unwind_state| can be used for multiple calls.
+   *
+   * \param unwind_state Input state for the Isolate that the stack comes from.
+   * \param register_state The current registers. This is an in-out param that
+   * will be overwritten with the register values after unwinding, on success.
+   * \param stack_base The resulting stack pointer and frame pointer values are
+   * bounds-checked against the stack_base and the original stack pointer value
+   * to ensure that they are valid locations in the given stack. If these values
+   * or any intermediate frame pointer values used during unwinding are ever out
+   * of these bounds, unwinding will fail.
+   *
+   * \return True on success.
+   */
+  static bool TryUnwindV8Frames(const UnwindState& unwind_state,
+                                RegisterState* register_state,
+                                const void* stack_base);
+
+  /**
+   * Whether the PC is within the V8 code range represented by code_range or
+   * embedded_code_range in |unwind_state|.
+   *
+   * If this returns false, then calling UnwindV8Frames() with the same PC
+   * and unwind_state will always fail. If it returns true, then unwinding may
+   * (but not necessarily) be successful.
+   */
+  static bool PCIsInV8(const UnwindState& unwind_state, void* pc);
+};
 
 // --- Implementation ---
 
@@ -9828,7 +9922,8 @@ Local<Value> Object::GetInternalField(int index) {
   if (instance_type == I::kJSObjectType ||
       instance_type == I::kJSApiObjectType ||
       instance_type == I::kJSSpecialApiObjectType) {
-    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
+    int offset = I::kJSObjectHeaderSizeForEmbedderFields +
+                 (I::kEmbedderDataSlotSize * index);
     A value = I::ReadField<A>(obj, offset);
     A* result = HandleScope::CreateHandle(
         reinterpret_cast<internal::NeverReadOnlySpaceObject*>(obj), value);
@@ -9850,7 +9945,8 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   if (V8_LIKELY(instance_type == I::kJSObjectType ||
                 instance_type == I::kJSApiObjectType ||
                 instance_type == I::kJSSpecialApiObjectType)) {
-    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
+    int offset = I::kJSObjectHeaderSizeForEmbedderFields +
+                 (I::kEmbedderDataSlotSize * index);
     return I::ReadField<void*>(obj, offset);
   }
 #endif
@@ -10161,11 +10257,11 @@ Proxy* Proxy::Cast(v8::Value* value) {
   return static_cast<Proxy*>(value);
 }
 
-WasmCompiledModule* WasmCompiledModule::Cast(v8::Value* value) {
+WasmModuleObject* WasmModuleObject::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
 #endif
-  return static_cast<WasmCompiledModule*>(value);
+  return static_cast<WasmModuleObject*>(value);
 }
 
 Promise::Resolver* Promise::Resolver::Cast(v8::Value* value) {

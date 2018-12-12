@@ -80,12 +80,12 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
     TNode<ExternalReference> isolate_ptr =
         ExternalConstant(ExternalReference::isolate_address(isolate()));
     return UncheckedCast<String>(
-        CallCFunction5(MachineType::AnyTagged(),  // <return> String*
+        CallCFunction5(MachineType::AnyTagged(),  // <return> String
                        MachineType::Pointer(),    // Isolate*
-                       MachineType::AnyTagged(),  // FixedArray* fixed_array
+                       MachineType::AnyTagged(),  // FixedArray fixed_array
                        MachineType::IntPtr(),     // intptr_t length
-                       MachineType::AnyTagged(),  // String* sep
-                       MachineType::AnyTagged(),  // String* dest
+                       MachineType::AnyTagged(),  // String sep
+                       MachineType::AnyTagged(),  // String dest
                        func, isolate_ptr, fixed_array, length, sep, dest));
   }
 

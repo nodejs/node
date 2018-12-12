@@ -151,7 +151,7 @@ class MapProcessor extends LogReader {
     from = this.getExistingMap(from, time);
     to = this.getExistingMap(to, time);
     let edge = new Edge(type, name, reason, time, from, to);
-    edge.filePosition = this.formatPC(pc, line, column);
+    to.filePosition = this.formatPC(pc, line, column);
     edge.finishSetup();
   }
 
@@ -209,6 +209,7 @@ class V8Map {
     V8Map.set(id, this);
     this.leftId = 0;
     this.rightId = 0;
+    this.filePosition = "";
   }
 
   finalize(id) {
@@ -319,7 +320,6 @@ class Edge {
     this.time = time;
     this.from = from;
     this.to = to;
-    this.filePosition = "";
   }
 
   finishSetup() {

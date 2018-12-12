@@ -86,14 +86,13 @@ struct SmiTagging<8> {
   }
 };
 
-#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+#if defined(V8_COMPRESS_POINTERS)
 static_assert(
     kApiSystemPointerSize == kApiInt64Size,
     "Pointer compression can be enabled only for 64-bit architectures");
-typedef SmiTagging<4> PlatformSmiTagging;
-#else
-typedef SmiTagging<kApiSystemPointerSize> PlatformSmiTagging;
 #endif
+
+typedef SmiTagging<kApiIntSize> PlatformSmiTagging;
 
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
@@ -123,6 +122,9 @@ class Internals {
   static const int kOddballKindOffset = 4 * kApiTaggedSize + kApiDoubleSize;
   static const int kForeignAddressOffset = kApiTaggedSize;
   static const int kJSObjectHeaderSize = 3 * kApiTaggedSize;
+  static const int kJSObjectHeaderSizeForEmbedderFields =
+      (kJSObjectHeaderSize + kApiSystemPointerSize - 1) &
+      -kApiSystemPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize =
@@ -130,8 +132,7 @@ class Internals {
       2 *
 #endif
       kApiSystemPointerSize;
-  static const int kContextHeaderSize = 2 * kApiTaggedSize;
-  static const int kContextEmbedderDataIndex = 5;
+  static const int kNativeContextEmbedderDataOffset = 7 * kApiTaggedSize;
   static const int kFullStringRepresentationMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -275,10 +276,7 @@ class Internals {
     typedef internal::Address A;
     typedef internal::Internals I;
     A ctx = *reinterpret_cast<const A*>(context);
-    int embedder_data_offset =
-        I::kContextHeaderSize +
-        (internal::kApiTaggedSize * I::kContextEmbedderDataIndex);
-    A embedder_data = I::ReadField<A>(ctx, embedder_data_offset);
+    A embedder_data = I::ReadField<A>(ctx, I::kNativeContextEmbedderDataOffset);
     int value_offset =
         I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
     return I::ReadField<T>(embedder_data, value_offset);

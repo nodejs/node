@@ -27,10 +27,6 @@ expression: (function* foo() { yield 1 })
                 }
             }
             [2] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [3] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -64,10 +60,6 @@ expression: (function foo() {})
                 }
             }
             [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [2] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -95,10 +87,6 @@ expression: new Number(239)
                     value : 239
                 }
             }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -114,10 +102,6 @@ expression: new Boolean(false)
                     value : false
                 }
             }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -132,10 +116,6 @@ expression: new String('abc')
                     type : string
                     value : abc
                 }
-            }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
             }
         ]
     }
@@ -153,10 +133,6 @@ expression: Object(Symbol(42))
                     type : symbol
                 }
             }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -172,10 +148,6 @@ expression: Object(BigInt(2))
                     type : bigint
                     unserializableValue : 2n
                 }
-            }
-            [1] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
             }
         ]
     }
@@ -202,10 +174,6 @@ expression: Promise.resolve(42)
                     value : 42
                 }
             }
-            [2] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -226,10 +194,6 @@ expression: new Promise(() => undefined)
                 value : {
                     type : undefined
                 }
-            }
-            [2] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
             }
         ]
     }
@@ -280,10 +244,6 @@ expression: gen1
                 }
             }
             [4] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -340,10 +300,6 @@ expression: gen1.next();gen1
                 }
             }
             [4] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -398,10 +354,6 @@ expression: gen1.next();gen1
                     objectId : <objectId>
                     type : object
                 }
-            }
-            [4] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
             }
         ]
     }
@@ -452,10 +404,6 @@ expression: gen2
                 }
             }
             [4] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -512,10 +460,6 @@ expression: gen2.next();gen2
                 }
             }
             [4] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -571,10 +515,6 @@ expression: gen2.next();gen2
                     type : object
                 }
             }
-            [4] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
         ]
     }
 }
@@ -608,10 +548,6 @@ expression: (new Map([[1,2]])).entries()
                 }
             }
             [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[Entries]]
                 value : {
                     className : Array
@@ -652,10 +588,6 @@ expression: (new Set([[1,2]])).entries()
                 }
             }
             [3] : {
-                name : [[StableObjectId]]
-                value : <StablectObjectId>
-            }
-            [4] : {
                 name : [[Entries]]
                 value : {
                     className : Array

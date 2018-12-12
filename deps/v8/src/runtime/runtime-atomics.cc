@@ -362,7 +362,7 @@ Object* GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
     Handle<BigInt> bigint;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                        BigInt::FromObject(isolate, value_obj));
-    // SharedArrayBuffers are not neuterable.
+    // SharedArrayBuffers are not detachable.
     CHECK_LT(index, NumberToSize(sta->length()));
     if (sta->type() == kExternalBigInt64Array) {
       return Op<int64_t>::Do(isolate, source, index, bigint);
@@ -374,7 +374,7 @@ Object* GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
   Handle<Object> value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value_obj));
-  // SharedArrayBuffers are not neuterable.
+  // SharedArrayBuffers are not detachable.
   CHECK_LT(index, NumberToSize(sta->length()));
 
   switch (sta->type()) {
@@ -404,7 +404,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
 
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  // SharedArrayBuffers are not neuterable.
+  // SharedArrayBuffers are not detachable.
   CHECK_LT(index, NumberToSize(sta->length()));
   if (sta->type() == kExternalBigInt64Array) {
     return Load<int64_t>::Do(isolate, source, index);
@@ -430,7 +430,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
 
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  // SharedArrayBuffers are not neuterable.
+  // SharedArrayBuffers are not detachable.
   CHECK_LT(index, NumberToSize(sta->length()));
   if (sta->type() == kExternalBigInt64Array) {
     Store<int64_t>::Do(isolate, source, index, bigint);
@@ -465,7 +465,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
         isolate, old_bigint, BigInt::FromObject(isolate, old_value_obj));
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, new_bigint, BigInt::FromObject(isolate, new_value_obj));
-    // SharedArrayBuffers are not neuterable.
+    // SharedArrayBuffers are not detachable.
     CHECK_LT(index, NumberToSize(sta->length()));
     if (sta->type() == kExternalBigInt64Array) {
       return DoCompareExchange<int64_t>(isolate, source, index, old_bigint,
@@ -482,7 +482,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
                                      Object::ToInteger(isolate, old_value_obj));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_value,
                                      Object::ToInteger(isolate, new_value_obj));
-  // SharedArrayBuffers are not neuterable.
+  // SharedArrayBuffers are not detachable.
   CHECK_LT(index, NumberToSize(sta->length()));
 
   switch (sta->type()) {

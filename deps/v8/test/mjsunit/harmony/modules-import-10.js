@@ -9,7 +9,7 @@ import('modules-skip-6.js').then(namespace => life = namespace.life);
 
 assertEquals(undefined, Object.life);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(42, Object.life);
 assertEquals("42", life);

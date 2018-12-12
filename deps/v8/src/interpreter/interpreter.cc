@@ -128,7 +128,7 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
       code = Code::GetCodeFromTargetAddress(code_entry);
     }
     Code old_code = code;
-    v->VisitRootPointer(Root::kDispatchTable, nullptr, ObjectSlot(&code));
+    v->VisitRootPointer(Root::kDispatchTable, nullptr, FullObjectSlot(&code));
     if (code != old_code) {
       dispatch_table_[i] = code->entry();
     }

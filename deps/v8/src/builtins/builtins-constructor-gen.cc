@@ -225,15 +225,10 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
-    Node* scope_info, Node* slots, Node* context, ScopeType scope_type) {
-  slots = ChangeUint32ToWord(slots);
-
-  // TODO(ishell): Use CSA::OptimalParameterMode() here.
-  ParameterMode mode = INTPTR_PARAMETERS;
-  Node* min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
-  Node* length = IntPtrAdd(slots, min_context_slots);
-  TNode<IntPtrT> size =
-      GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
+    Node* scope_info, Node* slots_uint32, Node* context, ScopeType scope_type) {
+  TNode<IntPtrT> slots = Signed(ChangeUint32ToWord(slots_uint32));
+  TNode<IntPtrT> size = ElementOffsetFromIndex(
+      slots, PACKED_ELEMENTS, INTPTR_PARAMETERS, Context::kTodoHeaderSize);
 
   // Create a new closure from the given function info in new space
   TNode<Context> function_context =
@@ -250,33 +245,34 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
     default:
       UNREACHABLE();
   }
+  // Set up the header.
   StoreMapNoWriteBarrier(function_context, context_type);
+  TNode<IntPtrT> min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
+  // TODO(ishell): for now, length also includes MIN_CONTEXT_SLOTS.
+  TNode<IntPtrT> length = IntPtrAdd(slots, min_context_slots);
   StoreObjectFieldNoWriteBarrier(function_context, Context::kLengthOffset,
                                  SmiTag(length));
+  StoreObjectFieldNoWriteBarrier(function_context, Context::kScopeInfoOffset,
+                                 scope_info);
+  StoreObjectFieldNoWriteBarrier(function_context, Context::kPreviousOffset,
+                                 context);
+  StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
+                                 TheHoleConstant());
+  TNode<Context> native_context = LoadNativeContext(context);
+  StoreObjectFieldNoWriteBarrier(function_context,
+                                 Context::kNativeContextOffset, native_context);
 
-  // Set up the fixed slots.
-  StoreFixedArrayElement(function_context, Context::SCOPE_INFO_INDEX,
-                         scope_info, SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(function_context, Context::PREVIOUS_INDEX, context,
-                         SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(function_context, Context::EXTENSION_INDEX,
-                         TheHoleConstant(), SKIP_WRITE_BARRIER);
-
-  // Copy the native context from the previous context.
-  Node* native_context = LoadNativeContext(context);
-  StoreFixedArrayElement(function_context, Context::NATIVE_CONTEXT_INDEX,
-                         native_context, SKIP_WRITE_BARRIER);
-
-  // Initialize the rest of the slots to undefined.
-  Node* undefined = UndefinedConstant();
-  BuildFastFixedArrayForEach(
-      function_context, PACKED_ELEMENTS, min_context_slots, length,
-      [this, undefined](Node* context, Node* offset) {
-        StoreNoWriteBarrier(MachineRepresentation::kTagged, context, offset,
-                            undefined);
+  // Initialize the varrest of the slots to undefined.
+  TNode<HeapObject> undefined = UndefinedConstant();
+  TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
+  CodeStubAssembler::VariableList vars(0, zone());
+  BuildFastLoop(
+      vars, start_offset, size,
+      [=](Node* offset) {
+        StoreObjectFieldNoWriteBarrier(
+            function_context, UncheckedCast<IntPtrT>(offset), undefined);
       },
-      mode);
-
+      kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
   return function_context;
 }
 

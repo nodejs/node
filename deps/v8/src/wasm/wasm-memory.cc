@@ -154,6 +154,20 @@ WasmMemoryTracker::~WasmMemoryTracker() {
   DCHECK_EQ(allocated_address_space_, 0u);
 }
 
+void* WasmMemoryTracker::TryAllocateBackingStoreForTesting(
+    Heap* heap, size_t size, void** allocation_base,
+    size_t* allocation_length) {
+  return TryAllocateBackingStore(this, heap, size, allocation_base,
+                                 allocation_length);
+}
+
+void WasmMemoryTracker::FreeBackingStoreForTesting(base::AddressRegion memory,
+                                                   void* buffer_start) {
+  ReleaseAllocation(nullptr, buffer_start);
+  CHECK(FreePages(GetPlatformPageAllocator(),
+                  reinterpret_cast<void*>(memory.begin()), memory.size()));
+}
+
 bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes,
                                             ReservationLimit limit) {
   size_t reservation_limit =
@@ -271,7 +285,7 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
   constexpr bool is_wasm_memory = true;
   JSArrayBuffer::Setup(buffer, isolate, is_external, backing_store, size,
                        shared, is_wasm_memory);
-  buffer->set_is_neuterable(false);
+  buffer->set_is_detachable(false);
   buffer->set_is_growable(true);
   return buffer;
 }
@@ -309,17 +323,17 @@ MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
 void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
                         bool free_memory) {
   if (buffer->is_shared()) return;  // Detaching shared buffers is impossible.
-  DCHECK(!buffer->is_neuterable());
+  DCHECK(!buffer->is_detachable());
 
   const bool is_external = buffer->is_external();
-  DCHECK(!buffer->is_neuterable());
+  DCHECK(!buffer->is_detachable());
   if (!is_external) {
     buffer->set_is_external(true);
     isolate->heap()->UnregisterArrayBuffer(*buffer);
     if (free_memory) {
-      // We need to free the memory before neutering the buffer because
+      // We need to free the memory before detaching the buffer because
       // FreeBackingStore reads buffer->allocation_base(), which is nulled out
-      // by Neuter. This means there is a dangling pointer until we neuter the
+      // by Detach. This means there is a dangling pointer until we detach the
       // buffer. Since there is no way for the user to directly call
       // FreeBackingStore, we can ensure this is safe.
       buffer->FreeBackingStoreFromMainThread();
@@ -328,8 +342,8 @@ void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
 
   DCHECK(buffer->is_external());
   buffer->set_is_wasm_memory(false);
-  buffer->set_is_neuterable(true);
-  buffer->Neuter();
+  buffer->set_is_detachable(true);
+  buffer->Detach();
 }
 
 }  // namespace wasm

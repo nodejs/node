@@ -1137,7 +1137,7 @@ int Float64MaxLatency() {
 
 int PrepareCallCFunctionLatency() {
   int frame_alignment = TurboAssembler::ActivationFrameAlignment();
-  if (frame_alignment > kPointerSize) {
+  if (frame_alignment > kSystemPointerSize) {
     return 1 + SubuLatency(false) + AndLatency(false) + 1;
   } else {
     return SubuLatency(false);
@@ -1154,7 +1154,7 @@ int CallLatency() {
 int CallCFunctionHelperLatency() {
   // Estimated.
   int latency = AndLatency(false) + Latency::BRANCH + 2 + CallLatency();
-  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
+  if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
     latency++;
   } else {
     latency += AdduLatency(false);
@@ -1293,6 +1293,7 @@ int TryInlineTruncateDoubleToILatency() {
 int CallStubDelayedLatency() { return 1 + CallLatency(); }
 
 int TruncateDoubleToIDelayedLatency() {
+  // TODO(mips): This no longer reflects how TruncateDoubleToI is called.
   return TryInlineTruncateDoubleToILatency() + 1 + SubuLatency(false) +
          Sdc1Latency() + CallStubDelayedLatency() + AdduLatency(false) + 1;
 }

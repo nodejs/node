@@ -18,6 +18,6 @@ var typedArrayConstructors = [
 
 for (constructor of typedArrayConstructors) {
   var ta = new constructor(10);
-  %ArrayBufferNeuter(ta.buffer);
+  %ArrayBufferDetach(ta.buffer);
   assertThrows(() => constructor.from(ta), TypeError);
 }

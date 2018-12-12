@@ -108,7 +108,7 @@ class MapUpdater {
   State CopyGeneralizeAllFields(const char* reason);
 
   // Returns name of a |descriptor| property.
-  inline Name* GetKey(int descriptor) const;
+  inline Name GetKey(int descriptor) const;
 
   // Returns property details of a |descriptor| in "updated" |old_descrtiptors_|
   // array.

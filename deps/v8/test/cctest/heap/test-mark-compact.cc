@@ -124,10 +124,10 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
   }
   obj->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
                                 SKIP_WRITE_BARRIER);
-  FixedArray* array = FixedArray::cast(obj);
+  FixedArray array = FixedArray::cast(obj);
   array->set_length(length);
-  MemsetPointer(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
-                length);
+  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
+               length);
   return array;
 }
 
@@ -165,8 +165,8 @@ HEAP_TEST(MarkCompactCollector) {
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
     Handle<JSFunction> function = factory->NewFunctionForTest(func_name);
-    JSReceiver::SetProperty(isolate, global, func_name, function,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, global, func_name, function,
+                        LanguageMode::kSloppy)
         .Check();
 
     factory->NewJSObject(function);
@@ -184,13 +184,12 @@ HEAP_TEST(MarkCompactCollector) {
     Handle<JSObject> obj = factory->NewJSObject(function);
 
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    JSReceiver::SetProperty(isolate, global, obj_name, obj,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, global, obj_name, obj, LanguageMode::kSloppy)
         .Check();
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-    JSReceiver::SetProperty(isolate, obj, prop_name, twenty_three,
-                            LanguageMode::kSloppy)
+    Object::SetProperty(isolate, obj, prop_name, twenty_three,
+                        LanguageMode::kSloppy)
         .Check();
   }
 

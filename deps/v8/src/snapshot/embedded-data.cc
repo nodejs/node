@@ -17,7 +17,7 @@ namespace internal {
 bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
   if (FLAG_embedded_builtins) {
     const Address start = reinterpret_cast<Address>(isolate->embedded_blob());
-    return IsInRange(pc, start, start + isolate->embedded_blob_size());
+    return start <= pc && pc < start + isolate->embedded_blob_size();
   } else {
     return false;
   }
@@ -102,7 +102,6 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code code) {
     // Bytecode handlers will only ever be used by the interpreter and so there
     // will never be a need to use trampolines with them.
     case Builtins::BCH:
-    case Builtins::DLH:
     case Builtins::API:
     case Builtins::ASM:
       // TODO(jgruber): Extend checks to remaining kinds.

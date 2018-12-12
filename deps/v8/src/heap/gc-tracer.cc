@@ -9,6 +9,8 @@
 #include "src/base/atomic-utils.h"
 #include "src/counters-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/spaces.h"
 #include "src/isolate.h"
 
 namespace v8 {

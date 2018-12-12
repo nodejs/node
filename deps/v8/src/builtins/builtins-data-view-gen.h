@@ -37,19 +37,19 @@ class DataViewBuiltinsAssembler : public CodeStubAssembler {
     return ElementsKindToByteSize(elements_kind);
   }
 
-  TNode<IntPtrT> DataViewEncodeBigIntBits(bool sign, int32_t digits) {
-    return IntPtrConstant(BigInt::SignBits::encode(sign) |
-                          BigInt::LengthBits::encode(digits));
+  TNode<Uint32T> DataViewEncodeBigIntBits(bool sign, int32_t digits) {
+    return Unsigned(Int32Constant(BigInt::SignBits::encode(sign) |
+                                  BigInt::LengthBits::encode(digits)));
   }
 
-  TNode<UintPtrT> DataViewDecodeBigIntLength(TNode<BigInt> value) {
-    TNode<WordT> bitfield = LoadBigIntBitfield(value);
-    return DecodeWord<BigIntBase::LengthBits>(bitfield);
+  TNode<Uint32T> DataViewDecodeBigIntLength(TNode<BigInt> value) {
+    TNode<Word32T> bitfield = LoadBigIntBitfield(value);
+    return DecodeWord32<BigIntBase::LengthBits>(bitfield);
   }
 
-  TNode<UintPtrT> DataViewDecodeBigIntSign(TNode<BigInt> value) {
-    TNode<WordT> bitfield = LoadBigIntBitfield(value);
-    return DecodeWord<BigIntBase::SignBits>(bitfield);
+  TNode<Uint32T> DataViewDecodeBigIntSign(TNode<BigInt> value) {
+    TNode<Word32T> bitfield = LoadBigIntBitfield(value);
+    return DecodeWord32<BigIntBase::SignBits>(bitfield);
   }
 };
 

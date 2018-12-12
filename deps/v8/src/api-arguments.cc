@@ -11,7 +11,7 @@ namespace internal {
 
 PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
                                                      Object* data, Object* self,
-                                                     JSObject* holder,
+                                                     JSObject holder,
                                                      ShouldThrow should_throw)
     : Super(isolate) {
   slot_at(T::kThisIndex).store(self);

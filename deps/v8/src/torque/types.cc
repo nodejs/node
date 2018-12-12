@@ -204,7 +204,9 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
       if (i > 0) os << ", ";
     }
     if (with_names && !sig.parameter_names.empty()) {
-      os << sig.parameter_names[i] << ": ";
+      if (i < sig.parameter_names.size()) {
+        os << sig.parameter_names[i] << ": ";
+      }
     }
     os << *sig.parameter_types.types[i];
   }
@@ -259,7 +261,7 @@ bool Signature::HasSameTypesAs(const Signature& other,
     compare_types = GetExplicitTypes();
     other_compare_types = other.GetExplicitTypes();
   }
-  if (!(compare_types == other.parameter_types.types &&
+  if (!(compare_types == other_compare_types &&
         parameter_types.var_args == other.parameter_types.var_args &&
         return_type == other.return_type)) {
     return false;

@@ -68,7 +68,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   int nof = map->NumberOfOwnDescriptors();
   if (nof == 0) return false;
   int descriptor = nof - 1;
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors();
   if (descriptors->GetKey(descriptor) != *key) return false;
   // (3) The property to be deleted must be deletable.
   PropertyDetails details = descriptors->GetDetails(descriptor);
@@ -498,7 +498,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       DisallowHeapAllocation no_allocation;
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
-        GlobalDictionary* dictionary =
+        GlobalDictionary dictionary =
             JSGlobalObject::cast(*receiver)->global_dictionary();
         int entry = dictionary->FindEntry(isolate, key);
         if (entry != GlobalDictionary::kNotFound) {
@@ -511,7 +511,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         }
       } else if (!receiver->HasFastProperties()) {
         // Attempt dictionary lookup.
-        NameDictionary* dictionary = receiver->property_dictionary();
+        NameDictionary dictionary = receiver->property_dictionary();
         int entry = dictionary->FindEntry(isolate, key);
         if ((entry != NameDictionary::kNotFound) &&
             (dictionary->DetailsAt(entry).kind() == kData)) {
@@ -836,21 +836,25 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(flag, 3);
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 4);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 4);
   CONVERT_SMI_ARG_CHECKED(index, 5);
 
-  FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
-  if (nexus.ic_state() == UNINITIALIZED) {
-    if (name->IsUniqueName()) {
-      nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
-                                 MaybeObjectHandle());
-    } else {
-      nexus.ConfigureMegamorphic(PROPERTY);
-    }
-  } else if (nexus.ic_state() == MONOMORPHIC) {
-    if (nexus.FindFirstMap() != object->map() ||
-        nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
-      nexus.ConfigureMegamorphic(PROPERTY);
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
+    FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
+    if (nexus.ic_state() == UNINITIALIZED) {
+      if (name->IsUniqueName()) {
+        nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
+                                   MaybeObjectHandle());
+      } else {
+        nexus.ConfigureMegamorphic(PROPERTY);
+      }
+    } else if (nexus.ic_state() == MONOMORPHIC) {
+      if (nexus.FindFirstMap() != object->map() ||
+          nexus.GetFeedbackExtra() != MaybeObject::FromObject(*name)) {
+        nexus.ConfigureMegamorphic(PROPERTY);
+      }
     }
   }
 
@@ -1040,7 +1044,7 @@ inline void TrySetNative(Handle<Object> maybe_func) {
 
 inline void TrySetNativeAndLength(Handle<Object> maybe_func, int length) {
   if (!maybe_func->IsJSFunction()) return;
-  SharedFunctionInfo* shared = JSFunction::cast(*maybe_func)->shared();
+  SharedFunctionInfo shared = JSFunction::cast(*maybe_func)->shared();
   shared->set_native(true);
   if (length >= 0) {
     shared->set_length(length);

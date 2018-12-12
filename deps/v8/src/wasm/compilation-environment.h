@@ -73,10 +73,24 @@ class WireBytesStorage {
   virtual Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
 };
 
+// Callbacks will receive either {kFailedCompilation} or both
+// {kFinishedBaselineCompilation} and {kFinishedTopTierCompilation}, in that
+// order. If tier up is off, both events are delivered right after each other.
+enum class CompilationEvent : uint8_t {
+  kFinishedBaselineCompilation,
+  kFinishedTopTierCompilation,
+  kFailedCompilation,
+
+  // Marker:
+  // After an event >= kFirstFinalEvent, no further events are generated.
+  kFirstFinalEvent = kFinishedTopTierCompilation
+};
+
 // The implementation of {CompilationState} lives in module-compiler.cc.
 // This is the PIMPL interface to that private class.
 class CompilationState {
  public:
+  using callback_t = std::function<void(CompilationEvent, const ResultBase*)>;
   ~CompilationState();
 
   void CancelAndWait();
@@ -86,6 +100,8 @@ class CompilationState {
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 
   std::shared_ptr<WireBytesStorage> GetWireBytesStorage();
+
+  void AddCallback(callback_t);
 
  private:
   friend class NativeModule;

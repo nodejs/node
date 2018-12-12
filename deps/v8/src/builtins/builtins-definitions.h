@@ -87,6 +87,9 @@ namespace internal {
   TFC(ConstructProxy, JSTrampoline, 1)                                         \
                                                                                \
   /* Apply and entries */                                                      \
+  ASM(JSEntry)                                                                 \
+  ASM(JSConstructEntry)                                                        \
+  ASM(JSRunMicrotasksEntry)                                                    \
   ASM(JSEntryTrampoline)                                                       \
   ASM(JSConstructEntryTrampoline)                                              \
   ASM(ResumeGeneratorTrampoline)                                               \
@@ -155,6 +158,8 @@ namespace internal {
   ASM(ContinueToJavaScriptBuiltinWithResult)                                   \
                                                                                \
   /* API callback handling */                                                  \
+  ASM(CallApiCallback)                                                         \
+  ASM(CallApiGetter)                                                           \
   API(HandleApiCall)                                                           \
   API(HandleApiCallAsFunction)                                                 \
   API(HandleApiCallAsConstructor)                                              \
@@ -196,6 +201,8 @@ namespace internal {
   TFC(ToLength, TypeConversion, 1)                                             \
   TFC(Typeof, Typeof, 1)                                                       \
   TFC(GetSuperConstructor, Typeof, 1)                                          \
+  TFC(BigIntToI64, BigIntToI64, 1)                                             \
+  TFC(I64ToBigInt, BigIntToWasmI64, 1)                                         \
                                                                                \
   /* Type conversions continuations */                                         \
   TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter, 1)         \
@@ -222,6 +229,10 @@ namespace internal {
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB, StoreWithVector)     \
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW, StoreWithVector)     \
   TFH(StoreInArrayLiteralIC_Slow_Standard, StoreWithVector)                    \
+  TFH(StoreFastElementIC_Standard, StoreWithVector)                            \
+  TFH(StoreFastElementIC_GrowNoTransitionHandleCOW, StoreWithVector)           \
+  TFH(StoreFastElementIC_NoTransitionIgnoreOOB, StoreWithVector)               \
+  TFH(StoreFastElementIC_NoTransitionHandleCOW, StoreWithVector)               \
   TFH(StoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)   \
   TFH(StoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)       \
   TFH(StoreInArrayLiteralIC_Slow_NoTransitionHandleCOW, StoreWithVector)       \
@@ -229,6 +240,10 @@ namespace internal {
   TFH(KeyedStoreIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)            \
   TFH(KeyedStoreIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)                \
   TFH(KeyedStoreIC_Slow_NoTransitionHandleCOW, StoreWithVector)                \
+  TFH(ElementsTransitionAndStore_Standard, StoreTransition)                    \
+  TFH(ElementsTransitionAndStore_GrowNoTransitionHandleCOW, StoreTransition)   \
+  TFH(ElementsTransitionAndStore_NoTransitionIgnoreOOB, StoreTransition)       \
+  TFH(ElementsTransitionAndStore_NoTransitionHandleCOW, StoreTransition)       \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
@@ -326,8 +341,6 @@ namespace internal {
   /* ES6 #sec-array.prototype.shift */                                         \
   CPP(ArrayShift)                                                              \
   TFJ(ArrayPrototypeShift, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
-  /* ES6 #sec-array.prototype.slice */                                         \
-  TFJ(ArrayPrototypeSlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift)                                                            \
   /* Support for Array.from and other array-copying idioms */                  \
@@ -1233,6 +1246,7 @@ namespace internal {
   TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
   TFC(WasmAtomicWake, WasmAtomicWake, 1)                                       \
   TFC(WasmI32AtomicWait, WasmI32AtomicWait, 1)                                 \
+  TFC(WasmI64AtomicWait, WasmI64AtomicWait, 1)                                 \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
   TFC(WasmMemoryGrow, WasmMemoryGrow, 1)                                       \
   TFC(WasmRecordWrite, RecordWrite, 1)                                         \
@@ -1248,6 +1262,7 @@ namespace internal {
   TFS(ThrowWasmTrapFloatUnrepresentable)                                       \
   TFS(ThrowWasmTrapFuncInvalid)                                                \
   TFS(ThrowWasmTrapFuncSigMismatch)                                            \
+  TFC(BigIntToWasmI64, BigIntToWasmI64, 1)                                     \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
@@ -1326,6 +1341,7 @@ namespace internal {
   ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit)              \
   ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit)                     \
   ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
+  ASM(DirectCEntry)                                                            \
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, kLeft, kRight)                                      \
@@ -1334,9 +1350,6 @@ namespace internal {
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
-  ASM(CallApiCallback_Argc0)                                                   \
-  ASM(CallApiCallback_Argc1)                                                   \
-  ASM(CallApiGetter)                                                           \
   ASM(DoubleToI)                                                               \
   TFC(GetProperty, GetProperty, 1)                                             \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
@@ -1533,13 +1546,15 @@ namespace internal {
   V(WasmAllocateHeapNumber)              \
   V(WasmAtomicWake)                      \
   V(WasmI32AtomicWait)                   \
+  V(WasmI64AtomicWait)                   \
   V(WasmCallJavaScript)                  \
   V(WasmMemoryGrow)                      \
   V(WasmRecordWrite)                     \
   V(WasmStackGuard)                      \
   V(WasmToNumber)                        \
   V(WasmThrow)                           \
-  V(DoubleToI)
+  V(DoubleToI)                           \
+  V(BigIntToWasmI64)
 
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown

@@ -55,7 +55,7 @@ class JSPluralRules : public JSObject {
 
   Handle<String> TypeAsString() const;
 
-  DECL_CAST(JSPluralRules)
+  DECL_CAST2(JSPluralRules)
   DECL_PRINTER(JSPluralRules)
   DECL_VERIFIER(JSPluralRules)
 
@@ -69,24 +69,23 @@ class JSPluralRules : public JSObject {
   STATIC_ASSERT(Type::ORDINAL <= TypeBits::kMax);
 
 // Layout description.
-#define JS_PLURAL_RULES_FIELDS(V)          \
-  V(kLocaleOffset, kPointerSize)           \
-  V(kFlagsOffset, kPointerSize)            \
-  V(kICUPluralRulesOffset, kPointerSize)   \
-  V(kICUDecimalFormatOffset, kPointerSize) \
-  /* Total size. */                        \
+#define JS_PLURAL_RULES_FIELDS(V)         \
+  V(kLocaleOffset, kTaggedSize)           \
+  V(kFlagsOffset, kTaggedSize)            \
+  V(kICUPluralRulesOffset, kTaggedSize)   \
+  V(kICUDecimalFormatOffset, kTaggedSize) \
+  /* Total size. */                       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PLURAL_RULES_FIELDS)
 #undef JS_PLURAL_RULES_FIELDS
 
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
   DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
   DECL_ACCESSORS(icu_decimal_format, Managed<icu::DecimalFormat>)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSPluralRules);
+  OBJECT_CONSTRUCTORS(JSPluralRules, JSObject);
 };
 
 }  // namespace internal

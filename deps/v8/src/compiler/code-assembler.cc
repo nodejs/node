@@ -20,9 +20,9 @@
 #include "src/lsan.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
+#include "src/memcopy.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/utils.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -45,7 +45,7 @@ static_assert(
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     Code::Kind kind, const char* name, PoisoningMitigationLevel poisoning_level,
-    uint32_t stub_key, int32_t builtin_index)
+    int32_t builtin_index)
     // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
     // bytecode handlers?
     : CodeAssemblerState(
@@ -53,7 +53,7 @@ CodeAssemblerState::CodeAssemblerState(
           Linkage::GetStubCallDescriptor(
               zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties),
-          kind, name, poisoning_level, stub_key, builtin_index) {}
+          kind, name, poisoning_level, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        int parameter_count, Code::Kind kind,
@@ -67,13 +67,13 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
               (kind == Code::BUILTIN ? CallDescriptor::kPushArgumentCount
                                      : CallDescriptor::kNoFlags) |
                   CallDescriptor::kCanUseRoots),
-          kind, name, poisoning_level, 0, builtin_index) {}
+          kind, name, poisoning_level, builtin_index) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
                                        Code::Kind kind, const char* name,
                                        PoisoningMitigationLevel poisoning_level,
-                                       uint32_t stub_key, int32_t builtin_index)
+                                       int32_t builtin_index)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone), call_descriptor,
           MachineType::PointerRepresentation(),
@@ -81,7 +81,6 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
           InstructionSelector::AlignmentRequirements(), poisoning_level)),
       kind_(kind),
       name_(name),
-      stub_key_(stub_key),
       builtin_index_(builtin_index),
       code_generated_(false),
       variables_(zone) {}
@@ -183,8 +182,8 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
 
     code = Pipeline::GenerateCodeForCodeStub(
                rasm->isolate(), rasm->call_descriptor(), graph, nullptr,
-               state->kind_, state->name_, state->stub_key_,
-               state->builtin_index_, nullptr, rasm->poisoning_level(), options)
+               state->kind_, state->name_, state->builtin_index_, nullptr,
+               rasm->poisoning_level(), options)
                .ToHandleChecked();
   } else {
     Schedule* schedule = rasm->Export();
@@ -193,13 +192,12 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
     bool should_optimize_jumps =
         rasm->isolate()->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
 
-    code =
-        Pipeline::GenerateCodeForCodeStub(
-            rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-            state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-            should_optimize_jumps ? &jump_opt : nullptr,
-            rasm->poisoning_level(), options)
-            .ToHandleChecked();
+    code = Pipeline::GenerateCodeForCodeStub(
+               rasm->isolate(), rasm->call_descriptor(), rasm->graph(),
+               schedule, state->kind_, state->name_, state->builtin_index_,
+               should_optimize_jumps ? &jump_opt : nullptr,
+               rasm->poisoning_level(), options)
+               .ToHandleChecked();
 
     if (jump_opt.is_optimizable()) {
       jump_opt.set_optimizing();
@@ -207,9 +205,8 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
       // Regenerate machine code
       code = Pipeline::GenerateCodeForCodeStub(
                  rasm->isolate(), rasm->call_descriptor(), rasm->graph(),
-                 schedule, state->kind_, state->name_, state->stub_key_,
-                 state->builtin_index_, &jump_opt, rasm->poisoning_level(),
-                 options)
+                 schedule, state->kind_, state->name_, state->builtin_index_,
+                 &jump_opt, rasm->poisoning_level(), options)
                  .ToHandleChecked();
     }
   }
@@ -1087,7 +1084,7 @@ Node* CodeAssembler::Retain(Node* value) {
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {
-  DCHECK(index < value->op()->ValueOutputCount());
+  DCHECK_LT(index, value->op()->ValueOutputCount());
   return raw_assembler()->Projection(index, value);
 }
 
@@ -1930,9 +1927,10 @@ CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
 
 }  // namespace compiler
 
-Address CheckObjectType(Object* value, Address raw_type, String* location) {
+Address CheckObjectType(Object* value, Address raw_type, Address raw_location) {
 #ifdef DEBUG
   Smi type(raw_type);
+  String location = String::cast(ObjectPtr(raw_location));
   const char* expected;
   switch (static_cast<ObjectType>(type->value())) {
 #define TYPE_CASE(Name)                                  \

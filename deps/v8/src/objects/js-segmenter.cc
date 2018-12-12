@@ -78,7 +78,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
-                          requested_locales, matcher, {});
+                          requested_locales, matcher, {"lb"});
 
   // 7. Let lineBreakStyle be ? GetOption(options, "lineBreakStyle", "string", «
   // "strict", "normal", "loose" », "normal").

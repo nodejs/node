@@ -5,7 +5,6 @@
 #include "src/snapshot/partial-deserializer.h"
 
 #include "src/api-inl.h"
-#include "src/heap/heap-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 
@@ -43,7 +42,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   CodeSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
   Object* root;
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, ObjectSlot(&root));
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(&root));
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 
@@ -55,6 +54,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   CHECK_EQ(start_address, code_space->top());
 
   if (FLAG_rehash_snapshot && can_rehash()) Rehash();
+  LogNewMapEvents();
 
   return Handle<Object>(root, isolate);
 }

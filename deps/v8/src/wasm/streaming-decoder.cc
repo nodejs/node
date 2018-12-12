@@ -119,6 +119,48 @@ bool StreamingDecoder::SetCompiledModuleBytes(
   return true;
 }
 
+namespace {
+
+class TopTierCompiledCallback {
+ public:
+  TopTierCompiledCallback(std::shared_ptr<NativeModule> native_module,
+                          StreamingDecoder::ModuleCompiledCallback callback)
+      : native_module_(std::move(native_module)),
+        callback_(std::move(callback)) {}
+
+  void operator()(CompilationEvent event,
+                  const ResultBase* error_result) const {
+    if (event != CompilationEvent::kFinishedTopTierCompilation) return;
+    DCHECK_NULL(error_result);
+    callback_(native_module_);
+#ifdef DEBUG
+    DCHECK(!called_);
+    called_ = true;
+#endif
+  }
+
+ private:
+  const std::shared_ptr<NativeModule> native_module_;
+  const StreamingDecoder::ModuleCompiledCallback callback_;
+#ifdef DEBUG
+  mutable bool called_ = false;
+#endif
+};
+
+}  // namespace
+
+void StreamingDecoder::NotifyRuntimeObjectsCreated(
+    Handle<WasmModuleObject> module_object) {
+  if (!module_compiled_callback_) return;
+  std::shared_ptr<NativeModule> native_module =
+      module_object->shared_native_module();
+  auto* comp_state = module_object->native_module()->compilation_state();
+  comp_state->AddCallback(TopTierCompiledCallback{
+      std::move(native_module), std::move(module_compiled_callback_)});
+  // The callback took ownership of the callback:
+  DCHECK_NULL(module_compiled_callback_);
+}
+
 // An abstract class to share code among the states which decode VarInts. This
 // class takes over the decoding of the VarInt and then calls the actual decode
 // code with the decoded value.

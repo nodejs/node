@@ -636,7 +636,7 @@ function TestTypedArraySet() {
   var detached = false;
   evilarr[1] = {
     [Symbol.toPrimitive]() {
-      %ArrayBufferNeuter(a111.buffer);
+      %ArrayBufferDetach(a111.buffer);
       detached = true;
       return 1;
     }
@@ -648,7 +648,7 @@ function TestTypedArraySet() {
   var tmp = {
     [Symbol.toPrimitive]() {
       assertUnreachable("Parameter should not be processed when " +
-                        "array.[[ViewedArrayBuffer]] is neutered.");
+                        "array.[[ViewedArrayBuffer]] is detached.");
       return 1;
     }
   };
@@ -662,7 +662,7 @@ function TestTypedArraySet() {
       let detached = false;
       const offset = {
         [Symbol.toPrimitive]() {
-          %ArrayBufferNeuter(xs.buffer);
+          %ArrayBufferDetach(xs.buffer);
           detached = true;
           return 0;
         }
@@ -677,7 +677,7 @@ function TestTypedArraySet() {
     for (const klass of typedArrayConstructors) {
       const a = new klass(2);
       for (let i = 0; i < a.length; i++) a[i] = i;
-      %ArrayBufferNeuter(a.buffer);
+      %ArrayBufferDetach(a.buffer);
 
       const b = new klass(2);
       assertThrows(() => b.set(a), TypeError);

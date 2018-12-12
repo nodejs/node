@@ -32,7 +32,8 @@ class MaybeHandle final {
                             std::is_convertible<S*, T*>::value ||
                             std::is_same<T, Object>::value ||
                             (std::is_same<T, HeapObject>::value &&
-                             std::is_same<S, Map>::value)>::type>
+                             (std::is_same<S, FixedArray>::value ||
+                              std::is_same<S, Map>::value))>::type>
   V8_INLINE MaybeHandle(Handle<S> handle) : location_(handle.location_) {}
 
   // Constructor for handling automatic up casting.

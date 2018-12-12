@@ -62,12 +62,12 @@ class IC {
   static inline bool IsHandler(MaybeObject object);
 
   // Nofity the IC system that a feedback has changed.
-  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
-                                FeedbackSlot slot, JSFunction* host_function,
+  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
+                                FeedbackSlot slot, JSFunction host_function,
                                 const char* reason);
 
   static void OnFeedbackChanged(Isolate* isolate, FeedbackNexus* nexus,
-                                JSFunction* host_function, const char* reason);
+                                JSFunction host_function, const char* reason);
 
  protected:
   Address fp() const { return fp_; }
@@ -78,7 +78,7 @@ class IC {
   Isolate* isolate() const { return isolate_; }
 
   // Get the caller function object.
-  JSFunction* GetHostFunction() const;
+  JSFunction GetHostFunction() const;
 
   inline bool AddressIsDeoptimizedCode() const;
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,

@@ -39,16 +39,22 @@ class PropertyArray : public HeapObjectPtr {
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kPointerSize;
+    return kHeaderSize + length * kTaggedSize;
   }
+  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
   DECL_CAST2(PropertyArray)
   DECL_PRINTER(PropertyArray)
   DECL_VERIFIER(PropertyArray)
 
-  // Layout description.
-  static const int kLengthAndHashOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kLengthAndHashOffset + kPointerSize;
+// Layout description.
+#define PROPERTY_ARRAY_FIELDS(V)       \
+  V(kLengthAndHashOffset, kTaggedSize) \
+  /* Header size. */                   \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROPERTY_ARRAY_FIELDS)
+#undef PROPERTY_ARRAY_FIELDS
 
   // Garbage collection support.
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;

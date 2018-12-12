@@ -99,7 +99,7 @@ class DeserializerAllocator final {
   // The current deserializer.
   Deserializer* const deserializer_;
 
-  DISALLOW_COPY_AND_ASSIGN(DeserializerAllocator)
+  DISALLOW_COPY_AND_ASSIGN(DeserializerAllocator);
 };
 
 }  // namespace internal

@@ -337,6 +337,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(Call)                                     \
   V(CompleteInobjectSlackTrackingForMap)      \
   V(HasInPrototypeChain)                      \
+  V(IncrementUseCounter)                      \
   V(MaxSmi)                                   \
   V(NewObject)                                \
   V(SmiLexicographicCompare)                  \
@@ -384,8 +385,6 @@ bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
   /* Arrays */                                                       \
   V(Builtins::kArrayFilter, W(CreateDataProperty))                   \
   V(Builtins::kArrayMap, W(CreateDataProperty))                      \
-  V(Builtins::kArraySlice,                                           \
-    W(CreateDataProperty) W(SetKeyedProperty) W(SetNamedProperty))   \
   V(Builtins::kArrayPrototypeSlice,                                  \
     W(CreateDataProperty) W(SetKeyedProperty) W(SetNamedProperty))   \
   /* TypedArrays */                                                  \
@@ -558,7 +557,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayPrototypeLastIndexOf:
     case Builtins::kArrayPrototypeSlice:
-    case Builtins::kArraySlice:
     case Builtins::kArrayPrototypeSort:
     case Builtins::kArrayPrototypeToLocaleString:
     case Builtins::kArrayPrototypeToString:
@@ -822,7 +820,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeReverse:
     case Builtins::kArrayPrototypeShift:
     case Builtins::kArrayPrototypeUnshift:
-    case Builtins::kArraySplice:
+    case Builtins::kArrayPrototypeSplice:
     case Builtins::kArrayUnshift:
     // Map builtins.
     case Builtins::kMapIteratorPrototypeNext:

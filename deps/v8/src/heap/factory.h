@@ -452,8 +452,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<WeakFactoryCleanupJobTask> NewWeakFactoryCleanupJobTask(
       Handle<JSWeakFactory> weak_factory);
 
-  Handle<MicrotaskQueue> NewMicrotaskQueue();
-
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
                              PretenureFlag pretenure = NOT_TENURED);
@@ -483,6 +481,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewNoFeedbackCell();
 
+  Handle<DescriptorArray> NewDescriptorArray(
+      int number_of_entries, int slack = 0,
+      PretenureFlag pretenure = NOT_TENURED);
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
 
@@ -515,8 +516,6 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
-  Handle<FixedArrayPtr> CopyFixedArrayWithMap(Handle<FixedArrayPtr> array,
-                                              Handle<Map> map);
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
       Handle<FixedArray> array, int grow_by,
@@ -781,7 +780,7 @@ class V8_EXPORT_PRIVATE Factory {
                            MaybeHandle<ByteArray>(),
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
-                       Movability movability = kMovable, uint32_t stub_key = 0,
+                       Movability movability = kMovable,
                        bool is_turbofanned = false, int stack_slots = 0,
                        int safepoint_table_offset = 0,
                        int handler_table_offset = 0);
@@ -796,9 +795,9 @@ class V8_EXPORT_PRIVATE Factory {
           MaybeHandle<ByteArray>(),
       MaybeHandle<DeoptimizationData> maybe_deopt_data =
           MaybeHandle<DeoptimizationData>(),
-      Movability movability = kMovable, uint32_t stub_key = 0,
-      bool is_turbofanned = false, int stack_slots = 0,
-      int safepoint_table_offset = 0, int handler_table_offset = 0);
+      Movability movability = kMovable, bool is_turbofanned = false,
+      int stack_slots = 0, int safepoint_table_offset = 0,
+      int handler_table_offset = 0);
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
@@ -961,6 +960,12 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FixedArray> NewFixedArrayWithFiller(RootIndex map_root_index,
                                              int length, Object* filler,
                                              PretenureFlag pretenure);
+
+  // Allocates new context with given map, sets length and initializes the
+  // after-header part with uninitialized values and leaves the context header
+  // uninitialized.
+  Handle<Context> NewContext(RootIndex map_root_index, int size,
+                             int variadic_part_length, PretenureFlag pretenure);
 
   template <typename T>
   Handle<T> AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,

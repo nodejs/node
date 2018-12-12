@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-object-gen.h"
+
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
@@ -11,6 +13,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
+#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -318,15 +321,15 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
       // Currently, we will not invoke getters,
       // so, map will not be changed.
       CSA_ASSERT(this, WordEqual(map, LoadMap(object)));
-      TNode<Uint32T> descriptor_index = TNode<Uint32T>::UncheckedCast(
-          TruncateIntPtrToInt32(var_descriptor_number.value()));
-      Node* next_key = GetKey(descriptors, descriptor_index);
+      TNode<IntPtrT> descriptor_entry = var_descriptor_number.value();
+      Node* next_key = LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
 
       // Skip Symbols.
       GotoIf(IsSymbol(next_key), &next_descriptor);
 
-      TNode<Uint32T> details = TNode<Uint32T>::UncheckedCast(
-          DescriptorArrayGetDetails(descriptors, descriptor_index));
+      TNode<Uint32T> details =
+          LoadDetailsByDescriptorEntry(descriptors, descriptor_entry);
+
       TNode<Uint32T> kind = LoadPropertyKind(details);
 
       // If property is accessor, we escape fast path and call runtime.

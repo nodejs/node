@@ -12,7 +12,6 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -36,17 +35,7 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 static inline bool IsZero(const Operand& rt) {
   if (rt.is_reg()) {
@@ -1755,8 +1744,7 @@ void TurboAssembler::InsertBits(Register dest, Register source, Register pos,
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    Subu(scratch, pos, Operand(32));
-    Neg(scratch, Operand(scratch));
+    Subu(scratch, zero_reg, pos);
     Ror(dest, dest, scratch);
   }
 }
@@ -3984,6 +3972,43 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, rs, rt, bd);
 }
 
+void TurboAssembler::StoreReturnAddressAndCall(Register target) {
+  // This generates the final instruction sequence for calls to C functions
+  // once an exit frame has been constructed.
+  //
+  // Note that this assumes the caller code (i.e. the Code object currently
+  // being generated) is immovable or that the callee function cannot trigger
+  // GC, since the callee function will return to it.
+
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
+  static constexpr int kNumInstructionsToJump = 4;
+  Label find_ra;
+  // Adjust the value in ra to point to the correct return location, 2nd
+  // instruction past the real call into C code (the jalr(t9)), and push it.
+  // This is the return address of the exit frame.
+  if (kArchVariant >= kMips32r6) {
+    addiupc(ra, kNumInstructionsToJump + 1);
+  } else {
+    // This no-op-and-link sequence saves PC + 8 in ra register on pre-r6 MIPS
+    nal();  // nal has branch delay slot.
+    Addu(ra, ra, kNumInstructionsToJump * kInstrSize);
+  }
+  bind(&find_ra);
+
+  // This spot was reserved in EnterExitFrame.
+  sw(ra, MemOperand(sp));
+  // Stack space reservation moved to the branch delay slot below.
+  // Stack is still aligned.
+
+  // Call the C routine.
+  mov(t9, target);  // Function pointer to t9 to conform to ABI for PIC.
+  jalr(t9);
+  // Set up sp in the delay slot.
+  addiu(sp, sp, -kCArgsSlotsSize);
+  // Make sure the stored 'ra' points to this position.
+  DCHECK_EQ(kNumInstructionsToJump, masm->InstructionsGeneratedSince(&find_ra));
+}
+
 void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt,
                          BranchDelaySlot bd) {
   Jump(ra, 0, cond, rs, rt, bd);
@@ -4468,43 +4493,6 @@ void MacroAssembler::GetObjectType(Register object,
 // -----------------------------------------------------------------------------
 // Runtime calls.
 
-void MacroAssembler::CallStub(CodeStub* stub,
-                              Condition cond,
-                              Register r1,
-                              const Operand& r2,
-                              BranchDelaySlot bd) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
-}
-
-void TurboAssembler::CallStubDelayed(CodeStub* stub, Condition cond,
-                                     Register r1, const Operand& r2,
-                                     BranchDelaySlot bd) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
-  } else {
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    li(scratch, Operand::EmbeddedCode(stub));
-    Call(scratch);
-  }
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub,
-                                  Condition cond,
-                                  Register r1,
-                                  const Operand& r2,
-                                  BranchDelaySlot bd) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
-}
-
 void TurboAssembler::AddOverflow(Register dst, Register left,
                                  const Operand& right, Register overflow) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -4855,7 +4843,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   }
 
   // Reserve place for the return address, stack space and an optional slot
-  // (used by the DirectCEntryStub to hold the return value if a struct is
+  // (used by DirectCEntry to hold the return value if a struct is
   // returned) and align the frame preparing for calling the runtime function.
   DCHECK_GE(stack_space, 0);
   Subu(sp, sp, Operand((stack_space + 2) * kPointerSize));
@@ -5415,7 +5403,38 @@ void TurboAssembler::CallCFunctionHelper(Register function_base,
       function_offset = 0;
     }
 
+    // Save the frame pointer and PC so that the stack layout remains iterable,
+    // even without an ExitFrame which normally exists between JS and C frames.
+    if (isolate() != nullptr) {
+      UseScratchRegisterScope temps(this);
+      Register scratch1 = temps.Acquire();
+      // 't' registers are caller-saved so this is safe as a scratch register.
+      Register scratch2 = t5;
+      DCHECK(!AreAliased(scratch1, scratch2, function_base));
+
+      Label get_pc;
+      mov(scratch1, ra);
+      Call(&get_pc);
+
+      bind(&get_pc);
+      mov(scratch2, ra);
+      mov(ra, scratch1);
+
+      li(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+      sw(scratch2, MemOperand(scratch1));
+      li(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      sw(fp, MemOperand(scratch1));
+    }
+
     Call(function_base, function_offset);
+
+    if (isolate() != nullptr) {
+      // We don't unset the PC; the FP is the source of truth.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
+      sw(zero_reg, MemOperand(scratch));
+    }
   }
 
   int stack_passed_arguments = CalculateStackPassedWords(

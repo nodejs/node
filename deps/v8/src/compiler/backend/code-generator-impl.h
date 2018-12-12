@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_BACKEND_CODE_GENERATOR_IMPL_H_
 #define V8_COMPILER_BACKEND_CODE_GENERATOR_IMPL_H_
 
-#include "src/code-stubs.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"

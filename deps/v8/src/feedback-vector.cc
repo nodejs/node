@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/feedback-vector.h"
-#include "src/code-stubs.h"
 #include "src/feedback-vector-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects.h"
@@ -46,7 +45,7 @@ static bool IsPropertyNameFeedback(MaybeObject feedback) {
   if (!feedback->GetHeapObjectIfStrong(&heap_object)) return false;
   if (heap_object->IsString()) return true;
   if (!heap_object->IsSymbol()) return false;
-  Symbol* symbol = Symbol::cast(heap_object);
+  Symbol symbol = Symbol::cast(heap_object);
   ReadOnlyRoots roots = symbol->GetReadOnlyRoots();
   return symbol != roots.uninitialized_symbol() &&
          symbol != roots.premonomorphic_symbol() &&
@@ -326,7 +325,7 @@ void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    SharedFunctionInfo* shared, const char* reason) {
+    SharedFunctionInfo shared, const char* reason) {
   MaybeObject slot = optimized_code_weak_or_smi();
   if (slot->IsSmi()) {
     return;
@@ -364,7 +363,7 @@ bool FeedbackVector::ClearSlots(Isolate* isolate) {
 
     MaybeObject obj = Get(slot);
     if (obj != uninitialized_sentinel) {
-      FeedbackNexus nexus(this, slot);
+      FeedbackNexus nexus(*this, slot);
       feedback_updated |= nexus.Clear();
     }
   }
@@ -611,7 +610,7 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
         if (heap_object->IsName()) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()));
           Object* extra = GetFeedbackExtra()->GetHeapObjectAssumeStrong();
-          WeakFixedArray* extra_array = WeakFixedArray::cast(extra);
+          WeakFixedArray extra_array = WeakFixedArray::cast(extra);
           return extra_array->length() > 2 ? POLYMORPHIC : MONOMORPHIC;
         }
       }
@@ -725,23 +724,16 @@ void FeedbackNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
 }
 
 bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
-                                            int context_slot_index,
-                                            bool immutable) {
+                                            int context_slot_index) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK_LE(0, script_context_index);
   DCHECK_LE(0, context_slot_index);
   if (!ContextIndexBits::is_valid(script_context_index) ||
-      !SlotIndexBits::is_valid(context_slot_index) ||
-      !ImmutabilityBit::is_valid(immutable)) {
+      !SlotIndexBits::is_valid(context_slot_index)) {
     return false;
   }
   int config = ContextIndexBits::encode(script_context_index) |
-               SlotIndexBits::encode(context_slot_index) |
-               ImmutabilityBit::encode(immutable);
-
-  // Force {config} to be in Smi range by propagating the most significant Smi
-  // bit. This does not change any of the bitfield's bits.
-  config = (config << (32 - kSmiValueSize)) >> (32 - kSmiValueSize);
+               SlotIndexBits::encode(context_slot_index);
 
   SetFeedback(Smi::FromInt(config));
   Isolate* isolate = GetIsolate();
@@ -930,7 +922,7 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
        heap_object->IsWeakFixedArray()) ||
       is_named_feedback) {
     int found = 0;
-    WeakFixedArray* array;
+    WeakFixedArray array;
     if (is_named_feedback) {
       array =
           WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
@@ -977,7 +969,7 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
        heap_object->IsWeakFixedArray()) ||
       is_named_feedback) {
-    WeakFixedArray* array;
+    WeakFixedArray array;
     if (is_named_feedback) {
       array =
           WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
@@ -1024,7 +1016,7 @@ bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
   if ((feedback->GetHeapObjectIfStrong(&heap_object) &&
        heap_object->IsWeakFixedArray()) ||
       is_named_feedback) {
-    WeakFixedArray* array;
+    WeakFixedArray array;
     if (is_named_feedback) {
       array =
           WeakFixedArray::cast(GetFeedbackExtra()->GetHeapObjectAssumeStrong());
@@ -1055,14 +1047,14 @@ bool FeedbackNexus::FindHandlers(MaybeObjectHandles* code_list,
   return count == length;
 }
 
-Name* FeedbackNexus::FindFirstName() const {
+Name FeedbackNexus::FindFirstName() const {
   if (IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind())) {
     MaybeObject feedback = GetFeedback();
     if (IsPropertyNameFeedback(feedback)) {
       return Name::cast(feedback->GetHeapObjectAssumeStrong());
     }
   }
-  return nullptr;
+  return Name();
 }
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
@@ -1091,6 +1083,10 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
     case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_Standard:
+    case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
+    case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
     case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
@@ -1099,6 +1095,10 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
     case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_Standard:
+    case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
+    case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return true;
     default:
       return false;
@@ -1112,18 +1112,26 @@ KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
     case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
     case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
     case Builtins::kKeyedStoreIC_Slow_Standard:
+    case Builtins::kStoreFastElementIC_Standard:
+    case Builtins::kElementsTransitionAndStore_Standard:
       return STANDARD_STORE;
     case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
       return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
+    case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
+    case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
       return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
+    case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
+    case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return STORE_NO_TRANSITION_HANDLE_COW;
     default:
       UNREACHABLE();
@@ -1166,17 +1174,6 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
       mode = KeyedAccessStoreModeForBuiltin(builtin_index);
       break;
-    } else {
-      CodeStub::Major major_key =
-          CodeStub::MajorKeyFromKey(handler->stub_key());
-      uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
-      CHECK(major_key == CodeStub::StoreFastElement ||
-            major_key == CodeStub::ElementsTransitionAndStore ||
-            major_key == CodeStub::NoCache);
-      if (major_key != CodeStub::NoCache) {
-        mode = CommonStoreModeBits::decode(minor_key);
-        break;
-      }
     }
   }
 
@@ -1372,7 +1369,7 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
 }
 }  // namespace
 
-JSObject* FeedbackNexus::GetTypeProfile() const {
+JSObject FeedbackNexus::GetTypeProfile() const {
   DCHECK(IsTypeProfileKind(kind()));
   Isolate* isolate = GetIsolate();
 

@@ -266,7 +266,7 @@ class Expectations {
     }
   }
 
-  bool Check(DescriptorArray* descriptors, int descriptor) const {
+  bool Check(DescriptorArray descriptors, int descriptor) const {
     PropertyDetails details = descriptors->GetDetails(descriptor);
 
     if (details.kind() != kinds_[descriptor]) return false;
@@ -311,7 +311,7 @@ class Expectations {
     CHECK_EQ(expected_nof, map->NumberOfOwnDescriptors());
     CHECK(!map->is_dictionary_map());
 
-    DescriptorArray* descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors();
     CHECK(expected_nof <= number_of_properties_);
     for (int i = 0; i < expected_nof; i++) {
       if (!Check(descriptors, i)) {

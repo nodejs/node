@@ -55,14 +55,14 @@ class MoveOptimizerTest : public InstructionSequenceTest {
     if (FLAG_trace_turbo) {
       StdoutStream{}
           << "----- Instruction sequence before move optimization -----\n"
-          << PrintableInstructionSequence{sequence()};
+          << *sequence();
     }
     MoveOptimizer move_optimizer(zone(), sequence());
     move_optimizer.Run();
     if (FLAG_trace_turbo) {
       StdoutStream{}
           << "----- Instruction sequence after move optimization -----\n"
-          << PrintableInstructionSequence{sequence()};
+          << *sequence();
     }
   }
 

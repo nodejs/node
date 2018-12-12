@@ -90,10 +90,12 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
     // the gap resolver may break a move into 2 or 4 equivalent smaller moves.
     DCHECK_EQ(LocationOperand::STACK_SLOT, kind);
     int index_hi = loc.index();
-    int index_lo = index_hi - (1 << ElementSizeLog2Of(rep)) / kPointerSize + 1;
+    int index_lo =
+        index_hi - (1 << ElementSizeLog2Of(rep)) / kSystemPointerSize + 1;
     int other_index_hi = other_loc.index();
     int other_index_lo =
-        other_index_hi - (1 << ElementSizeLog2Of(other_rep)) / kPointerSize + 1;
+        other_index_hi -
+        (1 << ElementSizeLog2Of(other_rep)) / kSystemPointerSize + 1;
     return other_index_hi >= index_lo && index_hi >= other_index_lo;
   }
   return false;
@@ -119,15 +121,9 @@ bool LocationOperand::IsCompatible(LocationOperand* op) {
   }
 }
 
-void InstructionOperand::Print() const {
-  PrintableInstructionOperand wrapper;
-  wrapper.op_ = *this;
-  StdoutStream{} << wrapper << std::endl;
-}
+void InstructionOperand::Print() const { StdoutStream{} << *this << std::endl; }
 
-std::ostream& operator<<(std::ostream& os,
-                         const PrintableInstructionOperand& printable) {
-  const InstructionOperand& op = printable.op_;
+std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
   switch (op.kind()) {
     case InstructionOperand::UNALLOCATED: {
       const UnallocatedOperand* unalloc = UnallocatedOperand::cast(&op);
@@ -245,18 +241,13 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 void MoveOperands::Print() const {
-  StdoutStream{} << PrintableInstructionOperand{destination()} << " = "
-                 << PrintableInstructionOperand{source()} << std::endl;
+  StdoutStream{} << destination() << " = " << source() << std::endl;
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const PrintableMoveOperands& printable) {
-  const MoveOperands& mo = *printable.move_operands_;
-  PrintableInstructionOperand printable_op = {mo.destination()};
-  os << printable_op;
+std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
+  os << mo.destination();
   if (!mo.source().Equals(mo.destination())) {
-    printable_op.op_ = mo.source();
-    os << " = " << printable_op;
+    os << " = " << mo.source();
   }
   return os << ";";
 }
@@ -352,19 +343,14 @@ bool Instruction::AreMovesRedundant() const {
   return true;
 }
 
-void Instruction::Print() const {
-  StdoutStream{} << PrintableInstruction{this} << std::endl;
-}
+void Instruction::Print() const { StdoutStream{} << *this << std::endl; }
 
-std::ostream& operator<<(std::ostream& os,
-                         const PrintableParallelMove& printable) {
-  const ParallelMove& pm = *printable.parallel_move_;
-  bool first = true;
+std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
+  const char* space = "";
   for (MoveOperands* move : pm) {
     if (move->IsEliminated()) continue;
-    if (!first) os << " ";
-    first = false;
-    os << PrintableMoveOperands{move};
+    os << space << *move;
+    space = " ";
   }
   return os;
 }
@@ -378,14 +364,10 @@ void ReferenceMap::RecordReference(const AllocatedOperand& op) {
 
 std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm) {
   os << "{";
-  bool first = true;
+  const char* separator = "";
   for (const InstructionOperand& op : pm.reference_operands_) {
-    if (!first) {
-      os << ";";
-    } else {
-      first = false;
-    }
-    os << PrintableInstructionOperand{op};
+    os << separator << op;
+    separator = ";";
   }
   return os << "}";
 }
@@ -488,28 +470,27 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
   UNREACHABLE();
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const PrintableInstruction& printable) {
-  const Instruction& instr = *printable.instr_;
+std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
   os << "gap ";
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
     os << "(";
     if (instr.parallel_moves()[i] != nullptr) {
-      os << PrintableParallelMove{instr.parallel_moves()[i]};
+      os << *instr.parallel_moves()[i];
     }
     os << ") ";
   }
   os << "\n          ";
 
-  if (instr.OutputCount() > 1) os << "(";
-  for (size_t i = 0; i < instr.OutputCount(); i++) {
-    if (i > 0) os << ", ";
-    os << PrintableInstructionOperand{*instr.OutputAt(i)};
+  if (instr.OutputCount() == 1) {
+    os << *instr.OutputAt(0) << " = ";
+  } else if (instr.OutputCount() > 1) {
+    os << "(" << *instr.OutputAt(0);
+    for (size_t i = 1; i < instr.OutputCount(); i++) {
+      os << ", " << *instr.OutputAt(i);
+    }
+    os << ") = ";
   }
-
-  if (instr.OutputCount() > 1) os << ") = ";
-  if (instr.OutputCount() == 1) os << " = ";
 
   os << ArchOpcodeField::decode(instr.opcode());
   AddressingMode am = AddressingModeField::decode(instr.opcode());
@@ -520,10 +501,8 @@ std::ostream& operator<<(std::ostream& os,
   if (fm != kFlags_none) {
     os << " && " << fm << " if " << FlagsConditionField::decode(instr.opcode());
   }
-  if (instr.InputCount() > 0) {
-    for (size_t i = 0; i < instr.InputCount(); i++) {
-      os << " " << PrintableInstructionOperand{*instr.InputAt(i)};
-    }
+  for (size_t i = 0; i < instr.InputCount(); i++) {
+    os << " " << *instr.InputAt(i);
   }
   return os;
 }
@@ -678,7 +657,7 @@ std::ostream& operator<<(std::ostream& os,
   os << std::endl;
 
   for (const PhiInstruction* phi : block->phis()) {
-    os << "     phi: " << PrintableInstructionOperand{phi->output()} << " =";
+    os << "     phi: " << phi->output() << " =";
     for (int input : phi->operands()) {
       os << " v" << input;
     }
@@ -687,8 +666,8 @@ std::ostream& operator<<(std::ostream& os,
 
   for (int j = block->first_instruction_index();
        j <= block->last_instruction_index(); j++) {
-    os << "   " << std::setw(5) << j << ": "
-       << PrintableInstruction{code->InstructionAt(j)} << std::endl;
+    os << "   " << std::setw(5) << j << ": " << *code->InstructionAt(j)
+       << std::endl;
   }
 
   os << " successors:";
@@ -975,7 +954,7 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
 }
 
 void InstructionSequence::Print() const {
-  StdoutStream{} << PrintableInstructionSequence{this} << std::endl;
+  StdoutStream{} << *this << std::endl;
 }
 
 void InstructionSequence::PrintBlock(int block_id) const {
@@ -1054,9 +1033,7 @@ std::ostream& operator<<(std::ostream& os, const RpoNumber& rpo) {
   return os << rpo.ToSize();
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const PrintableInstructionSequence& printable) {
-  const InstructionSequence& code = *printable.sequence_;
+std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
   for (size_t i = 0; i < code.immediates_.size(); ++i) {
     Constant constant = code.immediates_[i];
     os << "IMM#" << i << ": " << constant << "\n";
@@ -1066,10 +1043,9 @@ std::ostream& operator<<(std::ostream& os,
        it != code.constants_.end(); ++i, ++it) {
     os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
   }
-  PrintableInstructionBlock printable_block = {nullptr, printable.sequence_};
   for (int i = 0; i < code.InstructionBlockCount(); i++) {
-    printable_block.block_ = code.InstructionBlockAt(RpoNumber::FromInt(i));
-    os << printable_block;
+    auto* block = code.InstructionBlockAt(RpoNumber::FromInt(i));
+    os << PrintableInstructionBlock{block, &code};
   }
   return os;
 }

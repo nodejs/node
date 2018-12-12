@@ -10,13 +10,11 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
-#include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"
@@ -74,18 +72,7 @@ StackArgumentsAccessor::StackArgumentsAccessor(
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
-
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && options().enable_root_array_delta_access) {
@@ -96,18 +83,10 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
     }
   }
   // Safe code.
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(kScratchRegister, source);
-      movp(destination, Operand(kScratchRegister, 0));
-      return;
-    }
-  }
-  if (destination == rax) {
+  if (destination == rax && !options().isolate_independent_code) {
     load_rax(source);
   } else {
-    Move(kScratchRegister, source);
-    movp(destination, Operand(kScratchRegister, 0));
+    movp(destination, ExternalReferenceAsOperand(source));
   }
 }
 
@@ -122,11 +101,10 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
     }
   }
   // Safe code.
-  if (source == rax) {
+  if (source == rax && !options().isolate_independent_code) {
     store_rax(destination);
   } else {
-    Move(kScratchRegister, destination);
-    movp(Operand(kScratchRegister, 0), source);
+    movp(ExternalReferenceAsOperand(destination), source);
   }
 }
 
@@ -561,30 +539,6 @@ void TurboAssembler::Abort(AbortReason reason) {
   }
   // Control will not return here.
   int3();
-}
-
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-  } else {
-    call(stub);
-  }
-}
-
-void MacroAssembler::CallStub(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
 void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
@@ -2663,7 +2617,30 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
     CheckStackAlignment();
   }
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    Label get_pc;
+    DCHECK(!AreAliased(kScratchRegister, function));
+    leaq(kScratchRegister, Operand(&get_pc, 0));
+    bind(&get_pc);
+    movp(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_pc_address(isolate())),
+         kScratchRegister);
+    movp(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_fp_address(isolate())),
+         rbp);
+  }
+
   call(function);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    movp(ExternalReferenceAsOperand(
+             ExternalReference::fast_c_call_caller_fp_address(isolate())),
+         Immediate(0));
+  }
+
   DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
   DCHECK_GE(num_arguments, 0);
   int argument_slots_on_stack =

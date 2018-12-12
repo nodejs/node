@@ -171,15 +171,15 @@ test(function() {
 for (constructor of typedArrayConstructors) {
   test(() => {
     const ta = new constructor([1]);
-    %ArrayBufferNeuter(ta.buffer);
+    %ArrayBufferDetach(ta.buffer);
     ta.find(() => {});
-  }, "Cannot perform %TypedArray%.prototype.find on a detached ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.find on a neutered ArrayBuffer", TypeError);
 
   test(() => {
     const ta = new constructor([1]);
-    %ArrayBufferNeuter(ta.buffer);
+    %ArrayBufferDetach(ta.buffer);
     ta.findIndex(() => {});
-  }, "Cannot perform %TypedArray%.prototype.findIndex on a detached ArrayBuffer", TypeError);
+  }, "Cannot perform %TypedArray%.prototype.findIndex on a neutered ArrayBuffer", TypeError);
 }
 
 // kFirstArgumentNotRegExp

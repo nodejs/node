@@ -313,7 +313,7 @@ MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
 
 namespace {
 
-Handle<String> MorphLocale(Isolate* isolate, String* language_tag,
+Handle<String> MorphLocale(Isolate* isolate, String language_tag,
                            int32_t (*morph_func)(const char*, char*, int32_t,
                                                  UErrorCode*)) {
   Factory* factory = isolate->factory();
@@ -348,11 +348,11 @@ Handle<String> MorphLocale(Isolate* isolate, String* language_tag,
 
 }  // namespace
 
-Handle<String> JSLocale::Maximize(Isolate* isolate, String* locale) {
+Handle<String> JSLocale::Maximize(Isolate* isolate, String locale) {
   return MorphLocale(isolate, locale, uloc_addLikelySubtags);
 }
 
-Handle<String> JSLocale::Minimize(Isolate* isolate, String* locale) {
+Handle<String> JSLocale::Minimize(Isolate* isolate, String locale) {
   return MorphLocale(isolate, locale, uloc_minimizeSubtags);
 }
 

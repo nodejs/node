@@ -133,12 +133,12 @@ uint32_t StringHasher::HashSequentialString(const schar* chars, int length,
 IteratingStringHasher::IteratingStringHasher(int len, uint64_t seed)
     : StringHasher(len, seed) {}
 
-uint32_t IteratingStringHasher::Hash(String* string, uint64_t seed) {
+uint32_t IteratingStringHasher::Hash(String string, uint64_t seed) {
   IteratingStringHasher hasher(string->length(), seed);
   // Nothing to do.
   if (hasher.has_trivial_hash()) return hasher.GetHashField();
-  ConsString* cons_string = String::VisitFlat(&hasher, string);
-  if (cons_string == nullptr) return hasher.GetHashField();
+  ConsString cons_string = String::VisitFlat(&hasher, string);
+  if (cons_string.is_null()) return hasher.GetHashField();
   hasher.VisitConsString(cons_string);
   return hasher.GetHashField();
 }

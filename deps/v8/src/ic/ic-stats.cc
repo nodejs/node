@@ -60,7 +60,7 @@ const char* ICStats::GetOrCacheScriptName(Script* script) {
   }
   Object* script_name_raw = script->name();
   if (script_name_raw->IsString()) {
-    String* script_name = String::cast(script_name_raw);
+    String script_name = String::cast(script_name_raw);
     char* c_script_name =
         script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
             .release();
@@ -75,15 +75,16 @@ const char* ICStats::GetOrCacheScriptName(Script* script) {
   return nullptr;
 }
 
-const char* ICStats::GetOrCacheFunctionName(JSFunction* function) {
-  if (function_name_map_.find(function) != function_name_map_.end()) {
-    return function_name_map_[function].get();
+const char* ICStats::GetOrCacheFunctionName(JSFunction function) {
+  Address function_ptr = function.ptr();
+  if (function_name_map_.find(function_ptr) != function_name_map_.end()) {
+    return function_name_map_[function_ptr].get();
   }
-  SharedFunctionInfo* shared = function->shared();
+  SharedFunctionInfo shared = function->shared();
   ic_infos_[pos_].is_optimized = function->IsOptimized();
   char* function_name = shared->DebugName()->ToCString().release();
   function_name_map_.insert(
-      std::make_pair(function, std::unique_ptr<char[]>(function_name)));
+      std::make_pair(function_ptr, std::unique_ptr<char[]>(function_name)));
   return function_name;
 }
 

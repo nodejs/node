@@ -19,6 +19,7 @@ namespace torque {
 
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
+  V(IntrinsicCallExpression)             \
   V(StructExpression)                    \
   V(LogicalOrExpression)                 \
   V(LogicalAndExpression)                \
@@ -64,14 +65,16 @@ namespace torque {
   V(ExternConstDeclaration)               \
   V(StructDeclaration)                    \
   V(NamespaceDeclaration)                 \
-  V(ConstDeclaration)
+  V(ConstDeclaration)                     \
+  V(CppIncludeDeclaration)
 
 #define AST_CALLABLE_NODE_KIND_LIST(V) \
   V(TorqueMacroDeclaration)            \
   V(TorqueBuiltinDeclaration)          \
   V(ExternalMacroDeclaration)          \
   V(ExternalBuiltinDeclaration)        \
-  V(ExternalRuntimeDeclaration)
+  V(ExternalRuntimeDeclaration)        \
+  V(IntrinsicDeclaration)
 
 #define AST_NODE_KIND_LIST(V)           \
   AST_EXPRESSION_NODE_KIND_LIST(V)      \
@@ -199,6 +202,20 @@ struct IdentifierExpression : LocationExpression {
   std::vector<std::string> namespace_qualification;
   std::string name;
   std::vector<TypeExpression*> generic_arguments;
+};
+
+struct IntrinsicCallExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(IntrinsicCallExpression)
+  IntrinsicCallExpression(SourcePosition pos, std::string name,
+                          std::vector<TypeExpression*> generic_arguments,
+                          std::vector<Expression*> arguments)
+      : Expression(kKind, pos),
+        name(std::move(name)),
+        generic_arguments(std::move(generic_arguments)),
+        arguments(std::move(arguments)) {}
+  std::string name;
+  std::vector<TypeExpression*> generic_arguments;
+  std::vector<Expression*> arguments;
 };
 
 struct CallExpression : Expression {
@@ -666,6 +683,14 @@ struct ExternalMacroDeclaration : MacroDeclaration {
   std::string external_assembler_name;
 };
 
+struct IntrinsicDeclaration : CallableNode {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(IntrinsicDeclaration)
+  IntrinsicDeclaration(SourcePosition pos, std::string name,
+                       ParameterList parameters, TypeExpression* return_type)
+      : CallableNode(kKind, pos, false, std::move(name), std::move(parameters),
+                     return_type, {}) {}
+};
+
 struct TorqueMacroDeclaration : MacroDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TorqueMacroDeclaration)
   TorqueMacroDeclaration(SourcePosition pos, bool transitioning,
@@ -799,6 +824,13 @@ struct StructDeclaration : Declaration {
         fields(std::move(fields)) {}
   std::string name;
   std::vector<NameAndTypeExpression> fields;
+};
+
+struct CppIncludeDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(CppIncludeDeclaration)
+  CppIncludeDeclaration(SourcePosition pos, std::string include_path)
+      : Declaration(kKind, pos), include_path(std::move(include_path)) {}
+  std::string include_path;
 };
 
 #define ENUM_ITEM(name)                     \

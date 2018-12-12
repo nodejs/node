@@ -136,12 +136,7 @@ class V8_EXPORT_PRIVATE InstructionOperand {
 
 typedef ZoneVector<InstructionOperand> InstructionOperandVector;
 
-struct PrintableInstructionOperand {
-  InstructionOperand op_;
-};
-
-std::ostream& operator<<(std::ostream& os,
-                         const PrintableInstructionOperand& op);
+std::ostream& operator<<(std::ostream&, const InstructionOperand&);
 
 #define INSTRUCTION_OPERAND_CASTS(OperandType, OperandKind)      \
                                                                  \
@@ -703,11 +698,7 @@ class V8_EXPORT_PRIVATE MoveOperands final
   DISALLOW_COPY_AND_ASSIGN(MoveOperands);
 };
 
-struct PrintableMoveOperands {
-  const MoveOperands* move_operands_;
-};
-
-std::ostream& operator<<(std::ostream& os, const PrintableMoveOperands& mo);
+std::ostream& operator<<(std::ostream&, const MoveOperands&);
 
 class V8_EXPORT_PRIVATE ParallelMove final
     : public NON_EXPORTED_BASE(ZoneVector<MoveOperands*>),
@@ -743,11 +734,7 @@ class V8_EXPORT_PRIVATE ParallelMove final
   DISALLOW_COPY_AND_ASSIGN(ParallelMove);
 };
 
-struct PrintableParallelMove {
-  const ParallelMove* parallel_move_;
-};
-
-std::ostream& operator<<(std::ostream& os, const PrintableParallelMove& pm);
+std::ostream& operator<<(std::ostream&, const ParallelMove&);
 
 class ReferenceMap final : public ZoneObject {
  public:
@@ -767,13 +754,13 @@ class ReferenceMap final : public ZoneObject {
   void RecordReference(const AllocatedOperand& op);
 
  private:
-  friend std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);
+  friend std::ostream& operator<<(std::ostream&, const ReferenceMap&);
 
   ZoneVector<InstructionOperand> reference_operands_;
   int instruction_position_;
 };
 
-std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm);
+std::ostream& operator<<(std::ostream&, const ReferenceMap&);
 
 class InstructionBlock;
 
@@ -963,10 +950,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   DISALLOW_COPY_AND_ASSIGN(Instruction);
 };
 
-struct PrintableInstruction {
-  const Instruction* instr_;
-};
-std::ostream& operator<<(std::ostream& os, const PrintableInstruction& instr);
+std::ostream& operator<<(std::ostream&, const Instruction&);
 
 class RpoNumber final {
  public:
@@ -1084,7 +1068,7 @@ class V8_EXPORT_PRIVATE Constant final {
   int64_t value_;
 };
 
-std::ostream& operator<<(std::ostream& os, const Constant& constant);
+std::ostream& operator<<(std::ostream&, const Constant&);
 
 // Forward declarations.
 class FrameStateDescriptor;
@@ -1437,8 +1421,7 @@ struct PrintableInstructionBlock {
   const InstructionSequence* code_;
 };
 
-std::ostream& operator<<(std::ostream& os,
-                         const PrintableInstructionBlock& printable_block);
+std::ostream& operator<<(std::ostream&, const PrintableInstructionBlock&);
 
 typedef ZoneDeque<Constant> ConstantDeque;
 typedef std::map<int, Constant, std::less<int>,
@@ -1448,9 +1431,6 @@ typedef std::map<int, Constant, std::less<int>,
 typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<ReferenceMap*> ReferenceMapDeque;
 typedef ZoneVector<InstructionBlock*> InstructionBlocks;
-
-// Forward declarations.
-struct PrintableInstructionSequence;
 
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
@@ -1616,8 +1596,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   void RecomputeAssemblyOrderForTesting();
 
  private:
-  friend V8_EXPORT_PRIVATE std::ostream& operator<<(
-      std::ostream& os, const PrintableInstructionSequence& code);
+  friend V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                                    const InstructionSequence&);
 
   typedef ZoneMap<const Instruction*, SourcePosition> SourcePositionMap;
 
@@ -1647,12 +1627,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   DISALLOW_COPY_AND_ASSIGN(InstructionSequence);
 };
 
-struct PrintableInstructionSequence {
-  const InstructionSequence* sequence_;
-};
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const PrintableInstructionSequence& code);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           const InstructionSequence&);
 
 }  // namespace compiler
 }  // namespace internal

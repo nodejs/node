@@ -15,6 +15,9 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
 
   register_param_count_ = register_parameter_count;
 
+  // UBSan doesn't like creating zero-length arrays.
+  if (register_parameter_count == 0) return;
+
   // InterfaceDescriptor owns a copy of the registers array.
   register_params_ = NewArray<Register>(register_parameter_count, no_reg);
   for (int i = 0; i < register_parameter_count; i++) {
@@ -366,7 +369,22 @@ void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
+void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
 void CloneObjectWithVectorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void BigIntToWasmI64Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void BigIntToI64Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

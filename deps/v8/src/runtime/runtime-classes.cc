@@ -125,8 +125,8 @@ Handle<Name> KeyToName<NumberDictionary>(Isolate* isolate, Handle<Object> key) {
   return isolate->factory()->NumberToString(key);
 }
 
-inline void SetHomeObject(Isolate* isolate, JSFunction* method,
-                          JSObject* home_object) {
+inline void SetHomeObject(Isolate* isolate, JSFunction method,
+                          JSObject home_object) {
   if (method->shared()->needs_home_object()) {
     const int kPropertyIndex = JSFunction::kMaybeHomeObjectDescriptorIndex;
     CHECK_EQ(method->map()->instance_descriptors()->GetKey(kPropertyIndex),
@@ -185,7 +185,7 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
 // shared name.
 Object* GetMethodWithSharedNameAndSetHomeObject(Isolate* isolate,
                                                 Arguments& args, Object* index,
-                                                JSObject* home_object) {
+                                                JSObject home_object) {
   DisallowHeapAllocation no_gc;
   int int_index = Smi::ToInt(index);
 
@@ -322,7 +322,7 @@ bool AddDescriptorsByTemplate(
       value = *pair;
     }
     DisallowHeapAllocation no_gc;
-    Name* name = descriptors_template->GetKey(i);
+    Name name = descriptors_template->GetKey(i);
     DCHECK(name->IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == kDescriptor) {
@@ -370,7 +370,7 @@ bool AddDescriptorsByTemplate(
     }
   }
 
-  map->InitializeDescriptors(*descriptors,
+  map->InitializeDescriptors(isolate, *descriptors,
                              LayoutDescriptor::FastPointerLayout());
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
@@ -565,7 +565,8 @@ bool InitClassConstructor(Isolate* isolate,
         Handle<NameDictionary>::cast(properties_template);
 
     map->set_is_dictionary_map(true);
-    map->InitializeDescriptors(ReadOnlyRoots(isolate).empty_descriptor_array(),
+    map->InitializeDescriptors(isolate,
+                               ReadOnlyRoots(isolate).empty_descriptor_array(),
                                LayoutDescriptor::FastPointerLayout());
     map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);

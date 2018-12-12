@@ -81,10 +81,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
-  Reduction ReduceSpeculativeNumberAdd(Node* node);
-  Reduction ReduceSpeculativeNumberMultiply(Node* node);
-  Reduction ReduceSpeculativeNumberBinop(Node* node);
-  Reduction ReduceSpeculativeNumberComparison(Node* node);
   Reduction ReduceObjectIsArray(Node* node);
   Reduction ReduceJSParseInt(Node* node);
   Reduction ReduceJSResolvePromise(Node* node);

@@ -404,8 +404,7 @@ class TypedSlots {
   static const int kMaxOffset = 1 << 29;
   TypedSlots() = default;
   virtual ~TypedSlots();
-  V8_EXPORT_PRIVATE void Insert(SlotType type, uint32_t host_offset,
-                                uint32_t offset);
+  V8_EXPORT_PRIVATE void Insert(SlotType type, uint32_t offset);
   V8_EXPORT_PRIVATE void Merge(TypedSlots* other);
 
  protected:
@@ -413,7 +412,6 @@ class TypedSlots {
   class TypeField : public BitField<SlotType, 29, 3> {};
   struct TypedSlot {
     uint32_t type_and_offset;
-    uint32_t host_offset;
   };
   struct Chunk {
     Chunk* next;
@@ -471,8 +469,7 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
         if (type != CLEARED_SLOT) {
           uint32_t offset = OffsetField::decode(slot.type_and_offset);
           Address addr = page_start_ + offset;
-          Address host_addr = page_start_ + slot.host_offset;
-          if (callback(type, host_addr, addr) == KEEP_SLOT) {
+          if (callback(type, addr) == KEEP_SLOT) {
             new_count++;
             empty = false;
           } else {
@@ -519,20 +516,13 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
     base::AsAtomicPointer::Relaxed_Store(&head_, chunk);
   }
   TypedSlot LoadTypedSlot(TypedSlot* slot) {
-    // Order is important here and should match that of ClearTypedSlot. The
-    // order guarantees that type != CLEARED_SLOT implies valid host_offset.
-    TypedSlot result;
-    result.host_offset = base::AsAtomic32::Acquire_Load(&slot->host_offset);
-    result.type_and_offset =
-        base::AsAtomic32::Relaxed_Load(&slot->type_and_offset);
-    return result;
+    return TypedSlot{base::AsAtomic32::Relaxed_Load(&slot->type_and_offset)};
   }
   void ClearTypedSlot(TypedSlot* slot) {
     // Order is important here and should match that of LoadTypedSlot.
     base::AsAtomic32::Relaxed_Store(
         &slot->type_and_offset,
         TypeField::encode(CLEARED_SLOT) | OffsetField::encode(0));
-    base::AsAtomic32::Release_Store(&slot->host_offset, 0);
   }
 
   Address page_start_;

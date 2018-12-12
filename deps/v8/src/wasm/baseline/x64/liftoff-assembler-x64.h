@@ -933,25 +933,41 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
-void LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundUp);
+bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundUp);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundDown);
+bool LiftoffAssembler::emit_f32_floor(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundDown);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundToZero);
+bool LiftoffAssembler::emit_f32_trunc(DoubleRegister dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundToZero);
+    return true;
+  }
+  return false;
 }
 
-void LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
-  REQUIRE_CPU_FEATURE(SSE4_1);
-  Roundss(dst, src, kRoundToNearest);
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope feature(this, SSE4_1);
+    Roundss(dst, src, kRoundToNearest);
+    return true;
+  }
+  return false;
 }
 
 void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {

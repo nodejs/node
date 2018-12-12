@@ -60,7 +60,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
       Handle<DescriptorArray>(map->instance_descriptors(), isolate);
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
-    Name* key = descs->GetKey(i);
+    Name key = descs->GetKey(i);
     Handle<Object> value;
     if (details.location() == kField) {
       if (details.kind() == kData) {

@@ -32,6 +32,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/simulator.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -119,9 +120,8 @@ static void TestNaN(const char *code) {
   v8::Local<v8::Object> result =
       v8::Local<v8::Object>::Cast(script->Run(context).ToLocalChecked());
   i::Handle<i::JSReceiver> o = v8::Utils::OpenHandle(*result);
-  i::Handle<i::JSArray> array1(reinterpret_cast<i::JSArray*>(*o),
-                               o->GetIsolate());
-  i::FixedDoubleArray* a = i::FixedDoubleArray::cast(array1->elements());
+  i::Handle<i::JSArray> array1(i::JSArray::cast(*o), o->GetIsolate());
+  i::FixedDoubleArray a = i::FixedDoubleArray::cast(array1->elements());
   double value = a->get_scalar(0);
   CHECK(std::isnan(value) &&
         bit_cast<uint64_t>(value) ==

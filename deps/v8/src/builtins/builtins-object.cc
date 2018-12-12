@@ -27,7 +27,7 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, name, Object::ToName(isolate, args.atOrUndefined(isolate, 1)));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, object, JSReceiver::ToObject(isolate, args.receiver()));
+      isolate, object, Object::ToObject(isolate, args.receiver()));
   Maybe<PropertyAttributes> maybe =
       JSReceiver::GetOwnPropertyAttributes(object, name);
   if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();

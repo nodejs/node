@@ -720,7 +720,7 @@ struct ManuallyExternalizedBuffer {
   size_t allocation_length_;
   bool const should_free_;
 
-  ManuallyExternalizedBuffer(JSArrayBuffer* buffer, Isolate* isolate)
+  ManuallyExternalizedBuffer(JSArrayBuffer buffer, Isolate* isolate)
       : isolate_(isolate),
         buffer_(buffer, isolate),
         allocation_base_(buffer->allocation_base()),
@@ -770,7 +770,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     // Grow using the API.
     uint32_t result = WasmMemoryObject::Grow(isolate, memory_object, 4);
     CHECK_EQ(16, result);
-    CHECK(buffer1.buffer_->was_neutered());  // growing always neuters
+    CHECK(buffer1.buffer_->was_detached());  // growing always detaches
     CHECK_EQ(0, buffer1.buffer_->byte_length());
 
     CHECK_NE(*buffer1.buffer_, memory_object->array_buffer());
@@ -781,7 +781,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     // Grow using an internal WASM bytecode.
     result = testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
     CHECK_EQ(26, result);
-    CHECK(buffer2.buffer_->was_neutered());  // growing always neuters
+    CHECK(buffer2.buffer_->was_detached());  // growing always detaches
     CHECK_EQ(0, buffer2.buffer_->byte_length());
     CHECK_NE(*buffer2.buffer_, memory_object->array_buffer());
   }

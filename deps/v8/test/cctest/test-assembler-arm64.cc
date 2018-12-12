@@ -209,8 +209,7 @@ static void InitializeVM() {
   __ Ret();                     \
   __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN() \
-  CHECK(v8::internal::FreePages(GetPlatformPageAllocator(), buf, allocated));
+#define TEARDOWN() FreeAssemblerBuffer(buf, allocated);
 
 #endif  // ifdef USE_SIMULATOR.
 

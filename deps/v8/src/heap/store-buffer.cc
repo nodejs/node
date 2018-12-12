@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/template-utils.h"
 #include "src/counters.h"
@@ -32,9 +33,16 @@ StoreBuffer::StoreBuffer(Heap* heap)
 
 void StoreBuffer::SetUp() {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
-  const size_t requested_size = kStoreBufferSize * kStoreBuffers;
+  // Round up the requested size in order to fulfill the VirtualMemory's
+  // requrements on the requested size alignment. This may cause a bit of
+  // memory wastage if the actual CommitPageSize() will be bigger than the
+  // kMinExpectedOSPageSize value but this is a trade-off for keeping the
+  // store buffer overflow check in write barriers cheap.
+  const size_t requested_size = RoundUp(kStoreBufferSize * kStoreBuffers,
+                                        page_allocator->CommitPageSize());
   // Allocate buffer memory aligned at least to kStoreBufferSize. This lets us
   // use a bit test to detect the ends of the buffers.
+  STATIC_ASSERT(base::bits::IsPowerOfTwo(kStoreBufferSize));
   const size_t alignment =
       std::max<size_t>(kStoreBufferSize, page_allocator->AllocatePageSize());
   void* hint = AlignedAddress(heap_->GetRandomMmapAddr(), alignment);

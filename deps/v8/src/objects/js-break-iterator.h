@@ -47,8 +47,8 @@ class JSV8BreakIterator : public JSObject {
                               Handle<JSV8BreakIterator> break_iterator);
   static Handle<Object> Next(Isolate* isolate,
                              Handle<JSV8BreakIterator> break_iterator);
-  static String* BreakType(Isolate* isolate,
-                           Handle<JSV8BreakIterator> break_iterator);
+  static String BreakType(Isolate* isolate,
+                          Handle<JSV8BreakIterator> break_iterator);
 
   enum class Type { CHARACTER, WORD, SENTENCE, LINE, COUNT };
   inline void set_type(Type type);
@@ -56,11 +56,11 @@ class JSV8BreakIterator : public JSObject {
 
   Handle<String> TypeAsString() const;
 
-  DECL_CAST(JSV8BreakIterator)
+  DECL_CAST2(JSV8BreakIterator)
   DECL_PRINTER(JSV8BreakIterator)
   DECL_VERIFIER(JSV8BreakIterator)
 
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
   DECL_ACCESSORS(break_iterator, Managed<icu::BreakIterator>)
   DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
   DECL_ACCESSORS(bound_adopt_text, Object)
@@ -70,25 +70,24 @@ class JSV8BreakIterator : public JSObject {
   DECL_ACCESSORS(bound_break_type, Object)
 
 // Layout description.
-#define BREAK_ITERATOR_FIELDS(V)         \
-  /* Pointer fields. */                  \
-  V(kLocaleOffset, kPointerSize)         \
-  V(kTypeOffset, kPointerSize)           \
-  V(kBreakIteratorOffset, kPointerSize)  \
-  V(kUnicodeStringOffset, kPointerSize)  \
-  V(kBoundAdoptTextOffset, kPointerSize) \
-  V(kBoundFirstOffset, kPointerSize)     \
-  V(kBoundNextOffset, kPointerSize)      \
-  V(kBoundCurrentOffset, kPointerSize)   \
-  V(kBoundBreakTypeOffset, kPointerSize) \
-  /* Total Size */                       \
+#define BREAK_ITERATOR_FIELDS(V)        \
+  /* Pointer fields. */                 \
+  V(kLocaleOffset, kTaggedSize)         \
+  V(kTypeOffset, kTaggedSize)           \
+  V(kBreakIteratorOffset, kTaggedSize)  \
+  V(kUnicodeStringOffset, kTaggedSize)  \
+  V(kBoundAdoptTextOffset, kTaggedSize) \
+  V(kBoundFirstOffset, kTaggedSize)     \
+  V(kBoundNextOffset, kTaggedSize)      \
+  V(kBoundCurrentOffset, kTaggedSize)   \
+  V(kBoundBreakTypeOffset, kTaggedSize) \
+  /* Total Size */                      \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, BREAK_ITERATOR_FIELDS)
 #undef BREAK_ITERATOR_FIELDS
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSV8BreakIterator)
+  OBJECT_CONSTRUCTORS(JSV8BreakIterator, JSObject)
 };
 
 }  // namespace internal

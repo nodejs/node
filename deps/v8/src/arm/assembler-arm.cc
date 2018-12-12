@@ -42,7 +42,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -399,13 +398,6 @@ Operand Operand::EmbeddedNumber(double value) {
   return result;
 }
 
-Operand Operand::EmbeddedCode(CodeStub* stub) {
-  Operand result(0, RelocInfo::CODE_TARGET);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(stub);
-  return result;
-}
-
 Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
   Operand result(0, RelocInfo::EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
@@ -475,10 +467,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kHeapNumber:
         object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
-        break;
-      case HeapObjectRequest::kCodeStub:
-        request.code_stub()->set_isolate(isolate);
-        object = request.code_stub()->GetCode();
         break;
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
@@ -1497,6 +1485,10 @@ void Assembler::eor(Register dst, Register src1, const Operand& src2,
   AddrMode1(cond | EOR | s, dst, src1, src2);
 }
 
+void Assembler::eor(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  AddrMode1(cond | EOR | s, dst, src1, Operand(src2));
+}
 
 void Assembler::sub(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {

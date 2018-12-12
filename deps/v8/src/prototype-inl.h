@@ -27,7 +27,7 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate,
   if (where_to_start == kStartAtPrototype) Advance();
 }
 
-PrototypeIterator::PrototypeIterator(Isolate* isolate, JSReceiver* receiver,
+PrototypeIterator::PrototypeIterator(Isolate* isolate, JSReceiver receiver,
                                      WhereToStart where_to_start,
                                      WhereToEnd where_to_end)
     : isolate_(isolate),

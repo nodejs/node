@@ -4,7 +4,7 @@
 
 #include "src/snapshot/deserializer-allocator.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
 

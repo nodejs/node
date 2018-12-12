@@ -68,11 +68,13 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
+    case MachineRepresentation::kFloat32:
+      return kSystemPointerSize;
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kFloat32:
-      return kPointerSize;
+      // TODO(ishell): kTaggedSize once half size locations are supported.
+      return kSystemPointerSize;
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:
       return kDoubleSize;
@@ -732,6 +734,22 @@ bool LiveRange::Covers(LifetimePosition position) const {
   return false;
 }
 
+LifetimePosition LiveRange::NextEndAfter(LifetimePosition position) const {
+  UseInterval* start_search = FirstSearchIntervalForPosition(position);
+  while (start_search->end() < position) {
+    start_search = start_search->next();
+  }
+  return start_search->end();
+}
+
+LifetimePosition LiveRange::NextStartAfter(LifetimePosition position) const {
+  UseInterval* start_search = FirstSearchIntervalForPosition(position);
+  while (start_search->start() < position) {
+    start_search = start_search->next();
+  }
+  return start_search->start();
+}
+
 LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
   UseInterval* b = other->first_interval();
   if (b == nullptr) return LifetimePosition::Invalid();
@@ -1137,8 +1155,7 @@ std::ostream& operator<<(std::ostream& os,
   UsePosition* use_pos = range->first_pos();
   while (use_pos != nullptr) {
     if (use_pos->HasOperand()) {
-      os << PrintableInstructionOperand{*use_pos->operand()} << use_pos->pos()
-         << " ";
+      os << *use_pos->operand() << use_pos->pos() << " ";
     }
     use_pos = use_pos->next();
   }
@@ -2706,7 +2723,9 @@ LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
     : RegisterAllocator(data, kind),
       unhandled_live_ranges_(local_zone),
       active_live_ranges_(local_zone),
-      inactive_live_ranges_(local_zone) {
+      inactive_live_ranges_(local_zone),
+      next_active_ranges_change_(LifetimePosition::Invalid()),
+      next_inactive_ranges_change_(LifetimePosition::Invalid()) {
   active_live_ranges().reserve(8);
   inactive_live_ranges().reserve(8);
   // TryAllocateFreeReg and AllocateBlockedReg assume this
@@ -2766,29 +2785,7 @@ void LinearScanAllocator::AllocateRegisters() {
     if (current->IsTopLevel() && TryReuseSpillForPhi(current->TopLevel()))
       continue;
 
-    for (auto it = active_live_ranges().begin();
-         it != active_live_ranges().end();) {
-      LiveRange* cur_active = *it;
-      if (cur_active->End() <= position) {
-        it = ActiveToHandled(it);
-      } else if (!cur_active->Covers(position)) {
-        it = ActiveToInactive(it);
-      } else {
-        ++it;
-      }
-    }
-
-    for (auto it = inactive_live_ranges().begin();
-         it != inactive_live_ranges().end();) {
-      LiveRange* cur_inactive = *it;
-      if (cur_inactive->End() <= position) {
-        it = InactiveToHandled(it);
-      } else if (cur_inactive->Covers(position)) {
-        it = InactiveToActive(it);
-      } else {
-        ++it;
-      }
-    }
+    ForwardStateTo(position);
 
     DCHECK(!current->HasRegisterAssigned() && !current->spilled());
 
@@ -2835,12 +2832,16 @@ void LinearScanAllocator::AddToActive(LiveRange* range) {
   TRACE("Add live range %d:%d to active\n", range->TopLevel()->vreg(),
         range->relative_id());
   active_live_ranges().push_back(range);
+  next_active_ranges_change_ =
+      std::min(next_active_ranges_change_, range->NextEndAfter(range->Start()));
 }
 
 void LinearScanAllocator::AddToInactive(LiveRange* range) {
   TRACE("Add live range %d:%d to inactive\n", range->TopLevel()->vreg(),
         range->relative_id());
   inactive_live_ranges().push_back(range);
+  next_inactive_ranges_change_ = std::min(
+      next_inactive_ranges_change_, range->NextStartAfter(range->Start()));
 }
 
 void LinearScanAllocator::AddToUnhandled(LiveRange* range) {
@@ -2861,11 +2862,13 @@ ZoneVector<LiveRange*>::iterator LinearScanAllocator::ActiveToHandled(
 }
 
 ZoneVector<LiveRange*>::iterator LinearScanAllocator::ActiveToInactive(
-    const ZoneVector<LiveRange*>::iterator it) {
+    const ZoneVector<LiveRange*>::iterator it, LifetimePosition position) {
   LiveRange* range = *it;
   inactive_live_ranges().push_back(range);
   TRACE("Moving live range %d:%d from active to inactive\n",
         (range)->TopLevel()->vreg(), range->relative_id());
+  next_inactive_ranges_change_ =
+      std::min(next_inactive_ranges_change_, range->NextStartAfter(position));
   return active_live_ranges().erase(it);
 }
 
@@ -2877,12 +2880,51 @@ ZoneVector<LiveRange*>::iterator LinearScanAllocator::InactiveToHandled(
 }
 
 ZoneVector<LiveRange*>::iterator LinearScanAllocator::InactiveToActive(
-    ZoneVector<LiveRange*>::iterator it) {
+    ZoneVector<LiveRange*>::iterator it, LifetimePosition position) {
   LiveRange* range = *it;
   active_live_ranges().push_back(range);
   TRACE("Moving live range %d:%d from inactive to active\n",
         range->TopLevel()->vreg(), range->relative_id());
+  next_active_ranges_change_ =
+      std::min(next_active_ranges_change_, range->NextEndAfter(position));
   return inactive_live_ranges().erase(it);
+}
+
+void LinearScanAllocator::ForwardStateTo(LifetimePosition position) {
+  if (position >= next_active_ranges_change_) {
+    next_active_ranges_change_ = LifetimePosition::MaxPosition();
+    for (auto it = active_live_ranges().begin();
+         it != active_live_ranges().end();) {
+      LiveRange* cur_active = *it;
+      if (cur_active->End() <= position) {
+        it = ActiveToHandled(it);
+      } else if (!cur_active->Covers(position)) {
+        it = ActiveToInactive(it, position);
+      } else {
+        next_active_ranges_change_ = std::min(
+            next_active_ranges_change_, cur_active->NextEndAfter(position));
+        ++it;
+      }
+    }
+  }
+
+  if (position >= next_inactive_ranges_change_) {
+    next_inactive_ranges_change_ = LifetimePosition::MaxPosition();
+    for (auto it = inactive_live_ranges().begin();
+         it != inactive_live_ranges().end();) {
+      LiveRange* cur_inactive = *it;
+      if (cur_inactive->End() <= position) {
+        it = InactiveToHandled(it);
+      } else if (cur_inactive->Covers(position)) {
+        it = InactiveToActive(it, position);
+      } else {
+        next_inactive_ranges_change_ =
+            std::min(next_inactive_ranges_change_,
+                     cur_inactive->NextStartAfter(position));
+        ++it;
+      }
+    }
+  }
 }
 
 void LinearScanAllocator::GetFPRegisterSet(MachineRepresentation rep,

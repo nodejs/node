@@ -21,8 +21,8 @@ namespace array {
     const newElements: FixedArray =
         Cast<FixedArray>(result.elements) otherwise Bailout;
     CopyElements(
-        PACKED_ELEMENTS, newElements, Convert<intptr>(0), sourceElements,
-        Convert<intptr>(start), Convert<intptr>(count));
+        PACKED_ELEMENTS, newElements, 0, sourceElements, Convert<intptr>(start),
+        Convert<intptr>(count));
     return result;
   }
 
@@ -119,7 +119,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.slice
   transitioning javascript builtin
-  ArraySlice(context: Context, receiver: Object, ...arguments): Object {
+  ArrayPrototypeSlice(context: Context, receiver: Object, ...arguments):
+      Object {
     // Handle array cloning case if the receiver is a fast array.
     if (arguments.length == 0) {
       typeswitch (receiver) {

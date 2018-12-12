@@ -31,7 +31,7 @@ gc();
 wf.cleanupSome();
 assertEquals(0, cleanup_count);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 // Now the WeakRef can be cleared.

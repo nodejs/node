@@ -98,7 +98,7 @@ Object* VisitWeakList2(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
         head = retained;
       } else {
         // Subsequent elements in the list.
-        DCHECK(tail);
+        DCHECK(!tail.is_null());
         WeakListVisitor<T>::SetWeakNext(tail, retained);
         if (record_slots) {
           HeapObject* slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
@@ -165,27 +165,27 @@ struct WeakListVisitor<Code> {
 
 template <>
 struct WeakListVisitor<Context> {
-  static void SetWeakNext(Context* context, Object* next) {
+  static void SetWeakNext(Context context, Object* next) {
     context->set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
-  static Object* WeakNext(Context* context) {
+  static Object* WeakNext(Context context) {
     return context->next_context_link();
   }
 
-  static HeapObject* WeakNextHolder(Context* context) { return context; }
+  static HeapObject* WeakNextHolder(Context context) { return context; }
 
   static int WeakNextOffset() {
     return FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK);
   }
 
-  static void VisitLiveObject(Heap* heap, Context* context,
+  static void VisitLiveObject(Heap* heap, Context context,
                               WeakObjectRetainer* retainer) {
     if (heap->gc_state() == Heap::MARK_COMPACT) {
       // Record the slots of the weak entries in the native context.
       for (int idx = Context::FIRST_WEAK_SLOT;
            idx < Context::NATIVE_CONTEXT_SLOTS; ++idx) {
-        ObjectSlot slot = Context::cast(context)->RawFieldOfElementAt(idx);
+        ObjectSlot slot = context->RawField(Context::OffsetOfElementAt(idx));
         MarkCompactCollector::RecordSlot(context, slot,
                                          HeapObject::cast(*slot));
       }
@@ -197,7 +197,7 @@ struct WeakListVisitor<Context> {
   }
 
   template <class T>
-  static void DoWeakList(Heap* heap, Context* context,
+  static void DoWeakList(Heap* heap, Context context,
                          WeakObjectRetainer* retainer, int index) {
     // Visit the weak list, removing dead intermediate elements.
     Object* list_head = VisitWeakList2<T>(heap, context->get(index), retainer);
@@ -207,14 +207,13 @@ struct WeakListVisitor<Context> {
 
     if (MustRecordSlots(heap)) {
       // Record the updated slot if necessary.
-      ObjectSlot head_slot =
-          HeapObject::RawField(context, FixedArray::SizeFor(index));
+      ObjectSlot head_slot = context->RawField(FixedArray::SizeFor(index));
       heap->mark_compact_collector()->RecordSlot(context, head_slot,
                                                  HeapObject::cast(list_head));
     }
   }
 
-  static void VisitPhantomObject(Heap* heap, Context* context) {
+  static void VisitPhantomObject(Heap* heap, Context context) {
     ClearWeakList<Code>(heap, context->get(Context::OPTIMIZED_CODE_LIST));
     ClearWeakList<Code>(heap, context->get(Context::DEOPTIMIZED_CODE_LIST));
   }
@@ -238,9 +237,8 @@ struct WeakListVisitor<AllocationSite> {
   static void VisitPhantomObject(Heap*, AllocationSite*) {}
 };
 
-
-template Object* VisitWeakList<Context>(Heap* heap, Object* list,
-                                        WeakObjectRetainer* retainer);
+template Object* VisitWeakList2<Context>(Heap* heap, Object* list,
+                                         WeakObjectRetainer* retainer);
 
 template Object* VisitWeakList<AllocationSite>(Heap* heap, Object* list,
                                                WeakObjectRetainer* retainer);

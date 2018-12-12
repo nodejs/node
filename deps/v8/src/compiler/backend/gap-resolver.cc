@@ -23,7 +23,7 @@ MoveOperands* Split(MoveOperands* move, MachineRepresentation smaller_rep,
                     ParallelMove* moves) {
   DCHECK(!kSimpleFPAliasing);
   // Splitting is only possible when the slot size is the same as float size.
-  DCHECK_EQ(kPointerSize, kFloatSize);
+  DCHECK_EQ(kSystemPointerSize, kFloatSize);
   const LocationOperand& src_loc = LocationOperand::cast(move->source());
   const LocationOperand& dst_loc = LocationOperand::cast(move->destination());
   MachineRepresentation dst_rep = dst_loc.representation();
@@ -39,7 +39,7 @@ MoveOperands* Split(MoveOperands* move, MachineRepresentation smaller_rep,
                          dst_rep, 0, smaller_rep, &base));
 
   int src_index = -1;
-  int slot_size = (1 << ElementSizeLog2Of(smaller_rep)) / kPointerSize;
+  int slot_size = (1 << ElementSizeLog2Of(smaller_rep)) / kSystemPointerSize;
   int src_step = 1;
   if (src_kind == LocationOperand::REGISTER) {
     src_index = src_loc.register_code() * aliases;

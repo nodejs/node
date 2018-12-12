@@ -38,14 +38,15 @@ void RootsSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
 }
 
 void RootsSerializer::VisitRootPointers(Root root, const char* description,
-                                        ObjectSlot start, ObjectSlot end) {
+                                        FullObjectSlot start,
+                                        FullObjectSlot end) {
   RootsTable& roots_table = isolate()->heap()->roots_table();
   if (start ==
       roots_table.begin() + static_cast<int>(first_root_to_be_serialized_)) {
     // Serializing the root list needs special handling:
     // - Only root list elements that have been fully serialized can be
     //   referenced using kRootArray bytecodes.
-    for (ObjectSlot current = start; current < end; ++current) {
+    for (FullObjectSlot current = start; current < end; ++current) {
       SerializeRootObject(*current);
       size_t root_index = current - roots_table.begin();
       root_has_been_serialized_.set(root_index);

@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+enum InstanceType : uint16_t;
+
 #define VISITOR_ID_LIST(V)               \
   V(AllocationSite)                      \
   V(BigInt)                              \
@@ -25,8 +27,10 @@ namespace internal {
   V(Code)                                \
   V(CodeDataContainer)                   \
   V(ConsString)                          \
+  V(Context)                             \
   V(DataHandler)                         \
   V(DataObject)                          \
+  V(DescriptorArray)                     \
   V(EmbedderDataArray)                   \
   V(EphemeronHashTable)                  \
   V(FeedbackCell)                        \
@@ -413,7 +417,7 @@ class Map : public HeapObjectPtr {
 
   inline Map ElementsTransitionMap();
 
-  inline FixedArrayBase* GetInitialElements() const;
+  inline FixedArrayBase GetInitialElements() const;
 
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
@@ -569,26 +573,30 @@ class Map : public HeapObjectPtr {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
-  DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+  inline DescriptorArray instance_descriptors() const;
+  void SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
+                              int number_of_own_descriptors);
 
   // [layout descriptor]: describes the object layout.
-  DECL_ACCESSORS(layout_descriptor, LayoutDescriptor)
+  DECL_ACCESSORS2(layout_descriptor, LayoutDescriptor)
   // |layout descriptor| accessor which can be used from GC.
-  inline LayoutDescriptor* layout_descriptor_gc_safe() const;
+  inline LayoutDescriptor layout_descriptor_gc_safe() const;
   inline bool HasFastPointerLayout() const;
 
   // |layout descriptor| accessor that is safe to call even when
   // FLAG_unbox_double_fields is disabled (in this case Map does not contain
   // |layout_descriptor| field at all).
-  inline LayoutDescriptor* GetLayoutDescriptor() const;
+  inline LayoutDescriptor GetLayoutDescriptor() const;
 
-  inline void UpdateDescriptors(DescriptorArray* descriptors,
-                                LayoutDescriptor* layout_descriptor);
-  inline void InitializeDescriptors(DescriptorArray* descriptors,
-                                    LayoutDescriptor* layout_descriptor);
+  inline void UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
+                                LayoutDescriptor layout_descriptor,
+                                int number_of_own_descriptors);
+  inline void InitializeDescriptors(Isolate* isolate,
+                                    DescriptorArray descriptors,
+                                    LayoutDescriptor layout_descriptor);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
-  DECL_ACCESSORS(dependent_code, DependentCode)
+  DECL_ACCESSORS2(dependent_code, DependentCode)
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
   // chains or Smi(0) if uninitialized.
@@ -726,13 +734,13 @@ class Map : public HeapObjectPtr {
                                                  PropertyKind kind,
                                                  PropertyAttributes attributes);
 
-  inline void AppendDescriptor(Descriptor* desc);
+  inline void AppendDescriptor(Isolate* isolate, Descriptor* desc);
 
   // Returns a copy of the map, prepared for inserting into the transition
   // tree (if the |map| owns descriptors then the new one will share
   // descriptors with |map|).
-  static Handle<Map> CopyForTransition(Isolate* isolate, Handle<Map> map,
-                                       const char* reason);
+  static Handle<Map> CopyForElementsTransition(Isolate* isolate,
+                                               Handle<Map> map);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -786,7 +794,7 @@ class Map : public HeapObjectPtr {
   bool IsMapInArrayPrototypeChain(Isolate* isolate) const;
 
   // Dispatched behavior.
-  DECL_PRINTER(Map)
+  void MapPrint(std::ostream& os);
   DECL_VERIFIER(Map)
 
 #ifdef VERIFY_HEAP
@@ -804,28 +812,29 @@ class Map : public HeapObjectPtr {
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
-#define MAP_FIELDS(V)                                                       \
-  /* Raw data fields. */                                                    \
-  V(kInstanceSizeInWordsOffset, kUInt8Size)                                 \
-  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size)   \
-  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                     \
-  V(kVisitorIdOffset, kUInt8Size)                                           \
-  V(kInstanceTypeOffset, kUInt16Size)                                       \
-  V(kBitFieldOffset, kUInt8Size)                                            \
-  V(kBitField2Offset, kUInt8Size)                                           \
-  V(kBitField3Offset, kUInt32Size)                                          \
-  V(k64BitArchPaddingOffset, kPointerSize == kUInt32Size ? 0 : kUInt32Size) \
-  /* Pointer fields. */                                                     \
-  V(kPointerFieldsBeginOffset, 0)                                           \
-  V(kPrototypeOffset, kPointerSize)                                         \
-  V(kConstructorOrBackPointerOffset, kPointerSize)                          \
-  V(kTransitionsOrPrototypeInfoOffset, kPointerSize)                        \
-  V(kDescriptorsOffset, kPointerSize)                                       \
-  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kPointerSize : 0)   \
-  V(kDependentCodeOffset, kPointerSize)                                     \
-  V(kPrototypeValidityCellOffset, kPointerSize)                             \
-  V(kPointerFieldsEndOffset, 0)                                             \
-  /* Total size. */                                                         \
+#define MAP_FIELDS(V)                                                     \
+  /* Raw data fields. */                                                  \
+  V(kInstanceSizeInWordsOffset, kUInt8Size)                               \
+  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size) \
+  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                   \
+  V(kVisitorIdOffset, kUInt8Size)                                         \
+  V(kInstanceTypeOffset, kUInt16Size)                                     \
+  V(kBitFieldOffset, kUInt8Size)                                          \
+  V(kBitField2Offset, kUInt8Size)                                         \
+  V(kBitField3Offset, kUInt32Size)                                        \
+  V(k64BitArchPaddingOffset,                                              \
+    kSystemPointerSize == kUInt32Size ? 0 : kUInt32Size)                  \
+  /* Pointer fields. */                                                   \
+  V(kPointerFieldsBeginOffset, 0)                                         \
+  V(kPrototypeOffset, kTaggedSize)                                        \
+  V(kConstructorOrBackPointerOffset, kTaggedSize)                         \
+  V(kTransitionsOrPrototypeInfoOffset, kTaggedSize)                       \
+  V(kDescriptorsOffset, kTaggedSize)                                      \
+  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kTaggedSize : 0)  \
+  V(kDependentCodeOffset, kTaggedSize)                                    \
+  V(kPrototypeValidityCellOffset, kTaggedSize)                            \
+  V(kPointerFieldsEndOffset, 0)                                           \
+  /* Total size. */                                                       \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
@@ -872,11 +881,11 @@ class Map : public HeapObjectPtr {
  private:
   // This byte encodes either the instance size without the in-object slack or
   // the slack size in properties backing store.
-  // Let H be JSObject::kHeaderSize / kPointerSize.
+  // Let H be JSObject::kHeaderSize / kTaggedSize.
   // If value >= H then:
   //     - all field properties are stored in the object.
   //     - there is no property array.
-  //     - value * kPointerSize is the actual object size without the slack.
+  //     - value * kTaggedSize is the actual object size without the slack.
   // Otherwise:
   //     - there is no slack in the object.
   //     - the property array has value slack slots.
@@ -938,8 +947,8 @@ class Map : public HeapObjectPtr {
 
   void DeprecateTransitionTree(Isolate* isolate);
 
-  void ReplaceDescriptors(Isolate* isolate, DescriptorArray* new_descriptors,
-                          LayoutDescriptor* new_layout_descriptor);
+  void ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
+                          LayoutDescriptor new_layout_descriptor);
 
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:
@@ -959,6 +968,10 @@ class Map : public HeapObjectPtr {
       Representation old_representation, Representation new_representation,
       MaybeHandle<FieldType> old_field_type, MaybeHandle<Object> old_value,
       MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value);
+
+  // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
+  DECL_ACCESSORS2(raw_instance_descriptors, DescriptorArray)
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
 
@@ -970,16 +983,16 @@ class Map : public HeapObjectPtr {
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
-class NormalizedMapCache : public WeakFixedArray,
-                           public NeverReadOnlySpaceObject {
+class NormalizedMapCache : public WeakFixedArray {
  public:
+  NEVER_READ_ONLY_SPACE
   static Handle<NormalizedMapCache> New(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
                                              PropertyNormalizationMode mode);
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
-  DECL_CAST(NormalizedMapCache)
+  DECL_CAST2(NormalizedMapCache)
 
   static inline bool IsNormalizedMapCache(const HeapObject* obj);
 
@@ -993,6 +1006,8 @@ class NormalizedMapCache : public WeakFixedArray,
   // The following declarations hide base class methods.
   Object* get(int index);
   void set(int index, Object* value);
+
+  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray)
 };
 
 }  // namespace internal

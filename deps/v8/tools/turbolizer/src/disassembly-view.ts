@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {PROF_COLS, UNICODE_BLOCK} from "../src/constants"
-import {SelectionBroker} from "../src/selection-broker"
-import {TextView} from "../src/text-view"
+import { PROF_COLS, UNICODE_BLOCK } from "../src/constants"
+import { SelectionBroker } from "../src/selection-broker"
+import { TextView } from "../src/text-view"
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;
@@ -35,13 +35,11 @@ export class DisassemblyView extends TextView {
         const offset = Number.parseInt(matches.groups["offset"], 16);
         if (!Number.isNaN(offset)) {
           const [nodes, blockId] = sourceResolver.nodesForPCOffset(offset)
-          console.log("nodes for", offset, offset.toString(16), " are ", nodes);
           if (nodes.length > 0) {
             for (const nodeId of nodes) {
               view.addHtmlElementForNodeId(nodeId, fragment);
             }
             return (e) => {
-              console.log(offset, nodes);
               e.stopPropagation();
               if (!e.shiftKey) {
                 view.selectionHandler.clear();

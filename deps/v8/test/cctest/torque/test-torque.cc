@@ -4,6 +4,7 @@
 
 #include <cmath>
 
+#include "src/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-string-gen.h"
@@ -243,11 +244,15 @@ TEST(TestForLoop) {
 }
 
 TEST(TestTypeswitch) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    m.TestTypeswitch();
+    m.TestTypeswitch(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -255,11 +260,15 @@ TEST(TestTypeswitch) {
 }
 
 TEST(TestGenericOverload) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    m.TestGenericOverload();
+    m.TestGenericOverload(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -351,11 +360,31 @@ TEST(TestCatch3) {
 }
 
 TEST(TestLookup) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    m.TestQualifiedAccess();
+    m.TestQualifiedAccess(m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestFrame1) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestFrame1(m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);

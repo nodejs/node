@@ -80,10 +80,10 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
+RUNTIME_FUNCTION(Runtime_PerformMicrotaskCheckpoint) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  isolate->RunMicrotasks();
+  MicrotasksScope::PerformCheckpoint(reinterpret_cast<v8::Isolate*>(isolate));
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -144,9 +144,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     call(target, rmode);
   }
 
-  inline bool AllowThisStubCall(CodeStub* stub);
-  void CallStubDelayed(CodeStub* stub);
-
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
@@ -471,7 +468,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 };
 
 // MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
       : TurboAssembler(options, buffer, size) {}
@@ -668,12 +665,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Runtime calls
-
-  // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub);
-
-  // Tail call a code stub (jump).  Generate the code if necessary.
-  void TailCallStub(CodeStub* stub);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,

@@ -8,6 +8,7 @@
 #include "src/assembler-inl.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/callable.h"
+#include "src/code-tracer.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -169,7 +170,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
-      DCHECK(kind != BCH && kind != DLH);
+      DCHECK_NE(BCH, kind);
       if (kind == TFJ || kind == CPP) {
         return Callable(code, JSTrampolineDescriptor{});
       }
@@ -183,6 +184,34 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
 const char* Builtins::name(int index) {
   DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].name;
+}
+
+void Builtins::PrintBuiltinCode() {
+  DCHECK(FLAG_print_builtin_code);
+#ifdef ENABLE_DISASSEMBLER
+  for (int i = 0; i < builtin_count; i++) {
+    const char* builtin_name = name(i);
+    Handle<Code> code = builtin_handle(i);
+    if (PassesFilter(CStrVector(builtin_name),
+                     CStrVector(FLAG_print_builtin_code_filter))) {
+      CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
+      OFStream os(trace_scope.file());
+      code->Disassemble(builtin_name, os);
+      os << "\n";
+    }
+  }
+#endif
+}
+
+void Builtins::PrintBuiltinSize() {
+  DCHECK(FLAG_print_builtin_size);
+  for (int i = 0; i < builtin_count; i++) {
+    const char* builtin_name = name(i);
+    const char* kind = KindNameOf(i);
+    Code code = builtin(i);
+    PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
+           code->InstructionSize());
+  }
 }
 
 // static
@@ -315,7 +344,6 @@ const char* Builtins::KindNameOf(int index) {
     case TFS: return "TFS";
     case TFH: return "TFH";
     case BCH: return "BCH";
-    case DLH: return "DLH";
     case ASM: return "ASM";
   }
   // clang-format on

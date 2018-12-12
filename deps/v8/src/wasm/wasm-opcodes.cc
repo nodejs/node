@@ -264,7 +264,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 
     // Atomic operations.
     CASE_OP(AtomicWake, "atomic_wake")
-    CASE_I32_OP(AtomicWait, "atomic_wait")
+    CASE_INT_OP(AtomicWait, "atomic_wait")
     CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic_load")
     CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic_store")
     CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic_add")
@@ -381,11 +381,18 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-bool IsJSCompatibleSignature(const FunctionSig* sig) {
-  for (auto type : sig->all()) {
-    if (type == kWasmI64 || type == kWasmS128) return false;
+bool IsJSCompatibleSignature(const FunctionSig* sig, bool has_bigint_feature) {
+  if (sig->return_count() > 1) {
+    return false;
   }
-  return sig->return_count() <= 1;
+  for (auto type : sig->all()) {
+    if (!has_bigint_feature && type == kWasmI64) {
+      return false;
+    }
+
+    if (type == kWasmS128) return false;
+  }
+  return true;
 }
 
 namespace {

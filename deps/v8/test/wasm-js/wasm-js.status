@@ -5,14 +5,17 @@
 [
 [ALWAYS, {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8319
-  'interface': [FAIL],
   'memory/grow': [FAIL],
-  'memory/constructor': [FAIL],
   'table/grow': [FAIL],
-  'table/constructor': [FAIL],
   'table/get-set': [FAIL],
   'module/customSections': [FAIL],
   'global/constructor': [FAIL],
   'global/value-get-set': [FAIL],
-}] # ALWAYS
+}], # ALWAYS
+
+['arch == s390 or arch == s390x or system == aix', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8402
+  'instance/constructor': [SKIP],
+}],  # 'arch == s390 or arch == s390x or system == aix'
+
 ]

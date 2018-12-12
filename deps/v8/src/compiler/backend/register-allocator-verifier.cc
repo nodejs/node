@@ -318,7 +318,7 @@ void BlockAssessments::Print() const {
     const Assessment* assessment = pair.second;
     // Use operator<< so we can write the assessment on the same
     // line.
-    os << PrintableInstructionOperand{op} << " : ";
+    os << op << " : ";
     if (assessment->kind() == AssessmentKind::Final) {
       os << "v" << FinalAssessment::cast(assessment)->virtual_register();
     } else {

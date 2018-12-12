@@ -329,9 +329,7 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       return factory()->NewBigIntLiteral(
           AstBigInt(scanner()->CurrentLiteralAsCString(zone())), pos);
     case Token::STRING: {
-      const AstRawString* symbol = GetSymbol();
-      fni_.PushLiteralName(symbol);
-      return factory()->NewStringLiteral(symbol, pos);
+      return factory()->NewStringLiteral(GetSymbol(), pos);
     }
     default:
       DCHECK(false);
@@ -798,11 +796,8 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         SkipFunctionLiterals(info->function_literal_id() - 1);
       }
 
-      // Any destructuring assignments in the current FunctionState
-      // actually belong to the arrow function itself.
-      const int rewritable_length = 0;
-      Expression* expression =
-          ParseArrowFunctionLiteral(formals, rewritable_length);
+      set_rewritable_length(0);
+      Expression* expression = ParseArrowFunctionLiteral(formals);
       // Scanning must end at the same position that was recorded
       // previously. If not, parsing has been interrupted due to a stack
       // overflow, at which point the partially parsed arrow function
@@ -919,15 +914,15 @@ ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
     // Keep track of the first reserved word encountered in case our
     // caller needs to report an error.
     if (!reserved_loc->IsValid() &&
-        !Token::IsIdentifier(name_tok, LanguageMode::kStrict, false,
-                             parsing_module_)) {
+        !Token::IsValidIdentifier(name_tok, LanguageMode::kStrict, false,
+                                  parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* local_name = ParseIdentifierName();
+    const AstRawString* local_name = ParsePropertyName();
     const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(ast_value_factory()->as_string())) {
-      export_name = ParseIdentifierName();
+      export_name = ParsePropertyName();
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
@@ -965,17 +960,18 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 
   auto result = new (zone()) ZonePtrList<const NamedImport>(1, zone());
   while (peek() != Token::RBRACE) {
-    const AstRawString* import_name = ParseIdentifierName();
+    const AstRawString* import_name = ParsePropertyName();
     const AstRawString* local_name = import_name;
     Scanner::Location location = scanner()->location();
     // In the presence of 'as', the left-side of the 'as' can
     // be any IdentifierName. But without 'as', it must be a valid
     // BindingIdentifier.
     if (CheckContextualKeyword(ast_value_factory()->as_string())) {
-      local_name = ParseIdentifierName();
+      local_name = ParsePropertyName();
     }
-    if (!Token::IsIdentifier(scanner()->current_token(), LanguageMode::kStrict,
-                             false, parsing_module_)) {
+    if (!Token::IsValidIdentifier(scanner()->current_token(),
+                                  LanguageMode::kStrict, false,
+                                  parsing_module_)) {
       ReportMessage(MessageTemplate::kUnexpectedReserved);
       return nullptr;
     } else if (IsEvalOrArguments(local_name)) {
@@ -1031,7 +1027,7 @@ void Parser::ParseImportDeclaration() {
   const AstRawString* import_default_binding = nullptr;
   Scanner::Location import_default_binding_loc;
   if (tok != Token::MUL && tok != Token::LBRACE) {
-    import_default_binding = ParseIdentifier(kDontAllowRestrictedIdentifiers);
+    import_default_binding = ParseNonRestrictedIdentifier();
     import_default_binding_loc = scanner()->location();
     DeclareVariable(import_default_binding, VariableMode::kConst,
                     kNeedsInitialization, pos);
@@ -1046,8 +1042,7 @@ void Parser::ParseImportDeclaration() {
       case Token::MUL: {
         Consume(Token::MUL);
         ExpectContextualKeyword(ast_value_factory()->as_string());
-        module_namespace_binding =
-            ParseIdentifier(kDontAllowRestrictedIdentifiers);
+        module_namespace_binding = ParseNonRestrictedIdentifier();
         module_namespace_binding_loc = scanner()->location();
         DeclareVariable(module_namespace_binding, VariableMode::kConst,
                         kCreatedInitialized, pos);
@@ -1203,7 +1198,7 @@ void Parser::ParseExportStar() {
   //   import * as .x from "..."; export {.x as x};
 
   ExpectContextualKeyword(ast_value_factory()->as_string());
-  const AstRawString* export_name = ParseIdentifierName();
+  const AstRawString* export_name = ParsePropertyName();
   Scanner::Location export_name_loc = scanner()->location();
   const AstRawString* local_name = NextInternalNamespaceExportName();
   Scanner::Location local_name_loc = Scanner::Location::invalid();
@@ -1484,7 +1479,7 @@ void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
   // Remove the "ghost" variable that turned out to be a label
   // from the top scope. This way, we don't try to resolve it
   // during the scope processing.
-  scope()->RemoveUnresolved(var);
+  scope()->DeleteUnresolved(var);
 }
 
 bool Parser::ContainsLabel(ZonePtrList<const AstRawString>* labels,
@@ -1816,7 +1811,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
     return InitializeForOfStatement(for_of, each, subject, body, finalize,
                                     IteratorType::kNormal, each->position());
   } else {
-    if (each->IsValidPattern()) {
+    if (each->IsPattern()) {
       Variable* temp = NewTemporary(ast_value_factory()->empty_string());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
       Expression* assign_each =
@@ -2053,7 +2048,7 @@ Statement* Parser::InitializeForOfStatement(
   {
     assign_each =
         factory()->NewAssignment(Token::ASSIGN, each, result_value, nopos);
-    if (each->IsValidPattern()) {
+    if (each->IsPattern()) {
       assign_each = RewriteDestructuringAssignment(assign_each->AsAssignment());
     }
   }
@@ -2497,7 +2492,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // immediately). bar can be parsed lazily, but we need to parse it in a mode
   // that tracks unresolved variables.
   DCHECK_IMPLIES(parse_lazily(), FLAG_lazy);
-  DCHECK_IMPLIES(parse_lazily(), allow_lazy_);
+  DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
 
   const bool is_lazy =
@@ -2710,6 +2705,10 @@ bool Parser::SkipFunction(
     // Propagate stack overflow.
     set_stack_overflow();
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
+    // Make sure we don't re-preparse inner functions of the aborted function.
+    // The error might be in an inner function.
+    allow_lazy_ = false;
+    mode_ = PARSE_EAGERLY;
     DCHECK(!pending_error_handler()->stack_overflow());
     // If we encounter an error that the preparser can not identify we reset to
     // the state before preparsing. The caller may then fully parse the function
@@ -2799,6 +2798,7 @@ class InitializerRewriter final
 };
 
 void Parser::RewriteParameterInitializer(Expression* expr) {
+  if (has_error()) return;
   InitializerRewriter rewriter(stack_limit_, expr, this);
   rewriter.Run();
 }
@@ -3003,8 +3003,7 @@ void Parser::ParseFunction(
 
   RewriteDestructuringAssignments();
 
-  *has_duplicate_parameters =
-      !classifier()->is_valid_formal_parameter_list_without_duplicates();
+  *has_duplicate_parameters = formals.has_duplicate();
 
   *expected_property_count = function_state.expected_property_count();
   *suspend_count = function_state.suspend_count();

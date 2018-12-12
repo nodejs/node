@@ -36,13 +36,6 @@ class V8_EXPORT_PRIVATE NativesCollection {
 
   // Number of built-in scripts.
   static int GetBuiltinsCount();
-  // Number of debugger implementation scripts.
-  static int GetDebuggerCount();
-
-  // These are used to access built-in scripts.  The debugger implementation
-  // scripts have an index in the interval [0, GetDebuggerCount()).  The
-  // non-debugger scripts have an index in the interval [GetDebuggerCount(),
-  // GetNativesCount()).
   static int GetIndex(const char* name);
   static Vector<const char> GetScriptSource(int index);
   static Vector<const char> GetScriptName(int index);

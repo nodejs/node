@@ -22,7 +22,6 @@
   V(BOILERPLATE_PROPERTY_DICTIONARY_TYPE)        \
   V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)           \
   V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)           \
-  V(CODE_STUBS_TABLE_TYPE)                       \
   V(COW_ARRAY_TYPE)                              \
   V(DEOPTIMIZATION_DATA_TYPE)                    \
   V(DEPENDENT_CODE_TYPE)                         \

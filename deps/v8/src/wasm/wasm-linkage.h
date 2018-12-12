@@ -134,9 +134,7 @@ class LinkageAllocator {
 #if V8_TARGET_ARCH_ARM
     switch (rep) {
       case MachineRepresentation::kFloat32:
-        return extra_float_reg_ >= 0 ||
-               (extra_double_reg_ >= 0 && extra_double_reg_ < 16) ||
-               (fp_offset_ < fp_count_ && fp_regs_[fp_offset_].code() < 16);
+        return fp_offset_ < fp_count_ && fp_regs_[fp_offset_].code() < 16;
       case MachineRepresentation::kFloat64:
         return extra_double_reg_ >= 0 || fp_offset_ < fp_count_;
       case MachineRepresentation::kSimd128:
@@ -158,20 +156,12 @@ class LinkageAllocator {
 #if V8_TARGET_ARCH_ARM
     switch (rep) {
       case MachineRepresentation::kFloat32: {
-        // Use the extra S-register if there is one.
-        if (extra_float_reg_ >= 0) {
-          int reg_code = extra_float_reg_;
-          extra_float_reg_ = -1;
-          return reg_code;
-        }
-        // Allocate a D-register and split into 2 float registers.
+        // Liftoff uses only even-numbered f32 registers, and encodes them using
+        // the code of the corresponding f64 register. This limits the calling
+        // interface to only using the even-numbered f32 registers.
         int d_reg_code = NextFpReg(MachineRepresentation::kFloat64);
         DCHECK_GT(16, d_reg_code);  // D-registers 16 - 31 can't split.
-        int reg_code = d_reg_code * 2;
-        // Save the extra S-register.
-        DCHECK_EQ(-1, extra_float_reg_);
-        extra_float_reg_ = reg_code + 1;
-        return reg_code;
+        return d_reg_code * 2;
       }
       case MachineRepresentation::kFloat64: {
         // Use the extra D-register if there is one.
@@ -248,10 +238,8 @@ class LinkageAllocator {
   const DoubleRegister* const fp_regs_;
 
 #if V8_TARGET_ARCH_ARM
-  // ARM FP register aliasing may require splitting or merging double registers.
   // Track fragments of registers below fp_offset_ here. There can only be one
-  // extra float and double register.
-  int extra_float_reg_ = -1;
+  // extra double register.
   int extra_double_reg_ = -1;
 #endif
 

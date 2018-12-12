@@ -28,7 +28,7 @@ let wr;
 gc();
 assertNotEquals(undefined, wr.deref());
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // New turn.
 
 let o = wr.deref();

@@ -51,12 +51,11 @@ class Arguments {
     *address_of_arg_at(index) = value->ptr();
   }
 
-  inline ObjectSlot slot_at(int index) {
-    return ObjectSlot(address_of_arg_at(index));
+  inline FullObjectSlot slot_at(int index) {
+    return FullObjectSlot(address_of_arg_at(index));
   }
 
   inline Address* address_of_arg_at(int index) {
-    DCHECK_GE(index, 0);
     DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     return reinterpret_cast<Address*>(reinterpret_cast<Address>(arguments_) -
                                       index * kPointerSize);
@@ -66,8 +65,8 @@ class Arguments {
   int length() const { return static_cast<int>(length_); }
 
   // Arguments on the stack are in reverse order (compared to an array).
-  ObjectSlot first_slot() { return slot_at(length() - 1); }
-  ObjectSlot last_slot() { return slot_at(0); }
+  FullObjectSlot first_slot() { return slot_at(length() - 1); }
+  FullObjectSlot last_slot() { return slot_at(0); }
 
  private:
   intptr_t length_;
@@ -102,7 +101,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
   }                                                                           \
                                                                               \
   Type Name(int args_length, Address* args_object, Isolate* isolate) {        \
-    DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
+    DCHECK(isolate->context().is_null() || isolate->context()->IsContext());  \
     CLOBBER_DOUBLE_REGISTERS();                                               \
     if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
       return Stats_##Name(args_length, args_object, isolate);                 \

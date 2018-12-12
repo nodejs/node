@@ -62,6 +62,7 @@
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
       'V8 Linux64 - debug - header includes': 'debug_x64_header_includes',
+      'V8 Linux64 - shared': 'release_x64_shared_verify_heap',
       'V8 Linux64 - verify csa': 'release_x64_verify_csa',
       # Jumbo.
       'V8 Linux64 Jumbo': 'release_x64_jumbo',
@@ -210,6 +211,7 @@
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
+      'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
       'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
@@ -455,6 +457,8 @@
       'release_bot', 'x64', 'edge', 'ubsan_vptr_recover'],
     'release_x64_ubsan_vptr_minimal_symbols': [
       'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
+    'release_x64_shared_verify_heap': [
+      'release_bot', 'x64', 'shared', 'v8_verify_heap'],
     'release_x64_verify_csa': [
       'release_bot', 'x64', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],

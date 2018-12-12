@@ -6,6 +6,6 @@
 
 var ns;
 import('modules-skip-13.js').then(x => ns = x);
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 assertEquals(42, ns.default);
 assertEquals(ns, ns.self);

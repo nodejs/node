@@ -665,6 +665,7 @@ class View {
     let details = "";
     if (this.map) {
       details += "ID: " + this.map.id;
+      details += "\nSource location: " + this.map.filePosition;
       details += "\n" + this.map.description;
     }
     $("mapDetails").innerText = details;

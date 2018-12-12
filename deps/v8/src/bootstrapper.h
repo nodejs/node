@@ -6,6 +6,7 @@
 #define V8_BOOTSTRAPPER_H_
 
 #include "src/heap/factory.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
@@ -15,20 +16,17 @@ namespace v8 {
 namespace internal {
 
 // A SourceCodeCache uses a FixedArray to store pairs of
-// (OneByteString*, JSFunction*), mapping names of native code files
+// (OneByteString, SharedFunctionInfo), mapping names of native code files
 // (array.js, etc.) to precompiled functions. Instead of mapping
 // names to functions it might make sense to let the JS2C tool
 // generate an index for each native JS file.
 class SourceCodeCache final {
  public:
-  explicit SourceCodeCache(Script::Type type) : type_(type), cache_(nullptr) {}
+  explicit SourceCodeCache(Script::Type type) : type_(type) {}
 
   void Initialize(Isolate* isolate, bool create_heap_objects);
 
-  void Iterate(RootVisitor* v) {
-    v->VisitRootPointer(Root::kExtensions, nullptr,
-                        ObjectSlot(reinterpret_cast<Address>(&cache_)));
-  }
+  void Iterate(RootVisitor* v);
 
   bool Lookup(Isolate* isolate, Vector<const char> name,
               Handle<SharedFunctionInfo>* handle);
@@ -38,11 +36,10 @@ class SourceCodeCache final {
 
  private:
   Script::Type type_;
-  FixedArray* cache_;
+  FixedArray cache_;
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
-enum GlobalContextType { FULL_CONTEXT, DEBUG_CONTEXT };
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
@@ -61,8 +58,7 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
-      GlobalContextType context_type = FULL_CONTEXT);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   Handle<JSGlobalProxy> NewRemoteContext(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
@@ -102,6 +98,9 @@ class Bootstrapper final {
   static void ExportFromRuntime(Isolate* isolate, Handle<JSObject> container);
 
  private:
+  // Log newly created Map objects if no snapshot was used.
+  void LogAllMaps();
+
   Isolate* isolate_;
   typedef int NestingCounterType;
   NestingCounterType nesting_;

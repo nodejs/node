@@ -49,12 +49,29 @@ static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
 
 namespace {
 
+Handle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
+                     bool is_construct) {
+  if (is_construct) {
+    DCHECK_EQ(Execution::Target::kCallable, execution_target);
+    return BUILTIN_CODE(isolate, JSConstructEntry);
+  } else if (execution_target == Execution::Target::kCallable) {
+    DCHECK(!is_construct);
+    return BUILTIN_CODE(isolate, JSEntry);
+  } else if (execution_target == Execution::Target::kRunMicrotasks) {
+    DCHECK(!is_construct);
+    return BUILTIN_CODE(isolate, JSRunMicrotasksEntry);
+  }
+  UNREACHABLE();
+}
+
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
     Isolate* isolate, bool is_construct, Handle<Object> target,
     Handle<Object> receiver, int argc, Handle<Object> args[],
     Handle<Object> new_target, Execution::MessageHandling message_handling,
     Execution::Target execution_target) {
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kInvoke);
   DCHECK(!receiver->IsJSGlobalObject());
+  DCHECK_LE(argc, FixedArray::kMaxLength);
 
 #ifdef USE_SIMULATOR
   // Simulators use separate stacks for C++ and JS. JS stack overflow checks
@@ -117,23 +134,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
   // Placeholder for return value.
   Object* value = nullptr;
 
-  using JSEntryFunction =
-      GeneratedCode<Object*(Object * new_target, Object * target,
-                            Object * receiver, int argc, Object*** args)>;
+  using JSEntryFunction = GeneratedCode<Object*(
+      Object * new_target, Object * target, Object * receiver, int argc,
+      Object*** args, Address root_register_value)>;
 
-  Handle<Code> code;
-  switch (execution_target) {
-    case Execution::Target::kCallable:
-      code = is_construct ? isolate->factory()->js_construct_entry_code()
-                          : isolate->factory()->js_entry_code();
-      break;
-    case Execution::Target::kRunMicrotasks:
-      code = isolate->factory()->js_run_microtasks_entry_code();
-      break;
-    default:
-      UNREACHABLE();
-  }
-
+  Handle<Code> code = JSEntry(isolate, execution_target, is_construct);
   {
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
@@ -153,7 +158,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
     }
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
-    value = stub_entry.Call(orig_func, func, recv, argc, argv);
+    value = stub_entry.Call(orig_func, func, recv, argc, argv,
+                            isolate->isolate_data()->isolate_root());
   }
 
 #ifdef VERIFY_HEAP

@@ -265,7 +265,7 @@ Object* Module::GetException() {
   return exception();
 }
 
-SharedFunctionInfo* Module::GetSharedFunctionInfo() const {
+SharedFunctionInfo Module::GetSharedFunctionInfo() const {
   DisallowHeapAllocation no_alloc;
   DCHECK_NE(status(), Module::kEvaluating);
   DCHECK_NE(status(), Module::kEvaluated);
@@ -745,14 +745,10 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result, Execution::Call(isolate, resume, generator, 0, nullptr),
       Object);
-  DCHECK(static_cast<JSIteratorResult*>(JSObject::cast(*result))
-             ->done()
-             ->BooleanValue(isolate));
+  DCHECK(JSIteratorResult::cast(*result)->done()->BooleanValue(isolate));
 
   CHECK(MaybeTransitionComponent(isolate, module, stack, kEvaluated));
-  return handle(
-      static_cast<JSIteratorResult*>(JSObject::cast(*result))->value(),
-      isolate);
+  return handle(JSIteratorResult::cast(*result)->value(), isolate);
 }
 
 namespace {

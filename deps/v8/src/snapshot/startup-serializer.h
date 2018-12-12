@@ -58,13 +58,13 @@ class StartupSerializer : public RootsSerializer {
 
 class SerializedHandleChecker : public RootVisitor {
  public:
-  SerializedHandleChecker(Isolate* isolate, std::vector<Context*>* contexts);
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override;
+  SerializedHandleChecker(Isolate* isolate, std::vector<Context>* contexts);
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
   bool CheckGlobalAndEternalHandles();
 
  private:
-  void AddToSet(FixedArray* serialized);
+  void AddToSet(FixedArray serialized);
 
   Isolate* isolate_;
   std::unordered_set<Object*> serialized_;

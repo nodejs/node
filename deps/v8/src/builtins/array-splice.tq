@@ -11,14 +11,14 @@ namespace array {
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedArrayType;
 
-  Extract<FixedArray>(
+  Extract<FixedArray>(implicit context: Context)(
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedArray {
     return UnsafeCast<FixedArray>(
         ExtractFixedArray(elements, first, count, capacity));
   }
 
-  Extract<FixedDoubleArray>(
+  Extract<FixedDoubleArray>(implicit context: Context)(
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedDoubleArray {
     if (elements == kEmptyFixedArray) {
@@ -51,7 +51,8 @@ namespace array {
         Convert<intptr>(srcIndex), Convert<intptr>(count));
   }
 
-  macro FastSplice<FixedArrayType: type, ElementType: type>(
+  macro FastSplice<FixedArrayType: type, ElementType: type>(implicit context:
+                                                                  Context)(
       args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
       actualDeleteCount: Smi): void labels Bailout {
@@ -121,7 +122,7 @@ namespace array {
     const a: JSArray = Cast<JSArray>(o) otherwise Bailout;
 
     const map: Map = a.map;
-    if (!IsPrototypeInitialArrayPrototype(context, map)) goto Bailout;
+    if (!IsPrototypeInitialArrayPrototype(map)) goto Bailout;
     if (IsNoElementsProtectorCellInvalid()) goto Bailout;
     if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
 
@@ -349,7 +350,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
   transitioning javascript builtin
-  ArraySplice(context: Context, receiver: Object, ...arguments): Object {
+  ArrayPrototypeSplice(context: Context, receiver: Object, ...arguments):
+      Object {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);
 

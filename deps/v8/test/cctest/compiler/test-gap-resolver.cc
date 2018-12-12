@@ -165,13 +165,12 @@ class InterpreterState {
 
   friend std::ostream& operator<<(std::ostream& os,
                                   const InterpreterState& is) {
-    for (OperandMap::const_iterator it = is.values_.begin();
-         it != is.values_.end(); ++it) {
-      if (it != is.values_.begin()) os << " ";
-      InstructionOperand source = FromKey(it->second);
-      InstructionOperand destination = FromKey(it->first);
-      MoveOperands mo(source, destination);
-      os << PrintableMoveOperands{&mo};
+    const char* space = "";
+    for (auto& value : is.values_) {
+      InstructionOperand source = FromKey(value.second);
+      InstructionOperand destination = FromKey(value.first);
+      os << space << MoveOperands{source, destination};
+      space = " ";
     }
     return os;
   }

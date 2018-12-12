@@ -112,9 +112,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                Handle<Name> name, AccessMode access_mode,
                                Node* index = nullptr);
-  Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
-                               Handle<Name> name, AccessMode access_mode,
-                               Node* index, Handle<PropertyCell> property_cell);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
   Reduction ReduceJSToString(Node* node);

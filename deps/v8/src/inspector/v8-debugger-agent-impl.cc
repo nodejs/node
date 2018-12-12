@@ -1004,16 +1004,6 @@ Response V8DebuggerAgentImpl::stepOut() {
   return Response::OK();
 }
 
-void V8DebuggerAgentImpl::scheduleStepIntoAsync(
-    std::unique_ptr<ScheduleStepIntoAsyncCallback> callback) {
-  if (!isPaused()) {
-    callback->sendFailure(Response::Error(kDebuggerNotPaused));
-    return;
-  }
-  m_debugger->scheduleStepIntoAsync(std::move(callback),
-                                    m_session->contextGroupId());
-}
-
 Response V8DebuggerAgentImpl::pauseOnAsyncCall(
     std::unique_ptr<protocol::Runtime::StackTraceId> inParentStackTraceId) {
   bool isOk = false;
@@ -1074,7 +1064,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    V8InspectorImpl::EvaluateScope evaluateScope(m_isolate);
+    V8InspectorImpl::EvaluateScope evaluateScope(scope);
     if (timeout.isJust()) {
       response = evaluateScope.setTimeout(timeout.fromJust() / 1000.0);
       if (!response.isSuccess()) return response;

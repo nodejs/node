@@ -26,9 +26,16 @@ static const char* const VOID_TYPE_STRING = "void";
 static const char* const ARGUMENTS_TYPE_STRING = "constexpr Arguments";
 static const char* const CONTEXT_TYPE_STRING = "Context";
 static const char* const OBJECT_TYPE_STRING = "Object";
+static const char* const SMI_TYPE_STRING = "Smi";
+static const char* const TAGGED_TYPE_STRING = "Tagged";
+static const char* const RAWPTR_TYPE_STRING = "RawPtr";
 static const char* const CONST_STRING_TYPE_STRING = "constexpr string";
+static const char* const STRING_TYPE_STRING = "String";
+static const char* const NUMBER_TYPE_STRING = "Number";
 static const char* const CODE_TYPE_STRING = "Code";
 static const char* const INTPTR_TYPE_STRING = "intptr";
+static const char* const UINTPTR_TYPE_STRING = "uintptr";
+static const char* const INT32_TYPE_STRING = "int32";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
@@ -170,7 +177,11 @@ class AbstractType final : public Type {
   DECLARE_TYPE_BOILERPLATE(AbstractType);
   const std::string& name() const { return name_; }
   std::string ToExplicitString() const override { return name(); }
-  std::string MangledName() const override { return "AT" + name(); }
+  std::string MangledName() const override {
+    std::string str(name());
+    std::replace(str.begin(), str.end(), ' ', '_');
+    return "AT" + str;
+  }
   std::string GetGeneratedTypeName() const override {
     return IsConstexpr() ? generated_type_
                          : "compiler::TNode<" + generated_type_ + ">";

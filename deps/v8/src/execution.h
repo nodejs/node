@@ -67,7 +67,7 @@ class InterruptsScope;
 // invocation.
 class V8_EXPORT_PRIVATE StackGuard final {
  public:
-  StackGuard(Isolate* isolate) : isolate_(isolate) {}
+  explicit StackGuard(Isolate* isolate) : isolate_(isolate) {}
 
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.

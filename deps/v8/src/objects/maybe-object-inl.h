@@ -126,7 +126,11 @@ HeapObjectReference HeapObjectReference::ClearedValue(Isolate* isolate) {
   return HeapObjectReference(raw_value);
 }
 
-void HeapObjectReference::Update(HeapObjectSlot slot, HeapObject* value) {
+template <typename THeapObjectSlot>
+void HeapObjectReference::Update(THeapObjectSlot slot, HeapObject* value) {
+  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
+                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+                "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   Address old_value = (*slot).ptr();
   DCHECK(!HAS_SMI_TAG(old_value));
   Address new_value = value->ptr();

@@ -28,14 +28,14 @@ class RuntimeProfiler {
                                  int nesting_levels = 1);
 
  private:
-  void MaybeOptimize(JSFunction* function, InterpretedFrame* frame);
+  void MaybeOptimize(JSFunction function, InterpretedFrame* frame);
   // Potentially attempts OSR from and returns whether no other
   // optimization attempts should be made.
-  bool MaybeOSR(JSFunction* function, InterpretedFrame* frame);
-  OptimizationReason ShouldOptimize(JSFunction* function,
-                                    BytecodeArray* bytecode_array);
-  void Optimize(JSFunction* function, OptimizationReason reason);
-  void Baseline(JSFunction* function, OptimizationReason reason);
+  bool MaybeOSR(JSFunction function, InterpretedFrame* frame);
+  OptimizationReason ShouldOptimize(JSFunction function,
+                                    BytecodeArray bytecode_array);
+  void Optimize(JSFunction function, OptimizationReason reason);
+  void Baseline(JSFunction function, OptimizationReason reason);
 
   Isolate* isolate_;
   bool any_ic_changed_;

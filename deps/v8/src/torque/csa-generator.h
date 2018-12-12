@@ -45,6 +45,11 @@ class CSAGenerator {
     return "block" + std::to_string(block->id());
   }
 
+  void ProcessArgumentsCommon(const TypeVector& parameter_types,
+                              std::vector<std::string>* args,
+                              std::vector<std::string>* constexpr_arguments,
+                              Stack<std::string>* stack);
+
   Stack<std::string> EmitBlock(const Block* block);
   void EmitInstruction(const Instruction& instruction,
                        Stack<std::string>* stack);

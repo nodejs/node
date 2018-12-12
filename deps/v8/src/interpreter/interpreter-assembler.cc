@@ -940,6 +940,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
   VARIABLE(var_site, MachineRepresentation::kTagged);
   Label extra_checks(this, Label::kDeferred), return_result(this, &var_result),
       construct(this), construct_array(this, &var_site);
+  GotoIf(IsUndefined(feedback_vector), &construct);
 
   // Increment the call count.
   IncrementCallCount(feedback_vector, slot_id);
@@ -1120,6 +1121,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
   // constructor _and_ spread the last argument at the same time.
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   Label extra_checks(this, Label::kDeferred), construct(this);
+  GotoIf(IsUndefined(feedback_vector), &construct);
 
   // Increment the call count.
   IncrementCallCount(feedback_vector, slot_id);

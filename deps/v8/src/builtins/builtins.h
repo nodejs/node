@@ -65,7 +65,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, DLH, ASM };
+  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM };
 
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
@@ -93,6 +93,10 @@ class Builtins {
   static int GetStackParameterCount(Name name);
 
   static const char* name(int index);
+
+  // Support for --print-builtin-size and --print-builtin-code.
+  void PrintBuiltinCode();
+  void PrintBuiltinSize();
 
   // Returns the C++ entry point for builtins implemented in C++, and the null
   // Address otherwise.
@@ -167,6 +171,31 @@ class Builtins {
   // trampoline.
   static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
 
+  static bool IsJSEntryVariant(int builtin_index) {
+    switch (builtin_index) {
+      case kJSEntry:
+      case kJSConstructEntry:
+      case kJSRunMicrotasksEntry:
+        return true;
+      default:
+        return false;
+    }
+    UNREACHABLE();
+  }
+
+  int js_entry_handler_offset() const {
+    DCHECK_NE(js_entry_handler_offset_, 0);
+    return js_entry_handler_offset_;
+  }
+
+  void SetJSEntryHandlerOffset(int offset) {
+    // Check the stored offset is either uninitialized or unchanged (we
+    // generate multiple variants of this builtin but they should all have the
+    // same handler offset).
+    CHECK(js_entry_handler_offset_ == 0 || js_entry_handler_offset_ == offset);
+    js_entry_handler_offset_ = offset;
+  }
+
  private:
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
@@ -202,6 +231,11 @@ class Builtins {
 
   Isolate* isolate_;
   bool initialized_ = false;
+
+  // Stores the offset of exception handler entry point (the handler_entry
+  // label) in JSEntry and its variants. It's used to generate the handler table
+  // during codegen (mksnapshot-only).
+  int js_entry_handler_offset_ = 0;
 
   friend class SetupIsolateDelegate;
 

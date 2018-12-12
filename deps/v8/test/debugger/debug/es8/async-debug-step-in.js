@@ -44,6 +44,6 @@ f().then(value => assertEquals(4, value));
 
 late_resolve(3);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(7, step_count);

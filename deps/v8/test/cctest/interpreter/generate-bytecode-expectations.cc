@@ -44,7 +44,6 @@ class ProgramOptions final {
         top_level_(false),
         print_callee_(false),
         oneshot_opt_(false),
-        do_expressions_(false),
         async_iteration_(false),
         public_fields_(false),
         private_fields_(false),
@@ -69,7 +68,6 @@ class ProgramOptions final {
   bool top_level() const { return top_level_; }
   bool print_callee() const { return print_callee_; }
   bool oneshot_opt() const { return oneshot_opt_; }
-  bool do_expressions() const { return do_expressions_; }
   bool async_iteration() const { return async_iteration_; }
   bool public_fields() const { return public_fields_; }
   bool private_fields() const { return private_fields_; }
@@ -92,7 +90,6 @@ class ProgramOptions final {
   bool top_level_;
   bool print_callee_;
   bool oneshot_opt_;
-  bool do_expressions_;
   bool async_iteration_;
   bool public_fields_;
   bool private_fields_;
@@ -187,8 +184,6 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.print_callee_ = true;
     } else if (strcmp(argv[i], "--disable-oneshot-opt") == 0) {
       options.oneshot_opt_ = false;
-    } else if (strcmp(argv[i], "--do-expressions") == 0) {
-      options.do_expressions_ = true;
     } else if (strcmp(argv[i], "--async-iteration") == 0) {
       options.async_iteration_ = true;
     } else if (strcmp(argv[i], "--public-fields") == 0) {
@@ -305,8 +300,6 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
       print_callee_ = ParseBoolean(line.c_str() + strlen(kPrintCallee));
     } else if (line.compare(0, strlen(kOneshotOpt), kOneshotOpt) == 0) {
       oneshot_opt_ = ParseBoolean(line.c_str() + strlen(kOneshotOpt));
-    } else if (line.compare(0, 16, "do expressions: ") == 0) {
-      do_expressions_ = ParseBoolean(line.c_str() + 16);
     } else if (line.compare(0, 17, "async iteration: ") == 0) {
       async_iteration_ = ParseBoolean(line.c_str() + 17);
     } else if (line.compare(0, 15, "public fields: ") == 0) {
@@ -340,7 +333,6 @@ void ProgramOptions::PrintHeader(std::ostream& stream) const {  // NOLINT
   if (top_level_) stream << "\ntop level: yes";
   if (print_callee_) stream << "\nprint callee: yes";
   if (oneshot_opt_) stream << "\noneshot opt: yes";
-  if (do_expressions_) stream << "\ndo expressions: yes";
   if (async_iteration_) stream << "\nasync iteration: yes";
   if (public_fields_) stream << "\npublic fields: yes";
   if (private_fields_) stream << "\nprivate fields: yes";

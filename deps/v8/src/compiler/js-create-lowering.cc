@@ -1784,7 +1784,8 @@ Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
   MapRef boilerplate_map = boilerplate.map();
 
   // Sanity check that JSRegExp object layout hasn't changed.
-  STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+  STATIC_ASSERT(static_cast<int>(JSRegExp::kDataOffset) ==
+                static_cast<int>(JSObject::kHeaderSize));
   STATIC_ASSERT(JSRegExp::kSourceOffset ==
                 JSRegExp::kDataOffset + kPointerSize);
   STATIC_ASSERT(JSRegExp::kFlagsOffset ==

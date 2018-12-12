@@ -32,6 +32,7 @@
   'modules-skip*': [SKIP],
   'harmony/modules-skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
+  'wasm/exceptions-utils': [SKIP],
   'wasm/wasm-constants': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
 
@@ -56,6 +57,9 @@
 
   # Issue 5495: enable the test when the constant field tracking in enabled.
   'const-field-tracking': [SKIP],
+
+  # Issue 8505: Math.pow is incorrect for asm.js
+  'regress/wasm/regress-8505': [SKIP],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -103,12 +107,12 @@
 
   ##############################################################################
   # Skip long running tests that time out in debug mode.
-  'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
+  'generated-transition-stub': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
   'migrations': [SKIP],
-  'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
-  'compiler/regress-808472': [PASS, ['mode == debug', SKIP]],
+  'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug or dcheck_always_on', SKIP]],
+  'compiler/regress-808472': [PASS, ['mode == debug or dcheck_always_on', SKIP]],
   'es6/promise-all-overflow-1': [SKIP],
-  'es6/promise-all-overflow-2': [PASS, SLOW, ['mode == debug or arch != x64', SKIP]],
+  'es6/promise-all-overflow-2': [PASS, SLOW, ['mode == debug or dcheck_always_on or arch != x64', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -566,6 +570,10 @@
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
   'harmony/bigint/regressions': [SKIP],
+
+  # Pre-r6 MIPS32 doesn't have instructions needed to properly handle 64-bit
+  # atomic instructions.
+  'wasm/atomics64-stress': [PASS, ['mips_arch_variant != r6', SKIP]],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -619,6 +627,11 @@
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
+
+['(arch == mips64el or arch == mips64) and simulator_run', {
+  # Slow tests which have flaky timeout on simulator.
+  'wasm/atomics64-stress': [SKIP],
+}],  # '(arch == mips64el or arch == mips64) and simulator_run'
 
 ##############################################################################
 ['system == windows', {
@@ -714,10 +727,12 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC. We mark PASS,FAIL to not skip those tests on the endurance fuzzer.
   'array-literal-feedback': [PASS, FAIL],
+  'compiler/dataview-neutered': [PASS, FAIL],
   'compiler/native-context-specialization-hole-check': [PASS, FAIL],
   'elements-transition-hoisting': [PASS, FAIL],
   'es6/collections-constructor-custom-iterator': [PASS, FAIL],
   'harmony/weakrefs/clear-clears-factory-pointer': [PASS, FAIL],
+  'ignition/throw-if-not-hole': [PASS, FAIL],
   'keyed-load-with-symbol-key': [PASS, FAIL],
   'object-seal': [PASS, FAIL],
   'regress/regress-3709': [PASS, FAIL],
@@ -892,12 +907,13 @@
 }], # arch != x64 or deopt_fuzzer
 
 ##############################################################################
-# Liftoff is currently only sufficiently implemented on x64, ia32 and arm64.
+# Liftoff is currently only sufficiently implemented on x64, ia32, arm64 and
+# arm.
 # TODO(clemensh): Implement on all other platforms (crbug.com/v8/6600).
-['arch != x64 and arch != ia32 and arch != arm64', {
+['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm/liftoff': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
-}], # arch != x64 and arch != ia32 and arch != arm64
+}], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
 
 ##############################################################################
 ['variant == slow_path and gc_stress', {
@@ -913,4 +929,10 @@
   'wasm/asm-wasm-f64': [SKIP],
 }], # arch == x64
 
+##############################################################################
+['arch in [arm, android_arm, android_ia32, ia32, ppc, s390, s390x, mipsel, mips]', {
+  # TODO(ssauleau): implement BigInt<>Wasm conversion for other arch -
+  # crbug.com/v8/7741
+  'wasm/bigint': [SKIP],
+}], # arch in [arm, android_arm, android_ia32, ia32, ppc, s390, s390x, mipsel, mips]
 ]

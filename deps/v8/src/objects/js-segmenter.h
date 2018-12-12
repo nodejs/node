@@ -45,10 +45,10 @@ class JSSegmenter : public JSObject {
   const char* LineBreakStyleAsCString() const;
   Handle<String> GranularityAsString() const;
 
-  DECL_CAST(JSSegmenter)
+  DECL_CAST2(JSSegmenter)
 
   // Segmenter accessors.
-  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS2(locale, String)
 
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
 
@@ -103,17 +103,22 @@ class JSSegmenter : public JSObject {
   DECL_VERIFIER(JSSegmenter)
 
   // Layout description.
-  static const int kJSSegmenterOffset = JSObject::kHeaderSize;
-  static const int kLocaleOffset = kJSSegmenterOffset + kPointerSize;
-  static const int kICUBreakIteratorOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kICUBreakIteratorOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+#define JS_SEGMENTER_FIELDS(V)            \
+  V(kJSSegmenterOffset, kTaggedSize)      \
+  V(kLocaleOffset, kTaggedSize)           \
+  V(kICUBreakIteratorOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)            \
+  /* Header size. */                      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_SEGMENTER_FIELDS)
+#undef JS_SEGMENTER_FIELDS
 
  private:
   static LineBreakStyle GetLineBreakStyle(const char* str);
   static Granularity GetGranularity(const char* str);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSegmenter);
+  OBJECT_CONSTRUCTORS(JSSegmenter, JSObject);
 };
 
 }  // namespace internal

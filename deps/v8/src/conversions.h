@@ -171,7 +171,7 @@ inline bool TryNumberToSize(Object* number, size_t* result);
 inline size_t NumberToSize(Object* number);
 
 // returns DoubleToString(StringToDouble(string)) == string
-bool IsSpecialIndex(String* string);
+bool IsSpecialIndex(String string);
 
 }  // namespace internal
 }  // namespace v8

@@ -565,8 +565,8 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
         DisallowHeapAllocation no_allocation;
         int start = shared->StartPosition();
         int len = shared->EndPosition() - start;
-        String::SubStringRange source(String::cast(script->source()), start,
-                                      len);
+        SubStringRange source(String::cast(script->source()), no_allocation,
+                              start, len);
         for (const auto& c : source) {
           os << AsReversiblyEscapedUC16(c);
         }
@@ -622,12 +622,9 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 #ifdef ENABLE_DISASSEMBLER
   AllowDeferredHandleDereference allow_deference_for_print_code;
   bool print_code =
-      isolate->bootstrapper()->IsActive()
-          ? FLAG_print_builtin_code && info->shared_info()->PassesFilter(
-                                           FLAG_print_builtin_code_filter)
-          : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
-             (info->IsOptimizing() && FLAG_print_opt_code &&
-              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)));
+      FLAG_print_code ||
+      (info->IsOptimizing() && FLAG_print_opt_code &&
+       info->shared_info()->PassesFilter(FLAG_print_opt_code_filter));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
@@ -916,7 +913,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     compilation_info()->MarkAsAllocationFoldingEnabled();
   }
 
-  if (compilation_info()->closure()->feedback_cell()->map() ==
+  if (compilation_info()->closure()->raw_feedback_cell()->map() ==
       ReadOnlyRoots(isolate).one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
   }
@@ -963,7 +960,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   }
 
   compilation_info()->SetCode(code);
-  compilation_info()->context()->native_context()->AddOptimizedCode(*code);
+  compilation_info()->native_context()->AddOptimizedCode(*code);
   RegisterWeakObjectsInOptimizedCode(code, isolate);
   return SUCCEEDED;
 }
@@ -1037,7 +1034,7 @@ struct GraphBuilderPhase {
 namespace {
 
 Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
-  Context* current = closure->context();
+  Context current = closure->context();
   size_t distance = 0;
   while (!current->IsNativeContext()) {
     if (current->IsModuleContext()) {
@@ -1219,8 +1216,8 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &create_lowering);
     AddReducer(data, &graph_reducer, &constant_folding_reducer);
-    AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &typed_lowering);
+    AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -1419,6 +1416,8 @@ struct LoadEliminationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
+    TypedOptimization typed_optimization(&graph_reducer, data->dependencies(),
+                                         data->jsgraph(), data->broker());
     ConstantFoldingReducer constant_folding_reducer(
         &graph_reducer, data->jsgraph(), data->broker());
     TypeNarrowingReducer type_narrowing_reducer(&graph_reducer, data->jsgraph(),
@@ -1429,6 +1428,7 @@ struct LoadEliminationPhase {
     AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &type_narrowing_reducer);
     AddReducer(data, &graph_reducer, &constant_folding_reducer);
+    AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &value_numbering);
@@ -2024,11 +2024,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Schedule* schedule, Code::Kind kind, const char* debug_name,
-    uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+    int32_t builtin_index, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
-  info.set_stub_key(stub_key);
 
   if (poisoning_level != PoisoningMitigationLevel::kDontPoison) {
     info.SetPoisoningMitigationLevel(poisoning_level);
@@ -2118,7 +2117,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
     json_of << "{\"function\":\"" << info.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
-  // TODO(rossberg): Should this really be untyped?
+
   pipeline.RunPrintAndVerify("machine", true);
   pipeline.ComputeScheduledGraph();
 
@@ -2207,7 +2206,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
     json_of << "{\"function\":\"" << info.GetDebugName().get()
             << "\", \"source\":\"\",\n\"phases\":[";
   }
-  // TODO(rossberg): Should this really be untyped?
+
   pipeline.RunPrintAndVerify("machine", true);
   pipeline.ComputeScheduledGraph();
 
@@ -2469,9 +2468,10 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
          << "--------------------------------------------------\n";
     }
     Zone temp_zone(data->allocator(), ZONE_NAME);
-    MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
-                              data->info()->IsStub(), data->debug_name(),
-                              &temp_zone);
+    MachineGraphVerifier::Run(
+        data->graph(), data->schedule(), linkage,
+        data->info()->IsNotOptimizedFunctionOrWasmFunction(),
+        data->debug_name(), &temp_zone);
   }
 
   data->InitializeInstructionSequence(call_descriptor);
@@ -2715,7 +2715,7 @@ void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
     CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "----- Instruction sequence " << phase_name << " -----\n"
-       << PrintableInstructionSequence{data->sequence()};
+       << *data->sequence();
   }
 }
 

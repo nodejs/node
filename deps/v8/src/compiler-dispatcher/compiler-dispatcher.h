@@ -89,7 +89,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
                                 const FunctionLiteral* function_literal);
 
   // Registers the given |function| with the compilation job |job_id|.
-  void RegisterSharedFunctionInfo(JobId job_id, SharedFunctionInfo* function);
+  void RegisterSharedFunctionInfo(JobId job_id, SharedFunctionInfo function);
 
   // Returns true if there is a pending job with the given id.
   bool IsEnqueued(JobId job_id) const;

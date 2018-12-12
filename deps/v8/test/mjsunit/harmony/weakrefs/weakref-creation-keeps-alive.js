@@ -33,14 +33,14 @@ gc();
   assertNotEquals(undefined, wr.deref());
 })();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 assertFalse(cleanup_called);
 
 gc();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 assertTrue(cleanup_called);

@@ -341,15 +341,9 @@ class WasmModuleBuilder {
     return this.addElementSegment(this.table_length_min, false, array);
   }
 
-  setTableBounds(min, max) {
+  setTableBounds(min, max = undefined) {
     this.table_length_min = min;
     this.table_length_max = max;
-    return this;
-  }
-
-  setTableLength(length) {
-    this.table_length_min = length;
-    this.table_length_max = length;
     return this;
   }
 

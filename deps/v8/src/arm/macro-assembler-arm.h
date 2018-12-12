@@ -281,16 +281,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatResult(DwVfpRegister dst);
 
   // Calls Abort(msg) if the condition cond is not satisfied.
-  // Use --debug_code to enable.
+  // Use --debug-code to enable.
   void Assert(Condition cond, AbortReason reason);
+
+  // Like Assert(), but without condition.
+  // Use --debug-code to enable.
+  void AssertUnreachable(AbortReason reason);
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);
 
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
-
-  inline bool AllowThisStubCall(CodeStub* stub);
 
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register shift);
@@ -310,9 +312,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
 
-  static constexpr int kCallStubSize = 2 * kInstrSize;
-  void CallStubDelayed(CodeStub* stub);
-
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
@@ -327,6 +326,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS,
             bool check_constant_pool = true);
   void Call(Label* target);
+
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
 
   // This should only be used when assembling a deoptimizer call because of
   // the CheckConstPool invocation, which is only needed for deoptimization.
@@ -506,8 +510,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return
   // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
   void TryInlineTruncateDoubleToI(Register result, DwVfpRegister input,
                                   Label* done);
 
@@ -578,7 +580,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 };
 
 // MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
       : TurboAssembler(options, buffer, size) {}
@@ -757,13 +759,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Runtime calls
-
-  // Call a code stub.
-  void CallStub(CodeStub* stub,
-                Condition cond = al);
-
-  // Call a code stub.
-  void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f,

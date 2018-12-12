@@ -858,14 +858,14 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprBr: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
           TRACE("control @%u: Br[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
           break;
         }
         case kExprBrIf: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
           TRACE("control @%u: BrIf[depth=%u]\n", i.pc_offset(), imm.depth);
           Control* c = &control_stack[control_stack.size() - imm.depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
@@ -1244,7 +1244,7 @@ class ThreadImpl {
     pc_t pc;
     sp_t sp;
     size_t fp;
-    unsigned arity;
+    uint32_t arity;
   };
 
   friend class InterpretedFrameImpl;
@@ -2191,13 +2191,15 @@ class ThreadImpl {
           break;
         }
         case kExprBr: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                         code->at(pc));
           len = DoBreak(code, pc, imm.depth);
           TRACE("  br => @%zu\n", pc + len);
           break;
         }
         case kExprBrIf: {
-          BreakDepthImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BranchDepthImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                         code->at(pc));
           WasmValue cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {
@@ -2714,8 +2716,11 @@ class ThreadImpl {
                                               Handle<Object> object_ref,
                                               const WasmCode* code,
                                               FunctionSig* sig) {
+    wasm::WasmFeatures enabled_features =
+        wasm::WasmFeaturesFromIsolate(isolate);
+
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
-        !IsJSCompatibleSignature(sig)) {
+        !IsJSCompatibleSignature(sig, enabled_features.bigint)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));
       return TryHandleException(isolate);
@@ -2793,9 +2798,9 @@ class ThreadImpl {
           maybe_retval.is_null() ? " with exception" : "");
 
     if (maybe_retval.is_null()) {
-      // JSEntryStub may through a stack overflow before we actually get to wasm
-      // code or back to the interpreter, meaning the thread-in-wasm flag won't
-      // be cleared.
+      // JSEntry may throw a stack overflow before we actually get to wasm code
+      // or back to the interpreter, meaning the thread-in-wasm flag won't be
+      // cleared.
       if (trap_handler::IsThreadInWasm()) {
         trap_handler::ClearThreadInWasm();
       }

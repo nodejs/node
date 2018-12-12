@@ -71,8 +71,8 @@ class CommonFrameConstants : public AllStatic {
       -(kCPSlotSize + kContextOrFrameTypeSize);
 };
 
-// StandardFrames are used for interpreted, full-codegen and optimized
-// JavaScript frames. They always have a context below the saved fp/constant
+// StandardFrames are used for interpreted and optimized JavaScript
+// frames. They always have a context below the saved fp/constant
 // pool and below that the JSFunction of the executing function.
 //
 //  slot      JS frame

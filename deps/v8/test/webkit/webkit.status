@@ -43,7 +43,7 @@
   # Exceeds call stack on windows after MSVS2017 switch.
   'fast/js/excessive-comma-usage': [SKIP],
 }],  # system == windows
-['mode == debug', {
+['mode == debug or dcheck_always_on', {
   # Too slow in debug mode.
   'dfg-int-overflow-in-loop': [SKIP],
   'dfg-double-vote-fuzz': [SKIP],
@@ -51,7 +51,7 @@
   'sort-large-array': [SKIP],
   # Too slow with --enable-slow-asserts.
   'array-iterate-backwards': [SKIP],
-}],  # 'mode == debug'
+}],  # 'mode == debug or dcheck_always_on'
 ['simulator_run', {
   # Skip tests that timeout with turbofan.
   'array-iterate-backwards': [PASS, NO_VARIANTS],

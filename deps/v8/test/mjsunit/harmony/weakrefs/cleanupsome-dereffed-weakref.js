@@ -25,7 +25,7 @@ let weak_ref;
 })();
 
 // Clear the KeepDuringJob set.
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 weak_ref.deref();
 o = null;
@@ -37,7 +37,7 @@ gc();
 wf.cleanupSome();
 assertEquals(0, cleanup_count);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 // Now the WeakRef can be cleared.
@@ -51,7 +51,7 @@ assertEquals(weak_ref, cleanup_cells[0]);
 // The cleanup task is not executed again since all WeakCells have been
 // processed.
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 assertEquals(1, cleanup_count);

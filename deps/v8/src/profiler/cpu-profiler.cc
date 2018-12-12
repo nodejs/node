@@ -360,7 +360,7 @@ void CpuProfiler::StartProfiling(const char* title, bool record_samples,
   }
 }
 
-void CpuProfiler::StartProfiling(String* title, bool record_samples,
+void CpuProfiler::StartProfiling(String title, bool record_samples,
                                  ProfilingMode mode) {
   StartProfiling(profiles_->GetName(title), record_samples, mode);
   isolate_->debug()->feature_tracker()->Track(DebugFeatureTracker::kProfiler);
@@ -411,7 +411,7 @@ CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   return profiles_->StopProfiling(title);
 }
 
-CpuProfile* CpuProfiler::StopProfiling(String* title) {
+CpuProfile* CpuProfiler::StopProfiling(String title) {
   return StopProfiling(profiles_->GetName(title));
 }
 

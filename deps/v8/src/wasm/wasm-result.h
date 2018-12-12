@@ -175,10 +175,10 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   ErrorType error_type_ = kNone;
   std::string error_msg_;
 
-  DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
   // ErrorThrower should always be stack-allocated, since it constitutes a scope
   // (things happen in the destructor).
   DISALLOW_NEW_AND_DELETE();
+  DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
 };
 
 // Use {nullptr_t} as data value to indicate that this only stores the error,

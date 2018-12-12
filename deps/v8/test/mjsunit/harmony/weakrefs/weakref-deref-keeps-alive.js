@@ -29,12 +29,12 @@ let strong = {a: wr.deref(), b: wr_control.deref()};
 
 gc();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 gc();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 // We have a strong reference to the objects, so the WeakRefs are not cleared yet.
@@ -57,7 +57,7 @@ gc();
   assertEquals(undefined, wr_control.deref());
 })();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 assertEquals(1, cleanup_count);
@@ -66,7 +66,7 @@ assertEquals(wc, cleanup_cells[0]);
 
 gc();
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 // Next turn.
 
 assertEquals(2, cleanup_count);

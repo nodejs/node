@@ -7,7 +7,10 @@
 
 #include <vector>
 
+#include "src/objects/code.h"
 #include "src/objects/js-array.h"
+#include "src/objects/map.h"
+#include "src/objects/string.h"
 #include "src/snapshot/deserializer-allocator.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot-source-sink.h"
@@ -57,6 +60,11 @@ class Deserializer : public SerializerDeserializer {
   void Initialize(Isolate* isolate);
   void DeserializeDeferredObjects();
 
+  // Create Log events for newly deserialized objects.
+  void LogNewObjectEvents();
+  void LogScriptEvents(Script* script);
+  void LogNewMapEvents();
+
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
   HeapObject* GetBackReferencedObject(int space);
@@ -75,6 +83,7 @@ class Deserializer : public SerializerDeserializer {
   const std::vector<Code>& new_code_objects() const {
     return new_code_objects_;
   }
+  const std::vector<Map>& new_maps() const { return new_maps_; }
   const std::vector<AccessorInfo*>& accessor_infos() const {
     return accessor_infos_;
   }
@@ -94,9 +103,12 @@ class Deserializer : public SerializerDeserializer {
 
   void Rehash();
 
+  // Cached current isolate.
+  Isolate* isolate_;
+
  private:
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
@@ -129,9 +141,6 @@ class Deserializer : public SerializerDeserializer {
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);
 
-  // Cached current isolate.
-  Isolate* isolate_;
-
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
 
@@ -140,6 +149,7 @@ class Deserializer : public SerializerDeserializer {
 
   ExternalReferenceTable* external_reference_table_;
 
+  std::vector<Map> new_maps_;
   std::vector<AllocationSite*> new_allocation_sites_;
   std::vector<Code> new_code_objects_;
   std::vector<AccessorInfo*> accessor_infos_;
@@ -168,16 +178,16 @@ class Deserializer : public SerializerDeserializer {
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(String* string);
+  explicit StringTableInsertionKey(String string);
 
   bool IsMatch(Object* string) override;
 
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
 
  private:
-  uint32_t ComputeHashField(String* string);
+  uint32_t ComputeHashField(String string);
 
-  String* string_;
+  String string_;
   DISALLOW_HEAP_ALLOCATION(no_gc);
 };
 

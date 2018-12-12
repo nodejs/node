@@ -301,6 +301,31 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     os << "\n";
   }
 
+  if (safepoint_table_offset_ > 0) {
+    SafepointTable table(instruction_start(), safepoint_table_offset_,
+                         stack_slots_);
+    os << "Safepoints (size = " << table.size() << ")\n";
+    for (uint32_t i = 0; i < table.length(); i++) {
+      uintptr_t pc_offset = table.GetPcOffset(i);
+      os << reinterpret_cast<const void*>(instruction_start() + pc_offset);
+      os << std::setw(6) << std::hex << pc_offset << "  " << std::dec;
+      table.PrintEntry(i, os);
+      os << " (sp -> fp)";
+      SafepointEntry entry = table.GetEntry(i);
+      if (entry.trampoline_pc() != -1) {
+        os << " trampoline: " << std::hex << entry.trampoline_pc() << std::dec;
+      }
+      if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
+        os << " deopt: " << std::setw(6) << entry.deoptimization_index();
+      }
+      if (entry.argument_count() > 0) {
+        os << " argc: " << entry.argument_count();
+      }
+      os << "\n";
+    }
+    os << "\n";
+  }
+
   os << "RelocInfo (size = " << reloc_info_.size() << ")\n";
   for (RelocIterator it(instructions(), reloc_info(), constant_pool());
        !it.done(); it.next()) {

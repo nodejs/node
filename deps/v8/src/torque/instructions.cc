@@ -85,6 +85,25 @@ void InstructionBase::InvalidateTransientTypes(
   }
 }
 
+void CallIntrinsicInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                               ControlFlowGraph* cfg) const {
+  std::vector<const Type*> parameter_types =
+      LowerParameterTypes(intrinsic->signature().parameter_types);
+  for (intptr_t i = parameter_types.size() - 1; i >= 0; --i) {
+    const Type* arg_type = stack->Pop();
+    const Type* parameter_type = parameter_types.back();
+    parameter_types.pop_back();
+    if (arg_type != parameter_type) {
+      ReportError("parameter ", i, ": expected type ", *parameter_type,
+                  " but found type ", *arg_type);
+    }
+  }
+  if (intrinsic->IsTransitioning()) {
+    InvalidateTransientTypes(stack);
+  }
+  stack->PushMany(LowerType(intrinsic->signature().return_type));
+}
+
 void CallCsaMacroInstruction::TypeInstruction(Stack<const Type*>* stack,
                                               ControlFlowGraph* cfg) const {
   std::vector<const Type*> parameter_types =
@@ -98,7 +117,6 @@ void CallCsaMacroInstruction::TypeInstruction(Stack<const Type*>* stack,
                   " but found type ", *arg_type);
     }
   }
-  if (!parameter_types.empty()) ReportError("missing arguments");
 
   if (macro->IsTransitioning()) {
     InvalidateTransientTypes(stack);
@@ -126,7 +144,6 @@ void CallCsaMacroAndBranchInstruction::TypeInstruction(
                   " but found type ", *arg_type);
     }
   }
-  if (!parameter_types.empty()) ReportError("missing arguments");
 
   if (label_blocks.size() != macro->signature().labels.size()) {
     ReportError("wrong number of labels");

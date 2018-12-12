@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 // static
-int DescriptorLookupCache::Hash(Map source, Name* name) {
+int DescriptorLookupCache::Hash(Map source, Name name) {
   DCHECK(name->IsUniqueName());
   // Uses only lower 32 bits if pointers are larger.
   uint32_t source_hash =
@@ -22,14 +22,14 @@ int DescriptorLookupCache::Hash(Map source, Name* name) {
   return (source_hash ^ name_hash) % kLength;
 }
 
-int DescriptorLookupCache::Lookup(Map source, Name* name) {
+int DescriptorLookupCache::Lookup(Map source, Name name) {
   int index = Hash(source, name);
   Key& key = keys_[index];
   if ((key.source == source) && (key.name == name)) return results_[index];
   return kAbsent;
 }
 
-void DescriptorLookupCache::Update(Map source, Name* name, int result) {
+void DescriptorLookupCache::Update(Map source, Name name, int result) {
   DCHECK_NE(result, kAbsent);
   int index = Hash(source, name);
   Key& key = keys_[index];

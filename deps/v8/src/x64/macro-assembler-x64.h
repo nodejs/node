@@ -457,13 +457,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                           Register caller_args_count_reg, Register scratch0,
                           Register scratch1);
 
-  inline bool AllowThisStubCall(CodeStub* stub);
-
-  // Call a code stub. This expects {stub} to be zone-allocated, as it does not
-  // trigger generation of the stub's code object but instead files a
-  // HeapObjectRequest that will be fulfilled after code assembly.
-  void CallStubDelayed(CodeStub* stub);
-
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
   void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
@@ -542,7 +535,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 };
 
 // MacroAssembler implements a collection of frequently used macros.
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
       : TurboAssembler(options, buffer, size) {}
@@ -837,14 +830,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Runtime calls
-
-  // Call a code stub.
-  // The code object is generated immediately, in contrast to
-  // TurboAssembler::CallStubDelayed.
-  void CallStub(CodeStub* stub);
-
-  // Tail call a code stub (jump).
-  void TailCallStub(CodeStub* stub);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f,

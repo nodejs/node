@@ -197,7 +197,7 @@ function runPart(n) {
 
     events = 0;
     consumer(producer);
-    %RunMicrotasks();
+    %PerformMicrotaskCheckpoint();
 
     Debug.setListener(null);
     if (caught) {

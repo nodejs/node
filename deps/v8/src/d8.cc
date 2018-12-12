@@ -2895,6 +2895,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--thread-pool-size=", 19) == 0) {
       options.thread_pool_size = atoi(argv[i] + 19);
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--stress-delay-tasks") == 0) {
+      // Delay execution of tasks by 0-100ms randomly (based on --random-seed).
+      options.stress_delay_tasks = true;
+      argv[i] = nullptr;
     }
   }
 
@@ -3005,11 +3009,11 @@ bool ProcessMessages(
   while (true) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::SaveContext saved_context(i_isolate);
-    i_isolate->set_context(nullptr);
+    i_isolate->set_context(i::Context());
     SealHandleScope shs(isolate);
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
-      isolate->RunMicrotasks();
+      MicrotasksScope::PerformCheckpoint(isolate);
     }
     if (g_default_platform->IdleTasksEnabled(isolate)) {
       v8::platform::RunIdleTasks(g_default_platform, isolate,
@@ -3117,7 +3121,7 @@ class Serializer : public ValueSerializer::Delegate {
   }
 
   Maybe<uint32_t> GetWasmModuleTransferId(
-      Isolate* isolate, Local<WasmCompiledModule> module) override {
+      Isolate* isolate, Local<WasmModuleObject> module) override {
     DCHECK_NOT_NULL(data_);
     for (size_t index = 0; index < wasm_modules_.size(); ++index) {
       if (wasm_modules_[index] == module) {
@@ -3198,13 +3202,13 @@ class Serializer : public ValueSerializer::Delegate {
     for (const auto& global_array_buffer : array_buffers_) {
       Local<ArrayBuffer> array_buffer =
           Local<ArrayBuffer>::New(isolate_, global_array_buffer);
-      if (!array_buffer->IsNeuterable()) {
+      if (!array_buffer->IsDetachable()) {
         Throw(isolate_, "ArrayBuffer could not be transferred");
         return Nothing<bool>();
       }
 
       ArrayBuffer::Contents contents = MaybeExternalize(array_buffer);
-      array_buffer->Neuter();
+      array_buffer->Detach();
       data_->array_buffer_contents_.push_back(contents);
     }
 
@@ -3216,7 +3220,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
-  std::vector<Global<WasmCompiledModule>> wasm_modules_;
+  std::vector<Global<WasmModuleObject>> wasm_modules_;
   std::vector<ExternalizedContents> externalized_contents_;
   size_t current_memory_usage_;
 
@@ -3260,14 +3264,14 @@ class Deserializer : public ValueDeserializer::Delegate {
     return MaybeLocal<SharedArrayBuffer>();
   }
 
-  MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+  MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
       Isolate* isolate, uint32_t transfer_id) override {
     DCHECK_NOT_NULL(data_);
     if (transfer_id < data_->transferrable_modules().size()) {
-      return WasmCompiledModule::FromTransferrableModule(
+      return WasmModuleObject::FromTransferrableModule(
           isolate_, data_->transferrable_modules().at(transfer_id));
     }
-    return MaybeLocal<WasmCompiledModule>();
+    return MaybeLocal<WasmModuleObject>();
   }
 
  private:
@@ -3355,7 +3359,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (i::FLAG_verify_predictable) {
     g_platform = MakePredictablePlatform(std::move(g_platform));
   }
-  if (i::FLAG_stress_delay_tasks) {
+  if (options.stress_delay_tasks) {
     int64_t random_seed = i::FLAG_fuzzer_random_seed;
     if (!random_seed) random_seed = i::FLAG_random_seed;
     // If random_seed is still 0 here, the {DelayedTasksPlatform} will choose a

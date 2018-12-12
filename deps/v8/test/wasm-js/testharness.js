@@ -19,7 +19,7 @@ let lastPromise = Promise.resolve();
 
 function test(func, description) {
   let maybeErr;
-  try { func({unreached_func: assert_unreached}); }
+  try { func({unreached_func: unreached_func}); }
   catch(e) { maybeErr = e; }
   if (typeof maybeErr !== 'undefined') {
     console.log(`${description}: FAIL. ${maybeErr}`);
@@ -96,6 +96,12 @@ function assert_array_equals(actual, expected, description) {
         'property ${i}, expected ${expected} but got ${actual}',
         {i: i, expected: expected[i], actual: actual[i]});
   }
+}
+
+function unreached_func(msg) {
+  return function trap() {
+    assert_unreached(msg);
+  };
 }
 
 function assert_unreached(description) {

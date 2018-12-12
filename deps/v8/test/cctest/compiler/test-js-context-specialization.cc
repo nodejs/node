@@ -82,7 +82,7 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
   Node* new_context = NodeProperties::GetContextInput(r.replacement());
   CHECK_EQ(IrOpcode::kHeapConstant, new_context->opcode());
   HeapObjectMatcher match(new_context);
-  CHECK_EQ(*match.Value(), *expected_new_context_object);
+  CHECK_EQ(Context::cast(*match.Value()), *expected_new_context_object);
 
   ContextAccess new_access = ContextAccessOf(r.replacement()->op());
   CHECK_EQ(new_access.depth(), expected_new_depth);
@@ -153,7 +153,7 @@ TEST(ReduceJSLoadContext0) {
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, *match.Value());
+    CHECK_EQ(*native, Context::cast(*match.Value()));
     ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
@@ -458,7 +458,7 @@ TEST(ReduceJSStoreContext0) {
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, *match.Value());
+    CHECK_EQ(*native, Context::cast(*match.Value()));
     ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));

@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
-  V(ArrayBufferWasNeutered, "array buffer was neutered")                       \
+  V(ArrayBufferWasDetached, "array buffer was detached")                       \
   V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \

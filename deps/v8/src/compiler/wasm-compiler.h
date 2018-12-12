@@ -77,11 +77,39 @@ enum class WasmImportCallKind : uint8_t {
   kJSFunctionArityMatchSloppy,     // fast WASM->JS call, sloppy receiver
   kJSFunctionArityMismatch,        // WASM->JS, needs adapter frame
   kJSFunctionArityMismatchSloppy,  // WASM->JS, needs adapter frame, sloppy
-  kUseCallBuiltin                  // everything else
+  // Math functions imported from JavaScript that are intrinsified
+  kFirstMathIntrinsic,
+  kF64Acos = kFirstMathIntrinsic,
+  kF64Asin,
+  kF64Atan,
+  kF64Cos,
+  kF64Sin,
+  kF64Tan,
+  kF64Exp,
+  kF64Log,
+  kF64Atan2,
+  kF64Pow,
+  kF64Ceil,
+  kF64Floor,
+  kF64Sqrt,
+  kF64Min,
+  kF64Max,
+  kF64Abs,
+  kF32Min,
+  kF32Max,
+  kF32Abs,
+  kF32Ceil,
+  kF32Floor,
+  kF32Sqrt,
+  kF32ConvertF64,
+  kLastMathIntrinsic = kF32ConvertF64,
+  // For everything else, there's the call builtin.
+  kUseCallBuiltin
 };
 
 WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
-                                         wasm::FunctionSig* sig);
+                                         wasm::FunctionSig* sig,
+                                         bool has_bigint_feature);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
 wasm::WasmCode* CompileWasmImportCallWrapper(Isolate*, wasm::NativeModule*,
@@ -322,6 +350,11 @@ class WasmGraphBuilder {
                  uint32_t alignment, uint32_t offset,
                  wasm::WasmCodePosition position);
 
+  Node* MemoryCopy(Node* dst, Node* src, Node* size,
+                   wasm::WasmCodePosition position);
+  Node* MemoryFill(Node* dst, Node* fill, Node* size,
+                   wasm::WasmCodePosition position);
+
   bool has_simd() const { return has_simd_; }
 
   const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
@@ -374,6 +407,9 @@ class WasmGraphBuilder {
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
   Node* BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
                        wasm::WasmCodePosition, EnforceBoundsCheck);
+  // BoundsCheckMemRange receives a uint32 {index} and {size} and returns
+  // a pointer into memory at that index, if it is in bounds.
+  Node* BoundsCheckMemRange(Node* index, Node* size, wasm::WasmCodePosition);
   Node* CheckBoundsAndAlignment(uint8_t access_size, Node* index,
                                 uint32_t offset, wasm::WasmCodePosition);
   Node* Uint32ToUintptr(Node*);
@@ -492,7 +528,8 @@ class WasmGraphBuilder {
                            int parameter_count);
 
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
-                                      Node** parameters, int parameter_count);
+                                      Node** parameters, int parameter_count,
+                                      Node** effect, Node* control);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 };
 

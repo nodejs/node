@@ -10,7 +10,6 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -37,17 +36,7 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate,
                                const AssemblerOptions& options, void* buffer,
                                int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {
-  if (create_code_object == CodeObjectRequired::kYes) {
-    // Unlike TurboAssembler, which can be used off the main thread and may not
-    // allocate, macro assembler creates its own copy of the self-reference
-    // marker in order to disambiguate between self-references during nested
-    // code generation (e.g.: codegen of the current object triggers stub
-    // compilation through CodeStub::GetCode()).
-    code_object_ = Handle<HeapObject>::New(
-        *isolate->factory()->NewSelfReferenceMarker(), isolate);
-  }
-}
+    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
 
 void TurboAssembler::InitializeRootRegister() {
   ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
@@ -960,30 +949,6 @@ void MacroAssembler::PopStackHandler(Register scratch) {
   add(esp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 
-
-void MacroAssembler::CallStub(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-void TurboAssembler::CallStubDelayed(CodeStub* stub) {
-  DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  if (isolate() != nullptr && isolate()->ShouldLoadConstantsFromRootList()) {
-    stub->set_isolate(isolate());
-    Call(stub->GetCode(), RelocInfo::CODE_TARGET);
-  } else {
-    call(stub);
-  }
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame() || !stub->SometimesSetsUpAFrame();
-}
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments,
                                  SaveFPRegsMode save_doubles) {
@@ -1840,7 +1805,39 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
     CheckStackAlignment();
   }
 
+  // Save the frame pointer and PC so that the stack layout remains iterable,
+  // even without an ExitFrame which normally exists between JS and C frames.
+  if (isolate() != nullptr) {
+    // Get the current PC via call, pop. This gets the return address pushed to
+    // the stack by call.
+    Label get_pc;
+    call(&get_pc);
+    bind(&get_pc);
+    // Find two caller-saved scratch registers.
+    Register scratch1 = eax;
+    Register scratch2 = ecx;
+    if (function == eax) scratch1 = edx;
+    if (function == ecx) scratch2 = edx;
+    pop(scratch1);
+    mov(ExternalReferenceAsOperand(
+            ExternalReference::fast_c_call_caller_pc_address(isolate()),
+            scratch2),
+        scratch1);
+    mov(ExternalReferenceAsOperand(
+            ExternalReference::fast_c_call_caller_fp_address(isolate()),
+            scratch2),
+        ebp);
+  }
+
   call(function);
+
+  if (isolate() != nullptr) {
+    // We don't unset the PC; the FP is the source of truth.
+    mov(ExternalReferenceAsOperand(
+            ExternalReference::fast_c_call_caller_fp_address(isolate()), edx),
+        Immediate(0));
+  }
+
   if (base::OS::ActivationFrameAlignment() != 0) {
     mov(esp, Operand(esp, num_arguments * kPointerSize));
   } else {

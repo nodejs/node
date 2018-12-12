@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-data-view-gen.h'
+
 namespace data_view {
   extern operator '.buffer'
       macro LoadJSArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
@@ -219,10 +221,10 @@ namespace data_view {
   }
 
   extern macro AllocateBigInt(intptr): BigInt;
-  extern macro StoreBigIntBitfield(BigInt, intptr): void;
+  extern macro StoreBigIntBitfield(BigInt, uint32): void;
   extern macro StoreBigIntDigit(BigInt, constexpr int31, uintptr): void;
   extern macro DataViewBuiltinsAssembler::DataViewEncodeBigIntBits(
-      constexpr bool, constexpr int31): intptr;
+      constexpr bool, constexpr int31): uint32;
 
   const kPositiveBigInt: constexpr bool = false;
   const kNegativeBigInt: constexpr bool = true;
@@ -415,7 +417,7 @@ namespace data_view {
 
     let viewOffsetWord: uintptr = dataView.byte_offset;
     let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-    let elementSizeFloat: float64 = Convert<float64>(DataViewElementSize(kind));
+    let elementSizeFloat: float64 = DataViewElementSize(kind);
 
     if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
@@ -621,9 +623,9 @@ namespace data_view {
   }
 
   extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntLength(BigInt):
-      uintptr;
+      uint32;
   extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntSign(BigInt):
-      uintptr;
+      uint32;
   extern macro LoadBigIntDigit(BigInt, constexpr int31): uintptr;
 
   // We might get here a BigInt that is bigger than 64 bits, but we're only
@@ -632,8 +634,8 @@ namespace data_view {
   macro StoreDataViewBigInt(
       buffer: JSArrayBuffer, offset: uintptr, bigIntValue: BigInt,
       requestedLittleEndian: bool) {
-    let length: uintptr = DataViewDecodeBigIntLength(bigIntValue);
-    let sign: uintptr = DataViewDecodeBigIntSign(bigIntValue);
+    let length: uint32 = DataViewDecodeBigIntLength(bigIntValue);
+    let sign: uint32 = DataViewDecodeBigIntSign(bigIntValue);
 
     // The 32-bit words that will hold the BigInt's value in
     // two's complement representation.
@@ -698,8 +700,7 @@ namespace data_view {
 
       let viewOffsetWord: uintptr = dataView.byte_offset;
       let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-      let elementSizeFloat: float64 =
-          Convert<float64>(DataViewElementSize(kind));
+      let elementSizeFloat: float64 = DataViewElementSize(kind);
 
       if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
         ThrowRangeError(context, kInvalidDataViewAccessorOffset);
@@ -720,8 +721,7 @@ namespace data_view {
 
       let viewOffsetWord: uintptr = dataView.byte_offset;
       let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
-      let elementSizeFloat: float64 =
-          Convert<float64>(DataViewElementSize(kind));
+      let elementSizeFloat: float64 = DataViewElementSize(kind);
 
       if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
         ThrowRangeError(context, kInvalidDataViewAccessorOffset);

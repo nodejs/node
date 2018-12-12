@@ -21,24 +21,24 @@ OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObjectPtr)
 CAST_ACCESSOR2(PropertyArray)
 
 Object* PropertyArray::get(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LE(index, this->length());
-  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  return RELAXED_READ_FIELD(this, OffsetOfElementAt(index));
 }
 
 void PropertyArray::set(int index, Object* value) {
   DCHECK(IsPropertyArray());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(this, offset, value);
 }
 
 void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length()));
+  int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(this, offset, value);
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
@@ -52,8 +52,8 @@ int PropertyArray::length() const {
 }
 
 void PropertyArray::initialize_length(int len) {
-  SLOW_DCHECK(len >= 0);
-  SLOW_DCHECK(len < LengthField::kMax);
+  DCHECK_LT(static_cast<unsigned>(len),
+            static_cast<unsigned>(LengthField::kMax));
   WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(len));
 }
 

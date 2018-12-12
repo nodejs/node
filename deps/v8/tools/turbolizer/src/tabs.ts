@@ -34,7 +34,6 @@ export class Tabs {
     activateTab(tab: HTMLLIElement) {
         if (typeof tab.dataset.divid !== "string") return;
         for (const li of this.tabBar.querySelectorAll<HTMLLIElement>("li.active")) {
-            console.log(li)
             li.classList.remove("active");
             this.showTab(li, false);
         }
@@ -75,7 +74,6 @@ export class Tabs {
 
     tabBarOnDrop(e) {
         e.preventDefault();
-        console.log("ondrop", e.dataTransfer.getData("text"), e);
         const tabId = e.dataTransfer.getData("text");
         const tab = document.getElementById(tabId) as HTMLLIElement;
         if (tab.parentNode != this.tabBar) {
@@ -94,7 +92,6 @@ export class Tabs {
 
     tabOnDragStart(e) {
         e.dataTransfer.setData("text", e.target.id);
-        console.log("ondragstart", e.target, e)
     }
 
     tabBarOnClick(e: MouseEvent) {

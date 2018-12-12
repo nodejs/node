@@ -24,6 +24,9 @@ import("snapshot_toolchain.gni")
 is_target_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
                       (current_cpu != v8_current_cpu && v8_multi_arch_build)
 
+# For faster Windows builds. See https://crbug.com/v8/8475.
+emit_builtins_as_inline_asm = is_win && is_clang
+
 declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
@@ -83,8 +86,7 @@ declare_args() {
   v8_enable_fast_mksnapshot = false
 
   # Enable embedded builtins.
-  # TODO(v8:8043): Support aix.
-  v8_enable_embedded_builtins = !is_aix
+  v8_enable_embedded_builtins = true
 
   # Build-time flag for enabling nojit mode.
   # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag
@@ -96,7 +98,6 @@ declare_args() {
 
   # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
   v8_enable_pointer_compression = false
-  v8_enable_31bit_smis_on_64bit_arch = false
 
   # Interpreted regexp engine exists as platform-independent alternative
   # based where the regular expression is compiled to a bytecode.
@@ -342,9 +343,6 @@ config("features") {
   if (v8_enable_pointer_compression) {
     defines += [ "V8_COMPRESS_POINTERS" ]
   }
-  if (v8_enable_31bit_smis_on_64bit_arch) {
-    defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
-  }
   if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
   }
@@ -398,10 +396,7 @@ config("features") {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
   if (v8_enable_embedded_builtins) {
-    defines += [
-      "V8_EMBEDDED_BUILTINS",
-      "V8_EMBEDDED_BYTECODE_HANDLERS",
-    ]
+    defines += [ "V8_EMBEDDED_BUILTINS" ]
   }
   if (v8_enable_jitless_mode) {
     defines += [ "V8_JITLESS_MODE" ]
@@ -680,6 +675,39 @@ config("v8_gcov_coverage_ldflags") {
 # Actions
 #
 
+# Only for Windows clang builds. Converts the embedded.S file produced by
+# mksnapshot into an embedded.cc file with corresponding inline assembly.
+template("asm_to_inline_asm") {
+  name = target_name
+  if (name == "default") {
+    suffix = ""
+  } else {
+    suffix = "_$name"
+  }
+
+  action("asm_to_inline_asm_" + name) {
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+    assert(emit_builtins_as_inline_asm)
+
+    script = "tools/snapshot/asm_to_inline_asm.py"
+    deps = [
+      ":run_mksnapshot_" + name,
+    ]
+    sources = [
+      "$target_gen_dir/embedded${suffix}.S",
+    ]
+    outputs = [
+      "$target_gen_dir/embedded${suffix}.cc",
+    ]
+    args = invoker.args
+    args += [
+      rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
+      rebase_path("$target_gen_dir/embedded${suffix}.cc", root_build_dir),
+    ]
+  }
+}
+
 action("js2c") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -696,8 +724,6 @@ action("js2c") {
     "src/js/macros.py",
     "src/message-template.h",
     "src/js/prologue.js",
-    "src/js/array.js",
-    "src/js/typedarray.js",
   ]
 
   outputs = [
@@ -879,6 +905,7 @@ action("postmortem-metadata") {
     "src/objects/fixed-array.h",
     "src/objects/heap-object-inl.h",
     "src/objects/heap-object.h",
+    "src/objects/instance-type.h",
     "src/objects/js-array-inl.h",
     "src/objects/js-array.h",
     "src/objects/js-array-buffer-inl.h",
@@ -925,9 +952,12 @@ torque_files = [
   "src/builtins/array-splice.tq",
   "src/builtins/array-unshift.tq",
   "src/builtins/collections.tq",
-  "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
+  "src/builtins/frames.tq",
+  "src/builtins/object.tq",
+  "src/builtins/object-fromentries.tq",
   "src/builtins/iterator.tq",
+  "src/builtins/typed-array.tq",
   "test/torque/test-torque.tq",
   "third_party/v8/builtins/array-sort.tq",
 ]
@@ -937,6 +967,7 @@ torque_namespaces = [
   "array",
   "collections",
   "iterator",
+  "object",
   "typed-array",
   "data-view",
   "test",
@@ -1019,7 +1050,8 @@ action("generate_bytecode_builtins_list") {
                     ":bytecode_builtins_list_generator($v8_generator_toolchain)",
                     "root_out_dir") + "/bytecode_builtins_list_generator",
             root_build_dir),
-    rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h"),
+    rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
+                root_build_dir),
   ]
 }
 
@@ -1133,11 +1165,21 @@ if (v8_use_snapshot) {
       embedded_variant = "Default"
     }
   }
+  if (emit_builtins_as_inline_asm) {
+    asm_to_inline_asm("default") {
+      args = []
+    }
+  }
   if (v8_use_multi_snapshots) {
     run_mksnapshot("trusted") {
       args = [ "--no-untrusted-code-mitigations" ]
       if (v8_enable_embedded_builtins) {
         embedded_variant = "Trusted"
+      }
+    }
+    if (emit_builtins_as_inline_asm) {
+      asm_to_inline_asm("trusted") {
+        args = []
       }
     }
   }
@@ -1267,7 +1309,10 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
       "src/setup-isolate-deserialize.cc",
     ]
 
-    if (v8_enable_embedded_builtins) {
+    if (v8_enable_embedded_builtins && emit_builtins_as_inline_asm) {
+      deps += [ ":asm_to_inline_asm_default" ]
+      sources += [ "$target_gen_dir/embedded.cc" ]
+    } else if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.S" ]
     } else {
       sources += [ "src/snapshot/embedded-empty.cc" ]
@@ -1314,7 +1359,19 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
     # Do not publicize any header to remove build dependency.
     public = []
 
-    if (v8_enable_embedded_builtins) {
+    if (v8_enable_embedded_builtins && emit_builtins_as_inline_asm) {
+      deps += [ ":asm_to_inline_asm_default" ]
+      sources += [ "$target_gen_dir/embedded.cc" ]
+
+      if (v8_use_multi_snapshots) {
+        deps += [ ":asm_to_inline_asm_trusted" ]
+        sources += [ "$target_gen_dir/embedded_trusted.cc" ]
+
+        if (use_jumbo_build == true) {
+          jumbo_excluded_sources = [ "$target_gen_dir/embedded_trusted.cc" ]
+        }
+      }
+    } else if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.S" ]
 
       if (v8_use_multi_snapshots) {
@@ -1357,6 +1414,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-async-gen.h",
     "src/builtins/builtins-async-generator-gen.cc",
     "src/builtins/builtins-async-iterator-gen.cc",
+    "src/builtins/builtins-bigint-gen.cc",
     "src/builtins/builtins-boolean-gen.cc",
     "src/builtins/builtins-call-gen.cc",
     "src/builtins/builtins-call-gen.h",
@@ -1404,6 +1462,8 @@ v8_source_set("v8_initializers") {
     "src/builtins/growable-fixed-array-gen.cc",
     "src/builtins/growable-fixed-array-gen.h",
     "src/builtins/setup-builtins-internal.cc",
+    "src/code-stub-assembler.cc",
+    "src/code-stub-assembler.h",
     "src/heap/setup-heap-internal.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
@@ -1425,9 +1485,10 @@ v8_source_set("v8_initializers") {
       "src/builtins/builtins-async-iterator-gen.cc",
       "src/builtins/builtins-async-generator-gen.cc",
 
-      # This source file takes an unusually large amount of time to
-      # compile.  Build it separately to avoid bottlenecks.
+      # These source files take an unusually large amount of time to
+      # compile.  Build them separately to avoid bottlenecks.
       "src/builtins/builtins-regexp-gen.cc",
+      "src/code-stub-assembler.cc",
     ]
   }
 
@@ -1585,8 +1646,6 @@ v8_source_set("v8_base") {
     "src/asmjs/asm-scanner.h",
     "src/asmjs/asm-types.cc",
     "src/asmjs/asm-types.h",
-    "src/asmjs/switch-logic.cc",
-    "src/asmjs/switch-logic.h",
     "src/assembler-arch-inl.h",
     "src/assembler-arch.h",
     "src/assembler-inl.h",
@@ -1676,11 +1735,6 @@ v8_source_set("v8_base") {
     "src/code-factory.h",
     "src/code-reference.cc",
     "src/code-reference.h",
-    "src/code-stub-assembler.cc",
-    "src/code-stub-assembler.h",
-    "src/code-stubs-utils.h",
-    "src/code-stubs.cc",
-    "src/code-stubs.h",
     "src/code-tracer.h",
     "src/codegen.cc",
     "src/codegen.h",
@@ -2192,9 +2246,13 @@ v8_source_set("v8_base") {
     "src/math-random.h",
     "src/maybe-handles-inl.h",
     "src/maybe-handles.h",
+    "src/memcopy.cc",
+    "src/memcopy.h",
     "src/message-template.h",
     "src/messages.cc",
     "src/messages.h",
+    "src/microtask-queue.cc",
+    "src/microtask-queue.h",
     "src/msan.h",
     "src/objects-body-descriptors-inl.h",
     "src/objects-body-descriptors.h",
@@ -2217,7 +2275,9 @@ v8_source_set("v8_base") {
     "src/objects/debug-objects-inl.h",
     "src/objects/debug-objects.cc",
     "src/objects/debug-objects.h",
+    "src/objects/descriptor-array-inl.h",
     "src/objects/descriptor-array.h",
+    "src/objects/dictionary-inl.h",
     "src/objects/dictionary.h",
     "src/objects/embedder-data-array-inl.h",
     "src/objects/embedder-data-array.cc",
@@ -2232,6 +2292,8 @@ v8_source_set("v8_base") {
     "src/objects/hash-table.h",
     "src/objects/heap-object-inl.h",
     "src/objects/heap-object.h",
+    "src/objects/instance-type-inl.h",
+    "src/objects/instance-type.h",
     "src/objects/intl-objects.cc",
     "src/objects/intl-objects.h",
     "src/objects/js-array-buffer-inl.h",
@@ -2295,9 +2357,6 @@ v8_source_set("v8_base") {
     "src/objects/maybe-object-inl.h",
     "src/objects/maybe-object.h",
     "src/objects/microtask-inl.h",
-    "src/objects/microtask-queue-inl.h",
-    "src/objects/microtask-queue.cc",
-    "src/objects/microtask-queue.h",
     "src/objects/microtask.h",
     "src/objects/module-inl.h",
     "src/objects/module.cc",
@@ -2313,6 +2372,8 @@ v8_source_set("v8_base") {
     "src/objects/promise.h",
     "src/objects/property-array-inl.h",
     "src/objects/property-array.h",
+    "src/objects/property-cell-inl.h",
+    "src/objects/property-cell.h",
     "src/objects/property-descriptor-object-inl.h",
     "src/objects/property-descriptor-object.h",
     "src/objects/prototype-info-inl.h",
@@ -2330,6 +2391,7 @@ v8_source_set("v8_base") {
     "src/objects/stack-frame-info-inl.h",
     "src/objects/stack-frame-info.h",
     "src/objects/string-inl.h",
+    "src/objects/string-table-inl.h",
     "src/objects/string-table.h",
     "src/objects/string.h",
     "src/objects/template-objects.cc",
@@ -2568,6 +2630,7 @@ v8_source_set("v8_base") {
     "src/unicode.h",
     "src/unoptimized-compilation-info.cc",
     "src/unoptimized-compilation-info.h",
+    "src/unwinder.cc",
     "src/uri.cc",
     "src/uri.h",
     "src/utils-inl.h",
@@ -2686,7 +2749,6 @@ v8_source_set("v8_base") {
       # These source files take an unusually large amount of time to
       # compile.  Build them separately to avoid bottlenecks.
       "src/api.cc",
-      "src/code-stub-assembler.cc",
       "src/elements.cc",
       "src/heap/heap.cc",
       "src/objects.cc",
@@ -2704,7 +2766,6 @@ v8_source_set("v8_base") {
       "src/ia32/assembler-ia32-inl.h",
       "src/ia32/assembler-ia32.cc",
       "src/ia32/assembler-ia32.h",
-      "src/ia32/code-stubs-ia32.cc",
       "src/ia32/codegen-ia32.cc",
       "src/ia32/constants-ia32.h",
       "src/ia32/cpu-ia32.cc",
@@ -2738,7 +2799,6 @@ v8_source_set("v8_base") {
       "src/x64/assembler-x64-inl.h",
       "src/x64/assembler-x64.cc",
       "src/x64/assembler-x64.h",
-      "src/x64/code-stubs-x64.cc",
       "src/x64/codegen-x64.cc",
       "src/x64/constants-x64.h",
       "src/x64/cpu-x64.cc",
@@ -2773,8 +2833,6 @@ v8_source_set("v8_base") {
       "src/arm/assembler-arm-inl.h",
       "src/arm/assembler-arm.cc",
       "src/arm/assembler-arm.h",
-      "src/arm/code-stubs-arm.cc",
-      "src/arm/code-stubs-arm.h",
       "src/arm/codegen-arm.cc",
       "src/arm/constants-arm.cc",
       "src/arm/constants-arm.h",
@@ -2805,8 +2863,6 @@ v8_source_set("v8_base") {
       "src/arm64/assembler-arm64-inl.h",
       "src/arm64/assembler-arm64.cc",
       "src/arm64/assembler-arm64.h",
-      "src/arm64/code-stubs-arm64.cc",
-      "src/arm64/code-stubs-arm64.h",
       "src/arm64/codegen-arm64.cc",
       "src/arm64/constants-arm64.h",
       "src/arm64/cpu-arm64.cc",
@@ -2861,8 +2917,6 @@ v8_source_set("v8_base") {
       "src/mips/assembler-mips-inl.h",
       "src/mips/assembler-mips.cc",
       "src/mips/assembler-mips.h",
-      "src/mips/code-stubs-mips.cc",
-      "src/mips/code-stubs-mips.h",
       "src/mips/codegen-mips.cc",
       "src/mips/constants-mips.cc",
       "src/mips/constants-mips.h",
@@ -2890,8 +2944,6 @@ v8_source_set("v8_base") {
       "src/mips64/assembler-mips64-inl.h",
       "src/mips64/assembler-mips64.cc",
       "src/mips64/assembler-mips64.h",
-      "src/mips64/code-stubs-mips64.cc",
-      "src/mips64/code-stubs-mips64.h",
       "src/mips64/codegen-mips64.cc",
       "src/mips64/constants-mips64.cc",
       "src/mips64/constants-mips64.h",
@@ -2920,7 +2972,6 @@ v8_source_set("v8_base") {
       "src/ppc/assembler-ppc.cc",
       "src/ppc/assembler-ppc.h",
       "src/ppc/code-stubs-ppc.cc",
-      "src/ppc/code-stubs-ppc.h",
       "src/ppc/codegen-ppc.cc",
       "src/ppc/constants-ppc.cc",
       "src/ppc/constants-ppc.h",
@@ -2951,7 +3002,6 @@ v8_source_set("v8_base") {
       "src/s390/assembler-s390.cc",
       "src/s390/assembler-s390.h",
       "src/s390/code-stubs-s390.cc",
-      "src/s390/code-stubs-s390.h",
       "src/s390/codegen-s390.cc",
       "src/s390/constants-s390.cc",
       "src/s390/constants-s390.h",
@@ -4097,4 +4147,20 @@ v8_source_set("wasm_compile_fuzzer") {
 }
 
 v8_fuzzer("wasm_compile_fuzzer") {
+}
+
+# Target to build all generated .cc files.
+group("v8_generated_cc_files") {
+  testonly = true
+
+  deps = [
+    ":d8_js2c",
+    ":generate_bytecode_builtins_list",
+    ":js2c",
+    ":js2c_experimental_extras",
+    ":js2c_extras",
+    ":run_torque",
+    "src/inspector:v8_generated_cc_files",
+    "test/cctest:v8_generated_cc_files",
+  ]
 }

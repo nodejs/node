@@ -92,7 +92,7 @@ class BreakLocation {
 
   debug::BreakLocationType type() const;
 
-  JSGeneratorObject* GetGeneratorObjectForSuspendedFrame(
+  JSGeneratorObject GetGeneratorObjectForSuspendedFrame(
       JavaScriptFrame* frame) const;
 
  private:
@@ -367,6 +367,9 @@ class Debug {
 
   Address restart_fp_address() {
     return reinterpret_cast<Address>(&thread_local_.restart_fp_);
+  }
+  bool will_restart() const {
+    return thread_local_.restart_fp_ != kNullAddress;
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }

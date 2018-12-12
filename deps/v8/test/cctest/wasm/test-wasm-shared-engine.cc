@@ -94,7 +94,7 @@ class SharedEngineIsolate {
   }
 
   SharedModule ExportInstance(Handle<WasmInstanceObject> instance) {
-    return instance->module_object()->managed_native_module()->get();
+    return instance->module_object()->shared_native_module();
   }
 
   int32_t Run(Handle<WasmInstanceObject> instance) {

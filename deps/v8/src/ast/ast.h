@@ -250,15 +250,29 @@ class Expression : public AstNode {
 
   bool IsCompileTimeValue();
 
-  bool IsValidPattern() {
+  bool IsPattern() {
     STATIC_ASSERT(kObjectLiteral + 1 == kArrayLiteral);
     return IsInRange(node_type(), kObjectLiteral, kArrayLiteral);
   }
 
- protected:
-  Expression(int pos, NodeType type) : AstNode(pos, type) {}
+  bool is_parenthesized() const {
+    return IsParenthesizedField::decode(bit_field_);
+  }
 
-  static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
+  void mark_parenthesized() {
+    bit_field_ = IsParenthesizedField::update(bit_field_, true);
+  }
+
+ private:
+  class IsParenthesizedField
+      : public BitField<bool, AstNode::kNextBitFieldIndex, 1> {};
+
+ protected:
+  Expression(int pos, NodeType type) : AstNode(pos, type) {
+    DCHECK(!is_parenthesized());
+  }
+
+  static const uint8_t kNextBitFieldIndex = IsParenthesizedField::kNext;
 };
 
 class FailureExpression : public Expression {
@@ -1625,6 +1639,13 @@ class VariableProxy final : public Expression {
   void BindTo(Variable* var);
 
   V8_INLINE VariableProxy* next_unresolved() { return next_unresolved_; }
+  V8_INLINE bool is_removed_from_unresolved() const {
+    return IsRemovedFromUnresolvedField::decode(bit_field_);
+  }
+
+  void mark_removed_from_unresolved() {
+    bit_field_ = IsRemovedFromUnresolvedField::update(bit_field_, true);
+  }
 
   // Provides an access type for the ThreadedList used by the PreParsers
   // expressions, lists, and formal parameters.
@@ -1632,6 +1653,25 @@ class VariableProxy final : public Expression {
     static VariableProxy** next(VariableProxy* t) {
       return t->pre_parser_expr_next();
     }
+
+    static VariableProxy** start(VariableProxy** head) { return head; }
+  };
+
+  // Provides an access type for the ThreadedList used by the PreParsers
+  // expressions, lists, and formal parameters.
+  struct UnresolvedNext {
+    static VariableProxy** filter(VariableProxy** t) {
+      VariableProxy** n = t;
+      // Skip over possibly removed values.
+      while (*n != nullptr && (*n)->is_removed_from_unresolved()) {
+        n = (*n)->next();
+      }
+      return n;
+    }
+
+    static VariableProxy** start(VariableProxy** head) { return filter(head); }
+
+    static VariableProxy** next(VariableProxy* t) { return filter(t->next()); }
   };
 
  private:
@@ -1648,6 +1688,7 @@ class VariableProxy final : public Expression {
     bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
                   IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
+                  IsRemovedFromUnresolvedField::encode(false) |
                   HoleCheckModeField::encode(HoleCheckMode::kElided) |
                   IsPrivateName::encode(false);
   }
@@ -1658,7 +1699,10 @@ class VariableProxy final : public Expression {
   };
   class IsAssignedField : public BitField<bool, IsThisField::kNext, 1> {};
   class IsResolvedField : public BitField<bool, IsAssignedField::kNext, 1> {};
-  class IsNewTargetField : public BitField<bool, IsResolvedField::kNext, 1> {};
+  class IsRemovedFromUnresolvedField
+      : public BitField<bool, IsResolvedField::kNext, 1> {};
+  class IsNewTargetField
+      : public BitField<bool, IsRemovedFromUnresolvedField::kNext, 1> {};
   class HoleCheckModeField
       : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
   class IsPrivateName : public BitField<bool, HoleCheckModeField::kNext, 1> {};
@@ -2295,9 +2339,11 @@ class FunctionLiteral final : public Expression {
 
   enum IdType { kIdTypeInvalid = -1, kIdTypeTopLevel = 0 };
 
-  enum ParameterFlag { kNoDuplicateParameters, kHasDuplicateParameters };
-
-  enum EagerCompileHint { kShouldEagerCompile, kShouldLazyCompile };
+  enum ParameterFlag : uint8_t {
+    kNoDuplicateParameters,
+    kHasDuplicateParameters
+  };
+  enum EagerCompileHint : uint8_t { kShouldEagerCompile, kShouldLazyCompile };
 
   // Empty handle means that the function does not have a shared name (i.e.
   // the name will be set dynamically after creation of the function closure).
@@ -2723,7 +2769,9 @@ class EmptyParentheses final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  explicit EmptyParentheses(int pos) : Expression(pos, kEmptyParentheses) {}
+  explicit EmptyParentheses(int pos) : Expression(pos, kEmptyParentheses) {
+    mark_parenthesized();
+  }
 };
 
 // Represents the spec operation `GetIterator()`

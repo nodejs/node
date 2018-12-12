@@ -213,6 +213,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     return rmode != RelocInfo::EXTERNAL_REFERENCE;
   }
 
+  static bool IsNearCallOffset(int64_t offset);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
@@ -231,6 +233,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(allow_macro_instructions());
     mov(vd, vd_index, vn, vn_index);
   }
+  void Mov(const Register& rd, Smi smi);
   void Mov(const VRegister& vd, const VRegister& vn, int index) {
     DCHECK(allow_macro_instructions());
     mov(vd, vn, index);
@@ -551,9 +554,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Dsb(BarrierDomain domain, BarrierType type);
   inline void Isb();
   inline void Csdb();
-
-  bool AllowThisStubCall(CodeStub* stub);
-  void CallStubDelayed(CodeStub* stub);
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
@@ -879,6 +879,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
+  // Generates an instruction sequence s.t. the return address points to the
+  // instruction following the call.
+  // The return address on the stack is used by frame iteration.
+  void StoreReturnAddressAndCall(Register target);
+
   void CallForDeoptimization(Address target, int deopt_id,
                              RelocInfo::Mode rmode);
 
@@ -1152,8 +1157,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   //
   // On successful conversion, the least significant 32 bits of the result are
   // equivalent to the ECMA-262 operation "ToInt32".
-  //
-  // Only public for the test code in test-code-stubs-arm64.cc.
   void TryConvertDoubleToInt64(Register result, DoubleRegister input,
                                Label* done);
 
@@ -1245,7 +1248,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   bool allow_macro_instructions_ = true;
 #endif
 
-
   // Scratch registers available for use by the MacroAssembler.
   CPURegList tmp_list_ = DefaultTmpList();
   CPURegList fptmp_list_ = DefaultFPTmpList();
@@ -1271,7 +1273,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
 
-  static bool IsNearCallOffset(int64_t offset);
   void JumpHelper(int64_t offset, RelocInfo::Mode rmode, Condition cond = al);
 
   void CallRecordWriteStub(Register object, Register address,
@@ -1280,7 +1281,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                            Address wasm_target);
 };
 
-class MacroAssembler : public TurboAssembler {
+class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
       : TurboAssembler(options, buffer, size) {}
@@ -1743,9 +1744,6 @@ class MacroAssembler : public TurboAssembler {
   }
 
   // ---- Calling / Jumping helpers ----
-
-  void CallStub(CodeStub* stub);
-  void TailCallStub(CodeStub* stub);
 
   void CallRuntime(const Runtime::Function* f,
                    int num_arguments,

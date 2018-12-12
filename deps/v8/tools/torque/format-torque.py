@@ -46,6 +46,10 @@ def preprocess(input):
   return input
 
 def postprocess(output):
+  output = re.sub(r'% RawObjectCast', r'%RawObjectCast', output)
+  output = re.sub(r'% RawPointerCast', r'%RawPointerCast', output)
+  output = re.sub(r'% RawConstexprCast', r'%RawConstexprCast', output)
+  output = re.sub(r'% FromConstexpr', r'%FromConstexpr', output)
   output = re.sub(r'\/\*COxp\*\/', r'constexpr', output)
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
   output = re.sub(r'(\n\s*)labels( [A-Z])', r'\1    labels\2', output)

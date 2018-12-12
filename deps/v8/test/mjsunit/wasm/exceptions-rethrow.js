@@ -6,23 +6,7 @@
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
-
-function assertWasmThrows(instance, runtime_id, code) {
-  try {
-    if (typeof code === 'function') {
-      code();
-    } else {
-      eval(code);
-    }
-  } catch (e) {
-    assertInstanceof(e, WebAssembly.RuntimeError);
-    var e_runtime_id = %GetWasmExceptionId(e, instance);
-    assertTrue(Number.isInteger(e_runtime_id));
-    assertEquals(e_runtime_id, runtime_id);
-    return;  // Success.
-  }
-  throw new MjsUnitAssertionError('Did not throw <' + runtime_id + '>');
-}
+load("test/mjsunit/wasm/exceptions-utils.js");
 
 // Test that rethrow expressions can target catch blocks.
 (function TestRethrowInCatch() {
@@ -52,8 +36,8 @@ function assertWasmThrows(instance, runtime_id, code) {
   ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, () => instance.exports.rethrow0());
-  assertWasmThrows(instance, except, () => instance.exports.rethrow1(0));
+  assertWasmThrows(instance, except, [], () => instance.exports.rethrow0());
+  assertWasmThrows(instance, except, [], () => instance.exports.rethrow1(0));
   assertEquals(23, instance.exports.rethrow1(1));
 })();
 
@@ -85,8 +69,8 @@ function assertWasmThrows(instance, runtime_id, code) {
   ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except, () => instance.exports.rethrow0());
-  assertWasmThrows(instance, except, () => instance.exports.rethrow1(0));
+  assertWasmThrows(instance, except, [], () => instance.exports.rethrow0());
+  assertWasmThrows(instance, except, [], () => instance.exports.rethrow1(0));
   assertEquals(23, instance.exports.rethrow1(1));
 })();
 
@@ -123,8 +107,8 @@ function assertWasmThrows(instance, runtime_id, code) {
   ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(instance, except1, () => instance.exports.rethrow_nested(0));
-  assertWasmThrows(instance, except2, () => instance.exports.rethrow_nested(1));
+  assertWasmThrows(instance, except1, [], () => instance.exports.rethrow_nested(0));
+  assertWasmThrows(instance, except2, [], () => instance.exports.rethrow_nested(1));
   assertEquals(23, instance.exports.rethrow_nested(2));
 })();
 

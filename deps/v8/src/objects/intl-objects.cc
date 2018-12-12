@@ -26,6 +26,7 @@
 #include "src/string-case.h"
 #include "unicode/basictz.h"
 #include "unicode/brkiter.h"
+#include "unicode/calendar.h"
 #include "unicode/coll.h"
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"
@@ -148,7 +149,7 @@ void ToUpperWithSharpS(const Vector<const Char>& src,
   }
 }
 
-inline int FindFirstUpperOrNonAscii(String* s, int length) {
+inline int FindFirstUpperOrNonAscii(String s, int length) {
   for (int index = 0; index < length; ++index) {
     uint16_t ch = s->Get(index);
     if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
@@ -193,9 +194,10 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
   {
     DisallowHeapAllocation no_gc;
     std::unique_ptr<uc16[]> sap;
-    return icu::UnicodeString(GetUCharBufferFromFlat(string->GetFlatContent(),
-                                                     &sap, string->length()),
-                              string->length());
+    return icu::UnicodeString(
+        GetUCharBufferFromFlat(string->GetFlatContent(no_gc), &sap,
+                               string->length()),
+        string->length());
   }
 }
 
@@ -221,11 +223,12 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
         String);
     DisallowHeapAllocation no_gc;
     DCHECK(s->IsFlat());
-    String::FlatContent flat = s->GetFlatContent();
+    String::FlatContent flat = s->GetFlatContent(no_gc);
     const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);
     status = U_ZERO_ERROR;
-    dest_length = case_converter(reinterpret_cast<UChar*>(result->GetChars()),
-                                 dest_length, src, src_length, lang, &status);
+    dest_length =
+        case_converter(reinterpret_cast<UChar*>(result->GetChars(no_gc)),
+                       dest_length, src, src_length, lang, &status);
     if (status != U_BUFFER_OVERFLOW_ERROR) break;
   }
 
@@ -248,7 +251,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
 // strings and does not allocate. Note that {src} could still be, e.g., a
 // one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
-String* Intl::ConvertOneByteToLower(String* src, String* dst) {
+String Intl::ConvertOneByteToLower(String src, String dst) {
   DCHECK_EQ(src->length(), dst->length());
   DCHECK(src->HasOnlyOneByteChars());
   DCHECK(src->IsFlat());
@@ -257,8 +260,8 @@ String* Intl::ConvertOneByteToLower(String* src, String* dst) {
   DisallowHeapAllocation no_gc;
 
   const int length = src->length();
-  String::FlatContent src_flat = src->GetFlatContent();
-  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars();
+  String::FlatContent src_flat = src->GetFlatContent(no_gc);
+  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars(no_gc);
 
   if (src_flat.IsOneByte()) {
     const uint8_t* src_data = src_flat.ToOneByteVector().start();
@@ -335,15 +338,15 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
     bool is_result_single_byte;
     {
       DisallowHeapAllocation no_gc;
-      String::FlatContent flat = s->GetFlatContent();
-      uint8_t* dest = result->GetChars();
+      String::FlatContent flat = s->GetFlatContent(no_gc);
+      uint8_t* dest = result->GetChars(no_gc);
       if (flat.IsOneByte()) {
         Vector<const uint8_t> src = flat.ToOneByteVector();
         bool has_changed_character = false;
-        int index_to_first_unprocessed =
-            FastAsciiConvert<false>(reinterpret_cast<char*>(result->GetChars()),
-                                    reinterpret_cast<const char*>(src.start()),
-                                    length, &has_changed_character);
+        int index_to_first_unprocessed = FastAsciiConvert<false>(
+            reinterpret_cast<char*>(result->GetChars(no_gc)),
+            reinterpret_cast<const char*>(src.start()), length,
+            &has_changed_character);
         if (index_to_first_unprocessed == length) {
           return has_changed_character ? result : s;
         }
@@ -375,7 +378,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
         isolate->factory()->NewRawOneByteString(length + sharp_s_count),
         String);
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat = s->GetFlatContent();
+    String::FlatContent flat = s->GetFlatContent(no_gc);
     if (flat.IsOneByte()) {
       ToUpperWithSharpS(flat.ToOneByteVector(), result);
     } else {
@@ -395,11 +398,8 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstance(icu_locale, status));
-  std::string value;
-  if (U_SUCCESS(status)) {
-    value = numbering_system->getName();
-  }
-  return value;
+  if (U_SUCCESS(status)) return numbering_system->getName();
+  return "latn";
 }
 
 icu::Locale Intl::CreateICULocale(const std::string& bcp47_locale) {
@@ -512,24 +512,12 @@ bool RemoveLocaleScriptTag(const std::string& icu_locale,
 std::set<std::string> Intl::BuildLocaleSet(
     const icu::Locale* icu_available_locales, int32_t count) {
   std::set<std::string> locales;
-  UErrorCode error = U_ZERO_ERROR;
-  char result[ULOC_FULLNAME_CAPACITY];
-
   for (int32_t i = 0; i < count; ++i) {
-    const char* icu_name = icu_available_locales[i].getName();
-
-    error = U_ZERO_ERROR;
-    // No need to force strict BCP47 rules.
-    uloc_toLanguageTag(icu_name, result, ULOC_FULLNAME_CAPACITY, FALSE, &error);
-    if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-      // This shouldn't happen, but lets not break the user.
-      continue;
-    }
-    std::string locale(result);
+    std::string locale = Intl::ToLanguageTag(icu_available_locales[i]);
     locales.insert(locale);
 
     std::string shortened_locale;
-    if (RemoveLocaleScriptTag(icu_name, &shortened_locale)) {
+    if (RemoveLocaleScriptTag(locale, &shortened_locale)) {
       std::replace(shortened_locale.begin(), shortened_locale.end(), '_', '-');
       locales.insert(shortened_locale);
     }
@@ -538,7 +526,29 @@ std::set<std::string> Intl::BuildLocaleSet(
   return locales;
 }
 
-std::string Intl::DefaultLocale(Isolate* isolate) {
+std::string Intl::ToLanguageTag(const icu::Locale& locale) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::string res = locale.toLanguageTag<std::string>(status);
+  CHECK(U_SUCCESS(status));
+
+  // Hack to remove -true from unicode extensions
+  // Address https://crbug.com/v8/8565
+  // TODO(ftang): Move the following "remove true" logic into ICU toLanguageTag
+  // by fixing ICU-20310.
+  const char* kSepTrue = "-true";
+  size_t u_ext_start = res.find("-u-");
+  if (u_ext_start != std::string::npos) {
+    for (size_t sep_true =
+             res.find(kSepTrue, u_ext_start + 5 /* strlen("-u-xx") == 5 */);
+         sep_true != std::string::npos; sep_true = res.find(kSepTrue)) {
+      res.erase(sep_true, 5 /* strlen(kSepTrue) == 5 */);
+    }
+  }
+  return res;
+}
+
+namespace {
+std::string DefaultLocale(Isolate* isolate) {
   if (isolate->default_locale().empty()) {
     icu::Locale default_locale;
     // Translate ICU's fallback locale to a well-known locale.
@@ -546,18 +556,15 @@ std::string Intl::DefaultLocale(Isolate* isolate) {
       isolate->set_default_locale("en-US");
     } else {
       // Set the locale
-      char result[ULOC_FULLNAME_CAPACITY];
-      UErrorCode status = U_ZERO_ERROR;
-      int32_t length =
-          uloc_toLanguageTag(default_locale.getName(), result,
-                             ULOC_FULLNAME_CAPACITY, FALSE, &status);
-      isolate->set_default_locale(
-          U_SUCCESS(status) ? std::string(result, length) : "und");
+      isolate->set_default_locale(default_locale.isBogus()
+                                      ? "und"
+                                      : Intl::ToLanguageTag(default_locale));
     }
     DCHECK(!isolate->default_locale().empty());
   }
   return isolate->default_locale();
 }
+}  // namespace
 
 // See ecma402/#legacy-constructor.
 MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
@@ -757,29 +764,12 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   // propose to Ecma 402 to put a limit on the locale length or change ICU to
   // handle long locale names better. See
   // https://unicode-org.atlassian.net/browse/ICU-13417
-  UErrorCode error = U_ZERO_ERROR;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  // uloc_forLanguageTag checks the structrual validity. If the input BCP47
+  // forLanguageTag checks the structrual validity. If the input BCP47
   // language tag is parsed all the way to the end, it indicates that the input
   // is structurally valid. Due to a couple of bugs, we can't use it
   // without Chromium patches or ICU 62 or earlier.
-  int parsed_length;
-  uloc_forLanguageTag(locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
-                      &parsed_length, &error);
-  if (U_FAILURE(error) ||
-      static_cast<size_t>(parsed_length) < locale.length() ||
-      error == U_STRING_NOT_TERMINATED_WARNING) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
-        Nothing<std::string>());
-  }
-
-  // Force strict BCP47 rules.
-  char result[ULOC_FULLNAME_CAPACITY];
-  int32_t result_len = uloc_toLanguageTag(icu_result, result,
-                                          ULOC_FULLNAME_CAPACITY, TRUE, &error);
-
+  UErrorCode error = U_ZERO_ERROR;
+  icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
   if (U_FAILURE(error)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -787,7 +777,7 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
         Nothing<std::string>());
   }
 
-  return Just(std::string(result, result_len));
+  return Just(Intl::ToLanguageTag(icu_locale));
 }
 
 Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
@@ -877,7 +867,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
     return MaybeHandle<String>();
   }
   std::string requested_locale = requested_locales.size() == 0
-                                     ? Intl::DefaultLocale(isolate)
+                                     ? DefaultLocale(isolate)
                                      : requested_locales[0];
   size_t dash = requested_locale.find('-');
   if (dash != std::string::npos) {
@@ -1453,6 +1443,44 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(
 }
 
 namespace {
+template <typename T>
+bool IsValidExtension(const icu::Locale& locale, const char* key,
+                      const std::string& value) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      T::getKeywordValuesForLocale(key, icu::Locale(locale.getBaseName()),
+                                   false, status));
+  if (U_SUCCESS(status)) {
+    int32_t length;
+    std::string legacy_type(uloc_toLegacyType(key, value.c_str()));
+    for (const char* item = enumeration->next(&length, status); item != nullptr;
+         item = enumeration->next(&length, status)) {
+      if (U_SUCCESS(status) && legacy_type == item) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool IsValidCalendar(const icu::Locale& locale, const std::string& value) {
+  return IsValidExtension<icu::Calendar>(locale, "calendar", value);
+}
+
+bool IsValidCollation(const icu::Locale& locale, const std::string& value) {
+  std::set<std::string> invalid_values = {"standard", "search"};
+  if (invalid_values.find(value) != invalid_values.end()) return false;
+  return IsValidExtension<icu::Collator>(locale, "collation", value);
+}
+
+bool IsValidNumberingSystem(const std::string& value) {
+  std::set<std::string> invalid_values = {"native", "traditio", "finance"};
+  if (invalid_values.find(value) != invalid_values.end()) return false;
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::NumberingSystem> numbering_system(
+      icu::NumberingSystem::createInstanceByName(value.c_str(), status));
+  return U_SUCCESS(status) && numbering_system.get() != nullptr;
+}
 
 std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
     icu::Locale* icu_locale, const std::set<std::string>& relevant_keys) {
@@ -1492,13 +1520,40 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
 
     if (bcp47_key && (relevant_keys.find(bcp47_key) != relevant_keys.end())) {
       const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
-      extensions.insert(
-          std::pair<std::string, std::string>(bcp47_key, bcp47_value));
-    } else {
-      status = U_ZERO_ERROR;
-      icu_locale->setKeywordValue(keyword, nullptr, status);
-      CHECK(U_SUCCESS(status));
+      bool is_valid_value = false;
+      // 8.h.ii.1.a If keyLocaleData contains requestedValue, then
+      if (strcmp("ca", bcp47_key) == 0) {
+        is_valid_value = IsValidCalendar(*icu_locale, bcp47_value);
+      } else if (strcmp("co", bcp47_key) == 0) {
+        is_valid_value = IsValidCollation(*icu_locale, bcp47_value);
+      } else if (strcmp("hc", bcp47_key) == 0) {
+        // https://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
+        std::set<std::string> valid_values = {"h11", "h12", "h23", "h24"};
+        is_valid_value = valid_values.find(bcp47_value) != valid_values.end();
+      } else if (strcmp("lb", bcp47_key) == 0) {
+        // https://www.unicode.org/repos/cldr/tags/latest/common/bcp47/segmentation.xml
+        std::set<std::string> valid_values = {"strict", "normal", "loose"};
+        is_valid_value = valid_values.find(bcp47_value) != valid_values.end();
+      } else if (strcmp("kn", bcp47_key) == 0) {
+        // https://www.unicode.org/repos/cldr/tags/latest/common/bcp47/collation.xml
+        std::set<std::string> valid_values = {"true", "false"};
+        is_valid_value = valid_values.find(bcp47_value) != valid_values.end();
+      } else if (strcmp("kf", bcp47_key) == 0) {
+        // https://www.unicode.org/repos/cldr/tags/latest/common/bcp47/collation.xml
+        std::set<std::string> valid_values = {"upper", "lower", "false"};
+        is_valid_value = valid_values.find(bcp47_value) != valid_values.end();
+      } else if (strcmp("nu", bcp47_key) == 0) {
+        is_valid_value = IsValidNumberingSystem(bcp47_value);
+      }
+      if (is_valid_value) {
+        extensions.insert(
+            std::pair<std::string, std::string>(bcp47_key, bcp47_value));
+        continue;
+      }
     }
+    status = U_ZERO_ERROR;
+    icu_locale->setKeywordValue(keyword, nullptr, status);
+    CHECK(U_SUCCESS(status));
   }
 
   return extensions;
@@ -1549,7 +1604,7 @@ std::string LookupMatcher(Isolate* isolate,
   // 3. Let defLocale be DefaultLocale();
   // 4. Set result.[[locale]] to defLocale.
   // 5. Return result.
-  return Intl::DefaultLocale(isolate);
+  return DefaultLocale(isolate);
 }
 
 }  // namespace
@@ -1580,11 +1635,7 @@ Intl::ResolvedLocale Intl::ResolveLocale(
   std::map<std::string, std::string> extensions =
       LookupAndValidateUnicodeExtensions(&icu_locale, relevant_extension_keys);
 
-  char canonicalized_locale[ULOC_FULLNAME_CAPACITY];
-  UErrorCode status = U_ZERO_ERROR;
-  uloc_toLanguageTag(icu_locale.getName(), canonicalized_locale,
-                     ULOC_FULLNAME_CAPACITY, true, &status);
-  CHECK(U_SUCCESS(status));
+  std::string canonicalized_locale = Intl::ToLanguageTag(icu_locale);
 
   // TODO(gsathya): Remove privateuse subtags from extensions.
 

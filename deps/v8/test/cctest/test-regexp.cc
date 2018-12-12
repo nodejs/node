@@ -776,7 +776,7 @@ class ContextInitializer {
   v8::Local<v8::Context> env_;
 };
 
-static ArchRegExpMacroAssembler::Result Execute(Code code, String* input,
+static ArchRegExpMacroAssembler::Result Execute(Code code, String input,
                                                 int start_offset,
                                                 Address input_start,
                                                 Address input_end,
@@ -785,7 +785,6 @@ static ArchRegExpMacroAssembler::Result Execute(Code code, String* input,
       code, input, start_offset, reinterpret_cast<byte*>(input_start),
       reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate());
 }
-
 
 TEST(MacroAssemblerNativeSuccess) {
   v8::V8::Initialize();

@@ -109,7 +109,7 @@ V8_INLINE Dest bit_cast(Source const& source) {
 }
 
 // Explicitly declare the assignment operator as deleted.
-#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete;
+#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
 
 // Explicitly declare the copy constructor and assignment operator as deleted.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \

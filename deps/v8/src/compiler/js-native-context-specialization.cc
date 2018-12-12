@@ -463,14 +463,14 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
       // Install dependency on constness. Unfortunately, access_info does not
       // track descriptor index, so we have to search for it.
-      Handle<Map> holder_map(holder->map(), isolate());
-      Handle<DescriptorArray> descriptors(holder_map->instance_descriptors(),
-                                          isolate());
-      int descriptor_index =
-          descriptors->Search(*(factory()->has_instance_symbol()), *holder_map);
+      MapRef holder_map(broker(), handle(holder->map(), isolate()));
+      Handle<DescriptorArray> descriptors(
+          holder_map.object()->instance_descriptors(), isolate());
+      int descriptor_index = descriptors->Search(
+          *(factory()->has_instance_symbol()), *(holder_map.object()));
       CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
-      dependencies()->DependOnFieldType(MapRef(broker(), holder_map),
-                                        descriptor_index);
+      holder_map.SerializeOwnDescriptors();
+      dependencies()->DependOnFieldType(holder_map, descriptor_index);
     }
 
     if (found_on_proto) {
@@ -794,6 +794,9 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
     AccessMode access_mode, Node* index) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
   // Lookup on the global object. We only deal with own data properties
   // of the global object here (represented as PropertyCell).
   LookupIterator it(isolate(), global_object(), name, LookupIterator::OWN);
@@ -801,25 +804,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
-  return ReduceGlobalAccess(node, receiver, value, name, access_mode, index,
-                            property_cell);
-}
-
-Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
-    Node* node, Node* receiver, Node* value, Handle<Name> name,
-    AccessMode access_mode, Node* index, Handle<PropertyCell> property_cell) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  Handle<Object> property_cell_value(property_cell->value(), isolate());
-  if (property_cell_value.is_identical_to(factory()->the_hole_value())) {
-    // The property cell is no longer valid.
-    return NoChange();
-  }
-
   PropertyDetails property_details = property_cell->property_details();
+  Handle<Object> property_cell_value(property_cell->value(), isolate());
   PropertyCellType property_cell_type = property_details.cell_type();
-  DCHECK_EQ(kData, property_details.kind());
 
   // We have additional constraints for stores.
   if (access_mode == AccessMode::kStore) {
@@ -996,100 +983,58 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
+  NameRef name(broker(), LoadGlobalParametersOf(node->op()).name());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  LoadGlobalParameters const& p = LoadGlobalParametersOf(node->op());
-  if (!p.feedback().IsValid()) return NoChange();
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-
-  DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
-         nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-  if (nexus.GetFeedback()->IsCleared()) return NoChange();
-  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
-
-  if (feedback->IsSmi()) {
-    // The wanted name belongs to a script-scope variable and the feedback tells
-    // us where to find its value.
-
-    int number = feedback->Number();
-    int const script_context_index =
-        FeedbackNexus::ContextIndexBits::decode(number);
-    int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
-    bool const immutable = FeedbackNexus::ImmutabilityBit::decode(number);
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), native_context().script_context_table().object(),
-        script_context_index);
-
-    {
-      ObjectRef contents(broker(),
-                         handle(context->get(context_slot_index), isolate()));
-      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
+  // Try to lookup the name on the script context table first (lexical scoping).
+  base::Optional<ScriptContextTableRef::LookupResult> result =
+      native_context().script_context_table().lookup(name);
+  if (result) {
+    ObjectRef contents = result->context.get(result->index);
+    if (contents.IsHeapObject() &&
+        contents.AsHeapObject().map().oddball_type() == OddballType::kHole) {
+      return NoChange();
     }
-
-    Node* context_constant = jsgraph()->Constant(context);
+    Node* context = jsgraph()->Constant(result->context);
     Node* value = effect = graph()->NewNode(
-        javascript()->LoadContext(0, context_slot_index, immutable),
-        context_constant, effect);
+        javascript()->LoadContext(0, result->index, result->immutable), context,
+        effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
 
-  CHECK(feedback->IsPropertyCell());
-  // The wanted name belongs (or did belong) to a property on the global object
-  // and the feedback is the cell holding its value.
-  return ReduceGlobalAccess(node, nullptr, nullptr, p.name(), AccessMode::kLoad,
-                            nullptr, Handle<PropertyCell>::cast(feedback));
+  // Lookup the {name} on the global object instead.
+  return ReduceGlobalAccess(node, nullptr, nullptr, name.object(),
+                            AccessMode::kLoad);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
+  NameRef name(broker(), StoreGlobalParametersOf(node->op()).name());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  StoreGlobalParameters const& p = StoreGlobalParametersOf(node->op());
-  if (!p.feedback().IsValid()) return NoChange();
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-
-  DCHECK(nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
-         nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
-  if (nexus.GetFeedback()->IsCleared()) return NoChange();
-  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
-
-  if (feedback->IsSmi()) {
-    // The wanted name belongs to a script-scope variable and the feedback tells
-    // us where to find its value.
-
-    int const script_context_index =
-        FeedbackNexus::ContextIndexBits::decode(feedback->Number());
-    int const context_slot_index =
-        FeedbackNexus::SlotIndexBits::decode(feedback->Number());
-    bool const immutable =
-        FeedbackNexus::ImmutabilityBit::decode(feedback->Number());
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), native_context().script_context_table().object(),
-        script_context_index);
-
-    if (immutable) return NoChange();
-
-    {
-      ObjectRef contents(broker(),
-                         handle(context->get(context_slot_index), isolate()));
-      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
+  // Try to lookup the name on the script context table first (lexical scoping).
+  base::Optional<ScriptContextTableRef::LookupResult> result =
+      native_context().script_context_table().lookup(name);
+  if (result) {
+    ObjectRef contents = result->context.get(result->index);
+    if ((contents.IsHeapObject() &&
+         contents.AsHeapObject().map().oddball_type() == OddballType::kHole) ||
+        result->immutable) {
+      return NoChange();
     }
-
-    Node* context_constant = jsgraph()->Constant(context);
-    effect = graph()->NewNode(javascript()->StoreContext(0, context_slot_index),
-                              value, context_constant, effect, control);
+    Node* context = jsgraph()->Constant(result->context);
+    effect = graph()->NewNode(javascript()->StoreContext(0, result->index),
+                              value, context, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
 
-  CHECK(feedback->IsPropertyCell());
-  // The wanted name belongs (or did belong) to a property on the global object
-  // and the feedback is the cell holding its value.
-  return ReduceGlobalAccess(node, nullptr, value, p.name(), AccessMode::kStore,
-                            nullptr, Handle<PropertyCell>::cast(feedback));
+  // Lookup the {name} on the global object instead.
+  return ReduceGlobalAccess(node, nullptr, value, name.object(),
+                            AccessMode::kStore);
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
@@ -1812,7 +1757,8 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
 
   // Check if we have feedback for a named access.
-  if (Name* name = nexus.FindFirstName()) {
+  Name name = nexus.FindFirstName();
+  if (!name.is_null()) {
     return ReduceNamedAccess(node, value, receiver_maps,
                              handle(name, isolate()), access_mode, index);
   } else if (nexus.GetKeyType() != ELEMENT) {
@@ -2074,7 +2020,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // Only setters have a value.
   int const argc = value == nullptr ? 0 : 1;
   // The stub always expects the receiver as the first param on the stack.
-  Callable call_api_callback = CodeFactory::CallApiCallback(isolate(), argc);
+  Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor call_interface_descriptor =
       call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -2092,16 +2038,17 @@ Node* JSNativeContextSpecialization::InlineApiCall(
 
   // Add CallApiCallbackStub's register argument as well.
   Node* context = jsgraph()->Constant(native_context());
-  Node* inputs[10] = {code,    context, data, holder, function_reference,
-                      receiver};
-  int index = 6 + argc;
+  Node* inputs[11] = {
+      code,   context, function_reference, jsgraph()->Constant(argc), data,
+      holder, receiver};
+  int index = 7 + argc;
   inputs[index++] = frame_state;
   inputs[index++] = *effect;
   inputs[index++] = *control;
   // This needs to stay here because of the edge case described in
   // http://crbug.com/675648.
   if (value != nullptr) {
-    inputs[6] = value;
+    inputs[7] = value;
   }
 
   return *effect = *control =
@@ -2556,7 +2503,7 @@ JSNativeContextSpecialization::BuildElementAccess(
           jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
 
       // Load the (known) base and external pointer for the {receiver}. The
-      // {external_pointer} might be invalid if the {buffer} was neutered, so
+      // {external_pointer} might be invalid if the {buffer} was detached, so
       // we need to make sure that any access is properly guarded.
       base_pointer = jsgraph()->ZeroConstant();
       external_pointer =
@@ -2598,15 +2545,15 @@ JSNativeContextSpecialization::BuildElementAccess(
           elements, effect, control);
     }
 
-    // See if we can skip the neutering check.
-    if (isolate()->IsArrayBufferNeuteringIntact()) {
+    // See if we can skip the detaching check.
+    if (isolate()->IsArrayBufferDetachingIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets neutered.
+      // gets detached.
       dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_neutering_protector()));
+          broker(), factory()->array_buffer_detaching_protector()));
     } else {
-      // Deopt if the {buffer} was neutered.
-      // Note: A neutered buffer leads to megamorphic feedback.
+      // Deopt if the {buffer} was detached.
+      // Note: A detached buffer leads to megamorphic feedback.
       Node* buffer_bit_field = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
           buffer, effect, control);
@@ -2614,10 +2561,10 @@ JSNativeContextSpecialization::BuildElementAccess(
           simplified()->NumberEqual(),
           graph()->NewNode(
               simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasNeuteredBit::kMask)),
+              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
           jsgraph()->ZeroConstant());
       effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered),
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached),
           check, effect, control);
     }
 

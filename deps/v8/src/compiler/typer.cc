@@ -59,7 +59,8 @@ class Typer::Visitor : public Reducer {
   explicit Visitor(Typer* typer, LoopVariableOptimizer* induction_vars)
       : typer_(typer),
         induction_vars_(induction_vars),
-        weakened_nodes_(typer->zone()) {}
+        weakened_nodes_(typer->zone()),
+        remembered_types_(typer->zone()) {}
 
   const char* reducer_name() const override { return "Typer"; }
 
@@ -205,6 +206,8 @@ class Typer::Visitor : public Reducer {
   Typer* typer_;
   LoopVariableOptimizer* induction_vars_;
   ZoneSet<NodeId> weakened_nodes_;
+  // TODO(tebbi): remove once chromium:906567 is resolved.
+  ZoneUnorderedMap<std::pair<Node*, int>, Type> remembered_types_;
 
 #define DECLARE_METHOD(x) inline Type Type##x(Node* node);
   DECLARE_METHOD(Start)
@@ -330,11 +333,37 @@ class Typer::Visitor : public Reducer {
 
       if (V8_UNLIKELY(!previous.Is(current))) {
         std::ostringstream ostream;
+        node->Print(ostream);
         previous.PrintTo(ostream);
         ostream << " -> ";
         current.PrintTo(ostream);
-        FATAL("UpdateType error for operator %s:\n%s\n",
-              IrOpcode::Mnemonic(node->opcode()), ostream.str().c_str());
+        ostream << "\n"
+                << "inputs:\n";
+        for (int i = 0; i < 2; ++i) {
+          Node* input = NodeProperties::GetValueInput(node, i);
+          if (remembered_types_[{node, i}].IsInvalid()) {
+            ostream << "untyped";
+          } else {
+            remembered_types_[{node, i}].PrintTo(ostream);
+          }
+          ostream << " -> ";
+          if (NodeProperties::IsTyped(input)) {
+            NodeProperties::GetType(input).PrintTo(ostream);
+          } else {
+            ostream << "untyped";
+          }
+          ostream << "\n";
+        }
+        FATAL("UpdateType error for node %s", ostream.str().c_str());
+      }
+
+      if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
+        for (int i = 0; i < 2; ++i) {
+          Node* input = NodeProperties::GetValueInput(node, i);
+          if (NodeProperties::IsTyped(input)) {
+            remembered_types_[{node, i}] = NodeProperties::GetType(input);
+          }
+        }
       }
 
       NodeProperties::SetType(node, current);
@@ -344,6 +373,15 @@ class Typer::Visitor : public Reducer {
       }
       return NoChange();
     } else {
+      if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
+        for (int i = 0; i < 2; ++i) {
+          Node* input = NodeProperties::GetValueInput(node, i);
+          if (NodeProperties::IsTyped(input)) {
+            remembered_types_[{node, i}] = NodeProperties::GetType(input);
+          }
+        }
+      }
+
       // No previous type, simply update the type.
       NodeProperties::SetType(node, current);
       return Changed(node);
@@ -700,7 +738,7 @@ Type Typer::Visitor::TypeParameter(Node* node) {
       return Type::Union(Type::Receiver(), Type::Undefined(), typer_->zone());
     }
   } else if (index == Linkage::GetJSCallArgCountParamIndex(parameter_count)) {
-    return Type::Range(0.0, Code::kMaxArguments, typer_->zone());
+    return Type::Range(0.0, FixedArray::kMaxLength, typer_->zone());
   } else if (index == Linkage::GetJSCallContextParamIndex(parameter_count)) {
     return Type::OtherInternal();
   }
@@ -1643,10 +1681,6 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
       return Type::String();
 
     case BuiltinFunctionId::kPromiseAll:
-      return Type::Receiver();
-    case BuiltinFunctionId::kPromisePrototypeCatch:
-      return Type::Receiver();
-    case BuiltinFunctionId::kPromisePrototypeFinally:
       return Type::Receiver();
     case BuiltinFunctionId::kPromisePrototypeThen:
       return Type::Receiver();

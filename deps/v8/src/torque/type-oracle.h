@@ -92,16 +92,44 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(VOID_TYPE_STRING);
   }
 
+  static const Type* GetRawPtrType() {
+    return Get().GetBuiltinType(RAWPTR_TYPE_STRING);
+  }
+
   static const Type* GetObjectType() {
     return Get().GetBuiltinType(OBJECT_TYPE_STRING);
+  }
+
+  static const Type* GetTaggedType() {
+    return Get().GetBuiltinType(TAGGED_TYPE_STRING);
+  }
+
+  static const Type* GetSmiType() {
+    return Get().GetBuiltinType(SMI_TYPE_STRING);
   }
 
   static const Type* GetConstStringType() {
     return Get().GetBuiltinType(CONST_STRING_TYPE_STRING);
   }
 
+  static const Type* GetStringType() {
+    return Get().GetBuiltinType(STRING_TYPE_STRING);
+  }
+
+  static const Type* GetNumberType() {
+    return Get().GetBuiltinType(NUMBER_TYPE_STRING);
+  }
+
   static const Type* GetIntPtrType() {
     return Get().GetBuiltinType(INTPTR_TYPE_STRING);
+  }
+
+  static const Type* GetUIntPtrType() {
+    return Get().GetBuiltinType(UINTPTR_TYPE_STRING);
+  }
+
+  static const Type* GetInt32Type() {
+    return Get().GetBuiltinType(INT32_TYPE_STRING);
   }
 
   static const Type* GetNeverType() {
@@ -116,7 +144,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     for (Generic* from_constexpr :
          Declarations::LookupGeneric(kFromConstexprMacroName)) {
       if (base::Optional<Callable*> specialization =
-              from_constexpr->GetSpecialization({to})) {
+              from_constexpr->GetSpecialization({to, from})) {
         if ((*specialization)->signature().GetExplicitTypes() ==
             TypeVector{from}) {
           return true;

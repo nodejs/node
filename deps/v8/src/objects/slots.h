@@ -12,9 +12,13 @@ namespace internal {
 
 class ObjectPtr;
 
-template <typename Subclass, size_t SlotDataSize>
+template <typename Subclass, typename Data, size_t SlotDataSize>
 class SlotBase {
  public:
+  using TData = Data;
+
+  // TODO(ishell): This should eventually become just sizeof(TData) once
+  // pointer compression is implemented.
   static constexpr size_t kSlotDataSize = SlotDataSize;
 
   Subclass& operator++() {  // Prefix increment.
@@ -65,7 +69,7 @@ class SlotBase {
 
   Address address() const { return ptr_; }
   // For symmetry with Handle.
-  Address* location() const { return reinterpret_cast<Address*>(ptr_); }
+  TData* location() const { return reinterpret_cast<TData*>(ptr_); }
 
  protected:
   STATIC_ASSERT(IsAligned(kSlotDataSize, kTaggedSize));
@@ -80,80 +84,120 @@ class SlotBase {
   Address ptr_;
 };
 
-// An ObjectSlot instance describes a pointer-sized field ("slot") holding
-// a tagged pointer (smi or heap object).
+// An FullObjectSlot instance describes a kSystemPointerSize-sized field
+// ("slot") holding a tagged pointer (smi or strong heap object).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class ObjectSlot : public SlotBase<ObjectSlot, kTaggedSize> {
+class FullObjectSlot
+    : public SlotBase<FullObjectSlot, Address, kSystemPointerSize> {
  public:
-  ObjectSlot() : SlotBase(kNullAddress) {}
-  explicit ObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit ObjectSlot(Address* ptr)
+  using TObject = ObjectPtr;
+  using THeapObjectSlot = FullHeapObjectSlot;
+
+  // Tagged value stored in this slot is guaranteed to never be a weak pointer.
+  static constexpr bool kCanBeWeak = false;
+
+  FullObjectSlot() : SlotBase(kNullAddress) {}
+  explicit FullObjectSlot(Address ptr) : SlotBase(ptr) {}
+  explicit FullObjectSlot(Address* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  inline explicit ObjectSlot(ObjectPtr* object);
-  explicit ObjectSlot(Object const* const* ptr)
+  inline explicit FullObjectSlot(ObjectPtr* object);
+  explicit FullObjectSlot(Object const* const* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit FullObjectSlot(HeapObject** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit ObjectSlot(SlotBase<T, kSlotDataSize> slot)
+  explicit FullObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
 
-  Object* operator*() const { return *reinterpret_cast<Object**>(address()); }
-  inline void store(Object* value);
+  // Compares memory representation of a value stored in the slot with given
+  // raw value.
+  inline bool contains_value(Address raw_value) const;
+
+  inline Object* operator*() const;
+  // TODO(3770): drop this in favor of operator* once migration is complete.
+  inline ObjectPtr load() const;
+  inline void store(Object* value) const;
+  inline void store(ObjectPtr value) const;
 
   inline ObjectPtr Acquire_Load() const;
-  inline Object* Relaxed_Load() const;
-  inline Object* Relaxed_Load(int offset) const;
+  inline ObjectPtr Relaxed_Load() const;
   inline void Relaxed_Store(ObjectPtr value) const;
-  inline void Relaxed_Store(int offset, Object* value) const;
   inline void Release_Store(ObjectPtr value) const;
   inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
                                           ObjectPtr target) const;
+  // Old-style alternative for the above, temporarily separate to allow
+  // incremental transition.
+  // TODO(3770): Get rid of the duplication when the migration is complete.
+  inline Object* Acquire_Load1() const;
+  inline void Relaxed_Store1(Object* value) const;
+  inline void Release_Store1(Object* value) const;
 };
 
-// A MaybeObjectSlot instance describes a pointer-sized field ("slot") holding
-// a possibly-weak tagged pointer (think: MaybeObject).
+// A FullMaybeObjectSlot instance describes a kSystemPointerSize-sized field
+// ("slot") holding a possibly-weak tagged pointer (think: MaybeObject).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
-class MaybeObjectSlot : public SlotBase<MaybeObjectSlot, kTaggedSize> {
+class FullMaybeObjectSlot
+    : public SlotBase<FullMaybeObjectSlot, Address, kSystemPointerSize> {
  public:
-  explicit MaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit MaybeObjectSlot(Object** ptr)
+  using TObject = MaybeObject;
+  using THeapObjectSlot = FullHeapObjectSlot;
+
+  // Tagged value stored in this slot can be a weak pointer.
+  static constexpr bool kCanBeWeak = true;
+
+  FullMaybeObjectSlot() : SlotBase(kNullAddress) {}
+  explicit FullMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
+  explicit FullMaybeObjectSlot(ObjectPtr* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit FullMaybeObjectSlot(Object** ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit FullMaybeObjectSlot(HeapObject** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit MaybeObjectSlot(SlotBase<T, kSlotDataSize> slot)
+  explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
 
-  inline MaybeObject operator*();
-  inline void store(MaybeObject value);
+  inline MaybeObject operator*() const;
+  // TODO(3770): drop this once ObjectSlot::load() is dropped.
+  inline MaybeObject load() const;
+  inline void store(MaybeObject value) const;
 
   inline MaybeObject Relaxed_Load() const;
+  inline void Relaxed_Store(MaybeObject value) const;
   inline void Release_CompareAndSwap(MaybeObject old, MaybeObject target) const;
 };
 
-// A HeapObjectSlot instance describes a pointer-sized field ("slot") holding
-// a weak or strong pointer to a heap object (think: HeapObjectReference).
+// A FullHeapObjectSlot instance describes a kSystemPointerSize-sized field
+// ("slot") holding a weak or strong pointer to a heap object (think:
+// HeapObjectReference).
 // Its address() is the address of the slot.
 // The slot's contents can be read and written using operator* and store().
 // In case it is known that that slot contains a strong heap object pointer,
 // ToHeapObject() can be used to retrieve that heap object.
-class HeapObjectSlot : public SlotBase<HeapObjectSlot, kTaggedSize> {
+class FullHeapObjectSlot
+    : public SlotBase<HeapObjectSlot, Address, kSystemPointerSize> {
  public:
-  HeapObjectSlot() : SlotBase(kNullAddress) {}
-  explicit HeapObjectSlot(Address ptr) : SlotBase(ptr) {}
+  FullHeapObjectSlot() : SlotBase(kNullAddress) {}
+  explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
+  explicit FullHeapObjectSlot(ObjectPtr* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit FullHeapObjectSlot(HeapObject** ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
-  explicit HeapObjectSlot(SlotBase<T, kSlotDataSize> slot)
+  explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
 
-  inline HeapObjectReference operator*();
-  inline void store(HeapObjectReference value);
+  inline HeapObjectReference operator*() const;
+  inline void store(HeapObjectReference value) const;
 
-  HeapObject* ToHeapObject() {
-    DCHECK((*reinterpret_cast<Address*>(address()) & kHeapObjectTagMask) ==
-           kHeapObjectTag);
-    return *reinterpret_cast<HeapObject**>(address());
+  HeapObject* ToHeapObject() const {
+    DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
+    return reinterpret_cast<HeapObject*>(*location());
   }
 
-  void StoreHeapObject(HeapObject* value) {
+  void StoreHeapObject(HeapObject* value) const {
     *reinterpret_cast<HeapObject**>(address()) = value;
   }
 };

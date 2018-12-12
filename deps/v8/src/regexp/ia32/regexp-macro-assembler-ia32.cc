@@ -45,7 +45,7 @@ namespace internal {
  *       - end of input         (address of end of string)
  *       - start of input       (address of first character in string)
  *       - start index          (character index of start)
- *       - String* input_string (location of a handle containing the string)
+ *       - String input_string  (location of a handle containing the string)
  *       --- frame alignment (if applicable) ---
  *       - return address
  * ebp-> - old ebp
@@ -66,7 +66,7 @@ namespace internal {
  *
  * The data up to the return address must be placed there by the calling
  * code, by calling the code entry as cast to a function with the signature:
- * int (*match)(String* input_string,
+ * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
  *              Address end,
@@ -1133,7 +1133,7 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),
       frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
-      frame_entry_address<String*>(re_frame, kInputString),
+      frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }

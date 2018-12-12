@@ -64,8 +64,7 @@ let kStartSectionCode = 8;       // Start function declaration
 let kElementSectionCode = 9;     // Elements section
 let kCodeSectionCode = 10;       // Function code
 let kDataSectionCode = 11;       // Data segments
-let kNameSectionCode = 12;       // Name section (encoded as string)
-let kExceptionSectionCode = 13;  // Exception section (must appear before code section)
+let kExceptionSectionCode = 12;  // Exception section (between Global & Export)
 
 // Name section types
 let kModuleNameCode = 0;
@@ -116,6 +115,7 @@ let kSig_i_l = makeSig([kWasmI64], [kWasmI32]);
 let kSig_i_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_iii = makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_v_iiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], []);
+let kSig_f_ff = makeSig([kWasmF32, kWasmF32], [kWasmF32]);
 let kSig_d_dd = makeSig([kWasmF64, kWasmF64], [kWasmF64]);
 let kSig_l_ll = makeSig([kWasmI64, kWasmI64], [kWasmI64]);
 let kSig_i_dd = makeSig([kWasmF64, kWasmF64], [kWasmI32]);
@@ -140,6 +140,7 @@ let kSig_iii_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32, kWasmI32, kWasmI32]);
 
 let kSig_v_f = makeSig([kWasmF32], []);
 let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
+let kSig_f_d = makeSig([kWasmF64], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 let kSig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
 let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
@@ -352,10 +353,22 @@ let kExprF32ReinterpretI32 = 0xbe;
 let kExprF64ReinterpretI64 = 0xbf;
 
 // Prefix opcodes
+let kNumericPrefix = 0xfc;
 let kAtomicPrefix = 0xfe;
 
+// Numeric opcodes.
+let kExprMemoryInit = 0x08;
+let kExprMemoryDrop = 0x09;
+let kExprMemoryCopy = 0x0a;
+let kExprMemoryFill = 0x0b;
+let kExprTableInit = 0x0c;
+let kExprTableDrop = 0x0d;
+let kExprTableCopy = 0x0e;
+
+// Atomic opcodes.
 let kExprAtomicWake = 0x00;
 let kExprI32AtomicWait = 0x01;
+let kExprI64AtomicWait = 0x02;
 let kExprI32AtomicLoad = 0x10;
 let kExprI32AtomicLoad8U = 0x12;
 let kExprI32AtomicLoad16U = 0x13;

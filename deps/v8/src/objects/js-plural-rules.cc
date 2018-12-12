@@ -151,12 +151,6 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
       Intl::ResolveLocale(isolate, JSPluralRules::GetAvailableLocales(),
                           requested_locales, matcher, {});
 
-  // 18. Set collator.[[Locale]] to r.[[locale]].
-  icu::Locale icu_locale = r.icu_locale;
-  DCHECK(!icu_locale.isBogus());
-
-  std::map<std::string, std::string> extensions = r.extensions;
-
   // 12. Set pluralRules.[[Locale]] to the value of r.[[locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
@@ -164,7 +158,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
 
   std::unique_ptr<icu::PluralRules> icu_plural_rules;
   std::unique_ptr<icu::DecimalFormat> icu_decimal_format;
-  InitializeICUPluralRules(isolate, icu_locale, type, &icu_plural_rules,
+  InitializeICUPluralRules(isolate, r.icu_locale, type, &icu_plural_rules,
                            &icu_decimal_format);
   CHECK_NOT_NULL(icu_plural_rules.get());
   CHECK_NOT_NULL(icu_decimal_format.get());

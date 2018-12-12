@@ -273,11 +273,6 @@ namespace internal {
   }
 
   template <>
-  int NativesCollection<%(type)s>::GetDebuggerCount() {
-    return %(debugger_count)i;
-  }
-
-  template <>
   int NativesCollection<%(type)s>::GetIndex(const char* name) {
 %(get_index_cases)s\
     return -1;
@@ -363,11 +358,6 @@ class Sources:
   def __init__(self):
     self.names = []
     self.modules = []
-    self.is_debugger_id = []
-
-
-def IsDebuggerFile(filename):
-  return os.path.basename(os.path.dirname(filename)) == "debug"
 
 def IsMacroFile(filename):
   return filename.endswith("macros.py")
@@ -410,10 +400,6 @@ def PrepareSources(source_files, native_type, emit_js):
   else:
     filters = BuildFilterChain(macro_file, message_template_file)
 
-  # Sort 'debugger' sources first.
-  source_files = sorted(source_files,
-                        lambda l,r: IsDebuggerFile(r) - IsDebuggerFile(l))
-
   source_files_and_contents = [(f, ReadFile(f)) for f in source_files]
 
   # Have a single not-quite-empty source file if there are none present;
@@ -432,9 +418,6 @@ def PrepareSources(source_files, native_type, emit_js):
       raise Error("In file %s:\n%s" % (source, str(e)))
 
     result.modules.append(lines)
-
-    is_debugger = IsDebuggerFile(source)
-    result.is_debugger_id.append(is_debugger)
 
     name = os.path.basename(source)[:-3]
     result.names.append(name)
@@ -483,7 +466,6 @@ def BuildMetadata(sources, source_bytes, native_type):
 
   metadata = {
     "builtin_count": len(sources.modules),
-    "debugger_count": sum(sources.is_debugger_id),
     "sources_declaration": SOURCES_DECLARATION % ToCArray(source_bytes),
     "total_length": total_length,
     "get_index_cases": "".join(get_index_cases),
@@ -528,14 +510,8 @@ def WriteStartupBlob(sources, startup_blob):
   """
   output = open(startup_blob, "wb")
 
-  debug_sources = sum(sources.is_debugger_id);
-  PutInt(output, debug_sources)
-  for i in xrange(debug_sources):
-    PutStr(output, sources.names[i]);
-    PutStr(output, sources.modules[i]);
-
-  PutInt(output, len(sources.names) - debug_sources)
-  for i in xrange(debug_sources, len(sources.names)):
+  PutInt(output, len(sources.names))
+  for i in xrange(len(sources.names)):
     PutStr(output, sources.names[i]);
     PutStr(output, sources.modules[i]);
 

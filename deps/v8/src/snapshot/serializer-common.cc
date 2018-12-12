@@ -24,7 +24,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   isolate->set_external_reference_map(map_);
   // Add V8's external references.
   ExternalReferenceTable* table = isolate->external_reference_table();
-  for (uint32_t i = 0; i < table->size(); ++i) {
+  for (uint32_t i = 0; i < ExternalReferenceTable::kSize; ++i) {
     Address addr = table->address(i);
     // Ignore duplicate references.
     // This can happen due to ICF. See http://crbug.com/726896.
@@ -102,9 +102,7 @@ void SerializedData::AllocateData(uint32_t size) {
 }
 
 // static
-uint32_t SerializedData::ComputeMagicNumber(Isolate* isolate) {
-  return ComputeMagicNumber(isolate->external_reference_table());
-}
+constexpr uint32_t SerializedData::kMagicNumber;
 
 // The partial snapshot cache is terminated by undefined. We visit the
 // partial snapshot...
@@ -120,7 +118,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
     visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                              ObjectSlot(&cache->at(i)));
+                              FullObjectSlot(&cache->at(i)));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }

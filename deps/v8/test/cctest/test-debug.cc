@@ -3054,7 +3054,7 @@ TEST(DebugScriptLineEndsAreAscending) {
         v8::internal::Script::cast(instances->get(i)), CcTest::i_isolate());
 
     v8::internal::Script::InitLineEnds(script);
-    v8::internal::FixedArray* ends =
+    v8::internal::FixedArray ends =
         v8::internal::FixedArray::cast(script->line_ends());
     CHECK_GT(ends->length(), 0);
 
@@ -4228,7 +4228,7 @@ TEST(DebugEvaluateNoSideEffect) {
     i::HeapIterator iterator(isolate->heap());
     while (i::HeapObject* obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
-      i::JSFunction* fun = i::JSFunction::cast(obj);
+      i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
   }
@@ -4296,9 +4296,9 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
 
-    i::Handle<i::Script> native_array_script =
-        FindScript(i_isolate, scripts, "native array.js").ToHandleChecked();
-    CHECK_EQ(native_array_script->type(), i::Script::TYPE_NATIVE);
+    i::Handle<i::Script> native_prologue_script =
+        FindScript(i_isolate, scripts, "native prologue.js").ToHandleChecked();
+    CHECK_EQ(native_prologue_script->type(), i::Script::TYPE_NATIVE);
 
     i::Handle<i::Script> gc_script =
         FindScript(i_isolate, scripts, "v8/gc").ToHandleChecked();

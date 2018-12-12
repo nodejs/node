@@ -193,7 +193,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   Handle<FeedbackVector> fv =
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
   CHECK(Heap::InNewSpace(*fv));
-  FeedbackVector* fv_location = *fv;
+  FeedbackVector fv_location = *fv;
   {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the FeedbackVector will point to.
@@ -210,7 +210,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
 
   // Scavenger will move *fv.
   CcTest::CollectGarbage(NEW_SPACE);
-  FeedbackVector* new_fv_location = *fv;
+  FeedbackVector new_fv_location = *fv;
   CHECK_NE(fv_location, new_fv_location);
   CHECK(fv->optimized_code_weak_or_smi()->IsWeak());
 
@@ -759,7 +759,7 @@ TEST(PrototypeUsersCompacted) {
   CHECK(array->Get(3)->IsCleared());
 
   CHECK_EQ(array->length(), 3 + PrototypeUsers::kFirstIndex);
-  WeakArrayList* new_array =
+  WeakArrayList new_array =
       PrototypeUsers::Compact(array, heap, TestCompactCallback);
   CHECK_EQ(new_array->length(), 1 + PrototypeUsers::kFirstIndex);
   CHECK_EQ(saved_heap_object, *live_map);

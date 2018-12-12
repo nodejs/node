@@ -162,7 +162,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
     requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
     // Fullfilling both reserved pages requirement and huge code area
     // alignments is not supported (requires re-implementation).
-    DCHECK_LE(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize());
+    DCHECK_LE(kMinExpectedOSPageSize, page_allocator->AllocatePageSize());
   }
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
@@ -171,7 +171,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
                 page_allocator->AllocatePageSize());
   VirtualMemory reservation(
       page_allocator, requested, reinterpret_cast<void*>(hint),
-      Max(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize()));
+      Max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
   if (!reservation.IsReserved()) {
     V8::FatalProcessOutOfMemory(isolate_,
                                 "CodeRange setup: allocate virtual memory");
@@ -198,7 +198,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
   size_t size =
       RoundDown(reservation.size() - (aligned_base - base) - reserved_area,
                 MemoryChunk::kPageSize);
-  DCHECK(IsAligned(aligned_base, kCodeRangeAreaAlignment));
+  DCHECK(IsAligned(aligned_base, kMinExpectedOSPageSize));
 
   LOG(isolate_,
       NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),
@@ -758,10 +758,6 @@ size_t MemoryChunk::CommittedPhysicalMemory() {
   return high_water_mark_;
 }
 
-bool MemoryChunk::IsPagedSpace() const {
-  return owner()->identity() != LO_SPACE;
-}
-
 bool MemoryChunk::InOldSpace() const {
   return owner()->identity() == OLD_SPACE;
 }
@@ -1284,7 +1280,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
 
-  if (IsPagedSpace()) {
+  if (!heap_->IsLargeMemoryChunk(this)) {
     Page* page = static_cast<Page*>(this);
     page->ReleaseFreeListCategories();
   }
@@ -1969,11 +1965,11 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       end_of_previous_object = object->address() + size;
 
       if (object->IsExternalString()) {
-        ExternalString* external_string = ExternalString::cast(object);
+        ExternalString external_string = ExternalString::cast(object);
         size_t size = external_string->ExternalPayloadSize();
         external_page_bytes[ExternalBackingStoreType::kExternalString] += size;
       } else if (object->IsJSArrayBuffer()) {
-        JSArrayBuffer* array_buffer = JSArrayBuffer::cast(object);
+        JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
           size_t size = array_buffer->byte_length();
           external_page_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
@@ -2264,7 +2260,7 @@ void NewSpace::ResetLinearAllocationArea() {
   for (Page* p : to_space_) {
     marking_state->ClearLiveness(p);
     // Concurrent marking may have local live bytes for this page.
-    heap()->concurrent_marking()->ClearLiveness(p);
+    heap()->concurrent_marking()->ClearMemoryChunkData(p);
   }
 }
 
@@ -2462,11 +2458,11 @@ void NewSpace::Verify(Isolate* isolate) {
       object->IterateBody(map, size, &visitor);
 
       if (object->IsExternalString()) {
-        ExternalString* external_string = ExternalString::cast(object);
+        ExternalString external_string = ExternalString::cast(object);
         size_t size = external_string->ExternalPayloadSize();
         external_space_bytes[ExternalBackingStoreType::kExternalString] += size;
       } else if (object->IsJSArrayBuffer()) {
-        JSArrayBuffer* array_buffer = JSArrayBuffer::cast(object);
+        JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
           size_t size = array_buffer->byte_length();
           external_space_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
@@ -3558,6 +3554,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page();
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
+  // Right-trimming does not update the objects_size_ counter. We are lazily
+  // updating it after every GC.
   objects_size_ = 0;
   while (current) {
     LargePage* next_current = current->next_page();
@@ -3595,7 +3593,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     current = next_current;
   }
 }
-
 
 bool LargeObjectSpace::Contains(HeapObject* object) {
   Address address = object->address();
@@ -3644,7 +3641,8 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
           object->IsWeakFixedArray() || object->IsWeakArrayList() ||
           object->IsPropertyArray() || object->IsByteArray() ||
           object->IsFeedbackVector() || object->IsBigInt() ||
-          object->IsFreeSpace() || object->IsFeedbackMetadata());
+          object->IsFreeSpace() || object->IsFeedbackMetadata() ||
+          object->IsContext());
 
     // The object itself should look OK.
     object->ObjectVerify(isolate);
@@ -3658,7 +3656,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
       VerifyPointersVisitor code_visitor(heap());
       object->IterateBody(map, object->Size(), &code_visitor);
     } else if (object->IsFixedArray()) {
-      FixedArray* array = FixedArray::cast(object);
+      FixedArray array = FixedArray::cast(object);
       for (int j = 0; j < array->length(); j++) {
         Object* element = array->get(j);
         if (element->IsHeapObject()) {
@@ -3748,6 +3746,20 @@ void NewLargeObjectSpace::Flip() {
     chunk->SetFlag(MemoryChunk::IN_FROM_SPACE);
     chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
   }
+}
+
+void NewLargeObjectSpace::FreeAllObjects() {
+  LargePage* current = first_page();
+  while (current) {
+    LargePage* next_current = current->next_page();
+    Unregister(current, static_cast<size_t>(current->GetObject()->Size()));
+    heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
+        current);
+    current = next_current;
+  }
+  // Right-trimming does not update the objects_size_ counter. We are lazily
+  // updating it after every GC.
+  objects_size_ = 0;
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)

@@ -15,8 +15,11 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(JSArray)
-CAST_ACCESSOR(JSArrayIterator)
+OBJECT_CONSTRUCTORS_IMPL(JSArray, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator, JSObject)
+
+CAST_ACCESSOR2(JSArray)
+CAST_ACCESSOR2(JSArrayIterator)
 
 ACCESSORS(JSArray, length, Object, kLengthOffset)
 

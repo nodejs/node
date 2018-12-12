@@ -23,11 +23,15 @@ static inline uint8_t* AllocateAssemblerBuffer(
   return static_cast<uint8_t*>(result);
 }
 
+static inline void FreeAssemblerBuffer(uint8_t* buffer, size_t size) {
+  CHECK(FreePages(GetPlatformPageAllocator(), buffer, size));
+}
+
 static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
                                                  size_t allocated) {
   // Flush the instruction cache as part of making the buffer executable.
   // Note: we do this before setting permissions to ReadExecute because on
-  // some older Arm64 kernels there is a bug which causes an access error on
+  // some older ARM kernels there is a bug which causes an access error on
   // cache flush instructions to trigger access error on non-writable memory.
   // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
   Assembler::FlushICache(buffer, allocated);

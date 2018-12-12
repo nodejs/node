@@ -9,7 +9,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/optimized-compilation-info.h"
@@ -348,11 +348,16 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP_EXT(load_linked, store_conditional, sign_extend, \
-                                  size, bin_instr)                             \
+                                  size, bin_instr, representation)             \
   do {                                                                         \
     Label binop;                                                               \
     __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                        \
+    if (representation == 32) {                                                \
+      __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                      \
+    } else {                                                                   \
+      DCHECK_EQ(representation, 64);                                           \
+      __ andi(i.TempRegister(3), i.TempRegister(0), 0x7);                      \
+    }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(3)));                                      \
     __ sll(i.TempRegister(3), i.TempRegister(3), 3);                           \
@@ -383,12 +388,17 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(load_linked, store_conditional,   \
-                                             sign_extend, size)                \
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(                                  \
+    load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
     Label exchange;                                                            \
     __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    if (representation == 32) {                                                \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                      \
+    } else {                                                                   \
+      DCHECK_EQ(representation, 64);                                           \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x7);                      \
+    }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
     __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
@@ -424,12 +434,17 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   } while (0)
 
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(                          \
-    load_linked, store_conditional, sign_extend, size)                         \
+    load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
     __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
-    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    if (representation == 32) {                                                \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                      \
+    } else {                                                                   \
+      DCHECK_EQ(representation, 64);                                           \
+      __ andi(i.TempRegister(1), i.TempRegister(0), 0x7);                      \
+    }                                                                          \
     __ Dsubu(i.TempRegister(0), i.TempRegister(0),                             \
              Operand(i.TempRegister(1)));                                      \
     __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
@@ -518,10 +533,10 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    tasm->Dsubu(sp, sp, stack_slot_delta * kPointerSize);
+    tasm->Dsubu(sp, sp, stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
-    tasm->Daddu(sp, sp, -stack_slot_delta * kPointerSize);
+    tasm->Daddu(sp, sp, -stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -709,9 +724,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
-      DCHECK_EQ(0, bytes % kPointerSize);
+      DCHECK(IsAligned(bytes, kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
-      frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+      frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       DCHECK(!caller_registers_saved_);
       caller_registers_saved_ = true;
       break;
@@ -722,7 +737,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
-      frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
+      frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
       caller_registers_saved_ = false;
@@ -755,7 +770,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         //   kArchRestoreCallerRegisters;
         int bytes =
             __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
-        frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       }
       break;
     }
@@ -852,18 +867,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              alignment == 16);
       if (FLAG_debug_code && alignment > 0) {
         // Verify that the output_register is properly aligned
-        __ And(kScratchReg, i.OutputRegister(), Operand(kPointerSize - 1));
+        __ And(kScratchReg, i.OutputRegister(),
+               Operand(kSystemPointerSize - 1));
         __ Assert(eq, AbortReason::kAllocationIsNotDoubleAligned, kScratchReg,
                   Operand(zero_reg));
       }
-      if (alignment == 2 * kPointerSize) {
+      if (alignment == 2 * kSystemPointerSize) {
         Label done;
         __ Daddu(kScratchReg, base_reg, Operand(offset.offset()));
         __ And(kScratchReg, kScratchReg, Operand(alignment - 1));
         __ BranchShort(&done, eq, kScratchReg, Operand(zero_reg));
-        __ Daddu(i.OutputRegister(), i.OutputRegister(), kPointerSize);
+        __ Daddu(i.OutputRegister(), i.OutputRegister(), kSystemPointerSize);
         __ bind(&done);
-      } else if (alignment > 2 * kPointerSize) {
+      } else if (alignment > 2 * kSystemPointerSize) {
         Label done;
         __ Daddu(kScratchReg, base_reg, Operand(offset.offset()));
         __ And(kScratchReg, kScratchReg, Operand(alignment - 1));
@@ -1767,7 +1783,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsFPRegister()) {
         __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
         __ Subu(sp, sp, Operand(kDoubleSize));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       } else {
         __ Push(i.InputRegister(0));
         frame_access_state()->IncreaseSPDelta(1);
@@ -1795,7 +1811,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMips64StackClaim: {
       __ Dsubu(sp, sp, Operand(i.InputInt32(0)));
-      frame_access_state()->IncreaseSPDelta(i.InputInt32(0) / kPointerSize);
+      frame_access_state()->IncreaseSPDelta(i.InputInt32(0) /
+                                            kSystemPointerSize);
       break;
     }
     case kMips64StoreToStackSlot: {
@@ -1868,75 +1885,75 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sd);
       break;
     case kWord32AtomicExchangeInt8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8, 32);
       break;
     case kWord32AtomicExchangeUint8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8, 32);
       break;
     case kWord32AtomicExchangeInt16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16, 32);
       break;
     case kWord32AtomicExchangeUint16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16, 32);
       break;
     case kWord32AtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Ll, Sc);
       break;
     case kMips64Word64AtomicExchangeUint8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8, 64);
       break;
     case kMips64Word64AtomicExchangeUint16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16, 64);
       break;
     case kMips64Word64AtomicExchangeUint32:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32);
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32, 64);
       break;
     case kMips64Word64AtomicExchangeUint64:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(Lld, Scd);
       break;
     case kWord32AtomicCompareExchangeInt8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 8, 32);
       break;
     case kWord32AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 8, 32);
       break;
     case kWord32AtomicCompareExchangeInt16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, true, 16, 32);
       break;
     case kWord32AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, false, 16, 32);
       break;
     case kWord32AtomicCompareExchangeWord32:
       __ sll(i.InputRegister(2), i.InputRegister(2), 0);
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       break;
     case kMips64Word64AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 8, 64);
       break;
     case kMips64Word64AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 16, 64);
       break;
     case kMips64Word64AtomicCompareExchangeUint32:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, false, 32, 64);
       break;
     case kMips64Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
       break;
-#define ATOMIC_BINOP_CASE(op, inst)                     \
-  case kWord32Atomic##op##Int8:                         \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst);   \
-    break;                                              \
-  case kWord32Atomic##op##Uint8:                        \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst);  \
-    break;                                              \
-  case kWord32Atomic##op##Int16:                        \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst);  \
-    break;                                              \
-  case kWord32Atomic##op##Uint16:                       \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst); \
-    break;                                              \
-  case kWord32Atomic##op##Word32:                       \
-    ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst);                \
+#define ATOMIC_BINOP_CASE(op, inst)                         \
+  case kWord32Atomic##op##Int8:                             \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 8, inst, 32);   \
+    break;                                                  \
+  case kWord32Atomic##op##Uint8:                            \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 8, inst, 32);  \
+    break;                                                  \
+  case kWord32Atomic##op##Int16:                            \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, true, 16, inst, 32);  \
+    break;                                                  \
+  case kWord32Atomic##op##Uint16:                           \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Ll, Sc, false, 16, inst, 32); \
+    break;                                                  \
+  case kWord32Atomic##op##Word32:                           \
+    ASSEMBLE_ATOMIC_BINOP(Ll, Sc, inst);                    \
     break;
       ATOMIC_BINOP_CASE(Add, Addu)
       ATOMIC_BINOP_CASE(Sub, Subu)
@@ -1944,18 +1961,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
-#define ATOMIC_BINOP_CASE(op, inst)                       \
-  case kMips64Word64Atomic##op##Uint8:                    \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst);  \
-    break;                                                \
-  case kMips64Word64Atomic##op##Uint16:                   \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst); \
-    break;                                                \
-  case kMips64Word64Atomic##op##Uint32:                   \
-    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst); \
-    break;                                                \
-  case kMips64Word64Atomic##op##Uint64:                   \
-    ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst);                \
+#define ATOMIC_BINOP_CASE(op, inst)                           \
+  case kMips64Word64Atomic##op##Uint8:                        \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 8, inst, 64);  \
+    break;                                                    \
+  case kMips64Word64Atomic##op##Uint16:                       \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 16, inst, 64); \
+    break;                                                    \
+  case kMips64Word64Atomic##op##Uint32:                       \
+    ASSEMBLE_ATOMIC_BINOP_EXT(Lld, Scd, false, 32, inst, 64); \
+    break;                                                    \
+  case kMips64Word64Atomic##op##Uint64:                       \
+    ASSEMBLE_ATOMIC_BINOP(Lld, Scd, inst);                    \
     break;
       ATOMIC_BINOP_CASE(Add, Daddu)
       ATOMIC_BINOP_CASE(Sub, Dsubu)
@@ -3499,7 +3516,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
     int count = base::bits::CountPopulation(saves_fpu);
     DCHECK_EQ(kNumCalleeSavedFPU, count);
     frame->AllocateSavedCalleeRegisterSlots(count *
-                                            (kDoubleSize / kPointerSize));
+                                            (kDoubleSize / kSystemPointerSize));
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
@@ -3566,7 +3583,7 @@ void CodeGenerator::AssembleConstructFrame() {
   shrink_slots -= base::bits::CountPopulation(saves_fpu);
   shrink_slots -= returns;
   if (shrink_slots > 0) {
-    __ Dsubu(sp, sp, Operand(shrink_slots * kPointerSize));
+    __ Dsubu(sp, sp, Operand(shrink_slots * kSystemPointerSize));
   }
 
   if (saves_fpu != 0) {
@@ -3583,7 +3600,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (returns != 0) {
     // Create space for returns.
-    __ Dsubu(sp, sp, Operand(returns * kPointerSize));
+    __ Dsubu(sp, sp, Operand(returns * kSystemPointerSize));
   }
 }
 
@@ -3592,7 +3609,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
-    __ Daddu(sp, sp, Operand(returns * kPointerSize));
+    __ Daddu(sp, sp, Operand(returns * kSystemPointerSize));
   }
 
   // Restore GP registers.
@@ -3630,7 +3647,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     pop_count += g.ToConstant(pop).ToInt32();
   } else {
     Register pop_reg = g.ToRegister(pop);
-    __ dsll(pop_reg, pop_reg, kPointerSizeLog2);
+    __ dsll(pop_reg, pop_reg, kSystemPointerSizeLog2);
     __ Daddu(sp, sp, pop_reg);
   }
   if (pop_count != 0) {

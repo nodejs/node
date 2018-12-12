@@ -97,6 +97,7 @@
   'WATCHLISTS': {
     'api': [
       'adamk+watch@chromium.org',
+      'yangguo+watch@chromium.org',
     ],
     'csa': [
       'jgruber+watch@chromium.org',
@@ -106,11 +107,11 @@
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',
-      'yangguo@chromium.org',
+      'yangguo+watch@chromium.org',
     ],
     'debugger': [
       'jgruber+watch@chromium.org',
-      'yangguo@chromium.org',
+      'yangguo+watch@chromium.org',
     ],
     'interpreter': [
       'rmcilroy@chromium.org',

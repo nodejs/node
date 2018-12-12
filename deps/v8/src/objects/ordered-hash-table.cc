@@ -21,16 +21,16 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   // to something other than 2, capacity should be stored as another
   // field of this object.
   capacity = base::bits::RoundUpToPowerOfTwo32(Max(kMinCapacity, capacity));
-  if (capacity > kMaxCapacity) {
+  if (capacity > MaxCapacity()) {
     isolate->heap()->FatalProcessOutOfMemory("invalid table size");
   }
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
       Derived::GetMapRootIndex(),
-      kHashTableStartIndex + num_buckets + (capacity * kEntrySize), pretenure);
+      HashTableStartIndex() + num_buckets + (capacity * kEntrySize), pretenure);
   Handle<Derived> table = Handle<Derived>::cast(backing_store);
   for (int i = 0; i < num_buckets; ++i) {
-    table->set(kHashTableStartIndex + i, Smi::FromInt(kNotFound));
+    table->set(HashTableStartIndex() + i, Smi::FromInt(kNotFound));
   }
   table->SetNumberOfBuckets(num_buckets);
   table->SetNumberOfElements(0);
@@ -50,8 +50,8 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
   // Don't need to grow if we can simply clear out deleted entries instead.
   // Note that we can't compact in place, though, so we always allocate
   // a new table.
-  return Rehash(isolate, table,
-                (nod < (capacity >> 1)) ? capacity << 1 : capacity);
+  return Derived::Rehash(isolate, table,
+                         (nod < (capacity >> 1)) ? capacity << 1 : capacity);
 }
 
 template <class Derived, int entrysize>
@@ -62,7 +62,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Shrink(
   int nof = table->NumberOfElements();
   int capacity = table->Capacity();
   if (nof >= (capacity >> 2)) return table;
-  return Rehash(isolate, table, capacity / 2);
+  return Derived::Rehash(isolate, table, capacity / 2);
 }
 
 template <class Derived, int entrysize>
@@ -81,7 +81,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
-                                                  Derived* table, Object* key) {
+                                                  Derived table, Object* key) {
   DCHECK((entrysize == 1 && table->IsOrderedHashSet()) ||
          (entrysize == 2 && table->IsOrderedHashMap()) ||
          (entrysize == 3 && table->IsOrderedNameDictionary()));
@@ -141,7 +141,7 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
   table->set(new_index, *key);
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
   // and point the bucket to the new entry.
-  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
   table->SetNumberOfElements(nof + 1);
   return table;
 }
@@ -157,7 +157,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   int const kMaxStringTableEntries =
       isolate->heap()->MaxNumberToStringCacheSize();
   for (int i = 0; i < length; i++) {
-    int index = kHashTableStartIndex + nof_buckets + (i * kEntrySize);
+    int index = HashTableStartIndex() + nof_buckets + (i * kEntrySize);
     Object* key = table->get(index);
     if (convert == GetKeysConversion::kConvertToString) {
       uint32_t index_value;
@@ -187,7 +187,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     Isolate* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
-  Handle<Derived> new_table = Allocate(
+  Handle<Derived> new_table = Derived::Allocate(
       isolate, new_capacity, Heap::InNewSpace(*table) ? NOT_TENURED : TENURED);
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
@@ -205,8 +205,8 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
 
     Object* hash = key->GetHash();
     int bucket = Smi::ToInt(hash) & (new_buckets - 1);
-    Object* chain_entry = new_table->get(kHashTableStartIndex + bucket);
-    new_table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+    Object* chain_entry = new_table->get(HashTableStartIndex() + bucket);
+    new_table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
     int new_index = new_table->EntryToIndex(new_entry);
     int old_index = table->EntryToIndex(old_entry);
     for (int i = 0; i < entrysize; ++i) {
@@ -225,9 +225,32 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
   return new_table;
 }
 
+Handle<OrderedHashSet> OrderedHashSet::Rehash(Isolate* isolate,
+                                              Handle<OrderedHashSet> table,
+                                              int new_capacity) {
+  return OrderedHashTable<OrderedHashSet, 1>::Rehash(isolate, table,
+                                                     new_capacity);
+}
+
+Handle<OrderedHashMap> OrderedHashMap::Rehash(Isolate* isolate,
+                                              Handle<OrderedHashMap> table,
+                                              int new_capacity) {
+  return OrderedHashTable<OrderedHashMap, 2>::Rehash(isolate, table,
+                                                     new_capacity);
+}
+
+Handle<OrderedNameDictionary> OrderedNameDictionary::Rehash(
+    Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity) {
+  Handle<OrderedNameDictionary> new_table =
+      OrderedHashTable<OrderedNameDictionary, 3>::Rehash(isolate, table,
+                                                         new_capacity);
+  new_table->SetHash(table->Hash());
+  return new_table;
+}
+
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
-                                                  Derived* table, Object* key) {
+                                                  Derived table, Object* key) {
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
   if (entry == kNotFound) return false;
@@ -288,7 +311,7 @@ Handle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   table->set(new_index + kValueOffset, *value);
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
   // and point the bucket to the new entry.
-  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
   table->SetNumberOfElements(nof + 1);
   return table;
 }
@@ -333,7 +356,7 @@ Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
 
   table->set(new_index + kChainOffset, Smi::FromInt(previous_entry));
   // and point the bucket to the new entry.
-  table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+  table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
   table->SetNumberOfElements(nof + 1);
   return table;
 }
@@ -344,7 +367,7 @@ int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
   DisallowHeapAllocation no_gc;
 
   DCHECK(key->IsUniqueName());
-  Name* raw_key = Name::cast(key);
+  Name raw_key = Name::cast(key);
 
   int entry = HashToEntry(raw_key->Hash());
   while (entry != kNotFound) {
@@ -361,9 +384,26 @@ int OrderedHashTable<OrderedNameDictionary, 3>::FindEntry(Isolate* isolate,
 
   return kNotFound;
 }
+Handle<OrderedHashSet> OrderedHashSet::Allocate(Isolate* isolate, int capacity,
+                                                PretenureFlag pretenure) {
+  return OrderedHashTable<OrderedHashSet, 1>::Allocate(isolate, capacity,
+                                                       pretenure);
+}
 
-template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
-    Isolate* isolate, int capacity, PretenureFlag pretenure);
+Handle<OrderedHashMap> OrderedHashMap::Allocate(Isolate* isolate, int capacity,
+                                                PretenureFlag pretenure) {
+  return OrderedHashTable<OrderedHashMap, 2>::Allocate(isolate, capacity,
+                                                       pretenure);
+}
+
+Handle<OrderedNameDictionary> OrderedNameDictionary::Allocate(
+    Isolate* isolate, int capacity, PretenureFlag pretenure) {
+  Handle<OrderedNameDictionary> table =
+      OrderedHashTable<OrderedNameDictionary, 3>::Allocate(isolate, capacity,
+                                                           pretenure);
+  table->SetHash(PropertyArray::kNoHashSentinel);
+  return table;
+}
 
 template Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, 1>::EnsureGrowable(
@@ -376,18 +416,15 @@ template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
     Isolate* isolate, Handle<OrderedHashSet> table);
 
 template bool OrderedHashTable<OrderedHashSet, 1>::HasKey(Isolate* isolate,
-                                                          OrderedHashSet* table,
+                                                          OrderedHashSet table,
                                                           Object* key);
 
 template bool OrderedHashTable<OrderedHashSet, 1>::Delete(Isolate* isolate,
-                                                          OrderedHashSet* table,
+                                                          OrderedHashSet table,
                                                           Object* key);
 
 template int OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate,
                                                             Object* key);
-
-template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
-    Isolate* isolate, int capacity, PretenureFlag pretenure);
 
 template Handle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, 2>::EnsureGrowable(
@@ -400,23 +437,19 @@ template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
     Isolate* isolate, Handle<OrderedHashMap> table);
 
 template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(Isolate* isolate,
-                                                          OrderedHashMap* table,
+                                                          OrderedHashMap table,
                                                           Object* key);
 
 template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
-                                                          OrderedHashMap* table,
+                                                          OrderedHashMap table,
                                                           Object* key);
 
 template int OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
                                                             Object* key);
 
-template Handle<OrderedNameDictionary>
-OrderedHashTable<OrderedNameDictionary, 3>::Allocate(Isolate* isolate,
-                                                     int capacity,
-                                                     PretenureFlag pretenure);
 
 template bool OrderedHashTable<OrderedNameDictionary, 3>::HasKey(
-    Isolate* isolate, OrderedNameDictionary* table, Object* key);
+    Isolate* isolate, OrderedNameDictionary table, Object* key);
 
 template Handle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
@@ -460,10 +493,10 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,
          num_buckets + num_chains);
 
-  if (Heap::InNewSpace(this)) {
-    MemsetPointer(RawField(this, kDataTableStartOffset),
-                  ReadOnlyRoots(isolate).the_hole_value(),
-                  capacity * Derived::kEntrySize);
+  if (Heap::InNewSpace(*this)) {
+    MemsetTagged(RawField(DataTableStartOffset()),
+                 ReadOnlyRoots(isolate).the_hole_value(),
+                 capacity * Derived::kEntrySize);
   } else {
     for (int i = 0; i < capacity; i++) {
       for (int j = 0; j < Derived::kEntrySize; j++) {
@@ -604,7 +637,7 @@ bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
 }
 
 template <class Derived>
-bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived* table,
+bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived table,
                                             Object* key) {
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
@@ -662,6 +695,28 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
   return new_table;
 }
 
+Handle<SmallOrderedHashSet> SmallOrderedHashSet::Rehash(
+    Isolate* isolate, Handle<SmallOrderedHashSet> table, int new_capacity) {
+  return SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(isolate, table,
+                                                            new_capacity);
+}
+
+Handle<SmallOrderedHashMap> SmallOrderedHashMap::Rehash(
+    Isolate* isolate, Handle<SmallOrderedHashMap> table, int new_capacity) {
+  return SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(isolate, table,
+                                                            new_capacity);
+}
+
+Handle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Rehash(
+    Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
+    int new_capacity) {
+  Handle<SmallOrderedNameDictionary> new_table =
+      SmallOrderedHashTable<SmallOrderedNameDictionary>::Rehash(isolate, table,
+                                                                new_capacity);
+  new_table->SetHash(table->Hash());
+  return new_table;
+}
+
 template <class Derived>
 MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
     Isolate* isolate, Handle<Derived> table) {
@@ -686,7 +741,7 @@ MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
     }
   }
 
-  return Rehash(isolate, table, new_capacity);
+  return Derived::Rehash(isolate, table, new_capacity);
 }
 
 template <class Derived>
@@ -711,7 +766,7 @@ int SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(
     Isolate* isolate, Object* key) {
   DisallowHeapAllocation no_gc;
   DCHECK(key->IsUniqueName());
-  Name* raw_key = Name::cast(key);
+  Name raw_key = Name::cast(key);
 
   int entry = HashToFirstEntry(raw_key->Hash());
 
@@ -748,9 +803,9 @@ template void SmallOrderedHashTable<SmallOrderedHashMap>::Initialize(
     Isolate* isolate, int capacity);
 
 template bool SmallOrderedHashTable<SmallOrderedHashMap>::Delete(
-    Isolate* isolate, SmallOrderedHashMap* table, Object* key);
+    Isolate* isolate, SmallOrderedHashMap table, Object* key);
 template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
-    Isolate* isolate, SmallOrderedHashSet* table, Object* key);
+    Isolate* isolate, SmallOrderedHashSet table, Object* key);
 
 template void SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(
     Isolate* isolate, int capacity);
@@ -888,12 +943,12 @@ Handle<HeapObject> OrderedHashSetHandler::Add(Isolate* isolate,
 template <class Derived, class TableType>
 void OrderedHashTableIterator<Derived, TableType>::Transition() {
   DisallowHeapAllocation no_allocation;
-  TableType* table = TableType::cast(this->table());
+  TableType table = TableType::cast(this->table());
   if (!table->IsObsolete()) return;
 
   int index = Smi::ToInt(this->index());
   while (table->IsObsolete()) {
-    TableType* next_table = table->NextTable();
+    TableType next_table = table->NextTable();
 
     if (index > 0) {
       int nod = table->NumberOfDeletedElements();
@@ -924,7 +979,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
 
   Transition();
 
-  TableType* table = TableType::cast(this->table());
+  TableType table = TableType::cast(this->table());
   int index = Smi::ToInt(this->index());
   int used_capacity = table->UsedCapacity();
 

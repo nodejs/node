@@ -26,7 +26,7 @@ namespace internal {
 
 namespace {
 
-WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
+WasmInstanceObject GetWasmInstanceOnStackTop(Isolate* isolate) {
   StackFrameIterator it(isolate, isolate->thread_local_top());
   // On top: C entry stub.
   DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
@@ -37,7 +37,7 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   return frame->wasm_instance();
 }
 
-Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
+Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate)->native_context();
 }
 
@@ -88,7 +88,7 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   return isolate->StackOverflow();
 }
@@ -104,7 +104,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(HeapObject, tag_raw, 0);
   CONVERT_SMI_ARG_CHECKED(size, 1);
@@ -112,16 +112,14 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   Handle<Object> tag(tag_raw, isolate);
   Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
       MessageTemplate::kWasmExceptionError);
-  CHECK(
-      !JSReceiver::SetProperty(isolate, exception,
-                               isolate->factory()->wasm_exception_tag_symbol(),
-                               tag, LanguageMode::kStrict)
-           .is_null());
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_tag_symbol(),
+                             tag, LanguageMode::kStrict)
+             .is_null());
   Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
-  CHECK(!JSReceiver::SetProperty(
-             isolate, exception,
-             isolate->factory()->wasm_exception_values_symbol(), values,
-             LanguageMode::kStrict)
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_values_symbol(),
+                             values, LanguageMode::kStrict)
              .is_null());
   return *exception;
 }
@@ -130,7 +128,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
@@ -151,7 +149,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
@@ -201,7 +199,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   }
 
   // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
+  DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
 
   // Run the function in the interpreter. Note that neither the {WasmDebugInfo}
@@ -283,20 +281,42 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
   return FutexEmulation::Wake(array_buffer, address, count);
 }
 
+double WaitTimeoutInMs(double timeout_ns) {
+  return timeout_ns < 0
+             ? V8_INFINITY
+             : timeout_ns / (base::Time::kNanosecondsPerMicrosecond *
+                             base::Time::kMicrosecondsPerMillisecond);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
   CONVERT_NUMBER_CHECKED(int32_t, expected_value, Int32, args[2]);
-  CONVERT_DOUBLE_ARG_CHECKED(timeout, 3);
-  timeout = timeout < 0 ? V8_INFINITY
-                        : timeout / (base::Time::kNanosecondsPerMicrosecond *
-                                     base::Time::kMicrosecondsPerMillisecond);
+  CONVERT_DOUBLE_ARG_CHECKED(timeout_ns, 3);
+  double timeout_ms = WaitTimeoutInMs(timeout_ns);
   Handle<JSArrayBuffer> array_buffer =
       getSharedArrayBuffer(instance, isolate, address);
-  return FutexEmulation::Wait(isolate, array_buffer, address, expected_value,
-                              timeout);
+  return FutexEmulation::Wait32(isolate, array_buffer, address, expected_value,
+                                timeout_ms);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_NUMBER_CHECKED(uint32_t, expected_value_high, Uint32, args[2]);
+  CONVERT_NUMBER_CHECKED(uint32_t, expected_value_low, Uint32, args[3]);
+  CONVERT_DOUBLE_ARG_CHECKED(timeout_ns, 4);
+  int64_t expected_value = (static_cast<uint64_t>(expected_value_high) << 32) |
+                           static_cast<uint64_t>(expected_value_low);
+  double timeout_ms = WaitTimeoutInMs(timeout_ns);
+  Handle<JSArrayBuffer> array_buffer =
+      getSharedArrayBuffer(instance, isolate, address);
+  return FutexEmulation::Wait64(isolate, array_buffer, address, expected_value,
+                                timeout_ms);
 }
 
 }  // namespace internal

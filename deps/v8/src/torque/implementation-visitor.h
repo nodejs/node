@@ -233,6 +233,7 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(NamespaceConstant* decl);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
+  VisitResult Visit(IntrinsicCallExpression* intrinsic);
   const Type* Visit(TailCallStatement* stmt);
 
   VisitResult Visit(ConditionalExpression* expr);

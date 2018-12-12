@@ -12,7 +12,6 @@
 #include "src/base/hashmap.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/double.h"

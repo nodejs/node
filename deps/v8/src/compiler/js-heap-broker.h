@@ -12,6 +12,7 @@
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/objects/builtin-function-id.h"
+#include "src/objects/instance-type.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

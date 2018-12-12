@@ -11,7 +11,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/frame-constants.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/optimized-compilation-info.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
@@ -541,7 +541,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
   InstructionOperandConverter g(this, instr);
   int optional_padding_slot = g.InputInt32(instr->InputCount() - 2);
   if (optional_padding_slot % 2) {
-    __ Poke(padreg, optional_padding_slot * kPointerSize);
+    __ Poke(padreg, optional_padding_slot * kSystemPointerSize);
   }
 }
 
@@ -718,9 +718,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
-      DCHECK_EQ(0, bytes % kPointerSize);
+      DCHECK(IsAligned(bytes, kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
-      frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+      frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       DCHECK(!caller_registers_saved_);
       caller_registers_saved_ = true;
       break;
@@ -731,7 +731,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
-      frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
+      frame_access_state()->IncreaseSPDelta(-(bytes / kSystemPointerSize));
       DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
       caller_registers_saved_ = false;
@@ -764,7 +764,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         //   kArchRestoreCallerRegisters;
         int bytes =
             __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
-        frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(bytes / kSystemPointerSize);
       }
       break;
     }
@@ -1229,7 +1229,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64Poke: {
-      Operand operand(i.InputInt32(1) * kPointerSize);
+      Operand operand(i.InputInt32(1) * kSystemPointerSize);
       if (instr->InputAt(0)->IsSimd128Register()) {
         __ Poke(i.InputSimd128Register(0), operand);
       } else if (instr->InputAt(0)->IsFPRegister()) {
@@ -1243,10 +1243,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int slot = i.InputInt32(2) - 1;
       if (instr->InputAt(0)->IsFPRegister()) {
         __ PokePair(i.InputFloat64Register(1), i.InputFloat64Register(0),
-                    slot * kPointerSize);
+                    slot * kSystemPointerSize);
       } else {
         __ PokePair(i.InputRegister(1), i.InputRegister(0),
-                    slot * kPointerSize);
+                    slot * kSystemPointerSize);
       }
       break;
     }
@@ -2366,7 +2366,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
     DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
     DCHECK_EQ(saved_count % 2, 0);
     frame->AllocateSavedCalleeRegisterSlots(saved_count *
-                                            (kDoubleSize / kPointerSize));
+                                            (kDoubleSize / kSystemPointerSize));
   }
 
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
@@ -2429,14 +2429,14 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
+      if (shrink_slots * kSystemPointerSize < FLAG_stack_size * 1024) {
         UseScratchRegisterScope scope(tasm());
         Register scratch = scope.AcquireX();
         __ Ldr(scratch, FieldMemOperand(
                             kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ Ldr(scratch, MemOperand(scratch));
-        __ Add(scratch, scratch, shrink_slots * kPointerSize);
+        __ Add(scratch, scratch, shrink_slots * kSystemPointerSize);
         __ Cmp(sp, scratch);
         __ B(hs, &done);
       }

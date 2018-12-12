@@ -46,14 +46,14 @@ function assertTableIsValid(table, length) {
   assertThrows(() => new WebAssembly.Table({element: "any", initial: 10}), TypeError);
 
   assertThrows(() => new WebAssembly.Table(
-    {element: "anyfunc", initial: -1}), RangeError);
+    {element: "anyfunc", initial: -1}), TypeError);
   assertThrows(() => new WebAssembly.Table(
-    {element: "anyfunc", initial: outOfUint32RangeValue}), RangeError);
+    {element: "anyfunc", initial: outOfUint32RangeValue}), TypeError);
 
   assertThrows(() => new WebAssembly.Table(
-    {element: "anyfunc", initial: 10, maximum: -1}), RangeError);
+    {element: "anyfunc", initial: 10, maximum: -1}), TypeError);
   assertThrows(() => new WebAssembly.Table(
-    {element: "anyfunc", initial: 10, maximum: outOfUint32RangeValue}), RangeError);
+    {element: "anyfunc", initial: 10, maximum: outOfUint32RangeValue}), TypeError);
   assertThrows(() => new WebAssembly.Table(
     {element: "anyfunc", initial: 10, maximum: 9}), RangeError);
 
@@ -75,31 +75,25 @@ function assertTableIsValid(table, length) {
   assertEquals(null, table.get(0));
   assertEquals(undefined, table[0]);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: undefined});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: 10});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc"});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0,  maximum: "10"});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", maximum: 10});
-  assertTableIsValid(table, 0);
-
-  table = new WebAssembly.Table({element: "anyfunc", maximum: "10"});
-  assertTableIsValid(table, 0);
-
-  table = new WebAssembly.Table({element: "anyfunc", maximum: {valueOf() { return "10" }}});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: {valueOf() { return "10" }}});
   assertTableIsValid(table, 0);
 
   table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: undefined});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", maximum: kMaxUint31});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kMaxUint31});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", maximum: kMaxUint32});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kMaxUint32});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", maximum: kV8MaxWasmTableSize + 1});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize + 1});
   assertTableIsValid(table, 0);
 })();
 

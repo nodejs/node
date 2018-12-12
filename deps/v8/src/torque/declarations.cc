@@ -208,6 +208,20 @@ Macro* Declarations::DeclareMacro(
   return macro;
 }
 
+Intrinsic* Declarations::CreateIntrinsic(const std::string& name,
+                                         const Signature& signature) {
+  Intrinsic* result = RegisterDeclarable(std::unique_ptr<Intrinsic>(
+      new Intrinsic(std::move(name), std::move(signature))));
+  return result;
+}
+
+Intrinsic* Declarations::DeclareIntrinsic(const std::string& name,
+                                          const Signature& signature) {
+  Intrinsic* result = CreateIntrinsic(std::move(name), std::move(signature));
+  Declare(name, result);
+  return result;
+}
+
 Builtin* Declarations::CreateBuiltin(std::string external_name,
                                      std::string readable_name,
                                      Builtin::Kind kind, Signature signature,

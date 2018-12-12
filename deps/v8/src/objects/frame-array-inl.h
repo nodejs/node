@@ -14,7 +14,8 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR(FrameArray)
+OBJECT_CONSTRUCTORS_IMPL(FrameArray, FixedArray)
+CAST_ACCESSOR2(FrameArray)
 
 #define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \
   type##ArgType FrameArray::name(int frame_ix) const {                        \

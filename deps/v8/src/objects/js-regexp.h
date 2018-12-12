@@ -96,7 +96,7 @@ class JSRegExp : public JSObject {
   // Number of captures (without the match itself).
   inline int CaptureCount();
   inline Flags GetFlags();
-  inline String* Pattern();
+  inline String Pattern();
   inline Object* CaptureNameMap();
   inline Object* DataAt(int index);
   // Set implementation data after the object has been prepared.
@@ -110,17 +110,24 @@ class JSRegExp : public JSObject {
     }
   }
 
-  DECL_CAST(JSRegExp)
+  DECL_CAST2(JSRegExp)
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
   DECL_VERIFIER(JSRegExp)
 
-  static const int kDataOffset = JSObject::kHeaderSize;
-  static const int kSourceOffset = kDataOffset + kPointerSize;
-  static const int kFlagsOffset = kSourceOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
-  static const int kLastIndexOffset = kSize;  // In-object field.
+// Layout description.
+#define JS_REGEXP_FIELDS(V)                 \
+  V(kDataOffset, kTaggedSize)               \
+  V(kSourceOffset, kTaggedSize)             \
+  V(kFlagsOffset, kTaggedSize)              \
+  /* Total size. */                         \
+  V(kSize, 0)                               \
+  /* This is already an in-object field. */ \
+  V(kLastIndexOffset, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_REGEXP_FIELDS)
+#undef JS_REGEXP_FIELDS
 
   // Indices in the data array.
   static const int kTagIndex = 0;
@@ -167,6 +174,8 @@ class JSRegExp : public JSObject {
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
+
+  OBJECT_CONSTRUCTORS(JSRegExp, JSObject)
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
@@ -179,10 +188,12 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 // After creation the result must be treated as a JSArray in all regards.
 class JSRegExpResult : public JSArray {
  public:
+// Layout description.
 #define REG_EXP_RESULT_FIELDS(V) \
-  V(kIndexOffset, kPointerSize)  \
-  V(kInputOffset, kPointerSize)  \
-  V(kGroupsOffset, kPointerSize) \
+  V(kIndexOffset, kTaggedSize)   \
+  V(kInputOffset, kTaggedSize)   \
+  V(kGroupsOffset, kTaggedSize)  \
+  /* Total size. */              \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize, REG_EXP_RESULT_FIELDS)

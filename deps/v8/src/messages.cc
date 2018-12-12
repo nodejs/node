@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/api-inl.h"
+#include "src/counters.h"
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -146,7 +147,7 @@ void MessageHandler::ReportMessageNoExceptions(
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
       if (global_listeners->get(i)->IsUndefined(isolate)) continue;
-      FixedArray* listener = FixedArray::cast(global_listeners->get(i));
+      FixedArray listener = FixedArray::cast(global_listeners->get(i));
       Foreign* callback_obj = Foreign::cast(listener->get(0));
       int32_t message_levels =
           static_cast<int32_t>(Smi::ToInt(listener->get(2)));
@@ -157,6 +158,8 @@ void MessageHandler::ReportMessageNoExceptions(
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
       Handle<Object> callback_data(listener->get(1), isolate);
       {
+        RuntimeCallTimerScope timer(
+            isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
         callback(api_message_obj, callback_data->IsUndefined(isolate)
@@ -1295,10 +1298,9 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
     Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
     FrameSkipMode mode) {
   if (FLAG_clear_exceptions_on_js_entry) {
-    // This function used to be implemented in JavaScript, and JSEntryStub
-    // clears
-    // any pending exceptions - so whenever we'd call this from C++, pending
-    // exceptions would be cleared. Preserve this behavior.
+    // This function used to be implemented in JavaScript, and JSEntry
+    // clears any pending exceptions - so whenever we'd call this from C++,
+    // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
   }
 

@@ -73,14 +73,14 @@ class JSDateTimeFormat : public JSObject {
 
   static std::set<std::string> GetAvailableLocales();
 
-  DECL_CAST(JSDateTimeFormat)
+  DECL_CAST2(JSDateTimeFormat)
 
 // Layout description.
-#define JS_DATE_TIME_FORMAT_FIELDS(V)         \
-  V(kICULocaleOffset, kPointerSize)           \
-  V(kICUSimpleDateFormatOffset, kPointerSize) \
-  V(kBoundFormatOffset, kPointerSize)         \
-  /* Total size. */                           \
+#define JS_DATE_TIME_FORMAT_FIELDS(V)        \
+  V(kICULocaleOffset, kTaggedSize)           \
+  V(kICUSimpleDateFormatOffset, kTaggedSize) \
+  V(kBoundFormatOffset, kTaggedSize)         \
+  /* Total size. */                          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -94,8 +94,7 @@ class JSDateTimeFormat : public JSObject {
   DECL_PRINTER(JSDateTimeFormat)
   DECL_VERIFIER(JSDateTimeFormat)
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDateTimeFormat);
+  OBJECT_CONSTRUCTORS(JSDateTimeFormat, JSObject);
 };
 
 }  // namespace internal

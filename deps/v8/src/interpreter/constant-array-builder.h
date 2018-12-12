@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   static const size_t k32BitCapacity =
       kMaxUInt32 - k16BitCapacity - k8BitCapacity + 1;
 
-  ConstantArrayBuilder(Zone* zone);
+  explicit ConstantArrayBuilder(Zone* zone);
 
   // Generate a fixed array of constant handles based on inserted objects.
   Handle<FixedArray> ToFixedArray(Isolate* isolate);

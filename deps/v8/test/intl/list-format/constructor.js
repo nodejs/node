@@ -88,22 +88,3 @@ assertDoesNotThrow(
 
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'unit', style: 'narrow'}));
-
-// Throws only once during construction.
-// Check for all getters to prevent regression.
-// Preserve the order of getter initialization.
-let getCount = 0;
-let style = -1;
-let type = -1;
-
-new Intl.ListFormat(['en-US'], {
-  get style() {
-    style = ++getCount;
-  },
-  get type() {
-    type = ++getCount;
-  }
-});
-
-assertEquals(1, type);
-assertEquals(2, style);

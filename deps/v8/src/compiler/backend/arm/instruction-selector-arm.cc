@@ -2466,7 +2466,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   ArmOperandGenerator g(this);
-  Emit(kArmS128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node));
+  Emit(kArmS128Zero, g.DefineAsRegister(node));
 }
 
 #define SIMD_VISIT_SPLAT(Type)                               \

@@ -7,9 +7,9 @@
 
 #include "src/allocation.h"
 #include "src/callable.h"
-#include "src/code-stubs.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
+#include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
@@ -46,6 +46,10 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                     KeyedAccessStoreMode mode);
   static Callable StoreInArrayLiteralIC_Slow(Isolate* isolate,
                                              KeyedAccessStoreMode mode);
+  static Callable ElementsTransitionAndStore(Isolate* isolate,
+                                             KeyedAccessStoreMode mode);
+  static Callable StoreFastElementIC(Isolate* isolate,
+                                     KeyedAccessStoreMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
 
@@ -55,10 +59,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable BinaryOperation(Isolate* isolate, Operation op);
 
   static Callable ApiGetter(Isolate* isolate);
-  static Callable CallApiCallback(Isolate* isolate, int argc);
-
-  // Code stubs. Add methods here as needed to reduce dependency on
-  // code-stubs.h.
+  static Callable CallApiCallback(Isolate* isolate);
 
   static Callable NonPrimitiveToPrimitive(
       Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);

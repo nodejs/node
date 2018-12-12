@@ -7,6 +7,7 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/version.h"
@@ -31,6 +32,8 @@ bool Snapshot::HasContextSnapshot(Isolate* isolate, size_t index) {
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
+  RuntimeCallTimerScope rcs_timer(isolate,
+                                  RuntimeCallCounterId::kDeserializeIsolate);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -57,6 +60,8 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
+  RuntimeCallTimerScope rcs_timer(isolate,
+                                  RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -311,7 +316,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
   memset(data_, 0, padded_payload_offset);
 
   // Set header values.
-  SetMagicNumber(serializer->isolate());
+  SetMagicNumber();
   SetHeaderValue(kNumReservationsOffset, static_cast<int>(reservations.size()));
   SetHeaderValue(kPayloadLengthOffset, static_cast<int>(payload->size()));
 

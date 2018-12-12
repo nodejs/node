@@ -13,7 +13,6 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/code-stubs.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"

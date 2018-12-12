@@ -193,19 +193,46 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << glob.mutability << ");\n";
   }
 
+  for (const FunctionSig* sig : module->signatures) {
+    os << "  builder.addType(makeSig(" << PrintParameters(sig) << ", "
+       << PrintReturns(sig) << "));\n";
+  }
+
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
+
+  // There currently cannot be more than one table.
+  DCHECK_GE(1, module->tables.size());
+  for (const WasmTable& table : module->tables) {
+    os << "  builder.setTableBounds(" << table.initial_size << ", ";
+    if (table.has_maximum_size) {
+      os << table.maximum_size << ");\n";
+    } else {
+      os << "undefined);\n";
+    }
+  }
+  for (const WasmTableInit& table_init : module->table_inits) {
+    os << "  builder.addElementSegment(";
+    switch (table_init.offset.kind) {
+      case WasmInitExpr::kGlobalIndex:
+        os << table_init.offset.val.global_index << ", true";
+        break;
+      case WasmInitExpr::kI32Const:
+        os << table_init.offset.val.i32_const << ", false";
+        break;
+      default:
+        UNREACHABLE();
+    }
+    os << ", " << PrintCollection(table_init.entries) << ");\n";
+  }
 
   for (const WasmFunction& func : module->functions) {
     Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     os << "  // Generate function " << (func.func_index + 1) << " (out of "
        << module->functions.size() << ").\n";
-    // Generate signature.
-    os << "  sig" << (func.func_index + 1) << " = makeSig("
-       << PrintParameters(func.sig) << ", " << PrintReturns(func.sig) << ");\n";
 
     // Add function.
-    os << "  builder.addFunction(undefined, sig" << (func.func_index + 1)
-       << ")\n";
+    os << "  builder.addFunction(undefined, " << func.sig_index
+       << " /* sig */)\n";
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);

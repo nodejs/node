@@ -93,7 +93,8 @@ TEST(OverrideReadOnlyPropertyOnPrototype) {
   // Initial setup
   CompileRun(
       "Object.defineProperty(Object.prototype, 'readonly', "
-      "{ readonly: true, value: 'readonly', configurable: false });");
+      "{ enumerable: true, configurable: true, writable: false, "
+      "  value: 'readonly' });");
   CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeSloppy]);
   CHECK_EQ(0, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
 
@@ -162,6 +163,40 @@ TEST(OverrideReadOnlyPropertyOnPrototype) {
     CHECK_EQ(1, use_counts[Isolate::kAttemptOverrideReadOnlyOnPrototypeStrict]);
     CHECK(try_catch.HasCaught());
   }
+}
+
+TEST(RegExpMatchIsTrueishOnNonJSRegExp) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("new RegExp(/./); new RegExp('');");
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp]);
+
+  CompileRun("let p = { [Symbol.match]: true }; new RegExp(p);");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp]);
+}
+
+TEST(RegExpMatchIsFalseishOnJSRegExp) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("new RegExp(/./); new RegExp('');");
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp]);
+
+  CompileRun("let p = /./; p[Symbol.match] = false; new RegExp(p);");
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp]);
 }
 
 }  // namespace test_usecounters

@@ -11,6 +11,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -895,7 +896,9 @@ class FixedArrayBaseData : public HeapObjectData {
  public:
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<FixedArrayBase> object)
-      : HeapObjectData(broker, storage, object), length_(object->length()) {}
+      // TODO(3770): Drop explicit cast after migrating HeapObject*.
+      : HeapObjectData(broker, storage, Handle<HeapObject>(object.location())),
+        length_(object->length()) {}
 
   int length() const { return length_; }
 
@@ -1595,7 +1598,7 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
 
   Object* maybe_context = isolate()->heap()->native_contexts_list();
   while (!maybe_context->IsUndefined(isolate())) {
-    Context* context = Context::cast(maybe_context);
+    Context context = Context::cast(maybe_context);
     Object* array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
     Object* object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
     array_and_object_prototypes_.emplace(JSObject::cast(array_prot), isolate());
@@ -1685,7 +1688,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->zero_string());
 
   // Protector cells
-  GetOrCreateData(f->array_buffer_neutering_protector())
+  GetOrCreateData(f->array_buffer_detaching_protector())
       ->AsPropertyCell()
       ->Serialize(this);
   GetOrCreateData(f->array_constructor_protector())->AsCell()->Serialize(this);

@@ -7,6 +7,7 @@
 
 #include "src/api-inl.h"
 #include "src/math-random.h"
+#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 
@@ -19,8 +20,7 @@ PartialSerializer::PartialSerializer(
     : Serializer(isolate),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),
-      can_be_rehashed_(true),
-      context_(nullptr) {
+      can_be_rehashed_(true) {
   InitializeCodeAddressMap();
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
@@ -29,7 +29,7 @@ PartialSerializer::~PartialSerializer() {
   OutputStatistics("PartialSerializer");
 }
 
-void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
+void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   context_ = *o;
   DCHECK(context_->IsNativeContext());
   reference_map()->AddAttachedReference(context_->global_proxy());
@@ -44,8 +44,10 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                   ObjectSlot(reinterpret_cast<Address>(o)));
+  DCHECK_EQ(0, context_->native_context()->microtask_queue()->size());
+  context_->native_context()->set_microtask_queue(nullptr);
+
+  VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(o));
   SerializeDeferredObjects();
 
   // Add section for embedder-serialized embedder fields.
@@ -103,7 +105,8 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   if (obj->IsJSFunction()) {
     // Unconditionally reset the JSFunction to its SFI's code, since we can't
     // serialize optimized code anyway.
-    JSFunction* closure = JSFunction::cast(obj);
+    JSFunction closure = JSFunction::cast(obj);
+    closure->ResetIfBytecodeFlushed();
     if (closure->is_compiled()) closure->set_code(closure->shared()->GetCode());
   }
 
@@ -134,7 +137,7 @@ bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
     Object* obj, HowToCode how_to_code, WhereToPoint where_to_point) {
   if (!obj->IsJSObject()) return false;
-  JSObject* js_obj = JSObject::cast(obj);
+  JSObject js_obj = JSObject::cast(obj);
   int embedder_fields_count = js_obj->GetEmbedderFieldCount();
   if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);

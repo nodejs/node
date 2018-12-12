@@ -46,9 +46,9 @@ class GlobalHandles {
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
+  // TODO(3770): Drop Object* version.
   Handle<Object> Create(Object* value);
-  // TODO(jkummerow): This and the other Object*/Address overloads below are
-  // temporary. Eventually the respective Object* version should go away.
+  Handle<Object> Create(ObjectPtr value);
   Handle<Object> Create(Address value);
 
   template <typename T>
@@ -57,6 +57,14 @@ class GlobalHandles {
     // The compiler should only pick this method if T is not Object.
     static_assert(!std::is_same<Object, T>::value, "compiler error");
     return Handle<T>::cast(Create(static_cast<Object*>(value)));
+  }
+  template <typename T>
+  Handle<T> Create(T value) {
+    static_assert(std::is_base_of<ObjectPtr, T>::value,
+                  "static type violation");
+    // The compiler should only pick this method if T is not Object.
+    static_assert(!std::is_same<ObjectPtr, T>::value, "compiler error");
+    return Handle<T>::cast(Create(ObjectPtr(value)));
   }
 
   // Copy a global handle

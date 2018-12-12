@@ -14,13 +14,18 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-void AllocationBuilder::AllocateContext(int length, Handle<Map> map) {
-  DCHECK(map->instance_type() >= AWAIT_CONTEXT_TYPE &&
-         map->instance_type() <= WITH_CONTEXT_TYPE);
-  int size = FixedArray::SizeFor(length);
+void AllocationBuilder::AllocateContext(int variadic_part_length,
+                                        Handle<Map> map) {
+  DCHECK(
+      IsInRange(map->instance_type(), FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE));
+  DCHECK_NE(NATIVE_CONTEXT_TYPE, map->instance_type());
+  int size = Context::SizeFor(variadic_part_length);
   Allocate(size, NOT_TENURED, Type::OtherInternal());
   Store(AccessBuilder::ForMap(), map);
-  Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
+  STATIC_ASSERT(static_cast<int>(Context::kLengthOffset) ==
+                static_cast<int>(FixedArray::kLengthOffset));
+  Store(AccessBuilder::ForFixedArrayLength(),
+        jsgraph()->Constant(variadic_part_length));
 }
 
 // Compound allocation of a FixedArray.

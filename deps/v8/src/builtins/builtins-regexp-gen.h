@@ -112,7 +112,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
                   int counter, const char* method_name);
 
-  Node* IsRegExp(Node* const context, Node* const maybe_receiver);
+  TNode<BoolT> IsRegExp(TNode<Context> context, TNode<Object> maybe_receiver);
 
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);

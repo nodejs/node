@@ -98,7 +98,7 @@ bool CompilerDispatcher::IsEnqueued(JobId job_id) const {
 }
 
 void CompilerDispatcher::RegisterSharedFunctionInfo(
-    JobId job_id, SharedFunctionInfo* function) {
+    JobId job_id, SharedFunctionInfo function) {
   DCHECK_NE(jobs_.find(job_id), jobs_.end());
 
   if (trace_compiler_dispatcher_) {
@@ -108,8 +108,8 @@ void CompilerDispatcher::RegisterSharedFunctionInfo(
   }
 
   // Make a global handle to the function.
-  Handle<SharedFunctionInfo> function_handle =
-      isolate_->global_handles()->Create(function);
+  Handle<SharedFunctionInfo> function_handle = Handle<SharedFunctionInfo>::cast(
+      isolate_->global_handles()->Create(function));
 
   // Register mapping.
   auto job_it = jobs_.find(job_id);

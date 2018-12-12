@@ -264,7 +264,7 @@ class Heap {
   static const int kReduceMemoryFootprintMask = 1;
 
   // The minimum size of a HeapObject on the heap.
-  static const int kMinObjectSizeInWords = 2;
+  static const int kMinObjectSizeInTaggedWords = 2;
 
   static const int kMinPromotedPercentForFastPromotionMode = 90;
 
@@ -343,7 +343,7 @@ class Heap {
                                                         Address slot,
                                                         HeapObject* value);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForElementsSlow(
-      Heap* heap, FixedArray* array, int offset, int length);
+      Heap* heap, FixedArray array, int offset, int length);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
       Code host, RelocInfo* rinfo, HeapObject* value);
   V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject* object,
@@ -367,7 +367,7 @@ class Heap {
 
   // Move len elements within a given array from src_index index to dst_index
   // index.
-  void MoveElements(FixedArray* array, int dst_index, int src_index, int len,
+  void MoveElements(FixedArray array, int dst_index, int src_index, int len,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Initialize a filler object to keep the ability to iterate over the heap
@@ -382,22 +382,25 @@ class Heap {
           ClearFreedMemoryMode::kDontClearFreedMemory);
 
   template <typename T>
-  void CreateFillerForArray(T* object, int elements_to_trim, int bytes_to_trim);
+  void CreateFillerForArray(T object, int elements_to_trim, int bytes_to_trim);
 
   bool CanMoveObjectStart(HeapObject* object);
 
   bool IsImmovable(HeapObject* object);
 
   bool IsLargeObject(HeapObject* object);
+  bool IsLargeMemoryChunk(MemoryChunk* chunk);
   inline bool IsWithinLargeObject(Address address);
+
+  bool IsInYoungGeneration(HeapObject* object);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
-  FixedArrayBase* LeftTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
+  FixedArrayBase LeftTrimFixedArray(FixedArrayBase obj, int elements_to_trim);
 
   // Trim the given array from the right.
-  void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
-  void RightTrimWeakFixedArray(WeakFixedArray* obj, int elements_to_trim);
+  void RightTrimFixedArray(FixedArrayBase obj, int elements_to_trim);
+  void RightTrimWeakFixedArray(WeakFixedArray obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);
@@ -524,8 +527,8 @@ class Heap {
   inline int NextDebuggingId();
   inline int GetNextTemplateSerialNumber();
 
-  void SetSerializedObjects(FixedArray* objects);
-  void SetSerializedGlobalProxySizes(FixedArray* sizes);
+  void SetSerializedObjects(FixedArray objects);
+  void SetSerializedGlobalProxySizes(FixedArray sizes);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
@@ -666,13 +669,11 @@ class Heap {
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  // Sets the stub_cache_ (only used when expanding the dictionary).
-  V8_INLINE void SetRootCodeStubs(SimpleNumberDictionary* value);
-  V8_INLINE void SetRootMaterializedObjects(FixedArray* objects);
+  V8_INLINE void SetRootMaterializedObjects(FixedArray objects);
   V8_INLINE void SetRootScriptList(Object* value);
-  V8_INLINE void SetRootStringTable(StringTable* value);
+  V8_INLINE void SetRootStringTable(StringTable value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object* value);
-  V8_INLINE void SetMessageListeners(TemplateList* value);
+  V8_INLINE void SetMessageListeners(TemplateList value);
 
   // Set the stack limit in the roots table.  Some architectures generate
   // code that looks here, because it is faster than loading from the static
@@ -683,10 +684,10 @@ class Heap {
   // snapshot blob, we need to reset it before serializing.
   void ClearStackLimits();
 
-  void RegisterStrongRoots(ObjectSlot start, ObjectSlot end);
-  void UnregisterStrongRoots(ObjectSlot start);
+  void RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end);
+  void UnregisterStrongRoots(FullObjectSlot start);
 
-  void SetBuiltinsConstantsTable(FixedArray* cache);
+  void SetBuiltinsConstantsTable(FixedArray cache);
 
   // A full copy of the interpreter entry trampoline, used as a template to
   // create copies of the builtin at runtime. The copies are used to create
@@ -698,7 +699,7 @@ class Heap {
 
   // Add weak_factory into the dirty_js_weak_factories list.
   void AddDirtyJSWeakFactory(
-      JSWeakFactory* weak_factory,
+      JSWeakFactory weak_factory,
       std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
           gc_notify_updated_slot);
 
@@ -893,7 +894,6 @@ class Heap {
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
   EmbedderHeapTracer* GetEmbedderHeapTracer() const;
 
-  void TracePossibleWrapper(JSObject* js_object);
   void RegisterExternallyReferencedObject(Address* location);
   void SetEmbedderStackStateForNextFinalizaton(
       EmbedderHeapTracer::EmbedderStackState stack_state);
@@ -903,19 +903,19 @@ class Heap {
   // ===========================================================================
 
   // Registers an external string.
-  inline void RegisterExternalString(String* string);
+  inline void RegisterExternalString(String string);
 
   // Called when a string's resource is changed. The size of the payload is sent
   // as argument of the method.
-  inline void UpdateExternalString(String* string, size_t old_payload,
+  inline void UpdateExternalString(String string, size_t old_payload,
                                    size_t new_payload);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
-  inline void FinalizeExternalString(String* string);
+  inline void FinalizeExternalString(String string);
 
-  static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
-      Heap* heap, ObjectSlot pointer);
+  static String UpdateNewSpaceReferenceInExternalStringTableEntry(
+      Heap* heap, FullObjectSlot pointer);
 
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
@@ -1180,8 +1180,8 @@ class Heap {
   // in the registration/unregistration APIs. Consider dropping the "New" from
   // "RegisterNewArrayBuffer" because one can re-register a previously
   // unregistered buffer, too, and the name is confusing.
-  void RegisterNewArrayBuffer(JSArrayBuffer* buffer);
-  void UnregisterArrayBuffer(JSArrayBuffer* buffer);
+  void RegisterNewArrayBuffer(JSArrayBuffer buffer);
+  void UnregisterArrayBuffer(JSArrayBuffer buffer);
 
   // ===========================================================================
   // Allocation site tracking. =================================================
@@ -1298,8 +1298,8 @@ class Heap {
  private:
   class SkipStoreBufferScope;
 
-  typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
-                                                        ObjectSlot pointer);
+  typedef String (*ExternalStringTableUpdaterCallback)(Heap* heap,
+                                                       FullObjectSlot pointer);
 
   // External strings table is a place where all external strings are
   // registered.  We need to keep track of such strings to properly
@@ -1309,8 +1309,8 @@ class Heap {
     explicit ExternalStringTable(Heap* heap) : heap_(heap) {}
 
     // Registers an external string.
-    inline void AddString(String* string);
-    bool Contains(HeapObject* obj);
+    inline void AddString(String string);
+    bool Contains(String string);
 
     void IterateAll(RootVisitor* v);
     void IterateNewSpaceStrings(RootVisitor* v);
@@ -1456,14 +1456,6 @@ class Heap {
   void CreateInternalAccessorInfoObjects();
   void CreateInitialObjects();
 
-  // These five Create*EntryStub functions are here and forced to not be inlined
-  // because of a gcc-4.4 bug that assigns wrong vtable entries.
-  V8_NOINLINE void CreateJSEntryStub();
-  V8_NOINLINE void CreateJSConstructEntryStub();
-  V8_NOINLINE void CreateJSRunMicrotasksEntryStub();
-
-  void CreateFixedStubs();
-
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
 
@@ -1523,7 +1515,7 @@ class Heap {
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
-  void CompactRetainedMaps(WeakArrayList* retained_maps);
+  void CompactRetainedMaps(WeakArrayList retained_maps);
 
   void CollectGarbageOnMemoryPressure();
 
@@ -2169,10 +2161,18 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
                      ObjectSlot end) override;
   void VisitPointers(HeapObject* host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override;
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override;
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override;
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
 
  protected:
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject* heap_object);
+
+  template <typename TSlot>
+  V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end);
+
   virtual void VerifyPointers(HeapObject* host, MaybeObjectSlot start,
                               MaybeObjectSlot end);
 
@@ -2183,8 +2183,8 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
 // Verify that all objects are Smis.
 class VerifySmisVisitor : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, const char* description, ObjectSlot start,
-                         ObjectSlot end) override;
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
 };
 
 // Space iterator for iterating over all the paged spaces of the heap: Map

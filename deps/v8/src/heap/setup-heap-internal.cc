@@ -20,9 +20,11 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/instance-type-inl.h"
+#include "src/objects/js-generator.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map.h"
-#include "src/objects/microtask-queue.h"
 #include "src/objects/microtask.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
@@ -152,7 +154,7 @@ void Heap::FinalizePartialMap(Map map) {
   ReadOnlyRoots roots(this);
   map->set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
   map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
-  map->set_instance_descriptors(roots.empty_descriptor_array());
+  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   if (FLAG_unbox_double_fields) {
     map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
   }
@@ -186,7 +188,7 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
   object->set_map_after_allocation(
       ReadOnlyRoots(this).MapForFixedTypedArray(array_type),
       SKIP_WRITE_BARRIER);
-  FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
+  FixedTypedArrayBase elements = FixedTypedArrayBase::cast(object);
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
       reinterpret_cast<void*>(
@@ -307,19 +309,14 @@ bool Heap::CreateInitialMaps() {
 
   // Allocate the empty descriptor array.
   {
-    STATIC_ASSERT(DescriptorArray::kFirstIndex != 0);
-    int length = DescriptorArray::kFirstIndex;
-    int size = WeakFixedArray::SizeFor(length);
+    int size = DescriptorArray::SizeFor(0);
     if (!AllocateRaw(size, RO_SPACE).To(&obj)) return false;
     obj->set_map_after_allocation(roots.descriptor_array_map(),
                                   SKIP_WRITE_BARRIER);
-    DescriptorArray::cast(obj)->set_length(length);
+    DescriptorArray array = DescriptorArray::cast(obj);
+    array->Initialize(roots.empty_enum_cache(), roots.undefined_value(), 0, 0);
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));
-  DescriptorArray::cast(obj)->SetNumberOfDescriptors(0);
-  WeakFixedArray::cast(obj)->Set(
-      DescriptorArray::kEnumCacheIndex,
-      MaybeObject::FromObject(roots.empty_enum_cache()));
 
   // Fix the instance_descriptors for the existing maps.
   FinalizePartialMap(roots.meta_map());
@@ -479,8 +476,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
 
-    ALLOCATE_VARSIZE_MAP(NATIVE_CONTEXT_TYPE, native_context)
-    roots.native_context_map()->set_visitor_id(kVisitNativeContext);
+    ALLOCATE_MAP(NATIVE_CONTEXT_TYPE, NativeContext::kSize, native_context)
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)
@@ -503,7 +499,8 @@ bool Heap::CreateInitialMaps() {
                  code_data_container)
 
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kSize, message_object)
-    ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kEmbedderDataSlotSize,
+    ALLOCATE_MAP(JS_OBJECT_TYPE,
+                 JSObject::kHeaderSizeForEmbedderFields + kEmbedderDataSlotSize,
                  external)
     external_map()->set_is_extensible(false);
 #undef ALLOCATE_PRIMITIVE_MAP
@@ -579,12 +576,13 @@ bool Heap::CreateInitialMaps() {
     set_empty_property_array(PropertyArray::cast(obj));
   }
 
-#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)       \
-  {                                                                     \
-    FixedTypedArrayBase* obj;                                           \
-    if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) \
-      return false;                                                     \
-    set_empty_fixed_##type##_array(obj);                                \
+#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)         \
+  {                                                                       \
+    FixedTypedArrayBase obj;                                              \
+    if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) { \
+      return false;                                                       \
+    }                                                                     \
+    set_empty_fixed_##type##_array(obj);                                  \
   }
 
   TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)
@@ -708,10 +706,6 @@ void Heap::CreateInitialObjects() {
 
   set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
 
-  // Create the code_stubs dictionary. The initial size is set to avoid
-  // expanding the dictionary during bootstrapping.
-  set_code_stubs(*SimpleNumberDictionary::New(isolate(), 128));
-
   {
     HandleScope scope(isolate());
 #define SYMBOL_INIT(_, name)                                        \
@@ -726,21 +720,19 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(_, name, description)                                 \
-  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
-  Handle<String> name##d =                                                \
-      factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
-  name->set_name(*name##d);                                               \
+#define SYMBOL_INIT(_, name, description)                                \
+  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);           \
+  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
+  name->set_name(*name##d);                                              \
   roots_table()[RootIndex::k##name] = *name;
     PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
-#define SYMBOL_INIT(_, name, description)                                 \
-  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
-  Handle<String> name##d =                                                \
-      factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
-  name->set_is_well_known_symbol(true);                                   \
-  name->set_name(*name##d);                                               \
+#define SYMBOL_INIT(_, name, description)                                \
+  Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);           \
+  Handle<String> name##d = factory->InternalizeUtf8String(#description); \
+  name->set_is_well_known_symbol(true);                                  \
+  name->set_name(*name##d);                                              \
   roots_table()[RootIndex::k##name] = *name;
     WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
@@ -776,8 +768,6 @@ void Heap::CreateInitialObjects() {
   Handle<FeedbackCell> no_feedback_cell = factory->NewNoFeedbackCell();
   set_no_feedback_cell(*no_feedback_cell);
 
-  set_default_microtask_queue(*factory->NewMicrotaskQueue());
-
   {
     Handle<FixedArray> empty_sloppy_arguments_elements =
         factory->NewFixedArray(2, TENURED_READ_ONLY);
@@ -809,7 +799,7 @@ void Heap::CreateInitialObjects() {
 
   // Allocate the empty OrderedHashMap.
   Handle<FixedArray> empty_ordered_hash_map = factory->NewFixedArray(
-      OrderedHashMap::kHashTableStartIndex, TENURED_READ_ONLY);
+      OrderedHashMap::HashTableStartIndex(), TENURED_READ_ONLY);
   empty_ordered_hash_map->set_map_no_write_barrier(
       *factory->ordered_hash_map_map());
   for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
@@ -819,7 +809,7 @@ void Heap::CreateInitialObjects() {
 
   // Allocate the empty OrderedHashSet.
   Handle<FixedArray> empty_ordered_hash_set = factory->NewFixedArray(
-      OrderedHashSet::kHashTableStartIndex, TENURED_READ_ONLY);
+      OrderedHashSet::HashTableStartIndex(), TENURED_READ_ONLY);
   empty_ordered_hash_set->set_map_no_write_barrier(
       *factory->ordered_hash_set_map());
   for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
@@ -894,7 +884,7 @@ void Heap::CreateInitialObjects() {
 
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_array_buffer_neutering_protector(*cell);
+  set_array_buffer_detaching_protector(*cell);
 
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));

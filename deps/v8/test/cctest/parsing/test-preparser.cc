@@ -845,7 +845,7 @@ TEST(ProducingAndConsumingByteData) {
     i::ZoneConsumedPreParsedScopeData::ByteData bytes_for_reading;
     i::ZoneVectorWrapper wrapper(zone_serialized.byte_data());
     i::ZoneConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
-        &bytes_for_reading, &wrapper);
+        &bytes_for_reading, wrapper);
 
 #ifdef DEBUG
     CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);

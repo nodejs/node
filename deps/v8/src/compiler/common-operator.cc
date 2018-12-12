@@ -70,7 +70,16 @@ const BranchOperatorInfo& BranchOperatorInfoOf(const Operator* const op) {
 }
 
 BranchHint BranchHintOf(const Operator* const op) {
-  return BranchOperatorInfoOf(op).hint;
+  switch (op->opcode()) {
+    case IrOpcode::kBranch:
+      return BranchOperatorInfoOf(op).hint;
+    case IrOpcode::kIfValue:
+      return IfValueParametersOf(op).hint();
+    case IrOpcode::kIfDefault:
+      return OpParameter<BranchHint>(op);
+    default:
+      UNREACHABLE();
+  }
 }
 
 int ValueInputCountOfReturn(Operator const* const op) {
@@ -420,16 +429,18 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
 
 V8_EXPORT_PRIVATE bool operator==(IfValueParameters const& l,
                                   IfValueParameters const& r) {
-  return l.value() == r.value() && r.comparison_order() == r.comparison_order();
+  return l.value() == r.value() &&
+         r.comparison_order() == r.comparison_order() && l.hint() == r.hint();
 }
 
 size_t hash_value(IfValueParameters const& p) {
-  return base::hash_combine(p.value(), p.comparison_order());
+  return base::hash_combine(p.value(), p.comparison_order(), p.hint());
 }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
                                            IfValueParameters const& p) {
-  out << p.value() << " (order " << p.comparison_order() << ")";
+  out << p.value() << " (order " << p.comparison_order() << ", hint "
+      << p.hint() << ")";
   return out;
 }
 
@@ -445,7 +456,6 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                            \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
   V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)                        \
-  V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
   V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                              \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                          \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)                    \
@@ -1043,14 +1053,22 @@ const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
 }
 
 const Operator* CommonOperatorBuilder::IfValue(int32_t index,
-                                               int32_t comparison_order) {
-  return new (zone()) Operator1<IfValueParameters>(  // --
-      IrOpcode::kIfValue, Operator::kKontrol,        // opcode
-      "IfValue",                                     // name
-      0, 0, 1, 0, 0, 1,                              // counts
-      IfValueParameters(index, comparison_order));   // parameter
+                                               int32_t comparison_order,
+                                               BranchHint hint) {
+  return new (zone()) Operator1<IfValueParameters>(       // --
+      IrOpcode::kIfValue, Operator::kKontrol,             // opcode
+      "IfValue",                                          // name
+      0, 0, 1, 0, 0, 1,                                   // counts
+      IfValueParameters(index, comparison_order, hint));  // parameter
 }
 
+const Operator* CommonOperatorBuilder::IfDefault(BranchHint hint) {
+  return new (zone()) Operator1<BranchHint>(     // --
+      IrOpcode::kIfDefault, Operator::kKontrol,  // opcode
+      "IfDefault",                               // name
+      0, 0, 1, 0, 0, 1,                          // counts
+      hint);                                     // parameter
+}
 
 const Operator* CommonOperatorBuilder::Start(int value_output_count) {
   return new (zone()) Operator(                                    // --

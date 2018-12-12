@@ -64,7 +64,7 @@ class FrameArray : public FixedArray {
       Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
       int wasm_function_index, wasm::WasmCode* code, int offset, int flags);
 
-  DECL_CAST(FrameArray)
+  DECL_CAST2(FrameArray)
 
  private:
   // The underlying fixed array embodies a captured stack trace. Frame i
@@ -101,7 +101,7 @@ class FrameArray : public FixedArray {
                                         Handle<FrameArray> array, int length);
 
   friend class Factory;
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FrameArray);
+  OBJECT_CONSTRUCTORS(FrameArray, FixedArray);
 };
 
 }  // namespace internal

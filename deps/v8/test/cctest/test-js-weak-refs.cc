@@ -5,6 +5,7 @@
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/isolate.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -170,13 +171,13 @@ TEST(TestJSWeakFactoryPopClearedCell) {
   NullifyWeakCell(weak_cell3, isolate);
 
   CHECK(weak_factory->NeedsCleanup());
-  JSWeakCell* cleared1 = weak_factory->PopClearedCell(isolate);
+  JSWeakCell cleared1 = weak_factory->PopClearedCell(isolate);
   CHECK_EQ(cleared1, *weak_cell3);
   CHECK(weak_cell3->prev()->IsUndefined(isolate));
   CHECK(weak_cell3->next()->IsUndefined(isolate));
 
   CHECK(weak_factory->NeedsCleanup());
-  JSWeakCell* cleared2 = weak_factory->PopClearedCell(isolate);
+  JSWeakCell cleared2 = weak_factory->PopClearedCell(isolate);
   CHECK_EQ(cleared2, *weak_cell2);
   CHECK(weak_cell2->prev()->IsUndefined(isolate));
   CHECK(weak_cell2->next()->IsUndefined(isolate));
@@ -186,7 +187,7 @@ TEST(TestJSWeakFactoryPopClearedCell) {
   NullifyWeakCell(weak_cell1, isolate);
 
   CHECK(weak_factory->NeedsCleanup());
-  JSWeakCell* cleared3 = weak_factory->PopClearedCell(isolate);
+  JSWeakCell cleared3 = weak_factory->PopClearedCell(isolate);
   CHECK_EQ(cleared3, *weak_cell1);
   CHECK(weak_cell1->prev()->IsUndefined(isolate));
   CHECK(weak_cell1->next()->IsUndefined(isolate));
@@ -308,7 +309,7 @@ TEST(TestJSWeakCellClearPopped) {
 
   Handle<JSWeakCell> weak_cell1 = MakeCell(isolate, js_object, weak_factory);
   NullifyWeakCell(weak_cell1, isolate);
-  JSWeakCell* cleared1 = weak_factory->PopClearedCell(isolate);
+  JSWeakCell cleared1 = weak_factory->PopClearedCell(isolate);
   CHECK_EQ(cleared1, *weak_cell1);
 
   ClearWeakCell(weak_cell1, isolate);

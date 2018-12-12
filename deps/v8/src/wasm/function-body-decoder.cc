@@ -203,7 +203,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                                                      i.pc());
         os << "   // @" << i.pc_offset();
         if (decoder.Complete(imm)) {
-          for (unsigned i = 0; i < imm.out_arity(); i++) {
+          for (uint32_t i = 0; i < imm.out_arity(); i++) {
             os << " " << ValueTypes::TypeName(imm.out_type(i));
           }
         }
@@ -215,12 +215,12 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         control_depth--;
         break;
       case kExprBr: {
-        BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << "   // depth=" << imm.depth;
         break;
       }
       case kExprBrIf: {
-        BreakDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << "   // depth=" << imm.depth;
         break;
       }

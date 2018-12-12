@@ -934,7 +934,8 @@ TBR=reviewer@chromium.org"""
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git cl upload --send-mail "
-          "-f --bypass-hooks --no-autocc --gerrit", ""),
+          "-f --bypass-hooks --no-autocc --message-file "
+          "\"%s\" --gerrit" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="

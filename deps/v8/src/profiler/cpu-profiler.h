@@ -224,9 +224,9 @@ class CpuProfiler {
   void CollectSample();
   void StartProfiling(const char* title, bool record_samples = false,
                       ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
-  void StartProfiling(String* title, bool record_samples, ProfilingMode mode);
+  void StartProfiling(String title, bool record_samples, ProfilingMode mode);
   CpuProfile* StopProfiling(const char* title);
-  CpuProfile* StopProfiling(String* title);
+  CpuProfile* StopProfiling(String title);
   int GetProfilesCount();
   CpuProfile* GetProfile(int index);
   void DeleteAllProfiles();

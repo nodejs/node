@@ -9,7 +9,7 @@
 #include "src/execution.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-weak-refs.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

@@ -48,6 +48,6 @@ debugger;            // B3 Continue
 
 late_resolve(3);
 
-%RunMicrotasks();
+%PerformMicrotaskCheckpoint();
 
 assertEquals(5, step_count);

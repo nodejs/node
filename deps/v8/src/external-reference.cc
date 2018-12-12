@@ -9,6 +9,7 @@
 #include "src/codegen.h"
 #include "src/compiler/code-assembler.h"
 #include "src/counters.h"
+#include "src/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -17,6 +18,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/math-random.h"
+#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator-base.h"
@@ -133,6 +135,11 @@ ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
   return ExternalReference(isolate->handle_scope_implementer_address());
+}
+
+ExternalReference ExternalReference::default_microtask_queue_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->default_microtask_queue_address());
 }
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -300,6 +307,8 @@ FUNCTION_REFERENCE(wasm_word32_popcnt, wasm::word32_popcnt_wrapper)
 FUNCTION_REFERENCE(wasm_word64_popcnt, wasm::word64_popcnt_wrapper)
 FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
+FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
+FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
@@ -634,7 +643,8 @@ Address GetOrCreateHash(Isolate* isolate, Object* key) {
 
 FUNCTION_REFERENCE(get_or_create_hash_raw, GetOrCreateHash)
 
-static Address JSReceiverCreateIdentityHash(Isolate* isolate, JSReceiver* key) {
+static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
+  JSReceiver key = JSReceiver::cast(ObjectPtr(raw_key));
   return JSReceiver::CreateIdentityHash(isolate, key).ptr();
 }
 
@@ -668,7 +678,13 @@ FUNCTION_REFERENCE(smi_lexicographic_compare_function,
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 
 #ifdef V8_INTL_SUPPORT
-FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, Intl::ConvertOneByteToLower)
+
+static Address ConvertOneByteToLower(Address raw_src, Address raw_dst) {
+  String src = String::cast(ObjectPtr(raw_src));
+  String dst = String::cast(ObjectPtr(raw_dst));
+  return Intl::ConvertOneByteToLower(src, dst).ptr();
+}
+FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, ConvertOneByteToLower)
 
 ExternalReference ExternalReference::intl_to_latin1_lower_table() {
   uint8_t* ptr = const_cast<uint8_t*>(Intl::ToLatin1LowerTable());
@@ -813,15 +829,26 @@ ExternalReference ExternalReference::debug_restart_fp_address(
   return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
-ExternalReference ExternalReference::wasm_thread_in_wasm_flag_address_address(
+ExternalReference ExternalReference::fast_c_call_caller_fp_address(
     Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      &isolate->thread_local_top()->thread_in_wasm_flag_address_));
+  return ExternalReference(
+      isolate->isolate_data()->fast_c_call_caller_fp_address());
+}
+
+ExternalReference ExternalReference::fast_c_call_caller_pc_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->fast_c_call_caller_pc_address());
 }
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
   return ExternalReference(reinterpret_cast<void*>(
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
+}
+
+ExternalReference ExternalReference::call_enqueue_microtask_function() {
+  return ExternalReference(
+      Redirect(FUNCTION_ADDR(MicrotaskQueue::CallEnqueueMicrotask)));
 }
 
 static int64_t atomic_pair_load(intptr_t address) {
@@ -929,6 +956,15 @@ static uint64_t atomic_pair_compare_exchange(intptr_t address,
 
 FUNCTION_REFERENCE(atomic_pair_compare_exchange_function,
                    atomic_pair_compare_exchange)
+
+static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
+                                        Address raw_context) {
+  Context context = Context::cast(ObjectPtr(raw_context));
+  hsi->EnterMicrotaskContext(context);
+  return 0;
+}
+
+FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper);
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();

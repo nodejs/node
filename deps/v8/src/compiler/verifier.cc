@@ -1258,8 +1258,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kNewArgumentsElements:
       CheckValueInputIs(node, 0, Type::ExternalPointer());
-      CheckValueInputIs(node, 1, Type::Range(-Code::kMaxArguments,
-                                             Code::kMaxArguments, zone));
+      CheckValueInputIs(node, 1,
+                        Type::Range(0.0, FixedArray::kMaxLength, zone));
       CheckTypeIs(node, Type::OtherInternal());
       break;
     case IrOpcode::kNewConsString:

@@ -343,31 +343,6 @@ class JSBinopReduction final {
     UNREACHABLE();
   }
 
-  const Operator* NumberOpFromSpeculativeNumberOp() {
-    switch (node_->opcode()) {
-      case IrOpcode::kSpeculativeNumberEqual:
-        return simplified()->NumberEqual();
-      case IrOpcode::kSpeculativeNumberLessThan:
-        return simplified()->NumberLessThan();
-      case IrOpcode::kSpeculativeNumberLessThanOrEqual:
-        return simplified()->NumberLessThanOrEqual();
-      case IrOpcode::kSpeculativeNumberAdd:
-        // Handled by ReduceSpeculativeNumberAdd.
-        UNREACHABLE();
-      case IrOpcode::kSpeculativeNumberSubtract:
-        return simplified()->NumberSubtract();
-      case IrOpcode::kSpeculativeNumberMultiply:
-        return simplified()->NumberMultiply();
-      case IrOpcode::kSpeculativeNumberDivide:
-        return simplified()->NumberDivide();
-      case IrOpcode::kSpeculativeNumberModulus:
-        return simplified()->NumberModulus();
-      default:
-        break;
-    }
-    UNREACHABLE();
-  }
-
   bool LeftInputIs(Type t) { return left_type().Is(t); }
 
   bool RightInputIs(Type t) { return right_type().Is(t); }
@@ -459,21 +434,6 @@ JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph,
                                   graph()->zone()),
                       graph()->zone())),
       type_cache_(TypeCache::Get()) {}
-
-Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
-  JSBinopReduction r(this, node);
-  NumberOperationHint hint = NumberOperationHintOf(node->op());
-  if ((hint == NumberOperationHint::kNumber ||
-       hint == NumberOperationHint::kNumberOrOddball) &&
-      r.BothInputsAre(Type::PlainPrimitive()) &&
-      r.NeitherInputCanBe(Type::StringOrReceiver())) {
-    // SpeculativeNumberAdd(x:-string, y:-string) =>
-    //     NumberAdd(ToNumber(x), ToNumber(y))
-    r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
-  }
-  return NoChange();
-}
 
 Reduction JSTypedLowering::ReduceJSBitwiseNot(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
@@ -705,22 +665,6 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceSpeculativeNumberBinop(Node* node) {
-  JSBinopReduction r(this, node);
-  NumberOperationHint hint = NumberOperationHintOf(node->op());
-  if ((hint == NumberOperationHint::kNumber ||
-       hint == NumberOperationHint::kNumberOrOddball) &&
-      r.BothInputsAre(Type::NumberOrUndefinedOrNullOrBoolean())) {
-    // We intentionally do this only in the Number and NumberOrOddball hint case
-    // because simplified lowering of these speculative ops may do some clever
-    // reductions in the other cases.
-    r.ConvertInputsToNumber();
-    return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp(),
-                                  Type::Number());
-  }
-  return NoChange();
-}
-
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::PlainPrimitive())) {
@@ -739,15 +683,6 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node, Signedness signedness) {
     return r.ChangeToPureOperator(r.NumberOp(), signedness == kUnsigned
                                                     ? Type::Unsigned32()
                                                     : Type::Signed32());
-  }
-  return NoChange();
-}
-
-Reduction JSTypedLowering::ReduceSpeculativeNumberComparison(Node* node) {
-  JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Signed32()) ||
-      r.BothInputsAre(Type::Unsigned32())) {
-    return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp());
   }
   return NoChange();
 }
@@ -2411,19 +2346,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorRestoreRegister(node);
     case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:
       return ReduceJSGeneratorRestoreInputOrDebugPos(node);
-    // TODO(mstarzinger): Simplified operations hiding in JS-level reducer not
-    // fooling anyone. Consider moving this into a separate reducer.
-    case IrOpcode::kSpeculativeNumberAdd:
-      return ReduceSpeculativeNumberAdd(node);
-    case IrOpcode::kSpeculativeNumberSubtract:
-    case IrOpcode::kSpeculativeNumberMultiply:
-    case IrOpcode::kSpeculativeNumberDivide:
-    case IrOpcode::kSpeculativeNumberModulus:
-      return ReduceSpeculativeNumberBinop(node);
-    case IrOpcode::kSpeculativeNumberEqual:
-    case IrOpcode::kSpeculativeNumberLessThan:
-    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
-      return ReduceSpeculativeNumberComparison(node);
     case IrOpcode::kJSObjectIsArray:
       return ReduceObjectIsArray(node);
     case IrOpcode::kJSParseInt:
