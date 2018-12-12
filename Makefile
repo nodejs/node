@@ -1263,10 +1263,14 @@ tools/.cpplintstamp: $(LINT_CPP_FILES)
 	@$(PYTHON) tools/check-imports.py
 	@touch $@
 
-lint-addon-docs: test/addons/.docbuildstamp
+.PHONY: lint-addon-docs
+lint-addon-docs: tools/.doclintstamp
+
+tools/.doclintstamp: test/addons/.docbuildstamp
 	@echo "Running C++ linter on addon docs..."
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
 		$(LINT_CPP_ADDON_DOC_FILES_GLOB)
+	@touch $@
 
 cpplint: lint-cpp
 	@echo "Please use lint-cpp instead of cpplint"
