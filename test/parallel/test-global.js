@@ -60,7 +60,7 @@ builtinModules.forEach((moduleName) => {
       'DTRACE_NET_SERVER_CONNECTION'
     );
   }
-  assert.deepStrictEqual(Object.keys(global), expected);
+  assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
 }
 
 common.allowGlobals('bar', 'foo');
