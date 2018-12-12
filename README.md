@@ -53,7 +53,7 @@ resources:
 * [#node.js channel on chat.freenode.net][]
 * [Node.js Discord Community](https://discordapp.com/invite/v7rrPdE)
 * [Node.js Slack Community](https://node-js.slack.com/): Visit
-  [nodeslackers.com](http://www.nodeslackers.com/) to register.
+  [nodeslackers.com](http://www.nodeslackers.com/) to register
 
 GitHub issues are for tracking enhancements and bugs, not general support.
 
