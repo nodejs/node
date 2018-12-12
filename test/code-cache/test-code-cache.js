@@ -13,7 +13,7 @@ const {
 } = require('internal/bootstrap/cache');
 const {
   isMainThread
-} = require('@nodejs/worker_threads');
+} = require('worker_threads');
 
 const {
   internalBinding
