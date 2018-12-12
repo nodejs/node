@@ -2071,6 +2071,7 @@ Will generate an object similar to:
   nghttp2: '1.29.0',
   napi: '2',
   openssl: '1.0.2n',
+  openssl_linked: '1.0.2n',
   icu: '60.1',
   unicode: '10.0',
   cldr: '32.0',

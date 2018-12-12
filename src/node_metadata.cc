@@ -30,7 +30,8 @@ Metadata::Versions::Versions() {
   http_parser = http_parser_version;
 
 #if HAVE_OPENSSL
-  openssl = crypto::GetOpenSSLVersion();
+  openssl = crypto::GetOpenSSLVersionCompiled();
+  openssl_linked = crypto::GetOpenSSLVersionLinked();
 #endif
 }
 

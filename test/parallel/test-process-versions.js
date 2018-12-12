@@ -8,6 +8,7 @@ const expected_keys = ['ares', 'modules', 'node',
 
 if (common.hasCrypto) {
   expected_keys.push('openssl');
+  expected_keys.push('openssl_linked');
 }
 
 if (common.hasIntl) {
@@ -37,6 +38,7 @@ assert(/^\d+$/.test(process.versions.modules));
 
 if (common.hasCrypto) {
   assert(/^\d+\.\d+\.\d+[a-z]?(-fips)?$/.test(process.versions.openssl));
+  assert(/^\d+\.\d+\.\d+[a-z]?(-fips)?$/.test(process.versions.openssl_linked));
 }
 
 for (let i = 0; i < expected_keys.length; i++) {

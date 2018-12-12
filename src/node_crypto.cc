@@ -5840,15 +5840,23 @@ constexpr int search(const char* s, int n, int c) {
   return *s == c ? n : search(s + 1, n + 1, c);
 }
 
-std::string GetOpenSSLVersion() {
+static const std::string GetOpenSSLVersionParsed(const char* version) {
   // sample openssl version string format
   // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
   char buf[128];
-  const int start = search(OPENSSL_VERSION_TEXT, 0, ' ') + 1;
-  const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ');
+  const int start = search(version, 0, ' ') + 1;
+  const int end = search(version + start, start, ' ');
   const int len = end - start;
-  snprintf(buf, sizeof(buf), "%.*s", len, &OPENSSL_VERSION_TEXT[start]);
+  snprintf(buf, sizeof(buf), "%.*s", len, &version[start]);
   return std::string(buf);
+}
+
+const std::string GetOpenSSLVersionCompiled() {
+  return GetOpenSSLVersionParsed(OPENSSL_VERSION_TEXT);
+}
+
+const std::string GetOpenSSLVersionLinked() {
+  return GetOpenSSLVersionParsed(OpenSSL_version(OPENSSL_VERSION));
 }
 
 }  // namespace crypto
