@@ -10,7 +10,7 @@ const nestedHook = async_hooks.createHook({
 let nestedCall = false;
 
 async_hooks.createHook({
-  init: common.mustCall(function(id, type) {
+  init: common.mustCall(() => {
     nestedHook.enable();
     if (!nestedCall) {
       nestedCall = true;
