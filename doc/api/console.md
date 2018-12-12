@@ -90,7 +90,7 @@ changes:
                  and the `colorMode` option was introduced.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/REPLACEME
-    description: The `formatOptions` option is introduced.
+    description: The `inspectOptions` option is introduced.
 -->
 
 * `options` {Object}
