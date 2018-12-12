@@ -15,8 +15,6 @@ vars = {
 }
 
 deps = {
-  'v8/third_party/binutils':
-    Var('chromium_url') + '/chromium/src/third_party/binutils.git' + '@' + '2be73f7fbf783d7a0b288e174a5773b67c7656bc',
   'v8/build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e25071980f7fdfd7565f19b28b37cd31c88afbae',
   'v8/third_party/depot_tools':
