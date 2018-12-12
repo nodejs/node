@@ -449,10 +449,6 @@ changes:
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
     objects. **Default:** `false`.
-    <!--
-    TODO(BridgeAR): Deprecate `maxArrayLength` and replace it with
-                    `maxEntries`.
-    -->
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
     [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
     formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
