@@ -218,7 +218,7 @@ used in other CI test runs (such as `--worker`).
 ### Internal vs. Public API
 
 All functionality in the official Node.js documentation is part of the public
-API. Any undocumented object, property, method, argument, behavior, or even is
+API. Any undocumented object, property, method, argument, behavior, or event is
 internal. There are exceptions to this rule. Node.js users have come to rely on
 some undocumented behaviors. Collaborators treat many of those undocumented
 behaviors as public.
