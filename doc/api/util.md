@@ -245,8 +245,7 @@ util.format('%s:%s', 'foo');
 ```
 
 Values that are not part of the format string are formatted using
-`util.inspect()` if their type is either `'object'`, `'symbol'`, `'function'`
-or `'number'` and using `String()` in all other cases.
+`util.inspect()` if their type is not `string`.
 
 If there are more arguments passed to the `util.format()` method than the
 number of specifiers, the extra arguments are concatenated to the returned

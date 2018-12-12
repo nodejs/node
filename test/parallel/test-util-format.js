@@ -316,10 +316,27 @@ assert.strictEqual(util.format(new BadCustomError('foo')),
 assert.strictEqual(util.format('1', '1'), '1 1');
 assert.strictEqual(util.format(1, '1'), '1 1');
 assert.strictEqual(util.format('1', 1), '1 1');
-assert.strictEqual(util.format(1, 1), '1 1');
+assert.strictEqual(util.format(1, -0), '1 -0');
 assert.strictEqual(util.format('1', () => {}), '1 [Function]');
 assert.strictEqual(util.format(1, () => {}), '1 [Function]');
 assert.strictEqual(util.format('1', "'"), "1 '");
 assert.strictEqual(util.format(1, "'"), "1 '");
 assert.strictEqual(util.format('1', 'number'), '1 number');
 assert.strictEqual(util.format(1, 'number'), '1 number');
+assert.strictEqual(util.format(5n), '5n');
+assert.strictEqual(util.format(5n, 5n), '5n 5n');
+
+// Check `formatWithOptions`.
+assert.strictEqual(
+  util.formatWithOptions(
+    { colors: true },
+    true, undefined, Symbol(), 1, 5n, null, 'foobar'
+  ),
+  '\u001b[33mtrue\u001b[39m ' +
+    '\u001b[90mundefined\u001b[39m ' +
+    '\u001b[32mSymbol()\u001b[39m ' +
+    '\u001b[33m1\u001b[39m ' +
+    '\u001b[33m5n\u001b[39m ' +
+    '\u001b[1mnull\u001b[22m ' +
+    'foobar'
+);
