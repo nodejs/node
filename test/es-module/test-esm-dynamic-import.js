@@ -3,7 +3,6 @@
 const common = require('../common');
 const assert = require('assert');
 const { URL } = require('url');
-const vm = require('vm');
 
 const relativePath = '../fixtures/es-modules/test-esm-ok.mjs';
 const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');
@@ -19,23 +18,6 @@ function expectErrorProperty(result, propertyKey, value) {
 
 function expectMissingModuleError(result) {
   expectErrorProperty(result, 'code', 'MODULE_NOT_FOUND');
-}
-
-function expectInvalidUrlError(result) {
-  expectErrorProperty(result, 'code', 'ERR_INVALID_URL');
-}
-
-function expectInvalidReferrerError(result) {
-  expectErrorProperty(result, 'code', 'ERR_INVALID_URL');
-}
-
-function expectInvalidProtocolError(result) {
-  expectErrorProperty(result, 'code', 'ERR_INVALID_PROTOCOL');
-}
-
-function expectInvalidContextError(result) {
-  expectErrorProperty(result,
-    'message', 'import() called outside of main context');
 }
 
 function expectOkNamespace(result) {
