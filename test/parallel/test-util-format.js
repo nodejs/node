@@ -341,3 +341,8 @@ assert.strictEqual(
     '\u001b[1mnull\u001b[22m ' +
     'foobar'
 );
+
+assert.strictEqual(
+  util.format(new SharedArrayBuffer(4)),
+  'SharedArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }'
+);
