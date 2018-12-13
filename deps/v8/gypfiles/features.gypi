@@ -122,8 +122,6 @@
 
     'v8_enable_pointer_compression%': 'false',
 
-    'v8_enable_31bit_smis_on_64bit_arch%': 'false',
-
     'v8_enable_embedded_builtins%': 'true',
 
     'v8_enable_fast_mksnapshot%': 0,
@@ -197,9 +195,6 @@
       # }],
       ['v8_enable_pointer_compression=="true"', {
         'defines': ['V8_COMPRESS_POINTERS',],
-      }],
-      ['v8_enable_31bit_smis_on_64bit_arch=="true"', {
-        'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
       }],
       ['v8_enable_embedded_builtins=="true"', {
         'defines': [
