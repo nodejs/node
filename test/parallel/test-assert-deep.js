@@ -24,7 +24,8 @@ function re(literals, ...values) {
       customInspect: false,
       maxArrayLength: Infinity,
       breakLength: Infinity,
-      sorted: true
+      sorted: true,
+      getters: true
     });
     // Need to escape special characters.
     result += str;
@@ -1048,4 +1049,25 @@ assert.throws(
     value: () => { throw new Error('failed'); }
   });
   assertDeepAndStrictEqual(a, b);
+}
+
+// Check getters.
+{
+  const a = {
+    get a() { return 5; }
+  };
+  const b = {
+    get a() { return 6; }
+  };
+  assert.throws(
+    () => assert.deepStrictEqual(a, b),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError [ERR_ASSERTION]',
+      message: /a: \[Getter: 5]\n-   a: \[Getter: 6]\n  /
+    }
+  );
+
+  // The descriptor is not compared.
+  assertDeepAndStrictEqual(a, { a: 5 });
 }
