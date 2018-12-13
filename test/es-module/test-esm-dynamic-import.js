@@ -23,9 +23,12 @@ function expectMissingModuleError(result) {
 function expectOkNamespace(result) {
   Promise.resolve(result)
     .then(common.mustCall((ns) => {
-      // Can't deepStrictEqual because ns isn't a normal object
-      // eslint-disable-next-line no-restricted-properties
-      assert.deepEqual(ns, { default: true });
+      const expected = { default: true };
+      Object.defineProperty(expected, Symbol.toStringTag, {
+        value: 'Module'
+      });
+      Object.setPrototypeOf(expected, Object.getPrototypeOf(ns));
+      assert.deepStrictEqual(ns, expected);
     }));
 }
 

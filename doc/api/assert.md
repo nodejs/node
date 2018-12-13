@@ -163,6 +163,10 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The type tags are now properly compared and a couple minor
+                 comparison adjustments to make the check less surprising.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: The `Error` names and messages are now properly compared
@@ -191,25 +195,38 @@ An alias of [`assert.deepStrictEqual()`][].
 
 > Stability: 0 - Deprecated: Use [`assert.deepStrictEqual()`][] instead.
 
-Tests for deep equality between the `actual` and `expected` parameters.
-Primitive values are compared with the [Abstract Equality Comparison][]
-( `==` ).
+Tests for deep equality between the `actual` and `expected` parameters. Consider
+using [`assert.deepStrictEqual()`][] instead. [`assert.deepEqual()`][] can have
+potentially surprising results.
 
-Only [enumerable "own" properties][] are considered. The
-[`assert.deepEqual()`][] implementation does not test the
-[`[[Prototype]]`][prototype-spec] of objects or enumerable own [`Symbol`][]
-properties. For such checks, consider using [`assert.deepStrictEqual()`][]
-instead. [`assert.deepEqual()`][] can have potentially surprising results. The
-following example does not throw an `AssertionError` because the properties on
-the [`RegExp`][] object are not enumerable:
+"Deep" equality means that the enumerable "own" properties of child objects
+are recursively evaluated also by the following rules.
+
+### Comparison details
+
+* Primitive values are compared with the [Abstract Equality Comparison][]
+  ( `==` ).
+* [Type tags][Object.prototype.toString()] of objects should be the same.
+* Only [enumerable "own" properties][] are considered.
+* [`Error`][] names and messages are always compared, even if these are not
+  enumerable properties.
+* [Object wrappers][] are compared both as objects and unwrapped values.
+* `Object` properties are compared unordered.
+* `Map` keys and `Set` items are compared unordered.
+* Recursion stops when both sides differ or both sides encounter a circular
+  reference.
+* Implementation does not test the [`[[Prototype]]`][prototype-spec] of
+  objects.
+* [`Symbol`][] properties are not compared.
+* [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values.
+
+The following example does not throw an `AssertionError` because the primitives
+are considered equal by the [Abstract Equality Comparison][] ( `==` ).
 
 ```js
 // WARNING: This does not throw an AssertionError!
-assert.deepEqual(/a/gi, new Date());
+assert.deepEqual('+00000000', false);
 ```
-
-An exception is made for [`Map`][] and [`Set`][]. `Map`s and `Set`s have their
-contained items compared too, as expected.
 
 "Deep" equality means that the enumerable "own" properties of child objects
 are evaluated also:
@@ -1249,10 +1266,8 @@ second argument. This might lead to difficult-to-spot errors.
 [`ERR_INVALID_RETURN_VALUE`]: errors.html#errors_err_invalid_return_value
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Error`]: errors.html#errors_class_error
-[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
-[`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
 [`Symbol`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol
 [`TypeError`]: errors.html#errors_class_typeerror
 [`WeakMap`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
