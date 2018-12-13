@@ -32,7 +32,8 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
     const cmd = [node, ..._args].join(' ');
     exec(cmd, common.mustCall((err, stdout, stderr) => {
       assert.strictEqual(err instanceof Error, true);
-      assert.strictEqual(err.code, 1);
+      assert.strictEqual(err.code, 1,
+                         `code ${err.code} !== 1 for error:\n\n${err}`);
 
       // no stdout should be produced
       assert.strictEqual(stdout, '');

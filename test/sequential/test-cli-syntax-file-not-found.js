@@ -33,7 +33,8 @@ const notFoundRE = /^Error: Cannot find module/m;
       // stderr should have a module not found error message
       assert(notFoundRE.test(stderr), `${notFoundRE} === ${stderr}`);
 
-      assert.strictEqual(err.code, 1);
+      assert.strictEqual(err.code, 1,
+                         `code ${err.code} !== 1 for error:\n\n${err}`);
     }));
   });
 });
