@@ -188,9 +188,7 @@ fs.writeFileSync(path, '');
 
 // Test Y2K38 for all platforms [except 'arm', 'OpenBSD' and 'SunOS']
 if (!process.arch.includes('arm') && !common.isOpenBSD && !common.isSunOS) {
-  // because 2 ** 31 doesn't look right
-  // eslint-disable-next-line space-infix-ops
-  const Y2K38_mtime = 2**31;
+  const Y2K38_mtime = 2 ** 31;
   fs.utimesSync(path, Y2K38_mtime, Y2K38_mtime);
   const Y2K38_stats = fs.statSync(path);
   assert.strictEqual(Y2K38_mtime, Y2K38_stats.mtime.getTime() / 1000);
