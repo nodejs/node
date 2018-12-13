@@ -1276,14 +1276,16 @@ void LoadEnvironment(Environment* env) {
       env->process_string(),
       FIXED_ONE_BYTE_STRING(isolate, "bootstrappers"),
       FIXED_ONE_BYTE_STRING(isolate, "loaderExports"),
-      FIXED_ONE_BYTE_STRING(isolate, "triggerFatalException")};
+      FIXED_ONE_BYTE_STRING(isolate, "triggerFatalException"),
+      FIXED_ONE_BYTE_STRING(isolate, "isMainThread")};
   std::vector<Local<Value>> node_args = {
       process,
       bootstrapper,
       loader_exports.ToLocalChecked(),
       env->NewFunctionTemplate(FatalException)
           ->GetFunction(context)
-          .ToLocalChecked()};
+          .ToLocalChecked(),
+      Boolean::New(isolate, env->is_main_thread())};
 
   if (ExecuteBootstrapper(
           env, "internal/bootstrap/node", &node_params, &node_args)
