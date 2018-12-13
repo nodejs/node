@@ -43,7 +43,13 @@ r.on('end', common.mustCall(() => {
 }));
 assert.strictEqual(r.readableFlowing, false);
 
-setTimeout(() => {
+// The stream emits the events asynchronously but that's not guaranteed to
+// happen on the next tick (especially since the _read implementation above
+// uses process.nextTick).
+//
+// We use setImmediate here to give the stream enough time to emit all the
+// events it's about to emit.
+setImmediate(() => {
 
   // Only the _read, push, readable calls have happened. No data must be
   // emitted yet.
@@ -61,8 +67,11 @@ setTimeout(() => {
   // Note: This 'null' signals "no data available". It isn't the end-of-stream
   // null value as the stream doesn't know yet that it is about to reach the
   // end.
+  //
+  // Using setImmediate again to give the stream enough time to emit all the
+  // events it wants to emit.
   assert.strictEqual(r.read(), null);
-  setTimeout(() => {
+  setImmediate(() => {
 
     // There's a new 'readable' event after the data has been pushed.
     // The 'end' event will be emitted only after a 'read()'.
@@ -91,5 +100,5 @@ setTimeout(() => {
         ['_read:a', 'push:a', 'readable', 'data:a',
          '_read:null', 'push:null', 'readable', 'end']);
     });
-  }, 1);
-}, 1);
+  });
+});
