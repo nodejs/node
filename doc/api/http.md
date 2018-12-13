@@ -331,7 +331,7 @@ emitted on the first call to `abort()`.
 added: v0.7.0
 -->
 
-* `response` {http.IncomingMessage}
+* `request` {http.IncomingMessage}
 * `socket` {net.Socket}
 * `head` {Buffer}
 
