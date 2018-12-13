@@ -602,11 +602,15 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
   env->destroy_async_id_list()->push_back(async_id);
 }
 
+void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
+  AsyncReset(object(), execution_async_id, silent);
+}
 
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
-void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
+void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id,
+                           bool silent) {
   if (async_id_ != -1) {
     // This instance was in use before, we have already emitted an init with
     // its previous async_id and need to emit a matching destroy for that
@@ -643,7 +647,7 @@ void AsyncWrap::AsyncReset(double execution_async_id, bool silent) {
 
   if (silent) return;
 
-  EmitAsyncInit(env(), object(),
+  EmitAsyncInit(env(), resource,
                 env()->async_hooks()->provider_string(provider_type()),
                 async_id_, trigger_async_id_);
 }
