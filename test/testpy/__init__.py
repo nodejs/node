@@ -78,13 +78,13 @@ class SimpleTestCase(test.TestCase):
       # failure so such tests are also skipped.
       if (any(flag.startswith('--inspect') for flag in flags) and
           not self.context.v8_enable_inspector):
-        print('Skipping as node was compiled without inspector support')
+        print(': Skipping as node was compiled without inspector support')
       elif (('--use-bundled-ca' in flags or
           '--use-openssl-ca' in flags or
           '--tls-v1.0' in flags or
           '--tls-v1.1' in flags) and
           not self.context.node_has_crypto):
-        print('Skipping as node was compiled without crypto support')
+        print(': Skipping as node was compiled without crypto support')
       else:
         result += flags
     files_match = FILES_PATTERN.search(source);
