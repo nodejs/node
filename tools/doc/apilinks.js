@@ -47,7 +47,9 @@ const tag = execSync(`git describe --contains ${hash}`).split('\n')[0] || hash;
 
 // Extract definitions from each file specified.
 const definition = {};
-process.argv.slice(2).forEach((file) => {
+const output = process.argv[2];
+const inputs = process.argv.slice(3);
+inputs.forEach((file) => {
   const basename = path.basename(file, '.js');
 
   // Parse source.
@@ -206,4 +208,4 @@ process.argv.slice(2).forEach((file) => {
   }
 });
 
-console.log(JSON.stringify(definition, null, 2));
+fs.writeFileSync(output, JSON.stringify(definition, null, 2), 'utf8');
