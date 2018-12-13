@@ -6,17 +6,23 @@ namespace util {
 
 using v8::ALL_PROPERTIES;
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::IndexFilter;
 using v8::Integer;
+using v8::KeyCollectionMode;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
 using v8::ONLY_WRITABLE;
 using v8::Private;
 using v8::Promise;
+using v8::PropertyFilter;
 using v8::Proxy;
+using v8::ReadOnly;
 using v8::SKIP_STRINGS;
 using v8::SKIP_SYMBOLS;
 using v8::String;
@@ -35,13 +41,13 @@ static void GetOwnNonIndexProperties(
 
   Local<Array> properties;
 
-  v8::PropertyFilter filter =
-    static_cast<v8::PropertyFilter>(args[1].As<Uint32>()->Value());
+  PropertyFilter filter =
+    static_cast<PropertyFilter>(args[1].As<Uint32>()->Value());
 
   if (!object->GetPropertyNames(
-        context, v8::KeyCollectionMode::kOwnOnly,
+        context, KeyCollectionMode::kOwnOnly,
         filter,
-        v8::IndexFilter::kSkipIndices)
+        IndexFilter::kSkipIndices)
           .ToLocal(&properties)) {
     return;
   }
@@ -94,7 +100,7 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(entries);
   Local<Array> ret = Array::New(env->isolate(), 2);
   ret->Set(env->context(), 0, entries).FromJust();
-  ret->Set(env->context(), 1, v8::Boolean::New(env->isolate(), is_key_value))
+  ret->Set(env->context(), 1, Boolean::New(env->isolate(), is_key_value))
       .FromJust();
   return args.GetReturnValue().Set(ret);
 }
@@ -169,7 +175,7 @@ void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue()
       .Set(String::NewFromUtf8(
             args.GetIsolate(), text.c_str(),
-            v8::NewStringType::kNormal).ToLocalChecked());
+            NewStringType::kNormal).ToLocalChecked());
 }
 
 void Initialize(Local<Object> target,
@@ -191,7 +197,7 @@ void Initialize(Local<Object> target,
     env->context(),
     OneByteString(env->isolate(), "pushValToArrayMax"),
     Integer::NewFromUnsigned(env->isolate(), NODE_PUSH_VAL_TO_ARRAY_MAX),
-    v8::ReadOnly).FromJust();
+    ReadOnly).FromJust();
 
 #define V(name)                                                               \
   target->Set(context,                                                        \
