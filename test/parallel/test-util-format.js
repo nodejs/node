@@ -308,3 +308,8 @@ Object.setPrototypeOf(BadCustomError.prototype, Error.prototype);
 Object.setPrototypeOf(BadCustomError, Error);
 assert.strictEqual(util.format(new BadCustomError('foo')),
                    '[BadCustomError: foo]');
+
+assert.strictEqual(
+  util.format(new SharedArrayBuffer(4)),
+  'SharedArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }'
+);

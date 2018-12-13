@@ -115,70 +115,86 @@ assert(!/Object/.test(
   util.inspect({ a: { a: { a: { a: {} } } } }, undefined, null, true)
 ));
 
-for (const showHidden of [true, false]) {
-  const ab = new ArrayBuffer(4);
+{
+  const showHidden = true;
+  const ab = new Uint8Array([1, 2, 3, 4]).buffer;
   const dv = new DataView(ab, 1, 2);
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, byteLength: 4 }'
   );
   assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden),
                      'DataView {\n' +
                      '  byteLength: 2,\n' +
                      '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+                     '  buffer:\n' +
+                     '   ArrayBuffer { [Uint8Contents]: ' +
+                       '<01 02 03 04>, byteLength: 4 } }');
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, byteLength: 4 }'
   );
   assert.strictEqual(util.inspect(dv, showHidden),
                      'DataView {\n' +
                      '  byteLength: 2,\n' +
                      '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+                     '  buffer:\n' +
+                     '   ArrayBuffer { [Uint8Contents]: ' +
+                       '<01 02 03 04>, byteLength: 4 } }');
   ab.x = 42;
   dv.y = 1337;
   assert.strictEqual(util.inspect(ab, showHidden),
-                     'ArrayBuffer { byteLength: 4, x: 42 }');
+                     'ArrayBuffer { [Uint8Contents]: <01 02 03 04>, ' +
+                       'byteLength: 4, x: 42 }');
   assert.strictEqual(util.inspect(dv, showHidden),
                      'DataView {\n' +
                      '  byteLength: 2,\n' +
                      '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
+                     '  buffer:\n' +
+                     '   ArrayBuffer { [Uint8Contents]: <01 02 03 04>, ' +
+                       'byteLength: 4, x: 42 },\n' +
                      '  y: 1337 }');
 }
 
 // Now do the same checks but from a different context.
-for (const showHidden of [true, false]) {
+{
+  const showHidden = false;
   const ab = vm.runInNewContext('new ArrayBuffer(4)');
   const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab });
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }'
   );
   assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden),
                      'DataView {\n' +
                      '  byteLength: 2,\n' +
                      '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+                     '  buffer:\n' +
+                     '   ArrayBuffer { [Uint8Contents]: <00 00 00 00>, ' +
+                       'byteLength: 4 } }');
   assert.strictEqual(
     util.inspect(ab, showHidden),
-    'ArrayBuffer { byteLength: 4 }'
+    'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, byteLength: 4 }'
   );
   assert.strictEqual(util.inspect(dv, showHidden),
                      'DataView {\n' +
                      '  byteLength: 2,\n' +
                      '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+                     '  buffer:\n' +
+                     '   ArrayBuffer { [Uint8Contents]: <00 00 00 00>, ' +
+                       'byteLength: 4 } }');
   ab.x = 42;
   dv.y = 1337;
   assert.strictEqual(util.inspect(ab, showHidden),
-                     'ArrayBuffer { byteLength: 4, x: 42 }');
+                     'ArrayBuffer { [Uint8Contents]: <00 00 00 00>, ' +
+                       'byteLength: 4, x: 42 }');
   assert.strictEqual(util.inspect(dv, showHidden),
                      'DataView {\n' +
                      '  byteLength: 2,\n' +
                      '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
+                     '  buffer:\n' +
+                     '   ArrayBuffer { [Uint8Contents]: <00 00 00 00>,' +
+                       ' byteLength: 4, x: 42 },\n' +
                      '  y: 1337 }');
 }
 
@@ -1639,13 +1655,14 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [new Float64Array(2), '[Float64Array: null prototype] [ 0, 0 ]'],
   [new BigInt64Array(2), '[BigInt64Array: null prototype] [ 0n, 0n ]'],
   [new BigUint64Array(2), '[BigUint64Array: null prototype] [ 0n, 0n ]'],
-  [new ArrayBuffer(16), '[ArrayBuffer: null prototype] ' +
-   '{ byteLength: undefined }'],
+  [new ArrayBuffer(16), '[ArrayBuffer: null prototype] {\n' +
+     '  [Uint8Contents]: <00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>,\n' +
+     '  byteLength: undefined }'],
   [new DataView(new ArrayBuffer(16)),
    '[DataView: null prototype] {\n  byteLength: undefined,\n  ' +
-    'byteOffset: undefined,\n  buffer: undefined }'],
+     'byteOffset: undefined,\n  buffer: undefined }'],
   [new SharedArrayBuffer(2), '[SharedArrayBuffer: null prototype] ' +
-  '{ byteLength: undefined }'],
+     '{ [Uint8Contents]: <00 00>, byteLength: undefined }'],
   [/foobar/, '[RegExp: null prototype] /foobar/']
 ].forEach(([value, expected]) => {
   assert.strictEqual(
