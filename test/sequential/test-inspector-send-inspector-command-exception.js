@@ -8,9 +8,9 @@ const common = require('../common');
 process.config.variables.v8_enable_inspector = 1;
 const inspector = require('internal/util/inspector');
 
-// Pass first argument as a String instead of cb() function to trigger
-// a TypeError that will be caught and onError() will be called 1 time
+// Pass first argument as a function that throws an error that will be caught
+// and onError() will be called
 inspector.sendInspectorCommand(
-  common.mustCall('String to trigger a TypeError'),
-  common.mustCall(1)
+  common.mustCall(() => { throw new Error('foo'); }),
+  common.mustCall()
 );
