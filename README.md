@@ -551,11 +551,14 @@ GPG keys used to sign Node.js releases:
 `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
 * **Ruben Bridgewater** &lt;ruben@bridgewater.de&gt;
 `A48C2BEE680E841632CD4E44F07496B3EB3C1762`
+* **Shelley Vohr** &lt;shelley.vohr@gmail.com&gt;
+`B9E2F5981AA6E0CD28160D9FF13993A75599653C`
 
 To import the full set of trusted release keys:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
+gpg --keyserver pool.sks-keyservers.net --recv-keys B9E2F5981AA6E0CD28160D9FF13993A75599653C
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys B9AE9905FFD7803F25714661B63B535A4C206CA9
 gpg --keyserver pool.sks-keyservers.net --recv-keys 77984A986EBC2AA786BC0F66B01FBB92821C587A
