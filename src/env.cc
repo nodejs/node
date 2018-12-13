@@ -211,6 +211,14 @@ Environment::Environment(IsolateData* isolate_data,
   }
 
   destroy_async_id_list_.reserve(512);
+  BeforeExit(
+      [](void* arg) {
+        Environment* env = static_cast<Environment*>(arg);
+        if (!env->destroy_async_id_list()->empty())
+          AsyncWrap::DestroyAsyncIdsCallback(env, nullptr);
+      },
+      this);
+
   performance_state_.reset(new performance::performance_state(isolate()));
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
