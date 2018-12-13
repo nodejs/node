@@ -102,7 +102,7 @@ BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
 
 void LowMemoryNotification() {
   if (v8_initialized) {
-    auto isolate = v8::Isolate::GetCurrent();
+    auto isolate = Isolate::GetCurrent();
     if (isolate != nullptr) {
       isolate->LowMemoryNotification();
     }
@@ -134,7 +134,7 @@ std::set<std::string> ParseCommaSeparatedSet(const std::string& in) {
   return out;
 }
 
-void ThrowErrStringTooLong(v8::Isolate* isolate) {
+void ThrowErrStringTooLong(Isolate* isolate) {
   isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
 }
 
