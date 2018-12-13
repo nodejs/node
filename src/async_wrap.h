@@ -46,7 +46,8 @@ namespace node {
   V(HTTP2STREAM)                                                              \
   V(HTTP2PING)                                                                \
   V(HTTP2SETTINGS)                                                            \
-  V(HTTPPARSER)                                                               \
+  V(HTTPINCOMINGMESSAGE)                                                      \
+  V(HTTPCLIENTREQUEST)                                                        \
   V(JSSTREAM)                                                                 \
   V(MESSAGEPORT)                                                              \
   V(PIPECONNECTWRAP)                                                          \
@@ -147,10 +148,15 @@ class AsyncWrap : public BaseObject {
   static void DestroyAsyncIdsCallback(Environment* env, void* data);
 
   inline ProviderType provider_type() const;
+  inline ProviderType set_provider_type(ProviderType provider);
 
   inline double get_async_id() const;
 
   inline double get_trigger_async_id() const;
+
+  void AsyncReset(v8::Local<v8::Object> resource,
+                  double execution_async_id = -1,
+                  bool silent = false);
 
   void AsyncReset(double execution_async_id = -1, bool silent = false);
 
@@ -202,7 +208,7 @@ class AsyncWrap : public BaseObject {
             ProviderType provider,
             double execution_async_id,
             bool silent);
-  const ProviderType provider_type_;
+  ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = -1;
   double trigger_async_id_;

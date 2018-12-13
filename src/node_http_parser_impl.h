@@ -152,11 +152,14 @@ struct StringPtr {
   size_t size_;
 };
 
+constexpr AsyncWrap::ProviderType DEFAULT_PROVIDER = \
+          AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE;
 
 class Parser : public AsyncWrap, public StreamListener {
  public:
-  Parser(Environment* env, Local<Object> wrap, parser_type_t type)
-      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
+  Parser(Environment* env, Local<Object> wrap, parser_type_t type,
+         AsyncWrap::ProviderType provider = DEFAULT_PROVIDER)
+      : AsyncWrap(env, wrap, provider),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
     Init(type);
@@ -406,6 +409,10 @@ class Parser : public AsyncWrap, public StreamListener {
     return 0;
   }
 
+  AsyncWrap::ProviderType set_provider_type(AsyncWrap::ProviderType provider) {
+    return AsyncWrap::set_provider_type(provider);
+  }
+
 #ifdef NODE_EXPERIMENTAL_HTTP
   // Reset nread for the next chunk
   int on_chunk_header() {
@@ -428,7 +435,12 @@ class Parser : public AsyncWrap, public StreamListener {
     parser_type_t type =
         static_cast<parser_type_t>(args[0].As<Int32>()->Value());
     CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    new Parser(env, args.This(), type);
+    AsyncWrap::ProviderType provider =
+        (type == HTTP_REQUEST ?
+            AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE
+            : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
+
+    new Parser(env, args.This(), type, provider);
   }
 
 
@@ -503,12 +515,12 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
+  static void Initialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
 
     CHECK(args[0]->IsInt32());
-    CHECK(args[1]->IsBoolean());
-    bool isReused = args[1]->IsTrue();
+    CHECK(args[1]->IsObject());
+
     parser_type_t type =
         static_cast<parser_type_t>(args[0].As<Int32>()->Value());
 
@@ -517,15 +529,15 @@ class Parser : public AsyncWrap, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
-    // This parser has either just been created or it is being reused.
-    // We must only call AsyncReset for the latter case, because AsyncReset has
-    // already been called via the constructor for the former case.
-    if (isReused) {
-      parser->AsyncReset();
-    }
+
+    AsyncWrap::ProviderType provider =
+        (type == HTTP_REQUEST ?
+            AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE
+            : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
+
+    parser->set_provider_type(provider);
     parser->Init(type);
   }
-
 
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
@@ -958,7 +970,7 @@ void InitializeHttpParser(Local<Object> target,
   env->SetProtoMethod(t, "free", Parser::Free);
   env->SetProtoMethod(t, "execute", Parser::Execute);
   env->SetProtoMethod(t, "finish", Parser::Finish);
-  env->SetProtoMethod(t, "reinitialize", Parser::Reinitialize);
+  env->SetProtoMethod(t, "initialize", Parser::Initialize);
   env->SetProtoMethod(t, "pause", Parser::Pause<true>);
   env->SetProtoMethod(t, "resume", Parser::Pause<false>);
   env->SetProtoMethod(t, "consume", Parser::Consume);

@@ -48,6 +48,8 @@ const { getSystemErrorName } = require('util');
     if (!common.isMainThread)
       delete providers.INSPECTORJSBINDING;
     delete providers.KEYPAIRGENREQUEST;
+    delete providers.HTTPCLIENTREQUEST;
+    delete providers.HTTPINCOMINGMESSAGE;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
