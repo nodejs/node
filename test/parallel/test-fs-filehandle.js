@@ -31,6 +31,6 @@ common.expectWarning({
   ]
 });
 
-gc();  // eslint-disable-line no-undef
+global.gc();
 
 setTimeout(() => {}, 10);
