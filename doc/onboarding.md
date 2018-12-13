@@ -96,11 +96,7 @@ onboarding session.
       `semver-major` label
     * When adding a `semver-*` label, add a comment explaining why you're adding
       it. Do it right away so you don't forget!
-  * Please add the `author-ready` label for PRs where:
-    * the CI has been started (not necessarily finished),
-    * no outstanding review comments exist and
-    * at least two Collaborators approved the PR (one Collaborator approval is
-      enough if the pull request has been open for more than 7 days).
+  * Please add the [`author-ready`][] label for PRs, if applicable.
 
 * See [Who to CC in the issue tracker][who-to-cc].
   * This will come more naturally over time
@@ -245,6 +241,7 @@ needs to be pointed out separately during the onboarding.
   the [summit](https://github.com/nodejs/summit) repository for details.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[`author-ready`]: https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
