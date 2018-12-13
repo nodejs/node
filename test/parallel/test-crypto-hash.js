@@ -111,6 +111,17 @@ assert.throws(function() {
   crypto.createHash('xyzzy');
 }, /Digest method not supported/);
 
+// Issue https://github.com/nodejs/node/issues/9819: throwing encoding used to
+// segfault.
+common.expectsError(
+  () => crypto.createHash('sha256').digest({
+    toString: () => { throw new Error('boom'); },
+  }),
+  {
+    type: Error,
+    message: 'boom'
+  });
+
 // Default UTF-8 encoding
 const hutf8 = crypto.createHash('sha512').update('УТФ-8 text').digest('hex');
 assert.strictEqual(
