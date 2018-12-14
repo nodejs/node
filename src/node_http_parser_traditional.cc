@@ -6,7 +6,7 @@
 
 namespace node {
 
-const char* http_parser_version =
+const char* const http_parser_version =
   NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR)
   "."
   NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)

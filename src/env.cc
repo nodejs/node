@@ -65,7 +65,7 @@ class TraceEventScope {
 };
 
 int const Environment::kNodeContextTag = 0x6e6f64;
-void* Environment::kNodeContextTagPtr = const_cast<void*>(
+void* const Environment::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&Environment::kNodeContextTag));
 
 IsolateData::IsolateData(Isolate* isolate,
