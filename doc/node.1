@@ -97,17 +97,17 @@ Enable experimental ES module support in VM module.
 .It Fl -experimental-worker
 Enable experimental worker threads using worker_threads module.
 .
-.It Fl -http-parser Ns = Ns Ar library
-Chooses an HTTP parser library. Available values are
-.Sy llhttp
-or
-.Sy legacy .
-.
 .It Fl -force-fips
 Force FIPS-compliant crypto on startup
 (Cannot be disabled from script code).
 Same requirements as
 .Fl -enable-fips .
+.
+.It Fl -http-parser Ns = Ns Ar library
+Chooses an HTTP parser library. Available values are
+.Sy llhttp
+or
+.Sy legacy .
 .
 .It Fl -icu-data-dir Ns = Ns Ar file
 Specify ICU data load path.
