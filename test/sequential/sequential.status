@@ -26,5 +26,7 @@ test-http2-large-file: PASS, FLAKY
 [$system==freebsd]
 
 [$system==aix]
+# https://github.com/nodejs/node/issues/24921
+test-child-process-execsync: PASS, FLAKY
 
 [$arch==arm]
