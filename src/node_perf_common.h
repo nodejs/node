@@ -75,6 +75,8 @@ class performance_state {
   AliasedBuffer<double, v8::Float64Array> milestones;
   AliasedBuffer<uint32_t, v8::Uint32Array> observers;
 
+  uint64_t performance_last_gc_start_mark = 0;
+
   void Mark(enum PerformanceMilestone milestone,
             uint64_t ts = PERFORMANCE_NOW());
 
