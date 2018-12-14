@@ -214,15 +214,16 @@ test(function fastTimeout(cb) {
   }));
 });
 
-test(function serverTimeout(cb) {
+test(function serverTimeout() {
   const server = http.createServer();
   server.listen(common.mustCall(() => {
     const timeoutValue = 50;
     const s = server.setTimeout(timeoutValue);
-    assert.equal(s.timeout, timeoutValue);
+    assert.strictEqual(s.timeout, timeoutValue);
     assert.ok(s instanceof http.Server);
     http.get({
       port: server.address().port
     }).on('error', common.mustCall());
+    server.close();
   }));
 });
