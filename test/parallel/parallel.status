@@ -18,6 +18,8 @@ test-worker-syntax-error-file: PASS,FLAKY
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
+# https://github.com/nodejs/node/issues/25028
+test-cli-node-options: PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
