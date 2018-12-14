@@ -42,9 +42,6 @@ const double timeOriginTimestamp = GetCurrentTimeInMicroseconds();
 uint64_t performance_node_start;
 uint64_t performance_v8_start;
 
-uint64_t performance_last_gc_start_mark_ = 0;
-GCType performance_last_gc_type_ = GCType::kGCTypeAll;
-
 void performance_state::Mark(enum PerformanceMilestone milestone,
                              uint64_t ts) {
   this->milestones[milestone] = ts;
@@ -268,9 +265,10 @@ void PerformanceGCCallback(Environment* env, void* ptr) {
 // Marks the start of a GC cycle
 void MarkGarbageCollectionStart(Isolate* isolate,
                                 GCType type,
-                                GCCallbackFlags flags) {
-  performance_last_gc_start_mark_ = PERFORMANCE_NOW();
-  performance_last_gc_type_ = type;
+                                GCCallbackFlags flags,
+                                void* data) {
+  Environment* env = static_cast<Environment*>(data);
+  env->performance_state()->performance_last_gc_start_mark = PERFORMANCE_NOW();
 }
 
 // Marks the end of a GC cycle
@@ -279,13 +277,14 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                               GCCallbackFlags flags,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
+  performance_state* state = env->performance_state();
   // If no one is listening to gc performance entries, do not create them.
-  if (!env->performance_state()->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC])
+  if (!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC])
     return;
   GCPerformanceEntry* entry =
       new GCPerformanceEntry(env,
                              static_cast<PerformanceGCKind>(type),
-                             performance_last_gc_start_mark_,
+                             state->performance_last_gc_start_mark,
                              PERFORMANCE_NOW());
   env->SetUnrefImmediate(PerformanceGCCallback,
                          entry);
@@ -293,7 +292,8 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
 
 
 inline void SetupGarbageCollectionTracking(Environment* env) {
-  env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart);
+  env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
+                                        static_cast<void*>(env));
   env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
                                         static_cast<void*>(env));
 }
