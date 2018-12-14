@@ -24,7 +24,7 @@ common.expectsError(
 // This used to segfault. See: https://github.com/nodejs/node/issues/9819
 common.expectsError(
   () => crypto.createHmac('sha256', 'key').digest({
-      toString: () => { throw new Error("boom"); },
+      toString: () => { throw new Error('boom'); },
     }),
   {
     type: Error,

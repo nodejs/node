@@ -115,7 +115,7 @@ assert.throws(function() {
 // segfault.
 common.expectsError(
   () => crypto.createHash('sha256').digest({
-    toString: () => { throw new Error("boom"); },
+    toString: () => { throw new Error('boom'); },
   }),
   {
     type: Error,
