@@ -500,7 +500,7 @@ class WPTRunner {
       }
 
       if (!common.hasIntl && test.requireIntl()) {
-        this.skip(filename, 'missing Intl');
+        this.skip(filename, [ 'missing Intl' ]);
         continue;
       }
 
