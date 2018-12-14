@@ -101,18 +101,6 @@ const char* Builtins::Lookup(Address pc) {
   return nullptr;
 }
 
-Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
-  switch (scope_type) {
-    case ScopeType::EVAL_SCOPE:
-      return builtin_handle(kFastNewFunctionContextEval);
-    case ScopeType::FUNCTION_SCOPE:
-      return builtin_handle(kFastNewFunctionContextFunction);
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
-
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:
@@ -166,7 +154,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, IGNORE_BUILTIN)
+                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(name);

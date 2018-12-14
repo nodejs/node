@@ -380,6 +380,23 @@ void RelocInfo::set_target_address(Address target,
   }
 }
 
+bool RelocInfo::HasTargetAddressAddress() const {
+  // TODO(jgruber): Investigate whether WASM_CALL is still appropriate on
+  // non-intel platforms now that wasm code is no longer on the heap.
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+  static constexpr int kTargetAddressAddressModeMask =
+      ModeMask(CODE_TARGET) | ModeMask(EMBEDDED_OBJECT) |
+      ModeMask(EXTERNAL_REFERENCE) | ModeMask(OFF_HEAP_TARGET) |
+      ModeMask(RUNTIME_ENTRY) | ModeMask(WASM_CALL) | ModeMask(WASM_STUB_CALL);
+#else
+  static constexpr int kTargetAddressAddressModeMask =
+      ModeMask(CODE_TARGET) | ModeMask(EMBEDDED_OBJECT) |
+      ModeMask(EXTERNAL_REFERENCE) | ModeMask(OFF_HEAP_TARGET) |
+      ModeMask(RUNTIME_ENTRY) | ModeMask(WASM_CALL);
+#endif
+  return (ModeMask(rmode_) & kTargetAddressAddressModeMask) != 0;
+}
+
 bool RelocInfo::RequiresRelocationAfterCodegen(const CodeDesc& desc) {
   RelocIterator it(desc, RelocInfo::PostCodegenRelocationMask());
   return !it.done();

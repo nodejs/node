@@ -399,13 +399,13 @@ enum SlotType {
 // encoded (slot type, slot offset) pairs.
 // There is no duplicate detection and we do not expect many duplicates because
 // typed slots contain V8 internal pointers that are not directly exposed to JS.
-class TypedSlots {
+class V8_EXPORT_PRIVATE TypedSlots {
  public:
   static const int kMaxOffset = 1 << 29;
   TypedSlots() = default;
   virtual ~TypedSlots();
-  V8_EXPORT_PRIVATE void Insert(SlotType type, uint32_t offset);
-  V8_EXPORT_PRIVATE void Merge(TypedSlots* other);
+  void Insert(SlotType type, uint32_t offset);
+  void Merge(TypedSlots* other);
 
  protected:
   class OffsetField : public BitField<int, 0, 29> {};

@@ -418,6 +418,9 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
+  DECL_PRIMITIVE_ACCESSORS(data_segment_starts, Address*)
+  DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
+  DECL_PRIMITIVE_ACCESSORS(dropped_data_segments, byte*)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInstanceObject)
@@ -453,6 +456,9 @@ class WasmInstanceObject : public JSObject {
   V(kIndirectFunctionTableSigIdsOffset, kPointerSize)    /* untagged */ \
   V(kIndirectFunctionTableTargetsOffset, kPointerSize)   /* untagged */ \
   V(kJumpTableStartOffset, kPointerSize)                 /* untagged */ \
+  V(kDataSegmentStartsOffset, kPointerSize)              /* untagged */ \
+  V(kDataSegmentSizesOffset, kPointerSize)               /* untagged */ \
+  V(kDroppedDataSegmentsOffset, kPointerSize)            /* untagged */ \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)       /* untagged */ \
   V(k64BitArchPaddingOffset, kPointerSize - kUInt32Size) /* padding */  \
   V(kSize, 0)
@@ -482,6 +488,10 @@ class WasmInstanceObject : public JSObject {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject)
+
+ private:
+  static void InitDataSegmentArrays(Handle<WasmInstanceObject>,
+                                    Handle<WasmModuleObject>);
 };
 
 // Representation of WebAssembly.Exception JavaScript-level object.

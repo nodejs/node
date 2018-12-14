@@ -9910,6 +9910,57 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* maybe_vector,
   BIND(&end);
 }
 
+Node* CodeStubAssembler::GetLanguageMode(
+    TNode<SharedFunctionInfo> shared_function_info, Node* context) {
+  VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
+           SmiConstant(LanguageMode::kStrict));
+  Label language_mode_determined(this), language_mode_sloppy(this);
+
+  // Get the language mode from SFI
+  TNode<Uint32T> closure_is_strict =
+      DecodeWord32<SharedFunctionInfo::IsStrictBit>(LoadObjectField(
+          shared_function_info, SharedFunctionInfo::kFlagsOffset,
+          MachineType::Uint32()));
+  // It is already strict, we need not check context's language mode.
+  GotoIf(closure_is_strict, &language_mode_determined);
+
+  // SFI::LanguageMode is sloppy, check if context has a stricter mode.
+  TNode<ScopeInfo> scope_info =
+      CAST(LoadObjectField(context, Context::kScopeInfoOffset));
+  // If no flags field assume sloppy
+  GotoIf(SmiLessThanOrEqual(LoadFixedArrayBaseLength(scope_info),
+                            SmiConstant(ScopeInfo::Fields::kFlags)),
+         &language_mode_sloppy);
+  TNode<Smi> flags = CAST(LoadFixedArrayElement(
+      scope_info, SmiConstant(ScopeInfo::Fields::kFlags)));
+  TNode<Uint32T> context_is_strict =
+      DecodeWord32<ScopeInfo::LanguageModeField>(SmiToInt32(flags));
+  GotoIf(context_is_strict, &language_mode_determined);
+  Goto(&language_mode_sloppy);
+
+  // Both Context::ScopeInfo::LanguageMode and SFI::LanguageMode are sloppy.
+  BIND(&language_mode_sloppy);
+  var_language_mode.Bind(SmiConstant(LanguageMode::kSloppy));
+  Goto(&language_mode_determined);
+
+  BIND(&language_mode_determined);
+  return var_language_mode.value();
+}
+
+Node* CodeStubAssembler::GetLanguageMode(TNode<JSFunction> closure,
+                                         Node* context) {
+  TNode<SharedFunctionInfo> sfi =
+      CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
+  return GetLanguageMode(sfi, context);
+}
+
+Node* CodeStubAssembler::GetLanguageMode(TNode<FeedbackVector> vector,
+                                         Node* context) {
+  TNode<SharedFunctionInfo> sfi =
+      CAST(LoadObjectField(vector, FeedbackVector::kSharedFunctionInfoOffset));
+  return GetLanguageMode(sfi, context);
+}
+
 void CodeStubAssembler::ReportFeedbackUpdate(
     SloppyTNode<FeedbackVector> feedback_vector, SloppyTNode<IntPtrT> slot_id,
     const char* reason) {

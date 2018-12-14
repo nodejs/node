@@ -103,11 +103,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ArraySingleArgumentConstructor(
       Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode);
-
-  static Callable InternalArrayNoArgumentConstructor(Isolate* isolate,
-                                                     ElementsKind kind);
-  static Callable InternalArraySingleArgumentConstructor(Isolate* isolate,
-                                                         ElementsKind kind);
 };
 
 }  // namespace internal

@@ -349,6 +349,9 @@ bool AsmJsScanner::ConsumeCComment() {
         return true;
       }
     }
+    if (ch == '\n') {
+      preceded_by_newline_ = true;
+    }
     if (ch == kEndOfInput) {
       return false;
     }
@@ -358,7 +361,11 @@ bool AsmJsScanner::ConsumeCComment() {
 void AsmJsScanner::ConsumeCPPComment() {
   for (;;) {
     uc32 ch = stream_->Advance();
-    if (ch == '\n' || ch == kEndOfInput) {
+    if (ch == '\n') {
+      preceded_by_newline_ = true;
+      return;
+    }
+    if (ch == kEndOfInput) {
       return;
     }
   }

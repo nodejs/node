@@ -157,7 +157,7 @@ class CompilationStateImpl {
     wire_bytes_storage_ = wire_bytes_storage;
   }
 
-  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() {
+  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const {
     base::MutexGuard guard(&mutex_);
     return wire_bytes_storage_;
   }
@@ -436,11 +436,16 @@ class InstanceBuilder {
 CompilationStateImpl* Impl(CompilationState* compilation_state) {
   return reinterpret_cast<CompilationStateImpl*>(compilation_state);
 }
+const CompilationStateImpl* Impl(const CompilationState* compilation_state) {
+  return reinterpret_cast<const CompilationStateImpl*>(compilation_state);
+}
 
 }  // namespace
 
 //////////////////////////////////////////////////////
 // PIMPL implementation of {CompilationState}.
+
+CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
 void CompilationState::CancelAndWait() { Impl(this)->CancelAndWait(); }
 
@@ -454,7 +459,8 @@ void CompilationState::SetWireBytesStorage(
   Impl(this)->SetWireBytesStorage(std::move(wire_bytes_storage));
 }
 
-std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage() {
+std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage()
+    const {
   return Impl(this)->GetWireBytesStorage();
 }
 
@@ -462,7 +468,7 @@ void CompilationState::AddCallback(CompilationState::callback_t callback) {
   return Impl(this)->AddCallback(std::move(callback));
 }
 
-CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
+bool CompilationState::failed() const { return Impl(this)->failed(); }
 
 // static
 std::unique_ptr<CompilationState> CompilationState::New(
@@ -510,12 +516,12 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
       isolate->counters(),
       Impl(native_module->compilation_state())->detected_features());
 
-  // If there is a pending error, something really went wrong. The module was
-  // verified before starting execution with lazy compilation.
+  // During lazy compilation, we should never get compilation errors. The module
+  // was verified before starting execution with lazy compilation.
   // This might be OOM, but then we cannot continue execution anyway.
   // TODO(clemensh): According to the spec, we can actually skip validation at
   // module creation time, and return a function that always traps here.
-  CHECK(!unit.failed());
+  CHECK(!native_module->compilation_state()->failed());
 
   WasmCode* code = unit.result();
 
@@ -652,7 +658,9 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   ExecutionTier tier = unit->tier();
   unit->ExecuteCompilation(env, compilation_state->GetSharedWireBytesStorage(),
                            counters, detected);
-  if (!unit->failed()) compilation_state->ScheduleCodeLogging(unit->result());
+  if (WasmCode* result = unit->result()) {
+    compilation_state->ScheduleCodeLogging(result);
+  }
   compilation_state->ScheduleUnitForFinishing(std::move(unit), tier);
 
   return true;
@@ -677,11 +685,6 @@ void FinishCompilationUnits(CompilationStateImpl* compilation_state) {
     std::unique_ptr<WasmCompilationUnit> unit =
         compilation_state->GetNextExecutedUnit();
     if (unit == nullptr) break;
-
-    if (unit->failed()) {
-      compilation_state->Abort();
-      break;
-    }
 
     // Update the compilation state.
     compilation_state->OnFinishedUnit();
@@ -783,16 +786,15 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = native_module->module();
   WasmFeatures detected = kNoWasmFeatures;
-  for (uint32_t i = 0; i < module->functions.size(); ++i) {
-    const WasmFunction& func = module->functions[i];
+  auto* comp_state = Impl(native_module->compilation_state());
+  for (const WasmFunction& func : module->functions) {
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
     // Compile the function.
-    bool success = WasmCompilationUnit::CompileWasmFunction(
-        isolate, native_module, &detected, &func);
-    if (!success) {
-      thrower->CompileFailed(
-          Impl(native_module->compilation_state())->GetCompileError());
+    WasmCompilationUnit::CompileWasmFunction(isolate, native_module, &detected,
+                                             &func);
+    if (comp_state->failed()) {
+      thrower->CompileFailed(comp_state->GetCompileError());
       break;
     }
   }
@@ -912,8 +914,7 @@ class FinishCompileTask : public CancelableTask {
         break;
       }
 
-      DCHECK_IMPLIES(unit->failed(), compilation_state_->failed());
-      if (unit->failed()) break;
+      if (compilation_state_->failed()) break;
 
       // Update the compilation state, and possibly notify
       // threads waiting for events.

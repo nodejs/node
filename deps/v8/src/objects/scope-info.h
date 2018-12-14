@@ -201,12 +201,51 @@ class ScopeInfo : public FixedArray {
   FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS
 
-  enum {
+  enum Fields {
 #define DECL_INDEX(name) k##name,
     FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(DECL_INDEX)
 #undef DECL_INDEX
         kVariablePartIndex
   };
+
+  // Used for the function name variable for named function expressions, and for
+  // the receiver.
+  enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
+
+  // Properties of scopes.
+  class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
+  class CallsSloppyEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {
+  };
+  STATIC_ASSERT(LanguageModeSize == 2);
+  class LanguageModeField
+      : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
+  class DeclarationScopeField
+      : public BitField<bool, LanguageModeField::kNext, 1> {};
+  class ReceiverVariableField
+      : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
+                        2> {};
+  class HasNewTargetField
+      : public BitField<bool, ReceiverVariableField::kNext, 1> {};
+  class FunctionVariableField
+      : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
+  // TODO(cbruni): Combine with function variable field when only storing the
+  // function name.
+  class HasInferredFunctionNameField
+      : public BitField<bool, FunctionVariableField::kNext, 1> {};
+  class AsmModuleField
+      : public BitField<bool, HasInferredFunctionNameField::kNext, 1> {};
+  class HasSimpleParametersField
+      : public BitField<bool, AsmModuleField::kNext, 1> {};
+  class FunctionKindField
+      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 5> {};
+  class HasOuterScopeInfoField
+      : public BitField<bool, FunctionKindField::kNext, 1> {};
+  class IsDebugEvaluateScopeField
+      : public BitField<bool, HasOuterScopeInfoField::kNext, 1> {};
+  class ForceContextAllocationField
+      : public BitField<bool, IsDebugEvaluateScopeField::kNext, 1> {};
+
+  STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 
  private:
   // The layout of the variable part of a ScopeInfo is as follows:
@@ -267,45 +306,8 @@ class ScopeInfo : public FixedArray {
                       InitializationFlag* init_flag = nullptr,
                       MaybeAssignedFlag* maybe_assigned_flag = nullptr);
 
-  // Used for the function name variable for named function expressions, and for
-  // the receiver.
-  enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
-
   static const int kFunctionNameEntries = 2;
   static const int kPositionInfoEntries = 2;
-
-  // Properties of scopes.
-  class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
-  class CallsSloppyEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {
-  };
-  STATIC_ASSERT(LanguageModeSize == 2);
-  class LanguageModeField
-      : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
-  class DeclarationScopeField
-      : public BitField<bool, LanguageModeField::kNext, 1> {};
-  class ReceiverVariableField
-      : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
-                        2> {};
-  class HasNewTargetField
-      : public BitField<bool, ReceiverVariableField::kNext, 1> {};
-  class FunctionVariableField
-      : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
-  // TODO(cbruni): Combine with function variable field when only storing the
-  // function name.
-  class HasInferredFunctionNameField
-      : public BitField<bool, FunctionVariableField::kNext, 1> {};
-  class AsmModuleField
-      : public BitField<bool, HasInferredFunctionNameField::kNext, 1> {};
-  class HasSimpleParametersField
-      : public BitField<bool, AsmModuleField::kNext, 1> {};
-  class FunctionKindField
-      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 5> {};
-  class HasOuterScopeInfoField
-      : public BitField<bool, FunctionKindField::kNext, 1> {};
-  class IsDebugEvaluateScopeField
-      : public BitField<bool, HasOuterScopeInfoField::kNext, 1> {};
-
-  STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 
   // Properties of variables.
   class VariableModeField : public BitField<VariableMode, 0, 3> {};

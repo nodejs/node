@@ -260,6 +260,7 @@ class RelocInfo {
   // output before the next target.  Architecture-independent code shouldn't
   // dereference the pointer it gets back from this.
   V8_INLINE Address target_address_address();
+  bool HasTargetAddressAddress() const;
 
   // This indicates how much space a target takes up when deserializing a code
   // stream.  For most architectures this is just the size of a pointer.  For

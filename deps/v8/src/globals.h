@@ -775,6 +775,8 @@ struct CodeDesc {
 
 // State for inline cache call sites. Aliased as IC::State.
 enum InlineCacheState {
+  // No feedback will be collected.
+  NO_FEEDBACK,
   // Has never been executed.
   UNINITIALIZED,
   // Has been executed but monomorhic state has been delayed.
@@ -794,6 +796,8 @@ enum InlineCacheState {
 // Printing support.
 inline const char* InlineCacheState2String(InlineCacheState state) {
   switch (state) {
+    case NO_FEEDBACK:
+      return "NOFEEDBACK";
     case UNINITIALIZED:
       return "UNINITIALIZED";
     case PREMONOMORPHIC:
@@ -1674,7 +1678,8 @@ enum class LoadSensitivity {
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncInvalid)               \
-  V(TrapFuncSigMismatch)
+  V(TrapFuncSigMismatch)           \
+  V(TrapDataSegmentDropped)
 
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,

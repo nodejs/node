@@ -98,10 +98,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
       std::shared_ptr<CompilationResultResolver> resolver);
 
-  // Compiles the function with the given index at a specific compilation tier
-  // and returns true on success, false otherwise. This is mostly used for
-  // testing to force a function into a specific tier.
-  bool CompileFunction(Isolate* isolate, NativeModule* native_module,
+  // Compiles the function with the given index at a specific compilation tier.
+  // Errors are stored internally in the CompilationState.
+  // This is mostly used for testing to force a function into a specific tier.
+  void CompileFunction(Isolate* isolate, NativeModule* native_module,
                        uint32_t function_index, ExecutionTier tier);
 
   // Exports the sharable parts of the given module object so that they can be

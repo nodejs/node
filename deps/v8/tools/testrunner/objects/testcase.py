@@ -112,10 +112,6 @@ class TestCase(object):
       self._parse_status_file_outcomes(self._statusfile_outcomes))
 
   def _parse_status_file_outcomes(self, outcomes):
-    # This flag does not affect the test execution or outcome parsing by
-    # default, but subclasses can implement custom logic when it is set.
-    self.fail_phase_only = statusfile.FAIL_PHASE_ONLY in outcomes
-
     if (statusfile.FAIL_SLOPPY in outcomes and
         '--use-strict' not in self.variant_flags):
       return outproc.OUTCOMES_FAIL

@@ -125,7 +125,7 @@ void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
 }
 
 // static
-bool WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
+void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                                               NativeModule* native_module,
                                               WasmFeatures* detected,
                                               const WasmFunction* function,
@@ -141,7 +141,6 @@ bool WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(), detected);
-  return !unit.failed();
 }
 
 void WasmCompilationUnit::SetResult(WasmCode* code, Counters* counters) {

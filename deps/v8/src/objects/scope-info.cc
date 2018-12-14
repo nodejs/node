@@ -179,7 +179,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       HasSimpleParametersField::encode(has_simple_parameters) |
       FunctionKindField::encode(function_kind) |
       HasOuterScopeInfoField::encode(has_outer_scope_info) |
-      IsDebugEvaluateScopeField::encode(scope->is_debug_evaluate_scope());
+      IsDebugEvaluateScopeField::encode(scope->is_debug_evaluate_scope()) |
+      ForceContextAllocationField::encode(scope->ForceContextForLanguageMode());
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(parameter_count);
@@ -482,7 +483,9 @@ int ScopeInfo::ContextLength() const {
     int context_locals = ContextLocalCount();
     bool function_name_context_slot =
         FunctionVariableField::decode(Flags()) == CONTEXT;
-    bool has_context = context_locals > 0 || function_name_context_slot ||
+    bool force_context = ForceContextAllocationField::decode(Flags());
+    bool has_context = context_locals > 0 || force_context ||
+                       function_name_context_slot ||
                        scope_type() == WITH_SCOPE ||
                        (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
                         is_declaration_scope()) ||

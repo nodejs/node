@@ -828,6 +828,9 @@ void AccessorAssembler::HandleStoreICNativeDataProperty(
   Node* accessor_info = LoadDescriptorValue(LoadMap(holder), descriptor);
   CSA_CHECK(this, IsAccessorInfo(accessor_info));
 
+  // TODO(8580): Get the language mode lazily when required to avoid the
+  // computation of GetLanguageMode here. Also make the computation of
+  // language mode not dependent on vector.
   Node* language_mode = GetLanguageMode(p->vector, p->slot);
 
   TailCallRuntime(Runtime::kStoreCallbackProperty, p->context, p->receiver,
@@ -1448,6 +1451,9 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
   Label if_index(this), if_unique_name(this),
       to_name_failed(this, Label::kDeferred);
 
+  // TODO(8580): Get the language mode lazily when required to avoid the
+  // computation of GetLanguageMode here. Also make the computation of
+  // language mode not dependent on vector.
   Node* language_mode = GetLanguageMode(p->vector, p->slot);
 
   if (support_elements == kSupportElements) {
@@ -2383,6 +2389,8 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
   // accident.
   Label stub_call(this, Label::kDeferred), miss(this, Label::kDeferred);
 
+  GotoIf(IsUndefined(p->vector), &miss);
+
   // Inlined fast path.
   {
     Comment("LoadIC_BytecodeHandler_fast");
@@ -2569,7 +2577,8 @@ void AccessorAssembler::LoadGlobalIC(TNode<FeedbackVector> vector, Node* slot,
     TNode<Context> context = lazy_context();
     TNode<Name> name = lazy_name();
     exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name,
-                                  ParameterToTagged(slot, slot_mode), vector);
+                                  ParameterToTagged(slot, slot_mode), vector,
+                                  SmiConstant(typeof_mode));
   }
 }
 
@@ -3181,9 +3190,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
   BIND(&miss);
   {
     Comment("StoreInArrayLiteralIC_miss");
-    // TODO(neis): Introduce Runtime::kStoreInArrayLiteralIC_Miss.
-    TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value, p->slot,
-                    p->vector, p->receiver, p->name);
+    TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Miss, p->context, p->value,
+                    p->slot, p->vector, p->receiver, p->name);
   }
 }
 

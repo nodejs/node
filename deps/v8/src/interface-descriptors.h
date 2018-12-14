@@ -16,71 +16,71 @@ namespace v8 {
 namespace internal {
 
 #define INTERFACE_DESCRIPTOR_LIST(V)  \
-  V(CppBuiltinAdaptor)                \
-  V(CEntry1ArgvOnStack)               \
-  V(Allocate)                         \
-  V(Void)                             \
-  V(ContextOnly)                      \
-  V(NoContext)                        \
-  V(Load)                             \
-  V(LoadWithVector)                   \
-  V(LoadGlobal)                       \
-  V(LoadGlobalWithVector)             \
-  V(Store)                            \
-  V(StoreWithVector)                  \
-  V(StoreTransition)                  \
-  V(StoreGlobal)                      \
-  V(StoreGlobalWithVector)            \
-  V(FastNewFunctionContext)           \
-  V(FastNewObject)                    \
-  V(RecordWrite)                      \
-  V(TypeConversion)                   \
-  V(TypeConversionStackParameter)     \
-  V(Typeof)                           \
-  V(AsyncFunctionStackParameter)      \
-  V(CallVarargs)                      \
-  V(CallForwardVarargs)               \
-  V(CallWithSpread)                   \
-  V(CallWithArrayLike)                \
-  V(CallTrampoline)                   \
-  V(ConstructStub)                    \
-  V(ConstructVarargs)                 \
-  V(ConstructForwardVarargs)          \
-  V(ConstructWithSpread)              \
-  V(ConstructWithArrayLike)           \
-  V(JSTrampoline)                     \
   V(Abort)                            \
+  V(Allocate)                         \
   V(AllocateHeapNumber)               \
-  V(ArrayConstructor)                 \
-  V(ArrayNoArgumentConstructor)       \
-  V(ArraySingleArgumentConstructor)   \
-  V(ArrayNArgumentsConstructor)       \
-  V(Compare)                          \
-  V(BinaryOp)                         \
-  V(StringAt)                         \
-  V(StringSubstring)                  \
-  V(GetProperty)                      \
-  V(ArgumentsAdaptor)                 \
   V(ApiCallback)                      \
   V(ApiGetter)                        \
+  V(ArgumentsAdaptor)                 \
+  V(ArrayConstructor)                 \
+  V(ArrayNArgumentsConstructor)       \
+  V(ArrayNoArgumentConstructor)       \
+  V(ArraySingleArgumentConstructor)   \
+  V(AsyncFunctionStackParameter)      \
+  V(BigIntToI64)                      \
+  V(BigIntToWasmI64)                  \
+  V(BinaryOp)                         \
+  V(CallForwardVarargs)               \
+  V(CallTrampoline)                   \
+  V(CallVarargs)                      \
+  V(CallWithArrayLike)                \
+  V(CallWithSpread)                   \
+  V(CEntry1ArgvOnStack)               \
+  V(CloneObjectWithVector)            \
+  V(Compare)                          \
+  V(ConstructForwardVarargs)          \
+  V(ConstructStub)                    \
+  V(ConstructVarargs)                 \
+  V(ConstructWithArrayLike)           \
+  V(ConstructWithSpread)              \
+  V(ContextOnly)                      \
+  V(CppBuiltinAdaptor)                \
+  V(FastNewFunctionContext)           \
+  V(FastNewObject)                    \
+  V(FrameDropperTrampoline)           \
+  V(GetProperty)                      \
   V(GrowArrayElements)                \
-  V(NewArgumentsElements)             \
+  V(InterpreterCEntry1)               \
+  V(InterpreterCEntry2)               \
   V(InterpreterDispatch)              \
   V(InterpreterPushArgsThenCall)      \
   V(InterpreterPushArgsThenConstruct) \
-  V(InterpreterCEntry1)               \
-  V(InterpreterCEntry2)               \
+  V(JSTrampoline)                     \
+  V(Load)                             \
+  V(LoadGlobal)                       \
+  V(LoadGlobalWithVector)             \
+  V(LoadWithVector)                   \
+  V(NewArgumentsElements)             \
+  V(NoContext)                        \
+  V(RecordWrite)                      \
   V(ResumeGenerator)                  \
-  V(FrameDropperTrampoline)           \
   V(RunMicrotasks)                    \
-  V(WasmMemoryGrow)                   \
-  V(WasmThrow)                        \
+  V(Store)                            \
+  V(StoreGlobal)                      \
+  V(StoreGlobalWithVector)            \
+  V(StoreTransition)                  \
+  V(StoreWithVector)                  \
+  V(StringAt)                         \
+  V(StringSubstring)                  \
+  V(TypeConversion)                   \
+  V(TypeConversionStackParameter)     \
+  V(Typeof)                           \
+  V(Void)                             \
   V(WasmAtomicWake)                   \
   V(WasmI32AtomicWait)                \
   V(WasmI64AtomicWait)                \
-  V(CloneObjectWithVector)            \
-  V(BigIntToWasmI64)                  \
-  V(BigIntToI64)                      \
+  V(WasmMemoryGrow)                   \
+  V(WasmThrow)                        \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -443,6 +443,10 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
 };
+
+// Dummy descriptor used to mark builtins that don't yet have their proper
+// descriptor associated.
+typedef VoidDescriptor DummyDescriptor;
 
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:

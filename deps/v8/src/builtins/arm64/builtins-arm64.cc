@@ -3322,54 +3322,6 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   __ Ret();
 }
 
-namespace {
-
-void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
-                                          ElementsKind kind) {
-  Label zero_case, n_case;
-  Register argc = x0;
-
-  __ Cbz(argc, &zero_case);
-  __ CompareAndBranch(argc, 1, ne, &n_case);
-
-  // One argument.
-  if (IsFastPackedElementsKind(kind)) {
-    Label packed_case;
-
-    // We might need to create a holey array; look at the first argument.
-    __ Peek(x10, 0);
-    __ Cbz(x10, &packed_case);
-
-    __ Jump(CodeFactory::InternalArraySingleArgumentConstructor(
-                masm->isolate(), GetHoleyElementsKind(kind))
-                .code(),
-            RelocInfo::CODE_TARGET);
-
-    __ Bind(&packed_case);
-  }
-
-  __ Jump(
-      CodeFactory::InternalArraySingleArgumentConstructor(masm->isolate(), kind)
-          .code(),
-      RelocInfo::CODE_TARGET);
-
-  __ Bind(&zero_case);
-  // No arguments.
-  __ Jump(CodeFactory::InternalArrayNoArgumentConstructor(masm->isolate(), kind)
-              .code(),
-          RelocInfo::CODE_TARGET);
-
-  __ Bind(&n_case);
-  // N arguments.
-  // Load undefined into the allocation site parameter as required by
-  // ArrayNArgumentsConstructor.
-  __ LoadRoot(kJavaScriptCallExtraArg1Register, RootIndex::kUndefinedValue);
-  Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
-  __ Jump(code, RelocInfo::CODE_TARGET);
-}
-
-}  // namespace
-
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : argc
@@ -3394,31 +3346,27 @@ void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
     __ Bind(&unexpected_map);
     __ Abort(AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ Bind(&map_ok);
+
+    Register kind = w3;
+    // Figure out the right elements kind
+    __ Ldr(x10, FieldMemOperand(constructor,
+                                JSFunction::kPrototypeOrInitialMapOffset));
+
+    // Retrieve elements_kind from map.
+    __ LoadElementsKindFromMap(kind, x10);
+
+    // Initial elements kind should be packed elements.
+    __ Cmp(kind, PACKED_ELEMENTS);
+    __ Assert(eq, AbortReason::kInvalidElementsKindForInternalPackedArray);
+
+    // No arguments should be passed.
+    __ Cmp(x0, 0);
+    __ Assert(eq, AbortReason::kWrongNumberOfArgumentsForInternalPackedArray);
   }
 
-  Register kind = w3;
-  // Figure out the right elements kind
-  __ Ldr(x10, FieldMemOperand(constructor,
-                              JSFunction::kPrototypeOrInitialMapOffset));
-
-  // Retrieve elements_kind from map.
-  __ LoadElementsKindFromMap(kind, x10);
-
-  if (FLAG_debug_code) {
-    Label done;
-    __ Cmp(x3, PACKED_ELEMENTS);
-    __ Ccmp(x3, HOLEY_ELEMENTS, ZFlag, ne);
-    __ Assert(
-        eq,
-        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
-  }
-
-  Label fast_elements_case;
-  __ CompareAndBranch(kind, PACKED_ELEMENTS, eq, &fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, HOLEY_ELEMENTS);
-
-  __ Bind(&fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, PACKED_ELEMENTS);
+  __ Jump(
+      BUILTIN_CODE(masm->isolate(), InternalArrayNoArgumentConstructor_Packed),
+      RelocInfo::CODE_TARGET);
 }
 
 namespace {

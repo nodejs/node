@@ -681,9 +681,9 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(PopControl, Control* block)                                               \
   F(EndControl, Control* block)                                               \
   /* Instructions: */                                                         \
-  F(UnOp, WasmOpcode opcode, FunctionSig*, const Value& value, Value* result) \
-  F(BinOp, WasmOpcode opcode, FunctionSig*, const Value& lhs,                 \
-    const Value& rhs, Value* result)                                          \
+  F(UnOp, WasmOpcode opcode, const Value& value, Value* result)               \
+  F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,             \
+    Value* result)                                                            \
   F(I32Const, Value* result, int32_t value)                                   \
   F(I64Const, Value* result, int64_t value)                                   \
   F(F32Const, Value* result, float value)                                     \
@@ -730,7 +730,8 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(CatchAll, Control* block)                                                 \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                          \
     const MemoryAccessImmediate<validate>& imm, Value* result)                \
-  F(MemoryInit, const MemoryInitImmediate<validate>& imm, Vector<Value> args) \
+  F(MemoryInit, const MemoryInitImmediate<validate>& imm, const Value& dst,   \
+    const Value& src, const Value& size)                                      \
   F(MemoryDrop, const MemoryDropImmediate<validate>& imm)                     \
   F(MemoryCopy, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
     const Value& src, const Value& size)                                      \
@@ -1420,8 +1421,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         local_type_vec_(zone),
         stack_(zone),
         control_(zone),
-        args_(zone),
-        last_end_found_(false) {
+        args_(zone) {
     this->local_types_ = &local_type_vec_;
   }
 
@@ -1448,23 +1448,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DecodeFunctionBody();
     if (!this->failed()) CALL_INTERFACE(FinishFunction);
 
-    if (this->failed()) return this->TraceFailed();
-
-    if (!control_.empty()) {
-      // Generate a better error message whether the unterminated control
-      // structure is the function body block or an innner structure.
-      if (control_.size() > 1) {
-        this->error(control_.back().pc, "unterminated control structure");
-      } else {
-        this->error("function body must end with \"end\" opcode");
-      }
-      return TraceFailed();
-    }
-
-    if (!last_end_found_) {
+    // Generate a better error message whether the unterminated control
+    // structure is the function body block or an innner structure.
+    if (control_.size() > 1) {
+      this->error(control_.back().pc, "unterminated control structure");
+    } else if (control_.size() == 1) {
       this->error("function body must end with \"end\" opcode");
-      return false;
     }
+
+    if (this->failed()) return this->TraceFailed();
 
     if (FLAG_trace_wasm_decode_time) {
       double ms = decode_timer.Elapsed().InMillisecondsF();
@@ -1491,7 +1483,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   inline Zone* zone() const { return zone_; }
 
-  inline uint32_t NumLocals() {
+  inline uint32_t num_locals() const {
     return static_cast<uint32_t>(local_type_vec_.size());
   }
 
@@ -1534,7 +1526,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
   ZoneVector<Value> args_;                // parameters of current block or call
-  bool last_end_found_;
 
   bool CheckHasMemory() {
     if (!VALIDATE(this->module_->has_memory)) {
@@ -1804,7 +1795,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 this->error(this->pc_ + 1, "trailing code after function end");
                 break;
               }
-              last_end_found_ = true;
               // The result of the block is the return value.
               TRACE_PART("\n" TRACE_INST_FORMAT, startrel(this->pc_),
                          "(implicit) return");
@@ -2507,8 +2497,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           MemoryInitImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          PopArgs(sig);
-          CALL_INTERFACE_IF_REACHABLE(MemoryInit, imm, VectorOf(args_));
+          auto size = Pop(2, sig->GetParam(2));
+          auto src = Pop(1, sig->GetParam(1));
+          auto dst = Pop(0, sig->GetParam(0));
+          CALL_INTERFACE_IF_REACHABLE(MemoryInit, imm, dst, src, size);
           break;
         }
         case kExprMemoryDrop: {
@@ -2789,7 +2781,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         auto val = Pop(0, sig->GetParam(0));
         auto* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, sig, val, ret);
+        CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, val, ret);
         break;
       }
       case 2: {
@@ -2797,7 +2789,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         auto lval = Pop(0, sig->GetParam(0));
         auto* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, sig, lval, rval, ret);
+        CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, lval, rval, ret);
         break;
       }
       default:

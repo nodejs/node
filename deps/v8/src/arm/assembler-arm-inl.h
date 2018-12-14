@@ -76,9 +76,7 @@ Address RelocInfo::target_address() {
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+  DCHECK(HasTargetAddressAddress());
   if (Assembler::IsMovW(Memory<int32_t>(pc_))) {
     return pc_;
   } else {

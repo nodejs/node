@@ -656,9 +656,7 @@ Address RelocInfo::target_address() {
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+  DCHECK(HasTargetAddressAddress());
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
   // Read the address of the word containing the target_address in an
   // instruction stream.

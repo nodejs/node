@@ -5,7 +5,6 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
 #include "src/counters.h"
 #include "src/keys.h"
 #include "src/lookup.h"

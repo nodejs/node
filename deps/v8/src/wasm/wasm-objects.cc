@@ -65,13 +65,21 @@ class WasmInstanceNativeAllocations {
   // Allocates initial native storage for a given instance.
   WasmInstanceNativeAllocations(Handle<WasmInstanceObject> instance,
                                 size_t num_imported_functions,
-                                size_t num_imported_mutable_globals) {
+                                size_t num_imported_mutable_globals,
+                                size_t num_data_segments) {
     SET(instance, imported_function_targets,
         reinterpret_cast<Address*>(
             calloc(num_imported_functions, sizeof(Address))));
     SET(instance, imported_mutable_globals,
         reinterpret_cast<Address*>(
             calloc(num_imported_mutable_globals, sizeof(Address))));
+    SET(instance, data_segment_starts,
+        reinterpret_cast<Address*>(calloc(num_data_segments, sizeof(Address))));
+    SET(instance, data_segment_sizes,
+        reinterpret_cast<uint32_t*>(
+            calloc(num_data_segments, sizeof(uint32_t))));
+    SET(instance, dropped_data_segments,
+        reinterpret_cast<uint8_t*>(calloc(num_data_segments, sizeof(uint8_t))));
   }
   ~WasmInstanceNativeAllocations() {
     ::free(indirect_function_table_sig_ids_);
@@ -82,6 +90,12 @@ class WasmInstanceNativeAllocations {
     imported_function_targets_ = nullptr;
     ::free(imported_mutable_globals_);
     imported_mutable_globals_ = nullptr;
+    ::free(data_segment_starts_);
+    data_segment_starts_ = nullptr;
+    ::free(data_segment_sizes_);
+    data_segment_sizes_ = nullptr;
+    ::free(dropped_data_segments_);
+    dropped_data_segments_ = nullptr;
   }
   // Resizes the indirect function table.
   void resize_indirect_function_table(Isolate* isolate,
@@ -123,13 +137,18 @@ class WasmInstanceNativeAllocations {
   Address* indirect_function_table_targets_ = nullptr;
   Address* imported_function_targets_ = nullptr;
   Address* imported_mutable_globals_ = nullptr;
+  Address* data_segment_starts_ = nullptr;
+  uint32_t* data_segment_sizes_ = nullptr;
+  uint8_t* dropped_data_segments_ = nullptr;
 #undef SET
 };
 
 size_t EstimateNativeAllocationsSize(const WasmModule* module) {
   size_t estimate = sizeof(WasmInstanceNativeAllocations) +
                     (1 * kPointerSize * module->num_imported_mutable_globals) +
-                    (2 * kPointerSize * module->num_imported_functions);
+                    (2 * kPointerSize * module->num_imported_functions) +
+                    ((kPointerSize + sizeof(uint32_t) + sizeof(uint8_t)) *
+                     module->num_declared_data_segments);
   for (auto& table : module->tables) {
     estimate += 3 * kPointerSize * table.initial_size;
   }
@@ -1268,10 +1287,11 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   auto module = module_object->module();
   auto num_imported_functions = module->num_imported_functions;
   auto num_imported_mutable_globals = module->num_imported_mutable_globals;
+  auto num_data_segments = module->num_declared_data_segments;
   size_t native_allocations_size = EstimateNativeAllocationsSize(module);
   auto native_allocations = Managed<WasmInstanceNativeAllocations>::Allocate(
       isolate, native_allocations_size, instance, num_imported_functions,
-      num_imported_mutable_globals);
+      num_imported_mutable_globals, num_data_segments);
   instance->set_managed_native_allocations(*native_allocations);
 
   Handle<FixedArray> imported_function_refs =
@@ -1306,7 +1326,37 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate, weak_instance_list, MaybeObjectHandle::Weak(instance));
   module_object->set_weak_instance_list(*weak_instance_list);
 
+  InitDataSegmentArrays(instance, module_object);
+
   return instance;
+}
+
+// static
+void WasmInstanceObject::InitDataSegmentArrays(
+    Handle<WasmInstanceObject> instance,
+    Handle<WasmModuleObject> module_object) {
+  auto module = module_object->module();
+  auto wire_bytes = module_object->native_module()->wire_bytes();
+  auto num_data_segments = module->num_declared_data_segments;
+  // The number of declared data segments will be zero if there is no DataCount
+  // section. These arrays will not be allocated nor initialized in that case,
+  // since they cannot be used (since the validator checks that number of
+  // declared data segments when validating the memory.init and memory.drop
+  // instructions).
+  DCHECK(num_data_segments == 0 ||
+         num_data_segments == module->data_segments.size());
+  for (size_t i = 0; i < num_data_segments; ++i) {
+    const wasm::WasmDataSegment& segment = module->data_segments[i];
+    // Set the active segments to being already dropped, since memory.init on
+    // a dropped passive segment and an active segment have the same
+    // behavior.
+    instance->dropped_data_segments()[i] = segment.active ? 1 : 0;
+
+    // Initialize the pointer and size of passive segments.
+    instance->data_segment_starts()[i] =
+        reinterpret_cast<Address>(&wire_bytes[segment.source.offset()]);
+    instance->data_segment_sizes()[i] = segment.source.length();
+  }
 }
 
 Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {

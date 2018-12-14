@@ -579,6 +579,13 @@ class WasmModuleBuilder {
       });
     }
 
+    // If there are any passive data segments, add the DataCount section.
+    if (wasm.data_segments.some(seg => !seg.is_active)) {
+      binary.emit_section(kDataCountSectionCode, section => {
+        section.emit_u32v(wasm.data_segments.length);
+      });
+    }
+
     // Add function bodies.
     if (wasm.functions.length > 0) {
       // emit function bodies

@@ -24693,7 +24693,7 @@ TEST(Promises) {
   CHECK(r->IsPromise());
 }
 
-
+// Promise.Then(on_fulfilled)
 TEST(PromiseThen) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -24788,6 +24788,121 @@ TEST(PromiseThen) {
                   .ToLocalChecked()
                   ->Int32Value(context.local())
                   .FromJust());
+}
+
+// Promise.Then(on_fulfilled, on_rejected)
+TEST(PromiseThen2) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  v8::HandleScope scope(isolate);
+  Local<Object> global = context->Global();
+
+  // Creation.
+  Local<v8::Promise::Resolver> pr =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  Local<v8::Promise> p = pr->GetPromise();
+
+  CHECK(p->IsPromise());
+
+  pr->Resolve(context.local(), v8::Integer::New(isolate, 1)).FromJust();
+
+  // Chaining non-pending promises.
+  CompileRun(
+      "var x1 = 0;\n"
+      "var x2 = 0;\n"
+      "function f1(x) { x1 = x; return x+1 };\n"
+      "function f2(x) { x2 = x; return x+1 };\n"
+      "function f3(x) { throw x + 100 };\n");
+  Local<Function> f1 = Local<Function>::Cast(
+      global->Get(context.local(), v8_str("f1")).ToLocalChecked());
+  Local<Function> f2 = Local<Function>::Cast(
+      global->Get(context.local(), v8_str("f2")).ToLocalChecked());
+  Local<Function> f3 = Local<Function>::Cast(
+      global->Get(context.local(), v8_str("f3")).ToLocalChecked());
+
+  // Then
+  CompileRun("x1 = x2 = 0;");
+  Local<v8::Promise> a = p->Then(context.local(), f1, f2).ToLocalChecked();
+  CHECK_EQ(0, global->Get(context.local(), v8_str("x1"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+  isolate->RunMicrotasks();
+  CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+  CHECK_EQ(0, global->Get(context.local(), v8_str("x2"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+
+  Local<v8::Promise> b = a->Then(context.local(), f3, f2).ToLocalChecked();
+  isolate->RunMicrotasks();
+  CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+  CHECK_EQ(0, global->Get(context.local(), v8_str("x2"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+
+  Local<v8::Promise> c = b->Then(context.local(), f1, f2).ToLocalChecked();
+  isolate->RunMicrotasks();
+  CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+  CHECK_EQ(102, global->Get(context.local(), v8_str("x2"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+
+  v8::Local<v8::Promise> d = c->Then(context.local(), f1, f2).ToLocalChecked();
+  isolate->RunMicrotasks();
+  CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+  CHECK_EQ(102, global->Get(context.local(), v8_str("x2"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+
+  v8::Local<v8::Promise> e = d->Then(context.local(), f3, f2).ToLocalChecked();
+  isolate->RunMicrotasks();
+  CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+  CHECK_EQ(102, global->Get(context.local(), v8_str("x2"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+
+  v8::Local<v8::Promise> f = e->Then(context.local(), f1, f3).ToLocalChecked();
+  isolate->RunMicrotasks();
+  CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+  CHECK_EQ(102, global->Get(context.local(), v8_str("x2"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+
+  f->Then(context.local(), f1, f2).ToLocalChecked();
+  isolate->RunMicrotasks();
+  CHECK_EQ(103, global->Get(context.local(), v8_str("x1"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
+  CHECK_EQ(304, global->Get(context.local(), v8_str("x2"))
+                    .ToLocalChecked()
+                    ->Int32Value(context.local())
+                    .FromJust());
 }
 
 TEST(PromiseStateAndValue) {

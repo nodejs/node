@@ -2763,43 +2763,6 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   __ Ret();
 }
 
-namespace {
-
-void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
-                                          ElementsKind kind) {
-  // Load undefined into the allocation site parameter as required by
-  // ArrayNArgumentsConstructor.
-  __ LoadRoot(kJavaScriptCallExtraArg1Register, RootIndex::kUndefinedValue);
-
-  __ cmp(r0, Operand(1));
-
-  __ Jump(CodeFactory::InternalArrayNoArgumentConstructor(masm->isolate(), kind)
-              .code(),
-          RelocInfo::CODE_TARGET, lo);
-
-  Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
-  __ Jump(code, RelocInfo::CODE_TARGET, hi);
-
-  if (IsFastPackedElementsKind(kind)) {
-    // We might need to create a holey array
-    // look at the first argument
-    __ ldr(r3, MemOperand(sp, 0));
-    __ cmp(r3, Operand::Zero());
-
-    __ Jump(CodeFactory::InternalArraySingleArgumentConstructor(
-                masm->isolate(), GetHoleyElementsKind(kind))
-                .code(),
-            RelocInfo::CODE_TARGET, ne);
-  }
-
-  __ Jump(
-      CodeFactory::InternalArraySingleArgumentConstructor(masm->isolate(), kind)
-          .code(),
-      RelocInfo::CODE_TARGET);
-}
-
-}  // namespace
-
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0 : argc
@@ -2819,34 +2782,27 @@ void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
     __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ CompareObjectType(r3, r3, r4, MAP_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction);
-  }
 
-  // Figure out the right elements kind
-  __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-  // Load the map's "bit field 2" into |result|. We only need the first byte,
-  // but the following bit field extraction takes care of that anyway.
-  __ ldr(r3, FieldMemOperand(r3, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ DecodeField<Map::ElementsKindBits>(r3);
+    // Figure out the right elements kind
+    __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
+    // Load the map's "bit field 2" into |result|. We only need the first byte,
+    // but the following bit field extraction takes care of that anyway.
+    __ ldr(r3, FieldMemOperand(r3, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ DecodeField<Map::ElementsKindBits>(r3);
 
-  if (FLAG_debug_code) {
-    Label done;
+    // Initial elements kind should be packed elements.
     __ cmp(r3, Operand(PACKED_ELEMENTS));
-    __ b(eq, &done);
-    __ cmp(r3, Operand(HOLEY_ELEMENTS));
-    __ Assert(
-        eq,
-        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
-    __ bind(&done);
+    __ Assert(eq, AbortReason::kInvalidElementsKindForInternalPackedArray);
+
+    // No arguments should be passed.
+    __ cmp(r0, Operand(0));
+    __ Assert(eq, AbortReason::kWrongNumberOfArgumentsForInternalPackedArray);
   }
 
-  Label fast_elements_case;
-  __ cmp(r3, Operand(PACKED_ELEMENTS));
-  __ b(eq, &fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, HOLEY_ELEMENTS);
-
-  __ bind(&fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, PACKED_ELEMENTS);
+  __ Jump(
+      BUILTIN_CODE(masm->isolate(), InternalArrayNoArgumentConstructor_Packed),
+      RelocInfo::CODE_TARGET);
 }
 
 namespace {

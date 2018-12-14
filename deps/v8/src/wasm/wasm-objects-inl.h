@@ -183,6 +183,12 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
                     Address*, kIndirectFunctionTableTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
                     kJumpTableStartOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, data_segment_starts, Address*,
+                    kDataSegmentStartsOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, data_segment_sizes, uint32_t*,
+                    kDataSegmentSizesOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, dropped_data_segments, byte*,
+                    kDroppedDataSegmentsOffset)
 
 ACCESSORS2(WasmInstanceObject, module_object, WasmModuleObject,
            kModuleObjectOffset)

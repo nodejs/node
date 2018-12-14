@@ -121,8 +121,6 @@ class LiftoffAssembler : public TurboAssembler {
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
-    // TODO(clemensh): Remove stack_base; use ControlBase::stack_depth.
-    uint32_t stack_base = 0;
 
     bool has_unused_register(RegClass rc, LiftoffRegList pinned = {}) const {
       if (kNeedI64RegPair && rc == kGpRegPair) {
@@ -232,7 +230,7 @@ class LiftoffAssembler : public TurboAssembler {
 
     // TODO(clemensh): Don't copy the full parent state (this makes us N^2).
     void InitMerge(const CacheState& source, uint32_t num_locals,
-                   uint32_t arity);
+                   uint32_t arity, uint32_t stack_depth);
 
     void Steal(CacheState& source);
 

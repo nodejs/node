@@ -425,8 +425,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage(),
       isolate()->counters(), &unused_detected_features);
-  CHECK(!unit.failed());
-  if (WasmCode::ShouldBeLogged(isolate())) unit.result()->LogCode(isolate());
+  WasmCode* result = unit.result();
+  DCHECK_NOT_NULL(result);
+  if (WasmCode::ShouldBeLogged(isolate())) result->LogCode(isolate());
 }
 
 WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,

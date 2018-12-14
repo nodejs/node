@@ -818,6 +818,49 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
   FreeCurrentEmbeddedBlob();
 }
 
+UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCode) {
+  DisableAlwaysOpt();
+  const char* source =
+      "var re = /\\/\\*[^*]*\\*+([^/*][^*]*\\*+)*\\//;\n"
+      "function f() { return '/* a comment */'.search(re); }\n"
+      "function g() { return 'not a comment'.search(re); }\n"
+      "function h() { return '// this is a comment'.search(re); }\n"
+      "f(); f(); g(); g();";
+
+  v8::StartupData data1 = CreateSnapshotDataBlob(source);
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestSerializer::NewIsolate(params1);
+  {
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope c_scope(context);
+    {
+      v8::Maybe<int32_t> result =
+          CompileRun("f()")->Int32Value(isolate1->GetCurrentContext());
+      CHECK_EQ(0, result.FromJust());
+    }
+    {
+      v8::Maybe<int32_t> result =
+          CompileRun("g()")->Int32Value(isolate1->GetCurrentContext());
+      CHECK_EQ(-1, result.FromJust());
+    }
+    {
+      v8::Maybe<int32_t> result =
+          CompileRun("h()")->Int32Value(isolate1->GetCurrentContext());
+      CHECK_EQ(-1, result.FromJust());
+    }
+  }
+  isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(SnapshotChecksum) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";

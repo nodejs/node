@@ -268,13 +268,15 @@ class StackTransferRecipe {
 // TODO(clemensh): Don't copy the full parent state (this makes us N^2).
 void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
                                              uint32_t num_locals,
-                                             uint32_t arity) {
+                                             uint32_t arity,
+                                             uint32_t stack_depth) {
+  uint32_t stack_base = stack_depth + num_locals;
   DCHECK(stack_state.empty());
   DCHECK_GE(source.stack_height(), stack_base);
   stack_state.resize(stack_base + arity, VarState(kWasmStmt));
 
-  // |------locals------|--(in between)--|--(discarded)--|----merge----|
-  //  <-- num_locals -->                 ^stack_base      <-- arity -->
+  // |------locals------|---(in between)----|--(discarded)--|----merge----|
+  //  <-- num_locals --> <-- stack_depth -->^stack_base      <-- arity -->
 
   // First, initialize merge slots and locals. Keep them in the registers which
   // are being used in {source}, but avoid using a register multiple times. Use

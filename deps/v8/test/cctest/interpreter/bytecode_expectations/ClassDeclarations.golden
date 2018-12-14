@@ -12,28 +12,32 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 7
+frame size: 8
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 44
 bytecodes: [
   /*   30 E> */ B(StackCheck),
+                B(CreateBlockContext), U8(0),
+                B(PushContext), R(2),
                 B(LdaTheHole),
-                B(Star), R(5),
-                B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(2),
-                B(LdaConstant), U8(0),
-                B(Star), R(3),
-                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(6),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star), R(3),
-                B(Mov), R(4), R(0),
+                B(LdaConstant), U8(1),
+                B(Star), R(4),
+                B(CreateClosure), U8(3), U8(1), U8(2),
+                B(Star), R(7),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
+                B(Star), R(4),
+                B(Mov), R(5), R(0),
+                B(PopContext), R(2),
                 B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -48,28 +52,32 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 7
+frame size: 8
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 44
 bytecodes: [
   /*   30 E> */ B(StackCheck),
+                B(CreateBlockContext), U8(0),
+                B(PushContext), R(2),
                 B(LdaTheHole),
-                B(Star), R(5),
-                B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(2),
-                B(LdaConstant), U8(0),
-                B(Star), R(3),
-                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(6),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star), R(3),
-                B(Mov), R(4), R(0),
+                B(LdaConstant), U8(1),
+                B(Star), R(4),
+                B(CreateClosure), U8(3), U8(1), U8(2),
+                B(Star), R(7),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
+                B(Star), R(4),
+                B(Mov), R(5), R(0),
+                B(PopContext), R(2),
                 B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -86,9 +94,9 @@ snippet: "
     static [n1]() { return n1; }
   }
 "
-frame size: 11
+frame size: 12
 parameter count: 1
-bytecode array length: 77
+bytecode array length: 87
 bytecodes: [
                 B(CreateFunctionContext), U8(0), U8(2),
                 B(PushContext), R(2),
@@ -97,28 +105,31 @@ bytecodes: [
   /*   43 E> */ B(StaCurrentContextSlot), U8(4),
   /*   57 S> */ B(LdaConstant), U8(2),
   /*   57 E> */ B(StaCurrentContextSlot), U8(5),
+                B(CreateBlockContext), U8(3),
+                B(PushContext), R(3),
                 B(LdaTheHole),
-                B(Star), R(6),
-                B(CreateClosure), U8(4), U8(0), U8(2),
-                B(Star), R(3),
-                B(LdaConstant), U8(3),
+                B(Star), R(7),
+                B(CreateClosure), U8(5), U8(0), U8(2),
                 B(Star), R(4),
-  /*   75 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
-                B(ToName), R(7),
-                B(CreateClosure), U8(5), U8(1), U8(2),
-                B(Star), R(8),
-  /*  106 S> */ B(LdaImmutableCurrentContextSlot), U8(5),
-                B(ToName), R(9),
-                B(LdaConstant), U8(6),
-                B(TestEqualStrict), R(9), U8(2),
-                B(Mov), R(3), R(5),
+                B(LdaConstant), U8(4),
+                B(Star), R(5),
+  /*   75 S> */ B(LdaImmutableContextSlot), R(3), U8(4), U8(0),
+                B(ToName), R(8),
+                B(CreateClosure), U8(6), U8(1), U8(2),
+                B(Star), R(9),
+  /*  106 S> */ B(LdaImmutableContextSlot), R(3), U8(5), U8(0),
+                B(ToName), R(10),
+                B(LdaConstant), U8(7),
+                B(TestEqualStrict), R(10), U8(2),
+                B(Mov), R(4), R(6),
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
-                B(CreateClosure), U8(7), U8(3), U8(2),
-                B(Star), R(10),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(7),
-                B(Star), R(4),
-                B(Mov), R(3), R(0),
+                B(CreateClosure), U8(8), U8(3), U8(2),
+                B(Star), R(11),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(7),
+                B(Star), R(5),
+                B(Mov), R(4), R(0),
+                B(PopContext), R(3),
                 B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  129 S> */ B(Return),
@@ -127,6 +138,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
+  SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -142,31 +154,35 @@ snippet: "
   class C { constructor() { count++; }}
   return new C();
 "
-frame size: 7
+frame size: 8
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 52
 bytecodes: [
                 B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(2),
   /*   30 E> */ B(StackCheck),
   /*   46 S> */ B(LdaZero),
   /*   46 E> */ B(StaCurrentContextSlot), U8(4),
+                B(CreateBlockContext), U8(1),
+                B(PushContext), R(3),
                 B(LdaTheHole),
-                B(Star), R(6),
-                B(CreateClosure), U8(2), U8(0), U8(2),
-                B(Star), R(3),
-                B(LdaConstant), U8(1),
+                B(Star), R(7),
+                B(CreateClosure), U8(3), U8(0), U8(2),
                 B(Star), R(4),
-                B(Mov), R(3), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
-                B(Star), R(4),
-                B(Mov), R(5), R(0),
+                B(LdaConstant), U8(2),
+                B(Star), R(5),
+                B(Mov), R(4), R(6),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
+                B(Star), R(5),
+                B(Mov), R(6), R(0),
+                B(PopContext), R(3),
                 B(Mov), R(0), R(1),
   /*   87 S> */ B(Ldar), R(1),
-  /*   94 E> */ B(Construct), R(3), R(0), U8(0), U8(1),
+  /*   94 E> */ B(Construct), R(1), R(0), U8(0), U8(1),
   /*  102 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -179,39 +195,47 @@ snippet: "
   (class {})
   class E { static name () {}}
 "
-frame size: 7
+frame size: 8
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 73
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaTheHole),
-                B(Star), R(5),
-                B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(2),
-                B(LdaConstant), U8(0),
-                B(Star), R(3),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
-                B(Star), R(3),
+  /*   34 S> */ B(CreateBlockContext), U8(0),
+                B(PushContext), R(2),
                 B(LdaTheHole),
-                B(Star), R(5),
-                B(CreateClosure), U8(3), U8(1), U8(2),
-                B(Star), R(2),
-                B(LdaConstant), U8(2),
-                B(Star), R(3),
-                B(CreateClosure), U8(4), U8(2), U8(2),
                 B(Star), R(6),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star), R(3),
-                B(Mov), R(4), R(0),
+                B(LdaConstant), U8(1),
+                B(Star), R(4),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
+                B(Star), R(4),
+                B(PopContext), R(2),
+                B(CreateBlockContext), U8(3),
+                B(PushContext), R(2),
+                B(LdaTheHole),
+                B(Star), R(6),
+                B(CreateClosure), U8(5), U8(1), U8(2),
+                B(Star), R(3),
+                B(LdaConstant), U8(4),
+                B(Star), R(4),
+                B(CreateClosure), U8(6), U8(2), U8(2),
+                B(Star), R(7),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
+                B(Star), R(4),
+                B(Mov), R(5), R(0),
+                B(PopContext), R(2),
                 B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*   74 S> */ B(Return),
 ]
 constant pool: [
+  SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,

@@ -1087,11 +1087,10 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_SMI_ARG_CHECKED(function_index, 1);
-  if (!isolate->wasm_engine()->CompileFunction(
-          isolate, instance->module_object()->native_module(), function_index,
-          wasm::ExecutionTier::kOptimized)) {
-    return ReadOnlyRoots(isolate).exception();
-  }
+  auto* native_module = instance->module_object()->native_module();
+  isolate->wasm_engine()->CompileFunction(
+      isolate, native_module, function_index, wasm::ExecutionTier::kOptimized);
+  CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

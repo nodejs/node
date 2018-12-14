@@ -65,6 +65,7 @@ let kElementSectionCode = 9;     // Elements section
 let kCodeSectionCode = 10;       // Function code
 let kDataSectionCode = 11;       // Data segments
 let kExceptionSectionCode = 12;  // Exception section (between Global & Export)
+let kDataCountSectionCode = 13;  // Data segments
 
 // Name section types
 let kModuleNameCode = 0;
@@ -444,6 +445,7 @@ let kTrapFuncInvalid          = 6;
 let kTrapFuncSigMismatch      = 7;
 let kTrapTypeError            = 8;
 let kTrapUnalignedAccess      = 9;
+let kTrapDataSegmentDropped   = 10;
 
 let kTrapMsgs = [
   "unreachable",
@@ -455,7 +457,8 @@ let kTrapMsgs = [
   "invalid index into function table",
   "function signature mismatch",
   "wasm function signature contains illegal type",
-  "operation does not support unaligned accesses"
+  "operation does not support unaligned accesses",
+  "data segment has been dropped"
 ];
 
 function assertTraps(trap, code) {

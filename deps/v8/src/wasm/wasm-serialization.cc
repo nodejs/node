@@ -133,6 +133,7 @@ void WriteVersion(Writer* writer) {
 // Other platforms simply require accessing the target address.
 void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  DCHECK(rinfo->HasTargetAddressAddress());
   *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());

@@ -5017,20 +5017,6 @@ bool Genesis::InstallNatives() {
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
-  // InternalArrays should not use Smi-Only array optimizations. There are too
-  // many places in the C++ runtime code (e.g. RegEx) that assume that
-  // elements in InternalArrays can be set to non-Smi values without going
-  // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
-  // transition easy to trap. Moreover, they rarely are smi-only.
-  {
-    HandleScope scope(isolate());
-    Handle<JSObject> utils =
-        Handle<JSObject>::cast(isolate()->natives_utils_object());
-    Handle<JSFunction> array_function =
-        InstallInternalArray(utils, "InternalArray", HOLEY_ELEMENTS);
-    native_context()->set_internal_array_function(*array_function);
-  }
-
   // Run the rest of the native scripts.
   while (builtin_index < Natives::GetBuiltinsCount()) {
     if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
@@ -5133,16 +5119,6 @@ bool Genesis::InstallNatives() {
     // This is necessary to enable fast checks for absence of elements
     // on Array.prototype and below.
     proto->set_elements(ReadOnlyRoots(heap()).empty_fixed_array());
-  }
-
-  // Install InternalArray.prototype.concat
-  {
-    Handle<JSFunction> array_constructor(
-        native_context()->internal_array_function(), isolate());
-    Handle<JSObject> proto(JSObject::cast(array_constructor->prototype()),
-                           isolate());
-    SimpleInstallFunction(isolate(), proto, "concat", Builtins::kArrayConcat, 1,
-                          false);
   }
 
   InstallBuiltinFunctionIds();

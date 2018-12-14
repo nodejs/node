@@ -5026,37 +5026,6 @@ TEST(BootstrappingExports) {
 }
 
 
-TEST(Regress1878) {
-  FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Function> constructor = v8::Utils::CallableToLocal(
-      CcTest::i_isolate()->internal_array_function());
-  LocalContext env;
-  CHECK(CcTest::global()
-            ->Set(env.local(), v8_str("InternalArray"), constructor)
-            .FromJust());
-
-  v8::TryCatch try_catch(isolate);
-
-  CompileRun(
-      "var a = Array();"
-      "for (var i = 0; i < 1000; i++) {"
-      "  var ai = new InternalArray(10000);"
-      "  if (%HaveSameMap(ai, a)) throw Error();"
-      "  if (!%HasObjectElements(ai)) throw Error();"
-      "}"
-      "for (var i = 0; i < 1000; i++) {"
-      "  var ai = new InternalArray(10000);"
-      "  if (%HaveSameMap(ai, a)) throw Error();"
-      "  if (!%HasObjectElements(ai)) throw Error();"
-      "}");
-
-  CHECK(!try_catch.HasCaught());
-}
-
-
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
   CHECK_LE(FixedArray::kHeaderSize, bytes);
   CHECK_EQ(0, bytes % kPointerSize);

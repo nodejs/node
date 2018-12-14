@@ -69,7 +69,6 @@ function SetUpLockedPrototype(
 }
 
 var GlobalArray = global.Array;
-var InternalArray;
 
 // -----------------------------------------------------------------------
 // To be called by bootstrapper
@@ -80,7 +79,6 @@ function PostNatives(utils) {
   // -------------------------------------------------------------------
   // Array
 
-  InternalArray = utils.InternalArray;
   var iteratorSymbol = ImportNow("iterator_symbol");
   var unscopablesSymbol = ImportNow("unscopables_symbol");
 
@@ -101,13 +99,10 @@ function PostNatives(utils) {
   %AddNamedProperty(GlobalArray.prototype, unscopablesSymbol, unscopables,
                     DONT_ENUM | READ_ONLY);
 
-  var ArrayIndexOf = GlobalArray.prototype.indexOf;
-  var ArrayJoin = GlobalArray.prototype.join;
   var ArrayPop = GlobalArray.prototype.pop;
   var ArrayPush = GlobalArray.prototype.push;
   var ArraySlice = GlobalArray.prototype.slice;
   var ArrayShift = GlobalArray.prototype.shift;
-  var ArraySort = GlobalArray.prototype.sort;
   var ArraySplice = GlobalArray.prototype.splice;
   var ArrayUnshift = GlobalArray.prototype.unshift;
 
@@ -117,20 +112,6 @@ function PostNatives(utils) {
   var ArrayForEach = GlobalArray.prototype.forEach;
   var ArrayKeys = GlobalArray.prototype.keys;
   var ArrayValues = GlobalArray.prototype[iteratorSymbol];
-
-
-  // The internal Array prototype doesn't need to be fancy, since it's never
-  // exposed to user code.
-  // Adding only the functions that are actually used.
-  SetUpLockedPrototype(InternalArray, GlobalArray(), [
-    "indexOf", ArrayIndexOf,
-    "join", ArrayJoin,
-    "pop", ArrayPop,
-    "push", ArrayPush,
-    "shift", ArrayShift,
-    "sort", ArraySort,
-    "splice", ArraySplice
-  ]);
 
   // V8 extras get a separate copy of InternalPackedArray. We give them the basic
   // manipulation methods.

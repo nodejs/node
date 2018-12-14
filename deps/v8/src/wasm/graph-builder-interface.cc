@@ -87,7 +87,7 @@ class WasmGraphBuildingInterface {
   void StartFunction(FullDecoder* decoder) {
     SsaEnv* ssa_env =
         reinterpret_cast<SsaEnv*>(decoder->zone()->New(sizeof(SsaEnv)));
-    uint32_t num_locals = decoder->NumLocals();
+    uint32_t num_locals = decoder->num_locals();
     uint32_t env_count = num_locals;
     size_t size = sizeof(TFNode*) * env_count;
     ssa_env->state = SsaEnv::kReached;
@@ -206,13 +206,13 @@ class WasmGraphBuildingInterface {
 
   void EndControl(FullDecoder* decoder, Control* block) { ssa_env_->Kill(); }
 
-  void UnOp(FullDecoder* decoder, WasmOpcode opcode, FunctionSig* sig,
-            const Value& value, Value* result) {
+  void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
+            Value* result) {
     result->node = BUILD(Unop, opcode, value.node, decoder->position());
   }
 
-  void BinOp(FullDecoder* decoder, WasmOpcode opcode, FunctionSig* sig,
-             const Value& lhs, const Value& rhs, Value* result) {
+  void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
+             const Value& rhs, Value* result) {
     auto node = BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
     if (result) result->node = node;
   }
@@ -507,13 +507,14 @@ class WasmGraphBuildingInterface {
   }
 
   void MemoryInit(FullDecoder* decoder,
-                  const MemoryInitImmediate<validate>& imm,
-                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+                  const MemoryInitImmediate<validate>& imm, const Value& dst,
+                  const Value& src, const Value& size) {
+    BUILD(MemoryInit, imm.data_segment_index, dst.node, src.node, size.node,
+          decoder->position());
   }
   void MemoryDrop(FullDecoder* decoder,
                   const MemoryDropImmediate<validate>& imm) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(MemoryDrop, imm.index, decoder->position());
   }
   void MemoryCopy(FullDecoder* decoder,
                   const MemoryIndexImmediate<validate>& imm, const Value& dst,
@@ -701,7 +702,7 @@ class WasmGraphBuildingInterface {
           to->effect = builder_->EffectPhi(2, effects, merge);
         }
         // Merge SSA values.
-        for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
+        for (int i = decoder->num_locals() - 1; i >= 0; i--) {
           TFNode* a = to->locals[i];
           TFNode* b = from->locals[i];
           if (a != b) {
@@ -723,7 +724,7 @@ class WasmGraphBuildingInterface {
         to->effect = builder_->CreateOrMergeIntoEffectPhi(merge, to->effect,
                                                           from->effect);
         // Merge locals.
-        for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
+        for (int i = decoder->num_locals() - 1; i >= 0; i--) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
               ValueTypes::MachineRepresentationFor(decoder->GetLocalType(i)),
               merge, to->locals[i], from->locals[i]);
@@ -753,7 +754,7 @@ class WasmGraphBuildingInterface {
     if (assigned != nullptr) {
       // Only introduce phis for variables assigned in this loop.
       int instance_cache_index = decoder->total_locals();
-      for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
+      for (int i = decoder->num_locals() - 1; i >= 0; i--) {
         if (!assigned->Contains(i)) continue;
         env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1,
                                        &env->locals[i], env->control);
@@ -771,7 +772,7 @@ class WasmGraphBuildingInterface {
     }
 
     // Conservatively introduce phis for all local variables.
-    for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
+    for (int i = decoder->num_locals() - 1; i >= 0; i--) {
       env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1,
                                      &env->locals[i], env->control);
     }
@@ -790,7 +791,7 @@ class WasmGraphBuildingInterface {
     DCHECK_NOT_NULL(from);
     SsaEnv* result =
         reinterpret_cast<SsaEnv*>(decoder->zone()->New(sizeof(SsaEnv)));
-    size_t size = sizeof(TFNode*) * decoder->NumLocals();
+    size_t size = sizeof(TFNode*) * decoder->num_locals();
     result->control = from->control;
     result->effect = from->effect;
 

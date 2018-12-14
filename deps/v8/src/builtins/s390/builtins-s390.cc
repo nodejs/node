@@ -2706,37 +2706,13 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
 
 namespace {
 
-void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
-                                          ElementsKind kind) {
-  // Load undefined into the allocation site parameter as required by
-  // ArrayNArgumentsConstructor.
-  __ LoadRoot(kJavaScriptCallExtraArg1Register, RootIndex::kUndefinedValue);
-
-  __ CmpLogicalP(r2, Operand(1));
-
-  __ Jump(CodeFactory::InternalArrayNoArgumentConstructor(masm->isolate(), kind)
-              .code(),
-          RelocInfo::CODE_TARGET, lt);
-
-  __ Jump(BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor),
-          RelocInfo::CODE_TARGET, gt);
-
-  if (IsFastPackedElementsKind(kind)) {
-    // We might need to create a holey array
-    // look at the first argument
-    __ LoadP(r5, MemOperand(sp, 0));
-    __ CmpP(r5, Operand::Zero());
-
-    __ Jump(CodeFactory::InternalArraySingleArgumentConstructor(
-                masm->isolate(), GetHoleyElementsKind(kind))
-                .code(),
-            RelocInfo::CODE_TARGET, ne);
-  }
+void GenerateInternalArrayConstructorCase(MacroAssembler* masm) {
+  __ CmpP(r2, Operand(0));
+  __ Assert(eq, AbortReason::kWrongNumberOfArgumentsForInternalPackedArray);
 
   __ Jump(
-      CodeFactory::InternalArraySingleArgumentConstructor(masm->isolate(), kind)
-          .code(),
-      RelocInfo::CODE_TARGET);
+      BUILTIN_CODE(masm->isolate(), InternalArrayNoArgumentConstructor_Packed),
+      RelocInfo::CODE_TARGET, lt);
 }
 
 }  // namespace
@@ -2770,23 +2746,11 @@ void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   __ DecodeField<Map::ElementsKindBits>(r5);
 
   if (FLAG_debug_code) {
-    Label done;
     __ CmpP(r5, Operand(PACKED_ELEMENTS));
-    __ beq(&done);
-    __ CmpP(r5, Operand(HOLEY_ELEMENTS));
-    __ Assert(
-        eq,
-        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
-    __ bind(&done);
+    __ Assert(eq, AbortReason::kInvalidElementsKindForInternalPackedArray);
   }
 
-  Label fast_elements_case;
-  __ CmpP(r5, Operand(PACKED_ELEMENTS));
-  __ beq(&fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, HOLEY_ELEMENTS);
-
-  __ bind(&fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, PACKED_ELEMENTS);
+  GenerateInternalArrayConstructorCase(masm);
 }
 
 namespace {

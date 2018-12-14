@@ -28,7 +28,10 @@ namespace internal {
 // BCH: Bytecode Handlers, with bytecode dispatch linkage.
 //      Args: name, OperandScale, Bytecode
 // ASM: Builtin in platform-dependent assembly.
-//      Args: name
+//      Args: name, interface descriptor
+
+// TODO(jgruber): Remove DummyDescriptor once all ASM builtins have been
+// properly associated with their descriptor.
 
 #define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                   \
   /* GC write barrirer */                                                      \
@@ -39,41 +42,41 @@ namespace internal {
   TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor, 1)                       \
                                                                                \
   /* Calls */                                                                  \
-  ASM(ArgumentsAdaptorTrampoline)                                              \
+  ASM(ArgumentsAdaptorTrampoline, ArgumentsAdaptor)                            \
   /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */              \
-  ASM(CallFunction_ReceiverIsNullOrUndefined)                                  \
-  ASM(CallFunction_ReceiverIsNotNullOrUndefined)                               \
-  ASM(CallFunction_ReceiverIsAny)                                              \
+  ASM(CallFunction_ReceiverIsNullOrUndefined, CallTrampoline)                  \
+  ASM(CallFunction_ReceiverIsNotNullOrUndefined, CallTrampoline)               \
+  ASM(CallFunction_ReceiverIsAny, CallTrampoline)                              \
   /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */            \
-  ASM(CallBoundFunction)                                                       \
+  ASM(CallBoundFunction, Dummy)                                                \
   /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                         \
-  ASM(Call_ReceiverIsNullOrUndefined)                                          \
-  ASM(Call_ReceiverIsNotNullOrUndefined)                                       \
-  ASM(Call_ReceiverIsAny)                                                      \
+  ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
+  ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
+  ASM(Call_ReceiverIsAny, CallTrampoline)                                      \
                                                                                \
   /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */             \
   TFC(CallProxy, CallTrampoline, 1)                                            \
-  ASM(CallVarargs)                                                             \
+  ASM(CallVarargs, CallVarargs)                                                \
   TFC(CallWithSpread, CallWithSpread, 1)                                       \
   TFC(CallWithArrayLike, CallWithArrayLike, 1)                                 \
-  ASM(CallForwardVarargs)                                                      \
-  ASM(CallFunctionForwardVarargs)                                              \
+  ASM(CallForwardVarargs, CallForwardVarargs)                                  \
+  ASM(CallFunctionForwardVarargs, CallForwardVarargs)                          \
                                                                                \
   /* Construct */                                                              \
   /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \
-  ASM(ConstructFunction)                                                       \
+  ASM(ConstructFunction, JSTrampoline)                                         \
   /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */           \
-  ASM(ConstructBoundFunction)                                                  \
-  ASM(ConstructedNonConstructable)                                             \
+  ASM(ConstructBoundFunction, Dummy)                                           \
+  ASM(ConstructedNonConstructable, Dummy)                                      \
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
-  ASM(Construct)                                                               \
-  ASM(ConstructVarargs)                                                        \
+  ASM(Construct, JSTrampoline)                                                 \
+  ASM(ConstructVarargs, ConstructVarargs)                                      \
   TFC(ConstructWithSpread, ConstructWithSpread, 1)                             \
   TFC(ConstructWithArrayLike, ConstructWithArrayLike, 1)                       \
-  ASM(ConstructForwardVarargs)                                                 \
-  ASM(ConstructFunctionForwardVarargs)                                         \
-  ASM(JSConstructStubGeneric)                                                  \
-  ASM(JSBuiltinsConstructStub)                                                 \
+  ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
+  ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
+  ASM(JSConstructStubGeneric, Dummy)                                           \
+  ASM(JSBuiltinsConstructStub, Dummy)                                          \
   TFC(FastNewObject, FastNewObject, 1)                                         \
   TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
   TFC(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
@@ -87,16 +90,16 @@ namespace internal {
   TFC(ConstructProxy, JSTrampoline, 1)                                         \
                                                                                \
   /* Apply and entries */                                                      \
-  ASM(JSEntry)                                                                 \
-  ASM(JSConstructEntry)                                                        \
-  ASM(JSRunMicrotasksEntry)                                                    \
-  ASM(JSEntryTrampoline)                                                       \
-  ASM(JSConstructEntryTrampoline)                                              \
-  ASM(ResumeGeneratorTrampoline)                                               \
+  ASM(JSEntry, Dummy)                                                          \
+  ASM(JSConstructEntry, Dummy)                                                 \
+  ASM(JSRunMicrotasksEntry, Dummy)                                             \
+  ASM(JSEntryTrampoline, Dummy)                                                \
+  ASM(JSConstructEntryTrampoline, Dummy)                                       \
+  ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
                                                                                \
   /* Stack and interrupt check */                                              \
-  ASM(InterruptCheck)                                                          \
-  ASM(StackCheck)                                                              \
+  ASM(InterruptCheck, Dummy)                                                   \
+  ASM(StackCheck, Dummy)                                                       \
                                                                                \
   /* String helpers */                                                         \
   TFC(StringCharAt, StringAt, 1)                                               \
@@ -115,22 +118,24 @@ namespace internal {
   TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \
                                                                                \
   /* Interpreter */                                                            \
-  ASM(InterpreterEntryTrampoline)                                              \
-  ASM(InterpreterPushArgsThenCall)                                             \
-  ASM(InterpreterPushUndefinedAndArgsThenCall)                                 \
-  ASM(InterpreterPushArgsThenCallWithFinalSpread)                              \
-  ASM(InterpreterPushArgsThenConstruct)                                        \
-  ASM(InterpreterPushArgsThenConstructArrayFunction)                           \
-  ASM(InterpreterPushArgsThenConstructWithFinalSpread)                         \
-  ASM(InterpreterEnterBytecodeAdvance)                                         \
-  ASM(InterpreterEnterBytecodeDispatch)                                        \
-  ASM(InterpreterOnStackReplacement)                                           \
+  ASM(InterpreterEntryTrampoline, Dummy)                                       \
+  ASM(InterpreterPushArgsThenCall, InterpreterPushArgsThenCall)                \
+  ASM(InterpreterPushUndefinedAndArgsThenCall, InterpreterPushArgsThenCall)    \
+  ASM(InterpreterPushArgsThenCallWithFinalSpread, InterpreterPushArgsThenCall) \
+  ASM(InterpreterPushArgsThenConstruct, InterpreterPushArgsThenConstruct)      \
+  ASM(InterpreterPushArgsThenConstructArrayFunction,                           \
+      InterpreterPushArgsThenConstruct)                                        \
+  ASM(InterpreterPushArgsThenConstructWithFinalSpread,                         \
+      InterpreterPushArgsThenConstruct)                                        \
+  ASM(InterpreterEnterBytecodeAdvance, Dummy)                                  \
+  ASM(InterpreterEnterBytecodeDispatch, Dummy)                                 \
+  ASM(InterpreterOnStackReplacement, ContextOnly)                              \
                                                                                \
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline, 1)                                            \
   TFC(CompileLazyDeoptimizedCode, JSTrampoline, 1)                             \
-  ASM(InstantiateAsmJs)                                                        \
-  ASM(NotifyDeoptimized)                                                       \
+  ASM(InstantiateAsmJs, Dummy)                                                 \
+  ASM(NotifyDeoptimized, Dummy)                                                \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \
   /* to continue in a JavaScript builtin to finish the functionality of a   */ \
@@ -152,14 +157,14 @@ namespace internal {
   /* stack parameter to the JavaScript builtin by the "WithResult"          */ \
   /* trampoline variant. The plain variant is used in EAGER deopt contexts  */ \
   /* and has no such special handling. */                                      \
-  ASM(ContinueToCodeStubBuiltin)                                               \
-  ASM(ContinueToCodeStubBuiltinWithResult)                                     \
-  ASM(ContinueToJavaScriptBuiltin)                                             \
-  ASM(ContinueToJavaScriptBuiltinWithResult)                                   \
+  ASM(ContinueToCodeStubBuiltin, Dummy)                                        \
+  ASM(ContinueToCodeStubBuiltinWithResult, Dummy)                              \
+  ASM(ContinueToJavaScriptBuiltin, Dummy)                                      \
+  ASM(ContinueToJavaScriptBuiltinWithResult, Dummy)                            \
                                                                                \
   /* API callback handling */                                                  \
-  ASM(CallApiCallback)                                                         \
-  ASM(CallApiGetter)                                                           \
+  ASM(CallApiCallback, ApiCallback)                                            \
+  ASM(CallApiGetter, ApiGetter)                                                \
   API(HandleApiCall)                                                           \
   API(HandleApiCallAsFunction)                                                 \
   API(HandleApiCallAsConstructor)                                              \
@@ -176,8 +181,8 @@ namespace internal {
                                                                                \
   /* Debugger */                                                               \
   TFJ(DebugBreakTrampoline, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
-  ASM(FrameDropperTrampoline)                                                  \
-  ASM(HandleDebuggerStatement)                                                 \
+  ASM(FrameDropperTrampoline, FrameDropperTrampoline)                          \
+  ASM(HandleDebuggerStatement, ContextOnly)                                    \
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToObject, TypeConversion, 1)                                             \
@@ -301,15 +306,10 @@ namespace internal {
   TFC(ArraySingleArgumentConstructor_HoleyDouble_DisableAllocationSites,       \
       ArraySingleArgumentConstructor, 1)                                       \
   TFC(ArrayNArgumentsConstructor, ArrayNArgumentsConstructor, 1)               \
-  ASM(InternalArrayConstructor)                                                \
-  ASM(InternalArrayConstructorImpl)                                            \
+  ASM(InternalArrayConstructor, Dummy)                                         \
+  ASM(InternalArrayConstructorImpl, Dummy)                                     \
   TFC(InternalArrayNoArgumentConstructor_Packed, ArrayNoArgumentConstructor,   \
       1)                                                                       \
-  TFC(InternalArrayNoArgumentConstructor_Holey, ArrayNoArgumentConstructor, 1) \
-  TFC(InternalArraySingleArgumentConstructor_Packed,                           \
-      ArraySingleArgumentConstructor, 1)                                       \
-  TFC(InternalArraySingleArgumentConstructor_Holey,                            \
-      ArraySingleArgumentConstructor, 1)                                       \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kReceiver, kArg)                                        \
@@ -604,12 +604,12 @@ namespace internal {
                                                                                \
   /* Function */                                                               \
   CPP(FunctionConstructor)                                                     \
-  ASM(FunctionPrototypeApply)                                                  \
+  ASM(FunctionPrototypeApply, Dummy)                                           \
   CPP(FunctionPrototypeBind)                                                   \
   /* ES6 #sec-function.prototype.bind */                                       \
   TFJ(FastFunctionPrototypeBind,                                               \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  ASM(FunctionPrototypeCall)                                                   \
+  ASM(FunctionPrototypeCall, Dummy)                                            \
   /* ES6 #sec-function.prototype-@@hasinstance */                              \
   TFJ(FunctionPrototypeHasInstance, 1, kReceiver, kV)                          \
   /* ES6 #sec-function.prototype.tostring */                                   \
@@ -936,8 +936,8 @@ namespace internal {
   TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue, kLanguageMode)  \
                                                                                \
   /* Reflect */                                                                \
-  ASM(ReflectApply)                                                            \
-  ASM(ReflectConstruct)                                                        \
+  ASM(ReflectApply, Dummy)                                                     \
+  ASM(ReflectConstruct, Dummy)                                                 \
   CPP(ReflectDefineProperty)                                                   \
   CPP(ReflectDeleteProperty)                                                   \
   CPP(ReflectGet)                                                              \
@@ -1242,7 +1242,7 @@ namespace internal {
   TFJ(TypedArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
                                                                                \
   /* Wasm */                                                                   \
-  ASM(WasmCompileLazy)                                                         \
+  ASM(WasmCompileLazy, Dummy)                                                  \
   TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
   TFC(WasmAtomicWake, WasmAtomicWake, 1)                                       \
   TFC(WasmI32AtomicWait, WasmI32AtomicWait, 1)                                 \
@@ -1262,6 +1262,7 @@ namespace internal {
   TFS(ThrowWasmTrapFloatUnrepresentable)                                       \
   TFS(ThrowWasmTrapFuncInvalid)                                                \
   TFS(ThrowWasmTrapFuncSigMismatch)                                            \
+  TFS(ThrowWasmTrapDataSegmentDropped)                                         \
   TFC(BigIntToWasmI64, BigIntToWasmI64, 1)                                     \
                                                                                \
   /* WeakMap */                                                                \
@@ -1331,17 +1332,17 @@ namespace internal {
   TFJ(AsyncIteratorValueUnwrap, 1, kReceiver, kValue)                          \
                                                                                \
   /* CEntry */                                                                 \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit)                 \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit)                   \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit)              \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit)                     \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit)                 \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit)                   \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit)              \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit)                     \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
-  ASM(DirectCEntry)                                                            \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)          \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)            \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, Dummy)       \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)              \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)                \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)          \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)            \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, Dummy)       \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)              \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)                \
+  ASM(DirectCEntry, Dummy)                                                     \
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, kLeft, kRight)                                      \
@@ -1350,11 +1351,11 @@ namespace internal {
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
-  ASM(DoubleToI)                                                               \
+  ASM(DoubleToI, Dummy)                                                        \
   TFC(GetProperty, GetProperty, 1)                                             \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
   TFS(SetPropertyInLiteral, kReceiver, kKey, kValue)                           \
-  ASM(MathPowInternal)                                                         \
+  ASM(MathPowInternal, Dummy)                                                  \
                                                                                \
   /* Trace */                                                                  \
   CPP(IsTraceCategoryEnabled)                                                  \

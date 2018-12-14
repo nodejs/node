@@ -200,7 +200,10 @@ void Assembler::RecordComment(const char* msg) {
 void Assembler::DataAlign(int m) {
   DCHECK(m >= 2 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
-    db(0);
+    // Pad with 0xcc (= int3 on ia32 and x64); the primary motivation is that
+    // the disassembler expects to find valid instructions, but this is also
+    // nice from a security point of view.
+    db(0xcc);
   }
 }
 

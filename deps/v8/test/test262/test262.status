@@ -586,9 +586,6 @@
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8469
-  'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7482
   'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-locale-with-hc-unicode': [FAIL],
 

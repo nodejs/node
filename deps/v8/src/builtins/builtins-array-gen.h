@@ -159,9 +159,6 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<Object> new_target, TNode<Int32T> argc,
       TNode<HeapObject> maybe_allocation_site);
 
-  void GenerateInternalArrayNoArgumentConstructor(ElementsKind kind);
-  void GenerateInternalArraySingleArgumentConstructor(ElementsKind kind);
-
  private:
   static ElementsKind ElementsKindForInstanceType(InstanceType type);
 

@@ -226,11 +226,11 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
   return job->CreateStreamingDecoder();
 }
 
-bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
+void WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
                                  uint32_t function_index, ExecutionTier tier) {
   // Note we assume that "one-off" compilations can discard detected features.
   WasmFeatures detected = kNoWasmFeatures;
-  return WasmCompilationUnit::CompileWasmFunction(
+  WasmCompilationUnit::CompileWasmFunction(
       isolate, native_module, &detected,
       &native_module->module()->functions[function_index], tier);
 }

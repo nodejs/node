@@ -4124,6 +4124,10 @@ class V8_EXPORT Promise : public Object {
   V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Then(Local<Context> context,
                                                  Local<Function> handler);
 
+  V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Then(Local<Context> context,
+                                                 Local<Function> on_fulfilled,
+                                                 Local<Function> on_rejected);
+
   /**
    * Returns true if the promise has at least one derived promise, and
    * therefore resolve/reject handlers (including default handler).
@@ -4331,14 +4335,14 @@ class V8_EXPORT CompiledWasmModule {
 class V8_EXPORT WasmModuleObject : public Object {
  public:
   // TODO(clemensh): Remove after 7.3 branch.
-  V8_DEPRECATE_SOON("Use OwnedBuffer", typedef)
+  V8_DEPRECATED("Use OwnedBuffer", typedef)
   std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
 
   /**
    * A unowned reference to a byte buffer.
    * TODO(clemensh): Remove after 7.3 branch.
    */
-  V8_DEPRECATE_SOON("Use MemorySpan<const uint8_t>", struct) BufferReference {
+  V8_DEPRECATED("Use MemorySpan<const uint8_t>", struct) BufferReference {
     const uint8_t* start;
     size_t size;
     BufferReference(const uint8_t* start, size_t size)
@@ -4396,8 +4400,8 @@ class V8_EXPORT WasmModuleObject : public Object {
   /**
    * Get the wasm-encoded bytes that were used to compile this module.
    */
-  V8_DEPRECATE_SOON("Use CompiledWasmModule::GetWireBytesRef()",
-                    BufferReference GetWasmWireBytesRef());
+  V8_DEPRECATED("Use CompiledWasmModule::GetWireBytesRef()",
+                BufferReference GetWasmWireBytesRef());
 
   /**
    * Get the compiled module for this module object. The compiled module can be
@@ -4409,8 +4413,8 @@ class V8_EXPORT WasmModuleObject : public Object {
    * Serialize the compiled module. The serialized data does not include the
    * uncompiled bytes.
    */
-  V8_DEPRECATE_SOON("Use CompiledWasmModule::Serialize()",
-                    SerializedModule Serialize());
+  V8_DEPRECATED("Use CompiledWasmModule::Serialize()",
+                SerializedModule Serialize());
 
   /**
    * If possible, deserialize the module, otherwise compile it from the provided

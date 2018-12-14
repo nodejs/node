@@ -5,7 +5,7 @@
 #include "src/compiler/js-call-reducer.h"
 
 #include "src/api-inl.h"
-#include "src/builtins/builtins-promise-gen.h"
+#include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
@@ -5602,21 +5602,20 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   Node* promise_context = effect = graph()->NewNode(
       javascript()->CreateFunctionContext(
           handle(native_context().object()->scope_info(), isolate()),
-          PromiseBuiltinsAssembler::kPromiseContextLength -
-              Context::MIN_CONTEXT_SLOTS,
+          PromiseBuiltins::kPromiseContextLength - Context::MIN_CONTEXT_SLOTS,
           FUNCTION_SCOPE),
       context, effect, control);
-  effect =
-      graph()->NewNode(simplified()->StoreField(AccessBuilder::ForContextSlot(
-                           PromiseBuiltinsAssembler::kPromiseSlot)),
-                       promise_context, promise, effect, control);
   effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForContextSlot(
-          PromiseBuiltinsAssembler::kAlreadyResolvedSlot)),
+      simplified()->StoreField(
+          AccessBuilder::ForContextSlot(PromiseBuiltins::kPromiseSlot)),
+      promise_context, promise, effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(
+          AccessBuilder::ForContextSlot(PromiseBuiltins::kAlreadyResolvedSlot)),
       promise_context, jsgraph()->FalseConstant(), effect, control);
   effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForContextSlot(
-          PromiseBuiltinsAssembler::kDebugEventSlot)),
+      simplified()->StoreField(
+          AccessBuilder::ForContextSlot(PromiseBuiltins::kDebugEventSlot)),
       promise_context, jsgraph()->TrueConstant(), effect, control);
 
   // Allocate the closure for the resolve case.
@@ -5922,18 +5921,18 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     context = etrue = graph()->NewNode(
         javascript()->CreateFunctionContext(
             handle(native_context().object()->scope_info(), isolate()),
-            PromiseBuiltinsAssembler::kPromiseFinallyContextLength -
+            PromiseBuiltins::kPromiseFinallyContextLength -
                 Context::MIN_CONTEXT_SLOTS,
             FUNCTION_SCOPE),
         context, etrue, if_true);
-    etrue =
-        graph()->NewNode(simplified()->StoreField(AccessBuilder::ForContextSlot(
-                             PromiseBuiltinsAssembler::kOnFinallySlot)),
-                         context, on_finally, etrue, if_true);
-    etrue =
-        graph()->NewNode(simplified()->StoreField(AccessBuilder::ForContextSlot(
-                             PromiseBuiltinsAssembler::kConstructorSlot)),
-                         context, constructor, etrue, if_true);
+    etrue = graph()->NewNode(
+        simplified()->StoreField(
+            AccessBuilder::ForContextSlot(PromiseBuiltins::kOnFinallySlot)),
+        context, on_finally, etrue, if_true);
+    etrue = graph()->NewNode(
+        simplified()->StoreField(
+            AccessBuilder::ForContextSlot(PromiseBuiltins::kConstructorSlot)),
+        context, constructor, etrue, if_true);
 
     // Allocate the closure for the reject case.
     SharedFunctionInfoRef catch_finally =

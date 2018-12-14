@@ -76,10 +76,6 @@ class Builtins {
   Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> InterpreterPushArgsThenCall(ConvertReceiverMode receiver_mode,
-                                           InterpreterPushArgsMode mode);
-  Handle<Code> InterpreterPushArgsThenConstruct(InterpreterPushArgsMode mode);
-  Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> JSConstructStubGeneric();
 
   // Used by CreateOffHeapTrampolines in isolate.cc.

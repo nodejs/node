@@ -3284,32 +3284,37 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   return index;
 }
 
+// Check that the range [start, start + size) is in the range [0, max).
+void WasmGraphBuilder::BoundsCheckRange(Node* start, Node* size, Node* max,
+                                        wasm::WasmCodePosition position) {
+  // The accessed memory is [start, end), where {end} is {start + size}. We
+  // want to check that {start + size <= max}, making sure that {start + size}
+  // doesn't overflow. This can be expressed as {start <= max - size} as long
+  // as {max - size} isn't negative, which is true if {size <= max}.
+  auto m = mcgraph()->machine();
+  Node* cond = graph()->NewNode(m->Uint32LessThanOrEqual(), size, max);
+  TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
+
+  // This produces a positive number, since {size <= max}.
+  Node* effective_size = graph()->NewNode(m->Int32Sub(), max, size);
+
+  // Introduce the actual bounds check.
+  Node* check =
+      graph()->NewNode(m->Uint32LessThanOrEqual(), start, effective_size);
+  TrapIfFalse(wasm::kTrapMemOutOfBounds, check, position);
+
+  // TODO(binji): Does this need addtional untrusted_code_mitigations_ mask
+  // like BoundsCheckMem above?
+}
+
 Node* WasmGraphBuilder::BoundsCheckMemRange(Node* start, Node* size,
                                             wasm::WasmCodePosition position) {
   // TODO(binji): Support trap handler.
-  auto m = mcgraph()->machine();
   if (!FLAG_wasm_no_bounds_checks) {
-    // The accessed memory is [start, end), where {end} is {start + size}.
-    // We want to check that {start + size <= mem_size}, making sure that
-    // {start + size} doesn't overflow. This can be expressed as
-    // {start <= mem_size - size} as long as {mem_size - size} isn't negative,
-    // which is true if {size <= mem_size}.
-    Node* mem_size = instance_cache_->mem_size;
-    Node* cond = graph()->NewNode(m->Uint32LessThanOrEqual(), size, mem_size);
-    TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
-
-    // This produces a positive number, since {size <= mem_size}.
-    Node* effective_size = graph()->NewNode(m->Int32Sub(), mem_size, size);
-
-    // Introduce the actual bounds check.
-    Node* check =
-        graph()->NewNode(m->Uint32LessThanOrEqual(), start, effective_size);
-    TrapIfFalse(wasm::kTrapMemOutOfBounds, check, position);
-
-    // TODO(binji): Does this need addtional untrusted_code_mitigations_ mask
-    // like BoundsCheckMem above?
+    BoundsCheckRange(start, size, instance_cache_->mem_size, position);
   }
-  return graph()->NewNode(m->IntAdd(), MemBuffer(0), Uint32ToUintptr(start));
+  return graph()->NewNode(mcgraph()->machine()->IntAdd(), MemBuffer(0),
+                          Uint32ToUintptr(start));
 }
 
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
@@ -4231,6 +4236,81 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #undef ATOMIC_CMP_EXCHG_LIST
 #undef ATOMIC_LOAD_LIST
 #undef ATOMIC_STORE_LIST
+
+Node* WasmGraphBuilder::CheckDataSegmentIsPassiveAndNotDropped(
+    uint32_t data_segment_index, wasm::WasmCodePosition position) {
+  // The data segment index must be in bounds since it is required by
+  // validation.
+  DCHECK_LT(data_segment_index, env_->module->num_declared_data_segments);
+
+  Node* dropped_data_segments =
+      LOAD_INSTANCE_FIELD(DroppedDataSegments, MachineType::Pointer());
+  Node* is_segment_dropped = SetEffect(graph()->NewNode(
+      mcgraph()->machine()->Load(MachineType::Uint8()), dropped_data_segments,
+      mcgraph()->IntPtrConstant(data_segment_index), Effect(), Control()));
+  TrapIfTrue(wasm::kTrapDataSegmentDropped, is_segment_dropped, position);
+  return dropped_data_segments;
+}
+
+Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
+                                   Node* src, Node* size,
+                                   wasm::WasmCodePosition position) {
+  CheckDataSegmentIsPassiveAndNotDropped(data_segment_index, position);
+  dst = BoundsCheckMemRange(dst, size, position);
+  MachineOperatorBuilder* m = mcgraph()->machine();
+
+  Node* seg_index = Uint32Constant(data_segment_index);
+
+  {
+    // Load segment size from WasmInstanceObject::data_segment_sizes.
+    Node* seg_size_array =
+        LOAD_INSTANCE_FIELD(DataSegmentSizes, MachineType::Pointer());
+    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >> 2);
+    Node* scaled_index = Uint32ToUintptr(
+        graph()->NewNode(m->Word32Shl(), seg_index, Int32Constant(2)));
+    Node* seg_size = SetEffect(graph()->NewNode(m->Load(MachineType::Uint32()),
+                                                seg_size_array, scaled_index,
+                                                Effect(), Control()));
+
+    // Bounds check the src index against the segment size.
+    BoundsCheckRange(src, size, seg_size, position);
+  }
+
+  {
+    // Load segment's base pointer from WasmInstanceObject::data_segment_starts.
+    Node* seg_start_array =
+        LOAD_INSTANCE_FIELD(DataSegmentStarts, MachineType::Pointer());
+    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >>
+                  kPointerSizeLog2);
+    Node* scaled_index = Uint32ToUintptr(graph()->NewNode(
+        m->Word32Shl(), seg_index, Int32Constant(kPointerSizeLog2)));
+    Node* seg_start = SetEffect(
+        graph()->NewNode(m->Load(MachineType::Pointer()), seg_start_array,
+                         scaled_index, Effect(), Control()));
+
+    // Convert src index to pointer.
+    src = graph()->NewNode(m->IntAdd(), seg_start, Uint32ToUintptr(src));
+  }
+
+  Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
+      ExternalReference::wasm_memory_copy()));
+  MachineType sig_types[] = {MachineType::Pointer(), MachineType::Pointer(),
+                             MachineType::Uint32()};
+  MachineSignature sig(0, 3, sig_types);
+  return BuildCCall(&sig, function, dst, src, size);
+}
+
+Node* WasmGraphBuilder::MemoryDrop(uint32_t data_segment_index,
+                                   wasm::WasmCodePosition position) {
+  Node* dropped_data_segments =
+      CheckDataSegmentIsPassiveAndNotDropped(data_segment_index, position);
+  const Operator* store_op = mcgraph()->machine()->Store(
+      StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier));
+  return SetEffect(
+      graph()->NewNode(store_op, dropped_data_segments,
+                       mcgraph()->IntPtrConstant(data_segment_index),
+                       mcgraph()->Int32Constant(1), Effect(), Control()));
+}
 
 Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
                                    wasm::WasmCodePosition position) {

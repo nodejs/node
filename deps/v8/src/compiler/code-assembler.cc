@@ -175,41 +175,13 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
   RawMachineAssembler* rasm = state->raw_assembler_.get();
 
   Handle<Code> code;
-  if (FLAG_optimize_csa) {
-    // TODO(tebbi): Support jump rewriting also when FLAG_optimize_csa.
-    DCHECK(!FLAG_turbo_rewrite_far_jumps);
-    Graph* graph = rasm->ExportForOptimization();
+  Graph* graph = rasm->ExportForOptimization();
 
-    code = Pipeline::GenerateCodeForCodeStub(
-               rasm->isolate(), rasm->call_descriptor(), graph, nullptr,
-               state->kind_, state->name_, state->builtin_index_, nullptr,
-               rasm->poisoning_level(), options)
-               .ToHandleChecked();
-  } else {
-    Schedule* schedule = rasm->Export();
-
-    JumpOptimizationInfo jump_opt;
-    bool should_optimize_jumps =
-        rasm->isolate()->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
-
-    code = Pipeline::GenerateCodeForCodeStub(
-               rasm->isolate(), rasm->call_descriptor(), rasm->graph(),
-               schedule, state->kind_, state->name_, state->builtin_index_,
-               should_optimize_jumps ? &jump_opt : nullptr,
-               rasm->poisoning_level(), options)
-               .ToHandleChecked();
-
-    if (jump_opt.is_optimizable()) {
-      jump_opt.set_optimizing();
-
-      // Regenerate machine code
-      code = Pipeline::GenerateCodeForCodeStub(
-                 rasm->isolate(), rasm->call_descriptor(), rasm->graph(),
-                 schedule, state->kind_, state->name_, state->builtin_index_,
-                 &jump_opt, rasm->poisoning_level(), options)
-                 .ToHandleChecked();
-    }
-  }
+  code =
+      Pipeline::GenerateCodeForCodeStub(
+          rasm->isolate(), rasm->call_descriptor(), graph, state->kind_,
+          state->name_, state->builtin_index_, rasm->poisoning_level(), options)
+          .ToHandleChecked();
 
   state->code_generated_ = true;
   return code;

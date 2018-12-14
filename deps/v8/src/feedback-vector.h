@@ -572,11 +572,15 @@ class FeedbackMetadataIterator {
 class FeedbackNexus final {
  public:
   FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : vector_handle_(vector),
-        slot_(slot),
-        kind_(vector->GetKind(slot)) {}
+      : vector_handle_(vector), slot_(slot) {
+    kind_ =
+        (vector.is_null()) ? FeedbackSlotKind::kInvalid : vector->GetKind(slot);
+  }
   FeedbackNexus(FeedbackVector vector, FeedbackSlot slot)
-      : vector_(vector), slot_(slot), kind_(vector->GetKind(slot)) {}
+      : vector_(vector), slot_(slot) {
+    kind_ =
+        (vector.is_null()) ? FeedbackSlotKind::kInvalid : vector->GetKind(slot);
+  }
 
   Handle<FeedbackVector> vector_handle() const {
     DCHECK(vector_.is_null());

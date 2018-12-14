@@ -510,6 +510,7 @@ namespace internal {
   T(WasmTrapFuncInvalid, "invalid index into function table")                  \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
   T(WasmTrapTypeError, "wasm function signature contains illegal type")        \
+  T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \

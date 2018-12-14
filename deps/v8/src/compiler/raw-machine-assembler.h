@@ -625,25 +625,16 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Conversions.
   Node* BitcastTaggedToWord(Node* a) {
-    if (FLAG_verify_csa || FLAG_optimize_csa) {
       return AddNode(machine()->BitcastTaggedToWord(), a);
-    }
-    return a;
   }
   Node* BitcastMaybeObjectToWord(Node* a) {
-    if (FLAG_verify_csa || FLAG_optimize_csa) {
       return AddNode(machine()->BitcastMaybeObjectToWord(), a);
-    }
-    return a;
   }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }
   Node* BitcastWordToTaggedSigned(Node* a) {
-    if (FLAG_verify_csa || FLAG_optimize_csa) {
       return AddNode(machine()->BitcastWordToTaggedSigned(), a);
-    }
-    return a;
   }
   Node* TruncateFloat64ToWord32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToWord32(), a);

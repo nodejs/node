@@ -29,9 +29,6 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # https://crbug.com/v8/8469
-  'regress-8469': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {

@@ -3822,32 +3822,6 @@ TF_BUILTIN(ArrayNArgumentsConstructor, ArrayBuiltinsAssembler) {
                                      maybe_allocation_site);
 }
 
-void ArrayBuiltinsAssembler::GenerateInternalArrayNoArgumentConstructor(
-    ElementsKind kind) {
-  typedef ArrayNoArgumentConstructorDescriptor Descriptor;
-  TNode<Map> array_map =
-      CAST(LoadObjectField(Parameter(Descriptor::kFunction),
-                           JSFunction::kPrototypeOrInitialMapOffset));
-  TNode<JSArray> array = AllocateJSArray(
-      kind, array_map, IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      SmiConstant(0));
-  Return(array);
-}
-
-void ArrayBuiltinsAssembler::GenerateInternalArraySingleArgumentConstructor(
-    ElementsKind kind) {
-  typedef ArraySingleArgumentConstructorDescriptor Descriptor;
-  Node* context = Parameter(Descriptor::kContext);
-  Node* function = Parameter(Descriptor::kFunction);
-  Node* array_map =
-      LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array_size = Parameter(Descriptor::kArraySizeSmiParameter);
-  Node* allocation_site = UndefinedConstant();
-
-  GenerateConstructor(context, function, array_map, array_size, allocation_site,
-                      kind, DONT_TRACK_ALLOCATION_SITE);
-}
-
 #define GENERATE_ARRAY_CTOR(name, kind_camel, kind_caps, mode_camel, \
                             mode_caps)                               \
   TF_BUILTIN(Array##name##Constructor_##kind_camel##_##mode_camel,   \
@@ -3893,18 +3867,16 @@ GENERATE_ARRAY_CTOR(SingleArgument, HoleyDouble, HOLEY_DOUBLE_ELEMENTS,
 
 #undef GENERATE_ARRAY_CTOR
 
-#define GENERATE_INTERNAL_ARRAY_CTOR(name, kind_camel, kind_caps) \
-  TF_BUILTIN(InternalArray##name##Constructor_##kind_camel,       \
-             ArrayBuiltinsAssembler) {                            \
-    GenerateInternalArray##name##Constructor(kind_caps);          \
-  }
-
-GENERATE_INTERNAL_ARRAY_CTOR(NoArgument, Packed, PACKED_ELEMENTS);
-GENERATE_INTERNAL_ARRAY_CTOR(NoArgument, Holey, HOLEY_ELEMENTS);
-GENERATE_INTERNAL_ARRAY_CTOR(SingleArgument, Packed, PACKED_ELEMENTS);
-GENERATE_INTERNAL_ARRAY_CTOR(SingleArgument, Holey, HOLEY_ELEMENTS);
-
-#undef GENERATE_INTERNAL_ARRAY_CTOR
+TF_BUILTIN(InternalArrayNoArgumentConstructor_Packed, ArrayBuiltinsAssembler) {
+  typedef ArrayNoArgumentConstructorDescriptor Descriptor;
+  TNode<Map> array_map =
+      CAST(LoadObjectField(Parameter(Descriptor::kFunction),
+                           JSFunction::kPrototypeOrInitialMapOffset));
+  TNode<JSArray> array = AllocateJSArray(
+      PACKED_ELEMENTS, array_map,
+      IntPtrConstant(JSArray::kPreallocatedArrayElements), SmiConstant(0));
+  Return(array);
+}
 
 }  // namespace internal
 }  // namespace v8

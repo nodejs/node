@@ -2023,8 +2023,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-    Schedule* schedule, Code::Kind kind, const char* debug_name,
-    int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+    Code::Kind kind, const char* debug_name, int32_t builtin_index,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
@@ -2036,8 +2035,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable node_origins(graph);
-  PipelineData data(&zone_stats, &info, isolate, graph, schedule, nullptr,
-                    &node_origins, jump_opt, options);
+  JumpOptimizationInfo jump_opt;
+  bool should_optimize_jumps =
+      isolate->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
+  PipelineData data(&zone_stats, &info, isolate, graph, nullptr, nullptr,
+                    &node_origins, should_optimize_jumps ? &jump_opt : nullptr,
+                    options);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
@@ -2064,16 +2067,27 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
-  if (FLAG_optimize_csa) {
-    DCHECK_NULL(data.schedule());
-    pipeline.Run<VerifyGraphPhase>(true, !FLAG_optimize_csa);
-    pipeline.ComputeScheduledGraph();
-  } else {
-    TraceSchedule(data.info(), &data, data.schedule(), "schedule");
-  }
+  pipeline.Run<VerifyGraphPhase>(true);
+  pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
 
-  return pipeline.GenerateCode(call_descriptor);
+  // First run code generation on a copy of the pipeline, in order to be able to
+  // repeat it for jump optimization. The first run has to happen on a temporary
+  // pipeline to avoid deletion of zones on the main pipeline.
+  PipelineData second_data(&zone_stats, &info, isolate, data.graph(),
+                           data.schedule(), nullptr, &node_origins,
+                           data.jump_optimization_info(), options);
+  second_data.set_verify_graph(FLAG_verify_csa);
+  PipelineImpl second_pipeline(&second_data);
+  Handle<Code> code =
+      second_pipeline.GenerateCode(call_descriptor).ToHandleChecked();
+
+  if (jump_opt.is_optimizable()) {
+    jump_opt.set_optimizing();
+    code = pipeline.GenerateCode(call_descriptor).ToHandleChecked();
+  }
+
+  return code;
 }
 
 // static

@@ -2939,53 +2939,6 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   __ ret(0);
 }
 
-namespace {
-
-void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
-                                          ElementsKind kind) {
-  Label not_zero_case, not_one_case;
-  Label normal_sequence;
-
-  __ testp(rax, rax);
-  __ j(not_zero, &not_zero_case);
-  __ Jump(CodeFactory::InternalArrayNoArgumentConstructor(masm->isolate(), kind)
-              .code(),
-          RelocInfo::CODE_TARGET);
-
-  __ bind(&not_zero_case);
-  __ cmpl(rax, Immediate(1));
-  __ j(greater, &not_one_case);
-
-  if (IsFastPackedElementsKind(kind)) {
-    // We might need to create a holey array
-    // look at the first argument
-    StackArgumentsAccessor args(rsp, 1, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-    __ movp(rcx, args.GetArgumentOperand(0));
-    __ testp(rcx, rcx);
-    __ j(zero, &normal_sequence);
-
-    __ Jump(CodeFactory::InternalArraySingleArgumentConstructor(
-                masm->isolate(), GetHoleyElementsKind(kind))
-                .code(),
-            RelocInfo::CODE_TARGET);
-  }
-
-  __ bind(&normal_sequence);
-  __ Jump(
-      CodeFactory::InternalArraySingleArgumentConstructor(masm->isolate(), kind)
-          .code(),
-      RelocInfo::CODE_TARGET);
-
-  __ bind(&not_one_case);
-  // Load undefined into the allocation site parameter as required by
-  // ArrayNArgumentsConstructor.
-  __ LoadRoot(kJavaScriptCallExtraArg1Register, RootIndex::kUndefinedValue);
-  Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
-  __ Jump(code, RelocInfo::CODE_TARGET);
-}
-
-}  // namespace
-
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : argc
@@ -3006,35 +2959,28 @@ void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
     __ Check(not_smi, AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
     __ Check(equal, AbortReason::kUnexpectedInitialMapForArrayFunction);
-  }
 
-  // Figure out the right elements kind
-  __ movp(rcx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+    // Figure out the right elements kind
+    __ movp(rcx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
 
-  // Load the map's "bit field 2" into |result|. We only need the first byte,
-  // but the following masking takes care of that anyway.
-  __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ DecodeField<Map::ElementsKindBits>(rcx);
+    // Load the map's "bit field 2" into |result|. We only need the first byte,
+    // but the following masking takes care of that anyway.
+    __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ DecodeField<Map::ElementsKindBits>(rcx);
 
-  if (FLAG_debug_code) {
-    Label done;
+    // Initial elements kind should be packed elements.
     __ cmpl(rcx, Immediate(PACKED_ELEMENTS));
-    __ j(equal, &done);
-    __ cmpl(rcx, Immediate(HOLEY_ELEMENTS));
-    __ Assert(
-        equal,
-        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
-    __ bind(&done);
+    __ Assert(equal, AbortReason::kInvalidElementsKindForInternalPackedArray);
+
+    // No arguments should be passed.
+    __ testp(rax, rax);
+    __ Assert(zero, AbortReason::kWrongNumberOfArgumentsForInternalPackedArray);
   }
 
-  Label fast_elements_case;
-  __ cmpl(rcx, Immediate(PACKED_ELEMENTS));
-  __ j(equal, &fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, HOLEY_ELEMENTS);
-
-  __ bind(&fast_elements_case);
-  GenerateInternalArrayConstructorCase(masm, PACKED_ELEMENTS);
+  __ Jump(
+      BUILTIN_CODE(masm->isolate(), InternalArrayNoArgumentConstructor_Packed),
+      RelocInfo::CODE_TARGET);
 }
 
 namespace {

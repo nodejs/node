@@ -350,6 +350,14 @@ class WasmGraphBuilder {
                  uint32_t alignment, uint32_t offset,
                  wasm::WasmCodePosition position);
 
+  // Returns a pointer to the dropped_data_segments array. Traps if the data
+  // segment is active or has been dropped.
+  Node* CheckDataSegmentIsPassiveAndNotDropped(uint32_t data_segment_index,
+                                               wasm::WasmCodePosition position);
+  Node* MemoryInit(uint32_t data_segment_index, Node* dst, Node* src,
+                   Node* size, wasm::WasmCodePosition position);
+  Node* MemoryDrop(uint32_t data_segment_index,
+                   wasm::WasmCodePosition position);
   Node* MemoryCopy(Node* dst, Node* src, Node* size,
                    wasm::WasmCodePosition position);
   Node* MemoryFill(Node* dst, Node* fill, Node* size,
@@ -407,9 +415,12 @@ class WasmGraphBuilder {
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
   Node* BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
                        wasm::WasmCodePosition, EnforceBoundsCheck);
-  // BoundsCheckMemRange receives a uint32 {index} and {size} and returns
+  // Check that the range [start, start + size) is in the range [0, max).
+  void BoundsCheckRange(Node* start, Node* size, Node* max,
+                        wasm::WasmCodePosition);
+  // BoundsCheckMemRange receives a uint32 {start} and {size} and returns
   // a pointer into memory at that index, if it is in bounds.
-  Node* BoundsCheckMemRange(Node* index, Node* size, wasm::WasmCodePosition);
+  Node* BoundsCheckMemRange(Node* start, Node* size, wasm::WasmCodePosition);
   Node* CheckBoundsAndAlignment(uint8_t access_size, Node* index,
                                 uint32_t offset, wasm::WasmCodePosition);
   Node* Uint32ToUintptr(Node*);

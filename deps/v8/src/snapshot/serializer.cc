@@ -806,45 +806,35 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
   DCHECK(FLAG_embedded_builtins);
-  {
-    STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
-    CHECK(Builtins::IsIsolateIndependentBuiltin(host));
-    Address addr = rinfo->target_off_heap_target();
-    CHECK_NE(kNullAddress, addr);
-    CHECK(!InstructionStream::TryLookupCode(serializer_->isolate(), addr)
-               .is_null());
-  }
+  STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
+
+  Address addr = rinfo->target_off_heap_target();
+  CHECK_NE(kNullAddress, addr);
+
+  Code target = InstructionStream::TryLookupCode(serializer_->isolate(), addr);
+  CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
   int skip = SkipTo(rinfo->target_address_address());
   sink_->Put(kOffHeapTarget, "OffHeapTarget");
   sink_->PutInt(skip, "SkipB4OffHeapTarget");
-  sink_->PutInt(host->builtin_index(), "builtin index");
+  sink_->PutInt(target->builtin_index(), "builtin index");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
 namespace {
+
 class CompareRelocInfo {
  public:
   bool operator()(RelocInfo x, RelocInfo y) {
     // Everything that does not use target_address_address will compare equal.
     Address x_num = 0;
     Address y_num = 0;
-    if (HasTargetAddressAddress(x.rmode())) {
-      x_num = x.target_address_address();
-    }
-    if (HasTargetAddressAddress(y.rmode())) {
-      y_num = y.target_address_address();
-    }
+    if (x.HasTargetAddressAddress()) x_num = x.target_address_address();
+    if (y.HasTargetAddressAddress()) y_num = y.target_address_address();
     return x_num > y_num;
   }
-
- private:
-  static bool HasTargetAddressAddress(RelocInfo::Mode mode) {
-    return RelocInfo::IsEmbeddedObject(mode) || RelocInfo::IsCodeTarget(mode) ||
-           RelocInfo::IsExternalReference(mode) ||
-           RelocInfo::IsRuntimeEntry(mode);
-  }
 };
+
 }  // namespace
 
 void Serializer::ObjectSerializer::VisitRelocInfo(RelocIterator* it) {

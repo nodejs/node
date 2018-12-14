@@ -80,7 +80,7 @@
     const rejectedPromise = v8.createPromise();
     v8.rejectPromise(rejectedPromise, apply(function (arg1, arg2) {
       return (arg1 === arg2 && arg2 === 'x') ? 3 : -1;
-    }, null, new v8.InternalPackedArray('x', 'x')));
+    }, null, ['x', 'x']));
 
     const rejectedButHandledPromise = v8.createPromise();
     v8.rejectPromise(rejectedButHandledPromise, 4);

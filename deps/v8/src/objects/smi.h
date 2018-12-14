@@ -98,7 +98,7 @@ class Smi : public ObjectPtr {
   // C++ does not allow us to have an object of type Smi within class Smi,
   // so the kZero value has type ObjectPtr. Consider it deprecated; new code
   // should use zero() instead.
-  static constexpr ObjectPtr kZero = ObjectPtr(0);
+  V8_EXPORT_PRIVATE static constexpr ObjectPtr kZero = ObjectPtr(0);
   // If you need something with type Smi, call zero() instead. Since it is
   // a constexpr, "calling" it is just as efficient as reading kZero.
   static inline constexpr Smi zero() { return Smi::FromInt(0); }

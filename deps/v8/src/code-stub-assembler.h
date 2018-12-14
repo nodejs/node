@@ -2700,6 +2700,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 
+  // Returns the stricter of the Context::ScopeInfo::LanguageMode and
+  // the language mode on the SFI.
+  Node* GetLanguageMode(TNode<SharedFunctionInfo> sfi, Node* context);
+  Node* GetLanguageMode(TNode<JSFunction> closure, Node* context);
+  Node* GetLanguageMode(TNode<FeedbackVector> vector, Node* context);
+
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
   void ReportFeedbackUpdate(SloppyTNode<FeedbackVector> feedback_vector,

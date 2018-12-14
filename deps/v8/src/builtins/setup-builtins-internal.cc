@@ -335,7 +335,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
                                  OperandScale, Bytecode);               \
   AddBuiltin(builtins, index++, code);
 
-#define BUILD_ASM(Name)                                                     \
+#define BUILD_ASM(Name, InterfaceDescriptor)                                \
   code = BuildWithMacroAssembler(isolate, index, Builtins::Generate_##Name, \
                                  #Name);                                    \
   AddBuiltin(builtins, index++, code);

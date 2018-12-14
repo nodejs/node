@@ -59,43 +59,41 @@ Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
 
 // static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, CallApiGetter), ApiGetterDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kCallApiGetter);
 }
 
 // static
 Callable CodeFactory::CallApiCallback(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, CallApiCallback),
-                  ApiCallbackDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kCallApiCallback);
 }
 
 // static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
-  return Callable(
-      typeof_mode == NOT_INSIDE_TYPEOF
-          ? BUILTIN_CODE(isolate, LoadGlobalICTrampoline)
-          : BUILTIN_CODE(isolate, LoadGlobalICInsideTypeofTrampoline),
-      LoadGlobalDescriptor{});
+  return typeof_mode == NOT_INSIDE_TYPEOF
+             ? Builtins::CallableFor(isolate, Builtins::kLoadGlobalICTrampoline)
+             : Builtins::CallableFor(
+                   isolate, Builtins::kLoadGlobalICInsideTypeofTrampoline);
 }
 
 // static
 Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                                                   TypeofMode typeof_mode) {
-  return Callable(typeof_mode == NOT_INSIDE_TYPEOF
-                      ? BUILTIN_CODE(isolate, LoadGlobalIC)
-                      : BUILTIN_CODE(isolate, LoadGlobalICInsideTypeof),
-                  LoadGlobalWithVectorDescriptor{});
+  return typeof_mode == NOT_INSIDE_TYPEOF
+             ? Builtins::CallableFor(isolate, Builtins::kLoadGlobalIC)
+             : Builtins::CallableFor(isolate,
+                                     Builtins::kLoadGlobalICInsideTypeof);
 }
 
 Callable CodeFactory::StoreOwnIC(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.
-  return Callable(BUILTIN_CODE(isolate, StoreICTrampoline), StoreDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kStoreICTrampoline);
 }
 
 Callable CodeFactory::StoreOwnICInOptimizedCode(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.
-  return Callable(BUILTIN_CODE(isolate, StoreIC), StoreWithVectorDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kStoreIC);
 }
 
 Callable CodeFactory::KeyedStoreIC_SloppyArguments(Isolate* isolate,
@@ -277,33 +275,37 @@ Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags) {
 
 // static
 Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ResumeGeneratorTrampoline),
-                  ResumeGeneratorDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kResumeGeneratorTrampoline);
 }
 
 // static
 Callable CodeFactory::FrameDropperTrampoline(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, FrameDropperTrampoline),
-                  FrameDropperTrampolineDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kFrameDropperTrampoline);
 }
 
 // static
 Callable CodeFactory::HandleDebuggerStatement(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, HandleDebuggerStatement),
-                  ContextOnlyDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kHandleDebuggerStatement);
 }
 
 // static
 Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
                                              ScopeType scope_type) {
-  return Callable(isolate->builtins()->NewFunctionContext(scope_type),
-                  FastNewFunctionContextDescriptor{});
+  switch (scope_type) {
+    case ScopeType::EVAL_SCOPE:
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kFastNewFunctionContextEval);
+    case ScopeType::FUNCTION_SCOPE:
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kFastNewFunctionContextFunction);
+    default:
+      UNREACHABLE();
+  }
 }
 
 // static
 Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ArgumentsAdaptorTrampoline),
-                  ArgumentsAdaptorDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kArgumentsAdaptorTrampoline);
 }
 
 // static
@@ -313,14 +315,12 @@ Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode) {
 
 // static
 Callable CodeFactory::CallWithArrayLike(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, CallWithArrayLike),
-                  CallWithArrayLikeDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kCallWithArrayLike);
 }
 
 // static
 Callable CodeFactory::CallWithSpread(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, CallWithSpread),
-                  CallWithSpreadDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kCallWithSpread);
 }
 
 // static
@@ -331,70 +331,91 @@ Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
 
 // static
 Callable CodeFactory::CallVarargs(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, CallVarargs), CallVarargsDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kCallVarargs);
 }
 
 // static
 Callable CodeFactory::CallForwardVarargs(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, CallForwardVarargs),
-                  CallForwardVarargsDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kCallForwardVarargs);
 }
 
 // static
 Callable CodeFactory::CallFunctionForwardVarargs(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, CallFunctionForwardVarargs),
-                  CallForwardVarargsDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kCallFunctionForwardVarargs);
 }
 
 // static
 Callable CodeFactory::Construct(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, Construct), JSTrampolineDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kConstruct);
 }
 
 // static
 Callable CodeFactory::ConstructWithSpread(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ConstructWithSpread),
-                  ConstructWithSpreadDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kConstructWithSpread);
 }
 
 // static
 Callable CodeFactory::ConstructFunction(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ConstructFunction),
-                  JSTrampolineDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kConstructFunction);
 }
 
 // static
 Callable CodeFactory::ConstructVarargs(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ConstructVarargs),
-                  ConstructVarargsDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kConstructVarargs);
 }
 
 // static
 Callable CodeFactory::ConstructForwardVarargs(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ConstructForwardVarargs),
-                  ConstructForwardVarargsDescriptor{});
+  return Builtins::CallableFor(isolate, Builtins::kConstructForwardVarargs);
 }
 
 // static
 Callable CodeFactory::ConstructFunctionForwardVarargs(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, ConstructFunctionForwardVarargs),
-                  ConstructForwardVarargsDescriptor{});
+  return Builtins::CallableFor(isolate,
+                               Builtins::kConstructFunctionForwardVarargs);
 }
 
 // static
 Callable CodeFactory::InterpreterPushArgsThenCall(
     Isolate* isolate, ConvertReceiverMode receiver_mode,
     InterpreterPushArgsMode mode) {
-  return Callable(
-      isolate->builtins()->InterpreterPushArgsThenCall(receiver_mode, mode),
-      InterpreterPushArgsThenCallDescriptor{});
+  switch (mode) {
+    case InterpreterPushArgsMode::kArrayFunction:
+      // There is no special-case handling of calls to Array. They will all go
+      // through the kOther case below.
+      UNREACHABLE();
+    case InterpreterPushArgsMode::kWithFinalSpread:
+      return Builtins::CallableFor(
+          isolate, Builtins::kInterpreterPushArgsThenCallWithFinalSpread);
+    case InterpreterPushArgsMode::kOther:
+      switch (receiver_mode) {
+        case ConvertReceiverMode::kNullOrUndefined:
+          return Builtins::CallableFor(
+              isolate, Builtins::kInterpreterPushUndefinedAndArgsThenCall);
+        case ConvertReceiverMode::kNotNullOrUndefined:
+        case ConvertReceiverMode::kAny:
+          return Builtins::CallableFor(isolate,
+                                       Builtins::kInterpreterPushArgsThenCall);
+      }
+  }
+  UNREACHABLE();
 }
 
 // static
 Callable CodeFactory::InterpreterPushArgsThenConstruct(
     Isolate* isolate, InterpreterPushArgsMode mode) {
-  return Callable(isolate->builtins()->InterpreterPushArgsThenConstruct(mode),
-                  InterpreterPushArgsThenConstructDescriptor{});
+  switch (mode) {
+    case InterpreterPushArgsMode::kArrayFunction:
+      return Builtins::CallableFor(
+          isolate, Builtins::kInterpreterPushArgsThenConstructArrayFunction);
+    case InterpreterPushArgsMode::kWithFinalSpread:
+      return Builtins::CallableFor(
+          isolate, Builtins::kInterpreterPushArgsThenConstructWithFinalSpread);
+    case InterpreterPushArgsMode::kOther:
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kInterpreterPushArgsThenConstruct);
+  }
+  UNREACHABLE();
 }
 
 // static
@@ -413,20 +434,19 @@ Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
 
 // static
 Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
-  return Callable(BUILTIN_CODE(isolate, InterpreterOnStackReplacement),
-                  ContextOnlyDescriptor{});
+  return Builtins::CallableFor(isolate,
+                               Builtins::kInterpreterOnStackReplacement);
 }
 
 // static
 Callable CodeFactory::ArrayNoArgumentConstructor(
     Isolate* isolate, ElementsKind kind,
     AllocationSiteOverrideMode override_mode) {
-#define CASE(kind_caps, kind_camel, mode_camel)                               \
-  case kind_caps:                                                             \
-    return Callable(                                                          \
-        BUILTIN_CODE(isolate,                                                 \
-                     ArrayNoArgumentConstructor_##kind_camel##_##mode_camel), \
-        ArrayNoArgumentConstructorDescriptor{})
+#define CASE(kind_caps, kind_camel, mode_camel) \
+  case kind_caps:                               \
+    return Builtins::CallableFor(               \
+        isolate,                                \
+        Builtins::kArrayNoArgumentConstructor_##kind_camel##_##mode_camel);
   if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
     DCHECK(IsSmiElementsKind(kind));
     switch (kind) {
@@ -456,13 +476,11 @@ Callable CodeFactory::ArrayNoArgumentConstructor(
 Callable CodeFactory::ArraySingleArgumentConstructor(
     Isolate* isolate, ElementsKind kind,
     AllocationSiteOverrideMode override_mode) {
-#define CASE(kind_caps, kind_camel, mode_camel)                          \
-  case kind_caps:                                                        \
-    return Callable(                                                     \
-        BUILTIN_CODE(                                                    \
-            isolate,                                                     \
-            ArraySingleArgumentConstructor_##kind_camel##_##mode_camel), \
-        ArraySingleArgumentConstructorDescriptor{})
+#define CASE(kind_caps, kind_camel, mode_camel) \
+  case kind_caps:                               \
+    return Builtins::CallableFor(               \
+        isolate,                                \
+        Builtins::kArraySingleArgumentConstructor_##kind_camel##_##mode_camel)
   if (override_mode == DONT_OVERRIDE && AllocationSite::ShouldTrack(kind)) {
     DCHECK(IsSmiElementsKind(kind));
     switch (kind) {
@@ -486,40 +504,6 @@ Callable CodeFactory::ArraySingleArgumentConstructor(
     }
   }
 #undef CASE
-}
-
-// static
-Callable CodeFactory::InternalArrayNoArgumentConstructor(Isolate* isolate,
-                                                         ElementsKind kind) {
-  switch (kind) {
-    case PACKED_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArrayNoArgumentConstructor_Packed),
-          ArrayNoArgumentConstructorDescriptor{});
-    case HOLEY_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArrayNoArgumentConstructor_Holey),
-          ArrayNoArgumentConstructorDescriptor{});
-    default:
-      UNREACHABLE();
-  }
-}
-
-// static
-Callable CodeFactory::InternalArraySingleArgumentConstructor(
-    Isolate* isolate, ElementsKind kind) {
-  switch (kind) {
-    case PACKED_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArraySingleArgumentConstructor_Packed),
-          ArraySingleArgumentConstructorDescriptor{});
-    case HOLEY_ELEMENTS:
-      return Callable(
-          BUILTIN_CODE(isolate, InternalArraySingleArgumentConstructor_Holey),
-          ArraySingleArgumentConstructorDescriptor{});
-    default:
-      UNREACHABLE();
-  }
 }
 
 }  // namespace internal

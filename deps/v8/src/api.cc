@@ -7285,6 +7285,20 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
   RETURN_ESCAPED(Local<Promise>::Cast(Utils::ToLocal(result)));
 }
 
+MaybeLocal<Promise> Promise::Then(Local<Context> context,
+                                  Local<Function> on_fulfilled,
+                                  Local<Function> on_rejected) {
+  PREPARE_FOR_EXECUTION(context, Promise, Then, Promise);
+  auto self = Utils::OpenHandle(this);
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*on_fulfilled),
+                                 Utils::OpenHandle(*on_rejected)};
+  i::Handle<i::Object> result;
+  has_pending_exception = !i::Execution::Call(isolate, isolate->promise_then(),
+                                              self, arraysize(argv), argv)
+                               .ToHandle(&result);
+  RETURN_ON_FAILED_EXECUTION(Promise);
+  RETURN_ESCAPED(Local<Promise>::Cast(Utils::ToLocal(result)));
+}
 
 bool Promise::HasHandler() {
   i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);

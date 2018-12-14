@@ -7,6 +7,7 @@
 #include "src/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
+#include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/char-predicates.h"
 #include "src/code-factory.h"
@@ -2358,9 +2359,9 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   CHECK_EQ(isolate->native_context()->scope_info(), context_js->scope_info());
   CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(context_js->get(PromiseBuiltinsAssembler::kPromiseSlot)->IsJSPromise());
+  CHECK(context_js->get(PromiseBuiltins::kPromiseSlot)->IsJSPromise());
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(),
-           context_js->get(PromiseBuiltinsAssembler::kDebugEventSlot));
+           context_js->get(PromiseBuiltins::kDebugEventSlot));
 }
 
 TEST(CreatePromiseResolvingFunctions) {
@@ -2518,13 +2519,12 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result_obj->IsContext());
   Handle<Context> context_js = Handle<Context>::cast(result_obj);
-  CHECK_EQ(PromiseBuiltinsAssembler::kCapabilitiesContextLength,
-           context_js->length());
+  CHECK_EQ(PromiseBuiltins::kCapabilitiesContextLength, context_js->length());
   CHECK_EQ(isolate->native_context()->scope_info(), context_js->scope_info());
   CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(context_js->get(PromiseBuiltinsAssembler::kCapabilitySlot)
-            ->IsPromiseCapability());
+  CHECK(
+      context_js->get(PromiseBuiltins::kCapabilitySlot)->IsPromiseCapability());
 }
 
 TEST(NewPromiseCapability) {
@@ -2571,10 +2571,8 @@ TEST(NewPromiseCapability) {
       CHECK_EQ(isolate->native_context()->scope_info(), context->scope_info());
       CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context->extension());
       CHECK_EQ(*isolate->native_context(), context->native_context());
-      CHECK_EQ(PromiseBuiltinsAssembler::kPromiseContextLength,
-               context->length());
-      CHECK_EQ(context->get(PromiseBuiltinsAssembler::kPromiseSlot),
-               result->promise());
+      CHECK_EQ(PromiseBuiltins::kPromiseContextLength, context->length());
+      CHECK_EQ(context->get(PromiseBuiltins::kPromiseSlot), result->promise());
     }
   }
 

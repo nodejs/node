@@ -22,7 +22,7 @@
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
-#include "src/builtins/builtins-promise-gen.h"
+#include "src/builtins/builtins-promise.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/cancelable-task.h"
 #include "src/compilation-cache.h"
@@ -763,7 +763,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // find the promise capability that's being resolved when all
       // the concurrent promises resolve.
       int const index =
-          PromiseBuiltinsAssembler::kPromiseAllResolveElementCapabilitySlot;
+          PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
       Handle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
       if (!capability->promise()->IsJSPromise()) return;

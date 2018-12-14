@@ -47,10 +47,9 @@ class WasmCompilationUnit final {
 
   NativeModule* native_module() const { return native_module_; }
   ExecutionTier tier() const { return tier_; }
-  bool failed() const { return result_ == nullptr; }  // TODO(clemensh): Remove.
   WasmCode* result() const { return result_; }
 
-  static bool CompileWasmFunction(Isolate* isolate, NativeModule* native_module,
+  static void CompileWasmFunction(Isolate* isolate, NativeModule* native_module,
                                   WasmFeatures* detected,
                                   const WasmFunction* function,
                                   ExecutionTier = GetDefaultExecutionTier());

@@ -18,7 +18,6 @@ struct AssemblerOptions;
 class OptimizedCompilationInfo;
 class OptimizedCompilationJob;
 class RegisterConfiguration;
-class JumpOptimizationInfo;
 
 namespace wasm {
 struct FunctionBody;
@@ -67,12 +66,10 @@ class Pipeline : public AllStatic {
       const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions = nullptr);
 
-  // Run the pipeline on a machine graph and generate code. The {schedule} must
-  // be valid, hence the given {graph} does not need to be schedulable.
+  // Run the pipeline on a machine graph and generate code.
   static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      Schedule* schedule, Code::Kind kind, const char* debug_name,
-      int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+      Code::Kind kind, const char* debug_name, int32_t builtin_index,
       PoisoningMitigationLevel poisoning_level,
       const AssemblerOptions& options);
 

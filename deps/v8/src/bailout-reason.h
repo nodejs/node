@@ -26,8 +26,8 @@ namespace internal {
   V(kInputStringTooLong, "Input string too long")                             \
   V(kInvalidBytecode, "Invalid bytecode")                                     \
   V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")             \
-  V(kInvalidElementsKindForInternalArrayOrInternalPackedArray,                \
-    "Invalid ElementsKind for InternalArray or InternalPackedArray")          \
+  V(kInvalidElementsKindForInternalPackedArray,                               \
+    "Invalid ElementsKind for InternalPackedArray")                           \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                    \
   V(kInvalidJumpTableIndex, "Invalid jump table index")                       \
   V(kInvalidParametersAndRegistersInGenerator,                                \
@@ -86,6 +86,8 @@ namespace internal {
     "Wrong number of arguments for intrinsic")                                \
   V(kWrongFunctionCodeStart, "Wrong value in code start register passed")     \
   V(kWrongFunctionContext, "Wrong context passed to function")                \
+  V(kWrongNumberOfArgumentsForInternalPackedArray,                            \
+    "Wrong number of arguments for InternalPackedArray")                      \
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")        \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")
 
