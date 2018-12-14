@@ -18,14 +18,10 @@ interoperability support, specifier resolution, and default behavior.
 
 <!-- type=misc -->
 
-The `--experimental-modules` flag can be used to enable features for loading
-ESM modules.
-
-Once this has been set, files ending with `.mjs` will be able to be loaded
-as ES Modules.
+Modules are enabled by default for files ending with `.mjs`:
 
 ```sh
-node --experimental-modules my-app.mjs
+node my-app.mjs
 ```
 
 ## Features
@@ -154,15 +150,22 @@ The resolver has the following properties:
 ### Resolver Algorithm
 
 The algorithm to load an ES module specifier is given through the
-**ESM_RESOLVE** method below. It returns the resolved URL for a 
+**ESM_RESOLVE** method below. It returns the resolved URL for a
 module specifier relative to a parentURL, in addition to the unique module
 format for that resolved URL given by the **ESM_FORMAT** routine.
+
+The _"esm"_ format is returned for an ECMAScript Module, while the
+_"legacy"_ format is used to indicate loading through the legacy
+CommonJS loader. Additional formats such as _"wasm"_ or _"addon"_ can be
+extended in future updates.
 
 In the following algorithms, all subroutine errors are propogated as errors
 of these top-level routines.
 
-#### ESM_RESOLVE(_specifier_, _parentURL_)
-> 1. Let _resolvedURL_ be *undefined*.
+_isMain_ is **true** when resolving the Node.js application entry point.
+
+#### ESM_RESOLVE(_specifier_, _parentURL_, _isMain_)
+> 1. Let _resolvedURL_ be **undefined**.
 > 1. If _specifier_ is a valid URL, then
 >    1. Set _resolvedURL_ to the result of parsing and reserializing
 >       _specifier_ as a URL.
@@ -177,8 +180,8 @@ of these top-level routines.
 >       **PACKAGE_RESOLVE**(_specifier_, _parentURL_).
 > 1. If the file at _resolvedURL_ does not exist, then
 >    1. Throw a _Module Not Found_ error.
-> 1. Let _format_ be the result of **ESM_FORMAT**(_url_).
-> 1. Return _{ resolvedURL, format }_.
+> 1. Let _format_ be the result of **ESM_FORMAT**(_url_, _isMain_).
+> 1. Load _resolvedURL_ as module format, _format_.
 
 PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 > 1. Let _packageName_ be *undefined*.
@@ -213,7 +216,7 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 >       1. Continue the next loop iteration.
 >    1. If _packagePath_ is empty, then
 >       1. Let _url_ be the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_).
->       1. If _url_ is *null*, then
+>       1. If _url_ is **null**, then
 >          1. Throw a _Module Not Found_ error.
 >       1. Return _url_.
 >    1. Otherwise,
@@ -222,34 +225,28 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 
 PACKAGE_MAIN_RESOLVE(_packageURL_)
 > 1. Let _pjsonURL_ be the URL of the file _"package.json"_ within the parent
-     path _packageURL_.
+>    path _packageURL_.
 > 1. If the file at _pjsonURL_ exists, then
 >    1. Let _pjson_ be the result of **READ_JSON_FILE**(_pjsonURL_).
->    1. If **HAS_ESM_PROPERTIES**(_pjson_) is *false*, then
+>    1. If **HAS_ESM_PROPERTIES**(_pjson_) is **false**, then
 >       1. Let _mainURL_ be the result applying the legacy
 >          **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, returning
 >          *undefined* for no resolution.
->       1. If _mainURL_ is not *undefined* and **ESM_FORMAT**(_mainURL_) is not
->          equal to _"cjs"_, then
->          1. Throw a _"Invalid Module Format"_ error.
 >       1. Return _mainURL_.
 > 1. _Note: ESM main yet to be implemented here._
-> 1. Return *null*.
+> 1. Return **null**.
 
-#### ESM_FORMAT(_url_)
+#### ESM_FORMAT(_url_, _isMain_)
 > 1. Assert: _url_ corresponds to an existing file.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_BOUNDARY**(_url_).
-> 1. If _pjson_ is *null* or **HAS_ESM_PROPERTIES**(_pjson_) is *true*, then
+> 1. If _pjson_ is **null** or **HAS_ESM_PROPERTIES**(_pjson_) is **true**, then
 >    1. If _url_ does not end in _".js"_ or _".mjs"_ then,
->       1. Throw an _Unkonwn Module Format_ error.
+>       1. Throw an _Unsupported File Extension_ error.
 >    1. Return _"esm"_.
 > 1. Otherwise,
->    1. If _url_ does not end in _".js"_ then,
->       1. Throw an _Unknown Module Format_ error.
->    1. Return _"cjs"_.
-> 1. If **HAS_ESM_PROPERTIES**(_pjson_) is *true*, then
->    1. Return _"esm"_.
-> 1. Return _"cjs"_.
+>    1. If _url_ ends with _".mjs"_, then
+>       1. Throw an _Unsupported File Extension_ error.
+>    1. Return _"legacy"_.
 
 READ_PACKAGE_BOUNDARY(_url_)
 > 1. Let _boundaryURL_ be the URL resolution of _"package.json"_ relative to
@@ -261,7 +258,7 @@ READ_PACKAGE_BOUNDARY(_url_)
 >       to _boundaryURL_.
 >    1. Let _pjson_ be the result of **READ_JSON_FILE**(_boundaryURL_).
 >    1. Return _pjson_.
-> 1. Return *null*.
+> 1. Return **null**.
 
 READ_JSON_FILE(_url_)
 > 1. If the file at _url_ does not parse as valid JSON, then
