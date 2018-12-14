@@ -75,14 +75,11 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   else
     count = chunks->Length() >> 1;
 
-  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
-
   size_t storage_size = 0;
-  size_t offset;
 
   if (!all_buffers) {
-    // Determine storage size first
-    for (size_t i = 0; i < count; i++) {
+    size_t index = 0;
+    for (size_t i = index; i < count; i++) {
       Local<Value> chunk = chunks->Get(env->context(), i * 2).ToLocalChecked();
 
       if (Buffer::HasInstance(chunk))
@@ -101,31 +98,57 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
                     .To(&chunk_size))
         return 0;
       storage_size += chunk_size;
-    }
+      if (storage_size >= INT_MAX) {
+        Local<Object> temp = env->write_wrap_template()
+                                 ->NewInstance(env->context())
+                                 .ToLocalChecked();
+        StreamReq::ResetObject(temp);
 
-    if (storage_size > INT_MAX)
-      return UV_ENOBUFS;
+        int err = WritevHelper(storage_size - chunk_size,
+                               index,
+                               i - 1,
+                               all_buffers,
+                               env,
+                               chunks,
+                               temp);
+        if (err != 0) {
+          return err;
+        }
+        index = i - 1;
+        storage_size = 0;
+      }
+    }
+    StreamReq::ResetObject(req_wrap_obj);
+    return WritevHelper(
+        storage_size, index, count, all_buffers, env, chunks, req_wrap_obj);
   } else {
-    for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk = chunks->Get(env->context(), i).ToLocalChecked();
-      bufs[i].base = Buffer::Data(chunk);
-      bufs[i].len = Buffer::Length(chunk);
-    }
+    return WritevHelper(
+        storage_size, 0, count, all_buffers, env, chunks, req_wrap_obj);
   }
+}
 
+int StreamBase::WritevHelper(size_t storage_size,
+                             int index,
+                             int count,
+                             bool all_buffers,
+                             Environment* env,
+                             const Local<Array>& chunks,
+                             const Local<Object>& req_wrap_obj) {
+  MaybeStackBuffer<uv_buf_t, 16> bufs(count - index);
+  size_t offset;
   MallocedBuffer<char> storage;
   if (storage_size > 0)
     storage = MallocedBuffer<char>(storage_size);
 
   offset = 0;
   if (!all_buffers) {
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = index; i < count; i++) {
       Local<Value> chunk = chunks->Get(env->context(), i * 2).ToLocalChecked();
 
       // Write buffer
       if (Buffer::HasInstance(chunk)) {
-        bufs[i].base = Buffer::Data(chunk);
-        bufs[i].len = Buffer::Length(chunk);
+        bufs[i - index].base = Buffer::Data(chunk);
+        bufs[i - index].len = Buffer::Length(chunk);
         continue;
       }
 
@@ -142,13 +165,19 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
                                     str_size,
                                     string,
                                     encoding);
-      bufs[i].base = str_storage;
-      bufs[i].len = str_size;
+      bufs[i - index].base = str_storage;
+      bufs[i - index].len = str_size;
       offset += str_size;
+    }
+  } else {
+    for (size_t i = 0; i < count; i++) {
+      Local<Value> chunk = chunks->Get(env->context(), i).ToLocalChecked();
+      bufs[i].base = Buffer::Data(chunk);
+      bufs[i].len = Buffer::Length(chunk);
     }
   }
 
-  StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
+  StreamWriteResult res = Write(*bufs, count - index, nullptr, req_wrap_obj);
   SetWriteResult(res);
   if (res.wrap != nullptr && storage_size > 0) {
     res.wrap->SetAllocatedStorage(storage.release(), storage_size);

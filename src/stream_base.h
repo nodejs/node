@@ -346,6 +346,13 @@ class StreamBase : public StreamResource {
   friend class WriteWrap;
   friend class ShutdownWrap;
   friend class Environment;  // For kNumStreamBaseStateFields.
+  int WritevHelper(size_t storage_size,
+                   int index,
+                   int count,
+                   bool all_buffers,
+                   Environment* env,
+                   const v8::Local<v8::Array>& chunks,
+                   const v8::Local<v8::Object>& req_wrap_obj);
 };
 
 
