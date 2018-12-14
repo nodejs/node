@@ -103,6 +103,12 @@ Force FIPS-compliant crypto on startup
 Same requirements as
 .Fl -enable-fips .
 .
+.It Fl -http-parser Ns = Ns Ar library
+Chooses an HTTP parser library. Available values are
+.Sy llhttp
+or
+.Sy legacy .
+.
 .It Fl -icu-data-dir Ns = Ns Ar file
 Specify ICU data load path.
 Overrides
