@@ -4,7 +4,7 @@
 
 namespace node {
 
-const char* llhttp_version =
+const char* const llhttp_version =
     NODE_STRINGIFY(LLHTTP_VERSION_MAJOR)
     "."
     NODE_STRINGIFY(LLHTTP_VERSION_MINOR)

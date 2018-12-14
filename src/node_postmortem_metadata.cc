@@ -60,6 +60,6 @@ int GenDebugSymbols() {
   return 1;
 }
 
-int debug_symbols_generated = GenDebugSymbols();
+const int debug_symbols_generated = GenDebugSymbols();
 
 }  // namespace node

@@ -81,9 +81,9 @@ using v8::Value;
 #endif
 
 #ifdef __POSIX__
-const char* kPathSeparator = "/";
+constexpr char kPathSeparator = '/';
 #else
-const char* kPathSeparator = "\\/";
+const char* const kPathSeparator = "\\/";
 #endif
 
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a).As<Integer>()->Value() : -1)
