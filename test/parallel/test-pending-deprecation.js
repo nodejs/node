@@ -15,6 +15,7 @@ const common = require('../common');
 
 const assert = require('assert');
 const fork = require('child_process').fork;
+const { getOptionValue } = require('internal/options');
 
 function message(name) {
   return `${name} did not affect getOptionValue('--pending-deprecation')`;
@@ -24,7 +25,7 @@ switch (process.argv[2]) {
   case 'env':
   case 'switch':
     assert.strictEqual(
-      require('internal/options').getOptionValue('--pending-deprecation'),
+      getOptionValue('--pending-deprecation'),
       true
     );
     break;
@@ -32,7 +33,7 @@ switch (process.argv[2]) {
     // Verify that the flag is off by default.
     const envvar = process.env.NODE_PENDING_DEPRECATION;
     assert.strictEqual(
-      require('internal/options').getOptionValue('--pending-deprecation'),
+      getOptionValue('--pending-deprecation'),
       !!(envvar && envvar[0] === '1')
     );
 
