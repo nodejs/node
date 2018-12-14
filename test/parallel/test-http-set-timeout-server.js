@@ -213,3 +213,16 @@ test(function fastTimeout(cb) {
     });
   }));
 });
+
+test(function serverTimeout(cb) {
+  const server = http.createServer();
+  server.listen(common.mustCall(() => {
+    const timeoutValue = 50;
+    const s = server.setTimeout(timeoutValue);
+    assert.equal(s.timeout, timeoutValue);
+    assert.ok(s instanceof http.Server);
+    http.get({
+      port: server.address().port
+    }).on('error', common.mustCall());
+  }));
+});
