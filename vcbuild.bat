@@ -1,5 +1,9 @@
 @if not defined DEBUG_HELPER @ECHO OFF
 
+:: Other scripts rely on the environment variables set in this script, so we
+:: explicitly allow them to persist in the calling shell.
+endlocal
+
 if /i "%1"=="help" goto help
 if /i "%1"=="--help" goto help
 if /i "%1"=="-help" goto help
@@ -58,6 +62,7 @@ set no_cctest=
 set cctest=
 set openssl_no_asm=
 set doc=
+set extra_msbuild_args=^ 
 
 :next-arg
 if "%1"=="" goto args-done
@@ -130,6 +135,8 @@ if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
 if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
+if /i "%1"=="binlog"        set extra_msbuild_args=%extra_msbuild_args% /binaryLogger:%config%\node.binlog&goto arg-ok
+if /i "%1"=="msbuild_arg"   set extra_msbuild_args=%extra_msbuild_args% %2&goto arg-ok-2
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -309,7 +316,7 @@ if "%target%"=="Build" (
   if defined cctest set target="Build"
 )
 if "%target%"=="rename_node_bin_win" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
-msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
   goto exit
