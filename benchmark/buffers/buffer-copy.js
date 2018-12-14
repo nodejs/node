@@ -2,7 +2,7 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  size: [10, 1024, 2048, 4096, 8192],
+  size: [10, 1024, 2048, 8192, 64 * 1024, 256 * 1024, 1024 * 1024, 8 * 1024 * 1024, 32 * 1024 * 1024],
   n: [1024]
 });
 
