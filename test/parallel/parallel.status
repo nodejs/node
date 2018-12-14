@@ -5,6 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/25029
+test-child-process-execfile: PASS,FLAKY
 # https://github.com/nodejs/node/issues/23207
 test-net-connect-options-port: PASS,FLAKY
 # https://github.com/nodejs/node/issues/25033
