@@ -83,13 +83,6 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 `./configure --openssl-fips`.)
 
-### `--experimental-modules`
-<!-- YAML
-added: v8.5.0
--->
-
-Enable experimental ES module support and caching modules.
-
 ### `--experimental-repl-await`
 <!-- YAML
 added: v10.0.0

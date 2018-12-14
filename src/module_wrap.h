@@ -23,9 +23,14 @@ enum HostDefinedOptions : int {
   kLength = 10,
 };
 
-v8::Maybe<url::URL> Resolve(Environment* env,
-                            const std::string& specifier,
-                            const url::URL& base);
+struct ModuleResolution {
+  url::URL url;
+  bool legacy;
+};
+
+v8::Maybe<ModuleResolution> Resolve(Environment* env,
+                                    const std::string& specifier,
+                                    const url::URL& base);
 
 class ModuleWrap : public BaseObject {
  public:

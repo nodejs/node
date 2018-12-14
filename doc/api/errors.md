@@ -1788,14 +1788,6 @@ A Unix group or user identifier that does not exist was passed.
 
 An invalid or unknown encoding option was passed to an API.
 
-<a id="ERR_UNKNOWN_FILE_EXTENSION"></a>
-### ERR_UNKNOWN_FILE_EXTENSION
-
-> Stability: 1 - Experimental
-
-An attempt was made to load a module with an unknown or unsupported file
-extension.
-
 <a id="ERR_UNKNOWN_MODULE_FORMAT"></a>
 ### ERR_UNKNOWN_MODULE_FORMAT
 
@@ -1808,6 +1800,14 @@ An attempt was made to load a module with an unknown or unsupported format.
 
 An invalid or unknown process signal was passed to an API expecting a valid
 signal (such as [`subprocess.kill()`][]).
+
+<a id="ERR_UNSUPPORTED_FILE_EXTENSION"></a>
+### ERR_UNSUPPORTED_FILE_EXTENSION
+
+> Stability: 1 - Experimental
+
+An attempt was made to load a module with an unknown or unsupported file
+extension.
 
 <a id="ERR_V8BREAKITERATOR"></a>
 ### ERR_V8BREAKITERATOR

@@ -93,10 +93,6 @@ const DebugOptionsParser DebugOptionsParser::instance;
 #endif  // HAVE_INSPECTOR
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
-  AddOption("--experimental-modules",
-            "experimental ES Module support and caching modules",
-            &EnvironmentOptions::experimental_modules,
-            kAllowedInEnvironment);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,
