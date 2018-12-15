@@ -15,7 +15,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
@@ -172,17 +171,6 @@ void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
-void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());
-  Utf8Value strenvtag(args.GetIsolate(), args[0]);
-  std::string text;
-  if (!node::SafeGetenv(*strenvtag, &text)) return;
-  args.GetReturnValue()
-      .Set(String::NewFromUtf8(
-            args.GetIsolate(), text.c_str(),
-            NewStringType::kNormal).ToLocalChecked());
-}
-
 void EnqueueMicrotask(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -231,8 +219,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
   env->SetMethodNoSideEffect(target, "watchdogHasPendingSigint",
                              WatchdogHasPendingSigint);
-
-  env->SetMethod(target, "safeGetenv", SafeGetenv);
 
   env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
 

@@ -126,7 +126,6 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
-bool SafeGetenv(const char* key, std::string* text);
 v8::Local<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
                                         v8::Isolate* isolate,
                                         v8::Local<v8::Value> data);
@@ -734,18 +733,12 @@ void ProcessTitleSetter(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<void>& info);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-void SetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void SetEGid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void SetUid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void SetEUid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void SetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
-void InitGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
-void GetUid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void GetGid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void GetEUid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void GetEGid(const v8::FunctionCallbackInfo<v8::Value>& args);
-void GetGroups(const v8::FunctionCallbackInfo<v8::Value>& args);
+#define NODE_IMPLEMENTS_POSIX_CREDENTIALS 1
 #endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
+
+namespace credentials {
+bool SafeGetenv(const char* key, std::string* text);
+}  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
 
