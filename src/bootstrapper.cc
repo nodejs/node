@@ -147,17 +147,6 @@ void SetupBootstrapObject(Environment* env,
   BOOTSTRAP_METHOD(_rawDebug, RawDebug);
   BOOTSTRAP_METHOD(_umask, Umask);
 
-#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-  if (env->is_main_thread()) {
-    BOOTSTRAP_METHOD(_initgroups, InitGroups);
-    BOOTSTRAP_METHOD(_setegid, SetEGid);
-    BOOTSTRAP_METHOD(_seteuid, SetEUid);
-    BOOTSTRAP_METHOD(_setgid, SetGid);
-    BOOTSTRAP_METHOD(_setuid, SetUid);
-    BOOTSTRAP_METHOD(_setgroups, SetGroups);
-  }
-#endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
-
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_shouldAbortOnUncaughtToggle");
   CHECK(bootstrapper->Set(env->context(),

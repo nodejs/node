@@ -9,16 +9,8 @@ const { internalBinding } = require('internal/test/binding');
 const {
   getHiddenValue,
   setHiddenValue,
-  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex,
-  safeGetenv
+  arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex
 } = internalBinding('util');
-
-for (const oneEnv in process.env) {
-  assert.strictEqual(
-    safeGetenv(oneEnv),
-    process.env[oneEnv]
-  );
-}
 
 assert.strictEqual(
   getHiddenValue({}, kArrowMessagePrivateSymbolIndex),
