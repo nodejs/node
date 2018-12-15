@@ -352,6 +352,7 @@
         'src/node_contextify.cc',
         'src/node_domain.cc',
         'src/node_encoding.cc',
+        'src/node_env_var.cc',
         'src/node_errors.cc',
         'src/node_file.cc',
         'src/node_http_parser_llhttp.cc',
