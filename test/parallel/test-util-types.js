@@ -82,6 +82,40 @@ for (const [ value, _method ] of [
 {
   assert(!types.isUint8Array({ [Symbol.toStringTag]: 'Uint8Array' }));
   assert(types.isUint8Array(vm.runInNewContext('new Uint8Array')));
+
+  assert(!types.isUint8ClampedArray({
+    [Symbol.toStringTag]: 'Uint8ClampedArray'
+  }));
+  assert(types.isUint8ClampedArray(
+    vm.runInNewContext('new Uint8ClampedArray')
+  ));
+
+  assert(!types.isUint16Array({ [Symbol.toStringTag]: 'Uint16Array' }));
+  assert(types.isUint16Array(vm.runInNewContext('new Uint16Array')));
+
+  assert(!types.isUint32Array({ [Symbol.toStringTag]: 'Uint32Array' }));
+  assert(types.isUint32Array(vm.runInNewContext('new Uint32Array')));
+
+  assert(!types.isInt8Array({ [Symbol.toStringTag]: 'Int8Array' }));
+  assert(types.isInt8Array(vm.runInNewContext('new Int8Array')));
+
+  assert(!types.isInt16Array({ [Symbol.toStringTag]: 'Int16Array' }));
+  assert(types.isInt16Array(vm.runInNewContext('new Int16Array')));
+
+  assert(!types.isInt32Array({ [Symbol.toStringTag]: 'Int32Array' }));
+  assert(types.isInt32Array(vm.runInNewContext('new Int32Array')));
+
+  assert(!types.isFloat32Array({ [Symbol.toStringTag]: 'Float32Array' }));
+  assert(types.isFloat32Array(vm.runInNewContext('new Float32Array')));
+
+  assert(!types.isFloat64Array({ [Symbol.toStringTag]: 'Float64Array' }));
+  assert(types.isFloat64Array(vm.runInNewContext('new Float64Array')));
+
+  assert(!types.isBigInt64Array({ [Symbol.toStringTag]: 'BigInt64Array' }));
+  assert(types.isBigInt64Array(vm.runInNewContext('new BigInt64Array')));
+
+  assert(!types.isBigUint64Array({ [Symbol.toStringTag]: 'BigUint64Array' }));
+  assert(types.isBigUint64Array(vm.runInNewContext('new BigUint64Array')));
 }
 
 {
