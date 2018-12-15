@@ -5,10 +5,6 @@ const assert = require('assert');
 const stream = require('stream');
 
 class MyWritable extends stream.Writable {
-  constructor(opt) {
-    super(opt);
-  }
-
   _write(chunk, encoding, callback) {
     assert.notStrictEqual(chunk, null);
     callback();
