@@ -88,7 +88,7 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 #if HAVE_INSPECTOR
-DebugOptionsParser DebugOptionsParser::instance;
+const DebugOptionsParser DebugOptionsParser::instance;
 #endif  // HAVE_INSPECTOR
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
@@ -218,7 +218,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 #endif  // HAVE_INSPECTOR
 }
 
-EnvironmentOptionsParser EnvironmentOptionsParser::instance;
+const EnvironmentOptionsParser EnvironmentOptionsParser::instance;
 
 PerIsolateOptionsParser::PerIsolateOptionsParser() {
   AddOption("--track-heap-objects",
@@ -241,7 +241,7 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
          &PerIsolateOptions::get_per_env_options);
 }
 
-PerIsolateOptionsParser PerIsolateOptionsParser::instance;
+const PerIsolateOptionsParser PerIsolateOptionsParser::instance;
 
 PerProcessOptionsParser::PerProcessOptionsParser() {
   AddOption("--title",
@@ -345,7 +345,7 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
          &PerProcessOptions::get_per_isolate_options);
 }
 
-PerProcessOptionsParser PerProcessOptionsParser::instance;
+const PerProcessOptionsParser PerProcessOptionsParser::instance;
 
 inline std::string RemoveBrackets(const std::string& host) {
   if (!host.empty() && host.front() == '[' && host.back() == ']')

@@ -201,7 +201,7 @@ auto OptionsParser<Options>::Convert(
 template <typename Options>
 template <typename ChildOptions>
 void OptionsParser<Options>::Insert(
-    OptionsParser<ChildOptions>* child_options_parser,
+    const OptionsParser<ChildOptions>* child_options_parser,
     ChildOptions* (Options::* get_child)()) {
   aliases_.insert(child_options_parser->aliases_.begin(),
                   child_options_parser->aliases_.end());
@@ -274,7 +274,7 @@ void OptionsParser<Options>::Parse(
     std::vector<std::string>* const v8_args,
     Options* const options,
     OptionEnvvarSettings required_env_settings,
-    std::vector<std::string>* const errors) {
+    std::vector<std::string>* const errors) const {
   ArgsInfo args(orig_args, exec_args);
 
   // The first entry is the process name. Make sure it ends up in the V8 argv,

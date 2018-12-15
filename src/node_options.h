@@ -275,7 +275,7 @@ class OptionsParser {
   // a method that yields the target options type from this parser's options
   // type.
   template <typename ChildOptions>
-  void Insert(OptionsParser<ChildOptions>* child_options_parser,
+  void Insert(const OptionsParser<ChildOptions>* child_options_parser,
               ChildOptions* (Options::* get_child)());
 
   // Parse a sequence of options into an options struct, a list of
@@ -300,7 +300,7 @@ class OptionsParser {
                      std::vector<std::string>* const v8_args,
                      Options* const options,
                      OptionEnvvarSettings required_env_settings,
-                     std::vector<std::string>* const errors);
+                     std::vector<std::string>* const errors) const;
 
  private:
   // We support the wide variety of different option types by remembering
@@ -391,28 +391,28 @@ class DebugOptionsParser : public OptionsParser<DebugOptions> {
  public:
   DebugOptionsParser();
 
-  static DebugOptionsParser instance;
+  static const DebugOptionsParser instance;
 };
 
 class EnvironmentOptionsParser : public OptionsParser<EnvironmentOptions> {
  public:
   EnvironmentOptionsParser();
 
-  static EnvironmentOptionsParser instance;
+  static const EnvironmentOptionsParser instance;
 };
 
 class PerIsolateOptionsParser : public OptionsParser<PerIsolateOptions> {
  public:
   PerIsolateOptionsParser();
 
-  static PerIsolateOptionsParser instance;
+  static const PerIsolateOptionsParser instance;
 };
 
 class PerProcessOptionsParser : public OptionsParser<PerProcessOptions> {
  public:
   PerProcessOptionsParser();
 
-  static PerProcessOptionsParser instance;
+  static const PerProcessOptionsParser instance;
 };
 
 }  // namespace options_parser
