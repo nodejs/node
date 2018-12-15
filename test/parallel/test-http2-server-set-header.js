@@ -35,4 +35,10 @@ server.listen(0, common.mustCall(() => {
   req.end();
 }));
 
+const compatMsg = 'The provided connection header is not valid, ' +
+                  'the value will be dropped from the header and ' +
+                  'will never be in use.';
+
+common.expectWarning('UnsupportedWarning', compatMsg);
+
 server.on('error', common.mustNotCall());
