@@ -125,7 +125,7 @@ structured data, memory regions and other `MessagePort`s between different
 [`Worker`][]s.
 
 With the exception of `MessagePort`s being [`EventEmitter`][]s rather
-than `EventTarget`s, this implementation matches [browser `MessagePort`][]s.
+than [`EventTarget`][]s, this implementation matches [browser `MessagePort`][]s.
 
 ### Event: 'close'
 <!-- YAML
@@ -308,10 +308,10 @@ if (isMainThread) {
 * `filename` {string} The path to the Worker’s main script. Must be
   either an absolute path or a relative path (i.e. relative to the
   current working directory) starting with `./` or `../`.
-  If `options.eval` is true, this is a string containing JavaScript code rather
-  than a path.
+  If `options.eval` is `true`, this is a string containing JavaScript code
+  rather than a path.
 * `options` {Object}
-  * `eval` {boolean} If true, interpret the first argument to the constructor
+  * `eval` {boolean} If `true`, interpret the first argument to the constructor
     as a script that is executed once the worker is online.
   * `workerData` {any} Any JavaScript value that will be cloned and made
     available as [`require('worker_threads').workerData`][]. The cloning will
@@ -464,6 +464,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 
 [`Buffer`]: buffer.html
 [`EventEmitter`]: events.html
+[`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`MessagePort`]: #worker_threads_class_messageport
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
