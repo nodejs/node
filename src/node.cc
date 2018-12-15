@@ -132,7 +132,6 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
-using v8::NamedPropertyHandlerConfiguration;
 using v8::NewStringType;
 using v8::None;
 using v8::Nothing;
@@ -987,21 +986,11 @@ void SetupProcessObject(Environment* env,
                exec_arguments).FromJust();
 
   // create process.env
-  Local<ObjectTemplate> process_env_template =
-      ObjectTemplate::New(env->isolate());
-  process_env_template->SetHandler(NamedPropertyHandlerConfiguration(
-          EnvGetter,
-          EnvSetter,
-          EnvQuery,
-          EnvDeleter,
-          EnvEnumerator,
-          env->as_external()));
-
-  Local<Object> process_env =
-      process_env_template->NewInstance(env->context()).ToLocalChecked();
-  process->Set(env->context(),
-               FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
-               process_env).FromJust();
+  process
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
+            CreateEnvVarProxy(context, isolate, env->as_external()))
+      .FromJust();
 
   READONLY_PROPERTY(process, "pid",
                     Integer::New(env->isolate(), uv_os_getpid()));
