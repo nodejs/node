@@ -100,12 +100,7 @@ typedef int mode_t;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
-#include <unistd.h>  // setuid, getuid
-#endif
-
-#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-#include <pwd.h>  // getpwnam()
-#include <grp.h>  // getgrnam()
+#include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
 
 namespace node {
@@ -152,8 +147,6 @@ static bool v8_is_profiling = false;
 unsigned int reverted = 0;
 
 bool v8_initialized = false;
-
-bool linux_at_secure = false;
 
 // process-relative uptime base, initialized at start-up
 double prog_start_time;
@@ -500,27 +493,6 @@ const char* signo_string(int signo) {
   default: return "";
   }
 }
-
-// Look up environment variable unless running as setuid root.
-bool SafeGetenv(const char* key, std::string* text) {
-#if !defined(__CloudABI__) && !defined(_WIN32)
-  if (linux_at_secure || getuid() != geteuid() || getgid() != getegid())
-    goto fail;
-#endif
-
-  {
-    Mutex::ScopedLock lock(environ_mutex);
-    if (const char* value = getenv(key)) {
-      *text = value;
-      return true;
-    }
-  }
-
-fail:
-  text->clear();
-  return false;
-}
-
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
   if (zero_fill_field_ || per_process_opts->zero_fill_all_buffers)
@@ -1157,14 +1129,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "dlopen", binding::DLOpen);
   env->SetMethod(process, "reallyExit", Exit);
   env->SetMethodNoSideEffect(process, "uptime", Uptime);
-
-#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
-  env->SetMethodNoSideEffect(process, "getuid", GetUid);
-  env->SetMethodNoSideEffect(process, "geteuid", GetEUid);
-  env->SetMethodNoSideEffect(process, "getgid", GetGid);
-  env->SetMethodNoSideEffect(process, "getegid", GetEGid);
-  env->SetMethodNoSideEffect(process, "getgroups", GetGroups);
-#endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 }
 
 
@@ -1625,37 +1589,40 @@ void Init(std::vector<std::string>* argv,
   {
     std::string text;
     default_env_options->pending_deprecation =
-        SafeGetenv("NODE_PENDING_DEPRECATION", &text) && text[0] == '1';
+        credentials::SafeGetenv("NODE_PENDING_DEPRECATION", &text) &&
+        text[0] == '1';
   }
 
   // Allow for environment set preserving symlinks.
   {
     std::string text;
     default_env_options->preserve_symlinks =
-        SafeGetenv("NODE_PRESERVE_SYMLINKS", &text) && text[0] == '1';
+        credentials::SafeGetenv("NODE_PRESERVE_SYMLINKS", &text) &&
+        text[0] == '1';
   }
 
   {
     std::string text;
     default_env_options->preserve_symlinks_main =
-        SafeGetenv("NODE_PRESERVE_SYMLINKS_MAIN", &text) && text[0] == '1';
+        credentials::SafeGetenv("NODE_PRESERVE_SYMLINKS_MAIN", &text) &&
+        text[0] == '1';
   }
 
   if (default_env_options->redirect_warnings.empty()) {
-    SafeGetenv("NODE_REDIRECT_WARNINGS",
-               &default_env_options->redirect_warnings);
+    credentials::SafeGetenv("NODE_REDIRECT_WARNINGS",
+                            &default_env_options->redirect_warnings);
   }
 
 #if HAVE_OPENSSL
   std::string* openssl_config = &per_process_opts->openssl_config;
   if (openssl_config->empty()) {
-    SafeGetenv("OPENSSL_CONF", openssl_config);
+    credentials::SafeGetenv("OPENSSL_CONF", openssl_config);
   }
 #endif
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
-  if (SafeGetenv("NODE_OPTIONS", &node_options)) {
+  if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
     std::vector<std::string> env_argv;
     // [0] is expected to be the program name, fill it in from the real argv.
     env_argv.push_back(argv->at(0));
@@ -1687,7 +1654,7 @@ void Init(std::vector<std::string>* argv,
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // If the parameter isn't given, use the env variable.
   if (per_process_opts->icu_data_dir.empty())
-    SafeGetenv("NODE_ICU_DATA", &per_process_opts->icu_data_dir);
+    credentials::SafeGetenv("NODE_ICU_DATA", &per_process_opts->icu_data_dir);
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(per_process_opts->icu_data_dir)) {
@@ -2095,7 +2062,7 @@ int Start(int argc, char** argv) {
 #if HAVE_OPENSSL
   {
     std::string extra_ca_certs;
-    if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
+    if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
       crypto::UseExtraCaCerts(extra_ca_certs);
   }
 #ifdef NODE_FIPS_MODE
