@@ -11,6 +11,7 @@ const body =
 const server = http2.createServer((req, res) => {
   res.setHeader('foobar', 'baz');
   res.setHeader('X-POWERED-BY', 'node-test');
+  res.setHeader('connection', 'connection-test');
   res.end(body);
 });
 
