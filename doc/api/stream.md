@@ -1450,6 +1450,7 @@ of the four basic stream classes (`stream.Writable`, `stream.Readable`,
 `stream.Duplex`, or `stream.Transform`), making sure they call the appropriate
 parent class constructor:
 
+<!-- eslint-disable no-useless-constructor -->
 ```js
 const { Writable } = require('stream');
 
@@ -1547,6 +1548,7 @@ changes:
   * `autoDestroy` {boolean} Whether this stream should automatically call
     `.destroy()` on itself after ending. **Default:** `false`.
 
+<!-- eslint-disable no-useless-constructor -->
 ```js
 const { Writable } = require('stream');
 
@@ -1718,11 +1720,6 @@ required elements of a custom [`Writable`][] stream instance:
 const { Writable } = require('stream');
 
 class MyWritable extends Writable {
-  constructor(options) {
-    super(options);
-    // ...
-  }
-
   _write(chunk, encoding, callback) {
     if (chunk.toString().indexOf('a') >= 0) {
       callback(new Error('chunk is invalid'));
@@ -1806,6 +1803,7 @@ changes:
   * `autoDestroy` {boolean} Whether this stream should automatically call
     `.destroy()` on itself after ending. **Default:** `false`.
 
+<!-- eslint-disable no-useless-constructor -->
 ```js
 const { Readable } = require('stream');
 
@@ -2064,6 +2062,7 @@ changes:
   * `writableHighWaterMark` {number} Sets `highWaterMark` for the writable side
     of the stream. Has no effect if `highWaterMark` is provided.
 
+<!-- eslint-disable no-useless-constructor -->
 ```js
 const { Duplex } = require('stream');
 
@@ -2218,6 +2217,7 @@ output on the `Readable` side is not consumed.
   * `flush` {Function} Implementation for the [`stream._flush()`][stream-_flush]
     method.
 
+<!-- eslint-disable no-useless-constructor -->
 ```js
 const { Transform } = require('stream');
 
