@@ -974,6 +974,7 @@ void SetupProcessObject(Environment* env,
                              GetParentProcessId).FromJust());
 
   // -e, --eval
+  // TODO(addaleax): Remove this.
   if (env->options()->has_eval_string) {
     READONLY_PROPERTY(process,
                       "_eval",
@@ -984,23 +985,27 @@ void SetupProcessObject(Environment* env,
   }
 
   // -p, --print
+  // TODO(addaleax): Remove this.
   if (env->options()->print_eval) {
     READONLY_PROPERTY(process, "_print_eval", True(env->isolate()));
   }
 
   // -c, --check
+  // TODO(addaleax): Remove this.
   if (env->options()->syntax_check_only) {
     READONLY_PROPERTY(process, "_syntax_check_only", True(env->isolate()));
   }
 
   // -i, --interactive
+  // TODO(addaleax): Remove this.
   if (env->options()->force_repl) {
     READONLY_PROPERTY(process, "_forceRepl", True(env->isolate()));
   }
 
   // -r, --require
-  std::vector<std::string> preload_modules =
-      std::move(env->options()->preload_modules);
+  // TODO(addaleax): Remove this.
+  const std::vector<std::string>& preload_modules =
+      env->options()->preload_modules;
   if (!preload_modules.empty()) {
     Local<Array> array = Array::New(env->isolate());
     for (unsigned int i = 0; i < preload_modules.size(); ++i) {
@@ -1013,8 +1018,6 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process,
                       "_preload_modules",
                       array);
-
-    preload_modules.clear();
   }
 
   // --no-deprecation
@@ -1043,6 +1046,7 @@ void SetupProcessObject(Environment* env,
 #endif  // NODE_NO_BROWSER_GLOBALS
 
   // --prof-process
+  // TODO(addaleax): Remove this.
   if (env->options()->prof_process) {
     READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
   }
