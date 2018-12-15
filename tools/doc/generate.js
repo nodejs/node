@@ -49,9 +49,15 @@ args.forEach(function(arg) {
   } else if (arg.startsWith('--output-directory=')) {
     outputDir = arg.replace(/^--output-directory=/, '');
   } else if (arg.startsWith('--apilinks=')) {
-    apilinks = JSON.parse(
-      fs.readFileSync(arg.replace(/^--apilinks=/, ''), 'utf8')
-    );
+    const filename = arg.replace(/^--apilinks=/, '');
+    try {
+      apilinks = JSON.parse(
+        fs.readFileSync(filename, 'utf8')
+      );
+    } catch (e) {
+      console.log(`Failure reading ${filename}, maybe remove it?`);
+      throw e;
+    }
   }
 });
 
