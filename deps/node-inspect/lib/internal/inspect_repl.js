@@ -84,7 +84,7 @@ function extractFunctionName(description) {
   return fnNameMatch ? `: ${fnNameMatch[1]}` : '';
 }
 
-const NATIVES = internalBinding('natives');
+const NATIVES = process.binding('natives');
 function isNativeUrl(url) {
   return url.replace('.js', '') in NATIVES || url === 'bootstrap_node.js';
 }
