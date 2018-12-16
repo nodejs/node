@@ -242,8 +242,8 @@ For undocumented APIs that are public, open a pull request documenting the API.
 
 ### Breaking Changes
 
-Backwards-incompatible changes may land on the master branch at any time after
-sufficient review by Collaborators and approval of at least two TSC members.
+At least two TSC members must approve backward-incompatible changes to the
+master branch.
 
 Examples of breaking changes include:
 
@@ -253,11 +253,6 @@ Examples of breaking changes include:
 * adding or removing errors
 * altering expected timing of an event
 * changing the side effects of using a particular API
-
-Purely additive changes (e.g. adding new events to `EventEmitter`
-implementations, adding new arguments to a method in a way that allows
-existing code to continue working without modification, or adding new
-properties to an options argument) are semver-minor changes.
 
 #### Breaking Changes and Deprecations
 
