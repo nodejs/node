@@ -90,7 +90,8 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
     if (ports[i] == nullptr) {
       for (MessagePort* port : ports) {
         // This will eventually release the MessagePort object itself.
-        port->Close();
+        if (port != nullptr)
+          port->Close();
       }
       return MaybeLocal<Value>();
     }
