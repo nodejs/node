@@ -25,6 +25,7 @@
 
 #if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
 typedef intptr_t ssize_t;
+# define SSIZE_MAX INTPTR_MAX
 # define _SSIZE_T_
 # define _SSIZE_T_DEFINED
 #endif

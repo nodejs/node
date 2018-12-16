@@ -262,8 +262,7 @@ Run:
 
 ```bash
 $ ./gyp_uv.py -f xcode
-$ xcodebuild -ARCHS="x86_64" -project uv.xcodeproj \
-     -configuration Release -target All
+$ xcodebuild -ARCHS="x86_64" -project out/uv.xcodeproj -configuration Release -alltargets
 ```
 
 Using Homebrew:

@@ -1,3 +1,36 @@
+2018.12.17, Version 1.24.1 (Stable), 274f2bd3b70847cadd9a3965577a87e666ab9ac3
+
+Changes since version 1.24.0:
+
+* test: fix platform_output test on cygwin (damon-kwok)
+
+* gitignore: ignore build/ directory (Damon Kwok)
+
+* unix: zero epoll_event before use (Ashe Connor)
+
+* darwin: use runtime check for file cloning (Ben Noordhuis)
+
+* doc: replace deprecated build command on macOS (Rick)
+
+* warnings: fix code that emits compiler warnings (Jameson Nash)
+
+* doc: clarify expected memory management strategy (Ivan Krylov)
+
+* test: add uv_inet_ntop(AF_INET) coverage (Ben Noordhuis)
+
+* unix: harden string copying, introduce strscpy() (Ben Noordhuis)
+
+* linux: get rid of strncpy() call (Ben Noordhuis)
+
+* aix: get rid of strcat() calls (Ben Noordhuis)
+
+* aix: fix data race in uv_fs_event_start() (Ben Noordhuis)
+
+* win: fs: fix `FILE_FLAG_NO_BUFFERING` for writes (Joran Dirk Greef)
+
+* build: don't link against -lpthread on Android (Michael Meier)
+
+
 2018.11.14, Version 1.24.0 (Stable), 2d427ee0083d1baf995df4ebf79a3f8890e9a3e1
 
 Changes since version 1.23.2:

@@ -73,4 +73,8 @@ TEST_IMPL(close_fd) {
   return 0;
 }
 
-#endif  /* !defined(_WIN32) */
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

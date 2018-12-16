@@ -65,4 +65,8 @@ TEST_IMPL(tcp_write_after_connect) {
   return 0;
 }
 
-#endif
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

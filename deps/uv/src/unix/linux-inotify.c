@@ -278,6 +278,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       const char* path,
                       unsigned int flags) {
   struct watcher_list* w;
+  size_t len;
   int events;
   int err;
   int wd;
@@ -306,12 +307,13 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (w)
     goto no_insert;
 
-  w = uv__malloc(sizeof(*w) + strlen(path) + 1);
+  len = strlen(path) + 1;
+  w = uv__malloc(sizeof(*w) + len);
   if (w == NULL)
     return UV_ENOMEM;
 
   w->wd = wd;
-  w->path = strcpy((char*)(w + 1), path);
+  w->path = memcpy(w + 1, path, len);
   QUEUE_INIT(&w->watchers);
   w->iterating = 0;
   RB_INSERT(watcher_root, CAST(&handle->loop->inotify_watchers), w);
