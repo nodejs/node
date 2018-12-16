@@ -74,6 +74,8 @@
         'src/idna.h',
         'src/inet.c',
         'src/queue.h',
+        'src/strscpy.c',
+        'src/strscpy.h',
         'src/threadpool.c',
         'src/timer.c',
         'src/uv-data-getter-setters.c',

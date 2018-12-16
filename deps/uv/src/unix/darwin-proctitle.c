@@ -192,8 +192,7 @@ void uv__set_process_title(const char* title) {
 
   if (dynamic_pthread_setname_np != NULL) {
     char namebuf[64];  /* MAXTHREADNAMESIZE */
-    strncpy(namebuf, title, sizeof(namebuf) - 1);
-    namebuf[sizeof(namebuf) - 1] = '\0';
+    uv__strscpy(namebuf, title, sizeof(namebuf));
     dynamic_pthread_setname_np(namebuf);
   }
 }

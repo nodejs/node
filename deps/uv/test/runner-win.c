@@ -194,7 +194,7 @@ int process_wait(process_info_t *vec, int n, int timeout) {
 
   result = WaitForMultipleObjects(n, handles, TRUE, timeout_api);
 
-  if (result >= WAIT_OBJECT_0 && result < WAIT_OBJECT_0 + n) {
+  if (result < WAIT_OBJECT_0 + n) {
     /* All processes are terminated. */
     return 0;
   }
@@ -268,7 +268,8 @@ int process_read_last_line(process_info_t *p,
   if (!ReadFile(p->stdio_out, buffer, buffer_len - 1, &read, &overlapped))
     return -1;
 
-  for (start = read - 1; start >= 0; start--) {
+  start = read;
+  while (start-- > 0) {
     if (buffer[start] == '\n' || buffer[start] == '\r')
       break;
   }
@@ -308,7 +309,7 @@ void process_cleanup(process_info_t *p) {
 }
 
 
-static int clear_line() {
+static int clear_line(void) {
   HANDLE handle;
   CONSOLE_SCREEN_BUFFER_INFO info;
   COORD coord;

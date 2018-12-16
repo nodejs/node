@@ -707,13 +707,14 @@ static int uv__set_phys_addr(uv_interface_address_t* address,
 
   struct sockaddr_dl* sa_addr;
   int sockfd;
-  int i;
+  size_t i;
   struct arpreq arpreq;
 
   /* This appears to only work as root */
   sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
   memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
   for (i = 0; i < sizeof(address->phys_addr); i++) {
+    /* Check that all bytes of phys_addr are zero. */
     if (address->phys_addr[i] != 0)
       return 0;
   }

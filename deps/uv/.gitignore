@@ -42,7 +42,7 @@ Makefile.in
 /android-toolchain
 
 /out/
-/build/gyp
+/build/
 
 /test/.libs/
 /test/run-tests
