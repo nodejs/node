@@ -162,7 +162,7 @@ static const char* uv__unknown_err_code(int err) {
 
 #define UV_ERR_NAME_GEN_R(name, _) \
 case UV_## name: \
-  snprintf(buf, buflen, "%s", #name); break;
+  uv__strscpy(buf, #name, buflen); break;
 char* uv_err_name_r(int err, char* buf, size_t buflen) {
   switch (err) {
     UV_ERRNO_MAP(UV_ERR_NAME_GEN_R)

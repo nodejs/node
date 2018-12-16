@@ -49,7 +49,9 @@ static char exepath[1024];
 static size_t exepath_size = 1024;
 static char* args[5];
 static int no_term_signal;
+#ifndef _WIN32
 static int timer_counter;
+#endif
 static uv_tcp_t tcp_server;
 
 #define OUTPUT_SIZE 1024
@@ -138,10 +140,12 @@ static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 }
 
 
+#ifndef _WIN32
 static void on_read_once(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
   uv_read_stop(tcp);
   on_read(tcp, nread, buf);
 }
+#endif
 
 
 static void write_cb(uv_write_t* req, int status) {
@@ -173,9 +177,11 @@ static void timer_cb(uv_timer_t* handle) {
 }
 
 
+#ifndef _WIN32
 static void timer_counter_cb(uv_timer_t* handle) {
   ++timer_counter;
 }
+#endif
 
 
 TEST_IMPL(spawn_fails) {
@@ -1198,7 +1204,7 @@ TEST_IMPL(argument_escaping) {
 int make_program_env(char** env_block, WCHAR** dst_ptr);
 
 TEST_IMPL(environment_creation) {
-  int i;
+  size_t i;
   char* environment[] = {
     "FOO=BAR",
     "SYSTEM=ROOT", /* substring of a supplied var name */

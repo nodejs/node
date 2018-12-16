@@ -315,10 +315,8 @@ TEST_IMPL(tty_raw_cancel) {
   int r;
   int ttyin_fd;
   uv_tty_t tty_in;
-  uv_loop_t* loop;
   HANDLE handle;
 
-  loop = uv_default_loop();
   /* Make sure we have an FD that refers to a tty */
   handle = CreateFileA("conin$",
                        GENERIC_READ | GENERIC_WRITE,

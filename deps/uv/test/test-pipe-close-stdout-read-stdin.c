@@ -105,4 +105,8 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
   return 0;
 }
 
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
 #endif /* ifndef _WIN32 */

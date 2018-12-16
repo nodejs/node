@@ -75,7 +75,7 @@ static AFD_POLL_INFO* uv__get_afd_poll_info_dummy(void) {
 static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
   uv_req_t* req;
   AFD_POLL_INFO* afd_poll_info;
-  DWORD result;
+  int result;
 
   /* Find a yet unsubmitted req to submit. */
   if (handle->submitted_events_1 == 0) {
@@ -136,7 +136,7 @@ static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
 
 static int uv__fast_poll_cancel_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
   AFD_POLL_INFO afd_poll_info;
-  DWORD result;
+  int result;
 
   afd_poll_info.Exclusive = TRUE;
   afd_poll_info.NumberOfHandles = 1;

@@ -229,15 +229,15 @@ static int getexe(const int pid, char* buf, size_t len) {
   assert(((Output_buf.Output_data.offsetPath >>24) & 0xFF) == 'A');
 
   /* Get the offset from the lowest 3 bytes */
-  Output_path = (char*)(&Output_buf) +
-                (Output_buf.Output_data.offsetPath & 0x00FFFFFF);
+  Output_path = (struct Output_path_type*) ((char*) (&Output_buf) +
+      (Output_buf.Output_data.offsetPath & 0x00FFFFFF));
 
   if (Output_path->len >= len) {
     errno = ENOBUFS;
     return -1;
   }
 
-  strncpy(buf, Output_path->path, len);
+  uv__strscpy(buf, Output_path->path, len);
 
   return 0;
 }

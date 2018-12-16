@@ -191,4 +191,8 @@ TEST_IMPL(tcp_close_accept) {
   return 0;
 }
 
-#endif  /* !_WIN32 */
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

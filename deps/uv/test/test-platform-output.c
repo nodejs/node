@@ -49,7 +49,7 @@ TEST_IMPL(platform_output) {
   printf("uv_cwd: %s\n", buffer);
 
   err = uv_resident_set_memory(&rss);
-#if defined(__CYGWIN__) || defined(__MSYS__)
+#if defined(__MSYS__)
   ASSERT(err == UV_ENOSYS);
 #else
   ASSERT(err == 0);
