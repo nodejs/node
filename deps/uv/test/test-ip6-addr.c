@@ -83,7 +83,7 @@ TEST_IMPL(ip6_addr_link_local) {
     ASSERT(0 == r);
 #ifdef _WIN32
     /* On Windows, the interface identifier is the numeric string of the index. */
-    ASSERT(strtol(interface_id, NULL, 10) == iface_index);
+    ASSERT(strtoul(interface_id, NULL, 10) == iface_index);
 #else
     /* On Unix/Linux, the interface identifier is the interface device name. */
     ASSERT(0 == strcmp(device_name, interface_id));

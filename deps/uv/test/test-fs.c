@@ -154,7 +154,7 @@ int uv_test_getiovmax(void) {
 static unsigned REPARSE_TAG = 0x9913;
 static GUID REPARSE_GUID = {
   0x1bf6205f, 0x46ae, 0x4527,
-  0xb1, 0x0c, 0xc5, 0x09, 0xb7, 0x55, 0x22, 0x80 };
+  { 0xb1, 0x0c, 0xc5, 0x09, 0xb7, 0x55, 0x22, 0x80 }};
 #endif
 
 static void check_permission(const char* filename, unsigned int mode) {
@@ -2331,9 +2331,6 @@ TEST_IMPL(fs_stat_root) {
 
 
 TEST_IMPL(fs_futime) {
-#if defined(_AIX) && !defined(_AIX71)
-  RETURN_SKIP("futime is not implemented for AIX versions below 7.1");
-#else
   utime_check_t checkme;
   const char* path = "test_file";
   double atime;
@@ -2341,6 +2338,9 @@ TEST_IMPL(fs_futime) {
   uv_file file;
   uv_fs_t req;
   int r;
+#if defined(_AIX) && !defined(_AIX71)
+  RETURN_SKIP("futime is not implemented for AIX versions below 7.1");
+#endif
 
   /* Setup. */
   loop = uv_default_loop();
@@ -2402,7 +2402,6 @@ TEST_IMPL(fs_futime) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
-#endif
 }
 
 
@@ -3592,6 +3591,53 @@ TEST_IMPL(fs_exclusive_sharing_mode) {
   ASSERT(r == 0);
   ASSERT(close_req.result == 0);
   uv_fs_req_cleanup(&close_req);
+
+  /* Cleanup */
+  unlink("test_file");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
+
+#ifdef _WIN32
+TEST_IMPL(fs_file_flag_no_buffering) {
+  int r;
+
+  /* Setup. */
+  unlink("test_file");
+
+  ASSERT(UV_FS_O_APPEND > 0);
+  ASSERT(UV_FS_O_CREAT > 0);
+  ASSERT(UV_FS_O_DIRECT > 0);
+  ASSERT(UV_FS_O_RDWR > 0);
+
+  /* FILE_APPEND_DATA must be excluded from FILE_GENERIC_WRITE: */
+  r = uv_fs_open(NULL,
+                 &open_req1,
+                 "test_file",
+                 UV_FS_O_RDWR | UV_FS_O_CREAT | UV_FS_O_DIRECT,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
+  ASSERT(r >= 0);
+  ASSERT(open_req1.result >= 0);
+  uv_fs_req_cleanup(&open_req1);
+
+  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
+  ASSERT(r == 0);
+  ASSERT(close_req.result == 0);
+  uv_fs_req_cleanup(&close_req);
+
+  /* FILE_APPEND_DATA and FILE_FLAG_NO_BUFFERING are mutually exclusive: */
+  r = uv_fs_open(NULL,
+                 &open_req2,
+                 "test_file",
+                 UV_FS_O_APPEND | UV_FS_O_DIRECT,
+                 S_IWUSR | S_IRUSR,
+                 NULL);
+  ASSERT(r == UV_EINVAL);
+  ASSERT(open_req2.result == UV_EINVAL);
+  uv_fs_req_cleanup(&open_req2);
 
   /* Cleanup */
   unlink("test_file");

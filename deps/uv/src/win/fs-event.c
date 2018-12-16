@@ -215,11 +215,11 @@ int uv_fs_event_start(uv_fs_event_t* handle,
         uv__free(long_path);
         long_path = NULL;
       }
-    }
 
-    if (long_path) {
-      uv__free(pathw);
-      pathw = long_path;
+      if (long_path) {
+        uv__free(pathw);
+        pathw = long_path;
+      }
     }
 
     dir_to_watch = pathw;

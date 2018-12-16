@@ -32,6 +32,8 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/idna.c \
                    src/inet.c \
                    src/queue.h \
+                   src/strscpy.c \
+                   src/strscpy.h \
                    src/threadpool.c \
                    src/timer.c \
                    src/uv-data-getter-setters.c \
@@ -241,6 +243,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-socket-buffer-size.c \
                          test/test-spawn.c \
                          test/test-stdio-over-pipes.c \
+                         test/test-strscpy.c \
                          test/test-tcp-alloc-cb-fail.c \
                          test/test-tcp-bind-error.c \
                          test/test-tcp-bind6-error.c \

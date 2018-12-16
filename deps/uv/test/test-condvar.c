@@ -235,7 +235,7 @@ TEST_IMPL(condvar_5) {
   uint64_t elapsed;
   uint64_t timeout;
 
-  timeout = 100 * 1e6; /* 100 ms in ns */
+  timeout = 100 * 1000 * 1000; /* 100 ms in ns */
 
   /* Mostly irrelevant. We need cond and mutex initialized. */
   worker_config_init(&wc, 0, NULL, NULL);

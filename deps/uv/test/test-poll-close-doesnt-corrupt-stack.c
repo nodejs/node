@@ -49,7 +49,7 @@ static void poll_cb(uv_poll_t* h, int status, int events) {
 }
 
 
-static void NO_INLINE close_socket_and_verify_stack() {
+static void NO_INLINE close_socket_and_verify_stack(void) {
   const uint32_t MARKER = 0xDEADBEEF;
   const int VERIFY_AFTER = 10; /* ms */
   int r;

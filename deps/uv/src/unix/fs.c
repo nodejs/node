@@ -61,6 +61,7 @@
 
 #if defined(__APPLE__)
 # include <copyfile.h>
+# include <sys/sysctl.h>
 #elif defined(__linux__) && !defined(FICLONE)
 # include <sys/ioctl.h>
 # define FICLONE _IOW(0x94, 9, int)
@@ -68,6 +69,10 @@
 
 #if defined(_AIX) && !defined(_AIX71)
 # include <utime.h>
+#endif
+
+#if defined(_AIX) && _XOPEN_SOURCE <= 600
+extern char *mkdtemp(char *template); /* See issue #740 on AIX < 7 */
 #endif
 
 #define INIT(subtype)                                                         \
@@ -722,7 +727,7 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
   atr.att_atimechg = 1;
   atr.att_mtime = req->mtime;
   atr.att_atime = req->atime;
-  return __lchattr(req->path, &atr, sizeof(atr));
+  return __lchattr((char*) req->path, &atr, sizeof(atr));
 #else
   errno = ENOSYS;
   return -1;
@@ -793,25 +798,40 @@ done:
 static ssize_t uv__fs_copyfile(uv_fs_t* req) {
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
   /* On macOS, use the native copyfile(3). */
+  static int can_clone;
   copyfile_flags_t flags;
+  char buf[64];
+  size_t len;
+  int major;
 
   flags = COPYFILE_ALL;
 
   if (req->flags & UV_FS_COPYFILE_EXCL)
     flags |= COPYFILE_EXCL;
 
-#ifdef COPYFILE_CLONE
-  if (req->flags & UV_FS_COPYFILE_FICLONE)
-    flags |= COPYFILE_CLONE;
-#endif
-
+  /* Check OS version. Cloning is only supported on macOS >= 10.12. */
   if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE) {
-#ifdef COPYFILE_CLONE_FORCE
-    flags |= COPYFILE_CLONE_FORCE;
-#else
-    return UV_ENOSYS;
-#endif
+    if (can_clone == 0) {
+      len = sizeof(buf);
+      if (sysctlbyname("kern.osrelease", buf, &len, NULL, 0))
+        return UV__ERR(errno);
+
+      if (1 != sscanf(buf, "%d", &major))
+        abort();
+
+      can_clone = -1 + 2 * (major >= 16);  /* macOS >= 10.12 */
+    }
+
+    if (can_clone < 0)
+      return UV_ENOSYS;
   }
+
+  /* copyfile() simply ignores COPYFILE_CLONE if it's not supported. */
+  if (req->flags & UV_FS_COPYFILE_FICLONE)
+    flags |= 1 << 24;  /* COPYFILE_CLONE */
+
+  if (req->flags & UV_FS_COPYFILE_FICLONE_FORCE)
+    flags |= 1 << 25;  /* COPYFILE_CLONE_FORCE */
 
   return copyfile(req->path, req->new_path, NULL, flags);
 #else
