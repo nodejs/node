@@ -1126,8 +1126,8 @@ is set for the `Http2Stream`.
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
 
-<a id="ERR_INCOMPATIBLE_KEY_OPTIONS"></a>
-### ERR_INCOMPATIBLE_KEY_OPTIONS
+<a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
+### ERR_INCOMPATIBLE_OPTION_PAIR
 
 An option pair is incompatible with each other and can not be used at the same
 time.
