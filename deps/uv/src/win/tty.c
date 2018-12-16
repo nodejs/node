@@ -791,8 +791,9 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
         if (KEV.uChar.UnicodeChar >= 0xDC00 &&
             KEV.uChar.UnicodeChar < 0xE000) {
           /* UTF-16 surrogate pair */
-          WCHAR utf16_buffer[2] = { handle->tty.rd.last_utf16_high_surrogate,
-                                    KEV.uChar.UnicodeChar};
+          WCHAR utf16_buffer[2];
+          utf16_buffer[0] = handle->tty.rd.last_utf16_high_surrogate;
+          utf16_buffer[1] = KEV.uChar.UnicodeChar;
           char_len = WideCharToMultiByte(CP_UTF8,
                                          0,
                                          utf16_buffer,

@@ -140,6 +140,8 @@ API
 
     Request handle to be closed. `close_cb` will be called asynchronously after
     this call. This MUST be called on each handle before memory is released.
+    Moreover, the memory can only be released in `close_cb` or after it has
+    returned.
 
     Handles that wrap file descriptors are closed immediately but
     `close_cb` will still be deferred to the next iteration of the event loop.

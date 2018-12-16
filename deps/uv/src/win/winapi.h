@@ -4109,6 +4109,9 @@
 #endif
 
 /* from winternl.h */
+#if !defined(__UNICODE_STRING_DEFINED) && defined(__MINGW32_)
+#define __UNICODE_STRING_DEFINED
+#endif
 typedef struct _UNICODE_STRING {
   USHORT Length;
   USHORT MaximumLength;

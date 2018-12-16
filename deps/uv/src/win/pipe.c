@@ -1541,7 +1541,7 @@ int uv__pipe_write_ipc(uv_loop_t* loop,
         frame_header.flags |= UV__IPC_FRAME_HAS_SOCKET_XFER;
         break;
       default:
-        assert(0);  // Unreachable.
+        assert(0);  /* Unreachable. */
     }
     /* Add xfer info buffer. */
     bufs[buf_index++] = uv_buf_init((char*) &xfer_info, sizeof xfer_info);
@@ -2141,7 +2141,7 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   if (pipe->ipc) {
     assert(!(pipe->flags & UV_HANDLE_NON_OVERLAPPED_PIPE));
     pipe->pipe.conn.ipc_remote_pid = uv_os_getppid();
-    assert(pipe->pipe.conn.ipc_remote_pid != -1);
+    assert(pipe->pipe.conn.ipc_remote_pid != (DWORD) -1);
   }
   return 0;
 }
@@ -2312,7 +2312,7 @@ uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle) {
 }
 
 int uv_pipe_chmod(uv_pipe_t* handle, int mode) {
-  SID_IDENTIFIER_AUTHORITY sid_world = SECURITY_WORLD_SID_AUTHORITY;
+  SID_IDENTIFIER_AUTHORITY sid_world = { SECURITY_WORLD_SID_AUTHORITY };
   PACL old_dacl, new_dacl;
   PSECURITY_DESCRIPTOR sd;
   EXPLICIT_ACCESS ea;

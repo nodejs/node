@@ -739,7 +739,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
     }
   }
   *ptr_copy = NULL;
-  assert(env_len == ptr - dst_copy);
+  assert(env_len == (size_t) (ptr - dst_copy));
 
   /* sort our (UTF-16) copy */
   qsort(env_copy, env_block_count-1, sizeof(wchar_t*), qsort_wcscmp);
@@ -799,7 +799,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
         var_size = GetEnvironmentVariableW(required_vars[i].wide,
                                            ptr,
                                            (int) (env_len - (ptr - dst)));
-        if (var_size != len-1) { /* race condition? */
+        if (var_size != (DWORD) (len - 1)) { /* TODO: handle race condition? */
           uv_fatal_error(GetLastError(), "GetEnvironmentVariableW");
         }
       }
@@ -815,7 +815,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   }
 
   /* Terminate with an extra NULL. */
-  assert(env_len == (ptr - dst));
+  assert(env_len == (size_t) (ptr - dst));
   *ptr = L'\0';
 
   uv__free(dst_copy);
