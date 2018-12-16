@@ -121,8 +121,12 @@
     #'v8_enable_handle_zapping%': 0,
 
     'v8_enable_pointer_compression%': 'false',
+    'v8_enable_31bit_smis_on_64bit_arch%': 'false',
 
     'v8_enable_embedded_builtins%': 'true',
+
+    # Enable code comments for builtins in the snapshot (impacts performance).
+    'v8_enable_snapshot_code_comments%': 'false',
 
     'v8_enable_fast_mksnapshot%': 0,
   },
@@ -162,7 +166,7 @@
       ['v8_enable_verify_predictable==1', {
         'defines': ['VERIFY_PREDICTABLE',],
       }],
-      ['v8_interpreted_regexp==1', {
+      ['v8_interpreted_regexp==1 or v8_enable_lite_mode==1', {
         'defines': ['V8_INTERPRETED_REGEXP',],
       }],
       ['v8_deprecation_warnings==1', {
@@ -195,6 +199,9 @@
       # }],
       ['v8_enable_pointer_compression=="true"', {
         'defines': ['V8_COMPRESS_POINTERS',],
+      }],
+      ['v8_enable_31bit_smis_on_64bit_arch=="true"', {
+        'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
       }],
       ['v8_enable_embedded_builtins=="true"', {
         'defines': [
