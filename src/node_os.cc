@@ -470,4 +470,4 @@ void Initialize(Local<Object> target,
 }  // namespace os
 }  // namespace node
 
-NODE_BUILTIN_MODULE_CONTEXT_AWARE(os, node::os::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(os, node::os::Initialize)
