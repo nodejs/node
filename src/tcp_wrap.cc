@@ -239,7 +239,9 @@ void TCPWrap::Bind(
   unsigned int flags = 0;
   if (!args[1]->Int32Value(env->context()).To(&port)) return;
   if (family == AF_INET6 &&
-      !args[2]->Uint32Value(env->context()).To(&flags)) return;
+      !args[2]->Uint32Value(env->context()).To(&flags)) {
+    return;
+  }
 
   T addr;
   int err = uv_ip_addr(*ip_address, port, &addr);
