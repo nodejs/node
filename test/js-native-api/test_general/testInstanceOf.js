@@ -5,7 +5,6 @@ const common = require('../../common');
 const assert = require('assert');
 
 // Addon is referenced through the eval expression in testFile
-// eslint-disable-next-line no-unused-vars
 const addon = require(`./build/${common.buildType}/test_general`);
 const path = require('path');
 
