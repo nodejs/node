@@ -12,6 +12,8 @@ const { spawn } = require('child_process');
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 
+tmpdir.refresh();
+
 const command = common.isWindows ? 'cd' : 'pwd';
 const options = { cwd: tmpdir.path };
 
