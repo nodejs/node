@@ -9,8 +9,7 @@ if (process.argv[2] === 'child') {
 } else {
   const internalCp = require('internal/child_process');
   const oldSpawnSync = internalCp.spawnSync;
-  const { internalBinding } = require('internal/test/binding');
-  const { SIGKILL } = internalBinding('constants').os.signals;
+  const { SIGKILL } = require('os').constants.signals;
 
   function spawn(killSignal, beforeSpawn) {
     if (beforeSpawn) {
