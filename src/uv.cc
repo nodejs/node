@@ -71,9 +71,11 @@ void Initialize(Local<Object> target,
   Local<Array> arr = Array::New(isolate, 2);                                  \
   arr->Set(0, OneByteString(isolate, #name));                                 \
   arr->Set(1, OneByteString(isolate, msg));                                   \
-  err_map->Set(context,                                                       \
-               Integer::New(isolate, UV_##name),                              \
-               arr).ToLocalChecked();                                         \
+  if (err_map->Set(context,                                                   \
+                   Integer::New(isolate, UV_##name),                          \
+                   arr).IsEmpty()) {                                          \
+    return;                                                                   \
+  }                                                                           \
 } while (0);
   UV_ERRNO_MAP(V)
 #undef V
