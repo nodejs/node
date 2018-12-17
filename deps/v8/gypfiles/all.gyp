@@ -9,7 +9,6 @@
       'type': 'none',
       'dependencies': [
         'd8.gyp:d8',
-        'inspector-test.gyp:*',
         'mkgrokdump.gyp:*',
       ],
       'conditions': [
@@ -22,9 +21,6 @@
         ['host_os!="mac" or OS!="android"', {
           'dependencies': [
             'samples.gyp:*',
-            'cctest.gyp:*',
-            'fuzzer.gyp:*',
-            'unittests.gyp:*',
           ],
         }],
       ]

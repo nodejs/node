@@ -24,7 +24,6 @@
       "../src/builtins/array-unshift.tq",
       "../src/builtins/typed-array.tq",
       "../src/builtins/data-view.tq",
-      "../test/torque/test-torque.tq",
       "../third_party/v8/builtins/array-sort.tq",
     ],
     'torque_modules': [
@@ -32,7 +31,6 @@
       "array",
       "typed-array",
       "data-view",
-      "test",
     ],
     # Since there is no foreach in GYP we manualy unroll the following:
     # foreach(module, torque_modules) {
@@ -50,8 +48,6 @@
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-typed-array-from-dsl-gen.h',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.cc',
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-data-view-from-dsl-gen.h',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-test-from-dsl-gen.cc',
-      '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtins-test-from-dsl-gen.h',
     ],
     'torque_generated_pure_headers': [
       '<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions-from-dsl.h',
