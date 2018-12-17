@@ -9,6 +9,19 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 
+#if defined(_MSC_VER)
+#pragma section(".CRT$XPU", read)
+#define NODE_C_DTOR(fn)                                               \
+  NODE_CTOR_PREFIX void __cdecl fn(void);                             \
+  __declspec(dllexport, allocate(".CRT$XPU"))                         \
+      void (__cdecl*fn ## _)(void) = fn;                              \
+  NODE_CTOR_PREFIX void __cdecl fn(void)
+#else
+#define NODE_C_DTOR(fn)                                               \
+  NODE_CTOR_PREFIX void fn(void) __attribute__((destructor));         \
+  NODE_CTOR_PREFIX void fn(void)
+#endif
+
 static char cookie[] = "yum yum";
 static int at_exit_cb1_called = 0;
 static int at_exit_cb2_called = 0;
@@ -27,7 +40,7 @@ static void at_exit_cb2(void* arg) {
   at_exit_cb2_called++;
 }
 
-static void sanity_check(void) {
+NODE_C_DTOR(sanity_check) {
   assert(at_exit_cb1_called == 1);
   assert(at_exit_cb2_called == 2);
 }
@@ -36,7 +49,6 @@ void init(Local<Object> exports) {
   AtExit(at_exit_cb1, exports->GetIsolate());
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb2, cookie);
-  atexit(sanity_check);
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, init)
