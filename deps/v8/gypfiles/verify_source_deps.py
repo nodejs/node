@@ -27,13 +27,7 @@ GYP_FILES = [
   os.path.join(V8_BASE, 'gypfiles', 'inspector.gypi'),
   os.path.join(V8_BASE, 'gypfiles', 'v8vtune.gyp'),
   os.path.join(V8_BASE, 'gypfiles', 'samples.gyp'),
-  os.path.join(V8_BASE, 'gypfiles', 'cctest.gyp'),
-  os.path.join(V8_BASE, 'gypfiles', 'fuzzer.gyp'),
-  os.path.join(V8_BASE, 'gypfiles', 'unittests.gyp'),
-  os.path.join(V8_BASE, 'gypfiles', 'inspector-test.gyp'),
   os.path.join(V8_BASE, 'gypfiles', 'mkgrokdump.gyp'),
-  os.path.join(V8_BASE, 'gypfiles', 'gmock.gyp'),
-  os.path.join(V8_BASE, 'gypfiles', 'gtest.gyp'),
   os.path.join(V8_BASE, 'gypfiles', 'parser-shell.gyp'),
 ]
 
@@ -45,10 +39,7 @@ ALL_GYP_PREFIXES = [
   'samples',
   'testing',
   'tools',
-  os.path.join('test', 'cctest'),
   os.path.join('test', 'common'),
-  os.path.join('test', 'fuzzer'),
-  os.path.join('test', 'unittests'),
   os.path.join('test', 'inspector'),
   os.path.join('test', 'mkgrokdump'),
 ]
@@ -61,11 +52,7 @@ GYP_UNSUPPORTED_FEATURES = [
 
 GN_FILES = [
   os.path.join(V8_BASE, 'BUILD.gn'),
-  os.path.join(V8_BASE, 'build', 'secondary', 'testing', 'gmock', 'BUILD.gn'),
-  os.path.join(V8_BASE, 'build', 'secondary', 'testing', 'gtest', 'BUILD.gn'),
   os.path.join(V8_BASE, 'src', 'inspector', 'BUILD.gn'),
-  os.path.join(V8_BASE, 'test', 'cctest', 'BUILD.gn'),
-  os.path.join(V8_BASE, 'test', 'unittests', 'BUILD.gn'),
   os.path.join(V8_BASE, 'test', 'inspector', 'BUILD.gn'),
   os.path.join(V8_BASE, 'test', 'mkgrokdump', 'BUILD.gn'),
   os.path.join(V8_BASE, 'tools', 'BUILD.gn'),
@@ -89,8 +76,6 @@ ALL_GN_PREFIXES = [
   os.path.join('src', 'inspector'),
   'src',
   'testing',
-  os.path.join('test', 'cctest'),
-  os.path.join('test', 'unittests'),
   os.path.join('test', 'inspector'),
   os.path.join('test', 'mkgrokdump'),
 ]
