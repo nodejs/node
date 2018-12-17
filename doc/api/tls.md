@@ -1055,7 +1055,7 @@ argument.
 added: v0.11.13
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/24733
     description: The `ca:` option now supports `BEGIN TRUSTED CERTIFICATE`.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24405
