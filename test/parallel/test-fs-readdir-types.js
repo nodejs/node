@@ -12,7 +12,7 @@ const binding = internalBinding('fs');
 
 const readdirDir = tmpdir.path;
 const files = ['empty', 'files', 'for', 'just', 'testing'];
-const constants = internalBinding('constants').fs;
+const constants = require('fs').constants;
 const types = {
   isDirectory: constants.UV_DIRENT_DIR,
   isFile: constants.UV_DIRENT_FILE,
