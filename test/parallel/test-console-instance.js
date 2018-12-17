@@ -128,3 +128,21 @@ out.write = err.write = (d) => {};
   assert.throws(() => c2.warn('foo'), /^Error: err$/);
   assert.throws(() => c2.dir('foo'), /^Error: out$/);
 }
+
+// Console constructor throws if inspectOptions is not an object.
+[null, true, false, 'foo', 5, Symbol()].forEach((inspectOptions) => {
+  assert.throws(
+    () => {
+      new Console({
+        stdout: out,
+        stderr: err,
+        inspectOptions
+      });
+    },
+    {
+      message: 'The "inspectOptions" argument must be of type object.' +
+               ` Received type ${typeof inspectOptions}`,
+      code: 'ERR_INVALID_ARG_TYPE'
+    }
+  );
+});
