@@ -1054,7 +1054,7 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v11.5.0
     pr-url: https://github.com/nodejs/node/pull/24733
     description: The `ca:` option now supports `BEGIN TRUSTED CERTIFICATE`.
   - version: v11.4.0
