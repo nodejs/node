@@ -273,7 +273,6 @@ inline WriteWrap* StreamBase::CreateWriteWrap(
   return new SimpleWriteWrap<AsyncWrap>(this, object);
 }
 
-template <class Base>
 void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
@@ -284,25 +283,25 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
   Local<FunctionTemplate> get_fd_templ =
-      env->NewFunctionTemplate(GetFD<Base>,
+      env->NewFunctionTemplate(GetFD,
                                signature,
                                v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_external_templ =
-      env->NewFunctionTemplate(GetExternal<Base>,
+      env->NewFunctionTemplate(GetExternal,
                                signature,
                                v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_bytes_read_templ =
-      env->NewFunctionTemplate(GetBytesRead<Base>,
+      env->NewFunctionTemplate(GetBytesRead,
                                signature,
                                v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
 
   Local<FunctionTemplate> get_bytes_written_templ =
-      env->NewFunctionTemplate(GetBytesWritten<Base>,
+      env->NewFunctionTemplate(GetBytesWritten,
                                signature,
                                v8::ConstructorBehavior::kThrow,
                                v8::SideEffectType::kHasNoSideEffect);
@@ -327,90 +326,91 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
                                               Local<FunctionTemplate>(),
                                               attributes);
 
-  env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStartJS>);
-  env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStopJS>);
-  env->SetProtoMethod(t, "shutdown", JSMethod<Base, &StreamBase::Shutdown>);
-  env->SetProtoMethod(t, "writev", JSMethod<Base, &StreamBase::Writev>);
+  env->SetProtoMethod(t, "readStart", JSMethod<&StreamBase::ReadStartJS>);
+  env->SetProtoMethod(t, "readStop", JSMethod<&StreamBase::ReadStopJS>);
+  env->SetProtoMethod(t, "shutdown", JSMethod<&StreamBase::Shutdown>);
+  env->SetProtoMethod(t, "writev", JSMethod<&StreamBase::Writev>);
   env->SetProtoMethod(t,
                       "writeBuffer",
-                      JSMethod<Base, &StreamBase::WriteBuffer>);
+                      JSMethod<&StreamBase::WriteBuffer>);
   env->SetProtoMethod(t,
                       "writeAsciiString",
-                      JSMethod<Base, &StreamBase::WriteString<ASCII> >);
+                      JSMethod<&StreamBase::WriteString<ASCII>>);
   env->SetProtoMethod(t,
                       "writeUtf8String",
-                      JSMethod<Base, &StreamBase::WriteString<UTF8> >);
+                      JSMethod<&StreamBase::WriteString<UTF8>>);
   env->SetProtoMethod(t,
                       "writeUcs2String",
-                      JSMethod<Base, &StreamBase::WriteString<UCS2> >);
+                      JSMethod<&StreamBase::WriteString<UCS2>>);
   env->SetProtoMethod(t,
                       "writeLatin1String",
-                      JSMethod<Base, &StreamBase::WriteString<LATIN1> >);
+                      JSMethod<&StreamBase::WriteString<LATIN1>>);
 }
 
 
-template <class Base>
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
   // Mimic implementation of StreamBase::GetFD() and UDPWrap::GetFD().
-  Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle,
-                          args.This(),
-                          args.GetReturnValue().Set(UV_EINVAL));
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) {
+    return args.GetReturnValue().Set(UV_EINVAL);
+  }
 
-  StreamBase* wrap = static_cast<StreamBase*>(handle);
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set(wrap->GetFD());
 }
 
-template <class Base>
 void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
-  Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle,
-                          args.This(),
-                          args.GetReturnValue().Set(0));
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) {
+    return args.GetReturnValue().Set(0);
+  }
 
-  StreamBase* wrap = static_cast<StreamBase*>(handle);
   // uint64_t -> double. 53bits is enough for all real cases.
   args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
 }
 
-template <class Base>
 void StreamBase::GetBytesWritten(const FunctionCallbackInfo<Value>& args) {
-  Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle,
-                          args.This(),
-                          args.GetReturnValue().Set(0));
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) {
+    return args.GetReturnValue().Set(0);
+  }
 
-  StreamBase* wrap = static_cast<StreamBase*>(handle);
   // uint64_t -> double. 53bits is enough for all real cases.
   args.GetReturnValue().Set(static_cast<double>(wrap->bytes_written_));
 }
 
-template <class Base>
 void StreamBase::GetExternal(const FunctionCallbackInfo<Value>& args) {
-  Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle, args.This());
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) return;
 
-  StreamBase* wrap = static_cast<StreamBase*>(handle);
   Local<External> ext = External::New(args.GetIsolate(), wrap);
   args.GetReturnValue().Set(ext);
 }
 
 
-template <class Base,
-          int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
+template <int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
-  Base* handle;
-  ASSIGN_OR_RETURN_UNWRAP(&handle, args.Holder());
+  StreamBase* wrap = StreamBase::FromObject(args.Holder().As<Object>());
+  if (wrap == nullptr) return;
 
-  StreamBase* wrap = static_cast<StreamBase*>(handle);
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
-  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(handle);
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap->GetAsyncWrap());
   args.GetReturnValue().Set((wrap->*Method)(args));
+}
+
+
+inline void StreamBase::AttachToObject(v8::Local<v8::Object> obj) {
+  obj->SetAlignedPointerInInternalField(kStreamBaseField, this);
+}
+
+
+inline StreamBase* StreamBase::FromObject(v8::Local<v8::Object> obj) {
+  return static_cast<StreamBase*>(
+      obj->GetAlignedPointerFromInternalField(kStreamBaseField));
 }
 
 

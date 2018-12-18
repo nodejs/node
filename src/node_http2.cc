@@ -1868,6 +1868,7 @@ Http2Stream::Http2Stream(Http2Session* session,
       id_(id),
       current_headers_category_(category) {
   MakeWeak();
+  StreamBase::AttachToObject(GetObject());
   statistics_.start_time = uv_hrtime();
 
   // Limit the number of header pairs
@@ -3008,9 +3009,9 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(stream, "rstStream", Http2Stream::RstStream);
   env->SetProtoMethod(stream, "refreshState", Http2Stream::RefreshState);
   stream->Inherit(AsyncWrap::GetConstructorTemplate(env));
-  StreamBase::AddMethods<Http2Stream>(env, stream);
+  StreamBase::AddMethods(env, stream);
   Local<ObjectTemplate> streamt = stream->InstanceTemplate();
-  streamt->SetInternalFieldCount(1);
+  streamt->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
   env->set_http2stream_constructor_template(streamt);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "Http2Stream"),

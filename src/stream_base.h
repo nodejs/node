@@ -259,7 +259,7 @@ class StreamResource {
 
 class StreamBase : public StreamResource {
  public:
-  template <class Base>
+  static constexpr int kStreamBaseField = 1;
   static inline void AddMethods(Environment* env,
                                 v8::Local<v8::FunctionTemplate> target);
 
@@ -305,6 +305,8 @@ class StreamBase : public StreamResource {
   virtual AsyncWrap* GetAsyncWrap() = 0;
   virtual v8::Local<v8::Object> GetObject();
 
+  static StreamBase* FromObject(v8::Local<v8::Object> obj);
+
  protected:
   explicit StreamBase(Environment* env);
 
@@ -317,20 +319,13 @@ class StreamBase : public StreamResource {
   template <enum encoding enc>
   int WriteString(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  template <class Base>
   static void GetFD(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  template <class Base>
   static void GetExternal(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  template <class Base>
   static void GetBytesRead(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  template <class Base>
   static void GetBytesWritten(const v8::FunctionCallbackInfo<v8::Value>& args);
+  void AttachToObject(v8::Local<v8::Object> obj);
 
-  template <class Base,
-            int (StreamBase::*Method)(
+  template <int (StreamBase::*Method)(
       const v8::FunctionCallbackInfo<v8::Value>& args)>
   static void JSMethod(const v8::FunctionCallbackInfo<v8::Value>& args);
 
