@@ -168,6 +168,7 @@ enum OptionType {
   kV8Option,
   kBoolean,
   kInteger,
+  kUInteger,
   kString,
   kHostPort,
   kStringList,
@@ -193,6 +194,10 @@ class OptionsParser {
   void AddOption(const std::string& name,
                  const std::string& help_text,
                  bool Options::* field,
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
+  void AddOption(const std::string& name,
+                 const std::string& help_text,
+                 uint64_t Options::* field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvironment);
   void AddOption(const std::string& name,
                  const std::string& help_text,

@@ -38,6 +38,19 @@ void OptionsParser<Options>::AddOption(const std::string& name,
 template <typename Options>
 void OptionsParser<Options>::AddOption(const std::string& name,
                                        const std::string& help_text,
+                                       uint64_t Options::* field,
+                                       OptionEnvvarSettings env_setting) {
+  options_.emplace(
+      name,
+      OptionInfo{kUInteger,
+                 std::make_shared<SimpleOptionField<uint64_t>>(field),
+                 env_setting,
+                 help_text});
+}
+
+template <typename Options>
+void OptionsParser<Options>::AddOption(const std::string& name,
+                                       const std::string& help_text,
                                        int64_t Options::* field,
                                        OptionEnvvarSettings env_setting) {
   options_.emplace(
@@ -396,6 +409,9 @@ void OptionsParser<Options>::Parse(
         break;
       case kInteger:
         *Lookup<int64_t>(info.field, options) = std::atoll(value.c_str());
+        break;
+      case kUInteger:
+        *Lookup<uint64_t>(info.field, options) = std::stoull(value.c_str());
         break;
       case kString:
         *Lookup<std::string>(info.field, options) = value;
