@@ -11,4 +11,5 @@ const list = process.moduleLoadList.slice();
 
 const assert = require('assert');
 
-assert(list.length <= 78, list);
+assert(list.length <= 81,
+       `Expected <= 81 elements in moduleLoadLists, got ${list.length}`);
