@@ -94,7 +94,6 @@ extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 extern void UseExtraCaCerts(const std::string& file);
 
 void InitCryptoOnce();
-std::string GetOpenSSLVersion();
 
 class SecureContext : public BaseObject {
  public:

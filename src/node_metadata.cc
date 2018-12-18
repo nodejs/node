@@ -9,14 +9,31 @@
 #include "zlib.h"
 
 #if HAVE_OPENSSL
-#include "node_crypto.h"
-#endif
+#include <openssl/opensslv.h>
+#endif  // HAVE_OPENSSL
 
 namespace node {
 
 namespace per_process {
 Metadata metadata;
 }
+
+#if HAVE_OPENSSL
+constexpr int search(const char* s, int n, int c) {
+  return *s == c ? n : search(s + 1, n + 1, c);
+}
+
+std::string GetOpenSSLVersion() {
+  // sample openssl version string format
+  // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
+  char buf[128];
+  const int start = search(OPENSSL_VERSION_TEXT, 0, ' ') + 1;
+  const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ');
+  const int len = end - start;
+  snprintf(buf, sizeof(buf), "%.*s", len, &OPENSSL_VERSION_TEXT[start]);
+  return std::string(buf);
+}
+#endif  // HAVE_OPENSSL
 
 Metadata::Versions::Versions() {
   node = NODE_VERSION_STRING;
@@ -31,7 +48,7 @@ Metadata::Versions::Versions() {
   http_parser = http_parser_version;
 
 #if HAVE_OPENSSL
-  openssl = crypto::GetOpenSSLVersion();
+  openssl = GetOpenSSLVersion();
 #endif
 }
 
