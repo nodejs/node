@@ -30,9 +30,9 @@
 
 #endif  // __POSIX__
 
-#if defined(__linux__) || defined(__sun)
+#if defined(__linux__) || defined(__sun) || defined(__FreeBSD__)
 #include <link.h>
-#endif  // (__linux__) || defined(__sun)
+#endif  // (__linux__) || defined(__sun) || defined(__FreeBSD__)
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>  // _dyld_get_image_name()
@@ -322,7 +322,7 @@ void CheckedUvLoopClose(uv_loop_t* loop) {
 
 std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
   std::vector<std::string> list;
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
   dl_iterate_phdr(
       [](struct dl_phdr_info* info, size_t size, void* data) {
         auto list = static_cast<std::vector<std::string>*>(data);
