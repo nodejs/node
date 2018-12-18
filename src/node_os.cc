@@ -68,18 +68,15 @@ using v8::Value;
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   char buf[MAXHOSTNAMELEN + 1];
+  size_t size = sizeof(buf);
+  int r = uv_os_gethostname(buf, &size);
 
-  if (gethostname(buf, sizeof(buf))) {
-#ifdef __POSIX__
-    int errorno = errno;
-#else  // __MINGW32__
-    int errorno = WSAGetLastError();
-#endif  // __POSIX__
+  if (r != 0) {
     CHECK_GE(args.Length(), 1);
-    env->CollectExceptionInfo(args[args.Length() - 1], errorno, "gethostname");
+    env->CollectUVExceptionInfo(args[args.Length() - 1], r,
+                                "uv_os_gethostname");
     return args.GetReturnValue().SetUndefined();
   }
-  buf[sizeof(buf) - 1] = '\0';
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), buf));
 }
