@@ -111,6 +111,7 @@ FileHandle::FileHandle(Environment* env, Local<Object> obj, int fd)
       StreamBase(env),
       fd_(fd) {
   MakeWeak();
+  StreamBase::AttachToObject(GetObject());
 }
 
 FileHandle* FileHandle::New(Environment* env, int fd, Local<Object> obj) {
@@ -2227,11 +2228,11 @@ void Initialize(Local<Object> target,
   env->SetProtoMethod(fd, "close", FileHandle::Close);
   env->SetProtoMethod(fd, "releaseFD", FileHandle::ReleaseFD);
   Local<ObjectTemplate> fdt = fd->InstanceTemplate();
-  fdt->SetInternalFieldCount(1);
+  fdt->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
   Local<String> handleString =
        FIXED_ONE_BYTE_STRING(isolate, "FileHandle");
   fd->SetClassName(handleString);
-  StreamBase::AddMethods<FileHandle>(env, fd);
+  StreamBase::AddMethods(env, fd);
   target
       ->Set(context, handleString,
             fd->GetFunction(env->context()).ToLocalChecked())

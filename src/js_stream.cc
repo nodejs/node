@@ -27,6 +27,7 @@ JSStream::JSStream(Environment* env, Local<Object> obj)
     : AsyncWrap(env, obj, AsyncWrap::PROVIDER_JSSTREAM),
       StreamBase(env) {
   MakeWeak();
+  StreamBase::AttachToObject(obj);
 }
 
 
@@ -203,7 +204,8 @@ void JSStream::Initialize(Local<Object> target,
   Local<String> jsStreamString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "JSStream");
   t->SetClassName(jsStreamString);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()
+    ->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "finishWrite", Finish<WriteWrap>);
@@ -211,7 +213,7 @@ void JSStream::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "readBuffer", ReadBuffer);
   env->SetProtoMethod(t, "emitEOF", EmitEOF);
 
-  StreamBase::AddMethods<JSStream>(env, t);
+  StreamBase::AddMethods(env, t);
   target->Set(env->context(),
               jsStreamString,
               t->GetFunction(context).ToLocalChecked()).FromJust();
