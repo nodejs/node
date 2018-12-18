@@ -25,14 +25,38 @@ namespace node {
 #define NODE_VERSIONS_KEY_CRYPTO(V)
 #endif
 
+#ifdef NODE_HAVE_I18N_SUPPORT
+#define NODE_VERSIONS_KEY_INTL(V)                                              \
+  V(cldr)                                                                      \
+  V(icu)                                                                       \
+  V(tz)                                                                        \
+  V(unicode)
+#else
+#define NODE_VERSIONS_KEY_INTL(V)
+#endif  // NODE_HAVE_I18N_SUPPORT
+
 #define NODE_VERSIONS_KEYS(V)                                                  \
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
-  NODE_VERSIONS_KEY_CRYPTO(V)
+  NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
+  NODE_VERSIONS_KEY_INTL(V)
 
 class Metadata {
  public:
+  Metadata() = default;
+  Metadata(Metadata&) = delete;
+  Metadata(Metadata&&) = delete;
+  Metadata operator=(Metadata&) = delete;
+  Metadata operator=(Metadata&&) = delete;
+
   struct Versions {
     Versions();
+
+#ifdef NODE_HAVE_I18N_SUPPORT
+    // Must be called on the main thread after
+    // i18n::InitializeICUDirectory()
+    void InitializeIntlVersions();
+#endif  // NODE_HAVE_I18N_SUPPORT
+
 #define V(key) std::string key;
     NODE_VERSIONS_KEYS(V)
 #undef V
