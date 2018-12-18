@@ -55,7 +55,7 @@ function connectClient(server) {
 
   tlsConnection.write('foo', 'utf8', common.mustCall(() => {
     assert(netSocket);
-    netSocket.setTimeout(1, common.mustCall(() => {
+    netSocket.setTimeout(common.platformTimeout(10), common.mustCall(() => {
       assert(tlsSocket);
       // This breaks if TLSSocket is already managing the socket:
       netSocket.destroy();

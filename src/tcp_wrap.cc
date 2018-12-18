@@ -79,7 +79,8 @@ void TCPWrap::Initialize(Local<Object> target,
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   Local<String> tcpString = FIXED_ONE_BYTE_STRING(env->isolate(), "TCP");
   t->SetClassName(tcpString);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->InstanceTemplate()
+    ->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
 
   // Init properties
   t->InstanceTemplate()->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "reading"),
