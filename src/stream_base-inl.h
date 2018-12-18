@@ -273,6 +273,21 @@ inline WriteWrap* StreamBase::CreateWriteWrap(
   return new SimpleWriteWrap<AsyncWrap>(this, object);
 }
 
+
+#define STREAM_BASE_METHOD(func, str)                                      \
+  do {                                                                     \
+    Local<FunctionTemplate> func_templ =                                   \
+      env->NewFunctionTemplate(func,                                       \
+                               signature,                                  \
+                               v8::ConstructorBehavior::kThrow,            \
+                               v8::SideEffectType::kHasNoSideEffect);      \
+    t->PrototypeTemplate()->SetAccessorProperty(str,                       \
+                                                func_templ,                \
+                                                Local<FunctionTemplate>(), \
+                                                attributes);               \
+  } while (0)
+
+
 void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   HandleScope scope(env->isolate());
 
@@ -282,68 +297,22 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
-  Local<FunctionTemplate> get_fd_templ =
-      env->NewFunctionTemplate(GetFD,
-                               signature,
-                               v8::ConstructorBehavior::kThrow,
-                               v8::SideEffectType::kHasNoSideEffect);
-
-  Local<FunctionTemplate> get_external_templ =
-      env->NewFunctionTemplate(GetExternal,
-                               signature,
-                               v8::ConstructorBehavior::kThrow,
-                               v8::SideEffectType::kHasNoSideEffect);
-
-  Local<FunctionTemplate> get_bytes_read_templ =
-      env->NewFunctionTemplate(GetBytesRead,
-                               signature,
-                               v8::ConstructorBehavior::kThrow,
-                               v8::SideEffectType::kHasNoSideEffect);
-
-  Local<FunctionTemplate> get_bytes_written_templ =
-      env->NewFunctionTemplate(GetBytesWritten,
-                               signature,
-                               v8::ConstructorBehavior::kThrow,
-                               v8::SideEffectType::kHasNoSideEffect);
-
-  t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
-                                              get_fd_templ,
-                                              Local<FunctionTemplate>(),
-                                              attributes);
-
-  t->PrototypeTemplate()->SetAccessorProperty(env->external_stream_string(),
-                                              get_external_templ,
-                                              Local<FunctionTemplate>(),
-                                              attributes);
-
-  t->PrototypeTemplate()->SetAccessorProperty(env->bytes_read_string(),
-                                              get_bytes_read_templ,
-                                              Local<FunctionTemplate>(),
-                                              attributes);
-
-  t->PrototypeTemplate()->SetAccessorProperty(env->bytes_written_string(),
-                                              get_bytes_written_templ,
-                                              Local<FunctionTemplate>(),
-                                              attributes);
-
+  STREAM_BASE_METHOD(GetFD, env->fd_string());
+  STREAM_BASE_METHOD(GetExternal, env->external_stream_string());
+  STREAM_BASE_METHOD(GetBytesRead, env->bytes_read_string());
+  STREAM_BASE_METHOD(GetBytesWritten, env->bytes_written_string());
   env->SetProtoMethod(t, "readStart", JSMethod<&StreamBase::ReadStartJS>);
   env->SetProtoMethod(t, "readStop", JSMethod<&StreamBase::ReadStopJS>);
   env->SetProtoMethod(t, "shutdown", JSMethod<&StreamBase::Shutdown>);
   env->SetProtoMethod(t, "writev", JSMethod<&StreamBase::Writev>);
-  env->SetProtoMethod(t,
-                      "writeBuffer",
-                      JSMethod<&StreamBase::WriteBuffer>);
-  env->SetProtoMethod(t,
-                      "writeAsciiString",
+  env->SetProtoMethod(t, "writeBuffer", JSMethod<&StreamBase::WriteBuffer>);
+  env->SetProtoMethod(t, "writeAsciiString",
                       JSMethod<&StreamBase::WriteString<ASCII>>);
-  env->SetProtoMethod(t,
-                      "writeUtf8String",
+  env->SetProtoMethod(t, "writeUtf8String",
                       JSMethod<&StreamBase::WriteString<UTF8>>);
-  env->SetProtoMethod(t,
-                      "writeUcs2String",
+  env->SetProtoMethod(t, "writeUcs2String",
                       JSMethod<&StreamBase::WriteString<UCS2>>);
-  env->SetProtoMethod(t,
-                      "writeLatin1String",
+  env->SetProtoMethod(t, "writeLatin1String",
                       JSMethod<&StreamBase::WriteString<LATIN1>>);
 }
 
