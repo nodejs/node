@@ -446,8 +446,8 @@ if errorlevel 1 goto exit
 
 
 :install-doctools
-REM only install if building doc OR testing doctool
-if not defined doc (
+REM only install if building doc OR testing doctool OR building addons
+if not defined doc if not defined build_addons (
   echo.%test_args% | findstr doctool 1>nul
   if errorlevel 1 goto :skip-install-doctools
 )
