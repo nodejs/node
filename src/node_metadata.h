@@ -44,6 +44,8 @@ class Metadata {
 // Per-process global
 namespace per_process {
 extern Metadata metadata;
+extern const char* const llhttp_version;
+extern const char* const http_parser_version;
 }
 
 }  // namespace node
