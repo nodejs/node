@@ -3,7 +3,6 @@
 #include "brotli/encode.h"
 #include "nghttp2/nghttp2ver.h"
 #include "node.h"
-#include "node_internals.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
@@ -45,8 +44,8 @@ Metadata::Versions::Versions() {
   modules = NODE_STRINGIFY(NODE_MODULE_VERSION);
   nghttp2 = NGHTTP2_VERSION;
   napi = NODE_STRINGIFY(NAPI_VERSION);
-  llhttp = llhttp_version;
-  http_parser = http_parser_version;
+  llhttp = per_process::llhttp_version;
+  http_parser = per_process::http_parser_version;
 
   brotli =
     std::to_string(BrotliEncoderVersion() >> 24) +
