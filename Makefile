@@ -344,7 +344,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		$(RM) -r test/addons/??_*/; \
 		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
 		touch $@; \
-  fi
+	fi
 
 ADDONS_BINDING_GYPS := \
 	$(filter-out test/addons/??_*/binding.gyp, \
@@ -661,7 +661,7 @@ tools/doc/node_modules: tools/doc/package.json
 		echo "Skipping tools/doc/node_modules (no crypto)"; \
 	else \
 		cd tools/doc && $(call available-node,$(run-npm-ci)) \
-  fi
+	fi
 
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
