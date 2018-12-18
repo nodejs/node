@@ -429,6 +429,9 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
       case kInteger:
         value = Number::New(isolate, *parser.Lookup<int64_t>(field, opts));
         break;
+      case kUInteger:
+        value = Number::New(isolate, *parser.Lookup<uint64_t>(field, opts));
+        break;
       case kString:
         if (!ToV8Value(context, *parser.Lookup<std::string>(field, opts))
                  .ToLocal(&value)) {
@@ -516,6 +519,7 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(types, kV8Option);
   NODE_DEFINE_CONSTANT(types, kBoolean);
   NODE_DEFINE_CONSTANT(types, kInteger);
+  NODE_DEFINE_CONSTANT(types, kUInteger);
   NODE_DEFINE_CONSTANT(types, kString);
   NODE_DEFINE_CONSTANT(types, kHostPort);
   NODE_DEFINE_CONSTANT(types, kStringList);
