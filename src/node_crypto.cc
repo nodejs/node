@@ -5842,21 +5842,6 @@ void Initialize(Local<Object> target,
 #endif  // OPENSSL_NO_SCRYPT
 }
 
-constexpr int search(const char* s, int n, int c) {
-  return *s == c ? n : search(s + 1, n + 1, c);
-}
-
-std::string GetOpenSSLVersion() {
-  // sample openssl version string format
-  // for reference: "OpenSSL 1.1.0i 14 Aug 2018"
-  char buf[128];
-  const int start = search(OPENSSL_VERSION_TEXT, 0, ' ') + 1;
-  const int end = search(OPENSSL_VERSION_TEXT + start, start, ' ');
-  const int len = end - start;
-  snprintf(buf, sizeof(buf), "%.*s", len, &OPENSSL_VERSION_TEXT[start]);
-  return std::string(buf);
-}
-
 }  // namespace crypto
 }  // namespace node
 
