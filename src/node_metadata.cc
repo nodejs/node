@@ -12,6 +12,13 @@
 #include <openssl/opensslv.h>
 #endif  // HAVE_OPENSSL
 
+#ifdef NODE_HAVE_I18N_SUPPORT
+#include <unicode/timezone.h>
+#include <unicode/ulocdata.h>
+#include <unicode/uvernum.h>
+#include <unicode/uversion.h>
+#endif  // NODE_HAVE_I18N_SUPPORT
+
 namespace node {
 
 namespace per_process {
@@ -35,6 +42,25 @@ std::string GetOpenSSLVersion() {
 }
 #endif  // HAVE_OPENSSL
 
+#ifdef NODE_HAVE_I18N_SUPPORT
+void Metadata::Versions::InitializeIntlVersions() {
+  UErrorCode status = U_ZERO_ERROR;
+
+  const char* tz_version = icu::TimeZone::getTZDataVersion(status);
+  if (U_SUCCESS(status)) {
+    tz = tz_version;
+  }
+
+  char buf[U_MAX_VERSION_STRING_LENGTH];
+  UVersionInfo versionArray;
+  ulocdata_getCLDRVersion(versionArray, &status);
+  if (U_SUCCESS(status)) {
+    u_versionToString(versionArray, buf);
+    cldr = buf;
+  }
+}
+#endif  // NODE_HAVE_I18N_SUPPORT
+
 Metadata::Versions::Versions() {
   node = NODE_VERSION_STRING;
   v8 = v8::V8::GetVersion();
@@ -57,6 +83,11 @@ Metadata::Versions::Versions() {
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();
 #endif
+
+#ifdef NODE_HAVE_I18N_SUPPORT
+  icu = U_ICU_VERSION;
+  unicode = U_UNICODE_VERSION;
+#endif  // NODE_HAVE_I18N_SUPPORT
 }
 
 }  // namespace node

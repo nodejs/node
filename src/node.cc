@@ -880,7 +880,10 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(process, "versions", versions);
 
 #define V(key)                                                                 \
-  READONLY_STRING_PROPERTY(versions, #key, per_process::metadata.versions.key);
+  if (!per_process::metadata.versions.key.empty()) {                           \
+    READONLY_STRING_PROPERTY(                                                  \
+        versions, #key, per_process::metadata.versions.key);                   \
+  }
   NODE_VERSIONS_KEYS(V)
 #undef V
 
@@ -1672,6 +1675,7 @@ void Init(std::vector<std::string>* argv,
             argv->at(0).c_str());
     exit(9);
   }
+  per_process::metadata.versions.InitializeIntlVersions();
 #endif
 
   // We should set node_is_initialized here instead of in node::Start,
