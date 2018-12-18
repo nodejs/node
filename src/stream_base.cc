@@ -327,6 +327,93 @@ Local<Object> StreamBase::GetObject() {
   return GetAsyncWrap()->object();
 }
 
+void StreamBase::AddMethod(Environment* env,
+                           Local<Signature> signature,
+                           enum PropertyAttribute attributes,
+                           Local<FunctionTemplate> t,
+                           JSMethodFunction* stream_method,
+                           Local<String> string) {
+  Local<FunctionTemplate> templ =
+      env->NewFunctionTemplate(stream_method,
+                               signature,
+                               v8::ConstructorBehavior::kThrow,
+                               v8::SideEffectType::kHasNoSideEffect);
+  t->PrototypeTemplate()->SetAccessorProperty(
+      string, templ, Local<FunctionTemplate>(), attributes);
+}
+
+void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
+  HandleScope scope(env->isolate());
+
+  enum PropertyAttribute attributes = static_cast<PropertyAttribute>(
+      v8::ReadOnly | v8::DontDelete | v8::DontEnum);
+  Local<Signature> sig = Signature::New(env->isolate(), t);
+
+  AddMethod(env, sig, attributes, t, GetFD, env->fd_string());
+  AddMethod(
+      env, sig, attributes, t, GetExternal, env->external_stream_string());
+  AddMethod(env, sig, attributes, t, GetBytesRead, env->bytes_read_string());
+  AddMethod(
+      env, sig, attributes, t, GetBytesWritten, env->bytes_written_string());
+  env->SetProtoMethod(t, "readStart", JSMethod<&StreamBase::ReadStartJS>);
+  env->SetProtoMethod(t, "readStop", JSMethod<&StreamBase::ReadStopJS>);
+  env->SetProtoMethod(t, "shutdown", JSMethod<&StreamBase::Shutdown>);
+  env->SetProtoMethod(t, "writev", JSMethod<&StreamBase::Writev>);
+  env->SetProtoMethod(t, "writeBuffer", JSMethod<&StreamBase::WriteBuffer>);
+  env->SetProtoMethod(
+      t, "writeAsciiString", JSMethod<&StreamBase::WriteString<ASCII>>);
+  env->SetProtoMethod(
+      t, "writeUtf8String", JSMethod<&StreamBase::WriteString<UTF8>>);
+  env->SetProtoMethod(
+      t, "writeUcs2String", JSMethod<&StreamBase::WriteString<UCS2>>);
+  env->SetProtoMethod(
+      t, "writeLatin1String", JSMethod<&StreamBase::WriteString<LATIN1>>);
+}
+
+void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
+  // Mimic implementation of StreamBase::GetFD() and UDPWrap::GetFD().
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) return args.GetReturnValue().Set(UV_EINVAL);
+
+  if (!wrap->IsAlive()) return args.GetReturnValue().Set(UV_EINVAL);
+
+  args.GetReturnValue().Set(wrap->GetFD());
+}
+
+void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) return args.GetReturnValue().Set(0);
+
+  // uint64_t -> double. 53bits is enough for all real cases.
+  args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
+}
+
+void StreamBase::GetBytesWritten(const FunctionCallbackInfo<Value>& args) {
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) return args.GetReturnValue().Set(0);
+
+  // uint64_t -> double. 53bits is enough for all real cases.
+  args.GetReturnValue().Set(static_cast<double>(wrap->bytes_written_));
+}
+
+void StreamBase::GetExternal(const FunctionCallbackInfo<Value>& args) {
+  StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
+  if (wrap == nullptr) return;
+
+  Local<External> ext = External::New(args.GetIsolate(), wrap);
+  args.GetReturnValue().Set(ext);
+}
+
+template <int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
+void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
+  StreamBase* wrap = StreamBase::FromObject(args.Holder().As<Object>());
+  if (wrap == nullptr) return;
+
+  if (!wrap->IsAlive()) return args.GetReturnValue().Set(UV_EINVAL);
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap->GetAsyncWrap());
+  args.GetReturnValue().Set((wrap->*Method)(args));
+}
 
 int StreamResource::DoTryWrite(uv_buf_t** bufs, size_t* count) {
   // No TryWrite by default
