@@ -88,7 +88,7 @@ common.expectsError(function() {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "superCtor.prototype" property must be of type Function. ' +
+  message: 'The "superCtor.prototype" property must be of type Object. ' +
            'Received type undefined'
 });
 
