@@ -107,6 +107,20 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
 
 namespace options_parser {
 
+// Explicitly access the singelton instances in their dependancy order.
+// This was moved here to workaround a compiler bug.
+// Refs: https://github.com/nodejs/node/issues/25593
+
+#if HAVE_INSPECTOR
+const DebugOptionsParser DebugOptionsParser::instance;
+#endif  // HAVE_INSPECTOR
+
+const EnvironmentOptionsParser EnvironmentOptionsParser::instance;
+
+const PerIsolateOptionsParser PerIsolateOptionsParser::instance;
+
+const PerProcessOptionsParser PerProcessOptionsParser::instance;
+
 // XXX: If you add an option here, please also add it to doc/node.1 and
 // doc/api/cli.md
 // TODO(addaleax): Make that unnecessary.
@@ -142,10 +156,6 @@ DebugOptionsParser::DebugOptionsParser() {
   Implies("--debug-brk", "--debug");
   AddAlias("--debug-brk=", { "--inspect-port", "--debug-brk" });
 }
-
-#if HAVE_INSPECTOR
-const DebugOptionsParser DebugOptionsParser::instance;
-#endif  // HAVE_INSPECTOR
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-modules",
@@ -282,8 +292,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 #endif  // HAVE_INSPECTOR
 }
 
-const EnvironmentOptionsParser EnvironmentOptionsParser::instance;
-
 PerIsolateOptionsParser::PerIsolateOptionsParser() {
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
@@ -340,8 +348,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser() {
   Insert(&EnvironmentOptionsParser::instance,
          &PerIsolateOptions::get_per_env_options);
 }
-
-const PerIsolateOptionsParser PerIsolateOptionsParser::instance;
 
 PerProcessOptionsParser::PerProcessOptionsParser() {
   AddOption("--title",
@@ -448,8 +454,6 @@ PerProcessOptionsParser::PerProcessOptionsParser() {
   Insert(&PerIsolateOptionsParser::instance,
          &PerProcessOptions::get_per_isolate_options);
 }
-
-const PerProcessOptionsParser PerProcessOptionsParser::instance;
 
 inline std::string RemoveBrackets(const std::string& host) {
   if (!host.empty() && host.front() == '[' && host.back() == ']')
