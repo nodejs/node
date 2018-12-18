@@ -1227,14 +1227,6 @@ void LoadEnvironment(Environment* env) {
   InitDTrace(env, global);
 #endif
 
-  env->BeforeExit(
-      [](void* arg) {
-        Environment* env = static_cast<Environment*>(arg);
-        if (!env->destroy_async_id_list()->empty())
-          AsyncWrap::DestroyAsyncIdsCallback(env, nullptr);
-      },
-      env);
-
   Local<Object> process = env->process_object();
 
   // Setting global properties for the bootstrappers to use:
