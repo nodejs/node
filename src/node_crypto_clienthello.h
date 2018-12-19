@@ -41,7 +41,6 @@ class ClientHelloParser {
     inline bool has_ticket() const { return has_ticket_; }
     inline uint8_t servername_size() const { return servername_size_; }
     inline const uint8_t* servername() const { return servername_; }
-    inline int ocsp_request() const { return ocsp_request_; }
 
    private:
     uint8_t session_size_;
@@ -49,7 +48,6 @@ class ClientHelloParser {
     bool has_ticket_;
     uint8_t servername_size_;
     const uint8_t* servername_;
-    int ocsp_request_;
 
     friend class ClientHelloParser;
   };
@@ -69,7 +67,6 @@ class ClientHelloParser {
   static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
   static const size_t kMaxSSLExFrameLen = 32 * 1024;
   static const uint8_t kServernameHostname = 0;
-  static const uint8_t kStatusRequestOCSP = 1;
   static const size_t kMinStatusRequestSize = 5;
 
   enum ParseState {
@@ -93,7 +90,6 @@ class ClientHelloParser {
 
   enum ExtensionType {
     kServerName = 0,
-    kStatusRequest = 5,
     kTLSSessionTicket = 35
   };
 
@@ -115,7 +111,6 @@ class ClientHelloParser {
   const uint8_t* session_id_ = nullptr;
   uint16_t servername_size_ = 0;
   const uint8_t* servername_ = nullptr;
-  uint8_t ocsp_request_ = 0;
   uint16_t tls_ticket_size_ = -1;
   const uint8_t* tls_ticket_ = nullptr;
 };
