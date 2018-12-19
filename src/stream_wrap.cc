@@ -123,7 +123,7 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
                  provider),
       StreamBase(env),
       stream_(stream) {
-        StreamBase::AttachToObject(object);
+  StreamBase::AttachToObject(object);
 }
 
 
@@ -135,8 +135,8 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "LibuvStreamWrap"));
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()
-      ->SetInternalFieldCount(StreamBase::kStreamBaseField + 1);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        StreamBase::kStreamBaseField + 1);
     Local<FunctionTemplate> get_write_queue_size =
         FunctionTemplate::New(env->isolate(),
                               GetWriteQueueSize,

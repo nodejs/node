@@ -273,11 +273,9 @@ inline WriteWrap* StreamBase::CreateWriteWrap(
   return new SimpleWriteWrap<AsyncWrap>(this, object);
 }
 
-
 inline void StreamBase::AttachToObject(v8::Local<v8::Object> obj) {
   obj->SetAlignedPointerInInternalField(kStreamBaseField, this);
 }
-
 
 inline StreamBase* StreamBase::FromObject(v8::Local<v8::Object> obj) {
   return static_cast<StreamBase*>(

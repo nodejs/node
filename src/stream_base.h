@@ -345,7 +345,7 @@ class StreamBase : public StreamResource {
 
   void SetWriteResult(const StreamWriteResult& res);
   static void AddMethod(Environment* env,
-                        v8::Local<v8::Signature> signature,
+                        v8::Local<v8::Signature> sig,
                         enum v8::PropertyAttribute attributes,
                         v8::Local<v8::FunctionTemplate> t,
                         JSMethodFunction* stream_method,
