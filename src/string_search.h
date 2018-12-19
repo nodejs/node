@@ -14,8 +14,6 @@
 namespace node {
 namespace stringsearch {
 
-static const uint32_t kMaxOneByteCharCodeU = 0xff;
-
 template <typename T>
 class Vector {
  public:
