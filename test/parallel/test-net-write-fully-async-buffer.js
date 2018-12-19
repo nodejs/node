@@ -1,10 +1,11 @@
 'use strict';
-// Flags: --expose-gc
 
 // Note: This is a variant of test-net-write-fully-async-hex-string.js.
 // This always worked, but it seemed appropriate to add a test that checks the
 // behavior for Buffers, too.
 const common = require('../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const net = require('net');
 
 const data = Buffer.alloc(1000000);

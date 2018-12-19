@@ -2,9 +2,9 @@
 // Run this program with valgrind or efence with --expose_gc to expose the
 // problem.
 
-// Flags: --expose_gc
-
-require('../common');
+const common = require('../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const assert = require('assert');
 const { HTTPParser } = require('_http_common');
 

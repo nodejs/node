@@ -20,9 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Flags: --expose-gc
 
 const common = require('../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const assert = require('assert');
 const vm = require('vm');
 

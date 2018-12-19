@@ -1,8 +1,11 @@
 'use strict';
-// Flags: --expose-gc  --no-warnings
 
 const common = require('../common');
-common.exposeInternals();
+if (!global.gc) {
+  common.relaunchWithFlags(
+    ['--expose-gc', '--expose-internals', '--no-warnings']
+  );
+}
 const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');
 const fs = require('fs');

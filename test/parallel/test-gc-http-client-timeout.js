@@ -1,9 +1,10 @@
 'use strict';
-// Flags: --expose-gc
 // just like test-gc-http-client.js,
 // but with a timeout set
 
 const common = require('../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const onGC = require('../common/ongc');
 
 function serverHandler(req, res) {

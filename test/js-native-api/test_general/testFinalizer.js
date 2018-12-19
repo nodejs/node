@@ -1,7 +1,8 @@
 'use strict';
-// Flags: --expose-gc
 
 const common = require('../../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const test_general = require(`./build/${common.buildType}/test_general`);
 const assert = require('assert');
 

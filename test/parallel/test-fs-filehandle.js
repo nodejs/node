@@ -1,9 +1,11 @@
-// Flags: --expose-gc --no-warnings
 'use strict';
 
 const common = require('../common');
-
-common.exposeInternals();
+if (!global.gc) {
+  common.relaunchWithFlags(
+    ['--expose-gc', '--expose-internals', '--no-warnings']
+  );
+}
 
 const assert = require('assert');
 const path = require('path');

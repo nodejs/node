@@ -1,9 +1,9 @@
-// Flags: --expose-gc
-
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const http2 = require('http2');
 const makeDuplexPair = require('../common/duplexpair');
 const tick = require('../common/tick');

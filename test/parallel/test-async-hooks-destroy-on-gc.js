@@ -1,10 +1,11 @@
 'use strict';
-// Flags: --expose_gc
 
 // This test ensures that userland-only AsyncResources cause a destroy event to
 // be emitted when they get gced.
 
 const common = require('../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 

@@ -1,4 +1,3 @@
-// Flags: --expose-gc --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -6,6 +5,9 @@ const common = require('../common');
 if (!process.binding('config').hasTracing)
   common.skip('missing trace events');
 common.skipIfWorker(); // https://github.com/nodejs/node/issues/22767
+
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc', '--no-warnings']);
 
 const assert = require('assert');
 const cp = require('child_process');

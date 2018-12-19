@@ -1,5 +1,4 @@
 'use strict';
-// Flags: --expose-gc
 
 // Tests that memoryUsage().external doesn't go negative
 // when a lot tls connections are opened and closed
@@ -7,6 +6,8 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 
 const makeDuplexPair = require('../common/duplexpair');
 const onGC = require('../common/ongc');

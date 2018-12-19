@@ -1,4 +1,3 @@
-// Flags: --expose-gc
 'use strict';
 
 // Regression test for https://github.com/nodejs/node/issues/17475
@@ -8,6 +7,8 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 
 const { TLSSocket } = require('tls');
 const makeDuplexPair = require('../common/duplexpair');

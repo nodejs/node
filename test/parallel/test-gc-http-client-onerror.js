@@ -1,9 +1,10 @@
 'use strict';
-// Flags: --expose-gc
 // just like test-gc-http-client.js,
 // but with an on('error') handler that does nothing.
 
 const common = require('../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const onGC = require('../common/ongc');
 
 const cpus = require('os').cpus().length;

@@ -1,17 +1,17 @@
 // NOTE: this also covers process wrap as one is created along with the pipes
 // when we launch the sleep process
 'use strict';
-// Flags: --expose-gc
 
 const common = require('../common');
+if (!common.isMainThread)
+  common.skip('Worker bootstrapping works differently -> different async IDs');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const assert = require('assert');
 const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const { spawn } = require('child_process');
-
-if (!common.isMainThread)
-  common.skip('Worker bootstrapping works differently -> different async IDs');
 
 const hooks = initHooks();
 

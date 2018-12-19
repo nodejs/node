@@ -1,6 +1,7 @@
 'use strict';
-// Flags: --expose-gc
 const common = require('../common');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc']);
 const onGC = require('../common/ongc');
 
 {

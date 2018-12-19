@@ -1,9 +1,10 @@
-// Flags: --expose-gc --no-deprecation
 'use strict';
 
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+if (!global.gc)
+  common.relaunchWithFlags(['--expose-gc', '--no-deprecation']);
 
 const assert = require('assert');
 const { createSecureContext } = require('tls');
