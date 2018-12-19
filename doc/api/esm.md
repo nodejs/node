@@ -220,7 +220,8 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 >    1. If the file at _pjsonURL_ exists, then
 >       1. Set _pjson_ to the result of **READ_JSON_FILE**(_pjsonURL_).
 >    1. If _packagePath_ is empty, then
->       1. Let _url_ be the result of **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_).
+>       1. Let _url_ be the result of
+>          **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_).
 >       1. If _url_ is **null**, then
 >          1. Throw a _Module Not Found_ error.
 >       1. Return _url_.
