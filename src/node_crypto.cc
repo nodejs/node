@@ -1559,9 +1559,6 @@ void SSLWrap<Base>::OnClientHello(void* arg,
   hello_obj->Set(context,
                  env->tls_ticket_string(),
                  Boolean::New(env->isolate(), hello.has_ticket())).FromJust();
-  hello_obj->Set(context,
-                 env->ocsp_request_string(),
-                 Boolean::New(env->isolate(), hello.ocsp_request())).FromJust();
 
   Local<Value> argv[] = { hello_obj };
   w->MakeCallback(env->onclienthello_string(), arraysize(argv), argv);
