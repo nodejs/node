@@ -1,7 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const net = require('net');
 const fs = require('fs');

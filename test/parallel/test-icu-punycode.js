@@ -1,9 +1,10 @@
 'use strict';
-// Flags: --expose-internals
 const common = require('../common');
 
 if (!common.hasIntl)
   common.skip('missing Intl');
+
+common.exposeInternals();
 
 const { internalBinding } = require('internal/test/binding');
 const icu = internalBinding('icu');

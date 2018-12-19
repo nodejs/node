@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 
 // Tests the internal utility functions that are used to prepare headers
@@ -7,6 +6,9 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const { mapToHeaders, toHeaderObject } = require('internal/http2/util');
 const { internalBinding } = require('internal/test/binding');

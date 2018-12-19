@@ -1,11 +1,12 @@
-// Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 // This tests that the prototype accessors added by StreamBase::AddMethods
 // are not enumerable. They could be enumerated when inspecting the prototype
 // with util.inspect or the inspector protocol.
+
+common.exposeInternals();
 
 const assert = require('assert');
 

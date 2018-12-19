@@ -1,6 +1,9 @@
-// Flags: --expose-internals --experimental-worker
+// Flags: --experimental-worker
 'use strict';
-require('../common');
+const common = require('../common');
+
+common.exposeInternals();
+
 const { validateSnapshotNodes } = require('../common/heap');
 const { Worker } = require('worker_threads');
 

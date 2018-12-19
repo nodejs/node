@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const { codes: { ERR_OUT_OF_RANGE } } = require('internal/errors');
 const { internalBinding } = require('internal/test/binding');

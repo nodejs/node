@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+
+common.exposeInternals();
+
 const dgram = require('dgram');
 const { kStateSymbol } = require('internal/dgram');
 const socket = dgram.createSocket('udp4');

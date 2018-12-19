@@ -1,7 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const EventEmitter = require('events');
 const SocketListReceive = require('internal/socket_list').SocketListReceive;

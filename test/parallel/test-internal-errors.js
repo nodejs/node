@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+
+common.exposeInternals();
+
 const {
   hijackStdout,
   restoreStdout,

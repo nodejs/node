@@ -21,9 +21,9 @@
 
 'use strict';
 
-// Flags: --expose-internals
+const common = require('../common');
+common.exposeInternals();
 
-require('../common');
 const assert = require('assert');
 const L = require('internal/linkedlist');
 

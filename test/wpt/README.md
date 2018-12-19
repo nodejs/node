@@ -45,11 +45,12 @@ For example, for the URL tests, add a file `test/wpt/test-url.js`:
 ```js
 'use strict';
 
-// This flag is required by the WPT Runner to patch the internals
-// for the tests to run in a vm.
-// Flags: --expose-internals
+const common = require('../common');
 
-require('../common');
+// This is required by the WPT Runner to patch the internals for the tests to
+// run in a vm.
+common.exposeInternals();
+
 const { WPTRunner } = require('../common/wpt');
 
 const runner = new WPTRunner('url');
@@ -82,7 +83,7 @@ To run a specific test in WPT, for example, `url/url-searchparams.any.js`,
 pass the file name as argument to the corresponding test driver:
 
 ```text
-node --expose-internals test/wpt/test-url.js url-searchparams.any.js
+node test/wpt/test-url.js url-searchparams.any.js
 ```
 
 If there are any failures, update the corresponding status file

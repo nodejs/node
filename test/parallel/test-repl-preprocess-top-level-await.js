@@ -1,10 +1,10 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const { processTopLevelAwait } = require('internal/repl/await');
-
-// Flags: --expose-internals
 
 // This test was created based on
 // https://cs.chromium.org/chromium/src/third_party/WebKit/LayoutTests/http/tests/inspector-unit/preprocess-top-level-awaits.js?rcl=358caaba5e763e71c4abb9ada2d9cd8b1188cac9

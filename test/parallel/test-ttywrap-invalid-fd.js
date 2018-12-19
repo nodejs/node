@@ -1,7 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+common.exposeInternals();
+
 const tty = require('tty');
 const { internalBinding } = require('internal/test/binding');
 const {

@@ -1,8 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+common.exposeInternals();
 
 const { validateSnapshotNodes } = require('../common/heap');
 const inspector = require('inspector');

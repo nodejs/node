@@ -1,8 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows)
   common.skip('Does not support wrapping sockets with fd on Windows');
+
+common.exposeInternals();
 
 const assert = require('assert');
 const net = require('net');

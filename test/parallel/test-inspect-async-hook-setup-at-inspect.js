@@ -1,8 +1,10 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
+
+common.exposeInternals();
+
 const { NodeInstance } = require('../common/inspector-helper.js');
 const assert = require('assert');
 

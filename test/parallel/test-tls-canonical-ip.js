@@ -1,10 +1,11 @@
-// Flags: --expose-internals
 'use strict';
-require('../common');
 
 // Test conversion of IP addresses to the format returned
 // for addresses in Subject Alternative Name section
 // of a TLS certificate
+
+const common = require('../common');
+common.exposeInternals();
 
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');

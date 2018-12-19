@@ -1,9 +1,10 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
-const fixtures = require('../common/fixtures');
 
 common.skipIfInspectorDisabled();
+common.exposeInternals();
+
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');

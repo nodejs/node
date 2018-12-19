@@ -1,6 +1,5 @@
 'use strict';
 
-// Flags: --expose-internals
 // Tests that --pending-deprecation and NODE_PENDING_DEPRECATION both set the
 // `require('internal/options').getOptionValue('--pending-deprecation')`
 // flag that is used to determine if pending deprecation messages should be
@@ -12,6 +11,8 @@
 // pending deprecations.
 
 const common = require('../common');
+
+common.exposeInternals();
 
 const assert = require('assert');
 const fork = require('child_process').fork;

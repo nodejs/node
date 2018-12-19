@@ -1,5 +1,3 @@
-// Flags: --expose-internals
-
 'use strict';
 
 // This tests `internal/errors.useOriginalName`
@@ -7,7 +5,10 @@
 // errors without using instanceof, which is necessary in WPT harness.
 // Refs: https://github.com/nodejs/node/pull/22556
 
-require('../common');
+const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const errors = require('internal/errors');
 

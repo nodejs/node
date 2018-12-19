@@ -1,5 +1,4 @@
 'use strict';
-// Flags: --expose-internals
 
 // Tests that calling unref() on Http2Session:
 // (1) Prevents it from keeping the process alive
@@ -8,6 +7,9 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+common.exposeInternals();
+
 const http2 = require('http2');
 const Countdown = require('../common/countdown');
 const makeDuplexPair = require('../common/duplexpair');

@@ -1,6 +1,7 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --no-warnings
 'use strict';
-require('../common');
+const common = require('../common');
+common.exposeInternals();
 
 const { internalBinding } = require('internal/test/binding');
 const { TTY } = internalBinding('tty_wrap');

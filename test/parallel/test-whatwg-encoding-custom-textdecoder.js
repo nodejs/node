@@ -1,10 +1,9 @@
-// Flags: --expose-internals
-
 // This tests Node.js-specific behaviors of TextDecoder
 
 'use strict';
 
 const common = require('../common');
+common.exposeInternals();
 
 const assert = require('assert');
 const { customInspectSymbol: inspect } = require('internal/util');

@@ -1,11 +1,11 @@
-// Flags: --expose_internals
-
 'use strict';
 const common = require('../common');
-const { kTimeout, TIMEOUT_MAX } = require('internal/timers');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+common.exposeInternals();
+const { kTimeout, TIMEOUT_MAX } = require('internal/timers');
 
 const assert = require('assert');
 const tls = require('tls');

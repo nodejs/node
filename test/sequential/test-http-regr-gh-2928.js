@@ -1,9 +1,9 @@
 // This test is designed to fail with a segmentation fault in Node.js 4.1.0 and
 // execute without issues in Node.js 4.1.1 and up.
 
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+common.exposeInternals();
 const assert = require('assert');
 const httpCommon = require('_http_common');
 const is_reused_symbol = require('internal/freelist').symbols.is_reused_symbol;

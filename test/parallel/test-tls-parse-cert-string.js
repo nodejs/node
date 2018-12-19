@@ -5,12 +5,14 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+common.exposeInternals();
+
 const {
   hijackStderr,
   restoreStderr
 } = require('../common/hijackstdio');
 const assert = require('assert');
-// Flags: --expose_internals
+
 const internalTLS = require('internal/tls');
 const tls = require('tls');
 

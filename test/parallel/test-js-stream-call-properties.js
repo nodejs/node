@@ -1,8 +1,9 @@
-// Flags: --expose-internals
-
 'use strict';
 
-require('../common');
+const common = require('../common');
+
+common.exposeInternals();
+
 const util = require('util');
 const { internalBinding } = require('internal/test/binding');
 const { JSStream } = internalBinding('js_stream');

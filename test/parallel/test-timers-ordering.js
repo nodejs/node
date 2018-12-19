@@ -19,10 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose-internals
 
 'use strict';
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const { getLibuvNow } = internalBinding('timers');

@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 
 // This list must be computed before we require any modules to
@@ -6,6 +5,9 @@
 const list = process.moduleLoadList.slice();
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 
 const isMainThread = common.isMainThread;

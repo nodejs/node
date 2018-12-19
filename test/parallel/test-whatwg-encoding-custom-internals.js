@@ -1,9 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 // This tests internal mapping of the Node.js encoding implementation
 
-require('../common');
+const common = require('../common');
+common.exposeInternals();
 
 const assert = require('assert');
 const { getEncodingFromLabel } = require('internal/encoding');

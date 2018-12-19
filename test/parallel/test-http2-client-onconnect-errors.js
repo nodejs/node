@@ -1,9 +1,10 @@
 'use strict';
-// Flags: --expose-internals
 
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+common.exposeInternals();
 
 const { internalBinding } = require('internal/test/binding');
 const {

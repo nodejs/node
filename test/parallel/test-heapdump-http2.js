@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+
+common.exposeInternals();
+
 const { recordState } = require('../common/heap');
 if (!common.hasCrypto)
   common.skip('missing crypto');

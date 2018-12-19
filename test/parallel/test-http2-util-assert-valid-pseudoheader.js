@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -6,6 +5,8 @@ const common = require('../common');
 // Tests the assertValidPseudoHeader function that is used within the
 // mapToHeaders function. The assert function is not exported so we
 // have to test it through mapToHeaders
+
+common.exposeInternals();
 
 const { mapToHeaders } = require('internal/http2/util');
 

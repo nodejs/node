@@ -1,7 +1,9 @@
 'use strict';
-// Flags: --expose-internals
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 
 const outHeadersKey = require('internal/http').outHeadersKey;

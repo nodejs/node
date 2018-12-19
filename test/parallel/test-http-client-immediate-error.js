@@ -1,10 +1,12 @@
 'use strict';
-// Flags: --expose-internals
 
 // Make sure http.request() can catch immediate errors in
 // net.createConnection().
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const net = require('net');
 const http = require('http');

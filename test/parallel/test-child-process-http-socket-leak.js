@@ -1,8 +1,8 @@
-// Flags: --expose_internals
-
 'use strict';
 
 const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const { fork } = require('child_process');
 const http = require('http');

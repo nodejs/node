@@ -1,10 +1,11 @@
 'use strict';
-// Flags: --expose-internals
 
 const common = require('../common');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+common.exposeInternals();
 
 const http = require('http');
 const http2 = require('http2');

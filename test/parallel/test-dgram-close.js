@@ -19,12 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose-internals
 'use strict';
 // Ensure that if a dgram socket is closed before the DNS lookup completes, it
 // won't crash.
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const dgram = require('dgram');
 const { kStateSymbol } = require('internal/dgram');

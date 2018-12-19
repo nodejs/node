@@ -1,12 +1,14 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const { stripVTControlCharacters } = require('internal/readline');
 const repl = require('repl');
 
-// Flags: --expose-internals --experimental-repl-await
+// Flags: --experimental-repl-await
 
 const PROMPT = 'await repl > ';
 

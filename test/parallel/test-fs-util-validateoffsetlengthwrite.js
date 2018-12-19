@@ -1,7 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
 
 const { validateOffsetLengthWrite } = require('internal/fs/utils');
 const { kMaxLength } = require('buffer');

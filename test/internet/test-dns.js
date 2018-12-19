@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+common.exposeInternals();
 const { addresses } = require('../common/internet');
 const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');

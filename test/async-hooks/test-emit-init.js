@@ -1,7 +1,7 @@
 'use strict';
-// Flags: --expose-internals
 
 const common = require('../common');
+common.exposeInternals();
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const async_hooks = require('internal/async_hooks');

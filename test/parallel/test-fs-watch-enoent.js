@@ -1,9 +1,11 @@
-// Flags: --expose-internals
 'use strict';
 
 // This verifies the error thrown by fs.watch.
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');

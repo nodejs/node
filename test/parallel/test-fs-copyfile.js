@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+
+common.exposeInternals();
+
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');

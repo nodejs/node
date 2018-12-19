@@ -1,9 +1,11 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --no-warnings
 'use strict';
 
 // See also test/sequential/test-async-wrap-getasyncid.js
 
 const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const { TTYWRAP } = internalBinding('async_wrap').Providers;

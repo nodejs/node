@@ -1,8 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows)
   common.skip('Does not support binding fd on Windows');
+
+common.exposeInternals();
 
 const assert = require('assert');
 const dgram = require('dgram');

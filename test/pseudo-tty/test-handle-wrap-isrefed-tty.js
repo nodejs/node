@@ -1,9 +1,11 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --no-warnings
 'use strict';
 
 // See also test/parallel/test-handle-wrap-isrefed.js
 
 const common = require('../common');
+common.exposeInternals();
+
 const strictEqual = require('assert').strictEqual;
 const ReadStream = require('tty').ReadStream;
 const tty = new ReadStream(0);

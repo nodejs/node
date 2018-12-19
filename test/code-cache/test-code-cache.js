@@ -1,11 +1,11 @@
 'use strict';
 
-// Flags: --expose-internals
 // This test verifies that if the binary is compiled with code cache,
 // and the cache is used when built in modules are compiled.
 // Otherwise, verifies that no cache is used when compiling builtins.
 
-require('../common');
+const common = require('../common');
+common.exposeInternals();
 const assert = require('assert');
 const {
   cachableBuiltins,

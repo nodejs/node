@@ -1,6 +1,8 @@
-// Flags: --experimental-vm-modules --expose-internals
+// Flags: --experimental-vm-modules
 'use strict';
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { types, inspect } = require('util');

@@ -1,7 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
+
+common.exposeInternals();
 
 const assert = require('assert');
 const FixedQueue = require('internal/fixed_queue');

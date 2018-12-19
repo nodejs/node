@@ -1,11 +1,10 @@
-// Flags: --expose-internals
-
 // This tests interoperability between TextEncoder and TextDecoder with
 // Node.js util.inspect and Buffer APIs
 
 'use strict';
 
 const common = require('../common');
+common.exposeInternals();
 
 const assert = require('assert');
 const { customInspectSymbol: inspect } = require('internal/util');

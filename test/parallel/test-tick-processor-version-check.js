@@ -1,6 +1,7 @@
-// Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const { versionCheck } = require('internal/v8_prof_polyfill');
 

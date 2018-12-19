@@ -2,8 +2,6 @@
 
 // Verifies that the REPL history file is created with mode 0600
 
-// Flags: --expose_internals
-
 const common = require('../common');
 
 if (common.isWindows) {
@@ -11,6 +9,8 @@ if (common.isWindows) {
               'modes are always 0666 and says nothing about group/other ' +
               'read access.');
 }
+
+common.exposeInternals();
 
 const assert = require('assert');
 const path = require('path');

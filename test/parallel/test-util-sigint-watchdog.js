@@ -1,10 +1,11 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
 }
+
+common.exposeInternals();
 
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');

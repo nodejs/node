@@ -1,7 +1,9 @@
-// Flags: --expose-internals
 'use strict';
+
+const common = require('../common');
+common.exposeInternals();
+
 const { internalBinding } = require('internal/test/binding');
-require('../common');
 const { PassThrough } = require('stream');
 const readline = require('readline');
 const assert = require('assert');

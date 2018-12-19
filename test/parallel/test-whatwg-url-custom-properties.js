@@ -1,9 +1,10 @@
-// Flags: --expose-internals
 'use strict';
 
 // Tests below are not from WPT.
 
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const URL = require('url').URL;
 const assert = require('assert');
 const urlToOptions = require('internal/url').urlToOptions;

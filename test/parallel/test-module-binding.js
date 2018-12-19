@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
+
+common.exposeInternals();
+
 const fixtures = require('../common/fixtures');
 const { internalBinding } = require('internal/test/binding');
 const { internalModuleReadJSON } = internalBinding('fs');

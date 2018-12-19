@@ -1,8 +1,8 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
 common.skipIfInspectorDisabled();
+common.exposeInternals();
 
 (async function test() {
   const { strictEqual } = require('assert');

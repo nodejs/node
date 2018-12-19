@@ -1,8 +1,8 @@
 'use strict';
 
-// Flags: --expose-internals
-
 const common = require('../common');
+common.exposeInternals();
+
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');

@@ -1,7 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const { strictEqual } = require('assert');
 const { NghttpError } = require('internal/http2/util');
 

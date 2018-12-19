@@ -1,8 +1,9 @@
 'use strict';
 
-// Flags: --expose-internals
+const common = require('../common');
 
-require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const { FreeList } = require('internal/freelist');
 

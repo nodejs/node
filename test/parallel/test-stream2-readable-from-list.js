@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose_internals
 'use strict';
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const fromList = require('_stream_readable')._fromList;
 const BufferList = require('internal/streams/buffer_list');

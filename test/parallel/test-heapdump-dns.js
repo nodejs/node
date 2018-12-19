@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
+
+common.exposeInternals();
+
 const { validateSnapshotNodes } = require('../common/heap');
 
 validateSnapshotNodes('Node / ChannelWrap', []);

@@ -1,6 +1,6 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+common.exposeInternals();
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
 

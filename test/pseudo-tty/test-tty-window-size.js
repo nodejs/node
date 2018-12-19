@@ -1,6 +1,8 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const { WriteStream } = require('tty');
 const { internalBinding } = require('internal/test/binding');

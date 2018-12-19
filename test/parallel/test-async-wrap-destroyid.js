@@ -1,7 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const { internalBinding } = require('internal/test/binding');
 const async_wrap = internalBinding('async_wrap');
 const assert = require('assert');

@@ -1,7 +1,10 @@
-// Flags: --expose-gc --no-warnings --expose-internals
+// Flags: --expose-gc --no-warnings
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const path = require('path');
 const { internalBinding } = require('internal/test/binding');

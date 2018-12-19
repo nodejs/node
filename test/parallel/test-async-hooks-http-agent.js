@@ -1,6 +1,8 @@
 'use strict';
-// Flags: --expose-internals
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const { async_id_symbol } = require('internal/async_hooks').symbols;
 const http = require('http');

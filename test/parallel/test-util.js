@@ -20,8 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Flags: --expose-internals
 const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');

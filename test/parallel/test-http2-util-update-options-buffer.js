@@ -1,12 +1,14 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 
 // Test coverage for the updateOptionsBuffer method used internally
 // by the http2 implementation.
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+common.exposeInternals();
 
 const { updateOptionsBuffer } = require('internal/http2/util');
 const { internalBinding } = require('internal/test/binding');

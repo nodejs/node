@@ -1,7 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const ModuleMap = require('internal/modules/esm/module_map');
 

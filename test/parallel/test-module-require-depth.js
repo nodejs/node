@@ -1,6 +1,7 @@
-// Flags: --expose_internals
 'use strict';
-require('../common');
+const common = require('../common');
+common.exposeInternals();
+
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const {

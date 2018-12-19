@@ -378,6 +378,7 @@ function _mustCallInner(fn, criteria = 1, field) {
 }
 
 function hasMultiLocalhost() {
+  exposeInternals();
   const { internalBinding } = require('internal/test/binding');
   const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
   const t = new TCP(TCPConstants.SOCKET);
@@ -722,6 +723,17 @@ function runWithInvalidFD(func) {
   printSkipMessage('Could not generate an invalid fd');
 }
 
+function exposeInternals() {
+  if (!process.execArgv.some((val) => /--expose[-_]internals/.test(val))) {
+    const args = [
+      '--expose-internals', ...process.execArgv, ...process.argv.slice(1)
+    ];
+    const options = { encoding: 'utf8', stdio: 'inherit' };
+    const result = spawnSync(process.execPath, args, options);
+    process.exit(result.status);
+  }
+}
+
 module.exports = {
   allowGlobals,
   buildType,
@@ -734,6 +746,7 @@ module.exports = {
   enoughTestMem,
   expectsError,
   expectWarning,
+  exposeInternals,
   getArrayBufferViews,
   getBufferSources,
   getCallSite,

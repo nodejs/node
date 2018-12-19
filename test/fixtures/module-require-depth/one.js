@@ -1,4 +1,3 @@
-// Flags: --expose_internals
 'use strict';
 const assert = require('assert');
 const {

@@ -1,6 +1,8 @@
-// Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
+
+common.exposeInternals();
+
 const assert = require('assert');
 const { ERR_INVALID_ARG_TYPE } = require('internal/errors').codes;
 const { serializeError, deserializeError } = require('internal/error-serdes');

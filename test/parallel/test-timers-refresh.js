@@ -1,8 +1,7 @@
-// Flags: --expose-internals
-
 'use strict';
 
 const common = require('../common');
+common.exposeInternals();
 
 const { strictEqual } = require('assert');
 const { setUnrefTimeout } = require('internal/timers');

@@ -1,9 +1,9 @@
 'use strict';
-// Flags: --expose-internals
 
 // This test ensures that search throws errors appropriately
 
 const common = require('../common');
+common.exposeInternals();
 
 const { search } = require('internal/modules/esm/default_resolve');
 

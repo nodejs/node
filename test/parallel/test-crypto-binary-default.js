@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Flags: --expose-internals
 
 // This is the same as test/simple/test-crypto, but from before the shift
 // to use buffers by default.
@@ -30,6 +29,8 @@ const common = require('../common');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+common.exposeInternals();
 
 const assert = require('assert');
 const crypto = require('crypto');

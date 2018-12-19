@@ -1,6 +1,6 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+common.exposeInternals();
 
 const noop = () => {};
 const { internalBinding } = require('internal/test/binding');

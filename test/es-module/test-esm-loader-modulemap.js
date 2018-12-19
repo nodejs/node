@@ -1,10 +1,10 @@
 'use strict';
-// Flags: --expose-internals
 
 // This test ensures that the type checking of ModuleMap throws
 // errors appropriately
 
 const common = require('../common');
+common.exposeInternals();
 
 const { URL } = require('url');
 const Loader = require('internal/modules/esm/loader');

@@ -1,7 +1,9 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
+
+common.exposeInternals();
+
 const fs = require('internal/fs/utils');
 
 // Valid encodings and no args should not throw.

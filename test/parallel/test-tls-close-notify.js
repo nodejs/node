@@ -19,13 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+common.exposeInternals();
 const { internalBinding } = require('internal/test/binding');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');

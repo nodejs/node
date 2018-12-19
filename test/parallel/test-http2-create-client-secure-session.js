@@ -1,11 +1,11 @@
-// Flags: --expose-internals
-
 'use strict';
 
 const common = require('../common');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+common.exposeInternals();
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');

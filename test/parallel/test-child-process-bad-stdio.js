@@ -1,6 +1,7 @@
 'use strict';
-// Flags: --expose_internals
 const common = require('../common');
+common.exposeInternals();
+
 const assert = require('assert');
 const cp = require('child_process');
 
