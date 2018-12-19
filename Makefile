@@ -1159,7 +1159,7 @@ lint-md: | tools/.mdlintstamp
 LINT_JS_TARGETS = .eslintrc.js benchmark doc lib test tools
 
 run-lint-js = tools/node_modules/eslint/bin/eslint.js --cache \
-	--ext=.js,.mjs,.md $(LINT_JS_TARGETS)
+	--report-unused-disable-directives --ext=.js,.mjs,.md $(LINT_JS_TARGETS)
 run-lint-js-fix = $(run-lint-js) --fix
 
 .PHONY: lint-js-fix
