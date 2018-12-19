@@ -1,7 +1,8 @@
 -include config.mk
 
 BUILDTYPE ?= Release
-PYTHON ?= python
+PYTHON2 ?= python2
+PYTHON3 ?= python3
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
@@ -40,7 +41,7 @@ endif
 BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
 
 # Determine EXEEXT
-EXEEXT := $(shell $(PYTHON) -c \
+EXEEXT := $(shell $(PYTHON2) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
@@ -112,22 +113,22 @@ endif
 .PHONY: with-code-cache
 with-code-cache:
 	@echo $(CONFIG_FLAGS)
-	$(PYTHON) ./configure $(CONFIG_FLAGS)
+	$(PYTHON2) ./configure $(CONFIG_FLAGS)
 	$(MAKE)
 	mkdir -p $(CODE_CACHE_DIR)
 	out/$(BUILDTYPE)/$(NODE_EXE) --expose-internals tools/generate_code_cache.js $(CODE_CACHE_FILE)
-	$(PYTHON) ./configure --code-cache-path $(CODE_CACHE_FILE) $(CONFIG_FLAGS)
+	$(PYTHON2) ./configure --code-cache-path $(CODE_CACHE_FILE) $(CONFIG_FLAGS)
 	$(MAKE)
 
 .PHONY: test-code-cache
 test-code-cache: with-code-cache
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) code-cache
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) code-cache
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
               deps/v8/gypfiles/features.gypi deps/v8/gypfiles/v8.gyp node.gyp \
               config.gypi
-	$(PYTHON) tools/gyp_node.py -f make
+	$(PYTHON2) tools/gyp_node.py -f make
 
 config.gypi: configure configure.py
 	@if [ -x config.status ]; then \
@@ -139,11 +140,11 @@ config.gypi: configure configure.py
 
 .PHONY: install
 install: all ## Installs node into $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON2) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 .PHONY: uninstall
 uninstall: ## Uninstalls node from $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON2) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 .PHONY: clean
 clean: ## Remove build artifacts.
@@ -271,7 +272,7 @@ v8:
 
 .PHONY: jstest
 jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addon tests and JS tests
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		--skip-tests=$(CI_SKIP_TESTS) \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
@@ -303,20 +304,20 @@ test-cov: all
 	CI_SKIP_TESTS=core_line_numbers.js $(MAKE) jstest
 
 test-parallel: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) parallel
 
 test-valgrind: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --valgrind sequential parallel message
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --valgrind sequential parallel message
 
 test-check-deopts: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
 benchmark/napi/function_call/build/$(BUILDTYPE)/binding.node: \
 		benchmark/napi/function_call/napi_binding.c \
 		benchmark/napi/function_call/binding.cc \
 		benchmark/napi/function_call/binding.gyp | all
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-		--python="$(PYTHON)" \
+		--python="$(PYTHON2)" \
 		--directory="$(shell pwd)/benchmark/napi/function_call" \
 		--nodedir="$(shell pwd)"
 
@@ -325,7 +326,7 @@ benchmark/napi/function_args/build/$(BUILDTYPE)/binding.node: \
 		benchmark/napi/function_args/binding.cc \
 		benchmark/napi/function_args/binding.gyp | all
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-		--python="$(PYTHON)" \
+		--python="$(PYTHON2)" \
 		--directory="$(shell pwd)/benchmark/napi/function_args" \
 		--nodedir="$(shell pwd)"
 
@@ -361,7 +362,7 @@ ADDONS_PREREQS := config.gypi \
 
 define run_build_addons
 env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \
-  npm_config_python="$(PYTHON)" $(NODE) "$$PWD/tools/build-addons" \
+  npm_config_python="$(PYTHON2)" $(NODE) "$$PWD/tools/build-addons" \
   "$$PWD/deps/npm/node_modules/node-gyp/bin/node-gyp.js" \
   $1
 touch $2
@@ -451,10 +452,10 @@ test-build-node-api: all build-node-api-tests
 
 .PHONY: test-all
 test-all: test-build ## Run everything in test/.
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=debug,release
 
 test-all-valgrind: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES ?= addons js-native-api node-api
 CI_JS_SUITES ?= default
@@ -465,7 +466,7 @@ CI_DOC := doctool
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info
 test-ci-native: | test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
 
@@ -473,7 +474,7 @@ test-ci-native: | test/addons/.buildstamp test/js-native-api/.buildstamp test/no
 # This target should not use a native compiler at all
 # Related CI job: node-test-commit-arm-fanned
 test-ci-js: | clear-stalled
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) --skip-tests=sequential/test-benchmark-napi
 	@echo "Clean up any leftover processes, error if found."
@@ -488,7 +489,7 @@ test-ci-js: | clear-stalled
 test-ci: LOGLEVEL := info
 test-ci: | clear-stalled build-addons build-js-native-api-tests build-node-api-tests doc-only
 	out/Release/cctest --gtest_output=tap:cctest.tap
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
 	@echo "Clean up any leftover processes, error if found."
@@ -502,7 +503,7 @@ test-ci: | clear-stalled build-addons build-js-native-api-tests build-node-api-t
 # Prepare the build for running the tests.
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 build-ci:
-	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
+	$(PYTHON2) ./configure --verbose $(CONFIG_FLAGS)
 	$(MAKE)
 
 .PHONY: run-ci
@@ -519,35 +520,35 @@ run-ci: build-ci
 	$(MAKE) test-ci -j1
 
 test-release: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
 
 test-debug: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=debug
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=debug
 
 test-message: test-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) message
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) message
 
 test-wpt: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) wpt
 
 test-simple: | cctest # Depends on 'all'.
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) parallel sequential
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) parallel sequential
 
 test-pummel: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) pummel
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) pummel
 
 test-internet: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) internet
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) internet
 
 test-node-inspect: $(NODE_EXE)
 	USE_EMBEDDED_NODE_INSPECT=1 $(NODE) tools/test-npm-package \
 		--install deps/node-inspect test
 
 test-benchmark: | bench-addons-build
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) benchmark
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) benchmark
 
 test-tick-processor: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) tick-processor
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) tick-processor
 
 .PHONY: test-hash-seed
 # Verifies the hash seed used by V8 for hashing is random.
@@ -557,10 +558,10 @@ test-hash-seed: all
 .PHONY: test-doc
 test-doc: doc-only ## Builds, lints, and verifies the docs.
 	$(MAKE) lint
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) $(CI_DOC)
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) $(CI_DOC)
 
 test-known-issues: all
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) known_issues
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) known_issues
 
 # Related CI job: node-test-npm
 test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
@@ -571,7 +572,7 @@ test-npm-publish: $(NODE_EXE)
 
 .PHONY: test-js-native-api
 test-js-native-api: test-build-js-native-api
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) js-native-api
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) js-native-api
 
 .PHONY: test-js-native-api-clean
 test-js-native-api-clean:
@@ -580,7 +581,7 @@ test-js-native-api-clean:
 
 .PHONY: test-node-api
 test-node-api: test-build-node-api
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) node-api
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) node-api
 
 .PHONY: test-node-api-clean
 test-node-api-clean:
@@ -589,7 +590,7 @@ test-node-api-clean:
 
 .PHONY: test-addons
 test-addons: test-build test-js-native-api test-node-api
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) addons
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) addons
 
 .PHONY: test-addons-clean
 test-addons-clean:
@@ -600,14 +601,14 @@ test-addons-clean:
 	$(MAKE) test-node-api-clean
 
 test-async-hooks:
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) async-hooks
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) async-hooks
 
 test-with-async-hooks:
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	$(MAKE) cctest
-	NODE_TEST_WITH_ASYNC_HOOKS=1 $(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
+	NODE_TEST_WITH_ASYNC_HOOKS=1 $(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
 
@@ -638,7 +639,7 @@ test-v8-benchmarks: v8
 	      $(TAP_V8_BENCHMARKS)
 
 test-v8-updates:
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates
+	$(PYTHON2) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks test-v8-updates
 # runs all v8 tests
@@ -713,13 +714,13 @@ out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.js
 
 .PHONY: docopen
 docopen: $(apidocs_html)
-	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
+	@$(PYTHON2) -mwebbrowser file://$(PWD)/out/doc/api/all.html
 
 .PHONY: docclean
 docclean:
 	$(RM) -r out/doc
 
-RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
+RAWVER=$(shell $(PYTHON2) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
 
 # For nightly builds, you must set DISTTYPE to "nightly", "next-nightly" or
@@ -925,7 +926,7 @@ $(PKG): release-only
 			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
 		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/conclusion.html ; \
 	done
-	$(PYTHON) ./configure \
+	$(PYTHON2) ./configure \
 		--dest-cpu=x64 \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
@@ -1028,13 +1029,13 @@ doc-upload: doc
 
 .PHONY: $(TARBALL)-headers
 $(TARBALL)-headers: release-only
-	$(PYTHON) ./configure \
+	$(PYTHON2) ./configure \
 		--prefix=/ \
 		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	HEADERS_ONLY=1 $(PYTHON2) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	$(RM) -r $(TARNAME)
@@ -1060,7 +1061,7 @@ endif
 $(BINARYTAR): release-only
 	$(RM) -r $(BINARYNAME)
 	$(RM) -r out/deps out/Release
-	$(PYTHON) ./configure \
+	$(PYTHON2) ./configure \
 		--prefix=/ \
 		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
@@ -1238,7 +1239,7 @@ CLANG_FORMAT_START ?= HEAD
 format-cpp: ## Format C++ diff from $CLANG_FORMAT_START to current changes
 ifneq ("","$(wildcard tools/clang-format/node_modules/)")
 	@echo "Formatting C++ diff from $(CLANG_FORMAT_START).."
-	@$(PYTHON) tools/clang-format/node_modules/.bin/git-clang-format \
+	@$(PYTHON2) tools/clang-format/node_modules/.bin/git-clang-format \
 		--binary=tools/clang-format/node_modules/.bin/clang-format \
 		--style=file \
 		$(CLANG_FORMAT_START) -- \
@@ -1259,8 +1260,8 @@ lint-cpp: tools/.cpplintstamp
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
 	@echo "Running C++ linter..."
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
-	@$(PYTHON) tools/check-imports.py
+	@$(PYTHON2) tools/cpplint.py $(CPPLINT_QUIET) $?
+	@$(PYTHON2) tools/check-imports.py
 	@touch $@
 
 .PHONY: lint-addon-docs
@@ -1268,7 +1269,7 @@ lint-addon-docs: tools/.doclintstamp
 
 tools/.doclintstamp: test/addons/.docbuildstamp
 	@echo "Running C++ linter on addon docs..."
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
+	@$(PYTHON2) tools/cpplint.py $(CPPLINT_QUIET) --filter=$(ADDON_DOC_LINT_FLAGS) \
 		$(LINT_CPP_ADDON_DOC_FILES_GLOB)
 	@touch $@
 
@@ -1279,16 +1280,22 @@ cpplint: lint-cpp
 # python -m pip install flake8
 # Try with '--system' is to overcome systems that blindly set '--user'
 lint-py-build:
-	@echo "Pip installing flake8 linter on $(shell $(PYTHON) --version)..."
-	$(PYTHON) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
-		$(PYTHON) -m pip install --upgrade --system -t tools/pip/site-packages flake8
+	@echo "Pip installing flake8 linter on $(shell $(PYTHON2) --version)..."
+	$(PYTHON2) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
+		$(PYTHON2) -m pip install --upgrade --system -t tools/pip/site-packages flake8
+	@echo "Pip installing flake8 linter on $(shell $(PYTHON3) --version)..."
+	$(PYTHON3) -m pip install --upgrade -t tools/pip/site-packages flake8 || \
+		$(PYTHON3) -m pip install --upgrade --system -t tools/pip/site-packages flake8
 
 ifneq ("","$(wildcard tools/pip/site-packages)")
 .PHONY: lint-py
 # Lints the Python code with flake8.
 # Flag the build if there are Python syntax errors or undefined names
 lint-py:
-	PYTHONPATH=tools/pip $(PYTHON) -m flake8 . \
+	PYTHONPATH=tools/pip $(PYTHON2) -m flake8 . \
+		--count --show-source --statistics --select=E901,E999,F821,F822,F823 \
+		--exclude=.git,deps,lib,src,tools/*_macros.py,tools/gyp,tools/inspector_protocol,tools/jinja2,tools/markupsafe,tools/pip
+	PYTHONPATH=tools/pip $(PYTHON3) -m flake8 . \
 		--count --show-source --statistics --select=E901,E999,F821,F822,F823 \
 		--exclude=.git,deps,lib,src,tools/*_macros.py,tools/gyp,tools/inspector_protocol,tools/jinja2,tools/markupsafe,tools/pip
 else
