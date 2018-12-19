@@ -25,7 +25,7 @@ child.stdout.on('data', (c) => {
   out += c;
 });
 child.stdout.on('end', common.mustCall(() => {
-  assert.strictEqual(out, '> 1\n> ');
+  assert.ok(out.endsWith('> 1\n> '));
 }));
 
 child.stdin.end(input);
