@@ -1,11 +1,14 @@
 'use strict';
-// Flags: --no-force-async-hooks-checks
 const common = require('../common');
 
 if (!common.isMainThread)
   common.skip('Workers don\'t inherit per-env state like the check flag');
 
-common.exposeInternals();
+if (!require('module').builtinModules.includes('internal/async_hooks')) {
+  common.relaunchWithFlags(
+    ['--expose-internals', '--no-force-async-hooks-checks']
+  );
+}
 
 const async_hooks = require('internal/async_hooks');
 
