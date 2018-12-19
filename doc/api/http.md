@@ -625,8 +625,9 @@ added: v0.5.9
 * `timeout` {number} Milliseconds before a request times out.
 * `callback` {Function} Optional function to be called when a timeout occurs. Same as binding to the `timeout` event.
 
-Once a socket is assigned to this request and is connected
-[`socket.setTimeout()`][] will be called.
+If no socket is assigned to this request then [`socket.setTimeout()`][] will be
+called immediately. Otherwise [`socket.setTimeout()`][] will be called after the
+assigned socket is connected.
 
 Returns `request`.
 
