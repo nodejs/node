@@ -103,7 +103,8 @@ void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void SetupTraceCategoryState(const FunctionCallbackInfo<Value>& args) {
+static void SetTraceCategoryStateUpdateHandler(
+    const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsFunction());
   env->set_trace_category_state_function(args[0].As<Function>());
@@ -116,7 +117,9 @@ void NodeCategorySet::Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "getEnabledCategories", GetEnabledCategories);
-  env->SetMethod(target, "setupTraceCategoryState", SetupTraceCategoryState);
+  env->SetMethod(
+      target, "setTraceCategoryStateUpdateHandler",
+      SetTraceCategoryStateUpdateHandler);
 
   Local<FunctionTemplate> category_set =
       env->NewFunctionTemplate(NodeCategorySet::New);
