@@ -2381,7 +2381,7 @@ URL URL::FromFilePath(const std::string& file_path) {
 // This function works by calling out to a JS function that creates and
 // returns the JS URL object. Be mindful of the JS<->Native boundary
 // crossing that is required.
-const Local<Value> URL::ToObject(Environment* env) const {
+MaybeLocal<Value> URL::ToObject(Environment* env) const {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Context::Scope context_scope(context);
@@ -2417,7 +2417,7 @@ const Local<Value> URL::ToObject(Environment* env) const {
         ->Call(env->context(), undef, arraysize(argv), argv);
   }
 
-  return ret.ToLocalChecked();
+  return ret;
 }
 
 static void SetURLConstructor(const FunctionCallbackInfo<Value>& args) {
