@@ -723,14 +723,20 @@ function runWithInvalidFD(func) {
   printSkipMessage('Could not generate an invalid fd');
 }
 
+function relaunchWithFlags(flags) {
+  const args = [ ...flags, ...process.execArgv, ...process.argv.slice(1) ];
+  const options = { encoding: 'utf8', stdio: 'inherit' };
+  const result = spawnSync(process.execPath, args, options);
+  process.exit(result.status);
+}
+
 function exposeInternals() {
-  if (!process.execArgv.some((val) => /--expose[-_]internals/.test(val))) {
-    const args = [
-      '--expose-internals', ...process.execArgv, ...process.argv.slice(1)
-    ];
-    const options = { encoding: 'utf8', stdio: 'inherit' };
-    const result = spawnSync(process.execPath, args, options);
-    process.exit(result.status);
+  const internalModuleCount = require('module')
+                              .builtinModules
+                              .filter((name) => name.startsWith('internal/'))
+                              .length;
+  if (internalModuleCount === 0) {
+    relaunchWithFlags(['--expose-internals']);
   }
 }
 
@@ -776,6 +782,7 @@ module.exports = {
   platformTimeout,
   printSkipMessage,
   pwdCommand,
+  relaunchWithFlags,
   rootDir,
   runWithInvalidFD,
   skip,
