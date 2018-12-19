@@ -373,9 +373,7 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
   // Mimic implementation of StreamBase::GetFD() and UDPWrap::GetFD().
   StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
-  if (wrap == nullptr) {
-    return args.GetReturnValue().Set(UV_EINVAL);
-  }
+  if (wrap == nullptr) return args.GetReturnValue().Set(UV_EINVAL);
 
   if (!wrap->IsAlive()) return args.GetReturnValue().Set(UV_EINVAL);
 
@@ -384,9 +382,7 @@ void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
 
 void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
   StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
-  if (wrap == nullptr) {
-    return args.GetReturnValue().Set(0);
-  }
+  if (wrap == nullptr) return args.GetReturnValue().Set(0);
 
   // uint64_t -> double. 53bits is enough for all real cases.
   args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
@@ -394,9 +390,7 @@ void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
 
 void StreamBase::GetBytesWritten(const FunctionCallbackInfo<Value>& args) {
   StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
-  if (wrap == nullptr) {
-    return args.GetReturnValue().Set(0);
-  }
+  if (wrap == nullptr) return args.GetReturnValue().Set(0);
 
   // uint64_t -> double. 53bits is enough for all real cases.
   args.GetReturnValue().Set(static_cast<double>(wrap->bytes_written_));
