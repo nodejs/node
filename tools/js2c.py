@@ -214,14 +214,6 @@ source_.emplace(
 );
 """
 
-DEPRECATED_DEPS = """\
-'use strict';
-process.emitWarning(
-  'Requiring Node.js-bundled \\'{module}\\' module is deprecated. Please ' +
-  'install the necessary module locally.', 'DeprecationWarning', 'DEP0084');
-module.exports = require('internal/deps/{module}');
-"""
-
 def JS2C(source, target):
   modules = []
   consts = {}
@@ -265,15 +257,11 @@ def JS2C(source, target):
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
 
-    deprecated_deps = None
-
     # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
     # so don't assume there is always a slash in the file path.
     if '/' in name or '\\' in name:
       split = re.split('/|\\\\', name)
       if split[0] == 'deps':
-        if split[1] == 'node-inspect' or split[1] == 'v8':
-          deprecated_deps = split[1:]
         split = ['internal'] + split
       else:
         split = split[1:]
@@ -292,12 +280,6 @@ def JS2C(source, target):
       definitions.append(definition)
     else:
       AddModule(name.split('.', 1)[0], lines)
-
-    # Add deprecated aliases for deps without 'deps/'
-    if deprecated_deps is not None:
-      module = '/'.join(deprecated_deps).split('.', 1)[0]
-      source = DEPRECATED_DEPS.format(module=module)
-      AddModule(module, source)
 
   # Emit result
   output = open(str(target[0]), "w")
