@@ -3,7 +3,7 @@
 
 require('../common');
 const assert = require('assert');
-const WrapStream = require('internal/wrap_js_stream');
+const WrapStream = require('internal/js_stream_socket');
 const Stream = require('stream');
 
 class FakeStream extends Stream {

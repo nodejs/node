@@ -1,7 +1,8 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const StreamWrap = require('_stream_wrap');
+const StreamWrap = require('internal/js_stream_socket');
 const { PassThrough } = require('stream');
 const { Socket } = require('net');
 
