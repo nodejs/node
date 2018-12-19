@@ -185,8 +185,6 @@ v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
                                               const char* deprecation_code);
 
-void SetupBootstrapObject(Environment* env,
-                          v8::Local<v8::Object> bootstrapper);
 void SetupProcessObject(Environment* env,
                         const std::vector<std::string>& args,
                         const std::vector<std::string>& exec_args);
