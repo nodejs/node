@@ -315,7 +315,7 @@ void OnFatalError(const char* location, const char* message) {
 namespace errors {
 
 TryCatchScope::~TryCatchScope() {
-  if (HasCaught() && mode_ == CatchMode::kFatal) {
+  if (HasCaught() && !HasTerminated() && mode_ == CatchMode::kFatal) {
     HandleScope scope(env_->isolate());
     ReportException(env_, Exception(), Message());
     exit(7);
