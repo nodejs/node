@@ -58,21 +58,10 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+void GetErrMap(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)
-                  ->GetFunction(env->context())
-                  .ToLocalChecked()).FromJust();
-
-#define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
-  UV_ERRNO_MAP(V)
-#undef V
+  Local<Context> context = env->context();
 
   Local<Map> err_map = Map::New(isolate);
 
@@ -90,8 +79,26 @@ void Initialize(Local<Object> target,
   UV_ERRNO_MAP(V)
 #undef V
 
-  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "errmap"),
-              err_map).FromJust();
+  args.GetReturnValue().Set(err_map);
+}
+
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(isolate, "errname"),
+              env->NewFunctionTemplate(ErrName)
+                  ->GetFunction(env->context())
+                  .ToLocalChecked()).FromJust();
+
+#define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
+  UV_ERRNO_MAP(V)
+#undef V
+
+  env->SetMethod(target, "getErrorMap", GetErrMap);
 }
 
 }  // anonymous namespace
