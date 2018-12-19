@@ -36,3 +36,5 @@ test-worker-prof: PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
+# https://github.com/nodejs/node/issues/25029
+test-child-process-execfile: PASS,FLAKY
