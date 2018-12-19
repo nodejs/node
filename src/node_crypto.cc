@@ -2731,8 +2731,7 @@ static ParsePublicKeyResult TryParsePublicKey(
 
 static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
                                               const char* key_pem,
-                                              int key_pem_len,
-                                              bool allow_certificate) {
+                                              int key_pem_len) {
   BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
   if (!bp)
     return ParsePublicKeyResult::kParsePublicFailed;
@@ -2753,8 +2752,7 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         return d2i_PublicKey(EVP_PKEY_RSA, nullptr, p, l);
       });
-  if (ret != ParsePublicKeyResult::kParsePublicNotRecognized ||
-      !allow_certificate)
+  if (ret != ParsePublicKeyResult::kParsePublicNotRecognized)
     return ret;
 
   // X.509 fallback.
@@ -2769,11 +2767,10 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
 static bool ParsePublicKey(EVPKeyPointer* pkey,
                            const PublicKeyEncodingConfig& config,
                            const char* key,
-                           size_t key_len,
-                           bool allow_certificate) {
+                           size_t key_len) {
   if (config.format_ == kKeyFormatPEM) {
     ParsePublicKeyResult r =
-        ParsePublicKeyPEM(pkey, key, key_len, allow_certificate);
+        ParsePublicKeyPEM(pkey, key, key_len);
     return r == ParsePublicKeyResult::kParsePublicOk;
   } else {
     CHECK_EQ(config.format_, kKeyFormatDER);
@@ -3023,15 +3020,14 @@ static PublicKeyEncodingConfig GetPublicKeyEncodingFromJs(
 static ManagedEVPPKey GetPublicKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
-    bool allow_key_object,
-    bool allow_certificate) {
+    bool allow_key_object) {
   if (args[*offset]->IsString() || Buffer::HasInstance(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ByteSource key = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
     PublicKeyEncodingConfig config =
         GetPublicKeyEncodingFromJs(args, offset, kKeyContextInput);
     EVPKeyPointer pkey;
-    ParsePublicKey(&pkey, config, key.get(), key.size(), allow_certificate);
+    ParsePublicKey(&pkey, config, key.get(), key.size());
     if (!pkey)
       ThrowCryptoError(env, ERR_get_error(), "Failed to read public key");
     return ManagedEVPPKey(pkey.release());
@@ -3152,8 +3148,7 @@ static bool IsRSAPrivateKey(const unsigned char* data, size_t size) {
 static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
-    bool allow_key_object,
-    bool allow_certificate) {
+    bool allow_key_object) {
   if (args[*offset]->IsString() || Buffer::HasInstance(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ByteSource data = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
@@ -3167,8 +3162,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
       // For PEM, we can easily determine whether it is a public or private key
       // by looking for the respective PEM tags.
       ParsePublicKeyResult ret = ParsePublicKeyPEM(&pkey, data.get(),
-                                                   data.size(),
-                                                   allow_certificate);
+                                                   data.size());
       if (ret == ParsePublicKeyResult::kParsePublicNotRecognized) {
         pkey = ParsePrivateKey(config, data.get(), data.size());
       }
@@ -3193,8 +3187,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
       }
 
       if (is_public) {
-        ParsePublicKey(&pkey, config, data.get(), data.size(),
-                       allow_certificate);
+        ParsePublicKey(&pkey, config, data.get(), data.size());
       } else {
         pkey = ParsePrivateKey(config, data.get(), data.size());
       }
@@ -3407,7 +3400,7 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 3);
 
     offset = 0;
-    pkey = GetPublicKeyFromJs(args, &offset, false, false);
+    pkey = GetPublicKeyFromJs(args, &offset, false);
     if (!pkey)
       return;
     key->InitPublic(pkey);
@@ -4689,7 +4682,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey = GetPublicKeyFromJs(args, &offset, true, true);
+  ManagedEVPPKey pkey = GetPublicKeyFromJs(args, &offset, true);
 
   char* hbuf = Buffer::Data(args[offset]);
   ssize_t hlen = Buffer::Length(args[offset]);
@@ -4745,7 +4738,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset, true, true);
+  ManagedEVPPKey pkey = GetPublicOrPrivateKeyFromJs(args, &offset, true);
   if (!pkey)
     return;
 
