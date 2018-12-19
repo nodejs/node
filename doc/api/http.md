@@ -695,6 +695,10 @@ Once a socket is assigned to this request and is connected
 ### request.setTimeout(timeout[, callback])
 <!-- YAML
 added: v0.5.9
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/8895
+    description: Consistently set socket timeout only when the socket connects.
 -->
 
 * `timeout` {number} Milliseconds before a request times out.
