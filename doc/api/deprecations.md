@@ -1678,7 +1678,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: End-of-Life.
+Type: End-of-Life
 
 Since Node.js versions 4.4.0 and 5.2.0, several modules only intended for
 internal usage were mistakenly exposed to user code through `require()`. These
