@@ -260,8 +260,8 @@ class StreamResource {
 class StreamBase : public StreamResource {
  public:
   static constexpr int kStreamBaseField = 1;
-  static inline void AddMethods(Environment* env,
-                                v8::Local<v8::FunctionTemplate> target);
+  static void AddMethods(Environment* env,
+                         v8::Local<v8::FunctionTemplate> target);
 
   virtual bool IsAlive() = 0;
   virtual bool IsClosing() = 0;
