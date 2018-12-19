@@ -328,18 +328,22 @@ Local<Object> StreamBase::GetObject() {
 }
 
 
-#define STREAM_BASE_METHOD(func, str)                                      \
-  do {                                                                     \
-    Local<FunctionTemplate> func_templ =                                   \
-      env->NewFunctionTemplate(func,                                       \
-                               signature,                                  \
-                               v8::ConstructorBehavior::kThrow,            \
-                               v8::SideEffectType::kHasNoSideEffect);      \
-    t->PrototypeTemplate()->SetAccessorProperty(str,                       \
-                                                func_templ,                \
-                                                Local<FunctionTemplate>(), \
-                                                attributes);               \
-  } while (0)
+void StreamBase::AddMethod(Environment* env,
+                           Local<Signature> signature,
+                           enum PropertyAttribute attributes,
+                           Local<FunctionTemplate> t,
+                           JSMethodFunction* stream_method,
+                           Local<String> string) {
+  Local<FunctionTemplate> templ =
+      env->NewFunctionTemplate(stream_method,
+                               signature,
+                               v8::ConstructorBehavior::kThrow,
+                               v8::SideEffectType::kHasNoSideEffect);
+  t->PrototypeTemplate()->SetAccessorProperty(string,
+                                              templ,
+                                              Local<FunctionTemplate>(),
+                                              attributes);
+}
 
 
 void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
@@ -348,13 +352,12 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(
           v8::ReadOnly | v8::DontDelete | v8::DontEnum);
-
   Local<Signature> signature = Signature::New(env->isolate(), t);
 
-  STREAM_BASE_METHOD(GetFD, env->fd_string());
-  STREAM_BASE_METHOD(GetExternal, env->external_stream_string());
-  STREAM_BASE_METHOD(GetBytesRead, env->bytes_read_string());
-  STREAM_BASE_METHOD(GetBytesWritten, env->bytes_written_string());
+  AddMethod(env, signature, attributes, t, GetFD, env->fd_string());
+  AddMethod(env, signature, attributes, t, GetExternal, env->external_stream_string());
+  AddMethod(env, signature, attributes, t, GetBytesRead, env->bytes_read_string());
+  AddMethod(env, signature, attributes, t, GetBytesWritten, env->bytes_written_string());
   env->SetProtoMethod(t, "readStart", JSMethod<&StreamBase::ReadStartJS>);
   env->SetProtoMethod(t, "readStop", JSMethod<&StreamBase::ReadStopJS>);
   env->SetProtoMethod(t, "shutdown", JSMethod<&StreamBase::Shutdown>);

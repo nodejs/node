@@ -25,6 +25,7 @@ struct StreamWriteResult {
   size_t bytes;
 };
 
+using JSMethodFunction = void(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class StreamReq {
  public:
@@ -343,6 +344,12 @@ class StreamBase : public StreamResource {
   EmitToJSStreamListener default_listener_;
 
   void SetWriteResult(const StreamWriteResult& res);
+  static void AddMethod(Environment* env,
+                        v8::Local<v8::Signature> signature,
+                        enum v8::PropertyAttribute attributes,
+                        v8::Local<v8::FunctionTemplate> t,
+                        JSMethodFunction* stream_method,
+                        v8::Local<v8::String> str);
 
   friend class WriteWrap;
   friend class ShutdownWrap;
