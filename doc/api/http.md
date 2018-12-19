@@ -625,8 +625,9 @@ added: v0.5.9
 * `timeout` {number} Milliseconds before a request times out.
 * `callback` {Function} Optional function to be called when a timeout occurs. Same as binding to the `timeout` event.
 
-Once a socket is assigned to this request and is connected
-[`socket.setTimeout()`][] will be called.
+Once a socket is assigned to this request [`socket.setTimeout()`][] will be called.
+
+Note that this behaviour changes in Node.js version 9 and higher.
 
 Returns `request`.
 
