@@ -18,8 +18,10 @@ PWD = $(CURDIR)
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
+  PARALLEL_MAKE_ARGS = -j $(JOBS)
 else
   PARALLEL_ARGS = -J
+	PARALLEL_MAKE_ARGS =
 endif
 
 ifdef ENABLE_V8_TAP
@@ -96,11 +98,11 @@ help: ## Print help for targets with comments.
 # and recreated which can break the addons build when running test-ci
 # See comments on the build-addons target for some more info
 $(NODE_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=Release V=$(V)
+	$(MAKE) -C out BUILDTYPE=Release V=$(V) $(PARALLEL_MAKE_ARGS)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
+	$(MAKE) -C out BUILDTYPE=Debug V=$(V) $(PARALLEL_MAKE_ARGS)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
 CODE_CACHE_DIR ?= out/$(BUILDTYPE)/obj/gen
@@ -503,7 +505,7 @@ test-ci: | clear-stalled build-addons build-js-native-api-tests build-node-api-t
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 build-ci:
 	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
-	$(MAKE)
+	$(MAKE) $(PARALLEL_MAKE_ARGS)
 
 .PHONY: run-ci
 # Run by CI tests, exceptions:
