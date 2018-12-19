@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 
 const { internalBinding } = require('internal/test/binding');
-const StreamWrap = require('_stream_wrap');
+const StreamWrap = require('internal/js_stream_socket');
 const { Duplex } = require('stream');
 const { ShutdownWrap } = internalBinding('stream_wrap');
 

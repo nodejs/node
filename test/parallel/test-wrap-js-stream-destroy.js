@@ -1,7 +1,8 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
-const StreamWrap = require('_stream_wrap');
+const StreamWrap = require('internal/js_stream_socket');
 const net = require('net');
 
 // This test ensures that when we directly call `socket.destroy()` without
