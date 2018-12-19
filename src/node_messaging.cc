@@ -784,6 +784,18 @@ static void InitMessaging(Local<Object> target,
                   .FromJust();
 
   env->SetMethod(target, "registerDOMException", RegisterDOMException);
+
+  // Used to add methods to MessagePort.prototype
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "handleOnCloseSymbol"),
+            env->handle_onclose_symbol())
+      .FromJust();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "onInitSymbol"),
+            env->oninit_symbol())
+      .FromJust();
 }
 
 }  // anonymous namespace
