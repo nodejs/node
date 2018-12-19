@@ -708,7 +708,9 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
     return node::THROW_ERR_MISSING_MODULE(env, msg.c_str());
   }
 
-  args.GetReturnValue().Set(result.FromJust().ToObject(env));
+  MaybeLocal<Value> obj = result.FromJust().ToObject(env);
+  if (!obj.IsEmpty())
+    args.GetReturnValue().Set(obj.ToLocalChecked());
 }
 
 static MaybeLocal<Promise> ImportModuleDynamically(
