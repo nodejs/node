@@ -1,5 +1,5 @@
-#include "node.h"
 #include "env-inl.h"
+#include "node.h"
 #include "node_internals.h"
 #include "v8.h"
 
@@ -23,36 +23,21 @@ using v8::Object;
 using v8::Promise;
 using v8::PromiseRejectEvent;
 using v8::PromiseRejectMessage;
-using v8::String;
 using v8::Value;
 
-void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
+namespace task_queue {
+
+static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   args.GetIsolate()->RunMicrotasks();
 }
 
-void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
+static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-
   CHECK(args[0]->IsFunction());
-
   env->set_tick_callback_function(args[0].As<Function>());
-
-  Local<Function> run_microtasks_fn =
-      env->NewFunctionTemplate(RunMicrotasks)->GetFunction(context)
-          .ToLocalChecked();
-  run_microtasks_fn->SetName(FIXED_ONE_BYTE_STRING(isolate, "runMicrotasks"));
-
-  Local<Value> ret[] = {
-    env->tick_info()->fields().GetJSArray(),
-    run_microtasks_fn
-  };
-
-  args.GetReturnValue().Set(Array::New(isolate, ret, arraysize(ret)));
 }
 
-void PromiseRejectCallback(PromiseRejectMessage message) {
+static void PromiseRejectCallback(PromiseRejectMessage message) {
   static std::atomic<uint64_t> unhandledRejections{0};
   static std::atomic<uint64_t> rejectionsHandledAfter{0};
 
@@ -64,7 +49,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   if (env == nullptr) return;
 
-  Local<Function> callback = env->promise_handler_function();
+  Local<Function> callback = env->promise_reject_callback();
   Local<Value> value;
   Local<Value> type = Number::New(env->isolate(), event);
 
@@ -104,35 +89,48 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
     env->tick_info()->promise_rejections_toggle_on();
 }
 
-void SetupPromises(const FunctionCallbackInfo<Value>& args) {
+static void InitializePromiseRejectCallback(
+    const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsObject());
 
-  Local<Object> constants = args[1].As<Object>();
-
-  NODE_DEFINE_CONSTANT(constants, kPromiseRejectWithNoHandler);
-  NODE_DEFINE_CONSTANT(constants, kPromiseHandlerAddedAfterReject);
-  NODE_DEFINE_CONSTANT(constants, kPromiseResolveAfterResolved);
-  NODE_DEFINE_CONSTANT(constants, kPromiseRejectAfterResolved);
-
+  // TODO(joyeecheung): this may be moved to somewhere earlier in the bootstrap
+  // to make sure it's only called once
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
-  env->set_promise_handler_function(args[0].As<Function>());
+
+  env->set_promise_reject_callback(args[0].As<Function>());
 }
 
-#define BOOTSTRAP_METHOD(name, fn) env->SetMethod(bootstrapper, #name, fn)
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context,
+                       void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
 
-// The Bootstrapper object is an ephemeral object that is used only during
-// the bootstrap process of the Node.js environment. A reference to the
-// bootstrap object must not be kept around after the bootstrap process
-// completes so that it can be gc'd as soon as possible.
-void SetupBootstrapObject(Environment* env,
-                          Local<Object> bootstrapper) {
-  BOOTSTRAP_METHOD(_setupNextTick, SetupNextTick);
-  BOOTSTRAP_METHOD(_setupPromises, SetupPromises);
+  env->SetMethod(target, "setTickCallback", SetTickCallback);
+  env->SetMethod(target, "runMicrotasks", RunMicrotasks);
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(isolate, "tickInfo"),
+              env->tick_info()->fields().GetJSArray()).FromJust();
+
+  Local<Object> events = Object::New(isolate);
+  NODE_DEFINE_CONSTANT(events, kPromiseRejectWithNoHandler);
+  NODE_DEFINE_CONSTANT(events, kPromiseHandlerAddedAfterReject);
+  NODE_DEFINE_CONSTANT(events, kPromiseResolveAfterResolved);
+  NODE_DEFINE_CONSTANT(events, kPromiseRejectAfterResolved);
+
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(isolate, "promiseRejectEvents"),
+              events).FromJust();
+  env->SetMethod(target,
+                 "initializePromiseRejectCallback",
+                 InitializePromiseRejectCallback);
 }
-#undef BOOTSTRAP_METHOD
 
+}  // namespace task_queue
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(task_queue, node::task_queue::Initialize)

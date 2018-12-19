@@ -1200,20 +1200,14 @@ void LoadEnvironment(Environment* env) {
     return;
   }
 
-  // Bootstrap Node.js
-  Local<Object> bootstrapper = Object::New(env->isolate());
-  SetupBootstrapObject(env, bootstrapper);
-
   // process, bootstrappers, loaderExports, triggerFatalException
   std::vector<Local<String>> node_params = {
       env->process_string(),
-      FIXED_ONE_BYTE_STRING(isolate, "bootstrappers"),
       FIXED_ONE_BYTE_STRING(isolate, "loaderExports"),
       FIXED_ONE_BYTE_STRING(isolate, "triggerFatalException"),
       FIXED_ONE_BYTE_STRING(isolate, "isMainThread")};
   std::vector<Local<Value>> node_args = {
       process,
-      bootstrapper,
       loader_exports.ToLocalChecked(),
       env->NewFunctionTemplate(FatalException)
           ->GetFunction(context)

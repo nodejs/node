@@ -325,7 +325,6 @@
 
       'sources': [
         'src/async_wrap.cc',
-        'src/bootstrapper.cc',
         'src/callback_scope.cc',
         'src/cares_wrap.cc',
         'src/connect_wrap.cc',
@@ -372,6 +371,7 @@
         'src/node_serdes.cc',
         'src/node_stat_watcher.cc',
         'src/node_symbols.cc',
+        'src/node_task_queue.cc',
         'src/node_trace_events.cc',
         'src/node_types.cc',
         'src/node_url.cc',

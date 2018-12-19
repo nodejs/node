@@ -16,7 +16,7 @@ Error
 Emitted 'error' event at:
     at process.nextTick (*events_unhandled_error_nexttick.js:*:*)
     at internalTickCallback (internal/process/next_tick.js:*:*)
-    at process._tickCallback (internal/process/next_tick.js:*:*)
+    at process.runNextTicks [as _tickCallback] (internal/process/next_tick.js:*:*)
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at executeUserCode (internal/bootstrap/node.js:*:*)
     at startExecution (internal/bootstrap/node.js:*:*)
