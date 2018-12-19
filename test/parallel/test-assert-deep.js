@@ -42,7 +42,7 @@ function re(literals, ...values) {
 // That is why we discourage using deepEqual in our own tests.
 
 // Turn off no-restricted-properties because we are testing deepEqual!
-/* eslint-disable no-restricted-properties, prefer-common-expectserror */
+/* eslint-disable no-restricted-properties */
 
 const arr = new Uint8Array([120, 121, 122, 10]);
 const buf = Buffer.from(arr);
