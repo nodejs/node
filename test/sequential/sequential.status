@@ -28,5 +28,7 @@ test-http2-large-file: PASS, FLAKY
 [$system==aix]
 # https://github.com/nodejs/node/issues/24921
 test-child-process-execsync: PASS, FLAKY
+# https://github.com/nodejs/node/issues/25047
+test-inspector-debug-end: PASS, FLAKY
 
 [$arch==arm]
