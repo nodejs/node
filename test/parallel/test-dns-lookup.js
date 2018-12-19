@@ -24,8 +24,7 @@ cares.getaddrinfo = () => internalBinding('uv').UV_ENOENT;
 common.expectWarning({
   // For 'internal/test/binding' module.
   'internal/test/binding': [
-    'These APIs are exposed only for testing and are not ' +
-    'tracked by any versioning system or deprecation process.'
+    'These APIs are for internal testing only. Do not use them.'
   ],
   // For dns.promises.
   'ExperimentalWarning': [
