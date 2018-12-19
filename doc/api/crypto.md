@@ -1831,6 +1831,8 @@ Creates and returns a new key object containing a public key. If `key` is a
 string or `Buffer`, `format` is assumed to be `'pem'`; otherwise, `key`
 must be an object with the properties described above.
 
+If the format is `'pem'`, the `'key'` may also be an X.509 certificate.
+
 ### crypto.createSecretKey(key)
 <!-- YAML
 added: REPLACEME
