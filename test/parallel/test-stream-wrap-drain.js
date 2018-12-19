@@ -1,11 +1,12 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { StreamWrap } = require('_stream_wrap');
+const { StreamWrap } = require('internal/js_stream_socket');
 const { Duplex } = require('stream');
 const { ShutdownWrap } = process.binding('stream_wrap');
 
-// This test makes sure that when an instance of JSStreamWrap is waiting for
+// This test makes sure that when a wrapped stream is waiting for
 // a "drain" event to `doShutdown`, the instance will work correctly when a
 // "drain" event emitted.
 {
