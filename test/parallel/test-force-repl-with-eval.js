@@ -12,7 +12,7 @@ cp.stdout.setEncoding('utf8');
 let output = '';
 cp.stdout.on('data', function(b) {
   output += b;
-  if (output === '> 42\n') {
+  if (output.endsWith('> 42\n')) {
     gotToEnd = true;
     cp.kill();
   }
