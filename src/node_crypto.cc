@@ -1510,20 +1510,20 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
     return 0;
 
   // Serialize session
-  Local<Object> buff = Buffer::New(env, size).ToLocalChecked();
-  unsigned char* serialized = reinterpret_cast<unsigned char*>(
-      Buffer::Data(buff));
-  memset(serialized, 0, size);
-  i2d_SSL_SESSION(sess, &serialized);
+  Local<Object> session = Buffer::New(env, size).ToLocalChecked();
+  unsigned char* session_data = reinterpret_cast<unsigned char*>(
+      Buffer::Data(session));
+  memset(session_data, 0, size);
+  i2d_SSL_SESSION(sess, &session_data);
 
   unsigned int session_id_length;
-  const unsigned char* session_id = SSL_SESSION_get_id(sess,
-                                                       &session_id_length);
-  Local<Object> session = Buffer::Copy(
+  const unsigned char* session_id_data = SSL_SESSION_get_id(sess,
+                                                            &session_id_length);
+  Local<Object> session_id = Buffer::Copy(
       env,
-      reinterpret_cast<const char*>(session_id),
+      reinterpret_cast<const char*>(session_id_data),
       session_id_length).ToLocalChecked();
-  Local<Value> argv[] = { session, buff };
+  Local<Value> argv[] = { session_id, session };
   w->new_session_wait_ = true;
   w->MakeCallback(env->onnewsession_string(), arraysize(argv), argv);
 
