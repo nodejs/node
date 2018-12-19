@@ -95,8 +95,6 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
-#define umask _umask
-typedef int mode_t;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
@@ -689,8 +687,7 @@ static void WaitForInspectorDisconnect(Environment* env) {
 #endif
 }
 
-
-static void Exit(const FunctionCallbackInfo<Value>& args) {
+void Exit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   WaitForInspectorDisconnect(env);
   v8_platform.StopTracingAgent();
@@ -1114,29 +1111,6 @@ void SetupProcessObject(Environment* env,
                              DebugPortGetter,
                              env->is_main_thread() ? DebugPortSetter : nullptr,
                              env->as_external()).FromJust());
-
-  // define various internal methods
-  if (env->is_main_thread()) {
-    env->SetMethod(process, "_debugProcess", DebugProcess);
-    env->SetMethod(process, "_debugEnd", DebugEnd);
-    env->SetMethod(process,
-                   "_startProfilerIdleNotifier",
-                   StartProfilerIdleNotifier);
-    env->SetMethod(process,
-                   "_stopProfilerIdleNotifier",
-                   StopProfilerIdleNotifier);
-    env->SetMethod(process, "abort", Abort);
-    env->SetMethod(process, "chdir", Chdir);
-    env->SetMethod(process, "umask", Umask);
-  }
-  env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
-  env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
-  env->SetMethod(process, "_kill", Kill);
-
-  env->SetMethodNoSideEffect(process, "cwd", Cwd);
-  env->SetMethod(process, "dlopen", binding::DLOpen);
-  env->SetMethod(process, "reallyExit", Exit);
-  env->SetMethodNoSideEffect(process, "uptime", Uptime);
 }
 
 
@@ -1278,134 +1252,7 @@ void RegisterSignalHandler(int signal,
   CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
 
-
-void DebugProcess(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() != 1) {
-    return env->ThrowError("Invalid number of arguments.");
-  }
-
-  CHECK(args[0]->IsNumber());
-  pid_t pid = args[0].As<Integer>()->Value();
-  int r = kill(pid, SIGUSR1);
-
-  if (r != 0) {
-    return env->ThrowErrnoException(errno, "kill");
-  }
-}
 #endif  // __POSIX__
-
-
-#ifdef _WIN32
-static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
-    size_t buf_len) {
-  return _snwprintf(buf, buf_len, L"node-debug-handler-%u", pid);
-}
-
-
-static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = args.GetIsolate();
-
-  if (args.Length() != 1) {
-    env->ThrowError("Invalid number of arguments.");
-    return;
-  }
-
-  HANDLE process = nullptr;
-  HANDLE thread = nullptr;
-  HANDLE mapping = nullptr;
-  wchar_t mapping_name[32];
-  LPTHREAD_START_ROUTINE* handler = nullptr;
-  DWORD pid = 0;
-
-  OnScopeLeave cleanup([&]() {
-    if (process != nullptr)
-      CloseHandle(process);
-    if (thread != nullptr)
-      CloseHandle(thread);
-    if (handler != nullptr)
-      UnmapViewOfFile(handler);
-    if (mapping != nullptr)
-      CloseHandle(mapping);
-  });
-
-  CHECK(args[0]->IsNumber());
-  pid = args[0].As<Integer>()->Value();
-
-  process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
-                            PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
-                            PROCESS_VM_READ,
-                        FALSE,
-                        pid);
-  if (process == nullptr) {
-    isolate->ThrowException(
-        WinapiErrnoException(isolate, GetLastError(), "OpenProcess"));
-    return;
-  }
-
-  if (GetDebugSignalHandlerMappingName(pid,
-                                       mapping_name,
-                                       arraysize(mapping_name)) < 0) {
-    env->ThrowErrnoException(errno, "sprintf");
-    return;
-  }
-
-  mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
-  if (mapping == nullptr) {
-    isolate->ThrowException(WinapiErrnoException(isolate,
-                                             GetLastError(),
-                                             "OpenFileMappingW"));
-    return;
-  }
-
-  handler = reinterpret_cast<LPTHREAD_START_ROUTINE*>(
-      MapViewOfFile(mapping,
-                    FILE_MAP_READ,
-                    0,
-                    0,
-                    sizeof *handler));
-  if (handler == nullptr || *handler == nullptr) {
-    isolate->ThrowException(
-        WinapiErrnoException(isolate, GetLastError(), "MapViewOfFile"));
-    return;
-  }
-
-  thread = CreateRemoteThread(process,
-                              nullptr,
-                              0,
-                              *handler,
-                              nullptr,
-                              0,
-                              nullptr);
-  if (thread == nullptr) {
-    isolate->ThrowException(WinapiErrnoException(isolate,
-                                                 GetLastError(),
-                                                 "CreateRemoteThread"));
-    return;
-  }
-
-  // Wait for the thread to terminate
-  if (WaitForSingleObject(thread, INFINITE) != WAIT_OBJECT_0) {
-    isolate->ThrowException(WinapiErrnoException(isolate,
-                                                 GetLastError(),
-                                                 "WaitForSingleObject"));
-    return;
-  }
-}
-#endif  // _WIN32
-
-
-static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
-#if HAVE_INSPECTOR
-  Environment* env = Environment::GetCurrent(args);
-  if (env->inspector_agent()->IsListening()) {
-    env->inspector_agent()->Stop();
-  }
-#endif
-}
-
 
 inline void PlatformInit() {
 #ifdef __POSIX__

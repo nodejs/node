@@ -119,6 +119,7 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void Exit(const v8::FunctionCallbackInfo<v8::Value>& args);
 void SignalExit(int signo);
 #ifdef __POSIX__
 void RegisterSignalHandler(int signal,
@@ -698,21 +699,7 @@ static inline const char* errno_string(int errorno) {
 
 extern double prog_start_time;
 
-void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
-void Chdir(const v8::FunctionCallbackInfo<v8::Value>& args);
-void CPUUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
-void Cwd(const v8::FunctionCallbackInfo<v8::Value>& args);
-void GetActiveHandles(const v8::FunctionCallbackInfo<v8::Value>& args);
-void GetActiveRequests(const v8::FunctionCallbackInfo<v8::Value>& args);
-void Hrtime(const v8::FunctionCallbackInfo<v8::Value>& args);
-void HrtimeBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-void Kill(const v8::FunctionCallbackInfo<v8::Value>& args);
-void MemoryUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
 void RawDebug(const v8::FunctionCallbackInfo<v8::Value>& args);
-void StartProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
-void StopProfilerIdleNotifier(const v8::FunctionCallbackInfo<v8::Value>& args);
-void Umask(const v8::FunctionCallbackInfo<v8::Value>& args);
-void Uptime(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 void DebugPortGetter(v8::Local<v8::Name> property,
                      const v8::PropertyCallbackInfo<v8::Value>& info);

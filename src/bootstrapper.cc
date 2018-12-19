@@ -139,20 +139,6 @@ void SetupBootstrapObject(Environment* env,
   BOOTSTRAP_METHOD(_setupTraceCategoryState, SetupTraceCategoryState);
   BOOTSTRAP_METHOD(_setupNextTick, SetupNextTick);
   BOOTSTRAP_METHOD(_setupPromises, SetupPromises);
-  BOOTSTRAP_METHOD(_chdir, Chdir);
-  BOOTSTRAP_METHOD(_cpuUsage, CPUUsage);
-  BOOTSTRAP_METHOD(_hrtime, Hrtime);
-  BOOTSTRAP_METHOD(_hrtimeBigInt, HrtimeBigInt);
-  BOOTSTRAP_METHOD(_memoryUsage, MemoryUsage);
-  BOOTSTRAP_METHOD(_rawDebug, RawDebug);
-  BOOTSTRAP_METHOD(_umask, Umask);
-
-  Local<String> should_abort_on_uncaught_toggle =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_shouldAbortOnUncaughtToggle");
-  CHECK(bootstrapper->Set(env->context(),
-                       should_abort_on_uncaught_toggle,
-                       env->should_abort_on_uncaught_toggle().GetJSArray())
-                           .FromJust());
 }
 #undef BOOTSTRAP_METHOD
 

@@ -8,6 +8,8 @@
 #include "uv.h"
 #include "v8.h"
 
+#include <vector>
+
 #if HAVE_INSPECTOR
 #include "inspector_io.h"
 #endif
@@ -36,10 +38,12 @@ using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HeapStatistics;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Name;
 using v8::NewStringType;
+using v8::Object;
 using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Uint32;
@@ -61,11 +65,11 @@ Mutex environ_mutex;
 #define CHDIR_BUFSIZE (PATH_MAX)
 #endif
 
-void Abort(const FunctionCallbackInfo<Value>& args) {
+static void Abort(const FunctionCallbackInfo<Value>& args) {
   Abort();
 }
 
-void Chdir(const FunctionCallbackInfo<Value>& args) {
+static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->is_main_thread());
 
@@ -88,7 +92,7 @@ void Chdir(const FunctionCallbackInfo<Value>& args) {
 // which are uv_timeval_t structs (long tv_sec, long tv_usec).
 // Returns those values as Float64 microseconds in the elements of the array
 // passed to the function.
-void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   uv_rusage_t rusage;
 
   // Call libuv to get the values we'll return.
@@ -111,7 +115,7 @@ void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
 }
 
-void Cwd(const FunctionCallbackInfo<Value>& args) {
+static void Cwd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   char buf[CHDIR_BUFSIZE];
   size_t cwd_len = sizeof(buf);
@@ -138,7 +142,7 @@ void Cwd(const FunctionCallbackInfo<Value>& args) {
 // broken into the upper/lower 32 bits to be converted back in JS,
 // because there is no Uint64Array in JS.
 // The third entry contains the remaining nanosecond part of the value.
-void Hrtime(const FunctionCallbackInfo<Value>& args) {
+static void Hrtime(const FunctionCallbackInfo<Value>& args) {
   uint64_t t = uv_hrtime();
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
@@ -149,13 +153,13 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   fields[2] = t % NANOS_PER_SEC;
 }
 
-void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
+static void HrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> ab = args[0].As<BigUint64Array>()->Buffer();
   uint64_t* fields = static_cast<uint64_t*>(ab->GetContents().Data());
   fields[0] = uv_hrtime();
 }
 
-void Kill(const FunctionCallbackInfo<Value>& args) {
+static void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
 
@@ -170,8 +174,7 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
-void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
+static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   size_t rss;
@@ -209,18 +212,17 @@ void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
+static void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StartProfilerIdleNotifier();
 }
 
-
-void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
+static void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->StopProfilerIdleNotifier();
 }
 
-void Umask(const FunctionCallbackInfo<Value>& args) {
+static void Umask(const FunctionCallbackInfo<Value>& args) {
   uint32_t old;
 
   CHECK_EQ(args.Length(), 1);
@@ -237,7 +239,7 @@ void Umask(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(old);
 }
 
-void Uptime(const FunctionCallbackInfo<Value>& args) {
+static void Uptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   double uptime;
 
@@ -255,7 +257,6 @@ void ProcessTitleGetter(Local<Name> property,
       NewStringType::kNormal).ToLocalChecked());
 }
 
-
 void ProcessTitleSetter(Local<Name> property,
                         Local<Value> value,
                         const PropertyCallbackInfo<void>& info) {
@@ -270,7 +271,7 @@ void GetParentProcessId(Local<Name> property,
   info.GetReturnValue().Set(uv_os_getppid());
 }
 
-void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
+static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   std::vector<Local<Value>> request_v;
@@ -315,5 +316,159 @@ void DebugPortSetter(Local<Name> property,
   env->inspector_host_port()->set_port(static_cast<int>(port));
 }
 
+#ifdef __POSIX__
+static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (args.Length() != 1) {
+    return env->ThrowError("Invalid number of arguments.");
+  }
+
+  CHECK(args[0]->IsNumber());
+  pid_t pid = args[0].As<Integer>()->Value();
+  int r = kill(pid, SIGUSR1);
+
+  if (r != 0) {
+    return env->ThrowErrnoException(errno, "kill");
+  }
+}
+#endif  // __POSIX__
+
+#ifdef _WIN32
+static int GetDebugSignalHandlerMappingName(DWORD pid,
+                                            wchar_t* buf,
+                                            size_t buf_len) {
+  return _snwprintf(buf, buf_len, L"node-debug-handler-%u", pid);
+}
+
+static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+
+  if (args.Length() != 1) {
+    env->ThrowError("Invalid number of arguments.");
+    return;
+  }
+
+  HANDLE process = nullptr;
+  HANDLE thread = nullptr;
+  HANDLE mapping = nullptr;
+  wchar_t mapping_name[32];
+  LPTHREAD_START_ROUTINE* handler = nullptr;
+  DWORD pid = 0;
+
+  OnScopeLeave cleanup([&]() {
+    if (process != nullptr) CloseHandle(process);
+    if (thread != nullptr) CloseHandle(thread);
+    if (handler != nullptr) UnmapViewOfFile(handler);
+    if (mapping != nullptr) CloseHandle(mapping);
+  });
+
+  CHECK(args[0]->IsNumber());
+  pid = args[0].As<Integer>()->Value();
+
+  process =
+      OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+                      PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+                  FALSE,
+                  pid);
+  if (process == nullptr) {
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "OpenProcess"));
+    return;
+  }
+
+  if (GetDebugSignalHandlerMappingName(
+          pid, mapping_name, arraysize(mapping_name)) < 0) {
+    env->ThrowErrnoException(errno, "sprintf");
+    return;
+  }
+
+  mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
+  if (mapping == nullptr) {
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "OpenFileMappingW"));
+    return;
+  }
+
+  handler = reinterpret_cast<LPTHREAD_START_ROUTINE*>(
+      MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, sizeof *handler));
+  if (handler == nullptr || *handler == nullptr) {
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "MapViewOfFile"));
+    return;
+  }
+
+  thread =
+      CreateRemoteThread(process, nullptr, 0, *handler, nullptr, 0, nullptr);
+  if (thread == nullptr) {
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "CreateRemoteThread"));
+    return;
+  }
+
+  // Wait for the thread to terminate
+  if (WaitForSingleObject(thread, INFINITE) != WAIT_OBJECT_0) {
+    isolate->ThrowException(
+        WinapiErrnoException(isolate, GetLastError(), "WaitForSingleObject"));
+    return;
+  }
+}
+#endif  // _WIN32
+
+static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
+#if HAVE_INSPECTOR
+  Environment* env = Environment::GetCurrent(args);
+  if (env->inspector_agent()->IsListening()) {
+    env->inspector_agent()->Stop();
+  }
+#endif
+}
+
+static void InitializeProcessMethods(Local<Object> target,
+                                     Local<Value> unused,
+                                     Local<Context> context,
+                                     void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+
+  // define various internal methods
+  if (env->is_main_thread()) {
+    env->SetMethod(target, "_debugProcess", DebugProcess);
+    env->SetMethod(target, "_debugEnd", DebugEnd);
+    env->SetMethod(
+        target, "_startProfilerIdleNotifier", StartProfilerIdleNotifier);
+    env->SetMethod(
+        target, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);
+    env->SetMethod(target, "abort", Abort);
+    env->SetMethod(target, "chdir", Chdir);
+    env->SetMethod(target, "umask", Umask);
+  }
+
+  env->SetMethod(target, "_rawDebug", RawDebug);
+  env->SetMethod(target, "memoryUsage", MemoryUsage);
+  env->SetMethod(target, "cpuUsage", CPUUsage);
+  env->SetMethod(target, "hrtime", Hrtime);
+  env->SetMethod(target, "hrtimeBigInt", HrtimeBigInt);
+
+  env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
+  env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
+  env->SetMethod(target, "_kill", Kill);
+
+  env->SetMethodNoSideEffect(target, "cwd", Cwd);
+  env->SetMethod(target, "dlopen", binding::DLOpen);
+  env->SetMethod(target, "reallyExit", Exit);
+  env->SetMethodNoSideEffect(target, "uptime", Uptime);
+
+  Local<String> should_abort_on_uncaught_toggle =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
+  CHECK(target
+            ->Set(env->context(),
+                  should_abort_on_uncaught_toggle,
+                  env->should_abort_on_uncaught_toggle().GetJSArray())
+            .FromJust());
+}
 
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(process_methods,
+                                   node::InitializeProcessMethods)
