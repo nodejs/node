@@ -30,12 +30,6 @@ void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   args.GetIsolate()->RunMicrotasks();
 }
 
-void SetupTraceCategoryState(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK(args[0]->IsFunction());
-  env->set_trace_category_state_function(args[0].As<Function>());
-}
-
 void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -136,7 +130,6 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 // completes so that it can be gc'd as soon as possible.
 void SetupBootstrapObject(Environment* env,
                           Local<Object> bootstrapper) {
-  BOOTSTRAP_METHOD(_setupTraceCategoryState, SetupTraceCategoryState);
   BOOTSTRAP_METHOD(_setupNextTick, SetupNextTick);
   BOOTSTRAP_METHOD(_setupPromises, SetupPromises);
 }
