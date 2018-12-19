@@ -1,8 +1,9 @@
-// Flags: --experimental-worker
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+common.experimentalWorker();
 const { isMainThread, parentPort, Worker } = require('worker_threads');
+
+const assert = require('assert');
 
 // This test makes sure that we manipulate the references of
 // `parentPort` correctly so that any worker threads will

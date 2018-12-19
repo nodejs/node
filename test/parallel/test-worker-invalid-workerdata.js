@@ -1,6 +1,7 @@
-// Flags: --experimental-worker
 'use strict';
-require('../common');
+const common = require('../common');
+common.experimentalWorker();
+
 const assert = require('assert');
 const { Worker } = require('worker_threads');
 

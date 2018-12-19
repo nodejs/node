@@ -1,9 +1,10 @@
-// Flags: --experimental-worker
 'use strict';
 const common = require('../common');
 
 // This test checks that Worker has correct exit codes on parent side
 // in multiple situations.
+
+common.experimentalWorker();
 
 const assert = require('assert');
 const worker = require('worker_threads');

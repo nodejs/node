@@ -1,11 +1,12 @@
-// Flags: --experimental-worker
 'use strict';
-require('../common');
 
 // This test ensures that the messages from the internal
 // message port are drained before the call to 'kDispose',
 // and so all the stdio messages from the worker are processed
 // in the parent and are pushed to their target streams.
+
+const common = require('../common');
+common.experimentalWorker();
 
 const assert = require('assert');
 const {
