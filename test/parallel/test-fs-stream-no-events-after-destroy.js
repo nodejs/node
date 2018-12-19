@@ -12,10 +12,7 @@ const test = (stream) => {
   stream.on('open', common.mustNotCall());
   stream.on('ready', common.mustNotCall());
   stream.on('close', common.mustCall());
-  stream.on('error', common.mustCall((er) => {
-    assert.strictEqual(err, er);
-    assert.strictEqual(stream.closed, false);
-  }));
+  stream.on('error', common.mustNotCall());
 }
 
 test(fs.createReadStream(__filename));
