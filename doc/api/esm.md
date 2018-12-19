@@ -164,7 +164,7 @@ of these top-level routines.
 
 _isMain_ is **true** when resolving the Node.js application entry point.
 
-#### ESM_RESOLVE(_specifier_, _parentURL_, _isMain_)
+**ESM_RESOLVE(_specifier_, _parentURL_, _isMain_)**
 > 1. Let _resolvedURL_ be **undefined**.
 > 1. If _specifier_ is a valid URL, then
 >    1. Set _resolvedURL_ to the result of parsing and reserializing
@@ -229,8 +229,6 @@ PACKAGE_RESOLVE(_packageSpecifier_, _parentURL_)
 > 1. Throw a _Module Not Found_ error.
 
 PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
-> 1. If _pjson_ is **null**, then
->    1. Return **null**.
 > 1. Let _pjsonURL_ be the URL of the file _"package.json"_ within the parent
 >    path _packageURL_.
 > 1. If **HAS_ESM_PROPERTIES**(_pjson_) is **false**, then
@@ -241,17 +239,21 @@ PACKAGE_MAIN_RESOLVE(_packageURL_, _pjson_)
 > 1. TODO: ESM main handling.
 > 1. Return **null**.
 
-#### ESM_FORMAT(_url_, _isMain_)
+**ESM_FORMAT(_url_, _isMain_)**
 > 1. Assert: _url_ corresponds to an existing file.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_BOUNDARY**(_url_).
-> 1. If _pjson_ is **null** or **HAS_ESM_PROPERTIES**(_pjson_) is **true**, then
->    1. If _url_ does not end in _".js"_ or _".mjs"_ then,
+> 1. If _pjson_ is **null** and _isMain_ is **true**, then
+>    1. Note: This path is for backwards compatibility and may be deprecated.
+>    1. Return _"legacy"_.
+> 1. If **HAS_ESM_PROPERTIES**(_pjson_) is **true**, then
+>    1. If _url_ does not end in _".js"_ or _".mjs"_, then
 >       1. Throw an _Unsupported File Extension_ error.
 >    1. Return _"esm"_.
 > 1. Otherwise,
->    1. If _url_ ends with _".mjs"_, then
->       1. Throw an _Unsupported File Extension_ error.
->    1. Return _"legacy"_.
+>    1. If _url_ ends in _".mjs"_, then
+>       1. Return _"esm"_.
+>    1. Otherwise,
+>       1. Return _"legacy"_.
 
 READ_PACKAGE_BOUNDARY(_url_)
 > 1. Let _boundaryURL_ be the URL resolution of _"package.json"_ relative to
