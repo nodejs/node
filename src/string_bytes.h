@@ -42,7 +42,7 @@ class StringBytes {
       enum encoding enc = ParseEncoding(env->isolate(), encoding, _default);
       if (!StringBytes::IsValidString(string, enc)) {
         env->ThrowTypeError("Bad input string");
-        return v8::Just(false);
+        return v8::Nothing<bool>();
       }
 
       size_t storage;
