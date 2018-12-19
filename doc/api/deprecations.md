@@ -1671,7 +1671,7 @@ the client and is now unsupported. Use the `ciphers` parameter instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXX
+    pr-url: https://github.com/nodejs/node/pull/25138
     description: This functionality has been removed.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16392
