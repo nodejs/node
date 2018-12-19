@@ -22,8 +22,6 @@
 
 'use strict';
 
-/* eslint-disable node-core/prefer-common-expectserror */
-
 const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
@@ -664,7 +662,6 @@ common.expectsError(
   const tmp = fs.close;
   fs.close = common.mustCall(tmp, 1);
   function throwErr() {
-    // eslint-disable-next-line prefer-assert-methods
     assert(
       (Buffer.from('test') instanceof Error)
     );
