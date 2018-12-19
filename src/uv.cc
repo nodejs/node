@@ -25,19 +25,38 @@
 #include "env-inl.h"
 
 namespace node {
+
+namespace per_process {
+struct UVError {
+  int value;
+  const char* name;
+  const char* message;
+};
+
+// We only expand the macro once here to reduce the amount of code
+// generated.
+static const struct UVError uv_errors_map[] = {
+#define V(name, message) {UV_##name, #name, message},
+    UV_ERRNO_MAP(V)
+#undef V
+};
+}  // namespace per_process
+
 namespace {
 
 using v8::Array;
 using v8::Context;
+using v8::DontDelete;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Map;
 using v8::Object;
+using v8::PropertyAttribute;
+using v8::ReadOnly;
 using v8::String;
 using v8::Value;
-
 
 void ErrName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -57,6 +76,29 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), name));
 }
 
+void GetErrMap(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  Local<Map> err_map = Map::New(isolate);
+
+  size_t errors_len = arraysize(per_process::uv_errors_map);
+  for (size_t i = 0; i < errors_len; ++i) {
+    const auto& error = per_process::uv_errors_map[i];
+    Local<Value> arr[] = {OneByteString(isolate, error.name),
+                          OneByteString(isolate, error.message)};
+    if (err_map
+            ->Set(context,
+                  Integer::New(isolate, error.value),
+                  Array::New(isolate, arr, arraysize(arr)))
+            .IsEmpty()) {
+      return;
+    }
+  }
+
+  args.GetReturnValue().Set(err_map);
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -70,28 +112,21 @@ void Initialize(Local<Object> target,
                   ->GetFunction(env->context())
                   .ToLocalChecked()).FromJust();
 
-#define V(name, _) NODE_DEFINE_CONSTANT(target, UV_##name);
-  UV_ERRNO_MAP(V)
-#undef V
+  // TODO(joyeecheung): This should be deprecated in user land in favor of
+  // `util.getSystemErrorName(err)`.
+  PropertyAttribute attributes =
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
+  size_t errors_len = arraysize(per_process::uv_errors_map);
+  const std::string prefix = "UV_";
+  for (size_t i = 0; i < errors_len; ++i) {
+    const auto& error = per_process::uv_errors_map[i];
+    const std::string prefixed_name = prefix + error.name;
+    Local<String> name = OneByteString(isolate, prefixed_name.c_str());
+    Local<Integer> value = Integer::New(isolate, error.value);
+    target->DefineOwnProperty(context, name, value, attributes).FromJust();
+  }
 
-  Local<Map> err_map = Map::New(isolate);
-
-#define V(name, msg) do {                                                     \
-  Local<Value> arr[] = {                                                      \
-    OneByteString(isolate, #name),                                            \
-    OneByteString(isolate, msg)                                               \
-  };                                                                          \
-  if (err_map->Set(context,                                                   \
-                   Integer::New(isolate, UV_##name),                          \
-                   Array::New(isolate, arr, arraysize(arr))).IsEmpty()) {     \
-    return;                                                                   \
-  }                                                                           \
-} while (0);
-  UV_ERRNO_MAP(V)
-#undef V
-
-  target->Set(context, FIXED_ONE_BYTE_STRING(isolate, "errmap"),
-              err_map).FromJust();
+  env->SetMethod(target, "getErrorMap", GetErrMap);
 }
 
 }  // anonymous namespace
