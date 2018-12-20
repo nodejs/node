@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --experimental-vm-modules --experimental-modules
+// Flags: --experimental-vm-modules
 
 const common = require('../common');
 

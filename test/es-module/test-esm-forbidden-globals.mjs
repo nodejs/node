@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import '../common';
 
 // eslint-disable-next-line no-undef

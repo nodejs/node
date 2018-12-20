@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import '../common';
 import assert from 'assert';
 // ./test-esm-ok.mjs

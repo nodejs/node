@@ -1,6 +1,13 @@
-// Flags: --experimental-modules --loader ./test/fixtures/es-module-loaders/loader-invalid-format.mjs
-import { expectsError, mustCall } from '../common';
+import { expectsError, mustCall, relaunchWithFlags } from '../common';
 import assert from 'assert';
+
+const flag =
+  '--loader=./test/fixtures/es-module-loaders/loader-invalid-format.mjs';
+
+if (!process.execArgv.includes(flag)) {
+  // Include `--experimental-modules` explicitly for workers.
+  relaunchWithFlags(['--experimental-modules', flag]);
+}
 
 import('../fixtures/es-modules/test-esm-ok.mjs')
 .then(assert.fail, expectsError({

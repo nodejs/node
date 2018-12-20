@@ -1,7 +1,5 @@
 'use strict';
 
-// Flags: --experimental-modules
-
 require('../common');
 const assert = require('assert');
 
