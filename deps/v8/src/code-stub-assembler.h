@@ -1512,10 +1512,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       Node* to_index,
                                       ParameterMode mode = INTPTR_PARAMETERS);
 
-  void CopyPropertyArrayValues(
-      Node* from_array, Node* to_array, Node* length,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode mode = INTPTR_PARAMETERS);
+  enum class DestroySource { kNo, kYes };
+
+  // Specify DestroySource::kYes if {from_array} is being supplanted by
+  // {to_array}. This offers a slight performance benefit by simply copying the
+  // array word by word. The source may be destroyed at the end of this macro.
+  //
+  // Otherwise, specify DestroySource::kNo for operations where an Object is
+  // being cloned, to ensure that MutableHeapNumbers are unique between the
+  // source and cloned object.
+  void CopyPropertyArrayValues(Node* from_array, Node* to_array, Node* length,
+                               WriteBarrierMode barrier_mode,
+                               ParameterMode mode,
+                               DestroySource destroy_source);
 
   // Copies all elements from |from_array| of |length| size to
   // |to_array| of the same size respecting the elements kind.
@@ -3072,6 +3081,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void InitializeFunctionContext(Node* native_context, Node* context,
                                  int slots);
+
+  // Allocate a clone of a mutable primitive, if {object} is a
+  // MutableHeapNumber.
+  TNode<Object> CloneIfMutablePrimitive(TNode<Object> object);
 
  private:
   friend class CodeStubArguments;
