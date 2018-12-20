@@ -41,7 +41,7 @@ try {
   common.skip('insufficient privileges for symlinks');
 }
 
-spawn(process.execPath, ['--experimental-modules', entry],
+spawn(process.execPath, [entry],
       { stdio: 'inherit' }).on('exit', (code) => {
   assert.strictEqual(code, 0);
 });

@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 /* eslint-disable node-core/required-modules */
 import { createRequire } from '../common/index.mjs';
 import assert from 'assert';

@@ -53,5 +53,5 @@ function doTest(flags, done) {
 // first test the commonjs module loader
 doTest([], () => {
   // now test the new loader
-  doTest(['--experimental-modules'], () => {});
+  doTest([], () => {});
 });

@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 /* eslint-disable node-core/required-modules */
 
 import { createRequireFromPath } from 'module';
