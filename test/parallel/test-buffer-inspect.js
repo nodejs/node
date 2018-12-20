@@ -56,3 +56,5 @@ assert.strictEqual(util.inspect(s), expected);
 
 b.inspect = undefined;
 assert.strictEqual(util.inspect(b), expected);
+
+assert.strictEqual(Object.prototype.toString.call(b), '[object Buffer]');
