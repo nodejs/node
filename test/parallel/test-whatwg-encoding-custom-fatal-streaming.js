@@ -1,6 +1,7 @@
 'use strict';
 
 // From: https://github.com/w3c/web-platform-tests/blob/d74324b53c/encoding/textdecoder-fatal-streaming.html
+// With the twist that we specifically test for Node.js error codes
 
 const common = require('../common');
 
@@ -28,6 +29,7 @@ const assert = require('assert');
       }
     );
 
+    // TODO(joyeecheung): remove this when WPT is ported
     assert.strictEqual(
       new TextDecoder(testCase.encoding).decode(data),
       '\uFFFD'
@@ -40,6 +42,7 @@ const assert = require('assert');
   const odd = new Uint8Array([0x00]);
   const even = new Uint8Array([0x00, 0x00]);
 
+  // TODO(joyeecheung): remove this when WPT is ported
   assert.strictEqual(decoder.decode(odd, { stream: true }), '');
   assert.strictEqual(decoder.decode(odd), '\u0000');
 
@@ -67,6 +70,7 @@ const assert = require('assert');
     }
   );
 
+  // TODO(joyeecheung): remove this when WPT is ported
   assert.strictEqual(decoder.decode(even, { stream: true }), '\u0000');
   assert.strictEqual(decoder.decode(even), '\u0000');
 }
