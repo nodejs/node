@@ -1,6 +1,7 @@
 'use strict';
 
 // From: https://github.com/w3c/web-platform-tests/blob/39a67e2fff/encoding/textdecoder-utf16-surrogates.html
+// With the twist that we specifically test for Node.js error codes
 
 const common = require('../common');
 
@@ -43,7 +44,7 @@ const bad = [
 ];
 
 bad.forEach((t) => {
-
+  // TODO(joyeecheung): remove this when WPT is ported
   assert.strictEqual(
     new TextDecoder(t.encoding).decode(new Uint8Array(t.input)),
     t.expected);
