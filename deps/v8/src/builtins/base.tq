@@ -844,6 +844,8 @@ macro AllowNonNumberElements(kind: ElementsKind): ElementsKind {
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 
+extern macro CalculateNewElementsCapacity(Smi): Smi;
+
 extern macro CopyFixedArrayElements(
     constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray,
     intptr, intptr, intptr): void;
@@ -878,6 +880,36 @@ extern macro ExtractFixedArray(
     constexpr ExtractFixedArrayFlags): FixedArrayBase;
 
 extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
+
+extern macro MoveElements(
+    constexpr ElementsKind, FixedArrayBase, intptr, intptr, intptr): void;
+macro TorqueMoveElements(
+    elements: FixedArray, dstIndex: intptr, srcIndex: intptr,
+    count: intptr): void {
+  MoveElements(HOLEY_ELEMENTS, elements, dstIndex, srcIndex, count);
+}
+macro TorqueMoveElements(
+    elements: FixedDoubleArray, dstIndex: intptr, srcIndex: intptr,
+    count: intptr): void {
+  MoveElements(HOLEY_DOUBLE_ELEMENTS, elements, dstIndex, srcIndex, count);
+}
+
+extern macro CopyElements(
+    constexpr ElementsKind, FixedArrayBase, intptr, FixedArrayBase, intptr,
+    intptr): void;
+macro TorqueCopyElements(
+    dstElements: FixedArray, dstIndex: intptr, srcElements: FixedArray,
+    srcIndex: intptr, count: intptr): void {
+  CopyElements(
+      HOLEY_ELEMENTS, dstElements, dstIndex, srcElements, srcIndex, count);
+}
+macro TorqueCopyElements(
+    dstElements: FixedDoubleArray, dstIndex: intptr,
+    srcElements: FixedDoubleArray, srcIndex: intptr, count: intptr): void {
+  CopyElements(
+      HOLEY_DOUBLE_ELEMENTS, dstElements, dstIndex, srcElements, srcIndex,
+      count);
+}
 
 macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
     labels IfHole;

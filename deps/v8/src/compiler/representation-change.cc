@@ -586,7 +586,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   } else if (output_rep == MachineRepresentation::kFloat64) {
     op = machine()->TruncateFloat64ToFloat32();
   } else if (output_rep == MachineRepresentation::kWord64) {
-    if (output_type.Is(Type::Signed32())) {
+    if (output_type.Is(cache_.kSafeInteger)) {
       // int64 -> float64 -> float32
       op = machine()->ChangeInt64ToFloat64();
       node = jsgraph()->graph()->NewNode(op, node);
