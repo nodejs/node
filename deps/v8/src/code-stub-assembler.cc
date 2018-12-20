@@ -3067,6 +3067,24 @@ TNode<MutableHeapNumber> CodeStubAssembler::AllocateMutableHeapNumber() {
   return UncheckedCast<MutableHeapNumber>(result);
 }
 
+TNode<Object> CodeStubAssembler::CloneIfMutablePrimitive(TNode<Object> object) {
+  TVARIABLE(Object, result, object);
+  Label done(this);
+
+  GotoIf(TaggedIsSmi(object), &done);
+  GotoIfNot(IsMutableHeapNumber(UncheckedCast<HeapObject>(object)), &done);
+  {
+    // Mutable heap number found --- allocate a clone.
+    TNode<Float64T> value =
+        LoadHeapNumberValue(UncheckedCast<HeapNumber>(object));
+    result = AllocateMutableHeapNumberWithValue(value);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
 TNode<MutableHeapNumber> CodeStubAssembler::AllocateMutableHeapNumberWithValue(
     SloppyTNode<Float64T> value) {
   TNode<MutableHeapNumber> result = AllocateMutableHeapNumber();
@@ -4904,7 +4922,8 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
                                                 Node* to_array,
                                                 Node* property_count,
                                                 WriteBarrierMode barrier_mode,
-                                                ParameterMode mode) {
+                                                ParameterMode mode,
+                                                DestroySource destroy_source) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(property_count, mode));
   CSA_SLOW_ASSERT(this, Word32Or(IsPropertyArray(from_array),
                                  IsEmptyFixedArray(from_array)));
@@ -4916,8 +4935,13 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
   ElementsKind kind = PACKED_ELEMENTS;
   BuildFastFixedArrayForEach(
       from_array, kind, start, property_count,
-      [this, to_array, needs_write_barrier](Node* array, Node* offset) {
+      [this, to_array, needs_write_barrier, destroy_source](Node* array,
+                                                            Node* offset) {
         Node* value = Load(MachineType::AnyTagged(), array, offset);
+
+        if (destroy_source == DestroySource::kNo) {
+          value = CloneIfMutablePrimitive(CAST(value));
+        }
 
         if (needs_write_barrier) {
           Store(to_array, offset, value);
@@ -4927,6 +4951,18 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
         }
       },
       mode);
+
+#ifdef DEBUG
+  // Zap {from_array} if the copying above has made it invalid.
+  if (destroy_source == DestroySource::kYes) {
+    Label did_zap(this);
+    GotoIf(IsEmptyFixedArray(from_array), &did_zap);
+    FillPropertyArrayWithUndefined(from_array, start, property_count, mode);
+
+    Goto(&did_zap);
+    BIND(&did_zap);
+  }
+#endif
   Comment("] CopyPropertyArrayValues");
 }
 

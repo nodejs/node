@@ -1683,7 +1683,8 @@ Node* AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     // |new_properties| is guaranteed to be in new space, so we can skip
     // the write barrier.
     CopyPropertyArrayValues(var_properties.value(), new_properties,
-                            var_length.value(), SKIP_WRITE_BARRIER, mode);
+                            var_length.value(), SKIP_WRITE_BARRIER, mode,
+                            DestroySource::kYes);
 
     // TODO(gsathya): Clean up the type conversions by creating smarter
     // helpers that do the correct op based on the mode.
@@ -3620,7 +3621,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
       auto mode = INTPTR_PARAMETERS;
       var_properties = CAST(AllocatePropertyArray(length, mode));
       CopyPropertyArrayValues(source_properties, var_properties.value(), length,
-                              SKIP_WRITE_BARRIER, mode);
+                              SKIP_WRITE_BARRIER, mode, DestroySource::kNo);
     }
 
     Goto(&allocate_object);
@@ -3640,7 +3641,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     BuildFastLoop(source_start, source_size,
                   [=](Node* field_index) {
                     Node* field_offset = TimesPointerSize(field_index);
-                    Node* field = LoadObjectField(source, field_offset);
+                    TNode<Object> field = LoadObjectField(source, field_offset);
+                    field = CloneIfMutablePrimitive(field);
                     Node* result_offset =
                         IntPtrAdd(field_offset, field_offset_difference);
                     StoreObjectFieldNoWriteBarrier(object, result_offset,
