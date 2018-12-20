@@ -1567,6 +1567,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            SMI_PARAMETERS);
   }
 
+  void JumpIfPointersFromHereAreInteresting(TNode<Object> object,
+                                            Label* interesting);
+
+  // Efficiently copy elements within a single array. The regions
+  // [src_index, src_index + length) and [dst_index, dst_index + length)
+  // can be overlapping.
+  void MoveElements(ElementsKind kind, TNode<FixedArrayBase> elements,
+                    TNode<IntPtrT> dst_index, TNode<IntPtrT> src_index,
+                    TNode<IntPtrT> length);
+
+  // Efficiently copy elements from one array to another. The ElementsKind
+  // needs to be the same. Copy from src_elements at
+  // [src_index, src_index + length) to dst_elements at
+  // [dst_index, dst_index + length).
+  void CopyElements(ElementsKind kind, TNode<FixedArrayBase> dst_elements,
+                    TNode<IntPtrT> dst_index,
+                    TNode<FixedArrayBase> src_elements,
+                    TNode<IntPtrT> src_index, TNode<IntPtrT> length);
+
   TNode<FixedArray> HeapObjectToFixedArray(TNode<HeapObject> base,
                                            Label* cast_fail);
 
@@ -1739,6 +1758,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* CalculateNewElementsCapacity(Node* old_capacity,
                                      ParameterMode mode = INTPTR_PARAMETERS);
+
+  TNode<Smi> CalculateNewElementsCapacity(TNode<Smi> old_capacity) {
+    return CAST(CalculateNewElementsCapacity(old_capacity, SMI_PARAMETERS));
+  }
 
   // Tries to grow the |elements| array of given |object| to store the |key|
   // or bails out if the growing gap is too big. Returns new elements.

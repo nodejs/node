@@ -9,8 +9,12 @@ module array {
   // zero-length input FixedArray is handled here.
   macro Extract<FixedArrayType: type>(
       elements: FixedArrayBase, first: Smi, count: Smi,
-      capacity: Smi): FixedArrayType {
-    return UnsafeCast<FixedArrayType>(
+      capacity: Smi): FixedArrayType;
+
+  Extract<FixedArray>(
+      elements: FixedArrayBase, first: Smi, count: Smi,
+      capacity: Smi): FixedArray {
+    return UnsafeCast<FixedArray>(
         ExtractFixedArray(elements, first, count, capacity));
   }
 
@@ -24,60 +28,77 @@ module array {
         ExtractFixedArray(elements, first, count, capacity));
   }
 
+  macro DoMoveElements<FixedArrayType: type>(
+      elements: FixedArrayType, dstIndex: Smi, srcIndex: Smi,
+      count: Smi): void {
+    TorqueMoveElements(
+        elements, Convert<intptr>(dstIndex), Convert<intptr>(srcIndex),
+        Convert<intptr>(count));
+  }
+
+  macro StoreHoles<FixedArrayType: type>(
+      elements: FixedArrayType, holeStartIndex: Smi, holeEndIndex: Smi): void {
+    for (let i: Smi = holeStartIndex; i < holeEndIndex; i++) {
+      StoreArrayHole(elements, i);
+    }
+  }
+
+  macro DoCopyElements<FixedArrayType: type>(
+      dstElements: FixedArrayType, dstIndex: Smi, srcElements: FixedArrayType,
+      srcIndex: Smi, count: Smi): void {
+    TorqueCopyElements(
+        dstElements, Convert<intptr>(dstIndex), srcElements,
+        Convert<intptr>(srcIndex), Convert<intptr>(count));
+  }
+
   macro FastSplice<FixedArrayType: type, ElementType: type>(
       args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
       actualDeleteCount: Smi): void
       labels Bailout {
-    const elements: FixedArrayBase = a.elements;
-    const elementsMap: Map = elements.map;
+    // Make sure elements are writable.
+    EnsureWriteableFastElements(a);
 
-    // If the spliced array is larger then the
-    // source array, then allocate a new FixedArrayType to hold the result.
-    let newElements: FixedArrayBase = elements;
-    if (elementsMap == kCOWMap || lengthDelta > 0) {
-      newElements =
-          Extract<FixedArrayType>(elements, 0, actualStart, newLength);
-      if (elementsMap == kCOWMap) {
-        newElements.map = elementsMap;
+    if (insertCount != actualDeleteCount) {
+      const elements: FixedArrayBase = a.elements;
+      const dstIndex: Smi = actualStart + insertCount;
+      const srcIndex: Smi = actualStart + actualDeleteCount;
+      const count: Smi = length - actualDeleteCount - actualStart;
+      if (insertCount < actualDeleteCount) {
+        // Shrink.
+        DoMoveElements<FixedArrayType>(
+            UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
+        StoreHoles<FixedArrayType>(
+            UnsafeCast<FixedArrayType>(elements), newLength, length);
+      } else if (insertCount > actualDeleteCount) {
+        // If the backing store is big enough, then moving elements is enough.
+        if (newLength <= elements.length) {
+          DoMoveElements<FixedArrayType>(
+              UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
+        } else {
+          // Grow.
+          let capacity: Smi = CalculateNewElementsCapacity(newLength);
+          const newElements: FixedArrayType =
+              Extract<FixedArrayType>(elements, 0, actualStart, capacity);
+          a.elements = newElements;
+          if (elements.length > 0) {
+            DoCopyElements<FixedArrayType>(
+                newElements, dstIndex, UnsafeCast<FixedArrayType>(elements),
+                srcIndex, count);
+          }
+        }
       }
-      a.elements = newElements;
     }
 
-    // Copy over inserted elements.
+    // Copy arguments.
     let k: Smi = actualStart;
     if (insertCount > 0) {
       const typedNewElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(newElements);
+          UnsafeCast<FixedArrayType>(a.elements);
       for (let e: Object of args [2: ]) {
         // The argument elements were already validated to be an appropriate
         // {ElementType} to store in {FixedArrayType}.
         typedNewElements[k++] = UnsafeCast<ElementType>(e);
-      }
-    }
-
-    // Copy over elements after deleted elements.
-    let count: Smi = length - actualStart - actualDeleteCount;
-    while (count > 0) {
-      const typedElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(elements);
-      const typedNewElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(newElements);
-      CopyArrayElement(typedElements, typedNewElements, k - lengthDelta, k);
-      k++;
-      count--;
-    }
-
-    // Fill rest of spliced FixedArray with the hole, but only if the
-    // destination FixedArray is the original array's, since otherwise the array
-    // is pre-filled with holes.
-    if (elements == newElements) {
-      const typedNewElements: FixedArrayType =
-          UnsafeCast<FixedArrayType>(newElements);
-      const limit: Smi = elements.length;
-      while (k < limit) {
-        StoreArrayHole(typedNewElements, k);
-        k++;
       }
     }
 

@@ -9,6 +9,9 @@ vars = {
   'download_jsfunfuzz': False,
   'download_mips_toolchain': False,
   'check_v8_header_includes': False,
+
+  # luci-go CIPD package version.
+  'luci_go': 'git_revision:fdf05508e8a66c773a41521e0243c9d11b9a2a1c',
 }
 
 deps = {
@@ -51,7 +54,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '486c9b53c4d54dd4b95bb6ce0e31160e600dfc11',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '0e3e1c4dc4e79f25a5b58fcbc135dc93183c0c54',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
@@ -82,8 +85,24 @@ deps = {
   },
   'v8/tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7792d28b069af6dd3a86d1ba83b7f5c4ede605dc',
-  'v8/tools/luci-go':
-    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
+  'v8/tools/luci-go': {
+      'packages': [
+        {
+          'package': 'infra/tools/luci/isolate/${{platform}}',
+          'version': Var('luci_go'),
+        },
+        {
+          'package': 'infra/tools/luci/isolated/${{platform}}',
+          'version': Var('luci_go'),
+        },
+        {
+          'package': 'infra/tools/luci/swarming/${{platform}}',
+          'version': Var('luci_go'),
+        },
+      ],
+      'condition': 'host_cpu != "s390"',
+      'dep_type': 'cipd',
+  },
   'v8/test/wasm-js':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'db9cd40808a90ecc5f4a23e88fb375c8f60b8d52',
 }

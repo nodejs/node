@@ -228,17 +228,98 @@ class SourceFileProcessor(object):
     return result
 
 
-class CppLintProcessor(SourceFileProcessor):
+class CacheableSourceFileProcessor(SourceFileProcessor):
+  """Utility class that allows caching ProcessFiles() method calls.
+
+  In order to use it, create a ProcessFilesWithoutCaching method that returns
+  the files requiring intervention after processing the source files.
+  """
+
+  def __init__(self, use_cache, cache_file_path, file_type):
+    self.use_cache = use_cache
+    self.cache_file_path = cache_file_path
+    self.file_type = file_type
+
+  def GetProcessorWorker(self):
+    """Expected to return the worker function to run the formatter."""
+    raise NotImplementedError
+
+  def GetProcessorScript(self):
+    """Expected to return a tuple
+    (path to the format processor script, list of arguments)."""
+    raise NotImplementedError
+
+  def GetProcessorCommand(self):
+    format_processor, options = self.GetProcessorScript()
+    if not format_processor:
+      print('Could not find the formatter for % files' % self.file_type)
+      sys.exit(1)
+
+    command = [sys.executable, format_processor]
+    command.extend(options)
+
+    return command
+
+  def ProcessFiles(self, files):
+    if self.use_cache:
+      cache = FileContentsCache(self.cache_file_path)
+      cache.Load()
+      files = cache.FilterUnchangedFiles(files)
+
+    if len(files) == 0:
+      print 'No changes in %s files detected. Skipping check' % self.file_type
+      return True
+
+    files_requiring_changes = self.DetectFilesToChange(files)
+    print (
+      'Total %s files found that require formatting: %d' %
+      (self.file_type, len(files_requiring_changes)))
+    if self.use_cache:
+      for file in files_requiring_changes:
+        cache.RemoveFile(file)
+
+      cache.Save()
+
+    return files_requiring_changes == []
+
+  def DetectFilesToChange(self, files):
+    command = self.GetProcessorCommand()
+    worker = self.GetProcessorWorker()
+
+    commands = [command + [file] for file in files]
+    count = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(count)
+    try:
+      results = pool.map_async(worker, commands).get(timeout=240)
+    except KeyboardInterrupt:
+      print "\nCaught KeyboardInterrupt, terminating workers."
+      pool.terminate()
+      pool.join()
+      sys.exit(1)
+
+    unformatted_files = []
+    for index, errors in enumerate(results):
+      if errors > 0:
+        unformatted_files.append(files[index])
+
+    return unformatted_files
+
+
+class CppLintProcessor(CacheableSourceFileProcessor):
   """
   Lint files to check that they follow the google code style.
   """
+
+  def __init__(self, use_cache=True):
+    super(CppLintProcessor, self).__init__(
+      use_cache=use_cache, cache_file_path='.cpplint-cache', file_type='C/C++')
 
   def IsRelevant(self, name):
     return name.endswith('.cc') or name.endswith('.h')
 
   def IgnoreDir(self, name):
     return (super(CppLintProcessor, self).IgnoreDir(name)
-              or (name == 'third_party'))
+            or (name == 'third_party'))
 
   IGNORE_LINT = ['export-template.h', 'flag-definitions.h']
 
@@ -251,54 +332,29 @@ class CppLintProcessor(SourceFileProcessor):
     test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
     return dirs + [join('test', dir) for dir in test_dirs]
 
-  def GetCpplintScript(self, prio_path):
-    for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
+  def GetProcessorWorker(self):
+    return CppLintWorker
+
+  def GetProcessorScript(self):
+    filters = ','.join([n for n in LINT_RULES])
+    arguments = ['--filter', filters]
+    for path in [TOOLS_PATH] + os.environ["PATH"].split(os.pathsep):
       path = path.strip('"')
-      cpplint = os.path.join(path, "cpplint.py")
+      cpplint = os.path.join(path, 'cpplint.py')
       if os.path.isfile(cpplint):
-        return cpplint
+        return cpplint, arguments
 
-    return None
+    return None, arguments
 
-  def ProcessFiles(self, files):
-    good_files_cache = FileContentsCache('.cpplint-cache')
-    good_files_cache.Load()
-    files = good_files_cache.FilterUnchangedFiles(files)
-    if len(files) == 0:
-      print 'No changes in C/C++ files detected. Skipping cpplint check.'
-      return True
 
-    filters = ",".join([n for n in LINT_RULES])
-    cpplint = self.GetCpplintScript(TOOLS_PATH)
-    if cpplint is None:
-      print('Could not find cpplint.py. Make sure '
-            'depot_tools is installed and in the path.')
-      sys.exit(1)
-
-    command = [sys.executable, cpplint, '--filter', filters]
-
-    commands = [command + [file] for file in files]
-    count = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(count)
-    try:
-      results = pool.map_async(CppLintWorker, commands).get(999999)
-    except KeyboardInterrupt:
-      print "\nCaught KeyboardInterrupt, terminating workers."
-      sys.exit(1)
-
-    for i in range(len(files)):
-      if results[i] > 0:
-        good_files_cache.RemoveFile(files[i])
-
-    total_errors = sum(results)
-    print "Total C/C++ files found that require formatting: %d" % total_errors
-    good_files_cache.Save()
-    return total_errors == 0
-
-class TorqueFormatProcessor(SourceFileProcessor):
+class TorqueFormatProcessor(CacheableSourceFileProcessor):
   """
   Check .tq files to verify they follow the Torque style guide.
   """
+
+  def __init__(self, use_cache=True):
+    super(TorqueFormatProcessor, self).__init__(
+      use_cache=use_cache, cache_file_path='.torquelint-cache', file_type='Torque')
 
   def IsRelevant(self, name):
     return name.endswith('.tq')
@@ -308,47 +364,17 @@ class TorqueFormatProcessor(SourceFileProcessor):
     test_dirs = ['torque']
     return dirs + [join('test', dir) for dir in test_dirs]
 
-  def GetTorquelintScript(self):
+  def GetProcessorWorker(self):
+    return TorqueLintWorker
+
+  def GetProcessorScript(self):
     torque_tools = os.path.join(TOOLS_PATH, "torque")
     torque_path = os.path.join(torque_tools, "format-torque.py")
-
+    arguments = ['-l']
     if os.path.isfile(torque_path):
-      return torque_path
+      return torque_path, arguments
 
-    return None
-
-  def ProcessFiles(self, files):
-    good_files_cache = FileContentsCache('.torquelint-cache')
-    good_files_cache.Load()
-    files = good_files_cache.FilterUnchangedFiles(files)
-    if len(files) == 0:
-      print 'No changes in Torque files detected. Skipping Torque lint check.'
-      return True
-
-    torquelint = self.GetTorquelintScript()
-    if torquelint is None:
-      print('Could not find format-torque.')
-      sys.exit(1)
-
-    command = [sys.executable, torquelint, '-l']
-
-    commands = [command + [file] for file in files]
-    count = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(count)
-    try:
-      results = pool.map_async(TorqueLintWorker, commands).get()
-    except KeyboardInterrupt:
-      print "\nCaught KeyboardInterrupt, terminating workers."
-      sys.exit(1)
-
-    for i in range(len(files)):
-      if results[i] > 0:
-        good_files_cache.RemoveFile(files[i])
-
-    total_errors = sum(results)
-    print "Total Torque files requiring formatting: %d" % total_errors
-    good_files_cache.Save()
-    return total_errors == 0
+    return None, arguments
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
     r'Copyright [\d-]*20[0-1][0-9] the V8 project authors. All rights reserved.')
@@ -639,6 +665,7 @@ def PyTests(workspace):
     print 'Running ' + script
     result &= subprocess.call(
         [sys.executable, script], stdout=subprocess.PIPE) == 0
+
   return result
 
 
@@ -646,6 +673,9 @@ def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
                     action="store_true")
+  result.add_option('--no-linter-cache', help="Do not cache linter results", default=False,
+                    action="store_true")
+
   return result
 
 
@@ -656,11 +686,13 @@ def Main():
   success = True
   print "Running checkdeps..."
   success &= CheckDeps(workspace)
+  use_linter_cache = not options.no_linter_cache
   if not options.no_lint:
     print "Running C++ lint check..."
-    success &= CppLintProcessor().RunOnPath(workspace)
+    success &= CppLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
+
   print "Running Torque formatting check..."
-  success &= TorqueFormatProcessor().RunOnPath(workspace)
+  success &= TorqueFormatProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success &= SourceProcessor().RunOnPath(workspace)
