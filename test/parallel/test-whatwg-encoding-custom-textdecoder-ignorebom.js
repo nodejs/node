@@ -1,12 +1,9 @@
 'use strict';
 
 // From: https://github.com/w3c/web-platform-tests/blob/7f567fa29c/encoding/textdecoder-ignorebom.html
-// TODO(joyeecheung): replace this with WPT
+// This is the part that can be run without ICU
 
-const common = require('../common');
-
-if (!common.hasIntl)
-  common.skip('missing Intl');
+require('../common');
 
 const assert = require('assert');
 
@@ -18,10 +15,6 @@ const cases = [
   {
     encoding: 'utf-16le',
     bytes: [0xFF, 0xFE, 0x61, 0x00, 0x62, 0x00, 0x63, 0x00]
-  },
-  {
-    encoding: 'utf-16be',
-    bytes: [0xFE, 0xFF, 0x00, 0x61, 0x00, 0x62, 0x00, 0x63]
   }
 ];
 
@@ -35,10 +28,3 @@ cases.forEach((testCase) => {
   decoder = new TextDecoder(testCase.encoding);
   assert.strictEqual(decoder.decode(bytes), 'abc');
 });
-
-{
-  assert('ignoreBOM' in new TextDecoder());
-  assert.strictEqual(typeof new TextDecoder().ignoreBOM, 'boolean');
-  assert(!new TextDecoder().ignoreBOM);
-  assert(new TextDecoder('utf-8', { ignoreBOM: true }).ignoreBOM);
-}
