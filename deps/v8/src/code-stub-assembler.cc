@@ -4931,6 +4931,13 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
   Comment("[ CopyPropertyArrayValues");
 
   bool needs_write_barrier = barrier_mode == UPDATE_WRITE_BARRIER;
+
+  if (destroy_source == DestroySource::kNo) {
+    // PropertyArray may contain MutableHeapNumbers, which will be cloned on the
+    // heap, requiring a write barrier.
+    needs_write_barrier = true;
+  }
+
   Node* start = IntPtrOrSmiConstant(0, mode);
   ElementsKind kind = PACKED_ELEMENTS;
   BuildFastFixedArrayForEach(
