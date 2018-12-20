@@ -36,6 +36,8 @@ const {
 
 const noop = () => {};
 
+const hasCrypto = Boolean(process.versions.openssl);
+
 const isMainThread = (() => {
   try {
     return require('worker_threads').isMainThread;
@@ -73,6 +75,9 @@ if (process.argv.length === 2 &&
     const args = process.execArgv.map((arg) => arg.replace(/_/g, '-'));
     for (const flag of flags) {
       if (!args.includes(flag) &&
+          // If the binary was built without-ssl then the crypto flags are
+          // invalid (bad option). The test itself should handle this case.
+          hasCrypto &&
           // If the binary is build without `intl` the inspect option is
           // invalid. The test itself should handle this case.
           (process.config.variables.v8_enable_inspector !== 0 ||
@@ -105,7 +110,6 @@ const rootDir = isWindows ? 'c:\\' : '/';
 
 const buildType = process.config.target_defaults.default_configuration;
 
-const hasCrypto = Boolean(process.versions.openssl);
 
 // If env var is set then enable async_hook hooks for all tests.
 if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
