@@ -1,6 +1,7 @@
 'use strict';
 
 // From: https://github.com/w3c/web-platform-tests/blob/fa9436d12c/encoding/api-surrogates-utf8.html
+// TODO(joyeecheung): replace this with WPT
 
 require('../common');
 
