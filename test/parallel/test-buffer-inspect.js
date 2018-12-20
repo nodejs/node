@@ -55,4 +55,4 @@ assert.strictEqual(util.inspect(b), expected);
 assert.strictEqual(util.inspect(s), expected);
 
 b.inspect = undefined;
-assert.strictEqual(util.inspect(b), expected);
+assert.strictEqual(util.inspect(b), '<Buffer 31 32, inspect: undefined>');
