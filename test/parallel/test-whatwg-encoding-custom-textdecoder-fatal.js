@@ -1,6 +1,7 @@
 'use strict';
 
 // From: https://github.com/w3c/web-platform-tests/blob/39a67e2fff/encoding/textdecoder-fatal.html
+// With the twist that we specifically test for Node.js error codes
 
 const common = require('../common');
 
@@ -82,21 +83,10 @@ bad.forEach((t) => {
   );
 });
 
+// TODO(joyeecheung): remove this when WPT is ported
 {
   assert('fatal' in new TextDecoder());
   assert.strictEqual(typeof new TextDecoder().fatal, 'boolean');
   assert(!new TextDecoder().fatal);
   assert(new TextDecoder('utf-8', { fatal: true }).fatal);
-}
-
-{
-  const notArrayBufferViewExamples = [false, {}, 1, '', new Error()];
-  notArrayBufferViewExamples.forEach((invalidInputType) => {
-    common.expectsError(() => {
-      new TextDecoder(undefined, null).decode(invalidInputType);
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError
-    });
-  });
 }
