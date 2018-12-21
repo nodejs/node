@@ -1,6 +1,9 @@
-// Flags: --abort-on-uncaught-exception
 'use strict';
-require('../common');
+const common = require('../common');
+
+if (!process.execArgv.includes('--abort-on-uncaught-exception'))
+  common.relaunchWithFlags(['--abort-on-uncaught-exception']);
+
 const vm = require('vm');
 
 // Regression test for https://github.com/nodejs/node/issues/13258
