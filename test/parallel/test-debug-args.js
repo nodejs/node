@@ -1,10 +1,13 @@
 'use strict';
-// Flags: --debug-code
+
+// Test that V8 options not implemented by Node.js are passed as-is to the
+// V8 engine and do not result in an error just because they are unreocgnized
+// by Node.js.
 
 const common = require('../common');
-const assert = require('assert');
 
 if (!common.isMainThread)
   common.skip('execArgv does not affect Workers');
 
-assert(process.execArgv.includes('--debug-code'));
+if (!process.execArgv.includes('--debug-code'))
+  common.relaunchWithFlags(['--debug-code']);
