@@ -19,12 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --pending-deprecation
 'use strict';
 const common = require('../common');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+if (!process.execArgv.includes('--pending-deprecation'))
+  common.relaunchWithFlags(['--pending-deprecation']);
 
 const assert = require('assert');
 const crypto = require('crypto');

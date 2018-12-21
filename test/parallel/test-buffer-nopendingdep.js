@@ -1,7 +1,8 @@
-// Flags: --pending-deprecation
 'use strict';
 
 const common = require('../common');
+if (!process.execArgv.includes('--pending-deprecation'))
+  common.relaunchWithFlags(['--pending-deprecation']);
 
 process.on('warning', common.mustNotCall('A warning should not be emitted'));
 
@@ -11,3 +12,4 @@ process.on('warning', common.mustNotCall('A warning should not be emitted'));
 Buffer.from('abc').map((i) => i);
 Buffer.from('abc').filter((i) => i);
 Buffer.from('abc').slice(1, 2);
+Buffer.of(0, 1);

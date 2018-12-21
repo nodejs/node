@@ -1,8 +1,10 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
-// Flags: --pending-deprecation
+if (!process.execArgv.includes('--pending-deprecation'))
+  common.relaunchWithFlags(['--pending-deprecation']);
+
+const assert = require('assert');
 
 common.expectWarning(
   'DeprecationWarning',
