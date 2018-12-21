@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.15.0">10.15.0</a><br/>
 <a href="#10.14.2">10.14.2</a><br/>
 <a href="#10.14.1">10.14.1</a><br/>
 <a href="#10.14.0">10.14.0</a><br/>
@@ -47,6 +48,32 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.15.0"></a>
+## 2018-12-26, Version 10.15.0 'Dubnium' (LTS), @MylesBorins
+
+The 10.14.0 security release introduced some unexpected breakages on the 10.x release line.
+This is a special release to fix a regression in the HTTP binary upgrade response body and add
+a missing CLI flag to adjust the max header size of the http parser.
+
+### Notable Changes
+
+* **cli**:
+  - add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* **http**:
+  - add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
+
+### Commits
+
+* [[`9b2ffc81c0`](https://github.com/nodejs/node/commit/9b2ffc81c0)] - **(SEMVER-MINOR)** **cli**: add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* [[`6183c7107d`](https://github.com/nodejs/node/commit/6183c7107d)] - **(SEMVER-MINOR)** **deps**: cherry-pick http\_parser\_set\_max\_header\_size (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* [[`e669733595`](https://github.com/nodejs/node/commit/e669733595)] - **doc**: describe current HTTP header size limit (Sam Roberts) [#24700](https://github.com/nodejs/node/pull/24700)
+* [[`b6d3afb257`](https://github.com/nodejs/node/commit/b6d3afb257)] - **(SEMVER-MINOR)** **http**: add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
+* [[`1aea1e3634`](https://github.com/nodejs/node/commit/1aea1e3634)] - **http**: fix regression of binary upgrade response body (Matteo Collina) [#25039](https://github.com/nodejs/node/pull/25039)
+* [[`a57aed144a`](https://github.com/nodejs/node/commit/a57aed144a)] - **(SEMVER-MINOR)** **src**: add kUInteger parsing (Matteo Collina) [#24811](https://github.com/nodejs/node/pull/24811)
+* [[`527407c49f`](https://github.com/nodejs/node/commit/527407c49f)] - **src**: cache the result of GetOptions() in JS land (Joyee Cheung) [#24091](https://github.com/nodejs/node/pull/24091)
+* [[`728bc631e5`](https://github.com/nodejs/node/commit/728bc631e5)] - **test**: fix expectation in test-bootstrap-modules (Ali Ijaz Sheikh) [#25112](https://github.com/nodejs/node/pull/25112)
+* [[`3e14212f0e`](https://github.com/nodejs/node/commit/3e14212f0e)] - **test**: remove magic numbers in test-gc-http-client-onerror (Rich Trott) [#24943](https://github.com/nodejs/node/pull/24943)
 
 <a id="10.14.2"></a>
 ## 2018-12-11, Version 10.14.2 'Dubnium' (LTS), @MylesBorins prepared by @codebytere
