@@ -1,10 +1,14 @@
 'use strict';
-// Flags: --zero-fill-buffers
 
-// when using --zero-fill-buffers, every Buffer and SlowBuffer
+// When using --zero-fill-buffers, every Buffer and SlowBuffer
 // instance must be zero filled upon creation
 
-require('../common');
+const common = require('../common');
+
+if (!process.execArgv.includes('--zero-fill-buffers')) {
+  common.relaunchWithFlags(['--zero-fill-buffers']);
+}
+
 const SlowBuffer = require('buffer').SlowBuffer;
 const assert = require('assert');
 
