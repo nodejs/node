@@ -1,4 +1,3 @@
-// Flags: --preserve-symlinks
 'use strict';
 const common = require('../common');
 
@@ -7,11 +6,13 @@ if (!common.canCreateSymLink())
 if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
+if (!process.execArgv.includes('--preserve-symlinks'))
+  common.relaunchWithFlags(['--preserve-symlinks']);
+
 const assert = require('assert');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const process = require('process');
 
 // Setup: Copy fixtures to tmp directory.
 

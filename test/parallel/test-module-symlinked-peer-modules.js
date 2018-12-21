@@ -1,4 +1,3 @@
-// Flags: --preserve-symlinks
 'use strict';
 // Refs: https://github.com/nodejs/node/pull/5950
 
@@ -9,6 +8,10 @@
 // This test will fail in Node.js v4 and v5 and should not be backported.
 
 const common = require('../common');
+
+if (!process.execArgv.includes('--preserve-symlinks'))
+  common.relaunchWithFlags(['--preserve-symlinks']);
+
 const fs = require('fs');
 const path = require('path');
 
