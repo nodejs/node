@@ -1,11 +1,14 @@
-// Flags: --tls-v1.0
 'use strict';
 
 const common = require('../common');
-const { readKey } = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+if (!process.execArgv.includes('--tls-v1.0'))
+  common.relaunchWithFlags(['--tls-v1.0']);
+
+const { readKey } = require('../common/fixtures');
 
 const assert = require('assert');
 const https = require('https');
