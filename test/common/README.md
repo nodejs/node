@@ -271,8 +271,8 @@ See `common.expectWarning()` for usage.
 Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
-* `ms` [&lt;number>|&lt;bigint>]
-* return [&lt;number>|&lt;bigint>]
+* `ms` [&lt;number>] | [&lt;bigint>]
+* return [&lt;number>] | [&lt;bigint>]
 
 Returns a timeout value based on detected conditions. For example, a debug build
 may need extra time so the returned value will be larger than on a release
@@ -793,11 +793,12 @@ See [the WPT tests README][] for details.
 [&lt;Function>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[&lt;bigint>]: https://github.com/tc39/proposal-bigint
 [&lt;boolean>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type
 [&lt;number>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [&lt;string>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
+[Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`hijackstdio.hijackStdErr()`]: #hijackstderrlistener
 [`hijackstdio.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
-[Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [the WPT tests README]: ../wpt/README.md
