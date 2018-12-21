@@ -1,4 +1,3 @@
-// Flags: --no-deprecation
 'use strict';
 require('../common');
 const fixtures = require('../common/fixtures');
