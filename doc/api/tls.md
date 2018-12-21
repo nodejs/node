@@ -140,6 +140,94 @@ To test the renegotiation limits on a server, connect to it using the OpenSSL
 command-line client (`openssl s_client -connect address:port`) then input
 `R<CR>` (i.e., the letter `R` followed by a carriage return) multiple times.
 
+### Session Resumption
+
+Establishing a TLS session can be relatively slow. The process can be sped
+up by saving and later reusing the session state. There are several mechanisms
+to do so, discussed here from oldest to newest (and preferred).
+
+***Session Identifiers*** Servers generate a unique ID for new connections and
+send it to the client. Clients and servers save the session state. When
+reconnecting, clients send the ID of their saved session state and if the server
+also has the state for that ID, it can agree to use it. Otherwise, the server
+will create a new session. See [RFC 2246][] for more information, page 23 and
+30.
+
+Resumption using session identifiers is supported by most web browsers when
+making HTTPS requests.
+
+For Node.js, clients must call [`tls.TLSSocket.getSession()`][] after the
+[`'secureConnect'`][] event to get the session data, and provide the data to the
+`session` option of [`tls.connect()`][] to reuse the session. Servers must
+implement handlers for the [`'newSession'`][] and [`'resumeSession'`][] events
+to save and restore the session data using the session ID as the lookup key to
+reuse sessions. To reuse sessions across load balancers or cluster workers,
+servers must use a shared session cache (such as Redis) in their session
+handlers.
+
+***Session Tickets*** The servers encrypt the entire session state and send it
+to the client as a "ticket". When reconnecting, the state is sent to the server
+in the initial connection. This mechanism avoids the need for server-side
+session cache. If the server doesn't use the ticket, for any reason (failure
+to decrypt it, it's too old, etc.), it will create a new session and send a new
+ticket. See [RFC 5077][] for more information.
+
+Resumption using session tickets is becoming commonly supported by many web
+browsers when making HTTPS requests.
+
+For Node.js, clients use the same APIs for resumption with session identifiers
+as for resumption with session tickets. For debugging, if
+[`tls.TLSSocket.getTLSTicket()`][] returns a value, the session data contains a
+ticket, otherwise it contains client-side session state.
+
+Single process servers need no specific implementation to use session tickets.
+To use session tickets across server restarts or load balancers, servers must
+all have the same ticket keys. There are three 16-byte keys internally, but the
+tls API exposes them as a single 48-byte buffer for convenience.
+
+Its possible to get the ticket keys by calling [`server.getTicketKeys()`][] on
+one server instance and then distribute them, but it is more reasonable to
+securely generate 48 bytes of secure random data and set them with the
+`ticketKeys` option of [`tls.createServer()`][]. The keys should be regularly
+regenerated and server's keys can be reset with
+[`server.setTicketKeys()`][].
+
+Session ticket keys are cryptographic keys, and they ***must be stored
+securely***. With TLS 1.2 and below, if they are compromised all sessions that
+used tickets encrypted with them can be decrypted. They should not be stored
+on disk, and they should be regenerated regularly.
+
+If clients advertise support for tickets, the server will send them. The
+server can disable tickets by supplying
+`require('constants').SSL_OP_NO_TICKET` in `secureOptions`.
+
+Both session identifiers and session tickets timeout, causing the server to
+create new sessions. The timeout can be configured with the `sessionTimeout`
+option of [`tls.createServer()`][].
+
+For all the mechanisms, when resumption fails, servers will create new sessions.
+Since failing to resume the session does not cause TLS/HTTPS connection
+failures, it is easy to not notice unnecessarily poor TLS performance. The
+OpenSSL CLI can be used to verify that servers are resuming sessions. Use the
+`-reconnect` option to `openssl s_client`, for example:
+
+```sh
+$ openssl s_client -connect localhost:443 -reconnect
+```
+
+Read through the debug output. The first connection should say "New", for
+example:
+
+```text
+New, TLSv1.2, Cipher is ECDHE-RSA-AES128-GCM-SHA256
+```
+
+Subsequent connections should say "Reused", for example:
+
+```text
+Reused, TLSv1.2, Cipher is ECDHE-RSA-AES128-GCM-SHA256
+```
+
 ## Modifying the Default TLS Cipher suite
 
 Node.js is built with a default suite of enabled and disabled TLS ciphers.
@@ -169,10 +257,10 @@ HIGH:
 !CAMELLIA
 ```
 
-This default can be replaced entirely using the [`--tls-cipher-list`][] command line
-switch (directly, or via the [`NODE_OPTIONS`][] environment variable). For
-instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default
-TLS cipher suite:
+This default can be replaced entirely using the [`--tls-cipher-list`][] command
+line switch (directly, or via the [`NODE_OPTIONS`][] environment variable). For
+instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS
+cipher suite:
 
 ```sh
 node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4" server.js
@@ -221,11 +309,13 @@ added: v0.9.2
 -->
 
 The `'newSession'` event is emitted upon creation of a new TLS session. This may
-be used to store sessions in external storage. The listener callback is passed
-three arguments when called:
+be used to store sessions in external storage. The data should be provided to
+the [`'resumeSession'`][] callback.
 
-* `sessionId` - The TLS session identifier
-* `sessionData` - The TLS session data
+The listener callback is passed three arguments when called:
+
+* `sessionId` {Buffer} The TLS session identifier
+* `sessionData` {Buffer} The TLS session data
 * `callback` {Function} A callback function taking no arguments that must be
   invoked in order for data to be sent or received over the secure connection.
 
@@ -288,15 +378,19 @@ The `'resumeSession'` event is emitted when the client requests to resume a
 previous TLS session. The listener callback is passed two arguments when
 called:
 
-* `sessionId` - The TLS/SSL session identifier
+* `sessionId` {Buffer} The TLS session identifier
 * `callback` {Function} A callback function to be called when the prior session
-  has been recovered.
+  has been recovered: `callback([err[, sessionData]])`
+  * `err` {Error}
+  * `sessionData` {Buffer}
 
-When called, the event listener may perform a lookup in external storage using
-the given `sessionId` and invoke `callback(null, sessionData)` once finished. If
-the session cannot be resumed (i.e., doesn't exist in storage) the callback may
-be invoked as `callback(null, null)`. Calling `callback(err)` will terminate the
-incoming connection and destroy the socket.
+The event listener should perform a lookup in external storage for the
+`sessionData` saved by the [`'newSession'`][] event handler using the given
+`sessionId`. If found, call `callback(null, sessionData)` to resume the session.
+If not found, the session cannot be resumed. `callback()` must be called
+without `sessionData` so that the handshake can continue and a new session can
+be created. It is possible to call `callback(err)` to terminate the incoming
+connection and destroy the socket.
 
 Listening for this event will have an effect only on connections established
 after the addition of the event listener.
@@ -406,10 +500,11 @@ Returns the current number of concurrent connections on the server.
 added: v3.0.0
 -->
 
-* Returns: {Buffer}
+* Returns: {Buffer} A 48-byte buffer containing the session ticket keys.
 
-Returns a `Buffer` instance holding the keys currently used for
-encryption/decryption of the [TLS Session Tickets][].
+Returns the session ticket keys.
+
+See [Session Resumption][] for more information.
 
 ### server.listen()
 
@@ -433,16 +528,14 @@ existing server. Existing connections to the server are not interrupted.
 added: v3.0.0
 -->
 
-* `keys` {Buffer} The keys used for encryption/decryption of the
-  [TLS Session Tickets][].
+* `keys` {Buffer} A 48-byte buffer containing the session ticket keys.
 
-Updates the keys for encryption/decryption of the [TLS Session Tickets][].
-
-The key's `Buffer` should be 48 bytes long. See `ticketKeys` option in
-[`tls.createServer()`] for more information on how it is used.
+Sets the session ticket keys.
 
 Changes to the ticket keys are effective only for future server connections.
 Existing or currently pending server connections will use the previous keys.
+
+See [Session Resumption][] for more information.
 
 ## Class: tls.TLSSocket
 <!-- YAML
@@ -782,19 +875,28 @@ information.
 added: v0.11.4
 -->
 
-Returns the ASN.1 encoded TLS session or `undefined` if no session was
-negotiated. Can be used to speed up handshake establishment when reconnecting
-to the server.
+* {Buffer}
+
+Returns the TLS session data or `undefined` if no session was
+negotiated. On the client, the data can be provided to the `session` option of
+[`tls.connect()`][] to resume the connection. On the server, it may be useful
+for debugging.
+
+See [Session Resumption][] for more information.
 
 ### tlsSocket.getTLSTicket()
 <!-- YAML
 added: v0.11.4
 -->
 
-Returns the TLS session ticket or `undefined` if no session was negotiated.
+* {Buffer}
 
-This only works with client TLS sockets. Useful only for debugging, for session
-reuse provide `session` option to [`tls.connect()`][].
+For a client, returns the TLS session ticket if one is available, or
+`undefined`. For a server, always returns `undefined`.
+
+It may be useful for debugging.
+
+See [Session Resumption][] for more information.
 
 ### tlsSocket.localAddress
 <!-- YAML
@@ -1230,18 +1332,17 @@ changes:
   * `requestCert` {boolean} If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. **Default:**
     `false`.
-  * `sessionTimeout` {number} An integer specifying the number of seconds after
-    which the TLS session identifiers and TLS session tickets created by the
-    server will time out. See [`SSL_CTX_set_timeout`] for more details.
+  * `sessionTimeout` {number} The number of seconds after which a TLS session
+    created by the server will no longer be resumable. See
+    [Session Resumption][] for more information. **Default:** `300`.
   * `SNICallback(servername, cb)` {Function} A function that will be called if
     the client supports SNI TLS extension. Two arguments will be passed when
     called: `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`,
     where `ctx` is a `SecureContext` instance. (`tls.createSecureContext(...)`
     can be used to get a proper `SecureContext`.) If `SNICallback` wasn't
     provided the default callback with high-level API will be used (see below).
-  * `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
-    a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
-    session tickets on multiple instances of the TLS server.
+  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
+    data. See [Session Resumption][] for more information.
   * ...: Any [`tls.createSecureContext()`][] option can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `secureConnectionListener` {Function}
@@ -1416,21 +1517,26 @@ secureSocket = tls.TLSSocket(socket, options);
 
 where `secureSocket` has the same API as `pair.cleartext`.
 
+[`'newSession'`]: #tls_event_newsession
+[`'resumeSession'`]: #tls_event_resumesession
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [`--tls-cipher-list`]: cli.html#cli_tls_cipher_list_list
 [`NODE_OPTIONS`]: cli.html#cli_node_options_options
-[`SSL_CTX_set_timeout`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`server.getConnections()`]: net.html#net_server_getconnections_callback
+[`server.getTicketKeys()`]: #tls_server_getticketkeys
 [`server.listen()`]: net.html#net_server_listen
+[`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.Server`]: #tls_class_tls_server
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
+[`tls.TLSSocket.getSession()`]: #tls_tlssocket_getsession
+[`tls.TLSSocket.getTLSTicket()`]: #tls_tlssocket_gettlsticket
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
 [`tls.connect()`]: #tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
@@ -1445,10 +1551,12 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.1.0/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
+[RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
+[RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929
 [SSL_METHODS]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html#Dealing-with-Protocol-Methods
+[Session Resumption]: #tls_session_resumption
 [Stream]: stream.html#stream_stream
-[TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #tls_certificate_object
