@@ -1914,7 +1914,7 @@ requests.
 
 ## http.maxHeaderSize
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 
 * {number}

@@ -1103,7 +1103,7 @@ This can be called many times with new data as it is streamed.
 
 ## Class: KeyObject
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 
 Node.js uses an internal `KeyObject` class which should not be accessed
@@ -1118,7 +1118,7 @@ passing keys as strings or `Buffer`s due to improved security features.
 
 ### keyObject.asymmetricKeyType
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 * {string}
 
@@ -1127,7 +1127,7 @@ For asymmetric keys, this property represents the type of the embedded key
 
 ### keyObject.export([options])
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 * `options`: {Object}
 * Returns: {string | Buffer}
@@ -1159,7 +1159,7 @@ be a buffer containing the data encoded as DER.
 
 ### keyObject.symmetricSize
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 * {number}
 
@@ -1168,7 +1168,7 @@ property is `undefined` for asymmetric keys.
 
 ### keyObject.type
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 * {string}
 
@@ -1244,7 +1244,7 @@ console.log(sign.sign(privateKey, 'hex'));
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
   - version: v8.0.0
@@ -1512,7 +1512,7 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `key` argument can now be a `KeyObject`.
   - version: v11.2.0
@@ -1605,7 +1605,7 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `key` argument can now be a `KeyObject`.
   - version: v11.2.0
@@ -1759,7 +1759,7 @@ input.on('readable', () => {
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `key` argument can now be a `KeyObject`.
 -->
@@ -1802,7 +1802,7 @@ input.on('readable', () => {
 
 ### crypto.createPrivateKey(key)
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 * `key` {Object | string | Buffer}
   - `key`: {string | Buffer} The key material, either in PEM or DER format.
@@ -1818,7 +1818,7 @@ must be an object with the properties described above.
 
 ### crypto.createPublicKey(key)
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 * `key` {Object | string | Buffer}
   - `key`: {string | Buffer}
@@ -1835,7 +1835,7 @@ If the format is `'pem'`, the `'key'` may also be an X.509 certificate.
 
 ### crypto.createSecretKey(key)
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 * `key` {Buffer}
 * Returns: {KeyObject}
@@ -1873,7 +1873,7 @@ signing algorithms. Optional `options` argument controls the
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `generateKeyPair` and `generateKeyPairSync` functions now
                  produce key objects if no encoding was specified.
@@ -1930,7 +1930,7 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `generateKeyPair` and `generateKeyPairSync` functions now
                  produce key objects if no encoding was specified.
@@ -2197,7 +2197,7 @@ An array of supported digest functions can be retrieved using
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
@@ -2221,7 +2221,7 @@ object, the `padding` property can be passed. Otherwise, this function uses
 <!-- YAML
 added: v1.1.0
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
@@ -2246,7 +2246,7 @@ object, the `padding` property can be passed. Otherwise, this function uses
 <!-- YAML
 added: v1.1.0
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
@@ -2273,7 +2273,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: This function now supports key objects.
 -->
