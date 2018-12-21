@@ -1,14 +1,13 @@
 'use strict';
 
 const common = require('../common');
-common.exposeInternals();
+if (!process.execArgv.includes('--experimental-repl-await'))
+  common.relaunchWithFlags(['--expose-internals', '--experimental-repl-await']);
 
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const { stripVTControlCharacters } = require('internal/readline');
 const repl = require('repl');
-
-// Flags: --experimental-repl-await
 
 const PROMPT = 'await repl > ';
 
