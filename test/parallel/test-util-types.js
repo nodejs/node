@@ -1,7 +1,7 @@
-// Flags: --experimental-vm-modules
 'use strict';
 const common = require('../common');
-common.exposeInternals();
+if (!process.execArgv.includes('--experimental-vm-modules'))
+  common.relaunchWithFlags(['--expose-internals', '--experimental-vm-modules']);
 
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
