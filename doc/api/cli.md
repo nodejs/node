@@ -407,7 +407,7 @@ the next argument will be used as a script filename.
 
 ### `--max-http-header-size=size`
 <!-- YAML
-added: REPLACEME
+added: v8.15.0
 -->
 
 Specify the maximum size, in bytes, of HTTP headers. Defaults to 8KB.
