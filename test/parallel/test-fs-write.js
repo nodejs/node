@@ -19,9 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose_externalize_string
 'use strict';
 const common = require('../common');
+if (!process.execArgv.includes('--expose-externalize-string'))
+  common.relaunchWithFlags(['--expose-externalize-string']);
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
