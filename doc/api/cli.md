@@ -199,7 +199,7 @@ Specify the `file` of the custom [experimental ECMAScript Module][] loader.
 
 ### `--max-http-header-size=size`
 <!-- YAML
-added: REPLACEME
+added: v11.6.0
 -->
 
 Specify the maximum size, in bytes, of HTTP headers. Defaults to 8KB.
