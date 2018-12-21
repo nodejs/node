@@ -1896,7 +1896,7 @@ requests.
 
 ## http.maxHeaderSize
 <!-- YAML
-added: REPLACEME
+added: v10.15.0
 -->
 
 * {number}
