@@ -1,7 +1,7 @@
-// Flags: --inspect=0
 'use strict';
 const common = require('../common');
-const assert = require('assert');
+if (!process.execArgv.includes('--inspect=0'))
+  common.relaunchWithFlags(['--inspect=0']);
 
 // With the current behavior of Node.js (at least as late as 8.1.0), this
 // test fails with the following error:
@@ -11,6 +11,7 @@ const assert = require('assert');
 //
 // Refs: https://github.com/nodejs/node/issues/13343
 
+const assert = require('assert');
 // This following check should be replaced by common.skipIfInspectorDisabled()
 // if moved out of the known_issues directory.
 if (process.config.variables.v8_enable_inspector === 0) {

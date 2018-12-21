@@ -1,9 +1,10 @@
-// Flags: --inspect=0
 'use strict';
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
 common.skipIfWorker();
+if (!process.execArgv.includes('--inspect=0'))
+  common.relaunchWithFlags(['--inspect=0']);
 
 // Assert that even when started with `--inspect=0` workers are assigned
 // consecutive (i.e. deterministically predictable) debug ports

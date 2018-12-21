@@ -1,4 +1,3 @@
-// Flags: --inspect=0
 'use strict';
 const common = require('../common');
 
@@ -11,6 +10,9 @@ if (common.isWindows)
   common.skip('test does not apply to Windows');
 
 common.skipIfWorker(); // Worker inspector never has a server running
+
+if (!process.execArgv.includes('--inspect=0'))
+  common.relaunchWithFlags(['--inspect=0']);
 
 common.expectWarning('Warning',
                      'process.on(SIGPROF) is reserved while debugging',
