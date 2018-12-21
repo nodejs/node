@@ -8,21 +8,20 @@ const assert = require('assert');
 const entry = fixtures.path('/es-modules/cjs.js');
 
 const child = spawn(process.execPath, ['--experimental-modules', entry]);
-let experimentalWarning = false;
-let validatedExecution = false;
+let stderr = '';
+child.stderr.setEncoding('utf8');
 child.stderr.on('data', (data) => {
-  if (!experimentalWarning) {
-    experimentalWarning = true;
-    return;
-  }
-  throw new Error(data.toString());
+  stderr += data;
 });
+let stdout = '';
+child.stdout.setEncoding('utf8');
 child.stdout.on('data', (data) => {
-  assert.strictEqual(data.toString(), 'executed\n');
-  validatedExecution = true;
+  stdout += data;
 });
 child.on('close', common.mustCall((code, signal) => {
-  assert.strictEqual(validatedExecution, true);
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
+  assert.strictEqual(stdout, 'executed\n');
+  assert.strictEqual(stderr, `(node:${child.pid}) ` +
+      'ExperimentalWarning: The ESM module loader is experimental.\n');
 }));
