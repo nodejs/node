@@ -20,19 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Flags: --max_old_space_size=32
 
-require('../common');
+const common = require('../common');
+if (!process.execArgv.includes('--max-old-space-size=32'))
+  common.relaunchWithFlags(['--max-old-space-size=32']);
+
 const assert = require('assert');
 const vm = require('vm');
 
 const start = Date.now();
 let maxMem = 0;
-
-const ok = process.execArgv.some(function(arg) {
-  return arg === '--max_old_space_size=32';
-});
-assert(ok, 'Run this test with --max_old_space_size=32.');
 
 const interval = setInterval(function() {
   try {
