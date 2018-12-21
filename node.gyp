@@ -878,7 +878,7 @@
                 '<(PRODUCT_DIR)/<(node_core_target_name).exe',
               ],
               'action': [
-                'mv', '<@(_inputs)', '<@(_outputs)',
+                'move', '<@(_inputs)', '<@(_outputs)',
               ],
             },
           ],
