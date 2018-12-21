@@ -841,9 +841,6 @@ static Local<Object> GetFeatures(Environment* env) {
   return scope.Escape(obj);
 }
 
-static void DebugProcess(const FunctionCallbackInfo<Value>& args);
-static void DebugEnd(const FunctionCallbackInfo<Value>& args);
-
 void SetupProcessObject(Environment* env,
                         const std::vector<std::string>& args,
                         const std::vector<std::string>& exec_args) {
