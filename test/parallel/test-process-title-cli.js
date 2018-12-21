@@ -1,10 +1,12 @@
-// Flags: --title=foo
 'use strict';
 
 const common = require('../common');
 
 if (common.isSunOS)
   common.skip(`Unsupported platform [${process.platform}]`);
+
+if (!process.execArgv.includes('--title=foo'))
+  common.relaunchWithFlags(['--title=foo']);
 
 const assert = require('assert');
 
