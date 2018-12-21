@@ -2631,8 +2631,7 @@ class V8_EXPORT String : public Name {
    public:
     virtual ~ExternalStringResourceBase() = default;
 
-    V8_DEPRECATE_SOON("Use IsCacheable().",
-                      virtual bool IsCompressible() const) {
+    V8_DEPRECATED("Use IsCacheable().", virtual bool IsCompressible() const) {
       return false;
     }
 
@@ -2641,16 +2640,7 @@ class V8_EXPORT String : public Name {
      * ExternalStringResource::data() may be cached, otherwise it is not
      * expected to be stable beyond the current top-level task.
      */
-    virtual bool IsCacheable() const {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-      return !IsCompressible();
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-    }
+    virtual bool IsCacheable() const { return true; }
 
    protected:
     ExternalStringResourceBase() = default;
