@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.16.0">6.16.0</a><br/>
 <a href="#6.15.1">6.15.1</a><br/>
 <a href="#6.15.0">6.15.0</a><br/>
 <a href="#6.14.4">6.14.4</a><br/>
@@ -74,6 +75,27 @@
 *Note*: Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.16.0"></a>
+## 2018-12-26, Version 6.16.0 'Boron' (LTS), @MylesBorins
+
+The 6.15.0 security release introduced some unexpected breakages on the 6.x release line.
+This is a special release to fix a regression in the HTTP binary upgrade response body and add
+a missing CLI flag to adjust the max header size of the http parser.
+
+### Notable Changes
+
+* **cli**: 
+  - add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* **http**:
+  - add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
+
+### Commits
+
+* [[`f233b160c9`](https://github.com/nodejs/node/commit/f233b160c9)] - **(SEMVER-MINOR)** **cli**: add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* [[`59f83d6896`](https://github.com/nodejs/node/commit/59f83d6896)] - **(SEMVER-MINOR)** **deps**: cherry-pick http\_parser\_set\_max\_header\_size (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* [[`c0c4de71f0`](https://github.com/nodejs/node/commit/c0c4de71f0)] - **(SEMVER-MINOR)** **http**: add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
+* [[`8a3e0c0697`](https://github.com/nodejs/node/commit/8a3e0c0697)] - **http**: fix regression of binary upgrade response body (Matteo Collina) [#25036](https://github.com/nodejs/node/pull/25036)
 
 <a id="6.15.1"></a>
 ## 2018-12-03, Version 6.15.1 'Boron' (LTS), @rvagg
