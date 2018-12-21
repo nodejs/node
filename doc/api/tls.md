@@ -169,12 +169,16 @@ HIGH:
 !CAMELLIA
 ```
 
-This default can be replaced entirely using the `--tls-cipher-list` command
-line switch. For instance, the following makes
-`ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS cipher suite:
+This default can be replaced entirely using the [`--tls-cipher-list`][] command line
+switch (directly, or via the [`NODE_OPTIONS`][] environment variable). For
+instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default
+TLS cipher suite:
 
 ```sh
-node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4" server.js
+
+export NODE_OPTIONS=--tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+node server.js
 ```
 
 The default can also be replaced on a per client or server basis using the
@@ -1414,6 +1418,8 @@ where `secureSocket` has the same API as `pair.cleartext`.
 
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
+[`--tls-cipher-list`]: cli.html#cli_tls_cipher_list_list
+[`NODE_OPTIONS`]: cli.html#cli_node_options_options
 [`SSL_CTX_set_timeout`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_timeout.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
