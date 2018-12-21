@@ -1,4 +1,3 @@
-// Flags: --no-warnings
 'use strict';
 
 const vm = require('vm');

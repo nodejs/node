@@ -1,5 +1,3 @@
-// Flags: --no-warnings
-// The flag suppresses stderr output but the warning event will still emit
 'use strict';
 
 const common = require('../common');

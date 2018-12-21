@@ -1,10 +1,10 @@
-// Flags: --no-warnings
 'use strict';
 
 // See also test/parallel/test-handle-wrap-isrefed.js
 
 const common = require('../common');
-common.exposeInternals();
+if (!process.execArgv.includes('--no-warnings'))
+  common.relaunchWithFlags(['--expose-internals', '--no-warnings']);
 
 const strictEqual = require('assert').strictEqual;
 const ReadStream = require('tty').ReadStream;

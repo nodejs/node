@@ -1,4 +1,3 @@
-// Flags: --no-warnings
 'use strict';
 
 // Test that warnings are emitted when a Promise experiences an uncaught

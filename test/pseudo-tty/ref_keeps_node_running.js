@@ -1,8 +1,8 @@
-// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
-common.exposeInternals();
+if (!process.execArgv.includes('--no-warnings'))
+  common.relaunchWithFlags(['--expose-internals', '--no-warnings']);
 
 const { internalBinding } = require('internal/test/binding');
 const { TTY, isTTY } = internalBinding('tty_wrap');

@@ -1,4 +1,4 @@
-// Flags: --pending-deprecation --no-warnings
+// Flags: --pending-deprecation
 'use strict';
 
 const common = require('../common');
