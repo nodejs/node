@@ -41,8 +41,6 @@ try:
 except NameError:
     xrange = range  # Python 3
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-
 class MessageTestCase(test.TestCase):
 
   def __init__(self, path, file, expected, arch, mode, context, config):
@@ -105,10 +103,6 @@ class MessageTestCase(test.TestCase):
 
   def GetCommand(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
-    source = open(self.file).read()
-    flags_match = FLAGS_PATTERN.search(source)
-    if flags_match:
-      result += flags_match.group(1).strip().split()
     if self.file.endswith('.mjs'):
       result += ['--experimental-modules']
     result.append(self.file)

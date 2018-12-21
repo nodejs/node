@@ -37,9 +37,6 @@ except NameError:
   from functools import reduce
 
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-
-
 class SimpleTestCase(test.TestCase):
 
   def __init__(self, path, file, arch, mode, context, config, additional=None):
@@ -62,30 +59,6 @@ class SimpleTestCase(test.TestCase):
 
   def GetCommand(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
-    source = open(self.file).read()
-    flags_match = FLAGS_PATTERN.search(source)
-    if flags_match:
-      flags = flags_match.group(1).strip().split()
-      # The following block reads config.gypi to extract the v8_enable_inspector
-      # value. This is done to check if the inspector is disabled in which case
-      # the '--inspect' flag cannot be passed to the node process as it will
-      # cause node to exit and report the test as failed. The use case
-      # is currently when Node is configured --without-ssl and the tests should
-      # still be runnable but skip any tests that require ssl (which includes the
-      # inspector related tests). Also, if there is no ssl support the options
-      # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
-      # failure so such tests are also skipped.
-      if (any(flag.startswith('--inspect') for flag in flags) and
-          not self.context.v8_enable_inspector):
-        print(': Skipping as node was compiled without inspector support')
-      elif (('--use-bundled-ca' in flags or
-          '--use-openssl-ca' in flags or
-          '--tls-v1.0' in flags or
-          '--tls-v1.1' in flags) and
-          not self.context.node_has_crypto):
-        print(': Skipping as node was compiled without crypto support')
-      else:
-        result += flags
 
     if self.additional_flags:
       result += self.additional_flags

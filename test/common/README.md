@@ -319,6 +319,12 @@ spawn(...common.pwdCommand, { stdio: ['pipe'] });
 
 Relaunches the test adding the specified command-line flags.
 
+```js
+const common = require('../common');
+if (process.argv.includes('--preserve-symlinks'))
+  common.relaunchWithFlags(['--preserve-symlinks']);
+```
+
 ### rootDir
 * [&lt;string>]
 

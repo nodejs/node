@@ -43,8 +43,6 @@ try:
 except NameError:
   xrange = range  # Python 3
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-
 class TTYTestCase(test.TestCase):
 
   def __init__(self, path, file, expected, input, arch, mode, context, config):
@@ -104,10 +102,6 @@ class TTYTestCase(test.TestCase):
 
   def GetCommand(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
-    source = open(self.file).read()
-    flags_match = FLAGS_PATTERN.search(source)
-    if flags_match:
-      result += flags_match.group(1).strip().split()
     result.append(self.file)
     return result
 
