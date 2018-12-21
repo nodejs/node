@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.15.0">8.15.0</a><br/>
 <a href="#8.14.1">8.14.1</a><br/>
 <a href="#8.14.0">8.14.0</a><br/>
 <a href="#8.13.0">8.13.0</a><br/>
@@ -63,6 +64,30 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.15.0"></a>
+## 2018-12-26, Version 8.15.0 'Carbon' (LTS), @MylesBorins
+
+The 8.14.0 security release introduced some unexpected breakages on the 8.x release line.
+This is a special release to fix a regression in the HTTP binary upgrade response body and add
+a missing CLI flag to adjust the max header size of the http parser.
+
+### Notable Changes
+
+* **cli**:
+  - add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* **http**:
+  - add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
+
+### Commits
+
+* [[`693e362175`](https://github.com/nodejs/node/commit/693e362175)] - **(SEMVER-MINOR)** **cli**: add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* [[`4fb5a1be2f`](https://github.com/nodejs/node/commit/4fb5a1be2f)] - **(SEMVER-MINOR)** **deps**: cherry-pick http\_parser\_set\_max\_header\_size (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
+* [[`446f8b54e5`](https://github.com/nodejs/node/commit/446f8b54e5)] - **(SEMVER-MINOR)** **http**: add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
+* [[`215ecfe4de`](https://github.com/nodejs/node/commit/215ecfe4de)] - **http**: fix regression of binary upgrade response body (Matteo Collina) [#25037](https://github.com/nodejs/node/pull/25037)
+* [[`e1fbc26c6a`](https://github.com/nodejs/node/commit/e1fbc26c6a)] - **test**: move test-benchmark-path to sequential (Rich Trott) [#21393](https://github.com/nodejs/node/pull/21393)
+* [[`aef71c05a2`](https://github.com/nodejs/node/commit/aef71c05a2)] - **test**: mark test-http2-settings-flood as flaky on Windows (Rich Trott) [#25048](https://github.com/nodejs/node/pull/25048)
+
 
 <a id="8.14.1"></a>
 ## 2018-12-18, Version 8.14.1 'Carbon' (LTS), @MylesBorins prepared by @BethGriggs
