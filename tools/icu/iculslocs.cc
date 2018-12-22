@@ -232,14 +232,14 @@ int dumpAllButInstalledLocales(int lev,
 int list(const char* toBundle) {
   UErrorCode status = U_ZERO_ERROR;
 
-  FILE* bf = NULL;  // NOLINT (readability/null_usage)
+  FILE* bf = nullptr;
 
-  if (toBundle != NULL) {  // NOLINT (readability/null_usage)
+  if (toBundle != nullptr) {
     if (VERBOSE) {
       printf("writing to bundle %s\n", toBundle);
     }
     bf = fopen(toBundle, "wb");
-    if (bf == NULL) {  // NOLINT (readability/null_usage)
+    if (bf == nullptr) {
       printf("ERROR: Could not open '%s' for writing.\n", toBundle);
       return 1;
     }
@@ -260,7 +260,7 @@ int list(const char* toBundle) {
   ASSERT_SUCCESS(&status, "while opening the bundle");
   icu::LocalUResourceBundlePointer installedLocales(
       // NOLINTNEXTLINE (readability/null_usage)
-      ures_getByKey(bund.getAlias(), INSTALLEDLOCALES, NULL, &status));
+      ures_getByKey(bund.getAlias(), INSTALLEDLOCALES, nullptr, &status));
   ASSERT_SUCCESS(&status, "while fetching installed locales");
 
   int32_t count = ures_getSize(installedLocales.getAlias());
@@ -268,7 +268,7 @@ int list(const char* toBundle) {
     printf("Locales: %d\n", count);
   }
 
-  if (bf != NULL) {  // NOLINT (readability/null_usage)
+  if (bf != nullptr) {
     // write the HEADER
     fprintf(bf,
             "// NOTE: This file was generated during the build process.\n"
@@ -312,17 +312,17 @@ int list(const char* toBundle) {
 
     UBool exists;
     if (localeExists(key, &exists)) {
-      if (bf != NULL) fclose(bf);  // NOLINT (readability/null_usage)
+      if (bf != nullptr) fclose(bf);
       return 1;  // get out.
     }
     if (exists) {
       validCount++;
       printf("%s\n", key);
-      if (bf != NULL) {  // NOLINT (readability/null_usage)
+      if (bf != nullptr) {
         fprintf(bf, "        %s {\"\"}\n", key);
       }
     } else {
-      if (bf != NULL) {  // NOLINT (readability/null_usage)
+      if (bf != nullptr) {
         fprintf(bf, "//      %s {\"\"}\n", key);
       }
       if (VERBOSE) {
@@ -331,7 +331,7 @@ int list(const char* toBundle) {
     }
   }
 
-  if (bf != NULL) {  // NOLINT (readability/null_usage)
+  if (bf != nullptr) {
     fprintf(bf, "    } // %d/%d valid\n", validCount, count);
     // write the HEADER
     fprintf(bf, "}\n");
@@ -373,7 +373,7 @@ int main(int argc, const char* argv[]) {
       usage();
       return 0;
     } else if (!strcmp(arg, "-l")) {
-      if (list(NULL)) {  // NOLINT (readability/null_usage)
+      if (list(nullptr)) {
         return 1;
       }
     } else if (!strcmp(arg, "-b") && (argsLeft >= 1)) {
