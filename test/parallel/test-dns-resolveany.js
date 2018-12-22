@@ -53,8 +53,13 @@ server.bind(0, common.mustCall(async () => {
 }));
 
 function validateResults(res) {
-  // Compare copies with ttl removed, c-ares fiddles with that value.
-  assert.deepStrictEqual(
-    res.map((r) => Object.assign({}, r, { ttl: null })),
-    answers.map((r) => Object.assign({}, r, { ttl: null })));
+  // TTL values are only provided for A and AAAA entries.
+  assert.deepStrictEqual(res.map(maybeRedactTTL), answers.map(maybeRedactTTL));
+}
+
+function maybeRedactTTL(r) {
+  const ret = { ...r };
+  if (!['A', 'AAAA'].includes(r.type))
+    delete ret.ttl;
+  return ret;
 }
