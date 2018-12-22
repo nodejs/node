@@ -575,18 +575,16 @@ class Environment {
   class TickInfo {
    public:
     inline AliasedBuffer<uint8_t, v8::Uint8Array>& fields();
-    inline bool has_scheduled() const;
-    inline bool has_promise_rejections() const;
-
-    inline void promise_rejections_toggle_on();
+    inline bool has_tick_scheduled() const;
+    inline bool has_rejection_to_warn() const;
 
    private:
     friend class Environment;  // So we can call the constructor.
     inline explicit TickInfo(v8::Isolate* isolate);
 
     enum Fields {
-      kHasScheduled,
-      kHasPromiseRejections,
+      kHasTickScheduled = 0,
+      kHasRejectionToWarn,
       kFieldsCount
     };
 
