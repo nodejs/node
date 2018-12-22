@@ -265,16 +265,12 @@ inline AliasedBuffer<uint8_t, v8::Uint8Array>& Environment::TickInfo::fields() {
   return fields_;
 }
 
-inline bool Environment::TickInfo::has_scheduled() const {
-  return fields_[kHasScheduled] == 1;
+inline bool Environment::TickInfo::has_tick_scheduled() const {
+  return fields_[kHasTickScheduled] == 1;
 }
 
-inline bool Environment::TickInfo::has_promise_rejections() const {
-  return fields_[kHasPromiseRejections] == 1;
-}
-
-inline void Environment::TickInfo::promise_rejections_toggle_on() {
-  fields_[kHasPromiseRejections] = 1;
+inline bool Environment::TickInfo::has_rejection_to_warn() const {
+  return fields_[kHasRejectionToWarn] == 1;
 }
 
 inline void Environment::AssignToContext(v8::Local<v8::Context> context,

@@ -17,7 +17,6 @@ using v8::kPromiseRejectAfterResolved;
 using v8::kPromiseRejectWithNoHandler;
 using v8::kPromiseResolveAfterResolved;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::Promise;
@@ -80,13 +79,8 @@ static void PromiseRejectCallback(PromiseRejectMessage message) {
   }
 
   Local<Value> args[] = { type, promise, value };
-  MaybeLocal<Value> ret = callback->Call(env->context(),
-                                         Undefined(isolate),
-                                         arraysize(args),
-                                         args);
-
-  if (!ret.IsEmpty() && ret.ToLocalChecked()->IsTrue())
-    env->tick_info()->promise_rejections_toggle_on();
+  USE(callback->Call(
+      env->context(), Undefined(isolate), arraysize(args), args));
 }
 
 static void InitializePromiseRejectCallback(

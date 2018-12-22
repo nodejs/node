@@ -95,7 +95,7 @@ void InternalCallbackScope::Close() {
   Environment::TickInfo* tick_info = env_->tick_info();
 
   if (!env_->can_call_into_js()) return;
-  if (!tick_info->has_scheduled()) {
+  if (!tick_info->has_tick_scheduled()) {
     env_->isolate()->RunMicrotasks();
   }
 
@@ -106,7 +106,7 @@ void InternalCallbackScope::Close() {
     CHECK_EQ(env_->trigger_async_id(), 0);
   }
 
-  if (!tick_info->has_scheduled() && !tick_info->has_promise_rejections()) {
+  if (!tick_info->has_tick_scheduled() && !tick_info->has_rejection_to_warn()) {
     return;
   }
 
