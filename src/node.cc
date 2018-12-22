@@ -198,7 +198,6 @@ class NodeTraceStateObserver :
 
     // This only runs the first time tracing is enabled
     controller_->RemoveTraceStateObserver(this);
-    delete this;
   }
 
   void OnTraceDisabled() override {
