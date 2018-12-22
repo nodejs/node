@@ -1265,6 +1265,7 @@ class QueryAnyWrap: public QueryWrap {
     }
 
     CHECK_EQ(aaaa_count, naddr6ttls);
+    CHECK_EQ(ret->Length(), a_count + aaaa_count);
     for (uint32_t i = a_count; i < ret->Length(); i++) {
       Local<Object> obj = Object::New(env()->isolate());
       obj->Set(context,
@@ -1272,7 +1273,8 @@ class QueryAnyWrap: public QueryWrap {
                ret->Get(context, i).ToLocalChecked()).FromJust();
       obj->Set(context,
                env()->ttl_string(),
-               Integer::New(env()->isolate(), addr6ttls[i].ttl)).FromJust();
+               Integer::New(env()->isolate(), addr6ttls[i - a_count].ttl))
+          .FromJust();
       obj->Set(context,
                env()->type_string(),
                env()->dns_aaaa_string()).FromJust();
