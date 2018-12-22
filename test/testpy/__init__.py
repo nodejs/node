@@ -38,7 +38,6 @@ except NameError:
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 
 
 class SimpleTestCase(test.TestCase):
@@ -87,12 +86,6 @@ class SimpleTestCase(test.TestCase):
         print(': Skipping as node was compiled without crypto support')
       else:
         result += flags
-    files_match = FILES_PATTERN.search(source);
-    additional_files = []
-    if files_match:
-      additional_files += files_match.group(1).strip().split()
-    for a_file in additional_files:
-      result.append(join(dirname(self.config.root), '..', a_file))
 
     if self.additional_flags:
       result += self.additional_flags
