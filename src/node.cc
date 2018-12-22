@@ -198,7 +198,6 @@ class NodeTraceStateObserver :
 
     // This only runs the first time tracing is enabled
     controller_->RemoveTraceStateObserver(this);
-    delete this;
   }
 
   void OnTraceDisabled() override {
@@ -220,8 +219,10 @@ static struct {
   void Initialize(int thread_pool_size) {
     tracing_agent_.reset(new tracing::Agent());
     node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
-    auto controller = tracing_agent_->GetTracingController();
-    controller->AddTraceStateObserver(new NodeTraceStateObserver(controller));
+    node::tracing::TracingController* controller =
+        tracing_agent_->GetTracingController();
+    trace_state_observer_.reset(new NodeTraceStateObserver(controller));
+    controller->AddTraceStateObserver(trace_state_observer_.get());
     StartTracingAgent();
     // Tracing must be initialized before platform threads are created.
     platform_ = new NodePlatform(thread_pool_size, controller);
@@ -235,6 +236,7 @@ static struct {
     // Destroy tracing after the platform (and platform threads) have been
     // stopped.
     tracing_agent_.reset(nullptr);
+    trace_state_observer_.reset(nullptr);
   }
 
   void DrainVMTasks(Isolate* isolate) {
@@ -287,6 +289,7 @@ static struct {
     return platform_;
   }
 
+  std::unique_ptr<NodeTraceStateObserver> trace_state_observer_;
   std::unique_ptr<tracing::Agent> tracing_agent_;
   tracing::AgentWriterHandle tracing_file_writer_;
   NodePlatform* platform_;
