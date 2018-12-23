@@ -244,7 +244,7 @@ The following formats are supported for string validation with "format" keyword:
 - _uri_: full URI.
 - _uri-reference_: URI reference, including full and relative URIs.
 - _uri-template_: URI template according to [RFC6570](https://tools.ietf.org/html/rfc6570)
-- _url_: [URL record](https://url.spec.whatwg.org/#concept-url).
+- _url_ (deprecated): [URL record](https://url.spec.whatwg.org/#concept-url).
 - _email_: email address.
 - _hostname_: host name according to [RFC1034](http://tools.ietf.org/html/rfc1034#section-3.5).
 - _ipv4_: IP address v4.

@@ -1,5 +1,13 @@
 "use strict";
 
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread(); }
+
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance"); }
+
+function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter); }
+
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
+
 function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 (function (f) {
@@ -594,7 +602,9 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
         }
 
         function extend(namespace, delimiter) {
-          return createDebug(this.namespace + (typeof delimiter === 'undefined' ? ':' : delimiter) + namespace);
+          var newDebug = createDebug(this.namespace + (typeof delimiter === 'undefined' ? ':' : delimiter) + namespace);
+          newDebug.log = this.log;
+          return newDebug;
         }
         /**
         * Enables a debug mode by namespaces. This can include modes
@@ -636,12 +646,17 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
         /**
         * Disable debug output.
         *
+        * @return {String} namespaces
         * @api public
         */
 
 
         function disable() {
+          var namespaces = [].concat(_toConsumableArray(createDebug.names.map(toNamespace)), _toConsumableArray(createDebug.skips.map(toNamespace).map(function (namespace) {
+            return '-' + namespace;
+          }))).join(',');
           createDebug.enable('');
+          return namespaces;
         }
         /**
         * Returns true if the given mode name is enabled, false otherwise.
@@ -673,6 +688,18 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
           }
 
           return false;
+        }
+        /**
+        * Convert regexp to namespace
+        *
+        * @param {RegExp} regxep
+        * @return {String} namespace
+        * @api private
+        */
+
+
+        function toNamespace(regexp) {
+          return regexp.toString().substring(2, regexp.toString().length - 2).replace(/\.\*\?$/, '*');
         }
         /**
         * Coerce `val`.
@@ -883,4 +910,3 @@ function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterat
     }]
   }, {}, [4])(4);
 });
-

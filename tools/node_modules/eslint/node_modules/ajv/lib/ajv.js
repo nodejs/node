@@ -55,8 +55,6 @@ function Ajv(opts) {
   this._refs = {};
   this._fragments = {};
   this._formats = formats(opts.format);
-  var schemaUriFormat = this._schemaUriFormat = this._formats['uri-reference'];
-  this._schemaUriFormatFunc = function (str) { return schemaUriFormat.test(str); };
 
   this._cache = opts.cache || new Cache;
   this._loadingSchemas = {};
@@ -171,13 +169,7 @@ function validateSchema(schema, throwOrLogError) {
     this.errors = null;
     return true;
   }
-  var currentUriFormat = this._formats.uri;
-  this._formats.uri = typeof currentUriFormat == 'function'
-                      ? this._schemaUriFormatFunc
-                      : this._schemaUriFormat;
-  var valid;
-  try { valid = this.validate($schema, schema); }
-  finally { this._formats.uri = currentUriFormat; }
+  var valid = this.validate($schema, schema);
   if (!valid && throwOrLogError) {
     var message = 'schema is invalid: ' + this.errorsText();
     if (this._opts.validateSchema == 'log') this.logger.error(message);
