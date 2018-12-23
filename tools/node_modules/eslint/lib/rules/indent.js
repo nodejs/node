@@ -522,25 +522,13 @@ module.exports = {
                     },
                     VariableDeclarator: {
                         oneOf: [
-                            {
-                                type: "integer",
-                                minimum: 0
-                            },
+                            ELEMENT_LIST_SCHEMA,
                             {
                                 type: "object",
                                 properties: {
-                                    var: {
-                                        type: "integer",
-                                        minimum: 0
-                                    },
-                                    let: {
-                                        type: "integer",
-                                        minimum: 0
-                                    },
-                                    const: {
-                                        type: "integer",
-                                        minimum: 0
-                                    }
+                                    var: ELEMENT_LIST_SCHEMA,
+                                    let: ELEMENT_LIST_SCHEMA,
+                                    const: ELEMENT_LIST_SCHEMA
                                 },
                                 additionalProperties: false
                             }
@@ -661,7 +649,7 @@ module.exports = {
             if (context.options[1]) {
                 lodash.merge(options, context.options[1]);
 
-                if (typeof options.VariableDeclarator === "number") {
+                if (typeof options.VariableDeclarator === "number" || options.VariableDeclarator === "first") {
                     options.VariableDeclarator = {
                         var: options.VariableDeclarator,
                         let: options.VariableDeclarator,
@@ -1349,9 +1337,26 @@ module.exports = {
             },
 
             VariableDeclaration(node) {
-                const variableIndent = Object.prototype.hasOwnProperty.call(options.VariableDeclarator, node.kind)
+                let variableIndent = Object.prototype.hasOwnProperty.call(options.VariableDeclarator, node.kind)
                     ? options.VariableDeclarator[node.kind]
                     : DEFAULT_VARIABLE_INDENT;
+
+                const firstToken = sourceCode.getFirstToken(node),
+                    lastToken = sourceCode.getLastToken(node);
+
+                if (options.VariableDeclarator[node.kind] === "first") {
+                    if (node.declarations.length > 1) {
+                        addElementListIndent(
+                            node.declarations,
+                            firstToken,
+                            lastToken,
+                            "first"
+                        );
+                        return;
+                    }
+
+                    variableIndent = DEFAULT_VARIABLE_INDENT;
+                }
 
                 if (node.declarations[node.declarations.length - 1].loc.start.line > node.loc.start.line) {
 
@@ -1374,13 +1379,10 @@ module.exports = {
                      * on the same line as the start of the declaration, provided that there are declarators that
                      * follow this one.
                      */
-                    const firstToken = sourceCode.getFirstToken(node);
-
                     offsets.setDesiredOffsets(node.range, firstToken, variableIndent, true);
                 } else {
-                    offsets.setDesiredOffsets(node.range, sourceCode.getFirstToken(node), variableIndent);
+                    offsets.setDesiredOffsets(node.range, firstToken, variableIndent);
                 }
-                const lastToken = sourceCode.getLastToken(node);
 
                 if (astUtils.isSemicolonToken(lastToken)) {
                     offsets.ignoreToken(lastToken);

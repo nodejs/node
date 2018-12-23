@@ -100,14 +100,20 @@ module.exports = {
          * @private
          */
         function isInsideObjectPattern(node) {
-            let { parent } = node;
+            let current = node;
 
-            while (parent) {
-                if (parent.type === "ObjectPattern") {
+            while (current) {
+                const parent = current.parent;
+
+                if (parent && parent.type === "Property" && parent.computed && parent.key === current) {
+                    return false;
+                }
+
+                if (current.type === "ObjectPattern") {
                     return true;
                 }
 
-                parent = parent.parent;
+                current = parent;
             }
 
             return false;
@@ -169,11 +175,14 @@ module.exports = {
 
                     if (node.parent.parent && node.parent.parent.type === "ObjectPattern") {
                         if (node.parent.shorthand && node.parent.value.left && nameIsUnderscored) {
-
                             report(node);
                         }
 
                         const assignmentKeyEqualsValue = node.parent.key.name === node.parent.value.name;
+
+                        if (isUnderscored(name) && node.parent.computed) {
+                            report(node);
+                        }
 
                         // prevent checking righthand side of destructured object
                         if (node.parent.key === node && node.parent.value !== node) {

@@ -4,6 +4,12 @@
  */
 "use strict";
 
+const {
+    isArrowToken,
+    isParenthesised,
+    isOpeningParenToken
+} = require("../util/ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -42,6 +48,142 @@ module.exports = {
         }
 
         /**
+         * Formats the comments depending on whether it's a line or block comment.
+         * @param {Comment[]} comments The array of comments between the arrow and body
+         * @param {Integer} column The column number of the first token
+         * @returns {string} A string of comment text joined by line breaks
+         */
+        function formatComments(comments, column) {
+            const whiteSpaces = " ".repeat(column);
+
+            return `${comments.map(comment => {
+
+                if (comment.type === "Line") {
+                    return `//${comment.value}`;
+                }
+
+                return `/*${comment.value}*/`;
+            }).join(`\n${whiteSpaces}`)}\n${whiteSpaces}`;
+        }
+
+        /**
+         * Finds the first token to prepend comments to depending on the parent type
+         * @param {Node} node The validated node
+         * @returns {Token|Node} The node to prepend comments to
+         */
+        function findFirstToken(node) {
+            switch (node.parent.type) {
+                case "VariableDeclarator":
+
+                    // If the parent is first or only declarator, return the declaration, else, declarator
+                    return sourceCode.getFirstToken(
+                        node.parent.parent.declarations.length === 1 ||
+                        node.parent.parent.declarations[0].id.name === node.parent.id.name
+                            ? node.parent.parent : node.parent
+                    );
+                case "CallExpression":
+                case "Property":
+
+                    // find the object key
+                    return sourceCode.getFirstToken(node.parent);
+                default:
+                    return node;
+            }
+        }
+
+        /**
+         * Helper function for adding parentheses fixes for nodes containing nested arrow functions
+         * @param {Fixer} fixer Fixer
+         * @param {Token} arrow - The arrow token
+         * @param {ASTNode} arrowBody - The arrow function body
+         * @returns {Function[]} autofixer -- wraps function bodies with parentheses
+         */
+        function addParentheses(fixer, arrow, arrowBody) {
+            const parenthesesFixes = [];
+            let closingParentheses = "";
+
+            let followingBody = arrowBody;
+            let currentArrow = arrow;
+
+            while (currentArrow) {
+                if (!isParenthesised(sourceCode, followingBody)) {
+                    parenthesesFixes.push(
+                        fixer.insertTextAfter(currentArrow, " (")
+                    );
+
+                    const paramsToken = sourceCode.getTokenBefore(currentArrow, token =>
+                        isOpeningParenToken(token) || token.type === "Identifier");
+
+                    const whiteSpaces = " ".repeat(paramsToken.loc.start.column);
+
+                    closingParentheses = `\n${whiteSpaces})${closingParentheses}`;
+                }
+
+                currentArrow = sourceCode.getTokenAfter(currentArrow, isArrowToken);
+
+                if (currentArrow) {
+                    followingBody = sourceCode.getTokenAfter(currentArrow, token => !isOpeningParenToken(token));
+                }
+            }
+
+            return [...parenthesesFixes,
+                fixer.insertTextAfter(arrowBody, closingParentheses)
+            ];
+        }
+
+        /**
+         * Autofixes the function body to collapse onto the same line as the arrow.
+         * If comments exist, prepends the comments before the arrow function.
+         * If the function body contains arrow functions, appends the function bodies with parentheses.
+         * @param {Token} arrowToken The arrow token.
+         * @param {ASTNode} arrowBody the function body
+         * @param {ASTNode} node The evaluated node
+         * @returns {Function} autofixer -- validates the node to adhere to besides
+         */
+        function autoFixBesides(arrowToken, arrowBody, node) {
+            return fixer => {
+                const placeBesides = fixer.replaceTextRange([arrowToken.range[1], arrowBody.range[0]], " ");
+
+                const comments = sourceCode.getCommentsInside(node).filter(comment =>
+                    comment.loc.start.line < arrowBody.loc.start.line);
+
+                if (comments.length) {
+
+                    // If the grandparent is not a variable declarator
+                    if (
+                        arrowBody.parent &&
+                        arrowBody.parent.parent &&
+                        arrowBody.parent.parent.type !== "VariableDeclarator"
+                    ) {
+
+                        // If any arrow functions follow, return the necessary parens fixes.
+                        if (sourceCode.getTokenAfter(arrowToken, isArrowToken) && arrowBody.parent.parent.type !== "VariableDeclarator") {
+                            return addParentheses(fixer, arrowToken, arrowBody);
+                        }
+
+                        // If any arrow functions precede, the necessary fixes have already been returned, so return null.
+                        if (sourceCode.getTokenBefore(arrowToken, isArrowToken) && arrowBody.parent.parent.type !== "VariableDeclarator") {
+                            return null;
+                        }
+                    }
+
+                    const firstToken = findFirstToken(node);
+
+                    const commentText = formatComments(comments, firstToken.loc.start.column);
+
+                    const commentBeforeExpression = fixer.insertTextBeforeRange(
+                        firstToken.range,
+                        commentText
+                    );
+
+                    return [placeBesides, commentBeforeExpression];
+                }
+
+                return placeBesides;
+            };
+        }
+
+        /**
          * Validates the location of an arrow function body
          * @param {ASTNode} node The arrow function body
          * @returns {void}
@@ -75,7 +217,7 @@ module.exports = {
                 context.report({
                     node: fixerTarget,
                     message: "Expected no linebreak before this expression.",
-                    fix: fixer => fixer.replaceTextRange([tokenBefore.range[1], fixerTarget.range[0]], " ")
+                    fix: autoFixBesides(tokenBefore, fixerTarget, node)
                 });
             }
         }
