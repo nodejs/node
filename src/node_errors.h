@@ -43,6 +43,7 @@ void FatalException(v8::Isolate* isolate,
   V(ERR_BUFFER_TOO_LARGE, Error)                                             \
   V(ERR_CANNOT_TRANSFER_OBJECT, TypeError)                                   \
   V(ERR_CONSTRUCT_CALL_REQUIRED, Error)                                      \
+  V(ERR_CRYPTO_READ_KEY, TypeError)                                          \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
   V(ERR_INVALID_MODULE_SPECIFIER, TypeError)                                 \
