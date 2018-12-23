@@ -1,4 +1,5 @@
 #include "node_internals.h"
+#include "node_errors.h"
 #include "node_watchdog.h"
 
 namespace node {
@@ -221,7 +222,7 @@ void Initialize(Local<Object> target,
                              WatchdogHasPendingSigint);
 
   env->SetMethod(target, "enqueueMicrotask", EnqueueMicrotask);
-
+  env->SetMethod(target, "triggerFatalException", FatalException);
   Local<Object> constants = Object::New(env->isolate());
   NODE_DEFINE_CONSTANT(constants, ALL_PROPERTIES);
   NODE_DEFINE_CONSTANT(constants, ONLY_WRITABLE);
