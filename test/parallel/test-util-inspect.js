@@ -1580,15 +1580,7 @@ assert.strictEqual(util.inspect('"\''), '`"\'`');
 // eslint-disable-next-line no-template-curly-in-string
 assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
-{
-  assert.strictEqual(
-    util.inspect(Object.setPrototypeOf(/a/, null)),
-    '/undefined/undefined'
-  );
-}
-
-// Verify that throwing in valueOf and having no prototype still produces nice
-// results.
+// Verify that throwing in valueOf and toString still produces nice results.
 [
   [new String(55), "[String: '55']"],
   [new Boolean(true), '[Boolean: true]'],
@@ -1609,6 +1601,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [new Promise((resolve) => setTimeout(resolve, 10)), 'Promise { <pending> }'],
   [new WeakSet(), 'WeakSet { <items unknown> }'],
   [new WeakMap(), 'WeakMap { <items unknown> }'],
+  [/foobar/g, '/foobar/g']
 ].forEach(([value, expected]) => {
   Object.defineProperty(value, 'valueOf', {
     get() {
@@ -1628,6 +1621,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   assert.notStrictEqual(util.inspect(value), expected);
 });
 
+// Verify that having no prototype still produces nice results.
 [
   [[1, 3, 4], '[Array: null prototype] [ 1, 3, 4 ]'],
   [new Set([1, 2]), '[Set: null prototype] { 1, 2 }'],
@@ -1652,7 +1646,8 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
    '[DataView: null prototype] {\n  byteLength: undefined,\n  ' +
     'byteOffset: undefined,\n  buffer: undefined }'],
   [new SharedArrayBuffer(2), '[SharedArrayBuffer: null prototype] ' +
-  '{ byteLength: undefined }']
+  '{ byteLength: undefined }'],
+  [/foobar/, '[RegExp: null prototype] /foobar/']
 ].forEach(([value, expected]) => {
   assert.strictEqual(
     util.inspect(Object.setPrototypeOf(value, null)),
@@ -1663,6 +1658,34 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   delete value.foo;
   value[Symbol('foo')] = 'yeah';
   assert.notStrictEqual(util.inspect(value), expected);
+});
+
+// Verify that subclasses with and without prototype produce nice results.
+[
+  [RegExp, ['foobar', 'g'], '/foobar/g']
+].forEach(([base, input, rawExpected]) => {
+  class Foo extends base {}
+  const value = new Foo(...input);
+  const symbol = value[Symbol.toStringTag];
+  const expected = `Foo ${symbol ? `[${symbol}] ` : ''}${rawExpected}`;
+  const expectedWithoutProto = `[${base.name}: null prototype] ${rawExpected}`;
+  assert.strictEqual(util.inspect(value), expected);
+  value.foo = 'bar';
+  assert.notStrictEqual(util.inspect(value), expected);
+  delete value.foo;
+  assert.strictEqual(
+    util.inspect(Object.setPrototypeOf(value, null)),
+    expectedWithoutProto
+  );
+  value.foo = 'bar';
+  let res = util.inspect(value);
+  assert.notStrictEqual(res, expectedWithoutProto);
+  assert(/foo: 'bar'/.test(res), res);
+  delete value.foo;
+  value[Symbol('foo')] = 'yeah';
+  res = util.inspect(value);
+  assert.notStrictEqual(res, expectedWithoutProto);
+  assert(/\[Symbol\(foo\)]: 'yeah'/.test(res), res);
 });
 
 assert.strictEqual(inspect(1n), '1n');
