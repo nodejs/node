@@ -269,20 +269,13 @@ For more information, see [Deprecations](#deprecations).
 
 #### Breaking Changes to Internal Elements
 
-Breaking changes to internal elements are permitted in semver-patch or
-semver-minor commits but Collaborators should take significant care when
-making and reviewing such changes. Before landing such commits, an effort
-must be made to determine the potential impact of the change in the ecosystem
-by analyzing current use and by validating such changes through ecosystem
-testing using the [Canary in the Goldmine](https://github.com/nodejs/citgm)
-tool. If a change cannot be made without ecosystem breakage, then TSC review is
-required before landing the change as anything less than semver-major.
-
-If a determination is made that a particular internal API (for instance, an
-underscore `_` prefixed property) is sufficiently relied upon by the ecosystem
-such that any changes may break user code, then serious consideration should be
-given to providing an alternative Public API for that functionality before any
-breaking changes are made.
+Breaking changes to internal elements may occur in semver-patch or semver-minor
+commits. Collaborators should take significant care when making and reviewing
+such changes. An effort must be made to determine the potential impact of the
+change in the ecosystem. Use
+[Canary in the Goldmine](https://github.com/nodejs/citgm) to test such changes.
+If a change will cause ecosystem breakage, then it is semver-major. Consider
+providing a Public API in such cases.
 
 #### When Breaking Changes Actually Break Things
 
