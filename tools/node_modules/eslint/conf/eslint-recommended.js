@@ -207,6 +207,7 @@ module.exports = {
         "no-unused-vars": "error",
         "no-use-before-define": "off",
         "no-useless-call": "off",
+        "no-useless-catch": "off",
         "no-useless-computed-key": "off",
         "no-useless-concat": "off",
         "no-useless-constructor": "off",
