@@ -142,6 +142,7 @@
       'lib/internal/print_help.js',
       'lib/internal/priority_queue.js',
       'lib/internal/process/esm_loader.js',
+      'lib/internal/process/execution.js',
       'lib/internal/process/main_thread_only.js',
       'lib/internal/process/next_tick.js',
       'lib/internal/process/per_thread.js',

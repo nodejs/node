@@ -458,14 +458,6 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "dlopen", binding::DLOpen);
   env->SetMethod(target, "reallyExit", Exit);
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
-
-  Local<String> should_abort_on_uncaught_toggle =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
-  CHECK(target
-            ->Set(env->context(),
-                  should_abort_on_uncaught_toggle,
-                  env->should_abort_on_uncaught_toggle().GetJSArray())
-            .FromJust());
 }
 
 }  // namespace node

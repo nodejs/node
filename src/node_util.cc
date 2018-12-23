@@ -233,6 +233,14 @@ void Initialize(Local<Object> target,
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "propertyFilter"),
               constants).FromJust();
+
+  Local<String> should_abort_on_uncaught_toggle =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");
+  CHECK(target
+            ->Set(env->context(),
+                  should_abort_on_uncaught_toggle,
+                  env->should_abort_on_uncaught_toggle().GetJSArray())
+            .FromJust());
 }
 
 }  // namespace util
