@@ -180,6 +180,10 @@ SlicedArguments::SlicedArguments(
   size_ = size;
 }
 
+namespace task_queue {
+void PromiseRejectCallback(v8::PromiseRejectMessage message);
+}  // namespace task_queue
+
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,

@@ -241,6 +241,10 @@ Environment::Environment(IsolateData* isolate_data,
   if (options_->no_force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
+
+  // TODO(addaleax): the per-isolate state should not be controlled by
+  // a single Environment.
+  isolate()->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
 }
 
 Environment::~Environment() {
