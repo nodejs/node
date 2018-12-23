@@ -1662,7 +1662,10 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
 // Verify that subclasses with and without prototype produce nice results.
 [
-  [RegExp, ['foobar', 'g'], '/foobar/g']
+  [RegExp, ['foobar', 'g'], '/foobar/g'],
+  [WeakSet, [[{}]], '{ <items unknown> }'],
+  [WeakMap, [[[{}, {}]]], '{ <items unknown> }'],
+  [BigInt64Array, [10], '[ 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n ]']
 ].forEach(([base, input, rawExpected]) => {
   class Foo extends base {}
   const value = new Foo(...input);
