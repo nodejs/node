@@ -432,22 +432,21 @@ changes:
 
 * `object` {any} Any JavaScript primitive or `Object`.
 * `options` {Object}
-  * `showHidden` {boolean} If `true`, the `object`'s non-enumerable symbols and
-    properties will be included in the formatted result as well as [`WeakMap`][]
-    and [`WeakSet`][] entries. **Default:** `false`.
+  * `showHidden` {boolean} If `true`, `object`'s non-enumerable symbols and
+    properties are included in the formatted result. [`WeakMap`][] and
+    [`WeakSet`][] entries are also included. **Default:** `false`.
   * `depth` {number} Specifies the number of times to recurse while formatting
-    the `object`. This is useful for inspecting large complicated objects. To
-    make it recurse up to the maximum call stack size pass `Infinity` or `null`.
+    `object`. This is useful for inspecting large objects. To recurse up to
+    the maximum call stack size pass `Infinity` or `null`.
     **Default:** `2`.
-  * `colors` {boolean} If `true`, the output will be styled with ANSI color
-    codes. Colors are customizable, see [Customizing `util.inspect` colors][].
+  * `colors` {boolean} If `true`, the output is styled with ANSI color
+    codes. Colors are customizable. See [Customizing `util.inspect` colors][].
     **Default:** `false`.
-  * `customInspect` {boolean} If `false`, then
-    `[util.inspect.custom](depth, opts)` functions will not be called.
+  * `customInspect` {boolean} If `false`,
+    `[util.inspect.custom](depth, opts)` functions are not invoked.
     **Default:** `true`.
-  * `showProxy` {boolean} If `true`, then objects and functions that are
-    `Proxy` objects will be introspected to show their `target` and `handler`
-    objects. **Default:** `false`.
+  * `showProxy` {boolean} If `true`, `Proxy` inspection includes
+    the [`target` and `handler`][] objects. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
     [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
     formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
@@ -455,28 +454,26 @@ changes:
   * `breakLength` {integer} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. **Default:** `60` for legacy compatibility.
-  * `compact` {boolean} Setting this to `false` changes the default indentation
-    to use a line break for each object key instead of lining up multiple
-    properties in one line. It will also break text that is above the
-    `breakLength` size into smaller and better readable chunks and indents
-    objects the same as arrays. Note that no text will be reduced below 16
+  * `compact` {boolean} Setting this to `false` causes each object key to
+    be displayed on a new line. It will also add new lines to text that is
+    longer than `breakLength`. Note that no text will be reduced below 16
     characters, no matter the `breakLength` size. For more information, see the
     example below. **Default:** `true`.
   * `sorted` {boolean|Function} If set to `true` or a function, all properties
-    of an object and Set and Map entries will be sorted in the returned string.
-    If set to `true` the [default sort][] is going to be used. If set to a
-    function, it is used as a [compare function][].
-  * `getters` {boolean|string} If set to `true`, getters are going to be
-    inspected as well. If set to `'get'` only getters without setter are going
-    to be inspected. If set to `'set'` only getters having a corresponding
-    setter are going to be inspected. This might cause side effects depending on
-    the getter function. **Default:** `false`.
-* Returns: {string} The representation of passed object
+    of an object, and `Set` and `Map` entries are sorted in the resulting
+    string. If set to `true` the [default sort][] is used. If set to a function,
+    it is used as a [compare function][].
+  * `getters` {boolean|string} If set to `true`, getters are inspected. If set
+    to `'get'`, only getters without a corresponding setter are inspected. If
+    set to `'set'`, only getters with a corresponding setter are inspected.
+    This might cause side effects depending on the getter function.
+    **Default:** `false`.
+* Returns: {string} The representation of `object`.
 
 The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
 and should not be depended upon programmatically. Additional `options` may be
-passed that alter certain aspects of the formatted string.
+passed that alter the result.
 `util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
 an identifiable tag for an inspected value.
 
@@ -504,7 +501,7 @@ const util = require('util');
 console.log(util.inspect(util, { showHidden: true, depth: null }));
 ```
 
-The following example highlights the difference with the `compact` option:
+The following example highlights the effect of the `compact` option:
 
 ```js
 const util = require('util');
@@ -561,13 +558,11 @@ console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
 // chunks.
 ```
 
-Using the `showHidden` option allows to inspect [`WeakMap`][] and [`WeakSet`][]
-entries. If there are more entries than `maxArrayLength`, there is no guarantee
-which entries are displayed. That means retrieving the same [`WeakSet`][]
-entries twice might actually result in a different output. Besides this any item
-might be collected at any point of time by the garbage collector if there is no
-strong reference left to that object. Therefore there is no guarantee to get a
-reliable output.
+The `showHidden` option allows [`WeakMap`][] and [`WeakSet`][] entries to be
+inspected. If there are more entries than `maxArrayLength`, there is no
+guarantee which entries are displayed. That means retrieving the same
+[`WeakSet`][] entries twice may result in different output. Furthermore, entries
+with no remaining strong references may be garbage collected at any time.
 
 ```js
 const { inspect } = require('util');
@@ -580,8 +575,8 @@ console.log(inspect(weakSet, { showHidden: true }));
 // WeakSet { { a: 1 }, { b: 2 } }
 ```
 
-The `sorted` option makes sure the output is identical, no matter of the
-properties insertion order:
+The `sorted` option ensures that an object's property insertion order does not
+impact the result of `util.inspect()`.
 
 ```js
 const { inspect } = require('util');
@@ -608,11 +603,9 @@ assert.strict.equal(
 );
 ```
 
-Please note that `util.inspect()` is a synchronous method that is mainly
-intended as a debugging tool. Its maximum output length is limited to
-approximately 128 MB and input values that result in output bigger than that
-will not be inspected fully. Such values can have a significant performance
-overhead that can block the event loop for a significant amount of time.
+`util.inspect()` is a synchronous method intended for debugging. Its maximum
+output length is approximately 128 MB. Inputs that result in longer output will
+be truncated.
 
 ### Customizing `util.inspect` colors
 
@@ -2222,6 +2215,7 @@ Deprecated predecessor of `console.log`.
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original
