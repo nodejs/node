@@ -166,9 +166,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
-    assert.throws(() => {
-      testSignVerify(publicKey, privateKey);
-    }, /bad decrypt|asn1 encoding routines/);
+    common.expectsError(() => testSignVerify(publicKey, privateKey), {
+      type: TypeError,
+      code: 'ERR_MISSING_PASSPHRASE',
+      message: 'Passphrase required for encrypted key'
+    });
 
     const key = { key: privateKey, passphrase: 'secret' };
     testEncryptDecrypt(publicKey, key);
@@ -196,13 +198,19 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
-    assert.throws(() => {
+    common.expectsError(() => {
       testSignVerify(publicKey, {
         key: privateKeyDER,
         format: 'der',
         type: 'pkcs8'
       });
-    }, /bad decrypt|asn1 encoding routines/);
+    }, {
+      type: TypeError,
+      code: 'ERR_MISSING_PASSPHRASE',
+      message: 'Passphrase required for encrypted key'
+    });
+
+    // Signing should work with the correct password.
 
     const privateKey = {
       key: privateKeyDER,
@@ -274,12 +282,16 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assertApproximateSize(privateKeyDER, 336);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
-    assert.throws(() => {
-      testSignVerify(publicKey, {
+    common.expectsError(() => {
+      return testSignVerify(publicKey, {
         key: privateKeyDER,
         ...privateKeyEncoding
       });
-    }, /bad decrypt|asn1 encoding routines/);
+    }, {
+      type: TypeError,
+      code: 'ERR_MISSING_PASSPHRASE',
+      message: 'Passphrase required for encrypted key'
+    });
 
     // Signing should work with the correct password.
     testSignVerify(publicKey, {
@@ -338,9 +350,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert(sec1EncExp('AES-128-CBC').test(privateKey));
 
     // Since the private key is encrypted, signing shouldn't work anymore.
-    assert.throws(() => {
-      testSignVerify(publicKey, privateKey);
-    }, /bad decrypt|asn1 encoding routines/);
+    common.expectsError(() => testSignVerify(publicKey, privateKey), {
+      type: TypeError,
+      code: 'ERR_MISSING_PASSPHRASE',
+      message: 'Passphrase required for encrypted key'
+    });
 
     testSignVerify(publicKey, { key: privateKey, passphrase: 'secret' });
   }));
@@ -371,9 +385,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert(pkcs8EncExp.test(privateKey));
 
     // Since the private key is encrypted, signing shouldn't work anymore.
-    assert.throws(() => {
-      testSignVerify(publicKey, privateKey);
-    }, /bad decrypt|asn1 encoding routines/);
+    common.expectsError(() => testSignVerify(publicKey, privateKey), {
+      type: TypeError,
+      code: 'ERR_MISSING_PASSPHRASE',
+      message: 'Passphrase required for encrypted key'
+    });
 
     testSignVerify(publicKey, {
       key: privateKey,

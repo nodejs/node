@@ -21,6 +21,10 @@ const fixtures = require('../common/fixtures');
 const publicPem = fixtures.readSync('test_rsa_pubkey.pem', 'ascii');
 const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
 
+const publicDsa = fixtures.readKey('dsa_public_1025.pem', 'ascii');
+const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
+                                    'ascii');
+
 {
   // Attempting to create an empty key should throw.
   common.expectsError(() => {
@@ -210,3 +214,26 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
     });
   }
 });
+
+{
+  // Reading an encrypted key without a passphrase should fail.
+  common.expectsError(() => createPrivateKey(privateDsa), {
+    type: TypeError,
+    code: 'ERR_MISSING_PASSPHRASE',
+    message: 'Passphrase required for encrypted key'
+  });
+
+  const publicKey = createPublicKey(publicDsa);
+  assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.asymmetricKeyType, 'dsa');
+  assert.strictEqual(publicKey.symmetricKeySize, undefined);
+
+  const privateKey = createPrivateKey({
+    key: privateDsa,
+    format: 'pem',
+    passphrase: 'secret'
+  });
+  assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.asymmetricKeyType, 'dsa');
+  assert.strictEqual(privateKey.symmetricKeySize, undefined);
+}

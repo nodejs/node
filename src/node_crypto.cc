@@ -153,13 +153,33 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
     unsigned int inlen,
     void* arg);
 
+class PasswordCallbackInfo {
+ public:
+  explicit PasswordCallbackInfo(const char* passphrase)
+      : passphrase_(passphrase) {}
+
+  inline const char* GetPassword() {
+    needs_passphrase_ = true;
+    return passphrase_;
+  }
+
+  inline bool CalledButEmpty() {
+    return needs_passphrase_ && passphrase_ == nullptr;
+  }
+
+ private:
+  const char* passphrase_;
+  bool needs_passphrase_ = false;
+};
 
 static int PasswordCallback(char* buf, int size, int rwflag, void* u) {
-  if (u) {
+  PasswordCallbackInfo* info = static_cast<PasswordCallbackInfo*>(u);
+  const char* passphrase = info->GetPassword();
+  if (passphrase != nullptr) {
     size_t buflen = static_cast<size_t>(size);
-    size_t len = strlen(static_cast<const char*>(u));
+    size_t len = strlen(passphrase);
     len = len > buflen ? buflen : len;
-    memcpy(buf, u, len);
+    memcpy(buf, passphrase, len);
     return len;
   }
 
@@ -698,11 +718,12 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value passphrase(env->isolate(), args[1]);
 
+  PasswordCallbackInfo cb_info(len == 1 ? nullptr : *passphrase);
   EVPKeyPointer key(
       PEM_read_bio_PrivateKey(bio.get(),
                               nullptr,
                               PasswordCallback,
-                              len == 1 ? nullptr : *passphrase));
+                              &cb_info));
 
   if (!key) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
@@ -2899,13 +2920,14 @@ static bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
   return IsSupportedAuthenticatedMode(cipher);
 }
 
-enum class ParsePublicKeyResult {
-  kParsePublicOk,
-  kParsePublicNotRecognized,
-  kParsePublicFailed
+enum class ParseKeyResult {
+  kParseKeyOk,
+  kParseKeyNotRecognized,
+  kParseKeyNeedPassphrase,
+  kParseKeyFailed
 };
 
-static ParsePublicKeyResult TryParsePublicKey(
+static ParseKeyResult TryParsePublicKey(
     EVPKeyPointer* pkey,
     const BIOPointer& bp,
     const char* name,
@@ -2919,7 +2941,7 @@ static ParsePublicKeyResult TryParsePublicKey(
     MarkPopErrorOnReturn mark_pop_error_on_return;
     if (PEM_bytes_read_bio(&der_data, &der_len, nullptr, name,
                            bp.get(), nullptr, nullptr) != 1)
-      return ParsePublicKeyResult::kParsePublicNotRecognized;
+      return ParseKeyResult::kParseKeyNotRecognized;
   }
 
   // OpenSSL might modify the pointer, so we need to make a copy before parsing.
@@ -2927,25 +2949,25 @@ static ParsePublicKeyResult TryParsePublicKey(
   pkey->reset(parse(&p, der_len));
   OPENSSL_clear_free(der_data, der_len);
 
-  return *pkey ? ParsePublicKeyResult::kParsePublicOk :
-                 ParsePublicKeyResult::kParsePublicFailed;
+  return *pkey ? ParseKeyResult::kParseKeyOk :
+                 ParseKeyResult::kParseKeyFailed;
 }
 
-static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
-                                              const char* key_pem,
-                                              int key_pem_len) {
+static ParseKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
+                                        const char* key_pem,
+                                        int key_pem_len) {
   BIOPointer bp(BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len));
   if (!bp)
-    return ParsePublicKeyResult::kParsePublicFailed;
+    return ParseKeyResult::kParseKeyFailed;
 
-  ParsePublicKeyResult ret;
+  ParseKeyResult ret;
 
   // Try parsing as a SubjectPublicKeyInfo first.
   ret = TryParsePublicKey(pkey, bp, "PUBLIC KEY",
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         return d2i_PUBKEY(nullptr, p, l);
       });
-  if (ret != ParsePublicKeyResult::kParsePublicNotRecognized)
+  if (ret != ParseKeyResult::kParseKeyNotRecognized)
     return ret;
 
   // Maybe it is PKCS#1.
@@ -2954,7 +2976,7 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
       [](const unsigned char** p, long l) {  // NOLINT(runtime/int)
         return d2i_PublicKey(EVP_PKEY_RSA, nullptr, p, l);
       });
-  if (ret != ParsePublicKeyResult::kParsePublicNotRecognized)
+  if (ret != ParseKeyResult::kParseKeyNotRecognized)
     return ret;
 
   // X.509 fallback.
@@ -2966,25 +2988,25 @@ static ParsePublicKeyResult ParsePublicKeyPEM(EVPKeyPointer* pkey,
       });
 }
 
-static bool ParsePublicKey(EVPKeyPointer* pkey,
-                           const PublicKeyEncodingConfig& config,
-                           const char* key,
-                           size_t key_len) {
+static ParseKeyResult ParsePublicKey(EVPKeyPointer* pkey,
+                                     const PublicKeyEncodingConfig& config,
+                                     const char* key,
+                                     size_t key_len) {
   if (config.format_ == kKeyFormatPEM) {
-    ParsePublicKeyResult r =
-        ParsePublicKeyPEM(pkey, key, key_len);
-    return r == ParsePublicKeyResult::kParsePublicOk;
+    return ParsePublicKeyPEM(pkey, key, key_len);
   } else {
     CHECK_EQ(config.format_, kKeyFormatDER);
+
     const unsigned char* p = reinterpret_cast<const unsigned char*>(key);
     if (config.type_.ToChecked() == kKeyEncodingPKCS1) {
       pkey->reset(d2i_PublicKey(EVP_PKEY_RSA, nullptr, &p, key_len));
-      return pkey;
     } else {
       CHECK_EQ(config.type_.ToChecked(), kKeyEncodingSPKI);
       pkey->reset(d2i_PUBKEY(nullptr, &p, key_len));
-      return pkey;
     }
+
+    return *pkey ? ParseKeyResult::kParseKeyOk :
+                   ParseKeyResult::kParseKeyFailed;
   }
 }
 
@@ -3099,56 +3121,59 @@ static bool IsEncryptedPrivateKeyInfo(const unsigned char* data, size_t size) {
          data[offset] != 2;
 }
 
-static EVPKeyPointer ParsePrivateKey(const PrivateKeyEncodingConfig& config,
-                                     const char* key,
-                                     size_t key_len) {
-  EVPKeyPointer pkey;
+static ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
+                                      const PrivateKeyEncodingConfig& config,
+                                      const char* key,
+                                      size_t key_len) {
+  PasswordCallbackInfo pc_info(config.passphrase_.get());
 
   if (config.format_ == kKeyFormatPEM) {
     BIOPointer bio(BIO_new_mem_buf(key, key_len));
     if (!bio)
-      return pkey;
+      return ParseKeyResult::kParseKeyFailed;
 
-    char* pass = const_cast<char*>(config.passphrase_.get());
-    pkey.reset(PEM_read_bio_PrivateKey(bio.get(),
-                                       nullptr,
-                                       PasswordCallback,
-                                       pass));
+    pkey->reset(PEM_read_bio_PrivateKey(bio.get(),
+                                        nullptr,
+                                        PasswordCallback,
+                                        &pc_info));
   } else {
     CHECK_EQ(config.format_, kKeyFormatDER);
 
     if (config.type_.ToChecked() == kKeyEncodingPKCS1) {
       const unsigned char* p = reinterpret_cast<const unsigned char*>(key);
-      pkey.reset(d2i_PrivateKey(EVP_PKEY_RSA, nullptr, &p, key_len));
+      pkey->reset(d2i_PrivateKey(EVP_PKEY_RSA, nullptr, &p, key_len));
     } else if (config.type_.ToChecked() == kKeyEncodingPKCS8) {
       BIOPointer bio(BIO_new_mem_buf(key, key_len));
       if (!bio)
-        return pkey;
+        return ParseKeyResult::kParseKeyFailed;
 
       if (IsEncryptedPrivateKeyInfo(
               reinterpret_cast<const unsigned char*>(key), key_len)) {
-        char* pass = const_cast<char*>(config.passphrase_.get());
-        pkey.reset(d2i_PKCS8PrivateKey_bio(bio.get(),
-                                           nullptr,
-                                           PasswordCallback,
-                                           pass));
+        pkey->reset(d2i_PKCS8PrivateKey_bio(bio.get(),
+                                            nullptr,
+                                            PasswordCallback,
+                                            &pc_info));
       } else {
         PKCS8Pointer p8inf(d2i_PKCS8_PRIV_KEY_INFO_bio(bio.get(), nullptr));
         if (p8inf)
-          pkey.reset(EVP_PKCS82PKEY(p8inf.get()));
+          pkey->reset(EVP_PKCS82PKEY(p8inf.get()));
       }
     } else {
       CHECK_EQ(config.type_.ToChecked(), kKeyEncodingSEC1);
       const unsigned char* p = reinterpret_cast<const unsigned char*>(key);
-      pkey.reset(d2i_PrivateKey(EVP_PKEY_EC, nullptr, &p, key_len));
+      pkey->reset(d2i_PrivateKey(EVP_PKEY_EC, nullptr, &p, key_len));
     }
   }
 
   // OpenSSL can fail to parse the key but still return a non-null pointer.
   if (ERR_peek_error() != 0)
-    pkey.reset();
+    pkey->reset();
 
-  return pkey;
+  if (*pkey)
+    return ParseKeyResult::kParseKeyOk;
+  if (pc_info.CalledButEmpty())
+    return ParseKeyResult::kParseKeyNeedPassphrase;
+  return ParseKeyResult::kParseKeyFailed;
 }
 
 ByteSource::ByteSource(ByteSource&& other)
@@ -3284,6 +3309,25 @@ static PublicKeyEncodingConfig GetPublicKeyEncodingFromJs(
   return result;
 }
 
+static inline ManagedEVPPKey GetParsedKey(Environment* env,
+                                          EVPKeyPointer&& pkey,
+                                          ParseKeyResult ret,
+                                          const char* default_msg) {
+  switch (ret) {
+    case ParseKeyResult::kParseKeyOk:
+      CHECK(pkey);
+      break;
+    case ParseKeyResult::kParseKeyNeedPassphrase:
+      THROW_ERR_MISSING_PASSPHRASE(env,
+                                   "Passphrase required for encrypted key");
+      break;
+    default:
+      ThrowCryptoError(env, ERR_get_error(), default_msg);
+  }
+
+  return ManagedEVPPKey(std::move(pkey));
+}
+
 static NonCopyableMaybe<PrivateKeyEncodingConfig> GetPrivateKeyEncodingFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -3339,11 +3383,12 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
         GetPrivateKeyEncodingFromJs(args, offset, kKeyContextInput);
     if (config.IsEmpty())
       return ManagedEVPPKey();
-    EVPKeyPointer pkey =
-        ParsePrivateKey(config.Release(), key.get(), key.size());
-    if (!pkey)
-      ThrowCryptoError(env, ERR_get_error(), "Failed to read private key");
-    return ManagedEVPPKey(std::move(pkey));
+
+    EVPKeyPointer pkey;
+    ParseKeyResult ret =
+        ParsePrivateKey(&pkey, config.Release(), key.get(), key.size());
+    return GetParsedKey(env, std::move(pkey), ret,
+                        "Failed to read private key");
   } else {
     CHECK(args[*offset]->IsObject() && allow_key_object);
     KeyObject* key;
@@ -3364,15 +3409,16 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
         GetPrivateKeyEncodingFromJs(args, offset, kKeyContextInput);
     if (config_.IsEmpty())
       return ManagedEVPPKey();
+
+    ParseKeyResult ret;
     PrivateKeyEncodingConfig config = config_.Release();
     EVPKeyPointer pkey;
     if (config.format_ == kKeyFormatPEM) {
       // For PEM, we can easily determine whether it is a public or private key
       // by looking for the respective PEM tags.
-      ParsePublicKeyResult ret = ParsePublicKeyPEM(&pkey, data.get(),
-                                                   data.size());
-      if (ret == ParsePublicKeyResult::kParsePublicNotRecognized) {
-        pkey = ParsePrivateKey(config, data.get(), data.size());
+      ret = ParsePublicKeyPEM(&pkey, data.get(), data.size());
+      if (ret == ParseKeyResult::kParseKeyNotRecognized) {
+        ret = ParsePrivateKey(&pkey, config, data.get(), data.size());
       }
     } else {
       // For DER, the type determines how to parse it. SPKI, PKCS#8 and SEC1 are
@@ -3395,14 +3441,14 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
       }
 
       if (is_public) {
-        ParsePublicKey(&pkey, config, data.get(), data.size());
+        ret = ParsePublicKey(&pkey, config, data.get(), data.size());
       } else {
-        pkey = ParsePrivateKey(config, data.get(), data.size());
+        ret = ParsePrivateKey(&pkey, config, data.get(), data.size());
       }
     }
-    if (!pkey)
-      ThrowCryptoError(env, ERR_get_error(), "Failed to read asymmetric key");
-    return ManagedEVPPKey(std::move(pkey));
+
+    return GetParsedKey(env, std::move(pkey), ret,
+                        "Failed to read asymmetric key");
   } else {
     CHECK(args[*offset]->IsObject());
     KeyObject* key = Unwrap<KeyObject>(args[*offset].As<Object>());
@@ -3585,6 +3631,7 @@ KeyType KeyObject::GetKeyType() const {
 void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
   KeyObject* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
   unsigned int offset;
   ManagedEVPPKey pkey;
@@ -4780,6 +4827,8 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   Sign* sign;
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
 
+  ClearErrorOnReturn clear_error_on_return;
+
   unsigned int offset = 0;
   ManagedEVPPKey key = GetPrivateKeyFromJs(args, &offset, true);
   if (!key)
@@ -4790,8 +4839,6 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[offset + 1]->IsInt32());
   int salt_len = args[offset + 1].As<Int32>()->Value();
-
-  ClearErrorOnReturn clear_error_on_return;
 
   SignResult ret = sign->SignFinal(
       key,

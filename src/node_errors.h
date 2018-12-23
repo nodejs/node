@@ -51,6 +51,7 @@ void FatalException(v8::Isolate* isolate,
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
   V(ERR_MISSING_ARGS, TypeError)                                             \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
+  V(ERR_MISSING_PASSPHRASE, TypeError)                                       \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
   V(ERR_MODULE_NOT_FOUND, Error)                                             \
   V(ERR_OUT_OF_RANGE, RangeError)                                            \

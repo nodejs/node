@@ -26,6 +26,7 @@ all: \
   dh2048.pem \
   dsa1025.pem \
   dsa_private_1025.pem \
+  dsa_private_encrypted_1025.pem \
   dsa_public_1025.pem \
   ec-cert.pem \
   ec.pfx \
@@ -548,6 +549,9 @@ dsa1025.pem:
 
 dsa_private_1025.pem:
 	openssl gendsa -out dsa_private_1025.pem dsa1025.pem
+
+dsa_private_encrypted_1025.pem:
+	openssl pkcs8 -in dsa_private_1025.pem -topk8 -passout 'pass:secret' -out dsa_private_encrypted_1025.pem
 
 dsa_public_1025.pem:
 	openssl dsa -in dsa_private_1025.pem -pubout -out dsa_public_1025.pem
