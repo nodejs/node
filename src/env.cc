@@ -241,6 +241,8 @@ Environment::Environment(IsolateData* isolate_data,
   if (options_->no_force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
+
+  isolate()->SetPromiseRejectCallback(task_queue::PromiseRejectCallback);
 }
 
 Environment::~Environment() {

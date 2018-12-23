@@ -5,6 +5,7 @@
 
 namespace node {
 
+using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -114,8 +115,13 @@ void InternalCallbackScope::Close() {
 
   if (!env_->can_call_into_js()) return;
 
-  if (env_->tick_callback_function()
-      ->Call(env_->context(), process, 0, nullptr).IsEmpty()) {
+  Local<Function> tick_callback = env_->tick_callback_function();
+
+  // The tick is triggered before JS land calls SetTickCallback
+  // to initializes the tick callback during bootstrap.
+  CHECK(!tick_callback.IsEmpty());
+
+  if (tick_callback->Call(env_->context(), process, 0, nullptr).IsEmpty()) {
     failed_ = true;
   }
 }

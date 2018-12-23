@@ -36,7 +36,7 @@ static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
   env->set_tick_callback_function(args[0].As<Function>());
 }
 
-static void PromiseRejectCallback(PromiseRejectMessage message) {
+void PromiseRejectCallback(PromiseRejectMessage message) {
   static std::atomic<uint64_t> unhandledRejections{0};
   static std::atomic<uint64_t> rejectionsHandledAfter{0};
 
@@ -49,6 +49,10 @@ static void PromiseRejectCallback(PromiseRejectMessage message) {
   if (env == nullptr) return;
 
   Local<Function> callback = env->promise_reject_callback();
+  // The promise is rejected before JS land calls SetPromiseRejectCallback
+  // to initializes the promise reject callback during bootstrap.
+  CHECK(!callback.IsEmpty());
+
   Local<Value> value;
   Local<Value> type = Number::New(env->isolate(), event);
 
@@ -83,17 +87,12 @@ static void PromiseRejectCallback(PromiseRejectMessage message) {
       env->context(), Undefined(isolate), arraysize(args), args));
 }
 
-static void InitializePromiseRejectCallback(
+static void SetPromiseRejectCallback(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
-
-  // TODO(joyeecheung): this may be moved to somewhere earlier in the bootstrap
-  // to make sure it's only called once
-  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
-
   env->set_promise_reject_callback(args[0].As<Function>());
 }
 
@@ -120,8 +119,8 @@ static void Initialize(Local<Object> target,
               FIXED_ONE_BYTE_STRING(isolate, "promiseRejectEvents"),
               events).FromJust();
   env->SetMethod(target,
-                 "initializePromiseRejectCallback",
-                 InitializePromiseRejectCallback);
+                 "setPromiseRejectCallback",
+                 SetPromiseRejectCallback);
 }
 
 }  // namespace task_queue
