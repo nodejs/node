@@ -11,6 +11,8 @@ test-child-process-execfile: PASS,FLAKY
 test-net-connect-options-port: PASS,FLAKY
 # https://github.com/nodejs/node/issues/25033
 test-child-process-exit-code: PASS,FLAKY
+# https://github.com/nodejs/node/issues/24305
+test-trace-events-api-worker-disabled: PASS,FLAKY
 
 [$system==win32]
 test-http2-pipe: PASS,FLAKY
