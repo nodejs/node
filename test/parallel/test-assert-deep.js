@@ -149,7 +149,7 @@ assert.throws(
   {
     code: 'ERR_ASSERTION',
     message: `${defaultMsgStartFull}\n\n` +
-             "+ /test/\n- /test/ {\n-   '0': '1'\n- }"
+             "+ /test/\n- MyRegExp /test/ {\n-   '0': '1'\n- }"
   }
 );
 
