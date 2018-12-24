@@ -45,7 +45,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "options" argument must be of type Object. ' +
+        message: 'The "options" argument must be of type object. ' +
                  `Received type ${typeof input}`
       });
   });
