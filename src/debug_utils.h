@@ -68,9 +68,7 @@ template <typename... Args>
 inline void FORCE_INLINE Debug(AsyncWrap* async_wrap,
                                const char* format,
                                Args&&... args) {
-#ifdef DEBUG
-  CHECK_NOT_NULL(async_wrap);
-#endif
+  DCHECK_NOT_NULL(async_wrap);
   DebugCategory cat =
       static_cast<DebugCategory>(async_wrap->provider_type());
   if (!UNLIKELY(async_wrap->env()->debug_enabled(cat)))

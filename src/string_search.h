@@ -37,9 +37,7 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
-#ifdef DEBUG
-    CHECK(index < length_);
-#endif
+    DCHECK_LT(index, length_);
     return start_[is_forward_ ? index : (length_ - index - 1)];
   }
 
