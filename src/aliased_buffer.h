@@ -198,9 +198,7 @@ class AliasedBuffer {
    *  Set position index to given value.
    */
   inline void SetValue(const size_t index, NativeT value) {
-#if defined(DEBUG) && DEBUG
-    CHECK_LT(index, count_);
-#endif
+    DCHECK_LT(index, count_);
     buffer_[index] = value;
   }
 
@@ -208,9 +206,7 @@ class AliasedBuffer {
    *  Get value at position index
    */
   inline const NativeT GetValue(const size_t index) const {
-#if defined(DEBUG) && DEBUG
-    CHECK_LT(index, count_);
-#endif
+    DCHECK_LT(index, count_);
     return buffer_[index];
   }
 
@@ -233,9 +229,9 @@ class AliasedBuffer {
   // Should only be used on an owning array, not one created as a sub array of
   // an owning `AliasedBuffer`.
   void reserve(size_t new_capacity) {
+    DCHECK_GE(new_capacity, count_);
+    DCHECK_EQ(byte_offset_, 0);
 #if defined(DEBUG) && DEBUG
-    CHECK_GE(new_capacity, count_);
-    CHECK_EQ(byte_offset_, 0);
     CHECK(free_buffer_);
 #endif
     const v8::HandleScope handle_scope(isolate_);
