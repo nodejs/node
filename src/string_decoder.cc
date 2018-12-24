@@ -44,9 +44,7 @@ MaybeLocal<String> MakeString(Isolate* isolate,
     isolate->ThrowException(error);
   }
 
-#ifdef DEBUG
-  CHECK(ret.IsEmpty() || ret.ToLocalChecked()->IsString());
-#endif
+  DCHECK(ret.IsEmpty() || ret.ToLocalChecked()->IsString());
   return ret.FromMaybe(Local<Value>()).As<String>();
 }
 

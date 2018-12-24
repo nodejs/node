@@ -231,9 +231,7 @@ class AliasedBuffer {
   void reserve(size_t new_capacity) {
     DCHECK_GE(new_capacity, count_);
     DCHECK_EQ(byte_offset_, 0);
-#if defined(DEBUG) && DEBUG
-    CHECK(free_buffer_);
-#endif
+    DCHECK(free_buffer_);
     const v8::HandleScope handle_scope(isolate_);
 
     const size_t old_size_in_bytes = sizeof(NativeT) * count_;
