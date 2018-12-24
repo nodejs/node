@@ -130,6 +130,7 @@ void DumpBacktrace(FILE* fp);
 #define CHECK_IMPLIES(a, b) CHECK(!(a) || (b))
 
 #ifdef DEBUG
+  #define DCHECK(expr) CHECK(expr)
   #define DCHECK_EQ(a, b) CHECK((a) == (b))
   #define DCHECK_GE(a, b) CHECK((a) >= (b))
   #define DCHECK_GT(a, b) CHECK((a) > (b))
@@ -140,6 +141,7 @@ void DumpBacktrace(FILE* fp);
   #define DCHECK_NOT_NULL(val) CHECK((val) != nullptr)
   #define DCHECK_IMPLIES(a, b) CHECK(!(a) || (b))
 #else
+  #define DCHECK(expr)
   #define DCHECK_EQ(a, b)
   #define DCHECK_GE(a, b)
   #define DCHECK_GT(a, b)
