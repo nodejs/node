@@ -3339,10 +3339,12 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
                                   GetAsymmetricKeyType);
   env->SetProtoMethod(t, "export", Export);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObject"),
-              t->GetFunction(env->context()).ToLocalChecked());
+  auto function = t->GetFunction(env->context()).ToLocalChecked();
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObject"),
+              function).FromJust();
 
-  return t->GetFunction();
+  return function;
 }
 
 Local<Object> KeyObject::Create(Environment* env,
