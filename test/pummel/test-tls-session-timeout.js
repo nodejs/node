@@ -50,8 +50,8 @@ function doTest() {
 
   const SESSION_TIMEOUT = 1;
 
-  const key = fs.readFileSync(fixtures.path('agent.key'));
-  const cert = fs.readFileSync(fixtures.path('agent.crt'));
+  const key = fixtures.readSync('agent.key');
+  const cert = fixtures.readSync('agent.crt');
   const options = {
     key: key,
     cert: cert,
