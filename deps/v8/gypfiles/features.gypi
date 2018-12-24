@@ -51,11 +51,6 @@
 
     'v8_enable_gdbjit%': 0,
 
-    # Build-time flag for enabling nojit mode.
-    # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag
-    # does everything we need.
-    'v8_enable_jitless_mode%': 0,
-
     # Enable code-generation-time checking of types in the CodeStubAssembler.
     'v8_enable_verify_csa%': 0,
 
@@ -144,6 +139,10 @@
       }],
       ['v8_enable_lite_mode==1', {
         'defines': ['V8_LITE_MODE',],
+
+        # TODO(v8:7777): Remove the define once the --jitless runtime flag does
+        # everything we need.
+        'defines': ['V8_JITLESS_MODE', ],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
@@ -207,9 +206,6 @@
         'defines': [
           'V8_EMBEDDED_BUILTINS',
         ],
-      }],
-      ['v8_enable_jitless_mode==1', {
-        'defines': ['V8_JITLESS_MODE',],
       }],
     ],  # conditions
     'defines': [
