@@ -75,6 +75,5 @@ extern size_t kNotFound;
 
 #ifndef DCHECK
   #define DCHECK CHECK
-  #define DCHECK_LT CHECK_LT
 #endif  // DCHECK
 #endif  // SRC_INSPECTOR_NODE_STRING_H_
