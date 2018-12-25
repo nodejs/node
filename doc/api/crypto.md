@@ -1369,6 +1369,9 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/???
+    description: The key can now be a private key instead of a public key.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
@@ -1408,6 +1411,9 @@ string; otherwise `signature` is expected to be a [`Buffer`][],
 The `verify` object can not be used again after `verify.verify()` has been
 called. Multiple calls to `verify.verify()` will result in an error being
 thrown.
+
+Because public keys can be derived from private keys, a private key may
+be passed instead of a public key.
 
 ## `crypto` module methods and properties
 
@@ -1819,6 +1825,11 @@ must be an object with the properties described above.
 ### crypto.createPublicKey(key)
 <!-- YAML
 added: v11.6.0
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: TODO
+    description: The `key` argument can now be a private key.
 -->
 * `key` {Object | string | Buffer}
   - `key`: {string | Buffer}
@@ -1832,6 +1843,12 @@ string or `Buffer`, `format` is assumed to be `'pem'`; otherwise, `key`
 must be an object with the properties described above.
 
 If the format is `'pem'`, the `'key'` may also be an X.509 certificate.
+
+Because public keys can be derived from private keys, a private key may be
+passed instead of a public key. In that case, this function behaves as if
+[`crypto.createPrivateKey()`][] had been called, except that the type of the
+returned `KeyObject` will be `public` and that the private key cannot be
+extracted from the returned `KeyObject`.
 
 ### crypto.createSecretKey(key)
 <!-- YAML
