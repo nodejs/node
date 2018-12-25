@@ -60,7 +60,7 @@ if (status != napi_ok) {
   return;
 }
 
-status = napi_crate_string_utf8(env, "bar", NAPI_AUTO_LENGTH, &string);
+status = napi_create_string_utf8(env, "bar", NAPI_AUTO_LENGTH, &string);
 if (status != napi_ok) {
   napi_throw_error(env, ...);
   return;
