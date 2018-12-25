@@ -269,12 +269,13 @@ For more information, see [Deprecations](#deprecations).
 
 #### Breaking Changes to Internal Elements
 
-Breaking changes to internal elements may be semver-patch or semver-minor.
-Collaborators should take significant care when making and reviewing such
-changes. An effort must be made to determine the potential impact of the change
-in the ecosystem. Use [Canary in the Goldmine](https://github.com/nodejs/citgm)
-to test such changes. If a change will cause ecosystem breakage, then it is
-semver-major. Consider providing a Public API in such cases.
+Breaking changes to internal elements may occur in semver-patch or semver-minor
+commits. Collaborators should take significant care when making and reviewing
+such changes. An effort must be made to determine the potential impact of the
+change in the ecosystem. Use
+[Canary in the Goldmine](https://github.com/nodejs/citgm) to test such changes.
+If a change will cause ecosystem breakage, then it is semver-major. Consider
+providing a Public API in such cases.
 
 #### When Breaking Changes Actually Break Things
 
