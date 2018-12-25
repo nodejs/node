@@ -31,9 +31,11 @@ function assertApproximateSize(key, expectedSize) {
 function testEncryptDecrypt(publicKey, privateKey) {
   const message = 'Hello Node.js world!';
   const plaintext = Buffer.from(message, 'utf8');
-  const ciphertext = publicEncrypt(publicKey, plaintext);
-  const received = privateDecrypt(privateKey, ciphertext);
-  assert.strictEqual(received.toString('utf8'), message);
+  for (const key of [publicKey, privateKey]) {
+    const ciphertext = publicEncrypt(key, plaintext);
+    const received = privateDecrypt(privateKey, ciphertext);
+    assert.strictEqual(received.toString('utf8'), message);
+  }
 }
 
 // Tests that a key pair can be used for signing / verification.
@@ -41,9 +43,11 @@ function testSignVerify(publicKey, privateKey) {
   const message = 'Hello Node.js world!';
   const signature = createSign('SHA256').update(message)
                                         .sign(privateKey, 'hex');
-  const okay = createVerify('SHA256').update(message)
-                                     .verify(publicKey, signature, 'hex');
-  assert(okay);
+  for (const key of [publicKey, privateKey]) {
+    const okay = createVerify('SHA256').update(message)
+                                       .verify(key, signature, 'hex');
+    assert(okay);
+  }
 }
 
 // Constructs a regular expression for a PEM-encoded key with the given label.
