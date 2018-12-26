@@ -26,6 +26,18 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
+#if defined(DEBUG) && DEBUG
+  READONLY_TRUE_PROPERTY(target, "isDebugBuild");
+#else
+  READONLY_FALSE_PROPERTY(target, "isDebugBuild");
+#endif  // defined(DEBUG) && DEBUG
+
+#if HAVE_OPENSSL
+  READONLY_TRUE_PROPERTY(target, "hasOpenSSL");
+#else
+  READONLY_FALSE_PROPERTY(target, "hasOpenSSL");
+#endif  // HAVE_OPENSSL
+
 #ifdef NODE_FIPS_MODE
   READONLY_TRUE_PROPERTY(target, "fipsMode");
   // TODO(addaleax): Use options parser variable instead.

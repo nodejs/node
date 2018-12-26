@@ -801,49 +801,6 @@ static void OnMessage(Local<Message> message, Local<Value> error) {
   }
 }
 
-static Local<Object> GetFeatures(Environment* env) {
-  EscapableHandleScope scope(env->isolate());
-
-  Local<Object> obj = Object::New(env->isolate());
-#if defined(DEBUG) && DEBUG
-  Local<Value> debug = True(env->isolate());
-#else
-  Local<Value> debug = False(env->isolate());
-#endif  // defined(DEBUG) && DEBUG
-
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "debug"),
-           debug).FromJust();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "uv"),
-           True(env->isolate())).FromJust();
-  // TODO(bnoordhuis) ping libuv
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"),
-           True(env->isolate())).FromJust();
-
-#ifdef HAVE_OPENSSL
-  Local<Boolean> have_openssl = True(env->isolate());
-#else
-  Local<Boolean> have_openssl = False(env->isolate());
-#endif
-
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"),
-           have_openssl).FromJust();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"),
-           have_openssl).FromJust();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"),
-           have_openssl).FromJust();
-  obj->Set(env->context(),
-           FIXED_ONE_BYTE_STRING(env->isolate(), "tls"),
-           have_openssl).FromJust();
-
-  return scope.Escape(obj);
-}
-
 void SetupProcessObject(Environment* env,
                         const std::vector<std::string>& args,
                         const std::vector<std::string>& exec_args) {
@@ -964,7 +921,6 @@ void SetupProcessObject(Environment* env,
 
   READONLY_PROPERTY(process, "pid",
                     Integer::New(env->isolate(), uv_os_getpid()));
-  READONLY_PROPERTY(process, "features", GetFeatures(env));
 
   CHECK(process->SetAccessor(env->context(),
                              FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
