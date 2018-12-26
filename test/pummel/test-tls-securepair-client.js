@@ -29,6 +29,9 @@ if (!common.opensslCli)
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (common.isWindows)
+  common.skip('test does not work on Windows'); // ...but it should!
+
 const net = require('net');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
@@ -54,14 +57,14 @@ function test2() {
   test('keys/agent4-key.pem', 'keys/agent4-cert.pem', check);
 }
 
-function test(keyfn, certfn, check, next) {
-  const key = fixtures.readSync(keyfn).toString();
-  const cert = fixtures.readSync(certfn).toString();
+function test(keyPath, certPath, check, next) {
+  const key = fixtures.readSync(keyPath).toString();
+  const cert = fixtures.readSync(certPath).toString();
 
   const server = spawn(common.opensslCli, ['s_server',
                                            '-accept', common.PORT,
-                                           '-cert', certfn,
-                                           '-key', keyfn]);
+                                           '-cert', fixtures.path(certPath),
+                                           '-key', fixtures.path(keyPath)]);
   server.stdout.pipe(process.stdout);
   server.stderr.pipe(process.stdout);
 
@@ -72,7 +75,7 @@ function test(keyfn, certfn, check, next) {
   server.stdout.setEncoding('utf8');
   server.stdout.on('data', function(s) {
     serverStdoutBuffer += s;
-    console.error(state);
+    console.log(state);
     switch (state) {
       case 'WAIT-ACCEPT':
         if (/ACCEPT/.test(serverStdoutBuffer)) {
@@ -132,6 +135,11 @@ function test(keyfn, certfn, check, next) {
 
     s.on('connect', function() {
       console.log('client connected');
+      setTimeout(function() {
+        pair.cleartext.write('hello\r\n', function() {
+          gotWriteCallback = true;
+        });
+      }, 500);
     });
 
     pair.on('secure', function() {
@@ -141,11 +149,6 @@ function test(keyfn, certfn, check, next) {
       console.log('client pair.cleartext.getCipher(): %j',
                   pair.cleartext.getCipher());
       if (check) check(pair);
-      setTimeout(function() {
-        pair.cleartext.write('hello\r\n', function() {
-          gotWriteCallback = true;
-        });
-      }, 500);
     });
 
     pair.cleartext.on('data', function(d) {
