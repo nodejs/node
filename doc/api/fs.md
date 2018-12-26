@@ -3614,10 +3614,10 @@ recommended.
 1. Any specified file descriptor has to support writing.
 2. If a file descriptor is specified as the `file`, it will not be closed
 automatically.
-3. The writing will begin at the beginning of the file. For example, if the
-file already had `'Hello World'` and the newly written content is `'Aloha'`,
-then the contents of the file would be `'Aloha World'`, rather than just
-`'Aloha'`.
+3. The writing will begin at the current position. For example, if the string
+`'Hello'` is written to the file descriptor, and if `', World'` is written with
+`fs.writeFile()` to the same file descriptor, the contents of the file would
+become `'Hello, World'`, instead of just `', World'`.
 
 
 ## fs.writeFileSync(file, data[, options])
