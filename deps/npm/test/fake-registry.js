@@ -5,7 +5,7 @@ const log = require('npmlog')
 
 const http = require('http')
 const EventEmitter = require('events')
-// See mock-registry.md for details
+// See fake-registry.md for details
 
 class FakeRegistry extends EventEmitter {
   constructor (opts) {
