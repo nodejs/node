@@ -34,6 +34,10 @@ const {
   hasIntl
 } = process.binding('config');
 
+// Some tests assume a umask of 0o022 so set that up front. Tests that need a
+// different umask will set it themselves.
+process.umask(0o022);
+
 const noop = () => {};
 
 const hasCrypto = Boolean(process.versions.openssl);
