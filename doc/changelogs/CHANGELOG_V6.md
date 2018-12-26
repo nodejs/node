@@ -85,7 +85,7 @@ a missing CLI flag to adjust the max header size of the http parser.
 
 ### Notable Changes
 
-* **cli**: 
+* **cli**:
   - add --max-http-header-size flag (cjihrig) [#24811](https://github.com/nodejs/node/pull/24811)
 * **http**:
   - add maxHeaderSize property (cjihrig) [#24860](https://github.com/nodejs/node/pull/24860)
