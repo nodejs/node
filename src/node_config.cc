@@ -57,6 +57,12 @@ static void Initialize(Local<Object> target,
   READONLY_TRUE_PROPERTY(target, "hasTracing");
 #endif
 
+#if HAVE_INSPECTOR
+  READONLY_TRUE_PROPERTY(target, "hasInspector");
+#else
+  READONLY_FALSE_PROPERTY(target, "hasInspector");
+#endif
+
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   READONLY_TRUE_PROPERTY(target, "hasNodeOptions");
 #endif
