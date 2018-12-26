@@ -24,3 +24,4 @@ test-worker-syntax-error-file: PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
+test-repl-envvars: PASS,FLAKY
