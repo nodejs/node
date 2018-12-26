@@ -48,7 +48,8 @@ const {
   runWithInvalidFD,
   experimentalWorker,
   exposeInternals,
-  relaunchWithFlags
+  relaunchWithFlags,
+  requireFlags
 } = common;
 
 export {
@@ -98,5 +99,6 @@ export {
   runWithInvalidFD,
   experimentalWorker,
   exposeInternals,
-  relaunchWithFlags
+  relaunchWithFlags,
+  requireFlags
 };

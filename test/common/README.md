@@ -325,6 +325,22 @@ if (process.argv.includes('--preserve-symlinks'))
   common.relaunchWithFlags(['--preserve-symlinks']);
 ```
 
+### requireFlags(flags)
+* [&lt;array>] | [&lt;string>]
+
+Checks that the provided command-line flags have been provided. If not, it
+relaunches the test adding the missing flags.
+
+```js
+const common = require('../common');
+common.requireFlags('---preserve-symlinks');
+```
+
+```js
+const common = require('../common');
+common.requireFlags(['--preserve-symlinks', '--expose-internals']);
+```
+
 ### rootDir
 * [&lt;string>]
 

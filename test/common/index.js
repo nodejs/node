@@ -682,6 +682,16 @@ function runWithInvalidFD(func) {
   printSkipMessage('Could not generate an invalid fd');
 }
 
+function requireFlags(flags) {
+  if (!(flags instanceof Array)) {
+    flags = [flags];
+  }
+  const missing = flags.filter((flag) => !process.execArgv.includes(flag));
+  if (missing.length > 0) {
+    relaunchWithFlags(missing);
+  }
+}
+
 function relaunchWithFlags(flags) {
   const args = [ ...flags, ...process.execArgv, ...process.argv.slice(1) ];
   const options = { encoding: 'utf8', stdio: 'inherit' };
@@ -749,6 +759,7 @@ module.exports = {
   printSkipMessage,
   pwdCommand,
   relaunchWithFlags,
+  requireFlags,
   rootDir,
   runWithInvalidFD,
   skip,
