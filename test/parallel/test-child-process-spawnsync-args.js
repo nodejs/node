@@ -15,6 +15,8 @@ const tmpdir = require('../common/tmpdir');
 const command = common.isWindows ? 'cd' : 'pwd';
 const options = { cwd: tmpdir.path };
 
+tmpdir.refresh();
+
 if (common.isWindows) {
   // This test is not the case for Windows based systems
   // unless the `shell` options equals to `true`
@@ -31,12 +33,13 @@ const testCases = [
 const expectedResult = tmpdir.path.trim().toLowerCase();
 
 const results = testCases.map((testCase) => {
-  const { stdout, stderr } = spawnSync(
+  const { stdout, stderr, error } = spawnSync(
     command,
     testCase,
     options
   );
 
+  assert.ifError(error);
   assert.deepStrictEqual(stderr, Buffer.alloc(0));
 
   return stdout.toString().trim().toLowerCase();
