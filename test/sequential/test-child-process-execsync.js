@@ -28,10 +28,7 @@ const { execFileSync, execSync, spawnSync } = require('child_process');
 const TIMER = 200;
 const SLEEP = 2000;
 
-const start = Date.now();
 const execOpts = { encoding: 'utf8', shell: true };
-let err;
-let caught = false;
 
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
@@ -43,9 +40,11 @@ assert.throws(
   /spawnSync bad_shell ENOENT/
 );
 
-let cmd, ret;
+let caught = false;
+let ret, err;
+const start = Date.now();
 try {
-  cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
+  const cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
   ret = execSync(cmd, { timeout: TIMER });
 } catch (e) {
   caught = true;
@@ -69,28 +68,32 @@ const msgBuf = Buffer.from(`${msg}\n`);
 
 // console.log ends every line with just '\n', even on Windows.
 
-cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
+const cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
 
-ret = execSync(cmd);
+{
+  const ret = execSync(cmd);
+  assert.strictEqual(ret.length, msgBuf.length);
+  assert.deepStrictEqual(ret, msgBuf);
+}
 
-assert.strictEqual(ret.length, msgBuf.length);
-assert.deepStrictEqual(ret, msgBuf);
-
-ret = execSync(cmd, { encoding: 'utf8' });
-
-assert.strictEqual(ret, `${msg}\n`);
+{
+  const ret = execSync(cmd, { encoding: 'utf8' });
+  assert.strictEqual(ret, `${msg}\n`);
+}
 
 const args = [
   '-e',
   `console.log("${msg}");`
 ];
-ret = execFileSync(process.execPath, args);
+{
+  const ret = execFileSync(process.execPath, args);
+  assert.deepStrictEqual(ret, msgBuf);
+}
 
-assert.deepStrictEqual(ret, msgBuf);
-
-ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
-
-assert.strictEqual(ret, `${msg}\n`);
+{
+  const ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
+  assert.strictEqual(ret, `${msg}\n`);
+}
 
 // Verify that the cwd option works.
 // See https://github.com/nodejs/node-v0.x-archive/issues/7824.
@@ -133,10 +136,11 @@ assert.strictEqual(ret, `${msg}\n`);
     assert.strictEqual(err.message, msg);
     assert.strictEqual(err.status, 1);
     assert.strictEqual(typeof err.pid, 'number');
-    spawnSyncKeys.forEach((key) => {
-      if (key === 'pid') return;
-      assert.deepStrictEqual(err[key], spawnSyncResult[key]);
-    });
+    spawnSyncKeys
+      .filter((key) => key !== 'pid')
+      .forEach((key) => {
+        assert.deepStrictEqual(err[key], spawnSyncResult[key]);
+      });
     return true;
   });
 }
