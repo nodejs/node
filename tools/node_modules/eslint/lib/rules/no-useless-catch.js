@@ -27,6 +27,7 @@ module.exports = {
         return {
             CatchClause(node) {
                 if (
+                    node.param &&
                     node.param.type === "Identifier" &&
                     node.body.body.length &&
                     node.body.body[0].type === "ThrowStatement" &&
