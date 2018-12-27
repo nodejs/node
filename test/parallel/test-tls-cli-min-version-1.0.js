@@ -5,7 +5,7 @@ if (!common.hasCrypto) common.skip('missing crypto');
 // Check that `node --tls-v1.0` is supported, and overrides --tls-v1.1.
 
 if (!process.execArgv.includes('--tls-v1.1'))
-  common.relaunchWithFlags(['--tls-v1.0', '--tls-v1.1']);
+  common.requireFlags(['--tls-v1.0', '--tls-v1.1']);
 
 const assert = require('assert');
 const tls = require('tls');

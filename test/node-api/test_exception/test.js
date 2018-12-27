@@ -2,7 +2,7 @@
 
 const common = require('../../common');
 if (!global.gc)
-  common.relaunchWithFlags(['--expose-gc']);
+  common.requireFlags(['--expose-gc']);
 const assert = require('assert');
 const test_exception = require(`./build/${common.buildType}/test_exception`);
 

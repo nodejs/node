@@ -248,15 +248,13 @@ fs.readFile('test-file').then(
 ### Flags
 
 Some tests will require running Node.js with specific command line flags set. To
-accomplish this, use [`common.relaunchWithFlags()`][] or the more specific
-helper functions [`common.exposeInternals()`][] or
-[`common.experimentalWorker()`][]:
+accomplish this, use [`common.requireFlags()`][].
 
 ```javascript
 'use strict';
 
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 const freelist = require('internal/freelist');
 ```
 
@@ -396,9 +394,7 @@ To generate a test coverage report, see the
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
 [`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
-[`common.experimentalWorker()`]: https://github.com/nodejs/node/blob/master/test/common/README.md#experimentalworker
-[`common.exposeInternals()`]: https://github.com/nodejs/node/blob/master/test/common/README.md#exposeinternals
-[`common.relaunchWithFlags()`]: https://github.com/nodejs/node/blob/master/test/common/README.md#relaunchwithflagsflags
+[`common.requireFlags()`]: https://github.com/nodejs/node/blob/master/test/common/README.md#requireflagsflags
 [all maintained branches]: https://github.com/nodejs/lts
 [node.green]: http://node.green/
 [test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/Primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests

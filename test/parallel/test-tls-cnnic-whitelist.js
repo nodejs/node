@@ -5,7 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 if (!process.execArgv.includes('--use-bundled-ca'))
-  common.relaunchWithFlags(['--use-bundled-ca']);
+  common.requireFlags(['--use-bundled-ca']);
 
 const assert = require('assert');
 const tls = require('tls');

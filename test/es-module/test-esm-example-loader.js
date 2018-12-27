@@ -1,7 +1,7 @@
 /* eslint-disable node-core/required-modules */
 if (typeof require === 'function') {
   const common = require('../common');
-  common.relaunchWithFlags([
+  common.requireFlags([
     '--experimental-modules',
     '--loader=./test/fixtures/es-module-loaders/example-loader.mjs'
   ]);

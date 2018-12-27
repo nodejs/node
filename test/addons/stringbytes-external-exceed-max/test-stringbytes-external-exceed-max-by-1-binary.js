@@ -5,7 +5,7 @@ const skipMessage = 'intensive toString tests due to memory confinements';
 if (!common.enoughTestMem)
   common.skip(skipMessage);
 if (!global.gc)
-  common.relaunchWithFlags(['--expose-gc']);
+  common.requireFlags(['--expose-gc']);
 
 const binding = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');

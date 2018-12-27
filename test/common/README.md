@@ -304,27 +304,11 @@ const { spawn } = require('child_process');
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
 
-### relaunchWithFlags(flags)
-* [&lt;array>] Command-line flags as an array of strings
-
-Relaunches the test adding the specified command-line flags.
-
-```js
-const common = require('../common');
-if (process.argv.includes('--preserve-symlinks'))
-  common.relaunchWithFlags(['--preserve-symlinks']);
-```
-
 ### requireFlags(flags)
 * [&lt;array>] | [&lt;string>]
 
 Checks that the provided command-line flags have been provided. If not, it
 relaunches the test adding the missing flags.
-
-```js
-const common = require('../common');
-common.requireFlags('---preserve-symlinks');
-```
 
 ```js
 const common = require('../common');

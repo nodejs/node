@@ -2,7 +2,7 @@
 
 const common = require('../common');
 if (!global.gc) {
-  common.relaunchWithFlags(
+  common.requireFlags(
     ['--expose-gc', '--expose-internals', '--no-warnings']
   );
 }

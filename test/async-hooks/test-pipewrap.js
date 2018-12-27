@@ -6,7 +6,7 @@ const common = require('../common');
 if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 if (!global.gc)
-  common.relaunchWithFlags(['--expose-gc']);
+  common.requireFlags(['--expose-gc']);
 const assert = require('assert');
 const tick = require('../common/tick');
 const initHooks = require('./init-hooks');

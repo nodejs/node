@@ -1,4 +1,4 @@
-import { expectsError, relaunchWithFlags } from '../common';
+import { expectsError, requireFlags } from '../common';
 
 const flag =
   '--loader=' +
@@ -6,7 +6,7 @@ const flag =
 
 if (!process.execArgv.includes(flag)) {
   // Include `--experimental-modules` explicitly for workers.
-  relaunchWithFlags(['--experimental-modules', flag]);
+  requireFlags(['--experimental-modules', flag]);
 }
 
 import('test').catch(expectsError({

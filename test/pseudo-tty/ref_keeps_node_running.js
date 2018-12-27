@@ -2,7 +2,7 @@
 
 const common = require('../common');
 if (!process.execArgv.includes('--no-warnings'))
-  common.relaunchWithFlags(['--expose-internals', '--no-warnings']);
+  common.requireFlags(['--expose-internals', '--no-warnings']);
 
 const { internalBinding } = require('internal/test/binding');
 const { TTY, isTTY } = internalBinding('tty_wrap');

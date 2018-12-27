@@ -8,7 +8,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 if (!global.gc)
-  common.relaunchWithFlags(['--expose-gc']);
+  common.requireFlags(['--expose-gc']);
 
 const { TLSSocket } = require('tls');
 const makeDuplexPair = require('../common/duplexpair');

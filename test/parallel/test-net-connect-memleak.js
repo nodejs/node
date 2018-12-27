@@ -23,7 +23,7 @@
 
 const common = require('../common');
 if (!global.gc)
-  common.relaunchWithFlags(['--expose-gc']);
+  common.requireFlags(['--expose-gc']);
 const onGC = require('../common/ongc');
 const assert = require('assert');
 const net = require('net');

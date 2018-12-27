@@ -1,11 +1,11 @@
-import { expectsError, mustCall, relaunchWithFlags } from '../common';
+import { expectsError, mustCall, requireFlags } from '../common';
 import assert from 'assert';
 
 const flag =
   '--loader=./test/fixtures/es-module-loaders/loader-invalid-url.mjs';
 if (!process.execArgv.includes(flag)) {
   // Include `--experimental-modules` explicitly for workers.
-  relaunchWithFlags(['--experimental-modules', flag]);
+  requireFlags(['--experimental-modules', flag]);
 }
 
 import('../fixtures/es-modules/test-esm-ok.mjs')

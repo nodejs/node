@@ -6,8 +6,8 @@ import '../fixtures/es-modules/test-esm-ok.mjs';
 const flag = '--loader=./test/fixtures/es-module-loaders/loader-with-dep.mjs';
 if (!process.execArgv.includes(flag)) {
   (async () => {
-    const { relaunchWithFlags } = await import('../common');
+    const { requireFlags } = await import('../common');
     // Include `--experimental-modules` explicitly for workers.
-    relaunchWithFlags(['--experimental-modules', flag]);
+    requireFlags(['--experimental-modules', flag]);
   })();
 }

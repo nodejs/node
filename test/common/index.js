@@ -697,15 +697,11 @@ function requireFlags(flags) {
   }
 
   if (missing.length > 0) {
-    relaunchWithFlags(missing);
+    const args = [ ...missing, ...process.execArgv, ...process.argv.slice(1) ];
+    const options = { encoding: 'utf8', stdio: 'inherit' };
+    const result = spawnSync(process.execPath, args, options);
+    process.exit(result.status);
   }
-}
-
-function relaunchWithFlags(flags) {
-  const args = [ ...flags, ...process.execArgv, ...process.argv.slice(1) ];
-  const options = { encoding: 'utf8', stdio: 'inherit' };
-  const result = spawnSync(process.execPath, args, options);
-  process.exit(result.status);
 }
 
 module.exports = {
@@ -749,7 +745,6 @@ module.exports = {
   platformTimeout,
   printSkipMessage,
   pwdCommand,
-  relaunchWithFlags,
   requireFlags,
   rootDir,
   runWithInvalidFD,

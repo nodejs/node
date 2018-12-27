@@ -7,7 +7,7 @@ if (!common.isMainThread)
   common.skip('process.chdir is not available in Workers');
 
 if (!process.execArgv.includes('--preserve-symlinks'))
-  common.relaunchWithFlags(['--preserve-symlinks']);
+  common.requireFlags(['--preserve-symlinks']);
 
 const assert = require('assert');
 const { spawn } = require('child_process');

@@ -3,7 +3,7 @@
 // Monkey patch the os binding before requiring any other modules, including
 // common, which requires the os module.
 if (!process.execArgv.includes('--expose-internals')) {
-  require('../common').relaunchWithFlags(['--expose-internals']);
+  require('../common').requireFlags(['--expose-internals']);
 }
 const { internalBinding } = require('internal/test/binding');
 internalBinding('os').getHomeDirectory = function(ctx) {

@@ -5,7 +5,7 @@
 // behavior for Buffers, too.
 const common = require('../common');
 if (!global.gc)
-  common.relaunchWithFlags(['--expose-gc']);
+  common.requireFlags(['--expose-gc']);
 const net = require('net');
 
 const data = Buffer.alloc(1000000);

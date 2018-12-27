@@ -5,7 +5,7 @@
 
 const common = require('../common');
 if (!global.gc)
-  common.relaunchWithFlags(['--expose-gc']);
+  common.requireFlags(['--expose-gc']);
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 

@@ -26,7 +26,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 if (!process.execArgv.includes('--pending-deprecation'))
-  common.relaunchWithFlags(['--pending-deprecation']);
+  common.requireFlags(['--pending-deprecation']);
 
 const assert = require('assert');
 const crypto = require('crypto');

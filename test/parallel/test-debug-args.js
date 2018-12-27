@@ -10,4 +10,4 @@ if (!common.isMainThread)
   common.skip('execArgv does not affect Workers');
 
 if (!process.execArgv.includes('--debug-code'))
-  common.relaunchWithFlags(['--debug-code']);
+  common.requireFlags(['--debug-code']);

@@ -2,7 +2,7 @@
 
 const common = require('../common');
 if (!global.gc) {
-  common.relaunchWithFlags(['--expose-gc', '--experimental-worker']);
+  common.requireFlags(['--expose-gc', '--experimental-worker']);
 }
 
 const assert = require('assert');

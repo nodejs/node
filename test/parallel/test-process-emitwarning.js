@@ -2,7 +2,7 @@
 
 const common = require('../common');
 if (!process.execArgv.includes('--no-warnings'))
-  common.relaunchWithFlags(['--no-warnings']);
+  common.requireFlags(['--no-warnings']);
 const assert = require('assert');
 
 const testMsg = 'A Warning';

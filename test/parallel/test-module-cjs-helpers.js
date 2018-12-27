@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (!process.execArgv.includes('--experimental-worker'))
-  common.relaunchWithFlags(['--experimental-worker', '--expose-internals']);
+  common.requireFlags(['--experimental-worker', '--expose-internals']);
 
 const assert = require('assert');
 const { builtinLibs } = require('internal/modules/cjs/helpers');
