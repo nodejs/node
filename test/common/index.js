@@ -700,13 +700,7 @@ function relaunchWithFlags(flags) {
 }
 
 function exposeInternals() {
-  const internalModuleCount = require('module')
-                              .builtinModules
-                              .filter((name) => name.startsWith('internal/'))
-                              .length;
-  if (internalModuleCount === 0) {
-    relaunchWithFlags(['--expose-internals']);
-  }
+  requireFlags('--expose-internals');
 }
 
 function experimentalWorker() {
