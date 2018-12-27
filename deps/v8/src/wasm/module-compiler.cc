@@ -2653,20 +2653,20 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
         // Update the local dispatch table first.
         uint32_t sig_id = module_->signature_ids[function->sig_index];
-        WasmInstanceObject* target_instance = *instance;
+        Handle<WasmInstanceObject> target_instance = instance;
         Address call_target;
         const bool is_import = func_index < module_->num_imported_functions;
         if (is_import) {
           // For imported calls, take target instance and address from the
           // import table.
           ImportedFunctionEntry entry(instance, func_index);
-          target_instance = entry.instance();
+          target_instance = handle(entry.instance(), isolate_);
           call_target = entry.target();
         } else {
           call_target = native_module->GetCallTargetForFunction(func_index);
         }
         IndirectFunctionTableEntry(instance, table_index)
-            .set(sig_id, target_instance, call_target);
+            .set(sig_id, *target_instance, call_target);
 
         if (!table_instance.table_object.is_null()) {
           // Update the table object's other dispatch tables.
@@ -2700,17 +2700,16 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
           }
           table_instance.js_wrappers->set(table_index,
                                           *js_wrappers_[func_index]);
-          // UpdateDispatchTables() should update this instance as well.
+          // UpdateDispatchTables() updates all other dispatch tables, since
+          // we have not yet added the dispatch table we are currently building.
           WasmTableObject::UpdateDispatchTables(
               isolate_, table_instance.table_object, table_index, function->sig,
-              instance, call_target);
+              target_instance, call_target);
         }
       }
     }
 
-    // TODO(titzer): we add the new dispatch table at the end to avoid
-    // redundant work and also because the new instance is not yet fully
-    // initialized.
+    // Add the new dispatch table at the end to avoid redundant lookups.
     if (!table_instance.table_object.is_null()) {
       // Add the new dispatch table to the WebAssembly.Table object.
       WasmTableObject::AddDispatchTable(isolate_, table_instance.table_object,
