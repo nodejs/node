@@ -9,5 +9,4 @@ const common = require('../common');
 if (!common.isMainThread)
   common.skip('execArgv does not affect Workers');
 
-if (!process.execArgv.includes('--debug-code'))
-  common.requireFlags(['--debug-code']);
+common.requireFlags(['--debug-code']);

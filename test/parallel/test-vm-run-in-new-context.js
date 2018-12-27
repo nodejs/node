@@ -22,8 +22,7 @@
 'use strict';
 
 const common = require('../common');
-if (!global.gc)
-  common.requireFlags(['--expose-gc']);
+common.requireFlags(['--expose-gc']);
 const assert = require('assert');
 const vm = require('vm');
 

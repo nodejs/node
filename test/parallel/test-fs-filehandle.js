@@ -1,11 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (!global.gc) {
-  common.requireFlags(
-    ['--expose-gc', '--expose-internals', '--no-warnings']
-  );
-}
+common.requireFlags(['--expose-gc', '--expose-internals', '--no-warnings']);
 
 const assert = require('assert');
 const path = require('path');

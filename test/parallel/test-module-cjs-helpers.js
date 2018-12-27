@@ -2,12 +2,11 @@
 
 const common = require('../common');
 
-if (!process.execArgv.includes('--experimental-worker'))
-  common.requireFlags(['--experimental-worker', '--expose-internals']);
+common.requireFlags(['--experimental-worker', '--expose-internals']);
 
 const assert = require('assert');
 const { builtinLibs } = require('internal/modules/cjs/helpers');
-
+console.log(builtinLibs);
 const hasInspector = process.config.variables.v8_enable_inspector === 1;
 
 const expectedLibs = hasInspector ? 34 : 33;

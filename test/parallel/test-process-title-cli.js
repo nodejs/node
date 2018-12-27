@@ -5,8 +5,7 @@ const common = require('../common');
 if (common.isSunOS)
   common.skip(`Unsupported platform [${process.platform}]`);
 
-if (!process.execArgv.includes('--title=foo'))
-  common.requireFlags(['--title=foo']);
+common.requireFlags(['--title=foo']);
 
 const assert = require('assert');
 

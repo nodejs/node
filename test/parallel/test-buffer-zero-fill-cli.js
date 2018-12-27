@@ -5,9 +5,7 @@
 
 const common = require('../common');
 
-if (!process.execArgv.includes('--zero-fill-buffers')) {
-  common.requireFlags(['--zero-fill-buffers']);
-}
+common.requireFlags(['--zero-fill-buffers']);
 
 const SlowBuffer = require('buffer').SlowBuffer;
 const assert = require('assert');

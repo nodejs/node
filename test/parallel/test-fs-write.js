@@ -21,8 +21,7 @@
 
 'use strict';
 const common = require('../common');
-if (!process.execArgv.includes('--expose-externalize-string'))
-  common.requireFlags(['--expose-externalize-string']);
+common.requireFlags(['--expose-externalize-string']);
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');

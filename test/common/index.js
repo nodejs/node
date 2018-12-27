@@ -686,14 +686,13 @@ function requireFlags(flags) {
   if (!(flags instanceof Array)) {
     flags = [flags];
   }
-  const missing = flags.filter((flag) => !process.execArgv.includes(flag));
+  let missing = flags.filter((flag) => !process.execArgv.includes(flag));
 
   // Special handling for worker_threads. Can be removed once worker_threads
   // are no longer behind a flag.
-  if (missing.some((flag) => /--experimental[-_]worker/.test(flag))) {
-    if (require('module').builtinModules.includes('worker_threads')) {
-      return;
-    }
+  if (missing.length === 1 &&
+      require('module').builtinModules.includes('worker_threads')) {
+    missing = missing.filter((flag) => !/--experimental[-_]worker/.test(flag));
   }
 
   if (missing.length > 0) {

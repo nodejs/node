@@ -1,8 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (!process.execArgv.includes('--experimental-repl-await'))
-  common.requireFlags(['--expose-internals', '--experimental-repl-await']);
+common.requireFlags(['--expose-internals', '--experimental-repl-await']);
 
 const ArrayStream = require('../common/arraystream');
 const assert = require('assert');

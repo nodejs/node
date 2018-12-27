@@ -3,8 +3,7 @@
 // but with a timeout set
 
 const common = require('../common');
-if (!global.gc)
-  common.requireFlags(['--expose-gc']);
+common.requireFlags(['--expose-gc']);
 const onGC = require('../common/ongc');
 
 function serverHandler(req, res) {

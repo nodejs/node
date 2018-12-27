@@ -9,8 +9,7 @@
 
 const common = require('../common');
 
-if (!process.execArgv.includes('--preserve-symlinks'))
-  common.requireFlags(['--preserve-symlinks']);
+common.requireFlags(['--preserve-symlinks']);
 
 const fs = require('fs');
 const path = require('path');

@@ -3,8 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-if (!global.gc)
-  common.requireFlags(['--expose-gc', '--no-deprecation']);
+common.requireFlags(['--expose-gc', '--no-deprecation']);
 
 const assert = require('assert');
 const { createSecureContext } = require('tls');

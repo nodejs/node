@@ -3,8 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-if (!global.gc)
-  common.requireFlags(['--expose-gc', '--noconcurrent-recompilation']);
+common.requireFlags(['--expose-gc', '--noconcurrent-recompilation']);
 
 const assert = require('assert');
 const crypto = require('crypto');

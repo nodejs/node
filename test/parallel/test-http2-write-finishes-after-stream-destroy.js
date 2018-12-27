@@ -2,8 +2,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-if (!global.gc)
-  common.requireFlags(['--expose-gc']);
+common.requireFlags(['--expose-gc']);
 const assert = require('assert');
 const http2 = require('http2');
 const makeDuplexPair = require('../common/duplexpair');

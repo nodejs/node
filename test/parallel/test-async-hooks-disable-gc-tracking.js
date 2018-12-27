@@ -4,8 +4,7 @@
 // be emitted when they get gced.
 
 const common = require('../common');
-if (!global.gc)
-  common.requireFlags(['--expose-gc']);
+common.requireFlags(['--expose-gc']);
 const async_hooks = require('async_hooks');
 
 const hook = async_hooks.createHook({

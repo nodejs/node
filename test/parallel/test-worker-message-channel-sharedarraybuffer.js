@@ -1,9 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (!global.gc) {
-  common.requireFlags(['--expose-gc', '--experimental-worker']);
-}
+common.requireFlags(['--expose-gc', '--experimental-worker']);
 
 const assert = require('assert');
 const { Worker } = require('worker_threads');

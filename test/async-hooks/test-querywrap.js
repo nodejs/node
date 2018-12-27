@@ -1,8 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (!global.gc)
-  common.requireFlags(['--expose-gc']);
+common.requireFlags(['--expose-gc']);
 const assert = require('assert');
 const tick = require('../common/tick');
 const initHooks = require('./init-hooks');
