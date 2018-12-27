@@ -5,7 +5,7 @@
 // of a TLS certificate
 
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');

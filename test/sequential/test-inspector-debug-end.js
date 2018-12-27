@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 const { strictEqual } = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');
 

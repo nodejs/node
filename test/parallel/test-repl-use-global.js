@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const stream = require('stream');
 const repl = require('internal/repl');

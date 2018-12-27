@@ -3,7 +3,7 @@ const common = require('../common');
 if (common.isWindows)
   common.skip('dgram clustering is currently not supported on Windows.');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const NUM_WORKERS = 4;
 const PACKETS_PER_WORKER = 10;

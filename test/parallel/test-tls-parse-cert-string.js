@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const {
   hijackStderr,

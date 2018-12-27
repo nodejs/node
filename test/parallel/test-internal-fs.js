@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const fs = require('internal/fs/utils');
 

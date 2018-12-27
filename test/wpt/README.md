@@ -49,7 +49,7 @@ const common = require('../common');
 
 // This is required by the WPT Runner to patch the internals for the tests to
 // run in a vm.
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const { WPTRunner } = require('../common/wpt');
 

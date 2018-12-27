@@ -3,7 +3,7 @@
 // This tests internal mapping of the Node.js encoding implementation
 
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 const { getEncodingFromLabel } = require('internal/encoding');

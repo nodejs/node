@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 const assert = require('assert');
 const inspector = require('inspector');
 const path = require('path');

@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');

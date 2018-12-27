@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasIntl)
   common.skip('missing Intl');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 const readline = require('internal/readline');

@@ -3,7 +3,7 @@ const common = require('../common');
 if (common.isWindows)
   common.skip('Does not support binding fd on Windows');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 const dgram = require('dgram');

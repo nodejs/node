@@ -5,7 +5,7 @@ const common = require('../common');
 // This tests that the accessor properties do not raise assertions
 // when called with incompatible receivers.
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 

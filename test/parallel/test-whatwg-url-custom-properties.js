@@ -3,7 +3,7 @@
 // Tests below are not from WPT.
 
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const URL = require('url').URL;
 const assert = require('assert');

@@ -123,11 +123,6 @@ to indicate this.
 Checks if `worker_threads` are available. If not, it will invoke the test file
 with `--experimental-worker` and exit.
 
-### exposeInternals()
-
-Checks if internals are available. If not, it will invoke the test file with
-`--expose-internals` and exit.
-
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
 * return [&lt;ArrayBufferView&#91;&#93;>]

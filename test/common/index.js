@@ -337,7 +337,7 @@ function _mustCallInner(fn, criteria = 1, field) {
 }
 
 function hasMultiLocalhost() {
-  exposeInternals();
+  requireFlags(['--expose-internals']);
   const { internalBinding } = require('internal/test/binding');
   const { TCP, constants: TCPConstants } = internalBinding('tcp_wrap');
   const t = new TCP(TCPConstants.SOCKET);
@@ -699,10 +699,6 @@ function relaunchWithFlags(flags) {
   process.exit(result.status);
 }
 
-function exposeInternals() {
-  requireFlags('--expose-internals');
-}
-
 function experimentalWorker() {
   if (!require('module').builtinModules.includes('worker_threads')) {
     relaunchWithFlags(['--experimental-worker']);
@@ -722,7 +718,6 @@ module.exports = {
   expectsError,
   expectWarning,
   experimentalWorker,
-  exposeInternals,
   getArrayBufferViews,
   getBufferSources,
   getCallSite,

@@ -2,7 +2,7 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const { validateSnapshotNodes } = require('../common/heap');
 const inspector = require('inspector');

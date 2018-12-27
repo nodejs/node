@@ -12,7 +12,7 @@
 
 const common = require('../common');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 const fork = require('child_process').fork;

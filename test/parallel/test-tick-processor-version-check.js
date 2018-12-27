@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 const { versionCheck } = require('internal/v8_prof_polyfill');

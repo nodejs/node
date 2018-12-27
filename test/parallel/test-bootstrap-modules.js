@@ -6,7 +6,7 @@ const list = process.moduleLoadList.slice();
 
 const common = require('../common');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 

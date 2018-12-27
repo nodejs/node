@@ -2,7 +2,7 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const { NodeInstance } = require('../common/inspector-helper.js');
 

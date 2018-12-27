@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const { internalBinding } = require('internal/test/binding');
 const { PassThrough } = require('stream');

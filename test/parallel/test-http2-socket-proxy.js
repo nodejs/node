@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 const assert = require('assert');
 const h2 = require('http2');
 const net = require('net');

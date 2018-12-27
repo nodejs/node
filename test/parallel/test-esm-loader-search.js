@@ -3,7 +3,7 @@
 // This test ensures that search throws errors appropriately
 
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const { search } = require('internal/modules/esm/default_resolve');
 

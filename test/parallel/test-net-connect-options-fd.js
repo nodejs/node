@@ -3,7 +3,7 @@ const common = require('../common');
 if (common.isWindows)
   common.skip('Does not support wrapping sockets with fd on Windows');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const assert = require('assert');
 const net = require('net');

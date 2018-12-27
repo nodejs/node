@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const { internalBinding } = require('internal/test/binding');
 const { getOptionValue } = require('internal/options');

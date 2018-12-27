@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.exposeInternals();
+common.requireFlags(['--expose-internals']);
 
 const Countdown = require('../common/countdown');
 const assert = require('assert');
