@@ -190,7 +190,7 @@ one server instance and then distribute them, but it is more reasonable to
 securely generate 48 bytes of secure random data and set them with the
 `ticketKeys` option of [`tls.createServer()`][]. The keys should be regularly
 regenerated and server's keys can be reset with
-[`server.setTicketKeys(keys)`][].
+[`server.setTicketKeys()`][].
 
 Session ticket keys are cryptographic keys, and they ***must be stored
 securely***. With TLS 1.2 and below, if they are compromised all sessions that
