@@ -104,9 +104,7 @@ class Agent {
   // Writes to all writers registered through AddClient().
   void AppendTraceEvent(TraceObject* trace_event);
 
-  void AddMetadataEvent(std::unique_ptr<TraceObject> event) {
-    metadata_events_.push_back(std::move(event));
-  }
+  void AddMetadataEvent(std::unique_ptr<TraceObject> event);
   // Flushes all writers registered through AddClient().
   void Flush(bool blocking);
 
@@ -145,6 +143,8 @@ class Agent {
   ConditionVariable initialize_writer_condvar_;
   uv_async_t initialize_writer_async_;
   std::set<AsyncTraceWriter*> to_be_initialized_;
+
+  Mutex metadata_events_mutex_;
   std::list<std::unique_ptr<TraceObject>> metadata_events_;
 };
 

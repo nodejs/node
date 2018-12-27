@@ -207,9 +207,17 @@ void Agent::AppendTraceEvent(TraceObject* trace_event) {
     id_writer.second->AppendTraceEvent(trace_event);
 }
 
+void Agent::AddMetadataEvent(std::unique_ptr<TraceObject> event) {
+  Mutex::ScopedLock lock(metadata_events_mutex_);
+  metadata_events_.push_back(std::move(event));
+}
+
 void Agent::Flush(bool blocking) {
-  for (const auto& event : metadata_events_)
-    AppendTraceEvent(event.get());
+  {
+    Mutex::ScopedLock lock(metadata_events_mutex_);
+    for (const auto& event : metadata_events_)
+      AppendTraceEvent(event.get());
+  }
 
   for (const auto& id_writer : writers_)
     id_writer.second->Flush(blocking);
