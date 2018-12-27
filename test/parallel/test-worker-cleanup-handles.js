@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.experimentalWorker();
+common.requireFlags(['--experimental-worker']);
 
 const assert = require('assert');
 const { Worker, isMainThread, parentPort } = require('worker_threads');

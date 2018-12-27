@@ -2,7 +2,7 @@
 const common = require('../common');
 
 common.requireFlags(['--expose-internals']);
-common.experimentalWorker();
+common.requireFlags(['--experimental-worker']);
 
 const { validateSnapshotNodes } = require('../common/heap');
 const { Worker } = require('worker_threads');

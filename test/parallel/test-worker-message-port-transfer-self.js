@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-common.experimentalWorker();
+common.requireFlags(['--experimental-worker']);
 
 const assert = require('assert');
 const util = require('util');

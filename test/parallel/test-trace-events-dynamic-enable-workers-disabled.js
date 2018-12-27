@@ -4,7 +4,7 @@ const common = require('../common');
 
 common.skipIfInspectorDisabled();
 
-common.experimentalWorker();
+common.requireFlags(['--experimental-worker']);
 const { Worker } = require('worker_threads');
 
 if (!process.env.HAS_STARTED_WORKER) {

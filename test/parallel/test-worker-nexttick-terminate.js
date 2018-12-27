@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.experimentalWorker();
+common.requireFlags(['--experimental-worker']);
 const { Worker } = require('worker_threads');
 
 // Checks that terminating in the middle of `process.nextTick()` does not

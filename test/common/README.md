@@ -118,11 +118,6 @@ Tests whether `name`, `expected`, and `code` are part of a raised warning. If
 an expected warning does not have a code then `common.noWarnCode` can be used
 to indicate this.
 
-### experimentalWorker()
-
-Checks if `worker_threads` are available. If not, it will invoke the test file
-with `--experimental-worker` and exit.
-
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
 * return [&lt;ArrayBufferView&#91;&#93;>]

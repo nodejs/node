@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.experimentalWorker();
+common.requireFlags(['--experimental-worker']);
 const { Worker } = require('worker_threads');
 
 const w = new Worker(`
