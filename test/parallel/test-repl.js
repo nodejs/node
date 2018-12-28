@@ -25,6 +25,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const net = require('net');
 const repl = require('repl');
+const { inspect } = require('util');
 
 const message = 'Read, Eval, Print Loop';
 const prompt_unix = 'node via Unix socket> ';
@@ -58,7 +59,7 @@ async function runReplTests(socket, prompt, tests) {
         expectedLine = send;
 
       while (!lineBuffer.includes('\n')) {
-        lineBuffer += await event(socket, 'data');
+        lineBuffer += await event(socket, expect);
 
         // Cut away the initial prompt
         while (lineBuffer.startsWith(prompt))
@@ -124,7 +125,7 @@ const unixTests = [
 const strictModeTests = [
   {
     send: 'ref = 1',
-    expect: /^ReferenceError:\s/
+    expect: ['Thrown:', /^ReferenceError:\s/]
   }
 ];
 
@@ -132,7 +133,7 @@ const errorTests = [
   // Uncaught error throws and prints out
   {
     send: 'throw new Error(\'test error\');',
-    expect: 'Error: test error'
+    expect: ['Thrown:', 'Error: test error']
   },
   {
     send: "throw { foo: 'bar' };",
@@ -151,7 +152,7 @@ const errorTests = [
   // But passing the same string to eval() should throw
   {
     send: 'eval("function test_func() {")',
-    expect: /^SyntaxError: /
+    expect: ['Thrown:', /^SyntaxError: /]
   },
   // Can handle multiline template literals
   {
@@ -208,90 +209,90 @@ const errorTests = [
   // should throw
   {
     send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-    expect: [/^SyntaxError: /, '']
+    expect: ['Thrown:', /^SyntaxError: /]
   },
   // End of input to JSON.parse error is special case of syntax error,
   // should throw
   {
     send: 'JSON.parse(\'066\');',
-    expect: [/^SyntaxError: /, '']
+    expect: ['Thrown:', /^SyntaxError: /]
   },
   // should throw
   {
     send: 'JSON.parse(\'{\');',
-    expect: [/^SyntaxError: /, '']
+    expect: ['Thrown:', /^SyntaxError: /]
   },
   // invalid RegExps are a special case of syntax error,
   // should throw
   {
     send: '/(/;',
-    expect: /^SyntaxError: /
+    expect: ['Thrown:', /^SyntaxError: /]
   },
   // invalid RegExp modifiers are a special case of syntax error,
   // should throw (GH-4012)
   {
     send: 'new RegExp("foo", "wrong modifier");',
-    expect: [/^SyntaxError: /, '']
+    expect: ['Thrown:', /^SyntaxError: /]
   },
   // Strict mode syntax errors should be caught (GH-5178)
   {
     send: '(function() { "use strict"; return 0755; })()',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
     send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
     send: '(function() { "use strict"; with (this) {} })()',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
     send: '(function() { "use strict"; var x; delete x; })()',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
     send: '(function() { "use strict"; eval = 17; })()',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
     send: '(function() { "use strict"; if (true) function f() { } })()',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   // Named functions can be used:
@@ -396,11 +397,11 @@ const errorTests = [
   {
     send: '[] \\',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   // Do not fail when a String is created with line continuation
@@ -530,6 +531,7 @@ const errorTests = [
   {
     send: 'require("internal/repl")',
     expect: [
+      'Thrown:',
       /^{ Error: Cannot find module 'internal\/repl'/,
       /^    at .*/,
       /^    at .*/,
@@ -563,11 +565,11 @@ const errorTests = [
   {
     send: 'a = 3.5e',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   // Mitigate https://github.com/nodejs/node/issues/548
@@ -583,22 +585,22 @@ const errorTests = [
   {
     send: 'a = 3.5e',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   // Avoid emitting stack trace
   {
     send: 'a = 3.5e',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
 
@@ -663,11 +665,11 @@ const errorTests = [
   {
     send: '...[]',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   // bring back the repl to prompt
@@ -678,31 +680,31 @@ const errorTests = [
   {
     send: 'console.log("Missing comma in arg list" process.version)',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
     send: 'x = {\nfield\n{',
     expect: [
-      '... ... {',
+      '... ... Thrown:',
+      '{',
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
     send: '(2 + 3))',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
   {
@@ -716,11 +718,11 @@ const errorTests = [
   {
     send: '} else {',
     expect: [
+      'Thrown:',
       kSource,
       kArrow,
       '',
-      /^SyntaxError: /,
-      ''
+      /^SyntaxError: /
     ]
   },
 ];
@@ -844,8 +846,16 @@ function startUnixRepl() {
   ]);
 }
 
-function event(ee, eventName) {
-  return new Promise((resolve) => {
-    ee.once(eventName, common.mustCall(resolve));
+function event(ee, expected) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      const data = inspect(expected, { compact: false });
+      const msg = `The REPL did not reply as expected for:\n\n${data}`;
+      reject(new Error(msg));
+    }, 500);
+    ee.once('data', common.mustCall((...args) => {
+      clearTimeout(timeout);
+      resolve(...args);
+    }));
   });
 }
