@@ -317,6 +317,7 @@ fs.access('file/that/does/not/exist', (err) => {
 ## util.inherits(constructor, superConstructor)
 <!-- YAML
 added: v0.3.0
+deprecated: REPLACEME
 changes:
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/3455
@@ -326,9 +327,12 @@ changes:
 * `constructor` {Function}
 * `superConstructor` {Function}
 
+> Stability: 0 - Deprecated: Use `class` with [`extends`][] instead.
+
 Usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
-`extends` keywords to get language level inheritance support. Also note
-that the two styles are [semantically incompatible][].
+[`extends`][] keywords to get language level inheritance support or use
+[`Object.setPrototypeOf()`]. Also note that the two styles are [semantically
+incompatible][].
 
 Inherit the prototype methods from one [constructor][] into another. The
 prototype of `constructor` will be set to a new object created from
@@ -364,7 +368,7 @@ stream.on('data', (data) => {
 stream.write('It works!'); // Received data: "It works!"
 ```
 
-ES6 example using `class` and `extends`:
+ES6 example using `class` and [`extends`][]:
 
 ```js
 const EventEmitter = require('events');
@@ -2207,6 +2211,7 @@ Deprecated predecessor of `console.log`.
 [`Int8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`Object.setPrototypeOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
 [`Promise`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
 [`Proxy`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
 [`Set`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set
@@ -2222,6 +2227,7 @@ Deprecated predecessor of `console.log`.
 [`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`extends`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/extends
 [`util.format()`]: #util_util_format_format_args
 [`util.inspect()`]: #util_util_inspect_object_options
 [`util.promisify()`]: #util_util_promisify_original

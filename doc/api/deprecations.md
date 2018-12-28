@@ -2313,6 +2313,21 @@ Type: Runtime
 Setting the TLS ServerName to an IP address is not permitted by
 [RFC 6066][]. This will be ignored in a future version.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: util.inherits()
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+`util.inherits()` is only a small abstraction over `Object.setPrototypeOf()` and
+has no real benefit over using that function directly. Use `class` with
+`extends` instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

@@ -108,3 +108,9 @@ common.expectsError(function() {
   type: TypeError,
   message: 'The "ctor" argument must be of type Function. Received type object'
 });
+
+common.expectWarning('DeprecationWarning', [[
+  'util.inherits() is deprecated. Use `class` with `extends` or ' +
+    '`Object.setPrototypeOf()` instead.',
+  'DEP0XXX'
+]]);
