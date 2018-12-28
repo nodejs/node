@@ -145,6 +145,7 @@ assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 
 common.expectWarning('DeprecationWarning', [
+  ['util._extend() is deprecated. Use `Object.assign()` instead.', 'DEP0XXX'],
   ['util.print is deprecated. Use console.log instead.', 'DEP0026'],
   ['util.puts is deprecated. Use console.log instead.', 'DEP0027'],
   ['util.debug is deprecated. Use console.error instead.', 'DEP0028'],

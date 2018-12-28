@@ -1716,7 +1716,8 @@ The `util._extend()` method was never intended to be used outside of internal
 Node.js modules. The community found and used it anyway.
 
 It is deprecated and should not be used in new code. JavaScript comes with very
-similar built-in functionality through [`Object.assign()`].
+similar built-in functionality through [`Object.assign()`]. Another alternative
+that often works well is using the [object spread notation][].
 
 ### util.debug(string)
 <!-- YAML
@@ -2245,3 +2246,4 @@ Deprecated predecessor of `console.log`.
 [list of deprecated APIS]: deprecations.html#deprecations_list_of_deprecated_apis
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #util_util_inspect_custom
+[object spread notation]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax

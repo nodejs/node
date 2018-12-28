@@ -1224,6 +1224,9 @@ The [`util.log()`][] API is deprecated.
 ### DEP0060: util.\_extend()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Switched to a runtime deprecation.
   - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/10116
     description: A deprecation code has been assigned.
@@ -1232,7 +1235,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`util._extend()`][] API is deprecated.
 
@@ -2297,7 +2300,6 @@ changes:
 Type: Runtime
 
 Please use `Server.prototype.setSecureContext()` instead.
-
 
 <a id="DEP0123"></a>
 ### DEP0123: setting the TLS ServerName to an IP address
