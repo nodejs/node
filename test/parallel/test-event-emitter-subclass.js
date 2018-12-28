@@ -23,9 +23,9 @@
 const common = require('../common');
 const assert = require('assert');
 const EventEmitter = require('events').EventEmitter;
-const util = require('util');
 
-util.inherits(MyEE, EventEmitter);
+Object.setPrototypeOf(MyEE.prototype, EventEmitter.prototype);
+Object.setPrototypeOf(MyEE, EventEmitter);
 
 function MyEE(cb) {
   this.once(1, cb);
@@ -38,7 +38,8 @@ const myee = new MyEE(common.mustCall());
 
 myee.hasOwnProperty('usingDomains');
 
-util.inherits(ErrorEE, EventEmitter);
+Object.setPrototypeOf(ErrorEE.prototype, EventEmitter.prototype);
+Object.setPrototypeOf(ErrorEE, EventEmitter);
 function ErrorEE() {
   this.emit('error', new Error('blerg'));
 }

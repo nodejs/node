@@ -599,7 +599,8 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
     Object.defineProperty(this, 'name',
                           { value: 'BadCustomError', enumerable: false });
   }
-  util.inherits(BadCustomError, Error);
+  Object.setPrototypeOf(BadCustomError.prototype, Error.prototype);
+  Object.setPrototypeOf(BadCustomError, Error);
   assert.strictEqual(
     util.inspect(new BadCustomError('foo')),
     '[BadCustomError: foo]'
