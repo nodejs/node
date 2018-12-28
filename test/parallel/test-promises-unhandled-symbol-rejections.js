@@ -18,8 +18,8 @@ const expectedPromiseWarning = ['Unhandled promise rejection. ' +
 common.expectWarning({
   DeprecationWarning: expectedDeprecationWarning,
   UnhandledPromiseRejectionWarning: [
-    expectedPromiseWarning,
-    expectedValueWarning
+    expectedValueWarning,
+    expectedPromiseWarning
   ],
 });
 
