@@ -257,16 +257,14 @@ const circular = { y: 1 };
 circular.x = circular;
 
 function testAssertionMessage(actual, expected, msg) {
-  try {
-    assert.strictEqual(actual, '');
-  } catch (e) {
-    assert.strictEqual(
-      e.message,
-      msg || strictEqualMessageStart +
-             `+ actual - expected\n\n+ ${expected}\n- ''`
-    );
-    assert.ok(e.generatedMessage, 'Message not marked as generated');
-  }
+  assert.throws(
+    () => assert.strictEqual(actual, ''),
+    {
+      generatedMessage: true,
+      message: msg || strictEqualMessageStart +
+               `+ actual - expected\n\n+ ${expected}\n- ''`
+    }
+  );
 }
 
 function testShortAssertionMessage(actual, expected) {
@@ -280,7 +278,7 @@ testShortAssertionMessage(false, 'false');
 testShortAssertionMessage(100, '100');
 testShortAssertionMessage(NaN, 'NaN');
 testShortAssertionMessage(Infinity, 'Infinity');
-testShortAssertionMessage('', '""');
+testShortAssertionMessage('a', '"a"');
 testShortAssertionMessage('foo', '\'foo\'');
 testShortAssertionMessage(0, '0');
 testShortAssertionMessage(Symbol(), 'Symbol()');
