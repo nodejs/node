@@ -1139,3 +1139,14 @@ assert.throws(
              '{\n  a: true\n}\n'
   }
 );
+
+{
+  let threw = false;
+  try {
+    assert.deepStrictEqual(Array(100).fill(1), 'foobar');
+  } catch (err) {
+    threw = true;
+    assert(/actual: \[Array],\n  expected: 'foobar',/.test(inspect(err)));
+  }
+  assert(threw);
+}
