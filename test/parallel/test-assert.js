@@ -308,6 +308,16 @@ try {
     `${strictEqualMessageStart}\n1 !== 2\n`
   );
   assert.ok(e.generatedMessage, 'Message not marked as generated');
+  const descriptors = Object.getOwnPropertyDescriptors(e);
+  assert.strictEqual(typeof descriptors.actual.get, 'function');
+  assert.strictEqual(typeof descriptors.expected.get, 'function');
+  const { actual, expected } = e;
+  e.actual++;
+  e.expected++;
+  assert.strictEqual(descriptors.actual.enumerable, true);
+  assert.strictEqual(descriptors.expected.enumerable, true);
+  assert.strictEqual(e.actual, actual + 1);
+  assert.strictEqual(e.expected, expected + 1);
 }
 
 try {
