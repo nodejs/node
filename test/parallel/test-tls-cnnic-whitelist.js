@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.requireFlags(['--use-bundled-ca']);
+common.requireFlags('--use-bundled-ca');
 
 const assert = require('assert');
 const tls = require('tls');

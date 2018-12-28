@@ -3,7 +3,7 @@
 // See also test/parallel/test-handle-wrap-isrefed.js
 
 const common = require('../common');
-common.requireFlags(['--expose-internals', '--no-warnings']);
+common.requireFlags('--expose-internals', '--no-warnings');
 
 const strictEqual = require('assert').strictEqual;
 const ReadStream = require('tty').ReadStream;

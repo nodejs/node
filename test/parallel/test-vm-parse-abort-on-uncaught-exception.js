@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-common.requireFlags(['--abort-on-uncaught-exception']);
+common.requireFlags('--abort-on-uncaught-exception');
 
 const vm = require('vm');
 

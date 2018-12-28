@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const assert = require('assert');
 const fixtures = require('../common/fixtures');

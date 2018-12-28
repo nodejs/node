@@ -8,7 +8,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { updateOptionsBuffer } = require('internal/http2/util');
 const { internalBinding } = require('internal/test/binding');

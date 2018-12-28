@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.isMainThread)
   common.skip('Workers don\'t inherit per-env state like the check flag');
 
-common.requireFlags(['--expose-internals', '--no-force-async-hooks-checks']);
+common.requireFlags('--expose-internals', '--no-force-async-hooks-checks');
 
 const async_hooks = require('internal/async_hooks');
 

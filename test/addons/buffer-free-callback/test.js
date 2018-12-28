@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../../common');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 const binding = require(`./build/${common.buildType}/binding`);
 
 function check(size, alignment, offset) {

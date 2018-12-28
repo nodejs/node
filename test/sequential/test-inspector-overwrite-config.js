@@ -16,7 +16,7 @@ if (!process.execArgv.includes(flag)) {
   // We check for the inspector here because the configuration variables will be
   // reset/removed by overwrite-config-preload-module.js.
   common.skipIfInspectorDisabled();
-  common.requireFlags([flag]);
+  common.requireFlags(flag);
 }
 
 

@@ -6,7 +6,7 @@
 // in the parent and are pushed to their target streams.
 
 const common = require('../common');
-common.requireFlags(['--experimental-worker']);
+common.requireFlags('--experimental-worker');
 
 const assert = require('assert');
 const {

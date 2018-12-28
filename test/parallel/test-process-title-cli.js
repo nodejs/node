@@ -5,7 +5,7 @@ const common = require('../common');
 if (common.isSunOS)
   common.skip(`Unsupported platform [${process.platform}]`);
 
-common.requireFlags(['--title=foo']);
+common.requireFlags('--title=foo');
 
 const assert = require('assert');
 

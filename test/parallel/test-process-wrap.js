@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');

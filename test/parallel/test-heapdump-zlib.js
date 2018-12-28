@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { validateSnapshotNodes } = require('../common/heap');
 const zlib = require('zlib');

@@ -2,7 +2,7 @@
 
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 
 const { strictEqual } = require('assert');
 const { createContext, runInNewContext } = require('vm');

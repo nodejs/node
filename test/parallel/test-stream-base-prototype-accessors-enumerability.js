@@ -6,7 +6,7 @@ const common = require('../common');
 // are not enumerable. They could be enumerated when inspecting the prototype
 // with util.inspect or the inspector protocol.
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const assert = require('assert');
 

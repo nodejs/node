@@ -304,15 +304,15 @@ const { spawn } = require('child_process');
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
 
-### requireFlags(flags)
-* [&lt;array>] | [&lt;string>]
+### requireFlags(...flags)
+* `...flags` [&lt;string>]
 
 Checks that the provided command-line flags have been provided. If not, it
 relaunches the test adding the missing flags.
 
 ```js
 const common = require('../common');
-common.requireFlags(['--preserve-symlinks', '--expose-internals']);
+common.requireFlags('--preserve-symlinks', '--expose-internals');
 ```
 
 ### rootDir

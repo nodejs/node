@@ -22,7 +22,7 @@
 'use strict';
 
 const common = require('../common');
-common.requireFlags(['--max-old-space-size=32']);
+common.requireFlags('--max-old-space-size=32');
 
 const assert = require('assert');
 const vm = require('vm');

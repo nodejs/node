@@ -6,7 +6,7 @@ const common = require('../common');
 // mapToHeaders function. The assert function is not exported so we
 // have to test it through mapToHeaders
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { mapToHeaders } = require('internal/http2/util');
 

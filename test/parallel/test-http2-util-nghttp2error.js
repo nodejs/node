@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { strictEqual } = require('assert');
 const { NghttpError } = require('internal/http2/util');

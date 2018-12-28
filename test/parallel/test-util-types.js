@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.requireFlags(['--expose-internals', '--experimental-vm-modules']);
+common.requireFlags('--expose-internals', '--experimental-vm-modules');
 
 const fixtures = require('../common/fixtures');
 const assert = require('assert');

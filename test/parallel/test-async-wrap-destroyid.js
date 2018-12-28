@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { internalBinding } = require('internal/test/binding');
 const async_wrap = internalBinding('async_wrap');

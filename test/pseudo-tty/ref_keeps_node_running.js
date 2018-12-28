@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-common.requireFlags(['--expose-internals', '--no-warnings']);
+common.requireFlags('--expose-internals', '--no-warnings');
 
 const { internalBinding } = require('internal/test/binding');
 const { TTY, isTTY } = internalBinding('tty_wrap');

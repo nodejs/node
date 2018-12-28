@@ -3,7 +3,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { NodeInstance } = require('../common/inspector-helper.js');
 const assert = require('assert');

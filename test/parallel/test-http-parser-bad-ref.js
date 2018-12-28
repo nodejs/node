@@ -3,7 +3,7 @@
 // problem.
 
 const common = require('../common');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 const assert = require('assert');
 const { HTTPParser } = require('_http_common');
 

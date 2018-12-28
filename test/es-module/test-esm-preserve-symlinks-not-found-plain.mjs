@@ -6,7 +6,7 @@ if (!process.execArgv.includes(flag)) {
   (async () => {
     const { requireFlags } = await import('../common');
     // Include `--experimental-modules` explicitly for workers.
-    requireFlags(['--experimental-modules', flag]);
+    requireFlags('--experimental-modules', flag);
   })();
 } else {
   import('./not-found.js').catch((e) => { console.error(e); process.exit(1); });

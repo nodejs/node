@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.requireFlags(['--expose-gc', '--expose-internals']);
+common.requireFlags('--expose-gc', '--expose-internals');
 
 const { internalBinding } = require('internal/test/binding');
 const assert = require('assert');

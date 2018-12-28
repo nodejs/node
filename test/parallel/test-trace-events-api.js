@@ -7,7 +7,7 @@ if (!process.binding('config').hasTracing)
 common.skipIfWorker(); // https://github.com/nodejs/node/issues/22767
 
 if (!global.gc)
-  common.requireFlags(['--expose-gc', '--no-warnings']);
+  common.requireFlags('--expose-gc', '--no-warnings');
 
 const assert = require('assert');
 const cp = require('child_process');

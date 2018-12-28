@@ -5,7 +5,7 @@
 // Otherwise, verifies that no cache is used when compiling builtins.
 
 const common = require('../common');
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 const assert = require('assert');
 const {
   cachableBuiltins,

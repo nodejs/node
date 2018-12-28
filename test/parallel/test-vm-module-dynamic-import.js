@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--experimental-vm-modules']);
+common.requireFlags('--experimental-vm-modules');
 
 const assert = require('assert');
 const { Script, SourceTextModule, createContext } = require('vm');

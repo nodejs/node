@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { validateOffsetLengthWrite } = require('internal/fs/utils');
 const { kMaxLength } = require('buffer');

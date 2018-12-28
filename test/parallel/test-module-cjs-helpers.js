@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--experimental-worker', '--expose-internals']);
+common.requireFlags('--experimental-worker', '--expose-internals');
 
 const assert = require('assert');
 const { builtinLibs } = require('internal/modules/cjs/helpers');

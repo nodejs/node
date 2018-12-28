@@ -4,7 +4,7 @@
 // errors appropriately
 
 const common = require('../common');
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { URL } = require('url');
 const Loader = require('internal/modules/esm/loader');

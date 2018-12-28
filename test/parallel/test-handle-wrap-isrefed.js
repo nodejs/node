@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const strictEqual = require('assert').strictEqual;
 const { internalBinding } = require('internal/test/binding');

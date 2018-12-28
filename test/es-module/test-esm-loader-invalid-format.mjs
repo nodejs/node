@@ -6,7 +6,7 @@ const flag =
 
 if (!process.execArgv.includes(flag)) {
   // Include `--experimental-modules` explicitly for workers.
-  requireFlags(['--experimental-modules', flag]);
+  requireFlags('--experimental-modules', flag);
 }
 
 import('../fixtures/es-modules/test-esm-ok.mjs')

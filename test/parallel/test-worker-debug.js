@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.requireFlags(['--experimental-worker']);
+common.requireFlags('--experimental-worker');
 
 const assert = require('assert');
 const EventEmitter = require('events');

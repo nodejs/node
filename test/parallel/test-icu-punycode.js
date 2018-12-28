@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasIntl)
   common.skip('missing Intl');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const { internalBinding } = require('internal/test/binding');
 const icu = internalBinding('icu');

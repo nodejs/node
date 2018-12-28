@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
 
-common.requireFlags(['--expose-internals']);
-common.requireFlags(['--experimental-worker']);
+common.requireFlags('--expose-internals');
+common.requireFlags('--experimental-worker');
 
 const { validateSnapshotNodes } = require('../common/heap');
 const { Worker } = require('worker_threads');

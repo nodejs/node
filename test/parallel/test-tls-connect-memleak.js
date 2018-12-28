@@ -24,7 +24,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 const onGC = require('../common/ongc');
 const assert = require('assert');
 const tls = require('tls');

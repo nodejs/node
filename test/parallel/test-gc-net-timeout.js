@@ -3,7 +3,7 @@
 // but using a net server/client instead
 
 const common = require('../common');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 const onGC = require('../common/ongc');
 
 function serverHandler(sock) {

@@ -5,7 +5,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--zero-fill-buffers']);
+common.requireFlags('--zero-fill-buffers');
 
 const SlowBuffer = require('buffer').SlowBuffer;
 const assert = require('assert');

@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.requireFlags(['--inspect=0']);
+common.requireFlags('--inspect=0');
 
 // With the current behavior of Node.js (at least as late as 8.1.0), this
 // test fails with the following error:

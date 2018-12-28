@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-common.requireFlags(['--no-warnings']);
+common.requireFlags('--no-warnings');
 const assert = require('assert');
 
 const testMsg = 'A Warning';

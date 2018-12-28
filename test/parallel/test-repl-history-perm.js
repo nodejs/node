@@ -10,7 +10,7 @@ if (common.isWindows) {
               'read access.');
 }
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const assert = require('assert');
 const path = require('path');

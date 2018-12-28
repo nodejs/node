@@ -4,7 +4,7 @@
 // be emitted when they get gced.
 
 const common = require('../common');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 

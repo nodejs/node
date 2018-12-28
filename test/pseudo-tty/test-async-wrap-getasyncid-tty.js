@@ -3,7 +3,7 @@
 // See also test/sequential/test-async-wrap-getasyncid.js
 
 const common = require('../common');
-common.requireFlags(['--expose-internals', '--no-warnings']);
+common.requireFlags('--expose-internals', '--no-warnings');
 
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');

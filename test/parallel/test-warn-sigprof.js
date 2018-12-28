@@ -11,7 +11,7 @@ if (common.isWindows)
 
 common.skipIfWorker(); // Worker inspector never has a server running
 
-common.requireFlags(['--inspect=0']);
+common.requireFlags('--inspect=0');
 
 common.expectWarning('Warning',
                      'process.on(SIGPROF) is reserved while debugging',

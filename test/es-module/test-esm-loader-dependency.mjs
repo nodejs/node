@@ -8,6 +8,6 @@ if (!process.execArgv.includes(flag)) {
   (async () => {
     const { requireFlags } = await import('../common');
     // Include `--experimental-modules` explicitly for workers.
-    requireFlags(['--experimental-modules', flag]);
+    requireFlags('--experimental-modules', flag);
   })();
 }

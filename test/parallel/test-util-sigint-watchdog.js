@@ -5,7 +5,7 @@ if (common.isWindows) {
   common.skip('platform not supported');
 }
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');

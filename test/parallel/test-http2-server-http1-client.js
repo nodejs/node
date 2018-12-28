@@ -5,7 +5,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const http = require('http');
 const http2 = require('http2');

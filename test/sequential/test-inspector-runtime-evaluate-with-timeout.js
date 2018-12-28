@@ -2,7 +2,7 @@
 
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 (async function test() {
   const { strictEqual } = require('assert');

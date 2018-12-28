@@ -4,7 +4,7 @@
 // This always worked, but it seemed appropriate to add a test that checks the
 // behavior for Buffers, too.
 const common = require('../common');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 const net = require('net');
 
 const data = Buffer.alloc(1000000);

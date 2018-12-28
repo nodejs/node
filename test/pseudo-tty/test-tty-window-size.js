@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.requireFlags(['--expose-internals', '--no-warnings']);
+common.requireFlags('--expose-internals', '--no-warnings');
 
 const assert = require('assert');
 const { WriteStream } = require('tty');

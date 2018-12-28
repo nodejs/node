@@ -4,7 +4,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const util = require('util');
 const { internalBinding } = require('internal/test/binding');

@@ -2,7 +2,7 @@
 
 // Regression test for https://github.com/nodejs/node/issues/8251.
 const common = require('../common');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 const net = require('net');
 
 const data = Buffer.alloc(1000000).toString('hex');

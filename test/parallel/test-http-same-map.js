@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-common.requireFlags(['--allow-natives-syntax']);
+common.requireFlags('--allow-natives-syntax');
 const assert = require('assert');
 const http = require('http');
 

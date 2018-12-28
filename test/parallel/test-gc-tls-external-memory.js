@@ -6,7 +6,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-common.requireFlags(['--expose-gc']);
+common.requireFlags('--expose-gc');
 
 const makeDuplexPair = require('../common/duplexpair');
 const onGC = require('../common/ongc');

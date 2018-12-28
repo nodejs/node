@@ -9,7 +9,7 @@
 
 const common = require('../common');
 
-common.requireFlags(['--preserve-symlinks']);
+common.requireFlags('--preserve-symlinks');
 
 const fs = require('fs');
 const path = require('path');

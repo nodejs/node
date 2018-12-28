@@ -21,7 +21,7 @@
 
 'use strict';
 const common = require('../common');
-common.requireFlags(['--expose-internals']);
+common.requireFlags('--expose-internals');
 
 const fixtures = require('../common/fixtures');
 

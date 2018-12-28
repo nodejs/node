@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.requireFlags(['--experimental-worker']);
+common.requireFlags('--experimental-worker');
 
 const path = require('path');
 const assert = require('assert');

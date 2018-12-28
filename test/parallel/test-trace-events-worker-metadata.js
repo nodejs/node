@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-common.requireFlags(['--experimental-worker']);
+common.requireFlags('--experimental-worker');
 
 const assert = require('assert');
 const cp = require('child_process');
