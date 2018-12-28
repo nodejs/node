@@ -50,25 +50,25 @@ const ciphers = crypto.getCiphers();
 
 const expectedWarnings = common.hasFipsCrypto ?
   [] : [
-    ['Use Cipheriv for counter mode of aes-192-gcm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-192-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-192-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-128-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-128-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-128-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode],
-    ['Use Cipheriv for counter mode of aes-256-ccm', common.noWarnCode]
+    ['Use Cipheriv for counter mode of aes-192-gcm'],
+    ['Use Cipheriv for counter mode of aes-192-ccm'],
+    ['Use Cipheriv for counter mode of aes-192-ccm'],
+    ['Use Cipheriv for counter mode of aes-128-ccm'],
+    ['Use Cipheriv for counter mode of aes-128-ccm'],
+    ['Use Cipheriv for counter mode of aes-128-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-256-ccm']
   ];
 
 const expectedDeprecationWarnings = [

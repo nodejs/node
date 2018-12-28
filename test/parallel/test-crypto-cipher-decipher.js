@@ -12,7 +12,7 @@ const assert = require('assert');
 
 common.expectWarning({
   Warning: [
-    ['Use Cipheriv for counter mode of aes-256-gcm', common.noWarnCode]
+    ['Use Cipheriv for counter mode of aes-256-gcm']
   ],
   DeprecationWarning: [
     ['crypto.createCipher is deprecated.', 'DEP0106']

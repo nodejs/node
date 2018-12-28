@@ -21,12 +21,10 @@ let fdnum;
 
 common.expectWarning({
   'internal/test/binding': [
-    'These APIs are for internal testing only. Do not use them.',
-    common.noWarnCode
+    'These APIs are for internal testing only. Do not use them.'
   ],
   'Warning': [
-    `Closing file descriptor ${fdnum} on garbage collection`,
-    common.noWarnCode
+    `Closing file descriptor ${fdnum} on garbage collection`
   ]
 });
 

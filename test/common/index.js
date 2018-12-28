@@ -748,7 +748,6 @@ module.exports = {
   mustCallAtLeast,
   mustNotCall,
   nodeProcessAborted,
-  noWarnCode: undefined,
   PIPE,
   platformTimeout,
   printSkipMessage,

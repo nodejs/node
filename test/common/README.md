@@ -114,9 +114,7 @@ Indicates if there is more than 1gb of total memory.
 * `expected` [&lt;string>] | [&lt;Array>] | [&lt;Object>]
 * `code` [&lt;string>]
 
-Tests whether `name`, `expected`, and `code` are part of a raised warning. If
-an expected warning does not have a code then `common.noWarnCode` can be used
-to indicate this.
+Tests whether `name`, `expected`, and `code` are part of a raised warning.
 
 The code is required in case the name is set to `'DeprecationWarning'`.
 
@@ -135,7 +133,7 @@ expectWarning('DeprecationWarning', [
 
 expectWarning('DeprecationWarning', [
   ['Foobar is deprecated', 'DEP0XXX'],
-  ['Baz is also deprecated', noWarnCode]
+  ['Baz is also deprecated']
 ]);
 
 expectWarning('DeprecationWarning', {
@@ -149,7 +147,6 @@ expectWarning({
     DEP0XX1: 'Baz is also deprecated'
   },
   Warning: [
-    ['Foobar', noWarnCode],
     ['Multiple array entries are fine', 'DEP0XXX'],
     ['No code is also fine']
   ],
@@ -301,9 +298,6 @@ used as the error message for the `AssertionError`.
 Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
 the exit code and/or signal name of a node process that aborted, `false`
 otherwise.
-
-### noWarnCode
-See `common.expectWarning()` for usage.
 
 ### opensslCli
 * [&lt;boolean>]
