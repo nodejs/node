@@ -685,10 +685,8 @@ function runWithInvalidFD(func) {
 function requireFlags(...flags) {
   let missing = flags.filter((flag) => !process.execArgv.includes(flag));
 
-  // Special handling for worker_threads. Can be removed once worker_threads
-  // are no longer behind a flag.
-  if (missing.length === 1 &&
-      require('module').builtinModules.includes('worker_threads')) {
+  // Special handling for worker_threads.
+  if (!isMainThread) {
     missing = missing.filter((flag) => !/--experimental[-_]worker/.test(flag));
   }
 
