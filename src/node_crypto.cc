@@ -2696,7 +2696,7 @@ static bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
 template <typename T>
 static T* MallocOpenSSL(size_t count) {
   void* mem = OPENSSL_malloc(MultiplyWithOverflowCheck(count, sizeof(T)));
-  CHECK_NOT_NULL(mem);
+  CHECK_IMPLIES(mem == nullptr, count == 0);
   return static_cast<T*>(mem);
 }
 
@@ -2854,7 +2854,8 @@ static EVPKeyPointer ParsePrivateKey(const PrivateKeyEncodingConfig& config,
 
   if (config.format_ == kKeyFormatPEM) {
     BIOPointer bio(BIO_new_mem_buf(key, key_len));
-    CHECK(bio);
+    if (!bio)
+      return pkey;
 
     char* pass = const_cast<char*>(config.passphrase_.get());
     pkey.reset(PEM_read_bio_PrivateKey(bio.get(),
@@ -2869,7 +2870,8 @@ static EVPKeyPointer ParsePrivateKey(const PrivateKeyEncodingConfig& config,
       pkey.reset(d2i_PrivateKey(EVP_PKEY_RSA, nullptr, &p, key_len));
     } else if (config.type_.ToChecked() == kKeyEncodingPKCS8) {
       BIOPointer bio(BIO_new_mem_buf(key, key_len));
-      CHECK(bio);
+      if (!bio)
+        return pkey;
       char* pass = const_cast<char*>(config.passphrase_.get());
       pkey.reset(d2i_PKCS8PrivateKey_bio(bio.get(),
                                          nullptr,
