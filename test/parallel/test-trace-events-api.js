@@ -99,8 +99,7 @@ if (isChild) {
     common.expectWarning(
       'Warning',
       'Possible trace_events memory leak detected. There are more than ' +
-      '10 enabled Tracing objects.',
-      common.noWarnCode);
+      '10 enabled Tracing objects.');
     for (let n = 0; n < 10; n++) {
       const tracing = createTracing({ categories: [ `a${n}` ] });
       tracing.enable();

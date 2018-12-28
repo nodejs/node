@@ -42,14 +42,14 @@ if (common.isMainThread) {
 common.expectWarning(
   'Warning',
   [
-    ['Count for \'noLabel\' does not exist', common.noWarnCode],
-    ['No such label \'noLabel\' for console.timeLog()', common.noWarnCode],
-    ['No such label \'noLabel\' for console.timeEnd()', common.noWarnCode],
-    ['Count for \'default\' does not exist', common.noWarnCode],
-    ['No such label \'default\' for console.timeLog()', common.noWarnCode],
-    ['No such label \'default\' for console.timeEnd()', common.noWarnCode],
-    ['Label \'default\' already exists for console.time()', common.noWarnCode],
-    ['Label \'test\' already exists for console.time()', common.noWarnCode]
+    ['Count for \'noLabel\' does not exist'],
+    ['No such label \'noLabel\' for console.timeLog()'],
+    ['No such label \'noLabel\' for console.timeEnd()'],
+    ['Count for \'default\' does not exist'],
+    ['No such label \'default\' for console.timeLog()'],
+    ['No such label \'default\' for console.timeEnd()'],
+    ['Label \'default\' already exists for console.time()'],
+    ['Label \'test\' already exists for console.time()']
   ]
 );
 

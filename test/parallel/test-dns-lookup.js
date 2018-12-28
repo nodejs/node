@@ -21,21 +21,19 @@ cares.getaddrinfo = () => internalBinding('uv').UV_ENOENT;
   common.expectsError(() => dnsPromises.lookup(1, {}), err);
 }
 
+// This also verifies different expectWarning notations.
 common.expectWarning({
   // For 'internal/test/binding' module.
   'internal/test/binding': [
     'These APIs are for internal testing only. Do not use them.'
   ],
   // For dns.promises.
-  'ExperimentalWarning': [
-    'The dns.promises API is experimental'
-  ],
+  'ExperimentalWarning': 'The dns.promises API is experimental',
   // For calling `dns.lookup` with falsy `hostname`.
-  'DeprecationWarning': [
-    'The provided hostname "false" is not a valid ' +
-    'hostname, and is supported in the dns module solely for compatibility.',
-    'DEP0118',
-  ],
+  'DeprecationWarning': {
+    DEP0118: 'The provided hostname "false" is not a valid ' +
+      'hostname, and is supported in the dns module solely for compatibility.'
+  }
 });
 
 common.expectsError(() => {
