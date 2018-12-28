@@ -3,7 +3,6 @@
 const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
-const { inherits } = require('util');
 
 {
   const read = new Readable({
@@ -160,7 +159,8 @@ const { inherits } = require('util');
     Readable.call(this);
   }
 
-  inherits(MyReadable, Readable);
+  Object.setPrototypeOf(MyReadable.prototype, Readable.prototype);
+  Object.setPrototypeOf(MyReadable, Readable);
 
   new MyReadable();
 }

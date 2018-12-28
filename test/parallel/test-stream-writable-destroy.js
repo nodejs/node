@@ -3,7 +3,6 @@
 const common = require('../common');
 const { Writable } = require('stream');
 const assert = require('assert');
-const { inherits } = require('util');
 
 {
   const write = new Writable({
@@ -173,7 +172,8 @@ const { inherits } = require('util');
     Writable.call(this);
   }
 
-  inherits(MyWritable, Writable);
+  Object.setPrototypeOf(MyWritable.prototype, Writable.prototype);
+  Object.setPrototypeOf(MyWritable, Writable);
 
   new MyWritable();
 }
