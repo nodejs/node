@@ -173,10 +173,12 @@ function testError() {
       'undefined',
 
       // The error, both from the original throw and the `_error` echo.
+      'Thrown:',
       'Error: foo',
       '[Error: foo]',
 
       // The sync error, with individual property echoes
+      'Thrown:',
       /^{ Error: ENOENT: no such file or directory, scandir '.*nonexistent.*'/,
       /Object\.readdirSync/,
       /^  errno: -(2|4058),$/,
@@ -191,6 +193,7 @@ function testError() {
       'undefined',
 
       // The message from the original throw
+      'Thrown:',
       'Error: baz',
       /setImmediate/,
       /^    at/,
@@ -217,6 +220,7 @@ function testError() {
       "'baz'",
       'Expression assignment to _error now disabled.',
       '0',
+      'Thrown:',
       'Error: quux',
       '0'
     ]);
