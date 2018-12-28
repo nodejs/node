@@ -16,7 +16,7 @@ const key = '0123456789';
       ['crypto.createCipher is deprecated.', 'DEP0106']
     ],
     Warning: [
-      ['Use Cipheriv for counter mode of aes-256-gcm', common.noWarnCode]
+      ['Use Cipheriv for counter mode of aes-256-gcm']
     ]
   });
 

@@ -109,14 +109,51 @@ Indicates if there is more than 1gb of total memory.
   returned function has not been called exactly `exact` number of times when the
   test is complete, then the test will fail.
 
-### expectWarning(name, expected, code)
-* `name` [&lt;string>]
-* `expected` [&lt;string>] | [&lt;Array>]
+### expectWarning(name[, expected[, code]])
+* `name` [&lt;string>] | [&lt;Object>]
+* `expected` [&lt;string>] | [&lt;Array>] | [&lt;Object>]
 * `code` [&lt;string>]
 
-Tests whether `name`, `expected`, and `code` are part of a raised warning. If
-an expected warning does not have a code then `common.noWarnCode` can be used
-to indicate this.
+Tests whether `name`, `expected`, and `code` are part of a raised warning.
+
+The code is required in case the name is set to `'DeprecationWarning'`.
+
+Examples:
+
+```js
+const { expectWarning } = require('../common');
+
+expectWarning('Warning', 'Foobar is really bad');
+
+expectWarning('DeprecationWarning', 'Foobar is deprecated', 'DEP0XXX');
+
+expectWarning('DeprecationWarning', [
+  'Foobar is deprecated', 'DEP0XXX'
+]);
+
+expectWarning('DeprecationWarning', [
+  ['Foobar is deprecated', 'DEP0XXX'],
+  ['Baz is also deprecated', 'DEP0XX2']
+]);
+
+expectWarning('DeprecationWarning', {
+  DEP0XXX: 'Foobar is deprecated',
+  DEP0XX2: 'Baz is also deprecated'
+});
+
+expectWarning({
+  DeprecationWarning: {
+    DEP0XXX: 'Foobar is deprecated',
+    DEP0XX1: 'Baz is also deprecated'
+  },
+  Warning: [
+    ['Multiple array entries are fine', 'SpecialWarningCode'],
+    ['No code is also fine']
+  ],
+  SingleEntry: ['This will also work', 'WarningCode'],
+  SingleString: 'Single string entries without code will also work'
+});
+```
 
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
@@ -261,9 +298,6 @@ used as the error message for the `AssertionError`.
 Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
 the exit code and/or signal name of a node process that aborted, `false`
 otherwise.
-
-### noWarnCode
-See `common.expectWarning()` for usage.
 
 ### opensslCli
 * [&lt;boolean>]
