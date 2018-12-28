@@ -110,5 +110,5 @@ const privatePem = fixtures.readSync('test_rsa_privkey.pem', 'ascii');
   // This should not cause a crash: https://github.com/nodejs/node/issues/25247
   assert.throws(() => {
     createPrivateKey({ key: '' });
-  });
+  }, /null/);
 }
