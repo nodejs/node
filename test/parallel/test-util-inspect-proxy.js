@@ -87,3 +87,17 @@ assert.strictEqual(util.inspect(proxy8, opts), expected8);
 assert.strictEqual(util.inspect(proxy9, opts), expected9);
 assert.strictEqual(util.inspect(proxy8), '[Function: Date]');
 assert.strictEqual(util.inspect(proxy9), '[Function: Date]');
+
+const proxy10 = new Proxy(() => {}, {});
+const proxy11 = new Proxy(() => {}, {
+  get() {
+    return proxy11;
+  },
+  apply() {
+    return proxy11;
+  }
+});
+const expected10 = '[Function]';
+const expected11 = '[Function]';
+assert.strictEqual(util.inspect(proxy10), expected10);
+assert.strictEqual(util.inspect(proxy11), expected11);
