@@ -31,7 +31,6 @@ parallel/test-domain-with-abort-on-uncaught-exception: SLOW
 parallel/test-env-var-no-warnings: SLOW
 parallel/test-error-reporting: SLOW
 parallel/test-eslint-alphabetize-errors: SLOW
-parallel/test-eslint-buffer-constructor: SLOW
 parallel/test-eslint-crypto-check: SLOW
 parallel/test-eslint-documented-errors: SLOW
 parallel/test-eslint-duplicate-requires: SLOW
