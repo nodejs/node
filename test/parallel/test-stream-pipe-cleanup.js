@@ -25,14 +25,14 @@
 require('../common');
 const stream = require('stream');
 const assert = require('assert');
-const util = require('util');
 
 function Writable() {
   this.writable = true;
   this.endCalls = 0;
   stream.Stream.call(this);
 }
-util.inherits(Writable, stream.Stream);
+Object.setPrototypeOf(Writable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Writable, stream.Stream);
 Writable.prototype.end = function() {
   this.endCalls++;
 };
@@ -45,13 +45,15 @@ function Readable() {
   this.readable = true;
   stream.Stream.call(this);
 }
-util.inherits(Readable, stream.Stream);
+Object.setPrototypeOf(Readable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Readable, stream.Stream);
 
 function Duplex() {
   this.readable = true;
   Writable.call(this);
 }
-util.inherits(Duplex, Writable);
+Object.setPrototypeOf(Duplex.prototype, Writable.prototype);
+Object.setPrototypeOf(Duplex, Writable);
 
 let i = 0;
 const limit = 100;
