@@ -23,19 +23,20 @@
 require('../common');
 const stream = require('stream');
 const assert = require('assert');
-const util = require('util');
 
 function Writable() {
   this.writable = true;
   stream.Stream.call(this);
 }
-util.inherits(Writable, stream.Stream);
+Object.setPrototypeOf(Writable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Writable, stream.Stream);
 
 function Readable() {
   this.readable = true;
   stream.Stream.call(this);
 }
-util.inherits(Readable, stream.Stream);
+Object.setPrototypeOf(Readable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Readable, stream.Stream);
 
 let passed = false;
 

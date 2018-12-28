@@ -24,7 +24,6 @@
 require('../common');
 const assert = require('assert');
 
-const util = require('util');
 const net = require('net');
 const http = require('http');
 
@@ -69,7 +68,8 @@ function testServer() {
   });
 }
 
-util.inherits(testServer, http.Server);
+Object.setPrototypeOf(testServer.prototype, http.Server.prototype);
+Object.setPrototypeOf(testServer, http.Server);
 
 
 function writeReq(socket, data, encoding) {
