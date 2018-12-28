@@ -5,8 +5,7 @@ const ArrayStream = require('../common/arraystream');
 const repl = require('repl');
 const DEFAULT_MAX_LISTENERS = require('events').defaultMaxListeners;
 
-ArrayStream.prototype.write = () => {
-};
+ArrayStream.prototype.write = () => {};
 
 const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
