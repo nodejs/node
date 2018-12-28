@@ -1,5 +1,6 @@
 rules:
   prefer-object-spread: error
+  no-buffer-constructor: error
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
