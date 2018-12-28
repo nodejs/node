@@ -31,6 +31,7 @@ rules:
   # Custom rules in tools/eslint-rules
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
+  node-core/no-global-pollute: error
 globals:
   Intl: false
   # Assertions
