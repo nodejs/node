@@ -155,7 +155,7 @@ if (common.isWindows) {
 // https://github.com/nodejs/node/issues/1691
 process.chdir(fixtures.fixturesDir);
 childProcess.exec(
-  `"${nodeBinary}" --expose_natives_as=v8natives --require ` +
+  `"${nodeBinary}" --require ` +
      `"${fixtures.path('cluster-preload.js')}" cluster-preload-test.js`,
   function(err, stdout, stderr) {
     assert.ifError(err);
