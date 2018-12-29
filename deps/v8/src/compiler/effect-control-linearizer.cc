@@ -797,6 +797,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsMinusZero:
       result = LowerObjectIsMinusZero(node);
       break;
+    case IrOpcode::kNumberIsMinusZero:
+      result = LowerNumberIsMinusZero(node);
+      break;
     case IrOpcode::kObjectIsNaN:
       result = LowerObjectIsNaN(node);
       break;
@@ -2543,6 +2546,14 @@ Node* EffectControlLinearizer::LowerObjectIsSafeInteger(Node* node) {
   return done.PhiAt(0);
 }
 
+namespace {
+
+const int64_t kMinusZeroBits = bit_cast<int64_t>(-0.0);
+const int32_t kMinusZeroLoBits = static_cast<int32_t>(kMinusZeroBits);
+const int32_t kMinusZeroHiBits = static_cast<int32_t>(kMinusZeroBits >> 32);
+
+}  // namespace
+
 Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {
   Node* value = node->InputAt(0);
   Node* zero = __ Int32Constant(0);
@@ -2559,13 +2570,41 @@ Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {
 
   // Check if {value} contains -0.
   Node* value_value = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
-  __ Goto(&done,
-          __ Float64Equal(
-              __ Float64Div(__ Float64Constant(1.0), value_value),
-              __ Float64Constant(-std::numeric_limits<double>::infinity())));
+  if (machine()->Is64()) {
+    Node* value64 = __ BitcastFloat64ToInt64(value_value);
+    __ Goto(&done, __ Word64Equal(value64, __ Int64Constant(kMinusZeroBits)));
+  } else {
+    Node* value_lo = __ Float64ExtractLowWord32(value_value);
+    __ GotoIfNot(__ Word32Equal(value_lo, __ Int32Constant(kMinusZeroLoBits)),
+                 &done, zero);
+    Node* value_hi = __ Float64ExtractHighWord32(value_value);
+    __ Goto(&done,
+            __ Word32Equal(value_hi, __ Int32Constant(kMinusZeroHiBits)));
+  }
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerNumberIsMinusZero(Node* node) {
+  Node* value = node->InputAt(0);
+
+  if (machine()->Is64()) {
+    Node* value64 = __ BitcastFloat64ToInt64(value);
+    return __ Word64Equal(value64, __ Int64Constant(kMinusZeroBits));
+  } else {
+    auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+    Node* value_lo = __ Float64ExtractLowWord32(value);
+    __ GotoIfNot(__ Word32Equal(value_lo, __ Int32Constant(kMinusZeroLoBits)),
+                 &done, __ Int32Constant(0));
+    Node* value_hi = __ Float64ExtractHighWord32(value);
+    __ Goto(&done,
+            __ Word32Equal(value_hi, __ Int32Constant(kMinusZeroHiBits)));
+
+    __ Bind(&done);
+    return done.PhiAt(0);
+  }
 }
 
 Node* EffectControlLinearizer::LowerObjectIsNaN(Node* node) {
