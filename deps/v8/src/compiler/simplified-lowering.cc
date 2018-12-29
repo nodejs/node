@@ -3008,17 +3008,7 @@ class RepresentationSelector {
           VisitUnop(node, UseInfo::TruncatingFloat64(),
                     MachineRepresentation::kBit);
           if (lower()) {
-            // ObjectIsMinusZero(x:kRepFloat64)
-            //   => Float64Equal(Float64Div(1.0,x),-Infinity)
-            Node* const input = node->InputAt(0);
-            node->ReplaceInput(
-                0, jsgraph_->graph()->NewNode(
-                       lowering->machine()->Float64Div(),
-                       lowering->jsgraph()->Float64Constant(1.0), input));
-            node->AppendInput(jsgraph_->zone(),
-                              jsgraph_->Float64Constant(
-                                  -std::numeric_limits<double>::infinity()));
-            NodeProperties::ChangeOp(node, lowering->machine()->Float64Equal());
+            NodeProperties::ChangeOp(node, simplified()->NumberIsMinusZero());
           }
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);

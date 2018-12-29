@@ -417,6 +417,7 @@
   V(ObjectIsConstructor)                \
   V(ObjectIsDetectableCallable)         \
   V(ObjectIsMinusZero)                  \
+  V(NumberIsMinusZero)                  \
   V(ObjectIsNaN)                        \
   V(NumberIsNaN)                        \
   V(ObjectIsNonCallable)                \
