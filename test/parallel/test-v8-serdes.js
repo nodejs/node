@@ -1,4 +1,4 @@
-// Flags: --expose-gc --expose-internals
+// Flags: --expose-internals
 
 'use strict';
 
