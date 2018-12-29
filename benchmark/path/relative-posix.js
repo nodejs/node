@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
     ['/foo/bar/baz/quux', '/foo/bar/baz/quux'].join('|'),
     ['/foo/bar/baz/quux', '/var/log'].join('|'),
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
 function main({ n, paths }) {
@@ -22,13 +22,13 @@ function main({ n, paths }) {
     to = paths.slice(delimIdx + 1);
     paths = paths.slice(0, delimIdx);
   }
-  for (var i = 0; i < n; i++) {
-    posix.relative(paths, to);
-  }
 
   bench.start();
-  for (i = 0; i < n; i++) {
-    posix.relative(paths, to);
+  for (let i = 0; i < n; i++) {
+    if (i % 3 === 0)
+      posix.relative(`${paths}${i}`, `${to}${i}`);
+    else
+      posix.relative(paths, to);
   }
   bench.end(n);
 }
