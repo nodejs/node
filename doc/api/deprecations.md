@@ -2250,8 +2250,8 @@ changes:
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
-Directly calling `process.binding('uv').errname(<val>)` is deprecated.
-Please make sure to use [`util.getSystemErrorName()`][] instead.
+`process.binding('uv').errname()` is deprecated. Please use
+[`util.getSystemErrorName()`][] instead.
 
 <a id="DEP0120"></a>
 ### DEP0120: Windows Performance Counter Support
