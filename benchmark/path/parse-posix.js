@@ -12,16 +12,13 @@ const bench = common.createBenchmark(main, {
     'foo/bar',
     '/foo/bar/baz/asdf/.quux',
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
 function main({ n, path }) {
-  for (var i = 0; i < n; i++) {
-    posix.parse(path);
-  }
   bench.start();
-  for (i = 0; i < n; i++) {
-    posix.parse(path);
+  for (let i = 0; i < n; i++) {
+    posix.parse(i % 3 === 0 ? `${path}${i}` : path);
   }
   bench.end(n);
 }

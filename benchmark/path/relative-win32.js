@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
     ['C:\\foo\\BAR\\BAZ', 'C:\\foo\\bar\\baz'].join('|'),
     ['C:\\foo\\bar\\baz\\quux', 'C:\\'].join('|'),
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
 function main({ n, paths }) {
@@ -21,14 +21,12 @@ function main({ n, paths }) {
     paths = paths.slice(0, delimIdx);
   }
 
-  // Warmup
-  for (var i = 0; i < n; i++) {
-    win32.relative(paths, to);
-  }
-
   bench.start();
-  for (i = 0; i < n; i++) {
-    win32.relative(paths, to);
+  for (let i = 0; i < n; i++) {
+    if (i % 3 === 0)
+      win32.relative(`${paths}${i}`, `${to}${i}`);
+    else
+      win32.relative(paths, to);
   }
   bench.end(n);
 }
