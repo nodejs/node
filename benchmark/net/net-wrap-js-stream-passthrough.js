@@ -17,7 +17,7 @@ var encoding;
 
 function main({ dur, len, type }) {
   // Can only require internals inside main().
-  const JSStreamWrap = require('internal/wrap_js_stream');
+  const JSStreamWrap = require('internal/js_stream_socket');
 
   switch (type) {
     case 'buf':
