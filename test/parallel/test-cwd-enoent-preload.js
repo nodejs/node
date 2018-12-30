@@ -19,7 +19,6 @@ fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);
 
-
 const proc = spawn(process.execPath, ['-r', abspathFile, '-e', '0']);
 proc.stdout.pipe(process.stdout);
 proc.stderr.pipe(process.stderr);

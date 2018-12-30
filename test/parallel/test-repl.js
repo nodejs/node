@@ -536,6 +536,7 @@ const errorTests = [
       /^    at .*/,
       /^    at .*/,
       /^    at .*/,
+      /^    at .*/,
       /^    at .*/
     ]
   },

@@ -14,8 +14,28 @@ assert.strictEqual(
 
 // Verify that existing paths are removed.
 assert.throws(() => {
-  require.resolve('bar', { paths: [] })
-}, /^Error: Cannot find module 'bar'$/);
+  require.resolve('bar', { paths: ['/zzzzzzz'] })
+}, {
+  name: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  message: "Cannot find module 'bar'"
+});
+
+// Verify invalid paths throw.
+{
+  assert.throws(() => {
+    require.resolve('bar', { paths: [] })
+  }, {
+    name: 'RangeError [ERR_OUT_OF_RANGE]',
+    code: 'ERR_OUT_OF_RANGE'
+  });
+  assert.throws(() => {
+    require.resolve('bar', { paths: '/path' })
+  }, {
+    name: 'TypeError [ERR_INVALID_ARG_TYPE]',
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+}
 
 // Verify that resolution path can be overwritten.
 {

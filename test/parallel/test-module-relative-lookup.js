@@ -10,12 +10,11 @@ function testFirstInPath(moduleName, isLocalModule) {
     assert.strictEqual :
     assert.notStrictEqual;
 
-  const lookupResults = _module._resolveLookupPaths(moduleName);
+  let paths = _module._resolveLookupPaths(moduleName);
 
-  let paths = lookupResults[1];
   assertFunction(paths[0], '.');
 
-  paths = _module._resolveLookupPaths(moduleName, null, true);
+  paths = _module._resolveLookupPaths(moduleName, null);
   assertFunction(paths && paths[0], '.');
 }
 
