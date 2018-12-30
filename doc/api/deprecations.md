@@ -513,6 +513,9 @@ The `os.tmpDir()` API is deprecated. Please use [`os.tmpdir()`][] instead.
 ### DEP0023: os.getNetworkInterfaces()
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25280
+    description: End-of-Life.
   - version:
     - v4.8.6
     - v6.12.0
@@ -523,10 +526,10 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `os.getNetworkInterfaces()` method is deprecated. Please use the
-[`os.networkInterfaces`][] property instead.
+[`os.networkInterfaces()`][] method instead.
 
 <a id="DEP0024"></a>
 ### DEP0024: REPLServer.prototype.convertToContext()
@@ -2366,7 +2369,7 @@ Setting the TLS ServerName to an IP address is not permitted by
 [`http.request()`]: http.html#http_http_request_options_callback
 [`https.get()`]: https.html#https_https_get_options_callback
 [`https.request()`]: https.html#https_https_request_options_callback
-[`os.networkInterfaces`]: os.html#os_os_networkinterfaces
+[`os.networkInterfaces()`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
 [`punycode`]: punycode.html
