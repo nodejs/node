@@ -311,8 +311,8 @@ function isWarned(emitter) {
     }), delay);
   }
 
-  // \t when there is no completer function should behave like an ordinary
-  // character
+  // \t when there is no completer function should be
+  // treated as space
   {
     const fi = new FakeInput();
     const rli = new readline.Interface(
@@ -320,11 +320,12 @@ function isWarned(emitter) {
     );
     let called = false;
     rli.on('line', function(line) {
-      assert.strictEqual(line, '\t');
+      assert.strictEqual(line, ' var   a = 5;');
       assert.strictEqual(called, false);
       called = true;
     });
     fi.emit('data', '\t');
+    fi.emit('data', 'var \t\ta\t=\t5;');
     fi.emit('data', '\n');
     assert.ok(called);
     rli.close();
