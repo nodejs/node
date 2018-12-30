@@ -37,7 +37,9 @@ NODE_ROOT = path.dirname(path.dirname(path.abspath(__file__)))
 VALGRIND_ARGUMENTS = [
   'valgrind',
   '--error-exitcode=1',
-  '--smc-check=all',
+  '--smc-check=all-non-file',
+  '--suppressions=' + path.join(NODE_ROOT, 'tools', 'valgrind.supp'),
+  '--gen-suppressions=all',
 ]
 
 if len(sys.argv) < 2:
@@ -50,7 +52,8 @@ if not path.exists(executable):
   sys.exit(1)
 
 # Compute the command line.
-command = VALGRIND_ARGUMENTS + [executable] + sys.argv[2:]
+command = VALGRIND_ARGUMENTS + [executable, '--zero-fill-buffers']
+command += sys.argv[2:]
 
 # Run valgrind.
 process = subprocess.Popen(command, stderr=subprocess.PIPE)
