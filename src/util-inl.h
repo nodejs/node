@@ -377,8 +377,9 @@ inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 void ThrowErrStringTooLong(v8::Isolate* isolate);
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const std::string& str) {
-  v8::Isolate* isolate = context->GetIsolate();
+                                    const std::string& str,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
   if (UNLIKELY(str.size() >= static_cast<size_t>(v8::String::kMaxLength))) {
     // V8 only has a TODO comment about adding an exception when the maximum
     // string size is exceeded.
@@ -393,39 +394,65 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 
 template <typename T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const std::vector<T>& vec) {
-  v8::Isolate* isolate = context->GetIsolate();
+                                    const std::vector<T>& vec,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
   v8::EscapableHandleScope handle_scope(isolate);
 
-  v8::Local<v8::Array> arr = v8::Array::New(isolate, vec.size());
+  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
+  arr.SetLength(vec.size());
   for (size_t i = 0; i < vec.size(); ++i) {
-    v8::Local<v8::Value> val;
-    if (!ToV8Value(context, vec[i]).ToLocal(&val) ||
-        arr->Set(context, i, val).IsNothing()) {
+    if (!ToV8Value(context, vec[i], isolate).ToLocal(&arr[i]))
       return v8::MaybeLocal<v8::Value>();
-    }
   }
 
-  return handle_scope.Escape(arr);
+  return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
 }
 
 template <typename T, typename U>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const std::unordered_map<T, U>& map) {
-  v8::Isolate* isolate = context->GetIsolate();
+                                    const std::unordered_map<T, U>& map,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
   v8::EscapableHandleScope handle_scope(isolate);
 
   v8::Local<v8::Map> ret = v8::Map::New(isolate);
   for (const auto& item : map) {
     v8::Local<v8::Value> first, second;
-    if (!ToV8Value(context, item.first).ToLocal(&first) ||
-        !ToV8Value(context, item.second).ToLocal(&second) ||
+    if (!ToV8Value(context, item.first, isolate).ToLocal(&first) ||
+        !ToV8Value(context, item.second, isolate).ToLocal(&second) ||
         ret->Set(context, first, second).IsEmpty()) {
       return v8::MaybeLocal<v8::Value>();
     }
   }
 
   return handle_scope.Escape(ret);
+}
+
+template <typename T, typename >
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const T& number,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+
+  using Limits = std::numeric_limits<T>;
+  // Choose Uint32, Int32, or Double depending on range checks.
+  // These checks should all collapse at compile time.
+  if (static_cast<uint32_t>(Limits::max()) <=
+          std::numeric_limits<uint32_t>::max() &&
+      static_cast<uint32_t>(Limits::min()) >=
+          std::numeric_limits<uint32_t>::min() && Limits::is_exact) {
+    return v8::Integer::NewFromUnsigned(isolate, static_cast<uint32_t>(number));
+  }
+
+  if (static_cast<int32_t>(Limits::max()) <=
+          std::numeric_limits<int32_t>::max() &&
+      static_cast<int32_t>(Limits::min()) >=
+          std::numeric_limits<int32_t>::min() && Limits::is_exact) {
+    return v8::Integer::New(isolate, static_cast<int32_t>(number));
+  }
+
+  return v8::Number::New(isolate, static_cast<double>(number));
 }
 
 }  // namespace node
