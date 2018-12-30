@@ -160,6 +160,9 @@ outside `node_modules` in order to better target developers, rather than users.
 ### DEP0006: child\_process options.customFds
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/25279
+    description: End-of-Life.
   - version:
     - v4.8.6
     - v6.12.0
@@ -171,7 +174,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Within the [`child_process`][] module's `spawn()`, `fork()`, and `exec()`
 methods, the `options.customFds` option is deprecated. The `options.stdio`
