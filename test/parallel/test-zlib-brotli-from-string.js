@@ -25,7 +25,6 @@ const expectedBase64Compress = 'G/gBQBwHdky2aHV5KK9Snf05//1pPdmNw/7232fnIm1IB' +
                                'KmEUQf1HBogRYhFIt4ymRNEgHAIzOyNEsQM=';
 
 zlib.brotliCompress(inputString, common.mustCall((err, buffer) => {
-  console.log(buffer.toString('base64'));
   assert.strictEqual(buffer.toString('base64'), expectedBase64Compress);
 }));
 

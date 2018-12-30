@@ -44,6 +44,20 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
     message: '10000 is not a valid Brotli parameter'
   });
 
+  // Test that accidentally using duplicate keys fails.
+  common.expectsError(() => {
+    zlib.createBrotliCompress({
+      params: {
+        '0': 0,
+        '00': 0
+      }
+    });
+  }, {
+    code: 'ERR_BROTLI_INVALID_PARAM',
+    type: RangeError,
+    message: '00 is not a valid Brotli parameter'
+  });
+
   common.expectsError(() => {
     zlib.createBrotliCompress({
       params: {
