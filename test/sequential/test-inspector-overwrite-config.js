@@ -6,19 +6,17 @@
 // that the inspector console functions are bound even though
 // overwrite-config-preload-module.js overwrote the process.config variable.
 
+// We cannot do a check for the inspector because the configuration variables
+// were reset/removed by overwrite-config-preload-module.js.
+/* eslint-disable node-core/inspector-check */
+
 const common = require('../common');
+common.requireFlags(
+  '--require=./test/fixtures/overwrite-config-preload-module.js'
+);
 
 if (!common.isMainThread)
   common.skip('--require does not work with Workers');
-
-const flag = '--require=./test/fixtures/overwrite-config-preload-module.js';
-if (!process.execArgv.includes(flag)) {
-  // We check for the inspector here because the configuration variables will be
-  // reset/removed by overwrite-config-preload-module.js.
-  common.skipIfInspectorDisabled();
-  common.requireFlags(flag);
-}
-
 
 const assert = require('assert');
 const inspector = require('inspector');
