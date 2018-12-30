@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include <functional>  // std::function
+#include <limits>
 #include <set>
 #include <string>
 #include <array>
@@ -519,13 +520,21 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 std::set<std::string> ParseCommaSeparatedSet(const std::string& in);
 
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                           const std::string& str);
+                                           const std::string& str,
+                                           v8::Isolate* isolate = nullptr);
+template <typename T, typename test_for_number =
+    typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           const T& number,
+                                           v8::Isolate* isolate = nullptr);
 template <typename T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                           const std::vector<T>& vec);
+                                           const std::vector<T>& vec,
+                                           v8::Isolate* isolate = nullptr);
 template <typename T, typename U>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                           const std::unordered_map<T, U>& map);
+                                           const std::unordered_map<T, U>& map,
+                                           v8::Isolate* isolate = nullptr);
 
 // These macros expects a `Isolate* isolate` and a `Local<Context> context`
 // to be in the scope.
