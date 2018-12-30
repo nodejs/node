@@ -36,3 +36,5 @@ test-cli-node-options: PASS,FLAKY
 [$system==aix]
 # https://github.com/nodejs/node/issues/25029
 test-child-process-execfile: PASS,FLAKY
+# https://github.com/nodejs/node/issues/25068
+test-util-callbackify: PASS,FLAKY
