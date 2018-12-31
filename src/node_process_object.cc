@@ -1,6 +1,7 @@
 #include "env-inl.h"
 #include "node_internals.h"
 #include "node_metadata.h"
+#include "node_process.h"
 #include "node_revert.h"
 #include "util-inl.h"
 
@@ -15,12 +16,52 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
+using v8::Name;
 using v8::NewStringType;
 using v8::None;
 using v8::Object;
+using v8::PropertyCallbackInfo;
 using v8::SideEffectType;
 using v8::String;
 using v8::Value;
+
+static void ProcessTitleGetter(Local<Name> property,
+                               const PropertyCallbackInfo<Value>& info) {
+  char buffer[512];
+  uv_get_process_title(buffer, sizeof(buffer));
+  info.GetReturnValue().Set(
+      String::NewFromUtf8(info.GetIsolate(), buffer, NewStringType::kNormal)
+          .ToLocalChecked());
+}
+
+static void ProcessTitleSetter(Local<Name> property,
+                               Local<Value> value,
+                               const PropertyCallbackInfo<void>& info) {
+  node::Utf8Value title(info.GetIsolate(), value);
+  TRACE_EVENT_METADATA1(
+      "__metadata", "process_name", "name", TRACE_STR_COPY(*title));
+  uv_set_process_title(*title);
+}
+
+static void DebugPortGetter(Local<Name> property,
+                            const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  int port = env->inspector_host_port()->port();
+  info.GetReturnValue().Set(port);
+}
+
+static void DebugPortSetter(Local<Name> property,
+                            Local<Value> value,
+                            const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  int32_t port = value->Int32Value(env->context()).FromMaybe(0);
+  env->inspector_host_port()->set_port(static_cast<int>(port));
+}
+
+static void GetParentProcessId(Local<Name> property,
+                               const PropertyCallbackInfo<Value>& info) {
+  info.GetReturnValue().Set(uv_os_getppid());
+}
 
 Local<Object> CreateProcessObject(Environment* env,
                                   const std::vector<std::string>& args,
@@ -36,6 +77,7 @@ Local<Object> CreateProcessObject(Environment* env,
                               ->NewInstance(context)
                               .ToLocalChecked();
 
+  // process.title
   auto title_string = FIXED_ONE_BYTE_STRING(env->isolate(), "title");
   CHECK(process->SetAccessor(
       env->context(),
@@ -100,7 +142,7 @@ Local<Object> CreateProcessObject(Environment* env,
                ToV8Value(env->context(), exec_args)
                    .ToLocalChecked()).FromJust();
 
-  // create process.env
+  // process.env
   process
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(env->isolate(), "env"),
@@ -113,6 +155,9 @@ Local<Object> CreateProcessObject(Environment* env,
   CHECK(process->SetAccessor(env->context(),
                              FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
                              GetParentProcessId).FromJust());
+
+  // TODO(joyeecheung): the following process properties that are set using
+  // parsed CLI flags should be migrated to `internal/options` in JS land.
 
   // -e, --eval
   // TODO(addaleax): Remove this.
@@ -190,13 +235,13 @@ Local<Object> CreateProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
-  // TODO(refack): move the following 4 to `node_config`
   // --inspect-brk
   if (env->options()->debug_options().wait_for_connect()) {
     READONLY_DONT_ENUM_PROPERTY(process,
                                 "_breakFirstLine", True(env->isolate()));
   }
 
+  // --inspect-brk-node
   if (env->options()->debug_options().break_node_first_line) {
     READONLY_DONT_ENUM_PROPERTY(process,
                                 "_breakNodeFirstLine", True(env->isolate()));
@@ -224,6 +269,7 @@ Local<Object> CreateProcessObject(Environment* env,
   SECURITY_REVERSIONS(V)
 #undef V
 
+  // process.execPath
   {
     size_t exec_path_len = 2 * PATH_MAX;
     std::vector<char> exec_path(exec_path_len);
@@ -242,12 +288,17 @@ Local<Object> CreateProcessObject(Environment* env,
                  exec_path_value).FromJust();
   }
 
+  // process.debugPort
   auto debug_port_string = FIXED_ONE_BYTE_STRING(env->isolate(), "debugPort");
   CHECK(process->SetAccessor(env->context(),
                              debug_port_string,
                              DebugPortGetter,
                              env->is_main_thread() ? DebugPortSetter : nullptr,
                              env->as_external()).FromJust());
+
+  // process._rawDebug: may be overwritten later in JS land, but should be
+  // availbale from the begining for debugging purposes
+  env->SetMethod(process, "_rawDebug", RawDebug);
 
   return scope.Escape(process);
 }
