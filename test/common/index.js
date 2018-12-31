@@ -683,6 +683,8 @@ function runWithInvalidFD(func) {
 }
 
 function requireFlags(...flags) {
+  if (require('cluster').isWorker)
+    return;
   let missing = flags.filter((flag) => !process.execArgv.includes(flag));
 
   // Special handling for worker_threads.
