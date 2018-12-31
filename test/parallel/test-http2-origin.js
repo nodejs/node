@@ -70,6 +70,14 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
         }
       );
     });
+    const longInput = 'http://foo.bar' + 'a'.repeat(16383);
+    throws(
+      () => session.origin(longInput),
+      {
+        code: 'ERR_HTTP2_ORIGIN_LENGTH',
+        name: 'TypeError [ERR_HTTP2_ORIGIN_LENGTH]'
+      }
+    );
   }));
 
   server.listen(0, mustCall(() => {
