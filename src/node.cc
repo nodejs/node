@@ -124,8 +124,6 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::MicrotasksPolicy;
-using v8::NewStringType;
-using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Script;
@@ -584,82 +582,6 @@ void Exit(const FunctionCallbackInfo<Value>& args) {
   v8_platform.StopTracingAgent();
   int code = args[0]->Int32Value(env->context()).FromMaybe(0);
   env->Exit(code);
-}
-
-static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
-                                      const char* warning,
-                                      const char* type = nullptr,
-                                      const char* code = nullptr) {
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  Local<Object> process = env->process_object();
-  Local<Value> emit_warning;
-  if (!process->Get(env->context(),
-                    env->emit_warning_string()).ToLocal(&emit_warning)) {
-    return Nothing<bool>();
-  }
-
-  if (!emit_warning->IsFunction()) return Just(false);
-
-  int argc = 0;
-  Local<Value> args[3];  // warning, type, code
-
-  // The caller has to be able to handle a failure anyway, so we might as well
-  // do proper error checking for string creation.
-  if (!String::NewFromUtf8(env->isolate(),
-                           warning,
-                           NewStringType::kNormal).ToLocal(&args[argc++])) {
-    return Nothing<bool>();
-  }
-  if (type != nullptr) {
-    if (!String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(type),
-                                NewStringType::kNormal)
-                                    .ToLocal(&args[argc++])) {
-      return Nothing<bool>();
-    }
-    if (code != nullptr &&
-        !String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(code),
-                                NewStringType::kNormal)
-                                    .ToLocal(&args[argc++])) {
-      return Nothing<bool>();
-    }
-  }
-
-  // MakeCallback() unneeded because emitWarning is internal code, it calls
-  // process.emit('warning', ...), but does so on the nextTick.
-  if (emit_warning.As<Function>()->Call(env->context(),
-                                        process,
-                                        argc,
-                                        args).IsEmpty()) {
-    return Nothing<bool>();
-  }
-  return Just(true);
-}
-
-
-// Call process.emitWarning(str), fmt is a snprintf() format string
-Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...) {
-  char warning[1024];
-  va_list ap;
-
-  va_start(ap, fmt);
-  vsnprintf(warning, sizeof(warning), fmt, ap);
-  va_end(ap);
-
-  return ProcessEmitWarningGeneric(env, warning);
-}
-
-
-Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
-                                          const char* warning,
-                                          const char* deprecation_code) {
-  return ProcessEmitWarningGeneric(env,
-                                   warning,
-                                   "DeprecationWarning",
-                                   deprecation_code);
 }
 
 static void OnMessage(Local<Message> message, Local<Value> error) {
@@ -1164,18 +1086,13 @@ void RunBeforeExit(Environment* env) {
 void EmitBeforeExit(Environment* env) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-  Local<Object> process_object = env->process_object();
-  Local<String> exit_code = env->exit_code_string();
-  Local<Value> args[] = {
-    FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
-    process_object->Get(env->context(), exit_code).ToLocalChecked()
-        ->ToInteger(env->context()).ToLocalChecked()
-  };
-  MakeCallback(env->isolate(),
-               process_object, "emit", arraysize(args), args,
-               {0, 0}).ToLocalChecked();
+  Local<Value> exit_code = env->process_object()
+                               ->Get(env->context(), env->exit_code_string())
+                               .ToLocalChecked()
+                               ->ToInteger(env->context())
+                               .ToLocalChecked();
+  ProcessEmit(env, "beforeExit", exit_code).ToLocalChecked();
 }
-
 
 int EmitExit(Environment* env) {
   // process.emit('exit')
@@ -1189,15 +1106,7 @@ int EmitExit(Environment* env) {
   Local<String> exit_code = env->exit_code_string();
   int code = process_object->Get(env->context(), exit_code).ToLocalChecked()
       ->Int32Value(env->context()).ToChecked();
-
-  Local<Value> args[] = {
-    FIXED_ONE_BYTE_STRING(env->isolate(), "exit"),
-    Integer::New(env->isolate(), code)
-  };
-
-  MakeCallback(env->isolate(),
-               process_object, "emit", arraysize(args), args,
-               {0, 0}).ToLocalChecked();
+  ProcessEmit(env, "exit", Integer::New(env->isolate(), code));
 
   // Reload exit code, it may be changed by `emit('exit')`
   return process_object->Get(env->context(), exit_code).ToLocalChecked()
