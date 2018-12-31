@@ -168,8 +168,10 @@ class NodeTraceStateObserver :
       TRACE_EVENT_METADATA1("__metadata", "process_name",
                             "name", TRACE_STR_COPY(name_buffer));
     }
-    TRACE_EVENT_METADATA1("__metadata", "version",
-                          "node", NODE_VERSION_STRING);
+    TRACE_EVENT_METADATA1("__metadata",
+                          "version",
+                          "node",
+                          per_process::metadata.versions.node.c_str());
     TRACE_EVENT_METADATA1("__metadata", "thread_name",
                           "name", "JavaScriptMainThread");
 
@@ -184,13 +186,15 @@ class NodeTraceStateObserver :
 
     trace_process->EndDictionary();
 
-    trace_process->SetString("arch", NODE_ARCH);
-    trace_process->SetString("platform", NODE_PLATFORM);
+    trace_process->SetString("arch", per_process::metadata.arch.c_str());
+    trace_process->SetString("platform",
+                             per_process::metadata.platform.c_str());
 
     trace_process->BeginDictionary("release");
-    trace_process->SetString("name", NODE_RELEASE);
+    trace_process->SetString("name",
+                             per_process::metadata.release.name.c_str());
 #if NODE_VERSION_IS_LTS
-    trace_process->SetString("lts", NODE_VERSION_LTS_CODENAME);
+    trace_process->SetString("lts", per_process::metadata.release.lts.c_str());
 #endif
     trace_process->EndDictionary();
     TRACE_EVENT_METADATA1("__metadata", "node",
@@ -839,54 +843,29 @@ void SetupProcessObject(Environment* env,
 #undef V
 
   // process.arch
-  READONLY_PROPERTY(process, "arch", OneByteString(env->isolate(), NODE_ARCH));
+  READONLY_STRING_PROPERTY(process, "arch", per_process::metadata.arch);
 
   // process.platform
-  READONLY_PROPERTY(process,
-                    "platform",
-                    OneByteString(env->isolate(), NODE_PLATFORM));
+  READONLY_STRING_PROPERTY(process, "platform", per_process::metadata.platform);
 
   // process.release
   Local<Object> release = Object::New(env->isolate());
   READONLY_PROPERTY(process, "release", release);
-  READONLY_PROPERTY(release, "name",
-                    OneByteString(env->isolate(), NODE_RELEASE));
-
+  READONLY_STRING_PROPERTY(release, "name", per_process::metadata.release.name);
 #if NODE_VERSION_IS_LTS
-  READONLY_PROPERTY(release, "lts",
-                    OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
-#endif
+  READONLY_STRING_PROPERTY(release, "lts", per_process::metadata.release.lts);
+#endif  // NODE_VERSION_IS_LTS
 
-// if this is a release build and no explicit base has been set
-// substitute the standard release download URL
-#ifndef NODE_RELEASE_URLBASE
-# if NODE_VERSION_IS_RELEASE
-#  define NODE_RELEASE_URLBASE "https://nodejs.org/download/release/"
-# endif
-#endif
-
-#if defined(NODE_RELEASE_URLBASE)
-#  define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
-#  define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
-
-  READONLY_PROPERTY(release,
-                    "sourceUrl",
-                    OneByteString(env->isolate(),
-                    NODE_RELEASE_URLFPFX ".tar.gz"));
-  READONLY_PROPERTY(release,
-                    "headersUrl",
-                    OneByteString(env->isolate(),
-                    NODE_RELEASE_URLFPFX "-headers.tar.gz"));
-#  ifdef _WIN32
-  READONLY_PROPERTY(release,
-                    "libUrl",
-                    OneByteString(env->isolate(),
-                    strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-"
-                                                NODE_ARCH "/node.lib"
-                                              : NODE_RELEASE_URLPFX
-                                                "win-x86/node.lib"));
-#  endif
-#endif
+#ifdef NODE_HAS_RELEASE_URLS
+  READONLY_STRING_PROPERTY(
+      release, "sourceUrl", per_process::metadata.release.source_url);
+  READONLY_STRING_PROPERTY(
+      release, "headersUrl", per_process::metadata.release.headers_url);
+#ifdef _WIN32
+  READONLY_STRING_PROPERTY(
+      release, "libUrl", per_process::metadata.release.lib_url);
+#endif  // _WIN32
+#endif  // NODE_HAS_RELEASE_URLS
 
   // process.argv
   process->Set(env->context(),

@@ -90,4 +90,26 @@ Metadata::Versions::Versions() {
 #endif  // NODE_HAVE_I18N_SUPPORT
 }
 
+Metadata::Release::Release() : name(NODE_RELEASE) {
+#if NODE_VERSION_IS_LTS
+  lts = NODE_VERSION_LTS_CODENAME;
+#endif  // NODE_VERSION_IS_LTS
+
+#ifdef NODE_HAS_RELEASE_URLS
+#define NODE_RELEASE_URLPFX NODE_RELEASE_URLBASE "v" NODE_VERSION_STRING "/"
+#define NODE_RELEASE_URLFPFX NODE_RELEASE_URLPFX "node-v" NODE_VERSION_STRING
+
+  source_url = NODE_RELEASE_URLFPFX ".tar.gz";
+  headers_url = NODE_RELEASE_URLFPFX "-headers.tar.gz";
+#ifdef _WIN32
+  lib_url = strcmp(NODE_ARCH, "ia32") ? NODE_RELEASE_URLPFX "win-" NODE_ARCH
+                                                           "/node.lib"
+                                     : NODE_RELEASE_URLPFX "win-x86/node.lib";
+#endif  // _WIN32
+
+#endif  // NODE_HAS_RELEASE_URLS
+}
+
+Metadata::Metadata() : arch(NODE_ARCH), platform(NODE_PLATFORM) {}
+
 }  // namespace node
