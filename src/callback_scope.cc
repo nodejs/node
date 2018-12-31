@@ -5,11 +5,17 @@
 
 namespace node {
 
+using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
+using v8::String;
+using v8::Value;
 
 using AsyncHooks = Environment::AsyncHooks;
 
@@ -124,6 +130,131 @@ void InternalCallbackScope::Close() {
   if (tick_callback->Call(env_->context(), process, 0, nullptr).IsEmpty()) {
     failed_ = true;
   }
+}
+
+MaybeLocal<Value> InternalMakeCallback(Environment* env,
+                                       Local<Object> recv,
+                                       const Local<Function> callback,
+                                       int argc,
+                                       Local<Value> argv[],
+                                       async_context asyncContext) {
+  CHECK(!recv.IsEmpty());
+  InternalCallbackScope scope(env, recv, asyncContext);
+  if (scope.Failed()) {
+    return MaybeLocal<Value>();
+  }
+
+  Local<Function> domain_cb = env->domain_callback();
+  MaybeLocal<Value> ret;
+  if (asyncContext.async_id != 0 || domain_cb.IsEmpty() || recv.IsEmpty()) {
+    ret = callback->Call(env->context(), recv, argc, argv);
+  } else {
+    std::vector<Local<Value>> args(1 + argc);
+    args[0] = callback;
+    std::copy(&argv[0], &argv[argc], args.begin() + 1);
+    ret = domain_cb->Call(env->context(), recv, args.size(), &args[0]);
+  }
+
+  if (ret.IsEmpty()) {
+    scope.MarkAsFailed();
+    return MaybeLocal<Value>();
+  }
+
+  scope.Close();
+  if (scope.Failed()) {
+    return MaybeLocal<Value>();
+  }
+
+  return ret;
+}
+
+// Public MakeCallback()s
+
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               const char* method,
+                               int argc,
+                               Local<Value> argv[],
+                               async_context asyncContext) {
+  Local<String> method_string =
+      String::NewFromUtf8(isolate, method, NewStringType::kNormal)
+          .ToLocalChecked();
+  return MakeCallback(isolate, recv, method_string, argc, argv, asyncContext);
+}
+
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               Local<String> symbol,
+                               int argc,
+                               Local<Value> argv[],
+                               async_context asyncContext) {
+  Local<Value> callback_v =
+      recv->Get(isolate->GetCurrentContext(), symbol).ToLocalChecked();
+  if (callback_v.IsEmpty()) return Local<Value>();
+  if (!callback_v->IsFunction()) return Local<Value>();
+  Local<Function> callback = callback_v.As<Function>();
+  return MakeCallback(isolate, recv, callback, argc, argv, asyncContext);
+}
+
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               Local<Function> callback,
+                               int argc,
+                               Local<Value> argv[],
+                               async_context asyncContext) {
+  // Observe the following two subtleties:
+  //
+  // 1. The environment is retrieved from the callback function's context.
+  // 2. The context to enter is retrieved from the environment.
+  //
+  // Because of the AssignToContext() call in src/node_contextify.cc,
+  // the two contexts need not be the same.
+  Environment* env = Environment::GetCurrent(callback->CreationContext());
+  CHECK_NOT_NULL(env);
+  Context::Scope context_scope(env->context());
+  MaybeLocal<Value> ret =
+      InternalMakeCallback(env, recv, callback, argc, argv, asyncContext);
+  if (ret.IsEmpty() && env->makecallback_depth() == 0) {
+    // This is only for legacy compatiblity and we may want to look into
+    // removing/adjusting it.
+    return Undefined(env->isolate());
+  }
+  return ret;
+}
+
+// Legacy MakeCallback()s
+
+Local<Value> MakeCallback(Isolate* isolate,
+                          Local<Object> recv,
+                          const char* method,
+                          int argc,
+                          Local<Value>* argv) {
+  EscapableHandleScope handle_scope(isolate);
+  return handle_scope.Escape(
+      MakeCallback(isolate, recv, method, argc, argv, {0, 0})
+          .FromMaybe(Local<Value>()));
+}
+
+Local<Value> MakeCallback(Isolate* isolate,
+                          Local<Object> recv,
+                          Local<String> symbol,
+                          int argc,
+                          Local<Value>* argv) {
+  EscapableHandleScope handle_scope(isolate);
+  return handle_scope.Escape(
+      MakeCallback(isolate, recv, symbol, argc, argv, {0, 0})
+          .FromMaybe(Local<Value>()));
+}
+
+Local<Value> MakeCallback(Isolate* isolate,
+                          Local<Object> recv,
+                          Local<Function> callback,
+                          int argc,
+                          Local<Value>* argv) {
+  EscapableHandleScope handle_scope(isolate);
+  return handle_scope.Escape(
+      MakeCallback(isolate, recv, callback, argc, argv, {0, 0})
+          .FromMaybe(Local<Value>()));
 }
 
 }  // namespace node
