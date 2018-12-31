@@ -23,6 +23,7 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/basic')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('basic.js', coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
@@ -38,6 +39,7 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/exit-1')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 1);
+  assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('exit-1.js', coverageDirectory);
   assert.ok(fixtureCoverage, 'coverage not found for file');
   // first branch executed.
@@ -55,6 +57,7 @@ function nextdir() {
   if (!common.isWindows) {
     assert.strictEqual(output.signal, 'SIGINT');
   }
+  assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('sigint.js', coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
@@ -70,6 +73,7 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/spawn-subprocess')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
@@ -87,6 +91,7 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/worker')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
@@ -103,6 +108,7 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/spawn-subprocess-no-cov')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('subprocess.js',
                                              coverageDirectory);
   assert.strictEqual(fixtureCoverage, undefined);
@@ -115,11 +121,33 @@ function nextdir() {
     require.resolve('../fixtures/v8-coverage/async-hooks')
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
   const fixtureCoverage = getFixtureCoverage('async-hooks.js',
                                              coverageDirectory);
   assert.ok(fixtureCoverage);
   // first branch executed.
   assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+}
+
+// Outputs coverage when the coverage directory is not absolute.
+{
+  const coverageDirectory = nextdir();
+  const absoluteCoverageDirectory = path.join(tmpdir.path, coverageDirectory);
+  const output = spawnSync(process.execPath, [
+    require.resolve('../fixtures/v8-coverage/basic')
+  ], {
+    cwd: tmpdir.path,
+    env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory }
+  });
+  assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
+  const fixtureCoverage = getFixtureCoverage('basic.js',
+                                             absoluteCoverageDirectory);
+  assert.ok(fixtureCoverage);
+  // first branch executed.
+  assert.strictEqual(fixtureCoverage.functions[1].ranges[0].count, 1);
+  // second branch did not execute.
+  assert.strictEqual(fixtureCoverage.functions[1].ranges[1].count, 0);
 }
 
 // Extracts the coverage object for a given fixture name.
