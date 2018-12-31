@@ -1,9 +1,10 @@
-#include "node.h"
-#include "node_internals.h"
-#include "node_errors.h"
-#include "base_object.h"
 #include "base_object-inl.h"
+#include "base_object.h"
 #include "env-inl.h"
+#include "node.h"
+#include "node_errors.h"
+#include "node_internals.h"
+#include "node_process.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -44,7 +45,6 @@ using v8::Local;
 using v8::Name;
 using v8::NewStringType;
 using v8::Object;
-using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Uint32;
 using v8::Uint32Array;
@@ -197,10 +197,6 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   fields[3] = v8_heap_stats.external_memory();
 }
 
-// Most of the time, it's best to use `console.error` to write
-// to the process.stderr stream.  However, in some cases, such as
-// when debugging the stream.Writable class or the process.nextTick
-// function, it is useful to bypass JavaScript entirely.
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
@@ -246,28 +242,6 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(uptime / 1000);
 }
 
-void ProcessTitleGetter(Local<Name> property,
-                        const PropertyCallbackInfo<Value>& info) {
-  char buffer[512];
-  uv_get_process_title(buffer, sizeof(buffer));
-  info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), buffer,
-      NewStringType::kNormal).ToLocalChecked());
-}
-
-void ProcessTitleSetter(Local<Name> property,
-                        Local<Value> value,
-                        const PropertyCallbackInfo<void>& info) {
-  node::Utf8Value title(info.GetIsolate(), value);
-  TRACE_EVENT_METADATA1("__metadata", "process_name", "name",
-                        TRACE_STR_COPY(*title));
-  uv_set_process_title(*title);
-}
-
-void GetParentProcessId(Local<Name> property,
-                        const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(uv_os_getppid());
-}
-
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -295,22 +269,6 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   }
   args.GetReturnValue().Set(
       Array::New(env->isolate(), handle_v.data(), handle_v.size()));
-}
-
-void DebugPortGetter(Local<Name> property,
-                     const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  int port = env->inspector_host_port()->port();
-  info.GetReturnValue().Set(port);
-}
-
-
-void DebugPortSetter(Local<Name> property,
-                     Local<Value> value,
-                     const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  int32_t port = value->Int32Value(env->context()).FromMaybe(0);
-  env->inspector_host_port()->set_port(static_cast<int>(port));
 }
 
 #ifdef __POSIX__
