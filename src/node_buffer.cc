@@ -1055,38 +1055,12 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// pass Buffer object to load prototype methods
-void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
+void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
   Local<Object> proto = args[0].As<Object>();
   env->set_buffer_prototype_object(proto);
-
-  env->SetMethodNoSideEffect(proto, "asciiSlice", StringSlice<ASCII>);
-  env->SetMethodNoSideEffect(proto, "base64Slice", StringSlice<BASE64>);
-  env->SetMethodNoSideEffect(proto, "latin1Slice", StringSlice<LATIN1>);
-  env->SetMethodNoSideEffect(proto, "hexSlice", StringSlice<HEX>);
-  env->SetMethodNoSideEffect(proto, "ucs2Slice", StringSlice<UCS2>);
-  env->SetMethodNoSideEffect(proto, "utf8Slice", StringSlice<UTF8>);
-
-  env->SetMethod(proto, "asciiWrite", StringWrite<ASCII>);
-  env->SetMethod(proto, "base64Write", StringWrite<BASE64>);
-  env->SetMethod(proto, "latin1Write", StringWrite<LATIN1>);
-  env->SetMethod(proto, "hexWrite", StringWrite<HEX>);
-  env->SetMethod(proto, "ucs2Write", StringWrite<UCS2>);
-  env->SetMethod(proto, "utf8Write", StringWrite<UTF8>);
-
-  if (auto zero_fill_field = env->isolate_data()->zero_fill_field()) {
-    CHECK(args[1]->IsObject());
-    auto binding_object = args[1].As<Object>();
-    auto array_buffer = ArrayBuffer::New(env->isolate(),
-                                         zero_fill_field,
-                                         sizeof(*zero_fill_field));
-    auto name = FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill");
-    auto value = Uint32Array::New(array_buffer, 0, 1);
-    CHECK(binding_object->Set(env->context(), name, value).FromJust());
-  }
 }
 
 
@@ -1096,7 +1070,7 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  env->SetMethod(target, "setupBufferJS", SetupBufferJS);
+  env->SetMethod(target, "setBufferPrototype", SetBufferPrototype);
   env->SetMethodNoSideEffect(target, "createFromString", CreateFromString);
 
   env->SetMethodNoSideEffect(target, "byteLengthUtf8", ByteLengthUtf8);
@@ -1121,6 +1095,32 @@ void Initialize(Local<Object> target,
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kStringMaxLength"),
               Integer::New(env->isolate(), String::kMaxLength)).FromJust();
+
+  env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
+  env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);
+  env->SetMethodNoSideEffect(target, "latin1Slice", StringSlice<LATIN1>);
+  env->SetMethodNoSideEffect(target, "hexSlice", StringSlice<HEX>);
+  env->SetMethodNoSideEffect(target, "ucs2Slice", StringSlice<UCS2>);
+  env->SetMethodNoSideEffect(target, "utf8Slice", StringSlice<UTF8>);
+
+  env->SetMethod(target, "asciiWrite", StringWrite<ASCII>);
+  env->SetMethod(target, "base64Write", StringWrite<BASE64>);
+  env->SetMethod(target, "latin1Write", StringWrite<LATIN1>);
+  env->SetMethod(target, "hexWrite", StringWrite<HEX>);
+  env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
+  env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
+
+  // It can be a nullptr when running inside an isolate where we
+  // do not own the ArrayBuffer allocator.
+  if (uint32_t* zero_fill_field = env->isolate_data()->zero_fill_field()) {
+    Local<ArrayBuffer> array_buffer = ArrayBuffer::New(
+        env->isolate(), zero_fill_field, sizeof(*zero_fill_field));
+    CHECK(target
+              ->Set(env->context(),
+                    FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill"),
+                    Uint32Array::New(array_buffer, 0, 1))
+              .FromJust());
+  }
 }
 
 }  // anonymous namespace

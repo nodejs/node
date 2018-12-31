@@ -233,6 +233,7 @@ v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
                                    size_t byte_offset,
                                    size_t length) {
   v8::Local<v8::Uint8Array> ui = v8::Uint8Array::New(ab, byte_offset, length);
+  CHECK(!env->buffer_prototype_object().IsEmpty());
   v8::Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (mb.IsNothing())
