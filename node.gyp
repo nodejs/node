@@ -450,6 +450,7 @@
         'src/node_perf_common.h',
         'src/node_persistent.h',
         'src/node_platform.h',
+        'src/node_process.h',
         'src/node_revert.h',
         'src/node_root_certs.h',
         'src/node_stat_watcher.h',

@@ -20,9 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "uv.h"
+#include "env-inl.h"
 #include "node.h"
 #include "node_internals.h"
-#include "env-inl.h"
+#include "node_process.h"
 
 namespace node {
 

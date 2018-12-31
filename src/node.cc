@@ -30,6 +30,7 @@
 #include "node_options-inl.h"
 #include "node_perf.h"
 #include "node_platform.h"
+#include "node_process.h"
 #include "node_revert.h"
 #include "node_version.h"
 #include "tracing/traced_value.h"
@@ -586,9 +587,9 @@ void Exit(const FunctionCallbackInfo<Value>& args) {
 }
 
 static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
-                                             const char* warning,
-                                             const char* type = nullptr,
-                                             const char* code = nullptr) {
+                                      const char* warning,
+                                      const char* type = nullptr,
+                                      const char* code = nullptr) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
@@ -746,12 +747,10 @@ void RunBootstrapping(Environment* env) {
 
   // Setting global properties for the bootstrappers to use:
   // - global
-  // - process._rawDebug
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
   global->Set(context, FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global)
       .FromJust();
-  env->SetMethod(process, "_rawDebug", RawDebug);
 
   // Create binding loaders
   std::vector<Local<String>> loaders_params = {

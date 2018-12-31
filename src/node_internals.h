@@ -123,10 +123,6 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
-v8::Local<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
-                                        v8::Isolate* isolate,
-                                        v8::Local<v8::Value> data);
-
 std::string GetHumanReadableProcessName();
 void GetHumanReadableProcessName(char (*name)[1024]);
 
@@ -179,16 +175,6 @@ SlicedArguments::SlicedArguments(
 namespace task_queue {
 void PromiseRejectCallback(v8::PromiseRejectMessage message);
 }  // namespace task_queue
-
-v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
-v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
-                                              const char* warning,
-                                              const char* deprecation_code);
-
-v8::Local<v8::Object> CreateProcessObject(
-    Environment* env,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args);
 
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
@@ -370,23 +356,6 @@ void DisposePlatform();
     TRACING_CATEGORY_NODE "." #one "." #two
 
 // Functions defined in node.cc that are exposed via the bootstrapper object
-
-void RawDebug(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-void DebugPortGetter(v8::Local<v8::Name> property,
-                     const v8::PropertyCallbackInfo<v8::Value>& info);
-void DebugPortSetter(v8::Local<v8::Name> property,
-                     v8::Local<v8::Value> value,
-                     const v8::PropertyCallbackInfo<void>& info);
-
-void GetParentProcessId(v8::Local<v8::Name> property,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
-
-void ProcessTitleGetter(v8::Local<v8::Name> property,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
-void ProcessTitleSetter(v8::Local<v8::Name> property,
-                        v8::Local<v8::Value> value,
-                        const v8::PropertyCallbackInfo<void>& info);
 
 #if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 #define NODE_IMPLEMENTS_POSIX_CREDENTIALS 1
