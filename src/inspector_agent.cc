@@ -370,26 +370,13 @@ class SameThreadInspectorSession : public InspectorSession {
 void NotifyClusterWorkersDebugEnabled(Environment* env) {
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  auto context = env->context();
+  Local<Context> context = env->context();
 
   // Send message to enable debug in cluster workers
-  Local<Object> process_object = env->process_object();
-  Local<Value> emit_fn =
-      process_object->Get(context, FIXED_ONE_BYTE_STRING(isolate, "emit"))
-          .ToLocalChecked();
-  // In case the thread started early during the startup
-  if (!emit_fn->IsFunction())
-    return;
-
   Local<Object> message = Object::New(isolate);
   message->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cmd"),
                FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED")).FromJust();
-  Local<Value> argv[] = {
-    FIXED_ONE_BYTE_STRING(isolate, "internalMessage"),
-    message
-  };
-  MakeCallback(env->isolate(), process_object, emit_fn.As<Function>(),
-               arraysize(argv), argv, {0, 0});
+  ProcessEmit(env, "internalMessage", message);
 }
 
 #ifdef _WIN32
