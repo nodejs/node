@@ -15,9 +15,9 @@ using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -253,36 +253,21 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   int ngroups = getgroups(0, nullptr);
-
   if (ngroups == -1) return env->ThrowErrnoException(errno, "getgroups");
 
-  gid_t* groups = new gid_t[ngroups];
+  std::vector<gid_t> groups(ngroups);
 
-  ngroups = getgroups(ngroups, groups);
-
-  if (ngroups == -1) {
-    delete[] groups;
+  ngroups = getgroups(ngroups, groups.data());
+  if (ngroups == -1)
     return env->ThrowErrnoException(errno, "getgroups");
-  }
 
-  Local<Array> groups_list = Array::New(env->isolate(), ngroups);
-  bool seen_egid = false;
+  groups.resize(ngroups);
   gid_t egid = getegid();
-
-  for (int i = 0; i < ngroups; i++) {
-    groups_list->Set(env->context(), i, Integer::New(env->isolate(), groups[i]))
-        .FromJust();
-    if (groups[i] == egid) seen_egid = true;
-  }
-
-  delete[] groups;
-
-  if (seen_egid == false)
-    groups_list
-        ->Set(env->context(), ngroups, Integer::New(env->isolate(), egid))
-        .FromJust();
-
-  args.GetReturnValue().Set(groups_list);
+  if (std::find(groups.begin(), groups.end(), egid) == groups.end())
+    groups.push_back(egid);
+  MaybeLocal<Value> array = ToV8Value(env->context(), groups);
+  if (!array.IsEmpty())
+    args.GetReturnValue().Set(array.ToLocalChecked());
 }
 
 static void SetGroups(const FunctionCallbackInfo<Value>& args) {

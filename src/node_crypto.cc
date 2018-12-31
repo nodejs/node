@@ -250,22 +250,12 @@ struct CryptoErrorVector : public std::vector<std::string> {
     CHECK(!exception_v.IsEmpty());
 
     if (!empty()) {
-      Local<Array> array = Array::New(env->isolate(), size());
-      CHECK(!array.IsEmpty());
-
-      for (const std::string& string : *this) {
-        const size_t index = &string - &front();
-        Local<String> value =
-            String::NewFromUtf8(env->isolate(), string.data(),
-                                NewStringType::kNormal, string.size())
-            .ToLocalChecked();
-        array->Set(env->context(), index, value).FromJust();
-      }
-
       CHECK(exception_v->IsObject());
       Local<Object> exception = exception_v.As<Object>();
       exception->Set(env->context(),
-                     env->openssl_error_stack(), array).FromJust();
+                     env->openssl_error_stack(),
+                     ToV8Value(env->context(), *this).ToLocalChecked())
+          .FromJust();
     }
 
     return exception_v;

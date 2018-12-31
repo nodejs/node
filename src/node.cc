@@ -889,28 +889,15 @@ void SetupProcessObject(Environment* env,
 #endif
 
   // process.argv
-  Local<Array> arguments = Array::New(env->isolate(), args.size());
-  for (size_t i = 0; i < args.size(); ++i) {
-    arguments->Set(env->context(), i,
-        String::NewFromUtf8(env->isolate(), args[i].c_str(),
-                            NewStringType::kNormal).ToLocalChecked())
-        .FromJust();
-  }
   process->Set(env->context(),
                FIXED_ONE_BYTE_STRING(env->isolate(), "argv"),
-               arguments).FromJust();
+               ToV8Value(env->context(), args).ToLocalChecked()).FromJust();
 
   // process.execArgv
-  Local<Array> exec_arguments = Array::New(env->isolate(), exec_args.size());
-  for (size_t i = 0; i < exec_args.size(); ++i) {
-    exec_arguments->Set(env->context(), i,
-        String::NewFromUtf8(env->isolate(), exec_args[i].c_str(),
-                            NewStringType::kNormal).ToLocalChecked())
-        .FromJust();
-  }
   process->Set(env->context(),
                FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
-               exec_arguments).FromJust();
+               ToV8Value(env->context(), exec_args)
+                   .ToLocalChecked()).FromJust();
 
   // create process.env
   process
@@ -960,17 +947,10 @@ void SetupProcessObject(Environment* env,
   const std::vector<std::string>& preload_modules =
       env->options()->preload_modules;
   if (!preload_modules.empty()) {
-    Local<Array> array = Array::New(env->isolate());
-    for (unsigned int i = 0; i < preload_modules.size(); ++i) {
-      Local<String> module = String::NewFromUtf8(env->isolate(),
-                                                 preload_modules[i].c_str(),
-                                                 NewStringType::kNormal)
-                                 .ToLocalChecked();
-      array->Set(env->context(), i, module).FromJust();
-    }
     READONLY_PROPERTY(process,
                       "_preload_modules",
-                      array);
+                      ToV8Value(env->context(), preload_modules)
+                          .ToLocalChecked());
   }
 
   // --no-deprecation
