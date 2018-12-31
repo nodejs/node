@@ -4,8 +4,21 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <string>
+#include "node_version.h"
 
 namespace node {
+
+// if this is a release build and no explicit base has been set
+// substitute the standard release download URL
+#ifndef NODE_RELEASE_URLBASE
+#if NODE_VERSION_IS_RELEASE
+#define NODE_RELEASE_URLBASE "https://nodejs.org/download/release/"
+#endif  // NODE_VERSION_IS_RELEASE
+#endif  // NODE_RELEASE_URLBASE
+
+#if defined(NODE_RELEASE_URLBASE)
+#define NODE_HAS_RELEASE_URLS
+#endif
 
 #define NODE_VERSIONS_KEYS_BASE(V)                                             \
   V(node)                                                                      \
@@ -42,7 +55,7 @@ namespace node {
 
 class Metadata {
  public:
-  Metadata() = default;
+  Metadata();
   Metadata(Metadata&) = delete;
   Metadata(Metadata&&) = delete;
   Metadata operator=(Metadata&) = delete;
@@ -62,7 +75,28 @@ class Metadata {
 #undef V
   };
 
+  struct Release {
+    Release();
+
+    std::string name;
+#if NODE_VERSION_IS_LTS
+    std::string lts;
+#endif  // NODE_VERSION_IS_LTS
+
+#ifdef NODE_HAS_RELEASE_URLS
+    std::string sourceUrl;
+    std::string headersUrl;
+#ifdef _WIN32
+    std::string libUrl;
+#endif  // _WIN32
+#endif  // NODE_HAS_RELEASE_URLS
+  };
+
   Versions versions;
+  Release release;
+
+  std::string arch;
+  std::string platform;
 };
 
 // Per-process global
