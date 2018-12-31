@@ -17,6 +17,15 @@ v8::Local<v8::Object> CreateEnvVarProxy(v8::Local<v8::Context> context,
 // function, it is useful to bypass JavaScript entirely.
 void RawDebug(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+v8::MaybeLocal<v8::Value> ProcessEmit(Environment* env,
+                                      const char* event,
+                                      v8::Local<v8::Value> message);
+
+v8::Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
+                                          const char* warning,
+                                          const char* type = nullptr,
+                                          const char* code = nullptr);
+
 v8::Maybe<bool> ProcessEmitWarning(Environment* env, const char* fmt, ...);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
                                               const char* warning,
