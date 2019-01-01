@@ -24,7 +24,9 @@ enum reversion {
 #undef V
 };
 
-extern unsigned int reverted;
+namespace per_process {
+extern unsigned int reverted_cve;
+}
 
 inline const char* RevertMessage(const reversion cve) {
 #define V(code, label, msg) case SECURITY_REVERT_##code: return label ": " msg;
@@ -37,7 +39,7 @@ inline const char* RevertMessage(const reversion cve) {
 }
 
 inline void Revert(const reversion cve) {
-  reverted |= 1 << cve;
+  per_process::reverted_cve |= 1 << cve;
   printf("SECURITY WARNING: Reverting %s\n", RevertMessage(cve));
 }
 
@@ -51,7 +53,7 @@ inline void Revert(const char* cve) {
 }
 
 inline bool IsReverted(const reversion cve) {
-  return reverted & (1 << cve);
+  return per_process::reverted_cve & (1 << cve);
 }
 
 inline bool IsReverted(const char* cve) {

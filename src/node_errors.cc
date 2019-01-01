@@ -35,6 +35,10 @@ bool IsExceptionDecorated(Environment* env, Local<Value> er) {
   return false;
 }
 
+namespace per_process {
+static Mutex tty_mutex;
+}  // namespace per_process
+
 void AppendExceptionLine(Environment* env,
                          Local<Value> er,
                          Local<Message> message,
@@ -137,7 +141,7 @@ void AppendExceptionLine(Environment* env,
   // by the caller.
   if (!can_set_arrow || (mode == FATAL_ERROR && !err_obj->IsNativeError())) {
     if (env->printed_error()) return;
-    Mutex::ScopedLock lock(process_mutex);
+    Mutex::ScopedLock lock(per_process::tty_mutex);
     env->set_printed_error(true);
 
     uv_tty_reset_mode();

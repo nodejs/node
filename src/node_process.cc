@@ -50,9 +50,6 @@ using v8::Uint32;
 using v8::Uint32Array;
 using v8::Value;
 
-Mutex process_mutex;
-Mutex environ_mutex;
-
 // Microseconds in a second, as a float, used in CPUUsage() below
 #define MICROS_PER_SEC 1e6
 // used in Hrtime() below
@@ -244,7 +241,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
   double uptime;
 
   uv_update_time(env->event_loop());
-  uptime = uv_now(env->event_loop()) - prog_start_time;
+  uptime = uv_now(env->event_loop()) - per_process::prog_start_time;
 
   args.GetReturnValue().Set(uptime / 1000);
 }
