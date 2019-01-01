@@ -25,13 +25,17 @@ using v8::PropertyCallbackInfo;
 using v8::String;
 using v8::Value;
 
+namespace per_process {
+Mutex env_var_mutex;
+}  // namespace per_process
+
 static void EnvGetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   if (property->IsSymbol()) {
     return info.GetReturnValue().SetUndefined();
   }
-  Mutex::ScopedLock lock(environ_mutex);
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
 #ifdef __POSIX__
   node::Utf8Value key(isolate, property);
   const char* val = getenv(*key);
@@ -80,7 +84,7 @@ static void EnvSetter(Local<Name> property,
       return;
   }
 
-  Mutex::ScopedLock lock(environ_mutex);
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
   node::Utf8Value val(info.GetIsolate(), value);
@@ -100,7 +104,7 @@ static void EnvSetter(Local<Name> property,
 
 static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
-  Mutex::ScopedLock lock(environ_mutex);
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
   int32_t rc = -1;  // Not found unless proven otherwise.
   if (property->IsString()) {
 #ifdef __POSIX__
@@ -127,7 +131,7 @@ static void EnvQuery(Local<Name> property,
 
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
-  Mutex::ScopedLock lock(environ_mutex);
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
   if (property->IsString()) {
 #ifdef __POSIX__
     node::Utf8Value key(info.GetIsolate(), property);
@@ -148,7 +152,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
 
-  Mutex::ScopedLock lock(environ_mutex);
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
   Local<Array> envarr;
   int env_size = 0;
 #ifdef __POSIX__

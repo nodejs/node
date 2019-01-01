@@ -74,6 +74,12 @@ inline char* UncheckedCalloc(size_t n);
 template <typename T>
 inline T MultiplyWithOverflowCheck(T a, T b);
 
+namespace per_process {
+// Tells whether the per-process V8::Initialize() is called and
+// if it is safe to call v8::Isolate::GetCurrent().
+extern bool v8_initialized;
+}  // namespace per_process
+
 // Used by the allocation functions when allocation fails.
 // Thin wrapper around v8::Isolate::LowMemoryNotification() that checks
 // whether V8 is initialized.

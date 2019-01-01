@@ -769,7 +769,7 @@ static X509_STORE* NewRootCertStore() {
   if (*system_cert_path != '\0') {
     X509_STORE_load_locations(store, system_cert_path, nullptr);
   }
-  if (per_process_opts->ssl_openssl_cert_store) {
+  if (per_process::cli_options->ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
   } else {
     for (X509* cert : root_certs_vector) {
@@ -6153,16 +6153,15 @@ void InitCryptoOnce() {
   OPENSSL_no_config();
 
   // --openssl-config=...
-  if (!per_process_opts->openssl_config.empty()) {
+  if (!per_process::cli_options->openssl_config.empty()) {
     OPENSSL_load_builtin_modules();
 #ifndef OPENSSL_NO_ENGINE
     ENGINE_load_builtin_engines();
 #endif
     ERR_clear_error();
-    CONF_modules_load_file(
-        per_process_opts->openssl_config.c_str(),
-        nullptr,
-        CONF_MFLAGS_DEFAULT_SECTION);
+    CONF_modules_load_file(per_process::cli_options->openssl_config.c_str(),
+                           nullptr,
+                           CONF_MFLAGS_DEFAULT_SECTION);
     int err = ERR_get_error();
     if (0 != err) {
       fprintf(stderr,
@@ -6178,8 +6177,8 @@ void InitCryptoOnce() {
 #ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */
   unsigned long err = 0;  // NOLINT(runtime/int)
-  if (per_process_opts->enable_fips_crypto ||
-      per_process_opts->force_fips_crypto) {
+  if (per_process::cli_options->enable_fips_crypto ||
+      per_process::cli_options->force_fips_crypto) {
     if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
       err = ERR_get_error();
     }
@@ -6242,7 +6241,7 @@ void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
-  CHECK(!per_process_opts->force_fips_crypto);
+  CHECK(!per_process::cli_options->force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
   const bool enabled = FIPS_mode();
   bool enable;

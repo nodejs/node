@@ -41,7 +41,7 @@ static void Initialize(Local<Object> target,
 #ifdef NODE_FIPS_MODE
   READONLY_TRUE_PROPERTY(target, "fipsMode");
   // TODO(addaleax): Use options parser variable instead.
-  if (per_process_opts->force_fips_crypto)
+  if (per_process::cli_options->force_fips_crypto)
     READONLY_TRUE_PROPERTY(target, "fipsForced");
 #endif
 
@@ -69,7 +69,7 @@ static void Initialize(Local<Object> target,
 
   // TODO(addaleax): This seems to be an unused, private API. Remove it?
   READONLY_STRING_PROPERTY(target, "icuDataDir",
-      per_process_opts->icu_data_dir);
+      per_process::cli_options->icu_data_dir);
 
 #endif  // NODE_HAVE_I18N_SUPPORT
 
