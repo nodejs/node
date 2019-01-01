@@ -101,7 +101,7 @@ BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
 }
 
 void LowMemoryNotification() {
-  if (v8_initialized) {
+  if (per_process::v8_initialized) {
     auto isolate = Isolate::GetCurrent();
     if (isolate != nullptr) {
       isolate->LowMemoryNotification();

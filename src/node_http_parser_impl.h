@@ -830,7 +830,7 @@ class Parser : public AsyncWrap, public StreamListener {
   int TrackHeader(size_t len) {
 #ifdef NODE_EXPERIMENTAL_HTTP
     header_nread_ += len;
-    if (header_nread_ >= per_process_opts->max_http_header_size) {
+    if (header_nread_ >= per_process::cli_options->max_http_header_size) {
       llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
       return HPE_USER;
     }
@@ -915,7 +915,8 @@ const parser_settings_t Parser::settings = {
 
 #ifndef NODE_EXPERIMENTAL_HTTP
 void InitMaxHttpHeaderSizeOnce() {
-  const uint32_t max_http_header_size = per_process_opts->max_http_header_size;
+  const uint32_t max_http_header_size =
+      per_process::cli_options->max_http_header_size;
   http_parser_set_max_header_size(max_http_header_size);
 }
 #endif  /* NODE_EXPERIMENTAL_HTTP */

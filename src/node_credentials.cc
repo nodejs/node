@@ -38,7 +38,7 @@ bool SafeGetenv(const char* key, std::string* text) {
 #endif
 
   {
-    Mutex::ScopedLock lock(environ_mutex);
+    Mutex::ScopedLock lock(per_process::env_var_mutex);
     if (const char* value = getenv(key)) {
       *text = value;
       return true;

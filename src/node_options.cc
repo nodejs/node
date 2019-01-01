@@ -17,6 +17,11 @@ using v8::Value;
 
 namespace node {
 
+namespace per_process {
+Mutex cli_options_mutex;
+std::shared_ptr<PerProcessOptions> cli_options{new PerProcessOptions()};
+}  // namespace per_process
+
 void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
 #if HAVE_OPENSSL
   if (use_openssl_ca && use_bundled_ca) {
@@ -397,7 +402,7 @@ HostPort SplitHostPort(const std::string& arg,
 // Return a map containing all the options and their metadata as well
 // as the aliases
 void GetOptions(const FunctionCallbackInfo<Value>& args) {
-  Mutex::ScopedLock lock(per_process_opts_mutex);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -405,13 +410,13 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
   // Temporarily act as if the current Environment's/IsolateData's options were
   // the default options, i.e. like they are the ones we'd access for global
   // options parsing, so that all options are available from the main parser.
-  auto original_per_isolate = per_process_opts->per_isolate;
-  per_process_opts->per_isolate = env->isolate_data()->options();
-  auto original_per_env = per_process_opts->per_isolate->per_env;
-  per_process_opts->per_isolate->per_env = env->options();
+  auto original_per_isolate = per_process::cli_options->per_isolate;
+  per_process::cli_options->per_isolate = env->isolate_data()->options();
+  auto original_per_env = per_process::cli_options->per_isolate->per_env;
+  per_process::cli_options->per_isolate->per_env = env->options();
   OnScopeLeave on_scope_leave([&]() {
-    per_process_opts->per_isolate->per_env = original_per_env;
-    per_process_opts->per_isolate = original_per_isolate;
+    per_process::cli_options->per_isolate->per_env = original_per_env;
+    per_process::cli_options->per_isolate = original_per_isolate;
   });
 
   const auto& parser = PerProcessOptionsParser::instance;
@@ -421,7 +426,7 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
     Local<Value> value;
     const auto& option_info = item.second;
     auto field = option_info.field;
-    PerProcessOptions* opts = per_process_opts.get();
+    PerProcessOptions* opts = per_process::cli_options.get();
     switch (option_info.type) {
       case kNoOp:
       case kV8Option:
