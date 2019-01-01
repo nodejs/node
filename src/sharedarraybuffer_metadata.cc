@@ -89,8 +89,7 @@ SharedArrayBufferMetadata::ForSharedArrayBuffer(
   }
 
   SharedArrayBuffer::Contents contents = source->Externalize();
-  SharedArrayBufferMetadataReference r(new SharedArrayBufferMetadata(
-      contents.Data(), contents.ByteLength()));
+  SharedArrayBufferMetadataReference r(new SharedArrayBufferMetadata(contents));
   if (r->AssignToSharedArrayBuffer(env, context, source).IsNothing())
     return nullptr;
   return r;
@@ -111,17 +110,22 @@ Maybe<bool> SharedArrayBufferMetadata::AssignToSharedArrayBuffer(
                             obj);
 }
 
-SharedArrayBufferMetadata::SharedArrayBufferMetadata(void* data, size_t size)
-  : data(data), size(size) { }
+SharedArrayBufferMetadata::SharedArrayBufferMetadata(
+    const SharedArrayBuffer::Contents& contents)
+  : contents_(contents) { }
 
 SharedArrayBufferMetadata::~SharedArrayBufferMetadata() {
-  free(data);
+  contents_.Deleter()(contents_.Data(),
+                      contents_.ByteLength(),
+                      contents_.DeleterData());
 }
 
 MaybeLocal<SharedArrayBuffer> SharedArrayBufferMetadata::GetSharedArrayBuffer(
     Environment* env, Local<Context> context) {
   Local<SharedArrayBuffer> obj =
-      SharedArrayBuffer::New(env->isolate(), data, size);
+      SharedArrayBuffer::New(env->isolate(),
+                             contents_.Data(),
+                             contents_.ByteLength());
 
   if (AssignToSharedArrayBuffer(env, context, obj).IsNothing())
     return MaybeLocal<SharedArrayBuffer>();
