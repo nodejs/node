@@ -1166,11 +1166,7 @@ void LoadEnvironment(Environment* env) {
       loader_exports.ToLocalChecked(),
       Boolean::New(isolate, env->is_main_thread())};
 
-  if (ExecuteBootstrapper(
-          env, "internal/bootstrap/node", &node_params, &node_args)
-          .IsEmpty()) {
-    return;
-  }
+  ExecuteBootstrapper(env, "internal/bootstrap/node", &node_params, &node_args);
 }
 
 static void StartInspector(Environment* env, const char* path) {
