@@ -46,7 +46,7 @@ class SharedArrayBufferMetadata
   SharedArrayBufferMetadata(const SharedArrayBufferMetadata&) = delete;
 
  private:
-  explicit SharedArrayBufferMetadata(void* data, size_t size);
+  explicit SharedArrayBufferMetadata(const v8::SharedArrayBuffer::Contents&);
 
   // Attach a lifetime tracker object with a reference count to `target`.
   v8::Maybe<bool> AssignToSharedArrayBuffer(
@@ -54,8 +54,7 @@ class SharedArrayBufferMetadata
       v8::Local<v8::Context> context,
       v8::Local<v8::SharedArrayBuffer> target);
 
-  void* data = nullptr;
-  size_t size = 0;
+  v8::SharedArrayBuffer::Contents contents_;
 };
 
 }  // namespace worker
