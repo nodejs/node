@@ -13,7 +13,7 @@
   * [CamelCase for methods, functions, and classes](#camelcase-for-methods-functions-and-classes)
   * [snake\_case for local variables and parameters](#snake_case-for-local-variables-and-parameters)
   * [snake\_case\_ for private class fields](#snake_case_-for-private-class-fields)
-  * [snake\_case\_ for C-like structs](#snake_case_-for-c-like-structs)
+  * [snake\_case for C-like structs](#snake_case-for-c-like-structs)
   * [Space after `template`](#space-after-template)
 * [Memory Management](#memory-management)
   * [Memory allocation](#memory-allocation)
@@ -169,7 +169,7 @@ class Foo {
 };
 ```
 
-### snake\_case\_ for C-like structs
+### snake\_case for C-like structs
 For plain C-like structs snake_case can be used.
 
 ```c++
