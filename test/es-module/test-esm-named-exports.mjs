@@ -3,12 +3,10 @@ import { readFile } from 'fs';
 import assert from 'assert';
 import ok from '../fixtures/es-modules/test-esm-ok.mjs';
 
-const flag =
-  '--loader=./test/fixtures/es-module-loaders/builtin-named-exports-loader.mjs';
-if (!process.execArgv.includes(flag)) {
-  // Include `--experimental-modules` explicitly for workers.
-  requireFlags('--experimental-modules', flag);
-}
+requireFlags(
+  '--experimental-modules',
+  '--loader=./test/fixtures/es-module-loaders/builtin-named-exports-loader.mjs'
+);
 
 assert(ok);
 assert(readFile);
