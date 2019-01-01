@@ -161,7 +161,6 @@
       'lib/internal/socket_list.js',
       'lib/internal/test/binding.js',
       'lib/internal/test/heap.js',
-      'lib/internal/test/unicode.js',
       'lib/internal/timers.js',
       'lib/internal/tls.js',
       'lib/internal/trace_events_async_hooks.js',
