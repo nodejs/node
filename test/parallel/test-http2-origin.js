@@ -70,7 +70,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
         }
       );
     });
-    const longInput = 'http://foo.bar' + 'a'.repeat(16383)
+    const longInput = 'http://foo.bar' + 'a'.repeat(16383);
     throws(
       () => session.origin(longInput),
       {
