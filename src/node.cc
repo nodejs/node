@@ -1085,6 +1085,14 @@ static MaybeLocal<Value> ExecuteBootstrapper(
 }
 
 void LoadEnvironment(Environment* env) {
+  RunBootstrapping(env);
+  StartExecution(env);
+}
+
+void RunBootstrapping(Environment* env) {
+  CHECK(!env->has_run_bootstrapping_code());
+  env->set_has_run_bootstrapping_code(true);
+
   HandleScope handle_scope(env->isolate());
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -1146,11 +1154,24 @@ void LoadEnvironment(Environment* env) {
       loader_exports.ToLocalChecked(),
       Boolean::New(isolate, env->is_main_thread())};
 
-  if (ExecuteBootstrapper(
+  Local<Value> start_execution;
+  if (!ExecuteBootstrapper(
           env, "internal/bootstrap/node", &node_params, &node_args)
-          .IsEmpty()) {
+          .ToLocal(&start_execution)) {
     return;
   }
+
+  if (start_execution->IsFunction())
+    env->set_start_execution_function(start_execution.As<Function>());
+}
+
+void StartExecution(Environment* env) {
+  HandleScope handle_scope(env->isolate());
+  Local<Function> start_execution = env->start_execution_function();
+  if (start_execution.IsEmpty()) return;
+  start_execution->Call(
+      env->context(), Undefined(env->isolate()), 0, nullptr);
+  env->set_start_execution_function(Local<Function>());
 }
 
 static void StartInspector(Environment* env, const char* path) {

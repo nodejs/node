@@ -637,6 +637,14 @@ inline void Environment::set_can_call_into_js(bool can_call_into_js) {
   can_call_into_js_ = can_call_into_js;
 }
 
+inline bool Environment::has_run_bootstrapping_code() const {
+  return has_run_bootstrapping_code_;
+}
+
+inline void Environment::set_has_run_bootstrapping_code(bool value) {
+  has_run_bootstrapping_code_ = value;
+}
+
 inline bool Environment::is_main_thread() const {
   return thread_id_ == 0;
 }

@@ -12,7 +12,6 @@ Error
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at executeUserCode (internal/bootstrap/node.js:*:*)
     at startExecution (internal/bootstrap/node.js:*:*)
-    at startup (internal/bootstrap/node.js:*:*)
 Emitted 'error' event at:
     at process.nextTick (*events_unhandled_error_nexttick.js:*:*)
     at internalTickCallback (internal/process/next_tick.js:*:*)
@@ -20,5 +19,3 @@ Emitted 'error' event at:
     at Function.Module.runMain (internal/modules/cjs/loader.js:*:*)
     at executeUserCode (internal/bootstrap/node.js:*:*)
     at startExecution (internal/bootstrap/node.js:*:*)
-    at startup (internal/bootstrap/node.js:*:*)
-    at internal/bootstrap/node.js:*:*

@@ -724,6 +724,9 @@ bool SafeGetenv(const char* key, std::string* text);
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
 
+void RunBootstrapping(Environment* env);
+void StartExecution(Environment* env);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
